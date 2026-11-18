@@ -10,6 +10,7 @@ fn check_lines_name_decoded_count_and_undecodable_places() {
             .0;
     for binary in ["temper", "temper-box", "temper-engine"] {
         let mut report = Report {
+            checkpoint: None,
             workers: configured(),
             events: Queue::uncapped(),
             elapsed: Duration::ZERO,
@@ -28,6 +29,7 @@ fn check_lines_name_decoded_count_and_undecodable_places() {
             (Undecoded::Frame { transcript: "7".into(), offset: 256 }, "transcript 7 at 256"),
         ] {
             let mut report = Report {
+                checkpoint: None,
                 workers: configured(),
                 events: Queue::uncapped(),
                 elapsed: Duration::ZERO,

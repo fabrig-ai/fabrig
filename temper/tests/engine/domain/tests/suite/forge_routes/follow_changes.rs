@@ -31,6 +31,7 @@ fn follow_owner_and_project_owner_can_act_but_an_unrelated_member_cannot() {
     let a = push(&mut world, b"Fix handoff");
     let owner = world.signed_in.take().unwrap();
     world.send(engine::Event::Party(engine::PartyInput::SignedIn {
+        until: None,
         held: None,
         reply_to: ReplyTo::new(Token::new(170)),
         identity: people::Identity {
@@ -231,9 +232,6 @@ fn follow_acts_refuse_unknown_skipped_nonconsecutive_and_over_bound_entries() {
     world.close();
 }
 fn settle(world: &mut World) {
-    for _ in 0..20 {
-        world.tick();
-    }
     world.until(Until::Ready);
 }
 fn row(world: &World) -> &FollowRow {
@@ -338,6 +336,28 @@ fn unaccepted_follow(passes: u32, gate: Gate, cued: bool, context: bool) -> Worl
         gate,
         None,
         StoryLimits {
+            second_project: true,
+            forge_pages: Some(b"https://forge.example"),
+            project_landing: cued.then(|| {
+                (
+                    2,
+                    temper_fixtures::landing::ProjectLanding {
+                        gate_retries: 2,
+                        gate_timeout: Duration::from_millis(3_600_000),
+                        batch: 1,
+                        combine_main: engine::Combine::Merge,
+                        combine_other: engine::Combine::Squash,
+                        check_timeout: None,
+                        close_job: None,
+                        merge_job: None,
+                        by: temper_fixtures::landing::Way::Queue,
+                        repositories: Box::new([]),
+                        tier_retries: 2,
+                        verification_bound_ms: 7_200_000,
+                        landing_attempts: engine::LANDING_ATTEMPTS,
+                    },
+                )
+            }),
             kinds: true,
             workflow_dispatch: true,
             // A seeded source stream and its ports retain more than the basic fake's 16 commits.
@@ -357,29 +377,7 @@ fn unaccepted_follow(passes: u32, gate: Gate, cued: bool, context: bool) -> Worl
             stall: Some(Duration::from_secs(3600)),
             ..StoryLimits::default()
         },
-    )
-    .with_forge_pages(b"https://forge.example")
-    .with_second_project();
-    if cued {
-        world = world.with_project_landing(
-            2,
-            temper_fixtures::landing::ProjectLanding {
-                gate_retries: 2,
-                gate_timeout: Duration::from_millis(3_600_000),
-                batch: 1,
-                combine_main: engine::Combine::Merge,
-                combine_other: engine::Combine::Squash,
-                check_timeout: None,
-                close_job: None,
-                merge_job: None,
-                by: temper_fixtures::landing::Way::Queue,
-                repositories: Box::new([]),
-                tier_retries: 2,
-                verification_bound_ms: 7_200_000,
-                landing_attempts: engine::LANDING_ATTEMPTS,
-            },
-        );
-    }
+    );
     if cued {
         // At most two check runs per port, across the seed's source stream and drained tail.
         world.fake_env.limits.limits.workflow_runs = 64;
@@ -465,6 +463,17 @@ fn cancel(world: &mut World, task: u64, key: u8) {
     }));
     settle(world);
 }
+/// A follow's next procedure turn can be timer-driven even at a quiescent boundary.
+fn advance_follow_timer(world: &mut World) {
+    if world.root.quiescent()
+        && world.events.is_empty()
+        && world.pending.is_empty()
+        && world.store.pending.is_empty()
+        && let Some(due) = world.root.next_deadline(&world.env)
+    {
+        world.env.now = world.env.now.max(due);
+    }
+}
 fn hint_target(world: &mut World) {
     world.send(engine::Event::Forge(Box::new(forge_top::Event::Hint {
         hint: skein_forge::api::Hint {
@@ -473,7 +482,23 @@ fn hint_target(world: &mut World) {
             key: None,
         },
     })));
-    settle(world);
+    let head = translate::commit(world.fake.branch(b"org/vsr-rs", b"main").expect("target head"));
+    let name = forge_top::Name {
+        forge: TARGET.forge,
+        repository: TARGET.repository,
+        what: forge_top::What::Branch(Box::new([b"main".as_slice().into()])),
+    };
+    let key = Key::Forge(forge_top::Key::BranchHead(name));
+    for _ in 0..TICKS {
+        settle(world);
+        if matches!(world.store.rows.get(&key), Some(Record::Forge { row })
+            if matches!(row.as_ref(), forge_top::Stored::BranchHead(row) if row.commit == head))
+        {
+            return;
+        }
+        advance_follow_timer(world);
+    }
+    panic!("target hint did not settle");
 }
 fn push_target(world: &mut World, change: u64) {
     let row = questions::row(world, change);
@@ -587,9 +612,10 @@ fn accepted_follow_makes_owner_waiting_changes_with_code_words_and_chain() {
     produce(&mut world, a, &producer);
     for _ in 0..temper_engine_domain_world::tier_runs::RUN_TICKS {
         world.tick();
-        if row(&world).queue.len() == 1 {
+        if row(&world).queue.len() == 1 && row(&world).queue[0].state == FollowState::WaitsWord {
             break;
         }
+        advance_follow_timer(&mut world);
     }
     settle(&mut world);
     assert_eq!(

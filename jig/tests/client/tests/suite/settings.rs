@@ -47,6 +47,7 @@ impl Story {
                         },
                         other @ (client::UnlinkedRequest::SignOut
                         | client::UnlinkedRequest::ApprovalAct(_)
+                        | client::UnlinkedRequest::AskedLink(_)
                         | client::UnlinkedRequest::Approval(_)
                         | client::UnlinkedRequest::Authorized(_)) => {
                             panic!("unexpected public request: {other:?}")

@@ -185,7 +185,8 @@ impl App for Ops {
                 let event = match request {
                     jig_client::Request::Exchange { exchange, .. } => jig_client::Event::Lost { exchange },
                     jig_client::Request::OpenStream { .. } => jig_client::Event::StreamGone,
-                    jig_client::Request::Approval(_)
+                    jig_client::Request::AskedLink(_)
+                    | jig_client::Request::Approval(_)
                     | jig_client::Request::Authorized(_)
                     | jig_client::Request::ServiceCredential { .. }
                     | jig_client::Request::CloseStream
@@ -220,6 +221,7 @@ impl App for Ops {
                     }
                     jig_client::UnlinkedRequest::SignOut => jig_client::Event::SignOutLost,
                     jig_client::UnlinkedRequest::ApprovalAct(_)
+                    | jig_client::UnlinkedRequest::AskedLink(_)
                     | jig_client::UnlinkedRequest::Approval(_)
                     | jig_client::UnlinkedRequest::Authorized(_)
                     | jig_client::UnlinkedRequest::Told { .. }

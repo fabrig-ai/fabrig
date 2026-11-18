@@ -3428,6 +3428,7 @@ fn background_single(request: &Request) -> Option<Report> {
         Message::Read(_) => read.measure(),
         Message::Batch(_)
         | Message::Authorize(_)
+        | Message::LinkAsk(_)
         | Message::ApprovalAsk(_)
         | Message::ApprovalRead(_)
         | Message::ApprovalDecide(_)
@@ -3445,6 +3446,7 @@ fn background_single(request: &Request) -> Option<Report> {
         Message::Read(_) => read.encode(&mut writer).expect("read answer"),
         Message::Batch(_)
         | Message::Authorize(_)
+        | Message::LinkAsk(_)
         | Message::ApprovalAsk(_)
         | Message::ApprovalRead(_)
         | Message::ApprovalDecide(_)

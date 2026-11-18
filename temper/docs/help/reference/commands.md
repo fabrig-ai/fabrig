@@ -43,7 +43,7 @@ Reads no directory and no configuration, so it works before temper init. A name 
 
 `temper ctl DIR GROUP VERB [ARGUMENT...] [--json]`
 
-`temper ctl DIR me|inbox|sign-in|sign-out|pending [ARGUMENT...] [--json]`
+`temper ctl DIR me|inbox|sign-in|sign-out|link|pending [ARGUMENT...] [--json]`
 
 `temper ctl DIR --call FILE [--json]`
 
@@ -108,6 +108,33 @@ Makes the previous generation active again, before the patched one's first commi
 - `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.
 
 Stop the deployment first, then start the old binary after going back. Past the patched generation's first commit, going back is restoring a backup.
+
+### temper-engine checkpoint
+
+`temper-engine checkpoint [DIRECTORIES]`
+
+`temper-engine checkpoint --hold NAME [DIRECTORIES] -- COMMAND [ARGUMENT...]`
+
+`temper-engine checkpoint --remove NAME [DIRECTORIES]`
+
+takes a checkpoint of the stopped deployment; --hold runs a command under one's lock, --remove removes one
+
+- `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.
+- `NAME`: A checkpoint name: 20 decimal digits, a hyphen and 16 hexadecimal digits.
+- `COMMAND [ARGUMENT...]`: The child command and its arguments, only with --hold and after --.
+
+--hold and --remove exclude each other. Uses the configuration serve reads. Taking one requires a stopped deployment; holding or removing one also works while it serves. --hold inherits the working directory and environment, sets TEMPER_CHECKPOINT to the checkpoint's absolute directory, and holds its lock until the child is closed. Exit 0 on success, 1 on refusal, 2 for invalid arguments; --hold exits as its child did, 128 plus its terminating signal, or 127 when the command cannot run.
+
+### temper-engine restore
+
+`temper-engine restore NAME [DIRECTORIES]`
+
+restores a checkpoint over the stopped deployment, after a safety checkpoint of it
+
+- `NAME`: A checkpoint name: 20 decimal digits, a hyphen and 16 hexadecimal digits.
+- `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.
+
+Uses the configuration serve reads. Stop the deployment first. The state before restoring is kept as a safety checkpoint; restore that checkpoint to bring it back. Exit 0 on success, 1 on refusal, 2 for invalid arguments.
 
 ### temper-engine help
 
@@ -346,6 +373,22 @@ As temper-engine upgrade --check, above.
 
 As temper-engine upgrade --back, above.
 
+### temper-box checkpoint
+
+`temper-box checkpoint [DIRECTORIES]`
+
+`temper-box checkpoint --hold NAME [DIRECTORIES] -- COMMAND [ARGUMENT...]`
+
+`temper-box checkpoint --remove NAME [DIRECTORIES]`
+
+As temper-engine checkpoint, above.
+
+### temper-box restore
+
+`temper-box restore NAME [DIRECTORIES]`
+
+As temper-engine restore, above.
+
 ### temper-box forge fetch
 
 `temper-box forge fetch [DIRECTORIES] FORGE`
@@ -386,7 +429,7 @@ As temper-engine forge sign-in, above.
 
 `temper-box ctl DIR GROUP VERB [ARGUMENT...] [--json]`
 
-`temper-box ctl DIR me|inbox|sign-in|sign-out|pending [ARGUMENT...] [--json]`
+`temper-box ctl DIR me|inbox|sign-in|sign-out|link|pending [ARGUMENT...] [--json]`
 
 `temper-box ctl DIR --call FILE [--json]`
 

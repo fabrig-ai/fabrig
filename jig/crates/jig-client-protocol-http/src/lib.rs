@@ -11,7 +11,7 @@ pub use public::{Freshness, PUBLIC_KEEP, PublicHeard, PublicPath, freshness, pub
 mod stream;
 use alloc::boxed::Box;
 pub use call::{Call, answered, exchange, stream};
-pub use printed::{Printed, Unlinked, printed};
+pub use printed::{Printed, Unlinked, link_url, printed};
 use skein_lib::bytes;
 pub use stream::{Stream, valid};
 #[derive(Debug, PartialEq, Eq)]

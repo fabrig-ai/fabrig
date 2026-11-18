@@ -7,7 +7,7 @@ directory (temper's `draft/checkpoints.md`, sections 2 to 4 and 5.1,
 milestone C1 of `draft/checkpoints.execution.md`). The component takes it
 through skein-kv's holds for both of its stores (skein's `data/kv.md`,
 2.3), and takes the transcripts and the task logs itself. Restoring one
-is later work (temper's `draft/checkpoints.md`, 5.3).
+is `restoring.md`'s (temper's `draft/checkpoints.md`, 5.3).
 
 ## 1. In one page
 
@@ -74,7 +74,8 @@ it. A checkpoint inside it, laid out as a stopped deployment's directory
   up to its length at C, never linked (4.3). An open writes the
   directory it opens (recovery's next segment, the transcripts' cut), so
   a checkpoint is opened only through a copy of it: `upgrade --check`
-  copies its input (`opening.md`, 5), and a restore will stage one.
+  copies its input (`opening.md`, 5), and a restore stages one
+  (`restoring.md`, 4.4 and 4.5).
 
 ### 2.3 Its record
 
@@ -454,8 +455,6 @@ one always among them:
 
 ## 10. Open questions
 
-- **Restore** (temper's `draft/checkpoints.md`, 5.3): staged from a
-  checkpoint, with its intent and roll-forward, is milestone C2.
 - **A removal deferred at a crash** leaves a transcript file no row
   names (4.4). Transcripts are written only by tasks from before S7,
   so it is rare and small; a sweep of such files is later work.

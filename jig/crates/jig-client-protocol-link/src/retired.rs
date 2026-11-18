@@ -57,7 +57,8 @@ impl Link {
                 }
                 Err(_) => self.retired_unreadable(out),
             },
-            ExchangeKind::Authorize
+            ExchangeKind::LinkAsk
+            | ExchangeKind::Authorize
             | ExchangeKind::Approval(_)
             | ExchangeKind::SignInApproval
             | ExchangeKind::SignIn

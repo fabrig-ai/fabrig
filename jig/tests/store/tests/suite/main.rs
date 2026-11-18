@@ -26,6 +26,7 @@ mod readers;
 mod records;
 mod refused_after_switch;
 mod registry_memory;
+mod restoring;
 mod transcript_golden;
 mod upgrades;
 
@@ -37,5 +38,6 @@ mod fuzzy {
     mod pending_switch;
     #[path = "../readers_fuzzy.rs"]
     mod readers;
+    mod restoring;
     mod upgrades;
 }

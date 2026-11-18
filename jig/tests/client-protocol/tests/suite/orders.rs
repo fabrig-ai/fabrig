@@ -102,6 +102,7 @@ impl World {
                 Request::Answer { attempt, .. } => self.terminals.push((attempt, "answer")),
                 Request::NotKept { attempt } => self.terminals.push((attempt, "not kept")),
                 other @ (Request::Exchange { .. }
+                | Request::AskedLink(_)
                 | Request::Approval(_)
                 | Request::Authorized(_)
                 | Request::Erase { .. }

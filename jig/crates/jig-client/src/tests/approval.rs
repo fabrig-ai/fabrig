@@ -58,7 +58,8 @@ fn an_approval_is_asked_read_and_decided_once_each() {
                     );
                     if record.approve() { Box::from([0]) } else { Box::from([1]) }
                 }
-                other @ (Message::Authorize(_)
+                other @ (Message::LinkAsk(_)
+                | Message::Authorize(_)
                 | Message::SignInApproval(_)
                 | Message::Request(_)
                 | Message::Read(_)

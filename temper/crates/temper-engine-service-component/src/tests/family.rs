@@ -155,6 +155,7 @@ fn deployment_reads_follow_the_box_default_and_committed_welcome_changes() {
         fixtures::restart(&mut service);
         assert_eq!(deployment_welcome(&mut service), under_box, "fresh deployment default");
         service.engine.as_mut().unwrap().step(root::Event::Party(root::PartyInput::SignedIn {
+            until: None,
             held: None,
             reply_to: REPLY,
             identity: people::Identity {

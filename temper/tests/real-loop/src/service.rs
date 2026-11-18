@@ -57,6 +57,7 @@ pub struct ServiceHost {
     pub(crate) notes: Vec<(Time, temper_service::Note)>,
     pub(crate) runs: crate::cluster::Runs,
     pub(crate) tries: std::collections::BTreeMap<u64, jig_domain_tasks::Tries>,
+    tries_revision: Option<u64>,
     pub(crate) cancel_history: crate::cancel_kills::History,
     started_at: Option<Time>,
     pub(crate) service: Option<Driven>,
@@ -172,6 +173,7 @@ impl ServiceHost {
                 &config,
                 &temper_service_shell::jig_directories(&roots),
                 Some(b"/usr/bin/git"),
+                &fixtures::environment(&path),
             )
             .expect("worker part");
             temper_service_core::process::Process::operations_for(
@@ -213,6 +215,7 @@ impl ServiceHost {
             notes: Vec::new(),
             runs: crate::cluster::Runs::default(),
             tries: std::collections::BTreeMap::new(),
+            tries_revision: None,
             cancel_history: crate::cancel_kills::History::default(),
             started_at: None,
             service: None,
@@ -474,6 +477,7 @@ impl ServiceHost {
                 &directories.read().expect("worker document"),
                 &temper_service_shell::jig_directories(&directories),
                 Some(b"/usr/bin/git"),
+                &fixtures::environment(&self.path),
             )
             .expect("worker part");
             if let Some(shape) = &self.cluster {
@@ -732,6 +736,7 @@ impl Host for ServiceHost {
                     &directories.read().expect("worker document"),
                     &temper_service_shell::jig_directories(&directories),
                     Some(b"/usr/bin/git"),
+                    &fixtures::environment(&self.path),
                 )
                 .expect("worker part");
                 let files =
@@ -754,6 +759,7 @@ impl Host for ServiceHost {
                     self.started_at.get_or_insert(now);
                 }
                 self.service = Some(service);
+                self.tries_revision = None;
             }
         }
         if let Some(fetch) = &mut self.fetch {
@@ -799,7 +805,12 @@ impl Host for ServiceHost {
                 }
             }
             service.iterate(now, wall);
-            record_tries(&mut self.tries, &mut self.cancel_history, service, now);
+            if let Some(engine) = service.engine_domain()
+                && self.tries_revision != Some(engine.revision())
+            {
+                self.tries_revision = Some(engine.revision());
+                record_tries(&mut self.tries, &mut self.cancel_history, service, now);
+            }
             while let Some(note) = service.take_listening() {
                 if let temper_service::Note::Engine(temper_service::EngineNote::Listening { listener, addr }) = note {
                     if self.records_seeded && matches!(self.cluster, Some(crate::cluster::Shape::Engine { .. })) {

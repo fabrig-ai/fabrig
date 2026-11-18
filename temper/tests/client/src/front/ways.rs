@@ -139,6 +139,7 @@ fn configured(
         joint.caller = fixtures::asking_member(&mut joint.engine);
     } else {
         joint.engine.send(engine::Event::Party(engine::PartyInput::SignedIn {
+            until: None,
             held: None,
             reply_to: ReplyTo::new(Token::new(700)),
             identity: identity.clone(),
@@ -235,6 +236,7 @@ fn configured(
             joint.caller = fixtures::asking_member(&mut joint.engine);
         } else {
             joint.engine.send(engine::Event::Party(engine::PartyInput::SignedIn {
+                until: None,
                 held: None,
                 reply_to: ReplyTo::new(Token::new(702)),
                 identity,

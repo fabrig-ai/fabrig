@@ -190,6 +190,7 @@ impl Call {
                                     Route::Stream(version) => version,
                                     Route::Public(_)
                                     | Route::Link
+                                    | Route::LinkAsk
                                     | Route::Service
                                     | Route::SignInApproval
                                     | Route::ApprovalAsk

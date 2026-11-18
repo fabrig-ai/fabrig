@@ -9,12 +9,13 @@ use skein_lib::{Secret, Wall};
 pub(crate) enum GetOwner {
     SignIn(u64),
     Service(u64),
+    LinkAskService(u64),
 }
 impl GetOwner {
     pub(crate) fn secret(self) -> SecretOwner {
         match self {
             Self::SignIn(number) => SecretOwner::SignIn(number),
-            Self::Service(number) => SecretOwner::Service(number),
+            Self::Service(number) | Self::LinkAskService(number) => SecretOwner::Service(number),
         }
     }
 }
@@ -67,6 +68,8 @@ impl Component {
                             Waiting::LinkGet { sign_in, .. } => Some(SecretOwner::SignIn(*sign_in)),
                             Waiting::Made { party, .. } => Some(SecretOwner::Service(*party)),
                             Waiting::Moving { .. }
+                            | Waiting::LinkAskWhose { .. }
+                            | Waiting::AskedWhose { .. }
                             | Waiting::ApprovalWhose { .. }
                             | Waiting::ApprovalCore { .. }
                             | Waiting::Core { .. }
@@ -98,14 +101,38 @@ impl Component {
                                     GetOwner::SignIn(sign_in) => {
                                         self.pending
                                             .exchanges
-                                            .insert(exchange, Waiting::Checked { sign_in, body, route })
+                                            .insert(
+                                                exchange,
+                                                Waiting::Checked {
+                                                    sign_in,
+                                                    expires: value.as_ref().expect("accepted value").expires,
+                                                    body,
+                                                    route,
+                                                },
+                                            )
                                             .expect("same get slot");
                                     }
                                     GetOwner::Service(party) => self.service_sign_in(env, exchange, party, out),
+                                    GetOwner::LinkAskService(_) => {
+                                        self.respond(
+                                            exchange,
+                                            routes::link_ask_answer(super::w::LinkAskAnswer::Refused),
+                                        );
+                                    }
                                 }
                             } else {
                                 match owner {
-                                    GetOwner::SignIn(_) => self.denied(env, exchange, route),
+                                    GetOwner::SignIn(number) if route == super::Route::LinkAsk => {
+                                        let owner = GetOwner::LinkAskService(number);
+                                        self.pending
+                                            .exchanges
+                                            .insert(exchange, Waiting::Get { owner, digest, body, route })
+                                            .expect("same get slot");
+                                        out.push(Request::Secrets(SecretsRequest::Get { owner: owner.secret() }));
+                                    }
+                                    GetOwner::SignIn(_) | GetOwner::LinkAskService(_) => {
+                                        self.denied(env, exchange, route);
+                                    }
                                     GetOwner::Service(_) => {
                                         self.respond(exchange, routes::refused());
                                     }
@@ -115,7 +142,9 @@ impl Component {
                         Waiting::Made { sign_in, party } => {
                             self.made(env, exchange, sign_in, party, value.as_ref(), out);
                         }
-                        Waiting::ApprovalWhose { .. }
+                        Waiting::LinkAskWhose { .. }
+                        | Waiting::AskedWhose { .. }
+                        | Waiting::ApprovalWhose { .. }
                         | Waiting::ApprovalCore { .. }
                         | Waiting::Core { .. }
                         | Waiting::SignOut { .. }
@@ -211,6 +240,7 @@ impl Component {
         };
         self.pending.exchanges.insert(exchange, Waiting::Core { held: None }).expect("same get slot");
         out.push(Request::Core(Box::new(core::Event::SignIn {
+            until: None,
             held: None,
             reply_to: ReplyTo::new(exchange),
             identity,

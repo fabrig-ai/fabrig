@@ -381,6 +381,82 @@ const LONG_TITLE: &str =
     "Export widget's table as CSV with visible columns, localized headings and a readable filename for monthly reports";
 const CUT_TITLE: &str = "Export widget's table as CSV with visible columns, localized headings and a…";
 
+// Public rows use full units, then calendar words for older endings (client/web/public.md, 3).
+// These are the reader's literals, independent of the view's time formatter.
+const AGO_FORMS: &[&str] = &[
+    "just now",
+    "a minute ago",
+    "N minutes ago",
+    "an hour ago",
+    "N hours ago",
+    "an hour a minute ago",
+    "an hour N minutes ago",
+    "N hours a minute ago",
+    "N hours N minutes ago",
+    "at HH:MM",
+    "yesterday",
+    "Sun",
+    "Mon",
+    "Tue",
+    "Wed",
+    "Thu",
+    "Fri",
+    "Sat",
+    "N MONTH",
+    "N MONTH N",
+];
+const ENDED_PHASES: &[&str] = &["landed", "done", "failed", "ended"];
+const LIVE_PHASES: &[&str] = &[
+    "waiting",
+    "running",
+    "active",
+    "preparing",
+    "held",
+    "waiting for news",
+    "due to run",
+    "preparing a host",
+    "claimed by a host",
+    "executor active",
+    "retrying",
+    "closing",
+];
+
+fn ago_form(time: &str) -> bool {
+    AGO_FORMS.iter().any(|form| {
+        let mut words = time.split(' ');
+        let fits = form.split(' ').all(|part| {
+            let Some(word) = words.next() else { return false };
+            match part {
+                "N" => !word.is_empty() && word.bytes().all(|byte| byte.is_ascii_digit()),
+                "HH:MM" => word.split_once(':').is_some_and(|(hour, minute)| {
+                    hour.len() == 2
+                        && minute.len() == 2
+                        && hour.bytes().chain(minute.bytes()).all(|byte| byte.is_ascii_digit())
+                        && hour.parse::<u8>().is_ok_and(|hour| hour < 24)
+                        && minute.parse::<u8>().is_ok_and(|minute| minute < 60)
+                }),
+                "MONTH" => [
+                    "January",
+                    "February",
+                    "March",
+                    "April",
+                    "May",
+                    "June",
+                    "July",
+                    "August",
+                    "September",
+                    "October",
+                    "November",
+                    "December",
+                ]
+                .contains(&word),
+                literal => word == literal,
+            }
+        });
+        fits && words.next().is_none()
+    })
+}
+
 struct TextBoxes {
     boxes: Vec<(String, skein_browser::boundary::Rect)>,
 }
@@ -408,7 +484,7 @@ impl TextBoxes {
     fn check(&self, width: u32, task: bool) {
         let text = self.boxes.iter().map(|(name, _)| name.as_str()).collect::<Vec<_>>().join("\n");
         assert!(text.contains(CUT_TITLE), "cut title stays readable: {text}");
-        for field in ["Goal ", "task ", "for ", " spent"] {
+        for field in ["Goal ", "task ", " spent"] {
             assert!(text.contains(field), "populated public field {field}: {text}");
         }
         assert!(!text.contains("priority "), "priority is absent: {text}");
@@ -418,12 +494,22 @@ impl TextBoxes {
             .filter(|(name, _)| ["an agent", "a procedure", "a person", "a job"].contains(&name.as_str()))
             .count();
         assert_eq!(executors, usize::from(task), "executor appears on the task page own row alone: {text}");
-        assert!(
-            ["waiting", "running", "active", "preparing", "done", "held", "ended"]
-                .iter()
-                .any(|phase| text.contains(phase)),
-            "phase is populated: {text}"
-        );
+        let mut phases = 0;
+        for (at, (name, _)) in self.boxes.iter().enumerate() {
+            let ended = ENDED_PHASES.contains(&name.as_str());
+            if !ended && !LIVE_PHASES.contains(&name.as_str()) {
+                continue;
+            }
+            phases += 1;
+            let (separator, _) = self.boxes.get(at + 1).expect("separator follows phase");
+            assert_eq!(separator, " · ", "phase and time are separated: {text}");
+            let (time, _) = self.boxes.get(at + 2).expect("time follows phase and separator");
+            assert!(
+                if ended { ago_form(time) } else { time.starts_with("for ") },
+                "public time matches phase {name:?}: {time:?}: {text}"
+            );
+        }
+        assert!(phases > 0, "phase is populated: {text}");
         for (at, (name, rect)) in self.boxes.iter().enumerate() {
             assert!(rect.width > 0 && rect.height > 0, "visible {name}: {rect:?}");
             assert!(rect.x >= 16, "text and navigation keep a gutter: {name}: {rect:?}");

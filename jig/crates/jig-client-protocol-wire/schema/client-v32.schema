@@ -54,6 +54,9 @@ enum SignOutAnswer { signed_out, not_ready }
 record ApprovalAsk {}
 record ApprovalAsked { secret: secret 32 code: fixed 8 expires: u64 }
 enum ApprovalAskAnswer { asked: ApprovalAsked, refused, not_ready, busy }
+record LinkAsk {}
+record LinkAsked { secret: secret 32 expires: u64 }
+enum LinkAskAnswer { asked: LinkAsked, refused, signed_out, not_ready, busy }
 record ApprovalRead { code: fixed 8 }
 record ApprovalWaiting { asked: u64 }
 enum ApprovalState { waiting: ApprovalWaiting, approved, taken, refused, expired, unknown, not_a_browser, signed_out, not_ready, busy }

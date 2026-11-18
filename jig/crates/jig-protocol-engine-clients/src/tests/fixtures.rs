@@ -820,7 +820,9 @@ impl Exchange {
     }
     pub fn approval_sign_in(&mut self, identity: &people::Identity) -> ReplyTo {
         let Some(Request::Core(event)) = self.out.pop() else { panic!("SignIn event") };
-        let core::Event::SignIn { reply_to, identity: given, held } = *event else { panic!("ordinary SignIn") };
+        let core::Event::SignIn { until: None, reply_to, identity: given, held } = *event else {
+            panic!("ordinary SignIn")
+        };
         assert_eq!(&given, identity);
         assert_eq!(held, None);
         reply_to

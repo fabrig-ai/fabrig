@@ -40,7 +40,7 @@ fn figures_apply_named_limits_cap_slots_and_skip_unknown_names_once() {
     values.extend(temper_service_core::limits::list(&own).into_boxed().into_vec());
     values.extend([("future.limit", 99), ("future.limit", 100)]);
     let mut part =
-        startup::worker_part(&fixtures::worker_alone_document(), &config::Directories::working(), None).unwrap();
+        startup::worker_part(&fixtures::worker_alone_document(), &config::Directories::working(), None, &[]).unwrap();
     part.worker.jig.slots = 4;
     let unknown = figures::apply(&mut part, record(3, &values)).unwrap();
     assert_eq!(unknown.into_boxed().as_ref(), [Box::<[u8]>::from(b"future.limit".as_slice())]);
@@ -80,7 +80,7 @@ fn each_moved_member_is_refused_with_its_migration_words() {
         ),
     ] {
         let text = core::str::from_utf8(&base).unwrap().replacen(needle, addition, 1);
-        let found = startup::worker_part(text.as_bytes(), &config::Directories::working(), None).unwrap_err();
+        let found = startup::worker_part(text.as_bytes(), &config::Directories::working(), None, &[]).unwrap_err();
         assert_eq!(found.problems.len(), 1);
         assert_eq!(found.problems.get(0).unwrap().path, path);
         assert_eq!(found.problems.get(0).unwrap().what, startup::What::Jig(config::What::Because(words)));
@@ -88,23 +88,16 @@ fn each_moved_member_is_refused_with_its_migration_words() {
 }
 #[test]
 #[expect(clippy::disallowed_macros, reason = "the migration stories construct supplied machine members as JSON")]
-fn machine_members_check_absolute_claude_and_unique_environment_names() {
-    for entry in [
-        serde_json::json!({"root":"worker","git":null,"claude":"claude"}),
-        serde_json::json!({"root":"worker","git":null,"claude":null}),
-        serde_json::json!({"environment":[{"name":"A","value":"one"},{"name":"A","value":"two"}]}),
-        serde_json::json!({"environment":{}}),
-        serde_json::json!({"environment":[{"name":"A"}]}),
-        serde_json::json!({"claude":"/bin/claude","environment":[{"name":"A","value":"one"}]}),
-    ] {
-        let mut input: serde_json::Value = serde_json::from_slice(&fixtures::worker_alone_document()).unwrap();
-        input["application"]["workers"] = serde_json::json!([entry]);
-        let found = startup::worker_part(&serde_json::to_vec(&input).unwrap(), &config::Directories::working(), None)
-            .unwrap_err();
-        assert_eq!(found.problems.len(), 1);
-        assert_eq!(found.problems.get(0).unwrap().path, config::Path::root().member(b"application").member(b"workers"));
-        assert_eq!(found.problems.get(0).unwrap().what, startup::What::Jig(config::What::Fixed));
-    }
+fn application_workers_is_refused_as_a_whole() {
+    let mut input: serde_json::Value = serde_json::from_slice(&fixtures::worker_alone_document()).unwrap();
+    input["application"]["workers"] = serde_json::json!([
+        {"root":"worker","git":null,"claude":"/bin/claude","environment":[{"name":"A","value":"one"}]}
+    ]);
+    let found = startup::worker_part(&serde_json::to_vec(&input).unwrap(), &config::Directories::working(), None, &[])
+        .unwrap_err();
+    assert_eq!(found.problems.len(), 1);
+    assert_eq!(found.problems.get(0).unwrap().path, config::Path::root().member(b"application").member(b"workers"));
+    assert_eq!(found.problems.get(0).unwrap().what, startup::What::Jig(config::What::Fixed));
 }
 
 #[test]
@@ -142,7 +135,7 @@ fn a_short_figure_names_the_engine_scalar_and_keeps_the_check() {
 
 /// The engine's stock resolved without document overrides, then composed as
 /// its opening does (configuration/figures.md, 2–3).
-fn stock_figures() -> w::Figures {
+pub(super) fn stock_figures() -> w::Figures {
     use temper_engine_service_startup::{limits, stock};
     let mut input: serde_json::Value =
         serde_json::from_slice(include_bytes!("../../../temper-init/template/temper.json")).unwrap();
@@ -172,7 +165,7 @@ fn stock_worker(figures: w::Figures) -> (startup::WorkerPart, crate::settings::A
         b"workers[0].slots",
         skein_lib::Decimal::of(u64::from(figures.places())).as_bytes(),
     );
-    let mut part = startup::worker_part(&input, &config::Directories::working(), None).unwrap();
+    let mut part = startup::worker_part(&input, &config::Directories::working(), None, &[]).unwrap();
     let bytes = temper_worker_shell::agent::figures::configuration(
         &figures,
         Some(std::path::Path::new("/fixture/claude")),

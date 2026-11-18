@@ -115,9 +115,7 @@ fn words_leave_the_question_asked_and_are_offered_with_its_answer() {
     assert_eq!(reply.words.as_ref(), format!("Passed to task {}, this change's producer. Its question still waits, and words do not answer it: Which behavior should hold?. Answer it with message form=answer; read_task on this change gives the question's number.", producer.task).as_bytes());
     assert_eq!(row(&world, change).questions.open[0].stands, Stands::Asked);
     assert_eq!(live_task(&world, producer.task).questions, open);
-    for _ in 0..TICKS {
-        world.tick();
-    }
+    world.advance_ticks(TICKS);
     assert!(!world.assigned.iter().any(|run| run.task == producer.task && run.attempt > producer.attempt));
     answer(&mut world, &requester, change, CALL + 1);
     wait_answer(&mut world, producer.task, change);
@@ -212,9 +210,7 @@ fn a_restart_passes_waiting_words_and_tells_each_once() {
         );
         world.restart(true, true);
         settle_words(&mut world, requester.task, change);
-        for _ in 0..TICKS {
-            world.tick();
-        }
+        world.advance_ticks(TICKS);
         passed(&world, requester.task, change, producer.task);
         told(&world, requester.task, change, producer.task);
     }
@@ -279,9 +275,7 @@ fn a_full_producer_inbox_holds_words_until_release_then_passes_once() {
     let (mut world, requester, change, producer) = up_world(None);
     questions::fill_requester_inbox(&mut world, &producer);
     send(&mut world, &requester, change);
-    for _ in 0..TICKS {
-        world.tick();
-    }
+    world.advance_ticks(TICKS);
     assert!(
         matches!(live_task(&world, change).phase, tasks::Phase::Held { why: tasks::Hold::EffectFailed, .. }),
         "{:?}",
@@ -312,9 +306,7 @@ fn a_full_producer_inbox_holds_words_until_release_then_passes_once() {
     let revision = live_task(&world, change).revisions.hold;
     call(&mut world, &requester, CALL + 1, engine::Tool::Release { target: change, revision, again: None });
     settle_words(&mut world, requester.task, change);
-    for _ in 0..TICKS {
-        world.tick();
-    }
+    world.advance_ticks(TICKS);
     passed(&world, requester.task, change, producer.task);
     told(&world, requester.task, change, producer.task);
     assert_eq!(row(&world, change).delegate, Some((producer.task, Delegate::Produce)));

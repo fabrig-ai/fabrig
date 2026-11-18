@@ -54,6 +54,7 @@ fn opening(step: &Opening) -> &'static str {
     match step {
         Opening::Idle => "idle",
         Opening::Locking => "lock deployment",
+        Opening::Resolving(_) => "finish restore intent",
         Opening::Reading => "read active",
         Opening::SurveyOpen(_) => "open survey directory",
         Opening::SurveyPage { .. } => "list survey directory",
@@ -76,6 +77,7 @@ fn opening(step: &Opening) -> &'static str {
         Opening::SweepPage(_) => "list sweep directory",
         Opening::SweepFile(_) => "remove stray file",
         Opening::SweepRemoving { .. } => "remove stray directory",
+        Opening::RestoreSweepSync { .. } => "sync restore strays",
         Opening::SweepSync { .. } => "sync sweep directory",
         Opening::SweepClose(_) => "close sweep directory",
         Opening::CheckpointSweep(_) => "sweep checkpoint temporaries",

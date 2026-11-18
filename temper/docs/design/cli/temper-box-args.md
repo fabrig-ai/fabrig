@@ -85,6 +85,24 @@ Refused, changing nothing, when the configuration directory already holds temper
 - **Flags:** `--config CONFIG`, `--data DATA`, `--cache CACHE`
 - **Notes:** Stop the deployment first, then start the old binary after going back. Past the patched generation's first commit, going back is restoring a backup.
 
+### `temper-box checkpoint`
+
+- **Set:** public
+- **Forms:** `[DIRECTORIES]`, `--hold NAME [DIRECTORIES] -- COMMAND [ARGUMENT...]`, `--remove NAME [DIRECTORIES]`
+- takes a checkpoint of the stopped deployment; --hold runs a command under one's lock, --remove removes one
+- **Arguments:** `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.; `NAME`: A checkpoint name: 20 decimal digits, a hyphen and 16 hexadecimal digits.; `COMMAND [ARGUMENT...]`: The child command and its arguments, only with --hold and after --.
+- **Flags:** `--config CONFIG`, `--data DATA`, `--cache CACHE`
+- **Notes:** --hold and --remove exclude each other. Uses the configuration serve reads. Taking one requires a stopped deployment; holding or removing one also works while it serves. --hold inherits the working directory and environment, sets TEMPER_CHECKPOINT to the checkpoint's absolute directory, and holds its lock until the child is closed. Exit 0 on success, 1 on refusal, 2 for invalid arguments; --hold exits as its child did, 128 plus its terminating signal, or 127 when the command cannot run.
+
+### `temper-box restore`
+
+- **Set:** public
+- **Forms:** `NAME [DIRECTORIES]`
+- restores a checkpoint over the stopped deployment, after a safety checkpoint of it
+- **Arguments:** `NAME`: A checkpoint name: 20 decimal digits, a hyphen and 16 hexadecimal digits.; `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.
+- **Flags:** `--config CONFIG`, `--data DATA`, `--cache CACHE`
+- **Notes:** Uses the configuration serve reads. Stop the deployment first. The state before restoring is kept as a safety checkpoint; restore that checkpoint to bring it back. Exit 0 on success, 1 on refusal, 2 for invalid arguments.
+
 ### `--config CONFIG`
 
 - **Set:** public
@@ -170,7 +188,7 @@ Refused, changing nothing, when the configuration directory already holds temper
 ### `temper-box ctl`
 
 - **Set:** internal
-- **Forms:** `DIR GROUP VERB [ARGUMENT...] [--json]`, `DIR me|inbox|sign-in|sign-out|pending [ARGUMENT...] [--json]`, `DIR --call FILE [--json]`, `help [GROUP [VERB]]`
+- **Forms:** `DIR GROUP VERB [ARGUMENT...] [--json]`, `DIR me|inbox|sign-in|sign-out|link|pending [ARGUMENT...] [--json]`, `DIR --call FILE [--json]`, `help [GROUP [VERB]]`
 - Act in a deployment as one party, one call a process: the agents' command line.
 - **Arguments:** `DIR`: ctl's private directory for one deployment and one party: its sign-in, its kept requests and the engine's address.; `GROUP`: A group of tools, a noun of temper's or one of the client's own names; temper ctl help lists them.; `VERB`: One of the group's tools; temper ctl help GROUP lists them.; `FILE`: One call as JSON, {"tool": "GROUP VERB", "arguments": {...}}, or - for stdin.
 - **Notes:** temper ctl help prints how to work through it, then the groups. A call holds one of the engine's streams while it runs, a wait for its whole span; past the engine's bound a call says so.

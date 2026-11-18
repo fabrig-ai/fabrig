@@ -97,6 +97,7 @@ impl Sent {
         use jig_client::Message;
         match message {
             Message::Authorize(bytes) => Self::Authorize(bytes.clone()),
+            Message::LinkAsk(_) => unreachable!("journeys do not ask links"),
             Message::ApprovalAsk(bytes) => Self::ApprovalAsk(bytes.clone()),
             Message::ApprovalRead(bytes) => Self::ApprovalRead(bytes.clone()),
             Message::ApprovalDecide(bytes) => Self::ApprovalDecide(bytes.clone()),

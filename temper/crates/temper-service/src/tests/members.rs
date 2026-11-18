@@ -29,6 +29,7 @@ const APPLICATION: &[u8] = br#"{
  "asked":[{"cue":"Hello","turns":[{"lines":[{"text":"Hello"}],"finish":"stop","tokens":1}]}],
  "cued":[{"cue":"Call","turns":[{"lines":[{"call":"inspect","arguments":{"name":"anything"}}],"finish":"tool_calls","tokens":1}]}],
  "otherwise":["Fallback"]}},
+"environment":[{"name":"CARGO_TARGET_DIR","value":"/srv/target"}],
 "limits":{"profile":"standard","overrides":{}}
 }"#;
 

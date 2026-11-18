@@ -95,6 +95,7 @@ pub(crate) fn sign_in(
     reply_to: ReplyTo,
     identity: people::Identity,
     held: Option<u64>,
+    until: Option<skein_lib::Wall>,
 ) -> Queue<Request> {
     let mut out = Queue::uncapped();
     if !core.people.ready() {
@@ -116,6 +117,7 @@ pub(crate) fn sign_in(
             people::Kind::Person
         };
         work.push(Work::Event(Event::People(people::Event::SignedIn {
+            until,
             reply_to,
             person,
             sign_in,

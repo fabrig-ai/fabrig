@@ -223,6 +223,7 @@ impl Fixture {
             | jig_client::Event::Start { .. }
             | jig_client::Event::StartUnlinked { .. }
             | jig_client::Event::SignIn { .. }
+            | jig_client::Event::AskLink
             | jig_client::Event::AskApproval
             | jig_client::Event::ReadApproval { .. }
             | jig_client::Event::DecideApproval { .. }
@@ -248,6 +249,7 @@ impl Fixture {
             jig_client::Event::Start { .. }
             | jig_client::Event::StartUnlinked { .. }
             | jig_client::Event::SignIn { .. }
+            | jig_client::Event::AskLink
             | jig_client::Event::AskApproval
             | jig_client::Event::ReadApproval { .. }
             | jig_client::Event::DecideApproval { .. }
@@ -313,6 +315,7 @@ impl Fixture {
                     );
                 }
                 jig_client::UnlinkedRequest::ApprovalAct(_)
+                | jig_client::UnlinkedRequest::AskedLink(_)
                 | jig_client::UnlinkedRequest::Approval(_)
                 | jig_client::UnlinkedRequest::Authorized(_)
                 | jig_client::UnlinkedRequest::SignOut
@@ -470,6 +473,7 @@ fn copy_client_event(event: &jig_client::Event) -> jig_client::Event {
         | jig_client::Event::Start { .. }
         | jig_client::Event::StartUnlinked { .. }
         | jig_client::Event::SignIn { .. }
+        | jig_client::Event::AskLink
         | jig_client::Event::AskApproval
         | jig_client::Event::ReadApproval { .. }
         | jig_client::Event::DecideApproval { .. }

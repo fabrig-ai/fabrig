@@ -30,6 +30,7 @@ pub fn valid(limits: &Limits) -> bool {
     if limits.wire.signed_in_token_some < 40
         || limits.wire.made_service_credential < 40
         || limits.wire.link_sign_in_secret < 32
+        || limits.wire.link_asked_secret < 32
         || limits.wire.approval_asked_secret < 32
         || limits.wire.approval_sign_in_secret < 32
         || limits.identity_bytes < 8

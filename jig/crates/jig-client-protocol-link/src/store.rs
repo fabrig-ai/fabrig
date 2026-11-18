@@ -75,6 +75,7 @@ impl Link {
             | Message::SignInService
             | Message::SignOut
             | Message::Authorize(_)
+            | Message::LinkAsk(_)
             | Message::ApprovalAsk(_)
             | Message::ApprovalRead(_)
             | Message::ApprovalDecide(_)
@@ -98,6 +99,7 @@ impl Link {
             | Message::SignInService
             | Message::SignOut
             | Message::Authorize(_)
+            | Message::LinkAsk(_)
             | Message::ApprovalAsk(_)
             | Message::ApprovalRead(_)
             | Message::ApprovalDecide(_)
@@ -149,6 +151,7 @@ impl Link {
                 | Request::Hello { .. }
                 | Request::ReadAgain { .. }
                 | Request::Read { .. }
+                | Request::AskedLink(_)
                 | Request::Approval(_)
                 | Request::Authorized(_)
                 | Request::Signing { .. }
@@ -165,7 +168,8 @@ impl Link {
             match self.gathered.pop().expect("counted gathered transport") {
                 Gathered::Exchange { exchange, message, credential } => match message {
                     Message::Batch(_) => unreachable!("batches are built only at settling"),
-                    message @ (Message::ApprovalAsk(_)
+                    message @ (Message::LinkAsk(_)
+                    | Message::ApprovalAsk(_)
                     | Message::ApprovalRead(_)
                     | Message::ApprovalDecide(_)
                     | Message::SignInApproval(_)) => self.emit_exchange(exchange, credential, message),

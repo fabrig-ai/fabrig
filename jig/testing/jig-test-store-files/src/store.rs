@@ -681,6 +681,8 @@ impl Store {
             // These worlds supply sets without written sites; routing answers NoSite.
             event @ (Event::Checkpointed { .. }
             | Event::CheckpointRefused { .. }
+            | Event::Restored { .. }
+            | Event::RestoreRefused { .. }
             | Event::CheckpointHeld { .. }
             | Event::CheckpointRemoved { .. }
             | Event::Job { .. }

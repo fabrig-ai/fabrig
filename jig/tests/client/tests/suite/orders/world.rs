@@ -484,6 +484,7 @@ impl World {
                 client::UnlinkedRequest::Down { down } => self.down(down),
                 other @ (client::UnlinkedRequest::SignOut
                 | client::UnlinkedRequest::ApprovalAct(_)
+                | client::UnlinkedRequest::AskedLink(_)
                 | client::UnlinkedRequest::Approval(_)
                 | client::UnlinkedRequest::Authorized(_)) => {
                     panic!("unexpected client duty: {other:?}")
@@ -515,7 +516,8 @@ impl World {
                     self.writes.push_back(Write { saves: Vec::new(), erases });
                 }
                 client::Request::Exchange { exchange, message, .. } => self.wire(exchange, message),
-                other @ (client::Request::Approval(_)
+                other @ (client::Request::AskedLink(_)
+                | client::Request::Approval(_)
                 | client::Request::Authorized(_)
                 | client::Request::ServiceCredential { .. }) => {
                     panic!("unexpected client duty: {other:?}")
@@ -611,6 +613,7 @@ impl World {
             | Message::SignInLink(_)
             | Message::SignInService
             | Message::SignOut
+            | Message::LinkAsk(_)
             | Message::ApprovalAsk(_)
             | Message::ApprovalRead(_)
             | Message::ApprovalDecide(_)

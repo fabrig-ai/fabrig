@@ -89,6 +89,7 @@ pub(crate) const OPEN_CHANGE: &[&str] = &[
     "open-change",
 ];
 pub(crate) const EVERY_TOOL: &[&[&str]] = &[
+    &["link", "--out", "record"],
     &["deployment", "checkpoint"],
     &["milestone", "new", "--project", "1", "--budget", "400", "Store shape", "--key", "milestone"],
     &["milestone", "whole", "812", "--key", "whole"],

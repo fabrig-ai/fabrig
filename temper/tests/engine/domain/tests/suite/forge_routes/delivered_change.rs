@@ -59,9 +59,7 @@ fn an_unanswered_producing_gather_holds_its_row_and_task() {
 #[test]
 fn a_busy_client_retries_then_holds_at_producing() {
     let (mut world, _, task, producer) = preparing(false);
-    for _ in 0..50 {
-        world.tick();
-    }
+    world.advance_ticks(50);
     world.busy_reads = true;
     // Unanswered independent reads occupy the client's bounded slots. Every
     // read of the change's step is then refused Busy at client admission.
@@ -88,9 +86,7 @@ fn a_busy_client_retries_then_holds_at_producing() {
     );
     let before = live_task(&world, task).attempt;
     temper_engine_domain_world::kinds::produce(&mut world, task, &producer);
-    for _ in 0..100 {
-        world.tick();
-    }
+    world.advance_ticks(100);
     assert!(matches!(row(&world, task).change.state, State::Producing { .. }));
     assert_eq!(live_task(&world, task).attempt, before, "read retries cannot park the offered procedure step");
     let bound = world.env.limits.forge.change_policy.stall;
@@ -280,9 +276,7 @@ fn release_with_result_in_record(placed: bool) {
         ))
     );
     world.send(old);
-    for _ in 0..100 {
-        world.tick();
-    }
+    world.advance_ticks(100);
     assert_eq!(row(&world, task).title, after.title, "late answers cannot replace the result");
     assert_eq!(row(&world, task).pull, after.pull, "late answers cannot open another pull");
     assert!(!matches!(row(&world, task).change.state, State::Held { .. }));
@@ -344,9 +338,7 @@ fn a_release_recovering_an_old_end_starts_a_fresh_stall_allowance() {
     seed_projection(&mut world, projection);
     let revision = live_task(&world, task).revisions.hold;
     party(&mut world, 172, people::Ask::Release { project: 1, task, revision, again: None });
-    for _ in 0..100 {
-        world.tick();
-    }
+    world.advance_ticks(100);
     assert!(!matches!(row(&world, task).change.state, State::Held { .. }));
     let released = world
         .store

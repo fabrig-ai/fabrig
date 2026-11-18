@@ -15,6 +15,7 @@ pub enum Class {
     Wait,
     SignIn,
     SignOut,
+    Link,
     Pending,
     Help,
 }
@@ -72,6 +73,8 @@ pub fn class(call: &Call) -> Class {
         Class::SignIn
     } else if tool.name == rows::SIGN_OUT.name {
         Class::SignOut
+    } else if tool.name == rows::LINK.name {
+        Class::Link
     } else if tool.name == rows::PENDING.name {
         Class::Pending
     } else if tool.name == rows::HELP.name {

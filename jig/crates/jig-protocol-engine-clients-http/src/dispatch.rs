@@ -6,6 +6,7 @@ use jig_protocol_engine_clients::Message;
 pub(crate) enum Route {
     Public(jig_protocol_engine_clients::PublicRead),
     Link,
+    LinkAsk,
     Service,
     SignInApproval,
     ApprovalAsk,
@@ -43,6 +44,7 @@ pub(crate) fn route(prefix: &[u8], call: &skein_http::server::Call) -> Route {
         return Route::Missing;
     }
     match path {
+        b"/v1/link/ask" => Route::LinkAsk,
         b"/v1/sign-in/link" => Route::Link,
         b"/v1/sign-in/deployment" => Route::Service,
         b"/v1/sign-in/approval" => Route::SignInApproval,
@@ -127,6 +129,7 @@ pub(crate) fn body_bound(route: &Route, configured: u32) -> u32 {
         ),
         Route::Public(_)
         | Route::Link
+        | Route::LinkAsk
         | Route::Service
         | Route::SignInApproval
         | Route::ApprovalAsk
@@ -146,6 +149,7 @@ pub(crate) fn body_bound(route: &Route, configured: u32) -> u32 {
 }
 pub(crate) fn message(route: &Route, body: Box<[u8]>) -> Option<Message> {
     Some(match route {
+        Route::LinkAsk => Message::LinkAsk(body),
         Route::Link => Message::SignInLink(body),
         Route::Service => Message::SignInService(body),
         Route::SignInApproval => Message::SignInApproval(body),
@@ -223,6 +227,7 @@ impl Route {
             Self::Stream(_) => true,
             Self::Public(_)
             | Self::Link
+            | Self::LinkAsk
             | Self::Service
             | Self::SignInApproval
             | Self::ApprovalAsk

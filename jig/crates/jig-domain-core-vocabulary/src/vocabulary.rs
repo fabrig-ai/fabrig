@@ -801,6 +801,7 @@ pub enum Event {
         reply_to: ReplyTo,
         identity: people::Identity,
         held: Option<u64>,
+        until: Option<Wall>,
     },
     /// Admit a visible subject on a live sign-in, without a request key.
     Watch {

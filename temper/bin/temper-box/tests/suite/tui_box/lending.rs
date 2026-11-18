@@ -90,7 +90,7 @@ impl Peer {
             let mut writer = Writer::new(usize::try_from(answer.measure()).expect("answer size"));
             answer.encode(&mut writer).expect("admitted");
             self.respond(owner, response(&writer.finish()));
-        } else if bytes.starts_with(b"GET /jig/v1/stream ") {
+        } else if bytes.starts_with(format!("GET /jig/v1/stream?version={} ", w::VERSION).as_bytes()) {
             self.stream = Some(owner);
             self.respond(
                 owner,
@@ -228,10 +228,49 @@ fn hello() -> Vec<u8> {
             .expect("served version"),
         )
         .expect("one version");
-    sse(&w::StreamEvent::Hello(
+    let hello =
         w::Hello::new(&w::CEILINGS, w::HelloParts { stream: [7; 16], served, heartbeat: Duration::from_secs(30) })
-            .expect("hello"),
+            .expect("hello");
+    sse(&w::StreamEvent::Opened(
+        w::Opened::new(&w::CEILINGS, w::OpenedParts { hello, me: me() }).expect("opened stream"),
     ))
+}
+fn me() -> w::Owned {
+    let text =
+        || w::DocumentText::new(&w::CEILINGS, w::DocumentTextParts { bytes: Box::new([]), cut: false }).expect("text");
+    let me = w::Me::new(
+        &w::CEILINGS,
+        w::MeParts {
+            party: w::MeParty::new(
+                &w::CEILINGS,
+                w::MePartyParts { number: 17, kind: w::PartyKind::Person, login: text(), name: text() },
+            )
+            .expect("party"),
+            projects: Box::new([]),
+            needs: w::Needs::new(
+                &w::CEILINGS,
+                w::NeedsParts { questions: 0, proposals: 0, escalations: 0, person_tasks: 0 },
+            )
+            .expect("needs"),
+            needs_total: 0,
+            updates: w::Count::new(&w::CEILINGS, w::CountParts { value: 0, limited: false }).expect("count"),
+            results_seen: 0,
+            cut: false,
+            retention: Duration::from_secs(1000),
+            deployment_role: None,
+            providers: Box::new([]),
+            providers_cut: false,
+            key_bytes: 256,
+            redirect_bytes: 256,
+            words_bytes: 8192,
+        },
+    )
+    .expect("me without projects");
+    let value = w::DeliveryValue::Me(me);
+    let mut writer = Writer::new(usize::try_from(value.measure()).expect("size"));
+    value.encode(&mut writer).expect("me document");
+    w::Owned::new(&w::CEILINGS, w::OwnedParts { owner: w::Owner::Jig, version: w::VERSION, record: writer.finish() })
+        .expect("envelope")
 }
 fn terminal(watch: u64) -> Vec<u8> {
     let login = w::TerminalLogin::new(

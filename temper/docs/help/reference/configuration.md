@@ -25,6 +25,7 @@ Shape: `application`. Paths: `application`. The application’s machine parts, r
 - `demo`: demo or null, engine shapes only; required; init writes object. The playground’s scripted model, or null for none.
 - `welcome`: refused: moved: the welcome is a setting; change it with temper ctl settings
 - `limits`: application-limits; required; init writes object. The application limits profile and named overrides.
+- `environment`: list of environment-entry, standalone and worker alone only; absent or empty inherits HOME then PATH; entries keep their order, adding HOME then PATH where omitted; optional; init leaves it out. The agents’ variables; only missing HOME and PATH come from the worker’s process.
 - `workers`: refused: moved: a worker's workspaces are the data directory's; its git is found on PATH
 - `clients`: application-clients, engine shapes only; required; init writes object. The clients’ listener, browser bundle and public origin.
 - `sign_in`: sign-in or null, engine shapes only; required; init writes null. The people’s sign-in registration, or null for none.
@@ -47,6 +48,13 @@ Shape: `application-clients`. Paths: `application.clients`. The clients’ liste
 - `listener`: address, socket address; loopback when printed links or approvals are enabled; required; init writes {"socket":"127.0.0.1:8367"}. The clients’ listener and the address of printed sign-in links.
 - `bundle`: text or null, absolute directory; at most 1,048,576 bytes; required; init writes null. The browser bundle directory, or null for the binary’s bundle.
 - `public`: text or null, origin; at most 267 bytes; required; init writes null. The public browser origin, or null for the listener’s address.
+
+## application.environment[]
+
+Shape: `environment-entry`. Paths: `application.environment[]`. One variable given to the agents’ programs.
+
+- `name`: text, at most 1,048,576 bytes; unique names; smith also refuses empty names, = and NUL; required; init leaves it out. The variable’s name.
+- `value`: text, at most 1,048,576 bytes; smith also refuses NUL; required; init leaves it out. The variable’s value.
 
 ## application.push
 

@@ -28,8 +28,15 @@ fn each_read_parses_into_its_call_and_prints_back() {
         assert_eq!(fixtures::printed(&call), Parsed::Call { call, json: false }, "{words:?}");
     }
 }
-const HOST: &[&[&str]] =
-    &[&["sign-in", "link"], &["sign-in", "-"], &["sign-out"], &["pending"], &["help"], &["help", "inbox"]];
+const HOST: &[&[&str]] = &[
+    &["link", "--out", "record"],
+    &["sign-in", "link"],
+    &["sign-in", "-"],
+    &["sign-out"],
+    &["pending"],
+    &["help"],
+    &["help", "inbox"],
+];
 #[test]
 fn each_host_tool_parses_into_its_call_and_prints_back() {
     for words in HOST {

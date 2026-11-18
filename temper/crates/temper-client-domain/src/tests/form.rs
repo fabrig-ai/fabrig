@@ -387,7 +387,7 @@ fn version_refused() -> (crate::Domain, jig_client::Key) {
                 jig_client::Up::Answer { attempt, envelope, answer, why }
             }
             // M4's Authorize place answers it
-            link::Request::Approval(_) | link::Request::Authorized(_) => continue,
+            link::Request::AskedLink(_) | link::Request::Approval(_) | link::Request::Authorized(_) => continue,
             link::Request::Save { .. }
             | link::Request::Erase { .. }
             | link::Request::Kept { .. }

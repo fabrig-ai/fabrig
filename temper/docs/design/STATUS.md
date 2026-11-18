@@ -483,6 +483,15 @@ untouched; the client's wire moved its version for it
 (`domain/forge/change/opened.md`; `draft/mechanical-changes.status.md`,
 M1). Its walk on dev.fabrig.ai follows landing.
 
+A signed-in person's client asks a fresh sign-in link, `temper ctl
+DIRECTORY link --out FILE`, written `0o600` and never printed, so that
+a browser on the host signs in as that person once the printed links
+are spent, with no restart; the link signs in the asker's party alone,
+no longer than the asker, and ctl's refusals of a spent, expired or
+unknown link name both ways to a fresh one (`client/ctl/README.md`, 6.1
+and 7; `protocol/sign-in.md`, 2.3; jig's `protocol/client/sign-in.md`;
+`draft/asked-link.status.md`).
+
 A journey's recording holds placeholders for what varies between walks
 of the same screens and isn't a secret: the TUI's build, every loopback
 port and each approval code, put in by `add` after its proof and checked
@@ -671,6 +680,7 @@ Drafts:
 - [`draft/after-landing-reds-1114.md`](draft/after-landing-reds-1114.status.md)
 - [`draft/agent-docs.md`](draft/agent-docs.status.md)
 - [`draft/ask-temper.md`](draft/ask-temper.status.md)
+- [`draft/asked-link.md`](draft/asked-link.status.md)
 - [`draft/bench-without-sqlite.md`](draft/bench-without-sqlite.status.md)
 - [`draft/box-link-first.md`](draft/box-link-first.status.md)
 - [`draft/branch-reds.md`](draft/branch-reds.status.md)
@@ -679,7 +689,7 @@ Drafts:
 - [`draft/change-landing-fixes.md`](draft/change-landing-fixes.status.md)
 - [`draft/change-stall-after.md`](draft/change-stall-after.status.md)
 - [`draft/chat-reading.md`](draft/chat-reading.status.md)
-- [`draft/checkpoints.md`](draft/checkpoints.status.md) — C1, goal 5099: taking one: the store's checkpoint at a barrier in its ordered work, skein-kv's holds on both stores' files and the component's on transcripts' removals, links for what nothing writes again and copies of the prefixes still appended to, its record and a fresh manifest, a temporary renamed into place and swept at open, the newest `store.checkpoints.keep` kept, a held lock skipped; `temper-engine checkpoint` over a stopped deployment, with `--hold NAME -- COMMAND` and `--remove NAME`, and `temper ctl DIR deployment checkpoint`, an owner's act.
+- [`draft/checkpoints.md`](draft/checkpoints.status.md) — C1, goal 5099: taking one: the store's checkpoint at a barrier in its ordered work, skein-kv's holds on both stores' files and the component's on transcripts' removals, links for what nothing writes again and copies of the prefixes still appended to, its record and a fresh manifest, a temporary renamed into place and swept at open, the newest `store.checkpoints.keep` kept, a held lock skipped; `temper-engine checkpoint` over a stopped deployment, with `--hold NAME -- COMMAND` and `--remove NAME`, and `temper ctl DIR deployment checkpoint`, an owner's act. C2, goal 6983: restore: `temper-engine restore NAME` over a stopped deployment, a safety checkpoint first, the next generation and a transcript tree staged from the checkpoint with a manifest naming no previous generation, then a durable intent that the restore and every open roll forward (jig's `protocol/store/restoring.md`; `protocol/checkpoints.md`, 2.5).
 - [`draft/ci-on-forgejo-17.md`](draft/ci-on-forgejo-17.status.md)
 - [`draft/ci-runner-wait.md`](draft/ci-runner-wait.status.md)
 - [`draft/claude-api.md`](draft/claude-api.status.md)

@@ -140,6 +140,7 @@ impl Shell {
                 self.transport.down(self.env.now, request);
             }
             client::Request::Told { .. }
+            | client::Request::AskedLink(_)
             | client::Request::Approval(_)
             | client::Request::Authorized(_)
             | client::Request::ServiceCredential { .. } => {}
@@ -159,6 +160,7 @@ impl Shell {
                 | client::Request::Save { .. }
                 | client::Request::Erase { .. }
                 | client::Request::Told { .. }
+                | client::Request::AskedLink(_)
                 | client::Request::Approval(_)
                 | client::Request::Authorized(_)
                 | client::Request::ServiceCredential { .. } => unreachable!("only exchanges and streams held"),

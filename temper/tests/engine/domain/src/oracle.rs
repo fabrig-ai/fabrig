@@ -47,6 +47,15 @@ pub struct Snapshot {
 impl Snapshot {
     #[must_use]
     pub fn new(rows: &BTreeMap<Key, Record>, wall: skein_lib::Wall) -> Self {
+        let mut snapshot = Self::reads_only(rows, wall);
+        snapshot.rows = rows.clone();
+        snapshot
+    }
+
+    /// Capture public queries without copying durable rows. This snapshot is for
+    /// answer comparisons only; row-comparing oracles use `new`.
+    #[must_use]
+    pub fn reads_only(rows: &BTreeMap<Key, Record>, wall: skein_lib::Wall) -> Self {
         let sessions: Vec<_> = rows
             .values()
             .filter_map(|row| {
@@ -67,7 +76,7 @@ impl Snapshot {
                 }
             }
         }
-        Self { rows: rows.clone(), wall, queries, answers: Vec::new() }
+        Self { rows: BTreeMap::new(), wall, queries, answers: Vec::new() }
     }
 
     pub fn compare_rows(&self, rows: &BTreeMap<Key, Record>) -> Result<(), String> {
@@ -247,18 +256,7 @@ impl Driver {
                 self.collect();
             }
             self.advance(true);
-            // Domain::quiescent also rejects future fleet deadlines. This
-            // boundary drains immediate commits, deliveries and loads only.
-            if self.root.ready()
-                && !self.root.forge_work_ready()
-                && self.root.held_bytes() == 0
-                && self.events.is_empty()
-                && self.out.is_empty()
-                && self.store.idle()
-                && self.store.held.is_empty()
-                && self.forge.as_ref().is_none_or(crate::forge_stand::ForgeStand::quiescent)
-                && self.store.applied == commit
-            {
+            if self.idle_since(commit) {
                 quiet += 1;
                 if quiet == 2 {
                     return;

@@ -564,6 +564,15 @@ impl OpenRefusal {
                 " holds generations that no `active` names, and this start has changed nothing in it. Name one again from a backup of ",
                 ", or write `active` to name the generation under `generations/` to open, and start again.",
             ],
+            Self::Generations { why: Generations::Unmatched } => &[
+                "",
+                " holds an unfinished restore whose files no longer match its intent, `restore`, and this start has changed nothing in it. Something outside the engine changed them: restore ",
+                " from a backup, or copy one of its checkpoints into place, and start again.",
+            ],
+            Self::Generations { why: Generations::Unfinished } => &[
+                "",
+                " holds a restore that has not finished, and this rehearsal has changed nothing in it. Start the deployment, or take a checkpoint of it, which finishes the restore, then rehearse again.",
+            ],
             Self::Generations { why: Generations::Checkpoints } => &[
                 "",
                 " holds checkpoints but no `active` names a generation, and this start has changed nothing in it. Restore ",
@@ -600,6 +609,10 @@ pub enum Generations {
     Unnamed,
     /// Checkpoints stand but no active names a generation.
     Checkpoints,
+    /// An outstanding restore no longer matches its files.
+    Unmatched,
+    /// A rehearsal cannot finish an outstanding restore.
+    Unfinished,
     /// The active generation's maps do not both stand as directories.
     Missing { generation: u64 },
 }
@@ -656,6 +669,14 @@ pub enum CommitCheck {
 /// What the component answers.
 #[derive(Debug)]
 pub enum Event {
+    Restored {
+        owner: Token,
+        restored: Restored,
+    },
+    RestoreRefused {
+        owner: Token,
+        why: RestoreRefusal,
+    },
     Checkpointed {
         owner: Token,
         checkpoint: Checkpointed,
@@ -940,6 +961,63 @@ impl CheckpointRefusal {
             }
             Self::InUse => Box::from("in use: its lock is held"),
             Self::Missing => Box::from("no such checkpoint"),
+        }
+    }
+}
+
+/// A stopped deployment restored from a checkpoint (protocol/store/restoring.md, 3).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct Restored {
+    pub name: crate::CheckpointName,
+    pub safety: crate::CheckpointName,
+    pub generation: u64,
+    pub linked: u32,
+    pub copied: u32,
+    pub bytes: u64,
+    pub took: u64,
+}
+
+/// A restore's terminal refusal (protocol/store/restoring.md, 3).
+#[derive(Debug)]
+pub enum RestoreRefusal {
+    Busy,
+    Source { why: CheckpointRefusal },
+    Unreadable { path: Box<str> },
+    Deployment,
+    Open { why: OpenRefusal },
+    Safety { why: CheckpointRefusal },
+    Staging { safety: crate::CheckpointName, path: Box<str>, error: Option<skein_io::kernel::Error> },
+    Interrupted { safety: crate::CheckpointName, path: Box<str>, error: skein_io::kernel::Error },
+}
+impl RestoreRefusal {
+    #[must_use]
+    pub fn words(&self) -> Box<str> {
+        match self {
+            Self::Busy => Box::from("the deployment is in use by another process"),
+            Self::Source { why } => why.words(),
+            Self::Unreadable { path } => {
+                alloc::fmt::format(format_args!("the checkpoint's record can't be read, {path}")).into_boxed_str()
+            }
+            Self::Deployment => Box::from("the checkpoint is another deployment's"),
+            Self::Open { .. } => Box::from("the deployment does not open"),
+            Self::Safety { why } => {
+                alloc::fmt::format(format_args!("the safety checkpoint was refused: {}", why.words())).into_boxed_str()
+            }
+            Self::Staging { safety, path, error } => {
+                let failure = match error {
+                    Some(error) => alloc::fmt::format(format_args!("{path}: {error:?}")),
+                    None => alloc::fmt::format(format_args!("{path} is shorter than its record says")),
+                };
+                let safety = crate::checkpoints::files::text(&safety.bytes());
+                alloc::fmt::format(format_args!(
+                    "staging failed, {failure}, and nothing live changed; the safety checkpoint is {safety}"
+                ))
+                .into_boxed_str()
+            }
+            Self::Interrupted { safety, path, error } => {
+                let safety = crate::checkpoints::files::text(&safety.bytes());
+                alloc::fmt::format(format_args!("interrupted after its intent, {path}: {error:?}; the next start finishes the restore; the safety checkpoint is {safety}")).into_boxed_str()
+            }
         }
     }
 }

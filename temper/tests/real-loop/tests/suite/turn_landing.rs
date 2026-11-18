@@ -1,5 +1,6 @@
 //! A ctl answer releases a latched report batch; the setup's scripts prove the red top.
 //! testing/real-loop.md, the turn-landing setup's stories; testing/qa/setups.md, 6.
+use crate::cpu;
 use serde_json::Value;
 use skein_fake_forge_domain::{api, object_bytes};
 use temper_real_loop_world::{Exit, Ran, turn_landing as story};
@@ -170,26 +171,4 @@ fn sha(commit: u64) -> Value {
         write!(head, "{byte:02x}").expect("head hex");
     }
     Value::String(head)
-}
-
-// Synchronous Usage operations measure this process and its reaped children;
-// the metric's readiness adapter hosts no service and starts no second world.
-fn cpu() -> u64 {
-    use skein_io::kernel::{Done, Op, Submit};
-    use skein_lib::{Queue, Token};
-    let mut kernel =
-        skein_shell::Kernel::open_on(skein_shell::Config { operations: 1 }, skein_shell::Backend::Readiness)
-            .expect("CPU accounting");
-    let mut submits = Queue::uncapped();
-    submits.push(Submit { op: Token::new(1), kind: Op::Usage });
-    kernel.submit(&mut submits, skein_shell::Wait::No);
-    let mut completions = Queue::uncapped();
-    kernel.reap(&mut completions);
-    let Done::Usage(usage) = completions.pop().expect("synchronous usage").result.expect("usage read") else {
-        panic!("usage")
-    };
-    [usage.own.user, usage.own.system, usage.children.user, usage.children.system]
-        .into_iter()
-        .map(skein_lib::Duration::as_nanos)
-        .sum()
 }

@@ -47,7 +47,12 @@ impl Component {
     pub(super) fn batch_denied(&mut self, exchange: Token) {
         self.pending
             .exchanges
-            .insert(exchange, Waiting::Checked { sign_in: 0, body: Box::new([]), route: routes::Route::Batch })
+            .insert(exchange, Waiting::Checked {
+                sign_in: 0,
+                expires: skein_lib::Wall::EPOCH,
+                body: Box::new([]),
+                route: routes::Route::Batch,
+            })
             .expect("same credential slot");
     }
     pub(super) fn batch_start(&mut self, env: &Env<Limits>, exchange: Token, sign_in: u64, out: &mut Queue<Request>) {
@@ -92,7 +97,8 @@ impl Component {
                     routes::Route::Watch | routes::Route::Unwatch => {
                         self.watch_route(env, name, sign_in, route, &body, out);
                     }
-                    routes::Route::Batch
+                    routes::Route::LinkAsk
+                    | routes::Route::Batch
                     | routes::Route::ApprovalAsk
                     | routes::Route::ApprovalRead
                     | routes::Route::ApprovalDecide

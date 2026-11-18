@@ -46,6 +46,8 @@ impl Component {
         match waiting {
             Waiting::Read { .. } => (),
             waiting @ (Waiting::Authorize { .. }
+            | Waiting::LinkAskWhose { .. }
+            | Waiting::AskedWhose { .. }
             | Waiting::ApprovalWhose { .. }
             | Waiting::ApprovalCore { .. }
             | Waiting::Core { .. }

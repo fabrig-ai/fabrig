@@ -5,6 +5,10 @@ mod box_binary;
 mod box_kinds;
 #[path = "suite/box_lifetime.rs"]
 mod box_lifetime;
+#[path = "process/checkpoint.rs"]
+mod checkpoint;
+#[path = "process/restore.rs"]
+mod restore;
 use temper_box_kit::box_link;
 #[path = "suite/client_binary.rs"]
 mod client_binary;
@@ -1068,6 +1072,7 @@ fn prepare_owned_worker(members: &mut support::cluster::Members) -> Result<(), S
         &serde_json::to_vec(&document).map_err(|why| format!("worker JSON: {why:?}"))?,
         &directories,
         None,
+        &[],
     )
     .map_err(|why| format!("owned worker: {why:?}"))?;
     let engine: serde_json::Value = serde_json::from_slice(

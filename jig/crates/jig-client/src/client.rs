@@ -1,7 +1,7 @@
 //! Exhaustive routing between the domain and link (client/domain/client/README.md, 3).
 use crate::{
-    Approval, ApprovalCode, Ask, Document, DomainLimits, Handle, Key, Limits, Link, Message, Pending, Readable, Record,
-    Streamed, Taking, Told, Unusable, Watchable, With,
+    Approval, ApprovalCode, Ask, AskedLink, Document, DomainLimits, Handle, Key, Limits, Link, Message, NotAsked,
+    Pending, Readable, Record, Streamed, Taking, Told, Unusable, Watchable, With,
 };
 use alloc::boxed::Box;
 use jig_client_domain::{self as domain, Down, Up};
@@ -14,6 +14,7 @@ pub enum Event {
     SignIn { with: With },
     SignOut,
     Authorize { query: Box<[u8]> },
+    AskLink,
     AskApproval,
     ReadApproval { code: ApprovalCode },
     DecideApproval { code: ApprovalCode, approve: bool },
@@ -59,6 +60,7 @@ pub enum Request {
     },
     Authorized(crate::Authorized),
     Approval(Approval),
+    AskedLink(AskedLink),
     /// Shown once by the host; the client never retains it.
     ServiceCredential {
         party: u64,
@@ -72,6 +74,7 @@ pub enum UnlinkedRequest {
     Told { told: Told },
     Authorized(crate::Authorized),
     Approval(Approval),
+    AskedLink(AskedLink),
     Down { down: Down },
     SignOut,
 }
@@ -262,6 +265,7 @@ impl Client {
                     self.stream_until = Some(now);
                 }
             }
+            Event::AskLink => self.link_step(now, link::Event::AskLink),
             Event::AskApproval => self.link_step(now, link::Event::AskApproval),
             Event::ReadApproval { code } => self.link_step(now, link::Event::ReadApproval { code }),
             Event::DecideApproval { code, approve } => {
@@ -434,6 +438,7 @@ impl Client {
                 assert!(with == With::Transport, "unlinked sign-in belongs to the transport");
                 self.up(env, Up::SignedIn);
             }
+            Event::AskLink => out.push(UnlinkedRequest::AskedLink(AskedLink::NotAsked(NotAsked::Lost))),
             Event::AskApproval => out.push(UnlinkedRequest::ApprovalAct(ApprovalAct::Ask)),
             Event::ReadApproval { code } => out.push(UnlinkedRequest::ApprovalAct(ApprovalAct::Read { code })),
             Event::DecideApproval { code, approve } => {
@@ -772,6 +777,7 @@ impl Client {
             link::Request::Hello { family: Some(family), versions } => {
                 self.up(env, Up::FamilyServed { family, versions });
             }
+            link::Request::AskedLink(answer) => out.push(Request::AskedLink(answer)),
             link::Request::Approval(answer) => out.push(Request::Approval(answer)),
             link::Request::Authorized(answer) => out.push(Request::Authorized(answer)),
             link::Request::Signing { signing } => self.signing(env, signing),
@@ -834,6 +840,7 @@ impl core::fmt::Debug for Event {
             Self::SignIn { with } => f.debug_struct("SignIn").field("with", with).finish(),
             Self::SignOut => f.write_str("SignOut"),
             Self::Authorize { query } => f.debug_struct("Authorize").field("query", query).finish(),
+            Self::AskLink => f.write_str("AskLink"),
             Self::AskApproval => f.write_str("AskApproval"),
             Self::ReadApproval { code } => f.debug_struct("ReadApproval").field("code", code).finish(),
             Self::DecideApproval { code, approve } => {

@@ -164,6 +164,7 @@ fn tracked(message: &Message) -> bool {
         | Message::SignInLink(_)
         | Message::SignInService
         | Message::SignOut
+        | Message::LinkAsk(_)
         | Message::Authorize(_)
         | Message::ApprovalAsk(_)
         | Message::ApprovalRead(_)
@@ -183,6 +184,7 @@ fn member(message: &Message, limits: &w::Limits) -> Option<w::Member> {
         | Message::SignInLink(_)
         | Message::SignInService
         | Message::SignOut
+        | Message::LinkAsk(_)
         | Message::Authorize(_)
         | Message::ApprovalAsk(_)
         | Message::ApprovalRead(_)

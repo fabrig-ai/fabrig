@@ -1,7 +1,7 @@
 //! Startup for temper's standalone binary (protocol/configuration/README.md, section 2).
 // tests::configuration includes the shared integration fixture, which names temper_box_shell::directories.
 extern crate self as temper_box_shell;
-use skein_io::kernel::Exit;
+use skein_io::kernel::{Exit, Fd};
 use skein_shell::Clock;
 use std::{
     ffi::OsString,
@@ -54,6 +54,14 @@ pub enum Command {
     Upgrade {
         directories: Directories,
         request: temper_engine_shell::upgrade::Request,
+    },
+    Checkpoint {
+        directories: Directories,
+        request: temper_engine_shell::checkpoint::Request,
+    },
+    Restore {
+        directories: Directories,
+        name: jig_protocol_store::CheckpointName,
     },
     Usage(&'static skein_shell::Command),
     Claude {
@@ -237,6 +245,14 @@ fn configure_row(
             return temper_engine_shell::upgrade::configure(*mode == "--check", arguments, environment, working)
                 .map(|(directories, request)| Command::Upgrade { directories, request });
         }
+        ["checkpoint"] => {
+            return temper_engine_shell::checkpoint::configure(arguments, environment, working)
+                .map(|(directories, request)| Command::Checkpoint { directories, request });
+        }
+        ["restore"] => {
+            return temper_engine_shell::restore::configure(arguments, environment, working)
+                .map(|(directories, name)| Command::Restore { directories, name });
+        }
         ["--mcp-relay"] => return Ok(Command::Relay),
         ["--program-child"] => return Ok(Command::ProgramChild),
         ["fake", ..] => return fake::configure(row, arguments, environment, working),
@@ -311,6 +327,26 @@ pub fn run(
     let exit = match command {
         Command::Upgrade { directories, request } => {
             return upgrade::run(&directories, &request);
+        }
+        Command::Checkpoint { directories, request } => {
+            let (mut service, deployment) =
+                upgrade::prepare(&directories).map_err(|why| prefixed("temper-box checkpoint", &why))?;
+            service.engine_component().build_name(commit);
+            return temper_engine_shell::checkpoint::run_prepared(
+                "temper-box",
+                &directories,
+                &request,
+                environment,
+                working,
+                service,
+                &deployment,
+            );
+        }
+        Command::Restore { directories, name } => {
+            let (mut service, deployment) =
+                upgrade::prepare(&directories).map_err(|why| prefixed(&format!("{} restore", TABLE.binary), &why))?;
+            service.engine_component().build_name(commit);
+            return temper_engine_shell::restore::run_prepared(TABLE.binary, &directories, name, service, &deployment);
         }
         Command::Overview => {
             print!("{}", TABLE.help());
@@ -394,6 +430,26 @@ fn path(bytes: &[u8]) -> &Path {
 pub use temper_engine_shell::serve::{bundle, github_logs, printed};
 pub type Host = temper_service_shell::Host<Service>;
 pub(crate) use temper_service_shell::{close, file_path, held_refusal, listeners_refusal};
+/// Prepare the standalone service from its document, returning descriptor ownership
+/// to the caller so a checked start can be discarded without retaining roots.
+pub fn prepare(
+    environment: &[EnvironmentEntry],
+    working: &[u8],
+    directories: &Directories,
+    bytes: &[u8],
+    owned: &mut Vec<Fd>,
+) -> Result<Service, String> {
+    prepare_with_store(environment, working, directories, bytes, owned).map(|(service, _)| service)
+}
+fn prepare_with_store(
+    environment: &[EnvironmentEntry],
+    working: &[u8],
+    directories: &Directories,
+    bytes: &[u8],
+    owned: &mut Vec<Fd>,
+) -> Result<(Service, Box<[u8]>), String> {
+    serve::prepare_with_store("temper", environment, working, directories, bytes, owned, true)
+}
 /// The kernel operations a standalone start keeps in flight at most (its ring's size),
 /// derived without retaining its descriptors.
 pub fn operations_in(

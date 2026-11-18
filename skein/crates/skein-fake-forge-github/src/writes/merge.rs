@@ -195,7 +195,15 @@ fn context(out: &mut Writer, name: &[u8], state: Option<a::Check>) -> Option<()>
     out.put(b"\n\n").ok()
 }
 fn message(protection: &a::Protection, pull: &a::Pull, author: u64, queue: bool, capacity: usize) -> Option<Box<[u8]>> {
-    let mut out = Writer::new(capacity);
+    answers::finish(capacity, &Body::MergeRules(protection, pull, author, queue))
+}
+pub(crate) fn message_into(
+    protection: &a::Protection,
+    pull: &a::Pull,
+    author: u64,
+    queue: bool,
+    out: &mut Writer,
+) -> Option<()> {
     out.put(texts::RULES).ok()?;
     out.put(b"\n\n").ok()?;
     if queue {
@@ -204,7 +212,7 @@ fn message(protection: &a::Protection, pull: &a::Pull, author: u64, queue: bool,
     }
     let missing_approvals = approvals(pull, author, protection) < protection.approvals;
     if missing_approvals {
-        texts::approval(&mut out, protection.approvals)?;
+        texts::approval(out, protection.approvals)?;
         out.put(b"\n\n").ok()?;
     }
     let mut missing_context = false;
@@ -212,13 +220,13 @@ fn message(protection: &a::Protection, pull: &a::Pull, author: u64, queue: bool,
         let state = check(pull, name);
         if state != Some(a::Check::Passed) {
             missing_context = true;
-            context(&mut out, name, state)?;
+            context(out, name, state)?;
         }
     }
     if !queue && !missing_approvals && !missing_context {
         return None;
     }
-    answers::finish(out)
+    Some(())
 }
 fn rules(protection: Option<&a::Protection>, pull: &a::Pull, author: u64, queue: bool, limits: &Limits) -> Response {
     let Some(protection) = protection else {

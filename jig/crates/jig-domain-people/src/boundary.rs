@@ -1225,6 +1225,8 @@ pub enum Event {
         kind: Kind,
         /// Authenticated sign-in to keep if it is live and belongs to this identity.
         held: Option<u64>,
+        /// Cap on a new sign-in's expiry; a live held sign-in keeps its saved expiry.
+        until: Option<Wall>,
     },
     /// Read the live sign-in's identity and kind without writing or spending admission room.
     Whose { reply_to: ReplyTo, sign_in: u64 },

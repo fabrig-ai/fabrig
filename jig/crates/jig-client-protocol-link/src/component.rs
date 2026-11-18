@@ -22,7 +22,8 @@ impl Attempt {
     pub(super) fn carrying(&self) -> bool {
         match self.kind {
             ExchangeKind::Attempt { carrying, .. } => carrying,
-            ExchangeKind::Approval(_)
+            ExchangeKind::LinkAsk
+            | ExchangeKind::Approval(_)
             | ExchangeKind::SignInApproval
             | ExchangeKind::Authorize
             | ExchangeKind::SignIn
@@ -35,6 +36,7 @@ impl Attempt {
 }
 #[derive(Debug)]
 pub(super) enum ExchangeKind {
+    LinkAsk,
     Authorize,
     Approval(crate::approval::ApprovalKind),
     SignInApproval,
@@ -107,7 +109,8 @@ impl Link {
         for (_, attempt) in &self.attempts {
             match attempt.kind {
                 ExchangeKind::Read { .. } => reads = reads.saturating_add(1),
-                ExchangeKind::Authorize
+                ExchangeKind::LinkAsk
+                | ExchangeKind::Authorize
                 | ExchangeKind::Approval(_)
                 | ExchangeKind::SignInApproval
                 | ExchangeKind::SignIn
@@ -133,6 +136,7 @@ impl Link {
             Event::SignOut => self.sign_out(out),
             Event::OpenStream => self.open_stream(now, out),
             Event::Authorize { query } => self.authorize(query, out),
+            Event::AskLink => self.ask_link(out),
             Event::AskApproval => self.ask_approval(out),
             Event::ReadApproval { code } => self.read_approval(code, out),
             Event::DecideApproval { code, approve } => self.decide_approval(code, approve, out),
@@ -206,7 +210,8 @@ impl Link {
         for (_, attempt) in &self.attempts {
             match attempt.kind {
                 ExchangeKind::Attempt { .. } => keyed_count = keyed_count.saturating_add(1),
-                ExchangeKind::Authorize
+                ExchangeKind::LinkAsk
+                | ExchangeKind::Authorize
                 | ExchangeKind::Approval(_)
                 | ExchangeKind::SignInApproval
                 | ExchangeKind::SignIn
@@ -293,6 +298,10 @@ impl Link {
         match attempt.kind {
             ExchangeKind::SignIn | ExchangeKind::SignInApproval | ExchangeKind::SignOut { .. } => {
                 self.signing_answer(attempt.kind, attempt.held, body, out);
+                return;
+            }
+            ExchangeKind::LinkAsk => {
+                self.asked_link(body, out);
                 return;
             }
             ExchangeKind::Approval(kind) => {
@@ -443,7 +452,8 @@ impl Link {
                     ExchangeKind::Read { .. } => {
                         read_none(attempt.token, &attempt.owner, jig_client_domain::contract::ReadNone::Malformed, out);
                     }
-                    ExchangeKind::Approval(_)
+                    ExchangeKind::LinkAsk
+                    | ExchangeKind::Approval(_)
                     | ExchangeKind::SignInApproval
                     | ExchangeKind::Authorize
                     | ExchangeKind::Attempt { .. }
@@ -502,6 +512,9 @@ fn read_none(read: Token, owner: &w::Owner, why: jig_client_domain::contract::Re
 }
 fn failed(attempt: Attempt, out: &mut Queue<Request>) {
     match attempt.kind {
+        ExchangeKind::LinkAsk => {
+            out.push(Request::AskedLink(crate::AskedLink::NotAsked(crate::NotAsked::Lost)));
+        }
         ExchangeKind::Approval(kind) => out.push(Request::Approval(kind.lost())),
         ExchangeKind::Authorize => out.push(Request::Authorized(crate::Authorized::Lost)),
         ExchangeKind::Attempt { .. } => lost(attempt.token, out),
@@ -678,7 +691,8 @@ impl Link {
                                     return true;
                                 }
                             }
-                            ExchangeKind::Authorize
+                            ExchangeKind::LinkAsk
+                            | ExchangeKind::Authorize
                             | ExchangeKind::Approval(_)
                             | ExchangeKind::SignInApproval
                             | ExchangeKind::SignIn
@@ -753,7 +767,8 @@ impl Link {
                         tokens.push(*exchange).expect("bounded exchanges");
                     }
                 }
-                ExchangeKind::Approval(_)
+                ExchangeKind::LinkAsk
+                | ExchangeKind::Approval(_)
                 | ExchangeKind::SignInApproval
                 | ExchangeKind::Authorize
                 | ExchangeKind::Attempt { .. }
@@ -830,7 +845,8 @@ impl Link {
                     }
                 }
             }
-            ExchangeKind::Approval(_)
+            ExchangeKind::LinkAsk
+            | ExchangeKind::Approval(_)
             | ExchangeKind::SignInApproval
             | ExchangeKind::Authorize
             | ExchangeKind::Attempt { .. }
@@ -851,6 +867,9 @@ impl Link {
             ExchangeKind::SignOut { generation } if generation != self.generation => {}
             ExchangeKind::SignIn | ExchangeKind::SignInApproval | ExchangeKind::SignOut { .. } => {
                 out.push(Request::Signing { signing: crate::Signing::Lost });
+            }
+            ExchangeKind::LinkAsk => {
+                out.push(Request::AskedLink(crate::AskedLink::NotAsked(crate::NotAsked::Lost)));
             }
             ExchangeKind::Approval(kind) => out.push(Request::Approval(kind.lost())),
             ExchangeKind::Read { retry: Some(what), .. } => out.push(Request::ReadAgain { read: attempt.token, what }),
@@ -1036,6 +1055,9 @@ impl Link {
             let key = *key;
             let attempt = self.attempts.remove(&key).expect("listed attempt");
             match attempt.kind {
+                ExchangeKind::LinkAsk => {
+                    out.push(Request::AskedLink(crate::AskedLink::NotAsked(crate::NotAsked::Lost)));
+                }
                 ExchangeKind::Approval(kind) => out.push(Request::Approval(kind.lost())),
                 ExchangeKind::Authorize => out.push(Request::Authorized(crate::Authorized::Lost)),
                 ExchangeKind::SignInApproval

@@ -26,6 +26,7 @@ pub(crate) enum Making {
 }
 #[derive(Clone, Copy, Debug)]
 pub(crate) enum SweepKind {
+    Restore,
     Generations,
     Temporaries { first: bool },
 }
@@ -43,6 +44,7 @@ pub(crate) enum Opening {
     Idle,
     Locking,
     Reading,
+    Resolving(crate::restoring::roll::Rolling),
     SurveyOpen(Survey),
     SurveyPage { kind: Survey, root: Root },
     SurveyClose(Survey),
@@ -65,6 +67,7 @@ pub(crate) enum Opening {
     SweepFile(Sweep),
     SweepRemoving { sweep: Sweep, removing: Removing },
     SweepSync { root: Root },
+    RestoreSweepSync { root: Root },
     SweepClose(Closing),
     CheckpointSweep(crate::checkpoints::sweep::Sweep),
     TranscriptsMade,
@@ -161,6 +164,20 @@ pub(crate) fn open(
     }
     store.directory.opening = Opening::Locking;
     below.store.push(file::Request::Lock { owner: OWNER, root: root.token });
+}
+pub(crate) fn open_locked(store: &mut Store, owner: Token, root: Root, below: &mut Below) {
+    store.directory.owner = owner;
+    store.directory.purpose = crate::Purpose::Checkpoint;
+    store.directory.root = Some(root);
+    let mut checkpoint = crate::checkpoint_open::State::new(root);
+    checkpoint.keep_root();
+    store.checkpoint_open = Some(checkpoint);
+    reset_checked(store);
+    resolve(store, below);
+}
+fn resolve(store: &mut Store, below: &mut Below) {
+    store.directory.opening =
+        Opening::Resolving(crate::restoring::roll::Rolling::begin(deployment(store), OWNER, &mut below.store));
 }
 fn reset_checked(store: &mut Store) {
     store.directory.checked = None;
@@ -374,8 +391,7 @@ pub(crate) fn checked(store: &mut Store, above: &mut Queue<Event>, below: &mut B
         return;
     }
     if store.directory.purpose == crate::Purpose::Checkpoint {
-        store.directory.opening = Opening::TranscriptsOpen;
-        open_directory(deployment(store), Box::from(generations::TRANSCRIPTS), &mut below.transcripts);
+        sweep_open(store, SweepKind::Restore, false, below);
         return;
     }
     if store.rehearsal.is_some() {
@@ -397,7 +413,7 @@ pub(crate) fn checked(store: &mut Store, above: &mut Queue<Event>, below: &mut B
 fn sweep_open(store: &mut Store, kind: SweepKind, dirty: bool, below: &mut Below) {
     let name = match kind {
         SweepKind::Generations => generations::GENERATIONS,
-        SweepKind::Temporaries { .. } => b".",
+        SweepKind::Temporaries { .. } | SweepKind::Restore => b".",
     };
     store.directory.opening = Opening::SweepOpen { kind, dirty };
     open_directory(deployment(store), Box::from(name), &mut below.transcripts);
@@ -414,7 +430,14 @@ fn sweep_next(store: &mut Store, mut sweep: Sweep, below: &mut Below) {
                 let number = generations::number(&entry.name);
                 number != Some(active(store)) && !(active(store) > 1 && number == active(store).checked_sub(1))
             }
-            SweepKind::Temporaries { .. } => generations::is_temporary(&entry.name),
+            SweepKind::Temporaries { .. } => {
+                generations::is_temporary(&entry.name) && !entry.name.starts_with(b"restore.skein-")
+            }
+            SweepKind::Restore => {
+                entry.name.as_ref() == crate::restoring::roll::STAGED
+                    || entry.name.as_ref() == crate::restoring::roll::ASIDE
+                    || entry.name.starts_with(b"restore.skein-") && generations::is_temporary(&entry.name)
+            }
         };
         if !remove {
             continue;
@@ -448,7 +471,11 @@ fn sweep_next(store: &mut Store, mut sweep: Sweep, below: &mut Below) {
                 store.directory.swept = Some(Swept { root: sweep.root, dirty: sweep.dirty });
                 sweep_open(store, SweepKind::Temporaries { first: false }, false, below);
             }
-            SweepKind::Temporaries { .. } => {
+            SweepKind::Restore if sweep.dirty => {
+                below.transcripts.push(file::Request::SyncDirectory { owner: OWNER, root: sweep.root.fd });
+                store.directory.opening = Opening::RestoreSweepSync { root: sweep.root };
+            }
+            SweepKind::Temporaries { .. } | SweepKind::Restore => {
                 close(sweep.root, &mut below.transcripts);
                 store.directory.opening =
                     Opening::SweepClose(Closing { kind: sweep.kind, dirty: sweep.dirty, restart: false });
@@ -462,6 +489,12 @@ fn directory(store: &mut Store, env: &Env<Limits>, arrived: Arrived, above: &mut
     }
     match core::mem::replace(&mut store.directory.opening, Opening::Idle) {
         Opening::Locking => locked(store, arrived, above, below),
+        Opening::Resolving(mut rolling) => match rolling.arrived(arrived, &mut below.store) {
+            crate::restoring::roll::Progress::Pending => store.directory.opening = Opening::Resolving(rolling),
+            crate::restoring::roll::Progress::Done => read_active(store, below),
+            crate::restoring::roll::Progress::Unmatched => generation_refusal(store, Generations::Unmatched, above),
+            crate::restoring::roll::Progress::Failed => refuse(store, above),
+        },
         Opening::Reading => active_read(store, arrived, above, below),
         Opening::SurveyOpen(kind) => survey_opened(store, kind, arrived, above, below),
         Opening::SurveyPage { kind, root } => survey_listed(store, kind, root, arrived, above, below),
@@ -484,11 +517,17 @@ fn directory(store: &mut Store, env: &Env<Limits>, arrived: Arrived, above: &mut
         Opening::SweepFile(sweep) => sweep_file_removed(store, sweep, arrived, above, below),
         Opening::SweepRemoving { sweep, removing } => sweep_tree_removed(store, sweep, removing, arrived, above, below),
         Opening::SweepSync { root } => sweep_synced(store, root, arrived, above, below),
+        Opening::RestoreSweepSync { root } => {
+            let file::Event::Synced { .. } = arrived.event else { return refuse(store, above) };
+            close(root, &mut below.transcripts);
+            store.directory.opening =
+                Opening::SweepClose(Closing { kind: SweepKind::Restore, dirty: true, restart: false });
+        }
         Opening::SweepClose(closing) => sweep_closed(store, closing, arrived, above, below),
         Opening::CheckpointSweep(mut sweep) => {
             match crate::checkpoints::sweep::arrived(&mut sweep, arrived, &mut below.transcripts) {
                 Progress::Pending => store.directory.opening = Opening::CheckpointSweep(sweep),
-                Progress::Done => make_transcripts(store, below),
+                Progress::Done => sweep_open(store, SweepKind::Restore, false, below),
                 Progress::Failed => refuse(store, above),
             }
         }
@@ -505,7 +544,7 @@ fn locked(store: &mut Store, arrived: Arrived, above: &mut Queue<Event>, below: 
     let file::Event::Locked { .. } = arrived.event else {
         return refuse(store, above);
     };
-    read_active(store, below);
+    resolve(store, below);
 }
 fn read_active(store: &mut Store, below: &mut Below) {
     let root = deployment(store);
@@ -832,6 +871,14 @@ fn sweep_closed(store: &mut Store, closing: Closing, arrived: Arrived, above: &m
         return;
     }
     match kind {
+        SweepKind::Restore => {
+            if store.directory.purpose == crate::Purpose::Checkpoint {
+                store.directory.opening = Opening::TranscriptsOpen;
+                open_directory(root, Box::from(generations::TRANSCRIPTS), &mut below.transcripts);
+            } else {
+                make_transcripts(store, below);
+            }
+        }
         SweepKind::Generations => {
             let sweep = crate::checkpoints::sweep::begin(root, &mut below.transcripts);
             store.directory.opening = Opening::CheckpointSweep(sweep);
@@ -1117,6 +1164,7 @@ pub(crate) fn patching(store: &Store) -> Option<&Patching> {
         Opening::Idle
         | Opening::Locking
         | Opening::Reading
+        | Opening::Resolving(_)
         | Opening::SurveyOpen(_)
         | Opening::SurveyPage { .. }
         | Opening::SurveyClose(_)
@@ -1138,6 +1186,7 @@ pub(crate) fn patching(store: &Store) -> Option<&Patching> {
         | Opening::SweepPage(_)
         | Opening::SweepFile(_)
         | Opening::SweepRemoving { .. }
+        | Opening::RestoreSweepSync { .. }
         | Opening::SweepSync { .. }
         | Opening::SweepClose(_)
         | Opening::CheckpointSweep(_)
@@ -1153,6 +1202,7 @@ pub(crate) fn pending(store: &Store) -> Option<&crate::upgrade::switch::Pending>
         Opening::Idle
         | Opening::Locking
         | Opening::Reading
+        | Opening::Resolving(_)
         | Opening::SurveyOpen(_)
         | Opening::SurveyPage { .. }
         | Opening::SurveyClose(_)
@@ -1174,6 +1224,7 @@ pub(crate) fn pending(store: &Store) -> Option<&crate::upgrade::switch::Pending>
         | Opening::SweepPage(_)
         | Opening::SweepFile(_)
         | Opening::SweepRemoving { .. }
+        | Opening::RestoreSweepSync { .. }
         | Opening::SweepSync { .. }
         | Opening::SweepClose(_)
         | Opening::CheckpointSweep(_)
@@ -1189,6 +1240,7 @@ pub(crate) fn pending_mut(store: &mut Store) -> Option<&mut crate::upgrade::swit
         Opening::Idle
         | Opening::Locking
         | Opening::Reading
+        | Opening::Resolving(_)
         | Opening::SurveyOpen(_)
         | Opening::SurveyPage { .. }
         | Opening::SurveyClose(_)
@@ -1210,6 +1262,7 @@ pub(crate) fn pending_mut(store: &mut Store) -> Option<&mut crate::upgrade::swit
         | Opening::SweepPage(_)
         | Opening::SweepFile(_)
         | Opening::SweepRemoving { .. }
+        | Opening::RestoreSweepSync { .. }
         | Opening::SweepSync { .. }
         | Opening::SweepClose(_)
         | Opening::CheckpointSweep(_)

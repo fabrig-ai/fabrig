@@ -152,6 +152,7 @@ impl StockBox {
 
     fn sign_in(&mut self) {
         self.driver.send(Event::Party(PartyInput::SignedIn {
+            until: None,
             held: None,
             reply_to: ReplyTo::new(Token::new(900)),
             identity: people::Identity {

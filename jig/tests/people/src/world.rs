@@ -321,6 +321,7 @@ impl World {
         let (call, reply_to) = self.call();
         let person = self.name();
         self.send(Event::SignedIn {
+            until: None,
             reply_to,
             person,
             sign_in,
@@ -335,6 +336,7 @@ impl World {
         let (call, reply_to) = self.call();
         let candidate = self.name();
         self.send(Event::SignedIn {
+            until: None,
             held: None,
             reply_to,
             person: candidate,

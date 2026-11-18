@@ -108,6 +108,7 @@ impl World {
             }
             Message::Unwatch(_) => self.traffic.push((self.steps.len(), "close", 0)),
             Message::Batch(_)
+            | Message::LinkAsk(_)
             | Message::Request(_)
             | Message::StreamGone(_)
             | Message::SignInLink(_)

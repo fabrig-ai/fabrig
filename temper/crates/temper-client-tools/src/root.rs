@@ -305,7 +305,8 @@ fn drain(
                     jig_client::Request::Told { told } => route(root, env, told, child, out),
                     // M4's Authorize place answers it
                     jig_client::Request::Approval(_) | jig_client::Request::Authorized(_) => {}
-                    request @ (jig_client::Request::Exchange { .. }
+                    request @ (jig_client::Request::AskedLink(_)
+                    | jig_client::Request::Exchange { .. }
                     | jig_client::Request::OpenStream { .. }
                     | jig_client::Request::CloseStream
                     | jig_client::Request::Save { .. }
@@ -318,6 +319,7 @@ fn drain(
                 ClientOutput::Unlinked(request) => match request {
                     jig_client::UnlinkedRequest::Told { told } => route(root, env, told, child, out),
                     jig_client::UnlinkedRequest::ApprovalAct(_)
+                    | jig_client::UnlinkedRequest::AskedLink(_)
                     | jig_client::UnlinkedRequest::Approval(_)
                     | jig_client::UnlinkedRequest::Authorized(_) => {}
                     request @ (jig_client::UnlinkedRequest::Down { .. } | jig_client::UnlinkedRequest::SignOut) => {

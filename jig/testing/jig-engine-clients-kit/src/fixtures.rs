@@ -121,9 +121,13 @@ pub fn me_document(needs: u32) -> jig_domain_core::documents::Document {
 
 #[must_use]
 pub fn signed_in(peer: &mut Peer) -> Box<[u8]> {
+    signed_in_until(peer, expires())
+}
+#[must_use]
+pub fn signed_in_until(peer: &mut Peer, expires: skein_lib::Wall) -> Box<[u8]> {
     let link = peer.printed_link();
     let exchange = peer.post_link(&link);
-    peer.answer_signed_in(FIRST_SIGN_IN, FIRST_PERSON);
+    peer.answer_signed_in_until(FIRST_SIGN_IN, FIRST_PERSON, expires);
     peer.answer_kept(FIRST_SIGN_IN);
     let answer = peer.sign_in_answer(exchange);
     let mut out = skein_lib::Writer::new(61);

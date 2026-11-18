@@ -342,6 +342,7 @@ pub enum FromTransport {
 }
 #[derive(Debug, PartialEq)]
 pub enum Message {
+    LinkAsk(Box<[u8]>),
     ApprovalAsk(Box<[u8]>),
     ApprovalRead(Box<[u8]>),
     ApprovalDecide(Box<[u8]>),

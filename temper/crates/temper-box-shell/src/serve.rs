@@ -17,7 +17,7 @@ pub fn prepare(
     bytes: &[u8],
     owned: &mut Vec<Fd>,
 ) -> Result<Service, String> {
-    prepare_with_store(binary, environment, working, directories, bytes, owned).map(|(service, _)| service)
+    prepare_with_store(binary, environment, working, directories, bytes, owned, false).map(|(service, _)| service)
 }
 pub fn prepare_with_store(
     binary: &str,
@@ -26,6 +26,7 @@ pub fn prepare_with_store(
     directories: &Directories,
     bytes: &[u8],
     owned: &mut Vec<Fd>,
+    sizing: bool,
 ) -> Result<(Service, Box<[u8]>), String> {
     prepare_with_limits(
         binary,
@@ -40,7 +41,7 @@ pub fn prepare_with_store(
         None,
         &service::stock::Given::Stock,
         None,
-        false,
+        sizing,
         &[],
     )
     .map(|(service, store, _)| (service, store))
@@ -81,7 +82,7 @@ fn prepare_with_limits(
     let copy = path(&directories.data).join("agents.setting");
     let initial = if named.worker.is_some() { agents_setting(&copy, &mut std::io::stderr()) } else { None };
     let agents = initial.clone().unwrap_or_else(service::stock::agents);
-    let mut part = service::startup::box_worker(bytes, &jig_directories(directories), given, &agents)
+    let mut part = service::startup::box_worker(bytes, &jig_directories(directories), given, &agents, environment)
         .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
     let agent = part
         .as_mut()
@@ -200,9 +201,14 @@ pub(crate) fn configured_agent(
 ) -> Result<Option<agent::Prepared>, String> {
     let initial = agents_setting(&path(&directories.data).join("agents.setting"), &mut std::io::stderr())
         .unwrap_or_else(service::stock::agents);
-    let mut part =
-        service::startup::box_worker(bytes, &jig_directories(directories), &service::stock::Given::Stock, &initial)
-            .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
+    let mut part = service::startup::box_worker(
+        bytes,
+        &jig_directories(directories),
+        &service::stock::Given::Stock,
+        &initial,
+        environment,
+    )
+    .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
     part.as_mut().map(|part| prepare_agent(part, directories, environment)).transpose()
 }
 fn prepare_agent(
@@ -301,7 +307,7 @@ pub fn operations_in(
     directories: &Directories,
     config: &[u8],
 ) -> Result<u32, String> {
-    operations_in_mode(binary, environment, working, directories, config, false)
+    operations_in_with(binary, environment, working, directories, config, &service::stock::Given::Stock)
 }
 /// The same for a boxed start.
 pub fn boxed_operations_in(
@@ -311,37 +317,7 @@ pub fn boxed_operations_in(
     directories: &Directories,
     config: &[u8],
 ) -> Result<u32, String> {
-    operations_in_mode(binary, environment, working, directories, config, true)
-}
-fn operations_in_mode(
-    binary: &str,
-    environment: &[EnvironmentEntry],
-    working: &[u8],
-    directories: &Directories,
-    config: &[u8],
-    boxed: bool,
-) -> Result<u32, String> {
-    directories.open(skein_shell::effective_user())?;
-    let mut owned = Vec::new();
-    let result = prepare_with_limits(
-        binary,
-        environment,
-        working,
-        directories,
-        config,
-        &mut owned,
-        boxed,
-        false,
-        None,
-        None,
-        &service::stock::Given::Stock,
-        None,
-        true,
-        &[],
-    )
-    .map(|(service, _, _)| service.operations());
-    close(owned);
-    result.map_err(|why| prefixed(&format!("{binary} serve"), &why))
+    operations_in_with(binary, environment, working, directories, config, &service::stock::Given::Stock)
 }
 pub fn prepare_in(
     binary: &str,
@@ -425,33 +401,14 @@ pub fn prepare_in_with_inputs(
 /// The same for an in-process world's service, with the supplied defaults.
 pub fn operations_in_with(
     binary: &str,
-    environment: &[EnvironmentEntry],
-    working: &[u8],
+    _environment: &[EnvironmentEntry],
+    _working: &[u8],
     directories: &Directories,
     config: &[u8],
     given: &service::stock::Given,
 ) -> Result<u32, String> {
-    directories.open(skein_shell::effective_user())?;
-    let mut owned = Vec::new();
-    let result = prepare_with_limits(
-        binary,
-        environment,
-        working,
-        directories,
-        config,
-        &mut owned,
-        false,
-        false,
-        None,
-        None,
-        given,
-        None,
-        true,
-        &[],
-    )
-    .map(|(service, _, _)| service.operations());
-    close(owned);
-    result.map_err(|why| prefixed(&format!("{binary} serve"), &why))
+    service::startup::operations_with(config, &jig_directories(directories), given)
+        .map_err(|why| prefixed(&format!("{binary} serve"), &String::from_utf8_lossy(&service::startup::lines(&why))))
 }
 pub fn run(
     binary: &str,

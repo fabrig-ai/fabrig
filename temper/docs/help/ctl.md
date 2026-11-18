@@ -8,7 +8,7 @@ temper ctl is the command line through which an agent works in a deployment for 
 
 - **A call** is `temper ctl DIR GROUP VERB [ARGUMENT...] [--json]`.
   A group (`task`) has tools (`task show`). One-word tools: `me`,
-  `inbox`, `sign-in`, `sign-out`, `pending`.
+  `inbox`, `sign-in`, `sign-out`, `link`, `pending`.
 - **Help:** `temper ctl help` prints this page, then the groups, a
   line each; `temper ctl help GROUP` the group's tools; `temper ctl
   help GROUP VERB` one tool's usage, arguments and result.

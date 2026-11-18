@@ -96,6 +96,7 @@ fn pasted() -> Walk {
             | Request::Erase { .. }
             | Request::Told { .. }
             | Request::Authorized(_)
+            | Request::AskedLink(_)
             | Request::Approval(_)
             | Request::ServiceCredential { .. } => None,
         })
