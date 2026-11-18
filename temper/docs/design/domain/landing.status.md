@@ -16,6 +16,15 @@ each follows, as the forge holds them (`forge/change/branch-path.md`).
   (`jig/docs/design/domain/tasks/lifecycle.status.md`, 10).
 - **Not yet:** 7.1, by plan `forge-polls-quiet`: a landing polls its
   runs in flight every `poll`, not at the client's `poll_at`.
+- **Not yet:** 4.2 (*No silent wait*), 5.1 (*A round ends*): after a
+  round ends cut or stale, the landing can take no next step.
+- **Not yet:** 4.2 (*It ends*), 4.3 (*Its link goes as it leaves*), 12,
+  15 (*A link to an ended landing is dropped*): a change that left
+  keeps naming its landing until a later resolve, merge or repair, an
+  ended landing detaches only its members with no ask, and a stored
+  link to an ended or missing landing keeps its change out of its queue.
+- **Not yet:** 12 (the row's times and wait), 14: `landing list` and
+  `landing show` print no step's age, turn's age or wait.
 
 - **Not yet:** 4.1: `with`; pin-only members; `dependencies_join`
   (`temper-engine-domain-forge/src/landing.rs`). 5.3, 6.1: the project's
