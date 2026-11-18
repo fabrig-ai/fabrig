@@ -41,10 +41,14 @@ tags stay fixed (`../README.md`, 7).
 A program that started without its tools keeps its typed reason too:
 `jig-worker-wire` 17 appends a unit `untooled` variant to `RunFailure`
 (`../../domain/hosts/hub.md`, 3), its detail the agent's as for any
-failed run. Its patch gives `RunFailure` a down site taking `untooled`
-to `model`, so its reverse stays total: a worker of 17 talks to an
-engine of 16, which classes the failure as the run's own, as it always
-has (`bridges.md`, 6.3). Up from 16 nothing changes.
+failed run. Its reverse is the derived one, with no down site: below
+17 the variant is unheld, since a down site taking it to `model` would
+not come back up as itself (skein's `data/codec/bridges.md`, 2.2). The
+floor stays 16 and the block is not breaking, but what a worker sends
+is no longer total down to 16, so a worker of 17 is refused at the
+opening by an engine of 16 (`bridges.md`, 6.3): the engine goes first,
+as for any moved wire (temper's `draft/redeploys.md`, 7.2). Up from 16
+nothing changes.
 
 - **A refused start is not kept.** An answer that refuses its start
   (busy, a duplicate among them, or invalid, at the entrance or as a
