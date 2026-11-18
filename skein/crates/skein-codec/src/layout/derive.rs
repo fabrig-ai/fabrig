@@ -53,6 +53,7 @@ pub(super) enum Policy {
 struct Builder {
     plan: Plan,
     policy: Policy,
+    // Worklists assign first-discovery indices; the maps only find them again.
     keys: List<Key>,
     by_key: Map<Key, u32>,
     places: List<Place>,

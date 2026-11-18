@@ -4,6 +4,7 @@
 static HEAP: skein_world::domain::heap::Counting = skein_world::domain::heap::Counting;
 
 mod delivery;
+mod facts;
 mod git;
 mod memory;
 mod merges;

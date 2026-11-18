@@ -175,6 +175,7 @@ impl Shape {
         .expect("agent JSON");
         match self {
             Self::Engine { workers, .. } => {
+                prepare_agents(&data, agent);
                 document["world_settings"]["llm"]["providers"][0]["name"] = "openai".into();
                 document["world_settings"]["llm"]["endpoints"][0]["provider"] = "openai".into();
                 document["workers"] = json!([]);
@@ -321,10 +322,10 @@ pub fn directories_in(roots: [&Path; 3]) -> temper_box_shell::directories::Direc
     temper_box_shell::directories::resolve(&args, &[], b"/").expect("fixture directories").0
 }
 
-/// Keep test-sized kind 21 after the engine's first durable initialization.
-pub(crate) fn agent_writes(agent: &serde_json::Value) -> Vec<jig_protocol_store::Write> {
+/// Supply the engine's initial kind 21 through the world's startup defaults.
+fn prepare_agents(data: &Path, mut agent: serde_json::Value) {
     use temper_client_protocol_wire::v1 as w;
-    use temper_engine_domain_forge::{self as forge, settings as s};
+    agent["profile"]["policy"]["unacknowledged"] = 1.into();
     let mut profile = skein_lib::List::with_capacity(w::CEILINGS.agent_figures_profile);
     for group in ["declared", "policy"] {
         for (name, value) in agent["profile"][group].as_object().expect("profile") {
@@ -373,21 +374,40 @@ pub(crate) fn agent_writes(agent: &serde_json::Value) -> Vec<jig_protocol_store:
     let fallback = endpoints.get(0).expect("one endpoint").limits().clone();
     let value =
         w::AgentFigures::new(&w::CEILINGS, w::AgentFiguresParts { profile, endpoints, fallback }).expect("figures");
-    let size = value.measure();
-    let key = s::SettingKey { kind: 21, scope: 0, number: 1, slot: s::SettingSlot::Change };
-    let row = forge::Stored::Setting(s::SettingRow {
-        key,
-        edit: s::Edit::Set(s::SizedValue { value: s::Value::AgentFigures(value), size }),
-    });
-    vec![jig_protocol_store::Write::Put {
-        key: temper_protocol_store::keys::encode(&forge::Key::Setting(key), 256).expect("key"),
-        value: temper_protocol_store::records::encode(&row),
-    }]
+    let mut bytes = skein_lib::Writer::new(skein_lib::usize_of(value.measure()));
+    value.encode(&mut bytes).expect("agent figures bytes");
+    fixtures::private(&data.join("agents.setting"), &bytes.finish()).expect("initial agent figures");
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_engine_starts_with_the_clusters_agent_figures() {
+        use temper_engine_domain_forge::settings::Value;
+        let scratch = crate::Scratch::new("cluster-initial-figures");
+        let data = scratch.path().join("data");
+        let address = ([127, 0, 0, 1], 0).into();
+        fixtures::write(&data, address, address).expect("fixture documents");
+        Shape::Engine { workers: vec!["w1"], grace: skein_lib::Duration::from_millis(10) }.write(scratch.path(), false);
+
+        let (temper_service::stock::Given::Own { forge, .. }, _) = fixtures::given_and_projects(&data) else {
+            panic!("world startup defaults")
+        };
+        let agents = forge.iter().find(|row| row.kind == 21).expect("initial agent figures");
+        let Value::AgentFigures(figures) = &agents.value.value else { panic!("agent figures") };
+        let unacknowledged = figures
+            .profile()
+            .iter()
+            .find(|figure| figure.name() == b"policy.unacknowledged")
+            .expect("cluster host admission");
+        assert_eq!(unacknowledged.value(), 1, "one outstanding turn per worker");
+        let endpoint = figures.endpoints().get(0).expect("fixture endpoint");
+        assert_eq!(endpoint.endpoint(), b"fake");
+        assert_eq!(endpoint.limits().window(), 1_048_576, "the fixture's model window");
+        assert_eq!(figures.fallback(), endpoint.limits(), "the fixture's fallback");
+    }
 
     #[test]
     fn cluster_preparation_preserves_the_agents_supervision_policy() {

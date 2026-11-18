@@ -83,3 +83,48 @@ fn the_last_permitted_pass_still_settles_the_root() {
     assert_eq!((builder.plan.read(0).depth, builder.plan.read(0).minimum), (64, 1));
     assert!(builder.plan.keeps());
 }
+
+const HERE: Location = ROOT;
+const UNROOTED: Key = Key { root: false, ..KEY };
+
+#[test]
+fn repeated_requests_keep_their_first_indices_and_places() {
+    let mut builder = Builder::new(Policy::Strict, None, false, None);
+    assert_eq!(builder.request(UNROOTED, FIRST), 0);
+    assert_eq!(builder.request_read(HERE, FIRST), 0);
+    let next = Key { new: Location { text: 1, ..HERE }, ..UNROOTED };
+    assert_eq!(builder.request(next, FIRST), 1);
+    assert_eq!(builder.request(UNROOTED, LATER), 0);
+    assert_eq!(builder.request_read(HERE, LATER), 0);
+    assert_eq!(builder.request(next, LATER), 1);
+    assert_eq!(builder.keys.as_slice(), &[UNROOTED, next]);
+    assert_eq!(builder.read_keys.as_slice(), &[HERE]);
+    assert_eq!(builder.plan.nodes.len(), 2);
+    assert_eq!(builder.plan.reads.len(), 1);
+    assert_eq!(builder.places.get(0).expect("first place").decl, FIRST.decl);
+    assert_eq!(builder.read_places.get(0).expect("first read place").decl, FIRST.decl);
+}
+
+#[test]
+fn interning_distinguishes_texts_roots_types_and_variants() {
+    let mut builder = Builder::new(Policy::Strict, None, false, None);
+    let variant = Location { variant: Some(VariantIx::new(0)), ..HERE };
+    let cases = [
+        (UNROOTED, 0),
+        (Key { new: Location { text: 1, ..HERE }, ..UNROOTED }, 0),
+        (Key { old: Location { text: 1, ..HERE }, ..UNROOTED }, 1),
+        (Key { old: Location { at: At::Type(TypeIx::new(0)), ..HERE }, ..UNROOTED }, 2),
+        (Key { new: Location { at: At::Type(TypeIx::new(0)), ..HERE }, ..UNROOTED }, 0),
+        (Key { old: variant, ..UNROOTED }, 3),
+        (Key { new: variant, ..UNROOTED }, 0),
+        (Key { root: true, ..UNROOTED }, 0),
+        (Key { old: Location { variant: Some(VariantIx::new(1)), ..HERE }, ..UNROOTED }, 4),
+        (Key { new: Location { variant: Some(VariantIx::new(1)), ..HERE }, ..UNROOTED }, 0),
+    ];
+    for (index, (key, read)) in cases.iter().enumerate() {
+        let index = u32::try_from(index).expect("fixture index");
+        assert_eq!(builder.request(*key, FIRST), index, "{key:?}");
+        assert_eq!(builder.request_read(key.old, FIRST), *read, "{key:?}");
+    }
+    assert_eq!(builder.keys.len(), u32::try_from(cases.len()).expect("fixture keys"));
+}
