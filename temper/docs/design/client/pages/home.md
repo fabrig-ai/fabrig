@@ -264,8 +264,15 @@
         (`needs-you.md`, 1, *The card*); the asked task's link as
         the inbox's card has it; its kind and age ("Add a README · a
         question · 4 min"); " · later" on a card marked later;
-      - *its question* in `.q`, 17px; a funds card's "S of L used." and
-        an approval's question as on *Needs you*;
+      - *its question* in `.q`, 17px: its SHORT (`needs-you.md`, 1,
+        *SHORT*); a held card's why it's held (`needs-you.md`, 1, *Why
+        it's held*: "Forge could not release this task's resources."), a
+        funds card's "S of L used." and an approval's question as on
+        *Needs you*; none on a person task's card, whose from line names
+        its title (`needs-you.md`, 1, *Its title once*). A held card says
+        nothing more of its hold: "Land Fork core crash sweeps at their
+        held prefixes · held · 4 min", then its question, its reason
+        line and Release and Leave held;
       - *an approval's size,* under its question, its row of chips as on
         *Needs you* (`../forge/README.md`, 4.1, *Its size*), as
         `pair/home.html` draws it; none without one;
