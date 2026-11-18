@@ -253,8 +253,8 @@ Checks at `.temper/pre-pr`, guides at `AGENTS.md` (smith's
     rest follows on the lines below." Charter 5's specs keep their own
     title line of at most 30 characters, whose sentence says it too:
     "plain words saying what it does, at most 30 characters, no
-    Markdown, draft codes or internal names ("Cancel a landed change's
-    runs")" (`../../../charters/stock/goal.md`). `temper ctl goal
+    Markdown, codes or internal names ("Cancel a landed change's runs")"
+    (`../../../charters/stock/goal.md`). `temper ctl goal
     start`'s help says it of its words, with the example "Store shape:
     history in task logs" (`../../client/ctl/areas.md`, area 2).
   - **A decision's words,** `decided`'s (`tools.md`): every charter that
@@ -276,12 +276,11 @@ Checks at `.temper/pre-pr`, guides at `AGENTS.md` (smith's
     delivery, landing, repair, spec. A count is a person's; a number
     they would have to look up is the body's, and so is the plan's
     vocabulary. Charter 5's report note (its `goal` file) says "a
-    one-line headline for a person of what the goal has done and what's
-    left, in the work's own terms, with no task, change or pull numbers,
-    draft or milestone codes (P1), branch names (g) or words of how
-    goals run (change, cut, wave, delivery, landing, repair, spec):
-    "Three of the four parts are done; the page part is still being
-    built."", and its designer's last words leave the headline to that
+    one-line headline for a person of what's done and what's left, in
+    the work's own terms, with no task, change or pull numbers, codes
+    (P1), branch (g) or words of how goals run (change, cut, wave,
+    delivery, landing, repair, spec): "Three of the four parts are done;
+    the page part is still being built."", and its designer's last words leave the headline to that
     note, keeping its brief within the receiving bounds. Charter 1's
     goal paragraph says it in fewer words: "a one-line headline for the
     person saying, in the work's own terms, what the goal has done and
@@ -289,7 +288,14 @@ Checks at `.temper/pre-pr`, guides at `AGENTS.md` (smith's
     draft code or branch, and none of the words of how goals run, as
     "Most of it is in; the last two parts are being built."". Each
     replaces the sentence it had, so each charter's first wake keeps
-    its room (section 1).
+    its room (section 1). Charter 5's brief is the largest the room
+    admits, so its `goal` file gives up what its tools or other lines
+    already say: *Tools' edges* drops `decided`'s byte bounds, which
+    the tool declares; *A change* drops its list of wakes, which "in any
+    wake until the goal lands" covers; the spec's `## Goal` drops "Test
+    names, fixtures and remaining cases are the implementer's.", which
+    `## Steps`' "The rest is the implementer's." covers. The file ends
+    no longer than it was.
   - **A project's brief,** charter 9's, the lines at the top of Home
     (`../forge/attention.md`, 3): one sentence of at most 25 words on
     what landed, then at most two plain sentences, 70 words in all, so
