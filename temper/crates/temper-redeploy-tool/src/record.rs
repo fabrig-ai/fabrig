@@ -76,7 +76,11 @@ pub struct Record {
     pub told: Option<Vec<Told>>,
     pub before: Before,
     pub lines: Vec<Line>,
+    #[serde(default)]
+    pub checkpoint: Option<String>,
     pub check: Option<Check>,
+    #[serde(default)]
+    pub verdict: Option<Check>,
     pub backup: Option<String>,
     pub window: Option<Window>,
     pub outages: Vec<Outage>,
@@ -101,7 +105,9 @@ impl Record {
             told: None,
             before: Before::default(),
             lines: Vec::new(),
+            checkpoint: None,
             check: None,
+            verdict: None,
             backup: None,
             window: None,
             outages: Vec::new(),

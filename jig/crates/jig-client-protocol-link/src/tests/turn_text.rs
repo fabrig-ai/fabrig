@@ -9,7 +9,7 @@ const TEXT_BLOCKS: u32 = 2; // The golden's text followed by the added text.
 
 // The golden turn with a second text block appended.
 fn turn_with(second: &[u8]) -> Box<[u8]> {
-    let source = smith_transcript::decode_archived(&smith::CEILINGS, fixtures::FULL_TURN).unwrap();
+    let source = smith_transcript::decode_archived(&smith::CEILINGS, &fixtures::full_turn()).unwrap();
     let mut source = source.into_parts();
     let message = source.messages.get_mut(0).unwrap();
     let mut parts = message.clone().into_parts();
@@ -54,7 +54,7 @@ fn a_pages_archived_turn_past_the_live_turns_field_is_decoded() {
 
 #[test]
 fn a_pages_archived_turn_is_decoded_at_its_document_bound_and_too_large_one_byte_past() {
-    let record = fixtures::single_turn_record(fixtures::FULL_TURN);
+    let record = fixtures::single_turn_record(&fixtures::full_turn());
     let too_large = c::TurnRead::Undecodable { why: c::TurnProblem::TooLarge { bytes: fixtures::TURN_PAYLOAD_BYTES } };
     // The client's document bound, below the wire's.
     for (document, expected) in [

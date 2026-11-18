@@ -131,6 +131,7 @@ fn malformed_intents_refuse_every_open_and_back_and_rehearsal_never_copies() {
                     owner: OWNER,
                     directory: disk.root(),
                     scratch: crate::directory::opened(arrived).unwrap(),
+                    reach: crate::Reach::Whole,
                     installation: fixtures::INSTALLATION,
                 }
             }

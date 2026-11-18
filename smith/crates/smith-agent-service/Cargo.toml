@@ -28,6 +28,7 @@ smith-protocol-machine.workspace = true
 smith-protocol-program.workspace = true
 
 [dev-dependencies]
+skein-codegen.workspace = true
 smith-events-fixtures.workspace = true
 smith-protocol-llm-fixtures.workspace = true
 smith-agent-profile-fixtures.workspace = true

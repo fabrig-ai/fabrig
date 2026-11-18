@@ -300,7 +300,7 @@ versioned record Every {
                 let mut rng = Rng::new(seed);
                 let bytes = generated::draw(&drawer, name, &mut rng);
                 match (root.decode)(&bytes) {
-                    generated::Decoded::Value { debug, bytes: encoded } => {
+                    generated::Decoded::Value { debug, bytes: encoded, .. } => {
                         assert!(!debug.is_empty(), "generated value is printable");
                         assert_eq!(encoded, bytes, "draw {name} seed {seed}");
                     }

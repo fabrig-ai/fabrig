@@ -97,6 +97,33 @@ fn a_rate_limit_is_waited_out_and_lasting_failures_are_not_retried() {
 }
 
 #[test]
+fn an_untooled_program_ends_without_retry_and_keeps_its_detail() {
+    let mut h = Harness::new(&LIMITS);
+    let (owner, _) = h.open(1);
+    let detail = bytes(b"smith: the program started without smith's tools");
+    let terminal = h.step(Event::Failed {
+        retry_ok: true,
+        owner,
+        failure: Failure::Untooled,
+        evidence: crate::llm::Evidence::Unsent,
+        detail: detail.clone(),
+    });
+    let mut expected = ended(
+        End::Failed {
+            failure: Failure::Untooled,
+            evidence: crate::llm::Evidence::Unsent,
+            attempts: 1,
+            detail: detail.clone(),
+        },
+        0,
+    );
+    let Request::Ended { detail: retained, .. } = &mut expected else { panic!("terminal fixture") };
+    *retained = detail;
+    assert_eq!(terminal, Some(expected));
+    assert!(h.domain.next_deadline().is_none(), "no retry is armed");
+}
+
+#[test]
 fn each_attempt_keeps_model_progress_and_the_same_session_expiry() {
     let mut h = Harness::new(&LIMITS);
     h.after(Duration::from_secs(7));

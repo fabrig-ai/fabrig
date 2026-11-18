@@ -560,7 +560,8 @@ its sockets tagged as the server's are.
   alone (one diagnostic), and a kind past its schema's ceiling among
   them (the negative walk, 2.5).
 - **Step tests:** the configuration's members and their checks; the
-  `Binding` family's codec, goldens and fuzz seed; the forge connector's
+  `Binding` family's records drift, pinned constructs, built-value round trips
+  and fuzz seed; the forge connector's
   bind in its world (`tests/engine/forge`); the claims' reader; the
   fetcher against scripted io; the endings' pages' bytes.
 - **The view's tests:** the signed-out main with and without a way, and

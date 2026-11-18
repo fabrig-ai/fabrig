@@ -667,6 +667,27 @@ deployment's lock as a start does (1, step 1).
   stay; and that what follows the switch (adopting runs, reading the
   systems, settling the outboxes) is not rehearsed. The scratch is
   emptied as it ends.
+- **Its reach,** `Reach`, which the request names. `Whole` is all of the
+  above. `Openings` reads only the rows from which the application
+  judges its workers, and ends there, for a redeploy that judges them
+  again at its stop (temper's `redeploy.md`, 4.2):
+  - it locks the directory, refuses an outstanding intent and reads
+    `active` as `Whole` does;
+  - it copies that generation into the scratch as `Whole` does, file by
+    file, but for `store/logs/` and every task log in it, which no row
+    it reads names;
+  - it opens the scratch through the stores' recovery, and answers
+    `Rehearsing` with the wires and the openings, as `Whole` does,
+    before any check of the levels, the floor or the format;
+  - then it ends as `Close` ends a rehearsal: the scratch emptied, and
+    `Closed`. It answers no `Opened` or `OpenRefused`, decodes no record
+    and runs no plan, job or restore, and the application asks no
+    `Close` of it.
+
+  A refusal before the rows are read (the lock `Busy`, `Unfinished`,
+  `Unreadable`, a copy or a recovery failing) is answered as `Whole`'s
+  is, `OpenRefused` after `Rehearsing`, and the application closes it
+  as it closes any rehearsal.
 - **Every record decoded** in a rehearsal, after the copy and before
   the plan, whether or not a job changes its family (the
   user's words of 2026-11-11): each family of each set is walked over its
@@ -704,7 +725,9 @@ deployment's lock as a start does (1, step 1).
   going back refuses it `NoPrevious` (`restoring.md`, 4.4).
 
 ```rust
-Request::Rehearse { owner: Token, directory: Root, scratch: Root, installation: [u8; 16] } // `directory` never written; `scratch` emptied, never removed
+Request::Rehearse { owner: Token, directory: Root, scratch: Root, installation: [u8; 16], reach: Reach } // `directory` never written; `scratch` emptied, never removed
+pub enum Reach { Whole, Openings }                     // `Openings`: `Rehearsing`, then `Closed` unasked
+Adoption::Rehearse { scratch: Fd, reach: Reach }      // the host's adoption (`host.rs`), beside `Back` and `Checkpoint`
 Event::Rehearsing { owner: Token, wires: Option<Box<[KeptWire]>>, openings: Box<[WorkerOpening]> } // before `Opened` or `OpenRefused`
 pub struct KeptWire { pub name: Box<str>, pub version: u32 }                               // `None`: A's last start kept none
 pub struct WorkerOpening { pub worker: Box<str>, pub wires: Box<[OpenedWire]>, pub output: u32, pub terms: Box<[OpenedTerm]>, pub at: Wall } // in the workers' names' order

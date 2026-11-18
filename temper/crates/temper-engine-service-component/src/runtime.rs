@@ -165,7 +165,13 @@ impl engine::Engine {
         self.store.owner_sets(sets);
     }
     /// Rehearse the configured restart over a copy, without adopting a worker or listeners.
-    pub fn rehearse_store(&mut self, directory: Fd, scratch: Fd, user: u32) -> Result<(), Fd> {
+    pub fn rehearse_store(
+        &mut self,
+        directory: Fd,
+        scratch: Fd,
+        user: u32,
+        reach: jig_protocol_store::Reach,
+    ) -> Result<(), Fd> {
         let engine = self;
         engine.domain.rehearse();
         crate::upgrade::prepare(engine, true);
@@ -173,7 +179,7 @@ impl engine::Engine {
             directory,
             user,
             engine.store.installation,
-            jig_protocol_store::host::Adoption::Rehearse { scratch },
+            jig_protocol_store::host::Adoption::Rehearse { scratch, reach },
         )
     }
     /// Ask jig to make the previous generation active, with the deployment stopped.

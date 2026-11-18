@@ -635,9 +635,8 @@ fn receiving_limits_cut_without_growing_or_losing_call_outcomes() {
 }
 
 #[test]
-#[expect(clippy::disallowed_macros, reason = "fixed wire fixtures belong to decoder unit tests")]
 fn smith_smallest_golden_decodes_at_its_whole_length() {
-    let bytes = include_bytes!("../../../../smith/crates/smith-transcript/golden/v7/record_turn_smallest.bin");
+    let bytes = &smith_turn("smallest");
     assert_eq!(bytes.len(), 43);
     let value = decode(&limits(), bytes).unwrap();
     assert_eq!(
@@ -654,9 +653,8 @@ fn smith_smallest_golden_decodes_at_its_whole_length() {
 }
 
 #[test]
-#[expect(clippy::disallowed_macros, reason = "fixed wire fixtures belong to decoder unit tests")]
 fn smith_full_golden_preserves_maximum_usage_at_its_whole_length() {
-    let bytes = include_bytes!("../../../../smith/crates/smith-transcript/golden/v7/record_turn_full.bin");
+    let bytes = &smith_turn("full");
     assert_eq!(bytes.len(), 154);
     let mut blocks = List::with_capacity(1);
     blocks.push(Block::Text(Text::new(Box::from(&b"abc"[..]), 3).unwrap())).unwrap();
@@ -930,7 +928,6 @@ fn the_clients_call_name_bound_matches_the_transcript_ceiling() {
 }
 
 #[test]
-#[expect(clippy::disallowed_macros, reason = "fixed version-6 wire fixture checks unavailable system context")]
 fn supplied_system_text_survives_translation_and_missing_context() {
     let supplied = b"Selected FIRST instructions\n\n## Brief\nDocument commit: abcdef";
     let original = source(&[message(smith::Role::Assistant, &[SBlock::Text(text(b"answer"))])]);
@@ -949,8 +946,16 @@ fn supplied_system_text_survives_translation_and_missing_context() {
     let cut = decode(&bounded, &bytes).unwrap();
     assert!(cut.cut);
     assert_text_budget(&cut, 12);
-    let version_six = include_bytes!("../../../../smith/crates/smith-transcript/golden/v6/record_turn_smallest.bin");
-    assert!(decode(&limits(), version_six).unwrap().messages.is_empty());
+    let current = source(&[]);
+    let bytes = encode(&current);
+    let (system, body) = bytes.split_last().unwrap();
+    assert_eq!(*system, 0, "v6 has no system context");
+    let mut writer = skein_lib::Writer::new(body.len());
+    writer.put(&[0, 6]).unwrap();
+    writer.put(body.get(2..).unwrap()).unwrap();
+    let version_six = writer.finish();
+    assert_eq!(smith_transcript::decode_archived(&CEILINGS, &version_six).unwrap(), current);
+    assert!(decode(&limits(), &version_six).unwrap().messages.is_empty());
     assert_eq!(decode(&limits(), &encode(&original)).unwrap().messages.len(), 1);
 }
 
@@ -984,4 +989,18 @@ fn system_inspection_does_not_displace_conversation_words() {
         turn.messages.get(1).unwrap().blocks.get(0),
         Some(&Block::Text(Text::new(b"answer".as_slice().into(), 6).unwrap()))
     );
+}
+
+#[expect(clippy::disallowed_macros, reason = "decoder tests embed the current transcript schema")]
+fn smith_turn(shape: &str) -> Box<[u8]> {
+    let schema =
+        skein_codegen::parse(include_str!("../../../../smith/crates/smith-transcript/schema/transcript-v7.schema"))
+            .expect("transcript schema");
+    let name = alloc::format!("record_turn_{shape}.bin");
+    for value in skein_codegen::goldens(&schema) {
+        if value.name == name {
+            return value.bytes.into_boxed_slice();
+        }
+    }
+    panic!("turn shape")
 }

@@ -1,7 +1,7 @@
 //! Party pages (`client/domain/pages.md`, sections 3 and 4;
 //! Closed at once (jig/docs/design/domain/people/acts.md, 2).
-//! `client/domain/contract/documents.md` and `client/domain/contract/README.md`, 5.1). Entries are bounded cache views;
-//! needs count all live task projections across the party's projects. Reply
+//! `client/domain/contract/documents.md` and `client/domain/contract/README.md`, 5.1). Needs page over all live
+//! task projections across the party's projects; updates use a bounded cache. Reply
 //! read positions and stored inbox rows are supplied by their owners.
 
 use crate::{
@@ -131,13 +131,13 @@ fn inbox_reply(
 #[expect(clippy::too_many_lines, reason = "one bounded projection preserves both groups and their parallel contexts")]
 pub(super) fn inbox(core: &Core, limits: &Limits, party: u64, window: &Window) -> Result<Inbox, Missing> {
     super::inbox_selection_bound(window.rows, limits.tasks.depth).ok_or(Missing::TooLarge)?;
-    let entries = core.people.inbox_needs(&limits.people, party).ok_or(Missing::Unknown)?;
+    let entries = core.people.inbox_needs(party).ok_or(Missing::Unknown)?;
     let recent = core.people.cached_updates(&limits.people, party).ok_or(Missing::Unknown)?;
     let mut ordered = Map::with_capacity(
-        limits
-            .people
-            .inbox_entries
-            .checked_mul(2)
+        u32::try_from(entries.len())
+            .ok()
+            .ok_or(Missing::TooLarge)?
+            .checked_add(limits.people.inbox_entries)
             .ok_or(Missing::TooLarge)?
             .checked_add(limits.settings.proposals)
             .ok_or(Missing::TooLarge)?,
@@ -197,7 +197,7 @@ pub(super) fn inbox(core: &Core, limits: &Limits, party: u64, window: &Window) -
         let cursor = Cursor::Inbox { task: entry.task, object: value, at: Some(entry.at) };
         ordered
             .insert(key(cursor)?, (entry.task, entry.project, value, None, entry.at, false, cursor, false))
-            .expect("bounded need prefix");
+            .expect("bounded live need census");
     }
     for update in &recent {
         let (task, project, value, activity, at, chat) = match *update {

@@ -42,8 +42,8 @@ Run policy from the task's creation revision.
 - `agents`: bool. May the agent open sub-agents with no more tools than its own?
 - `call_timeout`: nanoseconds. Longest call to temper's tools.
 - `tools`: u64. Host families need charter/task leave. Asking (2048): see/document; with settings (1024), propose_settings too. Without asking, 1024 grants settings tools. Default 1023 excludes both.
-- `hosts`: `workers`, `engine` or `both`. Which hosts may run it. `workers`: The deployment's workers alone. `engine`: The engine's own slots alone. `both`: Either.
-- `spend`: u64. >= (reserve_turns + 1) costliest default-model completions, else budget refusal. Runs get task funds left, capped by rules.maximum_run_spend.
+- `hosts`: `workers`, `engine` or `both`. Run hosts. `workers`: Deployment workers only. `engine`: The engine's own slots alone. `both`: Either.
+- `spend`: u64. >= (reserve_turns + 1) costliest default-model completions, else budget refusal. Runs get task funds left, half where the task may delegate, capped by rules.maximum_run_spend.
 - `wake`: wake|null. Wake policy for tasks made under this charter whose batch names none. Null/absent: jig's default, all rules `"immediate"`, `results` `"last_or_failure"`, questions, answers and timers waking.
 - `documents`: [8] document. Brief documents; at most `tasks.charter_documents`, else `shape` refusal.
 - `parts`: [8] charter-part. Ordered parts by run reasons; <=tasks.charter_parts; default [].

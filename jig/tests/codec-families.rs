@@ -27,8 +27,8 @@ pub const FAMILIES: &[Family] = &[
         name: "client",
         root: "crates/jig-client-protocol-wire",
         codec_root: "crates/jig-client-protocol-wire",
-        schemas: &["schema/client-v32.schema", "schema/client-v32-part1.schema"],
-        generated: &["src/generated/v32.rs"],
+        schemas: &["schema/client-v33.schema", "schema/client-v33-part1.schema"],
+        generated: &["src/generated/v33.rs"],
     },
     Family {
         name: "view records",
@@ -132,8 +132,8 @@ pub const FAMILIES: &[Family] = &[
         name: "worker wire",
         root: "crates/jig-protocol-worker-wire",
         codec_root: "crates/jig-protocol-worker-wire",
-        schemas: &["schema/worker-wire-v16.schema"],
-        generated: &["src/generated/v16.rs"],
+        schemas: &["schema/worker-wire-v17.schema"],
+        generated: &["src/generated/v17.rs"],
     },
     Family {
         name: "accounts moved",

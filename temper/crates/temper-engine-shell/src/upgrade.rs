@@ -9,28 +9,30 @@ mod report;
 #[cfg(test)]
 pub(crate) mod tests;
 pub(crate) use report::job_counts;
-pub use report::{lines, owner};
+pub use report::{lines, owner, workers_lines};
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Request {
     Check(Box<[u8]>),
+    Workers(Box<[u8]>),
     Back,
 }
 
 pub fn configure(
-    check: bool,
+    mode: &str,
     arguments: &[Box<[u8]>],
     environment: &[EnvironmentEntry],
     working: &[u8],
 ) -> Result<(Directories, Request), String> {
     let (directories, rest) = directories::resolve(arguments, environment, working).map_err(|why| why.to_string())?;
-    let request = match (check, rest.as_ref()) {
-        (true, [directory]) if !directory.is_empty() && !directory.starts_with(b"-") => {
+    let request = match (mode, rest.as_ref()) {
+        ("--check" | "--workers", [directory]) if !directory.is_empty() && !directory.starts_with(b"-") => {
             let directory = path(working).join(path(directory));
-            Request::Check(directory.as_os_str().as_bytes().into())
+            let directory = directory.as_os_str().as_bytes().into();
+            if mode == "--workers" { Request::Workers(directory) } else { Request::Check(directory) }
         }
-        (false, []) => Request::Back,
-        (true | false, _) => return Err("invalid arguments".into()),
+        ("--back", []) => Request::Back,
+        (_, _) => return Err("invalid arguments".into()),
     };
     Ok((directories, request))
 }
@@ -60,14 +62,14 @@ fn run_inner(
     deployment: &[u8],
 ) -> Result<u8, String> {
     let source = match request {
-        Request::Check(directory) => directory.as_ref(),
+        Request::Check(directory) | Request::Workers(directory) => directory.as_ref(),
         Request::Back => deployment,
     };
     let directory = skein_shell::open_root(path(source))
         .map_err(|errno| format!("{}: no readable deployment directory: errno {errno}", path(source).display()))?;
     let mut owned = vec![directory];
     let scratch = match request {
-        Request::Check(_) => {
+        Request::Check(_) | Request::Workers(_) => {
             let seed = match skein_shell::seed() {
                 Ok(seed) => seed,
                 Err(errno) => {
@@ -84,7 +86,14 @@ fn run_inner(
                 }
             };
             owned.push(fd);
-            service.rehearse_store(directory, fd, skein_shell::effective_user()).expect("new rehearsal adopts roots");
+            let reach = match request {
+                Request::Check(_) => jig_protocol_store::Reach::Whole,
+                Request::Workers(_) => jig_protocol_store::Reach::Openings,
+                Request::Back => unreachable!("rehearsal branch"),
+            };
+            service
+                .rehearse_store(directory, fd, skein_shell::effective_user(), reach)
+                .expect("new rehearsal adopts roots");
             Some(scratch)
         }
         Request::Back => {
@@ -92,9 +101,15 @@ fn run_inner(
             None
         }
     };
-    let exit = stopped::drive(binary, directories, service, source, |service, binary, directories, source| {
-        Some(lines(binary, service.upgrade_report()?, directories, source))
-    });
+    let report: temper_service_shell::host::UpgradeReport<service::Service> = match request {
+        Request::Workers(_) => |service, binary, directories, source| {
+            Some(workers_lines(binary, service.upgrade_report()?, directories, source))
+        },
+        Request::Check(_) | Request::Back => {
+            |service, binary, directories, source| Some(lines(binary, service.upgrade_report()?, directories, source))
+        }
+    };
+    let exit = stopped::drive(binary, directories, service, source, report);
     if exit.is_err() {
         close(owned);
     }

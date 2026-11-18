@@ -165,7 +165,9 @@ pub use control::{
     HoldRow, OpenAttempt, Release, Settings, Tracking, address_admit, instruction_admit,
 };
 pub use domain::{Domain, ViewTask, fire, step, view_phase};
-pub use escalation::{Escalation, EscalationContext, EscalationDecision, EscalationHolder, EscalationOutcome};
+pub use escalation::{
+    Escalation, EscalationContext, EscalationDecider, EscalationDecision, EscalationHolder, EscalationOutcome,
+};
 pub use facts::Fact;
 pub use failures::{Class, Retries, Retry, Tries};
 pub use funders::FundingRecord;

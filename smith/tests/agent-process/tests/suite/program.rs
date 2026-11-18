@@ -249,7 +249,8 @@ fn an_init_without_the_server_fails_the_run() {
         &program(b"source"),
         None,
     );
-    assert!(matches!(fault(&run), Some(ModelFault::Program(fault)) if fault.exit().is_none()
+    assert!(matches!(fault(&run), Some(ModelFault::Untooled(fault)) if fault.exit().is_none()
+        && fault.name() == b"claude_code"
         && fault.detail() == b"smith: the program started without smith's tools"));
 }
 

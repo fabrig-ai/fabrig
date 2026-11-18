@@ -292,8 +292,11 @@ jobs of every earlier window and activation.
 ## 9. The world
 
 - **The codec:**
-  - golden bytes for every block and result, each kind of turn, an
-    opening turn's affinity, and usage counts absent and zero;
+  - records-only drift and no unpinned constructs (skein's
+    `data/codec/README.md`, section 6); tests build their values through
+    constructors or fixed-rule values from embedded text, without stored
+    family goldens or generated test targets; they check blocks, results,
+    turn kinds, opening affinity, and usage counts absent and zero;
   - each decoder fuzzed;
   - a domain turn encoded and decoded back unchanged;
   - each refusal: an affinity, an account or a backend on a later turn,
@@ -423,8 +426,9 @@ other.
 - **The tests** sit low, in the codec's world (`tests/codecs`), over a
   fixture family of their own (`tests/transcript-patches`): a fixture turn
   at version 1 and 2, made by skein's command, its first patch marked
-  `fresh-windows`; each version-1 golden patched by skein's `Patcher` to
-  the version-2 golden; the header marked by `FRESH_WINDOWS`; the pieces
+  `fresh-windows`; each fixed-rule version-1 value built from its kept
+  text and patched by skein's `Patcher` to the stored version-2 patch
+  golden; the header marked by `FRESH_WINDOWS`; the pieces
   word read from the schema at run time; and the real set's constants as
   spelled, empty before the baseline; and the fixture owner's landed-data
   check. These are focused tests; skein owns the patcher's mechanics.

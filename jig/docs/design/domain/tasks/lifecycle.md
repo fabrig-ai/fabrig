@@ -298,8 +298,9 @@ them (8).
   for fails for good (a procedure's task hears it and steps instead,
   ../connectors.md, 4.2), an effect it asked for is uncertain and of a kind
   that cannot be recovered (../connectors.md, 4.3), its budget or its
-  deadline runs out (../authority.md, section 7; for an agent task, too
-  little left for its next run's reserve and one completion more of its
+  deadline runs out (../authority.md, section 7; for an agent task, its
+  share for its next run, half of what it has left where it may start a
+  delegate, too little for that run's reserve and one completion more of its
   main model, and on a program backend one more again, with nothing to
   free more), a party stops it, it waits for a hold past its
   bound (`holds.md`, 2), its joining a queue would close a circle of waits (`holds.md`, 7),

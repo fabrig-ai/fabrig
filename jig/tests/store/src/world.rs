@@ -829,7 +829,13 @@ impl World {
     }
 
     pub fn rehearsal_request(&mut self) -> Request {
-        Request::Rehearse { owner: OWNER, directory: self.root, scratch: self.scratch_root(), installation: self.drawn }
+        Request::Rehearse {
+            owner: OWNER,
+            directory: self.root,
+            scratch: self.scratch_root(),
+            installation: self.drawn,
+            reach: jig_protocol_store::Reach::Whole,
+        }
     }
 
     /// Answer fixture jobs and frame sites, retaining the rehearsal's ordered events.

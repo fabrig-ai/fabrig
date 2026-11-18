@@ -189,6 +189,7 @@ fn failed(
         | crate::llm::Failure::ContextTooLong
         | crate::llm::Failure::Invalid
         | crate::llm::Failure::Program { .. }
+        | crate::llm::Failure::Untooled
         | crate::llm::Failure::SessionGone
         | crate::llm::Failure::Unsupported
         | crate::llm::Failure::Limit { .. }

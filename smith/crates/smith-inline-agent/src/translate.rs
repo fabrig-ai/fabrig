@@ -150,6 +150,7 @@ fn model_fault(value: run::Fault, now: skein_lib::Time) -> host::ModelFault {
         run::Fault::Declined => host::ModelFault::Declined,
         run::Fault::Unauthorized { account } => host::ModelFault::Unauthorized { account },
         run::Fault::Program { name, exit, detail } => host::ModelFault::Program { name, exit, detail },
+        run::Fault::Untooled { name, detail } => host::ModelFault::Untooled { name, detail },
         run::Fault::Provider => host::ModelFault::Provider,
         run::Fault::Truncated => host::ModelFault::Truncated,
         run::Fault::Malformed => host::ModelFault::Malformed,

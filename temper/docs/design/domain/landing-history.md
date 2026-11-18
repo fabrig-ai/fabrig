@@ -511,7 +511,7 @@ Focused and fuzzy suites alone, each test failing first:
 - **The store's step tests:** each family's key against the derived
   order and its decoder; `Range::Forge`'s interval holding no key of
   bytes 128 to 131 and every other forge key; the current records'
-  goldens and registry layouts.
+  drift, pinned constructs, built-value round trips and registry layouts.
 - **The forge's world** (`../testing/README.md`; `landing.md`, 16): each
   kind written by its step, under `queue` and under `turn`, in the
   decision that decides or observes it, with both ends of each interval;

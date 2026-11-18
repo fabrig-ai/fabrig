@@ -192,7 +192,7 @@ fn a_due_agent_s_readiness_is_its_admission_in_every_state() {
             send_task(&mut core, &limits, tasks::Event::Restored);
         }
         let expected = expected.unwrap_or_else(|| {
-            RunAdmission::Allow(Box::new(RunAllowance { choice: core.run_choice(TASK).unwrap(), spend: 100 }))
+            RunAdmission::Allow(Box::new(RunAllowance { choice: core.run_choice(TASK).unwrap(), spend: 50 }))
         });
         let context = core.tasks.run_context(TASK).unwrap();
         assert_eq!(core.tasks.task(TASK).unwrap().phase, tasks::Phase::Active(tasks::Active::Due), "{state:?}");
@@ -320,7 +320,7 @@ fn usable_retained_provider_constrains_the_concrete_host() {
     let RunAdmission::Allow(allowed) = core.run_admission(&stale, Wall::EPOCH, Box::new([])) else {
         panic!("current data allows")
     };
-    assert_eq!(allowed.spend, 100);
+    assert_eq!(allowed.spend, 50);
     assert_eq!(allowed.choice.placement.channel, SECOND);
     assert_eq!(
         allowed.choice.accounts.as_ref(),

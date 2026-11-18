@@ -23,6 +23,7 @@ fn command_words(command: &Command) -> Vec<&str> {
         Command::Restore { .. } => vec!["restore"],
         Command::Upgrade { request, .. } => match request {
             temper_engine_shell::upgrade::Request::Check(_) => vec!["upgrade", "--check"],
+            temper_engine_shell::upgrade::Request::Workers(_) => vec!["upgrade", "--workers"],
             temper_engine_shell::upgrade::Request::Back => vec!["upgrade", "--back"],
         },
         Command::Usage(row) => match row.reach {
@@ -66,6 +67,7 @@ fn every_row_parses_from_an_example() {
         (&["checkpoint"], &["checkpoint", "--remove", "00000000000000000012-00000000000000ff"]),
         (&["checkpoint"], &["checkpoint", "--hold", "00000000000000000012-00000000000000ff", "--", "cmd", "arg"]),
         (&["upgrade", "--check"], &["upgrade", "--check", "/backup"]),
+        (&["upgrade", "--workers"], &["upgrade", "--workers", "/backup"]),
         (&["upgrade", "--back"], &["upgrade", "--back"]),
         (&["init"], &["init"]),
         (&["serve"], &["serve"]),
@@ -202,6 +204,7 @@ fn temper_help_lists_only_public_commands() {
             "program-login",
             "help",
             "versions",
+            "upgrade",
             "upgrade",
             "upgrade",
             "checkpoint",

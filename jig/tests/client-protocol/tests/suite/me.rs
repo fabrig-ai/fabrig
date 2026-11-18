@@ -9,8 +9,7 @@ fn me_says_the_engines_words_bound() {
     const ME: Handle = Handle { asker: Asker::JIG, number: 1 };
     let mut limits = fixtures::owner_limits();
     limits.core.people.words = WORDS_BYTES;
-    let mut story =
-        Story::reading_chat_with(fixtures::SEED, Box::from(fixtures::TURN_BYTES), fixtures::domain_limits(), limits);
+    let mut story = Story::reading_chat_with(fixtures::SEED, fixtures::turn_bytes(), fixtures::domain_limits(), limits);
     story.watch(ME, Watchable::Jig(contract::Subject::Me));
     let Some(Latest::Jig(contract::Delivery::Me(me))) = story.client.document(ME).expect("watched me").latest else {
         panic!("signed-in me")

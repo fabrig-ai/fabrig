@@ -12,6 +12,9 @@ pub(crate) fn open(store: &mut Store, owner: Token, above: &mut Queue<Event>, be
         return;
     }
     crate::rehearsal::announce(store, above);
+    if crate::rehearsal::end_openings(store, above) {
+        return;
+    }
     if let Err(why) = crate::jobs::admission::check(&store.owner_sets) {
         return refuse(store, owner, OpenRefusal::Set { owner: why }, above);
     }

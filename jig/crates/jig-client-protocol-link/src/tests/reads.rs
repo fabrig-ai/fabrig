@@ -426,7 +426,7 @@ fn an_undecodable_single_turn_is_malformed() {
 #[test]
 fn a_turn_answer_for_another_identity_is_rejected() {
     for (task, attempt, turn) in [(8, 44, 3), (7, 45, 3), (7, 44, 4)] {
-        let mut record = fixtures::single_turn_record(fixtures::FULL_TURN).into_parts();
+        let mut record = fixtures::single_turn_record(&fixtures::full_turn()).into_parts();
         record.task = task;
         record.name = w::TurnName::new(&w::CEILINGS, w::TurnNameParts { attempt, number: turn }).unwrap();
         let value = w::ReadValue::Turn(w::ArchivedTurn::new(&w::CEILINGS, record).unwrap());
@@ -457,7 +457,7 @@ fn the_single_turn_decoder_uses_the_archive_bound() {
     // The archive decoder applies its TurnCarriedBytes bound.
     let archive_limits = fixtures::limits();
     assert_eq!(
-        translate::turn::archive(fixtures::single_turn_record(fixtures::FULL_TURN), &archive_limits),
+        translate::turn::archive(fixtures::single_turn_record(&fixtures::full_turn()), &archive_limits),
         Ok(fixtures::expected_single_turn())
     );
 }

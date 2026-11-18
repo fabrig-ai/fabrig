@@ -36,6 +36,7 @@ pub enum TaskWaitWhy {
     Host,
     Empty,
     Invalid(tasks::AccountWhy),
+    Untooled { worker: u32 },
 }
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum TaskSourceState {

@@ -293,6 +293,11 @@ impl ServiceHost {
         }
         self.github_seen.checkpoint(peer, calls)
     }
+    /// Worker and engine notes in iteration order, on the world's clock.
+    #[must_use]
+    pub fn notes(&self) -> &[(Time, temper_service::Note)] {
+        &self.notes
+    }
     /// Settled lives in order; `ran()` and `linked()` retain their aggregate history.
     #[must_use]
     pub fn lives(&self) -> &[Life] {

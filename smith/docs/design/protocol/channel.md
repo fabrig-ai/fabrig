@@ -76,9 +76,8 @@ of domain/host.md, section 2.
   moves with every change to its layout (the owner, 2026-11-12), as a new
   kind always moved it. Its `schema/` holds the current text alone, and
   each version from 7 on is kept as its text in `schema/kept/` (skein's
-  `data/codec/command.md`, section 1). Version 7's schema and goldens stay
-  in the tree unchanged, as its kept text, not a negotiated version.
-  Version 6's golden bytes stay in the tree unchanged; it is no
+  `data/codec/command.md`, section 1). Earlier values are built from
+  those kept texts, not stored golden files; no kept text is a
   negotiated version.
 - **The host and agent stay on one build.** A consumer that spawns agents
   pins their program and configuration for its lifetime, and never
@@ -528,7 +527,9 @@ a trace is kept is the agent's configuration (agent.md).
 ## 10. The world
 
 - **The codecs:**
-  - golden bytes for every record;
+  - records-only drift and no unpinned constructs, under skein's
+    `data/codec/README.md`, section 6; fixed-rule values built from
+    embedded current or kept text, with no generated test targets;
   - each decoder fuzzed in the fuzzy suite.
 - **A protocol world:** the agent's half with `smith-domain`, under a
   scripted LLM and machine, against the host's half with

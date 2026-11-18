@@ -25,6 +25,7 @@ mod pages;
 mod preopen;
 mod readers;
 mod reads;
+mod rehearsal;
 mod restore;
 mod restoring;
 mod secrets;

@@ -5,7 +5,7 @@ use std::{
 };
 use temper_shell::directories::Directories;
 
-fn copy(source: &Path, target: &Path) {
+pub(super) fn copy(source: &Path, target: &Path) {
     std::fs::create_dir(target).expect("copy directory");
     std::fs::set_permissions(target, std::fs::Permissions::from_mode(0o700)).expect("private directory");
     for entry in std::fs::read_dir(source).expect("source directory") {
