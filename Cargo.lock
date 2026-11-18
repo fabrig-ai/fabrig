@@ -6343,6 +6343,7 @@ dependencies = [
  "serde_json",
  "skein-fail-stop",
  "skein-scratch",
+ "skein-shell",
  "temper-engine-shell",
  "temper-protocol-store",
  "temper-shell",
