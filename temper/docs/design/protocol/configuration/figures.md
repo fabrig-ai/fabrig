@@ -186,11 +186,40 @@ written as JSON by the worker's start:
   `head` and `idle` in milliseconds and `oversized_reasoning`. Smith's
   protocol provider is `openai` for dialect 3 and `anthropic` for dialect 2;
   an engine-local provider name such as `demo` remains in the figures.
-- **`programs.claude_code.path`** is the `claude` found on
-  `PATH` at start, or `"fetched"` with none (`../setup/owned.md`, 6).
-  Its `directory` is `programs` in the data directory.
-- **`environment`** is the machine facts supplied to the worker's
-  typed start, empty when none are supplied.
+- **`programs.claude_code.path`** is the `claude` found on the worker
+  process's own `PATH` at start, or `"fetched"` with none
+  (`../setup/owned.md`, 6). Its `directory` is `programs` in the data
+  directory. The document names no `claude` of its own: a path is the
+  draft's `[programs]` key, with the TOML file
+  (`../../draft/config.md`, 4.4).
+- **`environment`** is the agents' environment: the variables smith
+  gives each program it runs for an agent, once it has cleared its own,
+  Claude Code, a shell command and the checkout's check alike. It's the
+  worker's own, never the engine's or a setting's
+  (`../../draft/config.md`, 6.3), from the document's
+  `application.environment` (`README.md`, section 3) and the worker
+  process's own environment, by one rule:
+  - **Absent,** it's the worker process's own `HOME`, then its own
+    `PATH`, each where the process has it. A deployment that writes
+    nothing still has agents that find what the worker's `PATH` finds,
+    `cargo` among it.
+  - **Given,** it's exactly the document's entries, in their order,
+    then the worker's own `HOME` where the list names no `HOME`, then
+    its own `PATH` where the list names no `PATH`. An empty list is as
+    absent. No other variable of the worker's process reaches the
+    agents: a deployment gives the rest in the list.
+  - **Example:** a worker whose own `HOME` is `/home/w` and `PATH`
+    `/usr/bin:/bin`, with `[{"name": "CARGO_TARGET_DIR", "value":
+    "/srv/target"}, {"name": "PATH", "value": "/opt/cargo/bin:/usr/bin"}]`,
+    gives `CARGO_TARGET_DIR=/srv/target`, `PATH=/opt/cargo/bin:/usr/bin`
+    and `HOME=/home/w`, in that order; with no list, `HOME=/home/w` and
+    `PATH=/usr/bin:/bin`.
+  - **Every start takes it:** a worker alone's and the box's, through
+    the one rule (`temper-worker-service`'s
+    `startup::worker::application::agents_environment`), into the
+    worker part's `environment` that this configuration is written from.
+    The process's environment reaches that rule as its shell captured
+    it, as the shell's `git` does; the rule reads nothing else of it.
 
 - **Pinned as today's file is:** `agent/agent.json` under the worker's
   root, private, with the agent program copied beside it, both afresh at
@@ -233,6 +262,13 @@ written as JSON by the worker's start:
 - **No store patch.** Kind 21 starts empty, over its default.
 - **A worker on another host reaches the endpoints `engine.llm` names,**
   as the copies it kept did before.
+- **The agents' environment moves no version.** `application.environment`
+  is a member the document gains, absent by default, and the pinned
+  configuration keeps smith's form. A deployment whose agents need no
+  more than the worker's own `HOME` and `PATH` takes no step. One whose
+  agents need more, as dev.fabrig.ai's do, moves the `environment`
+  entries of the `agent.json` it removed (section 7) into each worker's
+  document, as `application.environment`, before that worker restarts.
 
 ## 9. Testing
 
@@ -249,6 +285,17 @@ compiled, and run after landing.
 - **The agent configuration:** figures of the stock and a machine with
   no `claude` give bytes that smith's decoder reads as today's
   `bare-agent.json` reads, with `"fetched"` as its path.
+- **The agents' environment,** focused, in `temper-worker-service`: a
+  worker alone built from its engine's figures with no
+  `application.environment` gives its worker part the process's own
+  `HOME` and `PATH` and nothing else of it; with two entries, those two,
+  then `HOME` and `PATH` where the list omits them; an entry past its
+  bounds, or a repeated name, is refused, naming the entry. The box's
+  start gives the same, by the same rule.
+- **An agent's command finds `PATH`'s programs:** in the real loop, a
+  worker alone whose own `PATH` alone holds a program runs a scripted
+  agent's shell command naming that program by its name, and the
+  command's output reaches the agent.
 - **A worker alone:** in the real loop, an engine alone and two workers
   alone, each with a document without `limits` or `agent`, take their
   figures and run a task each to its end (`../cluster.md`, section 6).
