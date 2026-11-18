@@ -160,6 +160,16 @@ pub enum EscalationHolder {
     },
 }
 
+/// The task or person that decided an escalation while its task remains held
+/// (domain/tasks/proposals.md, "An escalation's decider has its kind").
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum EscalationDecider {
+    /// The live ancestor task that decided.
+    Task(u64),
+    /// The authenticated person that decided, including through a policy role.
+    Person(u64),
+}
+
 /// One semantic state per task; no receipt table, inbox or decision archive.
 /// Root archives decisions; rejected chats remain held.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -190,7 +200,7 @@ pub enum Escalation {
     /// rerouting. Retained transport outcome stays root-owned.
     Rejected {
         revision: u64,
-        by: u64,
+        by: EscalationDecider,
         /// Rejection words, at most task `result_bytes`.
         reason: Box<[u8]>,
     },
@@ -369,7 +379,7 @@ pub(crate) fn routed(
 pub(crate) struct Deciding {
     pub(crate) number: u64,
     pub(crate) revision: u64,
-    pub(crate) by: u64,
+    pub(crate) by: EscalationDecider,
     pub(crate) entry: Option<u64>,
     pub(crate) decision: EscalationDecision,
 }
@@ -382,17 +392,23 @@ pub(crate) fn decide(
     out: &mut Queue<Request>,
 ) {
     let Deciding { number, revision, by, entry, decision } = deciding;
+    let positive = match by {
+        EscalationDecider::Task(number) | EscalationDecider::Person(number) => number != 0,
+    };
     let mut outcome = EscalationOutcome::Stale;
     if domain.ready()
-        && by != 0
+        && positive
         && let Some(task) = record(domain, number)
     {
         match task.escalation {
             Escalation::Waiting { revision: current, holder, .. } if current == revision => {
                 let standing = match holder {
-                    EscalationHolder::Task(task) => task == by,
-                    EscalationHolder::Person(person) => person == by,
-                    EscalationHolder::Role { .. } => true,
+                    EscalationHolder::Task(task) => by == EscalationDecider::Task(task),
+                    EscalationHolder::Person(person) => by == EscalationDecider::Person(person),
+                    EscalationHolder::Role { .. } => match by {
+                        EscalationDecider::Task(_) => false,
+                        EscalationDecider::Person(_) => true,
+                    },
                 };
                 if standing {
                     outcome = validate(task, &decision, holder, entry, &env.limits);

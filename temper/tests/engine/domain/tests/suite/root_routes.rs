@@ -5487,7 +5487,7 @@ fn restored_rejection_reaches_jigs_link_pass_after_temper_loads_it() {
         if let Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(task))) = row
             && let tasks::Escalation::Rejected { by, .. } = &mut task.escalation
         {
-            *by = 999;
+            *by = tasks::EscalationDecider::Person(999);
             record = Some(jig_domain_core::Key::Tasks(tasks::Key::Live(task.number)));
             changed += 1;
         }

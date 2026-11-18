@@ -228,7 +228,11 @@ fn each_escalation_state_reads_back() {
     for escalation in [
         domain::Escalation::Unheld { revision: 3 },
         domain::Escalation::Routing { revision: 5 },
-        domain::Escalation::Rejected { revision: 7, by: 31, reason: Box::from(b"rejected".as_slice()) },
+        domain::Escalation::Rejected {
+            revision: 7,
+            by: domain::EscalationDecider::Person(31),
+            reason: Box::from(b"rejected".as_slice()),
+        },
     ] {
         let mut record = current_record();
         record.escalation = escalation;
@@ -652,4 +656,26 @@ fn now_written_round_trips_and_enforces_the_line_bound() {
     assert_eq!(tasks::decode(&bytes, &narrower, &[]), Err(bound_problem(wire::Path::NowWrittenLineLine)));
     let row = activity(domain::Line::NowWritten { attempt: 7, line: Box::from([b'n'; 513]) });
     assert_eq!(tasks::encode(&row, &limits, &[]), Err(bound_problem(wire::Path::NowWrittenLineLine)));
+}
+
+#[test]
+fn rejection_deciders_keep_their_stored_kind() {
+    let limits = tasks_limits();
+    for (by, kind) in [
+        (domain::EscalationDecider::Task(31), wire::DeciderKind::Task),
+        (domain::EscalationDecider::Person(31), wire::DeciderKind::Person),
+    ] {
+        let rejection = domain::Escalation::Rejected { revision: 7, by, reason: Box::from(b"leave held".as_slice()) };
+        let stored = tasks::state::escalation(&rejection, &limits).expect("rejection fits");
+        let wire::Escalation::Rejected(record) = &stored else {
+            panic!("stored rejection");
+        };
+        assert_eq!(record.by(), 31);
+        assert_eq!(record.by_kind(), &kind);
+        assert_eq!(tasks::state::read_escalation(stored), Ok(rejection.clone()));
+        let mut record = current_record();
+        record.escalation = rejection;
+        let row = live_record(record);
+        assert_eq!(saved_tasks(&row), Ok(row));
+    }
 }

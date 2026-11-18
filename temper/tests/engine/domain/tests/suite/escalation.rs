@@ -571,7 +571,7 @@ fn writer_store_oracle_rejects_held_entry_actor_high_water_and_fallback_mutation
         if let Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(task))) = row
             && let tasks::Escalation::Rejected { by, .. } = &mut task.escalation
         {
-            *by = world.store.header().people.max(world.store.header().tasks) + 1;
+            *by = tasks::EscalationDecider::Person(world.store.header().people.max(world.store.header().tasks) + 1);
             changed += 1;
         }
     }

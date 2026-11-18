@@ -207,7 +207,7 @@ fn escalation(w: &mut World, before_hold: fn(&mut World)) {
         reply_to,
         task: CHAT,
         revision,
-        by: CHAT_PERSON,
+        by: jig_domain_tasks::EscalationDecider::Person(CHAT_PERSON),
         entry: None,
         decision: EscalationDecision::Release,
     });

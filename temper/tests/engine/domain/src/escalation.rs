@@ -467,7 +467,7 @@ impl World {
                 0,
                 tasks::Escalation::Rejected {
                     revision,
-                    by: self.people[owner].expect("winner"),
+                    by: tasks::EscalationDecider::Person(self.people[owner].expect("winner")),
                     reason: REASON.into(),
                 },
             );

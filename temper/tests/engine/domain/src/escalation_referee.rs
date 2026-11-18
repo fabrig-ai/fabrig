@@ -466,7 +466,7 @@ impl Referee {
                             && record.escalation
                                 == (tasks::Escalation::Rejected {
                                     revision: archive.revision,
-                                    by: *by,
+                                    by: tasks::EscalationDecider::Person(*by),
                                     reason: reason.clone(),
                                 })
                     }
@@ -829,7 +829,12 @@ pub fn store_rules(rows: &BTreeMap<Key, Record>) -> Result<(), &'static str> {
                         return Err("held fallback belongs to another project");
                     }
                 }
-                tasks::Escalation::Rejected { by, .. } if by > header.people.max(header.tasks) => {
+                tasks::Escalation::Rejected { by, .. }
+                    if match by {
+                        tasks::EscalationDecider::Person(person) => person > header.people,
+                        tasks::EscalationDecider::Task(task) => task > header.tasks,
+                    } =>
+                {
                     return Err("rejection actor exceeds durable actor high-water mark");
                 }
                 tasks::Escalation::Unheld { .. }
