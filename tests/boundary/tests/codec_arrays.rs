@@ -22,6 +22,9 @@ impl<'ast> Visit<'ast> for CountedArrays {
 }
 
 fn counted_arrays(source: &str) -> usize {
+    if !fabrig_boundary::may_have_counted_arrays(source) {
+        return 0;
+    }
     let source = syn::parse_file(source).expect("codec source is valid Rust");
     let mut arrays = CountedArrays::default();
     arrays.visit_file(&source);
@@ -62,6 +65,27 @@ fn only_fixed_byte_array_types_are_permitted() {
         ("// [bool; 4]\nconst TEXT: &str = \"[u32; 8]\";", 0),
     ] {
         assert_eq!(counted_arrays(source), count, "{source}");
+    }
+}
+
+#[test]
+fn the_prefilter_keeps_every_counted_array_candidate() {
+    for (source, expected) in [
+        ("struct Fixed { bytes: [u8 /* width */; 32] }", false),
+        ("struct Nested { bytes: [[u8; 4]; 2] }", true),
+        ("struct Count { flags: [ /* ] */ bool; 4] }", true),
+        ("struct Count { flags: [u8x; 4] }", true),
+        ("struct Count { flags: [(u8); 4] }", true),
+        ("// [bool; 4]\nconst TEXT: &str = r#\"[u32; 8]\"#;", false),
+        ("const BYTES: &[u8] = &[0; 4];", true),
+        ("#[expect(clippy::too_many_lines, reason = \"[bool; 4]\")] fn fine() {}", false),
+    ] {
+        let parsed = syn::parse_file(source).expect("prefilter fixture is Rust");
+        let mut arrays = CountedArrays::default();
+        arrays.visit_file(&parsed);
+        let candidate = fabrig_boundary::may_have_counted_arrays(source);
+        assert_eq!(candidate, expected, "{source}");
+        assert_eq!(counted_arrays(source), arrays.0, "{source}");
     }
 }
 
