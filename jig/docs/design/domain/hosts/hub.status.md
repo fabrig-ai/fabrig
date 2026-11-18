@@ -1,6 +1,6 @@
 # hub: status
 
-2026-11-16. Where the tree's code lags or departs from [hub.md](hub.md).
+2026-11-18. Where the tree's code lags or departs from [hub.md](hub.md).
 
 
 - **Not yet:** 5: the inline capability remains `README.status.md`, 3, 5.2 and 9.  held-assignment answers remain `README.status.md`, 4.

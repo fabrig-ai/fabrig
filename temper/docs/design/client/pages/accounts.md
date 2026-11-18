@@ -327,6 +327,15 @@ The words for each offered source are:
   - *An account's login on no host:* "ACCOUNT's login isn't signed in on a
     host that can run this.", the command (below) where the accounts
     document names the source, and a link to `Accounts`.
+  - *A program that started without its tools:* jig's `Account { why:
+    Untooled { worker } }` (jig's `domain/engine/fleet.md`): "Claude Code
+    started without its tools for 'claude-alice' on HOST. This runs on
+    another worker that can take it, or on HOST once it reconnects or the
+    login is checked again.", the program and source as the state table
+    below names them, HOST the worker's name from the deployment's
+    `worker_settings` by its number, "worker N" where none is read; with
+    "Check again", which checks that source's login, and a link to
+    `Accounts`.
   - *A source held:* its state's words and its act, as the accounts page has
     them (`Limited`'s Resume, `NeedsSignIn`'s sign-in, `Refused`'s key).
   - *A credential:* "This work needs a credential from its forge." and a link

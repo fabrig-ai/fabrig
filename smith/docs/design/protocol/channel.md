@@ -71,8 +71,10 @@ of domain/host.md, section 2.
   of kinds, and the records of that version's schema. Each half speaks
   one version, its build's, and offers only that one: this channel is
   per-build (README.md, section 8).
-  The current version is 8 (`channel-v8.schema`), which added a model
-  failure's status to its report (section 4). From 2026-11-12 the version
+  The current version is 11 (`channel-v11.schema`), which adds a
+  program that started without smith's tools to a run's failures
+  (section 4); version 8 added a model failure's status to its report.
+  From 2026-11-12 the version
   moves with every change to its layout (the owner, 2026-11-12), as a new
   kind always moved it. Its `schema/` holds the current text alone, and
   each version from 7 on is kept as its text in `schema/kept/` (skein's
@@ -317,8 +319,10 @@ limits.md, 2.4, gives.
     (above), the reset measured when the run answers; a refused account,
     with the account and the provider's code as the refused notice has
     it; an unauthorized account, whose program source's login was lost;
-    or a program that could not run, naming it, with its detail
-    (programs.md, 5.6);
+    a program that started without smith's tools, `ModelFault::Untooled`,
+    carrying a `ProgramFault` whose exit is none, naming it, with its
+    detail (programs.md, 5.6), added in version 11; or a program that
+    could not run, naming it, with its detail (programs.md, 5.6);
   - the budget, naming what ran out, with what was used and its bound;
   - policy;
   - cancelled;
