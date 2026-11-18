@@ -104,6 +104,15 @@ pub(crate) fn sign_in_documents(directory: &Path, issuer: SocketAddr) -> std::io
 
 /// Create the standalone tree; every private directory and file has its final mode.
 pub fn write(directory: &Path, llm: SocketAddr, forge: SocketAddr) -> std::io::Result<()> {
+    write_configured(directory, llm, forge, None)
+}
+
+pub(crate) fn write_configured(
+    directory: &Path,
+    llm: SocketAddr,
+    forge: SocketAddr,
+    configure: Option<fn(&mut serde_json::Value, &mut serde_json::Value)>,
+) -> std::io::Result<()> {
     for name in ["", "accounts", "secrets", "state", "clients"] {
         std::fs::create_dir_all(directory.join(name))?;
         std::fs::set_permissions(directory.join(name), std::fs::Permissions::from_mode(0o700))?;
@@ -125,6 +134,10 @@ pub fn write(directory: &Path, llm: SocketAddr, forge: SocketAddr) -> std::io::R
             directory.join("bin/claude"),
         )?;
         program_documents(directory, &mut agent, &mut config);
+    }
+    if let Some(configure) = configure {
+        configure(&mut config, &mut agent);
+        turn_bounds::apply(&mut config, turn_bounds::turn_body(&agent));
     }
     private(&directory.join("world-agent.json"), &serde_json::to_vec(&agent)?)?;
     temper_agent_fixtures::apply(&mut config, directory, &agent);
