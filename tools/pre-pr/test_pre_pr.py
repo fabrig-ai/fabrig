@@ -40,6 +40,7 @@ class DeliverySelection(unittest.TestCase):
         self.write('.config/gate/read-by-tests.txt', 'api/docs/input.txt\n')
         self.write('.config/gate/always.txt', 'api shared/fixtures/\n')
         self.write('tools/tiers/packages.toml', '[test-binaries]\n')
+        self.write('tools/tiers/figures.py', 'raise SystemExit(0)\n')
         source = Path(__file__).resolve().parents[1] / 'citations'
         for name in ('citations.py', 'sized.txt'):
             self.write('tools/citations/' + name, (source / name).read_text())
@@ -1843,6 +1844,107 @@ sys.exit(int(count > 0))
         self.assertEqual(result, 0, log)
         self.assertEqual(code, (False, False, True))
         self.assertFalse(any('scripts/old_forms.py' in args for args, _ in calls))
+
+    def fake_figures(self, code, output):
+        """Fake check 7 at its process boundary (tools/pre-pr/design.md, 4)."""
+        self.write('tools/tiers/figures.py', f'''import os
+from pathlib import Path
+import sys
+assert 'GIT_INDEX_FILE' not in os.environ
+assert Path('tools/tiers/budgets.toml').is_file()
+print({output!r})
+raise SystemExit({code})
+''')
+        self.write('tools/tiers/budgets.toml', '# base figures\n')
+        self.write('tools/citations/citations.py', 'print("citations: passed")\n')
+        self.pin()
+
+    def test_figures_passes_last_on_delivery_snapshot(self):
+        """Check 7 follows every selected check (tools/pre-pr/design.md, 4)."""
+        for row in ('budgets alone', 'mixed', 'earlier failure'):
+            with self.subTest(row=row):
+                self.setUp()
+                output = 'figures: accepted snapshot'
+                self.fake_figures(0, output)
+                base = self.command('git', 'rev-parse', 'HEAD').strip()
+                self.write('tools/tiers/budgets.toml', '# delivered figures\n')
+                if row != 'budgets alone':
+                    self.write('api/src/lib.rs', 'pub fn changed() {}\n')
+                    self.write('guide.md', '# Changed\n')
+                errors = [PRE_PR.failure('format', 'bad format\n')] if row == 'earlier failure' else []
+                result, log, calls, _ = self.deliver(formatting_answer=errors)
+                record = json.loads((self.root / 'target/temper/pre-pr-failures.json').read_text())
+                self.assertEqual(result, int(bool(errors)), log)
+                self.assertEqual(record['failures'], [dict(name='format', key=None, **{'class': 'new'})]
+                                 if errors else [])
+                self.assertEqual(calls[-1], (['python3', '-I', '-B', 'tools/tiers/figures.py',
+                                             '--base', base, '--head', record['tree']], self.root))
+                self.assertEqual(sum('tools/tiers/figures.py' in args for args, _ in calls), 1)
+                self.assertNotEqual(record['tree'], self.command('git', 'rev-parse', 'HEAD^{tree}').strip())
+                self.assertEqual(self.command('git', 'show', record['tree'] + ':tools/tiers/budgets.toml'),
+                                 '# delivered figures\n')
+                self.assertIn('pre-pr: figures …\n' + output + '\n', log)
+                self.assertRegex(log, r'pre-pr: figures: passed, \d+\.\d{3} s\n')
+                self.assertLess(log.index('pre-pr: old-forms hearth:'), log.index('pre-pr: figures …'))
+                if row != 'budgets alone':
+                    for name in ('clippy', 'tests', 'fuzzy tests', 'citations'):
+                        self.assertLess(log.index(f'pre-pr: {name}:'), log.index('pre-pr: figures …'))
+
+    def test_figures_refusal_is_not_inherited(self):
+        """A figure refusal is the delivery's (tools/pre-pr/design.md, 4)."""
+        output = 'figure raised: default temper domain ceiling: 137.5 to 141.5'
+        self.fake_figures(1, output)
+        self.write('tools/tiers/budgets.toml', '# delivered figures\n')
+        self.write('api/src/lib.rs', 'pub fn changed() {}\n')
+        self.write('.git/temper/reds', 'temper-reds 1\n- test figures figures\n'
+                   '- lint figures figures tools/tiers/budgets.toml\n')
+        with mock.patch.object(PRE_PR, 'failure', wraps=PRE_PR.failure) as failure:
+            result, log, _, _ = self.deliver()
+        failure.assert_called_once_with('figures', output + '\n')
+        self.assertEqual(result, 1, log)
+        self.assertIn('pre-pr: refused (base ', log)
+        self.assertIn('pre-pr: figures …\n' + output + '\n', log)
+        self.assertRegex(log, r'pre-pr: figures: failed, \d+\.\d{3} s\n')
+        self.assertIn('\nfigures\n' + output + '\n', log)
+        record = json.loads((self.root / 'target/temper/pre-pr-failures.json').read_text())
+        self.assertEqual(record['verdict'], 'refused')
+        self.assertEqual(record['counts'], dict(new=1, flake=0, inherited=0))
+        self.assertEqual(record['failures'], [dict(name='figures', key=None, **{'class': 'new'})])
+
+    def test_figures_tool_error_is_a_check(self):
+        """Other exits fail the check itself (tools/pre-pr/design.md, 4)."""
+        for code in (2, 7):
+            with self.subTest(code=code):
+                self.setUp()
+                output = 'figures: cannot read tree'
+                self.fake_figures(code, output)
+                self.write('tools/tiers/budgets.toml', '# delivered figures\n')
+                with mock.patch.object(PRE_PR, 'failure', wraps=PRE_PR.failure) as failure:
+                    result, log, _, _ = self.deliver()
+                failure.assert_called_once_with('check figures', output + '\n')
+                self.assertEqual(result, 1, log)
+                self.assertRegex(log, r'pre-pr: figures: failed, \d+\.\d{3} s\n')
+                self.assertIn('\ncheck figures\n' + output + '\n', log)
+                record = json.loads((self.root / 'target/temper/pre-pr-failures.json').read_text())
+                self.assertEqual(record['failures'], [dict(name='check figures', key=None, **{'class': 'new'})])
+
+    def test_figures_skips_unchanged_budgets_and_no_base(self):
+        """Selection needs the changed path and a base (tools/pre-pr/design.md, 4)."""
+        for row in ('prose', 'other tools', 'no base'):
+            with self.subTest(row=row):
+                self.setUp()
+                self.fake_figures(1, 'figures must not run')
+                if row == 'prose':
+                    self.write('temper/docs/example.md', '# Example\n')
+                elif row == 'other tools':
+                    self.write('tools/other.py', '# Changed\n')
+                else:
+                    self.write('tools/tiers/budgets.toml', '# delivered figures\n')
+                    self.command('git', 'update-ref', '-d', 'refs/temper/landing')
+                result, log, calls, _ = self.deliver(metadata_forbidden=row == 'prose')
+                self.assertEqual(result, 0, log)
+                self.assertFalse(any('tools/tiers/figures.py' in args for args, _ in calls))
+                self.assertNotIn('pre-pr: figures', log)
 
     def test_new_broken_citation(self):
         self.write('skein/docs/guide.md', '# Guide\nSee `missing.md`, section 1.\n')

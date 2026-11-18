@@ -275,6 +275,17 @@ def citations(base_id, tree_id, root, env):
     return code, errors
 
 
+def figures(base_id, tree_id, root, env):
+    """Run check 7 (tools/pre-pr/design.md, 4; tools/tiers/budgets.md, 10.1)."""
+    code, log = run(['python3', '-I', '-B', 'tools/tiers/figures.py',
+                     '--base', base_id, '--head', tree_id], root, env, stdout=True)
+    if code == 1:
+        errors = [failure('figures', log)]
+    else:
+        errors = [failure('check figures', log)] if code else []
+    return code, errors
+
+
 def outward(root, env):
     """Key a name finding as the Rust test; tool errors are never inherited."""
     code, log = run(['python3', '-I', '-B', 'tools/outward/outward.py'], root, env)
@@ -1010,6 +1021,9 @@ def main():
                 errors += found
             if prose_only:
                 _, found = timed('outward', lambda: outward(root, private), pending)
+                errors += found
+            if base_id and 'tools/tiers/budgets.toml' in paths:
+                _, found = timed('figures', lambda: figures(base_id, tree_id, root, env), pending)
                 errors += found
             inherited(reds, errors)
             count_errors = [e for e in errors if e['name'].startswith('old-forms ') and e['key']]
