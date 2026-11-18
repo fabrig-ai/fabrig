@@ -32,6 +32,41 @@ fn process_engine(case: &str) -> jig_protocol_config::Engine {
 }
 
 #[test]
+fn the_process_document_holds_the_agent_after_the_store_restores_stock() {
+    use skein_lib::{List, Secret};
+    use temper_service::{
+        settings::{Files, Seeds},
+        startup,
+    };
+
+    let scratch = support::Scratch::startup("process-stock-turn");
+    support::configuration(scratch.path(), &support::Forge::Unreached);
+    let bytes = std::fs::read(scratch.path().join("temper.json")).expect("process configuration");
+    let document = serde_json::from_slice(&bytes).expect("deployment JSON");
+    // Compose stock agents(), not the fixture's pre-serve agents.setting.
+    let configuration =
+        serde_json::to_vec(&temper_fixtures::agent::configuration(&document)).expect("stock agent JSON");
+    let agent = temper_worker_shell::agent::prepare_bytes(configuration.into()).expect("stock agent").agent;
+    let directories = jig_directories(&support::configuration::directories(scratch.path()));
+    let named = startup::named(&bytes, &directories).expect("named fixture files");
+    let mut entries = List::with_capacity(u32::try_from(named.files.len()).expect("file count"));
+    for file in named.files {
+        entries.push((file.path, Secret::new(Box::new([b'7'; 64])))).expect("named file count");
+    }
+    let seeds = Seeds {
+        link_secret: None,
+        local_secret: None,
+        deployment: [7; 16],
+        installation: [8; 16],
+        seed: 7,
+        crypto: Secret::new(Box::new([9; 32])),
+    };
+    startup::check(&bytes, &directories, &Files { entries }, &agent, &seeds, None, List::with_capacity(0), None)
+        .unwrap_or_else(|why| panic!("{}", String::from_utf8_lossy(&startup::lines(&why))));
+    scratch.remove();
+}
+
+#[test]
 fn the_browsers_client_bounds_are_the_terminals() {
     assert_eq!(
         temper_client_shell_web::limits::client(),

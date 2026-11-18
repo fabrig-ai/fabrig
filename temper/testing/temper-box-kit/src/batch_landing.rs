@@ -211,7 +211,7 @@ pub fn message_room(root: &Path, value: &mut Value) {
         "tasks.run_inbox":8,
         "core.call_answer_bytes":8192,
         "fleet.slots":value["workers"][0]["slots"],
-        "hub.inbox":8,
+        "hub.inbox":agent["profile"]["policy"]["inbox"],
         "hub.outcome_bytes":8192
     }});
     // Both ends declare the same assignment and job carriers at opening.
@@ -233,14 +233,16 @@ pub fn message_room(root: &Path, value: &mut Value) {
     // A heard delivery's fallback also bounds prepare retries and merge read-back.
     overrides.insert("forge.client.fallback_ms".into(), 5000.into());
     turn_restart::staging_limits(value);
-    super::configuration::turn_bounds::apply(value, super::configuration::turn_bounds::turn_body(&agent));
+    super::configuration::turn_bounds::apply_with_stock(value, &agent);
     // A task's retained inbox also crosses the record load edge.
     for name in ["root.loads.bytes", "root.loads.reply_bytes"] {
         let current = value["application"]["limits"]["overrides"][name].as_u64().expect("load bound");
         value["application"]["limits"]["overrides"][name] = current.max(8_388_608).into();
     }
-    value["application"]["limits"]["overrides"]["root.loads.read_bytes"] = 16_777_216.into();
-    value["application"]["limits"]["overrides"]["root.journal.transcript_bytes"] = 8_388_608.into();
+    for (name, floor) in [("root.loads.read_bytes", 16_777_216), ("root.journal.transcript_bytes", 8_388_608)] {
+        let current = value["application"]["limits"]["overrides"][name].as_u64().expect("transcript carrier");
+        value["application"]["limits"]["overrides"][name] = current.max(floor).into();
+    }
     temper_fixtures::agent::apply(value, root, &agent);
 }
 
