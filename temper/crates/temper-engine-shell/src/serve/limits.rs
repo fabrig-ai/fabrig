@@ -63,7 +63,7 @@ pub fn limits_hold(data: &std::path::Path) -> Result<Option<Held>, String> {
         ),
     }))
 }
-fn held_failure(why: &str, held: &Held) -> String {
+pub(crate) fn held_failure(why: &str, held: &Held) -> String {
     let mut lines = String::new();
     for line in why.lines() {
         let name = line.split_once(' ').map_or(line, |(name, _)| name);

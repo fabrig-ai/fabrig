@@ -74,6 +74,7 @@ pub(crate) fn typed_documents(
         worker.remove("programs");
     }
     value["workers"][0]["engine"] = serde_json::json!({"in_process":"workers"});
+    value["workers"][0]["name"] = "local".into();
     value["workers"][0].as_object_mut().expect("worker").remove("agent");
     value["workers"][0].as_object_mut().expect("worker").remove("limits");
     value.jig_over("hub.accounts", 4);

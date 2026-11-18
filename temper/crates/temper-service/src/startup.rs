@@ -840,8 +840,8 @@ pub fn checked_start_with_limits(
         None,
     )
 }
-/// A settings-backed box checks its worker with the stock shared figures,
-/// independently of the resolved engine. Typed-world entries retain their seam.
+/// A settings-backed box checks its worker with the engine's resolved figures.
+/// Typed-world entries retain their seam.
 #[expect(
     clippy::too_many_arguments,
     reason = "settings-backed startup carries its non-setting facts beside the resolution"

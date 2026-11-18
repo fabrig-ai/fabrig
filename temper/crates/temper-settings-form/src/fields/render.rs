@@ -3,7 +3,7 @@ use crate::{Limits, Text};
 use alloc::boxed::Box;
 use skein_lib::Decimal;
 
-pub const INTRO: &[u8] = b"Read/edit/set whole (`settings show KIND N`). File shape: file. Refusals: shape/count/reference/rules/budget/grace/owner/linked. Spend: deployment model-price units. Hex: lowercase. u8/u16/u32/u64: unsigned 0..2^bits-1. bool: true/false. text[N]/hex[N]: <=N bytes; [N] T: <=N entries. ? optional; ! required; |null: nullable. Code choices: JSON strings. Value shape: setting.kind; project-policy: policy.";
+pub const INTRO: &[u8] = b"Whole read/edit/set: `settings show KIND N`. Refusals=shape/count/reference/rules/budget/grace/owner/linked. Spend=deployment model-price units. Lowercase hex; u8/u16/u32/u64=unsigned 0..2^bits-1; bool=true/false. text[N]/hex[N]<=N bytes; [N] T<=N entries; ?=optional; !=required; |null=nullable. Codes=JSON strings. Shape=setting.kind; project-policy=policy.";
 
 #[must_use]
 pub fn page(limits: &Limits) -> Box<[u8]> {
@@ -24,7 +24,7 @@ pub fn page_of(forms: &[Form], fields: &[Field], limits: &Limits) -> Box<[u8]> {
 }
 
 fn write(forms: &[Form], fields: &[Field], limits: &Limits, out: &mut Text) {
-    out.put(b"# Settings fields\n\nKind: reference\n\n");
+    out.put(b"# Settings fields\n\nKind: reference\n\nSettings' types, bounds and effects for files and `settings show`.\n");
     out.put(b"\n");
     out.put(INTRO);
     out.put(b"\n");
@@ -39,7 +39,7 @@ fn write(forms: &[Form], fields: &[Field], limits: &Limits, out: &mut Text) {
         match form.choice {
             Choice::Every | Choice::Number | Choice::Text => {}
             Choice::List { item, bound } => {
-                out.put(b"Whole value: list[");
+                out.put(b"Value: list[");
                 number(most(bound, limits), out);
                 out.put(b"] ");
                 value(&Value::Shape(item), forms, limits, out);

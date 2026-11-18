@@ -108,6 +108,7 @@ pub fn github_runtime(
     Ok(service::ForgeRuntime { number: 0, address, transport, log_origins })
 }
 mod limits;
+pub(crate) use limits::held_failure;
 pub use limits::{Held, close_limits_store, limits_hold, open_limits};
 
 pub fn prepare(

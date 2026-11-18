@@ -26,7 +26,6 @@ fn a_worker_alone_checks_its_application_paths_and_its_git_and_channel_limits() 
 }
 
 #[test]
-#[expect(clippy::disallowed_macros, reason = "the regression reads the shipped example")]
 fn a_worker_alone_with_the_owned_examples_worker_fits_one_ring() {
     // Linux's IORING_MAX_ENTRIES, the largest submission ring.
     const IORING_MAX_ENTRIES: u32 = 32_768;

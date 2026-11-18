@@ -182,6 +182,9 @@ this document says how settings lie over it.
   to start at the stock`. The owner then changes the setting, the
   operator removes the file and restarts. A line naming no limit, or a
   figure the start's checks refuse, refuses the start, naming its line.
+- **Stopped tools** `upgrade --check`, `checkpoint` and `restore` take
+  `limits-held` as a start does, through the same pure resolution without
+  opening the deployment store during preparation.
 - **A box** resolves its engine from the two kinds. Its worker takes its
   limits from its engine (`../../draft/config.md`, 6.3), so temper's kind
   sets the names a worker reads (checkout, git, the peer's). Its document's

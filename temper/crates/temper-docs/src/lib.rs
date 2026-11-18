@@ -599,7 +599,7 @@ pub static PAGES: [Page; 77] = [
         name: "limits",
         kind: Kind::Reference,
         title: "Limits",
-        summary: "Every limit application.limits.overrides takes: its unit, the stock's value and what it bounds.",
+        summary: "Every row belongs to the temper-limits setting: its name, unit, stock value, when a raise applies and what it bounds.",
         text: include_str!("../../../docs/help/reference/limits.md"),
     },
     Page {
@@ -620,7 +620,7 @@ pub static PAGES: [Page; 77] = [
         name: "settings-fields",
         kind: Kind::Reference,
         title: "Settings fields",
-        summary: "Settings value types, bounds and effects, for settings files and `settings show`.",
+        summary: "Settings' types, bounds and effects for files and `settings show`.",
         text: include_str!("../../../docs/help/reference/settings-fields.md"),
     },
 ];

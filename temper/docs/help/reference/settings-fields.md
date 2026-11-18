@@ -2,8 +2,9 @@
 
 Kind: reference
 
+Settings' types, bounds and effects for files and `settings show`.
 
-Read/edit/set whole (`settings show KIND N`). File shape: file. Refusals: shape/count/reference/rules/budget/grace/owner/linked. Spend: deployment model-price units. Hex: lowercase. u8/u16/u32/u64: unsigned 0..2^bits-1. bool: true/false. text[N]/hex[N]: <=N bytes; [N] T: <=N entries. ? optional; ! required; |null: nullable. Code choices: JSON strings. Value shape: setting.kind; project-policy: policy.
+Whole read/edit/set: `settings show KIND N`. Refusals=shape/count/reference/rules/budget/grace/owner/linked. Spend=deployment model-price units. Lowercase hex; u8/u16/u32/u64=unsigned 0..2^bits-1; bool=true/false. text[N]/hex[N]<=N bytes; [N] T<=N entries; ?=optional; !=required; |null=nullable. Codes=JSON strings. Shape=setting.kind; project-policy=policy.
 
 ## file
 `settings apply`/`settings propose` file.
@@ -600,11 +601,11 @@ Endpoint limits; all integers >0.
 
 ## limits
 Core limit overrides: whole list, empty default; no number/project.
-Whole value: list[256] limit-override.
+Value: list[256] limit-override.
 
 ## temper-limits
 Application limits, kind 22; as limits.
-Whole value: list[256] limit-override.
+Value: list[256] limit-override.
 
 ## limit-override
 One reasoned override.
