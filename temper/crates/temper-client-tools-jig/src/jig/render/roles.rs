@@ -140,7 +140,7 @@ fn list_text(tasks: &c::TaskPage, reading: &Reading, out: &mut Text) {
         out.put(b" \xc2\xb7 ");
         out.put(crate::jig::subject::phase_word(row.chip.phase));
         out.put(b" \xc2\xb7 left ");
-        out.number(row.budget.left);
+        super::amount(row.budget.left, out);
         out.put(b" \xc2\xb7 ");
         match selected(reading.pages.get(&slot(index))) {
             Some(now) => out.put(first_line(now.body.bytes())),

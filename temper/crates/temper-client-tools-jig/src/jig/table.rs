@@ -62,6 +62,8 @@ pub enum Keyed {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Kind {
     Number,
+    /// A text amount in hundreds of spend units; JSON keeps spend units.
+    Amount,
     Count,
     /// Inclusive numeric bounds, checked in argv and JSON.
     NumberRange {
@@ -128,6 +130,7 @@ pub fn bound(argument: &Argument, limits: &Limits) -> Bound {
             Bound::Seconds { most: limits.wait_most.as_nanos().checked_div(1_000_000_000).expect("nonzero divisor") }
         }
         Kind::Number
+        | Kind::Amount
         | Kind::File
         | Kind::Duration
         | Kind::Word { .. }

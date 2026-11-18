@@ -1,4 +1,5 @@
 //! Arbitrary and mutated durable rows and keys (protocol/store.md, section 6).
+use super::super::values;
 use skein_lib::Rng;
 use temper_engine_domain_forge_vocabulary as forge;
 use temper_protocol_store::{Bounds, keys, records};
@@ -90,7 +91,7 @@ fn person_fact(rng: &mut Rng) -> forge::PersonFact {
 fn store_decoders_never_panic_and_reencode_the_same() {
     let bounds = temper_protocol_store::bounds(&LIMITS, LIMITS.client.op_bytes).expect("fixture limits fit");
     let mut rng = Rng::new(0x7e3d_0405);
-    let goldens = temper_codecs_world::goldens("crates/temper-protocol-store/golden/v25");
+    let goldens = values::store();
     for _ in 0..2_000 {
         let address = format!("member{}@example.com", rng.next_u64()).into_bytes().into_boxed_slice();
         let binding =
@@ -236,7 +237,8 @@ fn store_decoders_never_panic_and_reencode_the_same() {
     for _ in 0..8 {
         record(&temper_codecs_world::mutated(&mut rng, &bytes), &bounds);
     }
-    for bytes in &goldens {
+    for value in goldens {
+        let bytes = &value.bytes;
         golden(bytes, &bounds);
         for _ in 0..8 {
             golden(&temper_codecs_world::mutated(&mut rng, bytes), &bounds);

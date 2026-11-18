@@ -1,0 +1,10 @@
+patch 1
+owner skein 2
+
+family every 2 to 3
+add Kinds
+add Lists
+add Options
+add Grouped
+add Held
+add LongRecord

@@ -35,7 +35,7 @@ impl Oracle<'_> {
     ) -> Result<(), String> {
         let disagreement = || format!("{context}: generic {decoded:?}, generated {generated:?}");
         match (&decoded, &generated) {
-            (Ok(node), generated::Decoded::Value { debug, bytes: encoded }) => {
+            (Ok(node), generated::Decoded::Value { debug, bytes: encoded, .. }) => {
                 if self.value.bytes() == bytes
                     && self.value.bytes() == encoded
                     && render(self.schema, self.value, *node, self.decl) == *debug

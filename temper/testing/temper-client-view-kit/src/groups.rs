@@ -63,8 +63,25 @@ pub fn fixture(words: &[&str], rows: &[w::FindingRow], mine: &[w::FindingRow], c
 }
 
 #[must_use]
-#[expect(clippy::too_many_lines, reason = "the fixture answers its independent question and finding watches together")]
 pub fn at(words: &[&str], rows: &[w::FindingRow], mine: &[w::FindingRow], cut: bool, address: Address) -> d::Domain {
+    at_with(words, rows, mine, cut, address, false)
+}
+
+/// A report question asked by an untracked standing task, without goal ancestry.
+#[must_use]
+pub fn standing_person(words: &str, rows: &[w::FindingRow]) -> d::Domain {
+    at_with(&[words], rows, &[], false, Address::Inbox { filter: d::address::Filter::ALL }, true)
+}
+
+#[expect(clippy::too_many_lines, reason = "the fixture answers its independent question and finding watches together")]
+fn at_with(
+    words: &[&str],
+    rows: &[w::FindingRow],
+    mine: &[w::FindingRow],
+    cut: bool,
+    address: Address,
+    person: bool,
+) -> d::Domain {
     let (mut root, me_watch, _, _, _, _, _, standing, _) = f::root_at_with_classes(
         Address::Settings { project: PROJECT },
         &limits(),
@@ -97,7 +114,8 @@ pub fn at(words: &[&str], rows: &[w::FindingRow], mine: &[w::FindingRow], cut: b
         .enumerate()
         .map(|(i, _)| {
             let message = u64::try_from(i).unwrap() + 1;
-            documents::entry(f::needs::object(message), PROJECT, message, Wall::EPOCH, None)
+            let object = if person { c::ObjectKey::PersonTask(f::INBOX_TASK) } else { f::needs::object(message) };
+            documents::entry(object, PROJECT, message, Wall::EPOCH, None)
         })
         .collect();
     let entries = List::from_boxed(entries.into_boxed_slice());
@@ -126,11 +144,30 @@ pub fn at(words: &[&str], rows: &[w::FindingRow], mine: &[w::FindingRow], cut: b
                     jig_client::UnlinkedRequest::Down { down: Down::Read { read, what: jig_client::Readable::Jig(what) } },
             } => {
                 let value = match what {
-                    c::Read::Inbox { group, .. } => c::ReadValue::Inbox(Box::new(c::InboxPage {
+                    c::Read::Inbox { after: Some(_), .. } => {
+                        event(
+                            &mut root,
+                            Event::Client {
+                                event: jig_client::Event::Up {
+                                    up: Up::ReadDone {
+                                        read,
+                                        result: jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Busy)),
+                                    },
+                                },
+                            },
+                            &mut out,
+                        );
+                        continue;
+                    }
+                    c::Read::Inbox { group, after: None, .. } => c::ReadValue::Inbox(Box::new(c::InboxPage {
                         selection: None,
                         before: None,
                         rows: if group == c::InboxReadGroup::Needs { entries.clone() } else { List::with_capacity(0) },
-                        after: None,
+                        after: if cut && group == c::InboxReadGroup::Needs {
+                            Some(c::Cursor::new(b"next".as_slice().into(), 4).unwrap())
+                        } else {
+                            None
+                        },
                         cut,
                     })),
                     c::Read::Question { message, .. } => {
@@ -151,6 +188,37 @@ pub fn at(words: &[&str], rows: &[w::FindingRow], mine: &[w::FindingRow], cut: b
                             }])),
                             ending: None,
                         }))
+                    }
+                    c::Read::PersonTask { task } if person => {
+                        assert_eq!(task, f::INBOX_TASK);
+                        let mut asked = f::needs::person();
+                        asked.task.task = task;
+                        asked.task.executor = c::ChipExecutor::Party { party: 73 };
+                        asked.requester = c::Requester::Task(55);
+                        asked.address = c::PersonAddress::Party(73);
+                        asked.task.details.details.executor = c::Executor::Person(asked.address);
+                        asked.contract = c::TaskContractDocument::Report { words: 4096 };
+                        asked.spec.specification.words =
+                            c::DocumentText::complete(c::Text::new(words[0].as_bytes().into(), 4096).unwrap());
+                        asked.since = Some(Wall::EPOCH);
+                        asked.acts = f::needs::offers(&[c::ActKind::Answer]);
+                        c::ReadValue::PersonTask(Box::new(asked))
+                    }
+                    c::Read::Task { task } if person => {
+                        assert_eq!(task, 55);
+                        let mut standing = f::task::document();
+                        standing.chip.task = task;
+                        standing.chip.title = f::task::document_words(b"Standing triager");
+                        standing.chip.executor = c::ChipExecutor::Agent { charter: 1 };
+                        standing.chip.details.details.executor = c::Executor::Agent { charter: 1 };
+                        standing.flags.ended_by = c::EndedBy::Standing;
+                        standing.project = PROJECT;
+                        standing.requester = c::Requester::Person(73);
+                        standing.priority = None;
+                        standing.goal = None;
+                        standing.lineage = List::with_capacity(0);
+                        standing.lineage_chips = List::with_capacity(0);
+                        c::ReadValue::Task(Box::new(standing))
                     }
                     _ => continue,
                 };

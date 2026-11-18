@@ -109,18 +109,22 @@ impl Domain {
         Some(visible.into_boxed())
     }
 
-    /// The globally oldest live needs, selected before the visible entry limit.
+    /// Every addressed live need; the core orders and windows the census.
     #[must_use]
-    pub fn inbox_needs(&self, limits: &Limits, person: u64) -> Option<Box<[Entry]>> {
-        self.identity(person)?;
-        let mut entries = List::with_capacity(limits.inbox_entries);
+    pub fn inbox_needs(&self, person: u64) -> Option<Box<[Entry]>> {
+        let mut entries = List::with_capacity(self.needs(person)?);
         for (task, needs) in &self.needs {
             for &need in needs {
                 if addressed(self, person, need) {
-                    insert_oldest(
-                        &mut entries,
-                        Entry { task: *task, project: need.project, whom: need.whom, kind: need.kind, at: need.at },
-                    );
+                    entries
+                        .push(Entry {
+                            task: *task,
+                            project: need.project,
+                            whom: need.whom,
+                            kind: need.kind,
+                            at: need.at,
+                        })
+                        .expect("addressed subset of the live need census");
                 }
             }
         }
@@ -388,30 +392,6 @@ fn insert_newest(entries: &mut List<Entry>, entry: Entry) {
             return;
         }
         if !inserted && newer(entry, old) {
-            next.push(entry).expect("cache has room before older entry");
-            inserted = true;
-        }
-        if next.room() > 0 {
-            next.push(old).expect("cache has room for prior entry");
-        }
-    }
-    if !inserted && next.room() > 0 {
-        next.push(entry).expect("cache has room for new entry");
-    }
-    *entries = next;
-}
-
-fn insert_oldest(entries: &mut List<Entry>, entry: Entry) {
-    if entries.capacity() == 0 {
-        return;
-    }
-    let mut next = List::with_capacity(entries.capacity());
-    let mut inserted = false;
-    for &old in &*entries {
-        if old.task == entry.task && old.kind == entry.kind {
-            return;
-        }
-        if !inserted && newer(old, entry) {
             next.push(entry).expect("cache has room before older entry");
             inserted = true;
         }

@@ -68,6 +68,22 @@ pub fn only_title(words: &c::DocumentText) -> bool {
     true
 }
 
+/// Words past the title named in a card's from line (client/pages/needs-you.md, 1).
+#[must_use]
+pub fn after_title(words: &c::DocumentText) -> &[u8] {
+    after_title_bytes(words.bytes())
+}
+pub(crate) fn after_title_bytes(words: &[u8]) -> &[u8] {
+    let Some(end) = skein_lib::bytes::find(words, b"\n") else { return b"" };
+    let rest = words.get(end.checked_add(1).expect("line feed within words")..).expect("past first line");
+    for byte in rest {
+        if !title_space(*byte) {
+            return rest;
+        }
+    }
+    b""
+}
+
 /// Cut at a word to a character bound, including the ellipsis (client/pages/work.md, 1).
 /// Chat headings also trim punctuation at the cut (client/pages/README.md).
 #[must_use]

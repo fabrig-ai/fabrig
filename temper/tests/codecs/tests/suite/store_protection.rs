@@ -6,7 +6,7 @@ use crate::fixture;
 use crate::protection;
 
 #[test]
-fn protection_fields_have_v25_golden_bytes_and_round_trip() {
+fn protection_fields_round_trip_at_v25() {
     let bounds =
         temper_protocol_store::bounds(&fixture::LIMITS, fixture::LIMITS.client.op_bytes).expect("fixture bounds");
     assert_eq!(STORE_VERSION, 25);
@@ -21,14 +21,6 @@ fn protection_fields_have_v25_golden_bytes_and_round_trip() {
         ("all", 15, Bypass::Always),
     ] {
         let [answer, repository, application] = protection::rows(protection::rule(flags, bypass));
-        let bytes = records::encode(&answer);
-        let path = skein_scratch::paths::package()
-            .join("../../crates/temper-protocol-store/golden/v25")
-            .join(format!("protection-{name}.bin"));
-        if temper_test_env::rewrite() {
-            std::fs::write(&path, &bytes).expect("write protection golden");
-        }
-        assert_eq!(std::fs::read(path).expect("protection golden").as_slice(), bytes.as_ref(), "{name}");
         for value in [answer, repository, application] {
             let key = temper_protocol_store::keys::encode(
                 &temper_engine_domain_forge_vocabulary::stored_key(&value),

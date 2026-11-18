@@ -18,6 +18,14 @@ pub(super) fn start_status_run(
     roles::start(domain, env, project, words);
 }
 
+pub(crate) fn admission(domain: &Domain, project: u32, task: u64) -> forge::Event {
+    // ConnectorRepair drains OpenPeriod and Make before the queued StatusTask.
+    match domain.core.tasks.task(task) {
+        Some(_) => forge::Event::StatusTask { project, task },
+        None => forge::Event::StatusRefused { project },
+    }
+}
+
 fn start_task(domain: &mut Domain, env: &Env<Limits>, project: u32, words: &[u8]) {
     let Some(seed) = domain.core.repair_seed(project) else {
         domain.work.push(Work::Forge(forge::Event::StatusRefused { project }));

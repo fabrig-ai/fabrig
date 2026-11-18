@@ -12,7 +12,7 @@ const START: &[&str] = &[
     "--charter",
     "5",
     "--budget",
-    "50",
+    "0.50",
     "--no-deadline",
     "S1 Draft the layout",
     "--key",
@@ -271,7 +271,7 @@ fn milestone_delegate_keeps_funding_and_admission_refusals() {
         let mut root = f::choice_root(me);
         let mut argv = List::with_capacity(32);
         for arg in &beneath() {
-            if !as_allowed || (*arg != "--budget" && *arg != "50") {
+            if !as_allowed || (*arg != "--budget" && *arg != "0.50") {
                 argv.push(*arg).unwrap();
             }
         }
@@ -308,10 +308,10 @@ fn milestone_delegate_keeps_funding_and_admission_refusals() {
 #[test]
 fn milestone_budget_refusals_name_the_funder_and_keep_json_and_pool_words() {
     for (in_milestone, needed, left, expected) in [
-        (true, 1, 0, b"goal start: refused: milestone 812 had 0 left, 1 needed; give each goal in it --budget AMOUNT\n".as_slice()),
-        (true, 12, 9, b"goal start: refused: milestone 812 had 9 left, 12 needed; give each goal in it --budget AMOUNT\n".as_slice()),
+        (true, 1, 0, b"goal start: refused: milestone 812 had 0.00 left, 0.01 needed; give each goal in it --budget AMOUNT\n".as_slice()),
+        (true, 12, 9, b"goal start: refused: milestone 812 had 0.09 left, 0.12 needed; give each goal in it --budget AMOUNT\n".as_slice()),
         (false, 1, 0, concat!(
-            "goal start: refused: your pool in project 1 had 0 left, 1 needed\n",
+            "goal start: refused: your pool in project 1 had 0.00 left, 0.01 needed\n",
             "read it: project show 1\n",
             "raise it: project fund 1 AMOUNT --role 0, and first the project's if its period has no room: project fund 1 AMOUNT\n"
         ).as_bytes()),

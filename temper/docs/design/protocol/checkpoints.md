@@ -200,7 +200,7 @@ enum CheckpointWhy { NotOwner, InProgress, Unavailable, Files, Unrecognized { pa
   and `--remove` excluding each other, a NAME of another form refused;
   their lines from given answers, `restore`'s among them; `--hold`'s
   child spawned as 2.2 says and its exit mapped from given io events; the family's request and outcome with
-  golden bytes; the root admitting an owner's act, asking the store and
+  built-value round trips; the root admitting an owner's act, asking the store and
   answering only at its terminal, refusing a project owner and a task
   `NotOwner`; the tool's text and JSON, and its timeout; the setting's
   default, an override of 3, and 0 and 65 refused.
