@@ -780,7 +780,7 @@ fn account_and_deployment_help_explain_offering_another_model() {
     let account = account.split_whitespace().collect::<Vec<_>>().join(" ");
     assert!(account.contains("temper help deployment"), "{account}");
     assert!(account.contains("Offering another model"), "{account}");
-    assert!(account.contains("The providers are the configuration's and the models are settings"), "{account}");
+    assert!(account.contains("Providers and models are settings"), "{account}");
     let deployment = help::answer(&configured(&["help", "deployment"])).expect("deployment help");
     assert!(!deployment.contains("```json"), "model declarations belong in settings: {deployment}");
     let guidance = deployment
@@ -807,8 +807,15 @@ fn account_and_deployment_help_explain_offering_another_model() {
         "A task keeps the model it has",
         "no restart",
         "local model",
-        "`endpoint` in `engine.llm.providers`",
-        "`CONFIG/temper.json`",
+        "temper ctl settings show provider N",
+        "\"setting\": {\"kind\": \"provider\", \"number\": N}",
+        "\"set\": VALUE",
+        "temper ctl settings apply FILE --against REVISION --key KEY",
+        "`keep`",
+        "`drop`",
+        "`sources`",
+        "`endpoint` names an entry in its `endpoints` list",
+        "`address.socket`",
         "`CONFIG/temper.json`",
         "claude-haiku-5-5",
         "output",

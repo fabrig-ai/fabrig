@@ -6,11 +6,11 @@ How work runs in a deployment: its charters, templates, policies and rules, whic
 
 ## What it is
 
-Settings cover charters, templates, policies, rules, landing rules, forge
-charters, goal templates' work, charter words, and project ways, questions, classes and words. Name one
-by kind and number, or project for project settings; rules have no number: `charter 2`, `template 1`, `policy 1`, `rules`,
+Kinds: charters, templates, policies, rules, landing rules, forge charters,
+goal templates' work, charter words, providers, project ways, questions,
+classes and words. Use kind and number, or project; rules are unnumbered: `charter 2`, `template 1`, `policy 1`, `rules`,
 `landing-rule 1`, `landing-rule 1 --project 2`, `forge-charter 1`, `template-goal 4`,
-`project-ways 2`, `project-questions 2`, `project-classes 2`, `charter-words 2`, `project-words 2`.
+`project-ways 2`, `project-questions 2`, `project-classes 2`, `charter-words 2`, `project-words 2`, `provider 1`.
 
 - A project's ways say whether chats can write drafts, whether Work's Goals
   and Changes filters show, and which offered template with
@@ -115,7 +115,7 @@ its default. A stored change still wins over a changed default.
 - A change against any other revision is refused as stale, naming the
   newest. Read again, and decide on what you read.
 - A change that alters no setting is refused as unchanged.
-- An accepted change takes effect without a restart.
+- Only providers need a restart, at the engine's next start.
 - Repeating a change's key gives its first outcome, with no second revision.
 - Each kind is read when it is used: a charter's at each run, from its
   task's revision (`temper help revision`); a template's when a task is
@@ -155,7 +155,7 @@ its default. A stored change still wins over a changed default.
   and the asking form of `propose_settings`
   (`temper help charter`). It reads and proposes `charter`, `template`,
   `policy`, `rules`, `landing-rule`, `forge-charter`, `template-goal` and
-  `project-policy`, `project-ways`, `project-questions`, `project-classes`, `charter-words` and
+  `provider`, `project-policy`, `project-ways`, `project-questions`, `project-classes`, `charter-words` and
   `project-words`, in the settings file's form. Ways, questions, classes and project
   words require `project` and take no `number`; charter words take the charter's
   `number` and no `project`. A landing rule names
