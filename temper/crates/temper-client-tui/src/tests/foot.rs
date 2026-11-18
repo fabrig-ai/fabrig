@@ -2114,6 +2114,7 @@ pub(super) fn walk_root(choices: bool) -> Domain {
                         queued: 0,
                         red: false,
                         branch: b"main".as_slice().into(),
+                        unpaid: false,
                         brief: Some(brief),
                     },
                 )

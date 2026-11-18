@@ -731,6 +731,7 @@ pub fn status_parts() -> w::ProjectStatusParts {
         queued: 3,
         red: false,
         branch: b"main".as_slice().into(),
+        unpaid: false,
     }
 }
 

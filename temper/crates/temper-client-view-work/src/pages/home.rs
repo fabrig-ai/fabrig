@@ -109,7 +109,7 @@ fn intro(
         b.text(Run::Plain, &intro.headline);
         if let Some(lede) = &intro.lede {
             b.text(Run::Plain, b" ");
-            text(b, Role::Text, lede, Some(look::HOME_LEDE));
+            intro_lede(b, w, bindings, lede, Role::Text, intro.accounts);
         }
         b.close();
         if let Some(byline) = &intro.byline {
@@ -126,7 +126,7 @@ fn intro(
         b.style(look::HOME_LEDES);
     }
     if let Some(lede) = intro.lede {
-        text(b, Role::Paragraph, &lede, Some(look::HOME_LEDE));
+        intro_lede(b, w, bindings, &lede, Role::Paragraph, intro.accounts);
     }
     if facts.to_begin() {
         let (_, more) = crate::common::accounts::home_accounts(root);
@@ -137,6 +137,17 @@ fn intro(
         text(b, Role::Paragraph, &byline, Some(look::HOME_BYLINE));
     }
     stopped_try(b, root, w, accounts);
+    b.close();
+}
+fn intro_lede(b: &mut Builder, w: &Words, bindings: &mut Bindings, lede: &[u8], role: Role, accounts: bool) {
+    b.open(role);
+    b.style(look::HOME_LEDE);
+    b.name(lede);
+    b.text(Run::Plain, lede);
+    if accounts {
+        b.text(Run::Plain, b" ");
+        go(b, bindings, &w.say(Word::SettingsAccountsTab, &[]), Address::Accounts, None);
+    }
     b.close();
 }
 fn stopped_try(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut crate::accounts::Bindings) {

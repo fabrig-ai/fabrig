@@ -459,6 +459,15 @@ impl Facts {
         }
     }
 
+    /// Whether the person's last run found no account to pay (temper/docs/design/client/pages/home.md, 1).
+    #[must_use]
+    pub fn unpaid(&self) -> bool {
+        match &self.status {
+            Status::Shown(document) => document.unpaid(),
+            Status::Unknown => false,
+        }
+    }
+
     /// The latest landing, when the project has landed anything.
     #[must_use]
     pub fn last_landed(&self) -> Option<Wall> {

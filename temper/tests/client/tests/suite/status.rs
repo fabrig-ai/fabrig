@@ -848,7 +848,7 @@ fn a_restart_keeps_the_rows() {
 }
 
 #[test]
-fn a_refused_status_run_leaves_home_saying_when_the_last_change_landed() {
+fn an_unpaid_status_run_leaves_home_saying_when_the_last_change_landed_and_why_no_brief() {
     use temper_engine_domain_world::{store::Store, walking};
     let mut story = Story::new();
     let mut limits = story.front.engine.env.limits;
@@ -926,7 +926,8 @@ fn a_refused_status_run_leaves_home_saying_when_the_last_change_landed() {
     let text: Vec<u8> =
         tree.nodes().iter().flat_map(|node| node.text.iter()).flat_map(|run| run.text.iter().copied()).collect();
     let text = String::from_utf8(text).expect("Home words");
-    for forbidden in ["Written by the status agent", "brief", "refused", "failed", "unfunded"] {
+    assert!(text.contains("No brief: no account pays for your work here."), "Home explains the missing brief: {text}");
+    for forbidden in ["Written by the status agent", "refused", "failed", "unfunded"] {
         assert!(!text.contains(forbidden), "Home names no status-run failure: {text}");
     }
 }

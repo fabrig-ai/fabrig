@@ -2485,9 +2485,12 @@ fn no_brief_prose(view: &crate::View) {
 
 #[test]
 fn a_brief_above_seen_says_its_words() {
-    let root = status_home(brief_parts(2, BRIEF_LEDE, STATUS_NOW), true, false, false);
+    let mut parts = brief_parts(2, BRIEF_LEDE, STATUS_NOW);
+    parts.unpaid = true;
+    let root = status_home(parts, true, false, false);
     for browser in [false, true] {
         let view = status_view(&root, browser);
+        absent(&f::main_text(view.tree()), "No brief: no account pays for your work here.");
         main_find(view.tree(), Role::Heading { level: 1 }, b"41 changes landed overnight. Nothing needs you.");
         let lede = styled(view.tree(), crate::look::HOME_LEDE);
         let byline = styled(view.tree(), crate::look::HOME_BYLINE);
@@ -2533,6 +2536,38 @@ fn an_old_brief_with_new_landings_uses_the_computed_words() {
                 b"2 changes landed since you last looked. Nothing needs you.",
             );
             no_brief_prose(&view);
+        }
+    }
+}
+
+#[test]
+fn unpaid_without_a_new_brief_links_accounts_in_the_lede() {
+    for mut parts in [status_parts(), brief_parts(1, BRIEF_LEDE, STATUS_NOW - 10 * 60 * STATUS_MINUTE)] {
+        parts.unpaid = true;
+        let root = status_home(parts, true, false, false);
+        for browser in [false, true] {
+            let mut view = status_view(&root, browser);
+            main_find(
+                view.tree(),
+                Role::Heading { level: 1 },
+                b"2 changes landed since you last looked. Nothing needs you.",
+            );
+            let lede = styled(view.tree(), crate::look::HOME_LEDE);
+            assert_eq!(lede.name.as_deref(), Some(b"No brief: no account pays for your work here.".as_slice()));
+            let lede_text = f::nodes_text(subtree(view.tree(), lede.id));
+            assert_eq!(lede_text.as_ref(), b"No brief: no account pays for your work here. Accounts");
+            for node in main_nodes(view.tree()) {
+                assert!(!node.styles.as_slice().contains(&crate::look::HOME_BYLINE));
+            }
+            let text = f::main_text(view.tree());
+            absent(&text, BRIEF_SENTENCE);
+            absent(&text, BRIEF_LEDE);
+            let link = main_find(view.tree(), Role::Link, b"Accounts");
+            assert_eq!(crate::href(&mut view, link).as_deref(), Some(b"/accounts".as_slice()));
+            assert_eq!(
+                crate::act(&mut view, link, Act::Press),
+                Some(d::Action::Pages(d::pages::Act::Go { address: Address::Accounts }))
+            );
         }
     }
 }

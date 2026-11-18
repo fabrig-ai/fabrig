@@ -3909,6 +3909,7 @@ fn brief_document() -> w::Owned {
             queued: 0,
             red: false,
             branch: b"main".as_slice().into(),
+            unpaid: false,
             brief: Some(
                 f::StatusBrief::new(
                     &f::CEILINGS,

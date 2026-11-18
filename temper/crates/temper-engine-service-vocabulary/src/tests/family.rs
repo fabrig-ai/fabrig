@@ -675,6 +675,7 @@ fn invalid_change_watches_are_refused_unknown_without_the_root() {
     for (row, family, version, record) in [
         ("family", wire::number(wire::Owner::Pages), wire::CLIENT_VERSION, watching(CHANGE_TASK)),
         ("version", wire::FORGE, wire::CLIENT_VERSION + 1, watching(CHANGE_TASK)),
+        ("previous version", wire::FORGE, 35, watching(CHANGE_TASK)),
         ("malformed", wire::FORGE, wire::CLIENT_VERSION, Box::new([])),
         ("trailing", wire::FORGE, wire::CLIENT_VERSION, trailing.finish()),
         ("zero task", wire::FORGE, wire::CLIENT_VERSION, watching(0)),
@@ -3827,8 +3828,8 @@ fn looked_and_status_translate_both_ways() {
         let bytes = family::answer(answer, &w::CEILINGS, &jig).unwrap();
         assert_eq!(w::Answer::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap().into_parts().outcome, expected);
     }
-    for (last_landed, brief, previous) in [
-        (None, None, None),
+    for (last_landed, brief, previous, unpaid) in [
+        (None, None, None, true),
         (
             Some(skein_lib::Wall::from_nanos(123)),
             Some(forge::Brief {
@@ -3839,6 +3840,7 @@ fn looked_and_status_translate_both_ways() {
                 findings: Some([7; 32]),
             }),
             Some(skein_lib::Wall::from_nanos(345)),
+            false,
         ),
     ] {
         let value = forge::StatusView {
@@ -3846,7 +3848,7 @@ fn looked_and_status_translate_both_ways() {
             landed: 6,
             last_landed,
             brief: brief.clone(),
-            unpaid: false,
+            unpaid,
             previous,
             seen: 2,
             queued: 3,
@@ -3855,6 +3857,7 @@ fn looked_and_status_translate_both_ways() {
         };
         let bytes = family::document(forge::Document::Status(value), &forges, &w::CEILINGS).unwrap();
         let got = wire::decode_project_status(&bytes, &w::CEILINGS).unwrap();
+        assert_eq!(got.unpaid(), unpaid);
         assert_eq!(
             (got.project(), got.landed(), got.seen(), got.queued(), got.red(), got.branch()),
             (PROJECT, 6, 2, 3, true, b"main".as_slice())

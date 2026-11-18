@@ -1073,6 +1073,7 @@ pub enum Word {
     HomeLandedNow,
     HomeLandedMany,
     HomeByline,
+    HomeUnpaid,
     HomeTryStopped,
     HomeLanding,
     HomeChatsSentence,
@@ -2255,7 +2256,7 @@ pub const SCRIPTED_MODEL: &[u8] = b"demo";
 // The composer picker replaces fourteen phrases with thirteen (client/pages/README.md).
 // Repository making rows use eight phrases and eighteen segments (client/pages/README.md).
 // Landing searches show the probe, both bounds and blamed prefixes (domain/landing-search.md, 8).
-const PHRASES: u32 = 2805;
+const PHRASES: u32 = 2806;
 // Settings and Needs you include their literal phrases (client/pages/README.md, client/pages/settings.md, 2).
 // Overturn adds its button and three toast phrases (client/pages/README.md).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -2282,10 +2283,10 @@ const PHRASES: u32 = 2805;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/pages/README.md).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 5211;
+const SEGMENTS: u32 = 5212;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 66158;
-const ALL: [Word; 2081] = [
+const ENGLISH_BYTES: u32 = 66203;
+const ALL: [Word; 2082] = [
     Word::WorkMilestoneLede,
     Word::MsGoals,
     Word::MsWhole,
@@ -3295,6 +3296,7 @@ const ALL: [Word; 2081] = [
     Word::HomeLandedNow,
     Word::HomeLandedMany,
     Word::HomeByline,
+    Word::HomeUnpaid,
     Word::HomeTryStopped,
     Word::HomeLanding,
     Word::HomeChatsSentence,
@@ -5418,6 +5420,7 @@ impl Word {
             Self::HomeLandedOne => 3622,
             Self::HomeLandedMany => 3623,
             Self::HomeByline => 3624,
+            Self::HomeUnpaid => 4540,
             Self::HomeTryStopped => 3876,
             Self::HomeLanding => 3625,
             Self::HomeChatsSentence => 3626,
@@ -7746,6 +7749,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::HomeLandedMany => (&[b"", b" changes landed since you last looked."], &[Number]),
         Word::HomeTryStopped => (&[b"", b" didn\xe2\x80\x99t answer when tried"], &[Name]),
         Word::HomeByline => (&[b"Written by the status agent at ", b""], &[Name]),
+        Word::HomeUnpaid => (&[b"No brief: no account pays for your work here."], &[]),
         Word::HomeLanding => (&[b"Landing: "], &[]),
         Word::HomeChatsSentence => (&[b"A chat suits one change. For bigger work, a chat can write a draft beside it and start a goal from it: a plan, its tasks, landing."], &[]),
         Word::LookedMinute => (&[b"a minute"], &[]),
