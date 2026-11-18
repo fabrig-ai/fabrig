@@ -36,10 +36,11 @@ no more (section 9), by the user's rule that macOS stays cheap.
   full view of skein's contained trees; people apart. Each step leaves
   the system working, and each earlier one stays as a layer beneath the
   next.
-- **Proved by escapes that fail** (section 8): each step lands with
-  tests whose commands try to leave the reach and are refused, while
-  what the run needs still works. A refusal is told in words: to the
-  LLM as the command's own error, to operators in the run's events.
+- **Tested where it is built** (section 8): the mechanism in skein, held
+  to the real kernel by its conformance suite; above it, worlds that
+  check every spawn asks for the right reach; a few focused end-to-end
+  tests; one fuller story after landing. A refusal is told in words: to
+  the LLM as the command's own error, to operators in the run's events.
 - **Against mistakes, injected instructions and other people's runs**
   (section 3); not against a kernel exploit, which only machines apart
   answer.
@@ -370,8 +371,9 @@ any failure.
 ### 6.7 Who builds what
 
 - **skein:** the spawn's reach, the helper's Landlock and
-  `no_new_privs`, the startup check; the simulator's machine honours a
-  reach, so worlds check its composition with no kernel.
+  `no_new_privs`, the startup check; the fake machine and the simulator
+  honouring a reach, and the conformance scenarios that hold them to the
+  kernel (8.1).
 - **smith:** commands spawned with the run's reach, narrowed for the
   shell family; the program's commands narrowed (5.3); what the
   instructions say (6.6).
@@ -400,20 +402,75 @@ workers in this step.
 
 ## 8. Testing
 
-- **Escapes that fail,** focused, on a real Linux kernel: a run whose
-  commands try to read a file outside the workspace, a stand-in program
-  login, another workspace's file and the worker's configuration; to
-  write the git directory; to signal the worker; and to gain privilege
-  through a set-user-id program. Each fails with the kernel's error, and
-  the run goes on.
-- **What a run needs still works:** reading the machine's programs,
-  writing the workspace and the scratch, a small build in the workspace.
-- **Worlds:** the simulator's machine honours the reach, so the domain's
-  and fuzzy tests check that every spawn of a run carries it, and a
-  referee that nothing reached outside it.
-- **Linux-only, by name:** the real-kernel tests join the list
-  `temper/docs/design/draft/macos.md`, 5.2 asks each tree to keep.
-- Plans use focused and fuzzy only, within the suites' budgets.
+By skein's strategy (`skein/docs/foundation/testing-strategy.md`), and
+the user's word of 2026-11-18: most of it lives in skein, a few
+end-to-end tests are focused, cheap and fast, and a somewhat fuller
+story runs after landing. The mechanism is skein's and is tested there;
+the trees above test that they ask for the right reach, and never retest
+the kernel's enforcement: a service's tiers stand on skein's and do not
+retest the kit (`skein/docs/foundation/testing-strategy.md`, 9).
+
+### 8.1 In skein: the mechanism
+
+- **Step tests:** a reach's encoding and its bounds, refused at io's
+  entrance past its limits, each limit from both sides, as rows of one
+  table.
+- **The fake machine honours a reach.** skein's minimal fake machine
+  already has a program that reports, from inside a tree, its
+  `no_new_privs` and whether chosen paths can be read and written
+  (`skein/docs/design/testing/README.md`, 4). It also reports what it can
+  execute and whether it can signal its parent, and the machine refuses
+  what a reach does not grant, so io worlds and simulated worlds run
+  restricted spawns over their seeds.
+- **The conformance suite holds it to the kernel**
+  (`skein/docs/design/runtime/kernel.md`, 8): the same scenarios against
+  the simulator and the real ring. A restricted tree's probe finds what
+  was granted readable or writable as granted, and everything else
+  refused: a canary beside the root, the parent directory, a link that
+  leads out. Privilege is not gained through a set-user-id program; a
+  signal to its parent is refused; a kernel without the ABI the reach
+  needs fails the spawn. A disagreement is a conformance bug, fixed in
+  the suite first.
+- **Cheap by construction:** one spawn per scenario, the probe answering
+  every question in one run, within the conformance suite's and the real
+  loop's budgets as they stand.
+
+### 8.2 Above skein: the reach asked for
+
+smith's, jig's and temper's domain and system worlds check that every
+spawn of a run carries its reach, and that the reach is the run's: its
+directories with their ways, the configured machine paths, its scratch,
+the program's configuration directory for the program and not for its
+commands. A referee fails a world in which a spawn goes out without one.
+No kernel, no process.
+
+### 8.3 A few end-to-end tests, focused
+
+Against fakes, one per path through `main` that the reach adds, each
+Linux-only by name (the list `temper/docs/design/draft/macos.md`, 5.2
+asks each tree to keep):
+
+- **smith:** the agent, as it ships, runs one command that reads a file
+  outside its workspace and is refused, and the run goes on.
+- **temper:** a worker refuses a run's spawn it cannot restrict, and
+  says why in its log.
+
+### 8.4 After landing, one story
+
+In `process-temper`, the cluster's processes with smith's fake program,
+whose `Bash` commands try what section 3 fears: the program's login,
+another run's workspace, the git directory, the worker's configuration,
+a signal to the worker. Each is refused, and a small build in the
+workspace still works. The milestone that adds it writes and compiles
+it; it runs after landing, as every slow tier does.
+
+### 8.5 Live, by choice
+
+That Claude Code's command prefix wraps every command it runs (10.1)
+is checked in `live-smith`, beside the checks of the program's prompt
+(`smith/docs/design/protocol/programs.md`, 8).
+
+Plans use focused and fuzzy only, within the suites' budgets.
 
 ## 9. macOS
 
@@ -425,7 +482,7 @@ draft finds it cheap.
 
 - **10.1 The program's login** (5.3): the pick is a narrower domain
   through the program's command prefix, if it wraps every command,
-  background ones included. The live suite checks it.
+  background ones included. The live suite checks it (8.5).
 - **10.2 Caches** (6.4): shared writable caches between a worker's runs
   named and allowed in the first step, or per workstream from the start.
   Default: named and allowed, recorded as a gap.

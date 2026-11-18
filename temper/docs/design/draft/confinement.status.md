@@ -10,4 +10,6 @@
   - 6.3: temper's checkouts keep the git directory inside the work tree (`temper/docs/design/domain/worker/checkouts.md`).
   - 6.4: no design names the caches a run may write or says whose they are.
   - 6.6: smith's instructions say nothing of what a run's commands see.
+  - 8.1: skein's minimal fake machine's probe reports no execute or signal results, and the machine honours no reach (`skein/docs/design/testing/README.md`, 4); the conformance suite has no restricted-spawn scenarios (`skein/docs/design/runtime/kernel.md`, 8).
+  - 8.4: `process-temper` has no confinement story.
 - **Open:** 10.1 to 10.6, the user's.
