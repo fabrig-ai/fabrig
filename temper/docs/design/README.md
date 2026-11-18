@@ -198,6 +198,7 @@ forge, temper adds:
   the terminal, signing in, and the clients' listener; `client/forge/README.md` is the
   forge's part of the client, `client/web/README.md` the browser shell,
   `client/web/journeys.md` its pages recorded and printed,
+  `client/web/journey-redaction.md` their redaction,
   `client/journey-placeholders.md` the placeholders both clients'
   journeys hold for what varies between walks,
   `client/web/look-requests.md` the look requests' round trip,
