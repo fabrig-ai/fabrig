@@ -698,8 +698,10 @@ tolerance holds because a test does the same work at every run (section
 10): one whose CPU swings past it on the same code is a defect, repaired
 at its cause, never by a line. A test
 may pass its reference by a line beside the budgets giving its figure and
-why, which the change's review judges; it still counts in its layer, so a
-reason never raises a budget. A delivery check with main's ledgers
+why. The line is the user's figure, as a budget is: a change never adds
+or raises one, and the gate refuses a change that raises any figure there
+(the user, 11-18; `tools/tiers/budgets.md`, 10). It still counts in its
+layer, so a reason never raises a budget. A delivery check with main's ledgers
 judges its tests so too, a flagged one by the ledger's figures alone,
 since it builds nothing at its base; every other run judges nothing alone
 (`tools/tiers/references.md`).
@@ -746,7 +748,8 @@ says nothing of the whole suite's: they change by the user's word alone.
 A harness's own deadline keeps 2.10's rule.
 
 **Over budget is red,** at the gate for the focused and fuzzy suites'
-layers and wherever a slow tier runs. Repair it by asking these questions, in order:
+layers and wherever a slow tier runs. Its repair starts by reading this
+strategy in full, as the red says; then it asks these questions, in order:
 
 1. **Does the test belong to this tier?** Use the tier definitions in
    this strategy and the tree's testing document. If it does not belong,
