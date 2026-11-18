@@ -21,6 +21,7 @@ import unittest
 
 HERE = Path(__file__).resolve().parent
 CPU = runpy.run_path(str(HERE / 'cpu.py'))
+REPAIR_LINE = CPU['REPAIR_LINE']
 
 # Recorded from nextest's cancellation output (tools/tiers/design.md, 7.4).
 GLOBAL_TIMEOUT_LINE = '  Cancelling due to global timeout: 1 test still running\n'
@@ -235,7 +236,7 @@ class OneProcessTests(unittest.TestCase):
                 result = self.summary({'default': {'cpu_suite_s': limit}})
                 self.assertEqual(result['verdict'], verdict)
                 self.assertEqual(result['over_budget'], [] if limit == 1.5 else
-                                 ['suite default: 1.500000s > 1.0s'])
+                                 ['suite default: 1.500000s > 1.0s\n' + REPAIR_LINE])
         budget = self.root / 'budget.toml'
         budget.write_text('[default]\ncpu_suite_s=1.0\n')
         self.assertEqual(self.cli('--budgets', str(budget)).returncode, 1)
@@ -271,7 +272,7 @@ class OneProcessTests(unittest.TestCase):
                          ceiling_s=470, budget_s=470, main_budget_s=None, lowest_s=510,
                          main_over=False, grew=[], ideal_s=15, reference_s=2, over=True)])
                 self.assertEqual(result['trees'], [dict(tree='temper', cpu_s=510, main_s=None, ceiling_s=725, budget_s=725, ideal_s=100)])
-                self.assertEqual(result['over_budget'], [self.over_line] if gate else [])
+                self.assertEqual(result['over_budget'], [self.over_line + '\n' + REPAIR_LINE] if gate else [])
                 self.assertEqual(result['warnings'], [] if gate else [self.over_line])
                 self.assertEqual(result['verdict'], 'over budget' if gate else 'no budget set')
                 output = io.StringIO()
@@ -307,7 +308,7 @@ class OneProcessTests(unittest.TestCase):
                 self.assertEqual(result['trees'], [
                     dict(tree='temper', cpu_s=490, main_s=None, ceiling_s=490, budget_s=490, ideal_s=100)])
                 line = 'layer over budget: temper default simulated: 460.00 CPU s, budget 458 s'
-                self.assertEqual(result['over_budget'], [line] if gate else [])
+                self.assertEqual(result['over_budget'], [line + '\n' + REPAIR_LINE] if gate else [])
                 self.assertEqual(result['warnings'], [] if gate else [line])
                 self.assertEqual(result['verdict'], 'over budget' if gate else 'no budget set')
 
@@ -331,7 +332,7 @@ class OneProcessTests(unittest.TestCase):
                 self.assertEqual(result['trees'], [
                     dict(tree='temper', cpu_s=2, main_s=None, ceiling_s=725, budget_s=725, ideal_s=100)])
                 self.assertEqual(result['over_budget'], [] if moved else [
-                    'layer over budget: temper default machine: 2.00 CPU s, no budget'])
+                    'layer over budget: temper default machine: 2.00 CPU s, no budget\n' + REPAIR_LINE])
 
     def test_layer_gate_exit_statuses(self):
         self.layer_case()
@@ -365,7 +366,7 @@ class OneProcessTests(unittest.TestCase):
                 self.assertEqual([r['tree'] for r in result['trees']], ['smith', 'jig', 'temper', 'repository'])
                 self.assertEqual([r['over'] for r in result['layers']], [False, False, False, True, False, False, False])
                 line = 'layer over budget: temper default io: 0.50 CPU s, no budget'
-                self.assertEqual(result['over_budget'], [line] if gate else [])
+                self.assertEqual(result['over_budget'], [line + '\n' + REPAIR_LINE] if gate else [])
                 self.assertEqual(result['warnings'], ['unplaced: pkg::suite has no layer (tools/tiers/layers.md)',
                                                      *([] if gate else [line])])
                 self.assertIsNone(result['layers'][5]['budget_s'])
@@ -420,7 +421,7 @@ class OneProcessTests(unittest.TestCase):
         self.assertEqual([r['reference_s'] for r in result['layers']], [10, 10])
         self.assertEqual([r['budget_s'] for r in result['layers']], [13, 196])
         self.assertEqual(result['over_budget'], [
-            'layer over budget: temper fuzzy simulated: 500.00 CPU s, budget 196 s'])
+            'layer over budget: temper fuzzy simulated: 500.00 CPU s, budget 196 s\n' + REPAIR_LINE])
         self.run.update(profile='default', starved=False)
         self.results['profile'] = 'default'
         self.results['processes'][0].update(user_s=0, system_s=0)
@@ -528,7 +529,7 @@ class OneProcessTests(unittest.TestCase):
             with self.subTest(gate=gate):
                 result = self.summary(self.limits, gate=gate)
                 self.assertEqual(result['verdict'], 'over budget' if gate else 'no budget set')
-                self.assertEqual(result['over_budget'], [message] if gate else [])
+                self.assertEqual(result['over_budget'], [message + '\n' + REPAIR_LINE] if gate else [])
                 self.assertEqual(result['warnings'], [] if gate else [message])
                 self.assertEqual(result['references'][0]['limit_s'], 0.04)
                 self.assertTrue(result['references'][0]['over'])
@@ -980,6 +981,10 @@ class OneProcessTests(unittest.TestCase):
         self.assertEqual(grew[1]['tests'], [dict(test_name=f'test-{n}', wall_s=n + 1, main_wall_s=1)
                                           for n in reversed(range(1, 7))])
         text = result['over_budget'][0]
+        self.assertEqual(text.splitlines()[0], 'layer over budget: temper default domain: '
+                         '177.00 CPU s, budget 1 s, ceiling 1 s, at main 99.00 CPU s')
+        self.assertEqual(text.splitlines()[-1], REPAIR_LINE)
+        self.assertEqual(text.count(REPAIR_LINE), 1)
         self.assertEqual(sum(line.startswith('  pkg-') for line in text.splitlines()), 10)
         self.assertIn('  2 more binaries', text)
         self.assertIn('    2 more tests', text)
@@ -1283,6 +1288,10 @@ class CollectorTests(unittest.TestCase):
         self.assertEqual(result.returncode, 1, result.stderr)
         self.assertIn('test fixture::suite one', result.stdout)
         self.assertIn('suite qa-jig', result.stdout)
+        entries = CPU['summary'](self.directory, {'qa-jig': {'cpu_suite_s': 1.0, 'cpu_test_s': 1.0}})['over_budget']
+        self.assertEqual(entries, [line + '\n' + REPAIR_LINE for line in
+                                  ('test fixture::suite one: 1.500000s > 1.0s',
+                                   'suite qa-jig: 1.500000s > 1.0s')])
         self.assertEqual(self.cli('--pair', 'qa-skein').returncode, 2)
 
     def test_missing_extra_duplicate_malformed_and_unfinished_records(self):
@@ -2611,7 +2620,10 @@ os.waitpid(child,0)
         budget.write_text('[tools."tools/fixture.py"]\ncpu_suite_s=1.0\ncpu_test_s=1.0\n')
         result = self.summary(*arguments)
         self.assertEqual(result.returncode, 1, result.stderr)
-        self.assertEqual(len(json.loads(result.stdout)['over_budget']), 2)
+        self.assertEqual(json.loads(result.stdout)['over_budget'],
+                         [line + '\n' + REPAIR_LINE for line in
+                          ('test tools/fixture.py suite: 1.500000s > 1.0s',
+                           'suite tools/fixture.py: 1.500000s > 1.0s')])
         for content in ('tools=1', '[tools]\ncpu_suite_s=1',
                         '[tools."tools/fixture.py"]\ncpu_suite_s=nan',
                         '[tools."tools/fixture.py"]\nunknown=1'):
