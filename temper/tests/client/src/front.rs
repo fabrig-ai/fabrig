@@ -313,7 +313,7 @@ impl Joint {
         engine_limits.journal.deliveries = 64;
         engine_limits.journal.held = 192;
         // The delegated batch and dependency-bearing task row fit whole.
-        engine_limits.journal.transcript_bytes = 9_528;
+        engine_limits.journal.transcript_bytes = 9_536;
         engine_limits.fleet.slots = tasks;
         engine_limits.fleet.attempts = tasks * 2;
         let mut front =
@@ -1460,7 +1460,7 @@ impl Joint {
             // The deep task row includes its optional session, talk, question watermark and open attempt.
             let opening =
                 u32::try_from(size_of::<Option<jig_domain_tasks::OpenAttempt>>()).expect("inline attempt bytes");
-            limits.journal.transcript_bytes = 8288_u32.checked_add(opening).expect("deep row allowance");
+            limits.journal.transcript_bytes = 8296_u32.checked_add(opening).expect("deep row allowance");
             limits.journal.run_bytes = 8192;
             limits.brief.sections = 5;
             limits.brief.brief_bytes = 1024;
@@ -1485,7 +1485,7 @@ impl Joint {
                 limits.authority.executors = SETTINGS_EXECUTORS;
                 limits.tasks.executor_kinds = SETTINGS_EXECUTORS;
                 limits.documents.executors = SETTINGS_EXECUTORS;
-                limits.journal.transcript_bytes = 8296_u32.checked_add(opening).expect("settings row allowance");
+                limits.journal.transcript_bytes = 8304_u32.checked_add(opening).expect("settings row allowance");
             }
             let mut domain = a::Domain::new(rules, limits.authority).expect("landing authority");
             let mut out = skein_lib::Queue::uncapped();
