@@ -160,6 +160,30 @@ test = "forge_sign_in::tests::credentials_are_private_whole_and_left_in_place_on
 cpu_s = 0.21
 why = "Same-work backlog (the user, 11-18): its CPU alone swings 2.0 times on the same code (main's figures 0.068, 0.098, 0.071 s; 0.135 s at a docs-only candidate, 11-18 13:39Z), so a gate can flag it on noise. The line is half again its largest figure; the repair that makes its work the same at every run drops it (skein/docs/foundation/testing-strategy.md, 10)."
 
+[[gate.default.reasons]]
+binary = "temper-client-journeys-tool"
+test = "tests::the_committed_journeys_are_their_print"
+cpu_s = 3.9
+why = "Same-work backlog (the user, 11-18): its CPU alone swung 1.7 times (1.534 s at the base, 2.572 s at the head, w1's run of 11-18 15:29Z), so a gate can flag it on noise. The line is half again its largest figure; the repair that makes its work the same at every run drops it (skein/docs/foundation/testing-strategy.md, 10)."
+
+[[gate.default.reasons]]
+binary = "temper-service"
+test = "startup::push_configuration::optional_push_reads_its_private_key_services_and_public_half"
+cpu_s = 0.14
+why = "Same-work backlog (the user, 11-18): its CPU alone swung 2.4 times (0.038 s at the base, 0.091 s at the head, gate run 1459 of 11-18, whose change touched only temper's client crates), so a gate can flag it on noise. The line is half again its largest figure; the repair that makes its work the same at every run drops it (skein/docs/foundation/testing-strategy.md, 10)."
+
+[[gate.default.reasons]]
+binary = "temper-engine-service-startup"
+test = "tests::fixed::the_fleet_uses_the_link_stop_bound_unless_an_override_is_larger"
+cpu_s = 0.08
+why = "Same-work backlog (the user, 11-18): its CPU alone swung 2.9 times (0.018 s at the base, 0.053 s at the head, gate run 1459 of 11-18, whose change touched only temper's client crates), so a gate can flag it on noise. The line is half again its largest figure; the repair that makes its work the same at every run drops it (skein/docs/foundation/testing-strategy.md, 10)."
+
+[[gate.default.reasons]]
+binary = "temper-service"
+test = "startup::members::tests::every_row_is_a_member_its_decoder_takes"
+cpu_s = 0.11
+why = "Same-work backlog (the user, 11-18): its CPU alone swung 2.0 times (0.036 s at the base, 0.073 s at the head, gate run 1465 of 11-18, whose change touched jig's domain crates and temper's domain tests), so a gate can flag it on noise. The line is half again its largest figure; the repair that makes its work the same at every run drops it (skein/docs/foundation/testing-strategy.md, 10)."
+
 [gate.default.skein]
 ideal_s = 40
 
