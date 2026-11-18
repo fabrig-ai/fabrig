@@ -26,16 +26,20 @@ fn a_watch_asked_before_signing_in_opens_once_signed_in() {
     assert_eq!(credential, &Some(fixtures::credential(&CREDENTIAL)));
     c.stream(fixtures::hello(jig_client_protocol_wire::VERSION));
     assert_eq!(c.requests.len(), 4, "implicit me also makes the link live and answers its handle");
-    let Request::Save { records } = c.requests.iter().find(|request| matches!(request, Request::Save { .. }))
-        .expect("hello saves its stream") else {
-        panic!("hello saves its stream");
-    };
+    let mut saved = None;
+    let mut opening = None;
+    for request in c.requests() {
+        if let Request::Save { records } = request {
+            assert!(saved.replace(records).is_none());
+        }
+        if let Request::Exchange { credential, message: Message::Watch(bytes), .. } = request {
+            assert!(opening.replace((credential, bytes)).is_none());
+        }
+    }
+    let records = saved.expect("hello saves its stream");
     assert_eq!(records.len(), 1);
     assert_eq!(records.as_slice().first().unwrap().key.as_ref(), STREAM_KEY);
-    let Request::Exchange { credential, message: Message::Watch(bytes), .. } = c.requests.iter()
-        .find(|request| matches!(request, Request::Exchange { .. })).unwrap() else {
-        panic!("one held task opening, me is implicit")
-    };
+    let (credential, bytes) = opening.expect("one held task opening, me is implicit");
     let open = w::Open::decode(&w::CEILINGS, &mut skein_lib::Reader::new(bytes)).unwrap();
     assert_ne!(open.watch(), 0);
     assert_eq!(credential, &Some(fixtures::credential(&CREDENTIAL)));

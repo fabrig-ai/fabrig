@@ -858,7 +858,7 @@ fn client_queue_and_sign_in_exchange_overrides_are_checked() {
 
 #[test]
 fn client_read_and_opening_pressure_defaults_and_overrides_are_checked() {
-    for json in [br#"{}"#.as_slice(), br#"{"profile":"standard"}"#] {
+    for json in [b"{}".as_slice(), br#"{"profile":"standard"}"#] {
         let limits = parse(json).expect("stock profile");
         assert_eq!(limits.clients.reads_per_client, 32);
         assert_eq!(limits.clients.openings_per_client, 31);

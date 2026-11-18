@@ -327,6 +327,7 @@ fn a_peer_version_refusal_ends_queued_reads_instead_of_admitting_them() {
 
 /// O2: the old link's consequences leave before the new domain's requests.
 #[test]
+#[expect(clippy::too_many_lines, reason = "one credential boundary retains read terminals, watch terminals and held HTTP credit")]
 fn link_consequences_precede_the_next_domain_request() {
     let mut limits = fixtures::limits();
     limits.exchanges = 3;
@@ -357,16 +358,18 @@ fn link_consequences_precede_the_next_domain_request() {
         client.step(Event::Read { handle, read: Readable::Jig(c::Read::Project { project: 1 }) });
     }
     client.step(Event::SignIn { with: With::Held(fixtures::credential(&fixtures::NEW_CREDENTIAL)) });
-    let closing = client.requests().iter().position(|request| matches!(request, Request::CloseStream))
-        .expect("the old stream closes");
+    let mut closing = None;
     let mut opening = None;
     for (index, request) in client.requests().iter().enumerate() {
+        if let Request::CloseStream = request {
+            assert!(closing.replace(index).is_none());
+        }
         if let Request::OpenStream { .. } = request {
             assert!(opening.replace(index).is_none());
         }
     }
     let opening = opening.expect("new stream");
-    assert!(closing < opening, "the old stream closes before its replacement opens");
+    assert!(closing.expect("the old stream closes") < opening, "the old stream closes before its replacement opens");
     for handle in [TASK, fixtures::ME, Handle { number: 200, ..TASK }, Handle { number: 201, ..TASK }] {
         let mut ending = None;
         for (index, request) in client.requests().iter().enumerate() {
