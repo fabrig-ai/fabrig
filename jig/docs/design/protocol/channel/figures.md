@@ -164,7 +164,8 @@ Focused, in the link's and the host's tests and jig's channel world:
   its hello. New figures given to the host reach every linked worker.
 - **Refusals:** a wrong secret is refused *unauthorized*, and a worker
   of 15 is refused by version.
-- **The record:** each new record's golden bytes, and patch `0006`'s
+- **The record:** generated records' drift and pinned constructs, as
+  skein's `data/codec/README.md`, section 6 has it; patch `0006`'s
   breaking declaration, held by the wire's patch tests and
   `fabrig-boundary`'s `patches` test.
 

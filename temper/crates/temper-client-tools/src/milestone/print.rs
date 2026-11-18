@@ -275,9 +275,9 @@ fn totals_text(
             out.put(b" closed \xc2\xb7 ");
             out.number(u64::from(totals.live()));
             out.put(b" live\nspent: ");
-            out.number(totals.spent());
+            render::amount(totals.spent(), out);
             out.put(b" of ");
-            out.number(task.budget.numbers.budget);
+            render::amount(task.budget.numbers.budget, out);
             out.put(b"\n");
             if let Some(at) = totals.ended() {
                 out.put(b"ended: ");

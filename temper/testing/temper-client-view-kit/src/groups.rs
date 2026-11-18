@@ -144,11 +144,30 @@ fn at_with(
                     jig_client::UnlinkedRequest::Down { down: Down::Read { read, what: jig_client::Readable::Jig(what) } },
             } => {
                 let value = match what {
-                    c::Read::Inbox { group, .. } => c::ReadValue::Inbox(Box::new(c::InboxPage {
+                    c::Read::Inbox { after: Some(_), .. } => {
+                        event(
+                            &mut root,
+                            Event::Client {
+                                event: jig_client::Event::Up {
+                                    up: Up::ReadDone {
+                                        read,
+                                        result: jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Busy)),
+                                    },
+                                },
+                            },
+                            &mut out,
+                        );
+                        continue;
+                    }
+                    c::Read::Inbox { group, after: None, .. } => c::ReadValue::Inbox(Box::new(c::InboxPage {
                         selection: None,
                         before: None,
                         rows: if group == c::InboxReadGroup::Needs { entries.clone() } else { List::with_capacity(0) },
-                        after: None,
+                        after: if cut && group == c::InboxReadGroup::Needs {
+                            Some(c::Cursor::new(b"next".as_slice().into(), 4).unwrap())
+                        } else {
+                            None
+                        },
                         cut,
                     })),
                     c::Read::Question { message, .. } => {

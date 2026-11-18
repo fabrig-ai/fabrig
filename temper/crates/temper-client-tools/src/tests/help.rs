@@ -561,6 +561,7 @@ fn the_proposal_reference_is_what_the_table_renders() {
 fn the_goal_reference_is_what_the_table_renders() {
     reference_matches(b"goal", b"ctl-goal");
     reference_matches(b"role", b"ctl-role");
+    reference_matches(b"milestone", b"ctl-milestone");
 }
 
 #[test]
@@ -691,4 +692,31 @@ fn the_landing_reference_is_what_the_table_renders() {
 #[test]
 fn the_change_reference_is_what_the_table_renders() {
     reference_matches(b"change", b"ctl-change");
+}
+
+#[test]
+fn budget_help_names_the_amount_and_all_as_allowed_reserves() {
+    for (tool, words) in [
+        (
+            jig::rows::GOAL_START_AT,
+            "  --as-allowed: a switch. Take all you may give from your pool, or with --milestone all the milestone has left, instead of a named budget: none is left for the next start while this goal is live\n",
+        ),
+        (
+            jig::rows::MILESTONE_NEW_AT,
+            "  --as-allowed: a switch. Take all you may give from your pool instead of a named budget: none is left for your next start while this milestone is live\n",
+        ),
+    ] {
+        let help = fixtures::help(Some(tool));
+        assert!(skein_lib::bytes::find(&help, words.as_bytes()).is_some());
+        assert!(
+            skein_lib::bytes::find(
+                &help,
+                b"--budget AMOUNT: an amount with at most two decimals, as 130 or 1.25; optional."
+            )
+            .is_some()
+        );
+        let row = table::TOOLS.get(usize::from(tool)).unwrap();
+        let json = jig::json::write_tool(row, &crate::limits::tools()).unwrap();
+        assert!(skein_lib::bytes::find(&json, br#""kind":"amount""#).is_some());
+    }
 }

@@ -71,9 +71,9 @@ its tests, is `cluster.md`.
   secrets' store: LLM accounts' as jig keeps them, and each forge's
   records under temper's tag, from which its access and its git identity
   are made (section 8; credentials.md).
-- **Tested at every tier:** codecs and parsers against golden bytes and
-  transcripts of real peers; the forge component and the git component in
-  worlds of their own; temper's client joined to the engine's root; the
+- **Tested at every tier:** codecs with records drift, pinned constructs and
+  built-value round trips, and parsers against transcripts of real peers;
+  the forge component and the git component in worlds of their own; temper's client joined to the engine's root; the
   one-process world on skein's simulator; the real binary with an owned
   Forgejo, its runner and real git; a live tier with a real model
   (section 10; `../testing/README.md`).
@@ -538,7 +538,7 @@ section 8 give them. temper's sit beside them:
   may stay (wires.md, section 10).
 - **What a deployment keeps.** The floor (`floor.md`) bounds the stores
   a build opens. Registered layouts come from the store's registry;
-  fixed forms and small files have their own readers and golden bytes:
+  fixed forms and small files have their own readers and tests:
 
   - **The forges' secrets from a schema:** temper's family
     `temper-secrets` (`temper-protocol-records`, `schema/secrets-v1.schema`),
@@ -582,8 +582,11 @@ section 8 give them. temper's sit beside them:
     as they were; the preparation's `state` and an owned Forgejo's data
     are the forge's, and going back past a preparation that migrated it
     needs its dump (`../draft/upgrades.md`, 3.2 and 11).
-  - **Golden bytes** pin each fixed form, each schema's records and the
-    key's frame and marker, so a change fails a test naming it.
+  - **The bytes' pin is skein's `every`** (`skein/docs/design/data/codec/README.md`,
+    6). Each schema's drift compares its records and refuses unpinned
+    constructs; round trips, fuzzing and memory tests build their values,
+    without family golden files or generated tests. Fixed forms and the
+    key's frame and marker keep their own byte tests.
 
   Outside it: what an external program reads (Forgejo's and the
   runner's files, which their own upgrade carries), the fake backends'
@@ -659,8 +662,8 @@ revisions temper's `Cargo.lock` pins.
 `../testing/README.md` applies skein's strategy (testing-strategy.md) to
 temper: its tiers, fakes, layout and budgets. What checks this layer:
 
-- **Step tests:** every codec against golden bytes, at its bounds and by
-  fuzz targets; each translation both ways; git's argument and
+- **Step tests:** every codec with records drift, pinned constructs and
+  built-value round trips, at its bounds and by fuzz targets; each translation both ways; git's argument and
   environment builders, and its output parsers against transcripts of
   real git (`temper-git-transcripts`); `skein-forge`'s decoders against
   transcripts of the throwaway Forgejo (skein's conformance,

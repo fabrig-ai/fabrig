@@ -815,10 +815,11 @@ Following skein/docs/foundation/testing-strategy.md, and skein's `net/channel.md
 within jig's suites' budgets: focused tests in the default suite, randomized
 ones in the fuzzy suite.
 
-- **Step tests** in `jig-protocol-worker-wire`: each record encoded and
-  decoded at its smallest and fullest, golden bytes per kind, bounds at
-  their limit and one past it, and the sizes against bodies measured by
-  hand; generated, as skein's `data/codec/README.md`, section 6 has it.
+- **Records' drift** in `jig-worker-wire-world`: the generated records
+  match the committed module, and the schema has no unpinned construct,
+  as skein's `data/codec/README.md`, section 6 has it. No generated tests
+  or records' golden bytes are kept. Step tests in `jig-protocol-worker-wire`
+  check the sizes against bodies measured by hand; patch goldens stay.
 - **A machine world per component:** the component between the hub's
   scripted vocabulary and a scripted peer of skein's channel, with every
   refusal of the opening, a worker replaced, a hello not admitted,

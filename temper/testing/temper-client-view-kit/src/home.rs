@@ -11,6 +11,7 @@ pub fn home_limits() -> d::Limits {
     limits.client.domain.handles = 24;
     limits.client.domain.watches = 22;
     limits.client.domain.reads = 16;
+    limits.client.domain.rows = 8;
     limits
 }
 
@@ -524,8 +525,25 @@ pub fn settle_home(
                     },
                 )
             }
-            jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Inbox { group, .. }) } => {
+            jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Inbox { group, after, .. }) } => {
                 let Some(needs) = needs else { continue };
+                if after.is_some() {
+                    let mut replies = drive(
+                        root,
+                        d::Event::Client {
+                            event: jig_client::Event::Up {
+                                up: jig_client::Up::ReadDone {
+                                    read,
+                                    result: jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Busy)),
+                                },
+                            },
+                        },
+                    );
+                    while let Some(reply) = replies.pop() {
+                        out.push(reply);
+                    }
+                    continue;
+                }
                 let mut rows = List::with_capacity(u32::try_from(needs.objects.len()).unwrap());
                 if group == c::InboxReadGroup::Needs {
                     for object in needs.objects {
@@ -540,7 +558,11 @@ pub fn settle_home(
                         rows,
                         cut: group == c::InboxReadGroup::Needs && needs.cut,
                         before: None,
-                        after: None,
+                        after: if group == c::InboxReadGroup::Needs && needs.cut {
+                            Some(c::Cursor::new(b"next".as_slice().into(), 4).unwrap())
+                        } else {
+                            None
+                        },
                         selection: status.filter(|fixture| fixture.goals).map(|_| {
                             List::from_boxed(Box::new([c::InboxSelection {
                                 cursor: c::InboxCursor::Number { number: 1 },
