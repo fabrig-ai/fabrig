@@ -159,7 +159,8 @@ pub(crate) fn workspace_prepared(
         );
     }
     // A task's earlier tries do not close this window (jig/docs/design/domain/engine/executors.md, 2).
-    let moved = transcript.moved || window_moved(core, task, &allowance.choice.accounts, &allowance.choice.policy.model);
+    let moved =
+        transcript.moved || window_moved(core, task, &allowance.choice.accounts, &allowance.choice.policy.model);
     let mut resume = !moved
         && !transcript.closed
         && !transcript.cut
@@ -596,8 +597,10 @@ fn window_moved(core: &Core, task: u64, accounts: &[authority::AccountBinding], 
             for binding in &proof.accounts {
                 if binding.provider == main.provider {
                     return match core.accounts.source(binding.source) {
-                        Some(source) => (source.kind == jig_domain_accounts::Kind::Program)
-                            != (kind == jig_domain_accounts::Kind::Program),
+                        Some(source) => {
+                            (source.kind == jig_domain_accounts::Kind::Program)
+                                != (kind == jig_domain_accounts::Kind::Program)
+                        }
                         None => true,
                     };
                 }

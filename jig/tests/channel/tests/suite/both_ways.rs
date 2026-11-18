@@ -140,7 +140,7 @@ fn login_then_key(answer: smith_fake_claude::Step) {
     crossed(&run, Grant::Login, Grant::Key);
     assert!(run.login_states.contains(&jig_protocol_worker_wire::LoginState::Usable));
     assert_eq!(run.login_states.last(), Some(&jig_protocol_worker_wire::LoginState::NotSignedIn));
-    assert_eq!(run.requests.len(), 1, "one ordinary completion, no summary: {}; {:?}", run.diagnostics, run.requests);
+    assert_eq!(run.requests.len(), 1, "one ordinary completion, no summary: {}", run.diagnostics);
     assert_ne!(run.requests[0]["tool_choice"]["type"], "none");
     let messages = run.requests[0]["messages"].as_array().expect("messages");
     assert_eq!(messages.len(), 1, "no program turns cross to the direct backend");
@@ -148,9 +148,9 @@ fn login_then_key(answer: smith_fake_claude::Step) {
     assert!(messages.iter().all(|message| !message["content"].as_array().expect("blocks").is_empty()));
     let first = &messages[0]["content"][0];
     assert_eq!(first["type"], "text");
-    let brief = first["text"].as_str().expect("first user text");
+    assert!(first["text"].as_str().expect("first user text").contains("Continue on the other source"));
+    let brief = run.requests[0]["system"].to_string();
     assert!(brief.contains("committed plain answer"));
-    assert!(brief.contains("Continue on the other source"));
     assert!(!brief.contains("Summarise the work so far."));
     assert_eq!(run.credentials, vec![(skein_llm::Provider::Anthropic, Some(skein_llm::Scheme::Key), Some(0))]);
     assert_eq!(
@@ -163,11 +163,17 @@ fn login_then_key(answer: smith_fake_claude::Step) {
 #[test]
 fn a_key_then_login_starts_fresh_with_the_conversations_tail() {
     let story = Story {
-        turns: vec![smith_fake_claude::Turn {
-            steps: vec![],
-            end: End::Success {
-                structured_output: Some(serde_json::json!({"outcome":{"form":"report","text":"Hello","fields":{}}})),
-            },
+        // This outcome is available only when the new system brief carries the tail.
+        cued: vec![smith_fake_claude::Script {
+            cue: "committed direct answer".into(),
+            turns: vec![smith_fake_claude::Turn {
+                steps: vec![],
+                end: End::Success {
+                    structured_output: Some(
+                        serde_json::json!({"outcome":{"form":"report","text":"Hello","fields":{}}}),
+                    ),
+                },
+            }],
         }],
         ..Story::default()
     };
@@ -185,9 +191,7 @@ fn a_key_then_login_starts_fresh_with_the_conversations_tail() {
     assert!(print[0].arguments.iter().any(|arg| arg == "--mcp-config"));
     assert!(print.iter().all(|row| !row.arguments.iter().any(|arg| arg == "--resume")));
     assert_eq!(run.received.len(), 1);
-    let brief = run.received[0]["message"]["content"].as_str().expect("first user text");
-    assert!(brief.contains("committed direct answer"));
-    assert!(brief.contains("Continue on the other source"));
-    assert!(!brief.contains("Summarise the work so far."));
+    let user = run.received[0]["message"]["content"][0]["text"].as_str().expect("first user text");
+    assert!(user.contains("Continue on the other source"));
     answered(&run);
 }

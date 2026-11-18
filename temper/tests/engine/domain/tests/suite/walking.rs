@@ -96,6 +96,7 @@ fn walking_referee_rejects_duplicate_transaction_keys_and_transcripts() {
     let proof = Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::RunProof(
         temper_engine_domain::RunProof {
             conversation: task.attempt,
+            endpoint: None,
             credentials: Box::new([]),
             accounts: Box::new([jig_domain_authority::AccountBinding { provider: 1, account: 1, source: 1 }]),
             placement: Some(skein_lib::Token::new(7)),
@@ -353,6 +354,7 @@ fn walking_referee_rejects_missing_or_split_current_claim_turn_and_terminal_proo
     let initial = Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::RunProof(
         temper_engine_domain::RunProof {
             conversation: task.attempt,
+            endpoint: None,
             credentials: Box::new([]),
             accounts: Box::new([jig_domain_authority::AccountBinding { provider: 1, account: 1, source: 1 }]),
             placement: Some(skein_lib::Token::new(7)),
@@ -527,6 +529,7 @@ fn independent_terminal_cut_referee_rejects_missing_or_altered_evidence() {
         Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::RunProof(
             temper_engine_domain::RunProof {
                 conversation: task.attempt,
+                endpoint: None,
                 credentials: Box::new([]),
                 accounts: Box::new([jig_domain_authority::AccountBinding { provider: 1, account: 1, source: 1 }]),
                 placement: Some(skein_lib::Token::new(7)),
