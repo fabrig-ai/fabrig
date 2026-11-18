@@ -66,12 +66,12 @@ it. A step that acts keeps no wait: `nothing; it steps next`.
   (`landing.md`, 7.1), after which the landing reads its facts afresh.
   A fact that no write in flight will answer is read again at a
   deadline, never awaited.
-- **No decision is lost.** The landing decides only in its due
-  procedure step. Where the root cannot carry a decision out, the step
-  not due or its write refused before it is kept, the landing's state
-  is not committed and nothing is kept for the write: the landing is
-  woken and decides again in its next due step. A write waiting for
-  room is the one wait whose wake is room alone.
+- **No decision is lost.** A decision the root cannot carry out, its
+  procedure step not due or its write refused before it is kept,
+  commits nothing: the landing's state stays as it was, nothing is
+  kept for the write, and the landing is woken to decide again in its
+  next due step. A write waiting for room is the one wait whose wake is
+  room alone.
 - **After a round ends** (`landing.md`, 5.1), once its cleanup's close
   and deletions are answered, the next step is due at once and is one
   of: a prepare for the members above the last kept prefix, the opening
