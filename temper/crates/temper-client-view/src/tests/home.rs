@@ -2385,6 +2385,333 @@ fn home_groups_milestones_counts_goals_and_names_their_dependencies() {
     }
 }
 
+// temper/docs/design/client/pages/README.md: whole answers alone redraw a page.
+fn home_delivery(root: &mut d::Domain, limits: &d::Limits, watch: Token, value: c::Delivery) -> Queue<d::Request> {
+    f::milestones::event(
+        root,
+        limits,
+        d::Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::Watched { watch, event: c::WatchEvent::Delivered(value) },
+            },
+        },
+    )
+}
+
+fn home_needs_reads(out: &Queue<d::Request>) -> List<Token> {
+    let mut tokens = List::uncapped();
+    for request in out {
+        if let d::Request::Unlinked {
+            request:
+                jig_client::UnlinkedRequest::Down {
+                    down:
+                        jig_client::Down::Read {
+                            read,
+                            what: jig_client::Readable::Jig(c::Read::Inbox { group, project, after, .. }),
+                        },
+                },
+        } = request
+            && *group == c::InboxReadGroup::Needs
+        {
+            assert_eq!(*project, Some(f::PROJECT), "Home reads needs filtered by its project");
+            assert_eq!(*after, None, "a refresh or retry starts at the first page");
+            tokens.push(*read).unwrap();
+        }
+    }
+    assert!(!tokens.is_empty(), "the turn must ask for needs");
+    tokens
+}
+
+fn end_home_needs_reads(
+    root: &mut d::Domain,
+    limits: &d::Limits,
+    out: &mut Queue<d::Request>,
+    result: jig_client::Readout,
+) {
+    let tokens = home_needs_reads(out);
+    let mut rest = Queue::uncapped();
+    while let Some(request) = out.pop() {
+        if let d::Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Read { read, .. } },
+        } = &request
+            && tokens.as_slice().contains(read)
+        {
+            let mut more = f::milestones::event(
+                root,
+                limits,
+                d::Event::Client {
+                    event: jig_client::Event::Up {
+                        up: jig_client::Up::ReadDone { read: *read, result: result.clone() },
+                    },
+                },
+            );
+            while let Some(request) = more.pop() {
+                rest.push(request);
+            }
+        } else {
+            rest.push(request);
+        }
+    }
+    *out = rest;
+}
+
+fn home_drawings(root: &d::Domain) -> [Box<[u8]>; 2] {
+    [printed(&status_view(root, false)), printed(&status_view(root, true))]
+}
+
+#[expect(clippy::disallowed_methods, reason = "compare valid printed text byte for byte with readable failure diffs")]
+fn same_home_drawings(root: &d::Domain, expected: &[Box<[u8]>; 2], turn: &str) {
+    for ((actual, expected), shell) in home_drawings(root).iter().zip(expected).zip(["terminal", "browser"]) {
+        assert_eq!(core::str::from_utf8(actual).unwrap(), core::str::from_utf8(expected).unwrap(), "{shell}: {turn}");
+    }
+}
+
+fn busy_home_parts(lines: &[c::TaskLine]) -> Box<[c::TaskLine]> {
+    let mut lines = Box::<[c::TaskLine]>::from(lines);
+    for line in &mut lines {
+        line.parts = List::from_boxed(Box::new([c::RowPart::Failed(c::PartFailure::Busy)]));
+    }
+    lines
+}
+
+#[test]
+#[expect(
+    clippy::disallowed_methods,
+    clippy::disallowed_types,
+    reason = "ordinary test assembles rows and inspects semantic cards and grouped rows"
+)]
+#[expect(clippy::too_many_lines, reason = "one Home drawing is compared after each interleaved delivery and answer")]
+fn home_draws_the_same_when_unchanged_reads_answer_in_turns() {
+    let mut limits = home_limits();
+    limits.client.domain.handles = 96;
+    limits.client.domain.watches = 96;
+    limits.client.domain.reads = 64;
+    let (mut root, me_watch, _, settings, inbox_watch, _) =
+        f::home_root(&limits, forge_rows(true), Some(&[f::PROJECT]), true);
+    let mut me = root.pages().me(root.client()).unwrap().clone();
+    let member = me.projects.get_mut(0).unwrap();
+    let chat_source = f::chat::messaging_root();
+    let mut templates = List::uncapped();
+    for template in &chat_source.pages().me(chat_source.client()).unwrap().projects.get(0).unwrap().templates {
+        templates.push(template.clone()).unwrap();
+    }
+    templates.push(f::goals::template(jig_client::shapes::GOAL, b"goal", true)).unwrap();
+    member.templates = templates;
+    f::deliver_me(&mut root, me_watch, me);
+    let out = f::milestones::offer(&mut root, me_watch, &limits);
+    let fact = f::milestones::watch(&out, Some(f::milestones::LABEL), None, 1);
+
+    let mut goals = Vec::new();
+    let mut embedded = Vec::new();
+    for (task, title, headline) in [
+        (3, "Codec shape K3", "K3 lands the codec's shape"),
+        (4, "Codec shape K4", "K4 checks the codec's bytes"),
+        (5, "Codec shape K5", "K5 bridges the codec's versions"),
+        (6, "Codec shape K6", "K6 documents the codec's shape"),
+        (7, "A plain goal", "The plain goal keeps its report"),
+        (8, "Another plain goal", "The other goal keeps its report"),
+    ] {
+        let mut goal = f::goals::line();
+        goal.chip.task = task;
+        goal.chip.title = f::goal::text(title.as_bytes());
+        // K3 has started; waiting milestone goals expose a dependency fallback if their parts are lost.
+        if (4..=6).contains(&task) {
+            goal.chip.phase = c::Phase::Waiting;
+            goal.chip.details.phase =
+                c::ChipPhase::Waiting { dependencies: List::from_boxed(Box::new([5])), more: false, holds: false };
+        }
+        let milestone = (task <= 6).then_some(f::milestones::TASK);
+        goal.parts = List::from_boxed(Box::new([temper_fixtures::client_documents::goal_part(
+            Some((headline.as_bytes(), f::NOW)),
+            milestone,
+        )]));
+        if milestone.is_some() {
+            embedded.push((goal.clone(), Some(headline.as_bytes())));
+        }
+        goals.push(goal);
+    }
+    let mut milestone = f::goals::line();
+    milestone.chip.task = f::milestones::TASK;
+    milestone.chip.title = f::goal::text(b"Codec shape");
+    milestone.parts = List::from_boxed(Box::new([f::milestones::part(
+        None,
+        w::MilestoneTotals::new(
+            &w::CEILINGS,
+            w::MilestoneTotalsParts {
+                task: f::milestones::TASK,
+                done: 2,
+                failed: 0,
+                closed: 0,
+                live: 4,
+                ended: None,
+                last_landing: None,
+                spent: 0,
+            },
+        )
+        .unwrap(),
+        &embedded,
+        0,
+    )]));
+    f::milestones::live(&mut root, &limits, fact, core::slice::from_ref(&milestone), false);
+    let mut out = f::milestones::event(
+        &mut root,
+        &limits,
+        d::Event::Went { place: d::Place::Address(Address::Home { project: f::PROJECT }) },
+    );
+    let listed = f::milestones::watch(&out, Some(f::milestones::LABEL), None, limits.client.domain.rows);
+    let goals_watch = f::milestones::watch(&out, Some(f::goals::LABEL), None, limits.client.domain.rows);
+    let mut rest = Queue::uncapped();
+    while let Some(request) = out.pop() {
+        if let d::Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Open { watch, .. } },
+        } = &request
+            && (*watch == goals_watch || *watch == listed)
+        {
+            continue; // These two lists are delivered explicitly, not by settle_home's default goals.
+        }
+        rest.push(request);
+    }
+    let mut delivered = home_delivery(
+        &mut root,
+        &limits,
+        settings,
+        c::Delivery::Settings(Box::new(c::SettingsDocument {
+            newest: 0,
+            settings: List::with_capacity(0),
+            held: List::with_capacity(0),
+            pending: List::with_capacity(0),
+        })),
+    );
+    while let Some(request) = delivered.pop() {
+        rest.push(request);
+    }
+    let inbox = c::Delivery::Inbox(Box::new(temper_fixtures::client_documents::inbox(
+        List::with_capacity(0),
+        0,
+        c::Count { value: 0, limited: false },
+        0,
+        false,
+    )));
+    let mut delivered = home_delivery(&mut root, &limits, inbox_watch, inbox.clone());
+    while let Some(request) = delivered.pop() {
+        rest.push(request);
+    }
+    let objects: Box<[_]> = (1..=4).map(|message| c::ObjectKey::Question { task: f::INBOX_TASK, message }).collect();
+    let needs = NeedsFixture { objects: &objects, cut: false, read: true, decided: true };
+    let mut parts = status_parts();
+    parts.landed = parts.seen + 15;
+    let status = StatusFixture {
+        document: w::ProjectStatus::new(&w::CEILINGS, parts).unwrap(),
+        answered: true,
+        goals: true,
+        shown: true,
+        goal_rows: None,
+        away: None,
+    };
+    settle_home(&mut root, &mut rest, Some(&needs), Some(&chat_fixture(0, 0, false, false)), Some(&status));
+    for (watch, rows) in [(goals_watch, goals.as_slice()), (listed, core::slice::from_ref(&milestone))] {
+        let mut out = f::milestones::live(&mut root, &limits, watch, rows, false);
+        settle_home(&mut root, &mut out, Some(&needs), None, Some(&status));
+    }
+
+    let first = home_drawings(&root);
+    for browser in [false, true] {
+        let view = status_view(&root, browser);
+        let text = printed(&view);
+        contains(&text, "15 changes landed since you last looked. Four things need you.");
+        contains(&text, "Needs you · 4");
+        contains(&text, "Codec shape");
+        contains(&text, "2 / 6 done");
+        contains(&text, "running");
+        for headline in
+            ["K3 lands the codec's shape", "The plain goal keeps its report", "The other goal keeps its report"]
+        {
+            contains(&text, headline);
+        }
+        absent(&text, "waits on Codec shape K5");
+        let region = main_find(view.tree(), Role::Region, b"Goals");
+        let rows: Vec<_> = subtree(view.tree(), region)
+            .iter()
+            .filter(|node| node.styles.as_slice().contains(&crate::look::GOALS_ROW))
+            .collect();
+        assert_eq!(rows.len(), 3, "one milestone and two plain goals, no standalone K3–K6 rows");
+        assert_eq!(rows.iter().filter(|node| node.styles.as_slice().contains(&crate::look::MS_ROW)).count(), 1);
+        assert_eq!(
+            main_nodes(view.tree())
+                .iter()
+                .filter(|node| node.styles.as_slice().contains(&crate::look::NEED_CARD))
+                .count(),
+            3
+        );
+    }
+    assert_eq!(root.pages().inbox().unwrap().rows.len(), 4);
+    assert_eq!(root.pages().inbox().unwrap().needs().filter(|card| card.page.is_some()).count(), 4);
+
+    for (failure, turn) in [
+        (jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Busy)), "needs answered busy"),
+        (jig_client::Readout::Limit, "needs answered limited"),
+    ] {
+        let mut out = home_delivery(&mut root, &limits, inbox_watch, inbox.clone());
+        same_home_drawings(&root, &first, "inbox delivered, needs pending");
+        end_home_needs_reads(&mut root, &limits, &mut out, failure);
+        settle_home(&mut root, &mut out, Some(&needs), None, Some(&status));
+        same_home_drawings(&root, &first, turn);
+        let mut out = home_delivery(&mut root, &limits, inbox_watch, inbox.clone());
+        let _reads = home_needs_reads(&out);
+        settle_home(&mut root, &mut out, Some(&needs), None, Some(&status));
+        same_home_drawings(&root, &first, "needs answered whole");
+    }
+    for (watch, rows, turn) in [
+        (goals_watch, goals.as_slice(), "goals' busy parts"),
+        (listed, core::slice::from_ref(&milestone), "milestone's busy part"),
+    ] {
+        for (rows, stage) in [(busy_home_parts(rows), "busy"), (rows.into(), "whole")] {
+            let mut out = f::milestones::live(&mut root, &limits, watch, &rows, false);
+            same_home_drawings(&root, &first, turn);
+            settle_home(&mut root, &mut out, Some(&needs), None, Some(&status));
+            same_home_drawings(&root, &first, stage);
+        }
+    }
+
+    // All three refreshes overlap; restore milestone, then goals, then needs, the reverse order.
+    let mut out = home_delivery(&mut root, &limits, inbox_watch, inbox.clone());
+    same_home_drawings(&root, &first, "together: inbox pending");
+    end_home_needs_reads(&mut root, &limits, &mut out, jig_client::Readout::Limit);
+    settle_home(&mut root, &mut out, Some(&needs), None, Some(&status));
+    same_home_drawings(&root, &first, "together: needs limited");
+    for (watch, rows) in [(goals_watch, goals.as_slice()), (listed, core::slice::from_ref(&milestone))] {
+        let mut out = f::milestones::live(&mut root, &limits, watch, &busy_home_parts(rows), false);
+        settle_home(&mut root, &mut out, Some(&needs), None, Some(&status));
+        same_home_drawings(&root, &first, "together: busy parts");
+    }
+    for (watch, rows) in [(listed, core::slice::from_ref(&milestone)), (goals_watch, goals.as_slice())] {
+        let mut out = f::milestones::live(&mut root, &limits, watch, rows, false);
+        settle_home(&mut root, &mut out, Some(&needs), None, Some(&status));
+        same_home_drawings(&root, &first, "together: parts restored in reverse order");
+    }
+    let mut out = home_delivery(&mut root, &limits, inbox_watch, inbox.clone());
+    let _reads = home_needs_reads(&out);
+    settle_home(&mut root, &mut out, Some(&needs), None, Some(&status));
+    same_home_drawings(&root, &first, "together: needs restored last");
+
+    let mut out = home_delivery(&mut root, &limits, inbox_watch, inbox);
+    end_home_needs_reads(
+        &mut root,
+        &limits,
+        &mut out,
+        jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Busy)),
+    );
+    settle_home(&mut root, &mut out, Some(&needs), None, Some(&status));
+    same_home_drawings(&root, &first, "retry: busy needs");
+    let due = d::pages::next_deadline(root.pages()).expect("busy needs schedule a retry");
+    let mut out = Queue::uncapped();
+    d::fire(&mut root, &skein_lib::Env { now: due, wall: f::NOW, limits }, &mut out);
+    let _reads = home_needs_reads(&out);
+    same_home_drawings(&root, &first, "retry deadline: needs pending");
+    settle_home(&mut root, &mut out, Some(&needs), None, Some(&status));
+    same_home_drawings(&root, &first, "retry answered whole");
+}
+
 #[test]
 fn all_n_links_to_goals() {
     let root = home_goals(2, 5, false);
