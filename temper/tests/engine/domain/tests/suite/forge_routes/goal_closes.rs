@@ -723,25 +723,6 @@ fn a_cancelled_landing_held_for_repairs_holds_below_the_attempt_bound() {
     world.close();
 }
 
-fn wait_for_budget_hold(world: &mut World, goal: u64, closer: u64) {
-    for _ in 0..STEPS {
-        if matches!(live_task(world, goal).phase, tasks::Phase::Held { why: tasks::Hold::Budget, .. })
-            && matches!(
-                live_task(world, closer).escalation,
-                tasks::Escalation::Waiting { holder: tasks::EscalationHolder::Person(1), .. }
-            )
-        {
-            break;
-        }
-        world.tick();
-    }
-    assert!(matches!(live_task(world, goal).phase, tasks::Phase::Held { why: tasks::Hold::Budget, .. }));
-    assert!(matches!(
-        live_task(world, closer).escalation,
-        tasks::Escalation::Waiting { holder: tasks::EscalationHolder::Person(1), .. }
-    ));
-}
-
 #[test]
 fn a_short_closer_names_its_lack_and_release_uses_the_goals_new_authority() {
     let minimum = stock_defaults().rules.minimum_run_spend;
@@ -752,11 +733,10 @@ fn a_short_closer_names_its_lack_and_release_uses_the_goals_new_authority() {
         // The run is admitted with `left`, then spends it so the closer still has too little.
         park_goal_spent(&mut world, &goal, if spend_short { left } else { 0 });
         let closer = closer_of(&mut world, goal.task);
+        wait_held(&mut world, closer, goal.task);
+        let run = awakened(&mut world, goal.task);
         if spend_short {
-            // Its next half is also too little for the goal to run; the hold reaches its person.
-            wait_for_budget_hold(&mut world, goal.task, closer);
-        } else {
-            wait_held(&mut world, closer, goal.task);
+            assert_eq!(run.run.budget, left, "the whole funds the goal's run when half is too little");
         }
         let expected = if spend_short {
             format!(
@@ -776,7 +756,6 @@ fn a_short_closer_names_its_lack_and_release_uses_the_goals_new_authority() {
             Some(temper_engine_domain_forge_closer::Step::Close)
         );
         let revision = live_task(&world, goal.task).revisions.spec;
-        let release_goal = spend_short.then_some(live_task(&world, goal.task).revisions.hold);
         world.send(engine::Event::Party(engine::PartyInput::Ask {
             models: Box::new([]),
             reply_to: ReplyTo::new(Token::new(97)),
@@ -786,7 +765,7 @@ fn a_short_closer_names_its_lack_and_release_uses_the_goals_new_authority() {
                 project: 1,
                 task: goal.task,
                 revision,
-                release: release_goal,
+                release: None,
                 amendment: people::Amendment {
                     tracked: None,
                     addressed: None,
@@ -801,7 +780,6 @@ fn a_short_closer_names_its_lack_and_release_uses_the_goals_new_authority() {
             },
         }));
         world.until(Until::Ready);
-        let run = if spend_short { next_goal_run(&mut world, goal.task) } else { awakened(&mut world, goal.task) };
         // The goal widens its delegate's terms as well as replenishing its funds.
         let mut authority = live_task(&world, closer).authority.clone();
         let funds = live_task(&world, goal.task).numbers;
