@@ -82,7 +82,10 @@
     optional account preference,
     the separate account kept by the last successful claim, and its next-run
     account/source wait with the source's typed state and optional wall reset
-    (unknown stays unknown), or a credential or host wait. `Task.run_wait`
+    (unknown stays unknown), or, `Untooled { worker }`, for a source whose
+    program started without its tools on that worker, the worker's setting
+    number, every other place for it taken or none
+    (`../../../domain/engine/fleet.md`), or a credential or host wait. `Task.run_wait`
     also carries `Refused(TaskWaitRefused)`: `Hello { kind, at, why,
     figures }`, the fleet's latest observed allowed-kind refusal,
     suppressed by any admitted connected non-draining allowed-kind host;

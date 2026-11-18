@@ -151,7 +151,9 @@ Typed, so the engine can act on them without reading prose:
   section 9), a failure of its model naming the model call where it can
   (below), or because the source of an LLM account it needs turned
   limited, refused or in need of a sign-in, naming the account, which
-  is no failure of its task's (../tasks/lifecycle.md, 6; ../accounts.md, 3.5);
+  is no failure of its task's (../tasks/lifecycle.md, 6; ../accounts.md, 3.5),
+  or because its program started without its agent's tools, a fault of
+  its place (below);
 - **the agent failed:** it could not be started, it exited or was dropped
   without answering, it broke the channel's rules, or the watchdog or its
   bound on wall time stopped it;
@@ -193,6 +195,18 @@ only such history closes the window, and every other failure leaves
 the next attempt to resume it;
 an unread tail does not spend another transient try. It does not retry the same
 history as an invalid start or a model failure.
+
+**A program that started without its tools** is
+`RunFailure::Untooled`, a unit variant: the run's program, on a
+program source, gave a first output (its init) without smith's tools
+(smith's `protocol/programs.md`, 5.6), so the program source's login
+on this host, not the task, is at fault. Its application names it from
+its agent's own fault (temper's `domain/worker/README.md`, 4.3), its
+detail the agent's bounded words as for any failed run, and `model`
+none. It crosses the channel as `untooled` (`../../protocol/channel/records.md`,
+1), and the engine keeps the task off that place without spending a
+try (`../engine/fleet.md`). Every other program failure stays the
+run's own, `RunFailure::Model` with `model` none.
 
 **A configured bound** is `RunFailure::Exceeded(Exceeded)`, where
 `Exceeded { bound: Bound, value: u64 }` names the bound and its configured
