@@ -79,7 +79,7 @@ impl Core {
                     host_wait = true;
                     break;
                 };
-                self.host_facts(placement, self.host_rule(placement), &mut facts);
+                self.run_host_facts(task, placement, &mut facts);
                 let selection = self.accounts.select(
                     super::coverage::payer(payer),
                     provider,
@@ -229,7 +229,7 @@ impl Core {
             return false;
         }
         let mut facts = List::with_capacity(self.host_fact_capacity());
-        self.host_facts(placement, self.host_rule(placement), &mut facts);
+        self.run_host_facts(task, placement, &mut facts);
         let policy = self.chosen_policy(task);
         let main = &policy.model;
         let main_provider = self.provider(main);

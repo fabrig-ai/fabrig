@@ -688,6 +688,142 @@ fn a_resumed_run_names_its_first_runs_attempt() {
     }
 }
 
+fn untooled_world() -> World {
+    use jig_domain_accounts as accounts;
+    let (mut config, mut limits) = super::credentials::program_configuration(183);
+    limits.core.fleet.workers = 2;
+    config.core.defaults.workers = [b"box-1", b"box-2"]
+        .iter()
+        .enumerate()
+        .map(|(index, name)| core::settings::WorkerSetting {
+            number: u32::try_from(index + 1).expect("two fixture workers"),
+            name: name.as_slice().into(),
+            places: 1,
+            digest: Some([7; 32]),
+            withdrawn: false,
+        })
+        .collect();
+    let initial = jig_test_profile::fixtures::create_chat(
+        &jig_test_profile::fixtures::Creating::new(&config.core, limits.core.tasks.tree_tasks),
+        1,
+        0,
+        b"use the tools".as_slice().into(),
+    );
+    let mut rows = jig_test_profile::fixtures::account_rows(&config.core.settings.llm_providers).into_vec();
+    for row in &mut rows {
+        if let root::Record::Core(core::Record::Accounts(accounts::Stored::Account { holder, .. })) = row {
+            *holder = accounts::Holder::Party(1);
+        }
+        if let root::Record::Core(core::Record::Accounts(accounts::Stored::Source { kind, name, .. })) = row {
+            *kind = accounts::Kind::Program;
+            *name = b"claude-alice".as_slice().into();
+        }
+    }
+    rows.push(root::Record::Core(core::Record::Accounts(accounts::Stored::Issued {
+        number: 1,
+        holder: accounts::Holder::Party(1),
+        name: b"claude-alice".as_slice().into(),
+        signed_out: false,
+    })));
+    World::new(Setup {
+        seed: 183,
+        configuration: Some(config),
+        limits,
+        initial: Some(initial),
+        rows: Some(rows.into_boxed_slice()),
+        ..Setup::default()
+    })
+}
+
+fn untooled_on(world: &mut World, channel: Token) {
+    use jig_domain_host as host;
+    world.send(root::Event::Link {
+        channel,
+        link: root::link::Event::Up(host::LinkUp::Answer {
+            run: Token::new(world.task()),
+            attempt: Token::new(world.attempt()),
+            answer: host::RunAnswer {
+                turns: 0,
+                spent: 0,
+                read: None,
+                refused: Box::new([]),
+                ending: host::Ending::Failed {
+                    failure: host::Failure::Run(host::RunFailure::Untooled),
+                    detail: b"not the task's reason".as_slice().into(),
+                    work: host::Work { left: None, saved: None },
+                    model: None,
+                },
+            },
+        }),
+    });
+}
+
+fn untooled_hello(world: &mut World, channel: Token, worker: u32) {
+    world.send(root::Event::Core(core::Event::Fleet(jig_domain_fleet::Event::Hello {
+        worker,
+        channel,
+        hello: Hello {
+            jobs: Box::new([]),
+            bounds: jig_test_profile::fixtures::bounds(),
+            stop_bound: skein_lib::Duration::from_millis(100),
+            slots: 1,
+            workstreams: Box::new([]),
+            hosting: Box::new([]),
+        },
+    })));
+}
+
+#[test]
+fn an_untooled_program_leaves_each_place_until_a_worker_reopens() {
+    use jig_domain_fleet as fleet;
+    use jig_domain_link::SourceName;
+    let mut world = untooled_world();
+    untooled_hello(&mut world, Token::new(8), 1);
+    let task = world.task();
+    let first = world.attempt();
+    assert_eq!(world.received_grant().unwrap().0, Token::new(7));
+    untooled_on(&mut world, Token::new(7));
+    let reason: Box<[u8]> =
+        b"claude_code started without smith's tools: account claude-alice on worker box-1".as_slice().into();
+    let row = world.domain.core().tasks.task(task).unwrap().clone();
+    assert_eq!(row.tries, tasks::Tries::NONE);
+    assert_eq!(row.retry_notice, Some(tasks::RetryNotice::Refused { count: 1, reason: Some(reason.clone()) }));
+    assert!(matches!(row.phase, tasks::Phase::Active(tasks::Active::BackingOff { .. })));
+    assert!(world.store.rows.values().any(|row| matches!(row,
+        root::Record::Core(core::Record::Core(core::CoreRecord::Terminal(terminal)))
+        if terminal.task == task && terminal.attempt == first && terminal.end == tasks::End::RefusedWithReason { reason: reason.clone() }
+    )));
+    untooled_on(&mut world, Token::new(7));
+    assert_eq!(world.domain.core().tasks.task(task).unwrap(), &row, "a duplicate ends no second time");
+    world.retry_due();
+    assert!(world.attempt() > first);
+    assert_eq!(world.received_grant().unwrap().0, Token::new(8));
+    assert_eq!(
+        world.received_grant().unwrap().3.form,
+        Form::Program(SourceName::new(b"claude-alice").expect("fixture source"))
+    );
+    untooled_on(&mut world, Token::new(8));
+    assert_eq!(
+        world.domain.core().fleet.untooled(Token::new(task)),
+        Some(fleet::Untooled {
+            channel: Token::new(8),
+            worker: 1,
+            source: SourceName::new(b"claude-alice").expect("fixture source"),
+        })
+    );
+    let last = world.attempt();
+    world.assigned = None;
+    world.advance(skein_lib::Duration::from_secs(10));
+    assert!(world.assigned.is_none(), "no place left: no timer-driven attempt");
+    assert_eq!(world.domain.core().tasks.task(task).unwrap().attempt, last);
+    assert!(world.domain.core().run_choice(task).is_err());
+    world.send(root::Event::Core(core::Event::Fleet(fleet::Event::Lost { channel: Token::new(7) })));
+    untooled_hello(&mut world, Token::new(9), 0);
+    assert_eq!(world.received_grant().unwrap().0, Token::new(9));
+    assert!(world.attempt() > last);
+    assert_eq!(world.domain.core().tasks.task(task).unwrap().tries, tasks::Tries::NONE);
+}
+
 fn transcript_failure() -> jig_domain_host::Ending {
     jig_domain_host::Ending::Failed {
         failure: jig_domain_host::Failure::Run(jig_domain_host::RunFailure::Transcript),

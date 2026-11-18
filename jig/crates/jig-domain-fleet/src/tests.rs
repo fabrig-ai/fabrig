@@ -1595,6 +1595,27 @@ fn an_untranslated_task_avoids_only_its_channel_until_loss_for_runs_and_jobs() {
 }
 
 #[test]
+fn an_untooled_task_remembers_its_latest_place_until_that_channel_is_lost() {
+    let mut h = Harness::new(LIMITS);
+    h.hello(C1, 2, &[], &[]);
+    h.hello(C2, 2, &[], &[]);
+    let source = crate::SourceName::new(b"claude-alice").unwrap();
+    for channel in [C2, C1] {
+        h.step(Event::Untooled { run: R1, channel, source });
+    }
+    assert_eq!(h.domain.untooled(R1), Some(crate::Untooled { channel: C1, worker: 37, source }));
+    assert!(h.domain.untooled_on(R1, C2, &source));
+    assert!(!h.domain.untooled_on(R2, C1, &source));
+    assert!(!h.domain.untooled_on(R1, C1, &crate::SourceName::new(b"other").unwrap()));
+    h.step(Event::Lost { channel: C1 });
+    assert_eq!(h.domain.untooled(R1), Some(crate::Untooled { channel: C2, worker: 38, source }));
+    h.hello(C3, 2, &[], &[]);
+    assert!(!h.domain.untooled_on(R1, C3, &source));
+    h.step(Event::Lost { channel: C2 });
+    assert_eq!(h.domain.untooled(R1), None);
+}
+
+#[test]
 fn a_running_record_mismatch_excludes_placement_while_its_hosted_run_finishes() {
     let mut h = Harness::new(LIMITS);
     h.hello(C1, 2, &[], &[]);
