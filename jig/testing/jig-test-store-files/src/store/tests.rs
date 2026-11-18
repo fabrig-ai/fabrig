@@ -142,7 +142,6 @@ fn readback_discovers_actual_inventory_without_changing_the_mirror() {
     );
     for own in [
         jig_protocol_store::keys::Own::Format,
-        jig_protocol_store::keys::Own::Layouts,
         jig_protocol_store::keys::Own::Wires,
     ] {
         assert!(

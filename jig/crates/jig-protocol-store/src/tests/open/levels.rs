@@ -92,7 +92,7 @@ fn a_later_component_version_refuses_ahead_without_reading_its_levels() {
 }
 
 #[test]
-fn equal_levels_check_current_versions_and_unregistered_layouts() {
+fn equal_levels_check_current_versions() {
     for found in [format::NONE, levels(0, 0)] {
         let sets = if found == format::NONE { OwnerSets::NONE } else { BASE };
         assert_opened(&open(&mut store(found, sets)), 1);
@@ -102,9 +102,7 @@ fn equal_levels_check_current_versions_and_unregistered_layouts() {
         let mut changed = replacing(skein_kv::Op::Put { key, value: row.encode().expect("format") });
         changed.owner_sets(sets);
         refused(&mut changed, OpenRefusal::Format { family: Family::Application, found: 2, wanted: 1 });
-        let mut changed = store(found, sets);
-        changed.layouts.core[0] ^= 1;
-        assert_opened(&open(&mut changed), 1);
+
     }
 }
 

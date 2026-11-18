@@ -56,7 +56,7 @@ pub const FAMILIES: &[Family] = &[
         root: "crates/jig-protocol-store",
         codec_root: "crates/jig-protocol-store-families",
         schemas: &["schema/component-v3.schema"],
-        generated: &["src/generated/component_v3.rs", "src/generated/layouts.rs"],
+        generated: &["src/generated/component_v3.rs"],
     },
     Family {
         name: "core",

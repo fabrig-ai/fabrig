@@ -1131,7 +1131,6 @@ fn cut_open(length: Option<u64>, claimed: bool) -> (Store, Box<[Event]>, Below) 
     // Three creation rows, the header, a run proof and a transcript place.
     let mut ops = skein_lib::List::with_capacity(6);
     ops.push(fixtures::format_put(fixtures::DEPLOYMENT)).expect("format");
-    ops.push(fixtures::layouts_put()).expect("layouts");
     ops.push(fixtures::header_put(fixtures::DEPLOYMENT, 1)).expect("header");
     ops.push(fixtures::installation_put(fixtures::INSTALLATION)).expect("installation");
     if claimed {

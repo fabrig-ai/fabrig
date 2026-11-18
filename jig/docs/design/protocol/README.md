@@ -219,8 +219,7 @@ they compile beside the core's crates rather than after them:
   crate's root, and `jig-protocol-store` re-exports it at its own as
   `jig_protocol_store::people_v17`. A caller may name either path.
 - **The store keeps the rest:** the current schemas, the registered
-  families' declarations (`store/layouts.md`, 2), the layouts' glue
-  (`src/generated/layouts.rs`), the families' bounds
+  families' declarations (`store/layouts.md`, 2), the families' bounds
   from the domain's limits (`store/README.md`, section 8) and the
   translations. The drift test, `jig/tests/codec-families.rs`, compares
   each family's generated records and refuses unpinned constructs (skein's

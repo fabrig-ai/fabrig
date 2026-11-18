@@ -78,9 +78,3 @@ pub(crate) fn check_versions(found: &component::Format, wanted: &component::Form
     Ok(())
 }
 
-/// This build's layouts (protocol/store/records.md, 3): computed from the schemas built in,
-/// committed beside the generated codecs, and checked against them by the drift test.
-#[must_use]
-pub fn layouts() -> component::Layouts {
-    crate::layouts::LAYOUTS
-}

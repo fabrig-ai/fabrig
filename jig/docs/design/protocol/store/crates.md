@@ -44,7 +44,7 @@ landed. A directory goes with the file of its name.
 | Piece | Files |
 |---|---|
 | `jig-protocol-store-records` | `codec.rs`, `codec/` |
-| `jig-protocol-store` | every other file: `lib.rs` and its modules, `generated/layouts.rs` among them |
+| `jig-protocol-store` | every other file: `lib.rs` and its modules |
 
 Their sizes, counted as raw lines of today's files, are each under the bound of `crate-graph.md`,
 7.3: about 24,000 for the records' translation, 17,700 of code and 6,300 of tests; about 43,000 for
@@ -226,9 +226,7 @@ each stage a `#[cfg(test)]` module of the crate's root, in one change beside sec
   `include_bytes!`, `#[path]` or manifest directory.
 - **`.config/fixture-readers.toml`** names the kit's fixtures and each piece's, with their readers:
   the kit's are read by both pieces' tests.
-- **The layouts' glue,** `src/generated/layouts.rs`, stays with the component, which reads it, and
-  names `crate::codec::component::Layouts` through the component's re-export, as the store codecs
-  world's drift test writes it.
+
 
 ## 5. Landing the split
 

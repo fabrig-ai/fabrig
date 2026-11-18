@@ -52,7 +52,6 @@ impl World {
                     .encode()
                     .expect("format"),
             },
-            skein_kv::Op::Put { key: Box::new([0, 3]), value: jig_protocol_store::format::layouts().encode() },
         ];
         let floor = jig_protocol_store::component_v3::Floor::new(
             &jig_protocol_store::component_v3::CEILINGS,

@@ -21,7 +21,6 @@ fn installation(bytes: Option<Box<[u8]>>) -> Store {
     let mut rows = List::with_capacity(4);
     for row in [
         fixtures::format_put(fixtures::DEPLOYMENT),
-        fixtures::layouts_put(),
         fixtures::header_put(fixtures::DEPLOYMENT, 1),
     ] {
         rows.push(row).expect("component rows");
@@ -86,7 +85,6 @@ fn ordinary_refusals_and_coarse_failures_remain_truthful_and_sticky() {
         &mut stores,
         &[
             fixtures::format_put(fixtures::DEPLOYMENT),
-            fixtures::layouts_put(),
             fixtures::header_put(fixtures::DEPLOYMENT, 2),
         ],
     );
