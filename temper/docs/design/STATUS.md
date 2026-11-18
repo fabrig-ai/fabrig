@@ -660,6 +660,7 @@ Design documents:
 - [`testing/reference-case.md`](testing/reference-case.status.md)
 
 Drafts:
+- [`draft/after-landing-repairs.md`](draft/after-landing-repairs.status.md)
 - [`draft/after-landing-reds-1114.md`](draft/after-landing-reds-1114.status.md)
 - [`draft/agent-docs.md`](draft/agent-docs.status.md)
 - [`draft/ask-temper.md`](draft/ask-temper.status.md)
