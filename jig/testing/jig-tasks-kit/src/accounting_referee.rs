@@ -618,18 +618,7 @@ fn valid_runtime(task: &TaskRecord) -> bool {
                     count == task.tries.of(class) && count <= allowance
                 }
                 Some(RetryNotice::Refused { count, .. }) => count == task.refusals,
-<<<<<<< HEAD
-                // A park waking on its leftover message pauses without a retry
-                // notice; the message is its reason (domain/tasks/messages.md, 3).
-                None => {
-                    task.refusals != 0
-                        && matches!(task.executor, Executor::Agent { .. })
-                        && matches!(task.due_reason, jig_domain_tasks::Why::Message { .. })
-                        && task.last_answer == Some(task.attempt)
-                }
-=======
                 None => false,
->>>>>>> parent of d502dc5f16 (Merge Pause a repeated park's wake)
             }
         }
         Phase::Waiting | Phase::Active(_) | Phase::Closing(_) | Phase::Held { .. } | Phase::Ended(_) => true,

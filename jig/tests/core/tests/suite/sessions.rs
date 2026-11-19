@@ -670,7 +670,9 @@ fn a_bound_session_records_why_its_next_run_began_fresh() {
 fn a_moved_standing_window_records_moved_after_ending_its_session() {
     let (mut world, run, child) = opened();
     story::park(&mut world, run, None);
-    crate::closed_proofs::endpoint(&mut world, run.0, Some(2));
+    let mut proof = world.domain.core().proofs.get(&run.0).expect("saved run proof").clone();
+    proof.endpoint = Some(2);
+    world.seed(Box::new([root::Record::Core(core::Record::Core(core::CoreRecord::RunProof(proof)))]));
     restart(&mut world, child);
     say(&mut world, run.0, 80);
     let next = assignment(&world, run.0, LATER, false);

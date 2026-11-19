@@ -354,25 +354,11 @@ pub(crate) fn after_step(domain: &mut Domain, env: &Env<Limits>, number: u64, ou
     }
 }
 
-<<<<<<< HEAD
-/// A park waking on leftover words or entries pauses before claiming again
-/// (jig/docs/design/domain/tasks/messages.md, 3). Other ends keep their wake handling.
-pub(crate) fn after_run(domain: &mut Domain, env: &Env<Limits>, number: u64, parked: bool, out: &mut Queue<Request>) {
-    let task = task_mut(domain, number).expect("answered task live");
-    let refused = core::mem::replace(&mut task.record.refused, Box::new([]));
-    let offered = task.record.offered;
-    let pause = parked
-        && match task.record.executor {
-            crate::Executor::Agent { .. } => true,
-            crate::Executor::Procedure { .. } | crate::Executor::Person(_) | crate::Executor::Job { .. } => false,
-        };
-=======
 /// An attempt's refusals end with it; unread messages keep their wake policy.
 pub(crate) fn after_run(domain: &mut Domain, env: &Env<Limits>, number: u64, out: &mut Queue<Request>) {
     let task = task_mut(domain, number).expect("answered task live");
     let refused = core::mem::replace(&mut task.record.refused, Box::new([]));
     let offered = task.record.offered;
->>>>>>> parent of d502dc5f16 (Merge Pause a repeated park's wake)
     if record(domain, number).expect("answered task live").phase == Phase::Active(Active::Idle) {
         after_step(domain, env, number, out);
     }

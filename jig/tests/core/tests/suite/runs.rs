@@ -458,17 +458,6 @@ fn a_refused_message_survives_a_later_fence_and_wakes_its_task_as_the_run_parks(
     let attempt = assigned_chat(&world).attempt;
     world.turn_refusing(1, 1, Some(second), &[first], b"reads the second words only");
     park_chat(&mut world, 1);
-<<<<<<< HEAD
-    let task = assigned_chat(&world).task;
-    assert!(matches!(
-        jig_core_world::fixtures::live_row(&world, task).phase,
-        tasks::Phase::Active(tasks::Active::BackingOff { .. })
-    ));
-    assert_eq!(assigned_chat(&world).attempt, attempt);
-    world.retry_due();
-    assert_eq!(jig_core_world::fixtures::live_row(&world, task).due_reason, tasks::Why::Message { message: first });
-=======
->>>>>>> parent of d502dc5f16 (Merge Pause a repeated park's wake)
     let woken = assigned_chat(&world);
     assert!(woken.attempt > attempt, "{:?}", world.trace);
     assert_eq!(woken.messages.first().map(|word| word.number), Some(first));
@@ -481,17 +470,6 @@ fn a_message_left_unread_wakes_its_task_as_the_run_parks() {
     let unread = world.say(83);
     let attempt = assigned_chat(&world).attempt;
     park_chat(&mut world, 1);
-<<<<<<< HEAD
-    let task = assigned_chat(&world).task;
-    assert!(matches!(
-        jig_core_world::fixtures::live_row(&world, task).phase,
-        tasks::Phase::Active(tasks::Active::BackingOff { .. })
-    ));
-    assert_eq!(assigned_chat(&world).attempt, attempt);
-    world.retry_due();
-    assert_eq!(jig_core_world::fixtures::live_row(&world, task).due_reason, tasks::Why::Message { message: unread });
-=======
->>>>>>> parent of d502dc5f16 (Merge Pause a repeated park's wake)
     let woken = assigned_chat(&world);
     assert!(woken.attempt > attempt, "{:?}", world.trace);
     assert_eq!(woken.messages.first().map(|word| word.number), Some(unread));

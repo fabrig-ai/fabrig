@@ -11,7 +11,7 @@ fn largest_roots_stay_within_decoded_bounds() {
     family!(
         CAP,
         jig_protocol_worker_wire::SCHEMA,
-        jig_protocol_worker_wire::v17, lean,
+        jig_protocol_worker_wire::v18, lean,
         limits [
             wire_name,
             wire_layouts,
@@ -36,6 +36,7 @@ fn largest_roots_stay_within_decoded_bounds() {
             resource_resource_some,
             model_failure_endpoint,
             model_failure_model,
+            model_failure_refusal_some,
             failed_detail,
             answer_refused,
             input_call_id,

@@ -461,7 +461,6 @@ fn decode_run(run: w::LandingRun) -> top::LandingRun {
     let w::LandingRun { id, attempt, ended, clock } = run;
     top::LandingRun { id, attempt, ended, clock: super::change::decode_clock(clock) }
 }
-#[expect(clippy::too_many_lines, reason = "decode the landing row and its defaulted clocks and wait together")]
 pub(super) fn decode(row: w::LandingRow) -> Result<top::LandingRow, super::Undecodable> {
     let w::LandingRow { landing, asks, entries, job, flake_reruns, room, last_event, turn_since, waiting } = row;
     let w::LandingState {
