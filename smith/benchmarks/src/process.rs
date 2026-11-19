@@ -10,7 +10,7 @@ use std::os::fd::IntoRawFd;
 use skein_io::kernel::{Complete, Done, Fd, Op, Signal, Submit};
 use skein_lib::{Duration, Queue, Time, Token, Wall};
 use skein_shell::Clock;
-use skein_world::end_to_end::{Binary, Command, Expectation, Mode, Streams};
+use skein_world::end_to_end::{Binary, Command, Containment, Expectation, Mode, Streams};
 use skein_world::{Delegate, Host, Referee, real};
 
 /// Application output interpretation selected by the prepared invocation.
@@ -32,6 +32,11 @@ pub struct Bounds {
     pub stdout: usize,
     pub stderr: usize,
     pub force_walk: bool,
+}
+
+/// Choose the platform's tree containment (smith/docs/design/benchmarks/README.md, section 10).
+fn containment(force_walk: bool, linux: bool) -> Containment {
+    if force_walk && linux { Containment::Walk } else { Containment::Best }
 }
 
 /// Settled process evidence, on one clock, with raw output bounded in flight.
@@ -594,7 +599,8 @@ pub fn execute_script(
         .and_then(|span| span.checked_add(bounds.settlement))
         .ok_or_else(|| bound("settlement patience overflow"))?;
     let mode = if trace_file.is_some() { Mode::Terminal } else { Mode::Pipes };
-    let mut binary = Binary::start_with_tree(command, mode, bounds.stderr, Expectation::Supervise, bounds.force_walk)
+    let containment = containment(bounds.force_walk, cfg!(target_os = "linux"));
+    let mut binary = Binary::start_contained(command, mode, bounds.stderr, Expectation::Supervise, containment)
         .map_err(|error| io(format!("binary start: {error:?}")))?;
     let streams = binary.take_streams().expect("new binary retains its streams");
     let (input, output) = match streams {
