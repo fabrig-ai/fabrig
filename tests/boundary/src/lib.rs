@@ -134,6 +134,25 @@ fn located_tokens(source: &str) -> Vec<(usize, Token<'_>)> {
     result
 }
 
+/// Literal `include_str!` inputs and their byte offsets, excluding comments and string contents.
+#[must_use]
+pub fn schema_includes(source: &str) -> Vec<(&str, usize)> {
+    let tokens = located_tokens(source);
+    tokens
+        .windows(5)
+        .filter_map(|tokens| match tokens {
+            [
+                (at, Token::Word("include_str")),
+                (_, Token::Symbol(b'!')),
+                (_, Token::Symbol(open)),
+                (_, Token::String(input)),
+                (_, Token::Symbol(close)),
+            ] if [(b'(', b')'), (b'[', b']'), (b'{', b'}')].contains(&(*open, *close)) => Some((*input, *at)),
+            _ => None,
+        })
+        .collect()
+}
+
 /// Lines implementing the codec traits, including inside macro bodies.
 /// Comments and literals are not code; generic bounds are not implementations.
 #[must_use]

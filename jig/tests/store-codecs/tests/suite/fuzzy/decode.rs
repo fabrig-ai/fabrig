@@ -56,9 +56,9 @@ fn arbitrary(seed: u64, check: fn(&[u8])) {
         check(buffer.get(..length).expect("within buffer"));
     }
 }
-fn mutated(text: &str, seed: u64, check: fn(&[u8])) {
-    let schema = skein_codegen::parse(text).expect("family schema");
-    let mut goldens = skein_codegen::goldens(&schema);
+fn mutated(text: &'static str, seed: u64, check: fn(&[u8])) {
+    let values = skein_codegen::values(text);
+    let mut goldens = values.goldens.clone();
     goldens.sort_by(|left, right| left.name.cmp(&right.name));
     let mut rng = Rng::new(seed);
     for golden in goldens.into_iter().filter(|value| value.name.ends_with("_full.bin")) {

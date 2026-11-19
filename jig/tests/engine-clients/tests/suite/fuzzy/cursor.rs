@@ -10,8 +10,8 @@ fn check(bytes: &[u8]) {
     }
 }
 fn goldens() -> Vec<Vec<u8>> {
-    let text = include_str!("../../../../../crates/jig-protocol-engine-clients/schema/cursor-v2.schema");
-    let mut goldens = skein_codegen::goldens(&skein_codegen::parse(text).expect("cursor schema"));
+    let text = jig_protocol_engine_clients::SCHEMA;
+    let mut goldens = skein_codegen::values(text).goldens.clone();
     goldens.sort_by(|left, right| left.name.cmp(&right.name));
     let mut values = Vec::new();
     for golden in goldens {

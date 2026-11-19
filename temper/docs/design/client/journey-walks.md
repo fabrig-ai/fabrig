@@ -28,6 +28,15 @@ the writer takes either engine (`journey-writer.md`, 3).
   shipped terminal's own HTTP transport, a process of the world, to the
   service; what it keeps held for the walk; its deadlines on the
   world's time; what it asks to browse given to the walk's browser.
+  the browser kit; and `temper-client-walk-world`, the web client's driver
+  on the playground's composition and the walker.
+- **A walk in a world** (section 4): the shipped web host against the
+  playground's composition on skein's simulator, at fixed facts, each
+  line acted as a person acts and each mark printed as a page, the same
+  bytes from the same tree every time.
+- **The box's peer** (4.4): the world's `temper box`, at the service's
+  box pipe, reporting an owned Forgejo's set-up step by step on the
+  world's time, as the box reports it, with no step taken through ctl.
 - **The program** (section 5): `temper-client-walk print [--out DIR]
   [NAME]...` prints into scratch, laid out as the tree with its
   stylesheets, and `temper-client-walk pages` writes main's pages, for
@@ -36,6 +45,8 @@ the writer takes either engine (`journey-writer.md`, 3).
   version 2 and takes its `setup` out; the writer's next run prints it
   in the world and removes its `recording`. `welcome-playground` moved
   first, and `sign-in-approved` is the TUI's first.
+  in the world and removes its `recording`. `welcome-playground` moves
+  first, `welcome-set-up` second.
 
 ## 2. The walk
 
@@ -203,6 +214,11 @@ browser kit, box crate or `temper-client-journeys-tool`.
   `skein_sim_world::World<Process<Clients>, Machine>`, its processes
   those of `temper/tests/playground/src/lib.rs`'s world, and the TUI's
   connection once a TUI starts.
+- **`Playground`,** the world type: the composition's processes and the
+  box's peer (4.4), moved from `temper/tests/playground/src/lib.rs`.
+- **`box_peer`:** the box's peer (4.4): `BoxPeer`, a host of the
+  world's (skein-shell's `Host`), and `OWNED`, the owned group's script
+  as data, a line and its time each, which the tests read.
 - **`web::Page`,** the shipped web host on the world (`../playground.md`,
   9), its turn loop as the playground's page has it, the world's
   owner and the TUI's (3.3), with:
@@ -221,7 +237,8 @@ browser kit, box crate or `temper-client-journeys-tool`.
 
   `Find`, `Person` and `Walked`'s steps are skein's fake person's
   (`../testing/fakes.md`, 4); `Act` and `NodeId` skein-ui's; `Duration`
-  skein-lib's, in the world's time. `start` spends the service's
+  skein-lib's, in the world's time. `start` makes the world with the
+  box's peer at the service's box pipe (4.4), and spends the service's
   printed sign-in link, home `/welcome`, as the page does today.
   `address` is the path, with its query, of the address the page last
   moved to (`Memory::shown`), the start's home where it has moved to
@@ -355,6 +372,8 @@ service, over HTTP, rather than joined to the engine's root.
   (`../playground.md`, 3), at `facts::start`, with the chain's joined
   scripts where any journey of it holds a `scripts.json`, under the
   harness `Clients`.
+  scripts where any journey of it holds a `scripts.json`, and the box's
+  peer at the service's box pipe (4.4).
 - **The browser starts** on the page the printed link opens, signed
   in, at `/welcome`. Nothing else is implied: the walk's first line
   acts on that page.
@@ -413,6 +432,74 @@ service within 30 s`, `the TUI closed`, `the TUI asked to lend its
 terminal, which a world does not play` or `the world failed: WORDS`.
 Its marks print nothing. A chain that does not read stops its walk as
 well, with `Unreadable`'s journey, line and why.
+
+### 4.4 The box's peer
+
+The world's `temper box`, as far as the service meets it: the box's
+pipe (`../protocol/setup/box.md`, 1), played by `box_peer::BoxPeer`, a
+host of the world's, on the world's time. Nothing else of the box runs:
+no group's steps, no listener of its own, no `box.log`, no record under
+`box/`.
+
+- **The pipe:** the service adopts the box's two pipes at its start,
+  `temper_service::Service::adopt_box`, within the 256 bytes a line the
+  composition gives the box's lines, their other ends the peer's, as
+  `temper box` gives serve its pipes at each spawn. The one-process
+  world's box, `temper/tests/one-process/src/ready_copies.rs`, is the
+  service's parent and answers a start alone; the peer starts from it.
+- **Each line read whole** to its line feed, one ask at a time, and
+  answered as the box answers it (`../protocol/setup/box.md`, 1, the
+  table and the paragraph after it):
+  - **`start N` for an owned group,** its setup file of the owned kind
+    on the world's disk (`temper_forge_setup::setup_file::path`): the
+    script below, from the turn the line is read;
+  - **`start N` for the playground's group,** of the fake kind: no
+    answer. The composition models that group standing from its start,
+    its handover laid before the service starts
+    (`temper_playground::story::prepare`), and its forge connects by the
+    engine's own read of it, as story A's does with no pipe. A `started`
+    would start the engine's handover again, or stop it as busy, so the
+    peer leaves the ask open, as the composition leaves it today;
+  - **`start N` for a group whose script has ended:** `started N`; while
+    a script runs, for another forge, `failed N busy`;
+  - **`stop N`** and **`remove N`:** `stopped N` and `removed N`, at once;
+  - **any other line,** or one past 256 bytes: ignored, as the box
+    ignores one.
+- **An owned group's script,** `OWNED`: each line at its time after the
+  `start` was read, in the world's time. Its figures are Forgejo's 100 MB
+  and its runner's 20 MB, round sizes that draw a percentage; two
+  seconds between lines, so that the page draws each line's state
+  before the next arrives. What the client draws of each is
+  `forge/deployment.md`'s, *Setting up, in the row*, and its table's
+  *setting up* row:
+
+  | After | Line |
+  |---|---|
+  | 0 s | `step N fetch` |
+  | 2 s | `fetched N forgejo 25000000 100000000` |
+  | 4 s | `fetched N forgejo 100000000 100000000` |
+  | 6 s | `fetched N runner 10000000 20000000` |
+  | 8 s | `fetched N runner 20000000 20000000` |
+  | 10 s | `step N prepare` |
+  | 12 s | `step N run` |
+  | 14 s | the handover laid, then `started N` |
+
+- **The handover:** at `started N`'s time, before the line, the peer lays
+  what the box's preparation leaves the engine
+  (`../protocol/setup/owned.md`, 5): `admin_token` in the group's
+  directory, as its setup file's entry names it
+  (`../protocol/setup/place.md`, 3), on the world's disk, private, holding
+  the admin token the world's fake forge takes, as `story::prepare` lays
+  the playground's. The forge is the composition's, at its own address,
+  where the composition's place chooser puts every setup file's port
+  (`temper_playground::documents::FORGE`). The engine then takes the
+  handover, reconciles, connects as temper and makes the first
+  repository, as with a box's Forgejo.
+- **No step through ctl:** the world holds no ctl. An owned set-up goes
+  on by the walk's acts, the peer's lines and the engine's own steps
+  alone, and the client draws each as it draws a box's.
+- **The same bytes every time:** the script's times are the world's, so
+  a walk meets each line at the same turn on any host.
 
 ## 5. The program
 
@@ -498,6 +585,17 @@ is built from, as `temper-client-journeys` does, under both roots.
   "Setting temper up makes your first project" and marked: two pages,
   on the playground's service rather than a box. It has no `setup`; its
   `walk` of version 1 is replaced.
+  and marked. It has no `setup` on main: its walk was its recording's.
+- **`welcome-set-up` moves second,** on the box's peer (4.4): its `walk`,
+  the welcome seen and marked; "Set up temper" pressed, the Forge step's
+  choices seen and marked; Forgejo's "Run on this machine" pressed, its
+  sheet seen, an empty repository chosen as it defaults, `work/hello`,
+  and marked; the sheet's "Run on this machine" pressed; then the Model
+  step marked at each of the box's steps as the peer reports it,
+  fetching at its first figure, preparing and starting; and marked once
+  its pane says the forge is connected as temper and `work/hello` made.
+  Seven pages, as before. Its `setup` goes; its `recording` is the
+  writer's to remove.
 
 ## 7. Its tests
 
@@ -530,11 +628,23 @@ its own process.
   service and drawn; a TUI stopped and started again starting signed
   in from what it kept; the same start and keys drawing the same
   frames.
+  the HTML holding what the tree draws; story A walked as before.
+- **The box's peer,** simulated, beside the driver's: an owned set-up
+  asked from the welcome, each of `OWNED`'s steps drawn in order, under
+  way from its line's time and before the next line's, the steps before
+  it done, then the forge connected as temper and `work/hello` made,
+  with nothing in the world but the composition and the peer; the
+  playground tried as before, its group's start left open. The peer's
+  answers, step, where they are a function of its own: an owned start,
+  a fake one, a start after the script and one during it, `stop`,
+  `remove`, and a line past 256 bytes.
 - **The walker and the program,** simulated, on journeys of the tests'
   own in scratch roots: walked and printed; printed twice, the same
   bytes; a control that never appears stopping the walk by its journey
   and line, the others still printed, exit 1; the acted control
-  linked, by act, and one that typing revealed not linked; an
+  linked, by act, and one that typing revealed not linked; a walk
+  through an owned set-up, marked while a step is under way and at its
+  end, printed twice, the same bytes; an
   ancestor's marks printing nothing; a page opening from the scratch
   directory with its stylesheets at their paths; fewer marks leaving
   fewer files; `pages` on a tree whose pages are current writing
@@ -569,6 +679,22 @@ its own process.
 - **The drive session taking a journey's lines** on a box, `tui
   approve` and the marks among them, a mark there a look
   (`../draft/journey-walks.md`, 4.2).
+  world is measured as the program first prints one, and kept in
+  `../../development/limits-worlds.md`, with each journey's that moves
+  after it.
+
+## 8. Later
+
+- **The TUI's journeys,** with `tui` lines, `tui approve` and `tui
+  mark`, and the TUI's root in the program, once the TUI's host runs on
+  the simulated service (`../draft/journey-walks.md`, 4.1).
+- **The forge at its fixed address,** `127.0.0.1:10002`, which the
+  first journey that draws it brings, as `project-landing`'s first page
+  does; and **a sign-in's tab** carried to the fake issuer and back
+  (`../draft/journey-walks.md`, 4.1).
+- **The playground's group answered** as the box answers it, once the
+  composition no longer lays that group's handover before its start
+  (4.4).
 - **The old engine goes** with the last journey that moves: `again`,
   the `setup` reader and the version 1 `walk`
   (`../draft/journey-walks.md`, 8.1).

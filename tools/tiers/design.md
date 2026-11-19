@@ -10,6 +10,14 @@ Provisional, 2026-10-29. Run one tree's slow tier with its prerequisites.
   using the pair's sorted package names from `tools/tiers/packages.toml`,
   followed by the extra arguments unchanged. The map is generated from the
   packages with selected tests in each profile's workspace JSON listing.
+- **A build alone takes no run's flag:** where the extra arguments hold
+  `--no-run`, the runner builds the pair's prerequisites and test
+  binaries and runs `cargo nextest run -p PKG ... --profile TIER-TREE`
+  with them, without `--no-fail-fast`, which nextest refuses beside
+  `--no-run`. The flag is the runner's own, so the runner drops it; the
+  caller's arguments still pass unchanged, and a run that executes its
+  tests takes the flag as before. The macOS workflow builds each pair so
+  (`temper/docs/design/testing/macos.md`, 4.3).
 - **The config owns the pairs:** the root `.config/nextest.toml` profile
   tables whose names contain a hyphen supply the pairs, split at the last
   hyphen into tier and tree. Unknown pairs and pairs missing a valid package
@@ -805,8 +813,8 @@ change to the build command a caller wraps changes none of them.
 - `tools/tiers/one-process [--out DIR] [--budgets PATH] [--walls PATH] [--ledger PATH] [--gate] PROFILE [NEXTEST_ARGS...]`
   (11.9), with `execute_one_process`'s exit statuses.
 - `tools/tiers/one-process --alone HEAD_DIR [--out DIR] [NEXTEST_ARGS...]`:
-  a head run's flagged tests run alone at this checkout, the base's
-  (`tools/tiers/references.md`, 5).
+  a head run's flagged tests run alone three times each at this checkout,
+  the base's (`tools/tiers/references.md`, 5).
 - `python3 -I -B tools/tiers/figures.py --base BASE [--head HEAD]`: refuses,
   exit 1, a change from BASE to HEAD that raises a figure of
   `tools/tiers/budgets.toml` or adds a reason's line, naming each, unless it
@@ -910,7 +918,7 @@ Relative paths are the caller's working directory's, the checkout root.
 | `processes` | for each process of a one-process run: `binary_id`, `tests` (its tests' names, in the order they ran), `cpu_s`, `user_s`, `system_s`, `wall_s`, `exit_code` or `signal`, `kind`, `leaked`, `tree`, `layer`; empty for a nextest run and for tools |
 | `layers` | for each tree and layer with a process in a one-process run, or with a ledger a figure at the head or at main: `tree`, `layer`, `cpu_s`, `measured_s`, `main_s`, `ceiling_s`, `budget_s`, `main_budget_s`, `lowest_s`, `ideal_s`, `reference_s`, `over`, `main_over`, `grew` (`tools/tiers/budgets.md`, 4 and 8); empty for a nextest run and for tools |
 | `trees` | for each tree with a row in `layers`: `tree`, `cpu_s`, `main_s`, `ceiling_s`, `budget_s`, `ideal_s` (`tools/tiers/budgets.md`, 4 and 8); empty for a nextest run and for tools |
-| `references` | for each test a one-process run ran alone for its reference: `binary_id`, `test_name`, `tree`, `layer`, `why`, `wall_s`, `main_wall_s`, `cpu_s`, `main_cpu_s`, `main_from`, `reference_s`, `line_s`, `limit_s`, `over` (`tools/tiers/references.md`, 6); empty for a nextest run, for tools and for a run that ran none alone |
+| `references` | for each test a one-process run ran alone for its reference: `binary_id`, `test_name`, `tree`, `layer`, `why`, `wall_s`, `main_wall_s`, `cpu_s`, `main_cpu_s`, `main_from`, `reference_s`, `line_s`, `limit_s`, `over`, `alone`, `main_alone`, `swinging` (`tools/tiers/references.md`, 6); empty for a nextest run, for tools and for a run that ran none alone |
 | `swings` | for each test of the given ledger whose last three figures alone lie past half again apart: `binary_id`, `test_name`, `tree`, `layer`, `alone` (`tools/tiers/references.md`, 6); empty without a ledger, for a nextest run and for tools |
 
 `suite`'s `cpu_by` is `"test"` for a nextest run and for tools, where each
@@ -1136,8 +1144,14 @@ processes, and report each event as one line of their stdout beginning
 and is forwarded. The lanes write no file but those named pipes, which hold
 nothing.
 
-- **As many lanes as CPUs:** `len(os.sched_getaffinity(0))` where the lanes
-  run, which is nextest's default number of test threads.
+- **As many lanes as CPUs:** the CPUs the lanes may use where they run,
+  which is nextest's default number of test threads: the process's
+  affinity, `len(os.sched_getaffinity(0))`, where Python's `os` has it,
+  as on Linux; elsewhere, as on macOS, which has no affinity call, the
+  machine's usable CPUs, `os.cpu_count()`, the count nextest takes there;
+  and one lane where neither answers. A plan that fixes its lanes, as
+  `--again`'s one (11.9), keeps them. `run.json`'s `lanes` records the
+  count either way (11.8).
 - **Longest first.** A binary's estimate is the sum of its tests' kept wall
   times (11.8); a test with none counts the mean kept time per test of the
   selection, and with none kept anywhere every test counts 1, so binaries
@@ -1403,8 +1417,9 @@ above: taken with `TIERS_HOLD` set, none under `.temper/pre-pr`. It runs
 nothing alone for a reference.
 
 **At the base.** `tools/tiers/one-process --alone HEAD_DIR [--out DIR]
-[NEXTEST_ARGS...]`, from a checkout of a gate candidate's base, runs alone
-the tests the head's run in `HEAD_DIR` flagged, and writes their figures
+[NEXTEST_ARGS...]`, from a checkout of a gate candidate's base, runs alone,
+three times each, the tests the head's run in `HEAD_DIR` flagged, and
+writes their figures, each test's the highest of its three,
 for `cpu-summary --base` (`tools/tiers/references.md`, 5, which gives its
 listing, files and exit statuses). It lists and builds as a run does, the
 flagged binaries' own targets alone, a listing for each of their packages,

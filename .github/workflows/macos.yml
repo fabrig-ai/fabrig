@@ -256,6 +256,8 @@ jobs:
         run: |
           $RUN wasm-target rustup target add wasm32-unknown-unknown
           $RUN wasm-installed bash -c 'rustup target list --installed | grep -Fx wasm32-unknown-unknown'
+      - name: The C compiler for wasm, checked to target it
+        run: python3 -I -B "$MACOS_HELPER" wasm-compiler
       - *build
       - name: Chrome for Testing, checked before unpacking
         if: ${{ steps.build.outputs.run_tests == 'true' }}

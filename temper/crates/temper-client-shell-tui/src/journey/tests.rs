@@ -581,14 +581,6 @@ fn duties_keep_the_seams_order_and_fields() {
     assert!(record::asked(&duties) == expected, "requests, keep, signed, browse, quit retain their fields and order");
 }
 
-fn local_walk() -> Walk {
-    linked_walk(false)
-}
-
-fn linked_walk(front: bool) -> Walk {
-    linked_walk_duties(front).0
-}
-
 fn linked_walk_duties(front: bool) -> (Walk, Duties) {
     let mut facts = facts();
     facts.local = true;
@@ -619,30 +611,6 @@ fn linked_walk_duties(front: bool) -> (Walk, Duties) {
     duties.asked.extend(next.into_iter().flat_map(|duties| duties.asked));
     walk.mark();
     (walk, duties)
-}
-
-#[test]
-fn local_reports_replay_and_compare_the_new_duties() {
-    let mut walk = local_walk();
-    let original = lines(&walk.save()).expect("local records");
-    for kind in ["local", "noted", "found", "read", "note"] {
-        assert!(original.iter().any(|line| line.kind() == kind), "missing {kind}");
-    }
-    for (kind, replacement) in
-        [("read", Line::Browse(b"changed".as_slice().into())), ("note", Line::Note(temper_client_tui::Note::SignedOut))]
-    {
-        let mut records = original.clone();
-        let at = records.iter().position(|line| line.kind() == kind).expect("local duty");
-        records[at] = replacement;
-        assert_eq!(records.iter().zip(&original).filter(|(a, b)| a != b).count(), 1);
-        let stale = replay_stale(&written(&records));
-        assert_eq!(stale.line, u32::try_from(at + 1).expect("line"), "changed {kind}");
-        let mut expected = Vec::new();
-        original[at].write(&mut expected);
-        expected.pop();
-        assert_eq!(stale.asked.as_ref(), expected);
-    }
-    same_frames(walk);
 }
 
 #[test]
@@ -773,33 +741,6 @@ fn front_reports_replay_through_box_line_read() {
     }
     assert!(records.contains(&Line::Front), "front start fact");
     assert_eq!(records.iter().filter(|line| matches!(line, Line::BoxLine(_))).count(), 2);
-    same_frames(walk);
-}
-
-#[test]
-fn lending_reports_and_duties_replay_through_the_host() {
-    use crate::host::tests::{delivery_report, terminal_document, watch};
-    use jig_client::contract::LoginExit;
-    use jig_client_protocol_wire as w;
-    let (mut walk, duties) = linked_walk_duties(true);
-    let duties = walk.admit(duties);
-    let subject = w::Subject::Terminal(
-        w::SubjectTerminal::new(&w::CEILINGS, w::SubjectTerminalParts { terminal: skein_lib::Rng::new(7).next_u64() })
-            .unwrap(),
-    );
-    let terminal = watch(&duties, &subject);
-    let duties = walk.reports(vec![delivery_report(terminal, &terminal_document(Some((1, false))))]);
-    assert!(duties.iter().any(|duties| duties.lend.as_ref().is_some_and(|lend| lend.number == 1)));
-    walk.mark();
-    let duties = walk.reports(vec![delivery_report(terminal, &terminal_document(Some((1, true))))]);
-    assert!(duties.iter().any(|duties| duties.unlend));
-    let duties = walk.reports(vec![Report::Lent { number: 1, exit: LoginExit::Killed { signal: 15 } }]);
-    walk.admit(duties.into_iter().next().unwrap());
-    walk.mark();
-    let records = lines(&walk.save()).unwrap();
-    assert!(records.contains(&Line::Lend { number: 1, name: b"work".as_slice().into() }));
-    assert!(records.contains(&Line::Unlend));
-    assert!(records.contains(&Line::Lent { number: 1, exit: LoginExit::Killed { signal: 15 } }));
     same_frames(walk);
 }
 

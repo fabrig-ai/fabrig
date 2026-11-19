@@ -116,29 +116,38 @@ pub fn add_to(
         journey::Unredacted::Unreadable(unreadable) => proof_refusal(name, journey::Refusal::Unreadable(unreadable)),
         journey::Unredacted::Undecoded(undecoded) => Refusal::Undecoded { name: name.to_owned(), line: undecoded.line },
     })?;
-    scanned(name, &redacted.recording, &redacted.originals)?;
+    let redacted_lines =
+        journey::lines(&redacted.recording).map_err(|why| proof_refusal(name, journey::Refusal::Unreadable(why)))?;
+    scanned(name, &redacted_lines, &redacted.originals)?;
     let mut drawn = None;
-    let proof = journey::prove_drawn(&redacted.recording, &mut |turn, page| {
-        if drawn.is_none() {
-            drawn = journey::scan::page(&page.html(), &redacted.originals).map(|what| Refusal::FoundDrawn {
-                name: name.to_owned(),
-                turn,
-                what,
-            });
-        }
+    let proof = journey::Replay::from_lines(redacted_lines).and_then(|replay| {
+        replay.prove_drawn(&mut |turn, page| {
+            if drawn.is_none() {
+                drawn = journey::scan::page(&page.html(), &redacted.originals).map(|what| Refusal::FoundDrawn {
+                    name: name.to_owned(),
+                    turn,
+                    what,
+                });
+            }
+        })
     });
     if let Some(found) = drawn {
         return Err(found);
     }
     // A differing live print must not hide a hit in the printed document.
-    let recording = proof.as_deref().unwrap_or(&redacted.recording);
-    let normalised = journey::normalise(recording).map_err(|why| match why {
+    let (normalised, proof) = match proof {
+        Ok(lines) => (journey::normalise_lines(lines), Ok(())),
+        Err(refusal) => (journey::normalise(&redacted.recording), Err(refusal)),
+    };
+    let normalised = normalised.map_err(|why| match why {
         journey::Unredacted::Unreadable(unreadable) => proof_refusal(name, journey::Refusal::Unreadable(unreadable)),
         journey::Unredacted::Undecoded(undecoded) => Refusal::Undecoded { name: name.to_owned(), line: undecoded.line },
     })?;
-    let pages =
-        printed(name, &normalised.recording)?.map_err(|stale| proof_refusal(name, journey::Refusal::Stale(stale)))?;
-    scanned(name, &normalised.recording, &redacted.originals)?;
+    let normalised_lines =
+        journey::lines(&normalised.recording).map_err(|why| proof_refusal(name, journey::Refusal::Unreadable(why)))?;
+    let replay = journey::Replay::from_lines(normalised_lines.clone()).map_err(|why| replay_refusal(name, why))?;
+    let pages = printed_replay(replay).map_err(|stale| proof_refusal(name, journey::Refusal::Stale(stale)))?;
+    scanned(name, &normalised_lines, &redacted.originals)?;
     for page in &pages {
         if let Some(what) = journey::scan::bytes(page.document.as_bytes(), &redacted.originals) {
             return Err(Refusal::FoundPrinted { name: name.to_owned(), page: page.name.clone(), what });
@@ -169,10 +178,8 @@ pub fn add_to(
     Ok(added)
 }
 
-fn scanned(name: &str, recording: &[u8], originals: &journey::Originals) -> Result<(), Refusal> {
-    let lines = journey::lines(recording)
-        .map_err(|unreadable| proof_refusal(name, journey::Refusal::Unreadable(unreadable)))?;
-    let found = journey::scan::lines(&lines, originals)
+fn scanned(name: &str, lines: &[journey::Line], originals: &journey::Originals) -> Result<(), Refusal> {
+    let found = journey::scan::lines(lines, originals)
         .map_err(|why| Refusal::Undecoded { name: name.to_owned(), line: why.line })?;
     if let Some(journey::Found { line, record, place, what }) = found {
         return Err(Refusal::Found { name: name.to_owned(), line, record, place, what });
@@ -304,12 +311,20 @@ fn print_one(out: &Path, name: &str, recording: &[u8]) -> Result<Option<Stale>, 
 }
 
 fn printed(name: &str, recording: &[u8]) -> Result<Result<Vec<print::Printed>, Stale>, Refusal> {
-    let mut replay = journey::Replay::new(recording).map_err(|refusal| match refusal {
+    let replay = journey::Replay::new(recording).map_err(|why| replay_refusal(name, why))?;
+    Ok(printed_replay(replay))
+}
+
+fn replay_refusal(name: &str, refusal: journey::Refusal) -> Refusal {
+    match refusal {
         journey::Refusal::Unreadable(unreadable) => Refusal::Unreadable { name: name.to_owned(), unreadable },
         refusal @ (journey::Refusal::Stale(_)
         | journey::Refusal::Unproved { .. }
         | journey::Refusal::Differs { .. }) => Refusal::Proof { name: name.to_owned(), refusal },
-    })?;
+    }
+}
+
+fn printed_replay(mut replay: journey::Replay) -> Result<Vec<print::Printed>, Stale> {
     let mut marks = Vec::new();
     loop {
         match replay.next() {
@@ -322,10 +337,10 @@ fn printed(name: &str, recording: &[u8]) -> Result<Result<Vec<print::Printed>, S
                 });
             }
             Ok(None) => break,
-            Err(stale) => return Ok(Err(stale)),
+            Err(stale) => return Err(stale),
         }
     }
-    Ok(Ok(print::pages(&marks)))
+    Ok(print::pages(&marks))
 }
 
 fn write_pages(out: &Path, pages: Vec<print::Printed>) -> Result<(), Refusal> {

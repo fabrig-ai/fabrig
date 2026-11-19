@@ -60,7 +60,7 @@ mod tests {
     }
 
     fn decode_growth<T>(limits: &[u32], bound: u64, decode: impl FnOnce(&mut Reader<'_>) -> T) -> T {
-        let schema = skein_codegen::parse(include_str!("../../schema/growth-v1.schema")).expect("growth schema");
+        let schema = skein_codegen::values(skein_codec_tests::GROWTH_SCHEMA).schema.clone();
         assert_eq!(skein_codegen::roots(&schema), ["Growth"]);
         let wire = skein_codegen::largest(&schema, "Growth", limits).expect("largest growth root");
         let meter = Meter::new();

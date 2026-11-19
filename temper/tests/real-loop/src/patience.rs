@@ -4,7 +4,8 @@ use crate::{
     calls::Caller,
     world::{Kind, Proc},
 };
-use skein_lib::{Duration, Time};
+use skein_io::kernel::{Complete, Exit, Submit};
+use skein_lib::{Duration, Queue, Time, Wall};
 use skein_shell::Host;
 use skein_world::{Deadline, Expired, Referee};
 use std::fmt::Write;
@@ -210,109 +211,76 @@ pub(crate) fn describe(id: usize, proc: &mut Proc, now: Time, out: &mut String) 
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::{Patience, Verdict, check_overdue, header, verdict};
-    use crate::service::ServiceHost;
-    use skein_io::kernel::{Complete, Exit, Fd, Submit};
-    use skein_lib::{Duration, Queue, Time, Wall};
-    use skein_shell::Host;
-    use skein_world::{Expired, Figures, Referee, real::World};
-
-    /// Deliberately never advances a prepared service's startup store work.
-    struct Frozen {
-        service: ServiceHost,
-        completions: Queue<Complete>,
-        submissions: Queue<Submit>,
-    }
-    impl Host for Frozen {
-        fn iterate(&mut self, now: Time, _wall: Wall) {
-            self.service.pending_streak.observe(self.service.work_pending(now));
-        }
-        fn completions(&mut self) -> &mut Queue<Complete> {
-            &mut self.completions
-        }
-        fn submissions(&mut self) -> &mut Queue<Submit> {
-            &mut self.submissions
-        }
-        fn work_pending(&self, now: Time) -> bool {
-            self.service.work_pending(now)
-        }
-        fn next_mechanism_deadline(&self) -> Option<Time> {
-            None
-        }
-        fn next_policy_deadline(&self) -> Option<Time> {
-            None
-        }
-        fn is_empty(&self) -> bool {
-            false
-        }
-        fn exit(&self) -> Option<Exit> {
-            None
-        }
-        fn operations(&self) -> u32 {
-            1
-        }
-    }
-    struct Judge {
-        patience: Patience,
-        finding: Option<String>,
-    }
-    impl Referee<Frozen> for Judge {
-        fn act(&mut self, now: Time, procs: &mut [Frozen]) {
-            if procs[0].service.pending_streak.passes() != 0 && self.patience.figures.is_some() {
-                let frozen = &procs[0];
-                let mut report = String::new();
-                header(0, "service", &frozen.service, frozen.service.pending_streak.passes(), now, &mut report);
-                let Some(service) = frozen.service.service.as_ref() else {
-                    self.finding = Some("prepared service".into());
-                    return;
-                };
-                super::service_pending(service, now, &mut report);
-                self.patience.capture(report);
-                self.finding = check_overdue::<Frozen, _>(self, now).err();
-            }
-        }
-        fn watch(&mut self, _now: Time, _procs: &[Frozen]) -> Result<(), String> {
-            self.finding.clone().map_or(Ok(()), Err)
-        }
-        fn next_deadline(&self) -> Option<Time> {
-            self.patience.deadline()
-        }
-        fn overdue(&self, _now: Time) -> Option<String> {
-            self.patience.overdue()
-        }
-        fn passed(&self) -> bool {
-            false
-        }
-    }
-
-    #[test]
-    fn a_busy_world_fails_through_overdue_naming_the_pending_service_component() {
-        let scratch = crate::Scratch::new("overdue-service");
-        let mut service = ServiceHost::new(scratch.path().into(), Fd::new(0), true);
-        let prepared = temper_box_shell::prepare_in_with_limits(
+/// Deliberately never advances a prepared service's startup store work.
+pub struct Frozen {
+    service: crate::service::ServiceHost,
+    completions: Queue<Complete>,
+    submissions: Queue<Submit>,
+}
+impl Frozen {
+    /// Hold a checked standalone start before its first store operation.
+    #[must_use]
+    pub fn new(path: &std::path::Path) -> Self {
+        let mut service = crate::service::ServiceHost::new(path.into(), skein_io::kernel::Fd::new(0), true);
+        let prepared = temper_box_shell::prepare_in_with_inputs_and_limits(
             "temper",
             &[],
             b"/",
-            &crate::service::directories(scratch.path()),
-            &crate::fixtures::given(scratch.path(), &service.configuration),
+            &crate::service::directories(path),
+            &crate::fixtures::given(path, &service.configuration),
+            Some(&path.join("temper-agent")),
             &[],
-            &service.configuration.jig,
-            &service.configuration.limits,
+            Some((&service.configuration.jig, &service.configuration.limits)),
         )
         .expect("prepared service");
-        let prepared = crate::service::Driven::new(prepared);
-        let first = format!("{:?}", prepared.pending(Time::ZERO));
-        let second = format!("{:?}", prepared.pending(Time::ZERO));
-        assert_eq!(first, second, "taking the snapshot never advances the service");
-        assert!(prepared.work_pending(Time::ZERO));
-        service.service = Some(prepared);
-        let patience = Duration::from_nanos(1_010_000_000);
+        service.service = Some(crate::service::Driven::new(prepared));
+        Self { service, completions: Queue::with_capacity(1), submissions: Queue::with_capacity(1) }
+    }
+    #[must_use]
+    pub fn pending(&self, now: Time) -> temper_service::diagnostics::Pending {
+        self.service.service.as_ref().expect("prepared service").pending(now)
+    }
+}
+impl Host for Frozen {
+    fn iterate(&mut self, now: Time, _wall: Wall) {
+        self.service.pending_streak.observe(self.service.work_pending(now));
+    }
+    fn completions(&mut self) -> &mut Queue<Complete> {
+        &mut self.completions
+    }
+    fn submissions(&mut self) -> &mut Queue<Submit> {
+        &mut self.submissions
+    }
+    fn work_pending(&self, now: Time) -> bool {
+        self.service.work_pending(now)
+    }
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        None
+    }
+    fn next_policy_deadline(&self) -> Option<Time> {
+        None
+    }
+    fn is_empty(&self) -> bool {
+        false
+    }
+    fn exit(&self) -> Option<Exit> {
+        None
+    }
+    fn operations(&self) -> u32 {
+        1
+    }
+}
+/// Overdue dispatch for a service held at its startup work.
+pub struct Judge {
+    patience: Patience,
+    finding: Option<String>,
+}
+impl Judge {
+    /// Choose failure before dispatch; scheduler starvation is checked separately.
+    #[must_use]
+    pub fn failed(patience: Duration) -> Self {
         let mut guard = Patience::new(patience);
-        // Decide the failure before the loop starts; the starvation verdict has
-        // its own tests. Act reports it after the frozen service has stayed busy.
-        let figures = Figures {
+        let figures = skein_world::Figures {
             what: "the temper judge's verdict",
             patience: guard.after,
             elapsed: guard.after,
@@ -321,20 +289,45 @@ mod tests {
             tree_waited: None,
         };
         assert!(guard.handle(verdict(Expired::Failed(figures))));
-        let mut world = World::new(Judge { patience: guard, finding: None });
-        world.spawn(|| Frozen { service, completions: Queue::with_capacity(1), submissions: Queue::with_capacity(1) });
-        let Err(message) = world.try_run(&skein_shell::Clock::new(), patience) else {
-            panic!("the world cannot settle")
-        };
-        assert!(message.contains("the referee failed the real loop before patience"), "{message}");
-        assert!(message.contains("engine: Some(\n        Engine {\n            work_pending: true"), "{message}");
-        assert!(message.contains("store: true"), "{message}");
-        assert!(message.contains("settled_revision:"), "{message}");
-        assert!(message.contains("pending_passes="), "{message}");
-        assert!(!message.contains("pending_passes=0 "), "the busy passes were counted: {message}");
-        assert!(message.contains("the temper judge's verdict: patience 10000000 ns; elapsed"), "{message}");
-        assert!(message.contains("thread runnable wait"), "{message}");
+        Self { patience: guard, finding: None }
     }
+}
+impl Referee<Frozen> for Judge {
+    fn act(&mut self, now: Time, procs: &mut [Frozen]) {
+        if procs[0].service.pending_streak.passes() != 0 && self.patience.figures.is_some() {
+            let frozen = &procs[0];
+            let mut report = String::new();
+            header(0, "service", &frozen.service, frozen.service.pending_streak.passes(), now, &mut report);
+            let Some(service) = frozen.service.service.as_ref() else {
+                self.finding = Some("prepared service".into());
+                return;
+            };
+            service_pending(service, now, &mut report);
+            self.patience.capture(report);
+            self.finding = check_overdue::<Frozen, _>(self, now).err();
+        }
+    }
+    fn watch(&mut self, _now: Time, _procs: &[Frozen]) -> Result<(), String> {
+        self.finding.clone().map_or(Ok(()), Err)
+    }
+    fn next_deadline(&self) -> Option<Time> {
+        self.patience.deadline()
+    }
+    fn overdue(&self, _now: Time) -> Option<String> {
+        self.patience.overdue()
+    }
+    fn passed(&self) -> bool {
+        false
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Frozen, Judge, Patience, Verdict, check_overdue, verdict};
+    use skein_io::kernel::Fd;
+    use skein_lib::{Duration, Time, Wall};
+    use skein_shell::Host;
+    use skein_world::{Expired, Figures};
 
     #[test]
     fn the_caller_snapshot_names_the_current_wait_without_advancing_it() {

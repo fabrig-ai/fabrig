@@ -9,7 +9,7 @@ const CAP: u64 = 64 * 1024 * 1024;
 fn largest_roots_stay_within_decoded_bounds() {
     family!(
         CAP,
-        include_str!("../../../../crates/skein-oauth/schema/oauth-v3.schema"),
+        skein_oauth::SCHEMA,
         skein_oauth::v3, sealed,
         limits [
             saved_token_access_token,

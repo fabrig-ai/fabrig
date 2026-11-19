@@ -217,8 +217,10 @@ fn an_application_adopted_layout_without_landing_defaults_it_to_empty() {
     assert_eq!(decoded, stored, "an old outcome keeps its facts but names no landing");
 }
 
-fn golden(text: &str, name: &str) -> Box<[u8]> {
-    skein_codegen::goldens(&skein_codegen::parse(text).expect("current store schema"))
+fn golden(text: &'static str, name: &str) -> Box<[u8]> {
+    skein_codegen::values(text)
+        .goldens
+        .clone()
         .into_iter()
         .find(|value| value.name == name)
         .expect("named fixed-rule Change row")

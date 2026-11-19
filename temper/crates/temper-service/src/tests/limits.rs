@@ -935,20 +935,26 @@ fn each_broken_public_relation_refuses_the_start() {
         ("clients.public.answer_bytes", &[("core.public.lines", 257)], None),
     ];
     configured.document = serde_json::to_vec(&value).unwrap().into();
+    let given = fixtures::start_defaults();
+    let agent = fixtures::startup_agent();
+    let directories = jig_protocol_config::Directories::working();
+    let files = fixtures::files();
+    let seeds = fixtures::seeds();
     for (name, changes, count) in cases {
         let mut document = configured.clone();
         for (key, value) in *changes {
             jig_protocol_config::overrides::apply(&mut document.jig, key.as_bytes(), *value).unwrap();
         }
-        let found = match fixtures::start(
+        let found = match fixtures::start_with(
             &document,
-            &jig_protocol_config::Directories::working(),
-            &fixtures::files(),
-            &fixtures::startup_agent(),
-            &fixtures::seeds(),
+            &directories,
+            &files,
+            &agent,
+            &seeds,
             None,
             fixtures::worker_runtime(),
             fixtures::forge_runtime(),
+            &given,
         ) {
             Ok(_) => crate::startup::Problems::empty(),
             Err(problems) => problems,
