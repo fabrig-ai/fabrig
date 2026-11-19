@@ -991,13 +991,11 @@ fn system_inspection_does_not_displace_conversation_words() {
     );
 }
 
-#[expect(clippy::disallowed_macros, reason = "decoder tests embed the current transcript schema")]
+#[expect(clippy::disallowed_macros, reason = "the test formats its fixed-rule value name")]
 fn smith_turn(shape: &str) -> Box<[u8]> {
-    let schema =
-        skein_codegen::parse(include_str!("../../../../smith/crates/smith-transcript/schema/transcript-v7.schema"))
-            .expect("transcript schema");
+    let values = skein_codegen::values(smith_transcript::SCHEMA);
     let name = alloc::format!("record_turn_{shape}.bin");
-    for value in skein_codegen::goldens(&schema) {
+    for value in values.goldens.clone() {
         if value.name == name {
             return value.bytes.into_boxed_slice();
         }

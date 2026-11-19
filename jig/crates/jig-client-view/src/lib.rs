@@ -8,6 +8,8 @@
 
 extern crate alloc;
 
+pub use jig_client_view_codec::SCHEMA;
+
 mod binding;
 pub mod boundary;
 mod generated {

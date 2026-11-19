@@ -282,8 +282,8 @@ fn restore_words_are_pinned_and_versioned_intents_round_trip() {
     ] {
         assert_eq!(why.words().as_ref(), expected);
     }
-    let schema = skein_codegen::parse(super::COMPONENT_SCHEMA).expect("component schema");
-    let goldens = skein_codegen::goldens(&schema);
+    let values = skein_codegen::values(super::COMPONENT_SCHEMA);
+    let goldens = values.goldens.clone();
     for name in ["record_restore_intent_smallest.bin", "record_restore_intent_full.bin"] {
         let bytes = goldens.iter().find(|value| value.name == name).expect("restore intent value").bytes.as_slice();
         let row = crate::component_v3::RestoreIntent::decode(&crate::component_v3::CEILINGS, &mut Reader::new(bytes))

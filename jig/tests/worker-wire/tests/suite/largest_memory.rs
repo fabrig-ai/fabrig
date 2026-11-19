@@ -9,7 +9,7 @@ const CAP: u64 = 64 * 1024 * 1024;
 fn largest_roots_stay_within_decoded_bounds() {
     family!(
         CAP,
-        include_str!("../../../../crates/jig-protocol-worker-wire/schema/worker-wire-v17.schema"),
+        jig_protocol_worker_wire::SCHEMA,
         jig_protocol_worker_wire::v17, sealed,
         limits [
             wire_name,

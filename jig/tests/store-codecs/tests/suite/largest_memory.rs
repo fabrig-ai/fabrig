@@ -11,7 +11,7 @@ const CAP: u64 = 64 * 1024 * 1024;
 fn largest_roots_stay_within_decoded_bounds() {
     family!(
         CAP,
-        include_str!("../../../../crates/jig-protocol-store/schema/core-v6.schema"),
+        jig_protocol_store::STORE_FAMILIES.get(3).expect("store family").current,
         jig_protocol_store::core_v6, sealed,
         limits [
             escalation_decision_reject_reason,
@@ -43,7 +43,7 @@ fn largest_roots_stay_within_decoded_bounds() {
     );
     family!(
         CAP,
-        include_str!("../../../../crates/jig-protocol-store/schema/accounts-v2.schema"),
+        jig_protocol_store::STORE_FAMILIES.get(7).expect("store family").current,
         jig_protocol_store::accounts_v2, sealed,
         limits [
             account_uses_some,
@@ -62,7 +62,7 @@ fn largest_roots_stay_within_decoded_bounds() {
     );
     family!(
         CAP,
-        include_str!("../../../../crates/jig-protocol-store/schema/component-v3.schema"),
+        jig_protocol_store::STORE_FAMILIES.first().expect("store family").current,
         jig_protocol_store::component_v3, sealed,
         limits [
             wire_name,
@@ -91,7 +91,7 @@ fn largest_roots_stay_within_decoded_bounds() {
     );
     family!(
         CAP,
-        include_str!("../../../../crates/jig-protocol-store/schema/notes-v1.schema"),
+        jig_protocol_store::STORE_FAMILIES.get(6).expect("store family").current,
         jig_protocol_store::notes_v1, sealed,
         limits [
             segment_bytes,
@@ -107,7 +107,7 @@ fn largest_roots_stay_within_decoded_bounds() {
     );
     family!(
         CAP,
-        include_str!("../../../../crates/jig-protocol-store/schema/openings-v1.schema"),
+        jig_protocol_store::STORE_FAMILIES.get(1).expect("store family").current,
         jig_protocol_store::openings_v1, sealed,
         limits [
             opened_wire_name,
@@ -122,7 +122,7 @@ fn largest_roots_stay_within_decoded_bounds() {
     );
     family!(
         CAP,
-        include_str!("../../../../crates/jig-protocol-store/schema/registry-v1.schema"),
+        jig_protocol_store::STORE_FAMILIES.get(2).expect("store family").current,
         jig_protocol_store::registry_v1, sealed,
         limits [
             layout_root,
@@ -138,7 +138,7 @@ fn largest_roots_stay_within_decoded_bounds() {
     );
     family!(
         CAP,
-        include_str!("../../../../crates/jig-protocol-store/schema/secrets-v1.schema"),
+        jig_protocol_store::STORE_FAMILIES.get(9).expect("store family").current,
         jig_protocol_store::secrets_v1, sealed,
         limits [
             source_record_record,
@@ -156,7 +156,7 @@ fn largest_roots_stay_within_decoded_bounds() {
     );
     family!(
         CAP,
-        include_str!("../../../../crates/jig-protocol-store/schema/people-v17.schema"),
+        jig_protocol_store::STORE_FAMILIES.get(5).expect("store family").current,
         jig_protocol_store::people_v17, sealed,
         limits [
             segment_bytes,
@@ -267,7 +267,7 @@ fn largest_roots_stay_within_decoded_bounds() {
     );
     family!(
         CAP,
-        include_str!("../../../../crates/jig-protocol-store/schema/settings-v3.schema"),
+        jig_protocol_store::STORE_FAMILIES.get(8).expect("store family").current,
         jig_protocol_store::settings_v3, sealed,
         limits [
             text_bytes,
@@ -372,7 +372,7 @@ fn largest_roots_stay_within_decoded_bounds() {
     );
     family!(
         CAP,
-        include_str!("../../../../crates/jig-protocol-store/schema/tasks-v13.schema"),
+        jig_protocol_store::STORE_FAMILIES.get(4).expect("store family").current,
         jig_protocol_store::tasks_v13, lean,
         limits [
             bytes_parameter_value,

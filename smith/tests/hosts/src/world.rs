@@ -497,6 +497,8 @@ impl World {
             reviewed: 0,
             meeting: referee::review(&[]),
         };
+        // Warm process-global charter values before a process's allocation meter starts.
+        drop(fixture::charter());
         let mut harness = skein_world::World::new(self.seed, config, referee, self.memory)
             .with_machine(Machine { files: machine, program: self.program });
         if self.program == Program::Service || self.program == Program::ErrorTail {

@@ -10,8 +10,7 @@ use skein_codec::{
 };
 use skein_lib::{Buffer, List, Map, Reader, Writer};
 
-#[expect(clippy::disallowed_macros, reason = "the job derives its wide text from the binary schema")]
-const TEXT: &str = include_str!("../../schema/store-v25.schema");
+const TEXT: &str = crate::OWNER_SET.families.first().expect("store family").current;
 const SUBSTITUTIONS: [(&str, &str); 7] = [
     ("record FailingTest { test_id: bytes 1024", "record FailingTest { test_id: bytes 4096"),
     ("record TierFlake { test: bytes 1024", "record TierFlake { test: bytes 4096"),

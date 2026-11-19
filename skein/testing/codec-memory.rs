@@ -55,9 +55,9 @@ macro_rules! family {
     ($cap:expr, $text:expr, $module:path, $form:ident,
      limits [$($field:ident),* $(,)?], roots [$($root:ident $(=> $pin:expr)?),+ $(,)?]) => {{
         use $module as codec;
-        let schema = skein_codegen::parse($text).expect("family schema");
+        let schema = &skein_codegen::values($text).schema;
         let lower = |k| codec::Limits { $($field: codec::CEILINGS.$field.min(k)),* };
-        let roots = skein_codegen::roots(&schema);
+        let roots = skein_codegen::roots(schema);
         let expected = [$(stringify!($root)),+];
         assert_eq!(roots, expected, "{}: generated decoder coverage", schema.family);
         for root in roots {
@@ -74,7 +74,7 @@ macro_rules! family {
                         super::codec_memory::family!(@pin $($pin)?),
                     );
                     let values = limits.values();
-                    let variants = skein_codegen::largest_variants(&schema, &root, values.as_slice())
+                    let variants = skein_codegen::largest_variants(schema, &root, values.as_slice())
                         .unwrap_or_else(|why| panic!("{label}: largest variants: {why:?}"));
                     let encoded = codec::$root::encoded_bound(&limits).expect("encoded bound");
                     let bound = codec::$root::decoded_bound(&limits).expect("decoded bound");

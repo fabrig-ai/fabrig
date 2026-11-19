@@ -7,6 +7,25 @@
 
 extern crate alloc;
 
+/// The current family schema text (skein data/codec/README.md, section 6).
+pub const SAMPLE_SCHEMA: &str = include_str!("../schema/sample-v1.schema");
+
+/// The current family schema text (skein data/codec/README.md, section 6).
+pub const EVERY_SCHEMA: &str = include_str!("../schema/every-v3.schema");
+
+/// The current family schema text (skein data/codec/README.md, section 6).
+pub const SCALARS_SCHEMA: &str = include_str!("../schema/scalars-v1.schema");
+
+/// The current family schema text (skein data/codec/README.md, section 6).
+pub const LINTS_SCHEMA: &str = include_str!("../schema/lints-v1.schema");
+
+/// The current family schema text (skein data/codec/README.md, section 6).
+pub const SECRETS_SCHEMA: &str = include_str!("../schema/secrets-v1.schema");
+
+/// The current family schema text (skein data/codec/README.md, section 6).
+pub const GROWTH_SCHEMA: &str = include_str!("../schema/growth-v1.schema");
+
+
 #[rustfmt::skip]
 #[path = "generated/sample.rs"]
 pub mod v1;
