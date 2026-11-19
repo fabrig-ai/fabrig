@@ -859,3 +859,25 @@ use 12.3's identities.
 No job converts milestones at open. A store without the floor, below
 it or behind the build's levels is refused, naming `FLOOR_BRIDGE`
 (`../../protocol/store/opening.md`, 1.8); this build upgrades none of it.
+
+## 13. Failed by its application
+
+An application may end a live task failed, as a cancel ends one
+cancelled, where a rule of its own says the task's time is up:
+temper's repair goal past its deadline (temper's
+`domain/red-repairs.md`, 4.3). A deadline of jig's holds a task
+(section 6); this ends it.
+
+- **Asked** by `tasks::Event::Fail { reply_to, by: Party, operation:
+  Fail }`, `Fail { task: u64, reason: Box<[u8]> }`, the reason within
+  the limits' failure reason bytes, cut as a failure's is. Only the
+  application may ask it, as `Party::Deployment` of the task's project
+  or an ancestor task of it; a person's controls and an agent's tools
+  have no such act.
+- **What it does:** what a cancel does to the task's tree (its live
+  attempt stopped, its live delegates and its closer cancelled with the
+  reason), then the task ends `Failed { reason }`, its result reaching
+  its requester as any failure's, and its effects settling as any
+  ending's.
+- **Refused** for a task that has ended or is closing, naming it, as a
+  cancel of one is; nothing is written.
