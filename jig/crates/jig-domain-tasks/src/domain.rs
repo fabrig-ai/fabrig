@@ -1255,6 +1255,9 @@ fn milestone(domain: &mut Domain, env: &Env<Limits>, number: u64, out: &mut Queu
             }
             Some(Phase::Waiting) if task.record.due_reason != crate::Why::Released => crate::Why::Ready,
             Some(Phase::Held { .. }) => crate::Why::Released,
+            // A message wake's park pause has no retry notice: its message stays
+            // the reason across expiry (domain/tasks/messages.md, 3).
+            Some(Phase::Active(Active::BackingOff { .. })) if task.record.retry_notice.is_none() => task.record.due_reason,
             Some(Phase::Active(Active::BackingOff { .. })) => crate::Why::Retry { tries: task.record.tries },
             Some(
                 Phase::Waiting

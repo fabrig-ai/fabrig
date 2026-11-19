@@ -223,13 +223,25 @@ pub(crate) fn met(
     after_message(domain, env, number, prepared.previous, prepared.word, out);
 }
 
-#[expect(clippy::too_many_lines, reason = "one message applies its wake policy and live phase together")]
 pub(crate) fn after_message(
     domain: &mut Domain,
     env: &Env<Limits>,
     number: u64,
     previous: Option<u64>,
     word: Word,
+    out: &mut Queue<Request>,
+) {
+    message(domain, env, number, previous, word, false, out);
+}
+
+#[expect(clippy::too_many_lines, reason = "one message applies its wake policy and live phase together")]
+fn message(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    number: u64,
+    previous: Option<u64>,
+    word: Word,
+    pause: bool,
     out: &mut Queue<Request>,
 ) {
     if crate::gathering::executor(record(domain, number).expect("message task live").executor) {
@@ -310,9 +322,19 @@ pub(crate) fn after_message(
         Phase::Active(Active::Idle) if !blocked => {
             let row = &mut task_mut(domain, number).expect("idle task live").record;
             row.due_reason = crate::Why::Message { message: word.number };
-            row.phase = Phase::Active(Active::Due);
-            publish(domain, env, number, out);
-            activate(domain, number, out);
+            if pause {
+                row.refusals = row.refusals.saturating_add(1);
+                let times = row.refusals;
+                let duration = crate::failures::backoff(times, env.limits.retries.transient, &mut domain.rng);
+                let until = Wall::from_nanos(env.wall.as_nanos().saturating_add(duration.as_nanos()));
+                task_mut(domain, number).expect("parked task live").record.phase =
+                    Phase::Active(Active::BackingOff { until });
+                publish(domain, env, number, out);
+            } else {
+                row.phase = Phase::Active(Active::Due);
+                publish(domain, env, number, out);
+                activate(domain, number, out);
+            }
         }
         Phase::Active(Active::Claimed { attempt } | Active::Running { attempt }) => {
             if !offered(domain, number, &word) {
@@ -342,6 +364,10 @@ pub(crate) fn after_message(
 
 /// News and results arriving after the offered prefix keep their own wake policy.
 pub(crate) fn after_step(domain: &mut Domain, env: &Env<Limits>, number: u64, out: &mut Queue<Request>) {
+    after_inbox(domain, env, number, false, out);
+}
+
+fn after_inbox(domain: &mut Domain, env: &Env<Limits>, number: u64, pause: bool, out: &mut Queue<Request>) {
     let inbox = record(domain, number).expect("stepped procedure live").inbox.clone();
     schedule(domain, env, number);
     for word in inbox {
@@ -350,17 +376,28 @@ pub(crate) fn after_step(domain: &mut Domain, env: &Env<Limits>, number: u64, ou
         if record(domain, number).expect("stepped procedure live").phase != Phase::Active(Active::Idle) {
             return;
         }
-        after_message(domain, env, number, None, word, out);
+        message(domain, env, number, None, word, pause, out);
     }
 }
 
-/// An attempt's refusals end with it; unread messages keep their wake policy.
-pub(crate) fn after_run(domain: &mut Domain, env: &Env<Limits>, number: u64, out: &mut Queue<Request>) {
+/// A park waking on leftover words or entries pauses before claiming again
+/// (jig/docs/design/domain/tasks/messages.md, 3). Other ends keep their wake handling.
+pub(crate) fn after_run(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    number: u64,
+    parked: bool,
+    out: &mut Queue<Request>,
+) {
     let task = task_mut(domain, number).expect("answered task live");
     let refused = core::mem::replace(&mut task.record.refused, Box::new([]));
     let offered = task.record.offered;
+    let pause = parked && match task.record.executor {
+        crate::Executor::Agent { .. } => true,
+        crate::Executor::Procedure { .. } | crate::Executor::Person(_) | crate::Executor::Job { .. } => false,
+    };
     if record(domain, number).expect("answered task live").phase == Phase::Active(Active::Idle) {
-        after_step(domain, env, number, out);
+        after_inbox(domain, env, number, pause, out);
     }
     if record(domain, number).expect("answered task live").phase != Phase::Active(Active::Idle) {
         return;
@@ -374,8 +411,11 @@ pub(crate) fn after_run(domain: &mut Domain, env: &Env<Limits>, number: u64, out
             if crate::reasons::covered(&word, offered) && !refused.contains(&word.number) {
                 continue;
             }
-            after_message(domain, env, number, None, word, out);
+            message(domain, env, number, None, word, pause, out);
         }
+    }
+    if parked && record(domain, number).expect("parked task live").phase == Phase::Active(Active::Idle) {
+        task_mut(domain, number).expect("idle task live").record.refusals = 0;
     }
 }
 

@@ -632,7 +632,9 @@ pub(crate) fn activation(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, en
                 if !kept.owes && task.record.flags.ended_by != crate::EndedBy::Standing {
                     task.record.tries = Tries::NONE;
                 }
-                task.record.refusals = 0;
+                if narrowed {
+                    task.record.refusals = 0;
+                }
                 if narrowed && !kept.blocks_claims() { Phase::Active(Active::Due) } else { Phase::Active(Active::Idle) }
             }
             End::Exceeded(value) => exceeded(domain, number, value),
@@ -711,7 +713,7 @@ pub(crate) fn activation(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, en
     crate::standing::after_run(domain, env, number, out);
     // The numbered reminder must precede any preparation caused by unread words.
     if !parked || !kept.owes {
-        crate::wake::after_run(domain, env, number, out);
+        crate::wake::after_run(domain, env, number, terminal_parks && !narrowed, out);
     }
     let question = if end_kind == crate::EndKind::Parked && !narrowed {
         question_left_open(domain, record(domain, number).expect("answered task live"))
