@@ -4,6 +4,7 @@ use jig_core_world::fixtures::PROJECT;
 use jig_core_world::world::Setup;
 use jig_core_world::world::World;
 use jig_domain_core as core;
+use jig_protocol_store::core_v6::Record as _;
 use jig_protocol_store::{Wire, component_v3};
 use jig_test_domain as root;
 use jig_test_store_files::Fault;
@@ -65,7 +66,7 @@ fn durable_mark(world: World, since: usize, last: u64) {
     assert!(world.domain.ready());
     let bytes = wires(&mut world);
     let row = component_v3::Wires::decode(&component_v3::CEILINGS, &mut Reader::new(&bytes)).expect("component wires");
-    let wires: Vec<_> = row.wires().iter().map(|wire| (wire.name().to_vec(), wire.version())).collect();
+    let wires: Vec<_> = row.wires.iter().map(|wire| (wire.name.as_ref().to_vec(), wire.version)).collect();
     assert_eq!(wires, [(b"channel".to_vec(), 3), (b"fixture".to_vec(), 7)]);
 }
 
@@ -98,7 +99,7 @@ fn a_first_start_takes_the_switch_step() {
     assert!(world.domain.ready());
     let bytes = wires(&mut world);
     let row = component_v3::Wires::decode(&component_v3::CEILINGS, &mut Reader::new(&bytes)).expect("empty wires row");
-    assert!(row.wires().is_empty(), "an empty shell wire list is still committed");
+    assert!(row.wires.is_empty(), "an empty shell wire list is still committed");
 }
 
 #[test]

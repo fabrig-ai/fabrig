@@ -2,6 +2,7 @@
 use super::*;
 use crate::tests::owners::SETS;
 use crate::{Owner, OwnerSet, OwnerSets, component_v3};
+use skein_codec::Record as _;
 use skein_lib::{Reader, Writer};
 
 fn store(disk: &Disk, sets: OwnerSets) -> Store {
@@ -19,7 +20,7 @@ fn key() -> Box<[u8]> {
 fn floor(store: &mut Store) -> Option<(u32, Box<[u8]>)> {
     let bytes = fixtures::get_kv(store, &key())?;
     let row = component_v3::Floor::decode(&component_v3::CEILINGS, &mut Reader::new(&bytes)).unwrap();
-    Some((row.number(), row.build().into()))
+    Some((row.number, row.build))
 }
 fn commit(disk: &mut Disk, store: &mut Store) {
     assert!({
@@ -34,13 +35,9 @@ fn commit(disk: &mut Disk, store: &mut Store) {
 }
 fn floor_op(number: Option<u32>) -> skein_kv::Op {
     let Some(number) = number else { return skein_kv::Op::Erase { key: key() } };
-    let row = component_v3::Floor::new(
-        &component_v3::CEILINGS,
-        component_v3::FloorParts { number, build: b"older-build".as_slice().into() },
-    )
-    .unwrap();
-    let mut writer = Writer::new(usize::try_from(row.measure()).unwrap());
-    row.encode(&mut writer).unwrap();
+    let row = component_v3::Floor { number, build: b"older-build".as_slice().into() };
+    let mut writer = Writer::new(usize::try_from(row.measure(&component_v3::CEILINGS).unwrap()).unwrap());
+    row.write(&component_v3::CEILINGS, &mut writer).unwrap();
     skein_kv::Op::Put { key: key(), value: writer.finish() }
 }
 

@@ -32,7 +32,7 @@ impl Decoder {
             if name.as_ref() != family || *ty != number || *layout != id {
                 continue;
             }
-            found = Some(((name.clone(), *ty, *layout), *row.value.text()));
+            found = Some(((name.clone(), *ty, *layout), row.value.text));
             break;
         }
         if let Some((key, digest)) = found {
@@ -40,7 +40,7 @@ impl Decoder {
             let row = self.layouts.rows.get(&key).ok_or(id)?;
             let text = self.layouts.texts.get(&digest).ok_or(id)?;
             let schema = text.schema.as_ref().ok_or(id)?;
-            let root = schema.root(row.value.root(), row.value.variant().as_deref()).ok_or(id)?;
+            let root = schema.root(&row.value.root, row.value.variant.as_deref()).ok_or(id)?;
             // Generic decoders, like generated ones, read the family's version,
             // not the layout id. Only this owned copy's head is changed.
             rehead(&mut bytes, schema.version());

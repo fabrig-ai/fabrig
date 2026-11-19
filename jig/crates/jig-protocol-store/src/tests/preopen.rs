@@ -136,7 +136,7 @@ fn changed_counts_are_kept_in_the_manifest() {
     };
     let manifest = crate::codec::component::Manifest::decode(&manifest.encode()).expect("manifest readback");
     let counts = manifest.counts;
-    let label = counts.get(0).expect("label manifest count").clone().into_parts();
+    let label = counts.get(0).expect("label manifest count").clone();
     assert_eq!(label.family.as_ref(), b"fixture-label");
     assert_eq!((label.before, label.after), (1, 0));
     assert_eq!(counts.len(), 4);

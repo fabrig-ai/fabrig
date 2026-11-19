@@ -1,4 +1,5 @@
 //! Restores use the checked copy; activation is a separate durable request (protocol/store/opening.md 2).
+use jig_protocol_store::core_v6::Record as _;
 use jig_protocol_store::{Event, OpenRefusal, Request, Wire, Write, codec, component_v3, keys};
 use jig_store_world::{
     World,
@@ -218,7 +219,7 @@ fn wires_row(mut world: World) -> Vec<(Vec<u8>, u32)> {
     );
     let Some(skein_kv::Event::Got { value: Some(bytes), .. }) = events.pop() else { panic!("wires row") };
     let row = component_v3::Wires::decode(&component_v3::CEILINGS, &mut Reader::new(&bytes)).expect("wires decode");
-    row.wires().iter().map(|wire| (wire.name().to_vec(), wire.version())).collect()
+    row.wires.iter().map(|wire| (wire.name.as_ref().to_vec(), wire.version)).collect()
 }
 
 #[test]

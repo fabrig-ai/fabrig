@@ -367,7 +367,7 @@ pub fn counts(world: &mut World) -> Vec<(Vec<u8>, u64, u64)> {
         .as_ref()
         .expect("manifest is a file");
     let manifest = jig_protocol_store::codec::component::Manifest::decode(bytes).expect("manifest codec");
-    manifest.counts.iter().map(|count| (count.family().to_vec(), count.before(), count.after())).collect()
+    manifest.counts.iter().map(|count| (count.family.to_vec(), count.before, count.after)).collect()
 }
 
 /// Frame patches are used only at read; opens compare equal owner levels.

@@ -77,23 +77,19 @@ fn derive(
     ty: &crate::ValueType,
     new_held: &[&Schema],
 ) -> Result<Plan, Unplanned> {
-    let text = layouts.texts.get(row.value.text()).ok_or(Unplanned::Text)?;
+    let text = layouts.texts.get(&row.value.text).ok_or(Unplanned::Text)?;
     if row.stored && !text.stored {
         return Err(Unplanned::Text);
     }
     let old = text.schema.as_ref().ok_or(Unplanned::Text)?;
-    let old_held = texts::schemas(layouts, row.value.held(), row.stored).ok_or(Unplanned::Text)?;
-    let variant = match row.value.variant() {
-        Some(variant) => Some(variant.as_ref()),
-        None => None,
-    };
-    let old_root = old.root(row.value.root(), variant).ok_or(Unplanned::Text)?;
+    let old_held = texts::schemas(layouts, &row.value.held, row.stored).ok_or(Unplanned::Text)?;
+    let variant = row.value.variant.as_deref();
+    let old_root = old.root(&row.value.root, variant).ok_or(Unplanned::Text)?;
     let new_root = new.root(ty.root.as_bytes(), super::variant(ty.variant)).ok_or(Unplanned::Text)?;
     // Check that the kept text and the row agree, rather than trusting its id.
-    let fingerprint = binary
-        .layout(layouts, *row.value.text(), row.value.root(), variant, row.value.held())
-        .ok_or(Unplanned::Text)?;
-    if fingerprint != *row.value.layout() {
+    let fingerprint =
+        binary.layout(layouts, row.value.text, &row.value.root, variant, &row.value.held).ok_or(Unplanned::Text)?;
+    if fingerprint != row.value.layout {
         return Err(Unplanned::Text);
     }
     match Plan::derive(old, old_root, old_held.as_slice(), new, new_root, new_held) {
@@ -110,7 +106,7 @@ fn job(store: &mut Store, key: &RowKey, row: &Row) -> Result<Option<&'static str
                 && key.1 == converts.value_type
             {
                 match converts.from {
-                    crate::Layouts::One(from) if row.value.layout() == &from => one = Some(job.name),
+                    crate::Layouts::One(from) if row.value.layout == from => one = Some(job.name),
                     crate::Layouts::Unplanned if !crate::jobs::kept::done(store, set.owner, job)? => {
                         return Ok(Some(job.name));
                     }

@@ -24,6 +24,5 @@ pub mod secrets_v1;
 pub mod openings_v1;
 
 #[rustfmt::skip]
-#[expect(clippy::struct_field_names, reason = "the registry schema names Layout's fingerprint layout (layouts.md, 3)")]
 #[path = "generated/registry.rs"]
 pub mod registry_v1;

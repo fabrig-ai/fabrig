@@ -5,6 +5,7 @@ use crate::tests::fixtures::{self, disk::Disk};
 use crate::{KeptFamily, KeptMap, KeyRange, Keys, Owner, OwnerSet, OwnerSets, Store, ValueType};
 use alloc::boxed::Box;
 use jig_test_layouts::layouts::{BUFFER_CURRENT, BUFFER_KEPT, CURRENT, FIRST, KEPT};
+use skein_codec::Record as _;
 
 const FAMILY: KeptFamily = KeptFamily {
     name: "fixture-layouts",
@@ -147,8 +148,8 @@ fn seeded_reopen_computes_one_binary_layout_for_many_rows() {
     assert_eq!(super::open(&mut store, false), Ok(false));
     assert_counts(&[CURRENT], 1);
     let value = store.registry.rows.get(&(Box::from(FAMILY.name), 0, 2)).expect("binary row").value.clone();
-    let mut writer = skein_lib::Writer::new(skein_lib::usize_of(value.measure()));
-    value.encode(&mut writer).expect("fixture row encodes");
+    let mut writer = skein_lib::Writer::new(skein_lib::usize_of(value.measure(&crate::registry_v1::CEILINGS).unwrap()));
+    value.write(&crate::registry_v1::CEILINGS, &mut writer).expect("fixture row encodes");
     let key = crate::keys::encode_own(
         &crate::keys::Own::Layout { family: Box::from(FAMILY.name), number: 0, id: 9 },
         store.limits.store.key,
@@ -220,13 +221,9 @@ fn refused_planning_keeps_no_unfinished_registry_in_the_store() {
     let mut store = planning_store(SETS);
     // A new open starts with no serving edge, over the committed registry.
     *store.registry = Layouts::new();
-    let text = crate::registry_v1::Text::new(
-        &crate::registry_v1::CEILINGS,
-        crate::registry_v1::TextParts { text: Box::from(FIRST.as_bytes()) },
-    )
-    .expect("fixture text fits");
-    let mut writer = skein_lib::Writer::new(skein_lib::usize_of(text.measure()));
-    text.encode(&mut writer).expect("fixture text encodes");
+    let text = crate::registry_v1::Text { text: Box::from(FIRST.as_bytes()) };
+    let mut writer = skein_lib::Writer::new(skein_lib::usize_of(text.measure(&crate::registry_v1::CEILINGS).unwrap()));
+    text.write(&crate::registry_v1::CEILINGS, &mut writer).expect("fixture text encodes");
     let key =
         crate::keys::encode_own(&crate::keys::Own::Text(texts::digest(CURRENT.as_bytes())), store.limits.store.key)
             .expect("fixture text key");
@@ -350,8 +347,8 @@ fn kept_and_binary_reads_rehead_in_place_without_a_buffer() {
     let mut store = planning_store(SETS);
     assert_eq!(super::open(&mut store, false), Ok(false));
     let row = store.registry.rows.get(&(Box::from(FAMILY.name), 0, 2)).expect("binary row").value.clone();
-    let mut writer = skein_lib::Writer::new(skein_lib::usize_of(row.measure()));
-    row.encode(&mut writer).expect("fixture row encodes");
+    let mut writer = skein_lib::Writer::new(skein_lib::usize_of(row.measure(&crate::registry_v1::CEILINGS).unwrap()));
+    row.write(&crate::registry_v1::CEILINGS, &mut writer).expect("fixture row encodes");
     let key = crate::keys::encode_own(
         &crate::keys::Own::Layout { family: Box::from(FAMILY.name), number: 0, id: 8 },
         store.limits.store.key,

@@ -152,7 +152,7 @@ fn first_manifest_counts_each_empty_kept_family() {
     world.owner_sets(patches::SETS);
     assert_eq!(world.open_switched(), Some(0));
     let first = manifest(&mut world, 1);
-    let counts: Vec<_> = first.counts.iter().map(|row| (row.family().to_vec(), row.before(), row.after())).collect();
+    let counts: Vec<_> = first.counts.iter().map(|row| (row.family.to_vec(), row.before, row.after)).collect();
     assert_eq!(
         counts,
         vec![
@@ -490,7 +490,7 @@ fn admitted_manifest_bounds_hold_at_first_start() {
         );
         let first = manifest(&mut world, 1);
         assert_eq!(skein_lib::length::usize_of(first.counts.len()), families);
-        assert!(first.counts.iter().all(|row| row.before() == 0 && row.after() == 0));
+        assert!(first.counts.iter().all(|row| row.before == 0 && row.after == 0));
     }
 }
 
