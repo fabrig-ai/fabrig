@@ -659,6 +659,34 @@ fn away_rows(rng: &mut Rng, bounds: &Bounds) {
 
 fn finding_rows(rng: &mut Rng, bounds: &Bounds) {
     let hand = rng.below(2) == 0;
+    let many = rng.below(2) == 0;
+    let blame = if rng.below(4) == 0 {
+        None
+    } else {
+        let mut landings = Vec::new();
+        for _ in 0..rng.below(4) {
+            let mut goals = Vec::new();
+            for _ in 0..rng.below(4) {
+                goals.push(forge::BlamedGoal {
+                    goal: rng.next_u64(),
+                    milestone: if rng.below(2) == 0 { None } else { Some(rng.next_u64()) },
+                    person: if rng.below(2) == 0 { None } else { Some(rng.next_u64()) },
+                });
+            }
+            landings.push(forge::BlamedLanding {
+                commit: std::array::from_fn(|_| u8::try_from(rng.below(256)).expect("byte")),
+                goals: goals.into_boxed_slice(),
+            });
+        }
+        Some(forge::FindingBlame {
+            strength: match rng.below(3) {
+                0 => forge::BlameStrength::Owned,
+                1 => forge::BlameStrength::Suspected,
+                _ => forge::BlameStrength::Unblamed,
+            },
+            landings: landings.into_boxed_slice(),
+        })
+    };
     let row = forge::Stored::Finding(forge::Finding {
         project: u32::try_from(rng.below(4_294_967_296)).expect("drawn field fits"),
         number: u32::try_from(rng.below(4_294_967_295) + 1).expect("drawn field fits"),
@@ -689,8 +717,27 @@ fn finding_rows(rng: &mut Rng, bounds: &Bounds) {
         hander: if hand { Some(forge::Filer::Task(rng.next_u64())) } else { None },
         goal: if rng.below(2) == 0 { Some(rng.next_u64()) } else { None },
         reason: if rng.below(2) == 0 { Some(b"not needed".as_slice().into()) } else { None },
-        signature: None,
-        seen: None,
+        signature: if rng.below(2) == 0 {
+            None
+        } else {
+            Some(forge::FindingSignature {
+                repository: skein_forge::api::Repository {
+                    forge: u16::try_from(rng.below(65_536)).expect("u16"),
+                    repository: u32::try_from(rng.below(4_294_967_296)).expect("u32"),
+                },
+                source: b"focused".as_slice().into(),
+                ids: if many { Box::new([]) } else { Box::new([b"test crate::bin example".as_slice().into()]) },
+                first: b"failure".as_slice().into(),
+                many,
+            })
+        },
+        seen: if rng.below(2) == 0 { None } else { Some(u32::try_from(rng.below(100) + 1).expect("count")) },
+        blame,
+        cleared: if rng.below(2) == 0 {
+            None
+        } else {
+            Some(forge::FindingCleared { run: rng.next_u64(), at: skein_lib::Wall::from_nanos(rng.next_u64()) })
+        },
     });
     row_and_key(&row, rng, bounds);
     let row = forge::Stored::Subscription(forge::Subscriber {

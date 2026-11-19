@@ -169,22 +169,72 @@ fn encode_signature(signature: &d::FindingSignature) -> w::FindingSignature {
             source: signature.source.clone(),
             ids,
             first: signature.first.clone(),
+            many: signature.many,
         },
     )
     .expect(FITS)
 }
 fn decode_signature(signature: w::FindingSignature) -> Result<d::FindingSignature, Undecodable> {
-    let w::FindingSignatureParts { repository, source, ids, first } = signature.into_parts();
+    let w::FindingSignatureParts { repository, source, ids, first, many } = signature.into_parts();
     let signature = d::FindingSignature {
         repository: super::names::decode_repository(repository),
         source,
         ids: ids.into_boxed(),
         first,
+        many,
     };
     if !signature.fits() {
         return Err(Undecodable::Malformed);
     }
     Ok(signature)
+}
+fn encode_blame(blame: &d::FindingBlame) -> w::FindingBlame {
+    let strength = match blame.strength {
+        d::BlameStrength::Owned => w::BlameStrength::Owned,
+        d::BlameStrength::Suspected => w::BlameStrength::Suspected,
+        d::BlameStrength::Unblamed => w::BlameStrength::None,
+    };
+    let mut landings = skein_lib::List::with_capacity(256);
+    for landing in &blame.landings {
+        let mut goals = skein_lib::List::with_capacity(64);
+        for goal in &landing.goals {
+            goals
+                .push(
+                    w::BlamedGoal::new(
+                        &w::CEILINGS,
+                        w::BlamedGoalParts { goal: goal.goal, milestone: goal.milestone, person: goal.person },
+                    )
+                    .expect(FITS),
+                )
+                .expect(FITS);
+        }
+        landings
+            .push(
+                w::BlamedLanding::new(&w::CEILINGS, w::BlamedLandingParts { commit: landing.commit, goals })
+                    .expect(FITS),
+            )
+            .expect(FITS);
+    }
+    w::FindingBlame::new(&w::CEILINGS, w::FindingBlameParts { strength, landings }).expect(FITS)
+}
+fn decode_blame(blame: w::FindingBlame) -> d::FindingBlame {
+    let blame = blame.into_parts();
+    let strength = match blame.strength {
+        w::BlameStrength::Owned => d::BlameStrength::Owned,
+        w::BlameStrength::Suspected => d::BlameStrength::Suspected,
+        w::BlameStrength::None => d::BlameStrength::Unblamed,
+    };
+    let mut landings = skein_lib::List::with_capacity(256);
+    for landing in blame.landings.into_boxed() {
+        let landing = landing.into_parts();
+        let mut goals = skein_lib::List::with_capacity(64);
+        for goal in landing.goals.into_boxed() {
+            let goal = goal.into_parts();
+            goals.push(d::BlamedGoal { goal: goal.goal, milestone: goal.milestone, person: goal.person }).expect(FITS);
+        }
+        landings.push(d::BlamedLanding { commit: landing.commit, goals: goals.into_boxed() }).expect(FITS);
+    }
+    d::FindingBlame { strength, landings: landings.into_boxed() }
 }
 pub(super) fn encode(row: &d::Finding) -> w::Finding {
     w::Finding::new(
@@ -212,6 +262,20 @@ pub(super) fn encode(row: &d::Finding) -> w::Finding {
                 None => None,
             },
             seen: row.seen,
+            blame: match &row.blame {
+                Some(blame) => Some(encode_blame(blame)),
+                None => None,
+            },
+            cleared: match row.cleared {
+                Some(cleared) => Some(
+                    w::FindingCleared::new(
+                        &w::CEILINGS,
+                        w::FindingClearedParts { run: cleared.run, at: cleared.at.as_nanos() },
+                    )
+                    .expect(FITS),
+                ),
+                None => None,
+            },
         },
     )
     .expect(FITS)
@@ -234,6 +298,8 @@ pub(super) fn decode(row: w::Finding) -> Result<d::Finding, Undecodable> {
         reason,
         signature,
         seen,
+        blame,
+        cleared,
     } = row.into_parts();
     if number == 0 || !d::settings::words_fit(&title, 200) || !d::findings::body_fits(&body) {
         return Err(Undecodable::Malformed);
@@ -278,5 +344,13 @@ pub(super) fn decode(row: w::Finding) -> Result<d::Finding, Undecodable> {
         reason,
         signature,
         seen,
+        blame: match blame {
+            Some(blame) => Some(decode_blame(blame)),
+            None => None,
+        },
+        cleared: match cleared {
+            Some(cleared) => Some(d::FindingCleared { run: cleared.run(), at: Wall::from_nanos(cleared.at()) }),
+            None => None,
+        },
     })
 }

@@ -333,6 +333,8 @@ pub struct Limits {
     pub agent_endpoint_limits_endpoint: u32,
     pub agent_figures_profile: u32,
     pub agent_figures_endpoints: u32,
+    pub blamed_landing_goals: u32,
+    pub finding_blame_landings: u32,
     pub finding_signature_source: u32,
     pub finding_signature_ids: u32,
     pub finding_signature_ids_item: u32,
@@ -672,6 +674,8 @@ pub const CEILINGS: Limits = Limits {
     agent_endpoint_limits_endpoint: 64,
     agent_figures_profile: 128,
     agent_figures_endpoints: 64,
+    blamed_landing_goals: 64,
+    finding_blame_landings: 256,
     finding_signature_source: 64,
     finding_signature_ids: 64,
     finding_signature_ids_item: 512,
@@ -1011,6 +1015,8 @@ pub const LIMIT_NAMES: &[&str] = &[
     "agent_endpoint_limits_endpoint",
     "agent_figures_profile",
     "agent_figures_endpoints",
+    "blamed_landing_goals",
+    "finding_blame_landings",
     "finding_signature_source",
     "finding_signature_ids",
     "finding_signature_ids_item",
@@ -4779,6 +4785,34 @@ pub enum Path {
     FindingStateTag,
     /// The tag of `Filer`.
     FilerTag,
+    /// The tag of `BlameStrength`.
+    BlameStrengthTag,
+    /// The `goal` field of `BlamedGoal`.
+    BlamedGoalGoal,
+    /// The `milestone` field of `BlamedGoal`.
+    BlamedGoalMilestone,
+    /// The `person` field of `BlamedGoal`.
+    BlamedGoalPerson,
+    /// Bytes after `BlamedGoal`.
+    BlamedGoalTail,
+    /// The `commit` field of `BlamedLanding`.
+    BlamedLandingCommit,
+    /// The `goals` field of `BlamedLanding`.
+    BlamedLandingGoals,
+    /// Bytes after `BlamedLanding`.
+    BlamedLandingTail,
+    /// The `strength` field of `FindingBlame`.
+    FindingBlameStrength,
+    /// The `landings` field of `FindingBlame`.
+    FindingBlameLandings,
+    /// Bytes after `FindingBlame`.
+    FindingBlameTail,
+    /// The `run` field of `FindingCleared`.
+    FindingClearedRun,
+    /// The `at` field of `FindingCleared`.
+    FindingClearedAt,
+    /// Bytes after `FindingCleared`.
+    FindingClearedTail,
     /// The `repository` field of `FindingSignature`.
     FindingSignatureRepository,
     /// The `source` field of `FindingSignature`.
@@ -4787,6 +4821,8 @@ pub enum Path {
     FindingSignatureIds,
     /// The `first` field of `FindingSignature`.
     FindingSignatureFirst,
+    /// The `many` field of `FindingSignature`.
+    FindingSignatureMany,
     /// Bytes after `FindingSignature`.
     FindingSignatureTail,
     /// The `project` field of `Finding`.
@@ -4821,6 +4857,10 @@ pub enum Path {
     FindingSignature,
     /// The `seen` field of `Finding`.
     FindingSeen,
+    /// The `blame` field of `Finding`.
+    FindingBlame,
+    /// The `cleared` field of `Finding`.
+    FindingCleared,
     /// Bytes after `Finding`.
     FindingTail,
     /// The `party` field of `Device`.
@@ -6726,10 +6766,25 @@ impl Path {
             Self::SeverityTag => "Severity (tag)",
             Self::FindingStateTag => "FindingState (tag)",
             Self::FilerTag => "Filer (tag)",
+            Self::BlameStrengthTag => "BlameStrength (tag)",
+            Self::BlamedGoalGoal => "BlamedGoal.goal",
+            Self::BlamedGoalMilestone => "BlamedGoal.milestone",
+            Self::BlamedGoalPerson => "BlamedGoal.person",
+            Self::BlamedGoalTail => "BlamedGoal (tail)",
+            Self::BlamedLandingCommit => "BlamedLanding.commit",
+            Self::BlamedLandingGoals => "BlamedLanding.goals",
+            Self::BlamedLandingTail => "BlamedLanding (tail)",
+            Self::FindingBlameStrength => "FindingBlame.strength",
+            Self::FindingBlameLandings => "FindingBlame.landings",
+            Self::FindingBlameTail => "FindingBlame (tail)",
+            Self::FindingClearedRun => "FindingCleared.run",
+            Self::FindingClearedAt => "FindingCleared.at",
+            Self::FindingClearedTail => "FindingCleared (tail)",
             Self::FindingSignatureRepository => "FindingSignature.repository",
             Self::FindingSignatureSource => "FindingSignature.source",
             Self::FindingSignatureIds => "FindingSignature.ids",
             Self::FindingSignatureFirst => "FindingSignature.first",
+            Self::FindingSignatureMany => "FindingSignature.many",
             Self::FindingSignatureTail => "FindingSignature (tail)",
             Self::FindingProject => "Finding.project",
             Self::FindingNumber => "Finding.number",
@@ -6747,6 +6802,8 @@ impl Path {
             Self::FindingReason => "Finding.reason",
             Self::FindingSignature => "Finding.signature",
             Self::FindingSeen => "Finding.seen",
+            Self::FindingBlame => "Finding.blame",
+            Self::FindingCleared => "Finding.cleared",
             Self::FindingTail => "Finding (tail)",
             Self::DeviceParty => "Device.party",
             Self::DeviceNumber => "Device.number",
@@ -79671,14 +79728,14 @@ fn agent_figures_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u
 fn check_agent_figures_record_limits(limits: &Limits) -> Result<(), Problem> {
     if limits.agent_figures_profile > CEILINGS.agent_figures_profile { return Err(Problem { path: Path::AgentFiguresProfile, reason: skein_codec::Reason::Bound }); }
     if limits.agent_figures_endpoints > CEILINGS.agent_figures_endpoints { return Err(Problem { path: Path::AgentFiguresEndpoints, reason: skein_codec::Reason::Bound }); }
-    check_finding_signature_record_limits(limits)
+    check_blamed_landing_record_limits(limits)
 }
 
 impl Limits {
     fn values_for_agent_figures_record(&self, values: &mut List<u32>) {
         values.push(self.agent_figures_profile).expect("room for every named limit");
         values.push(self.agent_figures_endpoints).expect("room for every named limit");
-        self.values_for_finding_signature_record(values);
+        self.values_for_blamed_landing_record(values);
     }
 }
 
@@ -80620,11 +80677,624 @@ impl Filer {
 
 fn filer_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
     let biggest = biggest.max(Filer::encoded_bound_within(limits)?);
-    finding_signature_encoded_bound_family(limits, biggest)
+    blame_strength_encoded_bound_family(limits, biggest)
 }
 
 fn filer_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
     let biggest = biggest.max(Filer::decoded_bound_within(limits)?);
+    blame_strength_decoded_bound_family(limits, biggest)
+}
+
+/// `BlameStrength` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum BlameStrength {
+    /// `owned` without a payload.
+    Owned,
+    /// `suspected` without a payload.
+    Suspected,
+    /// `none` without a payload.
+    None,
+}
+
+impl BlameStrength {
+    /// Checks the payload against the given limits.
+    pub fn new(_limits: &Limits, value: Self) -> Result<Self, Problem> {
+        Ok(value)
+    }
+
+}
+
+impl BlameStrength {
+    /// Measures this variant's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        match self {
+            Self::Owned | Self::Suspected | Self::None => 1,
+        }
+    }
+
+    /// Writes this variant's tag and payload.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        match self {
+            Self::Owned => writer.put(&[0_u8])?,
+            Self::Suspected => writer.put(&[1_u8])?,
+            Self::None => writer.put(&[2_u8])?,
+        }
+        Ok(())
+    }
+
+    /// Reads a whole variant and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::BlameStrengthTag, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let tag = reader.u8().ok_or(Problem { path: Path::BlameStrengthTag, reason: skein_codec::Reason::Short })?;
+        let value = match tag {
+            0 => Self::Owned,
+            1 => Self::Suspected,
+            2 => Self::None,
+            _ => return Err(Problem { path: Path::BlameStrengthTag, reason: skein_codec::Reason::Tag }),
+        };
+        Ok(value)
+    }
+}
+
+impl BlameStrength {
+    /// Maximum encoded bytes among variants.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let biggest = 0_u64;
+        1_u64.checked_add(biggest)
+    }
+
+    /// Maximum heap held by any decoded variant.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let biggest = 0_u64;
+        biggest.checked_add(0)
+    }
+}
+
+fn blame_strength_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(BlameStrength::encoded_bound_within(limits)?);
+    blamed_goal_encoded_bound_family(limits, biggest)
+}
+
+fn blame_strength_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(BlameStrength::decoded_bound_within(limits)?);
+    blamed_goal_decoded_bound_family(limits, biggest)
+}
+
+/// Movable fields of `BlamedGoal`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct BlamedGoalParts {
+    /// The `goal` field.
+    pub goal: u64,
+    /// The `milestone` field.
+    pub milestone: Option<u64>,
+    /// The `person` field.
+    pub person: Option<u64>,
+}
+
+/// `BlamedGoal` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct BlamedGoal {
+    goal: u64,
+    milestone: Option<u64>,
+    person: Option<u64>,
+}
+
+impl BlamedGoal {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: BlamedGoalParts) -> Result<Self, Problem> {
+        let BlamedGoalParts { goal, milestone, person } = parts;
+        let value = Self { goal, milestone, person };
+        Ok(value)
+    }
+
+    /// Reads the `goal` field.
+    #[must_use]
+    pub fn goal(&self) -> u64 { self.goal }
+
+    /// Reads the `milestone` field.
+    #[must_use]
+    pub fn milestone(&self) -> &Option<u64> { &self.milestone }
+
+    /// Reads the `person` field.
+    #[must_use]
+    pub fn person(&self) -> &Option<u64> { &self.person }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> BlamedGoalParts { BlamedGoalParts { goal: self.goal, milestone: self.milestone, person: self.person } }
+
+}
+
+impl BlamedGoal {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        let field_milestone = &self.milestone;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if field_milestone.is_some() {
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        }
+        let field_person = &self.person;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if field_person.is_some() {
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        }
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_goal = &self.goal;
+        writer.put(&field_goal.to_be_bytes())?;
+        let field_milestone = &self.milestone;
+        match field_milestone {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        writer.put(&some_0.to_be_bytes())?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
+        let field_person = &self.person;
+        match field_person {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        writer.put(&some_0.to_be_bytes())?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::BlamedGoalTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_goal = reader.u64().ok_or(Problem { path: Path::BlamedGoalGoal, reason: skein_codec::Reason::Short })?;
+        let decoded_milestone = match reader.u8().ok_or(Problem { path: Path::BlamedGoalMilestone, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u64().ok_or(Problem { path: Path::BlamedGoalMilestone, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::BlamedGoalMilestone, reason: skein_codec::Reason::Tag }) };
+        let decoded_person = match reader.u8().ok_or(Problem { path: Path::BlamedGoalPerson, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u64().ok_or(Problem { path: Path::BlamedGoalPerson, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::BlamedGoalPerson, reason: skein_codec::Reason::Tag }) };
+        Ok(Self { goal: decoded_goal, milestone: decoded_milestone, person: decoded_person })
+    }
+}
+
+impl BlamedGoal {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(8_u64)?.checked_add(1_u64.checked_add(8_u64)?)?;
+        size = size.checked_add(1_u64.checked_add(8_u64)?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
+fn blamed_goal_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(BlamedGoal::encoded_bound_within(limits)?);
+    blamed_landing_encoded_bound_family(limits, biggest)
+}
+
+fn blamed_goal_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(BlamedGoal::decoded_bound_within(limits)?);
+    blamed_landing_decoded_bound_family(limits, biggest)
+}
+
+/// Movable fields of `BlamedLanding`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct BlamedLandingParts {
+    /// The `commit` field.
+    pub commit: [u8; 32],
+    /// The `goals` field.
+    pub goals: List<BlamedGoal>,
+}
+
+/// `BlamedLanding` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct BlamedLanding {
+    commit: [u8; 32],
+    goals: List<BlamedGoal>,
+}
+
+impl BlamedLanding {
+    /// Makes a value within the given limits.
+    pub fn new(limits: &Limits, parts: BlamedLandingParts) -> Result<Self, Problem> {
+        let BlamedLandingParts { commit, goals } = parts;
+        let value = Self { commit, goals };
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    /// Reads the `commit` field.
+    #[must_use]
+    pub fn commit(&self) -> &[u8; 32] { &self.commit }
+
+    /// Reads the `goals` field.
+    #[must_use]
+    pub fn goals(&self) -> &List<BlamedGoal> { &self.goals }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> BlamedLandingParts { BlamedLandingParts { commit: self.commit, goals: self.goals } }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        if self.goals.capacity() > limits.blamed_landing_goals.min(CEILINGS.blamed_landing_goals) { return Err(Problem { path: Path::BlamedLandingGoals, reason: skein_codec::Reason::Bound }); }
+        Ok(())
+    }
+}
+
+impl BlamedLanding {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(32).expect("schema ceilings fit u32");
+        let field_goals = &self.goals;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        for item_0 in field_goals.as_slice() {
+        size = size.checked_add(item_0.measure()).expect("schema ceilings fit u32");
+        }
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_commit = &self.commit;
+        writer.put(field_commit)?;
+        let field_goals = &self.goals;
+        writer.put(&field_goals.len().to_be_bytes())?;
+        for item_0 in field_goals.as_slice() {
+        item_0.encode(writer)?;
+        }
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::BlamedLandingTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_commit = { let bytes = reader.bytes(32).ok_or(Problem { path: Path::BlamedLandingCommit, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") };
+        let decoded_goals = { let count = match skein_codec::read_count(reader, limits.blamed_landing_goals.min(CEILINGS.blamed_landing_goals)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::BlamedLandingGoals, reason }), }; if count > reader.remaining() / 10 { return Err(Problem { path: Path::BlamedLandingGoals, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = BlamedGoal::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        Ok(Self { commit: decoded_commit, goals: decoded_goals })
+    }
+}
+
+impl BlamedLanding {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(u64::from(32_u32))?.checked_add(4_u64.checked_add(u64::from(limits.blamed_landing_goals).checked_mul(BlamedGoal::encoded_bound_within(limits)?)?)?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?.checked_add(List::<BlamedGoal>::price(limits.blamed_landing_goals)?.checked_add(u64::from(limits.blamed_landing_goals).checked_mul(BlamedGoal::decoded_bound_within(limits)?)?)?)?;
+        heap.checked_add(0)
+    }
+}
+
+fn blamed_landing_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(BlamedLanding::encoded_bound_within(limits)?);
+    finding_blame_encoded_bound_family(limits, biggest)
+}
+
+fn blamed_landing_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(BlamedLanding::decoded_bound_within(limits)?);
+    finding_blame_decoded_bound_family(limits, biggest)
+}
+
+fn check_blamed_landing_record_limits(limits: &Limits) -> Result<(), Problem> {
+    if limits.blamed_landing_goals > CEILINGS.blamed_landing_goals { return Err(Problem { path: Path::BlamedLandingGoals, reason: skein_codec::Reason::Bound }); }
+    check_finding_blame_record_limits(limits)
+}
+
+impl Limits {
+    fn values_for_blamed_landing_record(&self, values: &mut List<u32>) {
+        values.push(self.blamed_landing_goals).expect("room for every named limit");
+        self.values_for_finding_blame_record(values);
+    }
+}
+
+/// Movable fields of `FindingBlame`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct FindingBlameParts {
+    /// The `strength` field.
+    pub strength: BlameStrength,
+    /// The `landings` field.
+    pub landings: List<BlamedLanding>,
+}
+
+/// `FindingBlame` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct FindingBlame {
+    strength: BlameStrength,
+    landings: List<BlamedLanding>,
+}
+
+impl FindingBlame {
+    /// Makes a value within the given limits.
+    pub fn new(limits: &Limits, parts: FindingBlameParts) -> Result<Self, Problem> {
+        let FindingBlameParts { strength, landings } = parts;
+        let value = Self { strength, landings };
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    /// Reads the `strength` field.
+    #[must_use]
+    pub fn strength(&self) -> &BlameStrength { &self.strength }
+
+    /// Reads the `landings` field.
+    #[must_use]
+    pub fn landings(&self) -> &List<BlamedLanding> { &self.landings }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> FindingBlameParts { FindingBlameParts { strength: self.strength, landings: self.landings } }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        if self.landings.capacity() > limits.finding_blame_landings.min(CEILINGS.finding_blame_landings) { return Err(Problem { path: Path::FindingBlameLandings, reason: skein_codec::Reason::Bound }); }
+        for item_0 in self.landings.as_slice() {
+        item_0.check(limits)?;
+        }
+        Ok(())
+    }
+}
+
+impl FindingBlame {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        let field_landings = &self.landings;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        for item_0 in field_landings.as_slice() {
+        size = size.checked_add(item_0.measure()).expect("schema ceilings fit u32");
+        }
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_strength = &self.strength;
+        field_strength.encode(writer)?;
+        let field_landings = &self.landings;
+        writer.put(&field_landings.len().to_be_bytes())?;
+        for item_0 in field_landings.as_slice() {
+        item_0.encode(writer)?;
+        }
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::FindingBlameTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_strength = BlameStrength::decode_from(limits, reader)?;
+        let decoded_landings = { let count = match skein_codec::read_count(reader, limits.finding_blame_landings.min(CEILINGS.finding_blame_landings)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::FindingBlameLandings, reason }), }; if count > reader.remaining() / 36 { return Err(Problem { path: Path::FindingBlameLandings, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = BlamedLanding::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        Ok(Self { strength: decoded_strength, landings: decoded_landings })
+    }
+}
+
+impl FindingBlame {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(BlameStrength::encoded_bound_within(limits)?)?.checked_add(4_u64.checked_add(u64::from(limits.finding_blame_landings).checked_mul(BlamedLanding::encoded_bound_within(limits)?)?)?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(BlameStrength::decoded_bound_within(limits)?)?.checked_add(List::<BlamedLanding>::price(limits.finding_blame_landings)?.checked_add(u64::from(limits.finding_blame_landings).checked_mul(BlamedLanding::decoded_bound_within(limits)?)?)?)?;
+        heap.checked_add(0)
+    }
+}
+
+fn finding_blame_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(FindingBlame::encoded_bound_within(limits)?);
+    finding_cleared_encoded_bound_family(limits, biggest)
+}
+
+fn finding_blame_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(FindingBlame::decoded_bound_within(limits)?);
+    finding_cleared_decoded_bound_family(limits, biggest)
+}
+
+fn check_finding_blame_record_limits(limits: &Limits) -> Result<(), Problem> {
+    if limits.finding_blame_landings > CEILINGS.finding_blame_landings { return Err(Problem { path: Path::FindingBlameLandings, reason: skein_codec::Reason::Bound }); }
+    check_finding_signature_record_limits(limits)
+}
+
+impl Limits {
+    fn values_for_finding_blame_record(&self, values: &mut List<u32>) {
+        values.push(self.finding_blame_landings).expect("room for every named limit");
+        self.values_for_finding_signature_record(values);
+    }
+}
+
+/// Movable fields of `FindingCleared`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct FindingClearedParts {
+    /// The `run` field.
+    pub run: u64,
+    /// The `at` field.
+    pub at: u64,
+}
+
+/// `FindingCleared` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct FindingCleared {
+    run: u64,
+    at: u64,
+}
+
+impl FindingCleared {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: FindingClearedParts) -> Result<Self, Problem> {
+        let FindingClearedParts { run, at } = parts;
+        let value = Self { run, at };
+        Ok(value)
+    }
+
+    /// Reads the `run` field.
+    #[must_use]
+    pub fn run(&self) -> u64 { self.run }
+
+    /// Reads the `at` field.
+    #[must_use]
+    pub fn at(&self) -> u64 { self.at }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> FindingClearedParts { FindingClearedParts { run: self.run, at: self.at } }
+
+}
+
+impl FindingCleared {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_run = &self.run;
+        writer.put(&field_run.to_be_bytes())?;
+        let field_at = &self.at;
+        writer.put(&field_at.to_be_bytes())?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::FindingClearedTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_run = reader.u64().ok_or(Problem { path: Path::FindingClearedRun, reason: skein_codec::Reason::Short })?;
+        let decoded_at = reader.u64().ok_or(Problem { path: Path::FindingClearedAt, reason: skein_codec::Reason::Short })?;
+        Ok(Self { run: decoded_run, at: decoded_at })
+    }
+}
+
+impl FindingCleared {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(8_u64)?.checked_add(8_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
+fn finding_cleared_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(FindingCleared::encoded_bound_within(limits)?);
+    finding_signature_encoded_bound_family(limits, biggest)
+}
+
+fn finding_cleared_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(FindingCleared::decoded_bound_within(limits)?);
     finding_signature_decoded_bound_family(limits, biggest)
 }
 
@@ -80639,6 +81309,8 @@ pub struct FindingSignatureParts {
     pub ids: List<Box<[u8]>>,
     /// The `first` field.
     pub first: Box<[u8]>,
+    /// The `many` field.
+    pub many: bool,
 }
 
 /// `FindingSignature` in this codec family.
@@ -80648,13 +81320,14 @@ pub struct FindingSignature {
     source: Box<[u8]>,
     ids: List<Box<[u8]>>,
     first: Box<[u8]>,
+    many: bool,
 }
 
 impl FindingSignature {
     /// Makes a value within the given limits.
     pub fn new(limits: &Limits, parts: FindingSignatureParts) -> Result<Self, Problem> {
-        let FindingSignatureParts { repository, source, ids, first } = parts;
-        let value = Self { repository, source, ids, first };
+        let FindingSignatureParts { repository, source, ids, first, many } = parts;
+        let value = Self { repository, source, ids, first, many };
         value.check(limits)?;
         Ok(value)
     }
@@ -80675,9 +81348,13 @@ impl FindingSignature {
     #[must_use]
     pub fn first(&self) -> &[u8] { &self.first }
 
+    /// Reads the `many` field.
+    #[must_use]
+    pub fn many(&self) -> bool { self.many }
+
     /// Moves the fields out without copying.
     #[must_use]
-    pub fn into_parts(self) -> FindingSignatureParts { FindingSignatureParts { repository: self.repository, source: self.source, ids: self.ids, first: self.first } }
+    pub fn into_parts(self) -> FindingSignatureParts { FindingSignatureParts { repository: self.repository, source: self.source, ids: self.ids, first: self.first, many: self.many } }
 
     fn check(&self, limits: &Limits) -> Result<(), Problem> {
         if self.source.len() > usize::try_from(limits.finding_signature_source.min(CEILINGS.finding_signature_source)).expect("u32 fits usize") { return Err(Problem { path: Path::FindingSignatureSource, reason: skein_codec::Reason::Bound }); }
@@ -80708,6 +81385,7 @@ impl FindingSignature {
         let field_first = &self.first;
         size = size.checked_add(4).expect("schema ceilings fit u32");
         size = size.checked_add(u32::try_from(field_first.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
         size
     }
 
@@ -80727,6 +81405,8 @@ impl FindingSignature {
         let field_first = &self.first;
         writer.put(&u32::try_from(field_first.len()).expect("field ceiling fits u32").to_be_bytes())?;
         writer.put(field_first.as_ref())?;
+        let field_many = &self.many;
+        writer.put(&[u8::from(*field_many)])?;
         Ok(())
     }
 
@@ -80742,7 +81422,8 @@ impl FindingSignature {
         let decoded_source = { let length = match skein_codec::read_len(reader, limits.finding_signature_source.min(CEILINGS.finding_signature_source)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::FindingSignatureSource, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::FindingSignatureSource, reason: skein_codec::Reason::Short })?) };
         let decoded_ids = { let count = match skein_codec::read_count(reader, limits.finding_signature_ids.min(CEILINGS.finding_signature_ids)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::FindingSignatureIds, reason }), }; if count > reader.remaining() / 4 { return Err(Problem { path: Path::FindingSignatureIds, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = { let length = match skein_codec::read_len(reader, limits.finding_signature_ids_item.min(CEILINGS.finding_signature_ids_item)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::FindingSignatureIds, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::FindingSignatureIds, reason: skein_codec::Reason::Short })?) }; items_0.push(item).expect("count within capacity"); } items_0 };
         let decoded_first = { let length = match skein_codec::read_len(reader, limits.finding_signature_first.min(CEILINGS.finding_signature_first)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::FindingSignatureFirst, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::FindingSignatureFirst, reason: skein_codec::Reason::Short })?) };
-        Ok(Self { repository: decoded_repository, source: decoded_source, ids: decoded_ids, first: decoded_first })
+        let decoded_many = match reader.u8().ok_or(Problem { path: Path::FindingSignatureMany, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::FindingSignatureMany, reason: skein_codec::Reason::Bool }) };
+        Ok(Self { repository: decoded_repository, source: decoded_source, ids: decoded_ids, first: decoded_first, many: decoded_many })
     }
 }
 
@@ -80758,6 +81439,7 @@ impl FindingSignature {
         let mut size = 0_u64;
         size = size.checked_add(Repository::encoded_bound_within(limits)?)?.checked_add(4_u64.checked_add(u64::from(limits.finding_signature_source))?)?;
         size = size.checked_add(4_u64.checked_add(u64::from(limits.finding_signature_ids).checked_mul(4_u64.checked_add(u64::from(limits.finding_signature_ids_item))?)?)?)?.checked_add(4_u64.checked_add(u64::from(limits.finding_signature_first))?)?;
+        size = size.checked_add(1_u64)?;
         size.checked_add(0)
     }
 
@@ -80772,6 +81454,7 @@ impl FindingSignature {
         let mut heap = 0_u64;
         heap = heap.checked_add(Repository::decoded_bound_within(limits)?)?.checked_add(u64::from(limits.finding_signature_source))?;
         heap = heap.checked_add(List::<Box<[u8]>>::price(limits.finding_signature_ids)?.checked_add(u64::from(limits.finding_signature_ids).checked_mul(u64::from(limits.finding_signature_ids_item))?)?)?.checked_add(u64::from(limits.finding_signature_first))?;
+        heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
 }
@@ -80839,6 +81522,10 @@ pub struct FindingParts {
     pub signature: Option<FindingSignature>,
     /// The `seen` field.
     pub seen: Option<u32>,
+    /// The `blame` field.
+    pub blame: Option<FindingBlame>,
+    /// The `cleared` field.
+    pub cleared: Option<FindingCleared>,
 }
 
 /// `Finding` in this codec family.
@@ -80860,13 +81547,15 @@ pub struct Finding {
     reason: Option<Box<[u8]>>,
     signature: Option<FindingSignature>,
     seen: Option<u32>,
+    blame: Option<FindingBlame>,
+    cleared: Option<FindingCleared>,
 }
 
 impl Finding {
     /// Makes a value within the given limits.
     pub fn new(limits: &Limits, parts: FindingParts) -> Result<Self, Problem> {
-        let FindingParts { project, number, kind, severity, area, state, title, body, filer, at, why, hander, goal, reason, signature, seen } = parts;
-        let value = Self { project, number, kind, severity, area, state, title, body, filer, at, why, hander, goal, reason, signature, seen };
+        let FindingParts { project, number, kind, severity, area, state, title, body, filer, at, why, hander, goal, reason, signature, seen, blame, cleared } = parts;
+        let value = Self { project, number, kind, severity, area, state, title, body, filer, at, why, hander, goal, reason, signature, seen, blame, cleared };
         value.check(limits)?;
         Ok(value)
     }
@@ -80935,9 +81624,17 @@ impl Finding {
     #[must_use]
     pub fn seen(&self) -> &Option<u32> { &self.seen }
 
+    /// Reads the `blame` field.
+    #[must_use]
+    pub fn blame(&self) -> &Option<FindingBlame> { &self.blame }
+
+    /// Reads the `cleared` field.
+    #[must_use]
+    pub fn cleared(&self) -> &Option<FindingCleared> { &self.cleared }
+
     /// Moves the fields out without copying.
     #[must_use]
-    pub fn into_parts(self) -> FindingParts { FindingParts { project: self.project, number: self.number, kind: self.kind, severity: self.severity, area: self.area, state: self.state, title: self.title, body: self.body, filer: self.filer, at: self.at, why: self.why, hander: self.hander, goal: self.goal, reason: self.reason, signature: self.signature, seen: self.seen } }
+    pub fn into_parts(self) -> FindingParts { FindingParts { project: self.project, number: self.number, kind: self.kind, severity: self.severity, area: self.area, state: self.state, title: self.title, body: self.body, filer: self.filer, at: self.at, why: self.why, hander: self.hander, goal: self.goal, reason: self.reason, signature: self.signature, seen: self.seen, blame: self.blame, cleared: self.cleared } }
 
     fn check(&self, limits: &Limits) -> Result<(), Problem> {
         if let Some(some_0) = self.area.as_ref() && some_0.len() > usize::try_from(limits.finding_area_some.min(CEILINGS.finding_area_some)).expect("u32 fits usize") { return Err(Problem { path: Path::FindingArea, reason: skein_codec::Reason::Bound }); }
@@ -80946,6 +81643,9 @@ impl Finding {
         if let Some(some_0) = self.why.as_ref() && some_0.len() > usize::try_from(limits.finding_why_some.min(CEILINGS.finding_why_some)).expect("u32 fits usize") { return Err(Problem { path: Path::FindingWhy, reason: skein_codec::Reason::Bound }); }
         if let Some(some_0) = self.reason.as_ref() && some_0.len() > usize::try_from(limits.finding_reason_some.min(CEILINGS.finding_reason_some)).expect("u32 fits usize") { return Err(Problem { path: Path::FindingReason, reason: skein_codec::Reason::Bound }); }
         if let Some(some_0) = self.signature.as_ref() {
+        some_0.check(limits)?;
+        }
+        if let Some(some_0) = self.blame.as_ref() {
         some_0.check(limits)?;
         }
         Ok(())
@@ -81008,6 +81708,16 @@ impl Finding {
         size = size.checked_add(1).expect("schema ceilings fit u32");
         if field_seen.is_some() {
         size = size.checked_add(4).expect("schema ceilings fit u32");
+        }
+        let field_blame = &self.blame;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if let Some(some_0) = field_blame {
+        size = size.checked_add(some_0.measure()).expect("schema ceilings fit u32");
+        }
+        let field_cleared = &self.cleared;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if field_cleared.is_some() {
+        size = size.checked_add(16).expect("schema ceilings fit u32");
         }
         size
     }
@@ -81093,6 +81803,22 @@ impl Finding {
             }
             None => writer.put(&[0_u8])?,
         }
+        let field_blame = &self.blame;
+        match field_blame {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        some_0.encode(writer)?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
+        let field_cleared = &self.cleared;
+        match field_cleared {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        some_0.encode(writer)?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
         Ok(())
     }
 
@@ -81120,7 +81846,9 @@ impl Finding {
         let decoded_reason = match reader.u8().ok_or(Problem { path: Path::FindingReason, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some({ let length = match skein_codec::read_len(reader, limits.finding_reason_some.min(CEILINGS.finding_reason_some)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::FindingReason, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::FindingReason, reason: skein_codec::Reason::Short })?) }), _ => return Err(Problem { path: Path::FindingReason, reason: skein_codec::Reason::Tag }) };
         let decoded_signature = match reader.u8().ok_or(Problem { path: Path::FindingSignature, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(FindingSignature::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::FindingSignature, reason: skein_codec::Reason::Tag }) };
         let decoded_seen = match reader.u8().ok_or(Problem { path: Path::FindingSeen, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u32().ok_or(Problem { path: Path::FindingSeen, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::FindingSeen, reason: skein_codec::Reason::Tag }) };
-        Ok(Self { project: decoded_project, number: decoded_number, kind: decoded_kind, severity: decoded_severity, area: decoded_area, state: decoded_state, title: decoded_title, body: decoded_body, filer: decoded_filer, at: decoded_at, why: decoded_why, hander: decoded_hander, goal: decoded_goal, reason: decoded_reason, signature: decoded_signature, seen: decoded_seen })
+        let decoded_blame = match reader.u8().ok_or(Problem { path: Path::FindingBlame, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(FindingBlame::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::FindingBlame, reason: skein_codec::Reason::Tag }) };
+        let decoded_cleared = match reader.u8().ok_or(Problem { path: Path::FindingCleared, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(FindingCleared::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::FindingCleared, reason: skein_codec::Reason::Tag }) };
+        Ok(Self { project: decoded_project, number: decoded_number, kind: decoded_kind, severity: decoded_severity, area: decoded_area, state: decoded_state, title: decoded_title, body: decoded_body, filer: decoded_filer, at: decoded_at, why: decoded_why, hander: decoded_hander, goal: decoded_goal, reason: decoded_reason, signature: decoded_signature, seen: decoded_seen, blame: decoded_blame, cleared: decoded_cleared })
     }
 }
 
@@ -81142,6 +81870,7 @@ impl Finding {
         size = size.checked_add(1_u64.checked_add(4_u64.checked_add(u64::from(limits.finding_why_some))?)?)?.checked_add(1_u64.checked_add(Filer::encoded_bound_within(limits)?)?)?;
         size = size.checked_add(1_u64.checked_add(8_u64)?)?.checked_add(1_u64.checked_add(4_u64.checked_add(u64::from(limits.finding_reason_some))?)?)?;
         size = size.checked_add(1_u64.checked_add(FindingSignature::encoded_bound_within(limits)?)?)?.checked_add(1_u64.checked_add(4_u64)?)?;
+        size = size.checked_add(1_u64.checked_add(FindingBlame::encoded_bound_within(limits)?)?)?.checked_add(1_u64.checked_add(FindingCleared::encoded_bound_within(limits)?)?)?;
         size.checked_add(0)
     }
 
@@ -81162,6 +81891,7 @@ impl Finding {
         heap = heap.checked_add(u64::from(limits.finding_why_some))?.checked_add(Filer::decoded_bound_within(limits)?)?;
         heap = heap.checked_add(0_u64)?.checked_add(u64::from(limits.finding_reason_some))?;
         heap = heap.checked_add(FindingSignature::decoded_bound_within(limits)?)?.checked_add(0_u64)?;
+        heap = heap.checked_add(FindingBlame::decoded_bound_within(limits)?)?.checked_add(FindingCleared::decoded_bound_within(limits)?)?;
         heap.checked_add(0)
     }
 }

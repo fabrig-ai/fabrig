@@ -283,6 +283,11 @@ fn largest_forge_record_fits_the_application_ceiling() {
 #[test]
 fn a_full_finding_reaches_its_bound_without_growing_the_application_row() {
     let row = forge::Stored::Finding(fixtures::finding());
+    let meter = skein_world::domain::heap::Meter::new();
+    meter.start();
+    let cloned = row.clone();
+    let held = meter.end().held();
+    assert_eq!(forge::stored_bytes(&cloned), Some(held), "blamed landings and goals are owned bytes");
     let encoded = records::encode(&row);
     let limits = records::limits(&fixtures::LIMITS).unwrap();
     let bound = crate::v25::Finding::encoded_bound(&limits).unwrap();

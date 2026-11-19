@@ -659,6 +659,7 @@ fn check_flakes_file_with_the_triager_and_count_silently_even_when_refused() {
             source: b"check".as_slice().into(),
             ids: Box::new([flake().key]),
             first: Box::new([]),
+            many: false,
         })
     );
     let subscription =

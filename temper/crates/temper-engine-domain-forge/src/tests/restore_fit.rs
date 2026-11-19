@@ -249,6 +249,8 @@ pub(crate) fn row(kind: RecordKind, number: u32) -> Stored {
             reason: None,
             signature: None,
             seen: None,
+            blame: None,
+            cleared: None,
         }),
         RecordKind::Red => Stored::Red(Red {
             goal: n,

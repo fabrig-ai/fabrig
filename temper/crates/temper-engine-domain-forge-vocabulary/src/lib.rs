@@ -82,9 +82,10 @@ pub use drafts::{
     draft_path, drafts_subject,
 };
 pub use findings::{
-    AreaRow, CheckFlake, FileFinding, FileFindingAnswer, Filer, Finding, FindingAnswer, FindingDone, FindingKind,
-    FindingRefusal, FindingReply, FindingRow, FindingSignature, FindingState, FindingWrite, Findings, HandFinding,
-    HandFindingAnswer, Holder, Severity, Triage, TriageFinding, TriageFindingAnswer, findings_subject, owner,
+    AreaRow, BlameStrength, BlamedGoal, BlamedLanding, CheckFlake, FileFinding, FileFindingAnswer, Filer, Finding,
+    FindingAnswer, FindingBlame, FindingCleared, FindingDone, FindingKind, FindingRefusal, FindingReply, FindingRow,
+    FindingSignature, FindingState, FindingWrite, Findings, HandFinding, HandFindingAnswer, Holder, Severity, Triage,
+    TriageFinding, TriageFindingAnswer, findings_subject, owner,
 };
 pub use follows::{
     FollowAct, FollowCommit, FollowEntry, FollowLag, FollowParity, FollowQuestion, FollowRefusal, FollowRow,
@@ -639,6 +640,18 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
                     )?;
                 for id in &signature.ids {
                     bytes = bytes.checked_add(skein_lib::len_u64(id.len()))?;
+                }
+            }
+            if let Some(blame) = &row.blame {
+                bytes = bytes.checked_add(
+                    skein_lib::len_u64(blame.landings.len())
+                        .checked_mul(u64::try_from(size_of::<BlamedLanding>()).ok()?)?,
+                )?;
+                for landing in &blame.landings {
+                    bytes = bytes.checked_add(
+                        skein_lib::len_u64(landing.goals.len())
+                            .checked_mul(u64::try_from(size_of::<BlamedGoal>()).ok()?)?,
+                    )?;
                 }
             }
             for field in [&row.area, &row.why, &row.reason].into_iter().flatten() {

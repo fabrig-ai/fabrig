@@ -116,7 +116,7 @@ impl Domain {
             if row.state == FindingState::New {
                 new = new.saturating_add(1);
             }
-            if row.state.ended() {
+            if row.erasable() {
                 match oldest {
                     Some((at, _)) if at <= row.at => {}
                     Some(_) | None => oldest = Some((row.at, row.number)),
@@ -155,6 +155,8 @@ impl Domain {
                 reason: None,
                 signature: None,
                 seen: None,
+                blame: None,
+                cleared: None,
             },
             erase,
         })

@@ -226,7 +226,7 @@ pub(super) fn settings_holders(domain: &Domain, items: &[forge::settings::Asked]
     let mut holders = List::uncapped();
     for (&project, ()) in &projects {
         for (_, row) in domain.forge.findings(project) {
-            if !row.state.ended() {
+            if !row.state.ended() && !row.needs_no_triage() {
                 holders
                     .push((project, row.number, holder(domain, project, row.area.as_deref())))
                     .expect("one old holder per open finding");
@@ -352,7 +352,7 @@ pub fn document(
         if (match state {
             Some(state) => state != row.state,
             None => false,
-        }) || (only_mine && !mine(domain, project, party, held))
+        }) || (only_mine && (row.needs_no_triage() || !mine(domain, project, party, held)))
         {
             continue;
         }

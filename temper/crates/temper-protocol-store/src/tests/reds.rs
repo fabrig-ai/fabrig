@@ -225,6 +225,8 @@ fn finding() -> d::Finding {
         reason: None,
         signature: None,
         seen: None,
+        blame: None,
+        cleared: None,
     }
 }
 fn finding_prefix() -> Box<[u8]> {
@@ -251,15 +253,16 @@ fn finding_options_have_golden_bytes_validate_signatures_and_charge_their_owned_
                 source: b"check".as_slice().into(),
                 ids: Box::new([b"key".as_slice().into()]),
                 first: Box::default(),
+                many: false,
             });
             row.seen = Some(1);
         }
         let options: &[u8] = if options {
-            b"\x01\0\x01\0\0\0\x02\0\0\0\x05check\0\0\0\x01\0\0\0\x03key\0\0\0\0\x01\0\0\0\x01"
+            b"\x01\0\x01\0\0\0\x02\0\0\0\x05check\0\0\0\x01\0\0\0\x03key\0\0\0\0\0\x01\0\0\0\x01"
         } else {
             b"\0\0"
         };
-        let golden = skein_lib::bytes::concat(&[b"\0\x19\x25", &finding_prefix(), options]);
+        let golden = skein_lib::bytes::concat(&[b"\0\x19\x25", &finding_prefix(), options, b"\0\0"]);
         let stored = d::Stored::Finding(row.clone());
         assert_eq!(records::encode(&stored), golden);
         assert_eq!(records::decode(&golden, &bounds), Ok(stored));
@@ -270,30 +273,52 @@ fn finding_options_have_golden_bytes_validate_signatures_and_charge_their_owned_
         assert_eq!(d::stored_bytes(&cloned), Some(held));
     }
     let repo = skein_forge::api::Repository { forge: 1, repository: 2 };
+    let many = d::Stored::Finding(d::Finding {
+        signature: Some(d::FindingSignature {
+            repository: repo,
+            source: b"focused".as_slice().into(),
+            ids: Box::new([]),
+            first: Box::default(),
+            many: true,
+        }),
+        ..finding()
+    });
+    assert_eq!(records::decode(&records::encode(&many), &bounds), Ok(many));
     for signature in [
+        d::FindingSignature {
+            repository: repo,
+            source: b"focused".as_slice().into(),
+            ids: Box::new([b"key".as_slice().into()]),
+            first: Box::default(),
+            many: true,
+        },
         d::FindingSignature {
             repository: repo,
             source: Box::default(),
             ids: Box::new([b"a".as_slice().into()]),
             first: Box::default(),
+            many: false,
         },
         d::FindingSignature {
             repository: repo,
             source: b"check".as_slice().into(),
             ids: Box::new([]),
             first: Box::default(),
+            many: false,
         },
         d::FindingSignature {
             repository: repo,
             source: b"check".as_slice().into(),
             ids: Box::new([b"b".as_slice().into(), b"a".as_slice().into()]),
             first: Box::default(),
+            many: false,
         },
         d::FindingSignature {
             repository: repo,
             source: b"check".as_slice().into(),
             ids: Box::new([b"a".as_slice().into(), b"a".as_slice().into()]),
             first: Box::default(),
+            many: false,
         },
     ] {
         let row = d::Stored::Finding(d::Finding { signature: Some(signature), ..finding() });

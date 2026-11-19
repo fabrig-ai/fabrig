@@ -1,4 +1,5 @@
-//! Findings (temper/docs/design/domain/findings.md, 2, 6, 9; domain/areas.md, 3 to 7).
+//! Findings (temper/docs/design/domain/findings.md, 2, 6, 9; domain/areas.md, 3 to 7;
+//! domain/red-findings.md, 3, 6, 7, 9).
 use crate::{
     Request,
     settings::{AreaOwner, ProjectAreas},
@@ -68,6 +69,51 @@ pub struct Finding {
     pub reason: Option<Box<[u8]>>,
     pub signature: Option<FindingSignature>,
     pub seen: Option<u32>,
+    pub blame: Option<FindingBlame>,
+    pub cleared: Option<FindingCleared>,
+}
+impl Finding {
+    #[must_use]
+    pub fn uncleared_red(&self) -> bool {
+        self.kind == FindingKind::Red && self.blame.is_some() && self.cleared.is_none()
+    }
+    #[must_use]
+    pub fn erasable(&self) -> bool {
+        self.cleared.is_some() || (self.state.ended() && !self.uncleared_red())
+    }
+    #[must_use]
+    pub fn needs_no_triage(&self) -> bool {
+        self.cleared.is_some()
+    }
+}
+/// Blame kept by a red finding filed under `wait: landed` (domain/red-findings.md, 3).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct FindingBlame {
+    pub strength: BlameStrength,
+    pub landings: Box<[BlamedLanding]>,
+}
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum BlameStrength {
+    Owned,
+    Suspected,
+    Unblamed,
+}
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct BlamedLanding {
+    pub commit: skein_forge::api::Commit,
+    pub goals: Box<[BlamedGoal]>,
+}
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct BlamedGoal {
+    pub goal: u64,
+    pub milestone: Option<u64>,
+    pub person: Option<u64>,
+}
+/// The run that observed a finding cleared (domain/red-findings.md, 6).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct FindingCleared {
+    pub run: u64,
+    pub at: Wall,
 }
 /// Matching identity kept on a finding (domain/findings.md, 4).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -76,6 +122,7 @@ pub struct FindingSignature {
     pub source: Box<[u8]>,
     pub ids: Box<[Box<[u8]>]>,
     pub first: Box<[u8]>,
+    pub many: bool,
 }
 impl FindingSignature {
     /// The most ids kept on a finding (temper/docs/design/domain/findings.md, 4).
@@ -87,7 +134,7 @@ impl FindingSignature {
     pub fn fits(&self) -> bool {
         if self.source.is_empty()
             || self.source.len() > 64
-            || self.ids.is_empty()
+            || (self.ids.is_empty() != self.many)
             || self.ids.len() > skein_lib::usize_of(Self::IDS)
             || self.first.len() > 512
         {

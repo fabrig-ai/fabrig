@@ -3016,6 +3016,8 @@ fn findings_round_trip_full_rows_options_and_topic_and_refuse_wrong_keys() {
                     row.reason = None;
                     row.signature = None;
                     row.seen = None;
+                    row.blame = None;
+                    row.cleared = None;
                     row.filer = forge::Filer::Party(1);
                 }
                 let row = forge::Stored::Finding(row);
