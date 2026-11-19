@@ -895,6 +895,40 @@ fn start_refusals_name_every_phase_and_the_refused_project() {
 }
 
 #[test]
+fn unmade_landing_and_dropped_hold_warnings_name_the_repaired_rows() {
+    use temper_engine_service::Note;
+    assert_eq!(
+        note_line(
+            "temper-box",
+            Note::LandingUnmade {
+                task: 10030,
+                repository: skein_forge::api::Repository { forge: 1, repository: 7 },
+                branch: b"main".as_slice().into(),
+                changes: Box::new([8975, 9104, 9885, 10023]),
+            }
+        ),
+        "temper-box serve: warning: landing 10030 into main of repository 1/7 has no task: ended; its changes 8975, 9104, 9885, 10023 wait again\n"
+    );
+    assert_eq!(
+        note_line(
+            "temper-box",
+            Note::HoldDropped {
+                name: temper_engine_domain_forge::Name {
+                    forge: 1,
+                    repository: 7,
+                    what: temper_engine_domain_forge::What::Branch(Box::new([
+                        b"temper610030".as_slice().into(),
+                        b"l10030".as_slice().into(),
+                    ])),
+                },
+                task: 10030,
+            }
+        ),
+        "temper-box serve: warning: hold on temper610030/l10030 of repository 1/7 by task 10030, which has no task: dropped\n"
+    );
+}
+
+#[test]
 fn forge_link_refusals_name_the_phase_kind_key_and_missing_target() {
     use temper_engine_domain_forge::{Key, MissingLink, Need, RecordKind};
     let arguments =

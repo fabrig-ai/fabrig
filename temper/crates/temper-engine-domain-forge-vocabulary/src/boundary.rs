@@ -3129,6 +3129,18 @@ pub enum Request {
         request: Token,
         carried: jig_domain_core_vocabulary::Carried,
     },
+    /// A taskless landing ended in Link (domain/landing-forming.md, 4).
+    LandingUnmade {
+        task: u64,
+        repository: skein_forge::api::Repository,
+        branch: Box<[u8]>,
+        changes: Box<[u64]>,
+    },
+    /// A taskless hold with no live writer dropped in Link.
+    HoldDropped {
+        name: Name,
+        task: u64,
+    },
     /// A forge's link changed or was refused (temper/docs/design/domain/forge/adoption.md, 6).
     LinkNoted {
         forge: u16,

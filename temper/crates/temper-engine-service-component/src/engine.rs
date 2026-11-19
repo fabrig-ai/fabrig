@@ -344,6 +344,12 @@ impl Engine {
             }
             let Some(fact) = self.domain.pop_fact() else { break };
             match fact {
+                root::Fact::LandingUnmade { task, repository, branch, changes } => {
+                    self.notes.push(crate::Note::LandingUnmade { task, repository, branch, changes });
+                }
+                root::Fact::HoldDropped { name, task } => {
+                    self.notes.push(crate::Note::HoldDropped { name, task });
+                }
                 root::Fact::ForgeLink { forge, note } => {
                     self.notes.push(crate::Note::ForgeLink { forge, note });
                 }

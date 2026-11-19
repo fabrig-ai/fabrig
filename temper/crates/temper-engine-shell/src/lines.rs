@@ -452,6 +452,29 @@ pub fn note_line(binary: &str, note: temper_engine_service::Note) -> String {
         temper_engine_service::Note::StartupWarning { line } => {
             format!("{binary} serve: warning: {}\n", String::from_utf8_lossy(&line))
         }
+        temper_engine_service::Note::LandingUnmade { task, repository, branch, changes } => {
+            let changes = changes.iter().map(u64::to_string).collect::<Vec<_>>().join(", ");
+            format!(
+                "{binary} serve: warning: landing {task} into {} of repository {}/{} has no task: ended; its changes {changes} wait again\n",
+                String::from_utf8_lossy(&branch),
+                repository.forge,
+                repository.repository
+            )
+        }
+        temper_engine_service::Note::HoldDropped { name, task } => {
+            let branch = match name.what {
+                temper_engine_domain_forge::What::Branch(segments) => {
+                    segments.iter().map(|segment| String::from_utf8_lossy(segment)).collect::<Vec<_>>().join("/")
+                }
+                temper_engine_domain_forge::What::Repository => "repository".to_owned(),
+                temper_engine_domain_forge::What::Pull(number) => format!("pull {number}"),
+                temper_engine_domain_forge::What::Issue(number) => format!("issue {number}"),
+            };
+            format!(
+                "{binary} serve: warning: hold on {branch} of repository {}/{} by task {task}, which has no task: dropped\n",
+                name.forge, name.repository
+            )
+        }
         temper_engine_service::Note::ForgeLink { forge, note } => {
             let words = match note {
                 temper_engine_domain_forge::LinkNote::Gone => "their account is gone, the link kept",

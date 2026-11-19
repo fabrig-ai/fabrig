@@ -348,6 +348,8 @@ fn outputs(
             | Request::Read { .. }
             | Request::RestartDone { .. }
             | Request::Replace { .. }
+            | Request::LandingUnmade { .. }
+            | Request::HoldDropped { .. }
             | Request::LinkNoted { .. }) => emit(out, other),
         }
     }

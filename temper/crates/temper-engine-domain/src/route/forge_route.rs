@@ -4106,6 +4106,12 @@ pub(crate) fn outputs(
             forge::Request::HistoryPage { read, answer } => {
                 super::kinds::history_answer(domain, env, decision, read, answer);
             }
+            forge::Request::LandingUnmade { task, repository, branch, changes } => {
+                super::diagnostics::emit(domain, crate::Fact::LandingUnmade { task, repository, branch, changes });
+            }
+            forge::Request::HoldDropped { name, task } => {
+                super::diagnostics::emit(domain, crate::Fact::HoldDropped { name, task });
+            }
             forge::Request::LinkNoted { forge, note } => {
                 super::diagnostics::emit(domain, crate::Fact::ForgeLink { forge, note });
             }

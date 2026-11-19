@@ -705,6 +705,8 @@ impl Protocol {
                 | top::Request::Bound { .. }
                 | top::Request::PlaygroundActs { .. }
                 | top::Request::ResetAct { .. }
+                | top::Request::LandingUnmade { .. }
+                | top::Request::HoldDropped { .. }
                 | top::Request::LinkNoted { .. }
                 | top::Request::ForgeKept(_)
                 | top::Request::ForgeGone { .. }

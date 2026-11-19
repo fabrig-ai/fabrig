@@ -206,6 +206,17 @@ pub enum Note {
         forge: u16,
         note: temper_engine_domain_forge::LinkNote,
     },
+    /// Start's Link repairs (domain/landing-forming.md, 4).
+    LandingUnmade {
+        task: u64,
+        repository: skein_forge::api::Repository,
+        branch: Box<[u8]>,
+        changes: Box<[u64]>,
+    },
+    HoldDropped {
+        name: temper_engine_domain_forge::Name,
+        task: u64,
+    },
     /// The engine's hello refusal, suppressed until its words change (protocol/cluster.md, 3).
     HelloRefused {
         channel: u64,
