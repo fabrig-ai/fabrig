@@ -24,7 +24,7 @@ impl std::fmt::Display for Absent {
 }
 impl std::error::Error for Absent {}
 
-pub(crate) const NAMES: &[&str] = &[
+pub const NAMES: &[&str] = &[
     "token-expires-in-an-hour",
     "token-narrowed-creates-not-edits",
     "rate-core-5000",
@@ -305,7 +305,7 @@ fn queue_rules(out: &mut skein_json::writer::Encoder, squash: bool) {
     out.object_end();
     out.object_end();
 }
-pub(crate) fn run(r: &mut Runner<'_>) -> Result<()> {
+pub fn run(r: &mut Runner<'_>) -> Result<()> {
     authentication(r)?;
     pulls(r)?;
     rules(r)?;
@@ -625,7 +625,7 @@ fn rules(r: &mut Runner<'_>) -> Result<()> {
     r.fact("bypass-always-merges", matches!(answer, Ok(api::Answer::Merged(_))), "always bypass did not merge");
     queue(r)
 }
-pub(crate) fn queue(r: &mut Runner<'_>) -> Result<()> {
+pub fn queue(r: &mut Runner<'_>) -> Result<()> {
     let index = r.queue_installation.ok_or("organization installation absent")?;
     r.next("queue-direct-merge-405")?;
     let (base, _head, sha, n) = scenario(r, index, "queue")?;
@@ -1134,7 +1134,7 @@ fn repositories(r: &mut Runner<'_>) -> Result<()> {
     observation(r, "installation-repository-removal-refusals", access)?;
     Ok(())
 }
-pub(crate) fn issues_since_epoch(r: &mut Runner<'_>) -> Result<()> {
+pub fn issues_since_epoch(r: &mut Runner<'_>) -> Result<()> {
     let token = r.token(0)?;
     let repo = r.repo(0)?;
     let listing = format!("/repos/{repo}/issues?state=all&sort=updated&direction=asc&per_page=100&page=1");
@@ -1204,7 +1204,7 @@ fn access(r: &mut Runner<'_>) -> Result<()> {
     );
     Ok(())
 }
-pub(crate) fn logs(r: &mut Runner<'_>) -> Result<()> {
+pub fn logs(r: &mut Runner<'_>) -> Result<()> {
     if r.fake() {
         case(r, "installation-target-in-log", |r| {
             if let Target::Fake(world) = &mut r.target
@@ -1318,10 +1318,7 @@ pub(crate) fn setup_lifecycle(r: &mut Runner<'_>) -> Result<()> {
         r.provenance.push("# unchecked strays, uninstall, hook-address-set: live App is read only".into());
         return r.flush();
     }
-    #[cfg(test)]
-    {
-        r.phase = "setup-lifecycle";
-    }
+    r.phase = "setup-lifecycle";
     let list = r.app(Method::Get, "/app/installations?per_page=100&page=1", b"")?;
     if list.status != 200 || list.json()?.root().items().len() != 2 {
         return Err("fake stray installations absent".into());
@@ -1342,7 +1339,7 @@ pub(crate) fn setup_lifecycle(r: &mut Runner<'_>) -> Result<()> {
     r.flush()
 }
 
-pub(crate) fn bot_permission_is_not_a_role(r: &mut Runner<'_>) -> Result<()> {
+pub fn bot_permission_is_not_a_role(r: &mut Runner<'_>) -> Result<()> {
     case(r, "bot-permission-is-not-a-role", |r| {
         let installation = r.fixtures.installations[0].id;
         let at = r.now().as_nanos() / 1_000_000_000;

@@ -525,7 +525,8 @@ fn restart_retries_a_kept_limit_hold_and_freed_room_resumes_its_work() {
 }
 
 fn stock_overlap_world() -> World {
-    let mut configured = World::configured_limits(
+    let stock = temper_limits_fixtures::small();
+    World::configured_limits(
         true,
         true,
         false,
@@ -533,6 +534,10 @@ fn stock_overlap_world() -> World {
         Gate::default(),
         None,
         StoryLimits {
+            forge_resources_per_task: Some(stock.forge.resources_per_task),
+            forge_tasks: Some(stock.forge.tasks),
+            forge_resources: Some(stock.forge.client.resources),
+            forge_repositories: Some(stock.forge.client.repositories),
             turn: true,
             tier: Some(temper_engine_domain_world::tier_runs::Tier { silent: true, ..Default::default() }),
             tasks: Some(TASKS),
@@ -540,16 +545,7 @@ fn stock_overlap_world() -> World {
             spec_bytes: Some(4096),
             ..StoryLimits::default()
         },
-    );
-    let stock = temper_limits_fixtures::small();
-    configured.env.limits.forge.resources_per_task = stock.forge.resources_per_task;
-    configured.env.limits.forge.tasks = stock.forge.tasks;
-    let client = skein_forge_client::Limits {
-        resources: stock.forge.client.resources,
-        repositories: stock.forge.client.repositories,
-        ..configured.env.limits.forge.client
-    };
-    configured.with_forge_client(client)
+    )
 }
 
 #[test]

@@ -19,17 +19,25 @@ pub enum Unredacted {
 
 /// Take originals out of every field and joined stream, retaining frame sizes.
 pub fn redact(recording: &[u8], given: &[Box<[u8]>]) -> Result<Redacted, Unredacted> {
-    let mut lines = lines(recording).map_err(Unredacted::Unreadable)?;
+    let (lines, originals, places) = redact_lines(lines(recording).map_err(Unredacted::Unreadable)?, given)?;
+    Ok(Redacted { recording: written(lines), originals, places })
+}
+/// Redact already parsed lines, retaining originals and replacement counts.
+pub fn redact_lines(mut lines: Vec<Line>, given: &[Box<[u8]>]) -> Result<(Vec<Line>, Originals, u32), Unredacted> {
     let originals = originals(&lines, given);
     let places = replace(&mut lines, &originals, true).map_err(Unredacted::Undecoded)?;
-    Ok(Redacted { recording: written(lines), originals, places })
+    Ok((lines, originals, places))
 }
 
 /// Replace the browser's link and stored credentials, leaving memory and typed values alone
 /// (client/web/journeys.md, 3.1).
 #[must_use]
 pub fn saved(recording: &[u8]) -> Box<[u8]> {
-    let mut lines = lines(recording).expect("a recorder's file is always readable");
+    written(saved_lines(lines(recording).expect("a recorder's file is always readable")))
+}
+/// As `saved`, leaving parsed lines ready for further checks or replay.
+#[must_use]
+pub fn saved_lines(mut lines: Vec<Line>) -> Vec<Line> {
     let originals = super::originals::sign_in(&lines);
     if replace(&mut lines, &originals, false).is_err() {
         for line in &mut lines {
@@ -38,7 +46,7 @@ pub fn saved(recording: &[u8]) -> Box<[u8]> {
             }
         }
     }
-    written(lines)
+    lines
 }
 
 fn replace(lines: &mut [Line], originals: &Originals, include_typed: bool) -> Result<u32, Undecoded> {
