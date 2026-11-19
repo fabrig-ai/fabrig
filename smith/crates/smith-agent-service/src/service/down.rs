@@ -203,6 +203,7 @@ pub(super) fn component_down(service: &mut Stages) {
             machine::Below::Spawn { owner, root, spawn } => {
                 let descriptor = service.files.descriptor(root).expect("machine admitted an installed root");
                 let spawn = kernel::Spawn {
+                    reach: None,
                     program: spawn.program,
                     args: spawn.args,
                     env: spawn.env,

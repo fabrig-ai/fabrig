@@ -51,6 +51,7 @@ and the agent agent/README.md. What is still open is listed in section 12.
 ```
 temper-engine-domain                       the root: the journal, routing, translation, putting outputs together
 ├── jig-domain-core                        jig's core and its children (jig's domain/engine/README.md, section 3)
+├── temper-engine-domain-store             the root's store vocabulary: keys, records, ranges and pages (section 8)
 ├── temper-engine-domain-forge             the forge connector's top (forge/README.md, section 3)
 │   ├── temper-engine-domain-forge-vocabulary  what crosses the top's edge (forge/README.md, section 3)
 │   ├── skein-forge-client                 the working set, keeping up, fresh reads, the request budget, effects' keys, write lanes (skein's forge-client.md)
@@ -104,7 +105,7 @@ temper-engine-domain/src/
 ├── translate.rs        Config and the small total functions (section 6)
 ├── assemble.rs         assignments and briefs from their owners' parts (section 7)
 ├── link.rs             the hub's link records, and what a run left (sections 3 and 7)
-├── store.rs, loads.rs  keys, records, ranges and pages (section 8)
+├── store, loads        temper-engine-domain-store: keys, records, ranges and pages (section 8)
 ├── archive.rs          loads outside the working set (section 8)
 ├── restart.rs          the restart script's steps (section 9)
 ├── stopping.rs         the drain (section 9)
@@ -630,7 +631,20 @@ its bounded retry path.
   its dependencies' and inputs' results), a delegate batch's inputs, and
   the core's historical reads (ended conversations, decided escalations
   and proposals) are loads the root makes for the core and answers back
-  in its terms; a full table of them answers busy.
+  in its terms; a full table answers busy all but an ended task's load,
+  which waits (below).
+- **An ended task's load waits for a slot.** The core's load of an
+  ended task (jig's `Now::EndedTask`: a run's dependencies' and inputs'
+  results, and the ended task an amendment, a batch or a decision
+  reads) that finds the archive's read table or the load slots full, a
+  retired slot awaiting its reclaim among them, is not answered busy:
+  the root keeps it, in the order asked, and issues it once a slot
+  frees, before any read asked after it, still held behind the commits
+  made before the core asked (jig's `domain/engine/README.md`, 5.3).
+  Busy is left for a load that failed: a page refused or cut, or an
+  answer the archive cannot read. The core's other loads (an ended
+  conversation and its read position, a decided escalation or proposal,
+  a batch's inputs, a person's ended task) keep busy on a full table.
 - **An issued transcript load that fails** answers the core's
   `TranscriptLoad::Unread`, retiring its read once; an answer to a stale
   preparation is ignored. The core owns the window policy (jig's

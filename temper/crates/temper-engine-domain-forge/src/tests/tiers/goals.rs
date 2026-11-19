@@ -24,6 +24,7 @@ fn hold(d: &mut Domain, goal: u64, branch: &[u8]) {
         d,
         Event::Restore {
             record: Stored::Hold(Hold {
+                beside: None,
                 design_writers: Box::new([]),
                 name: name(branch),
                 task: goal,

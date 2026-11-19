@@ -188,6 +188,9 @@ fn child_actions(
 }
 
 pub(crate) fn spawn(command: &mut Spawn) -> Result<Done, Error> {
+    if command.reach.is_some() {
+        return Err(Error::Reach(skein_io::kernel::Unenforced::Unsupported));
+    }
     spawn_prepared(command, None).map_err(map_error)
 }
 
@@ -438,13 +441,25 @@ pub(crate) fn signal_child(handle: Fd, signal: Signal, to: Target) -> Result<Don
         return Err(Error::Other(libc::ESRCH));
     }
     let number = signal_number(signal);
-    let rc = match to {
-        // SAFETY: the lock keeps this pid unreaped throughout kill.
-        Target::Child => unsafe { libc::kill(child.pid, number) },
-        // SAFETY: this unreaped child leads its own group; killpg takes integers.
-        Target::Group => unsafe { libc::killpg(child.pid, number) },
-    };
-    super::status(rc).map_err(map_error)?;
+    match to {
+        Target::Child => {
+            // SAFETY: the lock keeps this pid unreaped throughout kill.
+            let rc = unsafe { libc::kill(child.pid, number) };
+            super::status(rc).map_err(map_error)?;
+        }
+        Target::Group => {
+            // SAFETY: this unreaped child leads its own group; killpg takes integers.
+            let rc = unsafe { libc::killpg(child.pid, number) };
+            if rc != 0 {
+                let errno = last_errno();
+                crate::posix::group::refused_group_signal(errno, || {
+                    // The table lock also keeps the leader unreaped during this reading.
+                    let group = u32::try_from(child.pid).map_err(|_| Error::InvalidArgument)?;
+                    super::group::group_has_running_member(group)
+                })?;
+            }
+        }
+    }
     Ok(Done::Nothing)
 }
 

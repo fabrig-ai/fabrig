@@ -158,6 +158,7 @@ impl Script {
         let kind = match act {
             Act::Spawn | Act::SpawnStderr | Act::SpawnProgram(_) => Op::Spawn {
                 spawn: Box::new(Spawn {
+                    reach: None,
                     program: Box::from(match act {
                         Act::SpawnProgram(program) => program,
                         _ => &b"hosted"[..],

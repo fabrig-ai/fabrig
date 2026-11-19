@@ -8,6 +8,7 @@ use skein_lib::{Duration, Queue, Reader, Secret, Time};
 use skein_shell::{Delegate, Host};
 use skein_world::{HostedProgram, Inherited, Referee};
 use smith_fake_claude::{Fake, Story};
+use smith_transcript::Record;
 
 use crate::world::{Parent, ParentOptions, Setup};
 
@@ -469,6 +470,7 @@ fn make_fake(spawn: &Spawn, inherited: &Inherited) -> Proc {
 
 fn fake_launch(spawn: &Spawn) -> Spawn {
     let mut launch = Spawn {
+        reach: None,
         program: spawn.program.clone(),
         args: spawn.args.clone(),
         env: spawn.env.clone(),
@@ -1085,37 +1087,28 @@ pub(crate) fn cancel() -> skein_channel::Frame {
 fn with_transcript(charter: &[u8], value: &smith_channel::GrantValue) -> skein_channel::Frame {
     let frame = crate::start_workspace_message(charter, 8, false, None, value, None);
     crate::wire::edit_start(&frame, |start| {
-        use smith_transcript::{self as t, CEILINGS};
-        let affinity =
-            t::Affinity::new(&CEILINGS, t::AffinityParts { key: [0; 16], thread: 0 }).expect("affinity fixture");
-        let opening =
-            t::Opening::new(&CEILINGS, t::OpeningParts { affinity, account: None, backend: t::Backend::Direct })
-                .expect("opening fixture");
-        let usage = t::Usage::new(
-            &CEILINGS,
-            t::UsageParts { input: None, output: None, cache_read: None, cache_write: None, reasoning: None },
-        )
-        .expect("usage fixture");
-        let turn = t::Turn::new(
-            &CEILINGS,
-            t::TurnParts {
-                kind: t::TurnKind::Ordinary,
-                opening: Some(opening),
-                endpoint: Box::default(),
-                model: Box::default(),
-                effort: None,
-                dialect: 0,
-                place: 1,
-                usage,
-                spent: 0,
-                jobs: 0,
-                messages: skein_lib::List::with_capacity(0),
-                system: None,
-            },
-        )
-        .expect("opening turn");
-        start.transcript =
-            smith_protocol_translate::transcript_piece(&[crate::encoded!(turn)]).expect("transcript piece");
+        use smith_transcript::{self as t};
+        let affinity = t::Affinity { key: [0; 16], thread: 0 };
+        let opening = t::Opening { affinity, account: None, backend: t::Backend::Direct };
+        let usage = t::Usage { input: None, output: None, cache_read: None, cache_write: None, reasoning: None };
+        let turn = t::Turn {
+            kind: t::TurnKind::Ordinary,
+            opening: Some(opening),
+            endpoint: Box::default(),
+            model: Box::default(),
+            effort: None,
+            dialect: 0,
+            place: 1,
+            usage,
+            spent: 0,
+            jobs: 0,
+            messages: skein_lib::List::with_capacity(0),
+            system: None,
+        };
+        start.transcript = smith_protocol_translate::transcript_piece(&[turn
+            .encode(&smith_transcript::CEILINGS)
+            .expect("bounded transcript")])
+        .expect("transcript piece");
     })
 }
 

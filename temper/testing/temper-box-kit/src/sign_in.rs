@@ -5,7 +5,7 @@ use skein_io::kernel::{Exit, Signal};
 use skein_lib::{Duration, Time};
 use skein_shell::{Clock, Host};
 use skein_world::{Referee, real};
-use std::{fs, path::Path, sync::LazyLock};
+use std::{path::Path, sync::LazyLock};
 
 const STOPS_WITHIN: Duration = Duration::from_secs(10);
 
@@ -49,11 +49,9 @@ pub fn configuration(directory: &Path) -> oauth::Peer {
 #[must_use]
 pub fn patch_configuration(directory: &Path) -> oauth::Peer {
     super::own_listener_files(directory);
-    let path = directory.join("temper.json");
-    let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("init document")).expect("JSON");
-    let taken = ["/application/clients/listener/socket", "/application/webhooks/listener/socket"].map(|pointer| {
-        value.pointer(pointer).expect("init listener").as_str().expect("socket string").parse().expect("socket")
-    });
+    let file = super::read_file(&directory.join(temper_config_shell::FILE), temper_config_shell::Shape::Standalone);
+    let taken = [file.listen.expect("init listener"), file.webhooks.expect("init webhooks")];
+    let mut value = serde_json::json!({});
     let [listener] = super::reserve_listeners(&taken);
     let address = listener.local_addr().expect("issuer address");
     let origin = format!("http://{address}");
@@ -78,7 +76,7 @@ pub fn patch_configuration(directory: &Path) -> oauth::Peer {
     temper_agent_fixtures::providers::input(&mut value)["endpoints"][0]["server_name"] = "skein.test".into();
     temper_agent_fixtures::providers::input(&mut value)["endpoints"][0]["trust"] =
         serde_json::json!(directory.join("root.der"));
-    super::write_private(&path, &serde_json::to_vec(&value).expect("configuration JSON"));
+    temper_agent_fixtures::providers::keep(&mut value, &temper_agent_fixtures::data(directory));
     let mut agent = temper_agent_fixtures::read(directory);
     agent["endpoints"][0]["address"] = "127.0.0.1:0".into();
     agent["endpoints"][0]["server_name"] = "skein.test".into();
@@ -212,6 +210,7 @@ pub(super) fn issuer(
 
 pub(super) fn start(directory: &Path) -> skein_world::end_to_end::Binary {
     use skein_world::end_to_end::{Binary, Command, Mode};
+    super::limit_settings::install(directory);
     // A fresh init's demo forge is prepared by box before it starts serve.
     Binary::start(
         Command {

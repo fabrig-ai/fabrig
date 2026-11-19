@@ -3,6 +3,7 @@
 use super::super::{goal_landing, reviews, tiers};
 use super::*;
 use temper_engine_domain_forge_change as change;
+use temper_protocol_worker_wire::v1::Record as WorkerRecord;
 
 const SLOTS: u32 = 3; // Two goal runs and one producer, review or prepare job.
 
@@ -181,7 +182,7 @@ fn two_goals_land_in_one_green_turn() {
         &mut skein_lib::Reader::new(&world.jobs[0].spec),
     )
     .expect("prepare spec");
-    let request: serde_json::Value = serde_json::from_slice(spec.request()).expect("prepare request");
+    let request: serde_json::Value = serde_json::from_slice(spec.request.as_ref()).expect("prepare request");
     assert_eq!(request["members"].as_array().expect("stack").len(), 2);
     let mut queue = [c1, c2];
     queue.sort_by_key(|number| (goal_landing::row(&world, *number).change.ready_since.expect("ready"), *number));

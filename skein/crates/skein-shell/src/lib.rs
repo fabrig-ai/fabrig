@@ -33,6 +33,9 @@ mod darwin;
 mod drive;
 #[cfg(unix)]
 mod group;
+/// First-line dispatch for the service's spawn helper.
+#[cfg(unix)]
+pub mod helper;
 #[cfg(unix)]
 pub mod keeper;
 #[cfg(unix)]
@@ -85,9 +88,11 @@ pub use listeners::{
     ListenerCheck, ListenersRefusal, MAX_INHERITED_LISTENERS, inherited_listeners, listener_at, open_listener,
 };
 #[cfg(unix)]
-pub use posix::descriptor_writes;
+pub use posix::{descriptor_writes, login, login_passwd};
 #[cfg(unix)]
-pub use process::{close_startup_fd, exec_dying_with_parent, open_termination_signals, spawn_dying_with_parent};
+pub use process::{
+    close_startup_fd, exec_dying_with_parent, login_id, open_termination_signals, spawn_dying_with_parent,
+};
 #[cfg(unix)]
 pub use seed::{crypto_seed, seed};
 pub use settings::{Base, Fallback, Origin, Reason, Refusal, Resolved, Setting, Settings, Value, help, resolve};

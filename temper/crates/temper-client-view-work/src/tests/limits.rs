@@ -158,10 +158,14 @@ fn draw_words(
     request: Option<&c::SpecificationDocument>,
     value: &[u8],
 ) {
+    let mut spare = None;
     for shell in [crate::words::Shell::Browser, crate::words::Shell::Terminal] {
         let words = crate::words::Words::english(f::FORGE, domain.client.domain.text, shell).unwrap();
         let bounds = crate::Limits::of(domain, &words).expect("the client can start");
-        let mut builder = skein_ui::Builder::new(&bounds.tree);
+        let mut builder = match spare.take() {
+            Some(tree) => skein_ui::Builder::reuse(tree, &bounds.tree),
+            None => skein_ui::Builder::new(&bounds.tree),
+        };
         crate::pages::chat::conversation(
             &mut builder,
             thread,
@@ -181,6 +185,7 @@ fn draw_words(
             text_bytes = text_bytes.checked_add(node.text_bytes()).unwrap();
         }
         assert!(text_bytes <= bounds.tree.text_bytes);
+        spare = Some(tree);
     }
 }
 

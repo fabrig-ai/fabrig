@@ -4,16 +4,19 @@ use alloc::boxed::Box;
 use skein_io::kernel::{self, Error, Fd, Op, OpenHow};
 use skein_lib::{Decimal, List, Token, bytes};
 use temper_worker_domain_checkout::git;
+mod index;
 mod objects;
 mod reds;
 mod results;
-use objects::{Alternates, Make, Store};
+mod view;
+use objects::{Alternates, Look, Make, Store};
 
 #[derive(Debug)]
 pub(crate) struct Directories {
     pub keep: bool,
     pub trash: Option<Fd>,
     pub workspaces: Option<Fd>,
+    pub gitdirs: Option<Fd>,
     pub stores: Option<Fd>,
     pub making: Option<Fd>,
     pub serial: u64,
@@ -21,7 +24,16 @@ pub(crate) struct Directories {
 }
 impl Directories {
     pub fn new(serial: u64) -> Directories {
-        Directories { keep: false, trash: None, workspaces: None, stores: None, making: None, serial, failures: 0 }
+        Directories {
+            keep: false,
+            trash: None,
+            workspaces: None,
+            gitdirs: None,
+            stores: None,
+            making: None,
+            serial,
+            failures: 0,
+        }
     }
     fn rename(&mut self, from_dir: Fd, from: Box<[u8]>) -> Op {
         let to = Box::from(Decimal::of(self.serial).as_bytes());
@@ -42,9 +54,12 @@ pub(crate) enum Phase {
     Results(results::File),
     Layout(Layout),
     Make(Make),
+    Look(Look),
     Store(Store),
     Alternates(Alternates),
+    View(view::View),
     Scan(Scan),
+    Index(index::File),
     Sweep(Sweep),
     Closing,
 }
@@ -53,6 +68,9 @@ pub(crate) enum Layout {
     Trash,
     OpenTrash,
     Workspaces,
+    Gitdirs,
+    NewGitdirs,
+    OpenGitdirs,
     Home,
     Making,
     NewMaking,
@@ -74,6 +92,7 @@ pub(crate) struct Scan {
     closing: bool,
     failed: bool,
     place: Box<[u8]>,
+    next: invocation::Command,
 }
 #[derive(Debug)]
 pub(crate) struct Sweep {
@@ -147,6 +166,9 @@ impl Task {
     pub fn make(workspace: Token, stores: Box<[Token]>) -> Task {
         Task { word: None, pending: Token::new(0), phase: Phase::Make(Make::new(workspace, stores)) }
     }
+    pub fn look(directory: Box<[u8]>) -> Task {
+        Task { word: Some(b"look"), pending: Token::new(0), phase: Phase::Look(Look::new(directory)) }
+    }
     pub fn store(store: Token, aside: Option<Token>, remote: Box<[u8]>) -> Task {
         Task { word: Some(b"store"), pending: Token::new(0), phase: Phase::Store(Store::new(store, aside, remote)) }
     }
@@ -157,19 +179,37 @@ impl Task {
             phase: Phase::Store(Store::install(store, directory, done)),
         }
     }
-    pub fn alternates(at: &git::Place, store: Token, remote: Box<[u8]>) -> Task {
+    pub fn alternates(at: &git::Place, store: Token, remote: Box<[u8]>, format: invocation::Format) -> Task {
         Task {
             word: Some(b"alternates"),
             pending: Token::new(0),
-            phase: Phase::Alternates(Alternates::new(at, store, remote)),
+            phase: Phase::Alternates(Alternates::new(at, store, remote, format)),
         }
     }
-    pub fn scan(files: Box<[Box<[u8]>]>, place: Box<[u8]>) -> Task {
+    pub fn view(
+        at: &git::Place,
+        done: Box<git::Done>,
+        retry: bool,
+        remake: bool,
+        format: Option<invocation::Format>,
+    ) -> Task {
+        Task {
+            word: Some(b"view"),
+            pending: Token::new(0),
+            phase: Phase::View(view::View::new(at, done, retry, remake, format)),
+        }
+    }
+    pub fn scan(files: Box<[Box<[u8]>]>, place: Box<[u8]>, cut: bool) -> Task {
         let marked = List::with_capacity(u32::try_from(files.len()).expect("validated conflict count"));
         Task {
             word: Some(b"scan"),
             pending: Token::new(0),
             phase: Phase::Scan(Scan {
+                next: if cut {
+                    invocation::Command::UpdateIndex { paths: crate::output::path_input(&files) }
+                } else {
+                    invocation::Command::Add
+                },
                 files,
                 marked,
                 index: 0,
@@ -181,6 +221,12 @@ impl Task {
                 place,
             }),
         }
+    }
+    pub fn copy_index(directory: Box<[u8]>, next: Next) -> Task {
+        Task { word: Some(b"scan"), pending: Token::new(0), phase: Phase::Index(index::File::copy(directory, next)) }
+    }
+    pub fn remove_index(directory: Box<[u8]>, next: Next, word: Option<&'static [u8]>) -> Task {
+        Task { word, pending: Token::new(0), phase: Phase::Index(index::File::remove(directory, next)) }
     }
     pub fn sweep() -> Task {
         Task {
@@ -198,15 +244,18 @@ impl Task {
     pub fn closing() -> Task {
         Task { word: None, pending: Token::new(0), phase: Phase::Closing }
     }
-    pub fn first(&mut self, dirs: &mut Directories, settings: &Settings) -> Action {
+    pub fn first(&mut self, dirs: &mut Directories, settings: &Settings, limits: &Limits) -> Action {
         match &mut self.phase {
             Phase::Reds(files) => files.first(settings),
             Phase::Results(file) => file.first(settings),
             Phase::Layout(_) => Action::Run(mkdir(settings.root, b"trash")),
             Phase::Make(make) => make.first(dirs),
+            Phase::Look(look) => look.first(settings),
             Phase::Store(store) => store.first(dirs),
             Phase::Alternates(alternates) => alternates.first(settings),
+            Phase::View(view) => view.first(dirs, settings, limits),
             Phase::Scan(scan) => scan.next(settings),
+            Phase::Index(file) => file.first(settings),
             Phase::Sweep(_) => Action::Run(open(settings.root, Box::from(&b"trash"[..]), OpenHow::DirectoryNoFollow)),
             Phase::Closing => closing(dirs),
         }
@@ -266,9 +315,12 @@ impl Task {
                 if stop { Action::Layout(Err(Error::Cancelled)) } else { action }
             }
             Phase::Make(make) => make.complete(complete.result, dirs, settings, stop),
+            Phase::Look(look) => look.complete(complete.result, stop),
             Phase::Store(store) => store.complete(complete.result, dirs, stop),
             Phase::Alternates(alternates) => alternates.complete(complete.result, stop),
+            Phase::View(view) => view.complete(complete, dirs, settings, limits, stop),
             Phase::Scan(scan) => scan.complete(complete, settings, limits, stop),
+            Phase::Index(file) => file.complete(complete, settings, limits, stop),
             Phase::Sweep(sweep) => sweep.complete(complete, dirs, settings, limits, stop),
             Phase::Closing => closing(dirs),
         }
@@ -279,6 +331,9 @@ fn closing(dirs: &mut Directories) -> Action {
         return close(fd);
     }
     if let Some(fd) = dirs.stores.take() {
+        return close(fd);
+    }
+    if let Some(fd) = dirs.gitdirs.take() {
         return close(fd);
     }
     if let Some(fd) = dirs.workspaces.take() {
@@ -297,13 +352,14 @@ fn layout(
 ) -> Action {
     let allowed = match stage {
         Layout::Trash | Layout::NewStores => result == Err(Error::Exists),
-        Layout::Workspaces | Layout::Making | Layout::Home => result == Err(Error::NotFound),
-        Layout::NewWorkspaces => dirs.keep && result == Err(Error::Exists),
+        Layout::Workspaces | Layout::Gitdirs | Layout::Making | Layout::Home => result == Err(Error::NotFound),
+        Layout::NewWorkspaces | Layout::NewGitdirs => dirs.keep && result == Err(Error::Exists),
         Layout::OpenTrash
         | Layout::NewMaking
         | Layout::OpenMaking
         | Layout::NewHome
         | Layout::OpenWorkspaces
+        | Layout::OpenGitdirs
         | Layout::OpenStores => false,
     };
     if let Err(error) = result
@@ -321,10 +377,12 @@ fn layout(
                 (Layout::Workspaces, dirs.rename(settings.root, Box::from(&b"workspaces"[..])))
             }
         }
-        Layout::Workspaces => (Layout::Making, dirs.rename(settings.root, Box::from(&b"making"[..]))),
+        Layout::Workspaces => (Layout::Gitdirs, dirs.rename(settings.root, Box::from(&b"gitdirs"[..]))),
+        Layout::Gitdirs => (Layout::Making, dirs.rename(settings.root, Box::from(&b"making"[..]))),
         Layout::Making => (Layout::Home, dirs.rename(settings.root, Box::from(&b"home"[..]))),
         Layout::Home => (Layout::NewWorkspaces, mkdir(settings.root, b"workspaces")),
-        Layout::NewWorkspaces => (Layout::NewStores, mkdir(settings.root, b"stores")),
+        Layout::NewWorkspaces => (Layout::NewGitdirs, mkdir(settings.root, b"gitdirs")),
+        Layout::NewGitdirs => (Layout::NewStores, mkdir(settings.root, b"stores")),
         Layout::NewStores => (Layout::NewMaking, mkdir(settings.root, b"making")),
         Layout::NewMaking => (Layout::NewHome, mkdir(settings.root, b"home")),
         Layout::NewHome => {
@@ -332,6 +390,10 @@ fn layout(
         }
         Layout::OpenWorkspaces => {
             dirs.workspaces = Some(fd(result).expect("successful open"));
+            (Layout::OpenGitdirs, open(settings.root, Box::from(&b"gitdirs"[..]), OpenHow::DirectoryNoFollow))
+        }
+        Layout::OpenGitdirs => {
+            dirs.gitdirs = Some(fd(result).expect("successful open"));
             (Layout::OpenStores, open(settings.root, Box::from(&b"stores"[..]), OpenHow::DirectoryNoFollow))
         }
         Layout::OpenStores => {
@@ -350,7 +412,7 @@ impl Scan {
     fn next(&mut self, settings: &Settings) -> Action {
         let Some(path) = self.files.get(self.index) else {
             return Action::Operation(if self.marked.is_empty() {
-                Next::Run(invocation::Command::Add)
+                Next::Run(self.next.clone())
             } else {
                 Next::End(git::Done::Conflicted {
                     files: core::mem::replace(&mut self.marked, List::with_capacity(0)).into_boxed(),
@@ -400,39 +462,7 @@ impl Scan {
         } else {
             match count(complete.result) {
                 Ok(n) => {
-                    let buf = match complete.kind {
-                        Op::Read { buf, .. } => buf,
-                        Op::Lock { .. }
-                        | Op::Socket { .. }
-                        | Op::Bind { .. }
-                        | Op::Listen { .. }
-                        | Op::Accept { .. }
-                        | Op::Connect { .. }
-                        | Op::Recv { .. }
-                        | Op::Send { .. }
-                        | Op::Shutdown { .. }
-                        | Op::Close { .. }
-                        | Op::Open { .. }
-                        | Op::Write { .. }
-                        | Op::Append { .. }
-                        | Op::Truncate { .. }
-                        | Op::Sync { .. }
-                        | Op::Stat { .. }
-                        | Op::HardLink { .. }
-                        | Op::Rename { .. }
-                        | Op::Remove { .. }
-                        | Op::MakeDirectory { .. }
-                        | Op::List { .. }
-                        | Op::Spawn { .. }
-                        | Op::Wait { .. }
-                        | Op::Signal { .. }
-                        | Op::Usage
-                        | Op::Window { .. }
-                        | Op::ReadSignal { .. }
-                        | Op::PipeRead { .. }
-                        | Op::PipeWrite { .. }
-                        | Op::Cancel { .. } => unreachable!("scan read"),
-                    };
+                    let buf = read_buffer(complete.kind);
                     let kept = buf.get(..usize::try_from(n).expect("read count fits")).expect("kernel read count");
                     self.markers.feed(kept);
                     self.at = self.at.checked_add(u64::from(n)).expect("file offset fits");
@@ -451,6 +481,41 @@ impl Scan {
         }
         self.closing = true;
         close(self.fd.expect("scan open"))
+    }
+}
+fn read_buffer(op: Op) -> Box<[u8]> {
+    match op {
+        Op::Read { buf, .. } => buf,
+        Op::Lock { .. }
+        | Op::Socket { .. }
+        | Op::Bind { .. }
+        | Op::Listen { .. }
+        | Op::Accept { .. }
+        | Op::Connect { .. }
+        | Op::Recv { .. }
+        | Op::Send { .. }
+        | Op::Shutdown { .. }
+        | Op::Close { .. }
+        | Op::Open { .. }
+        | Op::Write { .. }
+        | Op::Append { .. }
+        | Op::Truncate { .. }
+        | Op::Sync { .. }
+        | Op::Stat { .. }
+        | Op::HardLink { .. }
+        | Op::Rename { .. }
+        | Op::Remove { .. }
+        | Op::MakeDirectory { .. }
+        | Op::List { .. }
+        | Op::Spawn { .. }
+        | Op::Wait { .. }
+        | Op::Signal { .. }
+        | Op::Usage
+        | Op::Window { .. }
+        | Op::ReadSignal { .. }
+        | Op::PipeRead { .. }
+        | Op::PipeWrite { .. }
+        | Op::Cancel { .. } => unreachable!("results read completion"),
     }
 }
 fn page(complete: kernel::Complete) -> Result<Box<[u8]>, Error> {

@@ -5,6 +5,9 @@ use jig_conformance::scenarios::{Scenario, ScenarioApplication, Step, program};
 use jig_conformance::{Cut, Harness, Outcome, referee::Violation};
 use std::{cell::RefCell, rc::Rc};
 
+mod observations;
+pub use observations::OutsideText;
+
 #[derive(Clone, Debug, Default)]
 struct Position {
     step: usize,
@@ -96,7 +99,7 @@ pub fn every_cut_traced(
     enabled: Option<bool>,
     visit: impl FnMut(u64, World) + 'static,
 ) -> Result<Outcome, Violation> {
-    cuts_traced(scenario, seed, enabled, None, visit)
+    cuts_traced(scenario, seed, enabled, None, false, visit)
 }
 
 /// Compare selected durable snapshots without replaying the other cuts.
@@ -110,7 +113,22 @@ pub fn chosen_cuts_traced(
     cuts: &[u64],
     visit: impl FnMut(u64, World) + 'static,
 ) -> Result<Outcome, Violation> {
-    cuts_traced(scenario, seed, enabled, Some(cuts.to_vec()), visit)
+    cuts_traced(scenario, seed, enabled, Some(cuts.to_vec()), false, visit)
+}
+
+/// Hold the baseline once; each snapshot continuation and its visitor run in a child.
+/// No retained observation is allocated in the baseline's metered heap.
+///
+/// # Errors
+/// Returns a baseline violation or names the snapshot cut whose child failed.
+pub fn fork_snapshots(
+    scenario: Scenario,
+    seed: u64,
+    enabled: Option<bool>,
+    cuts: Option<&[u64]>,
+    visit: impl FnMut(u64, World) + 'static,
+) -> Result<Outcome, Violation> {
+    cuts_traced(scenario, seed, enabled, cuts.map(<[u64]>::to_vec), true, visit)
 }
 
 fn cuts_traced(
@@ -118,6 +136,7 @@ fn cuts_traced(
     seed: u64,
     enabled: Option<bool>,
     selected: Option<Vec<u64>>,
+    fork: bool,
     mut visit: impl FnMut(u64, World) + 'static,
 ) -> Result<Outcome, Violation> {
     let config = Testing::configuration(scenario, seed).expect("testing binds every shared story");
@@ -129,6 +148,8 @@ fn cuts_traced(
     let hook_position = Rc::clone(&position);
     let failure = Rc::new(RefCell::new(None));
     let hook_failure = Rc::clone(&failure);
+    let passed = Rc::new(RefCell::new(Vec::new()));
+    let hook_passed = Rc::clone(&passed);
     world.on_commit(move |world| {
         if hook_failure.borrow().is_some() {
             return;
@@ -137,12 +158,34 @@ fn cuts_traced(
         if selected.as_ref().is_some_and(|cuts| !cuts.contains(&cut)) {
             return;
         }
+        if fork {
+            match skein_fork::split() {
+                skein_fork::Split::Child => {}
+                skein_fork::Split::Parent(skein_fork::Exit::Code(0)) => {
+                    hook_passed.borrow_mut().push(cut);
+                    return;
+                }
+                skein_fork::Split::Parent(exit) => {
+                    hook_failure.replace(Some(Violation {
+                        promise: jig_conformance::referee::Promise::Lost,
+                        why: format!("snapshot cut {cut} failed: {exit:?}"),
+                    }));
+                    return;
+                }
+            }
+        }
         let continuation = hook_position.borrow().clone();
         let result = world.cold_snapshot().and_then(World::from_snapshot).and_then(|mut replay| {
             finish(&mut replay, scenario, seed, continuation, &RefCell::new(Position::default()))?;
             visit(cut, replay);
             Ok(())
         });
+        if fork {
+            if let Err(error) = &result {
+                panic!("snapshot cut {cut}: {error:?}");
+            }
+            skein_fork::passed();
+        }
         if let Err(error) = result {
             hook_failure
                 .replace(Some(Violation { promise: error.promise, why: format!("snapshot cut {cut}: {}", error.why) }));
@@ -152,7 +195,9 @@ fn cuts_traced(
     if let Some(error) = failure.take() {
         return Err(error);
     }
-    Ok(world.outcome())
+    let mut outcome = world.outcome();
+    outcome.forked = passed.take();
+    Ok(outcome)
 }
 
 /// Original fresh replay, retained for random cuts and independent comparison.
@@ -163,7 +208,41 @@ pub fn fresh(scenario: Scenario, cut: Cut, seed: u64, enabled: bool) -> Result<W
     let config = Testing::configuration(scenario, seed).expect("testing binds every shared story");
     let mut world = Harness::<Testing>::with_trace(config, seed, enabled);
     world.cut(cut);
-    diagnose(&mut world, seed, scenario, |world| {
+    finish_fresh(&mut world, scenario, seed)?;
+    Ok(world)
+}
+
+/// A fresh prefix, never captured from a snapshot, held once for selected cuts.
+/// Each child finishes its story and visits the complete outside state before exiting.
+///
+/// # Errors
+/// Returns a scenario/referee failure or a child that did not pass its comparison.
+pub fn fresh_cuts(
+    scenario: Scenario,
+    cuts: Option<&[u64]>,
+    seed: u64,
+    enabled: Option<bool>,
+    mut visit: impl FnMut(u64, &World),
+) -> Result<Outcome, Violation> {
+    let config = Testing::configuration(scenario, seed).expect("testing binds every shared story");
+    let mut world = enabled.map_or_else(
+        || Harness::<Testing>::new(config, seed),
+        |enabled| Harness::<Testing>::with_trace(config, seed, enabled),
+    );
+    match cuts {
+        Some(cuts) => world.fork_cuts(cuts),
+        None => world.cut(Cut::EachCommitFrom(1)),
+    }
+    finish_fresh(&mut world, scenario, seed)?;
+    if let Some(cut) = world.forked_at() {
+        visit(cut, &world);
+    }
+    jig_conformance::cut_passed();
+    Ok(world.outcome())
+}
+
+fn finish_fresh(world: &mut World, scenario: Scenario, seed: u64) -> Result<(), Violation> {
+    diagnose(world, seed, scenario, |world| {
         for step in program(scenario) {
             match step {
                 Step::Action(action) => Testing::action(world, action).map_err(|error| world.diagnostic(error))?,
@@ -176,8 +255,7 @@ pub fn fresh(scenario: Scenario, cut: Cut, seed: u64, enabled: bool) -> Result<W
         }
         Testing::check(world, scenario).map_err(|error| world.diagnostic(error))?;
         Ok(())
-    })?;
-    Ok(world)
+    })
 }
 
 macro_rules! outside_state {
@@ -187,8 +265,18 @@ macro_rules! outside_state {
         pub struct Outside { $($field: $kind),+ }
         /// Complete outside state, including durable store fields and trace lines.
         #[must_use]
-        pub fn outside($world: &World) -> Outside { Outside { $($field: $value),+ } }
+        pub fn outside($world: &World) -> Outside { Outside { $($field: Clone::clone($value)),+ } }
+        /// Serialize borrowed outside fields after the run's last heap check.
+        #[must_use]
+        pub fn outside_text($world: &World) -> OutsideText {
+            OutsideText::new(vec![$(observations::field_text($value)),+])
+        }
         impl Outside {
+            /// Full field text for a process boundary, after the run's last heap check.
+            #[must_use]
+            pub fn text(&self) -> OutsideText {
+                OutsideText::new(vec![$(observations::field_text(&self.$field)),+])
+            }
             /// The field that differs and its first differing `{:#?}` line.
             #[must_use]
             pub fn first_difference(&self, other: &Self) -> Option<String> {
@@ -205,17 +293,18 @@ macro_rules! outside_state {
                 None
             }
         }
+        pub(super) const OUTSIDE_FIELDS: &[&str] = &[$(stringify!($field)),+];
     };
 }
 outside_state!(world;
-    systems: [jig_test_system::System; 2] = world.systems.clone(),
-    peers: crate::Neighbours = world.peers.clone(),
-    applied: u64 = world.store.applied,
-    rows: std::collections::BTreeMap<jig_test_domain::Key, jig_test_domain::Record> = world.store.rows.clone(),
-    pending: std::collections::VecDeque<jig_test_store_files::Pending> = world.store.pending.clone(),
-    held: std::collections::VecDeque<u64> = world.store.held.clone(),
-    referee: jig_conformance::referee::Referee = world.referee.clone(),
-    clock: u64 = world.clock().now,
-    outcome: Outcome = world.outcome(),
-    trace: Vec<String> = world.trace.to_vec(),
+    systems: [jig_test_system::System; 2] = &world.systems,
+    peers: crate::Neighbours = &world.peers,
+    applied: u64 = &world.store.applied,
+    rows: std::collections::BTreeMap<jig_test_domain::Key, jig_test_domain::Record> = &world.store.rows,
+    pending: std::collections::VecDeque<jig_test_store_files::Pending> = &world.store.pending,
+    held: std::collections::VecDeque<u64> = &world.store.held,
+    referee: jig_conformance::referee::Referee = &world.referee,
+    clock: u64 = &world.clock().now,
+    outcome: Outcome = &world.outcome(),
+    trace: Vec<String> = &world.trace.to_vec(),
 );

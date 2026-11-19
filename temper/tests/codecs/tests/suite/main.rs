@@ -1,5 +1,8 @@
 //! Codec worlds (temper/docs/design/testing/README.md, 2).
 
+#[global_allocator]
+static HEAP: skein_heap::Counting = skein_heap::Counting;
+
 #[path = "../support/store.rs"]
 mod fixture;
 #[path = "../support/protection.rs"]
@@ -20,3 +23,8 @@ mod fuzzy {
     mod store;
     mod worker_wire;
 }
+
+mod codec_memory {
+    include!("../../../../../skein/testing/codec-memory.rs");
+}
+mod largest_memory;

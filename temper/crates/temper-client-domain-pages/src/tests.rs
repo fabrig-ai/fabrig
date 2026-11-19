@@ -1,4 +1,5 @@
 //! Tests staged for the pages piece (client/domain-crates.md, 4.3).
+mod accounts;
 mod calls;
 mod chat_document;
 mod choice;

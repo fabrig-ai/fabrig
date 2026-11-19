@@ -4,11 +4,11 @@
 //! narrow every effect and workspace check (domain/authority.md, 6). Reports retry the
 //! complete batch against current state. Uncommitted requests are retried by
 //! their sender after restart; this table is never restored from the store.
-use crate::{Core, Event, Limits, effects::connector, routing::Work};
+use crate::{Core, Limits, effects::connector, routing::Work};
 use alloc::boxed::Box;
 use jig_domain_authority as authority;
 use jig_domain_tasks as tasks;
-use skein_lib::{Env, List, Queue, ReplyTo, Token};
+use skein_lib::{Env, List, Queue, ReplyTo, Time};
 
 /// An uncommitted whole batch, awaiting connector reports.
 #[derive(Hash, Debug)]
@@ -16,6 +16,7 @@ pub(crate) struct Batch {
     pub reply_to: ReplyTo,
     pub kind: Kind,
     pub members: Box<[tasks::New]>,
+    pub deadline: Time,
 }
 
 /// The task admission continuation retained with a pending batch.
@@ -34,7 +35,7 @@ impl Kind {
             Kind::Result { proposer, .. } => tasks::Party::Task(*proposer),
         }
     }
-    fn event(self, reply_to: ReplyTo, batch: Box<[tasks::New]>) -> tasks::Event {
+    pub(crate) fn event(self, reply_to: ReplyTo, batch: Box<[tasks::New]>) -> tasks::Event {
         match self {
             Kind::Creation { creator, maker, places } => tasks::Event::Make { reply_to, creator, maker, batch, places },
             Kind::Result { proposer, proposal } => {
@@ -66,6 +67,7 @@ pub(crate) fn defer(
     kind: Kind,
     batch: Box<[tasks::New]>,
     out: &mut Queue<tasks::Request>,
+    deadline: Option<Time>,
 ) -> Option<tasks::Event> {
     let reported = reported(core, &batch);
     if !tasks::bounded_batch(&env.limits.tasks, &batch) {
@@ -99,6 +101,17 @@ pub(crate) fn defer(
                 return None;
             }
         }
+    }
+    let owner = reply_to.into_token();
+    let reply_to = ReplyTo::new(owner);
+    if let Err(cause) = core.tasks.pin_reports(owner, &batch) {
+        let capacity = tasks::Capacity::batch(kind.by(), &batch, None, cause);
+        core.tasks.remember_capacity(env.wall, capacity);
+        out.push(tasks::Request::Refused {
+            reply_to,
+            problem: tasks::Problem::capacity(None, tasks::Refusal::Busy, capacity),
+        });
+        return None;
     }
     if reported {
         let mut members = List::with_capacity(env.limits.tasks.batch);
@@ -138,30 +151,73 @@ pub(crate) fn defer(
         });
         return None;
     }
-    let batch = Batch { reply_to, kind, members: batch };
+    let deadline = deadline.unwrap_or(env.now.saturating_add(env.limits.tasks.hold_wait));
+    let batch = Batch { reply_to, kind, members: batch, deadline };
     let _flight = core.fly(crate::routing::flight::Flight::AwaitingResources(batch));
     None
 }
 
 pub(crate) fn resume(core: &mut Core, work: &mut Queue<Work>) {
-    // Resume one whole batch per report; later decisions check readiness again.
-    let mut ready: Option<Token> = None;
+    // Every ready batch is retried, even when an earlier one fails a core check.
+    let mut ready = List::with_capacity(core.flight_tasks_capacity);
     for (id, flight) in &core.flights {
         let crate::routing::flight::Flight::AwaitingResources(batch) = flight else { continue };
-        let token = id.token();
         if reported(core, &batch.members) {
-            ready = Some(token);
-            break;
+            ready.push(id.token()).expect("bounded waiting batches");
         }
     }
-    if let Some(token) = ready {
+    for token in ready.into_boxed() {
         let Some(crate::routing::flight::Flight::AwaitingResources(batch)) =
             core.land_kind(token, crate::routing::flight::Kind::AwaitingResources)
         else {
-            return;
+            unreachable!("ready batch retained");
         };
-        work.push(Work::Event(Event::Tasks(batch.kind.event(batch.reply_to, batch.members))));
+        work.push(Work::Resources(batch));
     }
+}
+
+/// Earliest deadline among uncommitted batches (domain/tasks/holds.md, 2).
+pub(crate) fn next_deadline(core: &Core) -> Option<Time> {
+    let mut next: Option<Time> = None;
+    for (_, flight) in &core.flights {
+        let crate::routing::flight::Flight::AwaitingResources(batch) = flight else { continue };
+        next = Some(match next {
+            Some(next) => next.min(batch.deadline),
+            None => batch.deadline,
+        });
+    }
+    next
+}
+
+/// Decide every expired batch, naming only members whose reports never came.
+pub(crate) fn expire(core: &mut Core, env: &Env<Limits>) -> Queue<tasks::Request> {
+    let mut expired = List::with_capacity(core.flight_tasks_capacity);
+    for (id, flight) in &core.flights {
+        let crate::routing::flight::Flight::AwaitingResources(batch) = flight else { continue };
+        if batch.deadline <= env.now {
+            expired.push(id.token()).expect("bounded waiting batches");
+        }
+    }
+    let mut out = Queue::uncapped();
+    for token in expired.into_boxed() {
+        let Some(crate::routing::flight::Flight::AwaitingResources(batch)) =
+            core.land_kind(token, crate::routing::flight::Kind::AwaitingResources)
+        else {
+            unreachable!("expired batch retained")
+        };
+        let mut missing = List::with_capacity(env.limits.tasks.batch);
+        for member in &batch.members {
+            if !reported(core, core::slice::from_ref(member)) {
+                missing.push(member.number).expect("bounded batch");
+            }
+        }
+        let task = missing.as_slice().first().copied().expect("parked batch lacks a report");
+        let problem = tasks::Problem::naming(Some(task), tasks::Refusal::Unreported, missing.as_slice());
+        let owner = batch.reply_to.into_token();
+        core.tasks.unpin_reports(owner);
+        out.push(tasks::Request::Refused { reply_to: ReplyTo::new(owner), problem });
+    }
+    out
 }
 
 /// A role belongs to one project, even when projects name the same object.

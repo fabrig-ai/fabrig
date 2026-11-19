@@ -25,7 +25,7 @@ use crate::tui_driver::{key_bytes, optional_file, replaced, terminal::Terminal};
 #[cfg(test)]
 mod tests;
 
-const HORIZON: Duration = Duration::from_secs(600);
+pub(crate) const HORIZON: Duration = Duration::from_secs(600);
 const BOUND: Duration = Duration::from_secs(30);
 const POLL: Duration = Duration::from_millis(50);
 
@@ -107,6 +107,11 @@ pub fn starting(journeys: &Path, browser_journeys: &Path, name: &str) -> Result<
 }
 
 /// Follow an already validated walk, check its recording and add it.
+#[expect(
+    clippy::too_many_arguments,
+    clippy::disallowed_types,
+    reason = "the walk's horizon and optional whole-walk monotonic bound cover retries independently of its prepared inputs"
+)]
 pub fn again(
     journeys: &Path,
     tui_journeys: &Path,
@@ -114,8 +119,18 @@ pub fn again(
     starting: &Starting,
     paths: &Paths,
     given: &[crate::EnvironmentEntry],
+    horizon: Duration,
+    within: Option<std::time::Duration>,
 ) -> Result<(), Refusal> {
+    let started = std::time::Instant::now();
     for attempt in 1..=3 {
+        let rest = within.map(|within| within.saturating_sub(started.elapsed()));
+        if rest.is_some_and(|rest| rest < crate::pages::CLOSE_WINDOW) {
+            return Err(Refusal::TuiAgain { name: name.into(), step: 1, report: "walk horizon passed".into() });
+        }
+        let horizon = rest.map_or(horizon, |rest| {
+            horizon.min(Duration::from_nanos(u64::try_from(rest.as_nanos()).unwrap_or(u64::MAX)))
+        });
         let scratch = paths.scratch.join(format!("attempt-{attempt}"));
         fs::DirBuilder::new().mode(0o700).create(&scratch).map_err(|_| crate::io_refusal(&scratch))?;
         let attempt_paths = Paths {
@@ -125,7 +140,7 @@ pub fn again(
             chromium: paths.chromium.clone(),
             scratch,
         };
-        match record(journeys, tui_journeys, name, starting, &attempt_paths, given) {
+        match record(journeys, tui_journeys, name, starting, &attempt_paths, given, horizon) {
             Err(Refusal::TuiProof { refusal: journey::Refusal::Differs { .. }, .. }) if attempt < 3 => {}
             result => return result,
         }
@@ -140,13 +155,14 @@ fn record(
     starting: &Starting,
     paths: &Paths,
     given: &[crate::EnvironmentEntry],
+    horizon: Duration,
 ) -> Result<(), Refusal> {
     let fail = |report: String| Refusal::TuiAgain { name: name.to_owned(), step: 1, report };
     let environment = crate::isolation::environment(given, &paths.scratch).map_err(fail)?;
     let launcher = crate::isolation::program("env", given).ok_or_else(|| fail("cannot find env on PATH".into()))?;
     let mut harness = Harness::new(crate::again::box_setup(paths, launcher, &environment, None))
         .page_query(&crate::again::page_query(false))
-        .horizon(HORIZON);
+        .horizon(horizon);
     let mut walker = Walker::new(name, paths, environment, starting);
     let outcome = harness.run(&mut [&mut walker]);
     // Stop and reap the TUI even when the browser or box failed before next().

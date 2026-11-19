@@ -168,7 +168,7 @@ fn origin_transcripts_prove_the_clone_url_and_the_look_terminals() {
     let command = Command::Origin { directory: b"workspaces/1/specimen".as_slice().into() };
     for (case, holds) in [("origin-matches", true), ("origin-no-repository", false), ("origin-no-remote", false)] {
         let transcript = transcripts::read(case);
-        let op = git::Op::Look { at: at.clone(), remote: url.into() };
+        let op = git::Op::Look { at: at.clone(), remote: url.into(), store: skein_lib::Token::new(9) };
         assert_eq!(
             sequence::after(
                 &op,
@@ -179,11 +179,19 @@ fn origin_transcripts_prove_the_clone_url_and_the_look_terminals() {
                 0,
                 &temper_worker_protocol_git_world::fixtures::checkout()
             ),
-            Next::End(git::Done::Looked { holds }),
+            if case == "origin-no-repository" {
+                Next::Look { directory: b"workspaces/1/specimen".as_slice().into() }
+            } else {
+                Next::End(git::Done::Looked { holds })
+            },
             "{case}"
         );
     }
-    let op = git::Op::Look { at, remote: b"https://other.example.test/specimen.git".as_slice().into() };
+    let op = git::Op::Look {
+        at,
+        remote: b"https://other.example.test/specimen.git".as_slice().into(),
+        store: skein_lib::Token::new(9),
+    };
     assert_eq!(
         sequence::after(
             &op,

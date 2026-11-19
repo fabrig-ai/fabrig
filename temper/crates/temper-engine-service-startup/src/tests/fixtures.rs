@@ -2,14 +2,12 @@ use crate::{limits, settings};
 pub const DIALECT: u32 = 3;
 
 pub const ENGINE: &[u8] = br#"{
-"limits": {"overrides": {"fleet.slots":4,"authority.requirements":3,"tasks.inbox_bytes":4096,"core.run_bytes":32768,"tasks.charters":13,"core.templates":7,"tasks.result_bytes":32,"tasks.run_inbox":2,"hub.turns":1,"people.amendment_bytes":64,"core.policy_bytes":8192,"authority.grants":16,"authority.executors":22,"tasks.executor_kinds":22,"notes.scopes":32,"tasks.spec_bytes":128,"tasks.message_bytes":512,"tasks.hold_bytes":64,"tasks.authority_bytes":64,"people.words":512,"core.call_answer_bytes":2048,"notes.recalled":1}},
 "hosts": {
 "listener": [{"in_process": "workers"}]
 },
 "clients": {
 },
-"owners": [{"provider": 1, "subject": "owner-a"}],
-"memory_bytes": 1152921504606846976
+"owners": [{"provider": 1, "subject": "owner-a"}]
 }"#;
 
 pub fn engine() -> settings::Engine {
@@ -38,11 +36,14 @@ pub fn engine() -> settings::Engine {
     let root = limits::engine(&jig.limits, &own).unwrap();
     let connector = *jig.connectors.first().unwrap();
     settings::Engine {
+        store_limits: None,
         kinds: crate::stock::kinds(&root, connector),
         period_span: crate::stock::PERIOD_SPAN,
         host_reply_bytes: None,
         agent_charter_bytes: None,
         setups: Box::new([]),
+        owned_forgejo: None,
+        owned_runner: None,
         test_github: None,
         directories: jig_protocol_config::Directories::working(),
         jig,
@@ -104,6 +105,17 @@ pub fn small_model() -> jig_domain_core::settings::CatalogueModel {
     }
 }
 
+#[path = "../../../../testing/engine_limit_figures.rs"]
+mod engine_figures;
+fn jig_limits_over(base: &jig_protocol_config::Limits) -> jig_protocol_config::Limits {
+    let mut limits = engine_figures::over(base);
+    limits.core.authority.requirements = 3;
+    limits
+}
+fn jig_limits() -> jig_protocol_config::Limits {
+    jig_limits_over(&jig_protocol_config_fixtures::small())
+}
+
 pub fn parse_engine(bytes: &[u8]) -> jig_protocol_config::Engine {
     let document = jig_protocol_config::document(
         bytes,
@@ -116,7 +128,7 @@ pub fn parse_engine(bytes: &[u8]) -> jig_protocol_config::Engine {
         &jig_protocol_config::Directories::working(),
         jig_protocol_config::Defaults::PassedProviders,
         &crate::startup::fixed(&jig_protocol_config::Directories::working()).unwrap(),
-        &jig_protocol_config_fixtures::small(),
+        &jig_limits(),
     )
     .unwrap();
     let running = temper_worker_service_fixtures::providers();
@@ -208,4 +220,4 @@ pub fn stock_configuration(payload: u32, output: u32) -> Result<smith_agent_shel
 mod http;
 pub use temper_worker_service_fixtures::agent;
 mod startup;
-pub use startup::{APPLICATION, document, engine_part, value, with};
+pub use startup::{APPLICATION, document, engine_part, startup_limits, value, with};

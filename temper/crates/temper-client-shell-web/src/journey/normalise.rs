@@ -1,10 +1,14 @@
 //! Recording placeholders (temper/docs/design/client/journey-placeholders.md, 3 and 6).
-use super::{Framing, Normalised, Streams, Unredacted, fields_mut, lines};
+use super::{Framing, Line, Normalised, Streams, Unredacted, fields_mut, lines};
 use temper_client_redaction::Varied;
 
 /// Replace loopback ports in every field and decoded stream, preserving framed widths.
 pub fn normalise(recording: &[u8]) -> Result<Normalised, Unredacted> {
-    let mut lines = lines(recording).map_err(Unredacted::Unreadable)?;
+    normalise_lines(lines(recording).map_err(Unredacted::Unreadable)?)
+}
+
+/// As `normalise`, retaining an admission's parsed records between proof and placeholders.
+pub fn normalise_lines(mut lines: Vec<Line>) -> Result<Normalised, Unredacted> {
     let mut streams = Streams::read(&lines).map_err(Unredacted::Undecoded)?;
     let mut varied = Varied::new();
     varied.decimal_ports();

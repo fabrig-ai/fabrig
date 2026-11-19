@@ -17,6 +17,12 @@ pub use jig_test_store_files::{Fault, Store};
 
 pub mod oracle;
 
+/// The exact configuration clone used by the oracle's restart.
+#[must_use]
+pub fn clone_configuration(source: &jig_test_domain::Config) -> jig_test_domain::Config {
+    oracle::configuration(source)
+}
+
 pub mod conformance;
 pub mod referee;
 

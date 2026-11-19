@@ -19,7 +19,7 @@ mod journal_stop;
 pub use journal_stop::JournalStop;
 mod limits;
 mod link;
-pub mod loads;
+pub use temper_engine_domain_store::loads;
 mod push;
 mod restart;
 pub use temper_engine_domain_forge::{Push, PushAnswer};
@@ -31,7 +31,7 @@ pub use route::findings::{
 };
 mod settling;
 mod stopping;
-mod store;
+use temper_engine_domain_store as store;
 #[cfg(test)]
 mod tests;
 mod translate;

@@ -22,7 +22,7 @@
       "stop": "sudo systemctl stop temper-worker",
       "start": "sudo systemctl start temper-worker",
       "swap": "sudo install -m 0755 {from} {to}",
-      "document": "sudo cat /var/lib/temper/config/temper.json"
+      "document": "sudo cat /var/lib/temper/config/temper.toml"
     }
   ]
 }

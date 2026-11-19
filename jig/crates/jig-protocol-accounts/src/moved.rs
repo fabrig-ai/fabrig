@@ -2,8 +2,8 @@
 use crate::v1;
 use alloc::boxed::Box;
 use jig_domain_accounts::{DISPLAY, SUBJECT};
-use skein_codec::Reason;
-use skein_lib::{Reader, Secret, Writer, bytes, length::len_u64};
+use skein_codec::{Reason, Record};
+use skein_lib::{Reader, Secret, bytes, length::len_u64};
 use skein_oauth::{Limits, SavedToken};
 
 /// The application's name, in bytes (nonempty).
@@ -67,7 +67,7 @@ pub fn encode(moved: &Moved, limits: &Limits) -> Result<Secret, Unread> {
     }
     required(&[&moved.application, &moved.issuer, &moved.client_id, &moved.subject])?;
     let record = Secret::new(skein_oauth::encode_record(&moved.record, limits).or(Err(Unread::Record))?);
-    let parts = v1::MovedParts {
+    let value = v1::Moved {
         application: bytes::copy_of(&moved.application),
         issuer: bytes::copy_of(&moved.issuer),
         client_id: bytes::copy_of(&moved.client_id),
@@ -75,13 +75,10 @@ pub fn encode(moved: &Moved, limits: &Limits) -> Result<Secret, Unread> {
         display: bytes::copy_of(&moved.display),
         record,
     };
-    let value = match v1::Moved::new(&wire_limits, parts) {
-        Ok(value) => value,
-        Err(problem) => return Err(unread(problem)),
-    };
-    let mut out = Writer::new(usize::try_from(value.measure()).or(Err(Unread::TooLarge))?);
-    value.encode(&mut out).expect("file measured");
-    Ok(Secret::new(out.finish()))
+    match value.encode(&wire_limits) {
+        Ok(bytes) => Ok(Secret::new(bytes)),
+        Err(problem) => Err(unread(problem)),
+    }
 }
 
 /// Decodes a whole file, checking its size before reading or allocating parts.
@@ -93,15 +90,14 @@ pub fn decode(input: &[u8], limits: &Limits) -> Result<Moved, Unread> {
         Ok(value) => value,
         Err(problem) => return Err(unread(problem)),
     };
-    required(&[value.application(), value.issuer(), value.client_id(), value.subject(), value.record().expose()])?;
-    let record = skein_oauth::decode_record(value.record().expose(), limits).or(Err(Unread::Record))?;
-    let parts = value.into_parts();
+    required(&[&value.application, &value.issuer, &value.client_id, &value.subject, value.record.expose()])?;
+    let record = skein_oauth::decode_record(value.record.expose(), limits).or(Err(Unread::Record))?;
     Ok(Moved {
-        application: parts.application,
-        issuer: parts.issuer,
-        client_id: parts.client_id,
-        subject: parts.subject,
-        display: parts.display,
+        application: value.application,
+        issuer: value.issuer,
+        client_id: value.client_id,
+        subject: value.subject,
+        display: value.display,
         record,
     })
 }

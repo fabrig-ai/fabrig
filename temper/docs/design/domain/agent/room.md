@@ -48,6 +48,24 @@ both the encoded charter, including framing, and its decoded ownership.
   2026-11-16): a reasonable size for what a run is sent at once.
 - **What stays whole.** Instructions, tools, contracts, models and run
   identity stay whole.
+- **Text alone.** smith's charter and the worker wire take some of an
+  assignment's fields as text (a section's title and body, a message's
+  words, an answered call's text) and refuse the whole assignment for
+  one that is not UTF-8. So `assignment::down` makes each field the
+  engine fills from its records, and that a codec checks as UTF-8, text
+  before it fits the brief: each byte that is not part of a UTF-8
+  character becomes `?` (skein's `bytes::utf8_replaced`,
+  `runtime/lib.md`, 6), the length kept, so every bound the field met
+  still holds and the fit below cuts whole characters. UTF-8 is sent
+  unchanged, and a field a codec carries as bytes is left as it is. The
+  transcript tail keeps its own cut first (`text_tail`), and a source
+  that knows what its bytes are names them instead, as a pull section
+  names a file that is not text by its blob ids
+  (`../forge/change/repairs.md`); this is the backstop for every other
+  way a repository's or a tool's bytes reach a field: a CI log, a
+  configured document, a dependency's result, a message. No field's
+  bytes make an assignment unsendable as not UTF-8, and no refusal of
+  section 3 names a reason `not UTF-8` for a field this covers.
 - **The worker fits again.** The worker service also fits the brief after
   the workspace is prepared and before encoding the start, using the
   receiving run's limits and measured schema costs. It fits both rendered

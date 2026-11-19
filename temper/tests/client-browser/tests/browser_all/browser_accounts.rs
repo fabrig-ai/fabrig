@@ -51,12 +51,9 @@ fn sign_in_steps() -> Vec<Step> {
             find: Find::exactly_named(Role::Heading { level: 1 }, b"Connect a model"),
             within: WITHIN,
         }),
-        Step::Person(PersonStep::See {
-            find: Find::exactly_named(Role::Button, b"Sign in to Test provider"),
-            within: WITHIN,
-        }),
-        Step::Person(PersonStep::Press { find: Find::exactly_named(Role::Button, b"Sign in to Test provider") }),
-        Step::Person(PersonStep::See { find: Find::text(b"Added your Test provider account"), within: WITHIN }),
+        Step::Person(PersonStep::See { find: Find::exactly_named(Role::Button, b"Sign in to OpenAI"), within: WITHIN }),
+        Step::Person(PersonStep::Press { find: Find::exactly_named(Role::Button, b"Sign in to OpenAI") }),
+        Step::Person(PersonStep::See { find: Find::text(b"Added your ChatGPT account"), within: WITHIN }),
         sign_in_tabs(2),
     ]
 }
@@ -107,11 +104,11 @@ fn key_history_steps() -> Vec<Step> {
     steps.extend([
         input(b"Key (pasted once)", b"private-browser-key"),
         press(b"Add key", Role::Button),
-        see(Find::text(b"Added your Test provider API key")),
+        see(Find::text(b"Added your OpenAI API key")),
         Step::Address(b"/accounts".as_slice().into()),
-        see(Find::named(Role::Disclosure, b"Test provider API key")),
+        see(Find::named(Role::Disclosure, b"OpenAI API key")),
         Step::Person(PersonStep::Gone {
-            find: Find::exactly_named(Role::Heading { level: 1 }, b"A Test provider API key"),
+            find: Find::exactly_named(Role::Heading { level: 1 }, b"An OpenAI API key"),
             within: WITHIN,
         }),
         // No chat has started work, so Work has no Chats filter.
@@ -124,20 +121,20 @@ fn key_history_steps() -> Vec<Step> {
         press(b"+ Connect a model", Role::Link),
         see(accounts()),
         press(b"Add key", Role::Link),
-        see(Find::exactly_named(Role::Heading { level: 1 }, b"A Test provider API key")),
+        see(Find::exactly_named(Role::Heading { level: 1 }, b"An OpenAI API key")),
         // The browser kit refuses typing into a nonempty field: this proves re-entry after clearing.
         input(b"Key (pasted once)", b"another-private-key"),
         // No chat has started work, so Work has no Chats filter.
         Step::Person(PersonStep::Go { address: temper_client_browser_world::page_address(b"/chats".as_slice()) }),
         see(chats()),
         Step::Back,
-        see(Find::exactly_named(Role::Heading { level: 1 }, b"A Test provider API key")),
+        see(Find::exactly_named(Role::Heading { level: 1 }, b"An OpenAI API key")),
         Step::Address(Box::from(b"/accounts/connect?provider=1&way=key".as_slice())),
         Step::Forward,
         see(chats()),
         Step::Address(Box::from(b"/chats".as_slice())),
         Step::Back,
-        see(Find::exactly_named(Role::Heading { level: 1 }, b"A Test provider API key")),
+        see(Find::exactly_named(Role::Heading { level: 1 }, b"An OpenAI API key")),
     ]);
     steps
 }
@@ -151,14 +148,14 @@ fn key_link_steps() -> Vec<Step> {
         Step::Person(PersonStep::Press { find: Find::exactly_named(Role::Link, b"+ Connect a model") }),
         see(Role::Heading { level: 1 }, b"Connect a model"),
         Step::Address(b"/accounts/connect".as_slice().into()),
-        // Key links follow provider number: Test is 1, Welcome is 2.
+        // Key links follow the stock provider numbers: OpenAI 1, Anthropic 2.
         key(1),
-        see(Role::Heading { level: 1 }, b"A Welcome provider API key"),
+        see(Role::Heading { level: 1 }, b"An Anthropic API key"),
         Step::Address(b"/accounts/connect?provider=2&way=key".as_slice().into()),
         Step::Back,
         see(Role::Heading { level: 1 }, b"Connect a model"),
         key(0),
-        see(Role::Heading { level: 1 }, b"A Test provider API key"),
+        see(Role::Heading { level: 1 }, b"An OpenAI API key"),
         Step::Address(b"/accounts/connect?provider=1&way=key".as_slice().into()),
     ]
 }
@@ -178,9 +175,9 @@ fn welcome_steps() -> Vec<Step> {
         Step::Person(PersonStep::Go {
             address: temper_client_browser_world::page_address(b"/welcome?at=model".as_slice()),
         }),
-        see(Find::exactly_named(Role::Button, b"Sign in to Welcome provider")),
+        see(Find::exactly_named(Role::Button, b"Sign in to Anthropic")),
         Step::Address(b"/welcome?at=model".as_slice().into()),
-        Step::Person(PersonStep::Press { find: Find::exactly_named(Role::Button, b"Sign in to Welcome provider") }),
+        Step::Person(PersonStep::Press { find: Find::exactly_named(Role::Button, b"Sign in to Anthropic") }),
         sign_in_tabs(1),
         see(Find::exactly_named(Role::Heading { level: 1 }, b"Almost ready")),
         Step::Address(b"/welcome?at=ready".as_slice().into()),

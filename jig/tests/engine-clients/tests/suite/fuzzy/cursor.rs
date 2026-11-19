@@ -1,17 +1,15 @@
 //! Hostile cursor bytes (jig/docs/design/protocol/client/README.md, 4; skein/docs/design/data/codec/README.md, 6).
-use jig_protocol_engine_clients::cursor_v2::{CEILINGS, Held};
-use skein_lib::{Reader, Rng, Writer, length::len_u64};
+use jig_protocol_engine_clients::cursor_v2::{CEILINGS, Held, Record};
+use skein_lib::{Reader, Rng, length::len_u64};
 
 fn check(bytes: &[u8]) {
     if let Ok(held) = Held::decode(&CEILINGS, &mut Reader::new(bytes)) {
-        let mut writer = Writer::new(skein_lib::length::usize_of(held.measure()));
-        held.encode(&mut writer).expect("measured cursor");
-        assert_eq!(writer.finish().as_ref(), bytes);
+        assert_eq!(held.encode(&CEILINGS).expect("decoded cursor").as_ref(), bytes);
     }
 }
 fn goldens() -> Vec<Vec<u8>> {
-    let text = include_str!("../../../../../crates/jig-protocol-engine-clients/schema/cursor-v2.schema");
-    let mut goldens = skein_codegen::goldens(&skein_codegen::parse(text).expect("cursor schema"));
+    let text = jig_protocol_engine_clients::SCHEMA;
+    let mut goldens = skein_codegen::values(text).goldens.clone();
     goldens.sort_by(|left, right| left.name.cmp(&right.name));
     let mut values = Vec::new();
     for golden in goldens {

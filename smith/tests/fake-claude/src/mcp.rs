@@ -97,6 +97,7 @@ impl Mcp {
         requests.push(Request::Spawn {
             owner: OWNER,
             spawn: Spawn {
+                reach: None,
                 program: configuration["command"].as_str().expect("checked command").as_bytes().into(),
                 args: configuration["args"]
                     .as_array()

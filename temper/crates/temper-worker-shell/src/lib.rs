@@ -6,6 +6,8 @@ use std::{
     path::{Path, PathBuf},
 };
 mod binary;
+#[cfg(test)]
+mod configuration_tests;
 pub mod fetch;
 pub mod lines;
 pub mod served;

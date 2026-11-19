@@ -252,7 +252,7 @@ impl Transfer {
                         return self.drain(queue);
                     }
                     match error {
-                        Some(Error::Permission | Error::TooManyLinks | Error::Other(_)) => false,
+                        Some(Error::Permission | Error::TooManyLinks | Error::Reach(_) | Error::Other(_)) => false,
                         Some(
                             Error::Busy
                             | Error::Refused

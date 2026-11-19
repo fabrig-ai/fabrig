@@ -74,7 +74,7 @@ pub struct Author {
 pub use temper_service_core::settings::{Adapter, Files, PROGRAM_PATH_BYTES, Program};
 
 /// The seeds the shell draws at start, as jig's reference takes them.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Seeds {
     pub deployment: [u8; 16],
     pub seed: u64,
@@ -109,6 +109,9 @@ pub struct Engine {
     pub host_part: temper_engine_domain::room::HostPart,
     /// Kept setup files supplied by a world; a shell reads them through `PlaceIo`.
     pub setups: Box<[(u16, temper_forge_setup::setup_file::SetupFile)]>,
+    /// Checked file-only paths for new owned forges (protocol/setup/place.md, 2).
+    pub owned_forgejo: Option<Box<[u8]>>,
+    pub owned_runner: Option<Box<[u8]>>,
     pub test_github: Option<temper_forge_setup::machine::GitHubMachine>,
     pub directories: jig_protocol_config::Directories,
     pub jig: jig_protocol_config::Engine,
@@ -126,6 +129,9 @@ pub struct Engine {
     pub period_span: skein_lib::Duration,
     pub kinds_stock: Box<[temper_engine_domain_forge::settings::Stock]>,
     pub limits: super::limits::Limits,
+    /// Deployment envelope laid out over the store base before runtime overrides.
+    /// Typed component fixtures may leave it absent to lay out their own profile.
+    pub store_limits: Option<jig_protocol_store::Limits>,
 }
 
 pub use temper_service_core::agent::Declaration as Agent;

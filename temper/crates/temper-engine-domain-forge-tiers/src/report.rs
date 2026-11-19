@@ -2,13 +2,88 @@
 //!
 //! This boundary reads the two report encodings; the connector top owns
 //! artifact retrieval and run conclusions.
-use crate::{Failures, Format, Limits, Outcome, TestId, Unreadable};
+use crate::{Failures, Format, Limits, ManyTests, Outcome, TestId, Unreadable};
 use alloc::boxed::Box;
 use skein_lib::{List, Stack, Writer, bytes};
 
 /// Reads a report, sorting and deduplicating its bounded failing ids.
 pub fn report(format: Format, file: &[u8], limits: &Limits) -> Result<Failures, Unreadable> {
     Ok(keys(read(format, file, *limits, KeyForm::Tier)?, limits.failing_tests))
+}
+
+/// The names a whole tier report keeps without changing its many judgement.
+#[must_use]
+pub fn many_tests(format: Format, file: &[u8], limits: &Limits, cut: bool) -> Option<ManyTests> {
+    let mut names = ManyNames { tests: List::with_capacity(limits.failing_tests), more: 0 };
+    match format {
+        Format::Lines => {
+            let mut from = 0_usize;
+            for (at, byte) in file.iter().enumerate() {
+                if *byte == b'\n' {
+                    many_line(&mut names, file.get(from..at).expect("line within file"), *limits);
+                    from = at.checked_add(1).expect("position within file");
+                }
+            }
+            if !cut {
+                many_line(&mut names, file.get(from..).expect("last line within file"), *limits);
+            }
+        }
+        Format::Junit => {
+            if junit_read(file, *limits, KeyForm::Tier, true, cut, Some(&mut names)).is_err() {
+                if !cut {
+                    return None;
+                }
+                names.tests.clear();
+                names.more = 0;
+            }
+        }
+    }
+    if names.more == 0 && !cut {
+        return None;
+    }
+    let mut tests = List::with_capacity(limits.failing_tests);
+    for test in names.tests.into_boxed() {
+        tests.push(test.id).expect("bounded names");
+    }
+    Some(ManyTests { tests: tests.into_boxed(), more: names.more, cut })
+}
+
+#[derive(Debug)]
+struct CountedTest {
+    id: TestId,
+    listings: u32,
+}
+struct ManyNames {
+    tests: List<CountedTest>,
+    more: u32,
+}
+fn many_line(names: &mut ManyNames, line: &[u8], limits: Limits) {
+    let id = line.strip_suffix(b"\r").unwrap_or(line);
+    if !id.is_empty() {
+        let id = if id.len() > index(limits.test_id_bytes) { None } else { Some(Box::from(id)) };
+        many_insert(names, id);
+    }
+}
+fn many_insert(names: &mut ManyNames, id: Option<TestId>) {
+    let Some(id) = id else {
+        names.more = names.more.saturating_add(1);
+        return;
+    };
+    for old in names.tests.iter_mut() {
+        if old.id == id {
+            old.listings = old.listings.saturating_add(1);
+            return;
+        }
+    }
+    let mut next = CountedTest { id, listings: 1 };
+    for old in names.tests.iter_mut() {
+        if next.id < old.id {
+            core::mem::swap(old, &mut next);
+        }
+    }
+    if let Err(dropped) = names.tests.push(next) {
+        names.more = names.more.saturating_add(dropped.listings);
+    }
 }
 
 fn keys(failures: NamedFailures, capacity: u32) -> Failures {
@@ -178,6 +253,18 @@ struct Case {
 }
 
 fn junit_cases(file: &[u8], limits: Limits, form: KeyForm, errors: bool) -> Result<NamedFailures, Unreadable> {
+    junit_read(file, limits, form, errors, false, None)
+}
+
+#[expect(clippy::manual_map, reason = "step code matches optional case ids without closures")]
+fn junit_read(
+    file: &[u8],
+    limits: Limits,
+    form: KeyForm,
+    errors: bool,
+    cut: bool,
+    mut names: Option<&mut ManyNames>,
+) -> Result<NamedFailures, Unreadable> {
     let mut failures = NamedFailures::Tests(Box::new([]));
     // The artifact bounds the nesting; the stack grows only as tags arrive.
     let Ok(capacity) = u32::try_from(file.len()) else { return Err(Unreadable) };
@@ -206,11 +293,21 @@ fn junit_cases(file: &[u8], limits: Limits, form: KeyForm, errors: bool) -> Resu
             None
         };
         if let Some(end) = special {
-            let position = bytes::find(rest, end).ok_or(Unreadable)?;
+            let Some(position) = bytes::find(rest, end) else {
+                if cut {
+                    break;
+                }
+                return Err(Unreadable);
+            };
             from = at.checked_add(position).ok_or(Unreadable)?.checked_add(end.len()).ok_or(Unreadable)?;
             continue;
         }
-        let end = tag_end(rest).ok_or(Unreadable)?;
+        let Some(end) = tag_end(rest)? else {
+            if cut {
+                break;
+            }
+            return Err(Unreadable);
+        };
         from = at.checked_add(end).ok_or(Unreadable)?.checked_add(1).ok_or(Unreadable)?;
         let tag = rest.get(1..end).ok_or(Unreadable)?;
         let closing = tag.starts_with(b"/");
@@ -228,6 +325,13 @@ fn junit_cases(file: &[u8], limits: Limits, form: KeyForm, errors: bool) -> Resu
             if closing {
                 let ended = case.take().ok_or(Unreadable)?;
                 if ended.failed {
+                    if let Some(names) = &mut names {
+                        let id = match &ended.id {
+                            Some(test) => Some(test.key.clone()),
+                            None => None,
+                        };
+                        many_insert(names, id);
+                    }
                     match ended.id {
                         Some(id) => insert(&mut failures, id, limits),
                         None => failures = NamedFailures::Many,
@@ -251,7 +355,7 @@ fn junit_cases(file: &[u8], limits: Limits, form: KeyForm, errors: bool) -> Resu
             case.failed = true;
         }
     }
-    if !suite || !elements.is_empty() || case.is_some() {
+    if !cut && (!suite || !elements.is_empty() || case.is_some()) {
         return Err(Unreadable);
     }
     Ok(failures)
@@ -288,7 +392,7 @@ fn element(
 }
 
 // Quotes may contain '>'; '<' in a tag is never a terminator.
-fn tag_end(tag: &[u8]) -> Option<usize> {
+fn tag_end(tag: &[u8]) -> Result<Option<usize>, Unreadable> {
     let mut quote = None;
     for (at, byte) in tag.iter().enumerate().skip(1) {
         match quote {
@@ -299,13 +403,13 @@ fn tag_end(tag: &[u8]) -> Option<usize> {
             }
             None => match byte {
                 b'\'' | b'"' => quote = Some(*byte),
-                b'>' => return Some(at),
-                b'<' => return None,
+                b'>' => return Ok(Some(at)),
+                b'<' => return Err(Unreadable),
                 _ => {}
             },
         }
     }
-    None
+    Ok(None)
 }
 
 fn space(byte: u8) -> bool {

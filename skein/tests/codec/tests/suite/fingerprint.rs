@@ -15,7 +15,7 @@ mod tests {
 
     fn shipped_schemas() -> Vec<(&'static str, &'static str)> {
         let mut families: Vec<_> = generated::families().into_iter().map(|family| (family.name, family.text)).collect();
-        families.push(("notes", include_str!("../../../../examples/ui/view/schema/notes-v1.schema")));
+        families.push(("notes", skein_ui_example_view_codec::SCHEMA));
         families
     }
 
@@ -152,7 +152,7 @@ mod tests {
             ),
             (
                 3_u16,
-                include_str!("../../schema/every-v3.schema"),
+                skein_codec_tests::EVERY_SCHEMA,
                 "73a07d871952655755d3037ba0736f4689ccacb64d262aea7032c9218526aeef",
             ),
         ] {
@@ -167,7 +167,7 @@ mod tests {
 
     #[test]
     fn plain_secret_family_digest_is_golden() {
-        let schema = parse(include_str!("../../schema/secrets-v1.schema").as_bytes()).expect("secret schema");
+        let schema = parse(skein_codec_tests::SECRETS_SCHEMA.as_bytes()).expect("secret schema");
         let mut hex = String::new();
         for byte in schema.fingerprints().family().digest() {
             write!(hex, "{byte:02x}").expect("string write");

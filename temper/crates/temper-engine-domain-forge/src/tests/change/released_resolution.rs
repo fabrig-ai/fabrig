@@ -213,6 +213,7 @@ fn a_failed_resolutions_release_takes_the_clients_drift_baseline() {
                 name: name.clone(),
                 task: fixtures::CHANGE,
                 writer: None,
+                beside: None,
                 design_writers: Box::new([]),
                 drift: None,
             }),

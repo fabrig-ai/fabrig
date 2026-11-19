@@ -4,29 +4,29 @@ use jig_ops_world::conformance::night;
 
 #[test]
 fn every_night_commit_recovers_one_conditional_scale() {
-    // Sweep the one procedure-only story, with one pinned seed. The alert's
+    // The parent shares each prefix with its cold-restarted child. The alert's
     // six selected cut positions run in fuzzy_alert_cuts; the other stories' cuts
     // (jig/docs/design/examples.md, 7.3) are not run.
-    let baseline = night(17, Cut::None);
-    for commit in 1..=baseline.outcome().commits {
-        let world = night(17, Cut::AfterCommit(commit));
-        assert_eq!(world.outcome().crashes, vec![commit], "cut {commit}");
-        assert!(!world.outcome().stopped, "cut {commit}: {}", world.trace.join("\n"));
-        assert_eq!(world.peers.assignments.len(), 0);
-        assert_eq!(
-            world
-                .systems
-                .production
-                .observed()
-                .iter()
-                .filter(|effect| matches!(
-                    effect,
-                    production::ObservedEffect::Scale { applied: true, from: 3, to: 1, .. }
-                ))
-                .count(),
-            1,
-            "cut {commit}: {}",
-            world.trace.join("\n")
-        );
+    let world = night(17, Cut::EachCommitFrom(1));
+    let outcome = world.outcome();
+    if let Some(commit) = outcome.crashes.first() {
+        assert_eq!(outcome.crashes, vec![*commit], "cut {commit}");
     }
+    assert!(!outcome.stopped, "cuts {:?}: {}", outcome.crashes, world.trace.join("\n"));
+    assert_eq!(world.peers.assignments.len(), 0);
+    assert_eq!(
+        world
+            .systems
+            .production
+            .observed()
+            .iter()
+            .filter(|effect| matches!(effect, production::ObservedEffect::Scale { applied: true, from: 3, to: 1, .. }))
+            .count(),
+        1,
+        "cuts {:?}: {}",
+        outcome.crashes,
+        world.trace.join("\n")
+    );
+    jig_conformance::cut_passed();
+    assert_eq!(outcome.forked, (1..=outcome.commits).collect::<Vec<_>>());
 }

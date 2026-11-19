@@ -19,7 +19,7 @@
 use alloc::boxed::Box;
 use alloc::vec::Vec;
 
-use skein_io::kernel::{Error, Kind, OpenHow, Pipe, Stat};
+use skein_io::kernel::{Error, Kind, OpenHow, Pipe, Rights, Stat};
 
 /// The machine's name for a file or a directory it opened, which the
 /// simulator holds behind a process's descriptor. Only the machine gives
@@ -50,6 +50,21 @@ pub struct Call {
     pub ask: Ask,
 }
 
+/// A spawn's reach in machine handles (testing/simulator.md, 3.4).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct Reach {
+    pub abi: u32,
+    pub rules: Box<[Rule]>,
+}
+
+/// A rule resolved beneath an open machine directory.
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct Rule {
+    pub root: Handle,
+    pub path: Box<[u8]>,
+    pub rights: Rights,
+}
+
 /// What the machine is asked, in its handles and with the bytes it needs.
 /// Each is answered with the [`Reply`] it names, or an error the
 /// operation may answer (`skein_io::kernel`'s table).
@@ -63,6 +78,7 @@ pub enum Ask {
     /// behavior with exactly the requested child descriptors.
     Spawn {
         root: Handle,
+        reach: Option<Box<Reach>>,
         program: Box<[u8]>,
         args: Box<[Box<[u8]>]>,
         env: Box<[Box<[u8]>]>,
@@ -154,9 +170,10 @@ impl core::fmt::Debug for Ask {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             Self::Lock { file } => f.debug_struct("Lock").field("file", file).finish(),
-            Self::Spawn { root, program, args, env, dir, pipes } => f
+            Self::Spawn { root, reach, program, args, env, dir, pipes } => f
                 .debug_struct("Spawn")
                 .field("root", root)
+                .field("reach", reach)
                 .field("program", program)
                 .field("args", args)
                 .field("env", &EnvNames(env))
@@ -241,12 +258,14 @@ pub enum Reply {
 
 /// A fake program's behavior. The machine selects it; the simulator runs
 /// it against the child's pipes and keeps the process lifecycle.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Program {
     /// Copy bytes from one child descriptor to another until input ends.
     Echo { input: u32, output: u32 },
     /// Exit at startup with the given code.
     Exit(u8),
+    /// Write a precomputed report to the named output pipe and exit zero.
+    Report { output: u32, bytes: Box<[u8]> },
     /// Stay alive until signalled.
     Never,
     /// Start a child that holds the output pipes in the leader's group; optionally exit the leader.
@@ -265,6 +284,7 @@ mod tests {
             ticket: Ticket(1),
             ask: Ask::Spawn {
                 root: Handle::new(1),
+                reach: None,
                 program: Box::from(&b"git"[..]),
                 args: Box::new([]),
                 env: Box::new([Box::from(&b"NAME=secret-value"[..]), Box::from(&b"NO_EQUALS"[..])]),

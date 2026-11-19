@@ -169,7 +169,7 @@ pub fn perform(forge: &mut impl Remote, disk: &mut Checkout, op: Op) -> Done {
             }
             Done::Succeeded
         }
-        Op::Look { at, remote } => {
+        Op::Look { at, remote, store: _ } => {
             let directory = path(&at);
             Done::Looked {
                 holds: disk.content(&[directory.as_slice(), b"/.git/temper-remote"].concat()) == Some(remote.as_ref()),

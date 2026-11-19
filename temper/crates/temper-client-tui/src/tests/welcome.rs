@@ -32,7 +32,10 @@ fn front(link: Option<&[u8]>) -> Tui {
     tui
 }
 fn build(root: &Domain, tui: &Tui) -> crate::View {
-    let mut view = f::view();
+    build_with_words(root, tui, f::words())
+}
+fn build_with_words(root: &Domain, tui: &Tui, words: crate::words::Words) -> crate::View {
+    let mut view = f::view_of(words);
     f::build(&mut view, tui, root);
     view
 }
@@ -94,6 +97,7 @@ fn welcome_commands_wait_until_the_sign_in_lands() {
     reason = "the fixed state table holds Tui values with talk prompts and terminal-login facts"
 )]
 fn the_welcome_says_each_state() {
+    let mut vocabulary = f::words();
     let empty = welcome_root(&[], false, Some(false), None);
     let linked = welcome_root(&[], true, Some(false), None);
     let pending = welcome_root(&[], true, None, None);
@@ -300,39 +304,38 @@ fn the_welcome_says_each_state() {
     for (name, root, tui, expected) in rows {
         if name == "first repository making" {
             // Check the drawing at the Forge boundary too: the domain's connected row decides Model.
-            let mut part = crate::view::welcome::read(root, &tui, &f::words(), f::NOW);
+            let mut part = crate::view::welcome::read(root, &tui, &vocabulary, f::NOW);
             let forge = part.steps.get_mut(1).unwrap();
             assert_eq!(forge.detail.as_deref(), Some("making its first repository…".as_bytes()));
             for (step, style) in part.steps.iter_mut().zip(FORGE) {
                 step.style = style;
             }
-            let mut drawn = f::view();
+            let foot = crate::view::foot::read(root, &tui, &vocabulary, f::NOW);
+            let mut drawn = f::view_of(vocabulary);
             crate::view::signed(
                 &mut drawn,
-                &crate::view::Signed {
-                    body: crate::view::Body::Welcome(part),
-                    foot: crate::view::foot::read(root, &tui, &f::words(), f::NOW),
-                },
+                &crate::view::Signed { body: crate::view::Body::Welcome(part), foot },
                 &mut Queue::uncapped(),
             );
             f::find(drawn.tree(), Role::Text, "making its first repository…".as_bytes());
             super::limits::fits(drawn.tree(), &crate::limits(&f::limits(), &skein_ui::Limits::EMPTY, 512).unwrap());
+            vocabulary = drawn.into_words();
         }
         if name == "the latest printed link" || name == "the printed link whole" {
             assert!(tui.printed().unwrap().expose() == PRINTED, "{name}: the fixture's printed link");
         }
-        let view = build(root, &tui);
+        let view = build_with_words(root, &tui, vocabulary);
         let tree = view.tree();
         let lines = body(tree);
         let mut want = List::with_capacity(16);
         match expected {
             Expect::Before | Expect::After { .. } => {
                 if root.client().link().state == jig_client::Link::OutOfDate {
-                    want.push(f::words().view().say(temper_client_view_words::words::Word::OutOfDateMain, &[]))
+                    want.push(view.words().view().say(temper_client_view_words::words::Word::OutOfDateMain, &[]))
                         .unwrap();
                 }
                 if tui.unkept() {
-                    want.push(f::words().say(crate::words::Word::NotKept, &[])).unwrap();
+                    want.push(view.words().say(crate::words::Word::NotKept, &[])).unwrap();
                 }
             }
             Expect::Elsewhere { .. } => {}
@@ -396,6 +399,7 @@ fn the_welcome_says_each_state() {
                 } else {
                     assert!(found, "{name}: other screen");
                 }
+                vocabulary = view.into_words();
                 continue;
             }
         }
@@ -422,13 +426,15 @@ fn the_welcome_says_each_state() {
             assert_eq!(f::text(tree, left).as_ref(), "● Connecting".as_bytes());
             assert_eq!(f::find(tree, Role::Text, "● Connecting".as_bytes()).styles.as_slice(), &[look::WAITING]);
         }
+        vocabulary = view.into_words();
     }
     for (root, state, style) in [(&empty, "● Live", look::LIVE), (&stale, "● Out of date", look::DOWN)] {
-        let view = build(root, &front(None));
+        let view = build_with_words(root, &front(None), vocabulary);
         let (left, right) = f::bottom_halves(view.tree());
         assert_eq!(f::text(view.tree(), left).as_ref(), state.as_bytes());
         assert!(f::text(view.tree(), right).is_empty());
         assert_eq!(f::find(view.tree(), Role::Text, state.as_bytes()).styles.as_slice(), &[style]);
+        vocabulary = view.into_words();
     }
 }
 
@@ -1052,7 +1058,9 @@ fn welcome_read(rows: &[w::ForgeRow], linked: bool, model: Option<c::Accounts>, 
                         )),
                         None => None,
                     },
-                    w::Read::Setting(_)
+                    w::Read::Limits(_)
+                    | w::Read::LimitHolds(_)
+                    | w::Read::Setting(_)
                     | w::Read::Finding(_)
                     | w::Read::History(_)
                     | w::Read::Milestone(_)

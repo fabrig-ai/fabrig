@@ -21,75 +21,83 @@ fn configured() -> smith_agent_shell::config::Configuration {
     configuration
 }
 
-fn assignment(number: u32, open: bool, body: usize) -> temper_engine_domain::Assignment {
-    let engine = engine(&generated());
-    let charter = engine.charters.iter().find(|charter| charter.number == number).unwrap();
-    let mut policy =
-        jig_domain_core::settings::charters::resolved(charter, &engine.llm.models, &engine.limits.core).unwrap().policy;
-    // The maximal wake selects every part; jig joins them after the shared instructions.
-    let mut instructions = policy.instructions.into_vec();
-    for part in &charter.parts {
-        instructions.extend_from_slice(b"\n\n");
-        instructions.extend_from_slice(&part.instructions);
-    }
-    policy.instructions = instructions.into_boxed_slice();
-    let mut assignment = fixtures::assignment_with(fixtures::repository(1, b"org", b"repo"));
-    assignment.charter = number;
-    assignment.run.policy = policy;
-    // A source per model the policy names: its model, then each alternative.
-    assignment.run.sources =
-        vec![None; assignment.run.policy.alternatives.len().checked_add(1).unwrap()].into_boxed_slice();
-    assignment.run.budget = engine.charters.iter().find(|charter| charter.number == number).unwrap().spend;
-    assignment.run.authority.tools = jig_domain_tasks::Tools(
-        crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes)
-            .rules
-            .ceiling
-            .tools
-            .0
-            & assignment.run.policy.tools.0,
-    );
-    assert_eq!(
-        crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes)
-            .rules
-            .ceiling
-            .tools
-            .0,
-        1 | 2 | 4 | 32 | 128 | 256 | 512 | 1024 | 2048
-    );
-    assignment.run.ended_by = if number >= 13 {
-        jig_domain_tasks::EndedBy::Standing
-    } else if open {
-        jig_domain_tasks::EndedBy::Requester
-    } else {
-        jig_domain_tasks::EndedBy::Result
-    };
-    assignment.run.contract = if open {
-        jig_domain_tasks::Contract::Report { words: 32 }
-    } else if number == 5 || number >= 13 {
-        jig_domain_tasks::Contract::Report { words: engine.limits.core.tasks.result_bytes }
-    } else if number == 10 {
-        jig_domain_tasks::Contract::Report { words: 64 }
-    } else if number == 9 {
-        jig_domain_tasks::Contract::Report { words: 800 }
-    } else if number == 4 {
-        jig_domain_tasks::Contract::Verdict {
-            choices: (1..=2)
-                .map(|code| jig_domain_tasks::Verdict { code, words: 1024, followups: 0, fields: Box::default() })
-                .collect(),
+struct Assignments {
+    base: temper_engine_domain::Assignment,
+    defaults: jig_domain_core::settings::Defaults,
+}
+
+impl Assignments {
+    fn new() -> Self {
+        let engine = super::initial_engine();
+        Self {
+            base: fixtures::assignment_with(fixtures::repository(1, b"org", b"repo")),
+            defaults: crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes),
         }
-    } else {
-        jig_domain_tasks::Contract::Change { connector: 0, kind: 1, words: 1024, choices: Box::new([]) }
-    };
-    assignment.sections = (0..64)
-        .map(|index| temper_engine_domain::BriefSection {
-            kind: temper_engine_domain::BriefKind::Core(jig_domain_brief::Core::Attempts),
-            body: temper_engine_domain::BriefBody::Text(
-                vec![b'x'; body.checked_div(64).unwrap().checked_add(usize::from(index < body % 64)).unwrap()]
-                    .into_boxed_slice(),
-            ),
-        })
-        .collect();
-    assignment
+    }
+
+    fn assignment(&self, number: u32, open: bool, body: usize) -> temper_engine_domain::Assignment {
+        let engine = super::initial_engine();
+        let charter = engine.charters.iter().find(|charter| charter.number == number).unwrap();
+        let mut policy =
+            jig_domain_core::settings::charters::resolved(charter, &engine.llm.models, &engine.limits.core)
+                .unwrap()
+                .policy;
+        // The maximal wake selects every part; jig joins them after the shared instructions.
+        let mut instructions = policy.instructions.into_vec();
+        for part in &charter.parts {
+            instructions.extend_from_slice(b"\n\n");
+            instructions.extend_from_slice(&part.instructions);
+        }
+        policy.instructions = instructions.into_boxed_slice();
+        let mut assignment = self.base.clone();
+        assignment.charter = number;
+        assignment.run.policy = policy;
+        // A source per model the policy names: its model, then each alternative.
+        assignment.run.sources =
+            vec![None; assignment.run.policy.alternatives.len().checked_add(1).unwrap()].into_boxed_slice();
+        assignment.run.budget = engine.charters.iter().find(|charter| charter.number == number).unwrap().spend;
+        assignment.run.authority.tools =
+            jig_domain_tasks::Tools(self.defaults.rules.ceiling.tools.0 & assignment.run.policy.tools.0);
+        assert_eq!(self.defaults.rules.ceiling.tools.0, 1 | 2 | 4 | 32 | 128 | 256 | 512 | 1024 | 2048);
+        assignment.run.ended_by = if number >= 13 {
+            jig_domain_tasks::EndedBy::Standing
+        } else if open {
+            jig_domain_tasks::EndedBy::Requester
+        } else {
+            jig_domain_tasks::EndedBy::Result
+        };
+        assignment.run.contract = if open {
+            jig_domain_tasks::Contract::Report { words: 32 }
+        } else if number == 5 || number >= 13 {
+            jig_domain_tasks::Contract::Report { words: engine.limits.core.tasks.result_bytes }
+        } else if number == 10 {
+            jig_domain_tasks::Contract::Report { words: 64 }
+        } else if number == 9 {
+            jig_domain_tasks::Contract::Report { words: 800 }
+        } else if number == 4 {
+            jig_domain_tasks::Contract::Verdict {
+                choices: (1..=2)
+                    .map(|code| jig_domain_tasks::Verdict { code, words: 1024, followups: 0, fields: Box::default() })
+                    .collect(),
+            }
+        } else {
+            jig_domain_tasks::Contract::Change { connector: 0, kind: 1, words: 1024, choices: Box::new([]) }
+        };
+        assignment.sections = (0..64)
+            .map(|index| temper_engine_domain::BriefSection {
+                kind: temper_engine_domain::BriefKind::Core(jig_domain_brief::Core::Attempts),
+                body: temper_engine_domain::BriefBody::Text(
+                    vec![b'x'; body.checked_div(64).unwrap().checked_add(usize::from(index < body % 64)).unwrap()]
+                        .into_boxed_slice(),
+                ),
+            })
+            .collect();
+        assignment
+    }
+}
+
+fn assignment(number: u32, open: bool, body: usize) -> temper_engine_domain::Assignment {
+    Assignments::new().assignment(number, open, body)
 }
 
 fn workspace(writable: bool) -> run::Workspace {
@@ -257,7 +265,8 @@ fn the_stock_brief_with_a_whole_spec_fits_both_receiving_bounds() {
     let limits = configuration.service.limits.domain.run;
     let brief = crate::limits::stock().root.brief;
     assert!(brief.parts >= TASK_PARTS);
-    let largest = temper_engine_smith::charter(&assignment(5, false, 0));
+    let assignments = Assignments::new();
+    let largest = temper_engine_smith::charter(&assignments.assignment(5, false, 0));
     let room = run::brief_room(&largest, Some(&workspace(true)), &limits).unwrap();
     assert_eq!(room, 319_594, "charter 5's maximal non-brief host part leaves this room");
 
@@ -265,6 +274,7 @@ fn the_stock_brief_with_a_whole_spec_fits_both_receiving_bounds() {
     let full = brief.budgets.task + brief.budgets.pull + brief.budgets.reviews + OTHER;
     assert_eq!(full, 395_520);
     assert!(brief.brief_bytes <= full.min(room - FRAMING));
+    let sections = whole_spec_sections(&brief, OTHER);
     for (number, open) in [
         (1, false),
         (1, true),
@@ -280,8 +290,10 @@ fn the_stock_brief_with_a_whole_spec_fits_both_receiving_bounds() {
         (15, false),
         (16, false),
     ] {
-        let mut assignment = assignment(number, open, 0);
-        assignment.sections = whole_spec_sections(&brief, OTHER);
+        let mut assignment = assignments.assignment(number, open, 0);
+        // Fixed declarations do not depend on the brief's text.
+        let whole = temper_engine_smith::charter(&assignment);
+        assignment.sections = sections.clone();
         let mut charter = temper_engine_smith::charter(&assignment);
         assert_eq!(charter.brief.sections.len(), 64);
         assert_eq!(
@@ -309,7 +321,6 @@ fn the_stock_brief_with_a_whole_spec_fits_both_receiving_bounds() {
         assert!(rendered <= u64::from(brief.brief_bytes + FRAMING));
         assert!(limits.host_part - u64::from(remaining) + rendered <= limits.host_part, "charter {number} open={open}");
         assert!(u64::from(remaining) - rendered >= u64::from(MARGIN));
-        let whole = temper_engine_smith::charter(&assignment);
         temper_protocol_brief::fit_brief(&mut charter, mounted.as_ref(), &limits);
         assert!(charter.owned_bytes().unwrap() <= run::charter_room(mounted.as_ref(), &limits).unwrap());
         assert!(run::brief_bytes(&charter.brief).unwrap() <= u64::from(remaining));
@@ -320,17 +331,14 @@ fn the_stock_brief_with_a_whole_spec_fits_both_receiving_bounds() {
             "charter {number} open={open} keeps fixed declarations"
         );
     }
-    reference_spec_receiving_rows();
+    reference_spec_receiving_rows(&assignments);
 }
 
-// The whole-spec table, including these receiving rows, measures 0.104 s CPU.
-fn reference_spec_receiving_rows() {
+fn reference_spec_receiving_rows(assignments: &Assignments) {
     let configuration = fixtures::stock_configuration(63_740, 48_000).expect("reference agent");
     let limits = configuration.service.limits.domain.run;
-    let mut assignment = assignment(2, false, 0);
-    let engine = engine(&generated());
-    let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
-    assignment.run.policy = crate::tests::reference_settings::charter(&defaults, 2).policy;
+    let mut assignment = assignments.assignment(2, false, 0);
+    assignment.run.policy = crate::tests::reference_settings::charter(&assignments.defaults, 2).policy;
     assignment.sections = Box::new([temper_engine_domain::BriefSection {
         kind: temper_engine_domain::BriefKind::Core(jig_domain_brief::Core::Task),
         body: temper_engine_domain::BriefBody::Text(Box::default()),
@@ -441,11 +449,11 @@ fn measure_worker() {
         &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 65_536, depth: 32 },
     )
     .unwrap();
-    let mut jig = jig_protocol_config::worker(
+    let mut jig = temper_service_core::derived::worker_document(
         &document,
         0,
         &jig_protocol_config::Directories::working(),
-        &temper_service_core::startup::fixed_worker(),
+        temper_service_core::derived::STOCK,
     )
     .unwrap();
     jig.limits = Some(engine(&generated()).limits);
@@ -456,7 +464,7 @@ fn measure_worker() {
     });
     let worker =
         crate::settings::Worker { jig, root: b"/worker".as_slice().into(), git: Some(b"/bin/git".as_slice().into()) };
-    let agent = worker_agent(configured());
+    let agent = worker_agent(fixtures::stock_configuration(63_740, 48_000).expect("stock agent"));
     let mut files = crate::settings::Files { entries: skein_lib::List::with_capacity(1) };
     files
         .entries

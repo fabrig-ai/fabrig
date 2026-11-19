@@ -102,7 +102,7 @@ fn the_checked_agent_and_source_environment_need_no_second_configuration_read() 
     fs::write(directory.join("agent.json"), &bytes).expect("pin fixture");
     fs::write(directory.join("root.der"), skein_tls_kit::pki::ROOT).expect("pin fixture");
     let mut part = temper_worker_service::startup::worker_part(
-        &serde_json::to_vec(&document).expect("pin fixture"),
+        &super::worker_start(&document),
         &temper_service_shell::jig_directories(&super::configuration::directories(directory)),
         None,
         &[],
@@ -119,8 +119,9 @@ fn the_checked_agent_and_source_environment_need_no_second_configuration_read() 
     assert_eq!(prepared.agent.tool_payload, 63_740);
     assert_eq!(prepared.environment.as_ref(), [Box::from(b"PINNED_ENV=at-start".as_slice())]);
     fs::remove_file(directory.join("agent.json")).expect("pin fixture");
-    fs::write(directory.join("worker.secret"), b"worker-secret").expect("pin fixture");
-    fs::set_permissions(directory.join("worker.secret"), fs::Permissions::from_mode(0o600))
+    fs::create_dir(directory.join("secrets")).expect("pin fixture");
+    fs::write(directory.join("secrets/worker.secret"), b"worker-secret").expect("pin fixture");
+    fs::set_permissions(directory.join("secrets/worker.secret"), fs::Permissions::from_mode(0o600))
         .expect("private fixture secret");
     let files = temper_service_shell::read_files(
         agent::without_configuration(part.files, &part.named.agent),

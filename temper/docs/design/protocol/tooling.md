@@ -177,7 +177,11 @@ baseline recounted, a generated file made again), with no model.
   runs it on those texts. It never runs the family's drift test, whose
   world builds the very codec crates left in conflict. A module whose
   schema text or generator conflicts too is left with them
-  (`../draft/codec-shape.md`, 6.2). A generator that is unavailable, fails or
+  (`../draft/codec-shape.md`, 6.2). It settles a conflict at a
+  journey's recording, page or file printed beside them with the base's
+  copy, the landing branch's, or with none where the base holds none,
+  deletions and renames among them, since only the journeys' writer
+  writes those paths (`../client/journey-writer.md`, 5). A generator that is unavailable, fails or
   does not produce a fresh file free of conflict markers leaves the
   file unmerged. The reference's B0 and B1 recordings require captured data
   outside the checkout; without that input they stay unmerged. Any

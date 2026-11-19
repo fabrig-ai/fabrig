@@ -142,14 +142,3 @@ pub(super) fn nullable(
     }
     at
 }
-
-// Override keys are names in the limits table, not fixed configuration members.
-pub(super) fn overrides(document: &Document, at: u32, path: &Path, problems: &mut Problems) -> Option<read::Object> {
-    match read::Object::new(document, at) {
-        Ok(object) => Some(object),
-        Err(what) => {
-            problems.push(path.clone(), What::Jig(what));
-            None
-        }
-    }
-}

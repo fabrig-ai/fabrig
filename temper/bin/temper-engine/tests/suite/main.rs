@@ -1,5 +1,6 @@
 //! The engine binary's table and dispatch (temper/docs/design/protocol/binaries.md, 2).
 use std::process::{Command, Stdio};
+use temper_config_shell::{File, Shape, render};
 use temper_engine_shell::{ENGINE, commands};
 #[path = "../support/upgrade.rs"]
 mod upgrade;
@@ -16,12 +17,13 @@ fn upgrade_check_names_the_record_a_start_refuses_without_switching_generation()
     let config = scratch.path().join("config");
     let data = scratch.path().join("data");
     let cache = scratch.path().join("cache");
-    let configuration = config.join("temper.json");
-    let mut document: serde_json::Value =
-        serde_json::from_slice(&std::fs::read(&configuration).expect("configuration")).expect("document");
     // The owner's subject fits; the kept person's full identity does not.
-    document["engine"]["limits"]["overrides"]["people.identity_bytes"] = 7.into();
-    std::fs::write(configuration, serde_json::to_vec(&document).expect("document bytes")).expect("configuration");
+    let held = data.join("limits-held");
+    std::fs::write(&held, b"people.identity_bytes 7\n").expect("held startup figures");
+    let held_line = format!(
+        "limits held: {}; the limit settings are not taken; remove it and restart to take them",
+        held.display()
+    );
     let active_path = data.join("state/active");
     let active = std::fs::read(&active_path).expect("active generation");
     let refusal = "restart refused during core restore: PeopleBound(IdentityBytes), key People(Person(1))";
@@ -47,7 +49,8 @@ fn upgrade_check_names_the_record_a_start_refuses_without_switching_generation()
         let line = text.lines().find(|line| line.contains(refusal)).expect(&text).to_owned();
         if checking {
             // Only wall-time warnings may accompany a refusal; the refusal itself belongs on stdout.
-            assert!(err.lines().all(engine_long_pass), "{err}");
+            assert!(err.lines().all(|line| engine_long_pass(line) || line == held_line), "{err}");
+            assert_eq!(err.lines().filter(|line| *line == held_line).count(), 1);
             assert!(out.contains(refusal), "{out}");
             assert_eq!(std::fs::read(&active_path).expect("active after refused check"), active);
             check_refusal = Some(line);
@@ -131,8 +134,6 @@ fn only_engine_long_pass_diagnostics_are_accepted_on_stderr() {
     }
 }
 
-const WORKER: &str = r#"{"workers":[{"engine":{"socket":"127.0.0.1:1"}}]}"#;
-const STANDALONE: &str = r#"{"engine":{"hosts":{"listener":[{"in_process":"workers"}]}}}"#;
 const SERVE: &[&str] = &["serve", "--config", "CONFIG", "--data", "DATA", "--cache", "CACHE"];
 const FETCH: &[&str] = &["forge", "fetch", "--config", "CONFIG", "--data", "DATA", "--cache", "CACHE", "1"];
 
@@ -160,7 +161,7 @@ fn help(text: &str) -> bool {
             .split_whitespace()
             .collect::<Vec<_>>()
             .join(" ")
-            .contains("Judges the workers alone over a copy; switches nothing.")
+            .contains("Judges the workers alone over links and small copies; switches nothing.")
         && ["serve", "versions", "upgrade", "checkpoint", "help"].iter().all(|word| rows.contains(word))
         && ["forge", "box", "program-login"].iter().all(|word| !rows.contains(word))
 }
@@ -185,6 +186,10 @@ fn pages(text: &str) -> bool {
     text == temper_shell::help::answer(ENGINE.binary, &temper_shell::help::Request::Index).expect("index page")
 }
 
+fn config_page(text: &str) -> bool {
+    text.as_bytes() == temper_config_shell::help(temper_config_shell::Shape::EngineAlone).as_ref()
+}
+
 fn commands_page(text: &str) -> bool {
     text == temper_shell::table::commands_page(&ENGINE)
 }
@@ -199,7 +204,7 @@ fn forge_help(text: &str) -> bool {
 }
 
 type Check = fn(&str) -> bool;
-type Case = (&'static [&'static str], Option<&'static str>, i32, Check, &'static str);
+type Case = (&'static [&'static str], Option<Shape>, i32, Check, &'static str);
 
 const CHECKPOINT_USAGE: &str = "temper-engine checkpoint: invalid arguments\nusage: temper-engine checkpoint [DIRECTORIES]\nusage: temper-engine checkpoint --hold NAME [DIRECTORIES] -- COMMAND [ARGUMENT...]\nusage: temper-engine checkpoint --remove NAME [DIRECTORIES]\n";
 const ROWS: &[Case] = &[
@@ -213,6 +218,7 @@ const ROWS: &[Case] = &[
     (&["help"], None, 0, help, ""),
     (&["help", "pages"], None, 0, pages, ""),
     (&["help", "commands"], None, 0, commands_page, ""),
+    (&["help", "config"], None, 0, config_page, ""),
     (&["help", "nope"], None, 1, empty, "temper-engine: no page nope; temper-engine help lists them\n"),
     (&["box"], None, 2, empty, "temper-engine: no command box; temper-engine --help lists them\n"),
     (
@@ -226,24 +232,24 @@ const ROWS: &[Case] = &[
     (&["--version", "extra"], None, 2, empty, "temper-engine: no command --version; temper-engine --help lists them\n"),
     (
         SERVE,
-        Some(WORKER),
+        Some(Shape::WorkerAlone),
         1,
         empty,
-        "temper-engine serve: temper.json holds a worker alone; temper-worker serve runs it\n",
+        "temper-engine serve: {file}:3: engine: a key of temper-worker's file, not temper-engine's\ntemper-engine serve: {file}: workers: required in temper-engine's file\n",
     ),
     (
         SERVE,
-        Some(STANDALONE),
+        Some(Shape::Standalone),
         1,
         empty,
-        "temper-engine serve: temper.json holds an engine and its worker in one process; temper-box serve runs it\n",
+        "temper-engine serve: {file}: workers: required in temper-engine's file\n",
     ),
     (
         FETCH,
-        Some(WORKER),
+        Some(Shape::WorkerAlone),
         1,
         empty,
-        "temper-engine forge fetch: temper.json holds a worker alone; temper-worker serve runs it\n",
+        "temper-engine forge fetch: forge 1: {file}:3: engine: a key of temper-worker's file, not temper-engine's\ntemper-engine forge fetch: {file}: workers: required in temper-engine's file\n",
     ),
     (
         &["upgrade", "--check"],
@@ -283,11 +289,20 @@ fn the_binary_answers_its_table_and_refuses_other_shapes() {
     let data = scratch.path().join("data");
     let cache = scratch.path().join("cache");
     std::fs::create_dir(&config).expect("configuration directory");
-    let document = config.join("temper.json");
+    std::fs::create_dir(&data).expect("data directory");
+    let directories = temper_agent_fixtures::directories(&config);
+    let jig = temper_service_shell::jig_directories(&directories);
+    let setup =
+        temper_forge_setup::setup_file::chosen(temper_forge_setup::machine::BoxKind::Fake, 3007, b"sam", false, &jig)
+            .expect("fake setup");
+    temper_forge_setup_shell::setup_file::write(&jig, 1, &setup).expect("setup file");
+    std::fs::create_dir_all(data.join("box/groups")).expect("groups directory");
+    std::fs::write(data.join("box/groups/1"), b"fake\n").expect("group kind");
+    let document = config.join(temper_config_shell::FILE);
     let mut failures = Vec::new();
     for (arguments, contents, code, stdout, stderr) in ROWS {
         if let Some(contents) = contents {
-            std::fs::write(&document, contents).expect("write document");
+            std::fs::write(&document, shape_file(*contents)).expect("write document");
         } else if document.exists() {
             std::fs::remove_file(&document).expect("remove document");
         }
@@ -312,9 +327,22 @@ fn the_binary_answers_its_table_and_refuses_other_shapes() {
             .expect("run temper-engine");
         let out = String::from_utf8(output.stdout).expect("UTF-8 stdout");
         let err = String::from_utf8(output.stderr).expect("UTF-8 stderr");
-        if output.status.code() != Some(*code) || !stdout(&out) || err != *stderr {
+        if output.status.code() != Some(*code)
+            || !stdout(&out)
+            || err != stderr.replace("{file}", temper_config_shell::FILE)
+        {
             failures.push(format!("{arguments:?}, document {contents:?}: exit {:?}, stdout {out:?}, stderr {err:?}; expected exit {code}, stderr {stderr:?}", output.status.code()));
         }
     }
     assert!(failures.is_empty(), "{}", failures.join("\n"));
+}
+
+fn shape_file(shape: Shape) -> Box<[u8]> {
+    let address = "127.0.0.1:1".parse().expect("fixture address");
+    let file = match shape {
+        Shape::Standalone => File { listen: Some(address), ..File::default() },
+        Shape::EngineAlone => File { workers: Some(address), ..File::default() },
+        Shape::WorkerAlone => File { engine: Some(address), ..File::default() },
+    };
+    render(&file, shape)
 }

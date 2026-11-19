@@ -1,5 +1,6 @@
 //! A landing's red wakes its subscribed goals (temper/docs/design/domain/after-landing.md, 7).
 use super::*;
+use core::fmt::Write;
 
 const GOAL: u64 = 91;
 const OTHER_GOAL: u64 = 92;
@@ -15,13 +16,14 @@ const LOG: &[u8] = b"first job failed\n";
 const SECOND_LOG: &[u8] = b"second job failed\n";
 const JOBS: u32 = 2; // The failed jobs in the run fixture.
 const SHARE: u32 = LIMITS.brief_bytes / JOBS;
-const FIRST_ATTEMPT: api::JobAttempt = api::JobAttempt { head: NEXT_TIP, run: RUN, job: JOB, attempt: 2 };
-const SECOND_ATTEMPT: api::JobAttempt = api::JobAttempt { head: NEXT_TIP, run: RUN, job: SECOND_JOB, attempt: 3 };
+pub(super) const FIRST_ATTEMPT: api::JobAttempt = api::JobAttempt { head: NEXT_TIP, run: RUN, job: JOB, attempt: 2 };
+pub(super) const SECOND_ATTEMPT: api::JobAttempt =
+    api::JobAttempt { head: NEXT_TIP, run: RUN, job: SECOND_JOB, attempt: 3 };
 
-fn failures(tests: &[&[u8]]) -> p::Failures {
+pub(super) fn failures(tests: &[&[u8]]) -> p::Failures {
     p::Failures::Tests(tests.iter().copied().map(Box::from).collect())
 }
-fn pending(landings: Box<[p::Landing]>, part: p::Part, failing: p::Failures) -> Domain {
+pub(super) fn pending(landings: Box<[p::Landing]>, part: p::Part, failing: p::Failures) -> Domain {
     let mut d = dispatched();
     let kept = d.tiers.get_mut(&(REPO, TIER.into())).unwrap();
     kept.baseline = None;
@@ -102,13 +104,13 @@ fn run(d: &Domain) -> api::Run {
 fn read(d: &Domain) -> Token {
     *d.tier_ops.reads.iter().find(|(_, key)| key.tier == (REPO, TIER.into())).expect("pending red read").0
 }
-fn respond(d: &mut Domain, answer: Result<api::Answer, api::Error>) -> Box<[Request]> {
+pub(super) fn respond(d: &mut Domain, answer: Result<api::Answer, api::Error>) -> Box<[Request]> {
     let owner = read(d);
     let mut out = Queue::uncapped();
     crate::tiers::answered(d, &env(), owner, answer, &mut out);
     collect(out)
 }
-fn log(attempt: api::JobAttempt, bytes: &[u8]) -> api::Answer {
+pub(super) fn log(attempt: api::JobAttempt, bytes: &[u8]) -> api::Answer {
     api::Answer::Job { attempt, step: None, log: bytes.into(), truncated: false }
 }
 fn logs(d: &mut Domain, second: Result<api::Answer, api::Error>) -> Box<[Request]> {
@@ -116,7 +118,7 @@ fn logs(d: &mut Domain, second: Result<api::Answer, api::Error>) -> Box<[Request
     respond(d, Ok(log(FIRST_ATTEMPT, LOG)));
     respond(d, second)
 }
-fn run_answer(d: &mut Domain) {
+pub(super) fn run_answer(d: &mut Domain) {
     let run = run(d);
     respond(d, Ok(api::Answer::Run(run)));
 }
@@ -140,6 +142,7 @@ fn expected(goal: u64, subscription: u64, commit: api::Commit, failing: p::Failu
         subscription,
         topic: Topic::Landings { repository: REPO, branch: b"main".as_slice().into() },
         news: News::Red(RedNews {
+            many: None,
             tier: TIER.into(),
             run: 1,
             url: Some(URL.into()),
@@ -361,6 +364,59 @@ fn failed_jobs_share_the_log_budget_and_keep_ends() {
     );
 }
 
+fn many_report() -> Domain {
+    let mut d = reports::one();
+    verification(&mut d, NEXT_TIP, &[CHANGE]);
+    completed(&mut d, api::Conclusion::Failure, Some(1));
+    // Multiplication by 13 permutes the 37 distinct ids.
+    let mut report = String::new();
+    for i in 0_u32..37 {
+        writeln!(report, "suite::t{:02}", i.checked_mul(13).unwrap() % 37).unwrap();
+    }
+    reports::report(&mut d, report.as_bytes(), false);
+    d
+}
+fn many_words() -> Vec<u8> {
+    let mut words = format!(
+        "Red after landing: tier browser run 1 blames landing {} on main: many failing.\nmany; its report names:\n",
+        core::str::from_utf8(&commit_text(&NEXT_TIP)).unwrap()
+    );
+    for i in 0_u32..16 {
+        writeln!(words, "suite::t{i:02}").unwrap();
+    }
+    words.push_str("and 21 more\nRun: https://forge.example/run/71");
+    words.into_bytes()
+}
+#[test]
+fn a_many_report_names_its_tests_in_a_finding() {
+    let mut d = many_report();
+    let out = finish(&mut d);
+    assert_eq!(news(&out).len(), 0);
+    assert_eq!(filings(&out)[0].body.as_ref(), many_words());
+}
+#[test]
+fn a_many_report_names_its_tests_in_goal_news() {
+    let mut d = many_report();
+    subscribe(&mut d, GOAL, SUBSCRIPTION, b"main", &[CHANGE]);
+    let out = finish(&mut d);
+    let news = news(&out);
+    let Request::News { news: News::Red(red), .. } = &news[0] else { panic!("red news") };
+    assert_eq!(red_news_words(red, 4096).as_ref(), many_words());
+}
+#[test]
+fn a_new_run_drops_many_names_even_when_a_receipt_is_reused() {
+    let mut d = many_report();
+    finish(&mut d);
+    assert!(row(&d).many.is_some());
+    d.tiers.get_mut(&(REPO, TIER.into())).unwrap().pending =
+        Box::new([TierLanding { commit: LAST_TIP, key: Some(NEXT_TIP) }]);
+    let mut out = Queue::uncapped();
+    crate::tiers::start_due(&mut d, &env(), REPO, &mut out);
+    assert_eq!(row(&d).many, None);
+    assert!(row(&d).received);
+    assert_eq!(row(&d).result.as_ref().unwrap().failures, Some(p::Failures::Many));
+}
+
 #[test]
 fn a_red_without_a_subscribed_goal_still_judges() {
     let mut d = one();
@@ -397,18 +453,20 @@ fn a_project_ending_at_landing_files_red_even_while_a_subscribed_verification_su
     logs(&mut d, Ok(log(SECOND_ATTEMPT, SECOND_LOG)));
     let out = settled_step(&mut d, RELEASE + 1, false);
     assert!(news(&out).is_empty(), "no goal hears a main red under landed, even before a switched row closes");
-    let calls = filings(&out);
-    assert_eq!(calls, [expected_finding()]);
-    let write = d.prepare_file_finding(&LIMITS, env().wall, Filer::Task(TIER_TASK), calls[0].clone()).unwrap();
+    let calls = filing::calls(&out);
+    assert_eq!(calls.len(), 1);
+    assert_eq!(calls[0].title.as_ref(), b"1 test fails in browser since 060606060606 landed");
+    assert_eq!(calls[0].signature.ids.as_ref(), [Box::from(FIRST_TEST)]);
+    assert_eq!(calls[0].signature.first.as_ref(), b"first job failed");
+    let write = d.prepare_verdict_filing(&LIMITS, env().wall, Filer::Task(TIER_TASK), &calls[0]).unwrap();
     let mut later = one();
     later.landing.projects.get_mut(&5).unwrap().2.wait = temper_engine_domain_forge_change::Wait::Landed;
     later.verifications.remove(&(REPO, NEXT_TIP));
     outputs(&mut later, Event::Restore { record: Stored::Finding(write.row) });
     later.tiers.get_mut(&(REPO, TIER.into())).unwrap().record.run.as_mut().unwrap().number = 2;
-    settled_step(&mut later, RELEASE + 2, false);
-    logs(&mut later, Ok(log(SECOND_ATTEMPT, SECOND_LOG)));
-    let out = settled_step(&mut later, RELEASE + 3, false);
-    assert!(filings(&out).is_empty(), "a second red blaming the landing files none");
+    let out = settled_step(&mut later, RELEASE + 2, false);
+    assert!(filing::calls(&out).is_empty(), "a second red blaming the landing files none");
+    assert!(later.tier_ops.reads.is_empty(), "held failures need no logs");
     assert_eq!(news(&out).len(), 0);
 }
 
@@ -433,11 +491,13 @@ fn a_red_reads_the_lowest_member_follow_from_the_landing_log() {
     let filings: Vec<_> = out
         .iter()
         .filter_map(|request| match request {
-            Request::FileRedFinding { follow, finding, .. } => Some((*follow, finding)),
+            Request::FileVerdict { filing, .. } => Some(filing),
             _ => None,
         })
         .collect();
-    assert_eq!(filings, [(Some(4), &expected_finding())]);
+    assert_eq!(filings.len(), 1);
+    assert_eq!(filings[0].follow, Some(4));
+    assert_eq!(filings[0].title.as_ref(), b"1 test fails in browser since 060606060606 landed");
 }
 
 #[test]

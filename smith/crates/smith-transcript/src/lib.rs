@@ -1,5 +1,5 @@
 //! Bounded turn records; this crate retains no runtime state and knows no
-//! session, provider configuration or host policy. Generated constructors,
+//! session, provider configuration or host policy. Generated records,
 //! encoders and decoders are the entry points. Contract:
 //! `protocol/transcript.md`, sections 2-7.
 
@@ -7,6 +7,10 @@
 #![forbid(unsafe_code)]
 
 extern crate alloc;
+
+/// The current family schema text (skein/docs/design/data/codec/README.md, section 6).
+#[expect(clippy::disallowed_macros, reason = "the owner embeds its current schema text once")]
+pub const SCHEMA: &str = include_str!("../schema/transcript-v7.schema");
 
 #[rustfmt::skip]
 mod generated {
@@ -19,20 +23,13 @@ mod generated {
 pub use generated::v7;
 
 pub use v7::{
-    Affinity, AffinityParts, AfterFailedWrite, AfterFailedWriteParts, AllowedCalls, AllowedCallsParts, Ambiguous,
-    AmbiguousParts, Backend, Block, ByteClamp, ByteClampParts, BytesClamp, CEILINGS, Call, CallName, CallNameParts,
-    CallParts, CallProblem, CommandEnd, CommandEndParts, CommandRunning, CommandRunningParts, CutProblem,
-    CutProblemParts, DurationClamp, DurationClampParts, EditFailed, EditFailedParts, Edited, EditedParts, Entry,
-    EntryParts, Exit, ExitCode, ExitCodeParts, ExitSignal, ExitSignalParts, Failed, FailedParts, Fault, FieldProblem,
-    FieldProblemParts, Found, FoundParts, Hit, HitParts, Invalid, InvalidParts, JobEnd, JobExit, JobExitParts, JobRead,
-    JobReadParts, JobsFullProblem, JobsFullProblemParts, Kind, LineNumber, LineNumberParts, Listed, ListedParts,
-    Message, MessageParts, Mismatch, Next, NotRun, NotRunParts, NotRunWhy, Opaque, OpaqueParts, Opening, OpeningParts,
-    OtherPath, OtherPathParts, Outcome, OutsideChoice, OutsideChoiceParts, OutsidePath, OutsidePathParts,
-    OversizeProblem, OversizeProblemParts, OwnedOutcome, OwnedOutcomeParts, Program, ProgramParts, Read, ReadCut,
-    ReadParts, Replay, ReplayParts, Resolved, ResolvedFailure, ResolvedFailureParts, Returned, Role, Said, SaidParts,
-    SizePart, Text, TextParts, TimeoutClamp, TooLarge, TooLargeParts, ToolResult, ToolResultParts, Turn, TurnKind,
-    TurnParts, UnknownJobProblem, UnknownJobProblemParts, Usage, UsageParts, WorkingPath, WorkingPathParts, Written,
-    WrittenParts,
+    Affinity, AfterFailedWrite, AllowedCalls, Ambiguous, Backend, Block, ByteClamp, BytesClamp, CEILINGS, Call,
+    CallName, CallProblem, CommandEnd, CommandRunning, CutProblem, DurationClamp, EditFailed, Edited, Entry, Exit,
+    ExitCode, ExitSignal, Failed, Fault, FieldProblem, Found, Hit, Invalid, JobEnd, JobExit, JobRead, JobsFullProblem,
+    Kind, LineNumber, Listed, Message, Mismatch, Next, NotRun, NotRunWhy, Opaque, Opening, OtherPath, Outcome,
+    OutsideChoice, OutsidePath, OversizeProblem, OwnedOutcome, Problem, Program, Read, ReadCut, Record, Replay,
+    Resolved, ResolvedFailure, Returned, Role, Said, SizePart, Text, TimeoutClamp, TooLarge, ToolResult, Turn,
+    TurnKind, UnknownJobProblem, Usage, WorkingPath, Written, paths,
 };
 
 impl Turn {
@@ -61,7 +58,7 @@ pub mod patches;
 
 /// Decode an archived version-6 or current turn; version 6 has no supplied system context.
 /// Resuming readers use the current codec directly.
-pub fn decode_archived(limits: &v7::Limits, bytes: &[u8]) -> Result<Turn, v7::Problem> {
+pub fn decode_archived(limits: &v7::Limits, bytes: &[u8]) -> Result<Turn, Problem> {
     if bytes.get(..2) != Some(&[0, 6][..]) {
         return Turn::decode(limits, &mut skein_lib::Reader::new(bytes));
     }
@@ -84,8 +81,7 @@ pub mod wire {
     /// The lowest version this build speaks.
     pub const FLOOR: u16 = crate::patches::kept::smith_transcript::FLOOR;
 
-    #[expect(clippy::disallowed_macros, reason = "the wire identity embeds its current schema")]
-    const TEXT: &str = include_str!("../schema/transcript-v7.schema");
+    const TEXT: &str = crate::SCHEMA;
 
     /// The current schema's family fingerprint.
     #[must_use]

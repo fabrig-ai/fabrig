@@ -1728,18 +1728,25 @@ fn the_session_send_arrow_waits_for_words_in_every_chat() {
 #[test]
 fn working_dots_follow_each_status_in_the_browser_alone_including_asking_chats() {
     use crate::look;
-    for (line, token) in super::chats::status_rows() {
-        for asking in [false, true] {
-            let mut task = asking_task();
+    let mut views = fixtures::PageViews::new();
+    let task = asking_task();
+    let rows = super::chats::status_rows();
+    for asking in [false, true] {
+        let charter = if asking { 37 } else { 1 };
+        let (mut root, watch) = fixtures::chat_helpers::asking_task_root_with_watch(task.clone(), true, charter, true);
+        for (line, token) in &rows {
+            let mut task = task.clone();
             task.chip = line.chip.clone();
             task.waits_on = line.waits_on.clone();
-            let root = asking_task_root(task, true, if asking { 37 } else { 1 });
-            for (view, browser) in [(fixtures::page_view(&root), false), (fixtures::browser_page_view(&root), true)] {
+            task.chip.executor = c::ChipExecutor::Agent { charter };
+            deliver_chat(&mut root, watch, c::Delivery::Task(Box::new(task)));
+            for browser in [false, true] {
+                let view = views.page(&root, browser);
                 let tree = view.tree();
                 let dots = style_position(tree.nodes(), look::TYPING);
                 assert_eq!(
                     dots.is_some(),
-                    browser && token == look::STATUS_ACTIVE,
+                    browser && *token == look::STATUS_ACTIVE,
                     "{token:?}, asking={asking}, browser={browser}"
                 );
                 if let Some(dots) = dots {
@@ -1749,6 +1756,7 @@ fn working_dots_follow_each_status_in_the_browser_alone_including_asking_chats()
                     let log = named_position(tree.nodes(), Role::Log, None).unwrap();
                     assert_eq!(dots + 4, log + usize::try_from(tree.nodes()[log].size).unwrap(), "dots end the log");
                 }
+                views.recover(view);
             }
         }
     }

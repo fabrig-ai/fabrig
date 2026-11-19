@@ -22,7 +22,10 @@ fn positive(value: &Value, name: &'static [u8]) -> Result<u32, Problem> {
     let n = value.small(name)?;
     if n == 0 { Err(Problem::Range(name)) } else { Ok(n) }
 }
-#[expect(clippy::too_many_lines, reason = "settings selectors share the same numbered and project-scoped checks")]
+#[expect(
+    clippy::too_many_lines,
+    reason = "the read routes numbered and unnumbered settings through the same validation"
+)]
 pub(crate) fn read(value: &Value, bytes: &[u8]) -> Result<engine::Tool, Problem> {
     only(value, &[b"setting", b"revision", b"history", b"from"], b"settings")?;
     let from = match value.field(b"from")? {
@@ -95,6 +98,8 @@ pub(crate) fn read(value: &Value, bytes: &[u8]) -> Result<engine::Tool, Problem>
         }
         if kind.as_ref() == b"rules"
             || kind.as_ref() == b"welcome"
+            || kind.as_ref() == b"limits"
+            || kind.as_ref() == b"temper-limits"
             || kind.as_ref() == b"agents"
             || by_project.is_some()
         {
@@ -136,6 +141,7 @@ fn core_setting(setting: c::Setting) -> s::Setting {
         c::Setting::Worker(value) => s::Setting::Worker(value.number),
         c::Setting::Provider(value) => s::Setting::Provider(value.number),
         c::Setting::Rules => s::Setting::Rules,
+        c::Setting::Limits => s::Setting::Limits,
         c::Setting::Application { kind, scope, number } => s::Setting::Application { kind, scope, number },
         c::Setting::ProjectPolicy { project } => s::Setting::ProjectPolicy { project },
     }
@@ -668,6 +674,7 @@ fn malformed_setting(
         s::Setting::Worker(number) => c::Setting::Worker(c::SettingNumber { number: *number }),
         s::Setting::Provider(number) => c::Setting::Provider(c::SettingNumber { number: *number }),
         s::Setting::Rules => c::Setting::Rules,
+        s::Setting::Limits => c::Setting::Limits,
         s::Setting::Application { kind, scope, number } => {
             c::Setting::Application { kind: *kind, scope: *scope, number: *number }
         }
@@ -731,6 +738,7 @@ pub(crate) fn parts(text: &mut crate::answers::Text, parts: &engine::PartsAnswer
                 s::Setting::Provider(number) => c::Setting::Provider(c::SettingNumber { number: *number }),
                 s::Setting::ProjectPolicy { project } => c::Setting::ProjectPolicy { project: *project },
                 s::Setting::Rules => c::Setting::Rules,
+                s::Setting::Limits => c::Setting::Limits,
                 s::Setting::Application { kind, scope, number } => c::Setting::Application { kind: *kind, scope: *scope, number: *number },
             };
             let mut measure = settings_form::Text::measure();

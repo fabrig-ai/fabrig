@@ -22,6 +22,7 @@ pub(crate) fn defer(domain: &Domain, event: Event) -> Result<Event, Box<forge::E
         | Event::Released(_)
         | Event::Setup { .. }
         | Event::Restart { .. }
+        | Event::LimitsRaised
         | Event::Resume
         | Event::Stop) => Ok(event),
     }

@@ -1,4 +1,4 @@
-family temper-client-wire 38
+family temper-client-wire 39
 
 # The role, as temper-engine-domain-forge's Role, in its order.
 enum Role { owned, adopted, fork, context }
@@ -332,7 +332,19 @@ versioned record MilestonePart { whole: option u64 totals: MilestoneTotals goals
 enum MilestoneResult { totals: MilestoneTotals, not_milestone }
 versioned record MilestoneAnswer { result: MilestoneResult }
 
-enum Read { playground, setting: SettingRead, proposal_items: ProposalItemsRead, deployment, revision_setting: RevisionSettingRead, program_environment, view: ViewRead, finding: FindingRead, history: HistoryRead, milestone: MilestoneRead }
+# Limits as settings (configuration/limit-settings.md, 7). Pages are ascending by name or task.
+record LimitsRead { after: option bytes 64 }
+enum LimitKind { jig, temper }
+enum LimitUnit { count, bytes, milliseconds }
+enum LimitApplies { at_once, next_start }
+record LimitSetting { kind: LimitKind value: u64 reason: text 120 }
+record LimitRow { name: bytes 64 line: text 120 unit: LimitUnit stock: option u64 setting: option LimitSetting in_force: option u64 applies: LimitApplies waiting: bool left_out: bool held: option u64 }
+versioned record LimitsAnswer { rows: list 32 LimitRow next: option bytes 64 revision: u32 }
+record LimitHoldsRead { after: option u64 }
+record LimitHold { task: u64 limit: bytes 64 configured: u64 needed: u64 revision: u64 }
+versioned record LimitHoldsAnswer { rows: list 32 LimitHold next: option u64 }
+
+enum Read { playground, setting: SettingRead, proposal_items: ProposalItemsRead, deployment, revision_setting: RevisionSettingRead, program_environment, view: ViewRead, finding: FindingRead, history: HistoryRead, milestone: MilestoneRead, limits: LimitsRead, limit_holds: LimitHoldsRead }
 versioned record Reading { read: Read }
 
 # temper/docs/design/client/forge/records.md: no playground is no record.
@@ -544,3 +556,7 @@ enum Oversized { fail, drop }
 record AgentLimits { window: u32 output: u32 reasoning_item: u32 head_ms: u64 idle_ms: u64 oversized: Oversized }
 record AgentEndpointLimits { endpoint: text 64 limits: AgentLimits }
 record AgentFigures { profile: list 128 AgentFigure endpoints: list 64 AgentEndpointLimits fallback: AgentLimits }
+
+# Limit overrides (protocol/configuration/limit-settings.md, 2.3).
+record LimitOverride { name: bytes 64 value: u64 reason: text 120 }
+record TemperLimits { overrides: list 256 LimitOverride }

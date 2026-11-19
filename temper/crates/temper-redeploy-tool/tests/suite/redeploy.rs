@@ -79,6 +79,17 @@ fn engine_alone_keeps_workers_and_records_the_first_opening_window() {
     hosts.opening(1, Opening::After { nanoseconds: 5 * SECOND, wires: WIRES.into() });
     let (outcome, record) = execute(&mut hosts, Mode::Engine);
     assert_eq!(outcome, Outcome::Done);
+    for step in ["serving verdict", "verdict"] {
+        let exit = record
+            .lines
+            .iter()
+            .position(|line| line.line == format!("temper-redeploy run: {step} exit Some(0)"))
+            .unwrap();
+        assert_eq!(
+            record.lines[exit + 1].line,
+            format!("temper-redeploy run: {step} rehearsal linked 12 files, copied 3")
+        );
+    }
     assert_eq!(hosts.engine.installed.values().collect::<Vec<_>>(), [&NEW, &NEW]);
     for binary in ["temper-engine", "temper"] {
         assert_eq!(hosts.engine.staged[&format!("/builds/{OLD}/{binary}")], OLD);
@@ -411,8 +422,8 @@ fn a_failed_serving_verdict_refuses_without_stopping_or_swapping() {
         let mut hosts = staged(2);
         hosts.verdict.push_back(Output {
             code: Some(2),
-            stdout: "staged build verdict\n".into(),
-            stderr: "error: unexpected argument '--workers' found\n".into(),
+            stdout: String::new(),
+            stderr: "temper-engine: no command upgrade --workers; temper-engine --help lists them\n".into(),
         });
         let scratch = skein_scratch::Scratch::new("redeploy-serving-verdict");
         let path = scratch.path().join("record.json");
@@ -447,18 +458,132 @@ fn a_failed_serving_verdict_refuses_without_stopping_or_swapping() {
         assert_eq!(record.openings, []);
         let lines: Vec<_> =
             record.lines.iter().filter_map(|line| line.line.strip_prefix("temper-redeploy run: ")).collect();
-        let start = lines.iter().position(|line| *line == "staged build verdict").unwrap();
+        let start = lines
+            .iter()
+            .position(|line| *line == "temper-engine: no command upgrade --workers; temper-engine --help lists them")
+            .unwrap();
         assert_eq!(
             &lines[start..],
             [
-                "staged build verdict",
-                "error: unexpected argument '--workers' found",
+                "temper-engine: no command upgrade --workers; temper-engine --help lists them",
                 "serving verdict exit Some(2)",
                 "serving verdict: a build without upgrade --workers is redeployed with --together",
-                "serving verdict failed: exit Some(2): error: unexpected argument '--workers' found staged build verdict",
-                "refused: serving verdict: exit Some(2): error: unexpected argument '--workers' found staged build verdict",
+                "serving verdict failed: exit Some(2): temper-engine: no command upgrade --workers; temper-engine --help lists them ",
+                "refused: serving verdict: exit Some(2): temper-engine: no command upgrade --workers; temper-engine --help lists them ",
             ]
         );
+    }
+}
+
+#[test]
+fn a_current_builds_serving_refusal_points_at_its_lines_without_a_together_hint() {
+    for mode in [Mode::Engine, Mode::Workers] {
+        let mut hosts = staged(2);
+        hosts.verdict.push_back(Output {
+            code: Some(1),
+            stdout: String::new(),
+            stderr: "temper-engine upgrade: checkpoint is in use\n".into(),
+        });
+        let (outcome, record) = execute(&mut hosts, mode);
+        assert_eq!(outcome, Outcome::Refused);
+        all_old(&hosts);
+        assert!(hosts.lines.iter().all(|call| !call.line.starts_with("stop ")
+            && !call.line.starts_with("start ")
+            && !call.line.starts_with("checkpoint ")));
+        assert_eq!(record.verdict, None);
+        assert_eq!(record.backup, None);
+        let lines: Vec<_> = record.lines.iter().map(|line| line.line.as_str()).collect();
+        assert!(lines.iter().all(|line| !line.contains("--together")));
+        let hint = lines
+            .iter()
+            .position(|line| {
+                *line == "temper-redeploy run: serving verdict: refused by the staged build; its lines above say why"
+            })
+            .expect("the current build's refusal points at its lines");
+        assert_eq!(lines[hint - 1], "temper-redeploy run: serving verdict exit Some(1)");
+        assert!(hint < lines.len() - 1);
+        assert_eq!(
+            last(&record),
+            "temper-redeploy run: refused: serving verdict: exit Some(1): temper-engine upgrade: checkpoint is in use "
+        );
+    }
+}
+
+#[test]
+fn each_successful_verdict_notes_the_first_rehearsal_count_between_exit_and_decision() {
+    for (stdout, stderr, linked, copied) in [
+        ("temper-engine upgrade: rehearsal linked 12 files, copied 3\nworkers may stay: yes", "", 12, 3),
+        (
+            "temper-engine upgrade: rehearsal linked 99 files, copied 88\nworkers may stay: yes",
+            "temper-engine upgrade: rehearsal linked 12 files, copied 3",
+            99,
+            88,
+        ),
+        (
+            "temper-engine upgrade: rehearsal linked 12 files, copied 3\ntemper-engine upgrade: rehearsal linked malformed\nworkers may stay: yes",
+            "",
+            12,
+            3,
+        ),
+        (
+            "temper-engine upgrade: rehearsal linked 12 files, copied 3\nnote: temper-engine upgrade: rehearsal linked 99 files, copied 88\nworkers may stay: yes",
+            "",
+            12,
+            3,
+        ),
+    ] {
+        let mut hosts = staged(1);
+        hosts.check_answer(0, "temper-engine upgrade: rehearsal linked 99 files, copied 88\nworkers may stay: yes");
+        hosts.verdict.push_back(Output { code: Some(0), stdout: stdout.into(), stderr: stderr.into() });
+        let (outcome, record) = execute(&mut hosts, Mode::Engine);
+        assert_eq!(outcome, Outcome::Done);
+        let lines: Vec<_> = record.lines.iter().map(|line| line.line.as_str()).collect();
+        for step in ["serving verdict", "verdict"] {
+            let exit =
+                lines.iter().position(|line| *line == format!("temper-redeploy run: {step} exit Some(0)")).unwrap();
+            assert_eq!(
+                lines[exit + 1],
+                format!("temper-redeploy run: {step} rehearsal linked {linked} files, copied {copied}")
+            );
+            assert_eq!(lines[exit + 2], format!("temper-redeploy run: {step} workers may stay: yes"));
+        }
+        assert!(!lines.iter().any(|line| line.starts_with("temper-redeploy run: check rehearsal")));
+        let verdict = record.verdict.as_ref().unwrap();
+        assert_eq!(verdict.code, Some(0));
+        assert_eq!(verdict.lines, stdout.lines().chain(stderr.lines()).collect::<Vec<_>>());
+    }
+}
+
+#[test]
+fn missing_or_malformed_rehearsal_counts_are_unknown_without_refusing() {
+    for count in [
+        "",
+        "temper-engine upgrade: rehearsal linked 12 files, copied three",
+        "temper-engine upgrade: rehearsal linked +12 files, copied 3",
+        "temper-engine upgrade: rehearsal linked 12 files, copied -3",
+        "temper-engine upgrade: rehearsal linked  files, copied 3",
+        "temper-engine upgrade: rehearsal linked 12 files, copied ",
+        "temper-engine upgrade: rehearsal linked 12 files, copied 3 extra",
+        "temper-engine upgrade: rehearsal linked malformed\ntemper-engine upgrade: rehearsal linked 12 files, copied 3",
+        "note: temper-engine upgrade: rehearsal linked 12 files, copied 3",
+    ] {
+        let mut hosts = staged(1);
+        hosts.verdict_answer(0, &format!("{count}\nworkers may stay: yes"));
+        let (outcome, record) = execute(&mut hosts, Mode::Engine);
+        assert_eq!(outcome, Outcome::Done, "{count}");
+        let lines: Vec<_> = record.lines.iter().map(|line| line.line.as_str()).collect();
+        for step in ["serving verdict", "verdict"] {
+            let exit =
+                lines.iter().position(|line| *line == format!("temper-redeploy run: {step} exit Some(0)")).unwrap();
+            assert_eq!(
+                lines[exit + 1],
+                format!(
+                    "temper-redeploy run: {step} rehearsal linked: unknown; the staged build may copy the whole checkpoint at the stop"
+                ),
+                "{count}"
+            );
+            assert_eq!(lines[exit + 2], format!("temper-redeploy run: {step} workers may stay: yes"));
+        }
     }
 }
 

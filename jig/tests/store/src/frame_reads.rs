@@ -1,0 +1,214 @@
+//! Public transcript decode against fixture bytes, with deterministic file replies.
+//! Shared by the fuzzy model and the isolated heap test; step tests exercise real file drivers.
+use crate::root;
+use jig_protocol_store::core_v6::Record as _;
+use jig_protocol_store::{self as store, Event, Owner, OwnerSets, Request, Root, TranscriptRead, codec, format, keys};
+use jig_test_patches_jig::frames;
+use jig_test_patches_smith::patches as smith;
+use skein_io::{file, kernel::Fd};
+use skein_lib::{Env, Queue, Time, Token, Wall, length::len_u64};
+
+const OWNER: Token = Token::new(9);
+const COMMITTED: u64 = 1024;
+pub const FRAME_KEY_BYTES: usize = 18;
+pub use crate::patches::FRAME_SETS as SETS;
+#[must_use]
+pub fn floor() -> Box<[u8]> {
+    let row = store::component_v3::Floor { number: store::FLOOR, build: Box::new([]) };
+    row.encode(&jig_protocol_store::component_v3::CEILINGS).expect("measured floor")
+}
+fn env(limits: &store::Limits) -> Env<store::Limits> {
+    Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits }
+}
+#[must_use]
+pub fn closed(sets: OwnerSets, limits: &store::Limits) -> (store::Store, Env<store::Limits>) {
+    let mut maps = store::Stores {
+        store: skein_kv::Store::memory(&limits.store),
+        secrets: skein_kv::Store::memory(&limits.secrets),
+    };
+    let codec = codec::limits(&limits.core).expect("codec");
+    let mut fmt = format::current(root::APPLICATION.version, root::DEPLOYMENT);
+    for set in sets.sets {
+        let level = set.level;
+        match set.owner {
+            Owner::Jig => fmt.levels.jig = level,
+            Owner::Smith => fmt.levels.smith = level,
+            Owner::Skein | Owner::Application => panic!("frames fixture owners"),
+        }
+    }
+    let own = |key| keys::encode_own(&key, limits.store.key).expect("component key");
+    let ops = Box::new([
+        skein_kv::Op::Put { key: own(keys::Own::Format), value: fmt.encode().expect("format") },
+        skein_kv::Op::Put { key: own(keys::Own::Floor), value: floor() },
+        skein_kv::Op::Put {
+            key: keys::encode(&root::header(1).key(), limits.store.key).expect("header key"),
+            value: codec::encode(&root::header(1), &codec, &[]).expect("header"),
+        },
+        skein_kv::Op::Put {
+            key: keys::installation(limits.store.key).expect("installation"),
+            value: codec::accounts::Installation { id: root::DEPLOYMENT }.encode(),
+        },
+        skein_kv::Op::Put {
+            key: own(keys::Own::Transcript { task: frames::TASK }),
+            value: codec::component::Transcript { length: COMMITTED, window: 0 }.encode().expect("places"),
+        },
+        skein_kv::Op::Put {
+            key: own(keys::Own::Attempt { task: frames::TASK, attempt: frames::ATTEMPT }),
+            value: codec::component::Attempt { first: 0 }.encode().expect("attempt"),
+        },
+    ]);
+    let mut above = Queue::uncapped();
+    let mut below = Queue::uncapped();
+    skein_kv::down(
+        &mut maps.store,
+        &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.store },
+        skein_kv::Request::Commit { owner: OWNER, ops },
+        &mut above,
+        &mut below,
+    );
+    let mut component = store::Store::over(limits, root::APPLICATION, &[], maps);
+    component.owner_sets(sets);
+    (component, env(limits))
+}
+pub fn open(component: &mut store::Store, env: &Env<store::Limits>) {
+    let mut above = Queue::uncapped();
+    let mut below = store::Below {
+        store: Queue::uncapped(),
+        secrets: Queue::uncapped(),
+        transcripts: Queue::uncapped(),
+        checkpoints: Queue::uncapped(),
+    };
+    store::down(
+        component,
+        env,
+        Request::Open {
+            purpose: jig_protocol_store::Purpose::Serve,
+            owner: OWNER,
+            root: Root { token: Token::new(1), fd: Fd::new(3) },
+            installation: root::DEPLOYMENT,
+        },
+        &mut above,
+        &mut below,
+    );
+    assert!(matches!(above.pop(), Some(Event::Opened { pending: false, .. })));
+    // These transcript checks do not consume the map census (protocol/store/README.md, 6.3).
+    let Some(Event::Census { .. }) = above.pop() else { panic!("opened census") };
+}
+pub use crate::patches::fixture_turn as turn;
+// Six file operations and two patch stops cover one small fixture frame.
+const STEPS: u32 = 8;
+
+#[expect(clippy::too_many_lines, reason = "the frame driver exhaustively rejects checkpoint terminals too")]
+pub fn decode(component: &mut store::Store, env: &Env<store::Limits>, raw: &[u8], no_site: bool) -> Option<Box<[u8]>> {
+    let mut above = Queue::uncapped();
+    let mut below = store::Below {
+        store: Queue::uncapped(),
+        secrets: Queue::uncapped(),
+        transcripts: Queue::uncapped(),
+        checkpoints: Queue::uncapped(),
+    };
+    store::down(
+        component,
+        env,
+        Request::Transcript {
+            owner: OWNER,
+            read: TranscriptRead::Turn { task: frames::TASK, attempt: frames::ATTEMPT, turn: frames::TURN },
+            rows: 1,
+            bytes: COMMITTED,
+        },
+        &mut above,
+        &mut below,
+    );
+    for _ in 0..STEPS {
+        if let Some(event) = above.pop() {
+            match event {
+                // These transcript checks do not consume the census (protocol/store/README.md, 6.3).
+                Event::Census { .. } => continue,
+                Event::Page { .. } | Event::PageRefused { .. } => {
+                    unreachable!("a start's pages need a start-mode store")
+                }
+                Event::Turns { turns, .. } => return Some(turns.first().expect("selected turn").transcript.clone()),
+                Event::Unread { .. } => return None,
+                Event::Site { owner, of, key, site, at, mut patcher } => {
+                    assert_eq!(of, Owner::Smith);
+                    assert_eq!(key.len(), FRAME_KEY_BYTES);
+                    let result = if no_site {
+                        Err(skein_codec::patch::Halt::NoSite(site))
+                    } else {
+                        let (old, new) = patcher.parts();
+                        smith::written(site, old, new, at, &mut smith::Context { key })
+                    };
+                    store::down(component, env, Request::Site { owner, patcher, result }, &mut above, &mut below);
+                    continue;
+                }
+                other @ (Event::Checkpointed { .. }
+                | Event::CheckpointRefused { .. }
+                | Event::Restored { .. }
+                | Event::RestoreRefused { .. }
+                | Event::CheckpointHeld { .. }
+                | Event::CheckpointRemoved { .. }
+                | Event::Switched { .. }
+                | Event::Opened { .. }
+                | Event::OpenRefused { .. }
+                | Event::Committed { .. }
+                | Event::Failed { .. }
+                | Event::FrameTooLarge { .. }
+                | Event::Loaded { .. }
+                | Event::Read { .. }
+                | Event::Got { .. }
+                | Event::Kept { .. }
+                | Event::Carried { .. }
+                | Event::Stale { .. }
+                | Event::Erased { .. }
+                | Event::Secret { .. }
+                | Event::SecretsLoaded { .. }
+                | Event::SecretsNotReady { .. }
+                | Event::Corrupt { .. }
+                | Event::Decoded { .. }
+                | Event::Undecodable { .. }
+                | Event::Rehearsing { .. }
+                | Event::Back { .. }
+                | Event::BackRefused { .. }
+                | Event::Closed { .. }
+                | Event::Job { .. }
+                | Event::Ran { .. }) => panic!("decode event {other:?}"),
+            }
+        }
+        let event = match below.transcripts.pop().expect("read or stop") {
+            file::Request::OpenRead { owner, .. } => {
+                file::Event::Opened { owner, file: Token::new(2), len: len_u64(raw.len()) }
+            }
+            file::Request::ReadAt { owner, offset, max, .. } => {
+                let start = usize::try_from(offset).expect("offset");
+                let end = start.saturating_add(skein_lib::length::usize_of(max)).min(raw.len());
+                file::Event::Read { owner, bytes: raw.get(start..end).unwrap_or_default().into() }
+            }
+            other @ (file::Request::Lock { .. }
+            | file::Request::MakeDirectory { .. }
+            | file::Request::OpenPrivate { .. }
+            | file::Request::Create { .. }
+            | file::Request::CreateNoFollow { .. }
+            | file::Request::OpenReadNoFollow { .. }
+            | file::Request::OpenWrite { .. }
+            | file::Request::OpenWriteNoFollow { .. }
+            | file::Request::OpenDirectory { .. }
+            | file::Request::Load { .. }
+            | file::Request::Scan { .. }
+            | file::Request::Store { .. }
+            | file::Request::Stat { .. }
+            | file::Request::WriteAt { .. }
+            | file::Request::Cut { .. }
+            | file::Request::Sync { .. }
+            | file::Request::Close { .. }
+            | file::Request::SyncDirectory { .. }
+            | file::Request::HardLink { .. }
+            | file::Request::Rename { .. }
+            | file::Request::Remove { .. }
+            | file::Request::RemoveIn { .. }
+            | file::Request::List { .. }
+            | file::Request::ListPage { .. }) => panic!("read operation {other:?}"),
+        };
+        store::up(component, env, store::Io::Transcripts(store::Arrived { event, fd: None }), &mut above, &mut below);
+    }
+    panic!("bounded frame did not settle");
+}

@@ -1,0 +1,4 @@
+listen = "127.0.0.1:0"
+webhooks = "127.0.0.1:0"
+owner = "owner-a@example.invalid"
+workers = "127.0.0.1:0"

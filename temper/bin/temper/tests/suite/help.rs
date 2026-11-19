@@ -74,6 +74,32 @@ const CASES: &[Case] = &[
     ),
     (&[], 1, empty, "temper: no command; temper --help lists them\n"),
     (&["http://127.0.0.1:8367"], 1, empty, "temper: the TUI needs a terminal on stdin and stdout\n"),
+    (&["https://dev.fabrig.ai"], 1, empty, "temper: the TUI needs a terminal on stdin and stdout\n"),
+    (
+        &["http://dev.fabrig.ai"],
+        2,
+        empty,
+        "temper: http:// reaches an engine on this machine alone: use https://NAME\nusage: temper [ADDRESS]\n",
+    ),
+    (&["https://127.0.0.1"], 2, empty, "temper: https:// needs the deployment's name\nusage: temper [ADDRESS]\n"),
+    (
+        &["https://dev.fabrig.ai/x"],
+        2,
+        empty,
+        "temper: not an address: https://dev.fabrig.ai/x\nusage: temper [ADDRESS]\n",
+    ),
+    (
+        &["http://10.0.0.1:8367"],
+        2,
+        empty,
+        "temper: the engine's address must be on loopback\nusage: temper [ADDRESS]\n",
+    ),
+    (
+        &["http://127.0.0.1:8367/jig/v1/sign-in/link?secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"],
+        2,
+        empty,
+        "temper: a sign-in link is never an argument: run temper http://HOST:PORT and paste it\nusage: temper [ADDRESS]\n",
+    ),
 ];
 
 #[test]

@@ -108,6 +108,7 @@ fn configured(verification_bound_ms: u64, wait: temper_engine_domain_forge_chang
             person_executor: true,
             spec_bytes: Some(4096),
             applications: Some(24),
+            message_bytes: Some(1024),
             inbox_messages: Some(16),
             inbox_bytes: Some(4096),
             tasks_batch: Some(8),
@@ -119,16 +120,6 @@ fn configured(verification_bound_ms: u64, wait: temper_engine_domain_forge_chang
             ..StoryLimits::default()
         },
     );
-    // Keep the automatic red's full header and test id within the existing message bound.
-    world.env.limits.tasks.message_bytes = 1024;
-    let mut limits = temper_engine_domain_world::store::widest();
-    limits.tasks = world.env.limits.tasks;
-    limits.authority = world.env.limits.authority;
-    let mut store = temper_engine_domain_world::store::Store::with_limits(&limits);
-    store.seed(world.store.rows.values().cloned().collect(), Box::new([]));
-    world.store = store;
-    let client = world.env.limits.forge.client;
-    world = world.with_forge_client(client);
     world.fake = fake::Domain::new(&world.fake_env.limits, 71);
     world
 }
@@ -274,7 +265,7 @@ fn land(world: &mut World) -> (u64, Commit) {
     );
     world.send(event);
     until(world, "port landed", |world| {
-        matches!(questions::row(world, change).change.state, temper_engine_domain_forge_change::State::Landed { .. })
+        matches!(tier_runs::change_state(world, change), temper_engine_domain_forge_change::State::Landed { .. })
     });
     assert_eq!(questions::row(world, change).goal, None);
     assert_eq!(questions::row(world, change).follows.as_ref().expect("landed follow member").follow, 1);
@@ -289,20 +280,32 @@ fn judged(world: &mut World, commit: Commit, area: Option<&[u8]>, holder: Holder
     assert_eq!(finding.area.as_deref(), area);
     assert_eq!(finding.kind, forge_top::FindingKind::Red);
     assert_eq!(finding.severity, forge_top::Severity::High);
-    assert_eq!(finding.title.as_ref(), b"Red after landing on main: tier fuzz");
     assert_eq!(engine::finding_holder(&world.root, PROJECT, finding.area.as_deref()), holder);
     let body = String::from_utf8_lossy(&finding.body);
-    assert!(
-        body.starts_with(&format!(
-            "Red after landing: tier fuzz run 2 blames landing {} on main: 1 failing.\nsuite.alpha\n",
-            String::from_utf8_lossy(&forge_top::commit_text(&commit))
-        )),
-        "{body}"
-    );
-    assert_eq!(world.assigned.len(), runs, "filing starts no agent's run");
-    for _ in 0..LANDING_TICKS {
-        world.tick();
+    if let Some(blame) = &finding.blame {
+        let short = &forge_top::commit_text(&commit)[..12];
+        assert_eq!(
+            finding.title.as_ref(),
+            format!("1 test fails in fuzz since {} landed", String::from_utf8_lossy(short)).as_bytes()
+        );
+        assert_eq!(blame.strength, forge_top::BlameStrength::Owned);
+        assert_eq!(blame.landings[0].commit, commit);
+        assert!(
+            body.starts_with(&format!("fuzz run 2 on main: landing {}.", String::from_utf8_lossy(short))),
+            "{body}"
+        );
+    } else {
+        assert_eq!(finding.title.as_ref(), b"Red after landing on main: tier fuzz");
+        assert!(
+            body.starts_with(&format!(
+                "Red after landing: tier fuzz run 2 blames landing {} on main: 1 failing.\nsuite.alpha\n",
+                String::from_utf8_lossy(&forge_top::commit_text(&commit))
+            )),
+            "{body}"
+        );
     }
+    assert_eq!(world.assigned.len(), runs, "filing starts no agent's run");
+    world.advance_ticks(LANDING_TICKS);
     assert_eq!(findings(world).len(), 1, "once per landing");
 }
 
@@ -314,6 +317,7 @@ fn a_follow_ended_at_landing_files_its_later_red_in_its_owners_area_from_the_log
     until(&mut world, "follow ended at landing", |world| matches!(task(world, change).phase, tasks::Phase::Ended(_)));
     assert!(!world.store.rows.contains_key(&Key::Forge(forge_top::Key::Verification { repository: TARGET, commit })));
     judged(&mut world, commit, Some(b"port"), Holder::Task(role.task));
+    assert!(findings(&world)[0].blame.is_some(), "landed files the blamed verdict");
     assert_eq!(news(&world, role.task).len(), 1);
     assert_eq!(news(&world, triager).len(), 0);
     world.close();

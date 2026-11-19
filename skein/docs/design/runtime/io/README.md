@@ -292,7 +292,7 @@ simulator's machine seam (../../testing/README.md, 4).
   request's deadline, cancels that win and that come too late, and every
   step of a store, its conflicts, a taken temporary name, and a rename
   that settles at its deadline. The kernel records for files are held to
-  the ring by the conformance suite (../kernel.md, 8), and kv's tests run
+  the ring by the conformance suite (../../testing/conformance.md, 1), and kv's tests run
   the driver over the simulator, on a fake machine that crashes at every
   step of a commit and a snapshot (../../data/kv.md, section 9). A world that cuts
   a power loss lays nothing its requests make: its private root and its
@@ -311,12 +311,12 @@ simulator's machine seam (../../testing/README.md, 4).
   processes ignore the polite signal or the termination, that fork
   during a terminate, that escape their group but not their cgroup, and
   whose end the kernel reports late. On the real kernel, the conformance
-  suite's (../kernel.md, 8).
+  suite's (../../testing/conformance.md, 1).
 - **A tree's metadata and its filesystem:** step tests of each request,
   its bounds refused before any record, each record's errors, a deadline
   that passes while a synchronous record runs (the request still answers
   its own), and `SubvolumeChildren`'s pages; the records themselves are
-  the conformance suite's, btrfs's on the ring alone (../kernel.md, 8). A
+  the conformance suite's, btrfs's on the ring alone (../../testing/conformance.md, 1). A
   world over the simulator, on a fake machine that cuts a power loss,
   shows a link's name kept only once its directory was synced, and a
   mode, an owner and an attribute only once the filesystem was.
@@ -332,7 +332,7 @@ simulator's machine seam (../../testing/README.md, 4).
   target is old or new and whole.
 - **Resource usage:** in the simulator, a usage asked before and after a
   child's close, its part joining the children's only at the close; on
-  the real kernel, the conformance suite's (../kernel.md, 8).
+  the real kernel, the conformance suite's (../../testing/conformance.md, 1).
 - **Joined sockets** (`sockets.md`, 5): step tests of each cell the table changes,
   and a check at every call that a joined end submits nothing. io worlds
   with scripted owners at both ends of each pair, in one process: accept,

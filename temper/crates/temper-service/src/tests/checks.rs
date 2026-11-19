@@ -6,7 +6,11 @@ use crate::startup::{Problems, What, checks, lines};
 use jig_protocol_config::{self as config, Path};
 use temper_protocol_worker_wire as payload;
 
-fn started(input: &[u8], files: &crate::settings::Files, agent: &crate::settings::Agent) -> Problems {
+fn started(
+    input: &(impl fixtures::Input + ?Sized),
+    files: &crate::settings::Files,
+    agent: &crate::settings::Agent,
+) -> Problems {
     match fixtures::start(
         input,
         &jig_protocol_config::Directories::working(),
@@ -199,13 +203,12 @@ fn checkout_capacity_names_stdout_and_both_link_rooms() {
         b"application.limits.overrides",
         br#"{"checkout.name_bytes":600,"checkout.repositories":2,"checkout.conflicts":1024,"checkout.path_bytes":4096,"git_component.stdout_bytes":262144}"#,
     );
-    let mut document: serde_json::Value = serde_json::from_slice(&document).unwrap();
-    document["engine"]["limits"]["overrides"]["io.output"] = 1_048_576_u32.into();
-    document["engine"]["limits"]["overrides"]["io.output"] = 1_048_576_u32.into();
+    let mut input = document;
+    input.jig.io.output = 1_048_576;
     let mut agent = fixtures::startup_agent();
     agent.host_limits.conflicts = 1024;
     agent.host_limits.path_bytes = 4096;
-    let found = started(&serde_json::to_vec(&document).unwrap(), &fixtures::files(), &agent);
+    let found = started(&input, &fixtures::files(), &agent);
     assert_eq!(found.problems.len(), 1);
     assert_eq!(
         String::from_utf8_lossy(&lines(&found)),
@@ -280,7 +283,7 @@ fn a_channel_limit_past_a_ceiling_names_the_limit() {
 #[test]
 fn one_ios_entities_hold_both_services_and_their_children() {
     let document = fixtures::with(&fixtures::document(), b"application.limits.overrides", br#"{"checkout.name_bytes":600,"checkout.repositories":4,"git_component.stdout_bytes":131072,"git_component.operations":61}"#);
-    let found = fixtures::named(&document, &jig_protocol_config::Directories::working()).unwrap_err();
+    let found = started(&document, &fixtures::files(), &fixtures::startup_agent());
     assert_eq!(&*lines(&found), b"engine.limits.io.sockets: 320 bytes, past its bound of 256\n".as_slice());
 }
 
@@ -410,7 +413,7 @@ fn hook_connections_past_the_process_sockets_are_refused() {
     let document =
         fixtures::with(&fixtures::webhook_document(), b"application.limits.overrides", br#"{"checkout.name_bytes":600,"checkout.repositories":4,"git_component.stdout_bytes":131072,"forge_component.hooks":236}"#);
     assert_eq!(
-        &*lines(&fixtures::named(&document, &jig_protocol_config::Directories::working()).unwrap_err()),
+        &*lines(&started(&document, &fixtures::files(), &fixtures::startup_agent())),
         b"engine.limits.io.sockets: 317 bytes, past its bound of 256\n"
     );
 }
@@ -767,11 +770,13 @@ fn missing_and_small_charter_models_warn_at_their_configuration_path() {
 #[test]
 fn each_document_shape_is_read_from_its_members() {
     use crate::startup::{Shape, shape};
-    for (document, expected) in [
+    for (document, expected) in vec![
         (fixtures::document(), Shape::Standalone),
         (fixtures::engine_alone_document(), Shape::EngineAlone),
         (fixtures::worker_alone_document(), Shape::WorkerAlone),
-    ] {
+    ]
+    .into_boxed_slice()
+    {
         assert_eq!(shape(&document, &config::Directories::working()), Ok(expected));
     }
 }

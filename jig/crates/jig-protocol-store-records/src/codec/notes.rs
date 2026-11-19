@@ -1,8 +1,8 @@
 //! Notes rows and their bounded resource patterns (protocol/store/records.md, 1).
-use crate::notes_v1 as wire;
+use crate::notes_v1::{self as wire, Record};
 use alloc::boxed::Box;
 use jig_domain_notes as domain;
-use skein_lib::{List, Reader, Wall, Writer};
+use skein_lib::{List, Reader, Wall};
 
 /// Translate the notes child's bounds, refusing a schema ceiling.
 #[must_use]
@@ -33,71 +33,56 @@ pub fn encode(row: &domain::Record, limits: &wire::Limits) -> Result<Box<[u8]>, 
             changed,
         }) => {
             let author = match author {
-                domain::Author::Party { party } => {
-                    wire::Author::Party(wire::Party::new(limits, wire::PartyParts { party: *party })?)
-                }
+                domain::Author::Party { party } => wire::Author::Party(wire::Party { party: *party }),
                 domain::Author::Task { task, attempt } => {
-                    wire::Author::Task(wire::Task::new(limits, wire::TaskParts { task: *task, attempt: *attempt })?)
+                    wire::Author::Task(wire::Task { task: *task, attempt: *attempt })
                 }
             };
             let mut translated_references = List::with_capacity(references.capacity());
             for task in references {
-                translated_references
-                    .push(wire::Reference::new(limits, wire::ReferenceParts { task: *task })?)
-                    .expect("same number of references");
+                translated_references.push(wire::Reference { task: *task }).expect("same number of references");
             }
-            wire::Value::Entry(wire::Entry::new(
-                limits,
-                wire::EntryParts {
-                    name: *name,
-                    scope: encode_scope(scope, limits)?,
-                    description: description.clone(),
-                    body: body.clone(),
-                    references: translated_references,
-                    author,
-                    revision: *revision,
-                    changed: changed.as_nanos(),
-                },
-            )?)
+            wire::Value::Entry(wire::Entry {
+                name: *name,
+                scope: encode_scope(scope, limits)?,
+                description: description.clone(),
+                body: body.clone(),
+                references: translated_references,
+                author,
+                revision: *revision,
+                changed: changed.as_nanos(),
+            })
         }
-        domain::Record::Line(domain::Line { scope, name, description, revision }) => {
-            wire::Value::Line(wire::Line::new(
-                limits,
-                wire::LineParts {
-                    scope: encode_scope(scope, limits)?,
-                    name: *name,
-                    description: description.clone(),
-                    revision: *revision,
-                },
-            )?)
-        }
+        domain::Record::Line(domain::Line { scope, name, description, revision }) => wire::Value::Line(wire::Line {
+            scope: encode_scope(scope, limits)?,
+            name: *name,
+            description: description.clone(),
+            revision: *revision,
+        }),
     };
-    let row = wire::Row::new(limits, wire::RowParts { value })?;
-    let mut writer = Writer::new(skein_lib::length::usize_of(row.measure()));
-    row.encode(&mut writer).expect("measured room");
-    Ok(writer.finish())
+    let row = wire::Row { value };
+    row.encode(limits)
 }
 
 /// Decode one notes row, refusing another version or trailing bytes.
 pub fn decode(bytes: &[u8], limits: &wire::Limits) -> Result<domain::Record, wire::Problem> {
-    let wire::RowParts { value } = wire::Row::decode(limits, &mut Reader::new(bytes))?.into_parts();
+    let wire::Row { value } = wire::Row::decode(limits, &mut Reader::new(bytes))?;
     Ok(match value {
         wire::Value::Entry(entry) => {
-            let wire::EntryParts { name, scope, description, body, references, author, revision, changed } =
-                entry.into_parts();
+            let wire::Entry { name, scope, description, body, references, author, revision, changed } = entry;
             let author = match author {
                 wire::Author::Party(party) => {
-                    let wire::PartyParts { party } = party.into_parts();
+                    let wire::Party { party } = party;
                     domain::Author::Party { party }
                 }
                 wire::Author::Task(task) => {
-                    let wire::TaskParts { task, attempt } = task.into_parts();
+                    let wire::Task { task, attempt } = task;
                     domain::Author::Task { task, attempt }
                 }
             };
             let mut translated_references = List::with_capacity(references.len());
             for reference in references.into_boxed() {
-                let wire::ReferenceParts { task } = reference.into_parts();
+                let wire::Reference { task } = reference;
                 translated_references.push(task).expect("same number of references");
             }
             domain::Record::Entry(domain::Entry {
@@ -112,7 +97,7 @@ pub fn decode(bytes: &[u8], limits: &wire::Limits) -> Result<domain::Record, wir
             })
         }
         wire::Value::Line(line) => {
-            let wire::LineParts { scope, name, description, revision } = line.into_parts();
+            let wire::Line { scope, name, description, revision } = line;
             domain::Record::Line(domain::Line { scope: decode_scope(scope, limits)?, name, description, revision })
         }
     })
@@ -120,16 +105,10 @@ pub fn decode(bytes: &[u8], limits: &wire::Limits) -> Result<domain::Record, wir
 
 fn encode_scope(scope: &domain::Scope, limits: &wire::Limits) -> Result<wire::Scope, wire::Problem> {
     Ok(match scope {
-        domain::Scope::Party { party } => {
-            wire::Scope::Party(wire::Party::new(limits, wire::PartyParts { party: *party })?)
-        }
+        domain::Scope::Party { party } => wire::Scope::Party(wire::Party { party: *party }),
         domain::Scope::Deployment => wire::Scope::Deployment,
-        domain::Scope::Project { project } => {
-            wire::Scope::Project(wire::Project::new(limits, wire::ProjectParts { project: *project })?)
-        }
-        domain::Scope::Goal { project, goal } => {
-            wire::Scope::Goal(wire::Goal::new(limits, wire::GoalParts { project: *project, goal: *goal })?)
-        }
+        domain::Scope::Project { project } => wire::Scope::Project(wire::Project { project: *project }),
+        domain::Scope::Goal { project, goal } => wire::Scope::Goal(wire::Goal { project: *project, goal: *goal }),
         domain::Scope::Resources { project, connector, pattern } => {
             let domain::Pattern { segments, last } = pattern;
             let mut bytes = match last {
@@ -138,7 +117,7 @@ fn encode_scope(scope: &domain::Scope, limits: &wire::Limits) -> Result<wire::Sc
             let mut members = List::with_capacity(limits.pattern_segments);
             for segment in segments {
                 bytes = bytes.saturating_add(segment.len());
-                let segment = wire::Segment::new(limits, wire::SegmentParts { bytes: segment.clone() })?;
+                let segment = wire::Segment { bytes: segment.clone() };
                 if members.push(segment).is_err() {
                     return Err(pattern_problem());
                 }
@@ -147,47 +126,40 @@ fn encode_scope(scope: &domain::Scope, limits: &wire::Limits) -> Result<wire::Sc
                 return Err(pattern_problem());
             }
             let last = match last {
-                domain::Last::Exact(bytes) => {
-                    wire::Last::Exact(wire::Segment::new(limits, wire::SegmentParts { bytes: bytes.clone() })?)
-                }
-                domain::Last::Open(bytes) => {
-                    wire::Last::Open(wire::Segment::new(limits, wire::SegmentParts { bytes: bytes.clone() })?)
-                }
+                domain::Last::Exact(bytes) => wire::Last::Exact(wire::Segment { bytes: bytes.clone() }),
+                domain::Last::Open(bytes) => wire::Last::Open(wire::Segment { bytes: bytes.clone() }),
             };
-            let pattern = wire::Pattern::new(limits, wire::PatternParts { segments: members, last })?;
-            wire::Scope::Resources(wire::Resources::new(
-                limits,
-                wire::ResourcesParts { project: *project, connector: *connector, pattern },
-            )?)
+            let pattern = wire::Pattern { segments: members, last };
+            wire::Scope::Resources(wire::Resources { project: *project, connector: *connector, pattern })
         }
     })
 }
 
 fn decode_scope(scope: wire::Scope, limits: &wire::Limits) -> Result<domain::Scope, wire::Problem> {
     Ok(match scope {
-        wire::Scope::Party(value) => domain::Scope::Party { party: value.party() },
+        wire::Scope::Party(value) => domain::Scope::Party { party: value.party },
         wire::Scope::Deployment => domain::Scope::Deployment,
         wire::Scope::Project(project) => {
-            let wire::ProjectParts { project } = project.into_parts();
+            let wire::Project { project } = project;
             domain::Scope::Project { project }
         }
         wire::Scope::Goal(goal) => {
-            let wire::GoalParts { project, goal } = goal.into_parts();
+            let wire::Goal { project, goal } = goal;
             domain::Scope::Goal { project, goal }
         }
         wire::Scope::Resources(resources) => {
-            let wire::ResourcesParts { project, connector, pattern } = resources.into_parts();
-            let wire::PatternParts { segments, last } = pattern.into_parts();
+            let wire::Resources { project, connector, pattern } = resources;
+            let wire::Pattern { segments, last } = pattern;
             let last = match last {
-                wire::Last::Exact(segment) => domain::Last::Exact(segment.into_parts().bytes),
-                wire::Last::Open(segment) => domain::Last::Open(segment.into_parts().bytes),
+                wire::Last::Exact(segment) => domain::Last::Exact(segment.bytes),
+                wire::Last::Open(segment) => domain::Last::Open(segment.bytes),
             };
             let mut bytes = match &last {
                 domain::Last::Exact(bytes) | domain::Last::Open(bytes) => bytes.len(),
             };
             let mut members = List::with_capacity(segments.len());
             for segment in segments.into_boxed() {
-                let wire::SegmentParts { bytes: segment } = segment.into_parts();
+                let wire::Segment { bytes: segment } = segment;
                 bytes = bytes.saturating_add(segment.len());
                 members.push(segment).expect("same number of segments");
             }
@@ -204,5 +176,5 @@ fn decode_scope(scope: wire::Scope, limits: &wire::Limits) -> Result<domain::Sco
 }
 
 fn pattern_problem() -> wire::Problem {
-    wire::Problem { path: wire::Path::PatternSegments, reason: skein_codec::Reason::Bound }
+    wire::Problem { path: wire::paths::PATTERN_SEGMENTS, reason: skein_codec::Reason::Bound }
 }

@@ -1342,6 +1342,7 @@ impl Service {
                 self.requests.push(Request::Spawn {
                     owner,
                     spawn: kernel::Spawn {
+                        reach: None,
                         program: self.settings.program.clone(),
                         args: spawn_arguments(&self.settings, description.arguments()),
                         env: spawn_environment(&self.settings.environment, description.listeners().len()),

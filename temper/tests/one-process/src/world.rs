@@ -170,12 +170,12 @@ impl Harness for OneProcess {
     fn github() -> bool {
         crate::lower::github::active()
     }
-    fn configure(document: &mut serde_json::Value) {
+    fn configure(document: &mut temper_playground::documents::Configuration) {
         if REFUSE_START.with(std::cell::Cell::get) {
             document["application"]["webhooks"]["listener"] =
                 serde_json::json!({"socket": crate::box_listener::ADDRESS.to_string()});
             // No seed policies on this start; its persisted policy exceeds the smaller read bound.
-            document["engine"]["limits"]["overrides"]["core.policy_bytes"] = REFUSED_POLICY_BYTES.into();
+            document.jig_over("core.policy_bytes", u64::from(REFUSED_POLICY_BYTES));
         }
     }
     fn spawned(role: Role, inherited: &Inherited, base: &[u8]) {
@@ -223,7 +223,10 @@ impl Harness for OneProcess {
     fn files() -> temper_service::settings::Files {
         fixtures::files()
     }
-    fn configure_engine(engine: &mut jig_protocol_config::Engine, document: &serde_json::Value) {
+    fn configure_engine(
+        engine: &mut jig_protocol_config::Engine,
+        document: &temper_playground::documents::Configuration,
+    ) {
         if REFUSE_START.with(std::cell::Cell::get) || stories::playground() {
             return;
         }
@@ -232,14 +235,14 @@ impl Harness for OneProcess {
         document["world_settings"] = world["world_settings"].clone();
         temper_playground::documents::settings::seed_configuration(engine, &document);
     }
-    fn given(document: &serde_json::Value) -> temper_service::stock::Given {
+    fn given(document: &temper_playground::documents::Configuration) -> temper_service::stock::Given {
         if stories::playground() {
             return temper_playground::documents::given(document);
         }
         if stories::adoption() {
             return fixtures::adoption_given();
         }
-        stories::given(&serde_json::from_slice(&fixtures::document()).expect("deployment JSON"))
+        stories::given(&fixtures::document())
     }
 }
 /// Scope the harness's scenario documents and shared forge around its world.
@@ -980,7 +983,7 @@ pub fn adoption(settings: Settings) -> Outcome {
     assert_eq!(saved_adoptions(&mut seen), Some(std::collections::BTreeSet::new()), "initial empty saved keys");
     stories::set(Story::Adoption);
     stories::setup_settings(Phase::Story);
-    let fresh = stories::given(&serde_json::from_slice(&fixtures::document()).expect("deployment JSON"));
+    let fresh = stories::given(&fixtures::document());
     assert_eq!(format!("{:?}", fixtures::adoption_given()), format!("{fresh:?}"), "cached adoption defaults");
     assert_eq!(
         format!("{:?}", fixtures::adoption_codec()),
@@ -1253,9 +1256,8 @@ pub(crate) fn run_phase(
     run.borrow_mut().disk = Some(machine.0.clone());
     let mut parameters = parameters(&machine, transport.clone());
     let peers = start.map(|start| {
-        parameters.route =
-            temper_playground::story::route(&serde_json::from_slice(&start.deployment).expect("story A's deployment"));
-        parameters.deployment = start.deployment;
+        parameters.route = temper_playground::story::route(&start.deployment);
+        parameters.deployment = start.deployment.into();
         parameters.seed = start.seed;
         parameters.links = start.links;
         (start.fakes.llm, start.fakes.peer)

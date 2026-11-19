@@ -73,7 +73,25 @@ pub fn messaging_root() -> temper_client_domain::Domain {
 pub fn chat_offering(message: bool) -> temper_client_domain::Domain {
     use temper_client_domain::{Address, Event};
     let (mut root, me_watch, task_watch) = fixtures::root_at(Address::Chat { task: TASK }, &fixtures::domain_limits());
-    let mut me = root.pages().me(root.client()).expect("me").clone();
+    let me = messaging_me(root.pages().me(root.client()).expect("me").clone());
+    let task = messaging_task(message);
+    for (watch, document) in [
+        (me_watch, c::Delivery::Me(Box::new(me))),
+        (task_watch.expect("chat watch"), c::Delivery::Task(Box::new(task))),
+    ] {
+        fixtures::root_event(
+            &mut root,
+            Event::Client {
+                event: jig_client::Event::Up {
+                    up: jig_client::Up::Watched { watch, event: c::WatchEvent::Delivered(document) },
+                },
+            },
+        );
+    }
+    root
+}
+#[must_use]
+pub fn messaging_me(mut me: c::Me) -> c::Me {
     let member = me.projects.get_mut(EMPTY_PARAMETERS).expect("project");
     member.templates = List::with_capacity(SINGLE_TEMPLATE);
     member
@@ -99,6 +117,10 @@ pub fn chat_offering(message: bool) -> temper_client_domain::Domain {
             llm: None,
         })
         .expect("template");
+    me
+}
+#[must_use]
+pub fn messaging_task(message: bool) -> c::Task {
     let mut task = fixtures::task::document();
     task.chip.task = TASK;
     task.project = fixtures::PROJECT;
@@ -128,21 +150,9 @@ pub fn chat_offering(message: bool) -> temper_client_domain::Domain {
             })),
         })
         .expect("close");
-    for (watch, document) in [
-        (me_watch, c::Delivery::Me(Box::new(me))),
-        (task_watch.expect("chat watch"), c::Delivery::Task(Box::new(task))),
-    ] {
-        fixtures::root_event(
-            &mut root,
-            Event::Client {
-                event: jig_client::Event::Up {
-                    up: jig_client::Up::Watched { watch, event: c::WatchEvent::Delivered(document) },
-                },
-            },
-        );
-    }
-    root
+    task
 }
+
 #[must_use]
 pub fn proposal_root() -> temper_client_domain::Domain {
     proposal_root_with_activity(None)

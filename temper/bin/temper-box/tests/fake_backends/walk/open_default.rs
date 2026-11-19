@@ -209,8 +209,11 @@ impl Judge {
 /// Session 1, the press; then session 2, the reload. Panics naming the page
 /// and the missing node when a session does not reach its end within WITHIN.
 pub(super) fn open_and_reload(config: &Path, client: &Path) {
-    let document: serde_json::Value =
-        serde_json::from_slice(&std::fs::read(config.join("temper.json")).expect("configuration")).expect("JSON");
+    let document: serde_json::Value = serde_json::from_slice(
+        &crate::support::read_start(&config.join(temper_config_shell::FILE), temper_config_shell::Shape::Standalone)
+            .document,
+    )
+    .expect("JSON");
     let engine = document
         .pointer("/application/clients/listener/socket")
         .and_then(serde_json::Value::as_str)
