@@ -138,6 +138,12 @@ desktop browsers are well supported (the user, 10-26).
 - **The clients' listener** is at the address the deployment's document
   names, and the visitor sends that address as its Host, so jig's guards
   hold as on a deployment.
+- **A start for a journey's walk** (`client/journey-walks.md`, 4.1):
+  the composition starts at a forge address of its caller's, every part
+  that names the forge taking it from that one address, and may hold a
+  fake OAuth issuer among its fakes, with the service given its
+  accounts' runtime. The page's start, story A's, keeps
+  `documents::FORGE` and holds no issuer.
 
 ## 5. Stories
 
