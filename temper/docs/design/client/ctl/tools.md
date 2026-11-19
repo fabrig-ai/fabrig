@@ -73,8 +73,6 @@ watch's subject, its digest (4). It needs no key.
 | `landing history --project PROJECT [--change TASK \| --landing TASK] [--since TIME] [--until TIME] [--after CURSOR]` | the project's landing history, a page of at most 32 events in its order, or a change's or a landing's, each event a line: its number, time, kind, change, landing, round and unit, head and base, and its kind's fields; the upper bound the first page fixed, and from when the project's changes are whole; a cursor whose event has gone refused, naming the first that remains (`../../domain/landing-history.md`, 5.1) | the forge's read `History` |
 | `landing times --project PROJECT [--since TIME] [--until TIME] [--after CURSOR]` | each change's span split into states, 32 a page, then their landings; running totals (`../../domain/landing-times.md`, section 5) | the forge's read `Times` |
 | `repository receipts REPOSITORY [--gate GATE]` | a repository's receipts, newest first: gate, key, verdict, run, candidate, time (`../../domain/landing.md`, 6.2) | the forge's family |
-| `finding list --project PROJECT [--state new\|routed\|backlog\|dropped] [--mine]` | the project's areas, a line each, `NAME owner OWNER, held by HOLDER: WORDS`, and its triager's line, then its findings newest first, a line each: `P/N`, state, kind, severity, area or `-`, holder, title; with `--mine`, the reader's alone (`../../domain/areas.md`, sections 4 and 5) | the forge's subject `findings`, read once (`../forge/records.md`) |
-| `finding show FINDING` | one finding whole: its line, its filer, when, the last hand-off's why, its goal, a drop's reason, then its body | the forge's read `Finding` |
 | `draft list --project PROJECT` | the project's landed drafts, newest first, each its repository and path, ready, not ready or its goal, its commit, branch and time, its chat and its title (`areas.md`, area 7) | the forge's family, the subject `drafts` |
 | `qa marks --project PROJECT` | the project's marks: landing, words, chosen, waiting or tested (`../../domain/findings.md`, section 8) | the forge's family |
 | `follow list --project PROJECT` | the project's follows, one line each: source and target with their branches, the lag and the parity, in `../../domain/forge/follows.md`, section 7's words; then its dependencies, one line each, "dependency 1: fabrig depends on vsr-rs" (`../../domain/forge/dependencies.md`, section 4) | the forge's family |
@@ -101,6 +99,9 @@ watch's subject, its digest (4). It needs no key.
 | `push list` | the party's devices that pushes go to: each its number, label, when it was added and its push service's origin, never its endpoint whole or its keys (`../../domain/forge/attention.md`, 7.1) | the forge's `devices` |
 | `deployment census` | deployment document's store census (jig's `client/domain/contract/documents.md`, 1), printed by `results.md`, 1 and 2 | `deployment` |
 
+- **The findings' reads,** `finding list` and `finding show`, and a
+  goal's reds after landing, `goal show`, are `findings.md`'s, section 1,
+  as the milestones' are `milestones.md`'s.
 - **A settings proposal's review** derives its groups from the delivered
   settings values, independently of the proposer's reason: *temper
   enforces* for the settings other than a charter's instructions and

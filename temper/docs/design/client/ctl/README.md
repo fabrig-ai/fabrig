@@ -57,6 +57,11 @@ bounds are section 9, and what they take of jig section 10; an MCP endpoint and 
 - **Workers are settings** (`workers.md`): `worker add`, `places` and
   `remove`, each one settings change by an owner, and `worker list`,
   each worker up or down and its runs.
+- **Findings and a goal's reds are read in their own document**
+  (`findings.md`): `finding list`, by triage or by the goal or milestone
+  a red is blamed on, `finding show` with its blame, and `goal show`, a
+  goal and the reds after landing blamed on it; milestones are
+  `milestones.md`'s.
 - **Grown by areas,** the first, the fifth and the sixth designed in
   full, the others named (`areas.md`); **later, named:** the MCP endpoint and
   the extraction into `jig-client-tools` (section 11).

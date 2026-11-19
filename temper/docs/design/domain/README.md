@@ -63,7 +63,7 @@ all. Then temper's:
    triaged and closed when their fix clears; QA after landing.
    - `red-findings.md`: under `wait: landed`, each red after landing a
      finding blamed on the landing and goal behind it, held until a run
-     passes its tests.
+     passes its tests, and shown on that goal and owed by its milestone.
 9. **areas.md:** a project's areas in words and their owners, the
    triager, and how a finding reaches its owner.
 10. **milestones.md:** a milestone, a set of goals on jig's gathering:
