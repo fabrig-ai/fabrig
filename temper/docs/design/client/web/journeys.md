@@ -736,9 +736,8 @@ fields, each after one space, a word bare, bytes in double quotes.
   `textbox`, `checkbox`.
 - **Shared, once:** `project-landing`'s setup walks a fresh box to Home in
   Hello, and `chat-draft`'s is `after project-landing`, what it waits for
-  on Home, and its own `reload`. `welcome-set-up`, with no setup, walks
-  that start in its recording, and a test holds the two together
-  (section 6).
+  on Home, and its own `reload`. `welcome-set-up` walks the welcome's
+  part in a world (`../journey-walks.md`, 6).
 - **Why a mark waits:** the page may stand still for seconds while a fake
   model's turn goes on, and two saves a second apart can't tell that
   from settled, where the person could (8.1). A `mark` names what the
@@ -757,8 +756,8 @@ fields, each after one space, a word bare, bytes in double quotes.
 
 | Name | The walk | Its pages |
 |---|---|---|
-| `welcome-set-up` | on a fresh `temper box --fake-backends` (3.5): the printed sign-in link opened, the welcome drawn, "Set up temper" pressed, then Forgejo's "Run on this machine" pressed on the Forge step, which opens Forgejo's sheet, then the sheet's "Run on this machine", an empty repository chosen, which makes the forge and sets it up (`../pages/README.md`) | `01.html` and `02.html`, the welcome, the second as it was when "Set up temper" was pressed, which leads to `03.html` and `04.html`, the Forge step's choices, the second as it was when "Run on this machine" was pressed, which leads to `05.html` and `06.html`, Forgejo's sheet, the second as it was when its "Run on this machine" was pressed, which leads to `07.html`, the Model step, the set up running on as it was when the recording ended; its `../README.md` says so |
-| `welcome-playground` | on a fresh `temper box --fake-backends` (3.5): the printed sign-in link opened, the welcome drawn, "Try the playground" pressed | `01.html`, the welcome as it was when "Try the playground" was pressed, which leads to `02.html`, `NewChat` in the Demo project, the playground started, its banner's one line above its main, as it was when the recording ended; its `../README.md` says so; not recorded until recorded again after page-round-trips' R4 lands |
+| `welcome-set-up` | version-2 `walk` in one process on the playground's composition, signed in by the printed link at `/welcome`, the box's part played by the world's box's peer (`../journey-walks.md`, 4.4 and 6), no `temper box`: the welcome marked, "Set up temper" pressed, the Forge step marked, Forgejo's "Run on this machine" pressed, its sheet marked with an empty repository chosen, its "Run on this machine" pressed, which makes the forge and sets it up (`../pages/README.md`), then the Model step marked as the peer reports fetching, preparing and starting, and once the forge is connected as temper and `work/hello` made | `01.html`, the welcome, leading to `02.html`, the Forge step's choices, leading to `03.html`, Forgejo's sheet, leading to `04.html` to `06.html`, the Model step with the set up's steps under way, fetching at the peer's first figure, preparing and starting, then `07.html`, the Model step with Forgejo on this machine connected as temper and `work/hello` made; its `welcome-set-up/README.md` describes the world's pages |
+| `welcome-playground` | version-2 `walk` in one process on the playground's composition, signed in by the printed link at `/welcome` (`../journey-walks.md`, 4 and 6), no `temper box`: the welcome seen and marked, "Try the playground" pressed, the banner and New chat seen, then marked | `01.html`, the welcome under its top bar, its "Try the playground" leading to `02.html`, New chat in Demo with `playground/widget`, the banner above main, the three suggested requests and composer, model `fake`; the rail offers New change, no Away, and Deployment says "a forge is setting up"; no Chat/Split/Draft switch or plan-or-key choices at this mark; its `welcome-playground/README.md` describes the world's pages |
 | `project-landing` | on a fresh `temper box --fake-backends` (3.5): its `setup` (8.2): Forgejo run on this machine with an empty `work/hello`, the ChatGPT plan signed in, Ready's offered "Hello" created and its repository adopted; once Home says "work/hello is in Hello", `/projects/1` reloaded, where the recording starts, and the settled Home saved | `01.html`, Home in Hello with the ChatGPT plan, Forgejo, "work/hello is in Hello" and To begin's one step left, "Tell temper how you work", the rail's "Home" and "Ask temper" alone, and the phone's "Home", "Ask" and "Settings" tabs; the recording holds no act; its `../README.md` says so; not recorded until recorded again after page-round-trips' R4 lands |
 | `chat-draft` | on a fresh `temper box --fake-backends` (3.5): its `setup` (8.2), `after project-landing`, up to `/projects/1/settings` reloaded, "Chats can write drafts" on as a fresh project has it; then a chat started, Split chosen and the empty pane's "Write it up from this chat" pressed (`../pages/chat/document.md`, 1), two turns of the fake model writing and changing its document (`../../testing/real-loop.md`), Chat, Split, Draft, then "Start goal…" and its goal's page, then its Draft link back to the chat; not recorded until temper/ui walks it anew (10) | a chat in Chat, Split and Draft, the sheet, the goal's page and the return to the chat (`../../domain/agent/agents.md`, 3; `../pages/README.md`) |
 
@@ -1004,10 +1003,10 @@ words in the welcome and Forges. No overlay rule changes.
   can, `project-landing`'s walk reaching a fake box's Forgejo connected, so
   that fewer states are hand-made (`look-requests.md`, 8); Model's
   forge failed waits on a fake box whose set up can fail. The two
-  fetching states wait on a still page at the fetch: `welcome-set-up`'s
-  recording holds the fetch's rows, but they keep the page moving, so
-  its pages 07 and 08 fall at preparing (8.1;
-  `../../protocol/setup/README.md`, section 9).
+  fetching states can, `welcome-set-up`'s walk in a world marking the
+  Model step at the box's peer's first figure (`../journey-walks.md`,
+  4.4 and 6); the fake box still fetches nothing a walk sees
+  (`../../protocol/setup/README.md`, section 9).
 - **A render-check command:** in `temper-client-journeys`, taking a
   request's name. Default: each landing's own script
   (`look-requests.md`, 4 and 8).

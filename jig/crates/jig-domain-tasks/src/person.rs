@@ -13,7 +13,7 @@
 //! | answerable task | valid answer | closing | save, reply |
 //! | held task | release | answerable wait | prior deadline rearmed |
 use crate::domain::{Domain, entrance, publish, record, refused, task_mut};
-use crate::{Active, Closing, Ending, Executor, Limits, PersonAddress, Phase, Refusal, Request, Stage, TaskResult};
+use crate::{Active, Closing, Executor, Limits, PersonAddress, Phase, Refusal, Request, Stage, TaskResult};
 use alloc::boxed::Box;
 use skein_lib::{Env, Queue, ReplyTo, Wall};
 
@@ -123,15 +123,7 @@ pub(crate) fn answer(
     if !crate::run::valid_result(&row.contract, &result, &env.limits) {
         return refused(to, Some(number), Refusal::Contract, out);
     }
-    let ending = match result {
-        TaskResult::Failure { reason } => Ending::Failed { reason },
-        TaskResult::Approved { .. }
-        | TaskResult::Report { .. }
-        | TaskResult::Verdict { .. }
-        | TaskResult::Job { .. }
-        | TaskResult::NoChange { .. }
-        | TaskResult::Change { .. } => Ending::Done(result),
-    };
+    let ending = crate::failed::ending(result, row.executor, &env.limits);
     let row = &mut task_mut(domain, number).expect("live person task").record;
     row.taken_by = None;
     row.person_answer = Some(crate::PersonAnswer { by: person, at: env.wall });

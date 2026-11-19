@@ -163,7 +163,28 @@ pub(crate) fn route_tasks(
     core: &mut Core,
     env: &Env<Limits>,
     work: &mut Queue<Work>,
+    event: tasks::Event,
+) -> Queue<Request> {
+    route_batch(core, env, work, event, None)
+}
+
+pub(crate) fn resume_resources(
+    core: &mut Core,
+    env: &Env<Limits>,
+    work: &mut Queue<Work>,
+    batch: crate::effects::resources::Batch,
+) -> Queue<Request> {
+    let event = batch.kind.event(batch.reply_to, batch.members);
+    route_batch(core, env, work, event, Some(batch.deadline))
+}
+
+#[expect(clippy::too_many_lines, reason = "batch admission keeps all preflight refusals before child mutation")]
+fn route_batch(
+    core: &mut Core,
+    env: &Env<Limits>,
+    work: &mut Queue<Work>,
     mut event: tasks::Event,
+    deadline: Option<skein_lib::Time>,
 ) -> Queue<Request> {
     if let Some(token) = super::flight::request_token(&mut event)
         && let Some(Flight::PersonProposal(_)) = core.flights.get(skein_lib::Id::from_token(token))
@@ -230,6 +251,7 @@ pub(crate) fn route_tasks(
             crate::effects::resources::Kind::Creation { creator, maker, places },
             batch,
             &mut out,
+            deadline,
         ) {
             Some(event) => event,
             None => {
@@ -248,6 +270,7 @@ pub(crate) fn route_tasks(
             crate::effects::resources::Kind::Result { proposer, proposal },
             batch,
             &mut out,
+            deadline,
         ) {
             Some(event) => event,
             None => {

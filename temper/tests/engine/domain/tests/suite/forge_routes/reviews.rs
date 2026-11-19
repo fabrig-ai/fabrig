@@ -1077,7 +1077,11 @@ fn a_failed_review_repair_names_its_task_account_and_release() {
         let words = core::str::from_utf8(words).expect("hold words");
         for expected in [
             format!("its repair, task {}", repair.task),
-            if reason.is_empty() { "gave no account".into() } else { String::from_utf8(reason.into()).unwrap() },
+            if reason.is_empty() {
+                if no_change { "gave no account".into() } else { "Its run declared failure without a reason.".into() }
+            } else {
+                String::from_utf8(reason.into()).unwrap()
+            },
             "release this change to ask for a fresh repair".into(),
         ] {
             assert!(words.contains(&expected), "missing {expected:?}: {words}");

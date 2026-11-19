@@ -63,6 +63,25 @@ impl Replay {
         let (host, page) = facts.start();
         Ok(Self { lines, at, turn: 0, marks: 0, host, page, in_turn: false, departed: false, ended: false })
     }
+    /// Prove every live print and remove its html, retaining the parsed records for admission.
+    pub fn prove_drawn(mut self, drawn: &mut dyn FnMut(u32, &Page<'static>)) -> Result<Vec<Line>, Refusal> {
+        while let Some(mark) = self.next_drawing(drawn).map_err(Refusal::Stale)? {
+            let recorded = mark.recorded.ok_or(Refusal::Unproved { mark: mark.number })?;
+            let html = mark.page.html();
+            let actual = html.as_bytes();
+            if actual != recorded {
+                let byte =
+                    actual.iter().zip(recorded).position(|(a, b)| a != b).unwrap_or(actual.len().min(recorded.len()));
+                return Err(Refusal::Differs { mark: mark.number, byte });
+            }
+        }
+        for line in &mut self.lines {
+            if let Line::Mark(html) | Line::End(html) = line {
+                *html = None;
+            }
+        }
+        Ok(self.lines)
+    }
     /// The replayed host, to read once the replay has ended.
     #[must_use]
     pub fn host(&self) -> &Host {
@@ -359,21 +378,5 @@ pub fn prove_lines(lines: Vec<Line>) -> Result<Vec<Line>, Refusal> {
     prove_lines_drawn(lines, &mut |_, _| {})
 }
 fn prove_lines_drawn(lines: Vec<Line>, drawn: &mut dyn FnMut(u32, &Page<'static>)) -> Result<Vec<Line>, Refusal> {
-    let mut replay = Replay::from_lines(lines)?;
-    while let Some(mark) = replay.next_drawing(drawn).map_err(Refusal::Stale)? {
-        let recorded = mark.recorded.ok_or(Refusal::Unproved { mark: mark.number })?;
-        let html = mark.page.html();
-        let actual = html.as_bytes();
-        if actual != recorded {
-            let byte =
-                actual.iter().zip(recorded).position(|(a, b)| a != b).unwrap_or(actual.len().min(recorded.len()));
-            return Err(Refusal::Differs { mark: mark.number, byte });
-        }
-    }
-    for line in &mut replay.lines {
-        if let Line::Mark(html) | Line::End(html) = line {
-            *html = None;
-        }
-    }
-    Ok(replay.lines)
+    Replay::from_lines(lines)?.prove_drawn(drawn)
 }

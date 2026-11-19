@@ -103,6 +103,7 @@ fn spawn(command: &Command) -> k::Spawn {
         email: b"worker@example.invalid".as_slice().into(),
     };
     k::Spawn {
+        reach: None,
         program: b"/git".as_slice().into(),
         args: invocation::arguments(command),
         env: invocation::environment(b"/home", kind, Some(&identity)),

@@ -146,6 +146,7 @@ impl Host for BoxPeer {
         if let Some(root) = self.root.take() {
             self.submit(Op::Spawn {
                 spawn: Box::new(Spawn {
+                    reach: None,
                     program: PROGRAM.into(),
                     args: Box::new([]),
                     env: Box::new([]),

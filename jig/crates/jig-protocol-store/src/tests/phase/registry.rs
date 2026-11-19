@@ -208,9 +208,8 @@ fn held_changes_move_only_the_broad_roots_reached_variant_and_jobs_get_held_text
     );
     store.registry.assert_settled();
     let mut value = [0, 1, 0, 0, 0, 0, 3, 0, 1, 42];
-    let mut out = Buffer::with_capacity(32);
     assert_eq!(
-        store.registry.read(b"\x02h/0", &mut value, &mut out, &mut store.layout_work.workspace),
+        store.registry.read(b"\x02h/0", &mut value, &mut store.layout_work),
         &[0, 1, 0, 0, 0, 0, 4, 0, 1, 42, 7]
     );
     let mut value = [0, 1, 1];
@@ -303,7 +302,6 @@ fn mappings_resolve_keys_rehead_kept_plans_convert_and_preserve_unreadable_value
     // plan at the old id below must still convert without either of them.
     store.registry.assert_settled();
     let key = b"\x02a/0";
-    let mut out = Buffer::with_capacity(64);
     for (key, input, expected) in [
         (key.as_slice(), vec![0, 3, 0, 42, 8], vec![0, 2, 0, 42, 8]),
         (key.as_slice(), vec![0, 2, 0, 42], vec![0, 2, 0, 42, 7]),
@@ -313,7 +311,7 @@ fn mappings_resolve_keys_rehead_kept_plans_convert_and_preserve_unreadable_value
         (b"\x02b/0", vec![0, 3, 0, 42], vec![0, 3, 0, 42]),
     ] {
         let mut input = input;
-        assert_eq!(store.registry.read(key, &mut input, &mut out, &mut store.layout_work.workspace), expected);
+        assert_eq!(store.registry.read(key, &mut input, &mut store.layout_work), expected);
     }
     let mut value = [0, 2, 0, 42, 7];
     assert_eq!(store.registry.write(key, &mut value), Ok(()));
@@ -344,7 +342,7 @@ fn mappings_resolve_keys_rehead_kept_plans_convert_and_preserve_unreadable_value
     );
     crate::registry::open(&mut store, false).unwrap();
     let mut value = [0, 7, 2];
-    assert_eq!(store.registry.read(b"\x02c/0", &mut value, &mut out, &mut store.layout_work.workspace), &[0, 2, 2]);
+    assert_eq!(store.registry.read(b"\x02c/0", &mut value, &mut store.layout_work), &[0, 2, 2]);
 }
 pub(super) fn raw(disk: &mut Disk, store: &mut Store, mut ops: Vec<skein_kv::Op>) {
     let number = store.stores.store.last() + 1;
@@ -355,7 +353,8 @@ pub(super) fn raw(disk: &mut Disk, store: &mut Store, mut ops: Vec<skein_kv::Op>
     if let Some(family) =
         store.owner_sets.sets.iter().flat_map(|set| set.families).find(|family| family.name == "jig-store-core")
     {
-        let from = skein_codec::schema::parse(include_str!("../../../schema/core-v6.schema").as_bytes()).unwrap();
+        let from =
+            skein_codec::schema::parse(crate::STORE_FAMILIES.get(3).expect("store family").current.as_bytes()).unwrap();
         let to = skein_codec::schema::parse(family.current.as_bytes()).unwrap();
         let plan = skein_codec::layout::Plan::derive(
             &from,

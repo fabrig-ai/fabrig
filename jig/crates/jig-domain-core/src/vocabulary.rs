@@ -14,6 +14,8 @@ use skein_lib::List;
 )]
 pub(crate) enum Work {
     Event(Event),
+    /// Resume a report-ready batch without resetting its first park's deadline.
+    Resources(crate::effects::resources::Batch),
     /// A required preparation read or connector section could not be assembled.
     PreparationFailed {
         task: u64,

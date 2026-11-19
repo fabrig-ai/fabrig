@@ -356,7 +356,7 @@ fn joined_batch_with_tests(by_test: bool) -> (World, engine::Assignment, Vec<u64
             temper_engine_domain_forge_change::State::Ready { .. }
         ));
     }
-    world.restart_with_batch(3);
+    restart_waiting_batch(&mut world, 3, &changes);
     for _ in 0..600 {
         world.tick();
         if !landing_rows(&world).is_empty() {

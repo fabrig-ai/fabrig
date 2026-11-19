@@ -74,6 +74,7 @@ fn cleanup_drains_an_accept_and_reaps_its_child() {
         let process = real.open();
         let root = real.root(process, &[]);
         let spawn = Spawn {
+            reach: None,
             program: Box::from(skein_scratch::paths::binary("process_fixture").as_os_str().as_bytes()),
             args: Box::new([Box::from(&b"never"[..])]),
             env: Box::new([]),

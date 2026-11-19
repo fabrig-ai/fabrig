@@ -371,7 +371,10 @@ it in at once, as a walk's `approve` does (`tui/journeys.md`, 8.1): a
 save that holds a `browse`, whose address the browser opens and whose
 "Approve" it presses, then the browser loads again the address it was
 on; within 30 seconds, before the line is carried out. So no line
-approves, and a recipe holds none.
+approves, and a recipe holds none. `tui approve`, `tui mark` and
+`web mark` are a journey's lines (`journey-walks.md`, 2.2): the session
+answers each `failed: line N: tui approve is a journey's line`, with
+its own words, keeps none, and starts no TUI for it.
 
 | Line | What the session does | Bound |
 |---|---|---|
@@ -548,10 +551,11 @@ deployment line`, and is not kept.
 ## 5. Its code
 
 - **In `temper-client-journeys-tool`,** beside `again`: a `drive`
-  module for the session and a `line` module for the lines' grammar,
-  `Line`'s parse and print, which `recipe.md`'s reader shares. A line
-  prints as it parses, field for field, so a kept line is the line
-  given.
+  module for the session. The lines' grammar, `Line`'s parse and print,
+  is `temper-client-walk-lines`' `line` module
+  (`journey-walks.md`, 3.1), which `recipe.md`'s reader and a journey's
+  walk share. A line prints as it parses, field for field, so a kept
+  line is the line given.
 - **One place, of either kind,** behind one interface
   (`../testing/qa/kinds.md`, 5): the box or the deployment's processes
   started, given their lines, asked for their values and stopped, and

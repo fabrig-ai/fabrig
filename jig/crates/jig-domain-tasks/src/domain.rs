@@ -79,7 +79,9 @@ pub struct Domain {
     pub(crate) hold_kinds: Map<crate::holds::KindKey, crate::HoldKind>,
     pub(crate) resource_access: Map<crate::holds::ResourceKey, crate::ResourceAccess>,
     pub(crate) resource_access_full: bool,
-    pub(crate) resources: Map<crate::Name, crate::HoldKind>,
+    pub(crate) resources: Map<crate::Name, crate::holds::Report>,
+    pub(crate) report_order: u64,
+    pub(crate) report_pins: Map<skein_lib::Token, skein_lib::Set<crate::Name>>,
     pub(crate) pools: Map<crate::Name, crate::PoolSlots>,
     pub(crate) next_pool: u64,
     pub(crate) writers: Map<crate::Name, crate::WriterSlot>,
@@ -276,6 +278,8 @@ impl Domain {
             resource_access: Map::with_capacity(limits.resource_reports),
             resource_access_full: false,
             resources: Map::with_capacity(limits.resource_reports),
+            report_order: 0,
+            report_pins: Map::uncapped(),
             pools: Map::with_capacity(limits.pools),
             next_pool: 0,
             writers: Map::with_capacity(limits.tasks.checked_mul(limits.holdings).expect("writer room")),
@@ -385,7 +389,7 @@ impl Domain {
     /// The latest connector report for admission of this individual resource.
     #[must_use]
     pub fn resource_hold(&self, name: &crate::Name) -> Option<crate::HoldKind> {
-        self.resources.get(name).copied()
+        Some(self.resources.get(name)?.hold)
     }
 
     /// Current authentic holder of an opaque exclusive resource.
@@ -770,10 +774,14 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
             crate::funders::resize_period(domain, reply_to, project, period, budget, out);
         }
         Event::Make { reply_to, creator, maker, batch, places } => {
-            make(domain, env, reply_to, creator, maker, batch, &places, out);
+            let owner = reply_to.into_token();
+            make(domain, env, ReplyTo::new(owner), creator, maker, batch, &places, out);
+            domain.unpin_reports(owner);
         }
         Event::MakeResultFollowups { reply_to, proposer, proposal, batch } => {
-            make_result_followups(domain, env, reply_to, proposer, proposal, batch, out);
+            let owner = reply_to.into_token();
+            make_result_followups(domain, env, ReplyTo::new(owner), proposer, proposal, batch, out);
+            domain.unpin_reports(owner);
         }
         Event::Message { reply_to, project, operation } => {
             crate::inbox::message(domain, env, reply_to, project, operation, false, out);

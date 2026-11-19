@@ -2,6 +2,7 @@
 
 use super::{CONSTRUCTS, Construct, Kind, constructs, missing, unpinned, without};
 
+// Every's owner is a private world whose library no other package may name.
 const EVERY: &str = include_str!("../../../tests/codec/schema/every-v3.schema");
 
 fn found(declarations: &str) -> Vec<Construct> {

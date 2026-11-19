@@ -180,6 +180,25 @@ impl Kernel {
         Ok(Self { running, ring_refused: None })
     }
 
+    /// Names the executable whose main dispatches the helper first (runtime/kernel.md, 6.6).
+    /// Defaults to `/proc/self/exe` on Linux.
+    pub fn set_helper(&mut self, executable: Box<[u8]>) {
+        self.helper().executable = executable;
+    }
+
+    /// Checks that a child can enforce ABI 6's reach, without changing this process.
+    pub fn can_restrict(&mut self) -> Result<(), skein_io::kernel::Unenforced> {
+        self.helper().check()
+    }
+
+    fn helper(&mut self) -> &mut crate::helper::Launcher {
+        match &mut self.running {
+            #[cfg(target_os = "linux")]
+            Running::Ring(ring) => &mut ring.helper,
+            Running::Readiness(readiness) => &mut readiness.helper,
+        }
+    }
+
     /// The backend selected at startup.
     #[must_use]
     pub fn chosen(&self) -> Chosen {

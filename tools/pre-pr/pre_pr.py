@@ -116,7 +116,7 @@ def tree(root, git_dir, index, env):
     private['GIT_INDEX_FILE'] = str(index)
     source = Path(env.get('GIT_INDEX_FILE', git_dir / 'index'))
     if source.exists():
-        shutil.copyfile(source, index)
+        shutil.copy2(source, index)  # mtime kept: git still sees a same-size edit in the same second
     for arguments in (['add', '-A'], ['write-tree']):
         result = git(arguments, root, private)
         if result.returncode:
@@ -308,8 +308,8 @@ JOURNEY_WRITTEN = re.compile(
     r'(?:[^/]+/(?:recording|[0-9]{2,}\.(?:html|txt))|skein-ui\.css|journey\.js|theme\.css|tui-journey\.js)')
 
 
-def delivery_paths(base_id, tree_id, root, env):
-    """Paths changed here, excluding entries brought by a merge (section 4, check 8)."""
+def delivery_paths(base_id, tree_id, root, env, merged):
+    """Paths changed here, excluding entries brought by a merge (sections 3 and 4)."""
     def against(revision):
         diff = git(['diff-tree', '-r', '--no-renames', '--name-only', '-z', revision, tree_id], root, env)
         if diff.returncode:
@@ -318,7 +318,7 @@ def delivery_paths(base_id, tree_id, root, env):
 
     paths = against(base_id or 'HEAD')
     if base_id and paths:
-        for tip in merged_tips(base_id, root, env):
+        for tip in merged:
             # A diff includes absent entries and mode changes as well as blobs.
             paths.intersection_update(against(tip))
     return sorted(paths)
@@ -353,7 +353,8 @@ def journeys(base_id, tree_id, paths, root, env):
     lines.append("a journey's recording, pages and the files beside them are written on main by "
                  "the journeys' writer alone (AGENTS.md, 4): restore them with git "
                  f"checkout {base_id or 'HEAD'} -- PATH..., and compare pages by cargo run -p "
-                 "temper-client-journeys in your own tree")
+                 "temper-client-journeys in your own tree, or, for a journey whose walk is of version 2, "
+                 "by cargo run -p temper-client-walk -- print --out DIR")
     log = '\n'.join(lines) + '\n'
     print(log, end='', flush=True)
     return 1, [failure('journeys', tail(log))]
@@ -794,8 +795,10 @@ def judge_base(base_id, git_dir, count_errors, root, env):
     """Compare exceeded counts alone in the kept detached worktree (section 5)."""
     base_env = env.copy()
     base_env.pop('GIT_INDEX_FILE', None)
+    target = (git_dir / 'temper-pre-pr/target').resolve()
+    target.mkdir(parents=True, exist_ok=True)
+    base_env['CARGO_TARGET_DIR'] = str(target)
     worktree = git_dir / 'temper-pre-pr/base'
-    worktree.parent.mkdir(parents=True, exist_ok=True)
     if (worktree / '.git').exists():
         commands = [(['checkout', '--detach', '--force', base_id], worktree),
                     (['clean', '-ffdxq'], worktree)]
@@ -995,8 +998,10 @@ def main():
         ledgers, ledger_digest = main_ledgers(ledger_setting, Path(directory), root)
         cache = git_dir / 'pre-pr-passed'
         own_paths, own_paths_error = [], None
+        merged = None
         try:
-            own_paths = delivery_paths(base_id, tree_id, root, env)
+            merged = merged_tips(base_id, root, env) if base_id else []
+            own_paths = delivery_paths(base_id, tree_id, root, env, merged)
         except (OSError, RuntimeError) as error:
             own_paths_error = str(error)
         # The same tree can have different own paths after HEAD or a merge changes.
@@ -1010,13 +1015,19 @@ def main():
                 failures_tail = failures_tail.removeprefix('every key ')
             print('failures: a cached pass, none observed; ' + failures_tail, flush=True)
             return 0
-        paths, selected = [], []
+        paths, raw_paths, selected = [], [], []
         if base_id:
             diff = git(['diff-tree', '-r', '--no-renames', '--name-only', '-z', base_id, tree_id], root, env)
             if diff.returncode:
                 errors.append(failure('check selection', diff.stderr.decode(errors='replace')))
             else:
-                paths = [os.fsdecode(p) for p in diff.stdout.split(b'\0') if p]
+                raw_paths = [os.fsdecode(p) for p in diff.stdout.split(b'\0') if p]
+                if own_paths_error is not None:
+                    errors.append(failure('check selection', own_paths_error))
+                else:
+                    paths = own_paths
+            if merged:
+                print(f"pre-pr: merged tips: {' '.join(merged)}: what they hold is not the delivery's", flush=True)
             try:
                 selected = code_inputs(paths, {'packages': [], 'workspace_members': []}, root)
             except (OSError, ValueError, RuntimeError) as error:
@@ -1112,10 +1123,11 @@ def main():
             if prose_only:
                 _, found = timed('outward', lambda: outward(root, private), pending)
                 errors += found
-            if base_id and 'tools/tiers/budgets.toml' in paths:
+            if base_id and 'tools/tiers/budgets.toml' in raw_paths:
                 def figures_check():
                     try:
-                        merged = merged_tips(base_id, root, env)
+                        if merged is None:
+                            raise RuntimeError(own_paths_error)
                         return figures(base_id, tree_id, root, env, merged)
                     except (OSError, RuntimeError) as error:
                         return 2, [failure('check figures', str(error))]

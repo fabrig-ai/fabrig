@@ -171,6 +171,7 @@ fn a_child_with_pipes_stays_under_its_ceiling() {
         .map(|i| Pipe { child: u32::try_from(i + 3).expect("small pipe count"), way: Way::Out, parent: None })
         .collect();
     let spawn = Spawn {
+        reach: None,
         program: Box::from(&b"/bin/true"[..]),
         args: Box::default(),
         env: Box::default(),
@@ -199,6 +200,7 @@ fn native_pipe_output_and_close_terminals_stay_under_the_ceiling_until_reap() {
         .map(|index| Pipe { child: u32::try_from(index).expect("bounded pipe count"), way: Way::In, parent: None })
         .collect();
     let spawn = Spawn {
+        reach: None,
         program: Box::from(&b"/bin/cat"[..]),
         args: Box::default(),
         env: Box::default(),
@@ -286,7 +288,7 @@ fn native_pipe_output_and_close_terminals_stay_under_the_ceiling_until_reap() {
 fn children_pipes_and_signals_fill_the_slab_under_the_ceiling() {
     // Four children, read pipes, signals and Usage: 4,050 B peak plus 25%, rounded up to two significant digits.
     const CEILING: u64 = 5_100;
-    use skein_io::kernel::{Signal, Target};
+    use skein_io::kernel::{Reason, Signal, Target};
     let limits = Limits { sockets: 8, ..skein_io_world::scenarios::limits(8) };
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
     let mut events = Queue::with_capacity(32);
@@ -300,6 +302,7 @@ fn children_pipes_and_signals_fill_the_slab_under_the_ceiling() {
         let request = Request::Spawn {
             owner: Token::new(u64::from(index)),
             spawn: Spawn {
+                reach: None,
                 root: Fd::new(3),
                 dir: Box::from(b".".as_slice()),
                 program: Box::from(b"fork-live".as_slice()),
@@ -349,12 +352,7 @@ fn children_pipes_and_signals_fill_the_slab_under_the_ceiling() {
         skein_io::down(
             &mut io,
             &env,
-            Request::Signal {
-                child,
-                signal: Signal::Terminate,
-                to: Target::Group,
-                reason: skein_io::kernel::Reason::Unknown,
-            },
+            Request::Signal { child, signal: Signal::Terminate, to: Target::Group, reason: Reason::Unknown },
             &mut submissions,
         );
         most = most.max(meter.check(meter.end(), CEILING, &"signal"));

@@ -30,6 +30,9 @@ disallowed_macros = "deny"
 disallowed_methods = "deny"
 
 [dev-dependencies]
+skein-codegen.workspace = true
+skein-heap.workspace = true
+jig-client-view-codec.workspace = true
 jig-core-kit.workspace = true
 jig-test-profile.workspace = true
 jig-client-test-protocol-wire.workspace = true

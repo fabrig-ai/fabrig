@@ -61,6 +61,7 @@ pub(crate) fn refused(
     out: &mut Queue<Request>,
 ) {
     let token = reply_to.into_token();
+    core.tasks.unpin_reports(token);
     if let Some(flight) = core.land_task(token) {
         refuse_flight(core, env, token, flight, problem, pending, out);
         return;

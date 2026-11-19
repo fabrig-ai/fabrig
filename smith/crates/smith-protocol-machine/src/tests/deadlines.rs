@@ -33,7 +33,8 @@ fn running(held: bool) -> (Component, Queue<ToDomain>, Queue<Below>) {
             FromDomain::Check {
                 owner,
                 program: run::Place { root: Token::new(10), path: Box::from(b"check".as_slice()) },
-                deadline: DEADLINE,
+                bound: DEADLINE.saturating_since(Time::ZERO),
+                cap: DEADLINE,
                 tail: 0,
             }
         };

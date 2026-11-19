@@ -112,6 +112,7 @@ impl Process {
         below.push(IoRequest::Spawn {
             owner: self.io_owner,
             spawn: kernel::Spawn {
+                reach: None,
                 program: launch.program,
                 args: launch.arguments,
                 env: launch.environment,

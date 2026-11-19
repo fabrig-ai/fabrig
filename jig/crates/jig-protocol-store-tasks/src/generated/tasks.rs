@@ -3,7 +3,9 @@
 use alloc::boxed::Box;
 use skein_lib::List;
 use skein_codec::field;
-pub use skein_codec::{Path, Problem, Record};
+pub use skein_codec::Record;
+pub type Path = skein_codec::Path<Limits>;
+pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 13;
 
@@ -427,1206 +429,1213 @@ impl Limits {
     }
 }
 
-    #[expect(clippy::too_many_lines, reason = "one operation per schema field or limit")]
+const LIMIT_PATHS: &[Path] = &[
+    paths::BYTES_PARAMETER_VALUE,
+    paths::JOB_SPEC_BYTES,
+    paths::JOB_RESULT_BYTES,
+    paths::SPEC_WORDS,
+    paths::SPEC_PARAMETERS,
+    paths::SPEC_INPUTS,
+    paths::PART_SEGMENT_BYTES,
+    paths::PART_PATH_SEGMENTS,
+    paths::FIELD_RULE_NAME,
+    paths::VERDICT_FIELDS,
+    paths::APPROVAL_STATE,
+    paths::CHOICES_CHOICES,
+    paths::CHANGE_CONTRACT_CHOICES,
+    paths::LLM_LATER_SUBAGENTS,
+    paths::LLM_CHOICE_SUBAGENTS,
+    paths::AUTHORITY_SEGMENT_BYTES,
+    paths::PATTERN_SEGMENTS,
+    paths::DELEGATION_KINDS,
+    paths::AUTHORITY_GRANTS,
+    paths::AUTHORITY_NOTE_RESOURCES,
+    paths::SEGMENT_BYTES,
+    paths::NAME_PATH,
+    paths::MEMBER_DEPENDENCIES,
+    paths::MEMBER_HOLDINGS,
+    paths::RECURRING_TEMPLATE_BATCH,
+    paths::RESULT_FIELD_NAME,
+    paths::RESULT_FIELD_VALUE,
+    paths::APPROVED_STATE,
+    paths::APPROVED_WORDS,
+    paths::REPORT_RESULT_WORDS,
+    paths::VERDICT_RESULT_FIELDS,
+    paths::VERDICT_RESULT_WORDS,
+    paths::CHANGE_RESULT_TITLE,
+    paths::CHANGE_RESULT_WORDS,
+    paths::FAILURE_RESULT_REASON,
+    paths::CANCELLED_REASON,
+    paths::CIRCLE_TASKS,
+    paths::HOLD_ACCOUNT_WORDS,
+    paths::HOLD_PREPARATION_WORDS,
+    paths::REJECTED_PROPOSAL_REASON,
+    paths::AMENDMENT_INSTRUCTIONS,
+    paths::AMENDMENT_DEPENDENCIES,
+    paths::AMENDMENT_REASON,
+    paths::PROPOSED_BATCH_MEMBERS,
+    paths::PROPOSED_SETTINGS_ITEMS,
+    paths::PROPOSED_SETTINGS_PROJECTS,
+    paths::PROPOSAL_REASON,
+    paths::SETTINGS_INSTRUCTIONS,
+    paths::SETTINGS_DEPENDENCIES,
+    paths::HISTORY_REASON,
+    paths::REJECTED_PERSON_PROPOSAL_REASON,
+    paths::PERSON_PROPOSAL_REASON,
+    paths::GRACE_REASON,
+    paths::FAILED_RETRY_REASON,
+    paths::REFUSED_RETRY_REASON,
+    paths::APPROVAL_MESSAGE_STATE,
+    paths::VERDICT_MESSAGE_FIELDS,
+    paths::WORD_WORDS,
+    paths::ACTIVITY_WORDS_WORDS,
+    paths::KEPT_LINE_PENDING,
+    paths::NOW_WRITTEN_LINE_LINE,
+    paths::STOOD_LINE_WORDS,
+    paths::REJECTED_ESCALATION_REASON,
+    paths::RECURRING_STATE_LAST_BATCH,
+    paths::SAVED_RESOURCE_PATH,
+    paths::TASK_HISTORY_QUESTION_LINES,
+    paths::TASK_HISTORY_PROPOSAL_ROWS,
+    paths::TASK_HISTORY_INSTRUCTIONS,
+    paths::TASK_HISTORY_REFUSED,
+    paths::TASK_RUN_REPLIES,
+    paths::TASK_DEFINITION_DEPENDENCIES,
+    paths::TASK_DEFINITION_WAITING_ON,
+    paths::TASK_DEFINITION_ADDED,
+    paths::TASK_INTERESTS_HOLDINGS,
+    paths::TASK_INTERESTS_DELEGATES,
+    paths::TASK_INTERESTS_RESULT_FOLLOWUPS,
+    paths::TASK_INTERESTS_REFERENCES,
+    paths::TASK_INTERESTS_SUBSCRIPTIONS,
+    paths::TASK_INTERESTS_INBOX,
+    paths::TASK_INTERESTS_SAVED,
+    paths::BEFORE_TALK_STARTED_FROM,
+    paths::HOT_HISTORY_QUESTION_LINES,
+    paths::HOT_HISTORY_PROPOSAL_ROWS,
+    paths::HOT_HISTORY_REFUSED,
+    paths::HOT_DEFINITION_DEPENDENCIES,
+    paths::HOT_DEFINITION_WAITING_ON,
+    paths::HOT_DEFINITION_ADDED,
+    paths::LIVE_HOT_STARTED_FROM,
+    paths::LIVE_COLD_INSTRUCTIONS,
+    paths::PLACED_HOLD_REASON,
+    paths::PLACED_HOLD_EXEMPT,
+    paths::SUMMARY_RESULT_WORDS,
+    paths::TASK_SUMMARY_TITLE,
+    paths::TASK_SUMMARY_REASON,
+    paths::MODEL_NAME_VALUE,
+    paths::ROW_MODELS,
+    paths::TASK_PROBLEM_BLOCKED_BY,
+    paths::RESULT_FOLLOWUPS_DELEGATES_VALUE,
+    paths::END_FAILED_WITH_REASON_REASON,
+    paths::END_REFUSED_WITH_REASON_REASON,
+];
+
 pub fn check_limits(limits: &Limits) -> Result<(), Problem> {
-    if limits.bytes_parameter_value > CEILINGS.bytes_parameter_value { return Err(Problem { path: paths::BYTES_PARAMETER_VALUE, reason: skein_codec::Reason::Bound }); }
-    if limits.job_spec_bytes > CEILINGS.job_spec_bytes { return Err(Problem { path: paths::JOB_SPEC_BYTES, reason: skein_codec::Reason::Bound }); }
-    if limits.job_result_bytes > CEILINGS.job_result_bytes { return Err(Problem { path: paths::JOB_RESULT_BYTES, reason: skein_codec::Reason::Bound }); }
-    if limits.spec_words > CEILINGS.spec_words { return Err(Problem { path: paths::SPEC_WORDS, reason: skein_codec::Reason::Bound }); }
-    if limits.spec_parameters > CEILINGS.spec_parameters { return Err(Problem { path: paths::SPEC_PARAMETERS, reason: skein_codec::Reason::Bound }); }
-    if limits.spec_inputs > CEILINGS.spec_inputs { return Err(Problem { path: paths::SPEC_INPUTS, reason: skein_codec::Reason::Bound }); }
-    if limits.part_segment_bytes > CEILINGS.part_segment_bytes { return Err(Problem { path: paths::PART_SEGMENT_BYTES, reason: skein_codec::Reason::Bound }); }
-    if limits.part_path_segments > CEILINGS.part_path_segments { return Err(Problem { path: paths::PART_PATH_SEGMENTS, reason: skein_codec::Reason::Bound }); }
-    if limits.field_rule_name > CEILINGS.field_rule_name { return Err(Problem { path: paths::FIELD_RULE_NAME, reason: skein_codec::Reason::Bound }); }
-    if limits.verdict_fields > CEILINGS.verdict_fields { return Err(Problem { path: paths::VERDICT_FIELDS, reason: skein_codec::Reason::Bound }); }
-    if limits.approval_state > CEILINGS.approval_state { return Err(Problem { path: paths::APPROVAL_STATE, reason: skein_codec::Reason::Bound }); }
-    if limits.choices_choices > CEILINGS.choices_choices { return Err(Problem { path: paths::CHOICES_CHOICES, reason: skein_codec::Reason::Bound }); }
-    if limits.change_contract_choices > CEILINGS.change_contract_choices { return Err(Problem { path: paths::CHANGE_CONTRACT_CHOICES, reason: skein_codec::Reason::Bound }); }
-    if limits.llm_later_subagents > CEILINGS.llm_later_subagents { return Err(Problem { path: paths::LLM_LATER_SUBAGENTS, reason: skein_codec::Reason::Bound }); }
-    if limits.llm_choice_subagents > CEILINGS.llm_choice_subagents { return Err(Problem { path: paths::LLM_CHOICE_SUBAGENTS, reason: skein_codec::Reason::Bound }); }
-    if limits.authority_segment_bytes > CEILINGS.authority_segment_bytes { return Err(Problem { path: paths::AUTHORITY_SEGMENT_BYTES, reason: skein_codec::Reason::Bound }); }
-    if limits.pattern_segments > CEILINGS.pattern_segments { return Err(Problem { path: paths::PATTERN_SEGMENTS, reason: skein_codec::Reason::Bound }); }
-    if limits.delegation_kinds > CEILINGS.delegation_kinds { return Err(Problem { path: paths::DELEGATION_KINDS, reason: skein_codec::Reason::Bound }); }
-    if limits.authority_grants > CEILINGS.authority_grants { return Err(Problem { path: paths::AUTHORITY_GRANTS, reason: skein_codec::Reason::Bound }); }
-    if limits.authority_note_resources > CEILINGS.authority_note_resources { return Err(Problem { path: paths::AUTHORITY_NOTE_RESOURCES, reason: skein_codec::Reason::Bound }); }
-    if limits.segment_bytes > CEILINGS.segment_bytes { return Err(Problem { path: paths::SEGMENT_BYTES, reason: skein_codec::Reason::Bound }); }
-    if limits.name_path > CEILINGS.name_path { return Err(Problem { path: paths::NAME_PATH, reason: skein_codec::Reason::Bound }); }
-    if limits.member_dependencies > CEILINGS.member_dependencies { return Err(Problem { path: paths::MEMBER_DEPENDENCIES, reason: skein_codec::Reason::Bound }); }
-    if limits.member_holdings > CEILINGS.member_holdings { return Err(Problem { path: paths::MEMBER_HOLDINGS, reason: skein_codec::Reason::Bound }); }
-    if limits.recurring_template_batch > CEILINGS.recurring_template_batch { return Err(Problem { path: paths::RECURRING_TEMPLATE_BATCH, reason: skein_codec::Reason::Bound }); }
-    if limits.result_field_name > CEILINGS.result_field_name { return Err(Problem { path: paths::RESULT_FIELD_NAME, reason: skein_codec::Reason::Bound }); }
-    if limits.result_field_value > CEILINGS.result_field_value { return Err(Problem { path: paths::RESULT_FIELD_VALUE, reason: skein_codec::Reason::Bound }); }
-    if limits.approved_state > CEILINGS.approved_state { return Err(Problem { path: paths::APPROVED_STATE, reason: skein_codec::Reason::Bound }); }
-    if limits.approved_words_some > CEILINGS.approved_words_some { return Err(Problem { path: paths::APPROVED_WORDS, reason: skein_codec::Reason::Bound }); }
-    if limits.report_result_words > CEILINGS.report_result_words { return Err(Problem { path: paths::REPORT_RESULT_WORDS, reason: skein_codec::Reason::Bound }); }
-    if limits.verdict_result_fields > CEILINGS.verdict_result_fields { return Err(Problem { path: paths::VERDICT_RESULT_FIELDS, reason: skein_codec::Reason::Bound }); }
-    if limits.verdict_result_words > CEILINGS.verdict_result_words { return Err(Problem { path: paths::VERDICT_RESULT_WORDS, reason: skein_codec::Reason::Bound }); }
-    if limits.change_result_title > CEILINGS.change_result_title { return Err(Problem { path: paths::CHANGE_RESULT_TITLE, reason: skein_codec::Reason::Bound }); }
-    if limits.change_result_words > CEILINGS.change_result_words { return Err(Problem { path: paths::CHANGE_RESULT_WORDS, reason: skein_codec::Reason::Bound }); }
-    if limits.failure_result_reason > CEILINGS.failure_result_reason { return Err(Problem { path: paths::FAILURE_RESULT_REASON, reason: skein_codec::Reason::Bound }); }
-    if limits.cancelled_reason > CEILINGS.cancelled_reason { return Err(Problem { path: paths::CANCELLED_REASON, reason: skein_codec::Reason::Bound }); }
-    if limits.circle_tasks > CEILINGS.circle_tasks { return Err(Problem { path: paths::CIRCLE_TASKS, reason: skein_codec::Reason::Bound }); }
-    if limits.hold_account_words > CEILINGS.hold_account_words { return Err(Problem { path: paths::HOLD_ACCOUNT_WORDS, reason: skein_codec::Reason::Bound }); }
-    if limits.hold_preparation_words > CEILINGS.hold_preparation_words { return Err(Problem { path: paths::HOLD_PREPARATION_WORDS, reason: skein_codec::Reason::Bound }); }
-    if limits.rejected_proposal_reason > CEILINGS.rejected_proposal_reason { return Err(Problem { path: paths::REJECTED_PROPOSAL_REASON, reason: skein_codec::Reason::Bound }); }
-    if limits.amendment_instructions_some > CEILINGS.amendment_instructions_some { return Err(Problem { path: paths::AMENDMENT_INSTRUCTIONS, reason: skein_codec::Reason::Bound }); }
-    if limits.amendment_dependencies_some > CEILINGS.amendment_dependencies_some { return Err(Problem { path: paths::AMENDMENT_DEPENDENCIES, reason: skein_codec::Reason::Bound }); }
-    if limits.amendment_reason > CEILINGS.amendment_reason { return Err(Problem { path: paths::AMENDMENT_REASON, reason: skein_codec::Reason::Bound }); }
-    if limits.proposed_batch_members > CEILINGS.proposed_batch_members { return Err(Problem { path: paths::PROPOSED_BATCH_MEMBERS, reason: skein_codec::Reason::Bound }); }
-    if limits.proposed_settings_items > CEILINGS.proposed_settings_items { return Err(Problem { path: paths::PROPOSED_SETTINGS_ITEMS, reason: skein_codec::Reason::Bound }); }
-    if limits.proposed_settings_projects > CEILINGS.proposed_settings_projects { return Err(Problem { path: paths::PROPOSED_SETTINGS_PROJECTS, reason: skein_codec::Reason::Bound }); }
-    if limits.proposal_reason > CEILINGS.proposal_reason { return Err(Problem { path: paths::PROPOSAL_REASON, reason: skein_codec::Reason::Bound }); }
-    if limits.settings_instructions_some > CEILINGS.settings_instructions_some { return Err(Problem { path: paths::SETTINGS_INSTRUCTIONS, reason: skein_codec::Reason::Bound }); }
-    if limits.settings_dependencies > CEILINGS.settings_dependencies { return Err(Problem { path: paths::SETTINGS_DEPENDENCIES, reason: skein_codec::Reason::Bound }); }
-    if limits.history_reason > CEILINGS.history_reason { return Err(Problem { path: paths::HISTORY_REASON, reason: skein_codec::Reason::Bound }); }
-    if limits.rejected_person_proposal_reason > CEILINGS.rejected_person_proposal_reason { return Err(Problem { path: paths::REJECTED_PERSON_PROPOSAL_REASON, reason: skein_codec::Reason::Bound }); }
-    if limits.person_proposal_reason > CEILINGS.person_proposal_reason { return Err(Problem { path: paths::PERSON_PROPOSAL_REASON, reason: skein_codec::Reason::Bound }); }
-    if limits.grace_reason > CEILINGS.grace_reason { return Err(Problem { path: paths::GRACE_REASON, reason: skein_codec::Reason::Bound }); }
-    if limits.failed_retry_reason_some > CEILINGS.failed_retry_reason_some { return Err(Problem { path: paths::FAILED_RETRY_REASON, reason: skein_codec::Reason::Bound }); }
-    if limits.refused_retry_reason_some > CEILINGS.refused_retry_reason_some { return Err(Problem { path: paths::REFUSED_RETRY_REASON, reason: skein_codec::Reason::Bound }); }
-    if limits.approval_message_state > CEILINGS.approval_message_state { return Err(Problem { path: paths::APPROVAL_MESSAGE_STATE, reason: skein_codec::Reason::Bound }); }
-    if limits.verdict_message_fields > CEILINGS.verdict_message_fields { return Err(Problem { path: paths::VERDICT_MESSAGE_FIELDS, reason: skein_codec::Reason::Bound }); }
-    if limits.word_words > CEILINGS.word_words { return Err(Problem { path: paths::WORD_WORDS, reason: skein_codec::Reason::Bound }); }
-    if limits.activity_words_words > CEILINGS.activity_words_words { return Err(Problem { path: paths::ACTIVITY_WORDS_WORDS, reason: skein_codec::Reason::Bound }); }
-    if limits.kept_line_pending > CEILINGS.kept_line_pending { return Err(Problem { path: paths::KEPT_LINE_PENDING, reason: skein_codec::Reason::Bound }); }
-    if limits.now_written_line_line > CEILINGS.now_written_line_line { return Err(Problem { path: paths::NOW_WRITTEN_LINE_LINE, reason: skein_codec::Reason::Bound }); }
-    if limits.stood_line_words > CEILINGS.stood_line_words { return Err(Problem { path: paths::STOOD_LINE_WORDS, reason: skein_codec::Reason::Bound }); }
-    if limits.rejected_escalation_reason > CEILINGS.rejected_escalation_reason { return Err(Problem { path: paths::REJECTED_ESCALATION_REASON, reason: skein_codec::Reason::Bound }); }
-    if limits.recurring_state_last_batch > CEILINGS.recurring_state_last_batch { return Err(Problem { path: paths::RECURRING_STATE_LAST_BATCH, reason: skein_codec::Reason::Bound }); }
-    if limits.saved_resource_path > CEILINGS.saved_resource_path { return Err(Problem { path: paths::SAVED_RESOURCE_PATH, reason: skein_codec::Reason::Bound }); }
-    if limits.task_history_question_lines > CEILINGS.task_history_question_lines { return Err(Problem { path: paths::TASK_HISTORY_QUESTION_LINES, reason: skein_codec::Reason::Bound }); }
-    if limits.task_history_proposal_rows > CEILINGS.task_history_proposal_rows { return Err(Problem { path: paths::TASK_HISTORY_PROPOSAL_ROWS, reason: skein_codec::Reason::Bound }); }
-    if limits.task_history_instructions_some > CEILINGS.task_history_instructions_some { return Err(Problem { path: paths::TASK_HISTORY_INSTRUCTIONS, reason: skein_codec::Reason::Bound }); }
-    if limits.task_history_refused > CEILINGS.task_history_refused { return Err(Problem { path: paths::TASK_HISTORY_REFUSED, reason: skein_codec::Reason::Bound }); }
-    if limits.task_run_replies > CEILINGS.task_run_replies { return Err(Problem { path: paths::TASK_RUN_REPLIES, reason: skein_codec::Reason::Bound }); }
-    if limits.task_definition_dependencies > CEILINGS.task_definition_dependencies { return Err(Problem { path: paths::TASK_DEFINITION_DEPENDENCIES, reason: skein_codec::Reason::Bound }); }
-    if limits.task_definition_waiting_on > CEILINGS.task_definition_waiting_on { return Err(Problem { path: paths::TASK_DEFINITION_WAITING_ON, reason: skein_codec::Reason::Bound }); }
-    if limits.task_definition_added > CEILINGS.task_definition_added { return Err(Problem { path: paths::TASK_DEFINITION_ADDED, reason: skein_codec::Reason::Bound }); }
-    if limits.task_interests_holdings > CEILINGS.task_interests_holdings { return Err(Problem { path: paths::TASK_INTERESTS_HOLDINGS, reason: skein_codec::Reason::Bound }); }
-    if limits.task_interests_delegates > CEILINGS.task_interests_delegates { return Err(Problem { path: paths::TASK_INTERESTS_DELEGATES, reason: skein_codec::Reason::Bound }); }
-    if limits.task_interests_result_followups > CEILINGS.task_interests_result_followups { return Err(Problem { path: paths::TASK_INTERESTS_RESULT_FOLLOWUPS, reason: skein_codec::Reason::Bound }); }
-    if limits.task_interests_references > CEILINGS.task_interests_references { return Err(Problem { path: paths::TASK_INTERESTS_REFERENCES, reason: skein_codec::Reason::Bound }); }
-    if limits.task_interests_subscriptions > CEILINGS.task_interests_subscriptions { return Err(Problem { path: paths::TASK_INTERESTS_SUBSCRIPTIONS, reason: skein_codec::Reason::Bound }); }
-    if limits.task_interests_inbox > CEILINGS.task_interests_inbox { return Err(Problem { path: paths::TASK_INTERESTS_INBOX, reason: skein_codec::Reason::Bound }); }
-    if limits.task_interests_saved > CEILINGS.task_interests_saved { return Err(Problem { path: paths::TASK_INTERESTS_SAVED, reason: skein_codec::Reason::Bound }); }
-    if limits.before_talk_started_from > CEILINGS.before_talk_started_from { return Err(Problem { path: paths::BEFORE_TALK_STARTED_FROM, reason: skein_codec::Reason::Bound }); }
-    if limits.hot_history_question_lines > CEILINGS.hot_history_question_lines { return Err(Problem { path: paths::HOT_HISTORY_QUESTION_LINES, reason: skein_codec::Reason::Bound }); }
-    if limits.hot_history_proposal_rows > CEILINGS.hot_history_proposal_rows { return Err(Problem { path: paths::HOT_HISTORY_PROPOSAL_ROWS, reason: skein_codec::Reason::Bound }); }
-    if limits.hot_history_refused > CEILINGS.hot_history_refused { return Err(Problem { path: paths::HOT_HISTORY_REFUSED, reason: skein_codec::Reason::Bound }); }
-    if limits.hot_definition_dependencies > CEILINGS.hot_definition_dependencies { return Err(Problem { path: paths::HOT_DEFINITION_DEPENDENCIES, reason: skein_codec::Reason::Bound }); }
-    if limits.hot_definition_waiting_on > CEILINGS.hot_definition_waiting_on { return Err(Problem { path: paths::HOT_DEFINITION_WAITING_ON, reason: skein_codec::Reason::Bound }); }
-    if limits.hot_definition_added > CEILINGS.hot_definition_added { return Err(Problem { path: paths::HOT_DEFINITION_ADDED, reason: skein_codec::Reason::Bound }); }
-    if limits.live_hot_started_from > CEILINGS.live_hot_started_from { return Err(Problem { path: paths::LIVE_HOT_STARTED_FROM, reason: skein_codec::Reason::Bound }); }
-    if limits.live_cold_instructions_some > CEILINGS.live_cold_instructions_some { return Err(Problem { path: paths::LIVE_COLD_INSTRUCTIONS, reason: skein_codec::Reason::Bound }); }
-    if limits.placed_hold_reason > CEILINGS.placed_hold_reason { return Err(Problem { path: paths::PLACED_HOLD_REASON, reason: skein_codec::Reason::Bound }); }
-    if limits.placed_hold_exempt > CEILINGS.placed_hold_exempt { return Err(Problem { path: paths::PLACED_HOLD_EXEMPT, reason: skein_codec::Reason::Bound }); }
-    if limits.summary_result_words > CEILINGS.summary_result_words { return Err(Problem { path: paths::SUMMARY_RESULT_WORDS, reason: skein_codec::Reason::Bound }); }
-    if limits.task_summary_title > CEILINGS.task_summary_title { return Err(Problem { path: paths::TASK_SUMMARY_TITLE, reason: skein_codec::Reason::Bound }); }
-    if limits.task_summary_reason > CEILINGS.task_summary_reason { return Err(Problem { path: paths::TASK_SUMMARY_REASON, reason: skein_codec::Reason::Bound }); }
-    if limits.model_name_value > CEILINGS.model_name_value { return Err(Problem { path: paths::MODEL_NAME_VALUE, reason: skein_codec::Reason::Bound }); }
-    if limits.row_models > CEILINGS.row_models { return Err(Problem { path: paths::ROW_MODELS, reason: skein_codec::Reason::Bound }); }
-    if limits.task_problem_blocked_by_some > CEILINGS.task_problem_blocked_by_some { return Err(Problem { path: paths::TASK_PROBLEM_BLOCKED_BY, reason: skein_codec::Reason::Bound }); }
-    if limits.result_followups_delegates_value > CEILINGS.result_followups_delegates_value { return Err(Problem { path: paths::RESULT_FOLLOWUPS_DELEGATES_VALUE, reason: skein_codec::Reason::Bound }); }
-    if limits.end_failed_with_reason_reason > CEILINGS.end_failed_with_reason_reason { return Err(Problem { path: paths::END_FAILED_WITH_REASON_REASON, reason: skein_codec::Reason::Bound }); }
-    if limits.end_refused_with_reason_reason > CEILINGS.end_refused_with_reason_reason { return Err(Problem { path: paths::END_REFUSED_WITH_REASON_REASON, reason: skein_codec::Reason::Bound }); }
+    for ((value, ceiling), path) in limits.values().as_slice().iter().zip(CEILING_VALUES).zip(LIMIT_PATHS) {
+        if value > ceiling {
+            return Err(path.problem(skein_codec::Reason::Bound));
+        }
+    }
     Ok(())
 }
 
 // Paths: declaration and part positions, with one naming table.
 pub mod paths {
     use super::Path;
-    pub const NUMBER_VALUE: Path = Path { declaration: 0, part: 0 };
-    pub const NUMBER_TAIL: Path = Path { declaration: 0, part: 1 };
-    pub const PERSON_PERSON: Path = Path { declaration: 1, part: 0 };
-    pub const PERSON_TAIL: Path = Path { declaration: 1, part: 1 };
-    pub const PROJECT_PROJECT: Path = Path { declaration: 2, part: 0 };
-    pub const PROJECT_TAIL: Path = Path { declaration: 2, part: 1 };
-    pub const PARTY_TAG: Path = Path { declaration: 3, part: 0 };
-    pub const CLASS_TAG: Path = Path { declaration: 4, part: 0 };
-    pub const TRIES_TRANSIENT: Path = Path { declaration: 5, part: 0 };
-    pub const TRIES_PERMANENT: Path = Path { declaration: 5, part: 1 };
-    pub const TRIES_RUN: Path = Path { declaration: 5, part: 2 };
-    pub const TRIES_AGENT: Path = Path { declaration: 5, part: 3 };
-    pub const TRIES_LOST: Path = Path { declaration: 5, part: 4 };
-    pub const TRIES_INVALID: Path = Path { declaration: 5, part: 5 };
-    pub const TRIES_INFRASTRUCTURE: Path = Path { declaration: 5, part: 6 };
-    pub const TRIES_TAIL: Path = Path { declaration: 5, part: 7 };
-    pub const WHY_TAG: Path = Path { declaration: 6, part: 0 };
-    pub const ROLE_ROLE: Path = Path { declaration: 7, part: 0 };
-    pub const ROLE_TAIL: Path = Path { declaration: 7, part: 1 };
-    pub const PERSON_ADDRESS_TAG: Path = Path { declaration: 8, part: 0 };
-    pub const AGENT_CHARTER: Path = Path { declaration: 9, part: 0 };
-    pub const AGENT_TAIL: Path = Path { declaration: 9, part: 1 };
-    pub const PROCEDURE_CONNECTOR: Path = Path { declaration: 10, part: 0 };
-    pub const PROCEDURE_CODE: Path = Path { declaration: 10, part: 1 };
-    pub const PROCEDURE_TAIL: Path = Path { declaration: 10, part: 2 };
-    pub const PERSON_EXECUTOR_ADDRESS: Path = Path { declaration: 11, part: 0 };
-    pub const PERSON_EXECUTOR_TAIL: Path = Path { declaration: 11, part: 1 };
-    pub const JOB_EXECUTOR_KIND: Path = Path { declaration: 12, part: 0 };
-    pub const JOB_EXECUTOR_TAIL: Path = Path { declaration: 12, part: 1 };
-    pub const EXECUTOR_TAG: Path = Path { declaration: 13, part: 0 };
-    pub const NUMERIC_PARAMETER_NAME: Path = Path { declaration: 14, part: 0 };
-    pub const NUMERIC_PARAMETER_VALUE: Path = Path { declaration: 14, part: 1 };
-    pub const NUMERIC_PARAMETER_TAIL: Path = Path { declaration: 14, part: 2 };
-    pub const BYTES_PARAMETER_NAME: Path = Path { declaration: 15, part: 0 };
-    pub const BYTES_PARAMETER_VALUE: Path = Path { declaration: 15, part: 1 };
-    pub const BYTES_PARAMETER_TAIL: Path = Path { declaration: 15, part: 2 };
-    pub const RESOURCE_PARAMETER_NAME: Path = Path { declaration: 16, part: 0 };
-    pub const RESOURCE_PARAMETER_CONNECTOR: Path = Path { declaration: 16, part: 1 };
-    pub const RESOURCE_PARAMETER_RESOURCE: Path = Path { declaration: 16, part: 2 };
-    pub const RESOURCE_PARAMETER_TAIL: Path = Path { declaration: 16, part: 3 };
-    pub const PARAMETER_TAG: Path = Path { declaration: 17, part: 0 };
-    pub const JOB_SPEC_BYTES: Path = Path { declaration: 18, part: 0 };
-    pub const JOB_SPEC_DEADLINE: Path = Path { declaration: 18, part: 1 };
-    pub const JOB_SPEC_TAIL: Path = Path { declaration: 18, part: 2 };
-    pub const JOB_CONTRACT_BYTES: Path = Path { declaration: 19, part: 0 };
-    pub const JOB_CONTRACT_TAIL: Path = Path { declaration: 19, part: 1 };
-    pub const JOB_RESULT_BYTES: Path = Path { declaration: 20, part: 0 };
-    pub const JOB_RESULT_TAIL: Path = Path { declaration: 20, part: 1 };
-    pub const SPEC_WORDS: Path = Path { declaration: 21, part: 0 };
-    pub const SPEC_PARAMETERS: Path = Path { declaration: 21, part: 1 };
-    pub const SPEC_INPUTS: Path = Path { declaration: 21, part: 2 };
-    pub const SPEC_ASKS: Path = Path { declaration: 21, part: 3 };
-    pub const SPEC_JOB: Path = Path { declaration: 21, part: 4 };
-    pub const SPEC_TAIL: Path = Path { declaration: 21, part: 5 };
-    pub const PART_KIND_TAG: Path = Path { declaration: 22, part: 0 };
-    pub const PART_SEGMENT_BYTES: Path = Path { declaration: 23, part: 0 };
-    pub const PART_SEGMENT_TAIL: Path = Path { declaration: 23, part: 1 };
-    pub const PART_PATH_SEGMENTS: Path = Path { declaration: 24, part: 0 };
-    pub const PART_PATH_TAIL: Path = Path { declaration: 24, part: 1 };
-    pub const PART_KEY_TAG: Path = Path { declaration: 25, part: 0 };
-    pub const PART_CONNECTOR: Path = Path { declaration: 26, part: 0 };
-    pub const PART_KIND: Path = Path { declaration: 26, part: 1 };
-    pub const PART_KEY: Path = Path { declaration: 26, part: 2 };
-    pub const PART_TAIL: Path = Path { declaration: 26, part: 3 };
-    pub const FIELD_RULE_NAME: Path = Path { declaration: 27, part: 0 };
-    pub const FIELD_RULE_MAX: Path = Path { declaration: 27, part: 1 };
-    pub const FIELD_RULE_TAIL: Path = Path { declaration: 27, part: 2 };
-    pub const VERDICT_CODE: Path = Path { declaration: 28, part: 0 };
-    pub const VERDICT_WORDS: Path = Path { declaration: 28, part: 1 };
-    pub const VERDICT_FOLLOWUPS: Path = Path { declaration: 28, part: 2 };
-    pub const VERDICT_FIELDS: Path = Path { declaration: 28, part: 3 };
-    pub const VERDICT_TAIL: Path = Path { declaration: 28, part: 4 };
-    pub const APPROVAL_STATE: Path = Path { declaration: 29, part: 0 };
-    pub const APPROVAL_PART: Path = Path { declaration: 29, part: 1 };
-    pub const APPROVAL_TAIL: Path = Path { declaration: 29, part: 2 };
-    pub const REPORT_WORDS: Path = Path { declaration: 30, part: 0 };
-    pub const REPORT_TAIL: Path = Path { declaration: 30, part: 1 };
-    pub const CHOICES_CHOICES: Path = Path { declaration: 31, part: 0 };
-    pub const CHOICES_TAIL: Path = Path { declaration: 31, part: 1 };
-    pub const CHANGE_CONTRACT_CONNECTOR: Path = Path { declaration: 32, part: 0 };
-    pub const CHANGE_CONTRACT_KIND: Path = Path { declaration: 32, part: 1 };
-    pub const CHANGE_CONTRACT_WORDS: Path = Path { declaration: 32, part: 2 };
-    pub const CHANGE_CONTRACT_CHOICES: Path = Path { declaration: 32, part: 3 };
-    pub const CHANGE_CONTRACT_TAIL: Path = Path { declaration: 32, part: 4 };
-    pub const CONTRACT_TAG: Path = Path { declaration: 33, part: 0 };
-    pub const TOOLS_BITS: Path = Path { declaration: 34, part: 0 };
-    pub const TOOLS_TAIL: Path = Path { declaration: 34, part: 1 };
-    pub const MODELS_BITS: Path = Path { declaration: 35, part: 0 };
-    pub const MODELS_ALL: Path = Path { declaration: 35, part: 1 };
-    pub const MODELS_TAIL: Path = Path { declaration: 35, part: 2 };
-    pub const MODEL_EFFORT_MODEL: Path = Path { declaration: 36, part: 0 };
-    pub const MODEL_EFFORT_EFFORT: Path = Path { declaration: 36, part: 1 };
-    pub const MODEL_EFFORT_TAIL: Path = Path { declaration: 36, part: 2 };
-    pub const LLM_LATER_MAIN: Path = Path { declaration: 37, part: 0 };
-    pub const LLM_LATER_SUBAGENTS: Path = Path { declaration: 37, part: 1 };
-    pub const LLM_LATER_TAIL: Path = Path { declaration: 37, part: 2 };
-    pub const LLM_CHOICE_MAIN: Path = Path { declaration: 38, part: 0 };
-    pub const LLM_CHOICE_SUBAGENTS: Path = Path { declaration: 38, part: 1 };
-    pub const LLM_CHOICE_LATER: Path = Path { declaration: 38, part: 2 };
-    pub const LLM_CHOICE_ACCOUNT: Path = Path { declaration: 38, part: 3 };
-    pub const LLM_CHOICE_TAIL: Path = Path { declaration: 38, part: 4 };
-    pub const SCOPES_BITS: Path = Path { declaration: 39, part: 0 };
-    pub const SCOPES_TAIL: Path = Path { declaration: 39, part: 1 };
-    pub const AUTHORITY_SEGMENT_BYTES: Path = Path { declaration: 40, part: 0 };
-    pub const AUTHORITY_SEGMENT_TAIL: Path = Path { declaration: 40, part: 1 };
-    pub const LAST_TAG: Path = Path { declaration: 41, part: 0 };
-    pub const PATTERN_SEGMENTS: Path = Path { declaration: 42, part: 0 };
-    pub const PATTERN_LAST: Path = Path { declaration: 42, part: 1 };
-    pub const PATTERN_TAIL: Path = Path { declaration: 42, part: 2 };
-    pub const GRANT_CONNECTOR: Path = Path { declaration: 43, part: 0 };
-    pub const GRANT_KIND: Path = Path { declaration: 43, part: 1 };
-    pub const GRANT_PATTERN: Path = Path { declaration: 43, part: 2 };
-    pub const GRANT_TAIL: Path = Path { declaration: 43, part: 3 };
-    pub const RESOURCE_SCOPE_CONNECTOR: Path = Path { declaration: 44, part: 0 };
-    pub const RESOURCE_SCOPE_PATTERN: Path = Path { declaration: 44, part: 1 };
-    pub const RESOURCE_SCOPE_TAIL: Path = Path { declaration: 44, part: 2 };
-    pub const CHARTER_CHARTER: Path = Path { declaration: 45, part: 0 };
-    pub const CHARTER_TAIL: Path = Path { declaration: 45, part: 1 };
-    pub const CODE_CODE: Path = Path { declaration: 46, part: 0 };
-    pub const CODE_TAIL: Path = Path { declaration: 46, part: 1 };
-    pub const AUTHORITY_JOB_KIND: Path = Path { declaration: 47, part: 0 };
-    pub const AUTHORITY_JOB_TAIL: Path = Path { declaration: 47, part: 1 };
-    pub const AUTHORITY_EXECUTOR_TAG: Path = Path { declaration: 48, part: 0 };
-    pub const DELEGATION_KINDS: Path = Path { declaration: 49, part: 0 };
-    pub const DELEGATION_TASKS: Path = Path { declaration: 49, part: 1 };
-    pub const DELEGATION_DEPTH: Path = Path { declaration: 49, part: 2 };
-    pub const DELEGATION_TAIL: Path = Path { declaration: 49, part: 3 };
-    pub const BUDGET_SPEND: Path = Path { declaration: 50, part: 0 };
-    pub const BUDGET_DEADLINE: Path = Path { declaration: 50, part: 1 };
-    pub const BUDGET_TAIL: Path = Path { declaration: 50, part: 2 };
-    pub const AUTHORITY_TOOLS: Path = Path { declaration: 51, part: 0 };
-    pub const AUTHORITY_MODELS: Path = Path { declaration: 51, part: 1 };
-    pub const AUTHORITY_GRANTS: Path = Path { declaration: 51, part: 2 };
-    pub const AUTHORITY_DELEGATION: Path = Path { declaration: 51, part: 3 };
-    pub const AUTHORITY_BUDGET: Path = Path { declaration: 51, part: 4 };
-    pub const AUTHORITY_NOTES: Path = Path { declaration: 51, part: 5 };
-    pub const AUTHORITY_NOTE_RESOURCES: Path = Path { declaration: 51, part: 6 };
-    pub const AUTHORITY_TAIL: Path = Path { declaration: 51, part: 7 };
-    pub const TASK_TASK: Path = Path { declaration: 52, part: 0 };
-    pub const TASK_TAIL: Path = Path { declaration: 52, part: 1 };
-    pub const POOL_PROJECT: Path = Path { declaration: 53, part: 0 };
-    pub const POOL_PERSON: Path = Path { declaration: 53, part: 1 };
-    pub const POOL_PERIOD: Path = Path { declaration: 53, part: 2 };
-    pub const POOL_TAIL: Path = Path { declaration: 53, part: 3 };
-    pub const RECURRING_PROJECT: Path = Path { declaration: 54, part: 0 };
-    pub const RECURRING_TASK: Path = Path { declaration: 54, part: 1 };
-    pub const RECURRING_PERIOD: Path = Path { declaration: 54, part: 2 };
-    pub const RECURRING_TAIL: Path = Path { declaration: 54, part: 3 };
-    pub const PERIOD_PROJECT: Path = Path { declaration: 55, part: 0 };
-    pub const PERIOD_PERIOD: Path = Path { declaration: 55, part: 1 };
-    pub const PERIOD_TAIL: Path = Path { declaration: 55, part: 2 };
-    pub const FUNDER_TAG: Path = Path { declaration: 56, part: 0 };
-    pub const NUMBERS_BUDGET: Path = Path { declaration: 57, part: 0 };
-    pub const NUMBERS_SPENT: Path = Path { declaration: 57, part: 1 };
-    pub const NUMBERS_SPENT_BELOW: Path = Path { declaration: 57, part: 2 };
-    pub const NUMBERS_RESERVED: Path = Path { declaration: 57, part: 3 };
-    pub const NUMBERS_TAIL: Path = Path { declaration: 57, part: 4 };
-    pub const PERIOD_TIMES_BEGAN: Path = Path { declaration: 58, part: 0 };
-    pub const PERIOD_TIMES_NEXT: Path = Path { declaration: 58, part: 1 };
-    pub const PERIOD_TIMES_TAIL: Path = Path { declaration: 58, part: 2 };
-    pub const FUNDING_RECORD_PERIOD: Path = Path { declaration: 59, part: 0 };
-    pub const FUNDING_RECORD_FUNDER: Path = Path { declaration: 59, part: 1 };
-    pub const FUNDING_RECORD_PARENT: Path = Path { declaration: 59, part: 2 };
-    pub const FUNDING_RECORD_NUMBERS: Path = Path { declaration: 59, part: 3 };
-    pub const FUNDING_RECORD_MADE: Path = Path { declaration: 59, part: 4 };
-    pub const FUNDING_RECORD_CLOSED: Path = Path { declaration: 59, part: 5 };
-    pub const FUNDING_RECORD_TAIL: Path = Path { declaration: 59, part: 6 };
-    pub const SEGMENT_BYTES: Path = Path { declaration: 60, part: 0 };
-    pub const SEGMENT_TAIL: Path = Path { declaration: 60, part: 1 };
-    pub const NAME_CONNECTOR: Path = Path { declaration: 61, part: 0 };
-    pub const NAME_PATH: Path = Path { declaration: 61, part: 1 };
-    pub const NAME_TAIL: Path = Path { declaration: 61, part: 2 };
-    pub const RUN_TASK: Path = Path { declaration: 62, part: 0 };
-    pub const RUN_ATTEMPT: Path = Path { declaration: 62, part: 1 };
-    pub const RUN_TAIL: Path = Path { declaration: 62, part: 2 };
-    pub const EFFECT_ENTRY: Path = Path { declaration: 63, part: 0 };
-    pub const EFFECT_TAIL: Path = Path { declaration: 63, part: 1 };
-    pub const WRITER_TAG: Path = Path { declaration: 64, part: 0 };
-    pub const WRITER_SLOT_NUMBER: Path = Path { declaration: 65, part: 0 };
-    pub const WRITER_SLOT_RESOURCE: Path = Path { declaration: 65, part: 1 };
-    pub const WRITER_SLOT_WRITER: Path = Path { declaration: 65, part: 2 };
-    pub const WRITER_SLOT_LOST: Path = Path { declaration: 65, part: 3 };
-    pub const WRITER_SLOT_TAIL: Path = Path { declaration: 65, part: 4 };
-    pub const POOL_SLOTS_NUMBER: Path = Path { declaration: 66, part: 0 };
-    pub const POOL_SLOTS_POOL: Path = Path { declaration: 66, part: 1 };
-    pub const POOL_SLOTS_SLOTS: Path = Path { declaration: 66, part: 2 };
-    pub const POOL_SLOTS_TAIL: Path = Path { declaration: 66, part: 3 };
-    pub const WRITE_HOLDING_RESOURCE: Path = Path { declaration: 67, part: 0 };
-    pub const WRITE_HOLDING_KIND: Path = Path { declaration: 67, part: 1 };
-    pub const WRITE_HOLDING_TAIL: Path = Path { declaration: 67, part: 2 };
-    pub const SLOT_HOLDING_POOL: Path = Path { declaration: 68, part: 0 };
-    pub const SLOT_HOLDING_KIND: Path = Path { declaration: 68, part: 1 };
-    pub const SLOT_HOLDING_TAIL: Path = Path { declaration: 68, part: 2 };
-    pub const HOLDING_TAG: Path = Path { declaration: 69, part: 0 };
-    pub const WAKE_BATCH_COUNT: Path = Path { declaration: 70, part: 0 };
-    pub const WAKE_BATCH_AGE: Path = Path { declaration: 70, part: 1 };
-    pub const WAKE_BATCH_TAIL: Path = Path { declaration: 70, part: 2 };
-    pub const WAKE_PACE_SPAN: Path = Path { declaration: 71, part: 0 };
-    pub const WAKE_PACE_TAIL: Path = Path { declaration: 71, part: 1 };
-    pub const WAKE_RULE_TAG: Path = Path { declaration: 72, part: 0 };
-    pub const RESULTS_WAKE_TAG: Path = Path { declaration: 73, part: 0 };
-    pub const WAKE_POLICY_WORDS: Path = Path { declaration: 74, part: 0 };
-    pub const WAKE_POLICY_NOTICES: Path = Path { declaration: 74, part: 1 };
-    pub const WAKE_POLICY_NEWS: Path = Path { declaration: 74, part: 2 };
-    pub const WAKE_POLICY_RESULTS: Path = Path { declaration: 74, part: 3 };
-    pub const WAKE_POLICY_QUESTIONS: Path = Path { declaration: 74, part: 4 };
-    pub const WAKE_POLICY_ANSWERS: Path = Path { declaration: 74, part: 5 };
-    pub const WAKE_POLICY_TIMERS: Path = Path { declaration: 74, part: 6 };
-    pub const WAKE_POLICY_TAIL: Path = Path { declaration: 74, part: 7 };
-    pub const RECURRING_OVERLAP_TAG: Path = Path { declaration: 75, part: 0 };
-    pub const RETENTION_TAG: Path = Path { declaration: 76, part: 0 };
-    pub const CLOSER_CONNECTOR: Path = Path { declaration: 77, part: 0 };
-    pub const CLOSER_CODE: Path = Path { declaration: 77, part: 1 };
-    pub const CLOSER_TAIL: Path = Path { declaration: 77, part: 2 };
-    pub const ENDED_BY_TAG: Path = Path { declaration: 78, part: 0 };
-    pub const FLAGS_CONVERSATION: Path = Path { declaration: 79, part: 0 };
-    pub const FLAGS_LISTED: Path = Path { declaration: 79, part: 1 };
-    pub const FLAGS_RETENTION: Path = Path { declaration: 79, part: 2 };
-    pub const FLAGS_ENDED_BY: Path = Path { declaration: 79, part: 3 };
-    pub const FLAGS_TAIL: Path = Path { declaration: 79, part: 4 };
-    pub const DEADLINE_SPAN_VALUE: Path = Path { declaration: 80, part: 0 };
-    pub const DEADLINE_SPAN_TAIL: Path = Path { declaration: 80, part: 1 };
-    pub const DEADLINE_TAG: Path = Path { declaration: 81, part: 0 };
-    pub const MEMBER_DEADLINE: Path = Path { declaration: 82, part: 0 };
-    pub const MEMBER_LABEL: Path = Path { declaration: 82, part: 1 };
-    pub const MEMBER_FLAGS: Path = Path { declaration: 82, part: 2 };
-    pub const MEMBER_NUMBER: Path = Path { declaration: 82, part: 3 };
-    pub const MEMBER_PROJECT: Path = Path { declaration: 82, part: 4 };
-    pub const MEMBER_EXECUTOR: Path = Path { declaration: 82, part: 5 };
-    pub const MEMBER_LLM: Path = Path { declaration: 82, part: 6 };
-    pub const MEMBER_SPEC: Path = Path { declaration: 82, part: 7 };
-    pub const MEMBER_CONTRACT: Path = Path { declaration: 82, part: 8 };
-    pub const MEMBER_AUTHORITY: Path = Path { declaration: 82, part: 9 };
-    pub const MEMBER_NUMBERS: Path = Path { declaration: 82, part: 10 };
-    pub const MEMBER_FUNDER: Path = Path { declaration: 82, part: 11 };
-    pub const MEMBER_DEPENDENCIES: Path = Path { declaration: 82, part: 12 };
-    pub const MEMBER_HOLDINGS: Path = Path { declaration: 82, part: 13 };
-    pub const MEMBER_WAKE: Path = Path { declaration: 82, part: 14 };
-    pub const MEMBER_TRACKED: Path = Path { declaration: 82, part: 15 };
-    pub const MEMBER_TAIL: Path = Path { declaration: 82, part: 16 };
-    pub const RECURRING_TEMPLATE_KEY: Path = Path { declaration: 83, part: 0 };
-    pub const RECURRING_TEMPLATE_BATCH: Path = Path { declaration: 83, part: 1 };
-    pub const RECURRING_TEMPLATE_OVERLAP: Path = Path { declaration: 83, part: 2 };
-    pub const RECURRING_TEMPLATE_TAIL: Path = Path { declaration: 83, part: 3 };
-    pub const CREATION_MEMBER: Path = Path { declaration: 84, part: 0 };
-    pub const CREATION_RECURRING: Path = Path { declaration: 84, part: 1 };
-    pub const CREATION_TAIL: Path = Path { declaration: 84, part: 2 };
-    pub const RESULT_FIELD_NAME: Path = Path { declaration: 85, part: 0 };
-    pub const RESULT_FIELD_VALUE: Path = Path { declaration: 85, part: 1 };
-    pub const RESULT_FIELD_TAIL: Path = Path { declaration: 85, part: 2 };
-    pub const APPROVED_STATE: Path = Path { declaration: 86, part: 0 };
-    pub const APPROVED_WORDS: Path = Path { declaration: 86, part: 1 };
-    pub const APPROVED_TAIL: Path = Path { declaration: 86, part: 2 };
-    pub const REPORT_RESULT_WORDS: Path = Path { declaration: 87, part: 0 };
-    pub const REPORT_RESULT_TAIL: Path = Path { declaration: 87, part: 1 };
-    pub const VERDICT_RESULT_CODE: Path = Path { declaration: 88, part: 0 };
-    pub const VERDICT_RESULT_FIELDS: Path = Path { declaration: 88, part: 1 };
-    pub const VERDICT_RESULT_WORDS: Path = Path { declaration: 88, part: 2 };
-    pub const VERDICT_RESULT_TAIL: Path = Path { declaration: 88, part: 3 };
-    pub const CHANGE_RESULT_CONNECTOR: Path = Path { declaration: 89, part: 0 };
-    pub const CHANGE_RESULT_KIND: Path = Path { declaration: 89, part: 1 };
-    pub const CHANGE_RESULT_RESOURCE: Path = Path { declaration: 89, part: 2 };
-    pub const CHANGE_RESULT_TITLE: Path = Path { declaration: 89, part: 3 };
-    pub const CHANGE_RESULT_WORDS: Path = Path { declaration: 89, part: 4 };
-    pub const CHANGE_RESULT_TAIL: Path = Path { declaration: 89, part: 5 };
-    pub const FAILURE_RESULT_REASON: Path = Path { declaration: 90, part: 0 };
-    pub const FAILURE_RESULT_TAIL: Path = Path { declaration: 90, part: 1 };
-    pub const TASK_RESULT_TAG: Path = Path { declaration: 91, part: 0 };
-    pub const DONE_RESULT: Path = Path { declaration: 92, part: 0 };
-    pub const DONE_TAIL: Path = Path { declaration: 92, part: 1 };
-    pub const CANCELLED_BY: Path = Path { declaration: 93, part: 0 };
-    pub const CANCELLED_AT: Path = Path { declaration: 93, part: 1 };
-    pub const CANCELLED_REASON: Path = Path { declaration: 93, part: 2 };
-    pub const CANCELLED_RESULT: Path = Path { declaration: 93, part: 3 };
-    pub const CANCELLED_TAIL: Path = Path { declaration: 93, part: 4 };
-    pub const ENDING_TAG: Path = Path { declaration: 94, part: 0 };
-    pub const FAILED_CLASS_CLASS: Path = Path { declaration: 95, part: 0 };
-    pub const FAILED_CLASS_TAIL: Path = Path { declaration: 95, part: 1 };
-    pub const BOUND_TAG: Path = Path { declaration: 96, part: 0 };
-    pub const EXCEEDED_BOUND: Path = Path { declaration: 97, part: 0 };
-    pub const EXCEEDED_VALUE: Path = Path { declaration: 97, part: 1 };
-    pub const EXCEEDED_TAIL: Path = Path { declaration: 97, part: 2 };
-    pub const HOLD_TAG: Path = Path { declaration: 98, part: 0 };
-    pub const ACTIVE_TAG: Path = Path { declaration: 99, part: 0 };
-    pub const STAGE_TAG: Path = Path { declaration: 100, part: 0 };
-    pub const CLOSING_STAGE: Path = Path { declaration: 101, part: 0 };
-    pub const CLOSING_ENDING: Path = Path { declaration: 101, part: 1 };
-    pub const CLOSING_TAIL: Path = Path { declaration: 101, part: 2 };
-    pub const ACTIVATION_VALUE: Path = Path { declaration: 102, part: 0 };
-    pub const ACTIVATION_TAIL: Path = Path { declaration: 102, part: 1 };
-    pub const WAS_TAG: Path = Path { declaration: 103, part: 0 };
-    pub const HOLD_EFFECT_CONNECTOR: Path = Path { declaration: 104, part: 0 };
-    pub const HOLD_EFFECT_ENTRY: Path = Path { declaration: 104, part: 1 };
-    pub const HOLD_EFFECT_TAIL: Path = Path { declaration: 104, part: 2 };
-    pub const CIRCLE_TASKS: Path = Path { declaration: 105, part: 0 };
-    pub const CIRCLE_CUT: Path = Path { declaration: 105, part: 1 };
-    pub const CIRCLE_TAIL: Path = Path { declaration: 105, part: 2 };
-    pub const HOLD_ACCOUNT_CONNECTOR: Path = Path { declaration: 106, part: 0 };
-    pub const HOLD_ACCOUNT_ENTRY: Path = Path { declaration: 106, part: 1 };
-    pub const HOLD_ACCOUNT_WORDS: Path = Path { declaration: 106, part: 2 };
-    pub const HOLD_ACCOUNT_TAIL: Path = Path { declaration: 106, part: 3 };
-    pub const HOLD_PREPARATION_WORDS: Path = Path { declaration: 107, part: 0 };
-    pub const HOLD_PREPARATION_TAIL: Path = Path { declaration: 107, part: 1 };
-    pub const HOLD_SOURCE_TAG: Path = Path { declaration: 108, part: 0 };
-    pub const HELD_WAS: Path = Path { declaration: 109, part: 0 };
-    pub const HELD_WHY: Path = Path { declaration: 109, part: 1 };
-    pub const HELD_SOURCE: Path = Path { declaration: 109, part: 2 };
-    pub const HELD_TAIL: Path = Path { declaration: 109, part: 3 };
-    pub const FINAL_ENDING: Path = Path { declaration: 110, part: 0 };
-    pub const FINAL_TAIL: Path = Path { declaration: 110, part: 1 };
-    pub const PHASE_TAG: Path = Path { declaration: 111, part: 0 };
-    pub const PROPOSAL_KIND_TAG: Path = Path { declaration: 112, part: 0 };
-    pub const POLICY_HOLDER_PROJECT: Path = Path { declaration: 113, part: 0 };
-    pub const POLICY_HOLDER_KIND: Path = Path { declaration: 113, part: 1 };
-    pub const POLICY_HOLDER_TAIL: Path = Path { declaration: 113, part: 2 };
-    pub const PROPOSAL_HOLDER_TAG: Path = Path { declaration: 114, part: 0 };
-    pub const PENDING_PROPOSAL_HOLDER: Path = Path { declaration: 115, part: 0 };
-    pub const PENDING_PROPOSAL_SINCE: Path = Path { declaration: 115, part: 1 };
-    pub const PENDING_PROPOSAL_TAIL: Path = Path { declaration: 115, part: 2 };
-    pub const ACCEPTED_PROPOSAL_BY: Path = Path { declaration: 116, part: 0 };
-    pub const ACCEPTED_PROPOSAL_TAIL: Path = Path { declaration: 116, part: 1 };
-    pub const REJECTED_PROPOSAL_BY: Path = Path { declaration: 117, part: 0 };
-    pub const REJECTED_PROPOSAL_REASON: Path = Path { declaration: 117, part: 1 };
-    pub const REJECTED_PROPOSAL_TAIL: Path = Path { declaration: 117, part: 2 };
-    pub const PROPOSAL_STATE_TAG: Path = Path { declaration: 118, part: 0 };
-    pub const ADDRESS_CHANGE_REVISION: Path = Path { declaration: 119, part: 0 };
-    pub const ADDRESS_CHANGE_ADDRESS: Path = Path { declaration: 119, part: 1 };
-    pub const ADDRESS_CHANGE_TAIL: Path = Path { declaration: 119, part: 2 };
-    pub const TRACKED_PRIORITY: Path = Path { declaration: 120, part: 0 };
-    pub const TRACKED_TAIL: Path = Path { declaration: 120, part: 1 };
-    pub const TRACKING_TAG: Path = Path { declaration: 121, part: 0 };
-    pub const AMENDMENT_TRACKED: Path = Path { declaration: 122, part: 0 };
-    pub const AMENDMENT_ADDRESSED: Path = Path { declaration: 122, part: 1 };
-    pub const AMENDMENT_INSTRUCTIONS: Path = Path { declaration: 122, part: 2 };
-    pub const AMENDMENT_RELEASE: Path = Path { declaration: 122, part: 3 };
-    pub const AMENDMENT_SPEC: Path = Path { declaration: 122, part: 4 };
-    pub const AMENDMENT_WAKE: Path = Path { declaration: 122, part: 5 };
-    pub const AMENDMENT_DEPENDENCIES: Path = Path { declaration: 122, part: 6 };
-    pub const AMENDMENT_AUTHORITY: Path = Path { declaration: 122, part: 7 };
-    pub const AMENDMENT_LLM: Path = Path { declaration: 122, part: 8 };
-    pub const AMENDMENT_REASON: Path = Path { declaration: 122, part: 9 };
-    pub const AMENDMENT_TAIL: Path = Path { declaration: 122, part: 10 };
-    pub const PROPOSED_BATCH_MEMBERS: Path = Path { declaration: 123, part: 0 };
-    pub const PROPOSED_BATCH_TAIL: Path = Path { declaration: 123, part: 1 };
-    pub const PROPOSED_EFFECT_CONNECTOR: Path = Path { declaration: 124, part: 0 };
-    pub const PROPOSED_EFFECT_AUTHORITY: Path = Path { declaration: 124, part: 1 };
-    pub const PROPOSED_EFFECT_ATTEMPT: Path = Path { declaration: 124, part: 2 };
-    pub const PROPOSED_EFFECT_COMPLETION: Path = Path { declaration: 124, part: 3 };
-    pub const PROPOSED_EFFECT_POSITION: Path = Path { declaration: 124, part: 4 };
-    pub const PROPOSED_EFFECT_PURPOSE: Path = Path { declaration: 124, part: 5 };
-    pub const PROPOSED_EFFECT_TAIL: Path = Path { declaration: 124, part: 6 };
-    pub const PROPOSED_PROCEDURE_EFFECT_CONNECTOR: Path = Path { declaration: 125, part: 0 };
-    pub const PROPOSED_PROCEDURE_EFFECT_AUTHORITY: Path = Path { declaration: 125, part: 1 };
-    pub const PROPOSED_PROCEDURE_EFFECT_STEP: Path = Path { declaration: 125, part: 2 };
-    pub const PROPOSED_PROCEDURE_EFFECT_PURPOSE: Path = Path { declaration: 125, part: 3 };
-    pub const PROPOSED_PROCEDURE_EFFECT_TAIL: Path = Path { declaration: 125, part: 4 };
-    pub const PROPOSED_AMENDMENT_TASK: Path = Path { declaration: 126, part: 0 };
-    pub const PROPOSED_AMENDMENT_REVISION: Path = Path { declaration: 126, part: 1 };
-    pub const PROPOSED_AMENDMENT_AMENDMENT: Path = Path { declaration: 126, part: 2 };
-    pub const PROPOSED_AMENDMENT_TAIL: Path = Path { declaration: 126, part: 3 };
-    pub const PROPOSED_WIDENING_TASK: Path = Path { declaration: 127, part: 0 };
-    pub const PROPOSED_WIDENING_AUTHORITY: Path = Path { declaration: 127, part: 1 };
-    pub const PROPOSED_WIDENING_TAIL: Path = Path { declaration: 127, part: 2 };
-    pub const RELEASE_PLACED_TASK: Path = Path { declaration: 128, part: 0 };
-    pub const RELEASE_PLACED_HOLD: Path = Path { declaration: 128, part: 1 };
-    pub const RELEASE_PLACED_REVISION: Path = Path { declaration: 128, part: 2 };
-    pub const RELEASE_PLACED_TAIL: Path = Path { declaration: 128, part: 3 };
-    pub const SETTING_NUMBER_NUMBER: Path = Path { declaration: 129, part: 0 };
-    pub const SETTING_NUMBER_TAIL: Path = Path { declaration: 129, part: 1 };
-    pub const SETTING_TAG: Path = Path { declaration: 130, part: 0 };
-    pub const SETTING_EDIT_TAG: Path = Path { declaration: 131, part: 0 };
-    pub const SETTING_HEAD_SETTING: Path = Path { declaration: 132, part: 0 };
-    pub const SETTING_HEAD_EDIT: Path = Path { declaration: 132, part: 1 };
-    pub const SETTING_HEAD_TAIL: Path = Path { declaration: 132, part: 2 };
-    pub const PROPOSED_SETTINGS_AGAINST: Path = Path { declaration: 133, part: 0 };
-    pub const PROPOSED_SETTINGS_ITEMS: Path = Path { declaration: 133, part: 1 };
-    pub const PROPOSED_SETTINGS_PROJECTS: Path = Path { declaration: 133, part: 2 };
-    pub const PROPOSED_SETTINGS_TAIL: Path = Path { declaration: 133, part: 3 };
-    pub const PROPOSAL_ACTION_TAG: Path = Path { declaration: 134, part: 0 };
-    pub const PROPOSAL_NUMBER: Path = Path { declaration: 135, part: 0 };
-    pub const PROPOSAL_PROPOSER: Path = Path { declaration: 135, part: 1 };
-    pub const PROPOSAL_PROJECT: Path = Path { declaration: 135, part: 2 };
-    pub const PROPOSAL_ACTION: Path = Path { declaration: 135, part: 3 };
-    pub const PROPOSAL_REASON: Path = Path { declaration: 135, part: 4 };
-    pub const PROPOSAL_AS_HOLDER: Path = Path { declaration: 135, part: 5 };
-    pub const PROPOSAL_STATE: Path = Path { declaration: 135, part: 6 };
-    pub const PROPOSAL_TAIL: Path = Path { declaration: 135, part: 7 };
-    pub const CHANGE_TAG: Path = Path { declaration: 136, part: 0 };
-    pub const SETTINGS_TRACKED: Path = Path { declaration: 137, part: 0 };
-    pub const SETTINGS_ADDRESSED: Path = Path { declaration: 137, part: 1 };
-    pub const SETTINGS_TAKEN_BY: Path = Path { declaration: 137, part: 2 };
-    pub const SETTINGS_INSTRUCTIONS: Path = Path { declaration: 137, part: 3 };
-    pub const SETTINGS_SPEC: Path = Path { declaration: 137, part: 4 };
-    pub const SETTINGS_WAKE: Path = Path { declaration: 137, part: 5 };
-    pub const SETTINGS_DEPENDENCIES: Path = Path { declaration: 137, part: 6 };
-    pub const SETTINGS_AUTHORITY: Path = Path { declaration: 137, part: 7 };
-    pub const SETTINGS_LLM: Path = Path { declaration: 137, part: 8 };
-    pub const SETTINGS_TAIL: Path = Path { declaration: 137, part: 9 };
-    pub const AMENDMENT_HISTORY_BEFORE: Path = Path { declaration: 138, part: 0 };
-    pub const AMENDMENT_HISTORY_AFTER: Path = Path { declaration: 138, part: 1 };
-    pub const AMENDMENT_HISTORY_TAIL: Path = Path { declaration: 138, part: 2 };
-    pub const HISTORY_TASK: Path = Path { declaration: 139, part: 0 };
-    pub const HISTORY_REVISION: Path = Path { declaration: 139, part: 1 };
-    pub const HISTORY_BY: Path = Path { declaration: 139, part: 2 };
-    pub const HISTORY_CHANGE: Path = Path { declaration: 139, part: 3 };
-    pub const HISTORY_REASON: Path = Path { declaration: 139, part: 4 };
-    pub const HISTORY_PROPOSAL: Path = Path { declaration: 139, part: 5 };
-    pub const HISTORY_AT: Path = Path { declaration: 139, part: 6 };
-    pub const HISTORY_AMENDMENT: Path = Path { declaration: 139, part: 7 };
-    pub const HISTORY_TAIL: Path = Path { declaration: 139, part: 8 };
-    pub const PENDING_PERSON_PROPOSAL_SINCE: Path = Path { declaration: 140, part: 0 };
-    pub const PENDING_PERSON_PROPOSAL_TAIL: Path = Path { declaration: 140, part: 1 };
-    pub const REJECTED_PERSON_PROPOSAL_BY: Path = Path { declaration: 141, part: 0 };
-    pub const REJECTED_PERSON_PROPOSAL_REASON: Path = Path { declaration: 141, part: 1 };
-    pub const REJECTED_PERSON_PROPOSAL_MESSAGE: Path = Path { declaration: 141, part: 2 };
-    pub const REJECTED_PERSON_PROPOSAL_AT: Path = Path { declaration: 141, part: 3 };
-    pub const REJECTED_PERSON_PROPOSAL_TAIL: Path = Path { declaration: 141, part: 4 };
-    pub const WITHDRAWN_PERSON_PROPOSAL_AT: Path = Path { declaration: 142, part: 0 };
-    pub const WITHDRAWN_PERSON_PROPOSAL_TAIL: Path = Path { declaration: 142, part: 1 };
-    pub const SETTINGS_ACCEPTED_BY: Path = Path { declaration: 143, part: 0 };
-    pub const SETTINGS_ACCEPTED_REVISION: Path = Path { declaration: 143, part: 1 };
-    pub const SETTINGS_ACCEPTED_TAIL: Path = Path { declaration: 143, part: 2 };
-    pub const PERSON_PROPOSAL_STATE_TAG: Path = Path { declaration: 144, part: 0 };
-    pub const PERSON_ACTION_TAG: Path = Path { declaration: 145, part: 0 };
-    pub const PERSON_PROPOSAL_NUMBER: Path = Path { declaration: 146, part: 0 };
-    pub const PERSON_PROPOSAL_PROPOSER: Path = Path { declaration: 146, part: 1 };
-    pub const PERSON_PROPOSAL_PROJECT: Path = Path { declaration: 146, part: 2 };
-    pub const PERSON_PROPOSAL_ACTION: Path = Path { declaration: 146, part: 3 };
-    pub const PERSON_PROPOSAL_REASON: Path = Path { declaration: 146, part: 4 };
-    pub const PERSON_PROPOSAL_STATE: Path = Path { declaration: 146, part: 5 };
-    pub const PERSON_PROPOSAL_TAIL: Path = Path { declaration: 146, part: 6 };
-    pub const HOLD_ROW_TASK: Path = Path { declaration: 147, part: 0 };
-    pub const HOLD_ROW_POSITION: Path = Path { declaration: 147, part: 1 };
-    pub const HOLD_ROW_HELD: Path = Path { declaration: 147, part: 2 };
-    pub const HOLD_ROW_AT: Path = Path { declaration: 147, part: 3 };
-    pub const HOLD_ROW_TAIL: Path = Path { declaration: 147, part: 4 };
-    pub const GRACE_BY: Path = Path { declaration: 148, part: 0 };
-    pub const GRACE_UNTIL: Path = Path { declaration: 148, part: 1 };
-    pub const GRACE_REASON: Path = Path { declaration: 148, part: 2 };
-    pub const GRACE_MESSAGE: Path = Path { declaration: 148, part: 3 };
-    pub const GRACE_TAIL: Path = Path { declaration: 148, part: 4 };
-    pub const SETTINGS_REVISION_TASK: Path = Path { declaration: 149, part: 0 };
-    pub const SETTINGS_REVISION_RUN: Path = Path { declaration: 149, part: 1 };
-    pub const SETTINGS_REVISION_TAIL: Path = Path { declaration: 149, part: 2 };
-    pub const REVISIONS_HOLD: Path = Path { declaration: 150, part: 0 };
-    pub const REVISIONS_SPEC: Path = Path { declaration: 150, part: 1 };
-    pub const REVISIONS_PERSON: Path = Path { declaration: 150, part: 2 };
-    pub const REVISIONS_TAIL: Path = Path { declaration: 150, part: 3 };
-    pub const FAILED_RETRY_CLASS: Path = Path { declaration: 151, part: 0 };
-    pub const FAILED_RETRY_COUNT: Path = Path { declaration: 151, part: 1 };
-    pub const FAILED_RETRY_ALLOWANCE: Path = Path { declaration: 151, part: 2 };
-    pub const FAILED_RETRY_REASON: Path = Path { declaration: 151, part: 3 };
-    pub const FAILED_RETRY_TAIL: Path = Path { declaration: 151, part: 4 };
-    pub const REFUSED_RETRY_COUNT: Path = Path { declaration: 152, part: 0 };
-    pub const REFUSED_RETRY_REASON: Path = Path { declaration: 152, part: 1 };
-    pub const REFUSED_RETRY_TAIL: Path = Path { declaration: 152, part: 2 };
-    pub const RETRY_NOTICE_TAG: Path = Path { declaration: 153, part: 0 };
-    pub const NOTICE_HELD_REVISION: Path = Path { declaration: 154, part: 0 };
-    pub const NOTICE_HELD_TAIL: Path = Path { declaration: 154, part: 1 };
-    pub const NOTICE_STATE_TAG: Path = Path { declaration: 155, part: 0 };
-    pub const NEWS_CLASS_TAG: Path = Path { declaration: 156, part: 0 };
-    pub const APPROVAL_MESSAGE_STATE: Path = Path { declaration: 157, part: 0 };
-    pub const APPROVAL_MESSAGE_WORDS_PRESENT: Path = Path { declaration: 157, part: 1 };
-    pub const APPROVAL_MESSAGE_TAIL: Path = Path { declaration: 157, part: 2 };
-    pub const VERDICT_MESSAGE_CODE: Path = Path { declaration: 158, part: 0 };
-    pub const VERDICT_MESSAGE_FIELDS: Path = Path { declaration: 158, part: 1 };
-    pub const VERDICT_MESSAGE_TAIL: Path = Path { declaration: 158, part: 2 };
-    pub const CHANGE_MESSAGE_CONNECTOR: Path = Path { declaration: 159, part: 0 };
-    pub const CHANGE_MESSAGE_KIND: Path = Path { declaration: 159, part: 1 };
-    pub const CHANGE_MESSAGE_RESOURCE: Path = Path { declaration: 159, part: 2 };
-    pub const CHANGE_MESSAGE_TAIL: Path = Path { declaration: 159, part: 3 };
-    pub const RESULT_KIND_TAG: Path = Path { declaration: 160, part: 0 };
-    pub const ESCALATION_MESSAGE_TASK: Path = Path { declaration: 161, part: 0 };
-    pub const ESCALATION_MESSAGE_REVISION: Path = Path { declaration: 161, part: 1 };
-    pub const ESCALATION_MESSAGE_TAIL: Path = Path { declaration: 161, part: 2 };
-    pub const PROPOSAL_MESSAGE_PROPOSER: Path = Path { declaration: 162, part: 0 };
-    pub const PROPOSAL_MESSAGE_PROPOSAL: Path = Path { declaration: 162, part: 1 };
-    pub const PROPOSAL_MESSAGE_KIND: Path = Path { declaration: 162, part: 2 };
-    pub const PROPOSAL_MESSAGE_TAIL: Path = Path { declaration: 162, part: 3 };
-    pub const STALLED_MESSAGE_TASK: Path = Path { declaration: 163, part: 0 };
-    pub const STALLED_MESSAGE_TAIL: Path = Path { declaration: 163, part: 1 };
-    pub const DECISION_MESSAGE_PROPOSAL: Path = Path { declaration: 164, part: 0 };
-    pub const DECISION_MESSAGE_ACCEPTED: Path = Path { declaration: 164, part: 1 };
-    pub const DECISION_MESSAGE_TAIL: Path = Path { declaration: 164, part: 2 };
-    pub const SETTINGS_ACCEPTED_REVISION_REVISION: Path = Path { declaration: 165, part: 0 };
-    pub const SETTINGS_ACCEPTED_REVISION_TAIL: Path = Path { declaration: 165, part: 1 };
-    pub const SETTINGS_STALE_REVISION_NEWEST: Path = Path { declaration: 166, part: 0 };
-    pub const SETTINGS_STALE_REVISION_TAIL: Path = Path { declaration: 166, part: 1 };
-    pub const SETTINGS_OUTCOME_TAG: Path = Path { declaration: 167, part: 0 };
-    pub const SETTINGS_DECISION_MESSAGE_PROPOSAL: Path = Path { declaration: 168, part: 0 };
-    pub const SETTINGS_DECISION_MESSAGE_OUTCOME: Path = Path { declaration: 168, part: 1 };
-    pub const SETTINGS_DECISION_MESSAGE_TAIL: Path = Path { declaration: 168, part: 2 };
-    pub const EFFECT_MESSAGE_ENTRY: Path = Path { declaration: 169, part: 0 };
-    pub const EFFECT_MESSAGE_TAIL: Path = Path { declaration: 169, part: 1 };
-    pub const AMENDMENT_MESSAGE_REVISION: Path = Path { declaration: 170, part: 0 };
-    pub const AMENDMENT_MESSAGE_TAIL: Path = Path { declaration: 170, part: 1 };
-    pub const ANSWER_MESSAGE_QUESTION: Path = Path { declaration: 171, part: 0 };
-    pub const ANSWER_MESSAGE_TAIL: Path = Path { declaration: 171, part: 1 };
-    pub const NOTICE_MESSAGE_SUBSCRIPTION: Path = Path { declaration: 172, part: 0 };
-    pub const NOTICE_MESSAGE_TARGET: Path = Path { declaration: 172, part: 1 };
-    pub const NOTICE_MESSAGE_STATE: Path = Path { declaration: 172, part: 2 };
-    pub const NOTICE_MESSAGE_TAIL: Path = Path { declaration: 172, part: 3 };
-    pub const TIMER_MESSAGE_SUBSCRIPTION: Path = Path { declaration: 173, part: 0 };
-    pub const TIMER_MESSAGE_TAIL: Path = Path { declaration: 173, part: 1 };
-    pub const NEWS_MESSAGE_SUBSCRIPTION: Path = Path { declaration: 174, part: 0 };
-    pub const NEWS_MESSAGE_CLASS: Path = Path { declaration: 174, part: 1 };
-    pub const NEWS_MESSAGE_TAIL: Path = Path { declaration: 174, part: 2 };
-    pub const RESULT_MESSAGE_KIND: Path = Path { declaration: 175, part: 0 };
-    pub const RESULT_MESSAGE_TAIL: Path = Path { declaration: 175, part: 1 };
-    pub const MET_MESSAGE_DEPENDENCY: Path = Path { declaration: 176, part: 0 };
-    pub const MET_MESSAGE_REMOVED: Path = Path { declaration: 176, part: 1 };
-    pub const MET_MESSAGE_TAIL: Path = Path { declaration: 176, part: 2 };
-    pub const MESSAGE_KIND_TAG: Path = Path { declaration: 177, part: 0 };
-    pub const WORD_NUMBER: Path = Path { declaration: 178, part: 0 };
-    pub const WORD_FROM: Path = Path { declaration: 178, part: 1 };
-    pub const WORD_KIND: Path = Path { declaration: 178, part: 2 };
-    pub const WORD_WORDS: Path = Path { declaration: 178, part: 3 };
-    pub const WORD_AT: Path = Path { declaration: 178, part: 4 };
-    pub const WORD_HITS: Path = Path { declaration: 178, part: 5 };
-    pub const WORD_ELIGIBLE: Path = Path { declaration: 178, part: 6 };
-    pub const WORD_TAIL: Path = Path { declaration: 178, part: 7 };
-    pub const INVALID_RESULT_TAG: Path = Path { declaration: 179, part: 0 };
-    pub const FAILED_END_CLASS: Path = Path { declaration: 180, part: 0 };
-    pub const FAILED_END_INVALID_RESULT: Path = Path { declaration: 180, part: 1 };
-    pub const FAILED_END_TAIL: Path = Path { declaration: 180, part: 2 };
-    pub const END_KIND_TAG: Path = Path { declaration: 181, part: 0 };
-    pub const ATTEMPT_ROW_TASK: Path = Path { declaration: 182, part: 0 };
-    pub const ATTEMPT_ROW_ATTEMPT: Path = Path { declaration: 182, part: 1 };
-    pub const ATTEMPT_ROW_CLAIMED: Path = Path { declaration: 182, part: 2 };
-    pub const ATTEMPT_ROW_STARTED: Path = Path { declaration: 182, part: 3 };
-    pub const ATTEMPT_ROW_ENDED: Path = Path { declaration: 182, part: 4 };
-    pub const ATTEMPT_ROW_END: Path = Path { declaration: 182, part: 5 };
-    pub const ATTEMPT_ROW_PHASES: Path = Path { declaration: 182, part: 6 };
-    pub const ATTEMPT_ROW_TAIL: Path = Path { declaration: 182, part: 7 };
-    pub const OPEN_ATTEMPT_ATTEMPT: Path = Path { declaration: 183, part: 0 };
-    pub const OPEN_ATTEMPT_CLAIMED: Path = Path { declaration: 183, part: 1 };
-    pub const OPEN_ATTEMPT_STARTED: Path = Path { declaration: 183, part: 2 };
-    pub const OPEN_ATTEMPT_FROM: Path = Path { declaration: 183, part: 3 };
-    pub const OPEN_ATTEMPT_END: Path = Path { declaration: 183, part: 4 };
-    pub const OPEN_ATTEMPT_TAIL: Path = Path { declaration: 183, part: 5 };
-    pub const ACTIVITY_WORDS_MESSAGE: Path = Path { declaration: 184, part: 0 };
-    pub const ACTIVITY_WORDS_BY: Path = Path { declaration: 184, part: 1 };
-    pub const ACTIVITY_WORDS_KIND: Path = Path { declaration: 184, part: 2 };
-    pub const ACTIVITY_WORDS_WORDS: Path = Path { declaration: 184, part: 3 };
-    pub const ACTIVITY_WORDS_TAIL: Path = Path { declaration: 184, part: 4 };
-    pub const HEARD_MESSAGE_WORD: Path = Path { declaration: 185, part: 0 };
-    pub const HEARD_MESSAGE_TAIL: Path = Path { declaration: 185, part: 1 };
-    pub const NOTIFIED_MESSAGE_RECIPIENT: Path = Path { declaration: 186, part: 0 };
-    pub const NOTIFIED_MESSAGE_WORD: Path = Path { declaration: 186, part: 1 };
-    pub const NOTIFIED_MESSAGE_TAIL: Path = Path { declaration: 186, part: 2 };
-    pub const BEGAN_LINE_ATTEMPT: Path = Path { declaration: 187, part: 0 };
-    pub const BEGAN_LINE_WHY: Path = Path { declaration: 187, part: 1 };
-    pub const BEGAN_LINE_RESUMED: Path = Path { declaration: 187, part: 2 };
-    pub const BEGAN_LINE_TAIL: Path = Path { declaration: 187, part: 3 };
-    pub const ENDED_LINE_ATTEMPT: Path = Path { declaration: 188, part: 0 };
-    pub const ENDED_LINE_END: Path = Path { declaration: 188, part: 1 };
-    pub const ENDED_LINE_SPENT: Path = Path { declaration: 188, part: 2 };
-    pub const ENDED_LINE_TAIL: Path = Path { declaration: 188, part: 3 };
-    pub const TURN_LINE_REPLY: Path = Path { declaration: 189, part: 0 };
-    pub const TURN_LINE_ATTEMPT: Path = Path { declaration: 189, part: 1 };
-    pub const TURN_LINE_TURN: Path = Path { declaration: 189, part: 2 };
-    pub const TURN_LINE_READ: Path = Path { declaration: 189, part: 3 };
-    pub const TURN_LINE_TAIL: Path = Path { declaration: 189, part: 4 };
-    pub const DECIDED_PROPOSAL_NUMBER: Path = Path { declaration: 190, part: 0 };
-    pub const DECIDED_PROPOSAL_MADE: Path = Path { declaration: 190, part: 1 };
-    pub const DECIDED_PROPOSAL_TAIL: Path = Path { declaration: 190, part: 2 };
-    pub const DECIDED_LINE_REVISION: Path = Path { declaration: 191, part: 0 };
-    pub const DECIDED_LINE_PROPOSAL: Path = Path { declaration: 191, part: 1 };
-    pub const DECIDED_LINE_TAIL: Path = Path { declaration: 191, part: 2 };
-    pub const MILESTONE_LINE_POSITION: Path = Path { declaration: 192, part: 0 };
-    pub const MILESTONE_LINE_TAIL: Path = Path { declaration: 192, part: 1 };
-    pub const KEPT_LINE_ATTEMPT: Path = Path { declaration: 193, part: 0 };
-    pub const KEPT_LINE_PENDING: Path = Path { declaration: 193, part: 1 };
-    pub const KEPT_LINE_QUESTION: Path = Path { declaration: 193, part: 2 };
-    pub const KEPT_LINE_TAIL: Path = Path { declaration: 193, part: 3 };
-    pub const NOW_WRITTEN_LINE_ATTEMPT: Path = Path { declaration: 194, part: 0 };
-    pub const NOW_WRITTEN_LINE_LINE: Path = Path { declaration: 194, part: 1 };
-    pub const NOW_WRITTEN_LINE_TAIL: Path = Path { declaration: 194, part: 2 };
-    pub const STOOD_LINE_ATTEMPT: Path = Path { declaration: 195, part: 0 };
-    pub const STOOD_LINE_WORDS: Path = Path { declaration: 195, part: 1 };
-    pub const STOOD_LINE_TAIL: Path = Path { declaration: 195, part: 2 };
-    pub const SESSION_END_TAG: Path = Path { declaration: 196, part: 0 };
-    pub const SESSION_ENDED_LINE_ATTEMPT: Path = Path { declaration: 197, part: 0 };
-    pub const SESSION_ENDED_LINE_END: Path = Path { declaration: 197, part: 1 };
-    pub const SESSION_ENDED_LINE_TAIL: Path = Path { declaration: 197, part: 2 };
-    pub const TALK_OPENED_LINE_PARTY: Path = Path { declaration: 198, part: 0 };
-    pub const TALK_OPENED_LINE_TAIL: Path = Path { declaration: 198, part: 1 };
-    pub const TALK_ENDED_LINE_PARTY: Path = Path { declaration: 199, part: 0 };
-    pub const TALK_ENDED_LINE_LAPSED: Path = Path { declaration: 199, part: 1 };
-    pub const TALK_ENDED_LINE_TAIL: Path = Path { declaration: 199, part: 2 };
-    pub const LINE_TAG: Path = Path { declaration: 200, part: 0 };
-    pub const ACTIVITY_LINE_TASK: Path = Path { declaration: 201, part: 0 };
-    pub const ACTIVITY_LINE_POSITION: Path = Path { declaration: 201, part: 1 };
-    pub const ACTIVITY_LINE_AT: Path = Path { declaration: 201, part: 2 };
-    pub const ACTIVITY_LINE_LINE: Path = Path { declaration: 201, part: 3 };
-    pub const ACTIVITY_LINE_TAIL: Path = Path { declaration: 201, part: 4 };
-    pub const STATUS_TAG: Path = Path { declaration: 202, part: 0 };
-    pub const STUB_TASK: Path = Path { declaration: 203, part: 0 };
-    pub const STUB_PHASE: Path = Path { declaration: 203, part: 1 };
-    pub const STUB_RESULT: Path = Path { declaration: 203, part: 2 };
-    pub const STUB_TAIL: Path = Path { declaration: 203, part: 3 };
-    pub const REPLY_HINT_NUMBER: Path = Path { declaration: 204, part: 0 };
-    pub const REPLY_HINT_ACTIVITY: Path = Path { declaration: 204, part: 1 };
-    pub const REPLY_HINT_ATTEMPT: Path = Path { declaration: 204, part: 2 };
-    pub const REPLY_HINT_TURN: Path = Path { declaration: 204, part: 3 };
-    pub const REPLY_HINT_AT: Path = Path { declaration: 204, part: 4 };
-    pub const REPLY_HINT_TAIL: Path = Path { declaration: 204, part: 5 };
-    pub const ESCALATION_TASK_TASK: Path = Path { declaration: 205, part: 0 };
-    pub const ESCALATION_TASK_TAIL: Path = Path { declaration: 205, part: 1 };
-    pub const ESCALATION_PERSON_PERSON: Path = Path { declaration: 206, part: 0 };
-    pub const ESCALATION_PERSON_TAIL: Path = Path { declaration: 206, part: 1 };
-    pub const ESCALATION_ROLE_PROJECT: Path = Path { declaration: 207, part: 0 };
-    pub const ESCALATION_ROLE_ROLE: Path = Path { declaration: 207, part: 1 };
-    pub const ESCALATION_ROLE_TAIL: Path = Path { declaration: 207, part: 2 };
-    pub const ESCALATION_HOLDER_TAG: Path = Path { declaration: 208, part: 0 };
-    pub const UNHELD_ESCALATION_REVISION: Path = Path { declaration: 209, part: 0 };
-    pub const UNHELD_ESCALATION_TAIL: Path = Path { declaration: 209, part: 1 };
-    pub const ROUTING_ESCALATION_REVISION: Path = Path { declaration: 210, part: 0 };
-    pub const ROUTING_ESCALATION_TAIL: Path = Path { declaration: 210, part: 1 };
-    pub const WAITING_ESCALATION_REVISION: Path = Path { declaration: 211, part: 0 };
-    pub const WAITING_ESCALATION_HOLDER: Path = Path { declaration: 211, part: 1 };
-    pub const WAITING_ESCALATION_ENTRY: Path = Path { declaration: 211, part: 2 };
-    pub const WAITING_ESCALATION_SINCE: Path = Path { declaration: 211, part: 3 };
-    pub const WAITING_ESCALATION_TAIL: Path = Path { declaration: 211, part: 4 };
-    pub const DECIDER_KIND_TAG: Path = Path { declaration: 212, part: 0 };
-    pub const REJECTED_ESCALATION_REVISION: Path = Path { declaration: 213, part: 0 };
-    pub const REJECTED_ESCALATION_BY: Path = Path { declaration: 213, part: 1 };
-    pub const REJECTED_ESCALATION_REASON: Path = Path { declaration: 213, part: 2 };
-    pub const REJECTED_ESCALATION_BY_KIND: Path = Path { declaration: 213, part: 3 };
-    pub const REJECTED_ESCALATION_TAIL: Path = Path { declaration: 213, part: 4 };
-    pub const ESCALATION_TAG: Path = Path { declaration: 214, part: 0 };
-    pub const PERSON_ANSWER_BY: Path = Path { declaration: 215, part: 0 };
-    pub const PERSON_ANSWER_AT: Path = Path { declaration: 215, part: 1 };
-    pub const PERSON_ANSWER_TAIL: Path = Path { declaration: 215, part: 2 };
-    pub const PERSON_STALL_NOTICE_MESSAGE: Path = Path { declaration: 216, part: 0 };
-    pub const PERSON_STALL_NOTICE_AT: Path = Path { declaration: 216, part: 1 };
-    pub const PERSON_STALL_NOTICE_ACTIVITY: Path = Path { declaration: 216, part: 2 };
-    pub const PERSON_STALL_NOTICE_TAIL: Path = Path { declaration: 216, part: 3 };
-    pub const PERSON_WAIT_SINCE: Path = Path { declaration: 217, part: 0 };
-    pub const PERSON_WAIT_STALL: Path = Path { declaration: 217, part: 1 };
-    pub const PERSON_WAIT_DEADLINE: Path = Path { declaration: 217, part: 2 };
-    pub const PERSON_WAIT_NOTICE: Path = Path { declaration: 217, part: 3 };
-    pub const PERSON_WAIT_TAIL: Path = Path { declaration: 217, part: 4 };
-    pub const RECURRING_STATE_TEMPLATE: Path = Path { declaration: 218, part: 0 };
-    pub const RECURRING_STATE_LAST_BATCH: Path = Path { declaration: 218, part: 1 };
-    pub const RECURRING_STATE_LAST_PERIOD: Path = Path { declaration: 218, part: 2 };
-    pub const RECURRING_STATE_PENDING_PERIOD: Path = Path { declaration: 218, part: 3 };
-    pub const RECURRING_STATE_TAIL: Path = Path { declaration: 218, part: 4 };
-    pub const QUESTION_CREDIT_NUMBER: Path = Path { declaration: 219, part: 0 };
-    pub const QUESTION_CREDIT_ANSWERER: Path = Path { declaration: 219, part: 1 };
-    pub const QUESTION_CREDIT_ASKED: Path = Path { declaration: 219, part: 2 };
-    pub const QUESTION_CREDIT_LINE: Path = Path { declaration: 219, part: 3 };
-    pub const QUESTION_CREDIT_TAIL: Path = Path { declaration: 219, part: 4 };
-    pub const TASK_INTEREST_TARGET: Path = Path { declaration: 220, part: 0 };
-    pub const TASK_INTEREST_HELD: Path = Path { declaration: 220, part: 1 };
-    pub const TASK_INTEREST_RESULT: Path = Path { declaration: 220, part: 2 };
-    pub const TASK_INTEREST_TAIL: Path = Path { declaration: 220, part: 3 };
-    pub const TIMER_INTEREST_AT: Path = Path { declaration: 221, part: 0 };
-    pub const TIMER_INTEREST_PERIOD: Path = Path { declaration: 221, part: 1 };
-    pub const TIMER_INTEREST_TAIL: Path = Path { declaration: 221, part: 2 };
-    pub const TOPIC_INTEREST_CONNECTOR: Path = Path { declaration: 222, part: 0 };
-    pub const TOPIC_INTEREST_TOPIC: Path = Path { declaration: 222, part: 1 };
-    pub const TOPIC_INTEREST_TAIL: Path = Path { declaration: 222, part: 2 };
-    pub const SUBSCRIPTION_KIND_TAG: Path = Path { declaration: 223, part: 0 };
-    pub const SUBSCRIPTION_NUMBER: Path = Path { declaration: 224, part: 0 };
-    pub const SUBSCRIPTION_KIND: Path = Path { declaration: 224, part: 1 };
-    pub const SUBSCRIPTION_TAIL: Path = Path { declaration: 224, part: 2 };
-    pub const SAVED_RESOURCE_CONNECTOR: Path = Path { declaration: 225, part: 0 };
-    pub const SAVED_RESOURCE_PATH: Path = Path { declaration: 225, part: 1 };
-    pub const SAVED_RESOURCE_TAIL: Path = Path { declaration: 225, part: 2 };
-    pub const ANSWER_LINE_TASK: Path = Path { declaration: 226, part: 0 };
-    pub const ANSWER_LINE_POSITION: Path = Path { declaration: 226, part: 1 };
-    pub const ANSWER_LINE_TAIL: Path = Path { declaration: 226, part: 2 };
-    pub const QUESTION_LINE_MESSAGE: Path = Path { declaration: 227, part: 0 };
-    pub const QUESTION_LINE_LINE: Path = Path { declaration: 227, part: 1 };
-    pub const QUESTION_LINE_ANSWER: Path = Path { declaration: 227, part: 2 };
-    pub const QUESTION_LINE_TAIL: Path = Path { declaration: 227, part: 3 };
-    pub const PROPOSAL_ROW_PROPOSAL: Path = Path { declaration: 228, part: 0 };
-    pub const PROPOSAL_ROW_REVISION: Path = Path { declaration: 228, part: 1 };
-    pub const PROPOSAL_ROW_TAIL: Path = Path { declaration: 228, part: 2 };
-    pub const ENDINGS_DONE: Path = Path { declaration: 229, part: 0 };
-    pub const ENDINGS_FAILED: Path = Path { declaration: 229, part: 1 };
-    pub const ENDINGS_CANCELLED: Path = Path { declaration: 229, part: 2 };
-    pub const ENDINGS_TAIL: Path = Path { declaration: 229, part: 3 };
-    pub const REPLY_OBJECT_MESSAGE: Path = Path { declaration: 230, part: 0 };
-    pub const REPLY_OBJECT_ACTIVITY: Path = Path { declaration: 230, part: 1 };
-    pub const REPLY_OBJECT_TAIL: Path = Path { declaration: 230, part: 2 };
-    pub const PROPOSAL_UPDATE_PROPOSAL: Path = Path { declaration: 231, part: 0 };
-    pub const PROPOSAL_UPDATE_TAIL: Path = Path { declaration: 231, part: 1 };
-    pub const UPDATE_OBJECT_TAG: Path = Path { declaration: 232, part: 0 };
-    pub const UPDATE_PARTY: Path = Path { declaration: 233, part: 0 };
-    pub const UPDATE_AT: Path = Path { declaration: 233, part: 1 };
-    pub const UPDATE_TASK: Path = Path { declaration: 233, part: 2 };
-    pub const UPDATE_OBJECT: Path = Path { declaration: 233, part: 3 };
-    pub const UPDATE_TAIL: Path = Path { declaration: 233, part: 4 };
-    pub const RESULT_ROW_PARTY: Path = Path { declaration: 234, part: 0 };
-    pub const RESULT_ROW_POSITION: Path = Path { declaration: 234, part: 1 };
-    pub const RESULT_ROW_TASK: Path = Path { declaration: 234, part: 2 };
-    pub const RESULT_ROW_TAIL: Path = Path { declaration: 234, part: 3 };
-    pub const EDGE_REQUESTER: Path = Path { declaration: 235, part: 0 };
-    pub const EDGE_TASK: Path = Path { declaration: 235, part: 1 };
-    pub const EDGE_TAIL: Path = Path { declaration: 235, part: 2 };
-    pub const TRANSCRIPT_STATE_EVER_TURNED: Path = Path { declaration: 236, part: 0 };
-    pub const TRANSCRIPT_STATE_TAIL: Path = Path { declaration: 236, part: 1 };
-    pub const TASK_HISTORY_LAST_ACTIVITY: Path = Path { declaration: 237, part: 0 };
-    pub const TASK_HISTORY_ENDED_BELOW: Path = Path { declaration: 237, part: 1 };
-    pub const TASK_HISTORY_ENDED_DELEGATES: Path = Path { declaration: 237, part: 2 };
-    pub const TASK_HISTORY_QUESTION_LINES: Path = Path { declaration: 237, part: 3 };
-    pub const TASK_HISTORY_HOLD: Path = Path { declaration: 237, part: 4 };
-    pub const TASK_HISTORY_PLACED: Path = Path { declaration: 237, part: 5 };
-    pub const TASK_HISTORY_PROPOSAL_ROWS: Path = Path { declaration: 237, part: 6 };
-    pub const TASK_HISTORY_INSTRUCTIONS: Path = Path { declaration: 237, part: 7 };
-    pub const TASK_HISTORY_REFUSED: Path = Path { declaration: 237, part: 8 };
-    pub const TASK_HISTORY_GRACE: Path = Path { declaration: 237, part: 9 };
-    pub const TASK_HISTORY_SETTINGS: Path = Path { declaration: 237, part: 10 };
-    pub const TASK_HISTORY_REVISIONS: Path = Path { declaration: 237, part: 11 };
-    pub const TASK_HISTORY_CREATED_AT: Path = Path { declaration: 237, part: 12 };
-    pub const TASK_HISTORY_CHANGED: Path = Path { declaration: 237, part: 13 };
-    pub const TASK_HISTORY_PHASE_SINCE: Path = Path { declaration: 237, part: 14 };
-    pub const TASK_HISTORY_RUN_SINCE: Path = Path { declaration: 237, part: 15 };
-    pub const TASK_HISTORY_RETRY_NOTICE: Path = Path { declaration: 237, part: 16 };
-    pub const TASK_HISTORY_ENDED_AT: Path = Path { declaration: 237, part: 17 };
-    pub const TASK_HISTORY_REVISION: Path = Path { declaration: 237, part: 18 };
-    pub const TASK_HISTORY_TAIL: Path = Path { declaration: 237, part: 19 };
-    pub const TASK_RUN_MILESTONE: Path = Path { declaration: 238, part: 0 };
-    pub const TASK_RUN_ACTIVITY: Path = Path { declaration: 238, part: 1 };
-    pub const TASK_RUN_DUE_REASON: Path = Path { declaration: 238, part: 2 };
-    pub const TASK_RUN_REASONS: Path = Path { declaration: 238, part: 3 };
-    pub const TASK_RUN_OFFERED: Path = Path { declaration: 238, part: 4 };
-    pub const TASK_RUN_NARROWING: Path = Path { declaration: 238, part: 5 };
-    pub const TASK_RUN_LLM_CHANGED: Path = Path { declaration: 238, part: 6 };
-    pub const TASK_RUN_RESULT_POSITION: Path = Path { declaration: 238, part: 7 };
-    pub const TASK_RUN_LAST_REPLY: Path = Path { declaration: 238, part: 8 };
-    pub const TASK_RUN_REPLIES: Path = Path { declaration: 238, part: 9 };
-    pub const TASK_RUN_ESCALATION: Path = Path { declaration: 238, part: 10 };
-    pub const TASK_RUN_PROPOSAL: Path = Path { declaration: 238, part: 11 };
-    pub const TASK_RUN_RESULT_PROPOSAL: Path = Path { declaration: 238, part: 12 };
-    pub const TASK_RUN_NUMBER: Path = Path { declaration: 238, part: 13 };
-    pub const TASK_RUN_PROJECT: Path = Path { declaration: 238, part: 14 };
-    pub const TASK_RUN_REQUESTER: Path = Path { declaration: 238, part: 15 };
-    pub const TASK_RUN_RUN_SPENT: Path = Path { declaration: 238, part: 16 };
-    pub const TASK_RUN_RUN_RESERVED: Path = Path { declaration: 238, part: 17 };
-    pub const TASK_RUN_OPEN_ATTEMPT: Path = Path { declaration: 238, part: 18 };
-    pub const TASK_RUN_TAIL: Path = Path { declaration: 238, part: 19 };
-    pub const ADDED_TASK: Path = Path { declaration: 239, part: 0 };
-    pub const ADDED_AT: Path = Path { declaration: 239, part: 1 };
-    pub const ADDED_BY: Path = Path { declaration: 239, part: 2 };
-    pub const ADDED_TAIL: Path = Path { declaration: 239, part: 3 };
-    pub const TASK_DEFINITION_LABEL: Path = Path { declaration: 240, part: 0 };
-    pub const TASK_DEFINITION_FLAGS: Path = Path { declaration: 240, part: 1 };
-    pub const TASK_DEFINITION_ROOT: Path = Path { declaration: 240, part: 2 };
-    pub const TASK_DEFINITION_DEPTH: Path = Path { declaration: 240, part: 3 };
-    pub const TASK_DEFINITION_EXECUTOR: Path = Path { declaration: 240, part: 4 };
-    pub const TASK_DEFINITION_LLM: Path = Path { declaration: 240, part: 5 };
-    pub const TASK_DEFINITION_KEPT_ACCOUNT: Path = Path { declaration: 240, part: 6 };
-    pub const TASK_DEFINITION_TAKEN_BY: Path = Path { declaration: 240, part: 7 };
-    pub const TASK_DEFINITION_PERSON_ANSWER: Path = Path { declaration: 240, part: 8 };
-    pub const TASK_DEFINITION_PERSON_WAIT: Path = Path { declaration: 240, part: 9 };
-    pub const TASK_DEFINITION_RECURRING: Path = Path { declaration: 240, part: 10 };
-    pub const TASK_DEFINITION_TRACKED: Path = Path { declaration: 240, part: 11 };
-    pub const TASK_DEFINITION_SPEC: Path = Path { declaration: 240, part: 12 };
-    pub const TASK_DEFINITION_CONTRACT: Path = Path { declaration: 240, part: 13 };
-    pub const TASK_DEFINITION_AUTHORITY: Path = Path { declaration: 240, part: 14 };
-    pub const TASK_DEFINITION_NUMBERS: Path = Path { declaration: 240, part: 15 };
-    pub const TASK_DEFINITION_FUNDER: Path = Path { declaration: 240, part: 16 };
-    pub const TASK_DEFINITION_DEPENDENCIES: Path = Path { declaration: 240, part: 17 };
-    pub const TASK_DEFINITION_WAITING_ON: Path = Path { declaration: 240, part: 18 };
-    pub const TASK_DEFINITION_ADDED: Path = Path { declaration: 240, part: 19 };
-    pub const TASK_DEFINITION_TAIL: Path = Path { declaration: 240, part: 20 };
-    pub const INBOX_ITEM_TAG: Path = Path { declaration: 241, part: 0 };
-    pub const TASK_INTERESTS_HOLDINGS: Path = Path { declaration: 242, part: 0 };
-    pub const TASK_INTERESTS_HOLDS_TAKEN: Path = Path { declaration: 242, part: 1 };
-    pub const TASK_INTERESTS_HOLD_WAIT_SINCE: Path = Path { declaration: 242, part: 2 };
-    pub const TASK_INTERESTS_HOLD_BOUND_SINCE: Path = Path { declaration: 242, part: 3 };
-    pub const TASK_INTERESTS_DELEGATES: Path = Path { declaration: 242, part: 4 };
-    pub const TASK_INTERESTS_RESULT_FOLLOWUPS: Path = Path { declaration: 242, part: 5 };
-    pub const TASK_INTERESTS_REFERENCES: Path = Path { declaration: 242, part: 6 };
-    pub const TASK_INTERESTS_SUBSCRIPTIONS: Path = Path { declaration: 242, part: 7 };
-    pub const TASK_INTERESTS_WAKE: Path = Path { declaration: 242, part: 8 };
-    pub const TASK_INTERESTS_TURN: Path = Path { declaration: 242, part: 9 };
-    pub const TASK_INTERESTS_LAST_MESSAGE: Path = Path { declaration: 242, part: 10 };
-    pub const TASK_INTERESTS_INBOX: Path = Path { declaration: 242, part: 11 };
-    pub const TASK_INTERESTS_SAVED: Path = Path { declaration: 242, part: 12 };
-    pub const TASK_INTERESTS_EVER_TURNED: Path = Path { declaration: 242, part: 13 };
-    pub const TASK_INTERESTS_MADE: Path = Path { declaration: 242, part: 14 };
-    pub const TASK_INTERESTS_TAIL: Path = Path { declaration: 242, part: 15 };
-    pub const ROOM_PROJECT_PROJECT: Path = Path { declaration: 243, part: 0 };
-    pub const ROOM_PROJECT_TAIL: Path = Path { declaration: 243, part: 1 };
-    pub const LIVE_ROOM_TAG: Path = Path { declaration: 244, part: 0 };
-    pub const ROOM_WAIT_ROOM: Path = Path { declaration: 245, part: 0 };
-    pub const ROOM_WAIT_ORDER: Path = Path { declaration: 245, part: 1 };
-    pub const ROOM_WAIT_TAIL: Path = Path { declaration: 245, part: 2 };
-    pub const TASK_OUTCOME_ATTEMPT: Path = Path { declaration: 246, part: 0 };
-    pub const TASK_OUTCOME_LAST_ANSWER: Path = Path { declaration: 246, part: 1 };
-    pub const TASK_OUTCOME_TRIES: Path = Path { declaration: 246, part: 2 };
-    pub const TASK_OUTCOME_INVALID_RESULT: Path = Path { declaration: 246, part: 3 };
-    pub const TASK_OUTCOME_REFUSALS: Path = Path { declaration: 246, part: 4 };
-    pub const TASK_OUTCOME_PHASE: Path = Path { declaration: 246, part: 5 };
-    pub const TASK_OUTCOME_ROOM_WAIT: Path = Path { declaration: 246, part: 6 };
-    pub const TASK_OUTCOME_TAIL: Path = Path { declaration: 246, part: 7 };
-    pub const TALK_PARTY: Path = Path { declaration: 247, part: 0 };
-    pub const TALK_OPENED: Path = Path { declaration: 247, part: 1 };
-    pub const TALK_LAST: Path = Path { declaration: 247, part: 2 };
-    pub const TALK_TAIL: Path = Path { declaration: 247, part: 3 };
-    pub const SESSION_FIRST: Path = Path { declaration: 248, part: 0 };
-    pub const SESSION_REASONS: Path = Path { declaration: 248, part: 1 };
-    pub const SESSION_LAST: Path = Path { declaration: 248, part: 2 };
-    pub const SESSION_TAIL: Path = Path { declaration: 248, part: 3 };
-    pub const BEFORE_TALK_ACTIVATION_OPEN: Path = Path { declaration: 249, part: 0 };
-    pub const BEFORE_TALK_SESSION: Path = Path { declaration: 249, part: 1 };
-    pub const BEFORE_TALK_CLOSER: Path = Path { declaration: 249, part: 2 };
-    pub const BEFORE_TALK_HISTORY: Path = Path { declaration: 249, part: 3 };
-    pub const BEFORE_TALK_RUN: Path = Path { declaration: 249, part: 4 };
-    pub const BEFORE_TALK_DEFINITION: Path = Path { declaration: 249, part: 5 };
-    pub const BEFORE_TALK_STARTED_FROM: Path = Path { declaration: 249, part: 6 };
-    pub const BEFORE_TALK_INTERESTS: Path = Path { declaration: 249, part: 7 };
-    pub const BEFORE_TALK_OUTCOME: Path = Path { declaration: 249, part: 8 };
-    pub const BEFORE_TALK_ASKED_REQUESTER: Path = Path { declaration: 249, part: 9 };
-    pub const BEFORE_TALK_QUESTION_WOKEN: Path = Path { declaration: 249, part: 10 };
-    pub const BEFORE_TALK_TAIL: Path = Path { declaration: 249, part: 11 };
-    pub const CONCLUDED_BY: Path = Path { declaration: 250, part: 0 };
-    pub const CONCLUDED_AT: Path = Path { declaration: 250, part: 1 };
-    pub const CONCLUDED_TAIL: Path = Path { declaration: 250, part: 2 };
-    pub const TASK_RECORD_RECORD: Path = Path { declaration: 251, part: 0 };
-    pub const TASK_RECORD_TALK: Path = Path { declaration: 251, part: 1 };
-    pub const TASK_RECORD_CONCLUDED: Path = Path { declaration: 251, part: 2 };
-    pub const TASK_RECORD_TAIL: Path = Path { declaration: 251, part: 3 };
-    pub const HOT_HISTORY_LAST_ACTIVITY: Path = Path { declaration: 252, part: 0 };
-    pub const HOT_HISTORY_ENDED_BELOW: Path = Path { declaration: 252, part: 1 };
-    pub const HOT_HISTORY_ENDED_DELEGATES: Path = Path { declaration: 252, part: 2 };
-    pub const HOT_HISTORY_QUESTION_LINES: Path = Path { declaration: 252, part: 3 };
-    pub const HOT_HISTORY_HOLD: Path = Path { declaration: 252, part: 4 };
-    pub const HOT_HISTORY_PLACED: Path = Path { declaration: 252, part: 5 };
-    pub const HOT_HISTORY_PROPOSAL_ROWS: Path = Path { declaration: 252, part: 6 };
-    pub const HOT_HISTORY_REFUSED: Path = Path { declaration: 252, part: 7 };
-    pub const HOT_HISTORY_GRACE: Path = Path { declaration: 252, part: 8 };
-    pub const HOT_HISTORY_SETTINGS: Path = Path { declaration: 252, part: 9 };
-    pub const HOT_HISTORY_REVISIONS: Path = Path { declaration: 252, part: 10 };
-    pub const HOT_HISTORY_CREATED_AT: Path = Path { declaration: 252, part: 11 };
-    pub const HOT_HISTORY_CHANGED: Path = Path { declaration: 252, part: 12 };
-    pub const HOT_HISTORY_PHASE_SINCE: Path = Path { declaration: 252, part: 13 };
-    pub const HOT_HISTORY_RUN_SINCE: Path = Path { declaration: 252, part: 14 };
-    pub const HOT_HISTORY_RETRY_NOTICE: Path = Path { declaration: 252, part: 15 };
-    pub const HOT_HISTORY_ENDED_AT: Path = Path { declaration: 252, part: 16 };
-    pub const HOT_HISTORY_REVISION: Path = Path { declaration: 252, part: 17 };
-    pub const HOT_HISTORY_TAIL: Path = Path { declaration: 252, part: 18 };
-    pub const HOT_DEFINITION_LABEL: Path = Path { declaration: 253, part: 0 };
-    pub const HOT_DEFINITION_FLAGS: Path = Path { declaration: 253, part: 1 };
-    pub const HOT_DEFINITION_ROOT: Path = Path { declaration: 253, part: 2 };
-    pub const HOT_DEFINITION_DEPTH: Path = Path { declaration: 253, part: 3 };
-    pub const HOT_DEFINITION_EXECUTOR: Path = Path { declaration: 253, part: 4 };
-    pub const HOT_DEFINITION_LLM: Path = Path { declaration: 253, part: 5 };
-    pub const HOT_DEFINITION_KEPT_ACCOUNT: Path = Path { declaration: 253, part: 6 };
-    pub const HOT_DEFINITION_TAKEN_BY: Path = Path { declaration: 253, part: 7 };
-    pub const HOT_DEFINITION_PERSON_ANSWER: Path = Path { declaration: 253, part: 8 };
-    pub const HOT_DEFINITION_PERSON_WAIT: Path = Path { declaration: 253, part: 9 };
-    pub const HOT_DEFINITION_RECURRING: Path = Path { declaration: 253, part: 10 };
-    pub const HOT_DEFINITION_TRACKED: Path = Path { declaration: 253, part: 11 };
-    pub const HOT_DEFINITION_NUMBERS: Path = Path { declaration: 253, part: 12 };
-    pub const HOT_DEFINITION_FUNDER: Path = Path { declaration: 253, part: 13 };
-    pub const HOT_DEFINITION_DEPENDENCIES: Path = Path { declaration: 253, part: 14 };
-    pub const HOT_DEFINITION_WAITING_ON: Path = Path { declaration: 253, part: 15 };
-    pub const HOT_DEFINITION_ADDED: Path = Path { declaration: 253, part: 16 };
-    pub const HOT_DEFINITION_TAIL: Path = Path { declaration: 253, part: 17 };
-    pub const LIVE_HOT_ACTIVATION_OPEN: Path = Path { declaration: 254, part: 0 };
-    pub const LIVE_HOT_SESSION: Path = Path { declaration: 254, part: 1 };
-    pub const LIVE_HOT_CLOSER: Path = Path { declaration: 254, part: 2 };
-    pub const LIVE_HOT_HISTORY: Path = Path { declaration: 254, part: 3 };
-    pub const LIVE_HOT_RUN: Path = Path { declaration: 254, part: 4 };
-    pub const LIVE_HOT_DEFINITION: Path = Path { declaration: 254, part: 5 };
-    pub const LIVE_HOT_STARTED_FROM: Path = Path { declaration: 254, part: 6 };
-    pub const LIVE_HOT_INTERESTS: Path = Path { declaration: 254, part: 7 };
-    pub const LIVE_HOT_OUTCOME: Path = Path { declaration: 254, part: 8 };
-    pub const LIVE_HOT_ASKED_REQUESTER: Path = Path { declaration: 254, part: 9 };
-    pub const LIVE_HOT_QUESTION_WOKEN: Path = Path { declaration: 254, part: 10 };
-    pub const LIVE_HOT_TALK: Path = Path { declaration: 254, part: 11 };
-    pub const LIVE_HOT_CONCLUDED: Path = Path { declaration: 254, part: 12 };
-    pub const LIVE_HOT_TAIL: Path = Path { declaration: 254, part: 13 };
-    pub const LIVE_COLD_SPEC: Path = Path { declaration: 255, part: 0 };
-    pub const LIVE_COLD_CONTRACT: Path = Path { declaration: 255, part: 1 };
-    pub const LIVE_COLD_AUTHORITY: Path = Path { declaration: 255, part: 2 };
-    pub const LIVE_COLD_INSTRUCTIONS: Path = Path { declaration: 255, part: 3 };
-    pub const LIVE_COLD_TAIL: Path = Path { declaration: 255, part: 4 };
-    pub const ENDED_BY_PARTY_PARTY: Path = Path { declaration: 256, part: 0 };
-    pub const ENDED_BY_PARTY_LABEL: Path = Path { declaration: 256, part: 1 };
-    pub const ENDED_BY_PARTY_ENDED_AT: Path = Path { declaration: 256, part: 2 };
-    pub const ENDED_BY_PARTY_TASK: Path = Path { declaration: 256, part: 3 };
-    pub const ENDED_BY_PARTY_TAIL: Path = Path { declaration: 256, part: 4 };
-    pub const ENDED_BY_PROJECT_PROJECT: Path = Path { declaration: 257, part: 0 };
-    pub const ENDED_BY_PROJECT_LABEL: Path = Path { declaration: 257, part: 1 };
-    pub const ENDED_BY_PROJECT_ENDED_AT: Path = Path { declaration: 257, part: 2 };
-    pub const ENDED_BY_PROJECT_TASK: Path = Path { declaration: 257, part: 3 };
-    pub const ENDED_BY_PROJECT_TAIL: Path = Path { declaration: 257, part: 4 };
-    pub const HOLD_OWNER_TAG: Path = Path { declaration: 258, part: 0 };
-    pub const HOLD_MODE_TAG: Path = Path { declaration: 259, part: 0 };
-    pub const SUBTREE_SCOPE_TASK: Path = Path { declaration: 260, part: 0 };
-    pub const SUBTREE_SCOPE_TAIL: Path = Path { declaration: 260, part: 1 };
-    pub const HOLD_SCOPE_TAG: Path = Path { declaration: 261, part: 0 };
-    pub const PLACED_HOLD_NUMBER: Path = Path { declaration: 262, part: 0 };
-    pub const PLACED_HOLD_PROJECT: Path = Path { declaration: 262, part: 1 };
-    pub const PLACED_HOLD_OWNER: Path = Path { declaration: 262, part: 2 };
-    pub const PLACED_HOLD_MODE: Path = Path { declaration: 262, part: 3 };
-    pub const PLACED_HOLD_SCOPE: Path = Path { declaration: 262, part: 4 };
-    pub const PLACED_HOLD_REASON: Path = Path { declaration: 262, part: 5 };
-    pub const PLACED_HOLD_PLACED_AT: Path = Path { declaration: 262, part: 6 };
-    pub const PLACED_HOLD_REVISION: Path = Path { declaration: 262, part: 7 };
-    pub const PLACED_HOLD_EXEMPT: Path = Path { declaration: 262, part: 8 };
-    pub const PLACED_HOLD_LIFTED: Path = Path { declaration: 262, part: 9 };
-    pub const PLACED_HOLD_TAIL: Path = Path { declaration: 262, part: 10 };
-    pub const SUMMARY_CANCELLED_BY: Path = Path { declaration: 263, part: 0 };
-    pub const SUMMARY_CANCELLED_AT: Path = Path { declaration: 263, part: 1 };
-    pub const SUMMARY_CANCELLED_TAIL: Path = Path { declaration: 263, part: 2 };
-    pub const SUMMARY_ENDING_TAG: Path = Path { declaration: 264, part: 0 };
-    pub const SUMMARY_VERDICT_CODE: Path = Path { declaration: 265, part: 0 };
-    pub const SUMMARY_VERDICT_TAIL: Path = Path { declaration: 265, part: 1 };
-    pub const SUMMARY_CHANGE_CONNECTOR: Path = Path { declaration: 266, part: 0 };
-    pub const SUMMARY_CHANGE_KIND: Path = Path { declaration: 266, part: 1 };
-    pub const SUMMARY_CHANGE_RESOURCE: Path = Path { declaration: 266, part: 2 };
-    pub const SUMMARY_CHANGE_TAIL: Path = Path { declaration: 266, part: 3 };
-    pub const SUMMARY_RESULT_KIND_TAG: Path = Path { declaration: 267, part: 0 };
-    pub const SUMMARY_RESULT_KIND: Path = Path { declaration: 268, part: 0 };
-    pub const SUMMARY_RESULT_WORDS: Path = Path { declaration: 268, part: 1 };
-    pub const SUMMARY_RESULT_TAIL: Path = Path { declaration: 268, part: 2 };
-    pub const SUMMARY_ENDINGS_DONE: Path = Path { declaration: 269, part: 0 };
-    pub const SUMMARY_ENDINGS_FAILED: Path = Path { declaration: 269, part: 1 };
-    pub const SUMMARY_ENDINGS_TAIL: Path = Path { declaration: 269, part: 2 };
-    pub const TASK_SUMMARY_NUMBER: Path = Path { declaration: 270, part: 0 };
-    pub const TASK_SUMMARY_ROOT: Path = Path { declaration: 270, part: 1 };
-    pub const TASK_SUMMARY_DEPTH: Path = Path { declaration: 270, part: 2 };
-    pub const TASK_SUMMARY_REQUESTER: Path = Path { declaration: 270, part: 3 };
-    pub const TASK_SUMMARY_PROJECT: Path = Path { declaration: 270, part: 4 };
-    pub const TASK_SUMMARY_LABEL: Path = Path { declaration: 270, part: 5 };
-    pub const TASK_SUMMARY_FLAGS: Path = Path { declaration: 270, part: 6 };
-    pub const TASK_SUMMARY_TRACKED: Path = Path { declaration: 270, part: 7 };
-    pub const TASK_SUMMARY_EXECUTOR: Path = Path { declaration: 270, part: 8 };
-    pub const TASK_SUMMARY_TITLE: Path = Path { declaration: 270, part: 9 };
-    pub const TASK_SUMMARY_ENDING: Path = Path { declaration: 270, part: 10 };
-    pub const TASK_SUMMARY_REASON: Path = Path { declaration: 270, part: 11 };
-    pub const TASK_SUMMARY_RESULT: Path = Path { declaration: 270, part: 12 };
-    pub const TASK_SUMMARY_CUTS: Path = Path { declaration: 270, part: 13 };
-    pub const TASK_SUMMARY_CREATED_AT: Path = Path { declaration: 270, part: 14 };
-    pub const TASK_SUMMARY_CHANGED: Path = Path { declaration: 270, part: 15 };
-    pub const TASK_SUMMARY_LAST_ACTIVITY: Path = Path { declaration: 270, part: 16 };
-    pub const TASK_SUMMARY_ENDED_AT: Path = Path { declaration: 270, part: 17 };
-    pub const TASK_SUMMARY_NUMBERS: Path = Path { declaration: 270, part: 18 };
-    pub const TASK_SUMMARY_DEADLINE: Path = Path { declaration: 270, part: 19 };
-    pub const TASK_SUMMARY_FUNDER: Path = Path { declaration: 270, part: 20 };
-    pub const TASK_SUMMARY_ENDED_DELEGATES: Path = Path { declaration: 270, part: 21 };
-    pub const TASK_SUMMARY_ATTEMPT: Path = Path { declaration: 270, part: 22 };
-    pub const TASK_SUMMARY_ACTIVITY: Path = Path { declaration: 270, part: 23 };
-    pub const TASK_SUMMARY_RESULT_POSITION: Path = Path { declaration: 270, part: 24 };
-    pub const TASK_SUMMARY_LAST_REPLY: Path = Path { declaration: 270, part: 25 };
-    pub const TASK_SUMMARY_TAIL: Path = Path { declaration: 270, part: 26 };
-    pub const RETENTION_STAGE_TAG: Path = Path { declaration: 271, part: 0 };
-    pub const RETENTION_ROW_STAGE: Path = Path { declaration: 272, part: 0 };
-    pub const RETENTION_ROW_SINCE: Path = Path { declaration: 272, part: 1 };
-    pub const RETENTION_ROW_NUMBER: Path = Path { declaration: 272, part: 2 };
-    pub const RETENTION_ROW_TAIL: Path = Path { declaration: 272, part: 3 };
-    pub const VALUE_TAG: Path = Path { declaration: 273, part: 0 };
-    pub const MODEL_NAME_VALUE: Path = Path { declaration: 274, part: 0 };
-    pub const MODEL_NAME_TAIL: Path = Path { declaration: 274, part: 1 };
-    pub const ROW_VALUE: Path = Path { declaration: 275, part: 0 };
-    pub const ROW_MODELS: Path = Path { declaration: 275, part: 1 };
-    pub const ROW_VERSION: Path = Path { declaration: 275, part: 2 };
-    pub const ROW_TAIL: Path = Path { declaration: 275, part: 3 };
-    pub const CAPACITY_ACTION_BATCH_FIRST: Path = Path { declaration: 276, part: 0 };
-    pub const CAPACITY_ACTION_BATCH_MEMBERS: Path = Path { declaration: 276, part: 1 };
-    pub const CAPACITY_ACTION_BATCH_TAIL: Path = Path { declaration: 276, part: 2 };
-    pub const CAPACITY_ACTION_PROPOSAL_NUMBER: Path = Path { declaration: 277, part: 0 };
-    pub const CAPACITY_ACTION_PROPOSAL_TAIL: Path = Path { declaration: 277, part: 1 };
-    pub const CAPACITY_ACTION_PERSON_PROPOSAL_NUMBER: Path = Path { declaration: 278, part: 0 };
-    pub const CAPACITY_ACTION_PERSON_PROPOSAL_TAIL: Path = Path { declaration: 278, part: 1 };
-    pub const CAPACITY_ACTION_MESSAGE_TASK: Path = Path { declaration: 279, part: 0 };
-    pub const CAPACITY_ACTION_MESSAGE_NUMBER: Path = Path { declaration: 279, part: 1 };
-    pub const CAPACITY_ACTION_MESSAGE_TAIL: Path = Path { declaration: 279, part: 2 };
-    pub const CAPACITY_ACTION_SOURCE_FUNDER: Path = Path { declaration: 280, part: 0 };
-    pub const CAPACITY_ACTION_SOURCE_TAIL: Path = Path { declaration: 280, part: 1 };
-    pub const CAPACITY_ACTION_INTRODUCE_LEFT: Path = Path { declaration: 281, part: 0 };
-    pub const CAPACITY_ACTION_INTRODUCE_RIGHT: Path = Path { declaration: 281, part: 1 };
-    pub const CAPACITY_ACTION_INTRODUCE_TAIL: Path = Path { declaration: 281, part: 2 };
-    pub const CAPACITY_ACTION_SUBSCRIPTION_NUMBER: Path = Path { declaration: 282, part: 0 };
-    pub const CAPACITY_ACTION_SUBSCRIPTION_TAIL: Path = Path { declaration: 282, part: 1 };
-    pub const CAPACITY_ACTION_EFFECT_ENTRY: Path = Path { declaration: 283, part: 0 };
-    pub const CAPACITY_ACTION_EFFECT_TAIL: Path = Path { declaration: 283, part: 1 };
-    pub const CAPACITY_ACTION_CLAIM_ATTEMPT: Path = Path { declaration: 284, part: 0 };
-    pub const CAPACITY_ACTION_CLAIM_TAIL: Path = Path { declaration: 284, part: 1 };
-    pub const CAPACITY_ACTION_PLACE_HOLD: Path = Path { declaration: 285, part: 0 };
-    pub const CAPACITY_ACTION_PLACE_TAIL: Path = Path { declaration: 285, part: 1 };
-    pub const CAPACITY_ACTION_TAG: Path = Path { declaration: 286, part: 0 };
-    pub const CAPACITY_CAUSE_TASKS_LIMIT: Path = Path { declaration: 287, part: 0 };
-    pub const CAPACITY_CAUSE_TASKS_TAIL: Path = Path { declaration: 287, part: 1 };
-    pub const CAPACITY_CAUSE_CREATION_FLIGHTS_LIMIT: Path = Path { declaration: 288, part: 0 };
-    pub const CAPACITY_CAUSE_CREATION_FLIGHTS_TAIL: Path = Path { declaration: 288, part: 1 };
-    pub const CAPACITY_CAUSE_RESOURCE_REPORTS_LIMIT: Path = Path { declaration: 289, part: 0 };
-    pub const CAPACITY_CAUSE_RESOURCE_REPORTS_TAIL: Path = Path { declaration: 289, part: 1 };
-    pub const CAPACITY_CAUSE_PROJECT_TASKS_LIMIT: Path = Path { declaration: 290, part: 0 };
-    pub const CAPACITY_CAUSE_PROJECT_TASKS_TAIL: Path = Path { declaration: 290, part: 1 };
-    pub const CAPACITY_CAUSE_TREE_LIMIT: Path = Path { declaration: 291, part: 0 };
-    pub const CAPACITY_CAUSE_TREE_TAIL: Path = Path { declaration: 291, part: 1 };
-    pub const CAPACITY_CAUSE_DELEGATES_LIMIT: Path = Path { declaration: 292, part: 0 };
-    pub const CAPACITY_CAUSE_DELEGATES_TAIL: Path = Path { declaration: 292, part: 1 };
-    pub const CAPACITY_CAUSE_INBOX_TASK: Path = Path { declaration: 293, part: 0 };
-    pub const CAPACITY_CAUSE_INBOX_MESSAGES: Path = Path { declaration: 293, part: 1 };
-    pub const CAPACITY_CAUSE_INBOX_BYTES: Path = Path { declaration: 293, part: 2 };
-    pub const CAPACITY_CAUSE_INBOX_TAIL: Path = Path { declaration: 293, part: 3 };
-    pub const CAPACITY_CAUSE_HOLDINGS_LIMIT: Path = Path { declaration: 294, part: 0 };
-    pub const CAPACITY_CAUSE_HOLDINGS_TAIL: Path = Path { declaration: 294, part: 1 };
-    pub const CAPACITY_CAUSE_HOLD_WAITERS_LIMIT: Path = Path { declaration: 295, part: 0 };
-    pub const CAPACITY_CAUSE_HOLD_WAITERS_TAIL: Path = Path { declaration: 295, part: 1 };
-    pub const CAPACITY_CAUSE_PROPOSALS_LIMIT: Path = Path { declaration: 296, part: 0 };
-    pub const CAPACITY_CAUSE_PROPOSALS_TAIL: Path = Path { declaration: 296, part: 1 };
-    pub const CAPACITY_CAUSE_REFERENCES_LIMIT: Path = Path { declaration: 297, part: 0 };
-    pub const CAPACITY_CAUSE_REFERENCES_TAIL: Path = Path { declaration: 297, part: 1 };
-    pub const CAPACITY_CAUSE_SUBSCRIPTIONS_LIMIT: Path = Path { declaration: 298, part: 0 };
-    pub const CAPACITY_CAUSE_SUBSCRIPTIONS_TAIL: Path = Path { declaration: 298, part: 1 };
-    pub const CAPACITY_CAUSE_FUNDERS_LIMIT: Path = Path { declaration: 299, part: 0 };
-    pub const CAPACITY_CAUSE_FUNDERS_TAIL: Path = Path { declaration: 299, part: 1 };
-    pub const CAPACITY_CAUSE_WRITERS_LIMIT: Path = Path { declaration: 300, part: 0 };
-    pub const CAPACITY_CAUSE_WRITERS_TAIL: Path = Path { declaration: 300, part: 1 };
-    pub const CAPACITY_CAUSE_PLACED_HOLDS_LIMIT: Path = Path { declaration: 301, part: 0 };
-    pub const CAPACITY_CAUSE_PLACED_HOLDS_TAIL: Path = Path { declaration: 301, part: 1 };
-    pub const CAPACITY_CAUSE_PROJECT_PLACED_HOLDS_LIMIT: Path = Path { declaration: 302, part: 0 };
-    pub const CAPACITY_CAUSE_PROJECT_PLACED_HOLDS_TAIL: Path = Path { declaration: 302, part: 1 };
-    pub const CAPACITY_CAUSE_PARTY_PLACED_HOLDS_LIMIT: Path = Path { declaration: 303, part: 0 };
-    pub const CAPACITY_CAUSE_PARTY_PLACED_HOLDS_TAIL: Path = Path { declaration: 303, part: 1 };
-    pub const CAPACITY_CAUSE_EXEMPTIONS_LIMIT: Path = Path { declaration: 304, part: 0 };
-    pub const CAPACITY_CAUSE_EXEMPTIONS_TAIL: Path = Path { declaration: 304, part: 1 };
-    pub const CAPACITY_CAUSE_TAG: Path = Path { declaration: 305, part: 0 };
-    pub const CAPACITY_PROJECT: Path = Path { declaration: 306, part: 0 };
-    pub const CAPACITY_BY: Path = Path { declaration: 306, part: 1 };
-    pub const CAPACITY_ACTION: Path = Path { declaration: 306, part: 2 };
-    pub const CAPACITY_CAUSE: Path = Path { declaration: 306, part: 3 };
-    pub const CAPACITY_TAIL: Path = Path { declaration: 306, part: 4 };
-    pub const REFUSAL_PERSON_REVISION_REVISION: Path = Path { declaration: 307, part: 0 };
-    pub const REFUSAL_PERSON_REVISION_TAIL: Path = Path { declaration: 307, part: 1 };
-    pub const LLM_FAULT_TAG: Path = Path { declaration: 308, part: 0 };
-    pub const REFUSAL_LLM_MODEL: Path = Path { declaration: 309, part: 0 };
-    pub const REFUSAL_LLM_WHY: Path = Path { declaration: 309, part: 1 };
-    pub const REFUSAL_LLM_TAIL: Path = Path { declaration: 309, part: 2 };
-    pub const ACCOUNT_WHY_TAG: Path = Path { declaration: 310, part: 0 };
-    pub const REFUSAL_ACCOUNT_ACCOUNT: Path = Path { declaration: 311, part: 0 };
-    pub const REFUSAL_ACCOUNT_WHY: Path = Path { declaration: 311, part: 1 };
-    pub const REFUSAL_ACCOUNT_TAIL: Path = Path { declaration: 311, part: 2 };
-    pub const REFUSAL_CIRCLE_CUT: Path = Path { declaration: 312, part: 0 };
-    pub const REFUSAL_CIRCLE_TAIL: Path = Path { declaration: 312, part: 1 };
-    pub const REFUSAL_DEPENDENCY_ENDED_HOW: Path = Path { declaration: 313, part: 0 };
-    pub const REFUSAL_DEPENDENCY_ENDED_TAIL: Path = Path { declaration: 313, part: 1 };
-    pub const REFUSAL_PLACED_HOLD: Path = Path { declaration: 314, part: 0 };
-    pub const REFUSAL_PLACED_TAIL: Path = Path { declaration: 314, part: 1 };
-    pub const REFUSAL_HOLD_OWNER_HOLD: Path = Path { declaration: 315, part: 0 };
-    pub const REFUSAL_HOLD_OWNER_TAIL: Path = Path { declaration: 315, part: 1 };
-    pub const REFUSAL_HOLD_REVISION_REVISION: Path = Path { declaration: 316, part: 0 };
-    pub const REFUSAL_HOLD_REVISION_TAIL: Path = Path { declaration: 316, part: 1 };
-    pub const TALK_OPEN_PARTY: Path = Path { declaration: 317, part: 0 };
-    pub const TALK_OPEN_TAIL: Path = Path { declaration: 317, part: 1 };
-    pub const REFUSAL_CONCLUDED_AT: Path = Path { declaration: 318, part: 0 };
-    pub const REFUSAL_CONCLUDED_TAIL: Path = Path { declaration: 318, part: 1 };
-    pub const REFUSAL_TAG: Path = Path { declaration: 319, part: 0 };
-    pub const TASK_PROBLEM_TASK: Path = Path { declaration: 320, part: 0 };
-    pub const TASK_PROBLEM_WHY: Path = Path { declaration: 320, part: 1 };
-    pub const TASK_PROBLEM_BLOCKED_BY: Path = Path { declaration: 320, part: 2 };
-    pub const TASK_PROBLEM_CAPACITY: Path = Path { declaration: 320, part: 3 };
-    pub const TASK_PROBLEM_VERSION: Path = Path { declaration: 320, part: 4 };
-    pub const TASK_PROBLEM_TAIL: Path = Path { declaration: 320, part: 5 };
-    pub const RESULT_FOLLOWUPS_DELEGATES_VALUE: Path = Path { declaration: 321, part: 0 };
-    pub const RESULT_FOLLOWUPS_DELEGATES_TAIL: Path = Path { declaration: 321, part: 1 };
-    pub const RESULT_FOLLOWUPS_PROPOSAL_VALUE: Path = Path { declaration: 322, part: 0 };
-    pub const RESULT_FOLLOWUPS_PROPOSAL_TAIL: Path = Path { declaration: 322, part: 1 };
-    pub const RESULT_FOLLOWUPS_TAG: Path = Path { declaration: 323, part: 0 };
-    pub const END_FINISHED_RESULT: Path = Path { declaration: 324, part: 0 };
-    pub const END_FINISHED_CANCEL_DELEGATES: Path = Path { declaration: 324, part: 1 };
-    pub const END_FINISHED_TAIL: Path = Path { declaration: 324, part: 2 };
-    pub const END_FINISHED_WITH_FOLLOWUPS_RESULT: Path = Path { declaration: 325, part: 0 };
-    pub const END_FINISHED_WITH_FOLLOWUPS_FOLLOWUPS: Path = Path { declaration: 325, part: 1 };
-    pub const END_FINISHED_WITH_FOLLOWUPS_TAIL: Path = Path { declaration: 325, part: 2 };
-    pub const END_FAILED_VALUE: Path = Path { declaration: 326, part: 0 };
-    pub const END_FAILED_TAIL: Path = Path { declaration: 326, part: 1 };
-    pub const END_FAILED_WITH_REASON_CLASS: Path = Path { declaration: 327, part: 0 };
-    pub const END_FAILED_WITH_REASON_REASON: Path = Path { declaration: 327, part: 1 };
-    pub const END_FAILED_WITH_REASON_TAIL: Path = Path { declaration: 327, part: 2 };
-    pub const END_REFUSED_WITH_REASON_REASON: Path = Path { declaration: 328, part: 0 };
-    pub const END_REFUSED_WITH_REASON_TAIL: Path = Path { declaration: 328, part: 1 };
-    pub const END_TAG: Path = Path { declaration: 329, part: 0 };
-    pub const END_RECORD_VALUE: Path = Path { declaration: 330, part: 0 };
-    pub const END_RECORD_VERSION: Path = Path { declaration: 330, part: 1 };
-    pub const END_RECORD_TAIL: Path = Path { declaration: 330, part: 2 };
-    pub const PHASE_RECORD_VALUE: Path = Path { declaration: 331, part: 0 };
-    pub const PHASE_RECORD_VERSION: Path = Path { declaration: 331, part: 1 };
-    pub const PHASE_RECORD_TAIL: Path = Path { declaration: 331, part: 2 };
-    pub const CHANGE_RECORD_VALUE: Path = Path { declaration: 332, part: 0 };
-    pub const CHANGE_RECORD_VERSION: Path = Path { declaration: 332, part: 1 };
-    pub const CHANGE_RECORD_TAIL: Path = Path { declaration: 332, part: 2 };
+    pub const NUMBER_VALUE: Path = Path::new(0, 0);
+    pub const NUMBER_TAIL: Path = Path::new(0, 1);
+    pub const PERSON_PERSON: Path = Path::new(1, 0);
+    pub const PERSON_TAIL: Path = Path::new(1, 1);
+    pub const PROJECT_PROJECT: Path = Path::new(2, 0);
+    pub const PROJECT_TAIL: Path = Path::new(2, 1);
+    pub const PARTY_TAG: Path = Path::new(3, 0);
+    pub const CLASS_TAG: Path = Path::new(4, 0);
+    pub const TRIES_TRANSIENT: Path = Path::new(5, 0);
+    pub const TRIES_PERMANENT: Path = Path::new(5, 1);
+    pub const TRIES_RUN: Path = Path::new(5, 2);
+    pub const TRIES_AGENT: Path = Path::new(5, 3);
+    pub const TRIES_LOST: Path = Path::new(5, 4);
+    pub const TRIES_INVALID: Path = Path::new(5, 5);
+    pub const TRIES_INFRASTRUCTURE: Path = Path::new(5, 6);
+    pub const TRIES_TAIL: Path = Path::new(5, 7);
+    pub const WHY_TAG: Path = Path::new(6, 0);
+    pub const ROLE_ROLE: Path = Path::new(7, 0);
+    pub const ROLE_TAIL: Path = Path::new(7, 1);
+    pub const PERSON_ADDRESS_TAG: Path = Path::new(8, 0);
+    pub const AGENT_CHARTER: Path = Path::new(9, 0);
+    pub const AGENT_TAIL: Path = Path::new(9, 1);
+    pub const PROCEDURE_CONNECTOR: Path = Path::new(10, 0);
+    pub const PROCEDURE_CODE: Path = Path::new(10, 1);
+    pub const PROCEDURE_TAIL: Path = Path::new(10, 2);
+    pub const PERSON_EXECUTOR_ADDRESS: Path = Path::new(11, 0);
+    pub const PERSON_EXECUTOR_TAIL: Path = Path::new(11, 1);
+    pub const JOB_EXECUTOR_KIND: Path = Path::new(12, 0);
+    pub const JOB_EXECUTOR_TAIL: Path = Path::new(12, 1);
+    pub const EXECUTOR_TAG: Path = Path::new(13, 0);
+    pub const NUMERIC_PARAMETER_NAME: Path = Path::new(14, 0);
+    pub const NUMERIC_PARAMETER_VALUE: Path = Path::new(14, 1);
+    pub const NUMERIC_PARAMETER_TAIL: Path = Path::new(14, 2);
+    pub const BYTES_PARAMETER_NAME: Path = Path::new(15, 0);
+    pub const BYTES_PARAMETER_VALUE: Path = Path::new(15, 1);
+    pub const BYTES_PARAMETER_TAIL: Path = Path::new(15, 2);
+    pub const RESOURCE_PARAMETER_NAME: Path = Path::new(16, 0);
+    pub const RESOURCE_PARAMETER_CONNECTOR: Path = Path::new(16, 1);
+    pub const RESOURCE_PARAMETER_RESOURCE: Path = Path::new(16, 2);
+    pub const RESOURCE_PARAMETER_TAIL: Path = Path::new(16, 3);
+    pub const PARAMETER_TAG: Path = Path::new(17, 0);
+    pub const JOB_SPEC_BYTES: Path = Path::new(18, 0);
+    pub const JOB_SPEC_DEADLINE: Path = Path::new(18, 1);
+    pub const JOB_SPEC_TAIL: Path = Path::new(18, 2);
+    pub const JOB_CONTRACT_BYTES: Path = Path::new(19, 0);
+    pub const JOB_CONTRACT_TAIL: Path = Path::new(19, 1);
+    pub const JOB_RESULT_BYTES: Path = Path::new(20, 0);
+    pub const JOB_RESULT_TAIL: Path = Path::new(20, 1);
+    pub const SPEC_WORDS: Path = Path::new(21, 0);
+    pub const SPEC_PARAMETERS: Path = Path::new(21, 1);
+    pub const SPEC_INPUTS: Path = Path::new(21, 2);
+    pub const SPEC_ASKS: Path = Path::new(21, 3);
+    pub const SPEC_JOB: Path = Path::new(21, 4);
+    pub const SPEC_TAIL: Path = Path::new(21, 5);
+    pub const PART_KIND_TAG: Path = Path::new(22, 0);
+    pub const PART_SEGMENT_BYTES: Path = Path::new(23, 0);
+    pub const PART_SEGMENT_TAIL: Path = Path::new(23, 1);
+    pub const PART_PATH_SEGMENTS: Path = Path::new(24, 0);
+    pub const PART_PATH_TAIL: Path = Path::new(24, 1);
+    pub const PART_KEY_TAG: Path = Path::new(25, 0);
+    pub const PART_CONNECTOR: Path = Path::new(26, 0);
+    pub const PART_KIND: Path = Path::new(26, 1);
+    pub const PART_KEY: Path = Path::new(26, 2);
+    pub const PART_TAIL: Path = Path::new(26, 3);
+    pub const FIELD_RULE_NAME: Path = Path::new(27, 0);
+    pub const FIELD_RULE_MAX: Path = Path::new(27, 1);
+    pub const FIELD_RULE_TAIL: Path = Path::new(27, 2);
+    pub const VERDICT_CODE: Path = Path::new(28, 0);
+    pub const VERDICT_WORDS: Path = Path::new(28, 1);
+    pub const VERDICT_FOLLOWUPS: Path = Path::new(28, 2);
+    pub const VERDICT_FIELDS: Path = Path::new(28, 3);
+    pub const VERDICT_TAIL: Path = Path::new(28, 4);
+    pub const APPROVAL_STATE: Path = Path::new(29, 0);
+    pub const APPROVAL_PART: Path = Path::new(29, 1);
+    pub const APPROVAL_TAIL: Path = Path::new(29, 2);
+    pub const REPORT_WORDS: Path = Path::new(30, 0);
+    pub const REPORT_TAIL: Path = Path::new(30, 1);
+    pub const CHOICES_CHOICES: Path = Path::new(31, 0);
+    pub const CHOICES_TAIL: Path = Path::new(31, 1);
+    pub const CHANGE_CONTRACT_CONNECTOR: Path = Path::new(32, 0);
+    pub const CHANGE_CONTRACT_KIND: Path = Path::new(32, 1);
+    pub const CHANGE_CONTRACT_WORDS: Path = Path::new(32, 2);
+    pub const CHANGE_CONTRACT_CHOICES: Path = Path::new(32, 3);
+    pub const CHANGE_CONTRACT_TAIL: Path = Path::new(32, 4);
+    pub const CONTRACT_TAG: Path = Path::new(33, 0);
+    pub const TOOLS_BITS: Path = Path::new(34, 0);
+    pub const TOOLS_TAIL: Path = Path::new(34, 1);
+    pub const MODELS_BITS: Path = Path::new(35, 0);
+    pub const MODELS_ALL: Path = Path::new(35, 1);
+    pub const MODELS_TAIL: Path = Path::new(35, 2);
+    pub const MODEL_EFFORT_MODEL: Path = Path::new(36, 0);
+    pub const MODEL_EFFORT_EFFORT: Path = Path::new(36, 1);
+    pub const MODEL_EFFORT_TAIL: Path = Path::new(36, 2);
+    pub const LLM_LATER_MAIN: Path = Path::new(37, 0);
+    pub const LLM_LATER_SUBAGENTS: Path = Path::new(37, 1);
+    pub const LLM_LATER_TAIL: Path = Path::new(37, 2);
+    pub const LLM_CHOICE_MAIN: Path = Path::new(38, 0);
+    pub const LLM_CHOICE_SUBAGENTS: Path = Path::new(38, 1);
+    pub const LLM_CHOICE_LATER: Path = Path::new(38, 2);
+    pub const LLM_CHOICE_ACCOUNT: Path = Path::new(38, 3);
+    pub const LLM_CHOICE_TAIL: Path = Path::new(38, 4);
+    pub const SCOPES_BITS: Path = Path::new(39, 0);
+    pub const SCOPES_TAIL: Path = Path::new(39, 1);
+    pub const AUTHORITY_SEGMENT_BYTES: Path = Path::new(40, 0);
+    pub const AUTHORITY_SEGMENT_TAIL: Path = Path::new(40, 1);
+    pub const LAST_TAG: Path = Path::new(41, 0);
+    pub const PATTERN_SEGMENTS: Path = Path::new(42, 0);
+    pub const PATTERN_LAST: Path = Path::new(42, 1);
+    pub const PATTERN_TAIL: Path = Path::new(42, 2);
+    pub const GRANT_CONNECTOR: Path = Path::new(43, 0);
+    pub const GRANT_KIND: Path = Path::new(43, 1);
+    pub const GRANT_PATTERN: Path = Path::new(43, 2);
+    pub const GRANT_TAIL: Path = Path::new(43, 3);
+    pub const RESOURCE_SCOPE_CONNECTOR: Path = Path::new(44, 0);
+    pub const RESOURCE_SCOPE_PATTERN: Path = Path::new(44, 1);
+    pub const RESOURCE_SCOPE_TAIL: Path = Path::new(44, 2);
+    pub const CHARTER_CHARTER: Path = Path::new(45, 0);
+    pub const CHARTER_TAIL: Path = Path::new(45, 1);
+    pub const CODE_CODE: Path = Path::new(46, 0);
+    pub const CODE_TAIL: Path = Path::new(46, 1);
+    pub const AUTHORITY_JOB_KIND: Path = Path::new(47, 0);
+    pub const AUTHORITY_JOB_TAIL: Path = Path::new(47, 1);
+    pub const AUTHORITY_EXECUTOR_TAG: Path = Path::new(48, 0);
+    pub const DELEGATION_KINDS: Path = Path::new(49, 0);
+    pub const DELEGATION_TASKS: Path = Path::new(49, 1);
+    pub const DELEGATION_DEPTH: Path = Path::new(49, 2);
+    pub const DELEGATION_TAIL: Path = Path::new(49, 3);
+    pub const BUDGET_SPEND: Path = Path::new(50, 0);
+    pub const BUDGET_DEADLINE: Path = Path::new(50, 1);
+    pub const BUDGET_TAIL: Path = Path::new(50, 2);
+    pub const AUTHORITY_TOOLS: Path = Path::new(51, 0);
+    pub const AUTHORITY_MODELS: Path = Path::new(51, 1);
+    pub const AUTHORITY_GRANTS: Path = Path::new(51, 2);
+    pub const AUTHORITY_DELEGATION: Path = Path::new(51, 3);
+    pub const AUTHORITY_BUDGET: Path = Path::new(51, 4);
+    pub const AUTHORITY_NOTES: Path = Path::new(51, 5);
+    pub const AUTHORITY_NOTE_RESOURCES: Path = Path::new(51, 6);
+    pub const AUTHORITY_TAIL: Path = Path::new(51, 7);
+    pub const TASK_TASK: Path = Path::new(52, 0);
+    pub const TASK_TAIL: Path = Path::new(52, 1);
+    pub const POOL_PROJECT: Path = Path::new(53, 0);
+    pub const POOL_PERSON: Path = Path::new(53, 1);
+    pub const POOL_PERIOD: Path = Path::new(53, 2);
+    pub const POOL_TAIL: Path = Path::new(53, 3);
+    pub const RECURRING_PROJECT: Path = Path::new(54, 0);
+    pub const RECURRING_TASK: Path = Path::new(54, 1);
+    pub const RECURRING_PERIOD: Path = Path::new(54, 2);
+    pub const RECURRING_TAIL: Path = Path::new(54, 3);
+    pub const PERIOD_PROJECT: Path = Path::new(55, 0);
+    pub const PERIOD_PERIOD: Path = Path::new(55, 1);
+    pub const PERIOD_TAIL: Path = Path::new(55, 2);
+    pub const FUNDER_TAG: Path = Path::new(56, 0);
+    pub const NUMBERS_BUDGET: Path = Path::new(57, 0);
+    pub const NUMBERS_SPENT: Path = Path::new(57, 1);
+    pub const NUMBERS_SPENT_BELOW: Path = Path::new(57, 2);
+    pub const NUMBERS_RESERVED: Path = Path::new(57, 3);
+    pub const NUMBERS_TAIL: Path = Path::new(57, 4);
+    pub const PERIOD_TIMES_BEGAN: Path = Path::new(58, 0);
+    pub const PERIOD_TIMES_NEXT: Path = Path::new(58, 1);
+    pub const PERIOD_TIMES_TAIL: Path = Path::new(58, 2);
+    pub const FUNDING_RECORD_PERIOD: Path = Path::new(59, 0);
+    pub const FUNDING_RECORD_FUNDER: Path = Path::new(59, 1);
+    pub const FUNDING_RECORD_PARENT: Path = Path::new(59, 2);
+    pub const FUNDING_RECORD_NUMBERS: Path = Path::new(59, 3);
+    pub const FUNDING_RECORD_MADE: Path = Path::new(59, 4);
+    pub const FUNDING_RECORD_CLOSED: Path = Path::new(59, 5);
+    pub const FUNDING_RECORD_TAIL: Path = Path::new(59, 6);
+    pub const SEGMENT_BYTES: Path = Path::new(60, 0);
+    pub const SEGMENT_TAIL: Path = Path::new(60, 1);
+    pub const NAME_CONNECTOR: Path = Path::new(61, 0);
+    pub const NAME_PATH: Path = Path::new(61, 1);
+    pub const NAME_TAIL: Path = Path::new(61, 2);
+    pub const RUN_TASK: Path = Path::new(62, 0);
+    pub const RUN_ATTEMPT: Path = Path::new(62, 1);
+    pub const RUN_TAIL: Path = Path::new(62, 2);
+    pub const EFFECT_ENTRY: Path = Path::new(63, 0);
+    pub const EFFECT_TAIL: Path = Path::new(63, 1);
+    pub const WRITER_TAG: Path = Path::new(64, 0);
+    pub const WRITER_SLOT_NUMBER: Path = Path::new(65, 0);
+    pub const WRITER_SLOT_RESOURCE: Path = Path::new(65, 1);
+    pub const WRITER_SLOT_WRITER: Path = Path::new(65, 2);
+    pub const WRITER_SLOT_LOST: Path = Path::new(65, 3);
+    pub const WRITER_SLOT_TAIL: Path = Path::new(65, 4);
+    pub const POOL_SLOTS_NUMBER: Path = Path::new(66, 0);
+    pub const POOL_SLOTS_POOL: Path = Path::new(66, 1);
+    pub const POOL_SLOTS_SLOTS: Path = Path::new(66, 2);
+    pub const POOL_SLOTS_TAIL: Path = Path::new(66, 3);
+    pub const WRITE_HOLDING_RESOURCE: Path = Path::new(67, 0);
+    pub const WRITE_HOLDING_KIND: Path = Path::new(67, 1);
+    pub const WRITE_HOLDING_TAIL: Path = Path::new(67, 2);
+    pub const SLOT_HOLDING_POOL: Path = Path::new(68, 0);
+    pub const SLOT_HOLDING_KIND: Path = Path::new(68, 1);
+    pub const SLOT_HOLDING_TAIL: Path = Path::new(68, 2);
+    pub const HOLDING_TAG: Path = Path::new(69, 0);
+    pub const WAKE_BATCH_COUNT: Path = Path::new(70, 0);
+    pub const WAKE_BATCH_AGE: Path = Path::new(70, 1);
+    pub const WAKE_BATCH_TAIL: Path = Path::new(70, 2);
+    pub const WAKE_PACE_SPAN: Path = Path::new(71, 0);
+    pub const WAKE_PACE_TAIL: Path = Path::new(71, 1);
+    pub const WAKE_RULE_TAG: Path = Path::new(72, 0);
+    pub const RESULTS_WAKE_TAG: Path = Path::new(73, 0);
+    pub const WAKE_POLICY_WORDS: Path = Path::new(74, 0);
+    pub const WAKE_POLICY_NOTICES: Path = Path::new(74, 1);
+    pub const WAKE_POLICY_NEWS: Path = Path::new(74, 2);
+    pub const WAKE_POLICY_RESULTS: Path = Path::new(74, 3);
+    pub const WAKE_POLICY_QUESTIONS: Path = Path::new(74, 4);
+    pub const WAKE_POLICY_ANSWERS: Path = Path::new(74, 5);
+    pub const WAKE_POLICY_TIMERS: Path = Path::new(74, 6);
+    pub const WAKE_POLICY_TAIL: Path = Path::new(74, 7);
+    pub const RECURRING_OVERLAP_TAG: Path = Path::new(75, 0);
+    pub const RETENTION_TAG: Path = Path::new(76, 0);
+    pub const CLOSER_CONNECTOR: Path = Path::new(77, 0);
+    pub const CLOSER_CODE: Path = Path::new(77, 1);
+    pub const CLOSER_TAIL: Path = Path::new(77, 2);
+    pub const ENDED_BY_TAG: Path = Path::new(78, 0);
+    pub const FLAGS_CONVERSATION: Path = Path::new(79, 0);
+    pub const FLAGS_LISTED: Path = Path::new(79, 1);
+    pub const FLAGS_RETENTION: Path = Path::new(79, 2);
+    pub const FLAGS_ENDED_BY: Path = Path::new(79, 3);
+    pub const FLAGS_TAIL: Path = Path::new(79, 4);
+    pub const DEADLINE_SPAN_VALUE: Path = Path::new(80, 0);
+    pub const DEADLINE_SPAN_TAIL: Path = Path::new(80, 1);
+    pub const DEADLINE_TAG: Path = Path::new(81, 0);
+    pub const MEMBER_DEADLINE: Path = Path::new(82, 0);
+    pub const MEMBER_LABEL: Path = Path::new(82, 1);
+    pub const MEMBER_FLAGS: Path = Path::new(82, 2);
+    pub const MEMBER_NUMBER: Path = Path::new(82, 3);
+    pub const MEMBER_PROJECT: Path = Path::new(82, 4);
+    pub const MEMBER_EXECUTOR: Path = Path::new(82, 5);
+    pub const MEMBER_LLM: Path = Path::new(82, 6);
+    pub const MEMBER_SPEC: Path = Path::new(82, 7);
+    pub const MEMBER_CONTRACT: Path = Path::new(82, 8);
+    pub const MEMBER_AUTHORITY: Path = Path::new(82, 9);
+    pub const MEMBER_NUMBERS: Path = Path::new(82, 10);
+    pub const MEMBER_FUNDER: Path = Path::new(82, 11);
+    pub const MEMBER_DEPENDENCIES: Path = Path::new(82, 12);
+    pub const MEMBER_HOLDINGS: Path = Path::new(82, 13);
+    pub const MEMBER_WAKE: Path = Path::new(82, 14);
+    pub const MEMBER_TRACKED: Path = Path::new(82, 15);
+    pub const MEMBER_TAIL: Path = Path::new(82, 16);
+    pub const RECURRING_TEMPLATE_KEY: Path = Path::new(83, 0);
+    pub const RECURRING_TEMPLATE_BATCH: Path = Path::new(83, 1);
+    pub const RECURRING_TEMPLATE_OVERLAP: Path = Path::new(83, 2);
+    pub const RECURRING_TEMPLATE_TAIL: Path = Path::new(83, 3);
+    pub const CREATION_MEMBER: Path = Path::new(84, 0);
+    pub const CREATION_RECURRING: Path = Path::new(84, 1);
+    pub const CREATION_TAIL: Path = Path::new(84, 2);
+    pub const RESULT_FIELD_NAME: Path = Path::new(85, 0);
+    pub const RESULT_FIELD_VALUE: Path = Path::new(85, 1);
+    pub const RESULT_FIELD_TAIL: Path = Path::new(85, 2);
+    pub const APPROVED_STATE: Path = Path::new(86, 0);
+    pub const APPROVED_WORDS: Path = Path::new(86, 1);
+    pub const APPROVED_TAIL: Path = Path::new(86, 2);
+    pub const REPORT_RESULT_WORDS: Path = Path::new(87, 0);
+    pub const REPORT_RESULT_TAIL: Path = Path::new(87, 1);
+    pub const VERDICT_RESULT_CODE: Path = Path::new(88, 0);
+    pub const VERDICT_RESULT_FIELDS: Path = Path::new(88, 1);
+    pub const VERDICT_RESULT_WORDS: Path = Path::new(88, 2);
+    pub const VERDICT_RESULT_TAIL: Path = Path::new(88, 3);
+    pub const CHANGE_RESULT_CONNECTOR: Path = Path::new(89, 0);
+    pub const CHANGE_RESULT_KIND: Path = Path::new(89, 1);
+    pub const CHANGE_RESULT_RESOURCE: Path = Path::new(89, 2);
+    pub const CHANGE_RESULT_TITLE: Path = Path::new(89, 3);
+    pub const CHANGE_RESULT_WORDS: Path = Path::new(89, 4);
+    pub const CHANGE_RESULT_TAIL: Path = Path::new(89, 5);
+    pub const FAILURE_RESULT_REASON: Path = Path::new(90, 0);
+    pub const FAILURE_RESULT_TAIL: Path = Path::new(90, 1);
+    pub const TASK_RESULT_TAG: Path = Path::new(91, 0);
+    pub const DONE_RESULT: Path = Path::new(92, 0);
+    pub const DONE_TAIL: Path = Path::new(92, 1);
+    pub const CANCELLED_BY: Path = Path::new(93, 0);
+    pub const CANCELLED_AT: Path = Path::new(93, 1);
+    pub const CANCELLED_REASON: Path = Path::new(93, 2);
+    pub const CANCELLED_RESULT: Path = Path::new(93, 3);
+    pub const CANCELLED_TAIL: Path = Path::new(93, 4);
+    pub const ENDING_TAG: Path = Path::new(94, 0);
+    pub const FAILED_CLASS_CLASS: Path = Path::new(95, 0);
+    pub const FAILED_CLASS_TAIL: Path = Path::new(95, 1);
+    pub const BOUND_TAG: Path = Path::new(96, 0);
+    pub const EXCEEDED_BOUND: Path = Path::new(97, 0);
+    pub const EXCEEDED_VALUE: Path = Path::new(97, 1);
+    pub const EXCEEDED_TAIL: Path = Path::new(97, 2);
+    pub const HOLD_TAG: Path = Path::new(98, 0);
+    pub const ACTIVE_TAG: Path = Path::new(99, 0);
+    pub const STAGE_TAG: Path = Path::new(100, 0);
+    pub const CLOSING_STAGE: Path = Path::new(101, 0);
+    pub const CLOSING_ENDING: Path = Path::new(101, 1);
+    pub const CLOSING_TAIL: Path = Path::new(101, 2);
+    pub const ACTIVATION_VALUE: Path = Path::new(102, 0);
+    pub const ACTIVATION_TAIL: Path = Path::new(102, 1);
+    pub const WAS_TAG: Path = Path::new(103, 0);
+    pub const HOLD_EFFECT_CONNECTOR: Path = Path::new(104, 0);
+    pub const HOLD_EFFECT_ENTRY: Path = Path::new(104, 1);
+    pub const HOLD_EFFECT_TAIL: Path = Path::new(104, 2);
+    pub const CIRCLE_TASKS: Path = Path::new(105, 0);
+    pub const CIRCLE_CUT: Path = Path::new(105, 1);
+    pub const CIRCLE_TAIL: Path = Path::new(105, 2);
+    pub const HOLD_ACCOUNT_CONNECTOR: Path = Path::new(106, 0);
+    pub const HOLD_ACCOUNT_ENTRY: Path = Path::new(106, 1);
+    pub const HOLD_ACCOUNT_WORDS: Path = Path::new(106, 2);
+    pub const HOLD_ACCOUNT_TAIL: Path = Path::new(106, 3);
+    pub const HOLD_PREPARATION_WORDS: Path = Path::new(107, 0);
+    pub const HOLD_PREPARATION_TAIL: Path = Path::new(107, 1);
+    pub const HOLD_SOURCE_TAG: Path = Path::new(108, 0);
+    pub const HELD_WAS: Path = Path::new(109, 0);
+    pub const HELD_WHY: Path = Path::new(109, 1);
+    pub const HELD_SOURCE: Path = Path::new(109, 2);
+    pub const HELD_TAIL: Path = Path::new(109, 3);
+    pub const FINAL_ENDING: Path = Path::new(110, 0);
+    pub const FINAL_TAIL: Path = Path::new(110, 1);
+    pub const PHASE_TAG: Path = Path::new(111, 0);
+    pub const PROPOSAL_KIND_TAG: Path = Path::new(112, 0);
+    pub const POLICY_HOLDER_PROJECT: Path = Path::new(113, 0);
+    pub const POLICY_HOLDER_KIND: Path = Path::new(113, 1);
+    pub const POLICY_HOLDER_TAIL: Path = Path::new(113, 2);
+    pub const PROPOSAL_HOLDER_TAG: Path = Path::new(114, 0);
+    pub const PENDING_PROPOSAL_HOLDER: Path = Path::new(115, 0);
+    pub const PENDING_PROPOSAL_SINCE: Path = Path::new(115, 1);
+    pub const PENDING_PROPOSAL_TAIL: Path = Path::new(115, 2);
+    pub const ACCEPTED_PROPOSAL_BY: Path = Path::new(116, 0);
+    pub const ACCEPTED_PROPOSAL_TAIL: Path = Path::new(116, 1);
+    pub const REJECTED_PROPOSAL_BY: Path = Path::new(117, 0);
+    pub const REJECTED_PROPOSAL_REASON: Path = Path::new(117, 1);
+    pub const REJECTED_PROPOSAL_TAIL: Path = Path::new(117, 2);
+    pub const PROPOSAL_STATE_TAG: Path = Path::new(118, 0);
+    pub const ADDRESS_CHANGE_REVISION: Path = Path::new(119, 0);
+    pub const ADDRESS_CHANGE_ADDRESS: Path = Path::new(119, 1);
+    pub const ADDRESS_CHANGE_TAIL: Path = Path::new(119, 2);
+    pub const TRACKED_PRIORITY: Path = Path::new(120, 0);
+    pub const TRACKED_TAIL: Path = Path::new(120, 1);
+    pub const TRACKING_TAG: Path = Path::new(121, 0);
+    pub const AMENDMENT_TRACKED: Path = Path::new(122, 0);
+    pub const AMENDMENT_ADDRESSED: Path = Path::new(122, 1);
+    pub const AMENDMENT_INSTRUCTIONS: Path = Path::new(122, 2);
+    pub const AMENDMENT_RELEASE: Path = Path::new(122, 3);
+    pub const AMENDMENT_SPEC: Path = Path::new(122, 4);
+    pub const AMENDMENT_WAKE: Path = Path::new(122, 5);
+    pub const AMENDMENT_DEPENDENCIES: Path = Path::new(122, 6);
+    pub const AMENDMENT_AUTHORITY: Path = Path::new(122, 7);
+    pub const AMENDMENT_LLM: Path = Path::new(122, 8);
+    pub const AMENDMENT_REASON: Path = Path::new(122, 9);
+    pub const AMENDMENT_TAIL: Path = Path::new(122, 10);
+    pub const PROPOSED_BATCH_MEMBERS: Path = Path::new(123, 0);
+    pub const PROPOSED_BATCH_TAIL: Path = Path::new(123, 1);
+    pub const PROPOSED_EFFECT_CONNECTOR: Path = Path::new(124, 0);
+    pub const PROPOSED_EFFECT_AUTHORITY: Path = Path::new(124, 1);
+    pub const PROPOSED_EFFECT_ATTEMPT: Path = Path::new(124, 2);
+    pub const PROPOSED_EFFECT_COMPLETION: Path = Path::new(124, 3);
+    pub const PROPOSED_EFFECT_POSITION: Path = Path::new(124, 4);
+    pub const PROPOSED_EFFECT_PURPOSE: Path = Path::new(124, 5);
+    pub const PROPOSED_EFFECT_TAIL: Path = Path::new(124, 6);
+    pub const PROPOSED_PROCEDURE_EFFECT_CONNECTOR: Path = Path::new(125, 0);
+    pub const PROPOSED_PROCEDURE_EFFECT_AUTHORITY: Path = Path::new(125, 1);
+    pub const PROPOSED_PROCEDURE_EFFECT_STEP: Path = Path::new(125, 2);
+    pub const PROPOSED_PROCEDURE_EFFECT_PURPOSE: Path = Path::new(125, 3);
+    pub const PROPOSED_PROCEDURE_EFFECT_TAIL: Path = Path::new(125, 4);
+    pub const PROPOSED_AMENDMENT_TASK: Path = Path::new(126, 0);
+    pub const PROPOSED_AMENDMENT_REVISION: Path = Path::new(126, 1);
+    pub const PROPOSED_AMENDMENT_AMENDMENT: Path = Path::new(126, 2);
+    pub const PROPOSED_AMENDMENT_TAIL: Path = Path::new(126, 3);
+    pub const PROPOSED_WIDENING_TASK: Path = Path::new(127, 0);
+    pub const PROPOSED_WIDENING_AUTHORITY: Path = Path::new(127, 1);
+    pub const PROPOSED_WIDENING_TAIL: Path = Path::new(127, 2);
+    pub const RELEASE_PLACED_TASK: Path = Path::new(128, 0);
+    pub const RELEASE_PLACED_HOLD: Path = Path::new(128, 1);
+    pub const RELEASE_PLACED_REVISION: Path = Path::new(128, 2);
+    pub const RELEASE_PLACED_TAIL: Path = Path::new(128, 3);
+    pub const SETTING_NUMBER_NUMBER: Path = Path::new(129, 0);
+    pub const SETTING_NUMBER_TAIL: Path = Path::new(129, 1);
+    pub const SETTING_TAG: Path = Path::new(130, 0);
+    pub const SETTING_EDIT_TAG: Path = Path::new(131, 0);
+    pub const SETTING_HEAD_SETTING: Path = Path::new(132, 0);
+    pub const SETTING_HEAD_EDIT: Path = Path::new(132, 1);
+    pub const SETTING_HEAD_TAIL: Path = Path::new(132, 2);
+    pub const PROPOSED_SETTINGS_AGAINST: Path = Path::new(133, 0);
+    pub const PROPOSED_SETTINGS_ITEMS: Path = Path::new(133, 1);
+    pub const PROPOSED_SETTINGS_PROJECTS: Path = Path::new(133, 2);
+    pub const PROPOSED_SETTINGS_TAIL: Path = Path::new(133, 3);
+    pub const PROPOSAL_ACTION_TAG: Path = Path::new(134, 0);
+    pub const PROPOSAL_NUMBER: Path = Path::new(135, 0);
+    pub const PROPOSAL_PROPOSER: Path = Path::new(135, 1);
+    pub const PROPOSAL_PROJECT: Path = Path::new(135, 2);
+    pub const PROPOSAL_ACTION: Path = Path::new(135, 3);
+    pub const PROPOSAL_REASON: Path = Path::new(135, 4);
+    pub const PROPOSAL_AS_HOLDER: Path = Path::new(135, 5);
+    pub const PROPOSAL_STATE: Path = Path::new(135, 6);
+    pub const PROPOSAL_TAIL: Path = Path::new(135, 7);
+    pub const CHANGE_TAG: Path = Path::new(136, 0);
+    pub const SETTINGS_TRACKED: Path = Path::new(137, 0);
+    pub const SETTINGS_ADDRESSED: Path = Path::new(137, 1);
+    pub const SETTINGS_TAKEN_BY: Path = Path::new(137, 2);
+    pub const SETTINGS_INSTRUCTIONS: Path = Path::new(137, 3);
+    pub const SETTINGS_SPEC: Path = Path::new(137, 4);
+    pub const SETTINGS_WAKE: Path = Path::new(137, 5);
+    pub const SETTINGS_DEPENDENCIES: Path = Path::new(137, 6);
+    pub const SETTINGS_AUTHORITY: Path = Path::new(137, 7);
+    pub const SETTINGS_LLM: Path = Path::new(137, 8);
+    pub const SETTINGS_TAIL: Path = Path::new(137, 9);
+    pub const AMENDMENT_HISTORY_BEFORE: Path = Path::new(138, 0);
+    pub const AMENDMENT_HISTORY_AFTER: Path = Path::new(138, 1);
+    pub const AMENDMENT_HISTORY_TAIL: Path = Path::new(138, 2);
+    pub const HISTORY_TASK: Path = Path::new(139, 0);
+    pub const HISTORY_REVISION: Path = Path::new(139, 1);
+    pub const HISTORY_BY: Path = Path::new(139, 2);
+    pub const HISTORY_CHANGE: Path = Path::new(139, 3);
+    pub const HISTORY_REASON: Path = Path::new(139, 4);
+    pub const HISTORY_PROPOSAL: Path = Path::new(139, 5);
+    pub const HISTORY_AT: Path = Path::new(139, 6);
+    pub const HISTORY_AMENDMENT: Path = Path::new(139, 7);
+    pub const HISTORY_TAIL: Path = Path::new(139, 8);
+    pub const PENDING_PERSON_PROPOSAL_SINCE: Path = Path::new(140, 0);
+    pub const PENDING_PERSON_PROPOSAL_TAIL: Path = Path::new(140, 1);
+    pub const REJECTED_PERSON_PROPOSAL_BY: Path = Path::new(141, 0);
+    pub const REJECTED_PERSON_PROPOSAL_REASON: Path = Path::new(141, 1);
+    pub const REJECTED_PERSON_PROPOSAL_MESSAGE: Path = Path::new(141, 2);
+    pub const REJECTED_PERSON_PROPOSAL_AT: Path = Path::new(141, 3);
+    pub const REJECTED_PERSON_PROPOSAL_TAIL: Path = Path::new(141, 4);
+    pub const WITHDRAWN_PERSON_PROPOSAL_AT: Path = Path::new(142, 0);
+    pub const WITHDRAWN_PERSON_PROPOSAL_TAIL: Path = Path::new(142, 1);
+    pub const SETTINGS_ACCEPTED_BY: Path = Path::new(143, 0);
+    pub const SETTINGS_ACCEPTED_REVISION: Path = Path::new(143, 1);
+    pub const SETTINGS_ACCEPTED_TAIL: Path = Path::new(143, 2);
+    pub const PERSON_PROPOSAL_STATE_TAG: Path = Path::new(144, 0);
+    pub const PERSON_ACTION_TAG: Path = Path::new(145, 0);
+    pub const PERSON_PROPOSAL_NUMBER: Path = Path::new(146, 0);
+    pub const PERSON_PROPOSAL_PROPOSER: Path = Path::new(146, 1);
+    pub const PERSON_PROPOSAL_PROJECT: Path = Path::new(146, 2);
+    pub const PERSON_PROPOSAL_ACTION: Path = Path::new(146, 3);
+    pub const PERSON_PROPOSAL_REASON: Path = Path::new(146, 4);
+    pub const PERSON_PROPOSAL_STATE: Path = Path::new(146, 5);
+    pub const PERSON_PROPOSAL_TAIL: Path = Path::new(146, 6);
+    pub const HOLD_ROW_TASK: Path = Path::new(147, 0);
+    pub const HOLD_ROW_POSITION: Path = Path::new(147, 1);
+    pub const HOLD_ROW_HELD: Path = Path::new(147, 2);
+    pub const HOLD_ROW_AT: Path = Path::new(147, 3);
+    pub const HOLD_ROW_TAIL: Path = Path::new(147, 4);
+    pub const GRACE_BY: Path = Path::new(148, 0);
+    pub const GRACE_UNTIL: Path = Path::new(148, 1);
+    pub const GRACE_REASON: Path = Path::new(148, 2);
+    pub const GRACE_MESSAGE: Path = Path::new(148, 3);
+    pub const GRACE_TAIL: Path = Path::new(148, 4);
+    pub const SETTINGS_REVISION_TASK: Path = Path::new(149, 0);
+    pub const SETTINGS_REVISION_RUN: Path = Path::new(149, 1);
+    pub const SETTINGS_REVISION_TAIL: Path = Path::new(149, 2);
+    pub const REVISIONS_HOLD: Path = Path::new(150, 0);
+    pub const REVISIONS_SPEC: Path = Path::new(150, 1);
+    pub const REVISIONS_PERSON: Path = Path::new(150, 2);
+    pub const REVISIONS_TAIL: Path = Path::new(150, 3);
+    pub const FAILED_RETRY_CLASS: Path = Path::new(151, 0);
+    pub const FAILED_RETRY_COUNT: Path = Path::new(151, 1);
+    pub const FAILED_RETRY_ALLOWANCE: Path = Path::new(151, 2);
+    pub const FAILED_RETRY_REASON: Path = Path::new(151, 3);
+    pub const FAILED_RETRY_TAIL: Path = Path::new(151, 4);
+    pub const REFUSED_RETRY_COUNT: Path = Path::new(152, 0);
+    pub const REFUSED_RETRY_REASON: Path = Path::new(152, 1);
+    pub const REFUSED_RETRY_TAIL: Path = Path::new(152, 2);
+    pub const RETRY_NOTICE_TAG: Path = Path::new(153, 0);
+    pub const NOTICE_HELD_REVISION: Path = Path::new(154, 0);
+    pub const NOTICE_HELD_TAIL: Path = Path::new(154, 1);
+    pub const NOTICE_STATE_TAG: Path = Path::new(155, 0);
+    pub const NEWS_CLASS_TAG: Path = Path::new(156, 0);
+    pub const APPROVAL_MESSAGE_STATE: Path = Path::new(157, 0);
+    pub const APPROVAL_MESSAGE_WORDS_PRESENT: Path = Path::new(157, 1);
+    pub const APPROVAL_MESSAGE_TAIL: Path = Path::new(157, 2);
+    pub const VERDICT_MESSAGE_CODE: Path = Path::new(158, 0);
+    pub const VERDICT_MESSAGE_FIELDS: Path = Path::new(158, 1);
+    pub const VERDICT_MESSAGE_TAIL: Path = Path::new(158, 2);
+    pub const CHANGE_MESSAGE_CONNECTOR: Path = Path::new(159, 0);
+    pub const CHANGE_MESSAGE_KIND: Path = Path::new(159, 1);
+    pub const CHANGE_MESSAGE_RESOURCE: Path = Path::new(159, 2);
+    pub const CHANGE_MESSAGE_TAIL: Path = Path::new(159, 3);
+    pub const RESULT_KIND_TAG: Path = Path::new(160, 0);
+    pub const ESCALATION_MESSAGE_TASK: Path = Path::new(161, 0);
+    pub const ESCALATION_MESSAGE_REVISION: Path = Path::new(161, 1);
+    pub const ESCALATION_MESSAGE_TAIL: Path = Path::new(161, 2);
+    pub const PROPOSAL_MESSAGE_PROPOSER: Path = Path::new(162, 0);
+    pub const PROPOSAL_MESSAGE_PROPOSAL: Path = Path::new(162, 1);
+    pub const PROPOSAL_MESSAGE_KIND: Path = Path::new(162, 2);
+    pub const PROPOSAL_MESSAGE_TAIL: Path = Path::new(162, 3);
+    pub const STALLED_MESSAGE_TASK: Path = Path::new(163, 0);
+    pub const STALLED_MESSAGE_TAIL: Path = Path::new(163, 1);
+    pub const DECISION_MESSAGE_PROPOSAL: Path = Path::new(164, 0);
+    pub const DECISION_MESSAGE_ACCEPTED: Path = Path::new(164, 1);
+    pub const DECISION_MESSAGE_TAIL: Path = Path::new(164, 2);
+    pub const SETTINGS_ACCEPTED_REVISION_REVISION: Path = Path::new(165, 0);
+    pub const SETTINGS_ACCEPTED_REVISION_TAIL: Path = Path::new(165, 1);
+    pub const SETTINGS_STALE_REVISION_NEWEST: Path = Path::new(166, 0);
+    pub const SETTINGS_STALE_REVISION_TAIL: Path = Path::new(166, 1);
+    pub const SETTINGS_OUTCOME_TAG: Path = Path::new(167, 0);
+    pub const SETTINGS_DECISION_MESSAGE_PROPOSAL: Path = Path::new(168, 0);
+    pub const SETTINGS_DECISION_MESSAGE_OUTCOME: Path = Path::new(168, 1);
+    pub const SETTINGS_DECISION_MESSAGE_TAIL: Path = Path::new(168, 2);
+    pub const EFFECT_MESSAGE_ENTRY: Path = Path::new(169, 0);
+    pub const EFFECT_MESSAGE_TAIL: Path = Path::new(169, 1);
+    pub const AMENDMENT_MESSAGE_REVISION: Path = Path::new(170, 0);
+    pub const AMENDMENT_MESSAGE_TAIL: Path = Path::new(170, 1);
+    pub const ANSWER_MESSAGE_QUESTION: Path = Path::new(171, 0);
+    pub const ANSWER_MESSAGE_TAIL: Path = Path::new(171, 1);
+    pub const NOTICE_MESSAGE_SUBSCRIPTION: Path = Path::new(172, 0);
+    pub const NOTICE_MESSAGE_TARGET: Path = Path::new(172, 1);
+    pub const NOTICE_MESSAGE_STATE: Path = Path::new(172, 2);
+    pub const NOTICE_MESSAGE_TAIL: Path = Path::new(172, 3);
+    pub const TIMER_MESSAGE_SUBSCRIPTION: Path = Path::new(173, 0);
+    pub const TIMER_MESSAGE_TAIL: Path = Path::new(173, 1);
+    pub const NEWS_MESSAGE_SUBSCRIPTION: Path = Path::new(174, 0);
+    pub const NEWS_MESSAGE_CLASS: Path = Path::new(174, 1);
+    pub const NEWS_MESSAGE_TAIL: Path = Path::new(174, 2);
+    pub const RESULT_MESSAGE_KIND: Path = Path::new(175, 0);
+    pub const RESULT_MESSAGE_TAIL: Path = Path::new(175, 1);
+    pub const MET_MESSAGE_DEPENDENCY: Path = Path::new(176, 0);
+    pub const MET_MESSAGE_REMOVED: Path = Path::new(176, 1);
+    pub const MET_MESSAGE_TAIL: Path = Path::new(176, 2);
+    pub const MESSAGE_KIND_TAG: Path = Path::new(177, 0);
+    pub const WORD_NUMBER: Path = Path::new(178, 0);
+    pub const WORD_FROM: Path = Path::new(178, 1);
+    pub const WORD_KIND: Path = Path::new(178, 2);
+    pub const WORD_WORDS: Path = Path::new(178, 3);
+    pub const WORD_AT: Path = Path::new(178, 4);
+    pub const WORD_HITS: Path = Path::new(178, 5);
+    pub const WORD_ELIGIBLE: Path = Path::new(178, 6);
+    pub const WORD_TAIL: Path = Path::new(178, 7);
+    pub const INVALID_RESULT_TAG: Path = Path::new(179, 0);
+    pub const FAILED_END_CLASS: Path = Path::new(180, 0);
+    pub const FAILED_END_INVALID_RESULT: Path = Path::new(180, 1);
+    pub const FAILED_END_TAIL: Path = Path::new(180, 2);
+    pub const END_KIND_TAG: Path = Path::new(181, 0);
+    pub const ATTEMPT_ROW_TASK: Path = Path::new(182, 0);
+    pub const ATTEMPT_ROW_ATTEMPT: Path = Path::new(182, 1);
+    pub const ATTEMPT_ROW_CLAIMED: Path = Path::new(182, 2);
+    pub const ATTEMPT_ROW_STARTED: Path = Path::new(182, 3);
+    pub const ATTEMPT_ROW_ENDED: Path = Path::new(182, 4);
+    pub const ATTEMPT_ROW_END: Path = Path::new(182, 5);
+    pub const ATTEMPT_ROW_PHASES: Path = Path::new(182, 6);
+    pub const ATTEMPT_ROW_TAIL: Path = Path::new(182, 7);
+    pub const OPEN_ATTEMPT_ATTEMPT: Path = Path::new(183, 0);
+    pub const OPEN_ATTEMPT_CLAIMED: Path = Path::new(183, 1);
+    pub const OPEN_ATTEMPT_STARTED: Path = Path::new(183, 2);
+    pub const OPEN_ATTEMPT_FROM: Path = Path::new(183, 3);
+    pub const OPEN_ATTEMPT_END: Path = Path::new(183, 4);
+    pub const OPEN_ATTEMPT_TAIL: Path = Path::new(183, 5);
+    pub const ACTIVITY_WORDS_MESSAGE: Path = Path::new(184, 0);
+    pub const ACTIVITY_WORDS_BY: Path = Path::new(184, 1);
+    pub const ACTIVITY_WORDS_KIND: Path = Path::new(184, 2);
+    pub const ACTIVITY_WORDS_WORDS: Path = Path::new(184, 3);
+    pub const ACTIVITY_WORDS_TAIL: Path = Path::new(184, 4);
+    pub const HEARD_MESSAGE_WORD: Path = Path::new(185, 0);
+    pub const HEARD_MESSAGE_TAIL: Path = Path::new(185, 1);
+    pub const NOTIFIED_MESSAGE_RECIPIENT: Path = Path::new(186, 0);
+    pub const NOTIFIED_MESSAGE_WORD: Path = Path::new(186, 1);
+    pub const NOTIFIED_MESSAGE_TAIL: Path = Path::new(186, 2);
+    pub const BEGAN_LINE_ATTEMPT: Path = Path::new(187, 0);
+    pub const BEGAN_LINE_WHY: Path = Path::new(187, 1);
+    pub const BEGAN_LINE_RESUMED: Path = Path::new(187, 2);
+    pub const BEGAN_LINE_TAIL: Path = Path::new(187, 3);
+    pub const ENDED_LINE_ATTEMPT: Path = Path::new(188, 0);
+    pub const ENDED_LINE_END: Path = Path::new(188, 1);
+    pub const ENDED_LINE_SPENT: Path = Path::new(188, 2);
+    pub const ENDED_LINE_TAIL: Path = Path::new(188, 3);
+    pub const TURN_LINE_REPLY: Path = Path::new(189, 0);
+    pub const TURN_LINE_ATTEMPT: Path = Path::new(189, 1);
+    pub const TURN_LINE_TURN: Path = Path::new(189, 2);
+    pub const TURN_LINE_READ: Path = Path::new(189, 3);
+    pub const TURN_LINE_TAIL: Path = Path::new(189, 4);
+    pub const DECIDED_PROPOSAL_NUMBER: Path = Path::new(190, 0);
+    pub const DECIDED_PROPOSAL_MADE: Path = Path::new(190, 1);
+    pub const DECIDED_PROPOSAL_TAIL: Path = Path::new(190, 2);
+    pub const DECIDED_LINE_REVISION: Path = Path::new(191, 0);
+    pub const DECIDED_LINE_PROPOSAL: Path = Path::new(191, 1);
+    pub const DECIDED_LINE_TAIL: Path = Path::new(191, 2);
+    pub const MILESTONE_LINE_POSITION: Path = Path::new(192, 0);
+    pub const MILESTONE_LINE_TAIL: Path = Path::new(192, 1);
+    pub const KEPT_LINE_ATTEMPT: Path = Path::new(193, 0);
+    pub const KEPT_LINE_PENDING: Path = Path::new(193, 1);
+    pub const KEPT_LINE_QUESTION: Path = Path::new(193, 2);
+    pub const KEPT_LINE_TAIL: Path = Path::new(193, 3);
+    pub const NOW_WRITTEN_LINE_ATTEMPT: Path = Path::new(194, 0);
+    pub const NOW_WRITTEN_LINE_LINE: Path = Path::new(194, 1);
+    pub const NOW_WRITTEN_LINE_TAIL: Path = Path::new(194, 2);
+    pub const STOOD_LINE_ATTEMPT: Path = Path::new(195, 0);
+    pub const STOOD_LINE_WORDS: Path = Path::new(195, 1);
+    pub const STOOD_LINE_TAIL: Path = Path::new(195, 2);
+    pub const SESSION_END_TAG: Path = Path::new(196, 0);
+    pub const SESSION_ENDED_LINE_ATTEMPT: Path = Path::new(197, 0);
+    pub const SESSION_ENDED_LINE_END: Path = Path::new(197, 1);
+    pub const SESSION_ENDED_LINE_TAIL: Path = Path::new(197, 2);
+    pub const TALK_OPENED_LINE_PARTY: Path = Path::new(198, 0);
+    pub const TALK_OPENED_LINE_TAIL: Path = Path::new(198, 1);
+    pub const TALK_ENDED_LINE_PARTY: Path = Path::new(199, 0);
+    pub const TALK_ENDED_LINE_LAPSED: Path = Path::new(199, 1);
+    pub const TALK_ENDED_LINE_TAIL: Path = Path::new(199, 2);
+    pub const LINE_TAG: Path = Path::new(200, 0);
+    pub const ACTIVITY_LINE_TASK: Path = Path::new(201, 0);
+    pub const ACTIVITY_LINE_POSITION: Path = Path::new(201, 1);
+    pub const ACTIVITY_LINE_AT: Path = Path::new(201, 2);
+    pub const ACTIVITY_LINE_LINE: Path = Path::new(201, 3);
+    pub const ACTIVITY_LINE_TAIL: Path = Path::new(201, 4);
+    pub const STATUS_TAG: Path = Path::new(202, 0);
+    pub const STUB_TASK: Path = Path::new(203, 0);
+    pub const STUB_PHASE: Path = Path::new(203, 1);
+    pub const STUB_RESULT: Path = Path::new(203, 2);
+    pub const STUB_TAIL: Path = Path::new(203, 3);
+    pub const REPLY_HINT_NUMBER: Path = Path::new(204, 0);
+    pub const REPLY_HINT_ACTIVITY: Path = Path::new(204, 1);
+    pub const REPLY_HINT_ATTEMPT: Path = Path::new(204, 2);
+    pub const REPLY_HINT_TURN: Path = Path::new(204, 3);
+    pub const REPLY_HINT_AT: Path = Path::new(204, 4);
+    pub const REPLY_HINT_TAIL: Path = Path::new(204, 5);
+    pub const ESCALATION_TASK_TASK: Path = Path::new(205, 0);
+    pub const ESCALATION_TASK_TAIL: Path = Path::new(205, 1);
+    pub const ESCALATION_PERSON_PERSON: Path = Path::new(206, 0);
+    pub const ESCALATION_PERSON_TAIL: Path = Path::new(206, 1);
+    pub const ESCALATION_ROLE_PROJECT: Path = Path::new(207, 0);
+    pub const ESCALATION_ROLE_ROLE: Path = Path::new(207, 1);
+    pub const ESCALATION_ROLE_TAIL: Path = Path::new(207, 2);
+    pub const ESCALATION_HOLDER_TAG: Path = Path::new(208, 0);
+    pub const UNHELD_ESCALATION_REVISION: Path = Path::new(209, 0);
+    pub const UNHELD_ESCALATION_TAIL: Path = Path::new(209, 1);
+    pub const ROUTING_ESCALATION_REVISION: Path = Path::new(210, 0);
+    pub const ROUTING_ESCALATION_TAIL: Path = Path::new(210, 1);
+    pub const WAITING_ESCALATION_REVISION: Path = Path::new(211, 0);
+    pub const WAITING_ESCALATION_HOLDER: Path = Path::new(211, 1);
+    pub const WAITING_ESCALATION_ENTRY: Path = Path::new(211, 2);
+    pub const WAITING_ESCALATION_SINCE: Path = Path::new(211, 3);
+    pub const WAITING_ESCALATION_TAIL: Path = Path::new(211, 4);
+    pub const DECIDER_KIND_TAG: Path = Path::new(212, 0);
+    pub const REJECTED_ESCALATION_REVISION: Path = Path::new(213, 0);
+    pub const REJECTED_ESCALATION_BY: Path = Path::new(213, 1);
+    pub const REJECTED_ESCALATION_REASON: Path = Path::new(213, 2);
+    pub const REJECTED_ESCALATION_BY_KIND: Path = Path::new(213, 3);
+    pub const REJECTED_ESCALATION_TAIL: Path = Path::new(213, 4);
+    pub const ESCALATION_TAG: Path = Path::new(214, 0);
+    pub const PERSON_ANSWER_BY: Path = Path::new(215, 0);
+    pub const PERSON_ANSWER_AT: Path = Path::new(215, 1);
+    pub const PERSON_ANSWER_TAIL: Path = Path::new(215, 2);
+    pub const PERSON_STALL_NOTICE_MESSAGE: Path = Path::new(216, 0);
+    pub const PERSON_STALL_NOTICE_AT: Path = Path::new(216, 1);
+    pub const PERSON_STALL_NOTICE_ACTIVITY: Path = Path::new(216, 2);
+    pub const PERSON_STALL_NOTICE_TAIL: Path = Path::new(216, 3);
+    pub const PERSON_WAIT_SINCE: Path = Path::new(217, 0);
+    pub const PERSON_WAIT_STALL: Path = Path::new(217, 1);
+    pub const PERSON_WAIT_DEADLINE: Path = Path::new(217, 2);
+    pub const PERSON_WAIT_NOTICE: Path = Path::new(217, 3);
+    pub const PERSON_WAIT_TAIL: Path = Path::new(217, 4);
+    pub const RECURRING_STATE_TEMPLATE: Path = Path::new(218, 0);
+    pub const RECURRING_STATE_LAST_BATCH: Path = Path::new(218, 1);
+    pub const RECURRING_STATE_LAST_PERIOD: Path = Path::new(218, 2);
+    pub const RECURRING_STATE_PENDING_PERIOD: Path = Path::new(218, 3);
+    pub const RECURRING_STATE_TAIL: Path = Path::new(218, 4);
+    pub const QUESTION_CREDIT_NUMBER: Path = Path::new(219, 0);
+    pub const QUESTION_CREDIT_ANSWERER: Path = Path::new(219, 1);
+    pub const QUESTION_CREDIT_ASKED: Path = Path::new(219, 2);
+    pub const QUESTION_CREDIT_LINE: Path = Path::new(219, 3);
+    pub const QUESTION_CREDIT_TAIL: Path = Path::new(219, 4);
+    pub const TASK_INTEREST_TARGET: Path = Path::new(220, 0);
+    pub const TASK_INTEREST_HELD: Path = Path::new(220, 1);
+    pub const TASK_INTEREST_RESULT: Path = Path::new(220, 2);
+    pub const TASK_INTEREST_TAIL: Path = Path::new(220, 3);
+    pub const TIMER_INTEREST_AT: Path = Path::new(221, 0);
+    pub const TIMER_INTEREST_PERIOD: Path = Path::new(221, 1);
+    pub const TIMER_INTEREST_TAIL: Path = Path::new(221, 2);
+    pub const TOPIC_INTEREST_CONNECTOR: Path = Path::new(222, 0);
+    pub const TOPIC_INTEREST_TOPIC: Path = Path::new(222, 1);
+    pub const TOPIC_INTEREST_TAIL: Path = Path::new(222, 2);
+    pub const SUBSCRIPTION_KIND_TAG: Path = Path::new(223, 0);
+    pub const SUBSCRIPTION_NUMBER: Path = Path::new(224, 0);
+    pub const SUBSCRIPTION_KIND: Path = Path::new(224, 1);
+    pub const SUBSCRIPTION_TAIL: Path = Path::new(224, 2);
+    pub const SAVED_RESOURCE_CONNECTOR: Path = Path::new(225, 0);
+    pub const SAVED_RESOURCE_PATH: Path = Path::new(225, 1);
+    pub const SAVED_RESOURCE_TAIL: Path = Path::new(225, 2);
+    pub const ANSWER_LINE_TASK: Path = Path::new(226, 0);
+    pub const ANSWER_LINE_POSITION: Path = Path::new(226, 1);
+    pub const ANSWER_LINE_TAIL: Path = Path::new(226, 2);
+    pub const QUESTION_LINE_MESSAGE: Path = Path::new(227, 0);
+    pub const QUESTION_LINE_LINE: Path = Path::new(227, 1);
+    pub const QUESTION_LINE_ANSWER: Path = Path::new(227, 2);
+    pub const QUESTION_LINE_TAIL: Path = Path::new(227, 3);
+    pub const PROPOSAL_ROW_PROPOSAL: Path = Path::new(228, 0);
+    pub const PROPOSAL_ROW_REVISION: Path = Path::new(228, 1);
+    pub const PROPOSAL_ROW_TAIL: Path = Path::new(228, 2);
+    pub const ENDINGS_DONE: Path = Path::new(229, 0);
+    pub const ENDINGS_FAILED: Path = Path::new(229, 1);
+    pub const ENDINGS_CANCELLED: Path = Path::new(229, 2);
+    pub const ENDINGS_TAIL: Path = Path::new(229, 3);
+    pub const REPLY_OBJECT_MESSAGE: Path = Path::new(230, 0);
+    pub const REPLY_OBJECT_ACTIVITY: Path = Path::new(230, 1);
+    pub const REPLY_OBJECT_TAIL: Path = Path::new(230, 2);
+    pub const PROPOSAL_UPDATE_PROPOSAL: Path = Path::new(231, 0);
+    pub const PROPOSAL_UPDATE_TAIL: Path = Path::new(231, 1);
+    pub const UPDATE_OBJECT_TAG: Path = Path::new(232, 0);
+    pub const UPDATE_PARTY: Path = Path::new(233, 0);
+    pub const UPDATE_AT: Path = Path::new(233, 1);
+    pub const UPDATE_TASK: Path = Path::new(233, 2);
+    pub const UPDATE_OBJECT: Path = Path::new(233, 3);
+    pub const UPDATE_TAIL: Path = Path::new(233, 4);
+    pub const RESULT_ROW_PARTY: Path = Path::new(234, 0);
+    pub const RESULT_ROW_POSITION: Path = Path::new(234, 1);
+    pub const RESULT_ROW_TASK: Path = Path::new(234, 2);
+    pub const RESULT_ROW_TAIL: Path = Path::new(234, 3);
+    pub const EDGE_REQUESTER: Path = Path::new(235, 0);
+    pub const EDGE_TASK: Path = Path::new(235, 1);
+    pub const EDGE_TAIL: Path = Path::new(235, 2);
+    pub const TRANSCRIPT_STATE_EVER_TURNED: Path = Path::new(236, 0);
+    pub const TRANSCRIPT_STATE_TAIL: Path = Path::new(236, 1);
+    pub const TASK_HISTORY_LAST_ACTIVITY: Path = Path::new(237, 0);
+    pub const TASK_HISTORY_ENDED_BELOW: Path = Path::new(237, 1);
+    pub const TASK_HISTORY_ENDED_DELEGATES: Path = Path::new(237, 2);
+    pub const TASK_HISTORY_QUESTION_LINES: Path = Path::new(237, 3);
+    pub const TASK_HISTORY_HOLD: Path = Path::new(237, 4);
+    pub const TASK_HISTORY_PLACED: Path = Path::new(237, 5);
+    pub const TASK_HISTORY_PROPOSAL_ROWS: Path = Path::new(237, 6);
+    pub const TASK_HISTORY_INSTRUCTIONS: Path = Path::new(237, 7);
+    pub const TASK_HISTORY_REFUSED: Path = Path::new(237, 8);
+    pub const TASK_HISTORY_GRACE: Path = Path::new(237, 9);
+    pub const TASK_HISTORY_SETTINGS: Path = Path::new(237, 10);
+    pub const TASK_HISTORY_REVISIONS: Path = Path::new(237, 11);
+    pub const TASK_HISTORY_CREATED_AT: Path = Path::new(237, 12);
+    pub const TASK_HISTORY_CHANGED: Path = Path::new(237, 13);
+    pub const TASK_HISTORY_PHASE_SINCE: Path = Path::new(237, 14);
+    pub const TASK_HISTORY_RUN_SINCE: Path = Path::new(237, 15);
+    pub const TASK_HISTORY_RETRY_NOTICE: Path = Path::new(237, 16);
+    pub const TASK_HISTORY_ENDED_AT: Path = Path::new(237, 17);
+    pub const TASK_HISTORY_REVISION: Path = Path::new(237, 18);
+    pub const TASK_HISTORY_TAIL: Path = Path::new(237, 19);
+    pub const TASK_RUN_MILESTONE: Path = Path::new(238, 0);
+    pub const TASK_RUN_ACTIVITY: Path = Path::new(238, 1);
+    pub const TASK_RUN_DUE_REASON: Path = Path::new(238, 2);
+    pub const TASK_RUN_REASONS: Path = Path::new(238, 3);
+    pub const TASK_RUN_OFFERED: Path = Path::new(238, 4);
+    pub const TASK_RUN_NARROWING: Path = Path::new(238, 5);
+    pub const TASK_RUN_LLM_CHANGED: Path = Path::new(238, 6);
+    pub const TASK_RUN_RESULT_POSITION: Path = Path::new(238, 7);
+    pub const TASK_RUN_LAST_REPLY: Path = Path::new(238, 8);
+    pub const TASK_RUN_REPLIES: Path = Path::new(238, 9);
+    pub const TASK_RUN_ESCALATION: Path = Path::new(238, 10);
+    pub const TASK_RUN_PROPOSAL: Path = Path::new(238, 11);
+    pub const TASK_RUN_RESULT_PROPOSAL: Path = Path::new(238, 12);
+    pub const TASK_RUN_NUMBER: Path = Path::new(238, 13);
+    pub const TASK_RUN_PROJECT: Path = Path::new(238, 14);
+    pub const TASK_RUN_REQUESTER: Path = Path::new(238, 15);
+    pub const TASK_RUN_RUN_SPENT: Path = Path::new(238, 16);
+    pub const TASK_RUN_RUN_RESERVED: Path = Path::new(238, 17);
+    pub const TASK_RUN_OPEN_ATTEMPT: Path = Path::new(238, 18);
+    pub const TASK_RUN_TAIL: Path = Path::new(238, 19);
+    pub const ADDED_TASK: Path = Path::new(239, 0);
+    pub const ADDED_AT: Path = Path::new(239, 1);
+    pub const ADDED_BY: Path = Path::new(239, 2);
+    pub const ADDED_TAIL: Path = Path::new(239, 3);
+    pub const TASK_DEFINITION_LABEL: Path = Path::new(240, 0);
+    pub const TASK_DEFINITION_FLAGS: Path = Path::new(240, 1);
+    pub const TASK_DEFINITION_ROOT: Path = Path::new(240, 2);
+    pub const TASK_DEFINITION_DEPTH: Path = Path::new(240, 3);
+    pub const TASK_DEFINITION_EXECUTOR: Path = Path::new(240, 4);
+    pub const TASK_DEFINITION_LLM: Path = Path::new(240, 5);
+    pub const TASK_DEFINITION_KEPT_ACCOUNT: Path = Path::new(240, 6);
+    pub const TASK_DEFINITION_TAKEN_BY: Path = Path::new(240, 7);
+    pub const TASK_DEFINITION_PERSON_ANSWER: Path = Path::new(240, 8);
+    pub const TASK_DEFINITION_PERSON_WAIT: Path = Path::new(240, 9);
+    pub const TASK_DEFINITION_RECURRING: Path = Path::new(240, 10);
+    pub const TASK_DEFINITION_TRACKED: Path = Path::new(240, 11);
+    pub const TASK_DEFINITION_SPEC: Path = Path::new(240, 12);
+    pub const TASK_DEFINITION_CONTRACT: Path = Path::new(240, 13);
+    pub const TASK_DEFINITION_AUTHORITY: Path = Path::new(240, 14);
+    pub const TASK_DEFINITION_NUMBERS: Path = Path::new(240, 15);
+    pub const TASK_DEFINITION_FUNDER: Path = Path::new(240, 16);
+    pub const TASK_DEFINITION_DEPENDENCIES: Path = Path::new(240, 17);
+    pub const TASK_DEFINITION_WAITING_ON: Path = Path::new(240, 18);
+    pub const TASK_DEFINITION_ADDED: Path = Path::new(240, 19);
+    pub const TASK_DEFINITION_TAIL: Path = Path::new(240, 20);
+    pub const INBOX_ITEM_TAG: Path = Path::new(241, 0);
+    pub const TASK_INTERESTS_HOLDINGS: Path = Path::new(242, 0);
+    pub const TASK_INTERESTS_HOLDS_TAKEN: Path = Path::new(242, 1);
+    pub const TASK_INTERESTS_HOLD_WAIT_SINCE: Path = Path::new(242, 2);
+    pub const TASK_INTERESTS_HOLD_BOUND_SINCE: Path = Path::new(242, 3);
+    pub const TASK_INTERESTS_DELEGATES: Path = Path::new(242, 4);
+    pub const TASK_INTERESTS_RESULT_FOLLOWUPS: Path = Path::new(242, 5);
+    pub const TASK_INTERESTS_REFERENCES: Path = Path::new(242, 6);
+    pub const TASK_INTERESTS_SUBSCRIPTIONS: Path = Path::new(242, 7);
+    pub const TASK_INTERESTS_WAKE: Path = Path::new(242, 8);
+    pub const TASK_INTERESTS_TURN: Path = Path::new(242, 9);
+    pub const TASK_INTERESTS_LAST_MESSAGE: Path = Path::new(242, 10);
+    pub const TASK_INTERESTS_INBOX: Path = Path::new(242, 11);
+    pub const TASK_INTERESTS_SAVED: Path = Path::new(242, 12);
+    pub const TASK_INTERESTS_EVER_TURNED: Path = Path::new(242, 13);
+    pub const TASK_INTERESTS_MADE: Path = Path::new(242, 14);
+    pub const TASK_INTERESTS_TAIL: Path = Path::new(242, 15);
+    pub const ROOM_PROJECT_PROJECT: Path = Path::new(243, 0);
+    pub const ROOM_PROJECT_TAIL: Path = Path::new(243, 1);
+    pub const LIVE_ROOM_TAG: Path = Path::new(244, 0);
+    pub const ROOM_WAIT_ROOM: Path = Path::new(245, 0);
+    pub const ROOM_WAIT_ORDER: Path = Path::new(245, 1);
+    pub const ROOM_WAIT_TAIL: Path = Path::new(245, 2);
+    pub const TASK_OUTCOME_ATTEMPT: Path = Path::new(246, 0);
+    pub const TASK_OUTCOME_LAST_ANSWER: Path = Path::new(246, 1);
+    pub const TASK_OUTCOME_TRIES: Path = Path::new(246, 2);
+    pub const TASK_OUTCOME_INVALID_RESULT: Path = Path::new(246, 3);
+    pub const TASK_OUTCOME_REFUSALS: Path = Path::new(246, 4);
+    pub const TASK_OUTCOME_PHASE: Path = Path::new(246, 5);
+    pub const TASK_OUTCOME_ROOM_WAIT: Path = Path::new(246, 6);
+    pub const TASK_OUTCOME_TAIL: Path = Path::new(246, 7);
+    pub const TALK_PARTY: Path = Path::new(247, 0);
+    pub const TALK_OPENED: Path = Path::new(247, 1);
+    pub const TALK_LAST: Path = Path::new(247, 2);
+    pub const TALK_TAIL: Path = Path::new(247, 3);
+    pub const SESSION_FIRST: Path = Path::new(248, 0);
+    pub const SESSION_REASONS: Path = Path::new(248, 1);
+    pub const SESSION_LAST: Path = Path::new(248, 2);
+    pub const SESSION_TAIL: Path = Path::new(248, 3);
+    pub const BEFORE_TALK_ACTIVATION_OPEN: Path = Path::new(249, 0);
+    pub const BEFORE_TALK_SESSION: Path = Path::new(249, 1);
+    pub const BEFORE_TALK_CLOSER: Path = Path::new(249, 2);
+    pub const BEFORE_TALK_HISTORY: Path = Path::new(249, 3);
+    pub const BEFORE_TALK_RUN: Path = Path::new(249, 4);
+    pub const BEFORE_TALK_DEFINITION: Path = Path::new(249, 5);
+    pub const BEFORE_TALK_STARTED_FROM: Path = Path::new(249, 6);
+    pub const BEFORE_TALK_INTERESTS: Path = Path::new(249, 7);
+    pub const BEFORE_TALK_OUTCOME: Path = Path::new(249, 8);
+    pub const BEFORE_TALK_ASKED_REQUESTER: Path = Path::new(249, 9);
+    pub const BEFORE_TALK_QUESTION_WOKEN: Path = Path::new(249, 10);
+    pub const BEFORE_TALK_TAIL: Path = Path::new(249, 11);
+    pub const CONCLUDED_BY: Path = Path::new(250, 0);
+    pub const CONCLUDED_AT: Path = Path::new(250, 1);
+    pub const CONCLUDED_TAIL: Path = Path::new(250, 2);
+    pub const TASK_RECORD_RECORD: Path = Path::new(251, 0);
+    pub const TASK_RECORD_TALK: Path = Path::new(251, 1);
+    pub const TASK_RECORD_CONCLUDED: Path = Path::new(251, 2);
+    pub const TASK_RECORD_TAIL: Path = Path::new(251, 3);
+    pub const HOT_HISTORY_LAST_ACTIVITY: Path = Path::new(252, 0);
+    pub const HOT_HISTORY_ENDED_BELOW: Path = Path::new(252, 1);
+    pub const HOT_HISTORY_ENDED_DELEGATES: Path = Path::new(252, 2);
+    pub const HOT_HISTORY_QUESTION_LINES: Path = Path::new(252, 3);
+    pub const HOT_HISTORY_HOLD: Path = Path::new(252, 4);
+    pub const HOT_HISTORY_PLACED: Path = Path::new(252, 5);
+    pub const HOT_HISTORY_PROPOSAL_ROWS: Path = Path::new(252, 6);
+    pub const HOT_HISTORY_REFUSED: Path = Path::new(252, 7);
+    pub const HOT_HISTORY_GRACE: Path = Path::new(252, 8);
+    pub const HOT_HISTORY_SETTINGS: Path = Path::new(252, 9);
+    pub const HOT_HISTORY_REVISIONS: Path = Path::new(252, 10);
+    pub const HOT_HISTORY_CREATED_AT: Path = Path::new(252, 11);
+    pub const HOT_HISTORY_CHANGED: Path = Path::new(252, 12);
+    pub const HOT_HISTORY_PHASE_SINCE: Path = Path::new(252, 13);
+    pub const HOT_HISTORY_RUN_SINCE: Path = Path::new(252, 14);
+    pub const HOT_HISTORY_RETRY_NOTICE: Path = Path::new(252, 15);
+    pub const HOT_HISTORY_ENDED_AT: Path = Path::new(252, 16);
+    pub const HOT_HISTORY_REVISION: Path = Path::new(252, 17);
+    pub const HOT_HISTORY_TAIL: Path = Path::new(252, 18);
+    pub const HOT_DEFINITION_LABEL: Path = Path::new(253, 0);
+    pub const HOT_DEFINITION_FLAGS: Path = Path::new(253, 1);
+    pub const HOT_DEFINITION_ROOT: Path = Path::new(253, 2);
+    pub const HOT_DEFINITION_DEPTH: Path = Path::new(253, 3);
+    pub const HOT_DEFINITION_EXECUTOR: Path = Path::new(253, 4);
+    pub const HOT_DEFINITION_LLM: Path = Path::new(253, 5);
+    pub const HOT_DEFINITION_KEPT_ACCOUNT: Path = Path::new(253, 6);
+    pub const HOT_DEFINITION_TAKEN_BY: Path = Path::new(253, 7);
+    pub const HOT_DEFINITION_PERSON_ANSWER: Path = Path::new(253, 8);
+    pub const HOT_DEFINITION_PERSON_WAIT: Path = Path::new(253, 9);
+    pub const HOT_DEFINITION_RECURRING: Path = Path::new(253, 10);
+    pub const HOT_DEFINITION_TRACKED: Path = Path::new(253, 11);
+    pub const HOT_DEFINITION_NUMBERS: Path = Path::new(253, 12);
+    pub const HOT_DEFINITION_FUNDER: Path = Path::new(253, 13);
+    pub const HOT_DEFINITION_DEPENDENCIES: Path = Path::new(253, 14);
+    pub const HOT_DEFINITION_WAITING_ON: Path = Path::new(253, 15);
+    pub const HOT_DEFINITION_ADDED: Path = Path::new(253, 16);
+    pub const HOT_DEFINITION_TAIL: Path = Path::new(253, 17);
+    pub const LIVE_HOT_ACTIVATION_OPEN: Path = Path::new(254, 0);
+    pub const LIVE_HOT_SESSION: Path = Path::new(254, 1);
+    pub const LIVE_HOT_CLOSER: Path = Path::new(254, 2);
+    pub const LIVE_HOT_HISTORY: Path = Path::new(254, 3);
+    pub const LIVE_HOT_RUN: Path = Path::new(254, 4);
+    pub const LIVE_HOT_DEFINITION: Path = Path::new(254, 5);
+    pub const LIVE_HOT_STARTED_FROM: Path = Path::new(254, 6);
+    pub const LIVE_HOT_INTERESTS: Path = Path::new(254, 7);
+    pub const LIVE_HOT_OUTCOME: Path = Path::new(254, 8);
+    pub const LIVE_HOT_ASKED_REQUESTER: Path = Path::new(254, 9);
+    pub const LIVE_HOT_QUESTION_WOKEN: Path = Path::new(254, 10);
+    pub const LIVE_HOT_TALK: Path = Path::new(254, 11);
+    pub const LIVE_HOT_CONCLUDED: Path = Path::new(254, 12);
+    pub const LIVE_HOT_TAIL: Path = Path::new(254, 13);
+    pub const LIVE_COLD_SPEC: Path = Path::new(255, 0);
+    pub const LIVE_COLD_CONTRACT: Path = Path::new(255, 1);
+    pub const LIVE_COLD_AUTHORITY: Path = Path::new(255, 2);
+    pub const LIVE_COLD_INSTRUCTIONS: Path = Path::new(255, 3);
+    pub const LIVE_COLD_TAIL: Path = Path::new(255, 4);
+    pub const ENDED_BY_PARTY_PARTY: Path = Path::new(256, 0);
+    pub const ENDED_BY_PARTY_LABEL: Path = Path::new(256, 1);
+    pub const ENDED_BY_PARTY_ENDED_AT: Path = Path::new(256, 2);
+    pub const ENDED_BY_PARTY_TASK: Path = Path::new(256, 3);
+    pub const ENDED_BY_PARTY_TAIL: Path = Path::new(256, 4);
+    pub const ENDED_BY_PROJECT_PROJECT: Path = Path::new(257, 0);
+    pub const ENDED_BY_PROJECT_LABEL: Path = Path::new(257, 1);
+    pub const ENDED_BY_PROJECT_ENDED_AT: Path = Path::new(257, 2);
+    pub const ENDED_BY_PROJECT_TASK: Path = Path::new(257, 3);
+    pub const ENDED_BY_PROJECT_TAIL: Path = Path::new(257, 4);
+    pub const HOLD_OWNER_TAG: Path = Path::new(258, 0);
+    pub const HOLD_MODE_TAG: Path = Path::new(259, 0);
+    pub const SUBTREE_SCOPE_TASK: Path = Path::new(260, 0);
+    pub const SUBTREE_SCOPE_TAIL: Path = Path::new(260, 1);
+    pub const HOLD_SCOPE_TAG: Path = Path::new(261, 0);
+    pub const PLACED_HOLD_NUMBER: Path = Path::new(262, 0);
+    pub const PLACED_HOLD_PROJECT: Path = Path::new(262, 1);
+    pub const PLACED_HOLD_OWNER: Path = Path::new(262, 2);
+    pub const PLACED_HOLD_MODE: Path = Path::new(262, 3);
+    pub const PLACED_HOLD_SCOPE: Path = Path::new(262, 4);
+    pub const PLACED_HOLD_REASON: Path = Path::new(262, 5);
+    pub const PLACED_HOLD_PLACED_AT: Path = Path::new(262, 6);
+    pub const PLACED_HOLD_REVISION: Path = Path::new(262, 7);
+    pub const PLACED_HOLD_EXEMPT: Path = Path::new(262, 8);
+    pub const PLACED_HOLD_LIFTED: Path = Path::new(262, 9);
+    pub const PLACED_HOLD_TAIL: Path = Path::new(262, 10);
+    pub const SUMMARY_CANCELLED_BY: Path = Path::new(263, 0);
+    pub const SUMMARY_CANCELLED_AT: Path = Path::new(263, 1);
+    pub const SUMMARY_CANCELLED_TAIL: Path = Path::new(263, 2);
+    pub const SUMMARY_ENDING_TAG: Path = Path::new(264, 0);
+    pub const SUMMARY_VERDICT_CODE: Path = Path::new(265, 0);
+    pub const SUMMARY_VERDICT_TAIL: Path = Path::new(265, 1);
+    pub const SUMMARY_CHANGE_CONNECTOR: Path = Path::new(266, 0);
+    pub const SUMMARY_CHANGE_KIND: Path = Path::new(266, 1);
+    pub const SUMMARY_CHANGE_RESOURCE: Path = Path::new(266, 2);
+    pub const SUMMARY_CHANGE_TAIL: Path = Path::new(266, 3);
+    pub const SUMMARY_RESULT_KIND_TAG: Path = Path::new(267, 0);
+    pub const SUMMARY_RESULT_KIND: Path = Path::new(268, 0);
+    pub const SUMMARY_RESULT_WORDS: Path = Path::new(268, 1);
+    pub const SUMMARY_RESULT_TAIL: Path = Path::new(268, 2);
+    pub const SUMMARY_ENDINGS_DONE: Path = Path::new(269, 0);
+    pub const SUMMARY_ENDINGS_FAILED: Path = Path::new(269, 1);
+    pub const SUMMARY_ENDINGS_TAIL: Path = Path::new(269, 2);
+    pub const TASK_SUMMARY_NUMBER: Path = Path::new(270, 0);
+    pub const TASK_SUMMARY_ROOT: Path = Path::new(270, 1);
+    pub const TASK_SUMMARY_DEPTH: Path = Path::new(270, 2);
+    pub const TASK_SUMMARY_REQUESTER: Path = Path::new(270, 3);
+    pub const TASK_SUMMARY_PROJECT: Path = Path::new(270, 4);
+    pub const TASK_SUMMARY_LABEL: Path = Path::new(270, 5);
+    pub const TASK_SUMMARY_FLAGS: Path = Path::new(270, 6);
+    pub const TASK_SUMMARY_TRACKED: Path = Path::new(270, 7);
+    pub const TASK_SUMMARY_EXECUTOR: Path = Path::new(270, 8);
+    pub const TASK_SUMMARY_TITLE: Path = Path::new(270, 9);
+    pub const TASK_SUMMARY_ENDING: Path = Path::new(270, 10);
+    pub const TASK_SUMMARY_REASON: Path = Path::new(270, 11);
+    pub const TASK_SUMMARY_RESULT: Path = Path::new(270, 12);
+    pub const TASK_SUMMARY_CUTS: Path = Path::new(270, 13);
+    pub const TASK_SUMMARY_CREATED_AT: Path = Path::new(270, 14);
+    pub const TASK_SUMMARY_CHANGED: Path = Path::new(270, 15);
+    pub const TASK_SUMMARY_LAST_ACTIVITY: Path = Path::new(270, 16);
+    pub const TASK_SUMMARY_ENDED_AT: Path = Path::new(270, 17);
+    pub const TASK_SUMMARY_NUMBERS: Path = Path::new(270, 18);
+    pub const TASK_SUMMARY_DEADLINE: Path = Path::new(270, 19);
+    pub const TASK_SUMMARY_FUNDER: Path = Path::new(270, 20);
+    pub const TASK_SUMMARY_ENDED_DELEGATES: Path = Path::new(270, 21);
+    pub const TASK_SUMMARY_ATTEMPT: Path = Path::new(270, 22);
+    pub const TASK_SUMMARY_ACTIVITY: Path = Path::new(270, 23);
+    pub const TASK_SUMMARY_RESULT_POSITION: Path = Path::new(270, 24);
+    pub const TASK_SUMMARY_LAST_REPLY: Path = Path::new(270, 25);
+    pub const TASK_SUMMARY_TAIL: Path = Path::new(270, 26);
+    pub const RETENTION_STAGE_TAG: Path = Path::new(271, 0);
+    pub const RETENTION_ROW_STAGE: Path = Path::new(272, 0);
+    pub const RETENTION_ROW_SINCE: Path = Path::new(272, 1);
+    pub const RETENTION_ROW_NUMBER: Path = Path::new(272, 2);
+    pub const RETENTION_ROW_TAIL: Path = Path::new(272, 3);
+    pub const VALUE_TAG: Path = Path::new(273, 0);
+    pub const MODEL_NAME_VALUE: Path = Path::new(274, 0);
+    pub const MODEL_NAME_TAIL: Path = Path::new(274, 1);
+    pub const ROW_VALUE: Path = Path::new(275, 0);
+    pub const ROW_MODELS: Path = Path::new(275, 1);
+    pub const ROW_VERSION: Path = Path::new(275, 2);
+    pub const ROW_TAIL: Path = Path::new(275, 3);
+    pub const CAPACITY_ACTION_BATCH_FIRST: Path = Path::new(276, 0);
+    pub const CAPACITY_ACTION_BATCH_MEMBERS: Path = Path::new(276, 1);
+    pub const CAPACITY_ACTION_BATCH_TAIL: Path = Path::new(276, 2);
+    pub const CAPACITY_ACTION_PROPOSAL_NUMBER: Path = Path::new(277, 0);
+    pub const CAPACITY_ACTION_PROPOSAL_TAIL: Path = Path::new(277, 1);
+    pub const CAPACITY_ACTION_PERSON_PROPOSAL_NUMBER: Path = Path::new(278, 0);
+    pub const CAPACITY_ACTION_PERSON_PROPOSAL_TAIL: Path = Path::new(278, 1);
+    pub const CAPACITY_ACTION_MESSAGE_TASK: Path = Path::new(279, 0);
+    pub const CAPACITY_ACTION_MESSAGE_NUMBER: Path = Path::new(279, 1);
+    pub const CAPACITY_ACTION_MESSAGE_TAIL: Path = Path::new(279, 2);
+    pub const CAPACITY_ACTION_SOURCE_FUNDER: Path = Path::new(280, 0);
+    pub const CAPACITY_ACTION_SOURCE_TAIL: Path = Path::new(280, 1);
+    pub const CAPACITY_ACTION_INTRODUCE_LEFT: Path = Path::new(281, 0);
+    pub const CAPACITY_ACTION_INTRODUCE_RIGHT: Path = Path::new(281, 1);
+    pub const CAPACITY_ACTION_INTRODUCE_TAIL: Path = Path::new(281, 2);
+    pub const CAPACITY_ACTION_SUBSCRIPTION_NUMBER: Path = Path::new(282, 0);
+    pub const CAPACITY_ACTION_SUBSCRIPTION_TAIL: Path = Path::new(282, 1);
+    pub const CAPACITY_ACTION_EFFECT_ENTRY: Path = Path::new(283, 0);
+    pub const CAPACITY_ACTION_EFFECT_TAIL: Path = Path::new(283, 1);
+    pub const CAPACITY_ACTION_CLAIM_ATTEMPT: Path = Path::new(284, 0);
+    pub const CAPACITY_ACTION_CLAIM_TAIL: Path = Path::new(284, 1);
+    pub const CAPACITY_ACTION_PLACE_HOLD: Path = Path::new(285, 0);
+    pub const CAPACITY_ACTION_PLACE_TAIL: Path = Path::new(285, 1);
+    pub const CAPACITY_ACTION_TAG: Path = Path::new(286, 0);
+    pub const CAPACITY_CAUSE_TASKS_LIMIT: Path = Path::new(287, 0);
+    pub const CAPACITY_CAUSE_TASKS_TAIL: Path = Path::new(287, 1);
+    pub const CAPACITY_CAUSE_CREATION_FLIGHTS_LIMIT: Path = Path::new(288, 0);
+    pub const CAPACITY_CAUSE_CREATION_FLIGHTS_TAIL: Path = Path::new(288, 1);
+    pub const CAPACITY_CAUSE_RESOURCE_REPORTS_LIMIT: Path = Path::new(289, 0);
+    pub const CAPACITY_CAUSE_RESOURCE_REPORTS_TAIL: Path = Path::new(289, 1);
+    pub const CAPACITY_CAUSE_PROJECT_TASKS_LIMIT: Path = Path::new(290, 0);
+    pub const CAPACITY_CAUSE_PROJECT_TASKS_TAIL: Path = Path::new(290, 1);
+    pub const CAPACITY_CAUSE_TREE_LIMIT: Path = Path::new(291, 0);
+    pub const CAPACITY_CAUSE_TREE_TAIL: Path = Path::new(291, 1);
+    pub const CAPACITY_CAUSE_DELEGATES_LIMIT: Path = Path::new(292, 0);
+    pub const CAPACITY_CAUSE_DELEGATES_TAIL: Path = Path::new(292, 1);
+    pub const CAPACITY_CAUSE_INBOX_TASK: Path = Path::new(293, 0);
+    pub const CAPACITY_CAUSE_INBOX_MESSAGES: Path = Path::new(293, 1);
+    pub const CAPACITY_CAUSE_INBOX_BYTES: Path = Path::new(293, 2);
+    pub const CAPACITY_CAUSE_INBOX_TAIL: Path = Path::new(293, 3);
+    pub const CAPACITY_CAUSE_HOLDINGS_LIMIT: Path = Path::new(294, 0);
+    pub const CAPACITY_CAUSE_HOLDINGS_TAIL: Path = Path::new(294, 1);
+    pub const CAPACITY_CAUSE_HOLD_WAITERS_LIMIT: Path = Path::new(295, 0);
+    pub const CAPACITY_CAUSE_HOLD_WAITERS_TAIL: Path = Path::new(295, 1);
+    pub const CAPACITY_CAUSE_PROPOSALS_LIMIT: Path = Path::new(296, 0);
+    pub const CAPACITY_CAUSE_PROPOSALS_TAIL: Path = Path::new(296, 1);
+    pub const CAPACITY_CAUSE_REFERENCES_LIMIT: Path = Path::new(297, 0);
+    pub const CAPACITY_CAUSE_REFERENCES_TAIL: Path = Path::new(297, 1);
+    pub const CAPACITY_CAUSE_SUBSCRIPTIONS_LIMIT: Path = Path::new(298, 0);
+    pub const CAPACITY_CAUSE_SUBSCRIPTIONS_TAIL: Path = Path::new(298, 1);
+    pub const CAPACITY_CAUSE_FUNDERS_LIMIT: Path = Path::new(299, 0);
+    pub const CAPACITY_CAUSE_FUNDERS_TAIL: Path = Path::new(299, 1);
+    pub const CAPACITY_CAUSE_WRITERS_LIMIT: Path = Path::new(300, 0);
+    pub const CAPACITY_CAUSE_WRITERS_TAIL: Path = Path::new(300, 1);
+    pub const CAPACITY_CAUSE_PLACED_HOLDS_LIMIT: Path = Path::new(301, 0);
+    pub const CAPACITY_CAUSE_PLACED_HOLDS_TAIL: Path = Path::new(301, 1);
+    pub const CAPACITY_CAUSE_PROJECT_PLACED_HOLDS_LIMIT: Path = Path::new(302, 0);
+    pub const CAPACITY_CAUSE_PROJECT_PLACED_HOLDS_TAIL: Path = Path::new(302, 1);
+    pub const CAPACITY_CAUSE_PARTY_PLACED_HOLDS_LIMIT: Path = Path::new(303, 0);
+    pub const CAPACITY_CAUSE_PARTY_PLACED_HOLDS_TAIL: Path = Path::new(303, 1);
+    pub const CAPACITY_CAUSE_EXEMPTIONS_LIMIT: Path = Path::new(304, 0);
+    pub const CAPACITY_CAUSE_EXEMPTIONS_TAIL: Path = Path::new(304, 1);
+    pub const CAPACITY_CAUSE_TAG: Path = Path::new(305, 0);
+    pub const CAPACITY_PROJECT: Path = Path::new(306, 0);
+    pub const CAPACITY_BY: Path = Path::new(306, 1);
+    pub const CAPACITY_ACTION: Path = Path::new(306, 2);
+    pub const CAPACITY_CAUSE: Path = Path::new(306, 3);
+    pub const CAPACITY_TAIL: Path = Path::new(306, 4);
+    pub const REFUSAL_PERSON_REVISION_REVISION: Path = Path::new(307, 0);
+    pub const REFUSAL_PERSON_REVISION_TAIL: Path = Path::new(307, 1);
+    pub const LLM_FAULT_TAG: Path = Path::new(308, 0);
+    pub const REFUSAL_LLM_MODEL: Path = Path::new(309, 0);
+    pub const REFUSAL_LLM_WHY: Path = Path::new(309, 1);
+    pub const REFUSAL_LLM_TAIL: Path = Path::new(309, 2);
+    pub const ACCOUNT_WHY_TAG: Path = Path::new(310, 0);
+    pub const REFUSAL_ACCOUNT_ACCOUNT: Path = Path::new(311, 0);
+    pub const REFUSAL_ACCOUNT_WHY: Path = Path::new(311, 1);
+    pub const REFUSAL_ACCOUNT_TAIL: Path = Path::new(311, 2);
+    pub const REFUSAL_CIRCLE_CUT: Path = Path::new(312, 0);
+    pub const REFUSAL_CIRCLE_TAIL: Path = Path::new(312, 1);
+    pub const REFUSAL_DEPENDENCY_ENDED_HOW: Path = Path::new(313, 0);
+    pub const REFUSAL_DEPENDENCY_ENDED_TAIL: Path = Path::new(313, 1);
+    pub const REFUSAL_PLACED_HOLD: Path = Path::new(314, 0);
+    pub const REFUSAL_PLACED_TAIL: Path = Path::new(314, 1);
+    pub const REFUSAL_HOLD_OWNER_HOLD: Path = Path::new(315, 0);
+    pub const REFUSAL_HOLD_OWNER_TAIL: Path = Path::new(315, 1);
+    pub const REFUSAL_HOLD_REVISION_REVISION: Path = Path::new(316, 0);
+    pub const REFUSAL_HOLD_REVISION_TAIL: Path = Path::new(316, 1);
+    pub const TALK_OPEN_PARTY: Path = Path::new(317, 0);
+    pub const TALK_OPEN_TAIL: Path = Path::new(317, 1);
+    pub const REFUSAL_CONCLUDED_AT: Path = Path::new(318, 0);
+    pub const REFUSAL_CONCLUDED_TAIL: Path = Path::new(318, 1);
+    pub const REFUSAL_TAG: Path = Path::new(319, 0);
+    pub const TASK_PROBLEM_TASK: Path = Path::new(320, 0);
+    pub const TASK_PROBLEM_WHY: Path = Path::new(320, 1);
+    pub const TASK_PROBLEM_BLOCKED_BY: Path = Path::new(320, 2);
+    pub const TASK_PROBLEM_CAPACITY: Path = Path::new(320, 3);
+    pub const TASK_PROBLEM_VERSION: Path = Path::new(320, 4);
+    pub const TASK_PROBLEM_TAIL: Path = Path::new(320, 5);
+    pub const RESULT_FOLLOWUPS_DELEGATES_VALUE: Path = Path::new(321, 0);
+    pub const RESULT_FOLLOWUPS_DELEGATES_TAIL: Path = Path::new(321, 1);
+    pub const RESULT_FOLLOWUPS_PROPOSAL_VALUE: Path = Path::new(322, 0);
+    pub const RESULT_FOLLOWUPS_PROPOSAL_TAIL: Path = Path::new(322, 1);
+    pub const RESULT_FOLLOWUPS_TAG: Path = Path::new(323, 0);
+    pub const END_FINISHED_RESULT: Path = Path::new(324, 0);
+    pub const END_FINISHED_CANCEL_DELEGATES: Path = Path::new(324, 1);
+    pub const END_FINISHED_TAIL: Path = Path::new(324, 2);
+    pub const END_FINISHED_WITH_FOLLOWUPS_RESULT: Path = Path::new(325, 0);
+    pub const END_FINISHED_WITH_FOLLOWUPS_FOLLOWUPS: Path = Path::new(325, 1);
+    pub const END_FINISHED_WITH_FOLLOWUPS_TAIL: Path = Path::new(325, 2);
+    pub const END_FAILED_VALUE: Path = Path::new(326, 0);
+    pub const END_FAILED_TAIL: Path = Path::new(326, 1);
+    pub const END_FAILED_WITH_REASON_CLASS: Path = Path::new(327, 0);
+    pub const END_FAILED_WITH_REASON_REASON: Path = Path::new(327, 1);
+    pub const END_FAILED_WITH_REASON_TAIL: Path = Path::new(327, 2);
+    pub const END_REFUSED_WITH_REASON_REASON: Path = Path::new(328, 0);
+    pub const END_REFUSED_WITH_REASON_TAIL: Path = Path::new(328, 1);
+    pub const END_TAG: Path = Path::new(329, 0);
+    pub const END_RECORD_VALUE: Path = Path::new(330, 0);
+    pub const END_RECORD_VERSION: Path = Path::new(330, 1);
+    pub const END_RECORD_TAIL: Path = Path::new(330, 2);
+    pub const PHASE_RECORD_VALUE: Path = Path::new(331, 0);
+    pub const PHASE_RECORD_VERSION: Path = Path::new(331, 1);
+    pub const PHASE_RECORD_TAIL: Path = Path::new(331, 2);
+    pub const CHANGE_RECORD_VALUE: Path = Path::new(332, 0);
+    pub const CHANGE_RECORD_VERSION: Path = Path::new(332, 1);
+    pub const CHANGE_RECORD_TAIL: Path = Path::new(332, 2);
 }
 
 const PATH_NAMES: &[&[&str]] = &[
@@ -4535,32 +4544,33 @@ const TABLE: &[skein_codec::bounds::Node] = &[
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[1101, 1102, 1103, 1071, 1104, 1105, 1106, 1107, 1108, 1109, 1110, 1111, 1112, 1113, 1114, 1115, 1116, 1117, 1118, 1089, 1119, 1120, 1121, 1122, 1123, 1124, 1125, 1126, 1127, 1128, 1129, 1130, 1131, 1132, 1133, 1080, 1087, 1090, 1134, 1092, 1094, 1096, 537, 537, 1135, 1098, 1136, 1100] },
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Enum { variants: &[1101, 1102, 1103, 1071, 1104, 1105, 1106, 1107, 1108, 1109, 1110, 1111, 1112, 1113, 1114, 1115, 1116, 1117, 1118, 1089, 1119, 1120, 1121, 1122, 1123, 1124, 1125, 1126, 1127, 1128, 1129, 1130, 1131, 1132, 1133, 1080, 1087, 1090, 1134, 1092, 1094, 1096, 537, 537, 1135, 1098, 1136, 1100, 1137] },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 1138 },
+    skein_codec::bounds::Node::Option { item: 1139 },
     skein_codec::bounds::Node::List { limit: 96, item: 1, size: size_of::<Number>() },
-    skein_codec::bounds::Node::Option { item: 1140 },
+    skein_codec::bounds::Node::Option { item: 1141 },
     skein_codec::bounds::Node::Option { item: 1069 },
-    skein_codec::bounds::Node::Record { prefix: 2, fields: &[1139, 1137, 1141, 1142] },
+    skein_codec::bounds::Node::Record { prefix: 2, fields: &[1140, 1138, 1142, 1143] },
     skein_codec::bounds::Node::Bytes { limit: 97 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1144] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1145] },
     skein_codec::bounds::Node::Record { prefix: 0, fields: &[412] },
-    skein_codec::bounds::Node::Boxed { item: 1146, size: size_of::<ResultFollowupsProposal>() },
-    skein_codec::bounds::Node::Enum { variants: &[1145, 1147] },
+    skein_codec::bounds::Node::Boxed { item: 1147, size: size_of::<ResultFollowupsProposal>() },
+    skein_codec::bounds::Node::Enum { variants: &[1146, 1148] },
     skein_codec::bounds::Node::Scalar(1),
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[267, 1150] },
     skein_codec::bounds::Node::Record { prefix: 0, fields: &[267, 1149] },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[267, 1148] },
     skein_codec::bounds::Node::Record { prefix: 0, fields: &[14] },
     skein_codec::bounds::Node::Bytes { limit: 98 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[14, 1153] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[14, 1154] },
     skein_codec::bounds::Node::Bytes { limit: 99 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1155] },
-    skein_codec::bounds::Node::Boxed { item: 1151, size: size_of::<EndFinishedWithFollowups>() },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1156] },
+    skein_codec::bounds::Node::Boxed { item: 1152, size: size_of::<EndFinishedWithFollowups>() },
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[1150, 1157, 1158, 1152, 1159, 1160, 286, 1154, 1156] },
-    skein_codec::bounds::Node::Record { prefix: 2, fields: &[1161] },
+    skein_codec::bounds::Node::Enum { variants: &[1151, 1158, 1159, 1153, 1160, 1161, 286, 1155, 1157] },
+    skein_codec::bounds::Node::Record { prefix: 2, fields: &[1162] },
     skein_codec::bounds::Node::Record { prefix: 2, fields: &[331] },
     skein_codec::bounds::Node::Record { prefix: 2, fields: &[424] },
 ];
@@ -4885,20 +4895,20 @@ const DECLARATIONS: &[u32] = &[
     1096,
     1098,
     1100,
-    1137,
-    1143,
-    1145,
+    1138,
+    1144,
     1146,
-    1148,
-    1150,
+    1147,
+    1149,
     1151,
     1152,
-    1154,
-    1156,
-    1161,
+    1153,
+    1155,
+    1157,
     1162,
     1163,
     1164,
+    1165,
 ];
 
 const CEILING_VALUES: &[u32] = &[
@@ -17506,6 +17516,7 @@ pub enum Refusal {
     TalkOpen(TalkOpen),
     NoTalk,
     Concluded(RefusalConcluded),
+    Unreported,
 }
 
 // Record: Refusal.
@@ -17514,11 +17525,11 @@ impl Record for Refusal {
     const TAIL: Path = paths::REFUSAL_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1137)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1138)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1137)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1138)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -17571,6 +17582,7 @@ impl Record for Refusal {
             Self::TalkOpen(value) => { field::put(out, &[45], paths::REFUSAL_TAG)?; value.write(limits, out) },
             Self::NoTalk => field::put(out, &[46], paths::REFUSAL_TAG),
             Self::Concluded(value) => { field::put(out, &[47], paths::REFUSAL_TAG)?; value.write(limits, out) },
+            Self::Unreported => field::put(out, &[48], paths::REFUSAL_TAG),
         }
     }
 
@@ -17625,7 +17637,8 @@ impl Record for Refusal {
             45 => Ok(Self::TalkOpen(TalkOpen::read(limits, reader)?)),
             46 => Ok(Self::NoTalk),
             47 => Ok(Self::Concluded(RefusalConcluded::read(limits, reader)?)),
-            48..=u8::MAX => Err(Problem { path: paths::REFUSAL_TAG, reason: skein_codec::Reason::Tag }),
+            48 => Ok(Self::Unreported),
+            49..=u8::MAX => Err(Problem { path: paths::REFUSAL_TAG, reason: skein_codec::Reason::Tag }),
         }
     }
 }
@@ -17645,11 +17658,11 @@ impl Record for TaskProblem {
     const TAIL: Path = paths::TASK_PROBLEM_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1143)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1144)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1143)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1144)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -17684,11 +17697,11 @@ impl Record for ResultFollowupsDelegates {
     const TAIL: Path = paths::RESULT_FOLLOWUPS_DELEGATES_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1145)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1146)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1145)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1146)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -17715,11 +17728,11 @@ impl Record for ResultFollowupsProposal {
     const TAIL: Path = paths::RESULT_FOLLOWUPS_PROPOSAL_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1146)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1147)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1146)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1147)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -17747,11 +17760,11 @@ impl Record for ResultFollowups {
     const TAIL: Path = paths::RESULT_FOLLOWUPS_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1148)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1149)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1148)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1149)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -17784,11 +17797,11 @@ impl Record for EndFinished {
     const TAIL: Path = paths::END_FINISHED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1150)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1151)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1150)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1151)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -17818,11 +17831,11 @@ impl Record for EndFinishedWithFollowups {
     const TAIL: Path = paths::END_FINISHED_WITH_FOLLOWUPS_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1151)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1152)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1151)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1152)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -17851,11 +17864,11 @@ impl Record for EndFailed {
     const TAIL: Path = paths::END_FAILED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1152)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1153)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1152)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1153)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -17883,11 +17896,11 @@ impl Record for EndFailedWithReason {
     const TAIL: Path = paths::END_FAILED_WITH_REASON_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1154)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1155)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1154)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1155)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -17916,11 +17929,11 @@ impl Record for EndRefusedWithReason {
     const TAIL: Path = paths::END_REFUSED_WITH_REASON_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1156)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1157)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1156)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1157)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -17955,11 +17968,11 @@ impl Record for End {
     const TAIL: Path = paths::END_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1161)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1162)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1161)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1162)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -18005,11 +18018,11 @@ impl Record for EndRecord {
     const TAIL: Path = paths::END_RECORD_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1162)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1163)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1162)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1163)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -18038,11 +18051,11 @@ impl Record for PhaseRecord {
     const TAIL: Path = paths::PHASE_RECORD_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1163)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1164)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1163)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1164)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -18071,11 +18084,11 @@ impl Record for ChangeRecord {
     const TAIL: Path = paths::CHANGE_RECORD_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1164)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1165)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1164)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1165)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {

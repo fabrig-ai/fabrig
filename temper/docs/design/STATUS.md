@@ -494,23 +494,25 @@ jig's `protocol/client/sign-in.md`;
 `draft/asked-link.status.md`).
 
 A journey's recording holds nonsecret placeholders for what varies
-between walks of the same screens: the TUI's build, every loopback port
-and approval code. `add` inserts them after its proof and checks by
-replay. A browser's print numbers skein-ui's ids afresh per page. Times
-stand; a framed field takes only a placeholder of the original's width
-(`client/journey-placeholders.md`;
+between walks: the TUI's build, loopback ports and approval codes,
+inserted by `add` and checked by replay; a framed field's is the
+original's width, and a browser's print numbers skein-ui's ids afresh
+per page (`client/journey-placeholders.md`;
 `draft/journey-placeholders.status.md`).
 
 `again` fixes start 2026-01-06T09:00:00Z, seed 7 for a journey's fake
-box engine, worker and fake peers, page and TUI; each clock moves only
-to its own deadlines. Two walks' recordings and prints match except
-where real processes decide. The box's TLS-fetching loop and agents
-keep the host's clock; hand-walked recordings keep their times (`client/journey-clock.md`;
-`draft/journey-clock.status.md`).
+box engine, worker, peers, page and TUI, each clock moving only to its
+own deadlines: two walks match but where real processes, the box's
+TLS-fetching loop and agents, keep the host's clock
+(`client/journey-clock.md`; `draft/journey-clock.status.md`).
 
-Main's journey files have one writer, run after each landing, one
-change at a time, ending `Printed: COMMIT`; no test or goal writes them
-(`client/journey-writer.md`).
+Main's journey files have one writer, run after each landing, ending
+`Printed: COMMIT`; no test or goal writes them
+(`client/journey-writer.md`). A journey whose `walk` is of version 2,
+`welcome-playground`, `welcome-set-up` and the TUI's `sign-in-approved`
+first, prints in one process by `temper-client-walk`, the TUI's host on
+the service with no terminal and the box's part played by a peer of
+the world's (`client/journey-walks.md`).
 
 Design documents:
 - [`README.md`](README.status.md)
@@ -538,6 +540,7 @@ Design documents:
 - [`client/forge/served.md`](client/forge/served.status.md)
 - [`client/journey-clock.md`](client/journey-clock.status.md)
 - [`client/journey-placeholders.md`](client/journey-placeholders.status.md)
+- [`client/journey-walks.md`](client/journey-walks.status.md)
 - [`client/journey-writer.md`](client/journey-writer.status.md)
 - [`client/line.md`](client/line.status.md)
 - [`client/pages/README.md`](client/pages/README.status.md)
@@ -714,7 +717,7 @@ Drafts:
 - [`draft/claude-provider.md`](draft/claude-provider.status.md)
 - [`draft/claude-sign-in.md`](draft/claude-sign-in.status.md)
 - [`draft/cli.md`](draft/cli.status.md)
-- [`draft/codec-shape.md`](draft/codec-shape.status.md) — K2, goal 7547: `src/generated/<stem>.rs` per family, version constant inside; no item-count arrays, `LIMIT_NAMES` a slice, named booleans, functions split by declaration/field; fingerprints from schema texts. Removed jig's store and smith's local-store `generated/layouts.rs`, jig's layouts row (key `00 03` reserved), skein-oauth's `FINGERPRINT`. Merge job regenerates clean schemas with `skein-codegen` (`protocol/tooling.md`, 4.1); forges/searches mark generated files and `AGENTS.md` forbids hand merges. K3: lean tasks records, `schema/lean`, `every-v3` both ways, completeness, `missing`/`roots`/`largest`, pinned bounds, largest-value memory tests and line/compile/decode measurements against draft 3.3.
+- [`draft/codec-shape.md`](draft/codec-shape.status.md) — K1 to K4: every family's records lean, typed problems per family, in `src/generated/<stem>.rs` with no counts, versioned names or committed fingerprints; the merge job regenerates them (`protocol/tooling.md`, 4.1) and `AGENTS.md` forbids hand merges. Tests name each owner's `SCHEMA` text and take its values from `values`. The status says how 3.3 was judged.
 - [`draft/commit-failed-why.md`](draft/commit-failed-why.status.md)
 - [`draft/config.md`](draft/config.status.md)
 - [`draft/configuring.md`](draft/configuring.status.md)
@@ -755,9 +758,10 @@ Drafts:
 - [`draft/landed-qa.md`](draft/landed-qa.status.md)
 - [`draft/landing-history.md`](draft/landing-history.status.md)
 - [`draft/landing-update-loop.md`](draft/landing-update-loop.status.md) — a stale update replans instead of spinning: the client names a moved base apart from a moved head, a refusal before any send replans against the base the forge now has or backs off within `stall`, spending no update, and the history's update lines carry the forge's base beside the pin (`domain/forge/README.md`, 6; `domain/landing-history.md`, 2.2; skein's `forge/client.md`, 7.4).
-- [`draft/long-text-pages.md`](draft/long-text-pages.status.md) — landed whole into main in pulls #157 and #181; plan complete, vision folded into design, read-only text retained pending proposed removal.
+- [`draft/long-text-pages.md`](draft/long-text-pages.status.md) — built whole, its vision in the design; the draft stays until its removal.
 - [`draft/look-requests.md`](draft/look-requests.status.md)
 - [`draft/macos.md`](draft/macos.status.md)
+- [`draft/macos-tiers.md`](draft/macos-tiers.status.md)
 - [`draft/mechanical-changes.md`](draft/mechanical-changes.status.md)
 - [`draft/merge-deletions.md`](draft/merge-deletions.status.md)
 - [`draft/merge-queue.md`](draft/merge-queue.status.md)
@@ -802,7 +806,7 @@ Drafts:
 - [`draft/store-shape.md`](draft/store-shape.status.md) — S1, goal 2651: the census, counted by skein-kv per keyspace, named and reported by jig's component, shown in the deployment's document, temper's Limits page and `temper ctl DIR deployment census`; S2, goal 2652: landed, with no head-only walk remaining; older stores refused by name, naming bridge build `3d1c717d379e`; S3, goal 2653: generations by hard links: skein-io's `HardLink` on every backend and in the file layer, and an upgrade's new generation linking the previous one's snapshot and sealed segments, copying its newest segment and secrets. S4, goal 2826: layout ids: defaults and former names in skein's schemas, a value type's layout fingerprint, derived plans over a value's bytes, the command passing over registered families; jig's store registry of layouts, its heads mapped at the store's edges and every value converted as read, the open's check, and jobs at open routed to their owners, written changes among them. S5, goal 3361: milestones as attempts: the tasks child keeps a row per attempt and per held phase, no row per phase change; escalations, history pages, goals' projections and temper's goal issues read them; client wire 23 carries them. S6, goal 3362: retention: an ended task's summary written when it ends, and its turns, full record and summary each erased past a horizon of the deployment's limits (14, 30 and 365 days) by the core's hourly pass, deferred while live work names it or its requester has not read it; forgotten tasks' remains and decided person proposals collected; a shrunk task listed from its summary; a change record dropped with its task's record. S8, goal 3363: hot records apart from cold: live tasks, goals' projections and temper's change records each kept as a part an act changes and a part that changes on most saves, a save putting only the part that changed. S7, goal 3523: history in task logs: skein-kv's payload logs, compressed by skein's DEFLATE; a task's history and its turns in two logs in the store's generation, read through a view of the map and the logs, linked into a new generation and dropped whole by retention. S1 to S8 are landed; no done upgrade job remains.
 - [`draft/surfaces.md`](draft/surfaces.status.md)
 - [`draft/template-places.md`](draft/template-places.status.md)
-- [`draft/test-budgets.md`](draft/test-budgets.status.md) — B1, goal 5270: every binary in pyramid layer (`tools/tiers/layers.toml`); library/binary/generated-codec at step, repository checks separate; boundary checks coverage/names (`tools/tiers/layers.md`). B2, goal 5567: focused/fuzzy CPU budgets per tree/layer: 11-16 gate runs +10%, references/ideals; one-process totals red under `--gate`, warn otherwise (`tools/tiers/budgets.md`). B3, goal 5618: selection judged whole by main's folded ledger; held budget only falls, min(user ceiling, lowest main +10%); explicit downward transfers; red is change's if main fits or growth exceeds noise; growing tests/binaries named (same, 7 to 10). B4, goal 5722: new/doubled-wall tests alone, flagged also at base; CPU minus empty binary, reasons past reference, CPU-alone ledger (`tools/tiers/references.md`). B6, goal 6324: delivery: gate rules with `TIERS_LEDGER`, ledger-keyed cache; missing ledgers warn; none on builders (`tools/pre-pr/design.md`, 4 and 7). B7, goal 6661: over-budget main: binaries' last-three CPU medians, ledger v3, with unrun head binaries and growth; folded lowest; noise max(1 s, main/20) (`tools/tiers/budgets.md`, 7 to 9). B8, goal 8104: all figures user's; `tools/tiers/figures.py` names/refuses raised figures or added reasons at gate/delivery, bar figures-only landings. Every budget/reference red/refusal: full testing strategy and 8.1's three questions; gate runner pending (same, 10.1; `tools/pre-pr/design.md`, 4). B9, goal 8135: main-ledger tests named with last three alone figures if differing by over half again; warning only (`tools/tiers/references.md`, 6). B10, goal 8139: 25 non-jig tests furthest past reference, 11-18 (temper simulated/real-loop/end-to-end/system/domain and repository checks): correct tier, cheaper cause, or measurements to user (`skein/docs/foundation/testing-strategy.md`, 8.1). Goal 8818: next 28 non-jig, 11-18, same terms: temper domain/machine, skein/smith step.
+- [`draft/test-budgets.md`](draft/test-budgets.status.md) — B1, goal 5270: binaries layered (`tools/tiers/layers.toml`); library/binary/generated-codec step, repository checks separate; boundary checks names/coverage (`tools/tiers/layers.md`). B2, goal 5567: focused/fuzzy tree/layer CPU budgets: 11-16 gate +10%, references/ideals; one-process red under `--gate`, else warns (`tools/tiers/budgets.md`). B3, goal 5618: selection whole by main's folded ledger; budget falls, min(user ceiling, lowest main +10%); explicit downward transfers; owned red if main fits or growth exceeds noise, naming growing tests/binaries (same, 7 to 10). B4, goal 5722: new/doubled-wall alone, flagged at base too; CPU less empty binary, reasons past reference, CPU-alone ledger (`tools/tiers/references.md`). B6, goal 6324: delivery: `TIERS_LEDGER` gate rules/cache; missing ledgers warn; none on builders (`tools/pre-pr/design.md`, 4 and 7). B7, goal 6661: over-budget main: ledger-v3 binary last-three CPU medians, unrun head/growth included; folded lowest; noise max(1 s, main/20) (`tools/tiers/budgets.md`, 7 to 9). B8, goal 8104: all figures user's; `tools/tiers/figures.py` names/refuses raised figures or added reasons at gate/delivery, bar figures-only landings. Budget/reference reds/refusals: full testing strategy, 8.1's three questions; gate runner pending (same, 10.1; `tools/pre-pr/design.md`, 4). B9, goal 8135: main-ledger last-three alone swings over half again name test/figures; warning only (`tools/tiers/references.md`, 6). B10, goal 8139: 25 non-jig furthest past reference, 11-18 (temper simulated/real-loop/end-to-end/system/domain, repository checks): correct tier, cheaper cause, or figures to user (`skein/docs/foundation/testing-strategy.md`, 8.1). Goal 8818: next 28 non-jig, 11-18, likewise: temper domain/machine, skein/smith step. Goal 8817: next 25 temper step. B11, goal 8533: past-limit head alone twice more, minimum; base three, maximum; swings warn; ten same-work lines dropped (`tools/tiers/references.md`, 4 to 6).
 - [`draft/tier-controls.md`](draft/tier-controls.status.md)
 - [`draft/to-begin.md`](draft/to-begin.status.md)
 - [`draft/tools-by-role.md`](draft/tools-by-role.status.md) — T1, goal 5198: unencodable assignments name fields/figures in engine log and held reason; generated paths name themselves; charter fixed costs checked by family at apply and against defaults at start, including local agents. T2, goal 5617: authority-filtered tools by charter family, `read_docs` except asking runs; ≤1,024-byte short declarations, whole on `host-tools`; 18 forge reads via `read_forge`/`read_issues`/`read_ci` with `what`; contract 4, floor 1, adapters 1–3; stock goal/coder offers ≤14,336/4,096 bytes; brief floor checked at apply/start. Goal 8709: short forms name each `what`'s inputs; omitted branch defaults, `file` at branch head; sentence refusals; contract 10, three-read adapters 6–9.

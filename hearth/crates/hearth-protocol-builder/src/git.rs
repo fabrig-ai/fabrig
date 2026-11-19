@@ -55,6 +55,7 @@ impl Child {
         below.push(Asked::Io(io::Request::Spawn {
             owner,
             spawn: Spawn {
+                reach: None,
                 program: bytes::copy_of(invocation::GIT),
                 args: invocation::arguments(command),
                 env: invocation::environment(),

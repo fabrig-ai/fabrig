@@ -60,7 +60,7 @@ fn task_answer(core: &Core, problem: tasks::Problem) -> people::Outcome {
         }
         tasks::Refusal::Busy => return people::Outcome::Again(people::Again::Busy),
         tasks::Refusal::NotReady => return people::Outcome::Again(people::Again::NotReady),
-        tasks::Refusal::ResourceUnavailable => {
+        tasks::Refusal::ResourceUnavailable | tasks::Refusal::Unreported => {
             people::Refusal::Authority { proposable: None, lacking: people::Lack::ResourceUnavailable }
         }
         tasks::Refusal::Unknown => people::Refusal::Unknown,

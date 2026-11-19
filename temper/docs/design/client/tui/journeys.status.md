@@ -1,15 +1,16 @@
 # journeys: status
 
-2026-11-18. Where temper's code lags or departs from [journeys.md](journeys.md).
+2026-11-19. Where temper's code lags or departs from [journeys.md](journeys.md).
 
-- **Not yet:** 7: the print's test reprints every committed TUI journey and holds its recording to its normalisation [in flight: change 8893].
-- **Not yet:** 1 and 10: the delivery check refuses no request's frames and no TUI overlay [in flight: change 8897].
 - **Not yet:** 3.2: no start facts `plain` and `version` [in flight:
   change 3431].
 - **Not yet:** 3.2: no start facts `set-up` and `box-log` [in flight:
   change 3434].
 - **Not yet:** 8.2: `again` gives the box, the page and the TUI no fixed
   start [in flight: change 7722].
+- **Not yet:** 9's `sign-in-approved`: its `walk` is of version 1,
+  walked by `again` on a fake box, not in a world
+  (`../journey-walks.md`, 6).
 
 - **Departs:** 7, 8: `design-session`, `launchpad-chat`, `launchpad-drawn`
   and `sign-in-approved` are stale. Their recordings predate the client

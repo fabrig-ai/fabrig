@@ -38,7 +38,8 @@ impl Facts {
     /// Make the host as `Run::new` does, leaving Start to its first turn.
     #[must_use]
     pub fn start(&self) -> (Host, Report) {
-        let host = Host::new(&Settings { limits: limits::tui() }, self.seed, self.now, self.wall);
+        let (limits, words) = limits::checked_tui();
+        let host = Host::with_checked_words(&Settings { limits }, words, self.seed, self.now, self.wall);
         let report = Report::Start(Start {
             size: self.size,
             scheme: self.scheme,

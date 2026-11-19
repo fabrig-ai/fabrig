@@ -129,7 +129,8 @@ fn shared_harness_meters_file_child_and_flood_runs_through_drop() {
     let checked = world.request(FromDomain::Check {
         owner: Token::new(22),
         program: run::Place { root, path: b"check-hang".as_slice().into() },
-        deadline: Time::from_nanos(10_000_000),
+        bound: skein_lib::Duration::from_nanos(10_000_000),
+        cap: Time::from_nanos(10_000_000),
         tail: 32,
     });
     assert!(matches!(checked, ToDomain::Checked { ran: run::Ran { exit: run::Exit::TimedOut, .. }, .. }));
@@ -195,7 +196,8 @@ fn saturated_configured_environments_and_command_check_copies_fit_the_machine_bo
                 FromDomain::Check {
                     owner,
                     program: run::Place { root: Token::new(1), path: b"check".as_slice().into() },
-                    deadline: Time::from_nanos(100),
+                    bound: skein_lib::Duration::from_nanos(100),
+                    cap: Time::from_nanos(100),
                     tail: 0,
                 }
             } else {

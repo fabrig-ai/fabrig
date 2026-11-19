@@ -598,7 +598,7 @@ pub fn say(words: &Words, word: Word, holes: &[Hole]) -> Box<[u8]> {
             None => literal_number(word),
         }
     };
-    words.book.say(words.language, id(number), holes).expect("checked account phrase").text
+    words.book().say(words.language, id(number), holes).expect("checked account phrase").text
 }
 pub(crate) fn extend(shapes: &mut List<PhraseShape>, phrases: &mut List<Phrase>, name_bytes: u32, text_bytes: u32) {
     for (index, (_, literal)) in ROWS.iter().enumerate() {
@@ -693,13 +693,13 @@ pub(crate) fn extend(shapes: &mut List<PhraseShape>, phrases: &mut List<Phrase>,
 pub(crate) fn capacity(words: &Words) -> Option<u32> {
     let mut most = 0;
     for number in 0..u16::try_from(ROWS.len()).ok()? {
-        most = most.max(words.book.capacity(id(number))?);
+        most = most.max(words.book().capacity(id(number))?);
     }
     for number in [200, 201, 202, 203, 204, 220, 221, 222, 224, 225, 226, 227, 228, 229] {
-        most = most.max(words.book.capacity(id(number))?);
+        most = most.max(words.book().capacity(id(number))?);
     }
     for index in 0..NAMED.len() {
-        most = most.max(words.book.capacity(id(300_u16.checked_add(u16::try_from(index).ok()?)?))?);
+        most = most.max(words.book().capacity(id(300_u16.checked_add(u16::try_from(index).ok()?)?))?);
     }
     Some(most)
 }

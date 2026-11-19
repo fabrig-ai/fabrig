@@ -6,3 +6,8 @@ mod drift;
 mod fuzzy {
     mod records;
 }
+
+mod codec_memory {
+    include!("../../../../../skein/testing/codec-memory.rs");
+}
+mod largest_memory;

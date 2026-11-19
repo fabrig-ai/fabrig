@@ -301,6 +301,7 @@ members = [
     "temper/crates/temper-docs",
     "temper/crates/temper-fake",
     "temper/crates/temper-playground",
+    "temper/crates/temper-client-walk-world",
     "temper/crates/temper-playground-serve-tool",
     "temper/bin/temper-playground-serve",
     "temper/crates/temper-protocol-reaches",
@@ -310,7 +311,10 @@ members = [
     "temper/crates/temper-box-machine",
     "temper/crates/temper-client-gallery-tool",
     "temper/bin/temper-client-gallery",
+    "temper/crates/temper-client-walk-tool",
+    "temper/bin/temper-client-walk",
     "temper/crates/temper-client-journeys-tool",
+    "temper/crates/temper-client-walk-lines",
     "temper/bin/temper-client-journeys",
     "temper/crates/temper-stage-one-tool",
     "temper/bin/temper-stage-one",
@@ -722,6 +726,7 @@ temper-landing-fixtures = { path = "temper/testing/temper-landing-fixtures" }
 temper-fake = { path = "temper/crates/temper-fake" }
 temper-playground = { path = "temper/crates/temper-playground" }
 temper-playground-serve-tool = { path = "temper/crates/temper-playground-serve-tool" }
+temper-client-walk-world = { path = "temper/crates/temper-client-walk-world" }
 temper-playground-world = { path = "temper/tests/playground" }
 temper-protocol-reaches = { path = "temper/crates/temper-protocol-reaches" }
 temper-protocol-records = { path = "temper/crates/temper-protocol-records" }
@@ -753,6 +758,7 @@ temper-client-view-setup = { path = "temper/crates/temper-client-view-setup" }
 temper-client-view-kit = { path = "temper/testing/temper-client-view-kit" }
 temper-client-journeys-kit = { path = "temper/testing/temper-client-journeys-kit" }
 temper-client-gallery-tool = { path = "temper/crates/temper-client-gallery-tool" }
+temper-client-walk-tool = { path = "temper/crates/temper-client-walk-tool" }
 temper-shell = { path = "temper/crates/temper-shell" }
 temper-agent-shell = { path = "temper/crates/temper-agent-shell" }
 temper-client-tui = { path = "temper/crates/temper-client-tui" }
@@ -762,6 +768,7 @@ temper-client-domain-pages = { path = "temper/crates/temper-client-domain-pages"
 temper-git-transcripts-tool = { path = "temper/crates/temper-git-transcripts-tool" }
 temper-version = { path = "temper/crates/temper-version" }
 temper-client-journeys-tool = { path = "temper/crates/temper-client-journeys-tool" }
+temper-client-walk-lines = { path = "temper/crates/temper-client-walk-lines" }
 temper-twin-tool = { path = "temper/crates/temper-twin-tool" }
 temper-qa-tool = { path = "temper/crates/temper-qa-tool" }
 temper-redeploy-tool = { path = "temper/crates/temper-redeploy-tool" }

@@ -66,11 +66,10 @@ mod tests {
             check_all(buffer.get(..length).expect("within buffer"));
         }
 
-        let goldens =
-            [include_str!("../../../schema/sample-v1.schema"), include_str!("../../../schema/scalars-v1.schema")]
-                .into_iter()
-                .flat_map(|text| skein_codegen::goldens(&skein_codegen::parse(text).expect("seed schema")))
-                .collect::<Vec<_>>();
+        let goldens = [skein_codec_tests::SAMPLE_SCHEMA, skein_codec_tests::SCALARS_SCHEMA]
+            .into_iter()
+            .flat_map(|text| skein_codegen::values(text).goldens.iter())
+            .collect::<Vec<_>>();
         for name in [
             "record_field_full.bin",
             "record_report_full.bin",

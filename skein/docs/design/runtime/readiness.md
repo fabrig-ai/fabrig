@@ -22,7 +22,7 @@ kernel with `io_uring_disabled` set, or macOS (Apple Silicon, from macOS
   operations already in the vocabulary. A feature only io_uring has is
   always an optimisation, never something io's behaviour relies on.
 - **It meets the conformance suite** as the ring does, each scenario
-  once (kernel.md, 8), on our Linux machines through epoll and on macOS
+  once (../testing/conformance.md, 1), on our Linux machines through epoll and on macOS
   through kqueue.
 
 ## 1. The choice at startup

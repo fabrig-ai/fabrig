@@ -344,6 +344,23 @@ fn the_print_lands_through_a_merge() {
 }
 
 #[test]
+fn the_print_lands_squashed_with_unrelated_work() {
+    let repos = Repositories::new("look-refresh-squashed-print");
+    repos.request("tighter-cards");
+    repos.publish_requests();
+    let done = repos.advance_main("Implement cards\n\nLook-request: tighter-cards", None);
+    repos.git(&repos.person, &["checkout", "--quiet", "main"]);
+    repos.write("unrelated", "Other work in the squash\n");
+    repos.advance_main(&format!("Squashed work and pages\n\nAnother changes report\n\nPrinted: {done}"), Some(PAGE));
+    let output = repos.refresh(0);
+    assert!(String::from_utf8_lossy(&output.stdout).starts_with(&format!(
+        "pages printed at {done:.12}, 0 landings since\ndropped tighter-cards, done on main by {done:.12}, printed at {done:.12}\n"
+    )));
+    assert_eq!(repos.requests(), "");
+    repos.assert_pushed();
+}
+
+#[test]
 fn a_conflict_stops_for_the_person() {
     let repos = Repositories::new("look-refresh-conflict");
     repos.request("calmer-banner");

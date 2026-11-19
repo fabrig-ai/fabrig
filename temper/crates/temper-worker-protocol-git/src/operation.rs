@@ -118,6 +118,7 @@ impl Operation {
             io::Request::Spawn {
                 owner: io_owner,
                 spawn: kernel::Spawn {
+                    reach: None,
                     program: Box::from(self.program(settings).expect("program checked before spawning")),
                     args: match &self.op {
                         Some(op) if self.view_done.is_some() && self.command == Command::Format => {

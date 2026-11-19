@@ -25,3 +25,8 @@ mod fuzzy {
     mod joint;
     mod stories;
 }
+
+mod codec_memory {
+    include!("../../../../../skein/testing/codec-memory.rs");
+}
+mod largest_memory;

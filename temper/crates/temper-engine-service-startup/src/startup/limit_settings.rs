@@ -85,8 +85,19 @@ impl LimitInputs {
             },
         }
     }
-    /// Opening/replay figures come from the stock alone, never either override
-    /// list or a changed agent declaration. A typed world supplies its own stock.
+    /// The deployment's opening/replay base, never either override list.
+    pub fn store_base(&self) -> Result<(config::Limits, limits::Limits), Problems> {
+        let typed = match &self.base {
+            Some((jig, own)) => Some((jig, own)),
+            None => None,
+        };
+        match limits::store_base(typed, self.sources) {
+            Ok(base) => Ok(base),
+            Err(found) => Err(Problems::jig(single(found), &Path::root())),
+        }
+    }
+    /// Runtime defaults remain at the stock's live goals. A typed world
+    /// supplies its own stock.
     pub fn stock(&self) -> Result<(config::Limits, limits::Limits), Problems> {
         match self.base {
             Some(base) => Ok(base),
@@ -147,10 +158,17 @@ fn resolve(
     left_out: List<LeftOut>,
 ) -> Result<Resolved, Problems> {
     let (stock_jig, stock_own) = inputs.stock()?;
-    let stock_root = super::engine_limits(&mut stock_jig.clone(), &stock_own, None)?;
-    let store = super::checked_store(&stock_root, &stock_jig.store, None)?;
+    let (mut store_jig, store_own) = inputs.store_base()?;
+    let stock_root = super::engine_limits(&mut store_jig, &store_own, None)?;
+    let store = super::checked_store(&stock_root, &store_jig.store, None)?;
     let mut sources = stock_own;
     for item in temper {
+        if item.name.as_ref() == b"live_goals" && item.value > u64::from(derived::STORE_LIVE_GOALS) {
+            return Err(super::problem(
+                Path::root().member(b"live_goals"),
+                What::Half(super::EngineWhat::StoreLiveGoals { count: item.value, bound: derived::STORE_LIVE_GOALS }),
+            ));
+        }
         if (item.name.as_ref() == b"live_goals" || item.name.as_ref() == b"tool_payload")
             && let Err(why) = limits::apply(&mut sources, &item.name, item.value)
         {
@@ -239,6 +257,7 @@ fn resolve(
     ) {
         return Err(checks::store_refusal(crate::store::Refusal::Map(why)));
     }
+    jig.store = store;
     let start = checked_start_limits(
         &inputs.document,
         &inputs.directories,
@@ -249,6 +268,7 @@ fn resolve(
         &inputs.given,
         Some((&jig, &own)),
         inputs.is_box,
+        Some(&store),
     )?;
     jig = start.engine.jig.limits;
     root = super::engine_limits(&mut jig, &own, None)?;
@@ -373,13 +393,18 @@ fn named(found: Problems, jig: &[Override], temper: &[Override]) -> Problems {
             };
         }
         if name.as_ref() == b"store" {
-            name = if supplied(temper, b"live_goals").unwrap_or(0) > u64::from(derived::LIVE_GOALS) {
-                Box::from(b"live_goals".as_slice())
-            } else if supplied(temper, b"forge.entries").is_some() {
+            let mut other = None;
+            for item in temper {
+                if item.name.as_ref() != b"live_goals" {
+                    other = Some(item);
+                    break;
+                }
+            }
+            name = if supplied(temper, b"forge.entries").is_some() {
                 Box::from(b"forge.entries".as_slice())
-            } else if let Some(item) = temper.first() {
-                item.name.clone()
             } else if let Some(item) = jig.first() {
+                item.name.clone()
+            } else if let Some(item) = other {
                 item.name.clone()
             } else {
                 Box::from(b"forge.entries".as_slice())

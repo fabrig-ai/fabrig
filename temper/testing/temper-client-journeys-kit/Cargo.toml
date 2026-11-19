@@ -12,6 +12,9 @@ test = false
 doctest = false
 
 [dependencies]
+jig-client-protocol-wire.workspace = true
+jig-client-test-records.workspace = true
+skein-ui.workspace = true
 skein-lib.workspace = true
 skein-ui-web.workspace = true
 skein-ui-screen.workspace = true

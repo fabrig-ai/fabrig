@@ -1,4 +1,4 @@
-//! Lean surface and helper fixture drift (data/codec/contracts.md, 1).
+//! Lean surface and helper fixture drift (skein/docs/design/data/codec/README.md, 4).
 
 use crate::{Form, generate, generate_as, parse};
 
@@ -35,8 +35,10 @@ fn lean_surface_is_public_and_sealed_generation_is_unchanged() {
     for required in [
         "pub words: Box<[u8]>",
         "impl Record for Words",
-        "pub const WORDS_WORDS: Path",
-        "pub use skein_codec::{Path, Problem, Record}",
+        "pub use skein_codec::Record;",
+        "pub type Path = skein_codec::Path<Limits>;",
+        "pub type Problem = skein_codec::Problem<Limits>;",
+        "pub const WORDS_WORDS: Path = Path::new(1, 0);",
         "const TABLE: &[skein_codec::bounds::Node]",
         "pub fn name(path: Path) -> Option<&'static str>",
         "Node::List",

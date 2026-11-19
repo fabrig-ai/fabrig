@@ -1,6 +1,6 @@
 # fetch-progress: status
 
-2026-11-15. Where the design lags or departs from [fetch-progress.md](fetch-progress.md).
+2026-11-19. Where the design lags or departs from [fetch-progress.md](fetch-progress.md).
 
 - **Design lags:** none.
 - **Design departs:**
@@ -9,5 +9,5 @@
   - 4: the forge domain keeps the latest `fetched` line, beside the forge's connection, not the box's link: the link decides nothing and keeps no state a row reads (`../protocol/forge/engine.md`, 8), and the row is the domain's. In memory alone all the same, and gone as the draft says. The cut's call, 2026-11-04.
   - 5: in the browser the muted detail names the binary alone, "Setting up: fetching Forgejo", and the figure stands at the bar's end, as the look request's pages draw it; the paragraph's name, the terminal and every other page say the whole line (`../client/pages/README.md`). The cut's call, 2026-11-04. The step list's first step names Forgejo alone, "Fetching Forgejo · 42%", with no runner and no version, so that it stays on one line in the welcome's pane (`../client/forge/deployment.md`). The user's word of 2026-11-15, the look request `forge-steps`.
   - 7: a body past its size is refused at the fetch's machine, and no test shows it at the host: skein-http delivers no byte past `Content-Length`, so the host never meets one (`../protocol/setup/owned.md`, 6).
-  - 8: a walk does see the fake box's fetch: `welcome-set-up`'s recording holds its rows, about 190 changes across both binaries, each with its size. They keep the page moving, and `again` takes no page while it moves, so its pages 07 and 08 fall at preparing, the set up's words in place of the look request's 42%. The answer call's, 2026-11-04. The percentage's look stands on two gallery states (`../client/web/gallery.md`), the fake fetch stays Later for that reason (`../protocol/setup/README.md`, section 9), and a replay reads those rows back with no box, so no test runs a fetch through a box to a client.
+  - 8: a journey prints the percentage with no fake fetch: the journey world's box's peer reports a fetch, each binary's figures (`../client/journey-walks.md`, 4.4), and `welcome-set-up`'s walk marks the Model step at its first, 25%. The fake box still fetches nothing a walk sees, and the fake fetch stays Later (`../protocol/setup/README.md`, section 9); the percentage's look stands on two gallery states as well (`../client/web/gallery.md`). The user's request of 2026-11-18, "The set-up journey without a box".
 - **Open:** none.

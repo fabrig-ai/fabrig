@@ -12,7 +12,7 @@ mod tests {
     fn families() -> (Family, Family) {
         let sealed = generated::families()
             .into_iter()
-            .find(|family| family.text == include_str!("../../schema/every-v3.schema"))
+            .find(|family| family.text == skein_codec_tests::EVERY_SCHEMA)
             .expect("sealed every-v3");
         (sealed, generated::every_lean())
     }
@@ -68,37 +68,85 @@ mod tests {
         }
     }
 
+    fn decode_pair(
+        root: &str,
+        bytes: &[u8],
+        sealed_limits: &sealed::Limits,
+        lean_limits: &lean::Limits,
+    ) -> (Decoded, Decoded) {
+        macro_rules! decode {
+            ($($record:ident),+ $(,)?) => {
+                match root {
+                    $(stringify!($record) => {
+                        let sealed = match sealed::$record::decode(sealed_limits, &mut skein_lib::Reader::new(bytes)) {
+                            Ok(value) => {
+                                let measured = value.measure();
+                                let mut writer = skein_lib::Writer::new(usize::try_from(measured).expect("length"));
+                                value.encode(&mut writer).expect("decoded value encodes");
+                                Decoded::Value { debug: format!("{value:?}"), bytes: writer.finish().into_vec(), measured }
+                            }
+                            Err(problem) => Decoded::Problem {
+                                path: problem.path.name().into(), reason: problem.reason,
+                            },
+                        };
+                        let lean = match lean::$record::decode(lean_limits, &mut skein_lib::Reader::new(bytes)) {
+                            Ok(value) => Decoded::Value {
+                                debug: format!("{value:?}"),
+                                bytes: value.encode(lean_limits).expect("decoded value encodes").into_vec(),
+                                measured: value.measure(lean_limits).expect("decoded value measures"),
+                            },
+                            Err(problem) => Decoded::Problem {
+                                path: lean::name(problem.path).expect("generated path").into(), reason: problem.reason,
+                            },
+                        };
+                        (sealed, lean)
+                    }),+
+                    _ => panic!("unknown every root: {root}"),
+                }
+            };
+        }
+        decode!(
+            Blank, Numbers, Texts, Light, Stamp, Shape, Nest, Every, Kinds, Lists, Options, Grouped, Held, LongRecord
+        )
+    }
+
     #[test]
     fn every_lean_and_sealed_refuse_the_same_mutations() {
         let (sealed, lean) = families();
         let schema = skein_codec::schema::parse(lean.text.as_bytes()).expect("every schema");
-        let mut cases = 0_u32;
-        for (name, bytes) in goldens() {
-            let (sealed_root, lean_root) = roots(&schema, &name, &sealed, &lean);
-            let mut compare = |bytes: &[u8]| {
-                let decoded = (lean_root.decode)(bytes);
-                assert_eq!(decoded, (sealed_root.decode)(bytes), "{name}: {bytes:02x?}");
-                if let Decoded::Value { bytes: encoded, measured, .. } = decoded {
-                    assert_eq!(encoded, bytes, "{name}: accepted mutation is canonical");
-                    assert_eq!(usize::try_from(measured).expect("length"), bytes.len());
+        let (small_sealed, small_lean) = small();
+        let goldens = goldens();
+        for (limits, sealed_limits, lean_limits) in
+            [("ceilings", &sealed::CEILINGS, &lean::CEILINGS), ("small", &small_sealed, &small_lean)]
+        {
+            let mut cases = 0_u32;
+            for (name, bytes) in &goldens {
+                let (sealed_root, _) = roots(&schema, name, &sealed, &lean);
+                let mut compare = |bytes: &[u8]| {
+                    let (sealed, lean) = decode_pair(sealed_root.name, bytes, sealed_limits, lean_limits);
+                    assert_eq!(lean, sealed, "{limits}: {name}: {bytes:02x?}");
+                    if let Decoded::Value { bytes: encoded, measured, .. } = lean {
+                        assert_eq!(encoded, bytes, "{limits}: {name}: accepted mutation is canonical");
+                        assert_eq!(usize::try_from(measured).expect("length"), bytes.len());
+                    }
+                    cases = cases.checked_add(1).expect("case count");
+                };
+                for cut in 0..bytes.len() {
+                    compare(bytes.get(..cut).expect("prefix"));
                 }
-                cases = cases.checked_add(1).expect("case count");
-            };
-            for cut in 0..bytes.len() {
-                compare(bytes.get(..cut).expect("prefix"));
-            }
-            let mut changed = bytes.clone();
-            changed.push(0);
-            compare(&changed);
-            for at in 0..bytes.len() {
-                changed.clone_from(&bytes);
-                for replacement in [0, 1, 2, 0x7f, 0x80, 0xff] {
-                    *changed.get_mut(at).expect("byte") = replacement;
-                    compare(&changed);
+                let mut changed = bytes.clone();
+                changed.push(0);
+                compare(&changed);
+                for at in 0..bytes.len() {
+                    changed.clone_from(bytes);
+                    for replacement in [0, 1, 2, 0x7f, 0x80, 0xff] {
+                        *changed.get_mut(at).expect("byte") = replacement;
+                        compare(&changed);
+                    }
                 }
             }
+            assert!(cases > 10_000, "{limits}: every cut and byte replacement was exercised");
         }
-        assert!(cases > 10_000, "every cut and byte replacement was exercised");
     }
 
     macro_rules! small_limits {

@@ -38,7 +38,7 @@ impl TerminalWord {
 }
 #[must_use]
 pub fn say(w: &Words, word: TerminalWord) -> Box<[u8]> {
-    w.book.say(w.language, word.id(), &[]).expect("checked terminal phrase").text
+    w.book().say(w.language, word.id(), &[]).expect("checked terminal phrase").text
 }
 pub(crate) fn extend(shapes: &mut List<PhraseShape>, phrases: &mut List<Phrase>) {
     for word in [

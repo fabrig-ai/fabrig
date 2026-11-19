@@ -283,6 +283,7 @@ fn replace_bundle(
     content: Box<[u8]>,
     bundle: Option<&Path>,
     adapter: &Path,
+    deployment: &crate::setup::Deployment,
 ) -> Result<Box<[u8]>, String> {
     let mut updated = content.clone();
     if let Some(bundle) = bundle {
@@ -294,10 +295,11 @@ fn replace_bundle(
         }
     }
     // Check the entire candidate, including its bundle, before touching retained bytes.
-    validate(dirs, &updated, adapter)?;
     if updated == content {
+        validate_checked(dirs, deployment, adapter)?;
         return Ok(content);
     }
+    validate(dirs, &updated, adapter)?;
     let path = dirs.document();
     let staging = crate::path(&dirs.config).join("temper.json.bundle-staging");
     let mut file = OpenOptions::new().write(true).create_new(true).mode(0o600).open(&staging).map_err(|why| {
@@ -411,7 +413,11 @@ fn peer_document(dirs: &Directories, name: &str, bound: u32) -> Result<Box<[u8]>
 /// The ports no peer may take: the callback's and the ordinary box's listeners and readiness
 /// (temper/docs/design/protocol/setup/box.md, 5).
 fn ordinary_ports(dirs: &Directories, bytes: &[u8]) -> Result<Vec<u16>, String> {
-    let (ordinary, _) = crate::box_command::configuration_steps(dirs, bytes, Box::new([]))?;
+    let deployment = crate::setup::check(bytes, &jig_directories(dirs))?;
+    ordinary_ports_checked(dirs, &deployment)
+}
+fn ordinary_ports_checked(dirs: &Directories, deployment: &crate::setup::Deployment) -> Result<Vec<u16>, String> {
+    let (ordinary, _) = crate::box_command::configuration_steps_checked(dirs, deployment, Box::new([]), false, None)?;
     let mut ports = vec![1455];
     for step in
         ordinary.always.iter().chain(ordinary.asked.iter().flat_map(|group| group.steps.iter().map(|(_, step)| step)))
@@ -425,8 +431,8 @@ fn ordinary_ports(dirs: &Directories, bytes: &[u8]) -> Result<Vec<u16>, String> 
     }
     Ok(ports)
 }
-fn checked_peers(dirs: &Directories, bytes: &[u8]) -> Result<Peers, String> {
-    let mut ports = ordinary_ports(dirs, bytes)?;
+fn checked_peers(dirs: &Directories, deployment: &crate::setup::Deployment) -> Result<Peers, String> {
+    let mut ports = ordinary_ports_checked(dirs, deployment)?;
     let refuse = |name: &str, why: temper_fake::Refusal| {
         format!("{}: {}", crate::path(&dirs.config).join(name).display(), String::from_utf8_lossy(&why.line()))
     };
@@ -481,8 +487,12 @@ fn source_forgejo(bytes: &[u8]) -> Result<temper_fake::forge::Document, temper_f
     }
     Ok(document)
 }
-fn validate(dirs: &Directories, bytes: &[u8], expected: &Path) -> Result<(), String> {
+fn validate(dirs: &Directories, bytes: &[u8], expected: &Path) -> Result<crate::setup::Deployment, String> {
     let deployment = crate::setup::check(bytes, &jig_directories(dirs))?;
+    validate_checked(dirs, &deployment, expected)?;
+    Ok(deployment)
+}
+fn validate_checked(dirs: &Directories, deployment: &crate::setup::Deployment, expected: &Path) -> Result<(), String> {
     let named = &deployment.named;
     for file in named.files.iter().chain(&named.asked_files) {
         if !(contained(&dirs.config, &file.path) && !file.private || contained(&dirs.data, &file.path)) {
@@ -681,9 +691,10 @@ fn prepare(
             public_path(&path).and_then(|()| private_document(&path)).map_err(|why| reset(&root, &why))?;
         }
         let content = public(&effective.document())?;
-        let peers = checked_peers(&effective, &content)?;
+        let deployment = crate::setup::check(&content, &jig_directories(&effective))?;
+        let peers = checked_peers(&effective, &deployment)?;
         let steps = scripts_for_start(&effective, &peers, options)?;
-        let bytes = replace_bundle(&effective, content, bundle, adapter)?;
+        let bytes = replace_bundle(&effective, content, bundle, adapter, &deployment)?;
         let providers = backends::providers(&peers).map_err(|why| String::from_utf8_lossy(&why.line()).into_owned())?;
         write(&crate::path(&effective.data).join("providers.setting"), &providers, true)?;
         return Ok(Prepared {
@@ -764,8 +775,8 @@ fn prepare(
         false,
     )?;
     write(&crate::path(&effective.config).join(ADAPTER), adapter.as_os_str().as_bytes(), false)?;
-    validate(&effective, &documents.temper, adapter)?;
-    let peers = checked_peers(&effective, &documents.temper)?;
+    let deployment = validate(&effective, &documents.temper, adapter)?;
+    let peers = checked_peers(&effective, &deployment)?;
     let steps = scripts_for_start(&effective, &peers, options)?;
     // Last: a crash or refusal earlier is visibly partial and is never repaired by importing records.
     write(&marker, &source.marker, false)?;
