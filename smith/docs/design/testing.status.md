@@ -1,6 +1,6 @@
 # testing: status
 
-2026-11-18. Where smith's code lags or departs from [testing.md](testing.md).
+2026-11-19. Where smith's code lags or departs from [testing.md](testing.md).
 
 - **Not yet:**
   - 2.1: only the local-process world sweeps the simulator's faults
@@ -9,6 +9,9 @@
   - 2.2: the real loop runs one story (`tests/real`,
     `a_chat_ends_with_a_commit_in_place`): no real signal is sent, and
     the local host's simulated scenarios do not run there.
+  - 2.2: the real loop requires rg at `/usr/bin/rg` and gives its
+    agent's commands no `PATH` (`tests/real/src/lib.rs`); the machine
+    world's native listing runs `/usr/bin/rg`. [in flight: change 10397]
   - 2.3: the live stories choose their account with
     `-c endpoints.<name>.account=`, since `--account` is not built
     (`shell/commands.status.md`, Not yet, the whole document).
