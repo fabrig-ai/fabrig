@@ -1189,7 +1189,8 @@ impl<B: Backend> World<B> {
                     Flight { key: Some(key), cancelled: false, completion_message: None, completion_index: None },
                 );
             }
-            Request::Lower(smith_domain::Lower::Check { owner, program, deadline, tail }) => {
+            Request::Lower(smith_domain::Lower::Check { owner, program, bound, cap, tail }) => {
+                let deadline = self.now.saturating_add(bound).min(cap);
                 self.boundaries.push((self.now, Boundary::Check { program: program.clone() }));
                 self.observe(Seen::Checking { owner, tree: self.code() });
                 assert_eq!(&*program.path, fixture::CHECKS, "the host explicitly selected its Temper fixture checks");

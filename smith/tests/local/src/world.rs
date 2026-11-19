@@ -1570,7 +1570,7 @@ impl World {
                     self.disk.load(at.root.raw(), &at.path, 4096).is_ok_and(|(text, _)| text.starts_with(b"#!"));
                 self.events.push_back(self.below(Below::Probed { owner, executable }));
             }
-            Lower::Check { owner, program, deadline: _, tail } => {
+            Lower::Check { owner, program, bound: _, cap: _, tail } => {
                 let passed = self
                     .disk
                     .load(program.root.raw(), b"src/lib.rs", 4096)

@@ -20,7 +20,9 @@ The codec rule reads `tools/merge/codecs.txt`: one row per module, its
 repository-relative path followed by its schema texts in command order,
 space-separated, sorted by module path; `#` starts a comment. Only listed
 modules can run. The list and the module's schema texts must be present and
-unconflicted; any conflict under `skein/testing/skein-codegen/` or
+unconflicted, as must its owner's `schema/lean` mark where it exists, beside
+its first schema text. The command reads that merged mark to select the form.
+Any conflict under `skein/testing/skein-codegen/` or
 `skein/crates/skein-codec/` leaves every listed module unbuilt. Deleted or
 renamed modules stay for the resolution, and both sides must be regular files.
 For each eligible conflict it builds and runs only the generator's command:

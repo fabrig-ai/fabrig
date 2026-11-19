@@ -895,7 +895,8 @@ impl Host for Application {
                         FromDomain::Check {
                             owner,
                             program: run::Place { root: self.root, path: Box::from(b"check-hang".as_slice()) },
-                            deadline: self.machine_env.now.saturating_add(Duration::from_secs(1)),
+                            bound: Duration::from_secs(1),
+                            cap: self.machine_env.now.saturating_add(Duration::from_secs(1)),
                             tail: 8,
                         },
                         &mut self.to_domain,

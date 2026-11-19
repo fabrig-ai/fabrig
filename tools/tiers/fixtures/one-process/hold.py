@@ -4,6 +4,7 @@ import json
 import os
 from pathlib import Path
 import sys
+import time
 
 root = Path(__file__).resolve().parent
 assert Path.cwd() == Path(os.environ.get('FIXTURE_HOLD_CWD', root))
@@ -18,6 +19,12 @@ def record(event):
 record(['hold-start', sys.argv[1:], os.getpgrp(), os.getsid(0)])
 if sys.argv[1:] == ['fail']:
     sys.exit(3)
+if sys.argv[1:] == ['waiting']:
+    print('waiting for a build place', flush=True)
+    time.sleep(0.1)
+    print('waiting for a build place', flush=True)
+    time.sleep(0.2)
+    record(['held'])
 print('held', flush=True)
 sys.stdin.read()
 logs = list((root / 'target/tiers-one-process/runs').glob('*/command-output.txt'))

@@ -7,6 +7,7 @@
 - **Not yet:** 1: `run` adds `--no-fail-fast` beside a caller's `--no-run`, which nextest refuses, so a pair's build alone (`tools/tiers/run TREE TIER -- --no-run`) fails before it builds [in flight: change 9932].
 - **Not yet:** 11.4: the lanes count CPUs with `os.sched_getaffinity` alone, which macOS's Python lacks, so a one-process run there fails before its tests start [in flight: change 9933].
 - **Not yet:** 7.3, 11.7: on macOS, which has no `/proc`, `cpu.py`'s `session_processes` cannot list a stopped command's session, so stopping one (a wall hard limit, an interrupt, a failed listing) raises `FileNotFoundError` in place of settling it. A run that ends by itself never reaches it, and the macOS workflow's parts set no wall hard limit, so nothing on their path reaches it before their tests run.
+- **Not yet:** 3, items 2 and 4 and *The places it may hold*: `hold()` takes the hold's first line as held, a `waiting` line included, bounds the wait at 60 s from the start alone, and writes no `smith-check:` line [in flight: change 9657].
 
 The gate tables' form and figures, the summary by layer, the ledger, the
 held budget and the moves are `tools/tiers/budgets.md`'s; its status has

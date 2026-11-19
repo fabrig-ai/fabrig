@@ -626,6 +626,25 @@ process has exited and its tree is empty. temper's choices:
   the hold its environment names in `TIERS_HOLD` (`tools/tiers/design.md`,
   section 3; `tools/pre-pr/design.md`, section 4), and a deployment that
   lends build directories names its hold there.
+- **Its build places too, and its bound counts only them.** A deployment
+  whose cargo admits builds to a limited number of places, shared by every
+  workspace on the machine, makes a check wait for one per cargo command,
+  behind other runs' builds and tests, and that wait counted against the
+  checks' bound. Its hold takes the check's place once, before its first
+  build, and keeps it to the check's end, so that the check's cargo
+  commands wait for none; while the hold waits it says so, the check tells
+  smith, and the wait is left out of the bound (smith's
+  `smith/docs/design/domain/run.md`, 8.1), whose figure stays the
+  deployment's. A check queued behind others is bounded by its call's
+  deadline and the run's end alone until it holds its places.
+- **The base's build has a target of its own.** A deployment's cargo
+  that gives each workspace one target, by the command's path, would
+  give a check's base worktree (`<git dir>/temper-pre-pr/base`) the
+  head's target, and cargo's freshness by file times can then take one
+  tree's outputs for the other's. The check sets `CARGO_TARGET_DIR` for
+  every program it starts there (`tools/pre-pr/design.md`, section 5),
+  and such a cargo keeps that setting, or keys the worktree to a target
+  of its own.
 - **What a test writes reaches the checkout.** A run's commands and
   checks run in place, in the workspace's checkout (smith's
   `protocol/agent.md`, section 2), and its delivery takes that tree, so a
