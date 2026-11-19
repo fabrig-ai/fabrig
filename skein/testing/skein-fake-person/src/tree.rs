@@ -78,6 +78,10 @@ fn matches(nodes: &[Node], index: usize, target: &Target) -> bool {
             contains(&fallback, name)
         }
         Target::ExactRole { role, name } => exactly_named(nodes, index, *role, name),
+        Target::TextBox { name } => {
+            (node.role == Role::TextField || node.role == Role::TextArea)
+                && exactly_named(nodes, index, node.role, name)
+        }
         Target::Text { text: words } => !node.text.is_empty() && contains(&text(node), words),
     }
 }
