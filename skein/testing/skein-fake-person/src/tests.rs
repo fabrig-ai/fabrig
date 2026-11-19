@@ -562,3 +562,27 @@ fn a_tree_find_past_the_last_match_is_absent() {
     let mut face = TreeFace::new(view.tree());
     assert_eq!(face.find(&Find::named(Role::Button, b"Choose").nth(2)), Found::Absent);
 }
+
+#[test]
+fn a_meter_is_found_by_its_role_name() {
+    assert_eq!(crate::role_name(Role::Meter), "meter");
+    assert_eq!(crate::role_named("meter"), Some(Role::Meter));
+    let view = build(|b| {
+        b.open(Role::Page);
+        b.open(Role::Main);
+        b.open(Role::Meter);
+        b.name(b"Week");
+        b.fraction(Fraction { done: 2900, total: 10000 });
+        b.run(Run::Plain, b"29% used");
+        b.close();
+        b.close();
+        b.close();
+    });
+    let mut person: Person<u8> = Person::new(Box::new([Step::See {
+        find: Find::exactly_named(crate::role_named("meter").expect("meter role"), b"Week"),
+        within: skein_lib::Duration::from_secs(1),
+    }]));
+    let mut face = TreeFace::new(view.tree());
+    assert_eq!(person.next(&mut face, Time::ZERO), Next::Wait { until: None });
+    assert_eq!(person.next(&mut face, Time::ZERO), Next::Done);
+}
