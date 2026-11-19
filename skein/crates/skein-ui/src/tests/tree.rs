@@ -475,3 +475,37 @@ fn a_primary_backslash_is_a_shortcut() {
         Some(crate::Shortcut { key: b'\\', modifier: crate::Modifier::Primary })
     );
 }
+
+#[test]
+fn a_meter_holds_its_required_fraction_and_words() {
+    let mut b = Builder::new(&LIMITS);
+    b.open(Role::Meter);
+    let fraction = crate::Fraction { done: 2900, total: 10000 };
+    b.fraction(fraction);
+    b.run(Run::Plain, b"29% used");
+    b.close();
+    let tree = b.finish();
+    let node = tree.get(0).expect("meter exists");
+    assert_eq!(node.fraction, Some(fraction));
+    assert_eq!(crate::Made::of(node).attribute.fraction, Some(fraction));
+    assert_eq!(node.text.get(0).expect("value words").text.as_ref(), b"29% used");
+    assert!(!crate::takes(Role::Meter, false, &crate::Act::Press));
+}
+
+#[test]
+fn shown_folded_children_precede_a_disclosures_body() {
+    let mut b = Builder::new(&LIMITS);
+    b.open(Role::Disclosure);
+    for _ in 0_u32..2 {
+        b.open(Role::Group);
+        b.state(State::ShownFolded);
+        b.text(Run::Plain, b"Week");
+        b.close();
+    }
+    b.text(Run::Plain, b"Sources");
+    b.close();
+    let tree = b.finish();
+    assert!(tree.get(1).expect("first child").states.as_slice().contains(&State::ShownFolded));
+    assert!(tree.get(3).expect("second child").states.as_slice().contains(&State::ShownFolded));
+    assert!(tree.get(5).expect("body child").states.is_empty());
+}

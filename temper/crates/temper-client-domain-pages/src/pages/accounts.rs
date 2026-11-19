@@ -61,6 +61,7 @@ pub struct Accounts {
     pub key_for: Option<(Row, Option<u32>)>,
     pub request_row: Option<Row>,
     pub request: request::Request,
+    pub members: Option<super::members::Members>,
 }
 
 impl Default for Accounts {
@@ -80,6 +81,7 @@ impl Accounts {
             key_for: None,
             request_row: None,
             request: request::Request::default(),
+            members: None,
         }
     }
 
@@ -106,7 +108,40 @@ impl Accounts {
         }
     }
 
+    pub(crate) fn configure_members(&mut self, open: bool, client: &Client, next: &mut u64, out: &mut Queue<Request>) {
+        let mut needed = false;
+        if open {
+            if let Some(doc) = document(client) {
+                for account in &doc.accounts {
+                    needed |= uses_people(account.uses.as_ref());
+                }
+            }
+            if let Some(doc) = self.deployment(client) {
+                for account in &doc.accounts {
+                    needed |= uses_people(account.uses.as_ref());
+                }
+            }
+        }
+        if !needed {
+            self.members = None;
+            return;
+        }
+        if self.members.is_none() {
+            self.members = Some(super::members::Members::new());
+        }
+        if let Some(members) = &mut self.members {
+            members.configure(current_me(client), next, out);
+        }
+    }
+
+    /// Members' name, then login; an unread person has no known name (client/pages/accounts.md, 2).
+    #[must_use]
+    pub fn party_name(&self, party: u64) -> Option<&[u8]> {
+        self.members.as_ref()?.party_name(party)
+    }
+
     pub(crate) fn leave(&mut self, out: &mut Queue<Request>) {
+        self.members = None;
         self.added = None;
         self.added_from_connect = false;
         self.request.clear_key();
@@ -128,6 +163,17 @@ impl Accounts {
         }
         if let Latest::Jig(c::Delivery::Deployment(deployment)) = doc.latest? { Some(deployment) } else { None }
     }
+}
+
+fn uses_people(uses: Option<&skein_lib::List<c::AccountUse>>) -> bool {
+    if let Some(uses) = uses {
+        for use_ in uses {
+            if let c::AccountUse::Party(_) = use_ {
+                return true;
+            }
+        }
+    }
+    false
 }
 
 /// Current identity only; old owner facts cannot keep a deployment watch open.

@@ -133,7 +133,7 @@ impl Sample {
         }
     }
 }
-pub const N: usize = 448;
+pub const N: usize = 453;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -1281,6 +1281,11 @@ pub fn samples() -> [Sample; N] {
             then: Shown,
         },
         Sample { name: "accounts-states", world: Reference, address: Address::Accounts, then: Shown },
+        Sample { name: "accounts-usage", world: Reference, address: Address::Accounts, then: Shown },
+        Sample { name: "accounts-usage-filling", world: Reference, address: Address::Accounts, then: Shown },
+        Sample { name: "accounts-usage-calm", world: Reference, address: Address::Accounts, then: Shown },
+        Sample { name: "accounts-usage-limited", world: Reference, address: Address::Accounts, then: Shown },
+        Sample { name: "accounts-shared", world: Reference, address: Address::Accounts, then: Shown },
         Sample { name: "accounts-expiring", world: Reference, address: Address::Accounts, then: Shown },
         Sample { name: "accounts-key", world: Reference, address: Address::Accounts, then: Shown },
         Sample { name: "accounts-removing", world: Reference, address: Address::Accounts, then: Shown },
@@ -1907,6 +1912,7 @@ pub fn domain(sample: &Sample) -> Domain {
             | "work-empty"
             | "members"
             | "members-refused"
+            | "accounts-shared"
             | "limits"
             | "limits-not-owner"
     ) {
@@ -2305,6 +2311,16 @@ pub fn domain(sample: &Sample) -> Domain {
     root
 }
 pub(super) fn account_states(root: &mut Domain, name: &str, accounts_watch: Option<Token>, out: &mut Queue<Request>) {
+    if matches!(name, "accounts-usage" | "accounts-usage-filling" | "accounts-usage-calm" | "accounts-usage-limited") {
+        let mut doc = temper_client_domain::pages::accounts::document(root.client()).expect("sample accounts").clone();
+        crate::worlds::account_usage(&mut doc, name, crate::worlds::sample_now(Reference, name));
+        crate::driver::deliver(
+            root,
+            accounts_watch.expect("accounts watch"),
+            c::Delivery::Accounts(Box::new(doc)),
+            out,
+        );
+    }
     if matches!(
         name,
         "accounts-states"

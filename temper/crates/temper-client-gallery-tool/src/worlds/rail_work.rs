@@ -39,6 +39,7 @@ pub(super) fn world(name: &str, address: Address) -> Domain {
     }
     root
 }
+#[expect(clippy::too_many_lines, reason = "gallery worlds settle their ordered transport obligations together")]
 fn settle(root: &mut Domain, out: &mut Queue<Request>, work: Work, name: &str) {
     for _ in 0..256 {
         let Some(request) = out.pop() else { break };
@@ -61,6 +62,9 @@ fn settle(root: &mut Domain, out: &mut Queue<Request>, work: Work, name: &str) {
                         pending: List::with_capacity(0),
                     }))),
                     c::Subject::Deployment => Some(c::Delivery::Deployment(Box::new(deployment()))),
+                    c::Subject::Accounts if name == "accounts-shared" => {
+                        Some(c::Delivery::Accounts(Box::new(shared_accounts())))
+                    }
                     _ => None,
                 };
                 if let Some(value) = value {
@@ -94,7 +98,9 @@ fn settle(root: &mut Domain, out: &mut Queue<Request>, work: Work, name: &str) {
                         out,
                     );
                 } else {
-                    answer(root, read, c::ReadValue::Project(Box::new(project_document(project))), out);
+                    let project =
+                        if name == "accounts-shared" { shared_project(project) } else { project_document(project) };
+                    answer(root, read, c::ReadValue::Project(Box::new(project)), out);
                 }
             }
             Down::Read { read, what: Readable::Jig(what) } => {
@@ -548,6 +554,60 @@ fn project_document(number: u32) -> c::Project {
         recurring: List::with_capacity(0),
         cut: false,
     }
+}
+fn shared_accounts() -> c::Accounts {
+    let mut accounts = super::accounts(Reference, Then::Shown);
+    for row in accounts.accounts.iter_mut() {
+        row.display = doc("sam@example.com");
+        row.sources = List::from_boxed(Box::new([row.sources.get(0).expect("deciding source").clone()]));
+        row.facts = List::from_boxed(Box::new([c::AccountFact {
+            kind: c::FACT_EMAIL,
+            label: Box::new([]),
+            value: c::AccountFactValue::Text(Box::from(b"sam@example.com".as_slice())),
+            seen: NOW,
+            source: Some(row.sources.get(0).expect("deciding source").number),
+            origin: 1,
+        }]));
+        row.manage_usage = Some(Box::from(if row.provider == Some(17) {
+            b"https://claude.ai/settings/usage".as_slice()
+        } else {
+            b"https://chatgpt.com/#settings/Account"
+        }));
+        let mut uses = List::uncapped();
+        for party in 1..=11 {
+            uses.push(c::AccountUse::Party(party)).expect("eleven people");
+        }
+        row.uses = Some(uses);
+    }
+    accounts
+}
+fn shared_project(number: u32) -> c::Project {
+    let mut project = project_document(number);
+    project.members = List::uncapped();
+    for (party, name) in [
+        (1, "Ana"),
+        (2, "Ben"),
+        (4, "Dara"),
+        (5, "Eli"),
+        (6, "Femi"),
+        (7, "Gus"),
+        (8, "Hana"),
+        (9, "Ivo"),
+        (10, "Jun"),
+        (11, "Kai"),
+    ] {
+        project
+            .members
+            .push(c::ProjectMember {
+                party,
+                name: doc(name),
+                login: doc(name),
+                kind: c::PartyKind::Person,
+                role: c::HeldRole::Member,
+            })
+            .expect("named people, with Person 3 unread");
+    }
+    project
 }
 fn deployment() -> c::Deployment {
     let mut doc = super::deployment(Reference);

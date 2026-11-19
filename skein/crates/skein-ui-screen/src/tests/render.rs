@@ -1276,3 +1276,28 @@ fn inline_items() -> Tree {
     b.close();
     fixtures::finish(b)
 }
+
+#[test]
+fn a_meter_draws_its_name_and_runs_as_a_progress_does() {
+    let size = Size { columns: 24, rows: 2 };
+    let mut outputs = skein_lib::List::with_capacity(2);
+    for role in [Role::Progress, Role::Meter] {
+        let mut b = Builder::new(&LIMITS);
+        b.open(Role::Page);
+        b.open(Role::Main);
+        b.open(role);
+        b.name(b"Week");
+        b.fraction(skein_ui::Fraction { done: 2900, total: 10000 });
+        b.run(skein_ui::Run::Plain, b"29% used");
+        b.close();
+        b.close();
+        b.close();
+        let mut frame = Frame::new(size);
+        let mut focus = Focus::default();
+        render(&b.finish(), &fixtures::theme(), size, &mut focus, &mut frame);
+        assert_eq!(frame.text().as_ref(), b"Week: 29% used\n\n");
+        assert_eq!(focus.node, None);
+        outputs.push(frame.print()).expect("two frames fit");
+    }
+    assert_eq!(outputs.get(0), outputs.get(1));
+}

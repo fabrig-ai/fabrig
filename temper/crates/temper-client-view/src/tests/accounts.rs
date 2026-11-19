@@ -132,6 +132,7 @@ fn account_nodes(tree: &skein_ui::Tree) -> &[skein_ui::Node] {
 
 /// The account's trial is under its head and before its sources (temper/docs/design/domain/trial.md, 6.2).
 #[test]
+#[expect(clippy::too_many_lines, reason = "each trial outcome keeps its expected line, style and steps together")]
 fn a_row_holds_its_trials_line() {
     let answered =
         v::TrialState::Answered(v::TrialAnswered::new(&v::CEILINGS, v::TrialAnsweredParts { seconds: 6 }).unwrap());
@@ -172,8 +173,24 @@ fn a_row_holds_its_trials_line() {
             c::AccountKind::SignIn,
             v::TrialStep::Answers,
             answered,
-            "ChatGPT plan · Pat · answered in 6 s",
-            Some(crate::look::FLOW_DONE),
+            "Signed in to ChatGPT · answered in 6 s",
+            Some(crate::look::ACCOUNT_CHECK),
+            false,
+        ),
+        (
+            c::AccountKind::Program,
+            v::TrialStep::Answers,
+            v::TrialState::Answered(v::TrialAnswered::new(&v::CEILINGS, v::TrialAnsweredParts { seconds: 8 }).unwrap()),
+            "Signed in through Claude Code · answered in 8 s",
+            Some(crate::look::ACCOUNT_CHECK),
+            false,
+        ),
+        (
+            c::AccountKind::Key,
+            v::TrialStep::Answers,
+            v::TrialState::Answered(v::TrialAnswered::new(&v::CEILINGS, v::TrialAnsweredParts { seconds: 6 }).unwrap()),
+            "Billed to the key’s organization · answered in 6 s",
+            Some(crate::look::ACCOUNT_CHECK),
             false,
         ),
         (
@@ -211,6 +228,12 @@ fn a_row_holds_its_trials_line() {
             assert!(head < at && at < sources, "{line}");
             if let Some(style) = style {
                 assert!(nodes[at].styles.as_slice().contains(&style), "{line}");
+                if style == crate::look::ACCOUNT_CHECK {
+                    assert_eq!(nodes[at].size, 2, "one paragraph with one text");
+                    assert_eq!(nodes[at + 1].text.len(), 1);
+                    assert_eq!(nodes[at + 1].text.get(0).unwrap().text.as_ref(), line.as_bytes());
+                    assert!(!nodes[at].styles.as_slice().contains(&crate::look::FLOW_DONE));
+                }
             }
             assert_eq!(
                 nodes.iter().any(|n| n.role == Role::Disclosure && n.name.as_deref() == Some(b"Each step")),
@@ -253,10 +276,10 @@ fn a_row_answered_for_another_account_says_nothing() {
         for ((at, _), answered) in rows.into_iter().zip([false, true]) {
             let nodes = super::inbox::subtree(tree, at);
             assert_eq!(
-                nodes.iter().any(|n| n.name.as_deref() == Some("ChatGPT plan · Other · answered in 6 s".as_bytes())),
+                nodes.iter().any(|n| n.name.as_deref() == Some("Signed in to ChatGPT · answered in 6 s".as_bytes())),
                 answered
             );
-            assert_eq!(nodes.iter().any(|n| n.styles.as_slice().contains(&crate::look::FLOW_DONE)), answered);
+            assert_eq!(nodes.iter().any(|n| n.styles.as_slice().contains(&crate::look::ACCOUNT_CHECK)), answered);
         }
     }
 }
@@ -630,8 +653,300 @@ fn the_accounts_page_caps_uses() {
     }
     doc.accounts.get_mut(0).unwrap().uses = Some(uses);
     let text = shown(doc);
-    assert!(text.contains("Uses left out: 292"));
-    assert!(!text.contains("Person 9;"));
+    assert!(text.contains("Person 8 and 292 more."));
+    assert!(!text.contains("Person 9"));
+}
+fn uses(people: u64, projects: u32) -> List<c::AccountUse> {
+    let mut uses = List::uncapped();
+    for party in 1..=people {
+        uses.push(c::AccountUse::Party(party)).unwrap();
+    }
+    for project in 1..=projects {
+        uses.push(c::AccountUse::Project(project)).unwrap();
+    }
+    uses
+}
+#[test]
+fn folded_accounts_count_uses_without_naming_models() {
+    let (mut root, me_watch, _, _, watch) = fixtures::root_at_full(d::Address::Accounts, &fixtures::limits(), b"Shop");
+    let mut me = d::pages::accounts::current_me(root.client()).unwrap().clone();
+    me.projects.get_mut(0).unwrap().models = super::choice::line_models(true);
+    fixtures::deliver_me(&mut root, me_watch, me);
+    for (given, plan, expected) in [
+        (Some(uses(11, 0)), true, "Ready · Pays for 11 people"),
+        (Some(uses(9, 2)), true, "Ready · Pays for 9 people and 2 projects"),
+        (Some(uses(1, 0)), true, "Ready · Pays for 1 person"),
+        (Some(uses(0, 1)), true, "Ready · Pays for 1 project"),
+        (Some(uses(0, 0)), true, "Ready · none"),
+        (None, true, "Ready · Your own work, and projects where you’re the only member"),
+        (None, false, "Ready · Your own work"),
+    ] {
+        let mut doc = card_document(b"openai", b"Pat", if plan { c::AccountKind::SignIn } else { c::AccountKind::Key });
+        doc.accounts.get_mut(0).unwrap().uses = given;
+        deliver(&mut root, watch.unwrap(), doc);
+        for words in [fixtures::words(), fixtures::browser_words()] {
+            let mut view = fixtures::view_of(words);
+            let tree = fixtures::build(&mut view, &root);
+            assert_eq!(
+                tree.nodes()[super::inbox::styled(tree, crate::look::SETTINGS_ROW)].description.as_deref(),
+                Some(expected.as_bytes())
+            );
+        }
+    }
+    let (mut root, watch) = owner_root();
+    let mut doc = root.pages().accounts().unwrap().deployment(root.client()).unwrap().clone();
+    let row = doc.accounts.get_mut(0).unwrap();
+    row.uses = Some(uses(2, 0));
+    row.sources = List::from_boxed(Box::new([source(43)]));
+    let chip = fixtures::task::document().chip;
+    row.waiting = List::from_boxed(Box::new([chip.clone(), chip]));
+    deliver_deployment(&mut root, watch, doc);
+    let view = fixtures::page_view(&root);
+    assert!(view.tree().nodes().iter().any(|n| n.role == Role::Disclosure
+        && n.description.as_deref() == Some("Ready · Pays for 2 people · 2 tasks waiting".as_bytes())));
+}
+fn named_project() -> c::Project {
+    let limits = fixtures::limits();
+    let link = jig_client_protocol_link::Limits::new(limits.client.domain, limits.client.exchanges).unwrap();
+    let mut project =
+        jig_client_protocol_link::translate::documents::project(jig_client_test_records::owner_project_record(), &link)
+            .unwrap();
+    project.number = 3;
+    project.members = List::uncapped();
+    for (party, name, login) in [(1, b"Ana".as_slice(), b"ana".as_slice()), (2, b"", b"ben")] {
+        project
+            .members
+            .push(c::ProjectMember {
+                party,
+                name: text(name),
+                login: text(login),
+                kind: c::PartyKind::Person,
+                role: c::HeldRole::Member,
+            })
+            .unwrap();
+    }
+    project
+}
+#[test]
+fn opened_accounts_name_their_uses_between_check_and_sources() {
+    let (mut root, trials, accounts) = trial_root(c::AccountKind::SignIn);
+    let mut me = d::pages::accounts::current_me(root.client()).unwrap().clone();
+    me.projects.get_mut(0).unwrap().project = 3;
+    me.projects.get_mut(0).unwrap().name = text(b"fabrig");
+    fixtures::deliver_me(&mut root, Token::new(0), me);
+    let mut doc = card_document(b"openai", b"Pat", c::AccountKind::SignIn);
+    doc.accounts.get_mut(0).unwrap().uses = Some(List::from_boxed(Box::new([
+        c::AccountUse::Party(1),
+        c::AccountUse::Party(2),
+        c::AccountUse::Party(9),
+        c::AccountUse::Project(3),
+    ])));
+    let out = trial_event(
+        &mut root,
+        d::Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::Watched {
+                    watch: accounts,
+                    event: c::WatchEvent::Delivered(c::Delivery::Accounts(Box::new(doc.clone()))),
+                },
+            },
+        },
+    );
+    let read = out
+        .iter()
+        .find_map(|r| {
+            if let d::Request::Unlinked {
+                request:
+                    jig_client::UnlinkedRequest::Down {
+                        down:
+                            jig_client::Down::Read {
+                                read,
+                                what: jig_client::Readable::Jig(c::Read::Project { project: 3 }),
+                            },
+                    },
+            } = r
+            {
+                Some(*read)
+            } else {
+                None
+            }
+        })
+        .expect("Accounts reads the project's people");
+    trial_event(
+        &mut root,
+        d::Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::ReadDone {
+                    read,
+                    result: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Project(Box::new(
+                        named_project(),
+                    )))),
+                },
+            },
+        },
+    );
+    trial_rows(
+        &mut root,
+        trials,
+        &[trial_row(
+            v::TrialStep::Answers,
+            v::TrialState::Answered(v::TrialAnswered::new(&v::CEILINGS, v::TrialAnsweredParts { seconds: 6 }).unwrap()),
+        )],
+    );
+    for (given, cap, expected) in [
+        (doc.accounts.get(0).unwrap().uses.clone(), 8, Some("Pays for Ana, ben, Person 9 and fabrig.")),
+        (Some(uses(1, 0)), 8, Some("Pays for Ana.")),
+        (Some(uses(11, 0)), 2, Some("Pays for Ana, ben and 9 more.")),
+        (None, 8, None),
+    ] {
+        doc.accounts.get_mut(0).unwrap().uses = given;
+        deliver(&mut root, accounts, doc.clone());
+        for words in [fixtures::words(), fixtures::browser_words()] {
+            let mut limits = fixtures::limits();
+            limits.row_uses = cap;
+            let bounds = crate::Limits::of(&limits, &words).unwrap();
+            let mut view = crate::View::new(&bounds, &limits, words, fixtures::FORGE);
+            let tree = fixtures::build(&mut view, &root);
+            let nodes = account_nodes(tree);
+            let pays = nodes.iter().position(|n| n.styles.as_slice().contains(&crate::look::ACCOUNT_PAYS));
+            if let Some(expected) = expected {
+                let at = pays.expect("named uses paragraph");
+                assert_eq!(nodes[at].role, Role::Paragraph);
+                assert_eq!(nodes[at].name.as_deref(), Some(expected.as_bytes()));
+                assert_eq!(nodes[at + 1].text.get(0).unwrap().text.as_ref(), expected.as_bytes());
+                let check =
+                    nodes.iter().position(|n| n.styles.as_slice().contains(&crate::look::ACCOUNT_CHECK)).unwrap();
+                let sources = nodes
+                    .iter()
+                    .position(|n| n.name.as_deref() == Some(b"Its sources in order: a run takes the first usable one."))
+                    .unwrap();
+                assert!(check < at && at < sources);
+            } else {
+                assert!(pays.is_none());
+            }
+        }
+    }
+}
+fn act_names(nodes: &[skein_ui::Node]) -> Vec<String> {
+    nodes
+        .iter()
+        .filter(|n| n.role == Role::Button || n.role == Role::Link)
+        .map(|n| String::from_utf8(n.name.as_ref().unwrap().to_vec()).unwrap())
+        .collect()
+}
+fn quiet_document(count: u32) -> c::Accounts {
+    let mut doc = card_document(b"anthropic", b"work-login", c::AccountKind::Program);
+    doc.cut = false;
+    doc.signing.clear();
+    let mut row = doc.accounts.get(0).unwrap().clone();
+    row.cut = false;
+    row.manage_usage = Some(b"https://claude.ai/settings/usage".as_slice().into());
+    doc.accounts = List::uncapped();
+    for number in 1..=count {
+        row.number = number;
+        row.place = number;
+        doc.accounts.push(row.clone()).unwrap();
+    }
+    doc
+}
+#[test]
+fn account_acts_are_one_quiet_line_with_remove_last() {
+    let (mut root, watch) = fixtures::account_root();
+    for count in [1, 2] {
+        deliver(&mut root, watch, quiet_document(count));
+        for words in [fixtures::words(), fixtures::browser_words()] {
+            let mut view = fixtures::view_of(words);
+            let tree = fixtures::build(&mut view, &root);
+            let acts: Vec<_> = tree
+                .nodes()
+                .iter()
+                .enumerate()
+                .filter(|(_, n)| n.styles.as_slice().contains(&crate::look::ACCOUNT_ACTS))
+                .collect();
+            assert_eq!(acts.len(), usize::try_from(count).unwrap());
+            for (index, (at, node)) in acts.iter().enumerate() {
+                let nodes = super::inbox::subtree(tree, *at);
+                let mut expected = vec!["Add an API key", "Manage usage"];
+                if count == 2 {
+                    expected.push(if index == 0 { "Move account down" } else { "Move account up" });
+                }
+                expected.push("Remove account");
+                assert_eq!(act_names(nodes), expected);
+                let remove = nodes.iter().find(|n| n.name.as_deref() == Some(b"Remove account")).unwrap();
+                assert!(remove.styles.as_slice().contains(&crate::look::ACCOUNT_REMOVE));
+                assert_eq!(node.role, Role::Slot);
+            }
+            if count == 1 {
+                assert!(
+                    !account_nodes(tree).iter().any(|n| n.styles.as_slice().contains(&crate::look::ACCOUNT_MOVE)),
+                    "only account and only source have no moves"
+                );
+            }
+        }
+    }
+    deliver(&mut root, watch, quiet_document(1));
+    let mut view = fixtures::view();
+    press(&mut view, &mut root, Role::Button, b"Add an API key", Act::Press);
+    let tree = fixtures::build(&mut view, &root);
+    let acts = super::inbox::styled(tree, crate::look::ACCOUNT_ACTS);
+    let end = acts + usize::try_from(tree.nodes()[acts].size).unwrap();
+    for name in [b"Key (pasted once)".as_slice(), b"Add key"] {
+        assert!(tree.nodes().iter().position(|n| n.name.as_deref() == Some(name)).unwrap() >= end);
+    }
+}
+#[test]
+fn moves_are_named_arrows_only_where_the_full_list_has_a_neighbour() {
+    let (mut root, watch) = fixtures::account_root();
+    let mut doc = quiet_document(2);
+    let account = doc.accounts.get_mut(0).unwrap();
+    account.sources = List::from_boxed(Box::new([source(1), source(2), source(3)]));
+    deliver(&mut root, watch, doc.clone());
+    for words in [fixtures::words(), fixtures::browser_words()] {
+        let mut view = fixtures::view_of(words);
+        let tree = fixtures::build(&mut view, &root);
+        let nodes = account_nodes(tree);
+        let items: Vec<_> = nodes.iter().enumerate().filter(|(_, n)| n.role == Role::Item).collect();
+        assert_eq!(items.len(), 3);
+        for ((index, item), expected) in items.iter().zip([
+            vec!["Move source down"],
+            vec!["Move source up", "Move source down"],
+            vec!["Move source up"],
+        ]) {
+            let source = &nodes[*index..index + usize::try_from(item.size).unwrap()];
+            let moves: Vec<_> = act_names(source).into_iter().filter(|name| name.starts_with("Move")).collect();
+            assert_eq!(moves, expected);
+        }
+        for node in tree.nodes().iter().filter(|n| n.styles.as_slice().contains(&crate::look::ACCOUNT_MOVE)) {
+            assert_eq!(node.role, Role::Button);
+            assert_eq!(node.hint, node.name);
+            let name = node.name.as_deref().unwrap();
+            assert!(node.styles.as_slice().contains(&if name.ends_with(b"up") {
+                crate::look::ACCOUNT_UP
+            } else {
+                crate::look::ACCOUNT_DOWN
+            }));
+        }
+    }
+    let mut counts = fixtures::limits().client.domain.accounts;
+    counts.accounts = 1;
+    counts.sources = 2;
+    let mut view = bounded_view(counts);
+    let tree = fixtures::build(&mut view, &root);
+    let nodes = account_nodes(tree);
+    assert!(act_names(nodes).contains(&"Move account down".to_owned()), "omitted accounts are still neighbours");
+    assert_eq!(
+        act_names(nodes).iter().filter(|n| *n == "Move source down").count(),
+        2,
+        "omitted sources are still neighbours"
+    );
+    doc = quiet_document(1);
+    doc.cut = true;
+    doc.accounts.get_mut(0).unwrap().cut = true;
+    deliver(&mut root, watch, doc);
+    let view = fixtures::page_view(&root);
+    let names = act_names(account_nodes(view.tree()));
+    assert!(names.contains(&"Move account down".to_owned()), "a cut account list keeps down");
+    assert!(names.contains(&"Move source down".to_owned()), "a cut source list keeps down");
 }
 fn key_draft() -> (d::Domain, crate::View) {
     let (mut root, watch) = fixtures::account_root();
@@ -1177,7 +1492,7 @@ fn each_source_row_offers_its_rank_control() {
     action(&mut root, A::KeyFor { row: Row { holder: c::AskAccountHolder::Own, account: 1 }, source: None });
     let mut view = bounded_view(fixtures::limits().client.domain.accounts);
     let tree = fixtures::build(&mut view, &root);
-    assert_eq!(tree.nodes().iter().filter(|n| n.name.as_deref() == Some(b"Move source up")).count(), 16 * 8);
+    assert_eq!(tree.nodes().iter().filter(|n| n.name.as_deref() == Some(b"Move source up")).count(), 16 * 7);
 }
 
 #[test]
@@ -1900,4 +2215,121 @@ fn the_old_chrome_is_gone() {
     }
     assert_no_old_chrome(&owner_root().0);
     assert_no_old_chrome(&fixtures::playground_root(d::Address::Accounts, fixtures::PROJECT, true));
+}
+
+fn usage_text(tree: &skein_ui::Tree, id: skein_ui::NodeId) -> Box<[u8]> {
+    fixtures::node_text(tree, tree.nodes().iter().position(|node| node.id == id).unwrap())
+}
+fn usage_fact(label: &[u8], hours: u64, remaining: u64, used: u16, state: u16) -> c::AccountFact {
+    c::AccountFact {
+        kind: c::FACT_USAGE,
+        label: Box::from(label),
+        value: c::AccountFactValue::Window(c::AccountWindow {
+            length: Some(skein_lib::Duration::from_secs(hours.checked_mul(3600).unwrap())),
+            used: Some(used),
+            resets: Some(skein_lib::Wall::from_nanos(
+                fixtures::NOW.as_nanos().checked_add(remaining.checked_mul(60_000_000_000).unwrap()).unwrap(),
+            )),
+            state,
+        }),
+        seen: fixtures::NOW,
+        source: None,
+        origin: 5,
+    }
+}
+
+#[test]
+fn held_usage_is_in_each_holders_folded_head_and_the_terminal() {
+    use crate::look;
+    use skein_ui::{Fraction, State};
+    const PACE: &str = "resets in 4 d 14 h · 0.5%/h · about 84% at reset";
+    const LINE: &str = "Week: 29% used · resets in 4 d 14 h · 0.5%/h · about 84% at reset";
+    for deployment in [false, true] {
+        let (mut root, deployment_watch, own_watch) = owner_root_with_accounts();
+        let facts = List::from_boxed(Box::new([usage_fact(b"seven_day", 168, 110 * 60, 2900, 1)]));
+        let mut own = card_document(b"anthropic", b"Pat", c::AccountKind::Program);
+        let mut shared = root.pages().accounts().unwrap().deployment(root.client()).unwrap().clone();
+        shared.accounts.truncate(1);
+        if deployment {
+            own.accounts.clear();
+            let account = shared.accounts.get_mut(0).unwrap();
+            account.provider_name = Some(text(b"anthropic"));
+            account.provider = Some(PROVIDER);
+            account.facts = facts;
+        } else {
+            shared.accounts.clear();
+            own.accounts.get_mut(0).unwrap().facts = facts;
+        }
+        deliver(&mut root, own_watch, own);
+        deliver_deployment(&mut root, deployment_watch, shared);
+        let browser = fixtures::browser_page_view(&root);
+        let tree = browser.tree();
+        let row = account_nodes(tree);
+        assert_eq!(row[1].role, Role::Group);
+        assert_eq!(row[1].name.as_deref(), Some(b"Usage".as_slice()));
+        assert!(row[1].styles.as_slice().contains(&look::USAGE));
+        assert!(row[1].states.as_slice().contains(&State::ShownFolded));
+        let window = &row[2];
+        assert_eq!(window.role, Role::Group);
+        assert!(window.styles.as_slice().contains(&look::USAGE_WINDOW));
+        let mut children = Vec::new();
+        let mut rest = &row[3..2 + usize::try_from(window.size).unwrap()];
+        while let Some(child) = rest.first() {
+            children.push(child);
+            rest = &rest[usize::try_from(child.size).unwrap()..];
+        }
+        assert_eq!(children.len(), 4);
+        assert_eq!(children[0].role, Role::Text);
+        assert_eq!(usage_text(tree, children[0].id).as_ref(), b"Week");
+        assert!(children[0].styles.as_slice().contains(&look::USAGE_NAME));
+        assert_eq!(children[1].role, Role::Meter);
+        assert_eq!(children[1].name.as_deref(), Some(b"Week".as_slice()));
+        assert_eq!(children[1].fraction, Some(Fraction { done: 2900, total: 10000 }));
+        assert_eq!(usage_text(tree, children[1].id).as_ref(), b"29% used");
+        assert!(children[1].styles.as_slice().contains(&look::USAGE_BAR));
+        assert_eq!(children[2].role, Role::Text);
+        assert_eq!(usage_text(tree, children[2].id).as_ref(), b"29%");
+        assert!(children[2].styles.as_slice().contains(&look::USAGE_USED));
+        assert!(children[3].styles.as_slice().contains(&look::USAGE_PACE));
+        assert_eq!(usage_text(tree, children[3].id).as_ref(), PACE.as_bytes());
+        assert_eq!(browser.next_change(), Some(skein_lib::Wall::from_nanos(60_000_000_000)));
+        let mut terminal = fixtures::page_view(&root);
+        let tree = terminal.tree();
+        let paragraph = fixtures::find(tree, Role::Paragraph, LINE.as_bytes()).expect("one paragraph per window");
+        assert_eq!(usage_text(tree, paragraph).as_ref(), LINE.as_bytes());
+        assert!(!tree.nodes().iter().any(|node| node.role == Role::Meter));
+        let mut print = skein_ui_text::Print::new(&terminal.limits().tree).unwrap();
+        skein_ui_text::render(tree, b"temper", None, &mut print);
+        assert!(String::from_utf8_lossy(print.text.as_slice()).contains(LINE));
+        assert_eq!(terminal.next_change(), Some(skein_lib::Wall::from_nanos(60_000_000_000)));
+        let mut patches = skein_lib::Queue::with_capacity(terminal.limits().tree.patches);
+        crate::build(&mut terminal, &root, skein_lib::Wall::from_nanos(90_000_000_000), &mut patches);
+        assert_eq!(terminal.next_change(), Some(skein_lib::Wall::from_nanos(120_000_000_000)));
+    }
+}
+
+#[test]
+fn usage_warns_limits_and_disappears_when_no_window_is_held() {
+    use crate::look;
+    let (mut root, watch) = fixtures::account_root();
+    let mut doc = card_document(b"anthropic", b"Pat", c::AccountKind::Program);
+    doc.accounts.get_mut(0).unwrap().facts = List::from_boxed(Box::new([
+        usage_fact(b"seven_day", 168, 48 * 60, 8300, 1),
+        usage_fact(b"five_hour", 5, 40, 10000, c::WINDOW_LIMITED),
+    ]));
+    deliver(&mut root, watch, doc);
+    let view = fixtures::browser_page_view(&root);
+    let tree = view.tree();
+    let windows: Vec<_> = tree.nodes().iter().filter(|n| n.styles.as_slice().contains(&look::USAGE_WINDOW)).collect();
+    assert_eq!(windows.len(), 2);
+    assert!(windows[0].styles.as_slice().contains(&look::USAGE_LIMITED));
+    assert!(windows[1].styles.as_slice().contains(&look::USAGE_WARNED));
+    let fills = tree.nodes().iter().find(|n| n.styles.as_slice().contains(&look::USAGE_FILLS)).unwrap();
+    assert_eq!(usage_text(tree, fills.id).as_ref(), b"full in 1 d");
+    let limited = super::inbox::subtree(tree, tree.nodes().iter().position(|n| n.id == windows[0].id).unwrap());
+    assert!(!limited.iter().any(|n| n.styles.as_slice().contains(&look::USAGE_FILLS)));
+    deliver(&mut root, watch, card_document(b"openai", b"Pat", c::AccountKind::SignIn));
+    let view = fixtures::browser_page_view(&root);
+    assert!(!view.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&look::USAGE)));
+    assert!(view.next_change().is_none());
 }

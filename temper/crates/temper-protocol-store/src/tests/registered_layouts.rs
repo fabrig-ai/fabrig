@@ -227,6 +227,85 @@ fn golden(text: &str, name: &str) -> Box<[u8]> {
 }
 
 #[test]
+fn an_earlier_landing_red_defaults_test_ids_and_many_names() {
+    use super::fixtures;
+    use crate::records;
+    use skein_codec::{
+        layout::{Plan, Workspace},
+        schema,
+    };
+    use temper_engine_domain_forge_vocabulary as d;
+    let family = crate::OWNER_SET.families.iter().find(|family| family.name == "temper-store").unwrap();
+    let before = family.current.replace(" tests: list 64 FailingTest = [] many: option LoggedMany", "");
+    assert_ne!(before, family.current);
+    let old = schema::parse(before.as_bytes()).unwrap();
+    let new = schema::parse(family.current.as_bytes()).unwrap();
+    let old_root = old.root(b"Row", Some(b"landing_log")).unwrap();
+    let new_root = new.root(b"Row", Some(b"landing_log")).unwrap();
+    let write_old = Plan::derive_dropping(&new, new_root, &[], &old, old_root, &[]).unwrap();
+    let mut work = Workspace::new();
+    assert!(work.fit(&write_old));
+    let stored = d::Stored::LandingLog(d::LandingLog {
+        repository: skein_forge::api::Repository { forge: 1, repository: 2 },
+        landings: Box::new([d::LoggedLanding {
+            commit: [7; 32],
+            branch: b"main".as_slice().into(),
+            at: skein_lib::Wall::EPOCH,
+            changes: Box::new([]),
+            tiers: Box::new([
+                d::LoggedTier {
+                    tier: b"main".as_slice().into(),
+                    verdict: d::LoggedVerdict::Red {
+                        run: 7,
+                        failing: Some(2),
+                        tests: Box::new([b"suite::a".as_slice().into()]),
+                        many: None,
+                    },
+                },
+                d::LoggedTier {
+                    tier: b"fuzzy".as_slice().into(),
+                    verdict: d::LoggedVerdict::Red {
+                        run: 9,
+                        failing: None,
+                        tests: Box::new([]),
+                        many: Some(temper_engine_domain_forge_tiers::ManyTests {
+                            tests: Box::new([b"suite::t00".as_slice().into()]),
+                            more: 21,
+                            cut: true,
+                        }),
+                    },
+                },
+                d::LoggedTier { tier: b"removed".as_slice().into(), verdict: d::LoggedVerdict::Cleared { run: 6 } },
+            ]),
+        }]),
+    });
+    let mut earlier = skein_lib::Buffer::with_capacity(4096);
+    write_old.convert(&records::encode(&stored), &mut earlier, &mut work).unwrap();
+    let read_old = Plan::derive(&old, old_root, &[], &new, new_root, &[]).expect("red ids and names have defaults");
+    assert!(work.fit(&read_old));
+    let mut current = skein_lib::Buffer::with_capacity(4096);
+    read_old.convert(earlier.as_slice(), &mut current, &mut work).unwrap();
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    let d::Stored::LandingLog(row) = records::decode(current.as_slice(), &bounds).unwrap() else {
+        panic!("landing log")
+    };
+    assert_eq!(
+        row.landings[0].tiers.as_ref(),
+        &[
+            d::LoggedTier {
+                tier: b"main".as_slice().into(),
+                verdict: d::LoggedVerdict::Red { run: 7, failing: Some(2), tests: Box::new([]), many: None }
+            },
+            d::LoggedTier {
+                tier: b"fuzzy".as_slice().into(),
+                verdict: d::LoggedVerdict::Red { run: 9, failing: None, tests: Box::new([]), many: None }
+            },
+            d::LoggedTier { tier: b"removed".as_slice().into(), verdict: d::LoggedVerdict::Cleared { run: 6 } },
+        ]
+    );
+}
+
+#[test]
 fn an_earlier_landing_log_defaults_member_goals_and_tier_entries() {
     use skein_codec::{
         layout::{Plan, Workspace},

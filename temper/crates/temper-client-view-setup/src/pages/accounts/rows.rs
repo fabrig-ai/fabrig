@@ -8,7 +8,7 @@ use crate::{
         Bindings, Meaning,
         words::{self, Word as W},
     },
-    words::Words,
+    words::{Times, Words},
 };
 use alloc::boxed::Box;
 use jig_client::contract as c;
@@ -19,13 +19,16 @@ use temper_client_domain::{
     pages::accounts::{self, Act, Operation, Row, SignInState, Way},
 };
 
+#[expect(clippy::too_many_arguments, reason = "the row borrows its account, bindings and page clock")]
 pub(super) fn own(
     b: &mut Builder,
     root: &Domain,
     w: &Words,
     bindings: &mut Bindings,
     account: &c::AccountLine,
+    neighbours: (bool, bool),
     text_bytes: u32,
+    times: &mut Times,
 ) {
     draw(
         b,
@@ -34,10 +37,12 @@ pub(super) fn own(
         bindings,
         Row { holder: c::AskAccountHolder::Own, account: account.number },
         account.place,
+        neighbours,
         account.provider,
         account.provider_name.as_ref(),
         &account.display,
         account.email(),
+        &account.facts,
         account.holder,
         account.plan,
         account.uses.as_ref(),
@@ -47,15 +52,19 @@ pub(super) fn own(
         None,
         account.cut,
         text_bytes,
+        times,
     );
 }
+#[expect(clippy::too_many_arguments, reason = "the row borrows its account, bindings and page clock")]
 pub(super) fn deployment(
     b: &mut Builder,
     root: &Domain,
     w: &Words,
     bindings: &mut Bindings,
     account: &c::Account,
+    neighbours: (bool, bool),
     text_bytes: u32,
+    times: &mut Times,
 ) {
     draw(
         b,
@@ -64,10 +73,12 @@ pub(super) fn deployment(
         bindings,
         Row { holder: c::AskAccountHolder::Deployment, account: account.number },
         account.place,
+        neighbours,
         account.provider,
         account.provider_name.as_ref(),
         &account.display,
         account.email(),
+        &account.facts,
         account.holder,
         account.plan,
         account.uses.as_ref(),
@@ -77,6 +88,7 @@ pub(super) fn deployment(
         Some(&account.waiting),
         account.cut,
         text_bytes,
+        times,
     );
 }
 #[expect(
@@ -91,10 +103,12 @@ fn draw(
     bindings: &mut Bindings,
     row: Row,
     place: u32,
+    neighbours: (bool, bool),
     provider: Option<u32>,
     provider_text: Option<&c::DocumentText>,
     display: &c::DocumentText,
     email: Option<&[u8]>,
+    facts: &List<c::AccountFact>,
     holder: c::AccountHolder,
     plan: bool,
     uses: Option<&List<c::AccountUse>>,
@@ -104,6 +118,7 @@ fn draw(
     waiting: Option<&List<c::Chip>>,
     cut: bool,
     text_bytes: u32,
+    times: &mut Times,
 ) {
     if playground(root, provider) {
         return;
@@ -126,20 +141,17 @@ fn draw(
     for source in sources {
         moving |= source.state == c::AccountState::Moving;
     }
-    let pays = pays(w, plan, uses, bindings.row_uses());
+    let pays = pays(w, plan, uses);
     let use_line: Box<[u8]> = match row.holder {
         c::AskAccountHolder::Own => Box::new([]),
         c::AskAccountHolder::Deployment => use_line(w, runs, waiting),
     };
-    let models = models(root, w, row.account, text_bytes / 4);
     b.open(Role::Disclosure);
     b.style(crate::look::SETTINGS_ROW);
     b.name(&title);
     // Skein includes the description in the native disclosure summary.
     let separator = words::say(w, W::Separator, &[]);
     let summary = words::join(&[
-        &models,
-        if models.is_empty() { b"" } else { &separator },
         &summary_state(w, deciding),
         &words::say(w, W::Separator, &[]),
         &pays,
@@ -147,6 +159,7 @@ fn draw(
         &use_line,
     ]);
     b.description(&summary);
+    super::usage::draw(b, w, facts, times);
     let Some(page) = root.pages().accounts() else {
         b.close();
         return;
@@ -159,6 +172,14 @@ fn draw(
     }
     if let Some(trial) = crate::pages::model_check::of_account(root, w, row.account) {
         crate::pages::model_check::line(b, root, w, bindings, &trial, crate::pages::model_check::Place::Row);
+    }
+    if let Some(uses) = uses {
+        b.open(Role::Paragraph);
+        b.style(crate::look::ACCOUNT_PAYS);
+        let line = pays_names(root, w, uses, bindings.row_uses());
+        b.name(&line);
+        b.text(Run::Plain, &line);
+        b.close();
     }
     crate::cards::text(b, Role::Paragraph, &w.say(crate::words::Word::AccountSources, &[]));
     b.open(Role::List);
@@ -216,7 +237,19 @@ fn draw(
             }
             c::AccountKind::None => {}
         }
-        ranks(b, root, w, bindings, row, Some(source.number), source.place, busy);
+        let position = u32::try_from(index).expect("bounded sources");
+        let next = position.checked_add(1).expect("bounded sources");
+        ranks(
+            b,
+            root,
+            w,
+            bindings,
+            row,
+            Some(source.number),
+            source.place,
+            (position != 0, next < sources.len() || cut),
+            busy,
+        );
         b.close();
     }
     b.close();
@@ -232,12 +265,15 @@ fn draw(
         for source in sources {
             has_key |= source.kind == c::AccountKind::Key;
         }
+        b.open(Role::Slot);
+        b.style(crate::look::ACCOUNT_ACTS);
         if !has_key && provider.is_some() {
             key_for(b, w, bindings, W::AddApiKey, row, None, busy);
         }
         usage(b, w, manage);
+        ranks(b, root, w, bindings, row, None, place, neighbours, busy);
         button(b, root, w, bindings, W::RemoveAccount, row, Operation::RemoveAccount, busy);
-        ranks(b, root, w, bindings, row, None, place, busy);
+        b.close();
         if let Some((target, source)) = page.key_for
             && target == row
         {
@@ -367,29 +403,89 @@ fn pair(b: &mut Builder, w: &Words, word: W, value: &[u8]) {
     crate::cards::text(b, Role::Description, value);
     b.close();
 }
-fn pays(w: &Words, plan: bool, uses: Option<&List<c::AccountUse>>, cap: u32) -> Box<[u8]> {
+fn pays(w: &Words, plan: bool, uses: Option<&List<c::AccountUse>>) -> Box<[u8]> {
     let Some(uses) = uses else { return words::say(w, if plan { W::PlanPays } else { W::OwnPays }, &[]) };
-    let mut result = words::say(w, W::None, &[]);
-    for (index, use_) in uses.iter().take(usize::try_from(cap).expect("bounded uses")).enumerate() {
-        let (word, number) = match use_ {
-            c::AccountUse::Party(n) => (W::Party, *n),
-            c::AccountUse::Project(n) => (W::Project, u64::from(*n)),
-        };
-        let entry = words::join(&[
-            &words::say(w, word, &[]),
-            &words::say(w, W::Number, &[skein_ui::phrases::Hole::Number(number)]),
-        ]);
-        result = if index == 0 { entry } else { words::join(&[&result, b", ", &entry]) };
+    if uses.is_empty() {
+        return words::say(w, W::None, &[]);
     }
-    if uses.len() > cap {
+    let mut people = 0_u32;
+    let mut projects = 0_u32;
+    for use_ in uses {
+        match use_ {
+            c::AccountUse::Party(_) => people = people.checked_add(1).expect("received uses fit"),
+            c::AccountUse::Project(_) => projects = projects.checked_add(1).expect("received uses fit"),
+        }
+    }
+    let and = words::say(w, W::And, &[]);
+    let mut result = words::join(&[&words::say(w, W::PaysFor, &[]), b" "]);
+    if people != 0 {
+        result = words::join(&[&result, &count(w, people, W::PersonCount, W::PeopleCount)]);
+    }
+    if projects != 0 {
         result = words::join(&[
             &result,
-            b"; ",
-            &words::say(w, W::UsesOmitted, &[]),
-            &words::say(w, W::Number, &[skein_ui::phrases::Hole::Number(u64::from(uses.len().saturating_sub(cap)))]),
+            if people == 0 { b"" } else { &and },
+            &count(w, projects, W::ProjectCount, W::ProjectsCount),
         ]);
     }
     result
+}
+fn count(w: &Words, number: u32, one: W, many: W) -> Box<[u8]> {
+    words::join(&[
+        &words::say(w, W::Number, &[skein_ui::phrases::Hole::Number(u64::from(number))]),
+        &words::say(w, if number == 1 { one } else { many }, &[]),
+    ])
+}
+fn pays_names(root: &Domain, w: &Words, uses: &List<c::AccountUse>, cap: u32) -> Box<[u8]> {
+    if uses.is_empty() {
+        return words::join(&[&words::say(w, W::PaysFor, &[]), b" ", &words::say(w, W::None, &[]), b"."]);
+    }
+    let and = words::say(w, W::And, &[]);
+    let mut result = words::join(&[&words::say(w, W::PaysFor, &[]), b" "]);
+    let shown = uses.len().min(cap);
+    for (index, use_) in uses.iter().take(usize::try_from(shown).expect("bounded uses")).enumerate() {
+        let name = match use_ {
+            c::AccountUse::Party(party) => match party_name(root, *party) {
+                Some(name) => crate::words::shown(name, w),
+                None => words::join(&[
+                    &words::say(w, W::Party, &[]),
+                    &words::say(w, W::Number, &[skein_ui::phrases::Hole::Number(*party)]),
+                ]),
+            },
+            c::AccountUse::Project(project) => {
+                match crate::common::project_name(accounts::current_me(root.client()), *project) {
+                    Some(name) => crate::words::shown(&name, w),
+                    None => words::join(&[
+                        &words::say(w, W::Project, &[]),
+                        &words::say(w, W::Number, &[skein_ui::phrases::Hole::Number(u64::from(*project))]),
+                    ]),
+                }
+            }
+        };
+        let last = u32::try_from(index).expect("bounded uses").checked_add(1).expect("bounded uses") == uses.len();
+        result = words::join(&[
+            &result,
+            if index == 0 {
+                b""
+            } else if last {
+                &and
+            } else {
+                b", "
+            },
+            &name,
+        ]);
+    }
+    if uses.len() > shown {
+        result = words::join(&[
+            &result,
+            if shown == 0 { b"" } else { &and },
+            &count(w, uses.len().saturating_sub(shown), W::More, W::More),
+        ]);
+    }
+    words::join(&[&result, b"."])
+}
+fn party_name(root: &Domain, party: u64) -> Option<&[u8]> {
+    root.pages().accounts()?.party_name(party)
 }
 fn chips(w: &Words, rows: Option<&List<c::Chip>>, excluded: Option<&List<c::Chip>>) -> Box<[u8]> {
     let mut result = words::say(w, W::None, &[]);
@@ -439,15 +535,31 @@ fn button(
     operation: Operation,
     busy: bool,
 ) {
-    super::control(
-        b,
-        w,
-        bindings,
-        word,
-        Meaning::Action(Act::Submit { name: root.pages().account_name(), row, operation }),
-        busy,
-        false,
-    );
+    let Some(binding) =
+        bindings.insert(Meaning::Action(Act::Submit { name: root.pages().account_name(), row, operation }))
+    else {
+        return;
+    };
+    let name = words::say(w, word, &[]);
+    b.open(Role::Button);
+    b.name(&name);
+    b.bind(binding);
+    if word == W::RemoveAccount {
+        b.style(crate::look::ACCOUNT_REMOVE);
+    }
+    if word == W::UpAccount || word == W::UpSource || word == W::DownAccount || word == W::DownSource {
+        b.hint(&name);
+        b.style(crate::look::ACCOUNT_MOVE);
+        b.style(if word == W::UpAccount || word == W::UpSource {
+            crate::look::ACCOUNT_UP
+        } else {
+            crate::look::ACCOUNT_DOWN
+        });
+    }
+    if busy {
+        b.state(skein_ui::State::Disabled);
+    }
+    b.close();
 }
 fn key_for(b: &mut Builder, w: &Words, bindings: &mut Bindings, word: W, row: Row, source: Option<u32>, busy: bool) {
     super::control(b, w, bindings, word, Meaning::Action(Act::KeyFor { row, source }), busy, false);
@@ -744,13 +856,14 @@ fn ranks(
     row: Row,
     source: Option<u32>,
     place: u32,
+    neighbours: (bool, bool),
     busy: bool,
 ) {
-    for (target, word) in [
-        (place.checked_sub(1), if source.is_some() { W::UpSource } else { W::UpAccount }),
-        (place.checked_add(1), if source.is_some() { W::DownSource } else { W::DownAccount }),
+    for (available, target, word) in [
+        (neighbours.0, place.checked_sub(1), if source.is_some() { W::UpSource } else { W::UpAccount }),
+        (neighbours.1, place.checked_add(1), if source.is_some() { W::DownSource } else { W::DownAccount }),
     ] {
-        if let Some(place) = target {
+        if available && let Some(place) = target {
             let op = match source {
                 Some(source) => Operation::MoveSource { source, place },
                 None => Operation::MoveAccount { place },
@@ -758,30 +871,6 @@ fn ranks(
             button(b, root, w, bindings, word, row, op, busy);
         }
     }
-}
-
-fn models(root: &Domain, w: &Words, account: u32, bound: u32) -> Box<[u8]> {
-    let mut result: Box<[u8]> = Box::new([]);
-    if let Some(me) = accounts::current_me(root.client()) {
-        for project in &me.projects {
-            if Some(project.project) != root.pages().project() {
-                continue;
-            }
-            for model in &project.models {
-                if !model.accounts.as_slice().contains(&account) {
-                    continue;
-                }
-                let name = model.shown.as_ref().unwrap_or(&model.name);
-                let shown = crate::words::shown(name.bytes(), w);
-                let next = words::join(&[&result, if result.is_empty() { b"" } else { b", " }, &shown]);
-                if next.len() > usize::try_from(bound).expect("text bound fits") {
-                    return result;
-                }
-                result = next;
-            }
-        }
-    }
-    result
 }
 
 fn editing(page: &accounts::Accounts, row: Row) -> bool {
