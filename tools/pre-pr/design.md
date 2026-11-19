@@ -179,7 +179,9 @@ boundary (smith's run.md, 8.1).
   path both sides changed; a merge repair of a goal's branch that took
   main in selects none of main's packages for what main brought as main
   holds it. Every reader of the changed paths below takes them so, and
-  check 8 too. Where there are merged tips, one line before the
+  check 8 too; check 7 alone is started by the whole diff, merged tips'
+  entries included, since it sets them aside itself (section 4, check
+  7). Where there are merged tips, one line before the
   selection's names them, `pre-pr: merged tips: <commit> …: what they
   hold is not the delivery's`, the commits in check 7's order joined by
   a space. What the two sides make together where no path differs from
@@ -494,8 +496,10 @@ delivery hears every failure; the verdict is section 6's.
      (section 6);
    - **any other:** a failure of the check itself, `check outward`, its
      log the scan's output.
-7. **The figures,** where section 3's changed paths include
-   `tools/tiers/budgets.toml`, whatever else they hold: `python3 -I -B
+7. **The figures,** where the paths the tree changes against its base,
+   `git diff-tree` as section 3 runs it before it sets merged tips'
+   entries aside, include `tools/tiers/budgets.toml`, whatever else they
+   hold, a delivery that selected neither set included: `python3 -I -B
    tools/tiers/figures.py --base <base> --head <tree> [--merged <rev>]…` from the tree's
    root, against section 3's private snapshot, as check 5 runs citations
    (`tools/tiers/budgets.md`, 10.1). The merged tips are the commit named by
@@ -1132,8 +1136,9 @@ Its table of a merge's selection (section 3, *Changed paths*): a merge
 in progress and a committed one, whose merged tip changed a package the
 base lacks, select no package for it and print the merged tips' line; a
 path both sides changed, and a path edited after the merge, select their
-packages; a tip that changed `tools/tiers/budgets.toml` alone runs no
-check 7. The base's target (section 5): the base's count runs see
+packages; a tip that changed `tools/tiers/budgets.toml` alone selects
+no set for it and still runs check 7, the tip passed as `--merged`. The
+base's target (section 5): the base's count runs see
 `CARGO_TARGET_DIR` set to `<git dir>/temper-pre-pr/target`, with the
 check's environment naming another and naming none.
 
