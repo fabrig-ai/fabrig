@@ -4,7 +4,6 @@
 
 - **Not yet:** 2: `work` and `work-drafts` hold no landed draft
   [in flight: change 664].
-- **Not yet:** 2: no `ask-ways-approve-menu`, and the `ask-ways-*` and `how*` states draw "Stock ways" and "Back" as before `ways-shown` [in flight: change 10102].
 
 
 - **Departs:** 3: the gallery's tests exceed their 1 CPU s budget:
