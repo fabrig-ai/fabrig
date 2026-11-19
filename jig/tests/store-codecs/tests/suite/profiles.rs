@@ -1,6 +1,7 @@
 //! Shipped profiles fit the byte-summed families (protocol/store/records.md, 1).
 
 use jig_protocol_store::codec;
+use jig_protocol_store::tasks_v13::Record;
 
 // Standard's development figures (protocol/limits.md), with small's other limits.
 fn fabrig_scale() -> jig_domain_core::Limits {
