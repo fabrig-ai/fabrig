@@ -2,7 +2,6 @@
 
 2026-11-19. Where the tree's code lags or departs from [limit-settings.md](limit-settings.md).
 
-- **Not yet:** 3, 9 and 10: the store is laid out at the stock's 40 live goals under jig's profile ceilings, so a `live_goals` past 40 is refused by the store's map value bound of 100,881,496 bytes; there is no `STORE_LIVE_GOALS`, no refusal past 100 in section 3's words, and no focused test of the engine's memory at rest. [in flight: change 9592]
 
 - **Design lags:** 3: stopped-tool preparation resolves `limits-held` without opening a store, but the upgrade rehearsal restores stored limit-setting records without resolving them into its engine's runtime figures as a start does. Without `limits-held`, that engine uses stock-derived figures (`temper-engine-shell/src/stopped.rs`).
 
