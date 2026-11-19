@@ -686,6 +686,31 @@ fn help_names_invalid_run_end_causes() {
 }
 
 #[test]
+fn landing_help_explains_waits_and_engine_relative_ages() {
+    let page = temper_docs::find(b"landing").expect("landing help");
+    for words in [
+        "waits for:",
+        "the round's pull request to close",
+        "nothing; it steps next",
+        "Ended landings show no wait",
+        "`turn: free`",
+        "`last event unknown`",
+        "engine's document time",
+        "`2d 3h`",
+        "`4h 31m`",
+        "`37m 12s`",
+        "`12s`",
+        "`0s`",
+        "`now`",
+        "`turn_since`",
+        "`step`",
+        "`last_event`",
+        "nanoseconds or null",
+    ] {
+        assert!(page.text.contains(words), "landing help must explain {words}");
+    }
+}
+#[test]
 fn the_landing_reference_is_what_the_table_renders() {
     reference_matches(b"landing", b"ctl-landing");
 }

@@ -1049,17 +1049,34 @@ fn first_label_accepts_64_bytes_and_refuses_one_more() {
 
 #[test]
 fn landing_panels_round_trip_smallest_and_full_goldens() {
-    for bytes in [golden("record_landing_panel_smallest.bin"), golden("record_landing_panel_full.bin")] {
+    for (bytes, full) in
+        [(golden("record_landing_panel_smallest.bin"), false), (golden("record_landing_panel_full.bin"), true)]
+    {
         let panel = crate::decode_landing_panel(bytes, &v1::CEILINGS).expect("landing golden");
         assert_eq!(crate::landing_panel(&panel).as_ref(), bytes);
+        assert_eq!(panel.waits().is_some(), full);
+        if let Some(wait) = panel.waits() {
+            assert!(
+                wait.change().is_some() && wait.gate().is_some() && wait.run().is_some() && wait.landing().is_some()
+            );
+        }
         assert_eq!(crate::decode_landing_panel(&fixtures::trailing(bytes), &v1::CEILINGS), None);
     }
 }
 #[test]
 fn landings_panels_round_trip_smallest_and_full_goldens() {
-    for bytes in [golden("record_landings_panel_smallest.bin"), golden("record_landings_panel_full.bin")] {
+    for (bytes, full) in
+        [(golden("record_landings_panel_smallest.bin"), false), (golden("record_landings_panel_full.bin"), true)]
+    {
         let panel = crate::decode_landings_panel(bytes, &v1::CEILINGS).expect("landings golden");
         assert_eq!(crate::landings_panel(&panel).as_ref(), bytes);
+        assert_eq!(panel.now() != 0, full);
+        assert_eq!(panel.turn_since().is_some(), full);
+        if !panel.landings().is_empty() {
+            assert!(panel.turn_since().is_some());
+            let line = panel.landings().get(0).unwrap();
+            assert!(line.step().is_some() && line.last_event().is_some());
+        }
         assert_eq!(crate::decode_landings_panel(&fixtures::trailing(bytes), &v1::CEILINGS), None);
     }
 }

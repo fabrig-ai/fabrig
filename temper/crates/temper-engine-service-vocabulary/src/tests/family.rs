@@ -1954,7 +1954,13 @@ fn a_fake_forges_panel_has_no_address_and_real_forgejos_keep_theirs() {
 
 fn landing_view() -> forge::LandingView {
     forge::LandingView {
-        waits: None,
+        waits: Some(forge::LandingWait {
+            on: forge::LandingWaitFor::Run,
+            change: Some(51),
+            gate: Some(b"tests".as_slice().into()),
+            run: Some(412),
+            landing: None,
+        }),
         probe: None,
         train: Some(forge::LandingTrain {
             repository: skein_forge::api::Repository { forge: 1, repository: 9 },
@@ -2180,6 +2186,11 @@ fn a_landing_view_encodes_to_its_panel() {
         family::document(forge::Document::Landing(landing_view()), &fixtures::forge_table(&forges), &w::CEILINGS)
             .unwrap();
     let got = wire::decode_landing_panel(&bytes, &w::CEILINGS).unwrap();
+    let wait = got.waits().as_ref().unwrap();
+    assert_eq!(
+        (wait.on(), wait.change(), wait.gate().as_deref(), wait.run(), wait.landing()),
+        (&w::LandingWaitFor::Run, &Some(51), Some(b"tests".as_slice()), &Some(412), &None)
+    );
     assert_eq!(
         (got.task(), got.project(), got.phase(), got.preparation(), got.stale_proofs(), got.turn()),
         (61, 7, &w::LandingPhase::Proving, 2, 3, &Some(62))
@@ -2222,13 +2233,13 @@ fn a_landing_view_encodes_to_its_panel() {
 #[test]
 fn a_landings_view_encodes_to_its_list() {
     let value = forge::LandingsView {
-        now: skein_lib::Wall::EPOCH,
-        turn_since: None,
+        now: skein_lib::Wall::from_nanos(100),
+        turn_since: Some(skein_lib::Wall::from_nanos(40)),
         project: 7,
         turn: Some(61),
         landings: Box::new([forge::LandingLine {
-            step: None,
-            last_event: None,
+            step: Some(forge::LandingStep::Turn),
+            last_event: Some(skein_lib::Wall::from_nanos(80)),
             train: None,
             task: 61,
             phase: forge::LandingPhase::Turn { at: skein_lib::Wall::EPOCH },
@@ -2240,9 +2251,11 @@ fn a_landings_view_encodes_to_its_list() {
     let bytes = family::document(forge::Document::Landings(value), &fixtures::forge_table(&[]), &w::CEILINGS).unwrap();
     let got = wire::decode_landings_panel(&bytes, &w::CEILINGS).unwrap();
     assert_eq!((got.project(), got.turn()), (7, &Some(61)));
+    assert_eq!((got.now(), got.turn_since()), (100, &Some(40)));
     assert_eq!(got.landings().len(), 1);
     let row = got.landings().get(0).unwrap();
     assert_eq!((row.task(), row.phase()), (61, &w::LandingPhase::Turn));
+    assert_eq!((row.step(), row.last_event()), (&Some(w::LandingStep::Turn), &Some(80)));
     assert_eq!(row.changes().as_slice(), &[51]);
     assert_eq!(row.repositories().as_slice(), &[Box::<[u8]>::from(b"acme/shop".as_slice())]);
     assert_eq!(row.landed().as_slice(), &[[3; 32]]);

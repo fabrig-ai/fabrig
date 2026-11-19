@@ -1,6 +1,7 @@
 //! Landing views (domain/landing.md, 14; client/ctl/tools.md, 1).
 mod details;
 pub mod history;
+pub(crate) mod waits;
 use crate::{
     jig::{
         self,
@@ -24,8 +25,8 @@ use temper_client_protocol_wire::{self as wire, v1 as w};
 
 pub const READ: Tool = Tool {
     name: b"landing show",
-    line: b"Read a landing: its members, round, search, gate proofs and the turn",
-    prints: b"`landing TASK`, its project and step, round and search bounds, each member's prefix, gates and outcome, and the turn",
+    line: b"Read a landing: its members, round, search, gate proofs, wait and turn",
+    prints: b"`landing TASK`, its project and step, round and search bounds, each member's prefix, gates and outcome, what it waits for, and the turn",
     result: b"landing",
     forms: &[&[
         positional(b"task", b"TASK", Kind::NumberRange { min: 1, max: u64::MAX }, Required, b"The landing task's number"),
@@ -33,13 +34,13 @@ pub const READ: Tool = Tool {
     ]],
     keyed: Keyed::Never,
     area: 6,
-    notes: b"A landing lands its changes by turn: each gate is proved by a receipt\nof its key, then main is fast-forwarded to each candidate. A task with\nno landing fails, `no landing for task TASK` (exit 2).\nQueue changes have no landing task; read them with `change show TASK`.\n",
+    notes: b"A landing lands its changes by turn: each gate is proved by a receipt\nof its key, then main is fast-forwarded to each candidate. A task with\nno landing fails, `no landing for task TASK` (exit 2).\nA live landing names what its step waits for; ended landings show no wait.\nQueue changes have no landing task; read them with `change show TASK`.\n",
 };
 pub const LIST: Tool = Tool {
     name: b"landing list",
     line: b"List a project's landings, live first, then newest first",
     prints:
-        b"`landings of project PROJECT`, the turn, and a line per landing: its task, phase, changes and repositories",
+        b"`landings of project PROJECT`, the turn and its age, and a line per landing: its task, phase, live step and last event age, changes and repositories",
     result: b"landings",
     forms: &[&[
         flag(b"project", b"PROJECT", Kind::Project { empty: false }, Required, b"The project"),
@@ -47,7 +48,7 @@ pub const LIST: Tool = Tool {
     ]],
     keyed: Keyed::Never,
     area: 6,
-    notes: b"Without --ended, the live landings alone. `landing show TASK` reads one.\nThese are turn landings. Queue merges create no landing task and do not\nappear here, including with --ended. Read a queue change with `change show TASK`.\n",
+    notes: b"Without --ended, the live landings alone. `landing show TASK` reads one.\nAges use the engine's document time; an older row says last event unknown.\nThese are turn landings. Queue merges create no landing task and do not\nappear here, including with --ended. Read a queue change with `change show TASK`.\n",
 };
 
 #[derive(Debug)]
@@ -206,6 +207,8 @@ fn gone(watch: &Watching, limits: &Limits) -> jig::Printed {
             &w::LandingsPanel::new(
                 &w::CEILINGS,
                 w::LandingsPanelParts {
+                    now: 0,
+                    turn_since: None,
                     project: watch.project.expect("resolved project"),
                     turn: None,
                     landings: skein_lib::List::with_capacity(0),
@@ -399,12 +402,18 @@ fn text(panel: &w::LandingPanel, out: &mut Text) {
     out.put(b" \xc2\xb7 ");
     out.put(phase(panel.phase()));
     out.put(b"\n");
+    if panel.round().is_none() && details::live(panel.phase()) {
+        waits::text(panel.waits().as_ref(), out);
+    }
     if let Some(train) = panel.train() {
         details::train_text(train, out);
         out.put(b"\n");
     }
     if let Some(round) = panel.round() {
         details::round_text(round, out);
+        if details::live(panel.phase()) {
+            waits::text(panel.waits().as_ref(), out);
+        }
     }
     for member in panel.members() {
         out.put(b"member: change ");
@@ -488,6 +497,10 @@ fn list_text(panel: &w::LandingsPanel, out: &mut Text) {
         Some(turn) => {
             out.put(b"landing ");
             out.number(*turn);
+            if let Some(since) = panel.turn_since() {
+                out.put(b" for ");
+                waits::age(panel.now(), *since, out);
+            }
         }
         None => out.put(b"free"),
     }
@@ -519,6 +532,20 @@ fn list_text(panel: &w::LandingsPanel, out: &mut Text) {
         out.number(line.task());
         out.put(b" \xc2\xb7 ");
         out.put(phase(line.phase()));
+        if details::live(line.phase()) {
+            if let Some(step) = line.step() {
+                out.put(b" \xc2\xb7 ");
+                out.put(details::step(step));
+            }
+            out.put(b" \xc2\xb7 last event ");
+            match line.last_event() {
+                Some(at) => {
+                    waits::age(panel.now(), *at, out);
+                    out.put(b" ago");
+                }
+                None => out.put(b"unknown"),
+            }
+        }
         out.put(b" \xc2\xb7 change ");
         for (i, change) in line.changes().iter().enumerate() {
             if i > 0 {
@@ -600,6 +627,12 @@ fn encode(panel: &w::LandingPanel, out: &mut Encoder) {
     out.unsigned(u64::from(panel.project()));
     out.key(b"phase");
     phase_json(panel.phase(), out);
+    out.key(b"waits");
+    waits::json(
+        if details::live(panel.phase()) { panel.waits().as_ref() } else { None },
+        details::live(panel.phase()),
+        out,
+    );
     out.key(b"hold");
     match panel.hold() {
         Some(value) => details::hold_json(value, out),
@@ -675,6 +708,10 @@ fn encode(panel: &w::LandingPanel, out: &mut Encoder) {
 }
 fn encode_list(panel: &w::LandingsPanel, out: &mut Encoder) {
     out.object_start();
+    out.key(b"now");
+    out.unsigned(panel.now());
+    out.key(b"turn_since");
+    optional_number(panel.turn_since().as_ref(), out);
     out.key(b"project");
     out.unsigned(u64::from(panel.project()));
     out.key(b"turn");
@@ -705,6 +742,13 @@ fn encode_list(panel: &w::LandingsPanel, out: &mut Encoder) {
         out.unsigned(line.task());
         out.key(b"phase");
         phase_json(line.phase(), out);
+        out.key(b"step");
+        match line.step() {
+            Some(step) if details::live(line.phase()) => out.string(details::step(step)),
+            Some(_) | None => out.null(),
+        }
+        out.key(b"last_event");
+        optional_number(line.last_event().as_ref(), out);
         out.key(b"changes");
         out.array_start();
         for change in line.changes() {
