@@ -328,17 +328,30 @@ not a changed test budget or timeout.
 ### 6.3 Cause and decision
 
 There is no bounds-table walk or dynamic trait dispatch on this decode
-path. The test-profile regression is in the extra unoptimized generic
-helper/Result forwarding layers: the direct version check and Result
-return reduce it, while the optimizing compiler already removes much of
-that overhead. Full-row decoding improves with the helper changes.
+path. The body-only experiments point to extra unoptimized generic
+helper/Result forwarding overhead: the direct version check and Result
+return reduce the test-profile ratios, but neither brings both
+refusal-heavy corpora within about 10%. Forced inlining does not close
+the remaining gap, and the release figures do not support retaining it.
 
-A release is within about 10% on both corpus sets and faster on the full
-row; A test is not. D test remains slower (1.55 / 1.56 / 1.12), and D
-release **regresses the refusal-heavy corpora** (2.06 / 1.67 / 0.77).
-All D's forced-inline attributes were discarded: they did not close the
-test-profile gap and worsened the release comparison. C release still
-exceeds about 10% on the refusal-heavy corpora (1.33 / 1.29 / 0.80),
-so neither helper candidate establishes the requested criterion.
-Per question 213246's answer, decision pending the coordinator's ruling
-on C release before any delivery; no further tuning is assumed.
+**Decision: keep A, the unchanged helpers; the other families may convert.**
+The drafter ruled at question 213256 that **release decides**, because
+the store's open in dev runs optimized code. On release, A's lean/sealed
+ratios are **1.0992 / 0.9958 / 0.7875** (Fixed / Mutated / Full row): within
+about 10% on the refusal-heavy corpora, with successful full-row decoding
+about **21% faster**. This decision does not claim the two-profile 10%
+criterion holds, or turn K3's overlapping compile spreads into proof.
+
+A's test-profile ratios remain **2.1276 / 2.1236 / 1.2581**: about 2.1 times
+slower on the refusal-heavy corpora and about 26% slower on the successful
+full row. That gap is recorded and **left as it stands**, not fixed.
+
+C lowered the test-profile ratios to 1.5359 / 1.5853 / 1.1072, but raised
+release refusal ratios to **1.3318 / 1.2930** (Full row 0.7972), so its two
+helper-body changes were discarded. D did not close the test-profile gap
+(1.5499 / 1.5647 / 1.1222) and made release refusals worse still
+(**2.0552 / 1.6711**, Full row 0.7743); all its forced-inline attributes
+were discarded too. B's intermediate Result-return change is discarded
+with C. **No helper, generator or generated file changes are delivered**;
+the entire retained change is this measurement record and the draft's
+3.3 status clause. No suite test or budget is added or changed.

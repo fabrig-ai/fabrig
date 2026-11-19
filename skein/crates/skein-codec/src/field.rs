@@ -37,16 +37,11 @@ pub fn put(out: &mut Writer, bytes: &[u8], path: Path) -> Result<(), Problem> {
 
 /// Reads a version prefix before any of the record's fields.
 pub fn version(reader: &mut Reader<'_>, expected: u16, path: Path) -> Result<(), Problem> {
-    match reader.u16() {
-        Some(found) => {
-            if found == expected {
-                Ok(())
-            } else {
-                Err(Problem { path, reason: Reason::Version })
-            }
-        }
-        None => Err(Problem { path, reason: Reason::Short }),
+    let found = reader.u16().ok_or(path.problem(Reason::Short))?;
+    if found != expected {
+        return Err(path.problem(Reason::Version));
     }
+    Ok(())
 }
 
 /// A big-endian `u8` field.

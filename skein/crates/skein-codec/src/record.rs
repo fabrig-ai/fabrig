@@ -47,11 +47,11 @@ pub trait Record: Sized {
     }
 
     fn decode(limits: &Self::Limits, reader: &mut Reader<'_>) -> Result<Self, Problem> {
-        let result = Self::read(limits, reader);
-        if result.is_ok() && !reader.is_empty() {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
             return Err(Self::TAIL.problem(Reason::Trailing));
         }
-        result
+        Ok(value)
     }
 
     fn encoded_bound(limits: &Self::Limits) -> Option<u64>;
