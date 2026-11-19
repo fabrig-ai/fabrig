@@ -669,6 +669,7 @@ Design documents:
 - [`testing/checks.md`](testing/checks.status.md)
 - [`testing/fakes.md`](testing/fakes.status.md)
 - [`testing/live-tier.md`](testing/live-tier.status.md)
+- [`testing/macos.md`](testing/macos.status.md)
 - [`testing/process-tier.md`](testing/process-tier.status.md)
 - [`testing/qa/README.md`](testing/qa/README.status.md)
 - [`testing/qa/builds.md`](testing/qa/builds.status.md)

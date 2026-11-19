@@ -1,4 +1,4 @@
-# What macOS runs (temper/docs/design/testing/README.md, 2.8): every target
+# What macOS runs (temper/docs/design/testing/macos.md, 1): every target
 # compiled, then the one story. A red run blocks nothing: it is a finding.
 name: macos
 
@@ -158,8 +158,14 @@ jobs:
           mkdir -m 700 "$root" "$root/config" "$root/data" "$root/cache"
           flags=(--config "$root/config" --data "$root/data" --cache "$root/cache")
           $RUN init target/debug/temper-box init "${flags[@]}" --box
-          mkdir -p "$root/data/box/groups"
-          printf 'owned\n' >"$root/data/box/groups/1"
+          # The first prepare writes setup before refusing (temper/docs/design/testing/macos.md, 2).
+          target/debug/temper-box forge prepare "${flags[@]}" 1 --listen 127.0.0.1:3000 \
+              --person ada ada@example.invalid --runner-label temper-host:host \
+              2>&1 | tee "$RUNNER_TEMP/logs/prepare.log" || true
+          if [ ! -f "$root/data/forge-1/setup" ]; then
+              python3 -I "$RUNNER_TEMP/annotate.py" prepare "$RUNNER_TEMP/logs/prepare.log"
+              exit 1
+          fi
           $RUN fetch target/debug/temper-box forge fetch "${flags[@]}" 1
           forgejo=$(echo "$root"/cache/forgejo/*/forgejo)
           runner=$(echo "$root"/cache/forgejo-runner/*/forgejo-runner)
