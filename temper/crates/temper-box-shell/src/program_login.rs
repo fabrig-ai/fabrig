@@ -10,11 +10,15 @@ pub(crate) fn command(
     let own: Vec<super::EnvironmentEntry> =
         environment.iter().map(|(name, value)| (name.as_bytes().into(), value.as_bytes().into())).collect();
     let bytes = directories.read()?;
+    let local =
+        crate::serve::local_setting(&crate::path(&directories.data).join("local.setting"), &mut std::io::stderr());
+    let places = local.as_ref().map_or(4, jig_client_protocol_wire::WorkerSetting::places);
     let mut part = temper_service::startup::box_worker(
         &bytes,
         &temper_service_shell::jig_directories(directories),
         &temper_service::stock::Given::Stock,
         &temper_service::stock::agents(),
+        places,
         &own,
     )
     .map_err(|why| String::from_utf8_lossy(&temper_service::startup::lines(&why)).into_owned())?

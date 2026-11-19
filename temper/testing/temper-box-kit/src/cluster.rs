@@ -65,7 +65,8 @@ pub fn figures_with_limits(
     let mut figures = temper_engine_service_vocabulary::figures::Composer::new(&engine, &own)
         .compose(&temper_service::stock::agents())
         .into_parts();
-    figures.places = engine.limits.core.fleet.slots;
+    // The fixture's worker settings each admit one place.
+    figures.places = 1;
     jig_protocol_worker_wire::Figures::new(&jig_protocol_worker_wire::CEILINGS, figures).expect("composed figures")
 }
 /// Agent metadata for fixture checks; no worker configuration file is supplied.

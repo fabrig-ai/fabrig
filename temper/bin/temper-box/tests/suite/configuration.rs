@@ -101,6 +101,7 @@ fn the_process_workers_figures_follow_the_agents_setting() {
                 &jig_directories(&support::configuration::directories(scratch.path())),
                 &temper_service::stock::Given::Stock,
                 &agents,
+                4,
                 &[],
             )
             .expect("box composition")
@@ -127,6 +128,7 @@ fn the_process_workers_figures_follow_the_agents_setting() {
                 &jig_directories(&support::configuration::directories(scratch.path())),
                 &temper_service::stock::Given::Stock,
                 &agents,
+                4,
                 &[],
                 Some(&agent.declaration()),
                 (&jig, &own),

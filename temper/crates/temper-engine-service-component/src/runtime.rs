@@ -170,6 +170,14 @@ impl engine::Engine {
     pub fn take_agents_write(&mut self) -> Option<(Box<[u8]>, Box<[u8]>)> {
         self.workers.take_agents_write()
     }
+    /// Keep worker setting 1 in the box's data directory (configuration/figures.md, 4).
+    pub fn keep_local(&mut self, path: Box<[u8]>, initial: Option<jig_client_protocol_wire::WorkerSetting>) {
+        self.workers.keep_local(path, initial);
+    }
+    #[expect(clippy::type_complexity, reason = "a file act is its destination and whole value bytes")]
+    pub fn take_local_write(&mut self) -> Option<(Box<[u8]>, Box<[u8]>)> {
+        self.workers.take_local_write()
+    }
     pub fn take_handover_read(&mut self) -> Option<crate::HandoverRead> {
         let engine = &mut *self;
         match engine.clients.playground_read() {

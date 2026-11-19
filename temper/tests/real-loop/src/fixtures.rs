@@ -170,6 +170,16 @@ pub(crate) fn write_configured(
     finish_configuration(directory, &mut config)?;
     Ok(config)
 }
+/// The places the box fixture builds with, independent of its document slots.
+pub(crate) fn local_places(directory: &Path) -> u32 {
+    let Ok(bytes) = std::fs::read(directory.join("local.setting")) else { return 4 };
+    jig_client_protocol_wire::WorkerSetting::decode(
+        &jig_client_protocol_wire::CEILINGS,
+        &mut skein_lib::Reader::new(&bytes),
+    )
+    .expect("fixture local copy")
+    .places()
+}
 pub(crate) type EnvironmentEntry = (Box<[u8]>, Box<[u8]>);
 /// Machine programs are found through PATH, as in the shipped worker.
 pub(crate) fn environment(directory: &Path) -> Vec<EnvironmentEntry> {
@@ -500,6 +510,23 @@ pub(crate) fn finish_configuration(
     if directory.join("standing-chats").exists() {
         flags["requester"] = true.into();
     }
+    if let Some(places) = flags["local_places"].as_u64() {
+        use jig_client_protocol_wire::{CEILINGS, WorkerSetting, WorkerSettingParts};
+        let local = WorkerSetting::new(
+            &CEILINGS,
+            WorkerSettingParts {
+                number: 1,
+                name: b"local".as_slice().into(),
+                places: u32::try_from(places).expect("fixture places"),
+                digest: None,
+                withdrawn: false,
+            },
+        )
+        .expect("fixture local setting");
+        let mut writer = skein_lib::Writer::new(usize::try_from(local.measure()).expect("bounded local value"));
+        local.encode(&mut writer).expect("fixture local bytes");
+        private(&directory.join("local.setting"), &writer.finish())?;
+    }
     private(&directory.join("world-settings.json"), &serde_json::to_vec(&flags)?)?;
     private(&directory.join("temper.json"), &serde_json::to_vec(value)?)
 }
@@ -547,10 +574,17 @@ pub fn setup_items(directory: &Path) -> Option<serde_json::Value> {
     if flags["listed"] == true {
         template["flags"]["listed"] = true.into();
     }
-    Some(serde_json::json!([
-        crate::settings::item("charter", 1, charter),
-        crate::settings::item("template", 1, template)
-    ]))
+    let mut items = vec![crate::settings::item("charter", 1, charter), crate::settings::item("template", 1, template)];
+    if let Some(places) = flags["local_places"].as_u64() {
+        items.push(crate::settings::item(
+            "worker",
+            1,
+            serde_json::json!({
+                "name":"local", "places":places, "digest":null
+            }),
+        ));
+    }
+    Some(serde_json::Value::Array(items))
 }
 
 /// The final document keeps the project's wide seed; these typed defaults admit it.

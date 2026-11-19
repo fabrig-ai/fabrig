@@ -45,7 +45,7 @@ pub const SERVED: Served<Service> = Served {
     handover: |service| match service {
         Service::Joined(service) => {
             temper_engine_shell::served::handover(service.engine_component());
-            keep_agents(service);
+            keep_settings(service);
         }
         Service::Worker(_) => {}
     },
@@ -131,16 +131,23 @@ fn ending(
 }
 
 /// The engine asks; the shell alone replaces its data-directory copy.
-pub(crate) fn keep_agents(service: &mut service::Service) {
+pub(crate) fn keep_settings(service: &mut service::Service) {
     while let Some((path, bytes)) = service.engine_component().take_agents_write() {
-        if let Err(why) = write_agents(crate::path(&path), &bytes) {
+        if let Err(why) = write_setting(crate::path(&path), &bytes) {
             service.notes().push(service::Note::Engine(temper_engine_service::Note::StartupWarning {
                 line: format!("agents.setting: {why}").into_bytes().into_boxed_slice(),
             }));
         }
     }
+    while let Some((path, bytes)) = service.engine_component().take_local_write() {
+        if let Err(why) = write_setting(crate::path(&path), &bytes) {
+            service.notes().push(service::Note::Engine(temper_engine_service::Note::StartupWarning {
+                line: format!("local.setting: {why}").into_bytes().into_boxed_slice(),
+            }));
+        }
+    }
 }
-pub(crate) fn write_agents(path: &std::path::Path, bytes: &[u8]) -> std::io::Result<()> {
+pub(crate) fn write_setting(path: &std::path::Path, bytes: &[u8]) -> std::io::Result<()> {
     use std::{io::Write, os::unix::fs::OpenOptionsExt};
     let temporary = path.with_extension("setting.new");
     match std::fs::remove_file(&temporary) {

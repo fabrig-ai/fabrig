@@ -636,7 +636,6 @@ fn serve_prepares_eight_slots_and_ten_workspaces_on_the_owned_example() {
 #[test]
 fn serve_names_what_to_raise_for_eight_slots() {
     for (name, line) in [
-        ("fleet.slots", "workers[0].slots: must agree with engine.limits.overrides.fleet.slots, at least the slots"),
         (
             "checkout.workspaces",
             "workers[0].slots: must agree with application.limits.overrides.checkout.workspaces, at least the slots",
@@ -654,18 +653,15 @@ fn serve_names_what_to_raise_for_eight_slots() {
             &jig_protocol_config::Directories::working(),
             &temper_service::stock::Given::Stock,
             &temper_service::stock::agents(),
+            4,
             &[],
             None,
             (&document.jig, &document.limits),
         )
         .expect("engine figures")
         .expect("worker");
-        assert_eq!(part.worker.jig.limits.expect("applied figures").hub.slots, 8);
-        if name == "fleet.slots" {
-            document.jig_over(name, 7);
-        } else {
-            document.temper_over(name, 7);
-        }
+        assert_eq!(part.worker.jig.limits.expect("applied figures").hub.slots, 4);
+        document.temper_over(name, 7);
         let why = support::admission(scratch.path(), &document).expect_err("short limit refuses");
         assert_eq!(why, format!("{line}\n"), "{name}");
         scratch.remove();
