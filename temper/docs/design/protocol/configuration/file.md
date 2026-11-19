@@ -356,7 +356,7 @@ the user's yes, each value from today's member in its `temper.json`:
 
    listen  = "LISTEN"    # the clients' listener, behind your proxy
    public  = "PUBLIC"    # where people reach it
-   workers = "WORKERS"   # where workers connect, on your private network
+   workers = "WORKERS"   # where workers connect, on loopback
    owner   = "OWNER"     # the first owner, read at the first start alone
 
    [sign_in.google]
