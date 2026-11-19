@@ -38,6 +38,10 @@ env:
   # These two pins move together when Linux's Chromium changes major version.
   CHROME_FOR_TESTING_VERSION: 147.0.7727.117
   CHROME_FOR_TESTING_SHA256: 7a91c88d288500033f00fecbd1b3f1a0aa61803fec74432658012bdd83fd1c9f
+  # Linux's machines carry ripgrep 14.1.1 at /usr/bin/rg (macos.md, 6).
+  # The aarch64-apple-darwin archive's published release SHA-256, checked before unpacking.
+  RIPGREP_VERSION: 14.1.1
+  RIPGREP_SHA256: 24ad76777745fbff131c8fbc466742b011f925bfa4fffa2ded6def23b5b937be
   CARGO_TERM_COLOR: never
   CARGO_INCREMENTAL: "0"
   # Line tables fit the runner's disk (macos.md, 6).
@@ -382,6 +386,9 @@ jobs:
       - *registry-restore
       - *target-restore
       - *build
+      - name: Ripgrep, checked before unpacking
+        if: ${{ steps.build.outputs.run_tests == 'true' }}
+        run: python3 -I -B "$MACOS_HELPER" install-ripgrep
       - *run-part
       - *upload-part
       - *prune
@@ -442,7 +449,25 @@ jobs:
       - *registry-restore
       - *target-restore
       - *build
+      - name: Restore the pinned forge binaries
+        id: forge-cache
+        if: ${{ steps.build.outputs.run_tests == 'true' }}
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with:
+          path: ${{ runner.temp }}/fetch/cache
+          key: forge-macos-26-${{ hashFiles('tested/skein/crates/skein-forge/src/forgejo/pin.rs', 'tested/temper/crates/temper-forge-setup/src/fetch.rs') }}
+      - name: The pinned forge binaries
+        id: forge-fetch
+        if: ${{ steps.build.outputs.run_tests == 'true' }}
+        run: python3 -I -B "$MACOS_HELPER" fetch-forge
       - *run-part
+      - name: Save the forge binaries once per key
+        if: ${{ always() && steps.forge-fetch.outcome == 'success' && steps.forge-cache.outcome == 'success' && steps.forge-cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        continue-on-error: true
+        with:
+          path: ${{ runner.temp }}/fetch/cache
+          key: forge-macos-26-${{ hashFiles('tested/skein/crates/skein-forge/src/forgejo/pin.rs', 'tested/temper/crates/temper-forge-setup/src/fetch.rs') }}
       - *upload-part
       - *prune
       - *target-save

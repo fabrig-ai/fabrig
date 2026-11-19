@@ -20,6 +20,7 @@ smith-protocol-machine.workspace = true
 smith-protocol-machine-fixtures.workspace = true
 
 [dev-dependencies]
+smith-agent-document.workspace = true
 skein-fake-checkout.workspace = true
 smith-tools-world.workspace = true
 

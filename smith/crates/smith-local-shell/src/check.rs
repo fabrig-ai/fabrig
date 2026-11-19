@@ -6,7 +6,12 @@ use crate::{
 };
 use serde::Serialize;
 use smith_agent_shell::config::ProgramName;
-use std::{collections::BTreeMap, ffi::OsString, os::unix::fs::PermissionsExt, path::PathBuf};
+use std::{
+    collections::BTreeMap,
+    ffi::OsString,
+    os::unix::{ffi::OsStrExt, fs::PermissionsExt},
+    path::PathBuf,
+};
 
 mod accounts;
 #[cfg(test)]
@@ -73,6 +78,10 @@ pub fn report(settings: &Settings, wall: skein_lib::Wall, clock: &skein_shell::C
     report_for(settings, wall, clock, None)
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "one startup report resolves tools, limits and accounts without starting a run"
+)]
 fn report_for(
     settings: &Settings,
     wall: skein_lib::Wall,
@@ -108,7 +117,16 @@ fn report_for(
     };
     let path = values.get("PATH").map(OsString::from);
     let mut tools = BTreeMap::new();
-    for name in ["sh", "rg", "git"] {
+    let rg = smith_agent_shell::config::find_rg(path.as_ref().map(|path| path.as_bytes()));
+    let Some(rg) = rg else {
+        return Verdict::Refused(Refusal {
+            origin: Origin::BuiltIn,
+            key: "tools.rg".into(),
+            problem: Problem::MissingTool,
+        });
+    };
+    tools.insert("rg", rg);
+    for name in ["sh", "git"] {
         let resolved = path.as_ref().and_then(|path| {
             std::env::split_paths(path).map(|directory| settings.workspace.join(directory).join(name)).find(|file| {
                 std::fs::metadata(file)

@@ -76,6 +76,7 @@ pub fn configuration() -> Config {
         domain: domain::Config { programs: Box::new([]), endpoints: Box::new([]), limits: Box::new([]) },
         channel_endpoints,
         llm_endpoints,
+        rg: Box::from(b"/usr/bin/rg".as_slice()),
         environment: machine::Environment::encode(&[], &limits.machine).expect("empty environment fits"),
         stream_mode: StreamMode::Two,
     }

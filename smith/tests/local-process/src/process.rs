@@ -49,6 +49,8 @@ fn wait_in_trace(submissions: &mut Queue<kernel::Submit>) -> bool {
 pub struct Launch {
     pub seed: u64,
     pub tls: bool,
+    /// The real world's commands inherit the test process's PATH; simulations keep it absent.
+    pub commands_path: Option<String>,
     pub trust_der: Option<PathBuf>,
     pub change: bool,
     /// Include the real-loop tool and mandatory-check story.

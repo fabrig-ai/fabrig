@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
 """Offline fixtures for macos.md, 4–5; no builds, network or credentials."""
 
+<<<<<<< HEAD
 import contextlib
 import io
+=======
+import hashlib
+>>>>>>> refs/hand6/10457
 import json
 import os
 from pathlib import Path
@@ -597,6 +601,136 @@ source = "registry+https://example.invalid/index"
         self.assertEqual(calls[names.index("nextest-digest")][1],
                          ["shasum", "-a", "256", "-c", self.root / "nextest.sha256"])
 
+    def test_ripgrep_checks_digest_before_unpacking_and_publishing_path(self):
+        fake = f"#!{sys.executable}\n" + '''import hashlib
+import json
+import os
+from pathlib import Path
+import sys
+
+name = Path(sys.argv[0]).name
+args = sys.argv[1:]
+with Path(os.environ["CALLS"]).open("a") as stream:
+    stream.write(json.dumps([name, *args]) + "\\n")
+if name == "curl":
+    assert args[:2] == ["-sSfL", "-o"]
+    Path(args[2]).write_bytes(b"archive fixture\\n")
+elif name == "shasum":
+    assert args[:3] == ["-a", "256", "-c"]
+    digest, archive = Path(args[3]).read_text().strip().split("  ", 1)
+    if hashlib.sha256(Path(archive).read_bytes()).hexdigest() != digest:
+        print("shasum: checksum did NOT match")
+        sys.exit(1)
+elif name == "tar":
+    assert args[0] == "-xzf" and args[2] == "-C"
+    directory = Path(args[3]) / Path(args[1]).name.removesuffix(".tar.gz")
+    directory.mkdir()
+    binary = directory / "rg"
+    binary.write_text(Path(__file__).read_text())
+    binary.chmod(0o700)
+elif name == "rg":
+    assert args == ["--version"]
+    print("ripgrep 14.1.1")
+else:
+    sys.exit("unexpected command: " + name)
+'''
+        for matches in (True, False):
+            with self.subTest(matches=matches):
+                root = self.root / str(matches)
+                root.mkdir()
+                for name in ("curl", "shasum", "tar"):
+                    self.file(f"{matches}/bin/{name}", fake).chmod(0o700)
+                envfile = self.file(f"{matches}/env", "")
+                pathfile = self.file(f"{matches}/path", "/existing/bin\n")
+                calls = root / "calls.jsonl"
+                digest = hashlib.sha256(b"archive fixture\n").hexdigest() if matches else "0" * 64
+                env = dict(RUNNER_TEMP=str(root), GITHUB_ENV=str(envfile), GITHUB_PATH=str(pathfile),
+                           MACOS_HELPER=str(HELPER), RUN=str(root / "run"), CALLS=str(calls),
+                           PATH=f"{root / 'bin'}:{Path(sys.executable).parent}:{os.defpath}",
+                           RIPGREP_VERSION="14.1.1", RIPGREP_SHA256=digest)
+                setup = self.cli("setup-runner", **env)
+                self.assertEqual(setup.returncode, 0, setup.stdout + setup.stderr)
+                result = self.cli("install-ripgrep", **env)
+                commands = [json.loads(line) for line in calls.read_text().splitlines()]
+                archive = root / "ripgrep-14.1.1-aarch64-apple-darwin.tar.gz"
+                self.assertEqual(commands[:2], [
+                    ["curl", "-sSfL", "-o", str(archive),
+                     "https://github.com/BurntSushi/ripgrep/releases/download/14.1.1/ripgrep-14.1.1-aarch64-apple-darwin.tar.gz"],
+                    ["shasum", "-a", "256", "-c", str(root / "ripgrep.sha256")]])
+                self.assertEqual((root / "ripgrep.sha256").read_text(), f"{digest}  {archive}\n")
+                for name in ("rg-download", "rg-digest"):
+                    self.assertTrue((root / f"logs/{name}.log").is_file())
+                if matches:
+                    self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                    self.assertEqual(commands[2:], [["tar", "-xzf", str(archive), "-C", str(root / "ripgrep")],
+                                                    ["rg", "--version"]])
+                    self.assertEqual(pathfile.read_text(), "/existing/bin\n" +
+                                     f"{root}/ripgrep/ripgrep-14.1.1-aarch64-apple-darwin\n")
+                    self.assertIn("ripgrep 14.1.1", (root / "logs/rg-version.log").read_text())
+                    self.assertTrue((root / "logs/rg-unpack.log").is_file())
+                else:
+                    self.assertEqual(result.returncode, M["FAULT"], result.stdout + result.stderr)
+                    self.assertIn("rg-digest: fault", result.stdout)
+                    self.assertIn("checksum did NOT match", result.stdout)
+                    self.assertEqual(len(commands), 2)
+                    self.assertFalse((root / "ripgrep").exists())
+                    self.assertEqual(pathfile.read_text(), "/existing/bin\n")
+
+    def test_fetch_forge_keeps_restored_cache_but_starts_with_fresh_config_and_data(self):
+        globals_ = M["fetch_forge"].__globals__
+        for restored in (True, False):
+            with self.subTest(restored=restored):
+                root = self.root / str(restored)
+                root.mkdir()
+                fetch = root / "fetch"
+                cache = fetch / "cache"
+                if restored:
+                    cache.mkdir(parents=True)
+                    fetch.chmod(0o755)
+                    cache.chmod(0o755)
+                    marker = cache / "restored"
+                    marker.write_text("keep this file\n")
+                (root / "logs").mkdir()
+                envfile = self.file(f"{restored}/env", "EXISTING=kept\n")
+                calls = []
+                binaries = [cache / "forgejo/1/forgejo", cache / "forgejo-runner/1/forgejo-runner"]
+
+                def checked(name, command):
+                    calls.append((name, list(map(str, command))))
+                    if name == "init":
+                        for directory in (fetch, cache, fetch / "config", fetch / "data"):
+                            self.assertEqual(directory.stat().st_mode & 0o777, 0o700)
+                        for directory in (fetch / "config", fetch / "data"):
+                            self.assertEqual(list(directory.iterdir()), [])
+                        self.assertEqual(sorted(path.name for path in cache.iterdir()),
+                                         ["restored"] if restored else [])
+                    elif name == "fetch":
+                        for binary in binaries:
+                            binary.parent.mkdir(parents=True)
+                            binary.write_text("fetched binary\n")
+                    return 0
+
+                def prepare(command, **kwargs):
+                    self.assertEqual(command[:3], ["target/debug/temper-box", "forge", "prepare"])
+                    setup = fetch / "data/forge-1/setup"
+                    setup.parent.mkdir()
+                    setup.write_text("prepared\n")
+                    return subprocess.CompletedProcess(command, 1)
+
+                with mock.patch.dict(os.environ, RUNNER_TEMP=str(root), GITHUB_ENV=str(envfile)):
+                    with mock.patch.dict(globals_, checked=checked):
+                        with mock.patch.object(subprocess, "run", side_effect=prepare):
+                            M["fetch_forge"]()
+                self.assertEqual([name for name, _ in calls], ["init", "fetch", "forgejo-runs", "forgejo-runner-runs"])
+                flags = [arg for name in ("config", "data", "cache") for arg in ("--" + name, str(fetch / name))]
+                self.assertEqual(calls[1][1], ["target/debug/temper-box", "forge", "fetch", *flags, "1"])
+                self.assertEqual([command for _, command in calls[2:]],
+                                 [[str(binary), "--version"] for binary in binaries])
+                self.assertEqual(envfile.read_text(), "EXISTING=kept\n" +
+                                 f"TEMPER_TEST_FORGEJO={binaries[0]}\nTEMPER_TEST_FORGEJO_RUNNER={binaries[1]}\n")
+                if restored:
+                    self.assertEqual(marker.read_text(), "keep this file\n")
+
     def wasm_checks(self, installed, targets="Registered Targets:\n  wasm32 - WebAssembly 32-bit\n"):
         calls = []
 
@@ -915,6 +1049,46 @@ wait
         size = ticks.stat().st_size
         time.sleep(0.15)
         self.assertEqual(ticks.stat().st_size, size)
+
+    def test_workflow_fetches_forge_and_installs_ripgrep_only_where_suites_need_them(self):
+        workflow = (HELPER.parents[2] / ".github/workflows/macos.yml").read_text()
+        jobs = re.split(r"(?m)^  ([a-z][a-z-]*):\n", workflow.split("\njobs:\n", 1)[1])
+        parts = dict(zip(jobs[1::2], jobs[2::2]))
+        self.assertEqual([name for name, body in parts.items() if "fetch-forge" in body],
+                         ["process", "temper", "live"])
+        self.assertEqual([name for name, body in parts.items() if "install-ripgrep" in body], ["smith"])
+        env = workflow.split("\nenv:\n", 1)[1].split("\njobs:\n", 1)[0]
+        self.assertRegex(env, r"(?m)^  RIPGREP_VERSION: 14\.1\.1$")
+        self.assertRegex(env, r"(?m)^  RIPGREP_SHA256: [0-9a-f]{64}$")
+        smith = parts["smith"]
+        self.assertLess(smith.index("- *build"), smith.index("install-ripgrep"))
+        self.assertLess(smith.index("install-ripgrep"), smith.index("- *run-part"))
+        self.assertRegex(smith, r"if: \$\{\{ steps\.build\.outputs\.run_tests == 'true' \}\}\n"
+                         r'        run: python3 -I -B "\$MACOS_HELPER" install-ripgrep')
+        temper = parts["temper"]
+        steps = re.split(r"(?m)^      - ", temper)[1:]
+        restore = next(step for step in steps if "uses: actions/cache/restore@" in step)
+        fetch = next(step for step in steps if "fetch-forge" in step)
+        save = next(step for step in steps if "uses: actions/cache/save@" in step)
+        self.assertLess(temper.index("- *build"), temper.index(restore))
+        self.assertLess(temper.index(restore), temper.index(fetch))
+        self.assertLess(temper.index(fetch), temper.index("- *run-part"))
+        self.assertLess(temper.index("- *run-part"), temper.index(save))
+        key = "key: forge-macos-26-${{ hashFiles('tested/skein/crates/skein-forge/src/forgejo/pin.rs', 'tested/temper/crates/temper-forge-setup/src/fetch.rs') }}"
+        for step in (restore, save):
+            self.assertIn("path: ${{ runner.temp }}/fetch/cache", step)
+            self.assertIn(key, step)
+            self.assertIn("@caa296126883cff596d87d8935842f9db880ef25", step)
+        self.assertNotIn("restore-keys:", restore)
+        for step in (restore, fetch):
+            self.assertIn("if: ${{ steps.build.outputs.run_tests == 'true' }}", step)
+        self.assertIn("id: forge-cache", restore)
+        self.assertIn("id: forge-fetch", fetch)
+        self.assertIn("always()", save)
+        self.assertIn("steps.forge-fetch.outcome == 'success'", save)
+        self.assertIn("steps.forge-cache.outcome == 'success'", save)
+        self.assertIn("steps.forge-cache.outputs.cache-hit != 'true'", save)
+        self.assertIn("continue-on-error: true", save)
 
     def test_runner_preserves_status_and_annotates_log_without_shell_splicing(self):
         envfile = self.file("env", "")

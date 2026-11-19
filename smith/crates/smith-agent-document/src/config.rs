@@ -30,7 +30,7 @@ pub use native::TRUST_BYTES;
 #[cfg(all(test, unix))]
 use native::trust_source;
 #[cfg(unix)]
-pub use native::{configured_trust, trust};
+pub use native::{configured_trust, find_rg, trust};
 mod profile;
 mod programs;
 mod refusal;
@@ -62,6 +62,7 @@ pub struct Decoded {
     limits: service::Limits,
     domain_programs: Box<[domain::Program]>,
     environment: machine::Environment,
+    path: Option<Box<[u8]>>,
     trace: Option<TraceConfig>,
     endpoints: PreparedEndpoints,
 }
@@ -194,7 +195,11 @@ fn decode_document(document: Document) -> Result<Decoded, ConfigurationRefusal> 
     let trace = trace::build(document.trace)?;
     let mut environment = Vec::with_capacity(document.environment.len());
     let mut environment_bytes = 0_u64;
+    let mut path = None;
     for variable in document.environment {
+        if variable.name == "PATH" {
+            path = Some(Box::from(variable.value.as_bytes()));
+        }
         let entry_bytes = variable
             .name
             .len()
@@ -230,6 +235,7 @@ fn decode_document(document: Document) -> Result<Decoded, ConfigurationRefusal> 
         limits,
         domain_programs,
         environment,
+        path,
         trace,
         endpoints,
     })
@@ -258,9 +264,20 @@ impl Decoded {
             mut limits,
             domain_programs,
             environment,
+            path,
             trace,
             endpoints,
         } = self;
+        #[cfg(unix)]
+        let rg = find_rg(path.as_deref()).map_or_else(
+            || Box::from(b"/usr/bin/rg".as_slice()),
+            |path| path.into_os_string().into_encoded_bytes().into(),
+        );
+        #[cfg(not(unix))]
+        let rg = {
+            let _path = path;
+            Box::from(b"/usr/bin/rg".as_slice())
+        };
         let llm_endpoints =
             llm::Endpoints::new(native::endpoints(endpoints.llm, &limits.llm.connection, errors)?, ENDPOINTS)
                 .map_err(|error| format!("LLM endpoints: {error:?}"))?;
@@ -278,6 +295,7 @@ impl Decoded {
             domain: domain::Config { programs: domain_programs, endpoints: endpoints.domain, limits: endpoints.limits },
             channel_endpoints: endpoints.channel,
             llm_endpoints,
+            rg,
             environment,
             stream_mode: StreamMode::Two,
         };

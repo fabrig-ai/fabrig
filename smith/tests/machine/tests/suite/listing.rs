@@ -16,13 +16,14 @@ fn env() -> Env<Limits> {
 }
 
 fn component() -> Component {
-    configured_component(&[])
+    configured_component(&[], b"/fixture/bin/rg")
 }
 
-fn configured_component(variables: &[smith_protocol_machine::Variable]) -> Component {
+fn configured_component(variables: &[smith_protocol_machine::Variable], rg: &[u8]) -> Component {
     let mut component = Component::new(
         &limits(),
         smith_protocol_machine::Environment::encode(variables, &limits()).expect("configured environment fits"),
+        Box::from(rg),
     );
     component.workspace(&run::Workspace {
         directories: Box::new([run::Directory {
@@ -85,7 +86,7 @@ fn listed(output: &[u8], depth: tools::Depth, maximum: u32, bytes: u64, glob: Op
         Below::Spawn { spawn, root, .. } => {
             assert_eq!(root, Token::new(10));
             assert_eq!(spawn.dir.as_ref(), b"src");
-            assert_eq!(spawn.program.as_ref(), b"/usr/bin/rg");
+            assert_eq!(spawn.program.as_ref(), b"/fixture/bin/rg");
             assert!(spawn.env.is_empty());
             assert!(spawn.args.iter().any(|word| word.as_ref() == b"--files"));
             assert!(spawn.args.iter().any(|word| word.as_ref() == b"--hidden"));
@@ -172,8 +173,12 @@ fn selected_native_output(suffix: &str, op: tools::Op) -> Vec<u8> {
 }
 
 fn native_output(root: &std::path::Path, op: tools::Op) -> std::process::Output {
+    use std::os::unix::ffi::OsStrExt;
+    let path = std::env::var_os("PATH");
+    let rg = smith_agent_document::config::find_rg(path.as_ref().map(|path| path.as_bytes()))
+        .expect("native listing requires rg on the test process's PATH");
     let listing = matches!(&op, tools::Op::List { .. });
-    let mut component = component();
+    let mut component = configured_component(&[], rg.as_os_str().as_bytes());
     let mut up = Queue::with_capacity(2);
     let mut down = Queue::with_capacity(2);
     component.from_domain(
@@ -209,7 +214,7 @@ fn native_output(root: &std::path::Path, op: tools::Op) -> std::process::Output 
             panic!("selection spawns rg")
         }
     };
-    let mut command = std::process::Command::new(std::str::from_utf8(&spawn.program).expect("fixed program"));
+    let mut command = std::process::Command::new(std::ffi::OsStr::from_bytes(&spawn.program));
     command.current_dir(root).env_clear();
     for word in &spawn.args {
         command.arg(std::str::from_utf8(word).expect("fixture arguments"));

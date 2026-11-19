@@ -20,6 +20,9 @@ or builds, temporary directories inside the checkout, under 60 seconds).
   accepts flat files or `gh run download`'s `part-PART/PART.xml` directories, and
   copies the full part files beside the failure-only report. A fault exits 2.
 - `wasm-compiler`: check Homebrew's newest LLVM targets wasm32 and export its target-only C tools.
+- `install-ripgrep`: download smith's workflow-pinned ripgrep release, check its
+  SHA-256 before unpacking into `RUNNER_TEMP/ripgrep`, print its version through
+  `RUN`, and append its directory to `GITHUB_PATH`.
 - `setup-runner`, `annotate`: keep each check's log and annotate failures; the
   runner preserves the command's exit status. With `MACOS_STARTED` and `PART`,
   checks stop 15 minutes before the part's timeout (150 minutes for e2e parts,
@@ -30,6 +33,7 @@ or builds, temporary directories inside the checkout, under 60 seconds).
   cancellation signals to the helper (temper/docs/design/testing/macos.md, 10).
 - `install`, `build`, `fetch-forge`, `run`, `verdict`, `prune`: the jobs' common
   operations, using `RUN`, `RUNNER_TEMP`, `IDS`, `GIVEN` and the tested tree's
+<<<<<<< HEAD
   metadata and tier tools. `build` writes `build_red` and `run_tests` outputs,
   gives each command a notice counting compiled dependencies and workspace
   crates, and appends `MACOS_BUILT=true` to `GITHUB_ENV` only after every command
@@ -46,6 +50,14 @@ or builds, temporary directories inside the checkout, under 60 seconds).
   warn without failing the save step. Cache saves use the complete key after a
   successful build, otherwise a run/attempt-specific partial key; restore tries that lock's
   newest partial before older locks of the same toolchain.
+=======
+  metadata and tier tools. `build` writes `build_red` and `run_tests` outputs;
+  `verdict` fails on a failed case, after its file is uploaded. `fetch-forge`
+  exports `TEMPER_TEST_FORGEJO` and `TEMPER_TEST_FORGEJO_RUNNER` after the build
+  for `process`, `live` and `temper`. Only `temper` restores and saves its fetch
+  cache between runs; configuration and data start empty, and `process` and
+  `live` start with an empty cache too.
+>>>>>>> refs/hand6/10457
 
 Nextest completeness uses its JSON selection listing, with the run's profile,
 package and filter arguments and ignored-test policy, rather than relying on a
