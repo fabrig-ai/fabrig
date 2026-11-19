@@ -146,3 +146,177 @@ Nextest output does not name builder hosts or test start timestamps. For reprodu
 - **Decode: measured, all tests pass, all four medians slower.** No runtime threshold was supplied; this is evidence for K4's decision, not grounds to hide the regression or invent a new threshold.
 
 Thus the source-size condition is demonstrated, but these nearest available measurements do **not** demonstrate that all of 3.3 holds. K4 must not treat this report as a proven full compile gate. Byte/fingerprint equivalence is outside this measurement-only change; these four existing tests are not a replacement for the conversion's drift and `every` checks.
+
+
+## 6. K4: decoding alone
+
+### 6.1 Trees, environment and method
+
+2026-11-19. Base **A** is `4dccc50631531e27721aaba781a6f8d66e7fd477`,
+after `60e03e20b2` (the decoded-list allocation change), including change
+9879's `5bb267f7e24664eff21d6c59dd56cd144b2a930f` supplied before landing.
+L is that tree's committed lean
+`jig/crates/jig-protocol-store-tasks/src/generated/tasks.rs`. S is
+`skein_codegen::generate_as(&schema, Form::Sealed).records` from the same
+`jig/crates/jig-protocol-store/schema/tasks-v13.schema` and generator.
+
+The coordinator's answer to question 213192 replaces separate S/L builds
+with two modules in **one throwaway test process**, giving same-builder
+alternation by construction without a builder-affinity control. The test
+included L directly from its committed path and S as a second module;
+no hand-written store readers were changed. Its schema parser, generator,
+corpus construction, correctness checks and warm-up were outside timing.
+The harness, sealed output and generator example are not retained.
+
+The harness ran alone as `skein-codec-tests::k4_decode::decoding_alone`,
+nextest's focused/default suite, once per measured profile and candidate:
+
+```sh
+cargo nextest run -p skein-codec-tests --test k4_decode \
+  -E 'test(=decoding_alone)' --success-output immediate
+# Optimized build: the same command with --cargo-profile release.
+```
+
+Each invocation selected and passed exactly one test, with zero skipped.
+Cargo reported test profile unoptimized + debuginfo and release optimized;
+the harness reported `debug_assertions=true` and `false` respectively,
+`x86_64`, and 8 available logical CPUs. **Builder identity and CPU model
+are unknown.** Each S/L pair ran on the same builder in the same process;
+whether separate invocations used the same builder, and what other work
+ran there, are unknown. Every command used cargo on PATH (heavy), one
+at a time, with the deployment's no-bundle configuration. No local
+wrapper elapsed time or compiler time enters these decode figures.
+
+For each corpus, five rounds run S then L: S,L,S,L,S,L,S,L,S,L.
+Each decoder gets an untimed pass over the corpus first. For every call,
+`Reader::new` and black-boxed input/limits are prepared before
+`Instant::now`; the timed expression is
+`black_box(Row::decode(limits, &mut reader))`. Elapsed time is read
+immediately afterward. Accumulating durations and dropping the returned
+Result, including the decoded row's heap, are outside timing. Allocation
+inside decode remains included. Clock-read and black-box overhead remain
+in each observation; they are not subtracted, and matter especially for
+early refusals in release. These are elapsed decode-call times, not CPU
+times or whole-test durations. No sample is discarded; spread is the
+observed minimum–maximum, not a confidence interval. Ratios below divide
+medians, not the median of the five paired ratios.
+
+The three prebuilt input sets are identical for S and L, all at CEILINGS:
+
+| Corpus | Construction | Inputs | Bytes | Successful Row decodes | Repetitions per sample | Input digest |
+|---|---|---:|---:|---:|---:|---|
+| Fixed | All `skein_codegen::goldens`, sorted by name | 1,370 | 30,845 | 2 | 10 | `105c835c242c706c` |
+| Mutated | The existing fuzzy test's sorted `_full.bin` fixtures, each original then 100 mutations, seed `0x5706_e014` | 69,185 | 2,009,799 | 83 | 1 | `9d3980b6912a33f7` |
+| Full row | `record_row_full.bin`, the value the cited memory test decodes | 1 | 88 | 1 | 1,000 | `a7b25e8e7d46ed66` |
+
+The mutated corpus uses `Rng::below(len)` to choose one byte and the low
+byte of `next_u64` to replace it, skipping modification of empty inputs,
+exactly as `fuzzy::decode::mutated_tasks_fixed_rule_values_never_panic`.
+The cited `memory::a_full_tasks_row_decodes_within_its_decoded_bound` is
+present in K3's `c145dbb87d206a8aabb560f4c214fd53ef985a01`, not this base's
+`memory.rs`; its `check(values::TASKS, "row", ...)` picks precisely this
+full fixed-rule golden. This does not substitute the newer largest-row
+clamp test. Most Fixed/Mutated bytes describe declarations other than Row
+and refuse at the version prefix, as in the existing fuzzy test. They
+measure refusal throughput as well as successful decoding; Full row
+isolates a successful decode.
+
+The digest is FNV-1a-64 over each input's little-endian u64 length followed
+by its bytes, in iteration order. Digests, counts, acceptance and bytes
+matched in every measured invocation. Before timing, S and L agreed on
+acceptance for every input, and successful rows re-encoded to each other
+and to the original bytes. Encoding, equality and these checks are not
+in the samples.
+
+### 6.2 Samples and candidates
+
+All samples below are **milliseconds**, each the sum of just the timed
+calls for that corpus and its stated repetitions. Six decimal places
+preserve the measured nanoseconds. Samples are in round order.
+
+- **A:** unchanged base; both profiles establish the initial comparison.
+- **B:** A plus only the body of `Record::decode`: return the read Result
+  directly, with a tail check only on success, avoiding extraction and
+  re-wrapping of the potentially large value in an unoptimized wrapper.
+- **C:** B plus only the body of `field::version`: match the read u16
+  directly, constructing Short/Version only on refusal, avoiding eager
+  `path.problem`, `ok_or` and `?` layers. C was saved as
+  `27d44a3278e29f482ea89c38490403c9d69e55d4` (unchecked).
+- **D:** C plus forced inlining on `Record::decode`, `field::read`,
+  `field::version`, `read_bytes` and the field shapes' `read` implementations.
+  Question 213211's answer authorizes these attributes despite the
+  body-only overlap restriction. No signature, byte, bound, refusal,
+  schema, generated module or generator changes. B/C are diagnostic
+  test-profile runs; release is measured on A and D.
+
+**A test.**
+
+| Corpus | Sealed samples, ms | Sealed median [spread], ms | Lean samples, ms | Lean median [spread], ms | Lean / sealed medians |
+|---|---|---|---|---|---:|
+| Fixed | 3.075206, 1.446769, 1.437760, 1.435139, 1.452658 | 1.446769 [1.435139–3.075206] | 5.088138, 3.078187, 3.050638, 3.109108, 3.069189 | 3.078187 [3.050638–5.088138] | 2.1276 |
+| Mutated | 7.229834, 7.279482, 7.228955, 7.237465, 7.361143 | 7.237465 [7.228955–7.361143] | 15.354976, 15.329331, 15.369279, 15.385970, 15.536042 | 15.369279 [15.329331–15.536042] | 2.1236 |
+| Full row | 1.593269, 1.601069, 1.598669, 1.628478, 1.624548 | 1.601069 [1.593269–1.628478] | 2.014229, 1.991329, 1.999548, 2.036939, 2.033868 | 2.014229 [1.991329–2.036939] | 1.2581 |
+
+**A release.**
+
+| Corpus | Sealed samples, ms | Sealed median [spread], ms | Lean samples, ms | Lean median [spread], ms | Lean / sealed medians |
+|---|---|---|---|---|---:|
+| Fixed | 2.331788, 1.092268, 0.992041, 1.170600, 1.171319 | 1.170600 [0.992041–2.331788] | 2.377748, 1.034938, 1.052639, 1.313908, 1.286699 | 1.286699 [1.034938–2.377748] | 1.0992 |
+| Mutated | 5.743356, 4.855962, 4.970484, 4.984774, 4.889617 | 4.970484 [4.855962–5.743356] | 5.147494, 4.949687, 4.936468, 4.973906, 4.928575 | 4.949687 [4.928575–5.147494] | 0.9958 |
+| Full row | 0.272819, 0.266650, 0.282740, 0.271610, 0.262450 | 0.271610 [0.262450–0.282740] | 0.214410, 0.217510, 0.210030, 0.213890, 0.211469 | 0.213890 [0.210030–0.217510] | 0.7875 |
+
+**B test.**
+
+| Corpus | Sealed samples, ms | Sealed median [spread], ms | Lean samples, ms | Lean median [spread], ms | Lean / sealed medians |
+|---|---|---|---|---|---:|
+| Fixed | 1.801289, 1.498239, 1.476180, 1.506569, 1.477499 | 1.498239 [1.476180–1.801289] | 3.095419, 3.067426, 3.204110, 3.066286, 3.100987 | 3.095419 [3.066286–3.204110] | 2.0660 |
+| Mutated | 7.625873, 7.746134, 7.286867, 7.769354, 8.582565 | 7.746134 [7.286867–8.582565] | 15.033491, 15.638620, 14.959221, 15.511872, 15.316589 | 15.316589 [14.959221–15.638620] | 1.9773 |
+| Full row | 1.589300, 1.594248, 1.624199, 1.594118, 1.607759 | 1.594248 [1.589300–1.624199] | 1.857769, 1.869309, 1.849498, 1.844267, 1.880349 | 1.857769 [1.844267–1.880349] | 1.1653 |
+
+**C test.**
+
+| Corpus | Sealed samples, ms | Sealed median [spread], ms | Lean samples, ms | Lean median [spread], ms | Lean / sealed medians |
+|---|---|---|---|---|---:|
+| Fixed | 1.693018, 1.687759, 1.529760, 1.540479, 1.518787 | 1.540479 [1.518787–1.693018] | 2.314558, 2.416748, 2.366067, 2.452028, 2.286139 | 2.366067 [2.286139–2.452028] | 1.5359 |
+| Mutated | 7.407445, 7.865045, 7.327274, 7.484857, 7.394486 | 7.407445 [7.327274–7.865045] | 12.046418, 11.764939, 11.674591, 11.743178, 11.316333 | 11.743178 [11.316333–12.046418] | 1.5853 |
+| Full row | 1.679129, 1.597549, 1.633070, 1.625049, 1.611819 | 1.625049 [1.597549–1.679129] | 1.777618, 1.817069, 1.799188, 1.762988, 1.817171 | 1.799188 [1.762988–1.817171] | 1.1072 |
+
+**D test.**
+
+| Corpus | Sealed samples, ms | Sealed median [spread], ms | Lean samples, ms | Lean median [spread], ms | Lean / sealed medians |
+|---|---|---|---|---|---:|
+| Fixed | 1.448239, 1.431558, 1.461299, 1.428808, 1.439448 | 1.439448 [1.428808–1.461299] | 2.231069, 2.280018, 2.232388, 2.220208, 2.223567 | 2.231069 [2.220208–2.280018] | 1.5499 |
+| Mutated | 7.168529, 7.189364, 7.149679, 7.081693, 7.115245 | 7.149679 [7.081693–7.189364] | 11.224253, 11.133491, 11.186938, 11.223071, 11.124592 | 11.186938 [11.124592–11.224253] | 1.5647 |
+| Full row | 1.598100, 1.607619, 1.587218, 1.584979, 1.590448 | 1.590448 [1.584979–1.607619] | 1.772739, 1.775579, 1.785599, 1.784749, 1.786918 | 1.784749 [1.772739–1.786918] | 1.1222 |
+
+**D release.**
+
+| Corpus | Sealed samples, ms | Sealed median [spread], ms | Lean samples, ms | Lean median [spread], ms | Lean / sealed medians |
+|---|---|---|---|---|---:|
+| Fixed | 0.790169, 1.081229, 0.991810, 0.922449, 0.921088 | 0.922449 [0.790169–1.081229] | 1.150559, 1.576620, 1.895829, 2.120018, 1.941498 | 1.895829 [1.150559–2.120018] | 2.0552 |
+| Mutated | 3.508067, 3.452639, 3.461847, 3.701066, 3.548357 | 3.508067 [3.452639–3.701066] | 5.862285, 5.845095, 5.790234, 5.895845, 5.952688 | 5.862285 [5.790234–5.952688] | 1.6711 |
+| Full row | 0.251410, 0.269960, 0.250859, 0.263490, 0.269700 | 0.263490 [0.250859–0.269960] | 0.205799, 0.195960, 0.204020, 0.215860, 0.199809 | 0.204020 [0.195960–0.215860] | 0.7743 |
+
+Harness UTC starts (from its SystemTime, not the controller's starts):
+A test `1795093612`, A release `1795093642`, B test `1795093688`,
+C test `1795093723`, D test `1795093893`, D release `1795094209`.
+An initial D release command exhausted the shell's 120 s deadline while
+compiling, with no test output or sample; that attempt is unobserved,
+not passed. After suppressing the throwaway modules' unused-item warnings,
+the completed release invocation above used a longer shell deadline,
+not a changed test budget or timeout.
+
+### 6.3 Cause and decision
+
+There is no bounds-table walk or dynamic trait dispatch on this decode
+path. The test-profile regression is in the extra unoptimized generic
+helper/Result forwarding layers: the direct version check and Result
+return reduce it, while the optimizing compiler already removes much of
+that overhead. Full-row decoding improves with the helper changes.
+
+A release is within about 10% on both corpus sets and faster on the full
+row; A test is not. D test remains slower (1.55 / 1.56 / 1.12), and D
+release **regresses the refusal-heavy corpora** (2.06 / 1.67 / 0.77).
+The forced-inlining candidate therefore does not establish the requested
+two-profile 10% criterion. Decision pending the coordinator's ruling on
+these changed release figures; no further tuning is assumed.
