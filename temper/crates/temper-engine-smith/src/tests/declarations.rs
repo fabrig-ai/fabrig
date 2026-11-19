@@ -46,6 +46,7 @@ fn stock_roles_offers_are_exact_and_within_their_bounds() {
         "finding",
         "red",
         "follow",
+        "mark_read",
         "message",
         "introduce",
         "decided",
@@ -63,7 +64,7 @@ fn stock_roles_offers_are_exact_and_within_their_bounds() {
         "read_issues",
         "read_ci",
     ];
-    let coder = ["message", "introduce", "read_task", "read_docs", "read_forge", "read_issues", "read_ci"];
+    let coder = ["mark_read", "message", "introduce", "read_task", "read_docs", "read_forge", "read_issues", "read_ci"];
     let reviewer = ["read_task", "read_docs", "read_forge", "read_issues", "read_ci"];
     for (number, families, authority, names, bound) in [
         (5, Tools(1_023), authority, goal.as_slice(), 14_336),

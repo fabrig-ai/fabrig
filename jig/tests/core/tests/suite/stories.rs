@@ -387,6 +387,7 @@ fn a_note_written_corrected_by_a_person_and_recalled_keeps_the_corrected_body() 
                 author: notes::Author::Task { task: key.task, attempt: key.attempt },
             },
             recalled: None,
+            records: Box::new([]),
         },
     );
     let core::CallPart::NoteWritten { name, revision: 1, .. } = world.answers.last().expect("written answer").2 else {
@@ -447,6 +448,7 @@ fn another_partys_scope_is_refused_to_runs_and_unknown_to_parties() {
                 author: notes::Author::Task { task: key.task, attempt: key.attempt },
             },
             recalled: None,
+            records: Box::new([]),
         },
     );
     assert_eq!(
@@ -498,6 +500,7 @@ fn a_chat_writes_its_own_scope_and_a_party_reads_it() {
                     author: notes::Author::Task { task: key.task, attempt: key.attempt },
                 },
                 recalled: None,
+                records: Box::new([]),
             },
         );
     }

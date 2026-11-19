@@ -1503,6 +1503,7 @@ fn new_note(description: &[u8], body: &[u8], author: notes::Author) -> engine::T
             author,
         },
         recalled: None,
+        records: Box::new([]),
     }
 }
 
@@ -1512,7 +1513,7 @@ fn note_lines(name: u64, recalled: u32, range: notes::LineRange, body: &[u8]) ->
         panic!("note fixture")
     };
     entry.name = name;
-    engine::Tool::NoteLines { entry, recalled, range }
+    engine::Tool::NoteLines { entry, recalled, range, records: Box::new([]) }
 }
 
 fn stored_note(driver: &Driver, name: u64) -> &notes::Entry {
@@ -1702,13 +1703,13 @@ fn a_document_call_writes_the_chats_document() {
         let (mut driver, assignment) = document_fixture([document_config(), document_config()]);
         let mut name = 1;
         if correction == Some(false) {
-            let engine::Tool::Note { mut entry, recalled } =
+            let engine::Tool::Note { mut entry, recalled, .. } =
                 new_note(b"work: settings", b"working body", notes::Author::Task { task: 0, attempt: 0 })
             else {
                 unreachable!()
             };
             entry.scope = notes::Scope::Goal { project: 1, goal: assignment.task };
-            tool_call(&mut driver, &assignment, 3200, engine::Tool::Note { entry, recalled });
+            tool_call(&mut driver, &assignment, 3200, engine::Tool::Note { entry, recalled, records: Box::new([]) });
             name = 2;
         }
         if let Some(first) = first {

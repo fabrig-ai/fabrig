@@ -5584,6 +5584,7 @@ pub(crate) fn effect_answer(domain: &Domain, key: CallKey, part: &jig_domain_cor
         | jig_domain_core::CallPart::Delegated(_)
         | jig_domain_core::CallPart::DelegationDenied { .. }
         | jig_domain_core::CallPart::DelegationRefused(_)
+        | jig_domain_core::CallPart::WordsRecorded { .. }
         | jig_domain_core::CallPart::NoteWritten { .. }
         | jig_domain_core::CallPart::NoteDeleted { .. }
         | jig_domain_core::CallPart::NoteRecalled { .. }

@@ -16,6 +16,10 @@ pub struct Limits {
     pub call_part_effect_denied_findings: u32,
     pub call_part_tool_denied_findings: u32,
     pub call_part_delegation_denied_findings: u32,
+    pub call_part_note_written_recorded: u32,
+    pub call_part_note_written_unknown: u32,
+    pub call_part_words_recorded_recorded: u32,
+    pub call_part_words_recorded_unknown: u32,
     pub task_bytes_value: u32,
     pub call_part_delegated_value: u32,
     pub note_bytes_value: u32,
@@ -42,6 +46,10 @@ pub const CEILINGS: Limits = Limits {
     call_part_effect_denied_findings: 1_024,
     call_part_tool_denied_findings: 1_024,
     call_part_delegation_denied_findings: 1_024,
+    call_part_note_written_recorded: 128,
+    call_part_note_written_unknown: 128,
+    call_part_words_recorded_recorded: 128,
+    call_part_words_recorded_unknown: 128,
     task_bytes_value: 8_192,
     call_part_delegated_value: 1_024,
     note_bytes_value: 2_097_152,
@@ -68,6 +76,10 @@ pub const LIMIT_NAMES: &[&str] = &[
     "call_part_effect_denied_findings",
     "call_part_tool_denied_findings",
     "call_part_delegation_denied_findings",
+    "call_part_note_written_recorded",
+    "call_part_note_written_unknown",
+    "call_part_words_recorded_recorded",
+    "call_part_words_recorded_unknown",
     "task_bytes_value",
     "call_part_delegated_value",
     "note_bytes_value",
@@ -360,8 +372,18 @@ pub enum Path {
     CallPartNoteWrittenRemoved,
     /// The `first` field of `CallPartNoteWritten`.
     CallPartNoteWrittenFirst,
+    /// The `recorded` field of `CallPartNoteWritten`.
+    CallPartNoteWrittenRecorded,
+    /// The `unknown` field of `CallPartNoteWritten`.
+    CallPartNoteWrittenUnknown,
     /// Bytes after `CallPartNoteWritten`.
     CallPartNoteWrittenTail,
+    /// The `recorded` field of `CallPartWordsRecorded`.
+    CallPartWordsRecordedRecorded,
+    /// The `unknown` field of `CallPartWordsRecorded`.
+    CallPartWordsRecordedUnknown,
+    /// Bytes after `CallPartWordsRecorded`.
+    CallPartWordsRecordedTail,
     /// The `value` field of `TaskBytes`.
     TaskBytesValue,
     /// Bytes after `TaskBytes`.
@@ -929,7 +951,12 @@ impl Path {
             Self::CallPartNoteWrittenAdded => "CallPartNoteWritten.added",
             Self::CallPartNoteWrittenRemoved => "CallPartNoteWritten.removed",
             Self::CallPartNoteWrittenFirst => "CallPartNoteWritten.first",
+            Self::CallPartNoteWrittenRecorded => "CallPartNoteWritten.recorded",
+            Self::CallPartNoteWrittenUnknown => "CallPartNoteWritten.unknown",
             Self::CallPartNoteWrittenTail => "CallPartNoteWritten (tail)",
+            Self::CallPartWordsRecordedRecorded => "CallPartWordsRecorded.recorded",
+            Self::CallPartWordsRecordedUnknown => "CallPartWordsRecorded.unknown",
+            Self::CallPartWordsRecordedTail => "CallPartWordsRecorded (tail)",
             Self::TaskBytesValue => "TaskBytes.value",
             Self::TaskBytesTail => "TaskBytes (tail)",
             Self::CallPartEscalationRefusedValue => "CallPartEscalationRefused.value",
@@ -7031,13 +7058,13 @@ fn call_part_delegation_denied_decoded_bound_family(limits: &Limits, biggest: u6
 
 fn check_call_part_delegation_denied_record_limits(limits: &Limits) -> Result<(), Problem> {
     if limits.call_part_delegation_denied_findings > CEILINGS.call_part_delegation_denied_findings { return Err(Problem { path: Path::CallPartDelegationDeniedFindings, reason: skein_codec::Reason::Bound }); }
-    check_task_bytes_record_limits(limits)
+    check_call_part_note_written_record_limits(limits)
 }
 
 impl Limits {
     fn values_for_call_part_delegation_denied_record(&self, values: &mut List<u32>) {
         values.push(self.call_part_delegation_denied_findings).expect("room for every named limit");
-        self.values_for_task_bytes_record(values);
+        self.values_for_call_part_note_written_record(values);
     }
 }
 
@@ -7154,6 +7181,10 @@ pub struct CallPartNoteWrittenParts {
     pub removed: u32,
     /// The `first` field.
     pub first: u32,
+    /// The `recorded` field.
+    pub recorded: List<Number>,
+    /// The `unknown` field.
+    pub unknown: List<Number>,
 }
 
 /// `CallPartNoteWritten` in this codec family.
@@ -7165,13 +7196,16 @@ pub struct CallPartNoteWritten {
     added: u32,
     removed: u32,
     first: u32,
+    recorded: List<Number>,
+    unknown: List<Number>,
 }
 
 impl CallPartNoteWritten {
     /// Makes a value within the given limits.
-    pub fn new(_limits: &Limits, parts: CallPartNoteWrittenParts) -> Result<Self, Problem> {
-        let CallPartNoteWrittenParts { name, revision, lines, added, removed, first } = parts;
-        let value = Self { name, revision, lines, added, removed, first };
+    pub fn new(limits: &Limits, parts: CallPartNoteWrittenParts) -> Result<Self, Problem> {
+        let CallPartNoteWrittenParts { name, revision, lines, added, removed, first, recorded, unknown } = parts;
+        let value = Self { name, revision, lines, added, removed, first, recorded, unknown };
+        value.check(limits)?;
         Ok(value)
     }
 
@@ -7199,10 +7233,23 @@ impl CallPartNoteWritten {
     #[must_use]
     pub fn first(&self) -> u32 { self.first }
 
+    /// Reads the `recorded` field.
+    #[must_use]
+    pub fn recorded(&self) -> &List<Number> { &self.recorded }
+
+    /// Reads the `unknown` field.
+    #[must_use]
+    pub fn unknown(&self) -> &List<Number> { &self.unknown }
+
     /// Moves the fields out without copying.
     #[must_use]
-    pub fn into_parts(self) -> CallPartNoteWrittenParts { CallPartNoteWrittenParts { name: self.name, revision: self.revision, lines: self.lines, added: self.added, removed: self.removed, first: self.first } }
+    pub fn into_parts(self) -> CallPartNoteWrittenParts { CallPartNoteWrittenParts { name: self.name, revision: self.revision, lines: self.lines, added: self.added, removed: self.removed, first: self.first, recorded: self.recorded, unknown: self.unknown } }
 
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        if self.recorded.capacity() > limits.call_part_note_written_recorded.min(CEILINGS.call_part_note_written_recorded) { return Err(Problem { path: Path::CallPartNoteWrittenRecorded, reason: skein_codec::Reason::Bound }); }
+        if self.unknown.capacity() > limits.call_part_note_written_unknown.min(CEILINGS.call_part_note_written_unknown) { return Err(Problem { path: Path::CallPartNoteWrittenUnknown, reason: skein_codec::Reason::Bound }); }
+        Ok(())
+    }
 }
 
 impl CallPartNoteWritten {
@@ -7216,6 +7263,12 @@ impl CallPartNoteWritten {
         size = size.checked_add(4).expect("schema ceilings fit u32");
         size = size.checked_add(4).expect("schema ceilings fit u32");
         size = size.checked_add(4).expect("schema ceilings fit u32");
+        let field_recorded = &self.recorded;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(field_recorded.len().checked_mul(8).expect("schema ceilings fit u32")).expect("schema ceilings fit u32");
+        let field_unknown = &self.unknown;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(field_unknown.len().checked_mul(8).expect("schema ceilings fit u32")).expect("schema ceilings fit u32");
         size
     }
 
@@ -7233,6 +7286,16 @@ impl CallPartNoteWritten {
         writer.put(&field_removed.to_be_bytes())?;
         let field_first = &self.first;
         writer.put(&field_first.to_be_bytes())?;
+        let field_recorded = &self.recorded;
+        writer.put(&field_recorded.len().to_be_bytes())?;
+        for item_0 in field_recorded.as_slice() {
+        item_0.encode(writer)?;
+        }
+        let field_unknown = &self.unknown;
+        writer.put(&field_unknown.len().to_be_bytes())?;
+        for item_0 in field_unknown.as_slice() {
+        item_0.encode(writer)?;
+        }
         Ok(())
     }
 
@@ -7243,14 +7306,16 @@ impl CallPartNoteWritten {
         Ok(value)
     }
 
-    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         let decoded_name = reader.u64().ok_or(Problem { path: Path::CallPartNoteWrittenName, reason: skein_codec::Reason::Short })?;
         let decoded_revision = reader.u32().ok_or(Problem { path: Path::CallPartNoteWrittenRevision, reason: skein_codec::Reason::Short })?;
         let decoded_lines = reader.u32().ok_or(Problem { path: Path::CallPartNoteWrittenLines, reason: skein_codec::Reason::Short })?;
         let decoded_added = reader.u32().ok_or(Problem { path: Path::CallPartNoteWrittenAdded, reason: skein_codec::Reason::Short })?;
         let decoded_removed = reader.u32().ok_or(Problem { path: Path::CallPartNoteWrittenRemoved, reason: skein_codec::Reason::Short })?;
         let decoded_first = reader.u32().ok_or(Problem { path: Path::CallPartNoteWrittenFirst, reason: skein_codec::Reason::Short })?;
-        Ok(Self { name: decoded_name, revision: decoded_revision, lines: decoded_lines, added: decoded_added, removed: decoded_removed, first: decoded_first })
+        let decoded_recorded = { let count = match skein_codec::read_count(reader, limits.call_part_note_written_recorded.min(CEILINGS.call_part_note_written_recorded)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::CallPartNoteWrittenRecorded, reason }), }; if count > reader.remaining() / 8 { return Err(Problem { path: Path::CallPartNoteWrittenRecorded, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = Number::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_unknown = { let count = match skein_codec::read_count(reader, limits.call_part_note_written_unknown.min(CEILINGS.call_part_note_written_unknown)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::CallPartNoteWrittenUnknown, reason }), }; if count > reader.remaining() / 8 { return Err(Problem { path: Path::CallPartNoteWrittenUnknown, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = Number::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        Ok(Self { name: decoded_name, revision: decoded_revision, lines: decoded_lines, added: decoded_added, removed: decoded_removed, first: decoded_first, recorded: decoded_recorded, unknown: decoded_unknown })
     }
 }
 
@@ -7262,11 +7327,12 @@ impl CallPartNoteWritten {
         Self::encoded_bound_within(limits)
     }
 
-    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut size = 0_u64;
         size = size.checked_add(8_u64)?.checked_add(4_u64)?;
         size = size.checked_add(4_u64)?.checked_add(4_u64)?;
         size = size.checked_add(4_u64)?.checked_add(4_u64)?;
+        size = size.checked_add(4_u64.checked_add(u64::from(limits.call_part_note_written_recorded).checked_mul(Number::encoded_bound_within(limits)?)?)?)?.checked_add(4_u64.checked_add(u64::from(limits.call_part_note_written_unknown).checked_mul(Number::encoded_bound_within(limits)?)?)?)?;
         size.checked_add(0)
     }
 
@@ -7277,23 +7343,177 @@ impl CallPartNoteWritten {
         Self::decoded_bound_within(limits)
     }
 
-    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut heap = 0_u64;
         heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
         heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
         heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap = heap.checked_add(List::<Number>::price(limits.call_part_note_written_recorded)?.checked_add(u64::from(limits.call_part_note_written_recorded).checked_mul(Number::decoded_bound_within(limits)?)?)?)?.checked_add(List::<Number>::price(limits.call_part_note_written_unknown)?.checked_add(u64::from(limits.call_part_note_written_unknown).checked_mul(Number::decoded_bound_within(limits)?)?)?)?;
         heap.checked_add(0)
     }
 }
 
 fn call_part_note_written_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
     let biggest = biggest.max(CallPartNoteWritten::encoded_bound_within(limits)?);
-    task_bytes_encoded_bound_family(limits, biggest)
+    call_part_words_recorded_encoded_bound_family(limits, biggest)
 }
 
 fn call_part_note_written_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
     let biggest = biggest.max(CallPartNoteWritten::decoded_bound_within(limits)?);
+    call_part_words_recorded_decoded_bound_family(limits, biggest)
+}
+
+fn check_call_part_note_written_record_limits(limits: &Limits) -> Result<(), Problem> {
+    if limits.call_part_note_written_recorded > CEILINGS.call_part_note_written_recorded { return Err(Problem { path: Path::CallPartNoteWrittenRecorded, reason: skein_codec::Reason::Bound }); }
+    if limits.call_part_note_written_unknown > CEILINGS.call_part_note_written_unknown { return Err(Problem { path: Path::CallPartNoteWrittenUnknown, reason: skein_codec::Reason::Bound }); }
+    check_call_part_words_recorded_record_limits(limits)
+}
+
+impl Limits {
+    fn values_for_call_part_note_written_record(&self, values: &mut List<u32>) {
+        values.push(self.call_part_note_written_recorded).expect("room for every named limit");
+        values.push(self.call_part_note_written_unknown).expect("room for every named limit");
+        self.values_for_call_part_words_recorded_record(values);
+    }
+}
+
+/// Movable fields of `CallPartWordsRecorded`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct CallPartWordsRecordedParts {
+    /// The `recorded` field.
+    pub recorded: List<Number>,
+    /// The `unknown` field.
+    pub unknown: List<Number>,
+}
+
+/// `CallPartWordsRecorded` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct CallPartWordsRecorded {
+    recorded: List<Number>,
+    unknown: List<Number>,
+}
+
+impl CallPartWordsRecorded {
+    /// Makes a value within the given limits.
+    pub fn new(limits: &Limits, parts: CallPartWordsRecordedParts) -> Result<Self, Problem> {
+        let CallPartWordsRecordedParts { recorded, unknown } = parts;
+        let value = Self { recorded, unknown };
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    /// Reads the `recorded` field.
+    #[must_use]
+    pub fn recorded(&self) -> &List<Number> { &self.recorded }
+
+    /// Reads the `unknown` field.
+    #[must_use]
+    pub fn unknown(&self) -> &List<Number> { &self.unknown }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> CallPartWordsRecordedParts { CallPartWordsRecordedParts { recorded: self.recorded, unknown: self.unknown } }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        if self.recorded.capacity() > limits.call_part_words_recorded_recorded.min(CEILINGS.call_part_words_recorded_recorded) { return Err(Problem { path: Path::CallPartWordsRecordedRecorded, reason: skein_codec::Reason::Bound }); }
+        if self.unknown.capacity() > limits.call_part_words_recorded_unknown.min(CEILINGS.call_part_words_recorded_unknown) { return Err(Problem { path: Path::CallPartWordsRecordedUnknown, reason: skein_codec::Reason::Bound }); }
+        Ok(())
+    }
+}
+
+impl CallPartWordsRecorded {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        let field_recorded = &self.recorded;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(field_recorded.len().checked_mul(8).expect("schema ceilings fit u32")).expect("schema ceilings fit u32");
+        let field_unknown = &self.unknown;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(field_unknown.len().checked_mul(8).expect("schema ceilings fit u32")).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_recorded = &self.recorded;
+        writer.put(&field_recorded.len().to_be_bytes())?;
+        for item_0 in field_recorded.as_slice() {
+        item_0.encode(writer)?;
+        }
+        let field_unknown = &self.unknown;
+        writer.put(&field_unknown.len().to_be_bytes())?;
+        for item_0 in field_unknown.as_slice() {
+        item_0.encode(writer)?;
+        }
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::CallPartWordsRecordedTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_recorded = { let count = match skein_codec::read_count(reader, limits.call_part_words_recorded_recorded.min(CEILINGS.call_part_words_recorded_recorded)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::CallPartWordsRecordedRecorded, reason }), }; if count > reader.remaining() / 8 { return Err(Problem { path: Path::CallPartWordsRecordedRecorded, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = Number::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_unknown = { let count = match skein_codec::read_count(reader, limits.call_part_words_recorded_unknown.min(CEILINGS.call_part_words_recorded_unknown)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::CallPartWordsRecordedUnknown, reason }), }; if count > reader.remaining() / 8 { return Err(Problem { path: Path::CallPartWordsRecordedUnknown, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = Number::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        Ok(Self { recorded: decoded_recorded, unknown: decoded_unknown })
+    }
+}
+
+impl CallPartWordsRecorded {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(4_u64.checked_add(u64::from(limits.call_part_words_recorded_recorded).checked_mul(Number::encoded_bound_within(limits)?)?)?)?.checked_add(4_u64.checked_add(u64::from(limits.call_part_words_recorded_unknown).checked_mul(Number::encoded_bound_within(limits)?)?)?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(List::<Number>::price(limits.call_part_words_recorded_recorded)?.checked_add(u64::from(limits.call_part_words_recorded_recorded).checked_mul(Number::decoded_bound_within(limits)?)?)?)?.checked_add(List::<Number>::price(limits.call_part_words_recorded_unknown)?.checked_add(u64::from(limits.call_part_words_recorded_unknown).checked_mul(Number::decoded_bound_within(limits)?)?)?)?;
+        heap.checked_add(0)
+    }
+}
+
+fn call_part_words_recorded_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(CallPartWordsRecorded::encoded_bound_within(limits)?);
+    task_bytes_encoded_bound_family(limits, biggest)
+}
+
+fn call_part_words_recorded_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(CallPartWordsRecorded::decoded_bound_within(limits)?);
     task_bytes_decoded_bound_family(limits, biggest)
+}
+
+fn check_call_part_words_recorded_record_limits(limits: &Limits) -> Result<(), Problem> {
+    if limits.call_part_words_recorded_recorded > CEILINGS.call_part_words_recorded_recorded { return Err(Problem { path: Path::CallPartWordsRecordedRecorded, reason: skein_codec::Reason::Bound }); }
+    if limits.call_part_words_recorded_unknown > CEILINGS.call_part_words_recorded_unknown { return Err(Problem { path: Path::CallPartWordsRecordedUnknown, reason: skein_codec::Reason::Bound }); }
+    check_task_bytes_record_limits(limits)
+}
+
+impl Limits {
+    fn values_for_call_part_words_recorded_record(&self, values: &mut List<u32>) {
+        values.push(self.call_part_words_recorded_recorded).expect("room for every named limit");
+        values.push(self.call_part_words_recorded_unknown).expect("room for every named limit");
+        self.values_for_task_bytes_record(values);
+    }
 }
 
 /// Movable fields of `TaskBytes`.
@@ -11296,6 +11516,8 @@ pub enum CallPart {
     HoldOwner(CallPartHoldOwner),
     /// `note_deleted` carrying `CallPartNoteDeleted`.
     NoteDeleted(CallPartNoteDeleted),
+    /// `words_recorded` carrying `CallPartWordsRecorded`.
+    WordsRecorded(CallPartWordsRecorded),
 }
 
 impl CallPart {
@@ -11317,10 +11539,12 @@ impl CallPart {
             Self::Delegated(record) => CallPartDelegated::check(record, limits),
             Self::DelegationDenied(record) => CallPartDelegationDenied::check(record, limits),
             Self::DelegationRefused(record) => CallPartDelegationRefused::check(record, limits),
+            Self::NoteWritten(record) => CallPartNoteWritten::check(record, limits),
             Self::NoteRecalled(record) => CallPartNoteRecalled::check(record, limits),
             Self::EffectRefused(record) => CallPartEffectRefused::check(record, limits),
             Self::SettingsRefused(record) => SettingsRefusal::check(record, limits),
-            Self::Again(_) | Self::PassedUp(_) | Self::Revised(_) | Self::Moved(_) | Self::Effect(_) | Self::Connector(_) | Self::EscalationDecided(_) | Self::Proposed(_) | Self::ProposalDecided(_) | Self::Controlled | Self::ControlDenied(_) | Self::Sent(_) | Self::Introduced | Self::Subscribed(_) | Self::Unsubscribed | Self::NoteWritten(_) | Self::NoteRefused(_) | Self::Unavailable | Self::HoldOwner(_) | Self::NoteDeleted(_) => Ok(()),
+            Self::WordsRecorded(record) => CallPartWordsRecorded::check(record, limits),
+            Self::Again(_) | Self::PassedUp(_) | Self::Revised(_) | Self::Moved(_) | Self::Effect(_) | Self::Connector(_) | Self::EscalationDecided(_) | Self::Proposed(_) | Self::ProposalDecided(_) | Self::Controlled | Self::ControlDenied(_) | Self::Sent(_) | Self::Introduced | Self::Subscribed(_) | Self::Unsubscribed | Self::NoteRefused(_) | Self::Unavailable | Self::HoldOwner(_) | Self::NoteDeleted(_) => Ok(()),
         }?;
         Ok(())
     }
@@ -11360,6 +11584,7 @@ impl CallPart {
             Self::SettingsRefused(record) => 1_u32.checked_add(SettingsRefusal::measure(record)).expect("schema ceilings fit u32"),
             Self::HoldOwner(record) => 1_u32.checked_add(CallPartHoldOwner::measure(record)).expect("schema ceilings fit u32"),
             Self::NoteDeleted(record) => 1_u32.checked_add(CallPartNoteDeleted::measure(record)).expect("schema ceilings fit u32"),
+            Self::WordsRecorded(record) => 1_u32.checked_add(CallPartWordsRecorded::measure(record)).expect("schema ceilings fit u32"),
             Self::Controlled | Self::Introduced | Self::Unsubscribed | Self::Unavailable => 1,
         }
     }
@@ -11400,6 +11625,7 @@ impl CallPart {
             Self::SettingsRefused(record) => { writer.put(&[30_u8])?; record.encode(writer)?; }
             Self::HoldOwner(record) => { writer.put(&[31_u8])?; record.encode(writer)?; }
             Self::NoteDeleted(record) => { writer.put(&[32_u8])?; record.encode(writer)?; }
+            Self::WordsRecorded(record) => { writer.put(&[33_u8])?; record.encode(writer)?; }
         }
         Ok(())
     }
@@ -11447,6 +11673,7 @@ impl CallPart {
             30 => Self::SettingsRefused(SettingsRefusal::decode_from(limits, reader)?),
             31 => Self::HoldOwner(CallPartHoldOwner::decode_from(limits, reader)?),
             32 => Self::NoteDeleted(CallPartNoteDeleted::decode_from(limits, reader)?),
+            33 => Self::WordsRecorded(CallPartWordsRecorded::decode_from(limits, reader)?),
             _ => return Err(Problem { path: Path::CallPartTag, reason: skein_codec::Reason::Tag }),
         };
         Ok(value)
@@ -11477,7 +11704,7 @@ impl CallPart {
         biggest = biggest.max(CallPartNoteWritten::encoded_bound_within(limits)?).max(CallPartNoteRecalled::encoded_bound_within(limits)?);
         biggest = biggest.max(CallPartNoteRefused::encoded_bound_within(limits)?).max(CallPartEffectRefused::encoded_bound_within(limits)?);
         biggest = biggest.max(SettingsRefusal::encoded_bound_within(limits)?).max(CallPartHoldOwner::encoded_bound_within(limits)?);
-        biggest = biggest.max(CallPartNoteDeleted::encoded_bound_within(limits)?);
+        biggest = biggest.max(CallPartNoteDeleted::encoded_bound_within(limits)?).max(CallPartWordsRecorded::encoded_bound_within(limits)?);
         1_u64.checked_add(biggest)
     }
 
@@ -11504,7 +11731,7 @@ impl CallPart {
         biggest = biggest.max(CallPartNoteWritten::decoded_bound_within(limits)?).max(CallPartNoteRecalled::decoded_bound_within(limits)?);
         biggest = biggest.max(CallPartNoteRefused::decoded_bound_within(limits)?).max(CallPartEffectRefused::decoded_bound_within(limits)?);
         biggest = biggest.max(SettingsRefusal::decoded_bound_within(limits)?).max(CallPartHoldOwner::decoded_bound_within(limits)?);
-        biggest = biggest.max(CallPartNoteDeleted::decoded_bound_within(limits)?);
+        biggest = biggest.max(CallPartNoteDeleted::decoded_bound_within(limits)?).max(CallPartWordsRecorded::decoded_bound_within(limits)?);
         biggest.checked_add(0)
     }
 }

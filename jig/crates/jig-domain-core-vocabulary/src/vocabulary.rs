@@ -1182,6 +1182,10 @@ pub enum NamedAction {
         kind: tasks::MessageKind,
         words: Box<[u8]>,
     },
+    /// Record directing words of this run's own task (domain/tasks/messages.md, 2).
+    MarkRead {
+        messages: Box<[u64]>,
+    },
     Introduce {
         left: u64,
         right: u64,
@@ -1241,12 +1245,14 @@ pub enum NamedAction {
     Note {
         entry: notes::New,
         recalled: Option<u32>,
+        records: Box<[u64]>,
     },
     /// Replace a range of a note's body lines under a revision seen by the run.
     NoteLines {
         entry: notes::New,
         recalled: u32,
         range: notes::LineRange,
+        records: Box<[u64]>,
     },
     /// Drop one scoped note at a revision seen by the run (domain/engine/briefs.md, 2.1).
     NoteDelete {
@@ -1271,6 +1277,8 @@ pub enum ToolKind {
     Message {
         target: u64,
     },
+    /// The message family alone, without a reference to another task.
+    MarkRead,
     Control,
     Decide,
     Propose,

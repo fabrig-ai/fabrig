@@ -53,6 +53,7 @@ fn note(name: u64, text: &[u8], references: List<u64>, recalled: Option<u32>) ->
             author: notes::Author::Task { task: 0, attempt: 0 },
         },
         recalled,
+        records: Box::new([]),
     }
 }
 
@@ -223,7 +224,16 @@ fn rendered(domain: &mut crate::Domain) -> C {
 #[expect(clippy::too_many_lines, reason = "one table holds the writes, their actions and joined answers")]
 fn a_remember_call_keeps_changes_and_drops_by_place() {
     let at_bound = [b'x'; 120];
-    let written = C::NoteWritten { name: 50, revision: 1, lines: 0, added: 0, removed: 0, first: 0 };
+    let written = C::NoteWritten {
+        name: 50,
+        revision: 1,
+        lines: 0,
+        added: 0,
+        removed: 0,
+        first: 0,
+        recorded: Box::new([]),
+        unknown: Box::new([]),
+    };
     let references = List::from_boxed(Box::new([CHAT]));
     let rows = [
         (
@@ -340,7 +350,10 @@ fn a_remember_call_keeps_changes_and_drops_by_place() {
         assert_eq!(to.into_token(), RIGHT, "{rule}");
         assert_eq!(found, key, "{rule}");
         match (action, expected_action) {
-            (NamedAction::Note { entry, recalled }, NamedAction::Note { entry: expected, recalled: revision }) => {
+            (
+                NamedAction::Note { entry, recalled, .. },
+                NamedAction::Note { entry: expected, recalled: revision, .. },
+            ) => {
                 assert_eq!(entry, expected, "{rule}");
                 assert_eq!(recalled, revision, "{rule}");
             }

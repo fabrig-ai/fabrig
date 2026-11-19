@@ -120,6 +120,7 @@ fn note(scope: notes::Scope, name: u64, body: &[u8], recalled: Option<u32>) -> c
             author: notes::Author::Party { party: support::OWNER },
         },
         recalled,
+        records: Box::new([]),
     }
 }
 
@@ -399,6 +400,7 @@ fn each_now_write_saves_its_first_line_in_the_same_decision() {
             entry,
             recalled: 2,
             range: notes::LineRange { first: 2, remove: 1, join: false },
+            records: Box::new([]),
         },
     );
     assert!(matches!(answer, core::CallPart::NoteWritten { revision: 3, .. }));

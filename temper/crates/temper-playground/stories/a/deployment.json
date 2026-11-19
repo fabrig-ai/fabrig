@@ -49,10 +49,10 @@
         "forge_component.body_bytes": 16384,
         "git_component.stdout_bytes": 131072,
         "root.journal.transcript_bytes": 4194304,
-        "root.loads.bytes": 998454,
-        "root.loads.read_bytes": 1996396,
-        "root.loads.reply_bytes": 998454,
-        "root.loads.transcript_bytes": 998198
+        "root.loads.bytes": 998395,
+        "root.loads.read_bytes": 1996278,
+        "root.loads.reply_bytes": 998395,
+        "root.loads.transcript_bytes": 998139
       }
     },
     "sign_in": null,
@@ -101,8 +101,8 @@
         "hub.run_calls": 1,
         "hub.slots": 1,
         "hub.transcript_bytes": 16777216,
-        "hub.turn_bytes": 998198,
-        "hub.turn_queue_bytes": 7985584,
+        "hub.turn_bytes": 998139,
+        "hub.turn_queue_bytes": 7985112,
         "io.output": 1048576,
         "notes.entries_per_scope": 2,
         "notes.party_entries": 2,

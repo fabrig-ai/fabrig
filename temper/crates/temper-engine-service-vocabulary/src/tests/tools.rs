@@ -60,7 +60,16 @@ fn the_largest_smith_call_name_fits_the_documentation_allowance() {
 fn a_decided_answer_is_rendered_as_smiths_text() {
     let event = crate::tools::render(
         TO,
-        &root::CallAnswer::NoteWritten { name: 4, revision: 2, lines: 3, added: 2, removed: 1, first: 2 },
+        &root::CallAnswer::NoteWritten {
+            name: 4,
+            revision: 2,
+            lines: 3,
+            added: 2,
+            removed: 1,
+            first: 2,
+            recorded: Box::new([]),
+            unknown: Box::new([]),
+        },
         b"note",
         1024,
         temper_engine_smith::ForgeReadBounds::STOCK,

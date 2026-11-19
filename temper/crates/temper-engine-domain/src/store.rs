@@ -197,6 +197,11 @@ pub enum CallAnswer {
         named: Option<Box<[u8]>>,
         repositories: Box<[Box<[u8]>]>,
     },
+    /// Directing words recorded, and numbers naming none of this task's unrecorded words.
+    WordsRecorded {
+        recorded: Box<[u64]>,
+        unknown: Box<[u64]>,
+    },
     /// A note write's durable name and revision.
     NoteWritten {
         name: u64,
@@ -205,6 +210,8 @@ pub enum CallAnswer {
         added: u32,
         removed: u32,
         first: u32,
+        recorded: Box<[u64]>,
+        unknown: Box<[u64]>,
     },
     /// A scoped note deleted by the run (jig jig/docs/design/domain/engine/briefs.md, 2.1).
     NoteDeleted {
@@ -321,110 +328,96 @@ impl CallAnswer {
     /// Retain the core's part of a named answer. The forge alone retains
     /// connector payloads; authority findings belong to the core.
     #[must_use]
-    #[expect(clippy::too_many_lines, reason = "exhaustive mapping of core and connector-owned answers")]
     pub fn core_part(&self, connector: u16) -> jig_domain_core::CallPart {
+        use jig_domain_core::{CallPart as Part, effects::connector::OutboxOutcome as Outcome};
+        use skein_forge_client::Outcome as Forge;
         match self {
-            CallAnswer::SettingsRefused(why) => jig_domain_core::CallPart::SettingsRefused(why.clone()),
-            CallAnswer::HoldOwner { task, hold, revision, owner } => {
-                jig_domain_core::CallPart::HoldOwner { task: *task, hold: *hold, revision: *revision, owner: *owner }
+            Self::SettingsRefused(why) => Part::SettingsRefused(why.clone()),
+            Self::HoldOwner { task, hold, revision, owner } => {
+                Part::HoldOwner { task: *task, hold: *hold, revision: *revision, owner: *owner }
             }
-            CallAnswer::Again { task, required } => {
-                jig_domain_core::CallPart::Again { task: *task, required: *required }
+            Self::Again { task, required } => Part::Again { task: *task, required: *required },
+            Self::PassedUp { task } => Part::PassedUp { task: *task },
+            Self::Revised { task, revision } | Self::Amended { task, revision, .. } => {
+                Part::Revised { task: *task, revision: *revision }
             }
-            CallAnswer::PassedUp { task } => jig_domain_core::CallPart::PassedUp { task: *task },
-            CallAnswer::Revised { task, revision } | CallAnswer::Amended { task, revision, .. } => {
-                jig_domain_core::CallPart::Revised { task: *task, revision: *revision }
-            }
-            CallAnswer::Moved { task, now } => jig_domain_core::CallPart::Moved { task: *task, now: *now },
-            CallAnswer::ForgeEffect { entry, deadline, outcome } => {
+            Self::Moved { task, now } => Part::Moved { task: *task, now: *now },
+            Self::ForgeEffect { entry, deadline, outcome } => {
                 let outcome = match outcome {
-                    Some(skein_forge_client::Outcome::Made { .. }) => {
-                        Some(jig_domain_core::effects::connector::OutboxOutcome::Made)
-                    }
-                    Some(skein_forge_client::Outcome::Failed(_) | skein_forge_client::Outcome::Raced { .. }) => {
-                        Some(jig_domain_core::effects::connector::OutboxOutcome::Failed)
-                    }
-                    Some(skein_forge_client::Outcome::Withdrawn) => {
-                        Some(jig_domain_core::effects::connector::OutboxOutcome::Withdrawn)
-                    }
-                    Some(skein_forge_client::Outcome::Uncertain | skein_forge_client::Outcome::Queued) => {
-                        Some(jig_domain_core::effects::connector::OutboxOutcome::Uncertain)
-                    }
-                    Some(skein_forge_client::Outcome::Held) => {
-                        Some(jig_domain_core::effects::connector::OutboxOutcome::Held { entry: *entry })
-                    }
+                    Some(Forge::Made { .. }) => Some(Outcome::Made),
+                    Some(Forge::Failed(_) | Forge::Raced { .. }) => Some(Outcome::Failed),
+                    Some(Forge::Withdrawn) => Some(Outcome::Withdrawn),
+                    Some(Forge::Uncertain | Forge::Queued) => Some(Outcome::Uncertain),
+                    Some(Forge::Held) => Some(Outcome::Held { entry: *entry }),
                     None => None,
                 };
-                jig_domain_core::CallPart::Effect { connector, entry: *entry, deadline: *deadline, outcome }
+                Part::Effect { connector, entry: *entry, deadline: *deadline, outcome }
             }
-            CallAnswer::Follow(_)
-            | CallAnswer::Finding(_)
-            | CallAnswer::Red(_)
-            | CallAnswer::Decided { .. }
-            | CallAnswer::TaskRead(_)
-            | CallAnswer::ForgeEffectRefused(_)
-            | CallAnswer::ForgeRead(_)
-            | CallAnswer::ReadRepositoryRefused { .. } => jig_domain_core::CallPart::Connector { connector },
-            CallAnswer::ForgeEffectDenied { answer, findings } => {
-                jig_domain_core::CallPart::EffectDenied { answer: *answer, findings: findings.clone() }
+            Self::Follow(_)
+            | Self::Finding(_)
+            | Self::Red(_)
+            | Self::Decided { .. }
+            | Self::TaskRead(_)
+            | Self::ForgeEffectRefused(_)
+            | Self::ForgeRead(_)
+            | Self::ReadRepositoryRefused { .. } => Part::Connector { connector },
+            Self::ForgeEffectDenied { answer, findings } => {
+                Part::EffectDenied { answer: *answer, findings: findings.clone() }
             }
-            CallAnswer::ToolDenied { answer, findings } => {
-                jig_domain_core::CallPart::ToolDenied { answer: *answer, findings: findings.clone() }
+            Self::ToolDenied { answer, findings } => Part::ToolDenied { answer: *answer, findings: findings.clone() },
+            Self::EscalationDecided { task, revision, outcome } => {
+                Part::EscalationDecided { task: *task, revision: *revision, outcome: *outcome }
             }
-            CallAnswer::EscalationDecided { task, revision, outcome } => {
-                jig_domain_core::CallPart::EscalationDecided { task: *task, revision: *revision, outcome: *outcome }
+            Self::EscalationRefused(problem) => Part::EscalationRefused(problem.clone()),
+            Self::Proposed { proposal, holder } => Part::Proposed { proposal: *proposal, holder: *holder },
+            Self::ProposalDecided { proposal, outcome } => {
+                Part::ProposalDecided { proposal: *proposal, outcome: *outcome }
             }
-            CallAnswer::EscalationRefused(problem) => jig_domain_core::CallPart::EscalationRefused(problem.clone()),
-            CallAnswer::Proposed { proposal, holder } => {
-                jig_domain_core::CallPart::Proposed { proposal: *proposal, holder: *holder }
+            Self::ProposalRefused(problem) => Part::ProposalRefused(problem.clone()),
+            Self::Controlled => Part::Controlled,
+            Self::EffectRefused(problem) => Part::EffectRefused(problem.clone()),
+            Self::ControlRefused(problem) => Part::ControlRefused(problem.clone()),
+            Self::ControlDenied { answer } => Part::ControlDenied { answer: *answer },
+            Self::Sent { message } => Part::Sent { message: *message },
+            Self::Introduced => Part::Introduced,
+            Self::MessageRefused(problem) => Part::MessageRefused(problem.clone()),
+            Self::Subscribed { subscription } => Part::Subscribed { subscription: *subscription },
+            Self::Unsubscribed => Part::Unsubscribed,
+            Self::ForgeSubscriptionRefused { task, .. } | Self::SubscriptionRepositoryRefused { task, .. } => {
+                Part::SubscriptionRefused(jig_domain_tasks::Problem::new(
+                    Some(*task),
+                    jig_domain_tasks::Refusal::Subscription,
+                ))
             }
-            CallAnswer::ProposalDecided { proposal, outcome } => {
-                jig_domain_core::CallPart::ProposalDecided { proposal: *proposal, outcome: *outcome }
+            Self::SubscriptionRefused(problem) => Part::SubscriptionRefused(problem.clone()),
+            Self::Delegated(tasks) => Part::Delegated(tasks.clone()),
+            Self::DelegationDenied { answer, findings } => {
+                Part::DelegationDenied { answer: *answer, findings: findings.clone() }
             }
-            CallAnswer::ProposalRefused(problem) => jig_domain_core::CallPart::ProposalRefused(problem.clone()),
-            CallAnswer::Controlled => jig_domain_core::CallPart::Controlled,
-            CallAnswer::EffectRefused(problem) => jig_domain_core::CallPart::EffectRefused(problem.clone()),
-            CallAnswer::ControlRefused(problem) => jig_domain_core::CallPart::ControlRefused(problem.clone()),
-            CallAnswer::ControlDenied { answer } => jig_domain_core::CallPart::ControlDenied { answer: *answer },
-            CallAnswer::Sent { message } => jig_domain_core::CallPart::Sent { message: *message },
-            CallAnswer::Introduced => jig_domain_core::CallPart::Introduced,
-            CallAnswer::MessageRefused(problem) => jig_domain_core::CallPart::MessageRefused(problem.clone()),
-            CallAnswer::Subscribed { subscription } => {
-                jig_domain_core::CallPart::Subscribed { subscription: *subscription }
+            Self::DelegationRefused(problem) => Part::DelegationRefused(problem.clone()),
+            Self::ChangeRefused { problem, .. } => Part::DelegationRefused(problem.as_ref().clone()),
+            Self::WordsRecorded { recorded, unknown } => {
+                Part::WordsRecorded { recorded: recorded.clone(), unknown: unknown.clone() }
             }
-            CallAnswer::Unsubscribed => jig_domain_core::CallPart::Unsubscribed,
-            CallAnswer::ForgeSubscriptionRefused { task, .. }
-            | CallAnswer::SubscriptionRepositoryRefused { task, .. } => jig_domain_core::CallPart::SubscriptionRefused(
-                jig_domain_tasks::Problem::new(Some(*task), jig_domain_tasks::Refusal::Subscription),
-            ),
-            CallAnswer::SubscriptionRefused(problem) => jig_domain_core::CallPart::SubscriptionRefused(problem.clone()),
-            CallAnswer::Delegated(tasks) => jig_domain_core::CallPart::Delegated(tasks.clone()),
-            CallAnswer::DelegationDenied { answer, findings } => {
-                jig_domain_core::CallPart::DelegationDenied { answer: *answer, findings: findings.clone() }
-            }
-            CallAnswer::DelegationRefused(problem) => jig_domain_core::CallPart::DelegationRefused(problem.clone()),
-            CallAnswer::ChangeRefused { problem, .. } => {
-                jig_domain_core::CallPart::DelegationRefused(problem.as_ref().clone())
-            }
-            CallAnswer::NoteDeleted { name } => jig_domain_core::CallPart::NoteDeleted { name: *name },
-            CallAnswer::NoteWritten { name, revision, lines, added, removed, first } => {
-                jig_domain_core::CallPart::NoteWritten {
+            Self::NoteDeleted { name } => Part::NoteDeleted { name: *name },
+            Self::NoteWritten { name, revision, lines, added, removed, first, recorded, unknown } => {
+                Part::NoteWritten {
                     name: *name,
                     revision: *revision,
                     lines: *lines,
                     added: *added,
                     removed: *removed,
                     first: *first,
+                    recorded: recorded.clone(),
+                    unknown: unknown.clone(),
                 }
             }
-            CallAnswer::NoteRecalled { entries, more } => {
-                jig_domain_core::CallPart::NoteRecalled { entries: entries.clone(), more: *more }
-            }
-            CallAnswer::NoteRefused(why) => jig_domain_core::CallPart::NoteRefused(*why),
-            CallAnswer::Parts(_) | CallAnswer::Document(_) | CallAnswer::Remember(_) => {
+            Self::NoteRecalled { entries, more } => Part::NoteRecalled { entries: entries.clone(), more: *more },
+            Self::NoteRefused(why) => Part::NoteRefused(*why),
+            Self::Parts(_) | Self::Document(_) | Self::Remember(_) => {
                 unreachable!("render-only feedback has no core record")
             }
-            CallAnswer::Unavailable => jig_domain_core::CallPart::Unavailable,
+            Self::Unavailable => Part::Unavailable,
         }
     }
 
@@ -432,73 +425,67 @@ impl CallAnswer {
     /// fields; a connector marker uses that connector's own table.
     #[must_use]
     pub fn from_core(part: &jig_domain_core::CallPart) -> Option<CallAnswer> {
+        use jig_domain_core::CallPart as Part;
         Some(match part {
-            jig_domain_core::CallPart::SettingsRefused(why) => CallAnswer::SettingsRefused(why.clone()),
-            jig_domain_core::CallPart::Again { task, required } => {
-                CallAnswer::Again { task: *task, required: *required }
+            Part::SettingsRefused(why) => Self::SettingsRefused(why.clone()),
+            Part::Again { task, required } => Self::Again { task: *task, required: *required },
+            Part::PassedUp { task } => Self::PassedUp { task: *task },
+            Part::Revised { task, revision } => Self::Revised { task: *task, revision: *revision },
+            Part::Moved { task, now } => Self::Moved { task: *task, now: *now },
+            Part::Effect { entry, deadline, .. } => {
+                Self::ForgeEffect { entry: *entry, deadline: *deadline, outcome: None }
             }
-            jig_domain_core::CallPart::PassedUp { task } => CallAnswer::PassedUp { task: *task },
-            jig_domain_core::CallPart::Revised { task, revision } => {
-                CallAnswer::Revised { task: *task, revision: *revision }
+            Part::Connector { .. } => return None,
+            Part::EffectDenied { answer, findings } => {
+                Self::ForgeEffectDenied { answer: *answer, findings: findings.clone() }
             }
-            jig_domain_core::CallPart::Moved { task, now } => CallAnswer::Moved { task: *task, now: *now },
-            jig_domain_core::CallPart::Effect { entry, deadline, .. } => {
-                CallAnswer::ForgeEffect { entry: *entry, deadline: *deadline, outcome: None }
+            Part::ToolDenied { answer, findings } => Self::ToolDenied { answer: *answer, findings: findings.clone() },
+            Part::EscalationDecided { task, revision, outcome } => {
+                Self::EscalationDecided { task: *task, revision: *revision, outcome: *outcome }
             }
-            jig_domain_core::CallPart::Connector { .. } => return None,
-            jig_domain_core::CallPart::EffectDenied { answer, findings } => {
-                CallAnswer::ForgeEffectDenied { answer: *answer, findings: findings.clone() }
+            Part::EscalationRefused(problem) => Self::EscalationRefused(problem.clone()),
+            Part::Proposed { proposal, holder } => Self::Proposed { proposal: *proposal, holder: *holder },
+            Part::ProposalDecided { proposal, outcome } => {
+                Self::ProposalDecided { proposal: *proposal, outcome: *outcome }
             }
-            jig_domain_core::CallPart::ToolDenied { answer, findings } => {
-                CallAnswer::ToolDenied { answer: *answer, findings: findings.clone() }
+            Part::ProposalRefused(problem) => Self::ProposalRefused(problem.clone()),
+            Part::Controlled => Self::Controlled,
+            Part::EffectRefused(problem) => Self::EffectRefused(problem.clone()),
+            Part::ControlRefused(problem) => Self::ControlRefused(problem.clone()),
+            Part::ControlDenied { answer } => Self::ControlDenied { answer: *answer },
+            Part::Sent { message } => Self::Sent { message: *message },
+            Part::Introduced => Self::Introduced,
+            Part::MessageRefused(problem) => Self::MessageRefused(problem.clone()),
+            Part::Subscribed { subscription } => Self::Subscribed { subscription: *subscription },
+            Part::Unsubscribed => Self::Unsubscribed,
+            Part::SubscriptionRefused(problem) => Self::SubscriptionRefused(problem.clone()),
+            Part::Delegated(tasks) => Self::Delegated(tasks.clone()),
+            Part::DelegationDenied { answer, findings } => {
+                Self::DelegationDenied { answer: *answer, findings: findings.clone() }
             }
-            jig_domain_core::CallPart::EscalationDecided { task, revision, outcome } => {
-                CallAnswer::EscalationDecided { task: *task, revision: *revision, outcome: *outcome }
+            Part::DelegationRefused(problem) => Self::DelegationRefused(problem.clone()),
+            Part::WordsRecorded { recorded, unknown } => {
+                Self::WordsRecorded { recorded: recorded.clone(), unknown: unknown.clone() }
             }
-            jig_domain_core::CallPart::EscalationRefused(problem) => CallAnswer::EscalationRefused(problem.clone()),
-            jig_domain_core::CallPart::Proposed { proposal, holder } => {
-                CallAnswer::Proposed { proposal: *proposal, holder: *holder }
-            }
-            jig_domain_core::CallPart::ProposalDecided { proposal, outcome } => {
-                CallAnswer::ProposalDecided { proposal: *proposal, outcome: *outcome }
-            }
-            jig_domain_core::CallPart::ProposalRefused(problem) => CallAnswer::ProposalRefused(problem.clone()),
-            jig_domain_core::CallPart::Controlled => CallAnswer::Controlled,
-            jig_domain_core::CallPart::EffectRefused(problem) => CallAnswer::EffectRefused(problem.clone()),
-            jig_domain_core::CallPart::ControlRefused(problem) => CallAnswer::ControlRefused(problem.clone()),
-            jig_domain_core::CallPart::ControlDenied { answer } => CallAnswer::ControlDenied { answer: *answer },
-            jig_domain_core::CallPart::Sent { message } => CallAnswer::Sent { message: *message },
-            jig_domain_core::CallPart::Introduced => CallAnswer::Introduced,
-            jig_domain_core::CallPart::MessageRefused(problem) => CallAnswer::MessageRefused(problem.clone()),
-            jig_domain_core::CallPart::Subscribed { subscription } => {
-                CallAnswer::Subscribed { subscription: *subscription }
-            }
-            jig_domain_core::CallPart::Unsubscribed => CallAnswer::Unsubscribed,
-            jig_domain_core::CallPart::SubscriptionRefused(problem) => CallAnswer::SubscriptionRefused(problem.clone()),
-            jig_domain_core::CallPart::Delegated(tasks) => CallAnswer::Delegated(tasks.clone()),
-            jig_domain_core::CallPart::DelegationDenied { answer, findings } => {
-                CallAnswer::DelegationDenied { answer: *answer, findings: findings.clone() }
-            }
-            jig_domain_core::CallPart::DelegationRefused(problem) => CallAnswer::DelegationRefused(problem.clone()),
-            jig_domain_core::CallPart::NoteDeleted { name } => CallAnswer::NoteDeleted { name: *name },
-            jig_domain_core::CallPart::NoteWritten { name, revision, lines, added, removed, first } => {
-                CallAnswer::NoteWritten {
+            Part::NoteDeleted { name } => Self::NoteDeleted { name: *name },
+            Part::NoteWritten { name, revision, lines, added, removed, first, recorded, unknown } => {
+                Self::NoteWritten {
                     name: *name,
                     revision: *revision,
                     lines: *lines,
                     added: *added,
                     removed: *removed,
                     first: *first,
+                    recorded: recorded.clone(),
+                    unknown: unknown.clone(),
                 }
             }
-            jig_domain_core::CallPart::NoteRecalled { entries, more } => {
-                CallAnswer::NoteRecalled { entries: entries.clone(), more: *more }
+            Part::NoteRecalled { entries, more } => Self::NoteRecalled { entries: entries.clone(), more: *more },
+            Part::NoteRefused(why) => Self::NoteRefused(*why),
+            Part::HoldOwner { task, hold, revision, owner } => {
+                Self::HoldOwner { task: *task, hold: *hold, revision: *revision, owner: *owner }
             }
-            jig_domain_core::CallPart::NoteRefused(why) => CallAnswer::NoteRefused(*why),
-            jig_domain_core::CallPart::HoldOwner { task, hold, revision, owner } => {
-                CallAnswer::HoldOwner { task: *task, hold: *hold, revision: *revision, owner: *owner }
-            }
-            jig_domain_core::CallPart::Unavailable => CallAnswer::Unavailable,
+            Part::Unavailable => Self::Unavailable,
         })
     }
 }
@@ -1300,7 +1287,6 @@ pub(crate) fn call_answer_bytes(answer: &CallAnswer) -> Option<u64> {
         | CallAnswer::Unsubscribed
         | CallAnswer::SubscriptionRefused(_)
         | CallAnswer::DelegationRefused(_)
-        | CallAnswer::NoteWritten { .. }
         | CallAnswer::NoteDeleted { .. }
         | CallAnswer::NoteRefused(_) => Some(0),
         CallAnswer::ReadRepositoryRefused { named, repositories }
@@ -1316,6 +1302,11 @@ pub(crate) fn call_answer_bytes(answer: &CallAnswer) -> Option<u64> {
                 bytes = bytes.checked_add(skein_lib::len_u64(name.len()))?;
             }
             Some(bytes)
+        }
+        CallAnswer::WordsRecorded { recorded, unknown } | CallAnswer::NoteWritten { recorded, unknown, .. } => {
+            skein_lib::len_u64(recorded.len())
+                .checked_add(skein_lib::len_u64(unknown.len()))?
+                .checked_mul(u64::try_from(size_of::<u64>()).ok()?)
         }
         CallAnswer::NoteRecalled { entries, .. } => {
             let mut bytes = skein_lib::len_u64(entries.len())
