@@ -2,6 +2,9 @@
 
 2026-11-19. Where the tree's code lags or departs from [checkouts.md](checkouts.md).
 
+- **Not yet:** *Two git directories*: each repository has one git directory, the work tree's `.git`, which the worker's git finds from its working directory and shares with the run, its configuration read [in flight: change 9010].
+- **Not yet:** *Two git directories*: the worker writes no view of its HEAD, index, merge and pins into the run's `.git`, and makes none again [in flight: change 9016].
+- **Not yet:** *Two git directories*: a kept checkout made with one git directory is made again at its first hold, not taken on [in flight: change 9018].
 
 
 `checkouts.md`'s design delivery has no known gap in running the repository's
