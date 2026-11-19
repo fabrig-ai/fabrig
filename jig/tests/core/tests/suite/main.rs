@@ -105,6 +105,7 @@ mod fuzzy {
     mod deletion;
     mod faults;
     mod reads;
+    mod resource_reports;
     mod retention;
     mod row_parts;
     mod sessions;
