@@ -1,6 +1,7 @@
 //! The native journey world (temper/docs/design/client/journey-walks.md, 3.2).
 
 pub mod facts;
+pub mod walk;
 pub mod web;
 
 /// The playground composition without a harness.
