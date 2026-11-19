@@ -6668,6 +6668,7 @@ dependencies = [
  "skein-fake-llm-domain",
  "skein-forge",
  "skein-forge-client",
+ "skein-fork",
  "skein-kv",
  "skein-lib",
  "skein-world",

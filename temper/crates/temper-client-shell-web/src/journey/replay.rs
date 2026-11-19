@@ -52,7 +52,14 @@ impl Replay {
     /// # Errors
     /// Refuses malformed records, facts, versions and a missing final end.
     pub fn new(recording: &[u8]) -> Result<Self, Refusal> {
-        let (lines, facts, at) = read(recording).map_err(Refusal::Unreadable)?;
+        Self::from_lines(lines(recording).map_err(Refusal::Unreadable)?)
+    }
+    /// Start from already parsed lines, with the same envelope checks as `new`.
+    ///
+    /// # Errors
+    /// Refuses malformed facts, versions and a missing final end.
+    pub fn from_lines(lines: Vec<Line>) -> Result<Self, Refusal> {
+        let (lines, facts, at) = read_lines(lines).map_err(Refusal::Unreadable)?;
         let (host, page) = facts.start();
         Ok(Self { lines, at, turn: 0, marks: 0, host, page, in_turn: false, departed: false, ended: false })
     }
@@ -229,7 +236,9 @@ impl Replay {
 }
 // Share the recording envelope without replaying: an old walk may be stale.
 pub(super) fn read(recording: &[u8]) -> Result<(Vec<Line>, Facts, usize), Unreadable> {
-    let lines = lines(recording)?;
+    read_lines(lines(recording)?)
+}
+fn read_lines(lines: Vec<Line>) -> Result<(Vec<Line>, Facts, usize), Unreadable> {
     let (facts, at) = facts(&lines)?;
     if !matches!(lines.last(), Some(Line::End(_))) {
         return Err(Unreadable { line: number(lines.len()), why: "missing end" });
@@ -335,7 +344,22 @@ pub fn prove(recording: &[u8]) -> Result<Box<[u8]>, Refusal> {
 /// # Errors
 /// Refuses a stale replay, a bare mark or the first differing html byte.
 pub fn prove_drawn(recording: &[u8], drawn: &mut dyn FnMut(u32, &Page<'static>)) -> Result<Box<[u8]>, Refusal> {
-    let mut replay = Replay::new(recording)?;
+    let lines = prove_lines_drawn(lines(recording).map_err(Refusal::Unreadable)?, drawn)?;
+    let mut out = Vec::new();
+    for line in lines {
+        line.write(&mut out);
+    }
+    Ok(out.into())
+}
+/// Prove parsed lines, then drop the live html, without writing and reading them again.
+///
+/// # Errors
+/// Refuses an unreadable envelope, a stale replay, a bare mark or differing html.
+pub fn prove_lines(lines: Vec<Line>) -> Result<Vec<Line>, Refusal> {
+    prove_lines_drawn(lines, &mut |_, _| {})
+}
+fn prove_lines_drawn(lines: Vec<Line>, drawn: &mut dyn FnMut(u32, &Page<'static>)) -> Result<Vec<Line>, Refusal> {
+    let mut replay = Replay::from_lines(lines)?;
     while let Some(mark) = replay.next_drawing(drawn).map_err(Refusal::Stale)? {
         let recorded = mark.recorded.ok_or(Refusal::Unproved { mark: mark.number })?;
         let html = mark.page.html();
@@ -346,12 +370,10 @@ pub fn prove_drawn(recording: &[u8], drawn: &mut dyn FnMut(u32, &Page<'static>))
             return Err(Refusal::Differs { mark: mark.number, byte });
         }
     }
-    let mut out = Vec::new();
-    for mut line in replay.lines {
-        if let Line::Mark(html) | Line::End(html) = &mut line {
+    for line in &mut replay.lines {
+        if let Line::Mark(html) | Line::End(html) = line {
             *html = None;
         }
-        line.write(&mut out);
     }
-    Ok(out.into())
+    Ok(replay.lines)
 }

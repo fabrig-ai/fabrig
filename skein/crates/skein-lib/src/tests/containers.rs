@@ -282,6 +282,22 @@ fn a_full_buffer_doubles_from_the_floor_to_what_it_needs_under_its_cap() {
 }
 
 #[test]
+fn copying_a_list_range_fills_its_bound_and_refuses_without_changing_it() {
+    const CAPACITY: u32 = 6; // Four source bytes and the two-byte copied range.
+    let mut list = List::with_capacity(CAPACITY);
+    for byte in b"abcd" {
+        list.push(*byte).unwrap();
+    }
+    assert_eq!(list.extend_from_within(1..3), Some(()));
+    assert_eq!(list.as_slice(), b"abcdbc");
+    assert_eq!(list.extend_from_within(0..1), None, "one past the capacity");
+    assert_eq!(list.extend_from_within(5..7), None, "an absent source range");
+    assert_eq!(list.extend_from_within(6..6), Some(()), "an empty range fits even at the bound");
+    assert_eq!(list.as_slice(), b"abcdbc", "refusals keep the source and its order");
+    assert_eq!(list.capacity(), CAPACITY);
+}
+
+#[test]
 fn a_list_refuses_past_its_capacity() {
     let mut list = List::with_capacity(2);
     assert_eq!(list.push(1_u8), Ok(()));

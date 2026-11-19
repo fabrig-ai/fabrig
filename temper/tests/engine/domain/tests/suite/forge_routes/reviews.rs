@@ -222,6 +222,12 @@ fn rendered_review_world(
     journal: u32,
     content: &[u8],
 ) -> (World, engine::Assignment, engine::Assignment, [u8; 32]) {
+    let (mut world, goal, producer, branch) = rendered_change_world(bound, journal);
+    let (reviewer, head) = rendered_review_in(&mut world, &producer, &branch, content);
+    (world, goal, reviewer, head)
+}
+
+fn rendered_change_world(bound: u32, journal: u32) -> (World, engine::Assignment, engine::Assignment, Box<[u8]>) {
     let mut world = World::configured_policy(true, true, false, 1000, Gate { agent: true, ..Gate::default() }, None);
     world.env.limits.call_answer_bytes = bound;
     world.env.limits.journal.transcript_bytes = journal;
@@ -230,14 +236,23 @@ fn rendered_review_world(
     let world = world.with_forge_client(client);
     let (mut world, goal, producer, branch) = change_world_in(world, Change { tracked: true, ..Change::default() });
     world.fake_env.limits.limits.content_bytes = READ_ROOM;
-    world.external(2, raw::Op::Git(raw::Git::Create { branch: branch.clone(), commit: 1 }));
-    fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"generated", content, 1)
+    (world, goal, producer, branch)
+}
+
+fn rendered_review_in(
+    world: &mut World,
+    producer: &engine::Assignment,
+    branch: &[u8],
+    content: &[u8],
+) -> (engine::Assignment, [u8; 32]) {
+    world.external(2, raw::Op::Git(raw::Git::Create { branch: branch.into(), commit: 1 }));
+    fake::advance(&mut world.fake, &world.fake_env, b"org/repo", branch, b"generated", content, 1)
         .expect("generated file pushed");
     let review_index = world.assigned.len();
-    let head = produce(&mut world, &producer, &branch);
-    let reviewer = next_assignment(&mut world, review_index);
+    let head = produce(world, producer, branch);
+    let reviewer = next_assignment(world, review_index);
     world.protocol.defer_render = true;
-    (world, goal, reviewer, head)
+    (reviewer, head)
 }
 
 fn render_read(
@@ -276,7 +291,7 @@ fn render_read(
     }
     let (to, name) = world.protocol.pending_renders.pop().expect("read reached rendering");
     assert_eq!(name.as_ref(), u64::from(number).to_be_bytes().as_slice(), "render of requested call");
-    let answer = &world.protocol.answers.last().expect("typed read").1;
+    let (rendered, answer) = world.protocol.answers.last_mut().expect("typed read");
     assert!(
         matches!(answer, engine::CallAnswer::ForgeRead(result) if result.is_ok()),
         "fake read {number} using {}: {answer:?}",
@@ -288,7 +303,7 @@ fn render_read(
             .into_parts();
     assert!(!error, "renderer produced a full answer");
     // The scripted worker identifies successful relays by their rendered body.
-    world.protocol.answers.push((body.clone(), answer.clone()));
+    rendered.clone_from(&body);
     (to, jig_domain_core::SettledAnswer::Host { error, body })
 }
 
@@ -334,7 +349,9 @@ fn assert_render_refusal(world: &mut World, run: &engine::Assignment, tool: &[u8
 
 #[test]
 fn oversized_forge_reads_name_the_bound_and_emit_a_refusal() {
-    let (mut world, goal, reviewer, head) = rendered_review_world(READ_BOUND, READ_ROOM, &vec![b'x'; GENERATED_BYTES]);
+    let (mut world, goal, producer, branch) = rendered_change_world(READ_BOUND, READ_ROOM);
+    rendered_read_edges(&mut world, &producer, &branch);
+    let (reviewer, head) = rendered_review_in(&mut world, &producer, &branch, &vec![b'x'; GENERATED_BYTES]);
     let input = pull_files_input(&world, &reviewer, head);
     let (to, answer) = render_read(&mut world, &reviewer, 11, b"read_pull_files", input.as_bytes());
     let measured = answer_size(&answer) + b"read_pull_files".len();
@@ -353,7 +370,6 @@ fn oversized_forge_reads_name_the_bound_and_emit_a_refusal() {
     settle_read(&mut world, to, answer);
     assert_eq!(world.call_errors.len(), errors, "names-only compare fits despite large contents");
     assert_eq!(world.answers.len(), answered + 1);
-    rendered_read_edges();
     rendered_read_journal();
 }
 
@@ -362,23 +378,30 @@ fn answer_size(answer: &jig_domain_core::SettledAnswer) -> usize {
     body.len()
 }
 
-fn rendered_read_edges() {
+fn rendered_read_edges(world: &mut World, producer: &engine::Assignment, branch: &[u8]) {
     // Both added files have absent before-sides; the renderer's framing counts too.
     let overhead =
         b"generated\n[absent]\n->\n\nfile\n[absent]\n->\nreview this diff\n".len() + b"read_pull_files".len();
     for extra in [-1_i32, 0, 1] {
+        match skein_fork::split() {
+            skein_fork::Split::Parent(exit) => {
+                assert_eq!(exit, skein_fork::Exit::Code(0), "read bound offset {extra}");
+                continue;
+            }
+            skein_fork::Split::Child => {}
+        }
         let bytes =
             usize::try_from(i64::from(READ_BOUND) - i64::try_from(overhead).expect("framing") + i64::from(extra))
                 .expect("positive file size");
-        let (mut world, _, reviewer, head) = rendered_review_world(READ_BOUND, READ_ROOM, &vec![b'x'; bytes]);
-        let input = pull_files_input(&world, &reviewer, head);
-        let (to, answer) = render_read(&mut world, &reviewer, 11, b"read_pull_files", input.as_bytes());
+        let (reviewer, head) = rendered_review_in(world, producer, branch, &vec![b'x'; bytes]);
+        let input = pull_files_input(world, &reviewer, head);
+        let (to, answer) = render_read(world, &reviewer, 11, b"read_pull_files", input.as_bytes());
         let measured = answer_size(&answer) + b"read_pull_files".len();
         assert_eq!(i64::try_from(measured).expect("answer size"), i64::from(READ_BOUND) + i64::from(extra));
         let answered = world.answers.len();
-        settle_read(&mut world, to, answer);
+        settle_read(world, to, answer);
         if extra > 0 {
-            assert_render_refusal(&mut world, &reviewer, b"read_pull_files", "core.call_answer_bytes", measured);
+            assert_render_refusal(world, &reviewer, b"read_pull_files", "core.call_answer_bytes", measured);
         } else {
             assert!(world.call_errors.is_empty(), "answer at or below bound fits");
             assert_eq!(world.answers.len(), answered + 1, "fitting answer reaches its host");
@@ -387,6 +410,7 @@ fn rendered_read_edges() {
                     .all(|fact| !matches!(fact, engine::Fact::ReadRefused { layer: "host-render", .. }))
             );
         }
+        skein_fork::passed();
     }
 }
 
@@ -988,49 +1012,55 @@ fn a_request_for_changes_is_still_a_repair() {
 // temper/docs/design/domain/forge/change/repairs.md: a failed review repair holds at its attempted count.
 #[test]
 fn a_failed_review_repair_names_its_task_account_and_release() {
+    let mut world = World::configured_limits(
+        true,
+        true,
+        false,
+        1000,
+        Gate { agent: true, ..Gate::default() },
+        None,
+        StoryLimits { turn: true, batch: Some(4), landing_members: Some(4), ..StoryLimits::default() },
+    );
+    world.adopt();
+    let mut hello = super::landing::hello_prepare(2);
+    let engine::Event::Worker(engine::WorkerInput::Link { link: engine::Link::Hello { hello: worker, .. }, .. }) =
+        &mut hello
+    else {
+        panic!("worker hello")
+    };
+    worker.bounds.message_bytes = world.env.limits.tasks.message_bytes;
+    world.send(hello);
+    let people::Ask::Create { project, mut batch } = adoption_chat(&world) else { panic!("chat") };
+    batch[0].budget = people::Budget::AsAllowed { cap: Some(200) };
+    let chat = assigned_chat(&mut world, 92, people::Ask::Create { project, batch });
+    let engine::CallAnswer::Delegated(made) =
+        super::change_tool::change(&mut world, &chat, 93, None, b"Keep both lines")
+    else {
+        panic!("change")
+    };
+    let change = made[0].task;
+    let producer = next_assignment(&mut world, 1);
+    let branch = producer.workspace.repositories[0].push.clone().expect("branch");
+    produce(&mut world, &producer, &branch);
+    for _ in 0..MAX_TICKS {
+        world.prepare_tick();
+        if world.assigned.len() > 2 {
+            break;
+        }
+    }
+    let review = world.assigned.get(2).expect("landing member review").clone();
+    reject_lost_content(&mut world, &review, b"keep both lines");
+    let repair = next_assignment(&mut world, 3);
     for (reason, no_change) in
         [(b"cannot preserve both lines".as_slice(), false), (b"".as_slice(), false), (b"".as_slice(), true)]
     {
-        let mut world = World::configured_limits(
-            true,
-            true,
-            false,
-            1000,
-            Gate { agent: true, ..Gate::default() },
-            None,
-            StoryLimits { turn: true, batch: Some(4), landing_members: Some(4), ..StoryLimits::default() },
-        );
-        world.adopt();
-        let mut hello = super::landing::hello_prepare(2);
-        let engine::Event::Worker(engine::WorkerInput::Link {
-            link: engine::Link::Hello { hello: worker, .. }, ..
-        }) = &mut hello
-        else {
-            panic!("worker hello")
-        };
-        worker.bounds.message_bytes = world.env.limits.tasks.message_bytes;
-        world.send(hello);
-        let people::Ask::Create { project, mut batch } = adoption_chat(&world) else { panic!("chat") };
-        batch[0].budget = people::Budget::AsAllowed { cap: Some(200) };
-        let chat = assigned_chat(&mut world, 92, people::Ask::Create { project, batch });
-        let engine::CallAnswer::Delegated(made) =
-            super::change_tool::change(&mut world, &chat, 93, None, b"Keep both lines")
-        else {
-            panic!("change")
-        };
-        let change = made[0].task;
-        let producer = next_assignment(&mut world, 1);
-        let branch = producer.workspace.repositories[0].push.clone().expect("branch");
-        produce(&mut world, &producer, &branch);
-        for _ in 0..MAX_TICKS {
-            world.prepare_tick();
-            if world.assigned.len() > 2 {
-                break;
+        match skein_fork::split() {
+            skein_fork::Split::Parent(exit) => {
+                assert_eq!(exit, skein_fork::Exit::Code(0), "repair account {reason:?}, no change {no_change}");
+                continue;
             }
+            skein_fork::Split::Child => {}
         }
-        let review = world.assigned.get(2).expect("landing member review").clone();
-        reject_lost_content(&mut world, &review, b"keep both lines");
-        let repair = next_assignment(&mut world, 3);
         let result = if no_change {
             tasks::TaskResult::NoChange { words: reason.into() }
         } else {
@@ -1060,6 +1090,7 @@ fn a_failed_review_repair_names_its_task_account_and_release() {
         assert_ne!(replacement.task, repair.task);
         assert_eq!(requester(&world, replacement.task), change);
         assert_eq!(live_task(&world, change).made, made_before + 1);
+        skein_fork::passed();
     }
 }
 

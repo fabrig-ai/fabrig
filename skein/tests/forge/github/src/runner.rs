@@ -33,34 +33,30 @@ pub struct Report {
     pub leftover_mints: Vec<String>,
 }
 #[expect(clippy::large_enum_variant, reason = "the runner owns one target for its entire lifetime")]
-pub(crate) enum Target {
+pub enum Target {
     Fake(World),
     Live(Connector),
 }
-pub(crate) struct Token {
+pub struct Token {
     installation: u64,
     journal: usize,
     value: String,
 }
-pub(crate) struct Runner<'a> {
-    #[cfg(test)]
+pub struct Runner<'a> {
+    capture: bool,
     pub replay: Vec<(&'static str, Request)>,
-    #[cfg(test)]
-    pub phase: &'static str,
-    #[cfg(test)]
+    pub(crate) phase: &'static str,
     pub plan_refusals: Vec<(&'static str, &'static str, usize)>,
-    #[cfg(test)]
     pub enqueue_refusal: Option<&'static str>,
-    #[cfg(test)]
     pub response_overrides: Vec<(&'static str, &'static str, Vec<u8>)>,
-    pub wire: Option<String>,
+    pub(crate) wire: Option<String>,
     pub target: Target,
     pub fixtures: Fixtures,
     pub secrets: Secrets,
-    pub mask: Mask,
+    pub(crate) mask: Mask,
     pub journal: Journal,
-    pub out: &'a Path,
-    pub case: &'static str,
+    pub(crate) out: &'a Path,
+    pub(crate) case: &'static str,
     pub requests: usize,
     pub case_limit: usize,
     pub cleanup: bool,
@@ -69,7 +65,7 @@ pub(crate) struct Runner<'a> {
     pub tokens: Vec<Token>,
     pub facts: Vec<Fact>,
     pub provenance: Vec<String>,
-    pub serial: usize,
+    pub(crate) serial: usize,
     pub queue_installation: Option<usize>,
     tables: github::plans::tables::Tables,
     repositories: std::collections::BTreeMap<String, u64>,
@@ -80,6 +76,12 @@ pub(crate) struct Runner<'a> {
     pub leftover_mints: Vec<String>,
 }
 impl<'a> Runner<'a> {
+    /// Enable the integration suite's request capture and fault injection.
+    #[must_use]
+    pub fn for_suite(mut self) -> Self {
+        self.capture = true;
+        self
+    }
     pub fn new(target: Target, fixtures: Fixtures, out: &'a Path) -> Result<Self> {
         let secrets = fixtures.secrets();
         let journal = Journal::create(out, matches!(&target, Target::Live(_)), &secrets)?;
@@ -88,27 +90,23 @@ impl<'a> Runner<'a> {
             write::check("fixture path", text.as_bytes(), b"", &secrets)?;
             fs::write(out.join("fixture-path.txt"), text)?;
         }
-        Ok(Self::with_journal(target, fixtures, out, journal))
+        Ok(Self::with_journal(target, fixtures, out, journal, secrets))
     }
     pub fn resume(target: Target, fixtures: Fixtures, out: &'a Path) -> Result<Self> {
         let (journal, live) = Journal::load(out)?;
         if live != matches!(&target, Target::Live(_)) {
             return Err("cleanup target differs from journal".into());
         }
-        Ok(Self::with_journal(target, fixtures, out, journal))
-    }
-    fn with_journal(target: Target, fixtures: Fixtures, out: &'a Path, journal: Journal) -> Self {
         let secrets = fixtures.secrets();
+        Ok(Self::with_journal(target, fixtures, out, journal, secrets))
+    }
+    fn with_journal(target: Target, fixtures: Fixtures, out: &'a Path, journal: Journal, secrets: Secrets) -> Self {
         Self {
-            #[cfg(test)]
+            capture: false,
             replay: vec![],
-            #[cfg(test)]
             phase: "cases",
-            #[cfg(test)]
             plan_refusals: vec![],
-            #[cfg(test)]
             enqueue_refusal: None,
-            #[cfg(test)]
             response_overrides: vec![],
             wire: None,
             target,
@@ -137,12 +135,13 @@ impl<'a> Runner<'a> {
             leftover_mints: vec![],
         }
     }
-    pub fn created_pull_null(&self, number: u64) -> bool {
+    pub(crate) fn created_pull_null(&self, number: u64) -> bool {
         self.null_pulls.contains(&number)
     }
-    pub fn fake(&self) -> bool {
+    pub(crate) fn fake(&self) -> bool {
         matches!(self.target, Target::Fake(_))
     }
+    #[must_use]
     pub fn now(&self) -> Wall {
         match &self.target {
             Target::Fake(w) => w.now(),
@@ -155,10 +154,10 @@ impl<'a> Runner<'a> {
             Target::Live(_) => std::thread::sleep(std::time::Duration::from_secs(seconds)),
         }
     }
-    pub fn wait_ci(&mut self) {
+    pub(crate) fn wait_ci(&mut self) {
         self.wait(55);
     }
-    pub fn ask(&mut self, request: &Request) -> Result<Response> {
+    pub(crate) fn ask(&mut self, request: &Request) -> Result<Response> {
         let restore: usize = self
             .journal
             .pending
@@ -175,14 +174,14 @@ impl<'a> Runner<'a> {
             return Err("conformance request budget exhausted".into());
         }
         self.requests += 1;
-        #[cfg(test)]
-        {
+
+        if self.capture {
             let mut replay = Request::new(request.method, &request.target, None, &request.body);
             replay.blob = request.blob;
             self.replay.push((self.phase, replay));
         }
-        #[cfg(test)]
-        if self.enqueue_refusal == Some(self.case) && request.target == "/graphql" {
+
+        if self.capture && self.enqueue_refusal == Some(self.case) && request.target == "/graphql" {
             let document = json::Json::parse(&request.body)?;
             if document.root().get("query").str().map(str::as_bytes) == Some(github::document::ENQUEUE) {
                 self.enqueue_refusal = None;
@@ -257,11 +256,11 @@ impl<'a> Runner<'a> {
         Ok(response)
     }
     fn exchange(&mut self, request: &Request) -> Result<(Vec<u8>, Response)> {
-        #[cfg(test)]
-        if let Some(at) = self
-            .response_overrides
-            .iter()
-            .position(|(case, target, _)| (*case, *target) == (self.case, request.target.as_str()))
+        if self.capture
+            && let Some(at) = self
+                .response_overrides
+                .iter()
+                .position(|(case, target, _)| (*case, *target) == (self.case, request.target.as_str()))
         {
             let (_, _, received) = self.response_overrides.remove(at);
             let wire = request.wire("127.0.0.1")?;
@@ -405,7 +404,7 @@ impl<'a> Runner<'a> {
         }
         Ok(response.json()?.root().get("token").str().ok_or("mint token absent")?.into())
     }
-    pub fn sign(&mut self) -> Result<()> {
+    pub(crate) fn sign(&mut self) -> Result<()> {
         let now = self.now();
         let input =
             github::jwt::signing_input(self.fixtures.app, now, Wall::from_nanos(now.as_nanos() + JWT_LIFE.as_nanos()))
@@ -462,8 +461,7 @@ impl<'a> Runner<'a> {
         Ok(())
     }
     fn bootstrap(&mut self) -> Result<()> {
-        #[cfg(test)]
-        {
+        if self.capture {
             self.phase = "setup-lifecycle";
         }
         let manifest=br#"{"name":"example-app-conformance","url":"https://example-app.invalid/","redirect_url":"http://127.0.0.1/callback","setup_url":"http://127.0.0.1/setup","public":true,"hook_attributes":{"url":"https://example-app.invalid/","active":false},"default_permissions":{"contents":"write","issues":"write","pull_requests":"write","checks":"read","statuses":"write","administration":"write","actions":"read","metadata":"read"},"default_events":["push","pull_request","issues","issue_comment","pull_request_review","check_run","merge_group"]}"#;
@@ -488,8 +486,8 @@ impl<'a> Runner<'a> {
                 return Err("bootstrap installation refused".into());
             }
         }
-        #[cfg(test)]
-        {
+
+        if self.capture {
             self.phase = "cases";
         }
         Ok(())
@@ -508,10 +506,10 @@ impl<'a> Runner<'a> {
         self.case = name;
         Ok(())
     }
-    pub fn fact(&mut self, name: &'static str, holds: bool, why: &str) {
+    pub(crate) fn fact(&mut self, name: &'static str, holds: bool, why: &str) {
         self.facts.push(Fact { name, outcome: if holds { Outcome::Holds } else { Outcome::Fails(why.into()) } });
     }
-    pub fn name(&mut self, kind: &str) -> String {
+    pub(crate) fn name(&mut self, kind: &str) -> String {
         self.serial += 1;
         format!("conformance-{kind}-{}", self.serial)
     }
@@ -636,7 +634,7 @@ impl<'a> Runner<'a> {
         .map_err(|e| format!("base branch plan failed: {e:?}"))?;
         Ok(name)
     }
-    pub fn advance(
+    pub(crate) fn advance(
         &mut self,
         index: usize,
         parent: &str,
@@ -662,7 +660,7 @@ impl<'a> Runner<'a> {
         }
         Ok(sha)
     }
-    pub fn plan(&mut self, index: usize, op: api::Op) -> Result<std::result::Result<api::Answer, api::Error>> {
+    pub(crate) fn plan(&mut self, index: usize, op: api::Op) -> Result<std::result::Result<api::Answer, api::Error>> {
         self.plan_as(index, op, false)
     }
     #[expect(
@@ -682,8 +680,8 @@ impl<'a> Runner<'a> {
                 plan::{Bounds, Plan, Step},
             },
         };
-        #[cfg(test)]
-        {
+
+        if self.capture {
             let operation = match &op {
                 api::Op::Write(api::Write::Review { .. }) => "approval",
                 api::Op::Write(api::Write::Merge { .. }) => "enqueue",
@@ -811,7 +809,7 @@ impl<'a> Runner<'a> {
             Heard::Done(Body::Raw { bytes: tail.finish(), more }),
         ])
     }
-    pub fn remove_rules(&mut self) -> Result<()> {
+    pub(crate) fn remove_rules(&mut self) -> Result<()> {
         for (id, made) in self.journal.pending.clone() {
             if matches!(made, Made::Rules { .. }) {
                 self.undo(id, &made)?;
