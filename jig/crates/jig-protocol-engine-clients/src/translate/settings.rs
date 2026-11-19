@@ -41,6 +41,7 @@ pub fn setting(value: &w::Setting) -> s::Setting {
         w::Setting::Worker(v) => s::Setting::Worker(v.number()),
         w::Setting::Provider(v) => s::Setting::Provider(v.number()),
         w::Setting::Rules => s::Setting::Rules,
+        w::Setting::Limits => s::Setting::Limits,
         w::Setting::ProjectPolicy(v) => s::Setting::ProjectPolicy { project: v.project() },
         w::Setting::Application(v) => s::Setting::Application { kind: v.kind(), scope: v.scope(), number: v.number() },
     }
@@ -67,6 +68,7 @@ pub fn name(value: s::Setting, limits: &w::Limits) -> Result<w::Setting, w::Prob
             w::Setting::Provider(w::SettingNumber::new(limits, w::SettingNumberParts { number: n })?)
         }
         s::Setting::Rules => w::Setting::Rules,
+        s::Setting::Limits => w::Setting::Limits,
         s::Setting::Application { kind, scope, number } => w::Setting::Application(w::ApplicationSetting::new(
             limits,
             w::ApplicationSettingParts { kind, scope, number },
@@ -381,6 +383,7 @@ pub fn value(value: &s::Value, models: &[crate::Model], limits: &w::Limits) -> R
         s::Value::Template(v) => w::SettingValue::Template(Box::new(me::template(v, models, limits)?)),
         s::Value::Policy(v) => w::SettingValue::Policy(Box::new(policy(v, models, limits)?)),
         s::Value::Rules(v) => w::SettingValue::Rules(Box::new(rules(v, models, limits)?)),
+        s::Value::Limits(v) => w::SettingValue::Limits(limits_value(v, limits)?),
         s::Value::Application(bytes) => w::SettingValue::Application(w::ApplicationValue::new(
             limits,
             w::ApplicationValueParts { bytes: bytes.clone() },
@@ -788,4 +791,16 @@ fn overlay(value: &s::Overlay, limits: &w::Limits) -> Result<w::Overlay, w::Prob
     )
 }
 
+fn limits_value(values: &[s::Override], limits: &w::Limits) -> Result<w::LimitsValue, w::Problem> {
+    let mut overrides = List::with_capacity(u32::try_from(values.len()).expect("bounded overrides"));
+    for value in values {
+        overrides
+            .push(w::Override::new(
+                limits,
+                w::OverrideParts { name: value.name.clone(), value: value.value, reason: value.reason.clone() },
+            )?)
+            .expect("override count");
+    }
+    w::LimitsValue::new(limits, w::LimitsValueParts { overrides })
+}
 mod providers;

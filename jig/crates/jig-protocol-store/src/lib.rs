@@ -63,6 +63,9 @@ pub fn levels(sets: &OwnerSets) -> codec::component::Levels {
     upgrade::admission::binary(sets)
 }
 
+mod startup_limits;
+pub use startup_limits::{InstallRefusal, runtime_limits};
+
 /// The store component's bounds (protocol/store/README.md, section 8).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Limits {
@@ -109,8 +112,13 @@ pub enum Phase {
 #[derive(Debug)]
 pub struct Store {
     limits: Limits,
+    runtime_started: bool,
+    startup_setting: Option<Box<[u8]>>,
     application: sizes::Application,
     codec_limits: codec::View,
+    /// Opening stock, retained only for classifying a refused runtime read.
+    stock_core: Option<Box<jig_domain_core_vocabulary::Limits>>,
+    read_failure: Option<restore::Failure>,
     registry: Box<registry::Layouts>,
     layout_work: Box<registry::ReadWork>,
     /// Today's catalogue, overlaid at open and replaced before each catalogue commit.
@@ -260,8 +268,12 @@ impl Store {
             view: Box::new(view::State::new()),
             checkpoint: Box::new(checkpoints::taking::Taking::new()),
             limits: *limits,
+            runtime_started: false,
+            startup_setting: None,
             application,
             codec_limits,
+            stock_core: None,
+            read_failure: None,
             registry: Box::new(registry::Layouts::new()),
             layout_work: Box::new(registry::ReadWork::new()),
             names: codec::names(models),
@@ -308,6 +320,12 @@ impl Store {
     #[must_use]
     pub fn start_open_failure(&self) -> Option<&restore::OpenFailure> {
         self.start_open_failure.as_deref()
+    }
+
+    /// The last serving read's value-free refusal, before its Corrupt terminal.
+    #[must_use]
+    pub fn read_failure(&self) -> Option<&restore::Failure> {
+        self.read_failure.as_ref()
     }
 
     fn open_failed(&mut self, failure: restore::OpenFailure) {
@@ -472,6 +490,7 @@ fn decoded_records_bound(limits: &Limits, codec: &codec::View) -> Option<u64> {
 
 /// The memory component's requests (protocol/store/opening.md).
 pub fn down(store: &mut Store, env: &Env<Limits>, request: Request, above: &mut Queue<Event>, below: &mut Below) {
+    startup_limits::observe(store, &request);
     store.census.now = env.now;
     let lengths = rehearsal::lengths(below);
     let mut events = Queue::uncapped();

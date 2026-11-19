@@ -1038,6 +1038,35 @@ fn dependencies_round_trip_and_require_a_numeric_project() {
 }
 
 #[test]
+fn neutral_limits_keep_the_wire_value_and_render_one_line_per_override() {
+    let limits = Limits::standard();
+    let value = c::SettingValue::Limits(Box::new([
+        c::Override { name: b"tasks.depth".as_slice().into(), value: 0, reason: b"a reason".as_slice().into() },
+        c::Override { name: b"tasks.tasks".as_slice().into(), value: u64::MAX, reason: "理由".as_bytes().into() },
+    ]));
+    let wire = crate::wire::settings_wire_setting_value(&value, &limits.settings).unwrap();
+    let restored = crate::wire::settings_restore_setting_value(&wire, &limits).unwrap();
+    assert_eq!(restored, value);
+    let mut measured = crate::Text::measure();
+    crate::render::value_inline(&restored, &limits, &mut measured);
+    let mut text = crate::Text::writing_exact(measured);
+    crate::render::value_inline(&restored, &limits, &mut text);
+    assert_eq!(
+        text.finish().as_ref(),
+        "tasks.depth = 0  a reason\ntasks.tasks = 18446744073709551615  理由".as_bytes()
+    );
+    let bounds = JsonLimits { depth: 8, length: 1024 };
+    let mut measured = Encoder::measure(&bounds);
+    crate::render::encode_value(&restored, &mut measured);
+    let mut out = Encoder::write(measured.measured().unwrap(), &bounds);
+    crate::render::encode_value(&restored, &mut out);
+    assert_eq!(
+        out.finish().as_ref(),
+        "[{\"name\":\"tasks.depth\",\"value\":0,\"reason\":\"a reason\"},{\"name\":\"tasks.tasks\",\"value\":18446744073709551615,\"reason\":\"理由\"}]".as_bytes()
+    );
+}
+
+#[test]
 #[expect(clippy::disallowed_methods, reason = "read fixture JSON and rendered error text in the form test")]
 fn agents_form_round_trips_named_maps_and_reports_duplicates() {
     let setting = br#"{"kind":"agents"}"#;
@@ -1070,6 +1099,43 @@ fn agents_form_round_trips_named_maps_and_reports_duplicates() {
             .unwrap()
             .contains("Agent profile and endpoint limits, taken at each worker's next start.")
     );
+}
+
+#[test]
+fn both_limit_kinds_use_a_whole_list_of_named_values_and_reasons() {
+    let limits = Limits::standard();
+    let list = br#"[{"name":"forge.entries","value":16,"reason":"dev's outbox"}]"#;
+    for (kind, setting) in [
+        (br#"{"kind":"limits"}"#.as_slice(), c::Setting::Limits),
+        (br#"{"kind":"temper-limits"}"#, c::Setting::Application { kind: 22, scope: 0, number: 1 }),
+    ] {
+        let bytes = kind_file(kind, list);
+        let items = file::decode(&bytes, &limits).expect("whole override list");
+        let item = items.as_slice().first().unwrap();
+        assert_eq!(item.setting, setting);
+        let c::SettingEdit::Set(set) = &item.edit else { panic!("set list") };
+        assert_eq!(
+            crate::render::limit_values(setting, &set.value).unwrap().as_ref(),
+            &[c::Override {
+                name: b"forge.entries".as_slice().into(),
+                value: 16,
+                reason: b"dev's outbox".as_slice().into(),
+            }]
+        );
+        let shown = shown(&c::ReadValue::Setting(Box::new(c::SettingDocument {
+            setting,
+            revision: 1,
+            value: Some(set.value.clone()),
+            overlay: None,
+            application: None,
+            proposed: None,
+        })));
+        assert!(skein_lib::bytes::find(&shown, list).is_some(), "{shown:?}");
+        assert!(file::decode(&kind_file(kind, b"{}"), &limits).is_err(), "requires list");
+    }
+    for kind in [br#"{"kind":"limits","number":1}"#.as_slice(), br#"{"kind":"temper-limits","project":1}"#] {
+        assert!(file::decode(&kind_file(kind, list), &limits).is_err(), "unnumbered deployment kind");
+    }
 }
 
 #[test]
@@ -1128,7 +1194,7 @@ fn provider_files_proposals_and_reads_keep_the_whole_value_and_number() {
     let read = joined(&[br#"{"setting":"#, SETTING, b"}"]);
     assert_eq!(file::read_setting(&read, &limits).unwrap(), item.setting);
     let page = crate::fields::page(&limits);
-    assert!(skein_lib::bytes::find(&page, b"taken at the engine's next start").is_some());
+    assert!(skein_lib::bytes::find(&page, b"LLM provider/endpoints; next engine start").is_some());
 }
 
 #[test]

@@ -183,7 +183,8 @@ pub fn configured_limits_over<E>(
         problems.push(path.member(b"profile"), What::Profile);
     }
     let mut limits = limits::stock();
-    limits.checkout.message_bytes = sources.payload;
+    let payload = crate::derived::figures(document).1;
+    limits.checkout.message_bytes = sources.with_payload(payload).payload;
     let path = path.member(b"overrides");
     if let Some(at) = overrides {
         let mut object = match read::Object::new(document, at) {
@@ -205,6 +206,19 @@ pub fn configured_limits_over<E>(
                 Ok(value) => {
                     if name == b"checkout.preparations" && value == 0 {
                         problems.push(path.member(name), What::Jig(config::What::Because(b"0; requires at least 1")));
+                    }
+                    if name == b"transcript_memory" {
+                        problems.push(
+                            path.member(name),
+                            What::Against { other: b"engine.memory_bytes, which sets transcript_memory for now" },
+                        );
+                        continue;
+                    }
+                    if name == b"tool_payload" {
+                        if value == 0 || value > u64::from(u32::MAX) {
+                            problems.push(path.member(name), What::Override(Refused::Range));
+                        }
+                        continue;
                     }
                     if let Err(what) = limits::apply(&mut limits, name, value) {
                         problems.push(path.member(name), What::Override(what));

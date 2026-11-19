@@ -20,7 +20,7 @@ mod execution;
 mod findings;
 pub(crate) mod fixtures;
 mod flight;
-mod follow_check;
+pub(crate) mod follow_check;
 mod goal_branch;
 mod goal_start;
 mod held_branch;

@@ -40,7 +40,7 @@ pub struct Driver {
     /// How many inputs `try_step` handed back at the backlog watermark; the
     /// world offers each again later.
     pub returned: u32,
-    /// Other outputs without a durability dependency.
+    /// Other outward outputs, including the durable limit-settings word.
     pub immediate: Vec<engine::Request>,
     /// Whether the deployment's first period was sent once the root was ready.
     pub period_sent: bool,
@@ -107,8 +107,13 @@ impl Driver {
 
     /// A cold root with a story's byte budget, shared by its construction and environment.
     #[must_use]
-    pub fn with_budget(store: Store, config: engine::Config, limits: &engine::Limits, memory_bytes: u64) -> Driver {
-        let limits = engine::Limits { memory_bytes, ..*limits };
+    pub fn with_budget(
+        store: Store,
+        config: engine::Config,
+        limits: &engine::Limits,
+        transcript_memory: u64,
+    ) -> Driver {
+        let limits = engine::Limits { transcript_memory, ..*limits };
         Self::cold(store, config, &limits)
     }
 
@@ -330,6 +335,7 @@ impl Driver {
                 | engine::Request::Worker(_)
                 | engine::Request::Store(_)
                 | engine::Request::Account(_)
+                | engine::Request::LimitSettingsCommitted { .. }
                 | engine::Request::ForgeKept(_)
                 | engine::Request::ForgeGone { .. }
                 | engine::Request::BoxGroup { .. }

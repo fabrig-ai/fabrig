@@ -138,6 +138,7 @@ fn startup_pins_composed_default_file_and_fallback_figures() {
             false,
             &[],
             None,
+            None,
         )
         .map(|(service, _, _)| service.operations());
         crate::close(owned);

@@ -1,5 +1,6 @@
 #![expect(
     clippy::disallowed_macros,
+    clippy::disallowed_types,
     reason = "ordinary tests edit startup documents and compare their diagnostic lines"
 )]
 use super::stock;
@@ -13,6 +14,64 @@ fn engine(value: &Value, directories: &config::Directories) -> Result<config::En
         config::document(&bytes, &config::DocumentLimits { bytes: 1_048_576, tokens: 65_536, depth: 32 }).unwrap();
     startup::engine(&document, 0, directories)
 }
+#[test]
+fn an_engine_without_document_limits_uses_the_stock_budget() {
+    let mut document: Value = serde_json::from_slice(&stock::generated()).unwrap();
+    document["workers"] = json!([]);
+    document["engine"]["hosts"]["listener"] = json!([{"socket":"127.0.0.1:0"}]);
+    let bytes = serde_json::to_vec(&document).unwrap();
+    startup::named(&bytes, &config::Directories::working()).unwrap();
+    let mut engine = stock::engine(&bytes);
+    let stock = crate::limits::stock();
+    let (expected, own) =
+        crate::limits::base(stock.live_goals, stock.tool_payload, temper_service_core::derived::STOCK).unwrap();
+    assert_eq!(engine.limits.hub.turn_bytes, expected.hub.turn_bytes);
+    assert_eq!(engine.limits.core.tasks.tasks, expected.core.tasks.tasks);
+    assert_eq!(own.live_goals, stock.live_goals);
+    assert_eq!(own.tool_payload, stock.tool_payload);
+    let root = startup::engine_limits(&mut engine.limits, &own, None).unwrap();
+    assert_eq!(root.transcript_memory, 1_073_741_824);
+}
+
+fn moved_limit(member: &str, words: &str) {
+    for value in [json!(true), json!(false), json!("yes"), json!(1_u64), Value::Null, json!({}), json!([])] {
+        let mut document: Value = serde_json::from_slice(&stock::generated()).unwrap();
+        document["workers"] = json!([]);
+        document["engine"]["hosts"]["listener"] = json!([{"socket":"127.0.0.1:0"}]);
+        let (parent, name) = member.split_once('.').unwrap();
+        if parent == "workers[0]" {
+            document["workers"] = json!([{name:value}]);
+        } else {
+            document[parent][name] = value;
+        }
+        let found =
+            startup::named(&serde_json::to_vec(&document).unwrap(), &config::Directories::working()).unwrap_err();
+        assert_eq!(startup::lines(&found).as_ref(), format!("{member}: {words}\n").as_bytes());
+    }
+}
+#[test]
+fn engine_limits_is_refused_in_an_engine_document() {
+    moved_limit(
+        "engine.limits",
+        "moved: jig's limits are the setting limits; ask temper, or use temper ctl settings apply",
+    );
+}
+#[test]
+fn engine_memory_is_refused_in_an_engine_document() {
+    moved_limit("engine.memory_bytes", "moved: the root's budget is transcript_memory, in the setting temper-limits");
+}
+#[test]
+fn application_limits_is_refused_in_an_engine_document() {
+    moved_limit(
+        "application.limits",
+        "moved: temper's limits are the setting temper-limits; ask temper, or use temper ctl settings apply",
+    );
+}
+#[test]
+fn worker_memory_is_refused_in_an_engine_document() {
+    moved_limit("workers[0].memory_bytes", "moved: nothing read a worker's memory_bytes; remove it");
+}
+
 #[test]
 fn moved_engine_members_print_their_destinations() {
     let document: Value = serde_json::from_slice(&stock::generated()).unwrap();
@@ -95,14 +154,16 @@ fn the_fleet_uses_the_link_stop_bound_unless_an_override_is_larger() {
         (5000, 15000, Some(360_000), 360_000),
         (7000, 21000, None, 420_000),
     ] {
-        let mut value = document.clone();
-        value["limits"]["overrides"]["link.ping_ms"] = json!(ping);
-        value["limits"]["overrides"]["link.silence_ms"] = json!(silence);
-        value["limits"]["overrides"].as_object_mut().unwrap().remove("fleet.grace_ms");
-        if let Some(offered) = offered {
-            value["limits"]["overrides"]["fleet.grace_ms"] = json!(offered);
-        }
-        let engine = engine(&value, &config::Directories::working()).unwrap();
+        let (mut base, _own) = super::fixtures::startup_limits();
+        base.link.ping = skein_lib::Duration::from_millis(ping);
+        base.link.silence = skein_lib::Duration::from_millis(silence);
+        base.core.fleet.grace = skein_lib::Duration::from_millis(offered.unwrap_or(derived));
+        let bytes = serde_json::to_vec(&document).unwrap();
+        let parsed =
+            config::document(&bytes, &config::DocumentLimits { bytes: 1_048_576, tokens: 65_536, depth: 32 }).unwrap();
+        let engine =
+            startup::engine_over(&parsed, 0, &config::Directories::working(), &crate::stock::Given::Stock, &mut base)
+                .unwrap();
         let mut problems = startup::Problems::empty();
         startup::check_fleet_grace(&engine, &mut problems);
         if let Some(offered) = offered

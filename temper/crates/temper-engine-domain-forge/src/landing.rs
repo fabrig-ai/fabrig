@@ -267,6 +267,7 @@ impl Domain {
                     | Value::Dependency(_)
                     | Value::ProjectAreas(_)
                     | Value::ProjectTriager(_)
+                    | Value::Limits(_)
                     | Value::AgentFigures(_)
                     | Value::Welcome(_) => unreachable!("kind 4 has landing value"),
                 },
@@ -288,6 +289,7 @@ impl Domain {
                     | Value::Dependency(_)
                     | Value::ProjectAreas(_)
                     | Value::ProjectTriager(_)
+                    | Value::Limits(_)
                     | Value::AgentFigures(_)
                     | Value::Welcome(_) => unreachable!("kind 5 has gates value"),
                 },

@@ -262,3 +262,20 @@ fn application_text(state: &c::ApplicationState, out: &mut Text) {
     out.number(u64::from(state.size));
     out.put(b" bytes\n");
 }
+
+pub(super) fn inventory_limits(reading: &crate::jig::runner::reads::Reading, vocabulary: &dyn Parts, out: &mut Text) {
+    use crate::jig::runner::application::{Answer, Query};
+    let mut values = skein_lib::List::uncapped();
+    if let Some(jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Setting(document)))) = reading.pages.get(&2)
+        && let Some(value) = &document.value
+    {
+        values.push((a::form_setting(document.setting), a::form_setting_value(value))).expect("two limit kinds");
+    }
+    let setting = c::Setting::Application { kind: 22, scope: 0, number: 1 };
+    if let Some(page) = reading.pages.get(&3)
+        && let Some(Answer::Setting(Some(value))) = vocabulary.application_answer(Query::Setting(setting), page)
+    {
+        values.push((a::form_setting(setting), a::form_setting_value(&value))).expect("two limit kinds");
+    }
+    settings_form::render::limits_text(values.as_slice(), out);
+}

@@ -1343,7 +1343,7 @@ pub fn initial_settings(defaults: &core::settings::Defaults) -> Box<[core::Recor
         .expect("fixture settings count")
         .checked_add(defaults.policies.len())
         .expect("fixture settings count")
-        .checked_add(3)
+        .checked_add(4)
         .expect("fixture settings count");
     let mut rows = List::with_capacity(count);
     for charter in &defaults.charters {
@@ -1370,6 +1370,11 @@ pub fn initial_settings(defaults: &core::settings::Defaults) -> Box<[core::Recor
     rows.push(core::Record::Core(core::CoreRecord::Settings(s::Record::Default {
         setting: s::Setting::Rules,
         default: s::Default { value: s::Value::Rules(Box::new(defaults.rules.clone())), revision: 1 },
+    })))
+    .expect("fixture settings count");
+    rows.push(core::Record::Core(core::CoreRecord::Settings(s::Record::Default {
+        setting: s::Setting::Limits,
+        default: s::Default { value: s::Value::Limits(defaults.limits.clone()), revision: 1 },
     })))
     .expect("fixture settings count");
     rows.push(core::Record::Core(core::CoreRecord::Settings(s::Record::Revision {

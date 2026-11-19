@@ -14,6 +14,13 @@ impl<K: Ord + Copy, V> Lru<K, V> {
     pub fn with_capacity(capacity: u32) -> Lru<K, V> {
         Lru { by_use: Set::with_capacity(capacity), by_key: Map::with_capacity(capacity), clock: 0 }
     }
+
+    /// Raises the capacity in place, allocating nothing (runtime/lib.md, 5).
+    pub fn raise(&mut self, capacity: u32) {
+        assert!(capacity >= self.by_key.capacity(), "a capacity never falls");
+        self.by_use.raise(capacity);
+        self.by_key.raise(capacity);
+    }
     #[must_use]
     pub fn price(capacity: u32) -> Option<u64> {
         Set::<(u64, K)>::price(capacity)?.checked_add(Map::<K, (u64, V)>::price(capacity)?)

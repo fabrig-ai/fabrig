@@ -227,7 +227,7 @@ fn errors_and_pages_use_the_address_form() {
                 held: skein_lib::List::with_capacity(0),
                 pending: skein_lib::List::with_capacity(0),
             }),
-            "settings charter N · settings template N · settings policy N · settings model N · settings worker N · settings provider N · settings forge-charter N · settings rules · settings landing-rule N · settings landing-rule N project · settings landing · settings gates OWNER/NAME · settings project-ways · settings project-questions · settings project-classes · revisions · help settings",
+            "settings charter N · settings template N · settings policy N · settings model N · settings worker N · settings provider N · settings forge-charter N · settings rules · settings landing-rule N · settings landing-rule N project · settings landing · settings gates OWNER/NAME · settings project-ways · settings project-questions · settings project-classes · settings limits · settings temper-limits · revisions · help settings",
         ),
         (
             jig_domain_core::SettingsAnswer::Revisions(jig_domain_core::reads::RevisionsPage {

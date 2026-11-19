@@ -359,6 +359,7 @@ pub fn bootstrap(config: &Path, data: &Path, cache: &Path) {
     // A delivery story keeps this listener bound in the enclosing test.
     document["application"]["webhooks"] = Value::Null;
     write_private(&path, &serde_json::to_vec(&document).expect("bootstrap JSON"));
+    super::limit_settings::install_paths(&[config.into(), data.into(), cache.into()]);
     let binary = Binary::start(
         Command {
             program: skein_scratch::paths::binary("temper-box"),
@@ -388,7 +389,7 @@ pub fn bootstrap(config: &Path, data: &Path, cache: &Path) {
     );
 }
 
-pub fn configuration(directory: &Path, forge: &Forge<'_>, value: &mut Value) {
+pub fn configuration(directory: &Path, forge: &Forge<'_>, value: &mut temper_playground::documents::Configuration) {
     let Forge::Throwaway { api, forgejo, .. } = forge else { return };
     let mut owned = owned::Owned::beside(*api);
     owned.forgejo_binary = forgejo.into();
@@ -402,10 +403,8 @@ pub fn configuration(directory: &Path, forge: &Forge<'_>, value: &mut Value) {
             }
         }
     }
-    let limits = value["application"]["limits"].take();
     value["application"] = owned::application(&owned);
-    value["application"]["limits"] = limits;
-    value["application"]["limits"]["overrides"]["root.brief.gather_ms"] = BRIEF_GATHER_MS.into();
+    value.temper_over("root.brief.gather_ms", BRIEF_GATHER_MS);
     let mut agent =
         serde_json::from_slice(&super::configuration::documents(directory, "/fixture/temper").0).expect("agent JSON");
     temper_real_loop_world::settings::stage_policies(value);
@@ -413,13 +412,13 @@ pub fn configuration(directory: &Path, forge: &Forge<'_>, value: &mut Value) {
     value.as_object_mut().expect("deployment").remove("world_settings");
     super::configuration::use_stock(value);
     // Nine slots hold the stock charters.
-    value["engine"]["limits"]["overrides"]["tasks.charters"] = 16.into();
-    value["engine"]["limits"]["overrides"]["core.templates"] = 7.into();
+    value.jig_over("tasks.charters", 16);
+    value.jig_over("core.templates", 7);
     // The process uses stock's fourteen grants, beyond the world's ten-grant policy.
-    value["engine"]["limits"]["overrides"]["tasks.authority_grants"] = 16.into();
+    value.jig_over("tasks.authority_grants", 16);
     // The creation offer carries nine stock charters and four procedures.
-    value["engine"]["limits"]["overrides"]["documents.lines"] = 12.into();
-    super::configuration::use_derived(value);
+    value.jig_over("documents.lines", 12);
+    super::configuration::turn_bounds::apply(value, super::configuration::turn_bounds::turn_body(&agent));
     temper_agent_fixtures::apply(value, directory, &agent);
 }
 
@@ -487,7 +486,9 @@ pub mod tests {
         assert_eq!(name.as_ref(), b"delegate");
         let delegate: Value = serde_json::from_slice(arguments).expect("delegate JSON");
         let (_, deployment) = super::super::configuration::documents(scratch.path(), "/fixture/temper");
-        let deployment = serde_json::from_slice(&deployment).expect("deployment JSON");
+        let deployment = temper_playground::documents::Configuration::from_jig(
+            serde_json::from_slice(&deployment).expect("deployment JSON"),
+        );
         let engine = temper_real_loop_world::settings::configuration(&deployment);
         let stock = temper_service::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
         let spend = delegate["batch"][0]["authority"]["budget"]["spend"].as_u64().expect("change spend");
