@@ -5,14 +5,8 @@ use std::fs;
 #[test]
 #[expect(clippy::disallowed_methods, reason = "jig's round: reads SKEIN_CODEGEN_WRITE to refresh generated records")]
 fn worker_wire_schema_matches_generated_records_and_is_pinned() {
-<<<<<<< HEAD
     let source = jig_protocol_worker_wire::SCHEMA;
     let unpinned = unpinned(source).expect("schema valid");
-=======
-    let root = skein_scratch::paths::tree().join("crates/jig-protocol-worker-wire");
-    let source = fs::read_to_string(root.join("schema/worker-wire-v18.schema")).expect("schema");
-    let unpinned = unpinned(&source).expect("schema valid");
->>>>>>> refs/hand5/g9117
     assert!(unpinned.is_empty(), "worker_wire: unpinned constructs: {unpinned:?}");
     let root = skein_scratch::paths::tree().join("crates/jig-protocol-worker-wire");
     let schema = &values(source).schema;

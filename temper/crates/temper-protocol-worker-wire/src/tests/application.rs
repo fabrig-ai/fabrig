@@ -111,39 +111,23 @@ fn items_bridge_own_delivery_between_ten_and_eleven_without_losing_it() {
     let old = include_bytes!("../../patches/golden/0005/temper-worker-wire/record_items_full.bin");
     assert_eq!(skein_codec::version_of(old), Ok(10));
     let up = bridge.translate(10, 11, b"Items", old.as_slice().into()).unwrap();
-<<<<<<< HEAD
-    let items = v1::Items::decode(&limits, &mut skein_lib::Reader::new(&up)).unwrap();
+    let current = bridge.translate(11, wire::VERSION, b"Items", up.clone()).unwrap();
+    let items = v1::Items::decode(&limits, &mut skein_lib::Reader::new(&current)).unwrap();
     let repository = items.repositories.get(0).unwrap();
     let v1::Access::Writable(writable) = &repository.access else { panic!("writable golden") };
     assert_eq!(writable.delivered, None);
-    let down = bridge.translate(11, 10, b"Items", crate::items(&items)).unwrap();
-=======
-    let current = bridge.translate(11, wire::VERSION, b"Items", up.clone()).unwrap();
-    let items = v1::Items::decode(&limits, &mut skein_lib::Reader::new(&current)).unwrap();
-    let repository = items.repositories().get(0).unwrap();
-    let v1::Access::Writable(writable) = repository.access() else { panic!("writable golden") };
-    assert_eq!(*writable.delivered(), None);
     let down = bridge.translate(wire::VERSION, 10, b"Items", crate::items(&items)).unwrap();
->>>>>>> refs/hand5/g9116
     assert_eq!(down.as_ref(), old.as_slice());
     assert_eq!(bridge.translate(10, 11, b"Items", down).unwrap(), up);
 
     let v1::Access::Writable(writable) = repository.clone().access else { panic!("writable golden") };
     let access = v1::Access::Writable(v1::Writable { delivered: Some([7; 32]), ..writable });
     let mut repositories = List::with_capacity(1);
-<<<<<<< HEAD
     repositories.push(v1::Repository { access, ..repository.clone() }).unwrap();
     let delivered = v1::Items { repositories };
-    let Err(skein_codec::patch::Halt::Unheld(_)) = bridge.translate(11, 10, b"Items", crate::items(&delivered)) else {
-=======
-    repositories
-        .push(v1::Repository::new(&limits, v1::RepositoryParts { access, ..repository.clone().into_parts() }).unwrap())
-        .unwrap();
-    let delivered = v1::Items::new(&limits, v1::ItemsParts { repositories }).unwrap();
     let Err(skein_codec::patch::Halt::Unheld(_)) =
         bridge.translate(wire::VERSION, 10, b"Items", crate::items(&delivered))
     else {
->>>>>>> refs/hand5/g9116
         panic!("a task's own delivery cannot be discarded for a version-10 worker")
     };
 }
@@ -158,22 +142,18 @@ fn items_bridge_named_pins_between_eleven_and_twelve_without_losing_them() {
     assert_eq!(skein_codec::version_of(old), Ok(11));
     let up = bridge.translate(11, 12, b"Items", old.as_slice().into()).unwrap();
     let items = v1::Items::decode(&limits, &mut skein_lib::Reader::new(&up)).unwrap();
-    let repository = items.repositories().get(0).unwrap();
-    let v1::Access::Writable(writable) = repository.access() else { panic!("writable golden") };
-    assert_eq!(*writable.pin(), None);
+    let repository = items.repositories.get(0).unwrap();
+    let v1::Access::Writable(writable) = &repository.access else { panic!("writable golden") };
+    assert_eq!(writable.pin, None);
     let down = bridge.translate(12, 11, b"Items", crate::items(&items)).unwrap();
     assert_eq!(down.as_ref(), old.as_slice());
     assert_eq!(bridge.translate(11, 12, b"Items", down).unwrap(), up);
 
-    let v1::Access::Writable(writable) = repository.clone().into_parts().access else { panic!("writable golden") };
-    let access = v1::Access::Writable(
-        v1::Writable::new(&limits, v1::WritableParts { pin: Some([8; 32]), ..writable.into_parts() }).unwrap(),
-    );
+    let v1::Access::Writable(writable) = repository.clone().access else { panic!("writable golden") };
+    let access = v1::Access::Writable(v1::Writable { pin: Some([8; 32]), ..writable });
     let mut repositories = List::with_capacity(1);
-    repositories
-        .push(v1::Repository::new(&limits, v1::RepositoryParts { access, ..repository.clone().into_parts() }).unwrap())
-        .unwrap();
-    let pinned = v1::Items::new(&limits, v1::ItemsParts { repositories }).unwrap();
+    repositories.push(v1::Repository { access, ..repository.clone() }).unwrap();
+    let pinned = v1::Items { repositories };
     let Err(skein_codec::patch::Halt::Unheld(_)) = bridge.translate(12, 11, b"Items", crate::items(&pinned)) else {
         panic!("a named pin cannot be discarded for a version-11 worker")
     };

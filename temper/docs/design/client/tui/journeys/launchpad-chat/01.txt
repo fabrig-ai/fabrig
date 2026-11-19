@@ -2,8 +2,6 @@
   ▄█▀▀   temper 0.0.0 (000000000000)
  ▄█▄█▄█  127.0.0.1:10001
 
- Nothing needs you.
-
  Start
    /change   one change, run as Hello's way says
    /ask      Ask temper
@@ -17,15 +15,9 @@
 
 
 
-<<<<<<< HEAD
-<<<<<<< HEAD
 
 
 
-=======
->>>>>>> refs/hand5/g9120
-=======
->>>>>>> refs/hand5/g9117
 ────────────────────────────────────────────────────────────────────────────────
 ❯ Ask for a change, or ask temper.  / for commands
 ────────────────────────────────────────────────────────────────────────────────

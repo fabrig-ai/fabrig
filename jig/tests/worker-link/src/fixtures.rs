@@ -132,24 +132,17 @@ fn prepared_agreement_body() -> &'static [u8] {
         wires
             .push(wire::AgreedWire { name: b"test-worker-wire".as_slice().into(), version: 3 })
             .expect("application wire");
-<<<<<<< HEAD
-        let record = wire::v17::Agreed { wires };
+        let record = wire::v18::Agreed { wires };
         let mut body = Writer::new(skein_lib::length::usize_of(
             record.measure(&jig_protocol_worker_wire::CEILINGS).expect("record within limits"),
         ));
         record.write(&jig_protocol_worker_wire::CEILINGS, &mut body).expect("measured agreement");
-=======
-        let record = wire::v18::Agreed::new(&limits, wire::v18::AgreedParts { wires }).expect("agreement");
-        let mut body = Writer::new(skein_lib::length::usize_of(record.measure()));
-        record.encode(&mut body).expect("measured agreement");
->>>>>>> refs/hand5/g9117
         body.finish()
     })
 }
 #[must_use]
 pub fn agreement_frame(wires: List<wire::AgreedWire>) -> skein_channel::Frame {
-<<<<<<< HEAD
-    let record = wire::v17::Agreed { wires };
+    let record = wire::v18::Agreed { wires };
     let mut body = Writer::new(skein_lib::length::usize_of(
         record.measure(&jig_protocol_worker_wire::CEILINGS).expect("record within limits"),
     ));
@@ -159,12 +152,6 @@ pub fn agreement_frame(wires: List<wire::AgreedWire>) -> skein_channel::Frame {
         record.measure(&jig_protocol_worker_wire::CEILINGS).expect("record within limits"),
     )
     .expect("frame");
-=======
-    let record = wire::v18::Agreed::new(&codec(), wire::v18::AgreedParts { wires }).expect("agreement");
-    let mut body = Writer::new(skein_lib::length::usize_of(record.measure()));
-    record.encode(&mut body).expect("measured agreement");
-    let mut frame = skein_channel::frame_writer(0x018d, record.measure()).expect("frame");
->>>>>>> refs/hand5/g9117
     frame.put(&body.finish()).expect("body");
     frame.finish().expect("measured frame")
 }
@@ -428,7 +415,7 @@ pub fn down_frames() -> Vec<skein_channel::Frame> {
     frames
 }
 
-pub fn encoded<R: Record<Limits = wire::v17::Limits>>(record: &R) -> Box<[u8]> {
+pub fn encoded<R: Record<Limits = wire::v18::Limits>>(record: &R) -> Box<[u8]> {
     record.encode(&codec()).expect("record within fixture limits")
 }
 

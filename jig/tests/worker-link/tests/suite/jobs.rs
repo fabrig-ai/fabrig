@@ -24,11 +24,7 @@ pub(super) fn answer() -> host::LinkUp {
         },
     }
 }
-<<<<<<< HEAD
 fn job_record() -> wire::Job {
-=======
-fn job_record(limits: &wire::v18::Limits) -> wire::Job {
->>>>>>> refs/hand5/g9117
     let mut grants = List::with_capacity(1);
     grants.push(fixtures::grant_record(fixtures::application_value())).expect("grant");
     wire::Job {

@@ -1,10 +1,6 @@
 //! Channel bounds from the owners' numbers (protocol/channel/README.md, 8 and 10).
-<<<<<<< HEAD
 use crate::Record;
-use crate::{Kind, v17};
-=======
 use crate::{Kind, v18};
->>>>>>> refs/hand5/g9117
 
 /// Bounds supplied by the domains and the application's protocol layer.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]

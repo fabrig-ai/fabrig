@@ -1,12 +1,5 @@
-<<<<<<< HEAD
-use crate::v17::Record;
-use crate::{Bounds, Credential, EndpointBound, Hello, Hosting, Phase, v17};
-=======
-use crate::{
-    Bounds, BoundsParts, Credential, CredentialParts, EndpointBound, EndpointBoundParts, Hello, HelloParts, Hosting,
-    HostingParts, Phase, v18,
-};
->>>>>>> refs/hand5/g9117
+use crate::v18::Record;
+use crate::{Bounds, Credential, EndpointBound, Hello, Hosting, Phase, v18};
 use alloc::boxed::Box;
 use skein_lib::{Duration, List, Secret, Writer};
 
@@ -232,7 +225,6 @@ pub fn grant(value: crate::GrantValue, number: u32, generation: u64) -> crate::G
     crate::Grant { number, generation, valid: Duration::from_secs(60), value }
 }
 
-<<<<<<< HEAD
 pub fn granted_key(key: &[u8]) -> crate::Granted {
     let value = crate::CredentialValue { scheme: crate::Scheme::Key, bytes: Secret::new(key.into()) };
     let grant = crate::Grant {
@@ -242,25 +234,6 @@ pub fn granted_key(key: &[u8]) -> crate::Granted {
         value: crate::GrantValue::Credential(value),
     };
     crate::Granted { task: 3, attempt: 4, grant }
-=======
-pub fn granted_key(limits: &v18::Limits, key: &[u8]) -> crate::Granted {
-    let value = crate::CredentialValue::new(
-        limits,
-        crate::CredentialValueParts { scheme: crate::Scheme::Key, bytes: Secret::new(key.into()) },
-    )
-    .expect("key within the limits");
-    let grant = crate::Grant::new(
-        limits,
-        crate::GrantParts {
-            number: 5,
-            generation: 9,
-            valid: Duration::from_secs(60),
-            value: crate::GrantValue::Credential(value),
-        },
-    )
-    .expect("grant within the limits");
-    crate::Granted::new(limits, crate::GrantedParts { task: 3, attempt: 4, grant }).expect("granted within the limits")
->>>>>>> refs/hand5/g9117
 }
 
 fn start_message(name: u64) -> crate::Message {
@@ -405,20 +378,9 @@ pub fn fullest_turn() -> crate::Turn {
     }
 }
 
-<<<<<<< HEAD
 fn fullest_call() -> crate::AnsweredCall {
     let answer = crate::HostAnswer { error: true, body: full_bytes() };
     crate::AnsweredCall { name: full_bytes(), tool: full_bytes(), answer: crate::SettledAnswer::Host(answer) }
-=======
-fn fullest_call(limits: &v18::Limits) -> crate::AnsweredCall {
-    let answer = crate::HostAnswer::new(limits, crate::HostAnswerParts { error: true, body: full_bytes() })
-        .expect("full host answer");
-    crate::AnsweredCall::new(
-        limits,
-        crate::AnsweredCallParts { name: full_bytes(), tool: full_bytes(), answer: crate::SettledAnswer::Host(answer) },
-    )
-    .expect("full answered call")
->>>>>>> refs/hand5/g9117
 }
 
 fn fullest_grants(limits: &v18::Limits) -> List<crate::Grant> {

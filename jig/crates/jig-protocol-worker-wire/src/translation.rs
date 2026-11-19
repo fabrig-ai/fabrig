@@ -1,11 +1,7 @@
 //! Nested bytes before outer records on send; outer before nested on receipt
 //! (jig/docs/design/protocol/channel/bridges.md, 5, 6 and 8).
-<<<<<<< HEAD
-use crate::v17::Record;
-use crate::{Agreed, Application, Carried, Kept, Root, v17 as wire};
-=======
+use crate::v18::Record;
 use crate::{Agreed, Application, Carried, Kept, Root, v18 as wire};
->>>>>>> refs/hand5/g9117
 use alloc::boxed::Box;
 use skein_channel::{Frame, frame_writer};
 use skein_codec::{

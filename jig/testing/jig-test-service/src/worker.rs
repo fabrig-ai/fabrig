@@ -1092,8 +1092,7 @@ mod admission_tests {
                     .push(wire::AgreedWire { name: spoken.name.as_bytes().into(), version: spoken.highest() })
                     .expect("four wires");
             }
-<<<<<<< HEAD
-            let record = wire::v17::Agreed { wires };
+            let record = wire::v18::Agreed { wires };
             let mut body = skein_lib::Writer::new(skein_lib::length::usize_of(
                 record.measure(&wire::CEILINGS).expect("statement within limits"),
             ));
@@ -1101,12 +1100,6 @@ mod admission_tests {
             let mut frame =
                 skein_channel::frame_writer(0x018d, record.measure(&wire::CEILINGS).expect("statement within limits"))
                     .expect("statement frame");
-=======
-            let record = wire::v18::Agreed::new(&codec, wire::v18::AgreedParts { wires }).expect("statement");
-            let mut body = skein_lib::Writer::new(skein_lib::length::usize_of(record.measure()));
-            record.encode(&mut body).expect("statement body");
-            let mut frame = skein_channel::frame_writer(0x018d, record.measure()).expect("statement frame");
->>>>>>> refs/hand5/g9117
             frame.put(&body.finish()).expect("measured body");
             peer.channel.play(frame.finish().expect("measured frame"));
             layer.socket = Some(SOCKET);

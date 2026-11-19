@@ -140,7 +140,6 @@ fn an_owner_reads_settings_and_history_and_changes_them_under_a_key() {
     };
     story.event(client::Event::StartUnlinked { kept: List::with_capacity(0) });
     story.event(client::Event::Up {
-<<<<<<< HEAD
         up: client::Up::Served {
             served: true,
             versions: Some(c::VersionRange {
@@ -148,9 +147,6 @@ fn an_owner_reads_settings_and_history_and_changes_them_under_a_key() {
                 last: jig_client_protocol_wire::VERSION,
             }),
         },
-=======
-        up: client::Up::Served { served: true, versions: Some(c::VersionRange { first: 38, last: 38 }) },
->>>>>>> refs/hand5/g9117
     });
     story.engine.open(Time::ZERO, SIGN_IN, skein_lib::Token::new(0), c::Subject::Me).expect("stream me");
     story.event(client::Event::SignIn { with: client::With::Transport });

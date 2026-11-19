@@ -249,12 +249,6 @@ pub fn refused_account() -> jig_protocol_worker_wire::RunFailure {
     wire::RunFailure::Refused(refused)
 }
 
-<<<<<<< HEAD
-=======
-fn codec() -> jig_protocol_worker_wire::v18::Limits {
-    jig_protocol_worker_wire::sizes::limits(&SIZES).expect("small codec")
-}
->>>>>>> refs/hand5/g9117
 fn refused_messages() -> skein_lib::List<jig_protocol_worker_wire::Refused> {
     use jig_protocol_worker_wire as wire;
     let mut refused = skein_lib::List::with_capacity(1);

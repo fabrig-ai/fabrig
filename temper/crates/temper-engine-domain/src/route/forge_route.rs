@@ -7,12 +7,6 @@ use super::{
     emit, escalation, forge, forge_change, forge_issues, people, save, save_connector_answer, tasks,
 };
 use crate::commit_text;
-pub(crate) use temper_engine_domain_translate::{
-    branch_parts, branch_what, change_delegate_status, decimal, effect_access, forge_name, hub_name,
-    initial_change_title, read_name, repair_verdict, resource_name, saved_resources, saved_tags, tree_branch,
-    write_holding,
-};
-
 #[cfg(test)]
 use forge::change_words::REPAIR_PRESERVATION;
 use forge::change_words::{
@@ -36,7 +30,6 @@ pub(crate) const GOAL_CLOSER_CODE: u32 = 6;
 pub(super) const STATUS_CHARTER: u32 = 9;
 use jig_domain_core::effects::connector::{EffectDescription, EffectForm, Recovery};
 
-<<<<<<< HEAD
 pub use forge::routing::adopt_repository_ask;
 pub(crate) use forge::routing::{
     adoption_failure, adoption_parts, append, branch_parts, branch_what, catch_up_commit, change_delegate_status,
@@ -47,10 +40,7 @@ pub(crate) use forge::routing::{
     write_holding,
 };
 
-mod change_llm;
-=======
 use temper_engine_domain_translate::change_llm;
->>>>>>> refs/hand5/g8757
 mod closer_route;
 pub(crate) mod follow_route;
 pub(crate) use closer_route::{
@@ -92,10 +82,7 @@ pub(crate) mod prepare;
 #[cfg(test)]
 mod tests;
 
-<<<<<<< HEAD
 /// A closing task's saved-work branches, from its record's saved set.
-=======
->>>>>>> refs/hand5/g8757
 pub(crate) fn saved_branches(domain: &Domain, env: &Env<Limits>, task: u64, root: u64) -> Box<[forge::Name]> {
     let Some(record) = domain.core.tasks.task(task) else { return Box::new([]) };
     let Some(tags) = saved_tags(&record.saved, domain.config.forge_connector) else { return Box::new([]) };
@@ -1457,43 +1444,6 @@ pub(crate) fn run_workspace(
     })
 }
 
-<<<<<<< HEAD
-=======
-/// Translate a connector item after its write destination is checked
-/// (temper/docs/design/protocol/channel.md, 4).
-pub(crate) fn workspace_repository(
-    item: forge::items::Item,
-    push: Option<Box<[u8]>>,
-    save: Box<[u8]>,
-) -> Option<ForgeRepository> {
-    let start = match item.start {
-        forge::items::Start::Commit(commit) => ForgeStart::Commit(commit),
-        forge::items::Start::Base(branch) => ForgeStart::Base(branch),
-        forge::items::Start::Branch(branch) => ForgeStart::Branch(branch),
-        forge::items::Start::Saved(branch) => ForgeStart::Saved(branch),
-        forge::items::Start::Merge { branch, base } => ForgeStart::Merge { branch, base },
-        forge::items::Start::Merged { branch, heads } => ForgeStart::Merged { branch, heads },
-    };
-    Some(ForgeRepository {
-        prefixes: Box::new([]),
-        delivers: item.delivers && push.is_some(),
-        save: if push.is_some() { Some(save) } else { None },
-        tag: forge::tag(item.provider.forge, item.provider.repository),
-        provider: item.provider,
-        name: item.name,
-        host: item.host,
-        owner: item.owner,
-        start,
-        landing: if push.is_some() { item.landing } else { None },
-        delivered: item.delivered,
-        pin: if push.is_some() { item.pin } else { None },
-        push,
-        // The repository's git identity, from configuration (D10).
-        identity: item.credential?,
-    })
-}
-
->>>>>>> refs/hand5/g9116
 /// Reconstruct the connector's provisional writer projection from the
 /// assignment only after the hub has durably admitted its writer slots.
 #[expect(clippy::type_complexity, reason = "the connector claim carries paired bounded names and ancestor holders")]
@@ -1830,11 +1780,8 @@ fn retry_change_names(domain: &mut Domain, env: &Env<Limits>, task: u64) {
     domain.work.push(Work::Forge(forge::Event::Names { task, resources }));
 }
 
-<<<<<<< HEAD
-=======
 // Every live pushing child counts, even after a gate takes the current delegate slot
 // (temper/docs/design/domain/forge/change/repairs.md). Jig keeps these through their terminals.
->>>>>>> refs/hand5/g8757
 fn change_delegate_live(domain: &Domain, task: u64) -> bool {
     let Some(owner) = domain.core.tasks.task(task) else { return false };
     for child in &owner.delegates {

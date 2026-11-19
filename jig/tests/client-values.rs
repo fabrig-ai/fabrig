@@ -14,11 +14,3 @@ pub(super) fn client() -> &'static [Golden] {
 pub(super) fn value(name: &str) -> &'static [u8] {
     &client().iter().find(|value| value.name == name).expect("named client value").bytes
 }
-<<<<<<< HEAD
-=======
-
-fn text() -> String {
-    include_str!("../crates/jig-client-protocol-wire/schema/client-v38.schema").to_owned()
-        + include_str!("../crates/jig-client-protocol-wire/schema/client-v38-part1.schema")
-}
->>>>>>> refs/hand5/g9120

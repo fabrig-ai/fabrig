@@ -73,6 +73,31 @@ fn adopted(forge: u16) -> super::forge::Repository {
 }
 
 #[test]
+fn tree_branches_count_prefix_slashes_against_authority_segments() {
+    // forge, host, owner, repository, branch, temper, root, marker/task.
+    const AUTHORITY_SEGMENTS: u32 = 8;
+    // The old live prefix puts live-x in a branch segment of its own.
+    const DEEP_AUTHORITY_SEGMENTS: u32 = 9;
+    const BRANCH_BYTES: u32 = 128;
+    for (prefix, segments, fits) in [
+        (b"temper/live-x/".as_slice(), AUTHORITY_SEGMENTS, false),
+        (b"temper/live-x/", DEEP_AUTHORITY_SEGMENTS, true),
+        (b"temper/", AUTHORITY_SEGMENTS, true),
+        (b"temper/live-x-", AUTHORITY_SEGMENTS, true),
+    ] {
+        let mut repository = adopted(1);
+        repository.prefix = prefix.into();
+        for marker in *b"crs" {
+            for attempt in [None, Some(3)] {
+                let branch = super::tree_branch(&repository, 1, marker, 2, attempt, BRANCH_BYTES).expect("tree branch");
+                let what = super::branch_what(&branch, BRANCH_BYTES).expect("branch parts");
+                assert_eq!(super::resource_name(&repository, &what, segments).is_some(), fits, "branch {branch:?}");
+            }
+        }
+    }
+}
+
+#[test]
 fn delegations_with_one_repository_id_take_their_own_forges_holding() {
     use super::{forge, tasks};
     use alloc::boxed::Box;
@@ -1124,90 +1149,7 @@ fn writable_repositories_exclude_an_ended_forge() {
     assert_eq!(domain.forge.readable_repositories(5).len(), 1);
 }
 
-<<<<<<< HEAD
 use crate::tests::change_row::change_row;
-=======
-fn change_row(pull: Option<u64>) -> super::forge::ChangeRow {
-    use super::{forge, forge_change as change};
-    forge::ChangeRow {
-        room: None,
-        source: None,
-        kept: None,
-        regate: None,
-        task_release: None,
-        job: None,
-        signed: Box::new([]),
-        task: 7,
-        repository: skein_forge::api::Repository { forge: 3, repository: 1 },
-        branch: Box::from(b"temper/7".as_slice()),
-        base: Box::from(b"main".as_slice()),
-        title: Box::from(b"Change".as_slice()),
-        body: Box::new([]),
-        priority: 0,
-        ci: None,
-        change: change::Change {
-            ended_held: None,
-            early: change::Early::None,
-            landing_ask: None,
-            way: temper_engine_domain_forge_change::Way::Queue,
-            landing: None,
-            task: 7,
-            state: change::State::Producing { requested: false },
-            gates: Box::new([]),
-            clean: Box::new([]),
-            gate_failures: Box::new([]),
-            released_resolution: false,
-            released: None,
-            repairs: 0,
-            resolutions: 0,
-            updates: 0,
-            stale: None,
-            since: skein_lib::Wall::from_nanos(0),
-            ready_since: None,
-            owns_turn: false,
-            last_head: None,
-            last_checked: None,
-            last_checked_by: None,
-            clock: None,
-        },
-        pull,
-        pending: None,
-        effect: change::EffectResult::None,
-        delegate: None,
-        delegate_status: change::Status::Unknown,
-        delegate_flake: false,
-        delegate_head: None,
-        verdicts: Box::new([]),
-        milestone: None,
-        goal: None,
-        ending: None,
-        repair_tasks: Box::new([]),
-        resolution_tasks: Box::new([]),
-        result: forge::ChangeResult::empty(),
-        gate_remarks: Box::new([]),
-        drift: None,
-        base_repair: false,
-        queue_repair: None,
-        queue_repairs: 0,
-        producing_charter: 2,
-        review_charter: 4,
-        producing_llm: None,
-        review_llm: None,
-
-        questions: temper_engine_domain_forge_change::Questions::default(),
-        effect_account: None,
-        producer_failure: None,
-        report: Box::new([]),
-        repairs: None,
-        follows: None,
-        catch_up: None,
-        close: None,
-        merge_result: None,
-        history: None,
-        follow_check: None,
-    }
-}
->>>>>>> refs/hand5/g8757
 
 #[test]
 fn a_change_drift_account_names_its_held_step_and_the_branch_not_cached_ci() {
@@ -3260,6 +3202,80 @@ fn choice(model: u8, effort: Option<u8>) -> super::tasks::LlmChoice {
         main: super::tasks::ModelEffort { model, effort },
         subagents: Box::new([]),
     }
+}
+
+#[test]
+fn change_llm_text_round_trips_each_role_and_optional_effort() {
+    use super::{change_llm, tasks};
+    for (text, producer, llm) in [
+        (b";;".as_slice(), None, crate::ChangeLlm::default()),
+        (b"6;;", Some(6), crate::ChangeLlm::default()),
+        (b";3;", None, crate::ChangeLlm { producer: Some(choice(3, None)), review: None }),
+        (b";;3.0", None, crate::ChangeLlm { producer: None, review: Some(choice(3, Some(0))) }),
+        (
+            b"6;3.1 0.0 2;3.0",
+            Some(6),
+            crate::ChangeLlm {
+                producer: Some(tasks::LlmChoice {
+                    subagents: Box::new([
+                        tasks::ModelEffort { model: 0, effort: Some(0) },
+                        tasks::ModelEffort { model: 2, effort: None },
+                    ]),
+                    ..choice(3, Some(1))
+                }),
+                review: Some(choice(3, Some(0))),
+            },
+        ),
+        (
+            b"4294967295;255.255;0",
+            Some(u32::MAX),
+            crate::ChangeLlm { producer: Some(choice(u8::MAX, Some(u8::MAX))), review: Some(choice(0, None)) },
+        ),
+    ] {
+        assert_eq!(change_llm::spell(producer, &llm).as_ref(), text);
+        assert_eq!(change_llm::read(text), Some((producer, llm)));
+    }
+}
+
+#[test]
+fn change_llm_text_refuses_malformed_parts_and_too_many_entries() {
+    for text in [
+        b"".as_slice(),
+        b";",
+        b";;;",
+        b"6;3",
+        b"0;;",
+        b"4294967296;;",
+        b"-1;;",
+        b"+1;;",
+        b"x;;",
+        b";256;",
+        b";1.256;",
+        b";1.;",
+        b";.1;",
+        b";1.2.3;",
+        b"; 1;",
+        b";1 ;",
+        b";1  2;",
+        b";1\t2;",
+        b";x;",
+        b";;1  ",
+        b";;\xff",
+        b" 6;;",
+    ] {
+        assert_eq!(super::change_llm::read(text), None, "{text:?}");
+    }
+    let mut text = skein_lib::List::with_capacity(140);
+    super::append(&mut text, b";0");
+    for _ in 0..super::tasks::MODELS {
+        super::append(&mut text, b" 1");
+    }
+    text.push(b';').unwrap();
+    let accepted = super::change_llm::read(text.as_slice()).expect("main plus MODELS sub-agents");
+    assert_eq!(super::change_llm::spell(accepted.0, &accepted.1).as_ref(), text.as_slice());
+    text.truncate(text.len() - 1);
+    super::append(&mut text, b" 2;");
+    assert_eq!(super::change_llm::read(text.as_slice()), None);
 }
 
 fn change_choice_world() -> (super::Domain, skein_lib::Env<super::Limits>, super::tasks::DelegationContext) {

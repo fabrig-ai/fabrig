@@ -172,11 +172,7 @@ fn an_answer_hands_left_and_saved_work_up_as_parts() {
 fn a_call_record_keeps_its_name_bytes() {
     let mut parts = fixtures::call_record();
     parts.contract = 3;
-<<<<<<< HEAD
     let record = parts;
-=======
-    let record = jig_protocol_worker_wire::Call::new(&jig_protocol_worker_wire::v18::CEILINGS, parts).expect("call");
->>>>>>> refs/hand5/g9117
     let link = up(translate::Up::Call(record));
     let jig_domain_host::LinkUp::Call { run, attempt, contract, call, tool, writes, input, deadline } = link else {
         panic!("call");
@@ -324,12 +320,8 @@ fn an_encoding_refusal_keeps_its_codec_path_and_reason() {
         .frame(&codec())
         .expect_err("not UTF-8"),
         Unencoded {
-<<<<<<< HEAD
-            field: jig_protocol_worker_wire::v17::name(jig_protocol_worker_wire::v17::paths::MESSAGE_WORDS)
+            field: jig_protocol_worker_wire::v18::name(jig_protocol_worker_wire::v18::paths::MESSAGE_WORDS)
                 .expect("generated path"),
-=======
-            field: jig_protocol_worker_wire::v18::Path::MessageWords.name(),
->>>>>>> refs/hand5/g9117
             reason: Some(skein_codec::Reason::Utf8),
             figure: None,
             bound: None,

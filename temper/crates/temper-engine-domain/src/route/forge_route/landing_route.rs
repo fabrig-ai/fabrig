@@ -357,8 +357,10 @@ fn create_landing(
     for name in &names {
         super::report_resource(domain, env, project, name);
     }
-<<<<<<< HEAD
     let row = forge::LandingRow {
+        last_event: None,
+        turn_since: None,
+        waiting: None,
         flake_reruns: Box::new([]),
         room: None,
         job: None,
@@ -366,20 +368,6 @@ fn create_landing(
             last_left: None,
             searched: None,
             round: landing::Round::new(own_branch.clone()),
-=======
-    domain.work.push(Work::Forge(forge::Event::Landing {
-        row: forge::LandingRow {
-            last_event: None,
-            turn_since: None,
-            waiting: None,
-            flake_reruns: Box::new([]),
-            room: None,
-            job: None,
-            landing: landing::Landing {
-                last_left: None,
-                searched: None,
-                round: landing::Round::new(own_branch.clone()),
->>>>>>> refs/hand5/g8757
 
             task: number,
             project,

@@ -696,21 +696,12 @@ impl Component {
                             };
                             wires.push(record).expect("agreed wires fit credential limits");
                         }
-<<<<<<< HEAD
-                        let record = wire::v17::Agreed { wires };
+                        let record = wire::v18::Agreed { wires };
                         let length = record.measure(&self.codec).expect("agreed statement fits limits");
                         let mut body = skein_lib::Writer::new(skein_lib::length::usize_of(length));
                         record.write(&self.codec, &mut body).expect("measured statement");
                         let mut frame =
                             skein_channel::frame_writer(wire::Kind::Wires.number(), length).expect("bounded statement");
-=======
-                        let record = wire::v18::Agreed::new(&self.codec, wire::v18::AgreedParts { wires })
-                            .expect("agreed wires fit credential limits");
-                        let mut body = skein_lib::Writer::new(skein_lib::length::usize_of(record.measure()));
-                        record.encode(&mut body).expect("measured statement");
-                        let mut frame = skein_channel::frame_writer(wire::Kind::Wires.number(), record.measure())
-                            .expect("bounded statement");
->>>>>>> refs/hand5/g9117
                         frame.put(&body.finish()).expect("measured statement");
                         let frame = frame.finish().expect("measured statement");
                         let frame =

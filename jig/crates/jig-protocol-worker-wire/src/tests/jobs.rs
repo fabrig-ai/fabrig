@@ -1,11 +1,7 @@
 //! Jobs retain their own records (jig/docs/design/protocol/channel/records.md, 4).
 use super::{fixtures, records::through_bytes};
-<<<<<<< HEAD
-use crate::v17::Record;
-use crate::{self as wire, v17};
-=======
+use crate::v18::Record;
 use crate::{self as wire, v18};
->>>>>>> refs/hand5/g9117
 use skein_lib::{Duration, List};
 
 const TASK: u64 = 3;
@@ -58,13 +54,8 @@ fn a_job_at_its_spec_bound_round_trips() {
 /// One byte past the spec bound is refused (jig/docs/design/protocol/channel/records.md, 4).
 #[test]
 fn a_job_one_byte_past_its_spec_bound_is_refused() {
-<<<<<<< HEAD
     let problem = (job_parts(&[b's'; SPEC_BYTES + 1])).encode(&fixtures::LIMITS).expect_err("spec past bound");
-    assert_eq!(problem, v17::Problem { path: v17::paths::JOB_SPEC, reason: skein_codec::Reason::Bound });
-=======
-    let problem = wire::Job::new(&fixtures::LIMITS, job_parts(&[b's'; SPEC_BYTES + 1])).expect_err("spec past bound");
-    assert_eq!(problem, v18::Problem { path: v18::Path::JobSpec, reason: skein_codec::Reason::Bound });
->>>>>>> refs/hand5/g9117
+    assert_eq!(problem, v18::Problem { path: v18::paths::JOB_SPEC, reason: skein_codec::Reason::Bound });
 }
 
 /// Finished, failed and refused answers keep their payloads (jig/docs/design/protocol/channel/records.md, 4).
@@ -99,13 +90,7 @@ fn a_hello_with_two_job_kinds_round_trips() {
 #[test]
 fn a_hello_one_job_kind_past_its_bound_is_refused() {
     const THIRD_KIND: u32 = 19;
-<<<<<<< HEAD
     let problem =
         (hello_parts(&[FIRST_KIND, SECOND_KIND, THIRD_KIND])).encode(&fixtures::LIMITS).expect_err("third job kind");
-    assert_eq!(problem, v17::Problem { path: v17::paths::HELLO_JOBS, reason: skein_codec::Reason::Bound });
-=======
-    let problem = wire::Hello::new(&fixtures::LIMITS, hello_parts(&[FIRST_KIND, SECOND_KIND, THIRD_KIND]))
-        .expect_err("third job kind");
-    assert_eq!(problem, v18::Problem { path: v18::Path::HelloJobs, reason: skein_codec::Reason::Bound });
->>>>>>> refs/hand5/g9117
+    assert_eq!(problem, v18::Problem { path: v18::paths::HELLO_JOBS, reason: skein_codec::Reason::Bound });
 }

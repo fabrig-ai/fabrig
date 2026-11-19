@@ -579,7 +579,7 @@ impl Down {
             Self::Grant(_) => wire::Kind::Grant,
         }
     }
-    pub fn frame(self, limits: &wire::v17::Limits) -> Result<skein_channel::Frame, crate::Unencoded> {
+    pub fn frame(self, limits: &wire::v18::Limits) -> Result<skein_channel::Frame, crate::Unencoded> {
         let (kind, length) = match &self {
             Self::Restarting(record) => (wire::Kind::Restarting.number(), record.measure(limits)),
             Self::Asked(record) => (wire::Kind::Asked.number(), record.measure(limits)),
@@ -712,9 +712,8 @@ fn job_record(
     values: Box<[Option<crate::GrantValue>]>,
     limits: &wire::v18::Limits,
 ) -> Result<wire::Job, crate::Unencoded> {
-<<<<<<< HEAD
     let workspace = workspace_record(job.workspace, parts)?;
-    let grants = grants_record(job.grants, values, "Job.grants", limits.job_grants, wire::v17::CEILINGS.job_grants)?;
+    let grants = grants_record(job.grants, values, "Job.grants", limits.job_grants, wire::v18::CEILINGS.job_grants)?;
     Ok(wire::Job {
         task: job.run.raw(),
         attempt: job.attempt.raw(),
@@ -724,26 +723,6 @@ fn job_record(
         workspace,
         grants,
     })
-=======
-    let workspace = workspace_record(job.workspace, parts, limits)?;
-    let grants =
-        grants_record(job.grants, values, "Job.grants", limits.job_grants, wire::v18::CEILINGS.job_grants, limits)?;
-    match wire::Job::new(
-        limits,
-        wire::JobParts {
-            task: job.run.raw(),
-            attempt: job.attempt.raw(),
-            kind: job.kind.0,
-            spec: job.spec,
-            deadline: job.deadline,
-            workspace,
-            grants,
-        },
-    ) {
-        Ok(record) => Ok(record),
-        Err(why) => Err(problem(why)),
-    }
->>>>>>> refs/hand5/g9117
 }
 fn assignment_record(
     assignment: host::Assignment,
@@ -790,12 +769,7 @@ fn assignment_record(
         values,
         "Assignment.grants",
         limits.assignment_grants,
-<<<<<<< HEAD
-        wire::v17::CEILINGS.assignment_grants,
-=======
         wire::v18::CEILINGS.assignment_grants,
-        limits,
->>>>>>> refs/hand5/g9117
     )?;
     measured(
         "Assignment.charter",
@@ -818,13 +792,9 @@ fn assignment_record(
         grants,
     })
 }
-<<<<<<< HEAD
-pub(crate) fn problem(problem: wire::v17::Problem) -> crate::Unencoded {
-=======
-fn problem(problem: wire::v18::Problem) -> crate::Unencoded {
->>>>>>> refs/hand5/g9117
+pub(crate) fn problem(problem: wire::v18::Problem) -> crate::Unencoded {
     crate::Unencoded {
-        field: wire::v17::name(problem.path).expect("generated problem path"),
+        field: wire::v18::name(problem.path).expect("generated problem path"),
         reason: Some(problem.reason),
         figure: None,
         bound: None,
@@ -849,10 +819,6 @@ fn grants_record(
     field: &'static str,
     bound: u32,
     ceiling: u32,
-<<<<<<< HEAD
-=======
-    limits: &wire::v18::Limits,
->>>>>>> refs/hand5/g9117
 ) -> Result<List<wire::Grant>, crate::Unencoded> {
     let mut count = 0_u64;
     for value in values.iter().take(grants.len()) {
@@ -872,10 +838,6 @@ fn grants_record(
 fn workspace_record(
     workspace: Option<host::Workspace>,
     parts: &[wire::Part],
-<<<<<<< HEAD
-=======
-    limits: &wire::v18::Limits,
->>>>>>> refs/hand5/g9117
 ) -> Result<Option<wire::Workspace>, crate::Unencoded> {
     match workspace {
         Some(workspace) => {
@@ -908,15 +870,7 @@ fn transcript(turns: &[Box<[u8]>], bound: u32) -> Result<Box<[u8]>, crate::Unenc
     Ok(writer.finish())
 }
 /// A grant's form and its value's arm agree, or the grant is not sent.
-<<<<<<< HEAD
 fn grant_record(grant: jig_domain_link::Grant, value: crate::GrantValue) -> Result<wire::Grant, crate::Unencoded> {
-=======
-fn grant_record(
-    grant: jig_domain_link::Grant,
-    value: crate::GrantValue,
-    limits: &wire::v18::Limits,
-) -> Result<wire::Grant, crate::Unencoded> {
->>>>>>> refs/hand5/g9117
     let value = match grant.form {
         Form::Program(form) => match value {
             crate::GrantValue::Program { name } => {
@@ -961,11 +915,7 @@ const fn grant_scheme(scheme: Scheme) -> crate::Scheme {
         Scheme::Key => crate::Scheme::Key,
     }
 }
-<<<<<<< HEAD
 fn settled(answer: host::SettledAnswer) -> wire::SettledAnswer {
-=======
-fn settled(answer: host::SettledAnswer, limits: &wire::v18::Limits) -> Result<wire::SettledAnswer, crate::Unencoded> {
->>>>>>> refs/hand5/g9117
     match answer {
         host::SettledAnswer::Host { error, body } => wire::SettledAnswer::Host(wire::HostAnswer { error, body }),
         host::SettledAnswer::Delivery { outcome, evidence } => {
@@ -981,16 +931,8 @@ fn settled(answer: host::SettledAnswer, limits: &wire::v18::Limits) -> Result<wi
     }
 }
 
-<<<<<<< HEAD
 pub(crate) fn turn_busy(run: Token, attempt: Token, turn: u32) -> Down {
     Down::TurnBusy(wire::TurnBusy { task: run.raw(), attempt: attempt.raw(), number: turn })
-=======
-pub(crate) fn turn_busy(run: Token, attempt: Token, turn: u32, limits: &wire::v18::Limits) -> Down {
-    Down::TurnBusy(
-        wire::TurnBusy::new(limits, wire::TurnBusyParts { task: run.raw(), attempt: attempt.raw(), number: turn })
-            .expect("fixed turn busy fields fit"),
-    )
->>>>>>> refs/hand5/g9117
 }
 
 fn source_failure(reason: wire::SourceFailure) -> SourceFailure {

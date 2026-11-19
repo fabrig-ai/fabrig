@@ -1,11 +1,7 @@
 //! The shared component bridge machine (jig/docs/design/protocol/channel/bridges.md, 5 and 9).
 use crate::translation::Translation;
-<<<<<<< HEAD
-use crate::v17::Record;
-use crate::{self as channel, Agreed, Application, Carried, Kept, Root, Spoken, v17 as wire};
-=======
+use crate::v18::Record;
 use crate::{self as channel, Agreed, Application, Carried, Kept, Root, Spoken, v18 as wire};
->>>>>>> refs/hand5/g9117
 use skein_channel::{Frame, frame_writer};
 use skein_codec::{
     bridge::Bridge,
@@ -178,28 +174,25 @@ fn a_worker_of_eighteen_cannot_send_whole_to_an_engine_below_eighteen() {
 }
 
 fn model_answer(refusal: Option<Box<[u8]>>) -> wire::FromWorker {
-    let mut answer = super::fixtures::answer_failed().into_parts();
-    let failed = match answer.ending {
+    let mut answer = super::fixtures::answer_failed();
+    let mut failed = match answer.ending {
         wire::Ending::Failed(failed) => failed,
         wire::Ending::Refused(_) | wire::Ending::Ended(_) | wire::Ending::Parked(_) => unreachable!("failed fixture"),
     };
-    let mut failed = failed.into_parts();
-    failed.model = Some(
-        wire::ModelFailure::new(
-            &wire::CEILINGS,
-            wire::ModelFailureParts {
-                endpoint: b"anthropic-api".as_slice().into(),
-                model: b"claude-opus-5-5".as_slice().into(),
-                kind: wire::ModelFailureKind::Invalid,
-                evidence: wire::ModelEvidence::Unsent,
-                status: None,
-                refusal,
-            },
-        )
-        .expect("bounded refusal"),
-    );
-    answer.ending = wire::Ending::Failed(wire::Failed::new(&wire::CEILINGS, failed).expect("failed fixture"));
-    wire::FromWorker::Answer(wire::Answer::new(&wire::CEILINGS, answer).expect("answer fixture"))
+    let model = wire::ModelFailure {
+        endpoint: b"anthropic-api".as_slice().into(),
+        model: b"claude-opus-5-5".as_slice().into(),
+        kind: wire::ModelFailureKind::Invalid,
+        evidence: wire::ModelEvidence::Unsent,
+        status: None,
+        refusal,
+    };
+    model.measure(&wire::CEILINGS).expect("bounded refusal");
+    failed.model = Some(model);
+    failed.measure(&wire::CEILINGS).expect("failed fixture");
+    answer.ending = wire::Ending::Failed(failed);
+    answer.measure(&wire::CEILINGS).expect("answer fixture");
+    wire::FromWorker::Answer(answer)
 }
 
 #[test]

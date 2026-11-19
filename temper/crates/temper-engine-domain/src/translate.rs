@@ -1,11 +1,13 @@
 //! Total vocabulary and configuration translations (jig's domain/root.md, 6).
-use crate::boundary::Call;
+use crate::boundary::{Call, EscalationChoice, MessageForm, ProposalChoice, ProposedAction, Tool};
 use crate::domain::Domain;
 use crate::limits::Limits;
 use crate::route::{LandingRule, host_route};
 use crate::{CallAnswer, Decision};
 use alloc::boxed::Box;
 use jig_domain_link::JobBound;
+use jig_domain_notes as notes;
+use jig_domain_tasks as tasks;
 use skein_lib::{Env, Map, ReplyTo};
 use temper_engine_domain_forge as forge;
 
@@ -66,7 +68,6 @@ pub(crate) fn environment_forge(env: &Env<Limits>) -> Env<forge::Limits> {
     env.with(env.limits.forge)
 }
 
-<<<<<<< HEAD
 pub(crate) fn checked_call(mut body: Call, limits: &Limits) -> Call {
     let note_refusal = note_shape(&body.tool, limits);
     if let Some(why) = note_refusal {
@@ -166,12 +167,7 @@ fn note_shape(tool: &Tool, limits: &Limits) -> Option<notes::Refusal> {
         | Tool::RejectedProposal(_)
         | Tool::RejectedNote(_) => None,
     }
-=======
-pub(crate) fn checked_call(body: Call, limits: &Limits) -> Call {
-    temper_engine_domain_translate::checked_call(body, &limits.tasks, &limits.notes)
->>>>>>> refs/hand5/g8757
 }
-pub(crate) use temper_engine_domain_translate::{call_needs_input, is_core_read, tool_kind};
 
 pub(crate) fn relay_call(
     domain: &mut Domain,
@@ -183,7 +179,6 @@ pub(crate) fn relay_call(
     host_route::render(domain, limits, decision, to, answer);
 }
 
-<<<<<<< HEAD
 pub(crate) fn call_needs_input(tool: &Tool) -> bool {
     call_mode(tool).0
 }
@@ -387,8 +382,6 @@ pub(crate) fn tool_kind(tool: &Tool) -> Option<jig_domain_core::ToolKind> {
     })
 }
 
-=======
->>>>>>> refs/hand5/g8757
 pub(crate) const fn named_call(key: crate::CallKey) -> forge::NamedCall {
     forge::NamedCall { task: key.task, attempt: key.attempt, completion: key.completion, position: key.position }
 }
@@ -494,7 +487,6 @@ pub(crate) fn keep_connector_answer(
     }
 }
 
-<<<<<<< HEAD
 pub(crate) fn is_core_read(tool: &Tool) -> bool {
     call_mode(tool).1
 }
@@ -561,8 +553,6 @@ fn call_mode(tool: &Tool) -> (bool, bool) {
     }
 }
 
-=======
->>>>>>> refs/hand5/g8757
 /// Translate test worlds' landing rules to forge stock (temper/docs/design/domain/root.md, 5).
 #[must_use]
 pub fn landing_stock(
@@ -572,4 +562,66 @@ pub fn landing_stock(
     review: u32,
 ) -> Box<[forge::settings::Stock]> {
     crate::route::policy_translate::landing_stock(deployment, projects, change, review)
+}
+
+#[cfg(test)]
+mod proposal_tests {
+    use super::{ProposedAction, proposal_shape, tasks};
+    use alloc::boxed::Box;
+
+    fn amendment(authority: Option<tasks::Authority>, reason: &[u8]) -> ProposedAction {
+        ProposedAction::Amend {
+            task: 1,
+            revision: 0,
+            amendment: tasks::Amendment {
+                tracked: None,
+                addressed: None,
+                instructions: Some(b"revised instructions".as_slice().into()),
+                release: None,
+                spec: None,
+                wake: None,
+                dependencies: None,
+                authority,
+                llm: None,
+                reason: reason.into(),
+            },
+        }
+    }
+
+    #[test]
+    fn an_amend_proposal_may_omit_authority() {
+        let limits = crate::tests::resume_fixture::limits().tasks;
+        assert_eq!(proposal_shape(&amendment(None, b"new plan"), b"please amend", &limits), None);
+    }
+
+    #[test]
+    fn an_amend_proposal_rejects_malformed_named_authority() {
+        let limits = crate::tests::resume_fixture::limits().tasks;
+        let mut authority = tasks::Authority {
+            tools: tasks::Tools(0),
+            models: tasks::Models::NONE,
+            grants: Box::new([]),
+            delegation: tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 },
+            budget: tasks::Budget { spend: 0, deadline: None },
+            notes: tasks::Scopes(0),
+            note_resources: Box::new([]),
+        };
+        assert!(tasks::valid_authority(&limits, &authority));
+        assert_eq!(proposal_shape(&amendment(Some(authority.clone()), b"plan"), b"ask", &limits), None);
+        authority.notes = tasks::Scopes(8);
+        assert!(!tasks::valid_authority(&limits, &authority));
+        assert_eq!(
+            proposal_shape(&amendment(Some(authority), b"plan"), b"ask", &limits),
+            Some(tasks::Refusal::AuthorityShape)
+        );
+    }
+
+    #[test]
+    fn an_amend_proposal_bounds_both_reasons() {
+        let mut limits = crate::tests::resume_fixture::limits().tasks;
+        limits.message_bytes = 4;
+        assert_eq!(proposal_shape(&amendment(None, b"plan"), b"ask!", &limits), None);
+        assert_eq!(proposal_shape(&amendment(None, b"plan!"), b"ask!", &limits), Some(tasks::Refusal::Read));
+        assert_eq!(proposal_shape(&amendment(None, b"plan"), b"ask!!", &limits), Some(tasks::Refusal::Read));
+    }
 }

@@ -13,15 +13,9 @@ pub(crate) fn singletons(wires: &List<Spoken>) -> Option<List<Agreed>> {
     Some(agreed)
 }
 
-<<<<<<< HEAD
-pub(crate) fn statement(wires: &List<Spoken>, statement: &v17::Agreed) -> Option<List<Agreed>> {
+pub(crate) fn statement(wires: &List<Spoken>, statement: &v18::Agreed) -> Option<List<Agreed>> {
     let mut agreed: List<Agreed> = List::with_capacity(statement.wires.len());
     for stated in &statement.wires {
-=======
-pub(crate) fn statement(wires: &List<Spoken>, statement: &v18::Agreed) -> Option<List<Agreed>> {
-    let mut agreed: List<Agreed> = List::with_capacity(statement.wires().len());
-    for stated in statement.wires() {
->>>>>>> refs/hand5/g9117
         let mut found = None;
         for wire in wires {
             if wire.name.as_bytes() == stated.name.as_ref() && wire.layout(stated.version).is_some() {
