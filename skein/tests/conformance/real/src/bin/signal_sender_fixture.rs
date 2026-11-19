@@ -142,6 +142,7 @@ fn main() {
         Request::Spawn {
             owner: Token::new(100),
             spawn: Spawn {
+                reach: None,
                 root,
                 dir: Box::from(b".".as_slice()),
                 program,

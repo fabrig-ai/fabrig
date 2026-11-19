@@ -600,6 +600,15 @@ impl Sim {
     pub(super) fn process_op(&mut self, pid: Pid, token: Token, serial: u64, op: Op) {
         match op {
             Op::Spawn { spawn } => {
+                if spawn.reach.is_some() {
+                    self.complete(
+                        pid,
+                        token,
+                        Op::Spawn { spawn },
+                        Err(Error::Reach(skein_io::kernel::Unenforced::Unsupported)),
+                    );
+                    return;
+                }
                 let wanted = 1_u32.saturating_add(
                     u32::try_from(spawn.pipes.iter().filter(|pipe| is_pipe(pipe.way)).count()).unwrap_or(u32::MAX),
                 );
@@ -1262,6 +1271,45 @@ mod tests {
     use crate::{Answer, Ask, Config, Handle, Program, Reply, Sim};
 
     #[test]
+    fn reached_spawn_refuses_without_asking_the_machine() {
+        use skein_io::kernel::{Reach, Unenforced};
+        let mut sim = Sim::new(7, Config::calm());
+        let parent = sim.spawn_process();
+        let root = sim.root(parent, Handle::new(1));
+        let reach = Box::new(Reach { abi: 6, rules: Box::new([]) });
+        let mut submits = Queue::with_capacity(1);
+        submits.push(Submit {
+            op: Token::new(1),
+            kind: Op::Spawn {
+                spawn: Box::new(Spawn {
+                    reach: Some(reach.clone()),
+                    program: b"service".as_slice().into(),
+                    args: Box::new([]),
+                    env: Box::new([]),
+                    root,
+                    dir: Box::new([]),
+                    pipes: Box::new([Pipe { child: 1, way: Way::Out, parent: None }]),
+                }),
+            },
+        });
+        sim.submit(parent, &mut submits);
+        let mut calls = Queue::with_capacity(1);
+        sim.calls(&mut calls);
+        assert!(calls.is_empty(), "a reached spawn never asks the machine");
+        let mut completes = Queue::with_capacity(1);
+        sim.reap(parent, &mut completes);
+        let complete = completes.pop().expect("reach refusal completes at once");
+        assert_eq!(complete.op, Token::new(1));
+        assert_eq!(complete.result, Err(Error::Reach(Unenforced::Unsupported)));
+        assert!(complete.is_valid());
+        let Op::Spawn { spawn } = complete.kind else { panic!("spawn record") };
+        assert_eq!(spawn.reach, Some(reach));
+        assert!(spawn.pipes.iter().all(|pipe| pipe.parent.is_none()));
+        let _closed = sim.cut(parent);
+        sim.assert_no_open_fds(parent);
+    }
+
+    #[test]
     #[expect(clippy::too_many_lines, reason = "one service exchange covers all three pipe directions and exit")]
     fn hosted_service_exchanges_three_pipes_and_settles_wait() {
         let mut config = Config::calm();
@@ -1275,6 +1323,7 @@ mod tests {
             op: Token::new(1),
             kind: Op::Spawn {
                 spawn: Box::new(Spawn {
+                    reach: None,
                     program: Box::from(&b"service"[..]),
                     args: Box::new([]),
                     env: Box::new([]),
@@ -1530,6 +1579,7 @@ mod tests {
             op: Token::new(0),
             kind: Op::Spawn {
                 spawn: Box::new(Spawn {
+                    reach: None,
                     program: b"never".to_vec().into_boxed_slice(),
                     args: Box::new([]),
                     env: Box::new([]),

@@ -7,6 +7,7 @@ fn holder() -> State {
         Some((
             b"cmd".as_slice().into(),
             Ok(Spawn {
+                reach: None,
                 program: b"/bin/cmd".as_slice().into(),
                 args: Box::new([b"cmd".as_slice().into(), b"arg".as_slice().into()]),
                 env: Box::new([b"TEMPER_CHECKPOINT=/deployment/checkpoints/name".as_slice().into()]),

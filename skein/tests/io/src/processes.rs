@@ -77,6 +77,7 @@ impl Process {
         requests.push(Request::Spawn {
             owner: OWNER,
             spawn: Spawn {
+                reach: None,
                 root,
                 dir: Box::from(b".".as_slice()),
                 program: Box::from(program),

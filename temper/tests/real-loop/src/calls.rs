@@ -1074,6 +1074,7 @@ impl Caller {
             now,
             index,
             Spawn {
+                reach: None,
                 program: fixtures::CTL.into(),
                 args,
                 env: vec![

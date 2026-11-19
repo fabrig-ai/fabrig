@@ -722,6 +722,7 @@ impl Application {
                         io::Request::Spawn {
                             owner,
                             spawn: io::kernel::Spawn {
+                                reach: None,
                                 program: spawn.program,
                                 args: spawn.args,
                                 env: spawn.env,

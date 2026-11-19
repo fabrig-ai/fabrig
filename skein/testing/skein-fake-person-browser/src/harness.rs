@@ -311,6 +311,7 @@ impl Runtime {
     }
     fn browser_spawn(command: browser::command::Command, root: kernel::Fd) -> Spawn {
         Spawn {
+            reach: None,
             program: command.program,
             args: command.args.into_boxed(),
             env: command
@@ -359,6 +360,7 @@ impl Runtime {
         let server_root = open_root(std::path::Path::new("/")).expect("server root");
         let browser_spawn = Self::browser_spawn(command, root);
         let server_spawn = Spawn {
+            reach: None,
             program: setup.server.as_os_str().as_bytes().into(),
             args: setup.args.iter().map(|arg| arg.as_bytes().into()).collect(),
             env: Box::new([]),
@@ -807,6 +809,7 @@ impl Runtime {
                 self.requests.push_back(io::Request::Spawn {
                     owner: SERVER,
                     spawn: Spawn {
+                        reach: None,
                         program: setup.server.as_os_str().as_bytes().into(),
                         args: args.into(),
                         env: Box::new([]),

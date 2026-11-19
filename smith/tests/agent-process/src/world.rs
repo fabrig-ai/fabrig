@@ -108,6 +108,7 @@ impl Parent {
         };
         parent.submit(Op::Spawn {
             spawn: Box::new(Spawn {
+                reach: None,
                 program: b"smith".as_slice().into(),
                 args: setup.arguments(),
                 env: Box::new([]),

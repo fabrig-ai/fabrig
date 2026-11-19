@@ -101,6 +101,7 @@ fn spawn(chromium: &Path, profile: &Path) -> (Spawn, kernel::Fd) {
     }
     (
         Spawn {
+            reach: None,
             program: command.program,
             args: command.args.into_boxed(),
             env: env.into_boxed_slice(),

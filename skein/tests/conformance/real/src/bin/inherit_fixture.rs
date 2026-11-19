@@ -38,6 +38,7 @@ fn main() {
         process,
         Op::Spawn {
             spawn: Box::new(Spawn {
+                reach: None,
                 program: Box::from(&b"/bin/sh"[..]),
                 args: Box::new([
                     Box::from(&b"-c"[..]),

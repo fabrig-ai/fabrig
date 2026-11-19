@@ -807,7 +807,9 @@ fn copy_arrived(copying: &mut Copying, arrived: Arrived, queue: &mut Queue<file:
                 | file::Event::Made { .. } => return copy_fail(copying, queue),
             };
             match error {
-                Error::Permission | Error::TooManyLinks | Error::Other(_) => copy_open(copying, queue),
+                Error::Permission | Error::TooManyLinks | Error::Reach(_) | Error::Other(_) => {
+                    copy_open(copying, queue);
+                }
                 Error::Busy
                 | Error::Refused
                 | Error::Reset

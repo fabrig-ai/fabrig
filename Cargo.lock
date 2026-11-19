@@ -3675,6 +3675,7 @@ name = "skein-io"
 version = "0.0.0"
 dependencies = [
  "skein-lib",
+ "skein-rows",
 ]
 
 [[package]]
