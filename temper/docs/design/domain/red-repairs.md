@@ -94,8 +94,12 @@ filed it. What waits is section 11.
   replaces it whole.
 - **Refused,** in words: `finding P/N has no blame: it is no red filed
   under landed`; `finding P/N is cleared`; `landing COMMIT is not one
-  the landing log holds on BRANCH`; and as any act is, `finding P/N is
-  not yours: its owner is HOLDER`.
+  the landing log holds on BRANCH`; `finding P/N's tier TIER has no
+  followed branch`, for a move to a landing when the repository's
+  settings today name no branch that tier follows (the branch is read
+  from the settings alone, never from past tier runs or the forge; a
+  move to none still holds); and as any act is, `finding P/N is not
+  yours: its owner is HOLDER`.
 - **A many finding** given ids later keeps a moved blame as moved
   (`red-findings.md`, section 5 turns only filed blame suspected).
 
