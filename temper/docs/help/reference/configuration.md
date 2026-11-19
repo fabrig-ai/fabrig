@@ -39,7 +39,7 @@ Shape: `application`. Paths: `application`. The application’s machine parts, r
 Shape: `application-limits`. Paths: `application.limits`. The application’s limits profile and named overrides.
 
 - `profile`: text, standard; optional; init writes "standard". May be absent or standard; either reads the stock before overrides.
-- `overrides`: named limits, see temper help limits; required; init writes {"checkout.message_bytes":63740,"checkout.workspaces":4,"forge.client.op_bytes":63738,"forge.client.repositories":3,"forge.judge_projects":8,"forge.output":82,"forge.repositories":3,"forge_component.body_bytes":127497,"git_component.operations":4,"root.journal.transcript_bytes":18431846,"root.loads.bytes":18432090,"root.loads.read_bytes":36863684,"root.loads.reply_bytes":18432090,"root.loads.transcript_bytes":18431842}. The dotted limit names whose values replace the stock’s.
+- `overrides`: named limits, see temper help limits; required; init writes {"checkout.message_bytes":63740,"checkout.workspaces":4,"forge.client.op_bytes":63738,"forge.client.repositories":3,"forge.judge_projects":8,"forge.output":82,"forge.repositories":3,"forge_component.body_bytes":127497,"git_component.operations":4,"root.journal.transcript_bytes":18431846,"root.loads.bytes":18432098,"root.loads.read_bytes":36863684,"root.loads.reply_bytes":18432098,"root.loads.transcript_bytes":18431842}. The dotted limit names whose values replace the stock’s.
 
 ## application.clients
 

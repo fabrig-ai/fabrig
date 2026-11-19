@@ -863,9 +863,9 @@ box built at `a9e804e340`: not journeys to reprint or land (section 7). Each
 landing removes its request's directory and its overlay rules, and the
 render check reads them from the request's own commit (`look-requests.md`,
 4). `welcome-set-up` and `welcome-playground` reprint with the welcome's bar
-of the brand, the steps and the link region alone and Welcome's box line
-under its cards; the prints that draw the rail reprint with the switcher's
-phone-only links' look token; `welcome-playground`'s `NewChat` reprints with
+of the brand, the steps, the link region and the night switch last
+(`night-switch-top`), and Welcome's box line under its cards; the prints
+that draw the rail reprint with the switcher's phone-only links' look token; `welcome-playground`'s `NewChat` reprints with
 its path naming no project, no ">_" and the view group in the bar. The
 states the messages name in words are the gallery's (`gallery.md`, 2).
 `chat-bar` removes "+ Draft", which `chat-draft`'s recorded walk pressed

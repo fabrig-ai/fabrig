@@ -24,6 +24,14 @@ skein-fail-stop.workspace = true
 [dev-dependencies]
 temper-deployment-fixtures.workspace = true
 temper-agent-fixtures.workspace = true
+jig-domain-core.workspace = true
+jig-protocol-store.workspace = true
+jig-protocol-config.workspace = true
+skein-lib.workspace = true
+temper-engine-service-stock.workspace = true
+temper-engine-service-vocabulary.workspace = true
+temper-github-app.workspace = true
+temper-service-core.workspace = true
 serde_json.workspace = true
 skein-scratch.workspace = true
 skein-shell.workspace = true

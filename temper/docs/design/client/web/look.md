@@ -137,7 +137,8 @@
   current one filled ink, a done one ticked green, joined by short
   hairlines, hovered ink; below 760 px only the current label shows. After the
   steps, the top bar's end, the link region alone, which takes no room
-  but while it says "Offline" (the look request `welcome-top`). The bar packs its rows to their
+  but while it says "Offline" (the look request `welcome-top`), then the
+  night switch, last (`night-switch-top`). The bar packs its rows to their
   end (`justify-content: flex-end`) and the steps take the free space at
   their left (`margin-left: auto`), so that the steps and the end keep
   to the right, and an end the row cannot hold wraps to the
@@ -647,7 +648,20 @@
     layout (`#app:has(> .temper-session)`), where the rail draws no box of its
     own (`display: contents`) and none of its other parts, fixed at the right
     of the chat's bar and centred on its height, the bar's right padding
-    growing by the switch's width and an 8 px gap.
+    growing by the switch's width and an 8 px gap. On the top bar
+    (*Outside a project*, below; the look request `night-switch-top`),
+    `#app > .temper-top > .temper-night-switch`, the bar's last child in its
+    row: `flex: none`, the same 30 px square, icon, colours and hover, its
+    right margin −6 px, at the bar's right edge; the bar stays one row. At 760 px and under it stays in the row, its press
+    target widened to 44 px by a centred `::after`, as the rail's. In every
+    state the mark stays at the bar's left and the switch at its right edge,
+    whatever comes between: the welcome's steps, or before they show the
+    mark alone; outside the welcome the end, packed beside the switch rather
+    than centred by the bar's `space-between`, and the mark alone while `me`
+    is read or the link is signed out or out of date. The request's pages
+    show the welcome's steps alone, so a rule of the landing's own holds the
+    other states, leaving the welcome with its steps drawn as the pages draw
+    it.
   - *What stays:* a chat's terminal keeps its own theme, dark or light, at
     night (`look.md`, *A chat's terminal*); the placeholder's first paint is the
     day's, since it draws before the shell reads the kept look. The rest of the
@@ -686,7 +700,8 @@
   - *The top bar,* `temper-top`, the frame's banner: temper's mark at
     the left, `temper-brand`, "✦" in the signal before "temper", 15 px
     semibold; at the right, `temper-top-end`, the muted 14 px statuses
-    and the person's name, and "Sign out" an outlined 32 px button.
+    and the person's name, and "Sign out" an outlined 32 px button; last,
+    after it, the night switch (*Day and night*, *The switch*).
     22 px by 32 px padding, 14 px by 16 px at 760 px and under, no rule
     under it. While it shows, the page's body takes the paper, the ink
     and IBM Plex Sans at 15 px.

@@ -33,7 +33,8 @@ it (`pages/README.md`). `temper-box open` stays the tests' line client
   port fell back to another is named by its address.
 - **The link is never an argument,** as `temper ctl`'s isn't
   (`../ctl/README.md`, 6.1): the TUI takes it pasted on its sign-in screen
-  (`pages/README.md`), and refuses it as ADDRESS.
+  (`pages/README.md`), and refuses it as ADDRESS, in either of its forms
+  (`../README.md`, section 4).
 - **One argument at most,** an address: a first word that is no
   address and no command is no command, as before
   (`temper: no command WORD; temper --help lists them`).
@@ -358,7 +359,7 @@ it (`pages/README.md`). `temper-box open` stays the tests' line client
   | `Leave` | Esc on a talk's empty box with no list, or `/exit` sent whole on a talk: the notice of a talk left while the person's talk is open, then `Went(Home { project })`, the talk's project (`pages/talk.md`, 1, *Leaving*) |
   | `Dismiss` | Esc on a command's list: `Act::Terminal(terminal::Act::Dismiss)`, clearing the left-off selection too |
   | `LeftOff { task }` | Up or Down on the launchpad's left-off rows, `Some(TASK)` the row they select, or Esc there, `None`: the TUI's state keeps the selection (`pages/launchpad.md`, 4) |
-  | `Own { command }` | one of the TUI's own commands pressed or sent alone (`pages/README.md`, *The TUI's own commands*), `Own::Draft`, `Change`, `Ask` or `Tell` going to its place not yet started, the box's words cleared, the left-off selection cleared and a walk ended (`pages/README.md`, 2, *Not yet started*), `Brief` the note, `Needs` the walk, `Open` the object in focus opened, `Talk` its list opened, a choice there `Act::Go` to the role's `Talk`, `Theme` the theme's list opened (`pages/README.md`, *`/theme`*); `n` on the launchpad's empty box makes `Own { command: Needs }` |
+  | `Own { command }` | one of the TUI's own commands pressed or sent alone (`pages/README.md`, *The TUI's own commands*), `Own::Draft`, `Change`, `Ask` or `Tell` going to its place not yet started, the box's words cleared, the left-off selection cleared and a walk ended (`pages/README.md`, 2, *Not yet started*), `Brief` the note, `Needs` the walk, `Open` the object in focus opened, `Web`, in front, the box's printed link opened while live, else the web's Home (`box.md`, *`/web`, temper in the browser*), `Talk` its list opened, a choice there `Act::Go` to the role's `Talk`, `Theme` the theme's list opened (`pages/README.md`, *`/theme`*); `n` on the launchpad's empty box makes `Own { command: Needs }` |
   | `Back` | Esc on a place not yet started's empty box with no list standing: the place ends, starting nothing, and a root its refused start left at `NewChat` goes to `Home { project }` (`pages/README.md`, 2, *Not yet started*) |
   | `Theme { choice }` | on the theme's list, `Some(choice)` taken: the host draws in it, keeps it (`theme.md`, *The theme chosen*) and gives its notice; `None`, Esc there: the list lowered |
   | `Open { address }` | a page opened through the opener, the whole address the view made: Enter on the selected goal, a sign-off's "Review on FORGE ↗", "Open it on the web" (`pages/launchpad.md`, 4 and 6) |
@@ -374,7 +375,8 @@ it (`pages/README.md`). `temper-box open` stays the tests' line client
   too, and on a talk it sends the box's other words as the talk's
   (`pages/talk.md`).
   `Duties.open`, which opens the approval's tab, carries a page's
-  address the same way.
+  address the same way, and in front `/web`'s printed link, the one
+  secret it ever carries (`box.md`, *`/web`, temper in the browser*).
 
   A key that makes `Act`, `Command`, `Aside`, `Accept`, `Dismiss`, `Leave`, `LeftOff`,
   `Own`, `Back`, `Open`, `Walk`, `EndWalk` or `Theme` marks the frame it acts on
@@ -544,7 +546,9 @@ Its tests are `../testing.md`'s; its later passes, `../README.md`, section 5's.
   in a real terminal, Linux and macOS, and check the foreground taken
   and given back, Ctrl+C with and without work, a restart and a give up
   on the quiet line, `/log`, and the welcome's link copied whole from
-  its wrapped rows; the look request `tui-box-front` is checked against
+  its wrapped rows; on a box set up before, `/web` opening the browser
+  signed in, then the web's Home, and over SSH its note's link copied
+  whole through a tunnel; the look request `tui-box-front` is checked against
   its frames, the light theme among them (`../web/look-requests.md`,
   sections 4 and 5). The user's requests of 2026-11-09 are checked
   there too, in emacs vterm at 150 by 39 on a brand-new box: keys typed
@@ -558,6 +562,22 @@ Its tests are `../testing.md`'s; its later passes, `../README.md`, section 5's.
   show the one last said; a box over SSH is the person's tunnel, with
   no front of its own. Default: so, until the user asks otherwise on a
   recorded frame.
+- **`/web` and a sign-in it doesn't see** (`box.md`, *`/web`, temper in
+  the browser*): the TUI reads a sign-in by the printed link as the
+  forges document's `linked` turning true, and `linked` says whether
+  the printed link signed anyone in since the engine started
+  (`../forge/records.md`), so a sign-in by a fresh link printed while it
+  already reads true is not seen: `/web` then opens that spent link,
+  whose page says a fresh one is in the terminal, and the fresh `link`
+  line makes `/web` open the fresh one. And once the link is spent,
+  `/web` opens the web's Home, so a browser that holds no sign-in, a
+  sign-in ended or another browser, lands on the sign-in page with no
+  link from the TUI. Default: so, the request's own reading; an engine
+  that says each `LinkSignedIn` to its clients, `linked` reset as a
+  fresh printed link is drawn or counted, or `/web` asking a link of its
+  own (jig's `protocol/client/sign-in.md`, the asked links) for a
+  browser with no sign-in, waits for the user's word. Owner:
+  temper/tui.
 - **The TUI's address kept at closing** (2): the binary writes it once
   the loop has ended, so a TUI killed outright keeps the address it
   read. Default: so, though the run now writes the note at once with

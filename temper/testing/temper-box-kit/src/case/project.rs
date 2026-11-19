@@ -37,6 +37,7 @@ impl MakeProject {
         let limits = temper_client_shell_terminal::limits::native();
         let bounds = limits.client.client;
         let mut shell = Shell::new(Settings {
+            mapping: jig_client_protocol_http::Mapping::new(b"/jig").expect("default mapping"),
             engine: skein_io::Addr::Ip(engine),
             directory,
             limits: limits.connections,

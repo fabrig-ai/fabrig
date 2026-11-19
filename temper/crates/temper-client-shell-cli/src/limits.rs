@@ -10,7 +10,14 @@ pub const LINK: u32 = 256;
 #[must_use]
 pub fn settings(engine: skein_io::Addr, leaf: Box<[u8]>) -> jig_client_shell_native::Settings {
     let limits = native();
-    jig_client_shell_native::Settings { engine, directory: leaf, limits: limits.connections, io: limits.io }
+    jig_client_shell_native::Settings {
+        mapping: jig_client_protocol_http::Mapping::with_page(b"/jig", temper_client_domain_forge::sign_in::LINK_PAGE)
+            .expect("temper mapping"),
+        engine,
+        directory: leaf,
+        limits: limits.connections,
+        io: limits.io,
+    }
 }
 /// Concurrent HTTP exchanges, beside the event stream.
 pub const EXCHANGES: u32 = 8;

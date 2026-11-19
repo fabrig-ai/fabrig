@@ -524,6 +524,7 @@ const FORGE_LIMITS: forge::Limits = forge::Limits {
     landings: 8,
     landing_members: 2,
     landings_kept: 16,
+    landings_pending: 64,
     changes_rows: 32,
     changes_landed: 8,
     gates: 2,

@@ -693,8 +693,10 @@ pub(crate) fn change(kind: u16, resource: &c::Part, words: &c::DocumentText, out
 fn verification_room(evidence: &[u8]) -> usize {
     if evidence.starts_with(b"Cleared by ")
         || evidence.starts_with(b"Not cleared:")
+        || evidence.starts_with(b"Ended at landing;")
         || skein_lib::bytes::find(evidence, b"\nCleared by ").is_some()
         || skein_lib::bytes::find(evidence, b"\nNot cleared:").is_some()
+        || skein_lib::bytes::find(evidence, b"\nEnded at landing;").is_some()
     {
         evidence.len().saturating_add(1)
     } else {

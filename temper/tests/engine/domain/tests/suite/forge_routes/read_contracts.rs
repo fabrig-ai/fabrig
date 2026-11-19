@@ -12,6 +12,7 @@ fn worker_forge_reads_keep_their_contract_and_renderer_across_restart() {
     let digits = std::str::from_utf8(&digits).unwrap();
     let old_file = format!(r#"{{"head":"{digits}","path":"file"}}"#);
     let file = format!(r#"{{"what":"file","commit":"{digits}","path":"file"}}"#);
+    let file_answer = format!("file at {digits}:\ncontents");
     let checks = format!(r#"{{"what":"checks","commit":"{digits}"}}"#);
     let current = temper_engine_smith::wire::VERSION;
     let cases = [
@@ -20,6 +21,10 @@ fn worker_forge_reads_keep_their_contract_and_renderer_across_restart() {
         (3, "read_file", old_file.as_str(), "contents"),
         (4, "read_file", old_file.as_str(), "contents"),
         (current, "read_forge", file.as_str(), "contents"),
+        (current, "read_forge", r#"{"what":"file","branch":"main","path":"file"}"#, file_answer.as_str()),
+        (current, "read_forge", r#"{"what":"file","path":"file"}"#, file_answer.as_str()),
+        (current, "read_forge", r#"{"what":"branch"}"#, digits),
+        (9, "read_forge", r#"{"what":"file","branch":"main","path":"file"}"#, "contents"),
         (current, "read_issues", r#"{"what":"items"}"#, "Items:"),
         (current, "read_ci", checks.as_str(), ""),
         (

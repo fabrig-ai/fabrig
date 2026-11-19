@@ -3,7 +3,7 @@
 2026-11-18. Where the tree's code lags or departs from [needs-you.md](needs-you.md).
 
 
-- **Not yet:** 1, **What the client keeps**, *The needs' rows* and the count after *Later*, with *Its intro*, *Its head* and the terminal's "Needs you N": the client holds the inbox's first window of needs, counts the open cards read, and takes a filtered read's cut from `page.cut` [in flight: change 7583].
+- **Not yet:** 1, **What the client keeps**, *The needs' rows*, the count after *Later* and *The rail's count*: a needs page answering without its value marks the read cut while its rows stand, a stopped chain's rows stand cut on first load, a page's own `cut` is not read, no transient end is asked again, and the rail is cut wherever its watch's `next` is set, updates past the window included, and never says the page's count [in flight: change 8571].
 - **Not yet:** 1, **Needs you**: a need whose card is not read is neither listed nor opened, and the terminal's inbox draws no row for it [in flight: change 7587].
 - **Not yet:** 1, *A group of findings*: no test pins a person task asked under a standing role as a group's card [in flight: change 7584].
 - **Not yet:** 1, *An approval*: its size [in flight: change 535].

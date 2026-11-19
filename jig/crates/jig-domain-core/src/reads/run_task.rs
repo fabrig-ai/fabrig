@@ -588,6 +588,7 @@ mod tests {
                     task: 1,
                     attempt: 9,
                     conversation: 1,
+                    endpoint: None,
                     credentials: Box::new([]),
                     accounts: Box::new([]),
                     placement: None,

@@ -51,13 +51,13 @@ frequent run takes less than three hours.
 ## 2. Where it starts
 
 Read on 2026-11-18 through GitHub's public API, which gives each run
-and its failing step's annotations without a login (`../testing/README.md`,
-2.8).
+and its failing step's annotations without a login (`../testing/macos.md`,
+section 1).
 
 - **What runs:** `.github/workflows/macos.yml`, on `macos-26`, every
   target compiled, then the one story,
   `a_csv_change_passes_ci_and_a_blocking_agent_review_on_the_owned_forge_then_lands_and_survives_restart`
-  (`../testing/README.md`, 2.8). A run takes 7 to 13 minutes, its
+  (`../testing/macos.md`, section 2). A run takes 7 to 13 minutes, its
   dependencies cached.
 - **Half its schedule is dropped.** Its cron asks for four runs a day;
   GitHub started about two.
@@ -65,8 +65,9 @@ and its failing step's annotations without a login (`../testing/README.md`,
   from 2026-11-13 to 11-15, then passed again. Since 2026-11-17 22:54Z
   the run stops before the story: `temper-box forge fetch` refuses a
   forge with no setup, "run forge prepare 1 --listen ADDR --person LOGIN
-  EMAIL", since the forge's places are kept at set-up. A repair is in
-  flight (section 9).
+  EMAIL", since the forge's places are kept at set-up. A repair landed
+  on 2026-11-19, 803ec4abac: the step prepares the forge first, and the
+  next run shows whether the story passes.
 - **Every target compiles,** so the port's sections 3 and 4 hold at the
   compiler (`macos.md`); the suites, the browser tier and the TUI's
   stories have never run on a Mac.
@@ -178,7 +179,7 @@ reached.
 ### 4.5 What stays
 
 - **The one story stays in `process`,** by its name, and its support on
-  macOS stays as `../testing/README.md`, 2.8 has it.
+  macOS stays as `../testing/macos.md`, section 2 has it.
 - **`release-macos.yml`** is unchanged.
 - **No concurrency group by ref:** temper runs one run per tier at a
   time, and GitHub queues what passes its limit on macOS jobs at once.
@@ -253,7 +254,7 @@ does. Its contract:
    `all` at main's tip: its failures are the inventory.
 3. **Each failure fixed or listed:** a test that only Linux can run is
    built for Linux alone, with its reason, and listed in its tree's list
-   (`../testing/README.md`, 2.8 for temper; skein's
+   (`../testing/macos.md`, section 3 for temper; skein's
    `runtime/shell.md`, section 8; smith's and jig's lists made in their
    testing design as their first entries come). One goal per tree. Such
    a goal can't run its tests on a Mac: it lands on its reading of the
@@ -287,10 +288,10 @@ does. Its contract:
 
 The milestones are in `macos-tiers.execution.md`. In short:
 
-1. **The fetch repaired,** the one story running again: a goal, in
-   flight.
+1. **The fetch repaired,** the one story running again: landed on
+   2026-11-19.
 2. **The workflow** of section 4 and the tiers' workflows of 5.1, with
-   `../testing/README.md`, 2.8 rewritten to match.
+   `../testing/macos.md` rewritten to match.
 3. **The relay,** outside this repository, from 5.2's contract: its
    label's runner and its token.
 4. **Bring-up** (section 7), tree by tree.

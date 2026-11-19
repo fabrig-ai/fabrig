@@ -1,8 +1,5 @@
 //! An engine's address or sign-in link (temper/docs/design/client/line.md, 1, and temper/docs/design/client/tui/README.md, 1).
-use skein_lib::{
-    Secret,
-    base64::{self, Alphabet},
-};
+use skein_lib::Secret;
 use std::net::SocketAddr;
 
 #[derive(Debug)]
@@ -23,11 +20,9 @@ pub fn target(argument: &[u8]) -> Result<Target, Refused> {
     let (address, path) = rest.split_once('/').unwrap_or((rest, ""));
     let engine: SocketAddr = address.parse().map_err(|_| bad())?;
     if !path.is_empty() {
-        let secret = path.strip_prefix("jig/v1/sign-in/link?secret=").ok_or_else(bad)?;
-        let secret = base64::decode(Alphabet::Url, secret.as_bytes(), 32).map_err(|_| bad())?;
-        if secret.len() != 32 {
-            return Err(bad());
-        }
+        let mapping = jig_client_protocol_http::Mapping::with_page(b"/jig", temper_client_domain::sign_in::LINK_PAGE)
+            .expect("temper mapping");
+        jig_client_protocol_http::printed(&mapping, argument).map_err(|_| bad())?;
     }
     if !engine.ip().is_loopback() {
         return Err(Refused::NotLoopback);

@@ -1754,6 +1754,7 @@ fn project_status(value: forge::StatusView, limits: &w::Limits) -> Option<Box<[u
             queued: value.queued,
             red: value.red,
             branch: value.branch,
+            unpaid: value.unpaid,
         },
     )
     .ok()?;

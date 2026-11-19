@@ -467,6 +467,8 @@ pub struct RunProof {
     /// The conversation's first attempt: this claim's attempt when its run starts
     /// fresh, the previous proof's when it resumes; never zero.
     pub conversation: u64,
+    /// Main model endpoint committed with this claim (domain/engine/executors.md, 1 and 2).
+    pub endpoint: Option<u32>,
     /// Application credential numbers lent with this claim.
     pub credentials: Box<[u32]>,
     pub accounts: Box<[jig_domain_authority::AccountBinding]>,
@@ -556,6 +558,7 @@ impl RunProof {
             task,
             attempt,
             conversation,
+            endpoint: None,
             credentials: Box::new([]),
             accounts: Box::new([]),
             placement: None,

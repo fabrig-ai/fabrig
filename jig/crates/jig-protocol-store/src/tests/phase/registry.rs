@@ -5,6 +5,7 @@ use crate::{KeptFamily, KeptMap, KeyRange, Keys, Owner, OwnerSet, OwnerSets, Unp
 use jig_test_layouts::layouts::{CURRENT, KEPT, WRITTEN};
 use skein_lib::{Buffer, Reader};
 mod edges;
+mod restoring;
 mod retired;
 mod unplanned;
 

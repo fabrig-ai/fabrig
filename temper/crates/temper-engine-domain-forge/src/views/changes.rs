@@ -137,7 +137,10 @@ impl Domain {
     }
     fn changes_history(&self, view: &mut ChangesView, limits: &Limits) -> Option<()> {
         let mut recent = Map::with_capacity(
-            limits.repositories.checked_mul(limits.landings_kept)?.checked_mul(limits.landing_members)?,
+            limits
+                .repositories
+                .checked_mul(limits.landings_kept.checked_add(limits.landings_pending)?)?
+                .checked_mul(limits.landing_members)?,
         );
         let mut newest = None;
         let mut landing: Box<[u8]> = Box::default();

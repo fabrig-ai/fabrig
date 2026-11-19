@@ -875,6 +875,25 @@ fn forge_link_refusals_name_the_phase_kind_key_and_missing_target() {
 }
 
 #[test]
+fn start_numbers_name_every_source_kind_and_both_ranges() {
+    use jig_domain_core::{
+        settings::Setting,
+        start::{Failure, Numbered},
+    };
+    assert_eq!(
+        start_failure(&Failure::Numbers {
+            settings: Box::new([
+                Numbered { setting: Setting::Template(9), changed: true },
+                Numbered { setting: Setting::Charter(17), changed: true },
+                Numbered { setting: Setting::Policy(40), changed: false },
+                Numbered { setting: Setting::Model(70), changed: true },
+            ])
+        }),
+        "settings out of their numbers (the stock's 1 to 32, a deployment's own 33 to 64): changed template 9, changed charter 17, default policy 40, changed model 70"
+    );
+}
+
+#[test]
 fn start_failures_name_the_set_key_setting_and_measured_limit() {
     use jig_domain_core::{
         HeldLimit, Key, settings,

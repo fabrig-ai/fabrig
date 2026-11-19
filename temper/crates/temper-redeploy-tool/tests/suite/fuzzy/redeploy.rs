@@ -15,6 +15,7 @@ struct Audited {
     started: BTreeSet<Part>,
     context: String,
     checked: bool,
+    serving_verdict: Option<Output>,
     serving_checkpoint: Option<String>,
     settled_checkpoint: Option<String>,
     last_checkpoint: Option<String>,
@@ -39,8 +40,30 @@ impl Audited {
             assert_eq!(line, "checkpoint '/bin/temper-engine'", "{}", self.context);
         }
         if line.starts_with("verdict ") {
-            let checkpoint = self.settled_checkpoint.as_ref().expect("stop checkpoint before verdict");
+            assert!(!self.draining, "verdict on the together path: {}", self.context);
+            let checkpoint = if self.deployment.engine.running {
+                assert!(self.serving_verdict.is_none(), "serving verdict read twice: {}", self.context);
+                assert!(
+                    !self.deployment.lines.iter().any(|call| call.line.starts_with("stop ")),
+                    "serving verdict after a stop: {}",
+                    self.context
+                );
+                self.serving_checkpoint.as_ref().expect("serving checkpoint before verdict")
+            } else {
+                self.settled_checkpoint.as_ref().expect("stop checkpoint before verdict")
+            };
             assert_eq!(line, format!("verdict '/builds/{NEW}/temper-engine' '{checkpoint}'"), "{}", self.context);
+        }
+        if line == "stop engine" && !self.draining {
+            let answer = self.serving_verdict.as_ref().expect("serving verdict before engine-alone stop");
+            assert_eq!(answer.code, Some(0), "engine alone stopped after a failed serving verdict: {}", self.context);
+            let last = answer
+                .stdout
+                .lines()
+                .chain(answer.stderr.lines())
+                .filter_map(|line| line.rsplit_once("workers may stay: ").map(|(_, value)| value))
+                .next_back();
+            assert_eq!(last, Some("yes"), "engine alone stopped without a serving yes: {}", self.context);
         }
         if line.starts_with("swap ") {
             assert!(self.settled_checkpoint.is_some(), "swap without this stop's checkpoint: {}", self.context);
@@ -57,6 +80,9 @@ impl Audited {
     fn after(&mut self, part: Part, line: &str, answer: &Output) {
         if line.starts_with("check ") {
             self.checked = answer.code == Some(0);
+        }
+        if line.starts_with("verdict ") && self.deployment.engine.running {
+            self.serving_verdict = Some(answer.clone());
         }
         if line.starts_with("stop ") && part == Part::Engine {
             self.settled_checkpoint = None;
@@ -124,6 +150,7 @@ fn deployments_keep_swap_drain_refusal_and_done_invariants_seeded() {
     let mut counts = BTreeSet::new();
     let mut verdicts = BTreeSet::new();
     let mut read_again = BTreeSet::new();
+    let mut read_serving = BTreeSet::new();
     for seed in 1..=96_u64 {
         for mode in [Mode::Engine, Mode::Workers, Mode::Together] {
             for verdict in 0..5 {
@@ -154,7 +181,10 @@ fn deployments_keep_swap_drain_refusal_and_done_invariants_seeded() {
                 deployment.stop_logs.push_back(stop);
                 let (code, verdict_line) = verdict_answer(verdict);
                 let stop_verdict = (seed + verdict) % 5;
-                verdicts.insert(format!("{mode:?}/{verdict}/{stop_verdict}"));
+                let serving_verdict = (seed / 5) % 5;
+                verdicts.insert(format!("{mode:?}/{verdict}/{serving_verdict}/{stop_verdict}"));
+                let (serving_code, serving_line) = verdict_answer(serving_verdict);
+                deployment.verdict_answer(serving_code, serving_line);
                 let (stop_code, stop_line) = verdict_answer(stop_verdict);
                 deployment.verdict_answer(stop_code, stop_line);
                 let ran_job = next(&mut random) % 3 == 0;
@@ -166,7 +196,7 @@ fn deployments_keep_swap_drain_refusal_and_done_invariants_seeded() {
                 accounts(&mut deployment, true, false);
                 let failure = fail(&mut deployment, &mut random);
                 let context = format!(
-                    "seed {seed}, {mode:?}, verdict {verdict}, stop verdict {stop_verdict}, count {count}, failure {failure}"
+                    "seed {seed}, {mode:?}, verdict {verdict}, serving verdict {serving_verdict}, stop verdict {stop_verdict}, count {count}, failure {failure}"
                 );
                 let mut hosts = Audited {
                     deployment,
@@ -176,12 +206,16 @@ fn deployments_keep_swap_drain_refusal_and_done_invariants_seeded() {
                     started: BTreeSet::new(),
                     context,
                     checked: false,
+                    serving_verdict: None,
                     serving_checkpoint: None,
                     settled_checkpoint: None,
                     last_checkpoint: None,
                 };
                 let (outcome, record) = run(&d, &mut hosts, mode);
                 outcomes.insert(format!("{outcome:?}"));
+                if hosts.serving_verdict.is_some() {
+                    read_serving.insert(serving_verdict);
+                }
                 if record.verdict.is_some() {
                     read_again.insert(stop_verdict);
                 }
@@ -199,7 +233,8 @@ fn deployments_keep_swap_drain_refusal_and_done_invariants_seeded() {
             }
         }
     }
-    assert_eq!(verdicts.len(), 75, "each mode and each pair of scripted verdicts");
+    assert_eq!(verdicts.len(), 375, "each mode and each triple of scripted verdicts");
+    assert_eq!(read_serving, [0, 1, 2, 3, 4].into(), "each verdict actually read before a stop");
     assert_eq!(read_again, [0, 1, 2, 3, 4].into(), "each verdict actually read again at a stop");
     assert_eq!(counts, [1, 2, 3, 4].into());
     assert_eq!(outcomes, ["Done".into(), "Failed".into(), "Refused".into()].into());
@@ -285,6 +320,20 @@ fn fail(deployment: &mut Deployment, random: &mut u64) -> u64 {
     failure
 }
 fn audit_outcome(hosts: &Audited, outcome: Outcome, record: &temper_redeploy_tool::record::Record) {
+    if let Some(answer) = &hosts.serving_verdict {
+        assert_eq!(record.checkpoint, hosts.serving_checkpoint, "{}", hosts.context);
+        if answer.code != Some(0) {
+            assert_eq!(outcome, Outcome::Refused, "{}", hosts.context);
+            assert!(
+                hosts.deployment.lines.iter().all(|call| !call.line.starts_with("stop ")
+                    && !call.line.starts_with("checkpoint ")
+                    && !call.line.starts_with("swap ")),
+                "failed serving verdict changed deployment: {}",
+                hosts.context
+            );
+            assert_eq!(record.verdict, None, "{}", hosts.context);
+        }
+    }
     match outcome {
         Outcome::Refused => {
             assert!(hosts.swapped.is_empty(), "refused after a swap: {}", hosts.context);

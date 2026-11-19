@@ -72,13 +72,23 @@ fn arm(domain: &mut Domain, env: &Env<Limits>, subscription: Subscription) {
     }
 }
 
+pub(crate) enum Admission {
+    Own,
+    Topic,
+    TopicApart,
+}
+
+pub(crate) fn kept_capacity(limits: &Limits) -> Option<u32> {
+    limits.subscriptions.checked_add(1)
+}
+
 pub(crate) fn subscribe(
     domain: &mut Domain,
     env: &Env<Limits>,
     to: ReplyTo,
     number: u64,
     subscription: Subscription,
-    connector_topic: bool,
+    admission: Admission,
     out: &mut Queue<Request>,
 ) {
     let to = match entrance(domain, to, number) {
@@ -101,7 +111,12 @@ pub(crate) fn subscribe(
         action: crate::CapacityAction::Subscription { number: subscription.number },
         cause: crate::CapacityCause::Subscriptions { limit: env.limits.subscriptions },
     };
-    if task.subscriptions.len() >= skein_lib::length::usize_of(env.limits.subscriptions) {
+    let (connector_topic, count_limit) = match admission {
+        Admission::Own => (false, env.limits.subscriptions),
+        Admission::Topic => (true, env.limits.subscriptions),
+        Admission::TopicApart => (true, kept_capacity(&env.limits).expect("validated subscriptions and one more")),
+    };
+    if task.subscriptions.len() >= skein_lib::length::usize_of(count_limit) {
         return crate::capacity::refuse(domain, env, to, Some(number), Refusal::Busy, capacity, out);
     }
     match subscription.kind {
@@ -133,7 +148,7 @@ pub(crate) fn subscribe(
         );
     }
     let row = task_mut(domain, number).expect("subscriber live");
-    let mut next = List::with_capacity(env.limits.subscriptions);
+    let mut next = List::with_capacity(kept_capacity(&env.limits).expect("validated subscriptions and one more"));
     for old in &row.record.subscriptions {
         next.push(*old).expect("bounded subscriptions");
     }
@@ -177,7 +192,7 @@ pub(crate) fn unsubscribe(
         return refused(to, Some(number), Refusal::Subscription, out);
     }
     let row = task_mut(domain, number).expect("subscriber live");
-    let mut next = List::with_capacity(env.limits.subscriptions);
+    let mut next = List::with_capacity(kept_capacity(&env.limits).expect("validated subscriptions and one more"));
     for old in &row.record.subscriptions {
         if old.number != subscription {
             next.push(*old).expect("subscription subset bounded");
@@ -254,7 +269,8 @@ pub(crate) fn notice(domain: &mut Domain, env: &Env<Limits>, number: u64, word: 
         SubscriptionKind::Timer { period: Some(period), .. } => {
             let at = Wall::from_nanos(env.wall.as_nanos().saturating_add(period.as_nanos()));
             let row = task_mut(domain, number).expect("subscriber live");
-            let mut next = List::with_capacity(env.limits.subscriptions);
+            let mut next =
+                List::with_capacity(kept_capacity(&env.limits).expect("validated subscriptions and one more"));
             for old in &row.record.subscriptions {
                 if old.number == subscription_number {
                     next.push(Subscription {
@@ -279,7 +295,8 @@ pub(crate) fn notice(domain: &mut Domain, env: &Env<Limits>, number: u64, word: 
         }
         SubscriptionKind::Timer { period: None, .. } => {
             let row = task_mut(domain, number).expect("subscriber live");
-            let mut next = List::with_capacity(env.limits.subscriptions);
+            let mut next =
+                List::with_capacity(kept_capacity(&env.limits).expect("validated subscriptions and one more"));
             for old in &row.record.subscriptions {
                 if old.number != subscription_number {
                     next.push(*old).expect("bounded subscriptions");

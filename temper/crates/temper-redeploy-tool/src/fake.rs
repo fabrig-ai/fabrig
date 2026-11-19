@@ -48,7 +48,8 @@ pub struct Deployment {
     /// Lines logged by each settled engine stop, in stop order.
     pub stop_logs: VecDeque<Vec<String>>,
     pub check: Output,
-    pub verdict: Output,
+    /// Per-call verdicts; the last repeats, or yes when none are scripted.
+    pub verdict: VecDeque<Output>,
     pub openings: Vec<Opening>,
     /// Optional per-start openings, consumed before falling back to `openings`.
     pub opening_rounds: BTreeMap<usize, VecDeque<Opening>>,
@@ -133,7 +134,7 @@ impl Deployment {
             log: Vec::new(),
             stop_logs: VecDeque::new(),
             check: output(0, "temper-engine upgrade: workers may stay: yes\n"),
-            verdict: output(0, "temper-engine upgrade: workers may stay: yes\n"),
+            verdict: VecDeque::new(),
             ctl: BTreeMap::new(),
             failures: BTreeMap::new(),
             versions: BTreeMap::new(),
@@ -145,7 +146,7 @@ impl Deployment {
         self.check = output(code, lines);
     }
     pub fn verdict_answer(&mut self, code: i32, lines: &str) {
-        self.verdict = output(code, lines);
+        self.verdict.push_back(output(code, lines));
     }
     fn checkpoint_name(&mut self) -> String {
         self.checkpoints += 1;
@@ -277,7 +278,14 @@ impl Deployment {
             return self.check.clone();
         }
         if captures(&self.description.engine.verdict, line).is_some() {
-            return self.verdict.clone();
+            return if self.verdict.len() > 1 {
+                self.verdict.pop_front().expect("more than one verdict")
+            } else {
+                self.verdict
+                    .front()
+                    .cloned()
+                    .unwrap_or_else(|| output(0, "temper-engine upgrade: workers may stay: yes\n"))
+            };
         }
         if captures(&self.description.engine.checkpoint, line).is_some() {
             if self.engine.running {

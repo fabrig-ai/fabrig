@@ -57,7 +57,7 @@ temper sizes the engine's watch rooms itself: a stream holds 31 watches, and the
 - `tasks.escalation_stall_ms`: milliseconds, 3,600,000. Bounds time an undecided escalation waits at a nonfinal holder before passing upward.
 - `tasks.saved_resources`: count, 8. Bounds connector resources on which a task has saved state.
 - `tasks.contract_choices`: count, 4. Bounds distinct-code choices in a nonempty verdict contract.
-- `tasks.charters`: count, 48. Bounds retained configured agent-charter numbers.
+- `tasks.charters`: count, 48. Bounds how many agent charters are configured.
 - `tasks.charter_parts`: count, 8. Bounds parts per charter.
 - `tasks.charter_documents`: count, 2. Bounds documents per charter.
 - `tasks.authority_grants`: count, 16. Bounds resource grants per task authority carrier.

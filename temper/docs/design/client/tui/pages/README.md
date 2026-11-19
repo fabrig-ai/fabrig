@@ -243,8 +243,8 @@ chat, the running line above them.
   - *Not a notice:* a note of more than a line stays in the
     conversation, `/help`'s and `/log`'s among them, and so do `/brief`'s
     note, `/open`'s "Open ADDRESS in your browser.", which holds an
-    address to copy, and the box's give up note, which stands for good
-    (`../box.md`).
+    address to copy, `/web`'s, which holds the printed link to copy, and
+    the box's give up note, which stands for good (`../box.md`).
 
 ## 2. The commands
 
@@ -294,15 +294,18 @@ The browser terminal's (`../../pages/chat/terminal.md`, 1,
   root's, and `/brief` while
   the header holds a brief, `/needs` while Needs you stands, `/open`
   after `/chats` and `/tell` after it; on a chat and on a talk `/open`
-  and `/tell` after `/chats`. So the launchpad's
+  and `/tell` after `/chats`; in front of a box, `/web` right after
+  `/open`, and first on the welcome, which offers no `/open`
+  (`../box.md`, *`/web`, temper in the browser*). So the launchpad's
   order is `/draft`, `/change`, `/talk`, `/ask`, `/model`, `/effort`, `/new`, `/chats`,
-  `/brief`, `/needs`, `/open`, `/tell`, `/theme`, `/help`, `/quit`. `/theme` is
+  `/brief`, `/needs`, `/open`, `/web` in front, `/tell`, `/theme`, `/help`, `/quit`. `/theme` is
   the TUI's own wherever it is offered (*`/theme`*), in the place the
   root's held. Their words,
   the TUI's: "A design session that ends in a draft and a goal", "One
   change, run as the project's way says", "A role, about its area", "Ask
   temper", "The brief, whole", "Walk what needs you", "Open this on the
-  web", "Tell temper what's off", "Auto, light or dark".
+  web", "Open temper in your browser", "Tell temper what's off", "Auto,
+  light or dark".
   - *`/draft`* on the launchpad, pressed or sent alone, goes to a design
     session not yet started (*Not yet started*); sent with words, `/draft WORDS` starts a
     design session as the browser's new chat with a draft does (`../../pages/README.md`, *A
@@ -398,6 +401,11 @@ The browser terminal's (`../../pages/chat/terminal.md`, 1,
     (`/tasks/T`, `design-session.md`, section 1, *A linked goal*). Only the page's address: never a link, a code or a
     secret. Where no browser opened (no opener, or it failed), the TUI
     notes "Open ADDRESS in your browser." until the next send or screen.
+  - *`/web`,* in front of a box alone, opens temper in the browser: the
+    box's printed link while it is live, which signs the browser in as
+    the owner, and once a browser has signed in by it the web's Home, as
+    `/open` opens it; with no opener, the link in a note to copy
+    (`../box.md`, *`/web`, temper in the browser*).
   - *`/chats N`,* sent on the launchpad, opens the Nth chat of Where you
     left off (`launchpad.md`, 4), whatever its project, as Enter on it
     does; a number with no chat there gives the notice an unknown
