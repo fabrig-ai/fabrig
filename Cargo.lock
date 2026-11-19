@@ -3136,6 +3136,7 @@ dependencies = [
 name = "skein-conformance"
 version = "0.0.0"
 dependencies = [
+ "skein-fake-machine",
  "skein-io",
  "skein-lib",
 ]
@@ -3147,6 +3148,8 @@ dependencies = [
  "libc",
  "skein-conformance",
  "skein-fail-stop",
+ "skein-fake-machine",
+ "skein-fork",
  "skein-io",
  "skein-lib",
  "skein-scratch",

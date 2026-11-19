@@ -4,6 +4,8 @@
 //! root a scratch directory of its own. The tests are
 //! `tests/conformance.rs`.
 
+mod reach;
+
 use std::collections::{BTreeMap, BTreeSet};
 use std::ffi::OsStr;
 use std::fs;
@@ -195,6 +197,30 @@ impl ConformanceBackend for Real {
     fn assert_settled(&self, process: usize) {
         let kernel = self.kernels.get(process).expect("a process of this backend");
         assert_eq!(kernel.kernel.in_flight(), 0, "nothing in flight on process {process}");
+    }
+
+    fn probe_mode(&self) -> Option<&'static [u8]> {
+        Some(b"reach-probe")
+    }
+
+    fn reach_rules(&mut self, process: usize, executable: &[u8]) -> Vec<skein_io::kernel::Rule> {
+        reach::machine_rules(self, process, executable)
+    }
+
+    fn set_landlock(&mut self, _state: skein_fake_machine::Landlock) {
+        panic!("only simulator scenarios can change their machine's Landlock");
+    }
+
+    fn hold_inheritable(&mut self, _process: usize, fd: Fd) {
+        assert!(
+            fd.raw() < 63,
+            "the canary lies below the sparse named descriptor, so closefrom alone cannot remove it"
+        );
+        skein_fork::inherit(fd.raw()).expect("the canary is not close-on-exec");
+    }
+
+    fn set_id_copy(&mut self, _process: usize, root: Fd, executable: &[u8], path: &[u8]) -> Result<(), String> {
+        reach::set_id_copy(root, executable, path)
     }
 
     fn append(&mut self, process: usize, root: Fd, path: &[u8], mode: u32) -> Result<Fd, Error> {

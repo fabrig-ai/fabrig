@@ -146,12 +146,13 @@ An answer is `granted`, or the error the kernel answered (`Permission`,
 `skein_fake_machine::probe`, writes the probe's arguments and reads its
 report; the machine's probe, the real suite's fixture and the scenarios
 (conformance.md, 1) all use it, so the three agree on what was asked and
-answered. On the ring, the fixture is a binary of `tests/conformance/real`
-whose `main` hands its arguments to the helper's dispatch first, so it
-is also the helper (`Kernel::set_helper`) of the spawn that starts it and
-of the one it starts to nest (../runtime/kernel.md, 6.6). The machine
-selects it by its name's last component, `reach_probe`, as it selects its
-other programs.
+answered. On the ring, the probe is a mode of `tests/conformance/real`'s
+`signal_sender_fixture` binary, chosen by its first argument,
+`reach-probe`. Its `main` hands its arguments to the helper's dispatch
+first, so it is also the helper (`Kernel::set_helper`) of the spawn that
+starts it and of the one it starts to nest (../runtime/kernel.md, 6.6).
+The machine selects its program by its name's last component,
+`reach_probe`, as it selects its other programs.
 
 **The machine honours a reach.** A world sets the machine's Landlock
 (`Machine::set_landlock`, taking `Landlock::Abi(u32)`, `Absent` or

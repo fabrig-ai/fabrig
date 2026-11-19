@@ -1341,10 +1341,17 @@ impl Op {
     }
 }
 
-/// Bounds shared by io's entrance and the kernel record (runtime/io/processes.md, 6).
+/// io's reach admission, at the ABI it implements (runtime/io/processes.md, 6).
 pub(crate) fn reach_admitted(spawn: &Spawn) -> bool {
     let Some(reach) = &spawn.reach else { return true };
-    if reach.abi != Reach::ABI || reach.rules.len() > Reach::RULES {
+    reach.abi == Reach::ABI && valid_reach(spawn)
+}
+
+// A record below io's entrance may ask for a newer ABI, which the backend
+// refuses by name. All other reach bounds are shared (io/processes.md, 6).
+fn valid_reach(spawn: &Spawn) -> bool {
+    let Some(reach) = &spawn.reach else { return true };
+    if reach.abi < Reach::ABI || reach.rules.len() > Reach::RULES {
         return false;
     }
     for rule in &reach.rules {
@@ -1374,7 +1381,7 @@ fn command_bytes(spawn: &Spawn) -> Option<usize> {
 }
 
 fn valid_spawn(spawn: &Spawn) -> bool {
-    if !reach_admitted(spawn) {
+    if !valid_reach(spawn) {
         return false;
     }
     if spawn.program.is_empty() || spawn.program.contains(&0) || spawn.dir.contains(&0) {

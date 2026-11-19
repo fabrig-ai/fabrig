@@ -106,14 +106,16 @@ fn backend_reach_failure_reaches_spawn_and_spawn_alone_owners() {
 fn kernel_spawn_validity_holds_reach_bounds_only_with_a_reach() {
     skein_rows::check(
         [
-            ("admitted reach", (Some(64), 61440, true)),
-            ("refused reach", (Some(65), 61440, false)),
-            ("unbounded without reach", (None, 61441, true)),
+            ("abi below", (5, Some(1), 61440, false)),
+            ("abi floor", (6, Some(64), 61440, true)),
+            ("abi largest", (u32::MAX, Some(1), 61440, true)),
+            ("refused reach", (6, Some(65), 61440, false)),
+            ("unbounded without reach", (5, None, 61441, true)),
         ],
-        |(rules, bytes, valid)| {
+        |(abi, rules, bytes, valid)| {
             let mut spawn = sized_command(bytes);
             if let Some(rules) = rules {
-                spawn.reach = Some(Box::new(reached(6, rules, b"", Rights::READ)));
+                spawn.reach = Some(Box::new(reached(abi, rules, b"", Rights::READ)));
             }
             assert_eq!(Op::Spawn { spawn: Box::new(spawn) }.is_valid(), valid);
         },

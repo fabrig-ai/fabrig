@@ -1,4 +1,8 @@
-//! A single-threaded service: block SIGTERM before spawning its sender.
+//! A single-threaded signal service, and the reach probe (testing/README.md, 4).
+
+#[cfg(target_os = "linux")]
+#[path = "signal_sender_fixture/reach_probe.rs"]
+mod reach_probe;
 
 #[cfg(target_os = "linux")]
 #[path = "../../tests/support/deadline.rs"]
@@ -24,9 +28,15 @@ fn main() {
     // Three entities give io 14 operation slots; 32 records hold a complete
     // batch and the events produced while it lands.
     const RECORDS: u32 = 32;
+    skein_shell::helper::dispatch();
     skein_fail_stop::install();
     let mut args = std::env::args().skip(1).peekable();
     match args.peek().map(String::as_str) {
+        Some("reach-probe") => {
+            let _mode = args.next();
+            reach_probe::run(args);
+            return;
+        }
         Some("delayed-parent") => {
             use std::io::Write;
             let _mode = args.next();
@@ -270,5 +280,6 @@ fn intended_parent(parent: u32) -> Option<skein_io::kernel::Fd> {
 
 #[cfg(not(target_os = "linux"))]
 fn main() {
+    skein_shell::helper::dispatch();
     skein_fail_stop::install();
 }
