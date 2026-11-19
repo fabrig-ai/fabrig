@@ -8,6 +8,11 @@
   - 7: no `anthropic` arm (`agents/models.toml`'s `[working.anthropic]`
     is empty), and no suite runs `smith-claude-code`.
   - 9: version-3 parity remains `codex-parity.status.md`, 4.
+  - 10: off Linux, every start still asks for the walk, which macOS
+    refuses (`Tree(Other(45))`). [in flight: change 10393]
+  - 13: the containment's table test, a replay's method by platform,
+    the gates of Linux's own tests and the two ported fixtures.
+    [in flight: change 10393]
   -  the missing probes remain `catalogue.status.md`, 1.
   -  the missing experiments remain `catalogue.status.md`, 3.
   -  the bundle validation remains `catalogue.status.md`, 4.
