@@ -133,8 +133,8 @@ fn dialog(state: &State, builder: &mut Builder) {
 }
 fn list(state: &State, builder: &mut Builder) {
     let mut any = false;
-    for note in state.notes.notes() {
-        if state.shows(note.label()) {
+    for note in &state.notes.notes {
+        if state.shows(&note.label) {
             any = true;
         }
     }
@@ -143,18 +143,18 @@ fn list(state: &State, builder: &mut Builder) {
         return;
     }
     builder.open(Role::List);
-    for note in state.notes.notes() {
-        if !state.shows(note.label()) {
+    for note in &state.notes.notes {
+        if !state.shows(&note.label) {
             continue;
         }
         builder.open(Role::Item);
-        builder.key(Key { owner: OWNER, kind: 0, a: note.number(), b: 0 });
+        builder.key(Key { owner: OWNER, kind: 0, a: note.number, b: 0 });
         builder.open(Role::Link);
-        builder.text(Run::Plain, note.title());
-        builder.link(Binding { owner: OWNER, token: Token::new(note.number()) });
+        builder.text(Run::Plain, &note.title);
+        builder.link(Binding { owner: OWNER, token: Token::new(note.number) });
         builder.close();
-        text(builder, Role::Time, note.due());
-        let label = match note.label() {
+        text(builder, Role::Time, &note.due);
+        let label = match &note.label {
             Label::Idea => 4,
             Label::Task => 5,
             Label::Reference => 6,
@@ -228,29 +228,29 @@ fn invalid(state: &State, builder: &mut Builder, why: Option<u16>) {
 
 fn note(state: &State, number: u64, builder: &mut Builder) {
     let mut found = false;
-    for note in state.notes.notes() {
-        if note.number() != number {
+    for note in &state.notes.notes {
+        if note.number != number {
             continue;
         }
         found = true;
         builder.open(Role::Region);
-        builder.name(note.title());
+        builder.name(&note.title);
         builder.style(CARD);
-        text(builder, Role::Heading { level: 1 }, note.title());
+        text(builder, Role::Heading { level: 1 }, &note.title);
         builder.open(Role::Paragraph);
         let mut start = 0;
-        for (index, byte) in note.body().iter().enumerate() {
+        for (index, byte) in note.body.iter().enumerate() {
             if index.saturating_sub(start) >= 252 && byte & 0xc0 != 0x80 {
-                builder.text(Run::Plain, note.body().get(start..index).expect("body chunk"));
+                builder.text(Run::Plain, note.body.get(start..index).expect("body chunk"));
                 start = index;
             }
         }
-        builder.text(Run::Plain, note.body().get(start..).expect("last body chunk"));
+        builder.text(Run::Plain, note.body.get(start..).expect("last body chunk"));
         builder.close();
-        text(builder, Role::Time, note.due());
-        let minutes = skein_lib::Decimal::of(u64::from(note.minutes()));
+        text(builder, Role::Time, &note.due);
+        let minutes = skein_lib::Decimal::of(u64::from(note.minutes));
         text(builder, Role::Text, minutes.as_bytes());
-        let label = match note.label() {
+        let label = match &note.label {
             Label::Idea => 4,
             Label::Task => 5,
             Label::Reference => 6,
@@ -269,8 +269,8 @@ fn note(state: &State, number: u64, builder: &mut Builder) {
 
 fn chart(state: &State, builder: &mut Builder) {
     let mut counts = [0_u8; 3];
-    for note in state.notes.notes() {
-        let index = match note.label() {
+    for note in &state.notes.notes {
+        let index = match &note.label {
             Label::Idea => 0,
             Label::Task => 1,
             Label::Reference => 2,
