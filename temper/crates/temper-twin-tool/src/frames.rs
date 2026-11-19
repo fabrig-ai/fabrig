@@ -1,5 +1,6 @@
 //! Jig's frame decoder and Smith's turn codec; never opens the store.
 use crate::{Refusal, Unheld};
+use jig_protocol_store::core_v6::Record as _;
 use jig_protocol_store::{self as store, codec, transcripts::frame};
 use smith_transcript::{self as smith, Block, CallProblem, Returned, Role, TurnKind};
 use std::{
@@ -81,7 +82,7 @@ fn decode(bytes: &[u8], limits: &codec::View, task: u64, at: u64) -> Result<smit
         let version = u16::from_be_bytes([bytes[4], bytes[5]]);
         let mut reader = skein_lib::Reader::new(&bytes[4..end - 8]);
         if let Err(problem) = store::core_v6::TurnRecord::decode(&limits.core, &mut reader)
-            && problem.path == store::core_v6::Path::TurnRecordVersion
+            && problem.path == store::core_v6::paths::TURN_RECORD_VERSION
         {
             return Err(Refusal::Version { task, version });
         }

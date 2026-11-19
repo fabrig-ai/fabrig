@@ -1,5 +1,6 @@
 //! A configured merge job settles a turn member (temper/docs/design/domain/landing.md, 3, 5.2).
 use super::*;
+use temper_protocol_worker_wire::v1::Record as WorkerRecord;
 
 fn hello() -> engine::Event {
     let mut event = hello_prepare(8);
@@ -18,8 +19,8 @@ fn prepare_three(world: &mut World, job: &host::JobAssignment, conflicted: u64) 
         &mut skein_lib::Reader::new(&job.spec),
     )
     .expect("prepare spec");
-    assert_eq!(spec.command(), b"");
-    let request: serde_json::Value = serde_json::from_slice(spec.request()).expect("prepare request");
+    assert_eq!(spec.command.as_ref(), b"");
+    let request: serde_json::Value = serde_json::from_slice(spec.request.as_ref()).expect("prepare request");
     let landing = job.workspace.as_ref().expect("workspace").workstream;
     let row = landing_rows(world).into_iter().find(|row| row.landing.task == landing).expect("landing").clone();
     assert_eq!(row.landing.members.len(), 4);
@@ -154,7 +155,7 @@ fn drill_16_a_batch_four_conflict_is_settled_by_the_merge_job_without_an_agent()
         &mut skein_lib::Reader::new(&merge.spec),
     )
     .expect("merge spec");
-    assert_eq!(spec.command(), b"repo/.temper/merge");
+    assert_eq!(spec.command.as_ref(), b"repo/.temper/merge");
     let row = super::super::goal_landing::row(&world, conflicted);
     let branch = row.branch.clone();
     let head = fake::commit_count(&row.change.last_head.expect("member head")).expect("head");

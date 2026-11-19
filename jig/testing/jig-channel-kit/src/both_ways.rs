@@ -33,20 +33,26 @@ impl Case {
 }
 
 fn engine(inherited: &Inherited) -> Proc {
-    let mut document: serde_json::Value = serde_json::from_slice(&fixtures::engine_document()).expect("engine JSON");
-    let llm = &mut document["engine"]["llm"];
-    llm["providers"][0]["endpoint"] = "fake".into();
-    llm["providers"][0]["direct"] = "direct".into();
-    llm["providers"][0]["sources"] = serde_json::json!({"keys":true,"programs":["claude_code"]});
-    llm["providers"][0]["manage_usage"] = "https://usage.example/".into();
-    llm["endpoints"][0]["program"] = "claude_code".into();
-    let mut direct = llm["endpoints"][0].clone();
-    direct.as_object_mut().expect("endpoint").remove("program");
-    direct["name"] = "direct".into();
-    direct["number"] = 2.into();
-    llm["endpoints"].as_array_mut().expect("endpoints").push(direct);
-    llm["models"][0]["window"] = 272_000.into();
-    processes::engine_document(inherited, &serde_json::to_vec(&document).expect("both ways JSON"))
+    static PREPARED: std::sync::OnceLock<jig_test_service::Prepared> = std::sync::OnceLock::new();
+    let prepared = PREPARED.get_or_init(|| {
+        let mut document: serde_json::Value =
+            serde_json::from_slice(&fixtures::engine_document()).expect("engine JSON");
+        let llm = &mut document["engine"]["llm"];
+        llm["providers"][0]["endpoint"] = "fake".into();
+        llm["providers"][0]["direct"] = "direct".into();
+        llm["providers"][0]["sources"] = serde_json::json!({"keys":true,"programs":["claude_code"]});
+        llm["providers"][0]["manage_usage"] = "https://usage.example/".into();
+        llm["endpoints"][0]["program"] = "claude_code".into();
+        let mut direct = llm["endpoints"][0].clone();
+        direct.as_object_mut().expect("endpoint").remove("program");
+        direct["name"] = "direct".into();
+        direct["number"] = 2.into();
+        llm["endpoints"].as_array_mut().expect("endpoints").push(direct);
+        llm["models"][0]["window"] = 272_000.into();
+        jig_test_service::prepare(&serde_json::to_vec(&document).expect("both ways JSON"))
+            .expect("both ways configuration")
+    });
+    processes::engine_document(inherited, prepared)
 }
 
 fn declarations() -> smith_agent_service::profile::Configuration {

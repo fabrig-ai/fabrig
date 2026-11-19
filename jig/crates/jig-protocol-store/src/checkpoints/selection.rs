@@ -2,7 +2,7 @@
 use super::FILES;
 use crate::{
     CheckpointRefusal, Store,
-    codec::component::{CheckpointFileParts, Transcript},
+    codec::component::{CheckpointFile, Transcript},
     pages,
 };
 use alloc::boxed::Box;
@@ -10,7 +10,7 @@ use skein_lib::{List, Reader, Set};
 
 #[derive(Debug)]
 pub(crate) struct Source {
-    pub row: CheckpointFileParts,
+    pub row: CheckpointFile,
     /// None means the immutable whole file, measured when opened.
     pub end: Option<u64>,
 }
@@ -40,7 +40,7 @@ impl Selection {
     pub fn add(&mut self, part: u8, number: u64, end: Option<u64>, link: bool) -> Result<(), CheckpointRefusal> {
         self.files
             .push(Source {
-                row: CheckpointFileParts { part, number, length: end.unwrap_or(0), way: if link { 1 } else { 2 } },
+                row: CheckpointFile { part, number, length: end.unwrap_or(0), way: if link { 1 } else { 2 } },
                 end,
             })
             .or(Err(CheckpointRefusal::Files))

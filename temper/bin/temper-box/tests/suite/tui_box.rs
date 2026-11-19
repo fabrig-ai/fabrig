@@ -318,8 +318,14 @@ fn run(case: Case, name: &str) {
     let initialized = box_link::command(root, "init").arg("--box").output().expect("initialize box");
     assert!(initialized.status.success());
     support::own_listener_files(&root.join("config"));
-    let document: serde_json::Value =
-        serde_json::from_slice(&fs::read(root.join("config/temper.json")).expect("configuration")).expect("document");
+    let document: serde_json::Value = serde_json::from_slice(
+        &support::read_start(
+            &root.join("config").join(temper_config_shell::FILE),
+            temper_config_shell::Shape::EngineAlone,
+        )
+        .document,
+    )
+    .expect("document");
     let address = document
         .pointer("/application/clients/listener/socket")
         .and_then(serde_json::Value::as_str)

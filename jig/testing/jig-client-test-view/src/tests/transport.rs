@@ -59,12 +59,12 @@ fn step(root: &mut Domain, event: Event, limits: &jig_client_test_domain::Limits
     rows
 }
 fn subject(record: &jig_client::Family, read: bool) -> family::Subject {
-    use jig_client_test_protocol_wire::v2 as w;
+    use jig_client_test_protocol_wire::v2::{self as w, Record};
     let mut reader = skein_lib::Reader::new(&record.bytes);
     let value = if read {
-        w::Read::decode(&w::CEILINGS, &mut reader).unwrap().into_parts().value
+        w::Read::decode(&w::CEILINGS, &mut reader).unwrap().value
     } else {
-        w::Subject::decode(&w::CEILINGS, &mut reader).unwrap().into_parts().value
+        w::Subject::decode(&w::CEILINGS, &mut reader).unwrap().value
     };
     assert_eq!(reader.remaining(), 0);
     family::wire::subject_value(value)

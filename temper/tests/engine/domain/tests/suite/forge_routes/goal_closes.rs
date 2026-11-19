@@ -9,6 +9,7 @@ use super::goal_landing::{ended, finish_run, mine, row, status};
 use super::*;
 use jig_client::contract as c;
 use temper_engine_domain_forge_change as change;
+use temper_protocol_worker_wire::v1::Record as WorkerRecord;
 
 const CHANNEL: Token = Token::new(7);
 const STEPS: u32 = 4000;
@@ -313,8 +314,8 @@ fn closer_of(world: &mut World, goal: u64) -> u64 {
 fn finish_close(world: &mut World, close: u64, branch: &[u8], job: &host::JobAssignment) {
     use temper_protocol_worker_wire::v1;
     let spec = v1::JobSpec::decode(&v1::CEILINGS, &mut skein_lib::Reader::new(&job.spec)).expect("close job spec");
-    assert_eq!(spec.command(), b"repo/.temper/close");
-    assert_eq!(Some(spec.request()), row(world, close).close.as_deref());
+    assert_eq!(spec.command.as_ref(), b"repo/.temper/close");
+    assert_eq!(Some(spec.request.as_ref()), row(world, close).close.as_deref());
     for _ in 0..STEPS {
         if world.pending.is_empty() {
             break;

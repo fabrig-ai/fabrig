@@ -526,7 +526,17 @@ fn fresh_owned() -> crate::Service {
     fresh_with_places(false, false)
 }
 fn fresh_with_places(provider: bool, playground: bool) -> crate::Service {
+    fresh_with_programs(provider, playground, None, None)
+}
+fn fresh_with_programs(
+    provider: bool,
+    playground: bool,
+    forgejo: Option<Box<[u8]>>,
+    runner: Option<Box<[u8]>>,
+) -> crate::Service {
     let mut config = fixtures::engine();
+    config.owned_forgejo = forgejo;
+    config.owned_runner = runner;
     // Adoption carries seven forge options and their resource name.
     config.jig.limits.core.authority.segments = 7;
     config.jig.limits.core.people.amendment_bytes = 512;

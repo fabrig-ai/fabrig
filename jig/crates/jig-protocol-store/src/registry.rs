@@ -9,6 +9,7 @@ use skein_lib::{Buffer, List, Map, Queue};
 mod check;
 #[cfg(test)]
 mod counting;
+mod depth;
 pub(crate) mod rehearsal;
 mod rows;
 #[cfg(test)]
@@ -242,25 +243,25 @@ impl Layouts {
                 continue;
             }
             let takes = match converts.from {
-                crate::Layouts::One(from) => row.value.layout() == &from,
+                crate::Layouts::One(from) => row.value.layout == from,
                 crate::Layouts::Unplanned => self.written.get(key) == Some(&job.name),
             };
             if !takes {
                 continue;
             }
             let mut held = List::uncapped();
-            for digest in row.value.held() {
+            for digest in &row.value.held {
                 held.push(self.texts.get(digest)?.bytes.clone()).ok()?;
             }
             layouts.push((
                 *id,
                 JobLayout {
-                    root: texts::string(row.value.root())?,
-                    variant: match row.value.variant() {
+                    root: texts::string(&row.value.root)?,
+                    variant: match &row.value.variant {
                         Some(v) => Some(texts::string(v)?),
                         None => None,
                     },
-                    text: self.texts.get(row.value.text())?.bytes.clone(),
+                    text: self.texts.get(&row.value.text)?.bytes.clone(),
                     held: held.into_boxed(),
                 },
             ));

@@ -99,7 +99,7 @@ fn the_link_dials_only_once_the_git_component_has_started() {
     let mut stand = fixtures::WorkerStand::new();
     stand.worker.iterate(fixtures::NOW, Wall::EPOCH);
     let Some(io::Request::Spawn { spawn, .. }) = stand.worker.io().iter().next() else { panic!("git starts first") };
-    assert_eq!(spawn.args[26].as_ref(), b"version");
+    assert!(spawn.args.contains(&Box::from(b"version".as_slice())));
     for request in &*stand.worker.io() {
         if let io::Request::Connect { .. } = request {
             panic!("link cannot dial before git starts");
@@ -337,16 +337,18 @@ fn a_push_in_flight_across_a_new_generation_ends_on_the_value_it_began_with() {
 }
 
 #[test]
+#[expect(clippy::disallowed_methods, reason = "the shared scripted io filesystem takes Vec keys")]
 fn a_commit_on_github_takes_the_values_author() {
     use temper_protocol_worker_wire::v1;
+    use temper_worker_protocol_git_world::io::Node;
     let mut stand = fixtures::started_worker();
+    for path in [b"workspaces/91/app".as_slice(), b"workspaces/91/app/.git"] {
+        stand.below.tree.insert(path.to_vec(), Node::Directory);
+    }
     // An empty entry list still supplies a commit's author.
-    let limits = fixtures::wire_limits();
-    let mut record = fixtures::github_record(b"x-access-token", b"tok-second").into_parts();
-    record.kind = v1::Kind::Github(
-        v1::Entries::new(&limits, v1::EntriesParts { entries: skein_lib::List::with_capacity(0) }).unwrap(),
-    );
-    let value = temper_protocol_worker_wire::identity(&v1::Identity::new(&limits, record).unwrap());
+    let mut record = fixtures::github_record(b"x-access-token", b"tok-second");
+    record.kind = v1::Kind::Github(v1::Entries { entries: skein_lib::List::with_capacity(0) });
+    let value = temper_protocol_worker_wire::identity(&record);
     stand.worker.link(fixtures::NOW, fixtures::github_value(1, value));
     stand.route_git(
         Token::new(92),

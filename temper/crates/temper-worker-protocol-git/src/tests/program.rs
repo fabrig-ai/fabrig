@@ -6,8 +6,8 @@ use temper_worker_domain_checkout::git;
 
 const FIRST: &[u8] = b"/fake/first";
 const SECOND: &[u8] = b"/fake/second";
-// The fresh layout has seven kernel operations, through its workspaces open.
-const LAYOUT_STEPS: u8 = 12;
+// The fresh layout retires and opens both checkout directory trees.
+const LAYOUT_STEPS: u8 = 15;
 const CURRENT: &[u8] = b"git version 2.41.0\n";
 const REMOTE: &[u8] = b"https://forge.example.test:8443/acme/app.git";
 
@@ -225,7 +225,7 @@ fn start(machine: bool) -> Started {
     .expect("valid");
     world.component.start(world.now, &mut world.below.out);
     assert!(world.below.out.io.is_empty(), "no start version spawn");
-    for _ in 0_u8..12 {
+    for _ in 0_u8..LAYOUT_STEPS {
         world.file_operation();
         world.complete_ok();
     }
@@ -262,6 +262,7 @@ fn checkout(world: &mut Started, program: &[u8]) {
     for _ in 0_u8..2 {
         invocation(world, program, false, b"", 0);
     }
+    super::view::empty(world);
 }
 fn invocation(world: &mut Started, program: &[u8], version: bool, stdout: &[u8], status: u8) {
     for request in &world.below.out.io {
@@ -299,10 +300,15 @@ fn a_look_without_a_program_ends_not_holding_the_clone() {
     started.empty_sweep();
     started.down(Request::Io {
         owner: fixtures::OWNER,
-        op: git::Op::Look { at: fixtures::at(), remote: Box::from(fixtures::REMOTE) },
+        op: git::Op::Look { at: fixtures::at(), remote: Box::from(fixtures::REMOTE), store: skein_lib::Token::new(9) },
         deadline: fixtures::DEADLINE,
         identity: None,
     });
+    let skein_io::kernel::Op::Open { how: skein_io::kernel::OpenHow::DirectoryNoFollow, .. } = started.file_operation()
+    else {
+        panic!("look for a kept work tree")
+    };
+    started.complete_err(skein_io::kernel::Error::NotFound);
     assert_eq!(started.done(), Some((fixtures::OWNER, git::Done::Looked { holds: false })));
     assert!(started.below.out.io.is_empty());
 }

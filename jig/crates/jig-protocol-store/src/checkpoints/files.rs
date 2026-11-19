@@ -271,13 +271,7 @@ fn finished_file(store: &Store, cut: &mut Cut, below: &mut Below) -> Step {
         3 => {}
         _ => unreachable!("selected way"),
     }
-    cut.record
-        .files
-        .push(
-            crate::codec::component::CheckpointFile::new(&crate::component_v3::CEILINGS, row)
-                .expect("plain file fields"),
-        )
-        .expect("selection bounded record");
+    cut.record.files.push(row).expect("selection bounded record");
     next_file(store, cut, below)
 }
 // Selected shards are in map order, so only their first entry requests a sync.
@@ -348,15 +342,15 @@ fn top(cut: &mut Cut, index: u8, below: &mut Below) -> Step {
 fn measure(cut: &mut Cut, start: u32, mut held: u64, below: &mut Below) -> Step {
     for index in start..cut.record.files.len() {
         let row = cut.record.files.get(index).expect("measured file");
-        match row.way() {
+        match row.way {
             1 => {
-                let path = under(&join(b"checkpoints/", &cut.name.bytes()), &relative(row.part(), row.number()));
+                let path = under(&join(b"checkpoints/", &cut.name.bytes()), &relative(row.part, row.number));
                 let request =
                     file::Request::OpenReadNoFollow { owner: OWNER, root: cut.session.root.fd, name: path.clone() };
                 ask(cut, path, request, below);
                 return Step::MeasureOpen { index, held };
             }
-            2 => held = held.saturating_add(row.length()),
+            2 => held = held.saturating_add(row.length),
             3 => {}
             _ => unreachable!("selected way"),
         }

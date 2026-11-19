@@ -1,7 +1,8 @@
 //! Batch storage (domain/landing.md, 12).
 use super::fixtures;
 use crate::{records, v25};
-use skein_lib::{Reader, Writer};
+use skein_codec::Record;
+use skein_lib::Reader;
 use temper_engine_domain_forge as forge;
 use temper_engine_domain_forge_landing as landing;
 
@@ -51,10 +52,8 @@ fn seed() -> forge::LandingRow {
 }
 
 fn stored(row: v25::LandingRow) -> forge::Stored {
-    let row = v25::Row::new(&v25::CEILINGS, v25::RowParts { value: v25::Value::Landing(Box::new(row)) }).unwrap();
-    let mut writer = Writer::new(usize::try_from(row.measure()).unwrap());
-    row.encode(&mut writer).unwrap();
-    let bytes = writer.finish();
+    let row = v25::Row { value: v25::Value::Landing(Box::new(row)) };
+    let bytes = row.encode(&v25::CEILINGS).unwrap();
     records::decode(&bytes, &crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap()).unwrap()
 }
 
@@ -183,19 +182,15 @@ fn landing_repair_context_round_trips() {
 fn a_stored_fallback_leaves_as_held() {
     let bytes = records::encode(&forge::Stored::Landing(seed()));
     let row = v25::Row::decode(&v25::CEILINGS, &mut Reader::new(&bytes)).unwrap();
-    let v25::Value::Landing(row) = row.into_parts().value else { panic!("landing") };
-    let mut row = row.into_parts();
-    let mut state = row.landing.into_parts();
+    let v25::Value::Landing(row) = row.value else { panic!("landing") };
+    let mut row = row;
+    let mut state = row.landing;
     let member = state.members.get_mut(0).unwrap();
-    let mut parts = member.clone().into_parts();
-    parts.left = Some(v25::LandingLeave::Fallback(
-        v25::LandingFallback::new(&v25::CEILINGS, v25::LandingFallbackParts { units: 3, top: [7; 32] }).unwrap(),
-    ));
-    *member = v25::LandingMember::new(&v25::CEILINGS, parts).unwrap();
-    row.landing = v25::LandingState::new(&v25::CEILINGS, state).unwrap();
-    let forge::Stored::Landing(after) = stored(v25::LandingRow::new(&v25::CEILINGS, row).unwrap()) else {
-        panic!("landing")
-    };
+    let mut parts = member.clone();
+    parts.left = Some(v25::LandingLeave::Fallback(v25::LandingFallback { units: 3, top: [7; 32] }));
+    *member = parts;
+    row.landing = state;
+    let forge::Stored::Landing(after) = stored(*row) else { panic!("landing") };
     assert_eq!(after.landing.members[0].left, Some(landing::Leave::Held));
 }
 

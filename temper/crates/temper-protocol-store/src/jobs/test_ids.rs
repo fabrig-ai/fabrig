@@ -3,6 +3,7 @@ use super::refusal;
 use crate::v25;
 use alloc::{boxed::Box, string::String};
 use jig_protocol_store::{JobAnswer, JobPage, JobRefusal, JobWrite};
+use skein_codec::Record;
 use skein_codec::{
     layout::{Misconverted, Plan, Workspace},
     schema::{self, DeclIx, FieldIx, Schema, Shape, Span, Type, TypeIx},
@@ -285,9 +286,8 @@ fn convert(
     let Ok(row) = v25::Row::decode(&v25::CEILINGS, &mut Reader::new(&bytes)) else {
         return Err("narrowed value does not decode at the binary's ceilings");
     };
-    let mut writer = Writer::new(usize::try_from(row.measure()).expect("row within u32"));
-    row.encode(&mut writer).expect("measured row");
-    Ok(Converted { bytes: writer.finish(), counts })
+    let bytes = row.encode(&v25::CEILINGS).expect("measured row");
+    Ok(Converted { bytes, counts })
 }
 
 fn parse(text: &[u8]) -> Result<Schema, JobRefusal> {

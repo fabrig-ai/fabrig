@@ -1,6 +1,7 @@
 //! Every schema word reads bytes taken from a full fixture's stored encoding.
 use super::{Bounds, api, w};
 use crate::tests::fixtures;
+use skein_codec::Record;
 use skein_forge::api as d;
 use skein_lib::{List, Reader};
 
@@ -25,15 +26,15 @@ fn pieces<T>(bytes: &[u8], bounds: &Bounds, decode: fn(&Bounds, &mut Reader<'_>)
 
 fn stored(row: &forge::Stored, bounds: &Bounds) -> w::Value {
     let bytes = super::encode(row);
-    w::Row::decode(bounds.limits(), &mut Reader::new(&bytes)).unwrap().into_parts().value
+    w::Row::decode(bounds.limits(), &mut Reader::new(&bytes)).unwrap().value
 }
 
 fn answer(fixture: &d::Answer, bounds: &Bounds) -> w::Answer {
     let row = fixtures::named_call(forge::CallPayload::Read(Box::new(Ok(fixture.clone()))));
     let w::Value::Call(call) = stored(&row, bounds) else { panic!("call fixture") };
-    let w::CallPayload::Read(read) = call.into_parts().answer else { panic!("read fixture") };
-    let w::ReadResult::Answer(value) = read.into_parts().result else { panic!("answer fixture") };
-    value.into_parts().answer
+    let w::CallPayload::Read(read) = call.answer else { panic!("read fixture") };
+    let w::ReadResult::Answer(value) = read.result else { panic!("answer fixture") };
+    value.answer
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -84,25 +85,25 @@ fn answer_piece_words_read_their_full_fixtures() {
         let encoded = answer(&fixture, &bounds);
         let (path, bytes, expected) = match (fixture, encoded) {
             (d::Answer::Items { items, .. }, w::Answer::Items(value)) => {
-                ("ItemsAnswer.items", value.into_parts().items, Items::Summaries(items))
+                ("ItemsAnswer.items", value.items, Items::Summaries(items))
             }
             (d::Answer::Item { comments, .. }, w::Answer::Item(value)) => {
-                ("ItemAnswer.comments", value.into_parts().comments, Items::Comments(comments))
+                ("ItemAnswer.comments", value.comments, Items::Comments(comments))
             }
             (d::Answer::Reviews { reviews, .. }, w::Answer::Reviews(value)) => {
-                ("ReviewsAnswer.reviews", value.into_parts().reviews, Items::Reviews(reviews))
+                ("ReviewsAnswer.reviews", value.reviews, Items::Reviews(reviews))
             }
             (d::Answer::Statuses { statuses, .. }, w::Answer::Statuses(value)) => {
-                ("StatusesAnswer.statuses", value.into_parts().statuses, Items::Statuses(statuses))
+                ("StatusesAnswer.statuses", value.statuses, Items::Statuses(statuses))
             }
             (d::Answer::Remarks { remarks, .. }, w::Answer::Remarks(value)) => {
-                ("RemarksAnswer.remarks", value.into_parts().remarks, Items::Remarks(remarks))
+                ("RemarksAnswer.remarks", value.remarks, Items::Remarks(remarks))
             }
             (d::Answer::PullFiles { files, .. }, w::Answer::PullFiles(value)) => {
-                ("PullFilesAnswer.files", value.into_parts().files, Items::Files(files))
+                ("PullFilesAnswer.files", value.files, Items::Files(files))
             }
             (d::Answer::Checks(statuses), w::Answer::Checks(value)) => {
-                ("ChecksAnswer.statuses", value.into_parts().statuses, Items::Statuses(statuses))
+                ("ChecksAnswer.statuses", value.statuses, Items::Statuses(statuses))
             }
             (d::Answer::Compare { .. }, w::Answer::Compare(_))
             | (d::Answer::Collaborators { .. }, w::Answer::Collaborators(_)) => continue,
@@ -123,10 +124,10 @@ struct NameRow {
     decode: fn(&Bounds, &mut Reader<'_>) -> Box<[u8]>,
 }
 fn segment(bounds: &Bounds, reader: &mut Reader<'_>) -> Box<[u8]> {
-    w::Segment::decode(bounds.limits(), reader).unwrap().into_parts().name
+    w::Segment::decode(bounds.limits(), reader).unwrap().name
 }
 fn answer_name(bounds: &Bounds, reader: &mut Reader<'_>) -> Box<[u8]> {
-    w::AnswerName::decode(bounds.limits(), reader).unwrap().into_parts().name
+    w::AnswerName::decode(bounds.limits(), reader).unwrap().name
 }
 
 #[test]
@@ -142,26 +143,21 @@ fn name_piece_words_read_their_full_fixtures() {
         drift: None,
     });
     let w::Value::Hold(held) = stored(&row, &bounds) else { panic!("hold fixture") };
-    let w::What::Branch(segments) = held.into_parts().name.into_parts().what else { panic!("branch fixture") };
+    let w::What::Branch(segments) = held.name.what else { panic!("branch fixture") };
     let forge::What::Branch(expected) = name.what else { panic!("branch fixture") };
     let mut rows = List::with_capacity(NAME_WORDS);
-    rows.push(NameRow { path: "Segments.segments", bytes: segments.into_parts().segments, expected, decode: segment })
+    rows.push(NameRow { path: "Segments.segments", bytes: segments.segments, expected, decode: segment })
         .expect("one row per name word");
     for fixture in fixtures::answers_without_item_pieces().into_iter().chain(fixtures::item_answers()) {
         let encoded = answer(&fixture, &bounds);
         match (fixture, encoded) {
             (d::Answer::Branches(expected), w::Answer::Branches(value)) => rows
-                .push(NameRow {
-                    path: "BranchesAnswer.branches",
-                    bytes: value.into_parts().branches,
-                    expected,
-                    decode: answer_name,
-                })
+                .push(NameRow { path: "BranchesAnswer.branches", bytes: value.branches, expected, decode: answer_name })
                 .expect("one row per name word"),
             (d::Answer::Protection(Some(expected)), w::Answer::Protection(value)) => rows
                 .push(NameRow {
                     path: "Protection.contexts",
-                    bytes: value.into_parts().protection.unwrap().into_parts().contexts,
+                    bytes: value.protection.unwrap().contexts,
                     expected: expected.contexts,
                     decode: answer_name,
                 })
@@ -169,7 +165,7 @@ fn name_piece_words_read_their_full_fixtures() {
             (d::Answer::Item { item, .. }, w::Answer::Item(value)) => rows
                 .push(NameRow {
                     path: "Summary.labels",
-                    bytes: value.into_parts().item.into_parts().labels,
+                    bytes: value.item.labels,
                     expected: item.labels,
                     decode: answer_name,
                 })
@@ -199,8 +195,8 @@ fn held_refusal_word_reads_the_full_application_fixture() {
         outcome: forge::ApplicationOutcome::CoreRefused(fixture.clone()),
     };
     let w::Value::Application(application) = stored(&row, &bounds) else { panic!("application fixture") };
-    let w::ApplicationOutcome::CoreRefused(value) = application.into_parts().outcome else { panic!("refusal fixture") };
-    let rows = [("CoreRefused.refusal", value.into_parts().refusal, fixture)];
+    let w::ApplicationOutcome::CoreRefused(value) = application.outcome else { panic!("refusal fixture") };
+    let rows = [("CoreRefused.refusal", value.refusal, fixture)];
     for (path, bytes, expected) in rows {
         let mut reader = Reader::new(&bytes);
         let people::Refusal::Circle(value) = people::Refusal::decode(&people::CEILINGS, &mut reader).unwrap() else {

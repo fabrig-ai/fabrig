@@ -1,8 +1,4 @@
-#![expect(
-    clippy::disallowed_methods,
-    clippy::disallowed_macros,
-    reason = "ordinary tests edit fixture text and inspect diagnostics"
-)]
+#![expect(clippy::disallowed_methods, reason = "ordinary tests edit fixture text and inspect diagnostics")]
 use super::fixtures;
 use crate::{figures, startup};
 use jig_protocol_config as config;
@@ -30,7 +26,7 @@ fn record(places: u32, values: &[(&str, u64)]) -> w::Figures {
     .unwrap()
 }
 #[test]
-fn figures_apply_named_limits_cap_slots_and_skip_unknown_names_once() {
+fn figures_apply_named_limits_and_skip_unknown_names_once() {
     let mut source = jig_protocol_config_fixtures::small();
     source.hub.slots = 9;
     source.link.ping = Duration::from_millis(4321);
@@ -56,6 +52,28 @@ fn figures_apply_named_limits_cap_slots_and_skip_unknown_names_once() {
         3
     );
 }
+#[test]
+fn figures_places_replace_document_slots_and_size_worker_capacity() {
+    for (slots, places) in [(1_u32, 6), (12, 3)] {
+        let input =
+            fixtures::with(&fixtures::worker_alone_document(), b"workers[0].slots", slots.to_string().as_bytes());
+        let mut part = startup::worker_part(&input, &config::Directories::working(), None, &[]).unwrap();
+        assert_eq!(part.worker.jig.slots, slots);
+        figures::apply(&mut part, record(places, &[])).unwrap();
+        assert_eq!(part.worker.jig.slots, places);
+        assert_eq!(part.worker.jig.limits.as_ref().unwrap().hub.slots, places);
+        assert_eq!(part.limits.checkout.workspaces, places);
+        assert_eq!(part.limits.git_component.operations, places);
+        let root = crate::worker_settings::root_limits(&part.worker, &fixtures::startup_agent(), &part.limits);
+        assert_eq!(root.host.slots, places);
+        assert_eq!(root.agent.agents, places);
+        assert_eq!(root.tooling.jobs, places);
+        let payload = crate::worker_settings::payload_limits(&part.limits).unwrap();
+        let link = crate::worker_settings::link_limits(&part.worker.jig, &payload, part.limits.peer.forges).unwrap();
+        assert_eq!(link.sizes.slots, places);
+    }
+}
+
 #[test]
 fn each_moved_member_is_refused_with_its_migration_words() {
     let base = fixtures::worker_alone_document();
@@ -137,8 +155,7 @@ fn a_short_figure_names_the_engine_scalar_and_keeps_the_check() {
 /// its opening does (configuration/figures.md, 2–3).
 pub(super) fn stock_figures() -> w::Figures {
     use temper_engine_service_startup::{limits, stock};
-    let mut input: serde_json::Value =
-        serde_json::from_slice(include_bytes!("../../../temper-init/template/temper.json")).unwrap();
+    let mut input: serde_json::Value = serde_json::from_slice(&temper_config_shell::init_document(true)).unwrap();
     input["engine"]["clients"]["provider"] = serde_json::Value::Null;
     let input = serde_json::to_vec(&input["engine"]).unwrap();
     let document =
@@ -152,17 +169,12 @@ pub(super) fn stock_figures() -> w::Figures {
     limits::derive(&mut own, temper_service_core::derived::STOCK).unwrap();
     let mut figures =
         temper_engine_service_startup::figures::Composer::new(&engine, &own).compose(&stock::agents()).into_parts();
-    figures.places = engine.limits.core.fleet.slots;
+    figures.places = 4;
     w::Figures::new(&w::CEILINGS, figures).unwrap()
 }
 
 fn stock_worker(figures: w::Figures) -> (startup::WorkerPart, crate::settings::Agent) {
-    // Exercise the standalone document and figures path, with all admitted places.
-    let input = fixtures::with(
-        &fixtures::worker_alone_document(),
-        b"workers[0].slots",
-        skein_lib::Decimal::of(u64::from(figures.places())).as_bytes(),
-    );
+    let input = fixtures::worker_alone_document();
     let mut part = startup::worker_part(&input, &config::Directories::working(), None, &[]).unwrap();
     let bytes = temper_worker_shell::agent::figures::configuration(
         &figures,
@@ -185,6 +197,23 @@ fn stock_engine_figures_start_a_standalone_worker() {
     assert!(temper_worker_domain::unfit(&limits).is_empty(), "{:?}", temper_worker_domain::unfit(&limits));
     assert!(temper_worker_domain::valid(&limits));
     startup::worker::check_worker_part(&mut part, &fixtures::files(), &agent).unwrap();
+    startup::worker_alone(part, &fixtures::files(), &agent, fixtures::worker_runtime(), 7).unwrap();
+}
+
+#[test]
+fn figures_places_past_the_worker_link_cap_refuse_the_start_naming_the_engine() {
+    let mut figures = stock_figures().into_parts();
+    figures.places = 32;
+    let (part, agent) = stock_worker(w::Figures::new(&w::CEILINGS, figures).unwrap());
+    let payload = crate::worker_settings::payload_limits(&part.limits).unwrap();
+    let link = crate::worker_settings::link_limits(&part.worker.jig, &payload, part.limits.peer.forges).unwrap();
+    assert!(w::sizes::worker_cap(&link.sizes).is_none());
+    let found = startup::worker_alone(part, &fixtures::files(), &agent, fixtures::worker_runtime(), 7)
+        .err()
+        .expect("figures pass the worker link's cap");
+    assert_eq!(found.problems.len(), 1);
+    assert_eq!(found.problems.get(0).unwrap().path, config::Path::root().member(b"the engine's figures"));
+    assert_eq!(found.problems.get(0).unwrap().what, startup::What::Jig(config::What::Bound));
 }
 
 #[test]

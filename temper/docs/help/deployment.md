@@ -8,14 +8,14 @@ A deployment is one temper: its engine, the workers that run its agents, the for
 
 - **The engine** keeps state and decides acts. A **worker** checks out
   repositories and runs agents. `temper-box init` writes one worker in the
-  engine's process, with 4 slots.
-- **`temper-box serve`** runs any shape: engine, workers or both.
+  engine's process, with 4 places.
+- **`temper-box serve`** runs the engine and its worker in one process.
   **`temper box`** runs serve and each managed forge's setup processes
   on this machine (temper help box). A **server** runs `temper-engine serve` for its engine alone and
   `temper-worker serve` for each worker alone (temper help server).
 
-**The three directories:** `CONFIG` holds `temper.json`; `DATA` holds `agents.setting`, the box’s
-copy of its agents setting, the store under `deployment`, workspaces,
+**The three directories:** `CONFIG` holds `temper.toml`; `DATA` holds `agents.setting`, the box’s
+copy of its agents setting, the store under `state`, workspaces,
 forge state, the worker secret and box logs; `CACHE` holds fetched
 Forgejo and runner binaries at pinned versions.
 
@@ -28,20 +28,17 @@ Each directory comes from its flag (`temper-box help commands`), else
 `DATA` and `CACHE` belong to the user running temper; missing ones
 are made with mode 0700.
 
-**`CONFIG/temper.json` has three members:**
-
-- `engine`: limits, admitted workers, listeners,
-  owners, sign-in and first-start projects, each naming `"policy": 1`;
-- `workers`: engine addresses, names, secret files and slots; agent programs are derived;
-- `application`: managed and fake forge locations, landing rules,
-  client and webhook listeners, sign-in and application limits.
+**`CONFIG/temper.toml` holds what a start needs:** listeners, the public
+origin, the first owner, sign-in, OpenID, push and program paths. Each
+binary's `help config` lists its public keys and an example file; temper
+help configuration lists all keys and where the old members went.
+A worker's file names its engine and its own name, with optional
+`[programs]` and `[environment]` tables.
 
 Forges are made through setup or connect and kept in the store
 (temper help forge). Charters, templates, policies and rules are
-settings in the store (temper help settings). Writing them into this
-configuration is refused; an inline project policy is refused as
-`engine.projects[0].policy: name a policy, policy: 1; change it with
-temper ctl settings apply`.
+settings in the store (temper help settings). Projects are made at runtime;
+make one from the client or `temper ctl`.
 LLM providers are settings in the store (temper help settings): see them with
 `temper ctl settings show provider`, change them with `temper ctl settings apply`;
 a change is taken at the engine's next start.
@@ -72,7 +69,7 @@ a change is taken at the engine's next start.
 ## Acting on it
 
 - **The binaries:** the box's `temper-box init` writes a deployment;
-  `temper box` runs it; `temper-box serve` runs any shape;
+  `temper box` runs it; `temper-box serve` runs the box;
   `temper-box program-login` signs a program in on this host. A server's
   `temper-engine serve` runs its engine, `temper-worker serve` each worker,
   and `temper-worker program-login` signs a program in on each worker's
@@ -125,16 +122,18 @@ content, or an edit's combined old snippets and combined new snippets,
 each separately. A 4,487-byte design edit fits the shipped 10,662-byte
 profile. This is a deployment setting; changing a charter cannot raise it.
 
-Keep these coupled values in `CONFIG/temper.json` aligned:
+Keep these coupled values in the `temper-limits` and `limits` settings aligned
+(`temper ctl settings show`, then `temper ctl settings apply`); they are not
+keys of `CONFIG/temper.toml`:
 
-- `application.limits.overrides.checkout.message_bytes` holds the payload.
-- `engine.limits.overrides.hub.event_bytes` equals payload minus 2,
+- `temper-limits` override `checkout.message_bytes` holds the payload.
+- `limits` override `hub.event_bytes` equals payload minus 2,
   the message separator: payload `8194` requires event bytes `8192`.
-- Engine overrides `hub.turn_bytes` hold the derived
+- `limits` overrides `hub.turn_bytes` hold the derived
   agent turn; `hub.turn_queue_bytes` holds that times the agent's turns.
-  Engine `core.resume_bytes` holds the turn plus 4; both
+  `limits` override `core.resume_bytes` holds the turn plus 4; both
   `hub.transcript_bytes` hold that resume window including its framing.
-- Application `root.journal.transcript_bytes` and `root.loads` byte
+- `temper-limits` overrides `root.journal.transcript_bytes` and `root.loads` byte
   overrides hold the turn, resume and encoded record carriers.
   Raise every short value startup reports together (temper help limits;
   temper help limits-engine).

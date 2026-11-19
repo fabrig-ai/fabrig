@@ -32,6 +32,7 @@ jig-domain-accounts.workspace = true
 jig-domain-notes.workspace = true
 skein-lib.workspace = true
 skein-world.workspace = true
+skein-fork.workspace = true
 sha2.workspace = true
 
 [lints.rust] # harness: tools/lints/design.md, 2.2
@@ -55,6 +56,7 @@ disallowed_methods = "deny"
 
 [dev-dependencies]
 skein-codegen.workspace = true
+tempfile.workspace = true
 jig-client-scripted-engine.workspace = true
 jig-client.workspace = true
 jig-client-test-domain.workspace = true

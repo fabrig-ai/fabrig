@@ -2,6 +2,7 @@
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 #![expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
+use skein_codec::Record;
 extern crate alloc;
 
 mod lowering;

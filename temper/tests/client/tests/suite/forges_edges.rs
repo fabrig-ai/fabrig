@@ -495,7 +495,7 @@ fn github_details_offer_only_the_app_of_ones_own_with_a_masked_key() {
 const ADMIN_TOKEN: &[u8] = b"admin-token-placeholder-0123";
 pub(super) fn admin_world(mode: forge::Mode) -> Pages {
     // The original deployment's durable store is cold-restored with the new
-    // configuration, as after changing temper.json and restarting.
+    // configuration, as after changing the configuration and restarting.
     let mut world = configured_accounts(
         true,
         false,

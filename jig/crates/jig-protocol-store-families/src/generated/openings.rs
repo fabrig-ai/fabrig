@@ -2,11 +2,14 @@
 
 use alloc::boxed::Box;
 use skein_lib::List;
+use skein_codec::field;
+pub use skein_codec::Record;
+pub type Path = skein_codec::Path<Limits>;
+pub type Problem = skein_codec::Problem<Limits>;
 
-/// This family's schema version.
 pub const VERSION: u16 = 1;
 
-/// The family's adjustable limits, each no larger than its ceiling.
+// Limits: the owner's values, checked once against ceilings.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Limits {
     pub opened_wire_name: u32,
@@ -16,7 +19,6 @@ pub struct Limits {
     pub worker_opening_terms: u32,
 }
 
-/// The schema's maximum limits.
 pub const CEILINGS: Limits = Limits {
     opened_wire_name: 32,
     opened_wire_layouts: 16,
@@ -25,7 +27,6 @@ pub const CEILINGS: Limits = Limits {
     worker_opening_terms: 64,
 };
 
-/// The limits' field names, in field order.
 pub const LIMIT_NAMES: &[&str] = &[
     "opened_wire_name",
     "opened_wire_layouts",
@@ -35,545 +36,238 @@ pub const LIMIT_NAMES: &[&str] = &[
 ];
 
 impl Limits {
-    /// The limits' values, in `LIMIT_NAMES` order.
     #[must_use]
     pub fn values(&self) -> List<u32> {
         let mut values = List::with_capacity(u32::try_from(LIMIT_NAMES.len()).expect("schema limits fit u32"));
-        self.values_for_opened_wire_record(&mut values);
+        values.push(self.opened_wire_name).expect("room for every named limit");
+        values.push(self.opened_wire_layouts).expect("room for every named limit");
+        values.push(self.worker_opening_worker).expect("room for every named limit");
+        values.push(self.worker_opening_wires).expect("room for every named limit");
+        values.push(self.worker_opening_terms).expect("room for every named limit");
         values
     }
 }
 
-/// A field or tag that caused a codec problem.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum Path {
-    /// The `name` field of `OpenedWire`.
-    OpenedWireName,
-    /// The `lowest` field of `OpenedWire`.
-    OpenedWireLowest,
-    /// The `layouts` field of `OpenedWire`.
-    OpenedWireLayouts,
-    /// Bytes after `OpenedWire`.
-    OpenedWireTail,
-    /// The `kind` field of `OpenedTerm`.
-    OpenedTermKind,
-    /// The `largest` field of `OpenedTerm`.
-    OpenedTermLargest,
-    /// Bytes after `OpenedTerm`.
-    OpenedTermTail,
-    /// The `worker` field of `WorkerOpening`.
-    WorkerOpeningWorker,
-    /// The `wires` field of `WorkerOpening`.
-    WorkerOpeningWires,
-    /// The `output` field of `WorkerOpening`.
-    WorkerOpeningOutput,
-    /// The `terms` field of `WorkerOpening`.
-    WorkerOpeningTerms,
-    /// The `at` field of `WorkerOpening`.
-    WorkerOpeningAt,
-    /// The version of `WorkerOpening`.
-    WorkerOpeningVersion,
-    /// Bytes after `WorkerOpening`.
-    WorkerOpeningTail,
-}
+const LIMIT_PATHS: &[Path] = &[
+    paths::OPENED_WIRE_NAME,
+    paths::OPENED_WIRE_LAYOUTS,
+    paths::WORKER_OPENING_WORKER,
+    paths::WORKER_OPENING_WIRES,
+    paths::WORKER_OPENING_TERMS,
+];
 
-impl Path {
-    /// The path as the schema spells it (skein/docs/design/data/codec/README.md, 4).
-    #[must_use]
-    pub const fn name(self) -> &'static str {
-        match self {
-            Self::OpenedWireName => "OpenedWire.name",
-            Self::OpenedWireLowest => "OpenedWire.lowest",
-            Self::OpenedWireLayouts => "OpenedWire.layouts",
-            Self::OpenedWireTail => "OpenedWire (tail)",
-            Self::OpenedTermKind => "OpenedTerm.kind",
-            Self::OpenedTermLargest => "OpenedTerm.largest",
-            Self::OpenedTermTail => "OpenedTerm (tail)",
-            Self::WorkerOpeningWorker => "WorkerOpening.worker",
-            Self::WorkerOpeningWires => "WorkerOpening.wires",
-            Self::WorkerOpeningOutput => "WorkerOpening.output",
-            Self::WorkerOpeningTerms => "WorkerOpening.terms",
-            Self::WorkerOpeningAt => "WorkerOpening.at",
-            Self::WorkerOpeningVersion => "WorkerOpening (version)",
-            Self::WorkerOpeningTail => "WorkerOpening (tail)",
-        }
-    }
-}
-
-/// A decoding or bound failure at a schema path.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct Problem {
-    pub path: Path,
-    pub reason: skein_codec::Reason,
-}
-
-/// Checks the family limits, naming the first limit past its ceiling.
 pub fn check_limits(limits: &Limits) -> Result<(), Problem> {
-    check_opened_wire_record_limits(limits)
-}
-
-/// Maximum wire bytes among this family's top-level types.
-#[must_use]
-pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-    if check_limits(limits).is_err() { return None; }
-    opened_wire_encoded_bound_family(limits, 0)
-}
-
-/// Maximum heap held by one decoded top-level value.
-#[must_use]
-pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-    if check_limits(limits).is_err() { return None; }
-    opened_wire_decoded_bound_family(limits, 0)
-}
-
-/// Movable fields of `OpenedWire`.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct OpenedWireParts {
-    /// The `name` field.
-    pub name: Box<[u8]>,
-    /// The `lowest` field.
-    pub lowest: u16,
-    /// The `layouts` field.
-    pub layouts: List<[u8; 32]>,
-}
-
-/// `OpenedWire` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct OpenedWire {
-    name: Box<[u8]>,
-    lowest: u16,
-    layouts: List<[u8; 32]>,
-}
-
-impl OpenedWire {
-    /// Makes a value within the given limits.
-    pub fn new(limits: &Limits, parts: OpenedWireParts) -> Result<Self, Problem> {
-        let OpenedWireParts { name, lowest, layouts } = parts;
-        let value = Self { name, lowest, layouts };
-        value.check(limits)?;
-        Ok(value)
-    }
-
-    /// Reads the `name` field.
-    #[must_use]
-    pub fn name(&self) -> &[u8] { &self.name }
-
-    /// Reads the `lowest` field.
-    #[must_use]
-    pub fn lowest(&self) -> u16 { self.lowest }
-
-    /// Reads the `layouts` field.
-    #[must_use]
-    pub fn layouts(&self) -> &List<[u8; 32]> { &self.layouts }
-
-    /// Moves the fields out without copying.
-    #[must_use]
-    pub fn into_parts(self) -> OpenedWireParts { OpenedWireParts { name: self.name, lowest: self.lowest, layouts: self.layouts } }
-
-    fn check(&self, limits: &Limits) -> Result<(), Problem> {
-        if self.name.len() > usize::try_from(limits.opened_wire_name.min(CEILINGS.opened_wire_name)).expect("u32 fits usize") { return Err(Problem { path: Path::OpenedWireName, reason: skein_codec::Reason::Bound }); }
-        if !skein_codec::text_is_valid(self.name.as_ref()) { return Err(Problem { path: Path::OpenedWireName, reason: skein_codec::Reason::Utf8 }); }
-        if self.layouts.capacity() > limits.opened_wire_layouts.min(CEILINGS.opened_wire_layouts) { return Err(Problem { path: Path::OpenedWireLayouts, reason: skein_codec::Reason::Bound }); }
-        Ok(())
-    }
-}
-
-impl OpenedWire {
-    /// Measures this record's wire encoding.
-    #[must_use]
-    pub fn measure(&self) -> u32 {
-        let mut size = 0_u32;
-        let field_name = &self.name;
-        size = size.checked_add(4).expect("schema ceilings fit u32");
-        size = size.checked_add(u32::try_from(field_name.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
-        size = size.checked_add(2).expect("schema ceilings fit u32");
-        let field_layouts = &self.layouts;
-        size = size.checked_add(4).expect("schema ceilings fit u32");
-        size = size.checked_add(field_layouts.len().checked_mul(32).expect("schema ceilings fit u32")).expect("schema ceilings fit u32");
-        size
-    }
-
-    /// Writes into a writer with room for the measured bytes.
-    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
-        let field_name = &self.name;
-        writer.put(&u32::try_from(field_name.len()).expect("field ceiling fits u32").to_be_bytes())?;
-        writer.put(field_name.as_ref())?;
-        let field_lowest = &self.lowest;
-        writer.put(&field_lowest.to_be_bytes())?;
-        let field_layouts = &self.layouts;
-        writer.put(&field_layouts.len().to_be_bytes())?;
-        for item_0 in field_layouts.as_slice() {
-        writer.put(item_0)?;
+    for ((value, ceiling), path) in limits.values().as_slice().iter().zip(CEILING_VALUES).zip(LIMIT_PATHS) {
+        if value > ceiling {
+            return Err(path.problem(skein_codec::Reason::Bound));
         }
-        Ok(())
     }
-
-    /// Reads a whole record and refuses trailing bytes.
-    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let value = Self::decode_from(limits, reader)?;
-        if !reader.is_empty() { return Err(Problem { path: Path::OpenedWireTail, reason: skein_codec::Reason::Trailing }); }
-        Ok(value)
-    }
-
-    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let decoded_name = match skein_codec::read_text(reader, limits.opened_wire_name.min(CEILINGS.opened_wire_name)) { Ok(text) => text, Err(reason) => return Err(Problem { path: Path::OpenedWireName, reason }), };
-        let decoded_lowest = reader.u16().ok_or(Problem { path: Path::OpenedWireLowest, reason: skein_codec::Reason::Short })?;
-        let decoded_layouts = { let count = match skein_codec::read_count(reader, limits.opened_wire_layouts.min(CEILINGS.opened_wire_layouts)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::OpenedWireLayouts, reason }), }; if count > reader.remaining() / 32 { return Err(Problem { path: Path::OpenedWireLayouts, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = { let bytes = reader.bytes(32).ok_or(Problem { path: Path::OpenedWireLayouts, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") }; items_0.push(item).expect("count within capacity"); } items_0 };
-        Ok(Self { name: decoded_name, lowest: decoded_lowest, layouts: decoded_layouts })
-    }
-}
-
-impl OpenedWire {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(4_u64.checked_add(u64::from(limits.opened_wire_name))?)?.checked_add(2_u64)?;
-        size = size.checked_add(4_u64.checked_add(u64::from(limits.opened_wire_layouts).checked_mul(u64::from(32_u32))?)?)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(u64::from(limits.opened_wire_name))?.checked_add(0_u64)?;
-        heap = heap.checked_add(List::<[u8; 32]>::price(limits.opened_wire_layouts)?.checked_add(u64::from(limits.opened_wire_layouts).checked_mul(0_u64)?)?)?;
-        heap.checked_add(0)
-    }
-}
-
-fn opened_wire_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
-    let biggest = biggest.max(OpenedWire::encoded_bound_within(limits)?);
-    opened_term_encoded_bound_family(limits, biggest)
-}
-
-fn opened_wire_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
-    let biggest = biggest.max(OpenedWire::decoded_bound_within(limits)?);
-    opened_term_decoded_bound_family(limits, biggest)
-}
-
-fn check_opened_wire_record_limits(limits: &Limits) -> Result<(), Problem> {
-    if limits.opened_wire_name > CEILINGS.opened_wire_name { return Err(Problem { path: Path::OpenedWireName, reason: skein_codec::Reason::Bound }); }
-    if limits.opened_wire_layouts > CEILINGS.opened_wire_layouts { return Err(Problem { path: Path::OpenedWireLayouts, reason: skein_codec::Reason::Bound }); }
-    check_worker_opening_record_limits(limits)
-}
-
-impl Limits {
-    fn values_for_opened_wire_record(&self, values: &mut List<u32>) {
-        values.push(self.opened_wire_name).expect("room for every named limit");
-        values.push(self.opened_wire_layouts).expect("room for every named limit");
-        self.values_for_worker_opening_record(values);
-    }
-}
-
-/// Movable fields of `OpenedTerm`.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct OpenedTermParts {
-    /// The `kind` field.
-    pub kind: u16,
-    /// The `largest` field.
-    pub largest: u32,
-}
-
-/// `OpenedTerm` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct OpenedTerm {
-    kind: u16,
-    largest: u32,
-}
-
-impl OpenedTerm {
-    /// Makes a value within the given limits.
-    pub fn new(_limits: &Limits, parts: OpenedTermParts) -> Result<Self, Problem> {
-        let OpenedTermParts { kind, largest } = parts;
-        let value = Self { kind, largest };
-        Ok(value)
-    }
-
-    /// Reads the `kind` field.
-    #[must_use]
-    pub fn kind(&self) -> u16 { self.kind }
-
-    /// Reads the `largest` field.
-    #[must_use]
-    pub fn largest(&self) -> u32 { self.largest }
-
-    /// Moves the fields out without copying.
-    #[must_use]
-    pub fn into_parts(self) -> OpenedTermParts { OpenedTermParts { kind: self.kind, largest: self.largest } }
-
-}
-
-impl OpenedTerm {
-    /// Measures this record's wire encoding.
-    #[must_use]
-    pub fn measure(&self) -> u32 {
-        let mut size = 0_u32;
-        size = size.checked_add(2).expect("schema ceilings fit u32");
-        size = size.checked_add(4).expect("schema ceilings fit u32");
-        size
-    }
-
-    /// Writes into a writer with room for the measured bytes.
-    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
-        let field_kind = &self.kind;
-        writer.put(&field_kind.to_be_bytes())?;
-        let field_largest = &self.largest;
-        writer.put(&field_largest.to_be_bytes())?;
-        Ok(())
-    }
-
-    /// Reads a whole record and refuses trailing bytes.
-    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let value = Self::decode_from(limits, reader)?;
-        if !reader.is_empty() { return Err(Problem { path: Path::OpenedTermTail, reason: skein_codec::Reason::Trailing }); }
-        Ok(value)
-    }
-
-    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let decoded_kind = reader.u16().ok_or(Problem { path: Path::OpenedTermKind, reason: skein_codec::Reason::Short })?;
-        let decoded_largest = reader.u32().ok_or(Problem { path: Path::OpenedTermLargest, reason: skein_codec::Reason::Short })?;
-        Ok(Self { kind: decoded_kind, largest: decoded_largest })
-    }
-}
-
-impl OpenedTerm {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(2_u64)?.checked_add(4_u64)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
-        heap.checked_add(0)
-    }
-}
-
-fn opened_term_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
-    let biggest = biggest.max(OpenedTerm::encoded_bound_within(limits)?);
-    worker_opening_encoded_bound_family(limits, biggest)
-}
-
-fn opened_term_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
-    let biggest = biggest.max(OpenedTerm::decoded_bound_within(limits)?);
-    worker_opening_decoded_bound_family(limits, biggest)
-}
-
-/// Movable fields of `WorkerOpening`.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct WorkerOpeningParts {
-    /// The `worker` field.
-    pub worker: Box<[u8]>,
-    /// The `wires` field.
-    pub wires: List<OpenedWire>,
-    /// The `output` field.
-    pub output: u32,
-    /// The `terms` field.
-    pub terms: List<OpenedTerm>,
-    /// The `at` field.
-    pub at: u64,
-}
-
-/// `WorkerOpening` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct WorkerOpening {
-    worker: Box<[u8]>,
-    wires: List<OpenedWire>,
-    output: u32,
-    terms: List<OpenedTerm>,
-    at: u64,
-}
-
-impl WorkerOpening {
-    /// Makes a value within the given limits.
-    pub fn new(limits: &Limits, parts: WorkerOpeningParts) -> Result<Self, Problem> {
-        let WorkerOpeningParts { worker, wires, output, terms, at } = parts;
-        let value = Self { worker, wires, output, terms, at };
-        value.check(limits)?;
-        Ok(value)
-    }
-
-    /// Reads the `worker` field.
-    #[must_use]
-    pub fn worker(&self) -> &[u8] { &self.worker }
-
-    /// Reads the `wires` field.
-    #[must_use]
-    pub fn wires(&self) -> &List<OpenedWire> { &self.wires }
-
-    /// Reads the `output` field.
-    #[must_use]
-    pub fn output(&self) -> u32 { self.output }
-
-    /// Reads the `terms` field.
-    #[must_use]
-    pub fn terms(&self) -> &List<OpenedTerm> { &self.terms }
-
-    /// Reads the `at` field.
-    #[must_use]
-    pub fn at(&self) -> u64 { self.at }
-
-    /// Moves the fields out without copying.
-    #[must_use]
-    pub fn into_parts(self) -> WorkerOpeningParts { WorkerOpeningParts { worker: self.worker, wires: self.wires, output: self.output, terms: self.terms, at: self.at } }
-
-    fn check(&self, limits: &Limits) -> Result<(), Problem> {
-        if self.worker.len() > usize::try_from(limits.worker_opening_worker.min(CEILINGS.worker_opening_worker)).expect("u32 fits usize") { return Err(Problem { path: Path::WorkerOpeningWorker, reason: skein_codec::Reason::Bound }); }
-        if !skein_codec::text_is_valid(self.worker.as_ref()) { return Err(Problem { path: Path::WorkerOpeningWorker, reason: skein_codec::Reason::Utf8 }); }
-        if self.wires.capacity() > limits.worker_opening_wires.min(CEILINGS.worker_opening_wires) { return Err(Problem { path: Path::WorkerOpeningWires, reason: skein_codec::Reason::Bound }); }
-        for item_0 in self.wires.as_slice() {
-        item_0.check(limits)?;
-        }
-        if self.terms.capacity() > limits.worker_opening_terms.min(CEILINGS.worker_opening_terms) { return Err(Problem { path: Path::WorkerOpeningTerms, reason: skein_codec::Reason::Bound }); }
-        Ok(())
-    }
-}
-
-impl WorkerOpening {
-    /// Measures this record's wire encoding.
-    #[must_use]
-    pub fn measure(&self) -> u32 {
-        let mut size = 0_u32;
-        size = size.checked_add(2).expect("schema ceilings fit u32");
-        let field_worker = &self.worker;
-        size = size.checked_add(4).expect("schema ceilings fit u32");
-        size = size.checked_add(u32::try_from(field_worker.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
-        let field_wires = &self.wires;
-        size = size.checked_add(4).expect("schema ceilings fit u32");
-        for item_0 in field_wires.as_slice() {
-        size = size.checked_add(item_0.measure()).expect("schema ceilings fit u32");
-        }
-        size = size.checked_add(4).expect("schema ceilings fit u32");
-        let field_terms = &self.terms;
-        size = size.checked_add(4).expect("schema ceilings fit u32");
-        size = size.checked_add(field_terms.len().checked_mul(6).expect("schema ceilings fit u32")).expect("schema ceilings fit u32");
-        size = size.checked_add(8).expect("schema ceilings fit u32");
-        size
-    }
-
-    /// Writes into a writer with room for the measured bytes.
-    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
-        writer.put(&VERSION.to_be_bytes())?;
-        let field_worker = &self.worker;
-        writer.put(&u32::try_from(field_worker.len()).expect("field ceiling fits u32").to_be_bytes())?;
-        writer.put(field_worker.as_ref())?;
-        let field_wires = &self.wires;
-        writer.put(&field_wires.len().to_be_bytes())?;
-        for item_0 in field_wires.as_slice() {
-        item_0.encode(writer)?;
-        }
-        let field_output = &self.output;
-        writer.put(&field_output.to_be_bytes())?;
-        let field_terms = &self.terms;
-        writer.put(&field_terms.len().to_be_bytes())?;
-        for item_0 in field_terms.as_slice() {
-        item_0.encode(writer)?;
-        }
-        let field_at = &self.at;
-        writer.put(&field_at.to_be_bytes())?;
-        Ok(())
-    }
-
-    /// Reads a whole record and refuses trailing bytes.
-    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let value = Self::decode_from(limits, reader)?;
-        if !reader.is_empty() { return Err(Problem { path: Path::WorkerOpeningTail, reason: skein_codec::Reason::Trailing }); }
-        Ok(value)
-    }
-
-    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let version = reader.u16().ok_or(Problem { path: Path::WorkerOpeningVersion, reason: skein_codec::Reason::Short })?;
-        if version != VERSION { return Err(Problem { path: Path::WorkerOpeningVersion, reason: skein_codec::Reason::Version }); }
-        let decoded_worker = match skein_codec::read_text(reader, limits.worker_opening_worker.min(CEILINGS.worker_opening_worker)) { Ok(text) => text, Err(reason) => return Err(Problem { path: Path::WorkerOpeningWorker, reason }), };
-        let decoded_wires = { let count = match skein_codec::read_count(reader, limits.worker_opening_wires.min(CEILINGS.worker_opening_wires)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::WorkerOpeningWires, reason }), }; if count > reader.remaining() / 10 { return Err(Problem { path: Path::WorkerOpeningWires, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = OpenedWire::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
-        let decoded_output = reader.u32().ok_or(Problem { path: Path::WorkerOpeningOutput, reason: skein_codec::Reason::Short })?;
-        let decoded_terms = { let count = match skein_codec::read_count(reader, limits.worker_opening_terms.min(CEILINGS.worker_opening_terms)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::WorkerOpeningTerms, reason }), }; if count > reader.remaining() / 6 { return Err(Problem { path: Path::WorkerOpeningTerms, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = OpenedTerm::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
-        let decoded_at = reader.u64().ok_or(Problem { path: Path::WorkerOpeningAt, reason: skein_codec::Reason::Short })?;
-        Ok(Self { worker: decoded_worker, wires: decoded_wires, output: decoded_output, terms: decoded_terms, at: decoded_at })
-    }
-}
-
-impl WorkerOpening {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut size = 2_u64;
-        size = size.checked_add(4_u64.checked_add(u64::from(limits.worker_opening_worker))?)?.checked_add(4_u64.checked_add(u64::from(limits.worker_opening_wires).checked_mul(OpenedWire::encoded_bound_within(limits)?)?)?)?;
-        size = size.checked_add(4_u64)?.checked_add(4_u64.checked_add(u64::from(limits.worker_opening_terms).checked_mul(OpenedTerm::encoded_bound_within(limits)?)?)?)?;
-        size = size.checked_add(8_u64)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(u64::from(limits.worker_opening_worker))?.checked_add(List::<OpenedWire>::price(limits.worker_opening_wires)?.checked_add(u64::from(limits.worker_opening_wires).checked_mul(OpenedWire::decoded_bound_within(limits)?)?)?)?;
-        heap = heap.checked_add(0_u64)?.checked_add(List::<OpenedTerm>::price(limits.worker_opening_terms)?.checked_add(u64::from(limits.worker_opening_terms).checked_mul(OpenedTerm::decoded_bound_within(limits)?)?)?)?;
-        heap = heap.checked_add(0_u64)?;
-        heap.checked_add(0)
-    }
-}
-
-fn worker_opening_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
-    let biggest = biggest.max(WorkerOpening::encoded_bound_within(limits)?);
-    Some(biggest)
-}
-
-fn worker_opening_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
-    let biggest = biggest.max(WorkerOpening::decoded_bound_within(limits)?);
-    Some(biggest)
-}
-
-fn check_worker_opening_record_limits(limits: &Limits) -> Result<(), Problem> {
-    if limits.worker_opening_worker > CEILINGS.worker_opening_worker { return Err(Problem { path: Path::WorkerOpeningWorker, reason: skein_codec::Reason::Bound }); }
-    if limits.worker_opening_wires > CEILINGS.worker_opening_wires { return Err(Problem { path: Path::WorkerOpeningWires, reason: skein_codec::Reason::Bound }); }
-    if limits.worker_opening_terms > CEILINGS.worker_opening_terms { return Err(Problem { path: Path::WorkerOpeningTerms, reason: skein_codec::Reason::Bound }); }
     Ok(())
 }
 
-impl Limits {
-    fn values_for_worker_opening_record(&self, values: &mut List<u32>) {
-        values.push(self.worker_opening_worker).expect("room for every named limit");
-        values.push(self.worker_opening_wires).expect("room for every named limit");
-        values.push(self.worker_opening_terms).expect("room for every named limit");
+// Paths: declaration and part positions, with one naming table.
+pub mod paths {
+    use super::Path;
+    pub const OPENED_WIRE_NAME: Path = Path::new(0, 0);
+    pub const OPENED_WIRE_LOWEST: Path = Path::new(0, 1);
+    pub const OPENED_WIRE_LAYOUTS: Path = Path::new(0, 2);
+    pub const OPENED_WIRE_TAIL: Path = Path::new(0, 3);
+    pub const OPENED_TERM_KIND: Path = Path::new(1, 0);
+    pub const OPENED_TERM_LARGEST: Path = Path::new(1, 1);
+    pub const OPENED_TERM_TAIL: Path = Path::new(1, 2);
+    pub const WORKER_OPENING_WORKER: Path = Path::new(2, 0);
+    pub const WORKER_OPENING_WIRES: Path = Path::new(2, 1);
+    pub const WORKER_OPENING_OUTPUT: Path = Path::new(2, 2);
+    pub const WORKER_OPENING_TERMS: Path = Path::new(2, 3);
+    pub const WORKER_OPENING_AT: Path = Path::new(2, 4);
+    pub const WORKER_OPENING_VERSION: Path = Path::new(2, 5);
+    pub const WORKER_OPENING_TAIL: Path = Path::new(2, 6);
+}
+
+const PATH_NAMES: &[&[&str]] = &[
+    &[
+        "OpenedWire.name",
+        "OpenedWire.lowest",
+        "OpenedWire.layouts",
+        "OpenedWire (tail)",
+    ],
+    &[
+        "OpenedTerm.kind",
+        "OpenedTerm.largest",
+        "OpenedTerm (tail)",
+    ],
+    &[
+        "WorkerOpening.worker",
+        "WorkerOpening.wires",
+        "WorkerOpening.output",
+        "WorkerOpening.terms",
+        "WorkerOpening.at",
+        "WorkerOpening (version)",
+        "WorkerOpening (tail)",
+    ],
+];
+
+/// The path as the schema spells it, or None outside this family's table.
+#[must_use]
+pub fn name(path: Path) -> Option<&'static str> {
+    PATH_NAMES.get(usize::from(path.declaration))?.get(usize::from(path.part)).copied()
+}
+
+// Table: postordered shapes, with compiler-known heap slot sizes.
+const TABLE: &[skein_codec::bounds::Node] = &[
+    skein_codec::bounds::Node::Bytes { limit: 0 },
+    skein_codec::bounds::Node::Scalar(2),
+    skein_codec::bounds::Node::Scalar(32),
+    skein_codec::bounds::Node::List { limit: 1, item: 2, size: size_of::<[u8; 32]>() },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 3] },
+    skein_codec::bounds::Node::Scalar(2),
+    skein_codec::bounds::Node::Scalar(4),
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[5, 6] },
+    skein_codec::bounds::Node::Bytes { limit: 2 },
+    skein_codec::bounds::Node::List { limit: 3, item: 4, size: size_of::<OpenedWire>() },
+    skein_codec::bounds::Node::Scalar(4),
+    skein_codec::bounds::Node::List { limit: 4, item: 7, size: size_of::<OpenedTerm>() },
+    skein_codec::bounds::Node::Scalar(8),
+    skein_codec::bounds::Node::Record { prefix: 2, fields: &[8, 9, 10, 11, 12] },
+];
+
+const DECLARATIONS: &[u32] = &[
+    4,
+    7,
+    13,
+];
+
+const CEILING_VALUES: &[u32] = &[
+    32,
+    16,
+    256,
+    16,
+    64,
+];
+
+#[must_use]
+pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+    Some(skein_codec::bounds::family(TABLE, limits.values().as_slice(), CEILING_VALUES, DECLARATIONS)?.encoded)
+}
+
+#[must_use]
+pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+    Some(skein_codec::bounds::family(TABLE, limits.values().as_slice(), CEILING_VALUES, DECLARATIONS)?.decoded)
+}
+
+// Type: OpenedWire.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct OpenedWire {
+    pub name: Box<[u8]>,
+    pub lowest: u16,
+    pub layouts: List<[u8; 32]>,
+}
+
+// Record: OpenedWire.
+impl Record for OpenedWire {
+    type Limits = Limits;
+    const TAIL: Path = paths::OPENED_WIRE_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 4)?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 4)?.decoded)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::Text { limit: limits.opened_wire_name.min(CEILINGS.opened_wire_name) }, &self.name, limits, out, paths::OPENED_WIRE_NAME)?;
+        field::write(field::U16, &self.lowest, limits, out, paths::OPENED_WIRE_LOWEST)?;
+        field::write(field::Sequence { limit: limits.opened_wire_layouts.min(CEILINGS.opened_wire_layouts), minimum: 32, item: field::Fixed::<32> }, &self.layouts, limits, out, paths::OPENED_WIRE_LAYOUTS)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            name: field::read(field::Text { limit: limits.opened_wire_name.min(CEILINGS.opened_wire_name) }, limits, reader, paths::OPENED_WIRE_NAME)?,
+            lowest: field::read(field::U16, limits, reader, paths::OPENED_WIRE_LOWEST)?,
+            layouts: field::read(field::Sequence { limit: limits.opened_wire_layouts.min(CEILINGS.opened_wire_layouts), minimum: 32, item: field::Fixed::<32> }, limits, reader, paths::OPENED_WIRE_LAYOUTS)?,
+        })
+    }
+}
+
+// Type: OpenedTerm.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct OpenedTerm {
+    pub kind: u16,
+    pub largest: u32,
+}
+
+// Record: OpenedTerm.
+impl Record for OpenedTerm {
+    type Limits = Limits;
+    const TAIL: Path = paths::OPENED_TERM_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 7)?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 7)?.decoded)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::U16, &self.kind, limits, out, paths::OPENED_TERM_KIND)?;
+        field::write(field::U32, &self.largest, limits, out, paths::OPENED_TERM_LARGEST)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            kind: field::read(field::U16, limits, reader, paths::OPENED_TERM_KIND)?,
+            largest: field::read(field::U32, limits, reader, paths::OPENED_TERM_LARGEST)?,
+        })
+    }
+}
+
+// Type: WorkerOpening.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct WorkerOpening {
+    pub worker: Box<[u8]>,
+    pub wires: List<OpenedWire>,
+    pub output: u32,
+    pub terms: List<OpenedTerm>,
+    pub at: u64,
+}
+
+// Record: WorkerOpening.
+impl Record for WorkerOpening {
+    type Limits = Limits;
+    const TAIL: Path = paths::WORKER_OPENING_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 13)?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 13)?.decoded)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::put(out, &VERSION.to_be_bytes(), paths::WORKER_OPENING_VERSION)?;
+        field::write(field::Text { limit: limits.worker_opening_worker.min(CEILINGS.worker_opening_worker) }, &self.worker, limits, out, paths::WORKER_OPENING_WORKER)?;
+        field::write(field::Sequence { limit: limits.worker_opening_wires.min(CEILINGS.worker_opening_wires), minimum: 10, item: field::Nested }, &self.wires, limits, out, paths::WORKER_OPENING_WIRES)?;
+        field::write(field::U32, &self.output, limits, out, paths::WORKER_OPENING_OUTPUT)?;
+        field::write(field::Sequence { limit: limits.worker_opening_terms.min(CEILINGS.worker_opening_terms), minimum: 6, item: field::Nested }, &self.terms, limits, out, paths::WORKER_OPENING_TERMS)?;
+        field::write(field::U64, &self.at, limits, out, paths::WORKER_OPENING_AT)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        field::version(reader, VERSION, paths::WORKER_OPENING_VERSION)?;
+        Ok(Self {
+            worker: field::read(field::Text { limit: limits.worker_opening_worker.min(CEILINGS.worker_opening_worker) }, limits, reader, paths::WORKER_OPENING_WORKER)?,
+            wires: field::read(field::Sequence { limit: limits.worker_opening_wires.min(CEILINGS.worker_opening_wires), minimum: 10, item: field::Nested }, limits, reader, paths::WORKER_OPENING_WIRES)?,
+            output: field::read(field::U32, limits, reader, paths::WORKER_OPENING_OUTPUT)?,
+            terms: field::read(field::Sequence { limit: limits.worker_opening_terms.min(CEILINGS.worker_opening_terms), minimum: 6, item: field::Nested }, limits, reader, paths::WORKER_OPENING_TERMS)?,
+            at: field::read(field::U64, limits, reader, paths::WORKER_OPENING_AT)?,
+        })
     }
 }
 

@@ -88,7 +88,6 @@ pub fn steps(
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Documents {
-    pub temper: Box<[u8]>,
     pub providers: Box<[u8]>,
     pub github: Box<[u8]>,
     pub oauth: Box<[u8]>,
@@ -96,94 +95,8 @@ pub struct Documents {
     pub forgejo: Box<[u8]>,
 }
 const OUTPUT: Limits = Limits { depth: 32, length: crate::DOCUMENT_BYTES };
-// Init-shaped temper: forge roots (1), sign-in (6), OpenAI endpoint (2),
-// Anthropic endpoint and provider endpoint (2), its direct way removed (3), bundle (1), worker (2),
-// capacity overrides (3). Sign-in and OpenAI may remove four TLS members each.
-// The agent's OpenAI endpoint (6), Anthropic endpoints (2) and adapter (1) fit too.
-const EDITS: u32 = 1 + 6 + 2 + 2 + 3 + 1 + 2 + 3 + 2 * 4;
 // The Model step must see OpenAI, demo and Anthropic in one provider offer.
 const PROVIDER_LINES: u32 = 3;
-#[derive(Debug)]
-struct Edit {
-    first: u32,
-    after: u32,
-    value: Option<Document>,
-}
-#[derive(Debug)]
-struct Edits {
-    rows: List<Edit>,
-}
-impl Edits {
-    fn new() -> Self {
-        Self { rows: List::with_capacity(EDITS) }
-    }
-    fn set(&mut self, d: &Document, at: u32, bytes: &[u8], p: &Path) -> Result<(), Refusal> {
-        let after = config::after(d, at).or(Err(read::why(p, b"invalid value")))?;
-        let value = Some(read::document(bytes)?);
-        self.rows.push(Edit { first: at, after, value }).or(Err(read::why(p, b"too many rewrites")))
-    }
-    fn text(&mut self, d: &Document, at: u32, value: &[u8], p: &Path) -> Result<(), Refusal> {
-        self.set(d, at, &text(value)?, p)
-    }
-    fn write(&self, d: &Document, out: &mut Encoder) {
-        let mut skip = 0;
-        for at in 0..d.len() {
-            if at < skip {
-                continue;
-            }
-            let mut edited = false;
-            for edit in &self.rows {
-                if edit.first == at {
-                    if let Some(value) = &edit.value {
-                        if edit.first == edit.after
-                            && value.token(0).expect("inserted value").kind == Kind::ObjectStart
-                            && d.token(at).expect("container close").kind == Kind::ObjectEnd
-                        {
-                            for inner in 1..value.len().checked_sub(1).expect("object close") {
-                                token(value, inner, out);
-                            }
-                        } else {
-                            out.document(value);
-                        }
-                    }
-                    skip = edit.after;
-                    edited = true;
-                    if skip > at {
-                        break;
-                    }
-                }
-            }
-            if !edited || skip == at {
-                token(d, at, out);
-            }
-        }
-    }
-    fn finish(&self, d: &Document) -> Result<Box<[u8]>, Refusal> {
-        let mut out = Encoder::measure(&OUTPUT);
-        self.write(d, &mut out);
-        let size = out.measured().or(Err(read::why(&Path::root(), b"effective document past its byte bound")))?;
-        let mut out = Encoder::write(size, &OUTPUT);
-        self.write(d, &mut out);
-        Ok(out.finish())
-    }
-}
-fn token(d: &Document, at: u32, out: &mut Encoder) {
-    let t = d.token(at).expect("bounded document token");
-    let bytes = d.text(t).expect("document text admitted");
-    match t.kind {
-        Kind::ObjectStart => out.object_start(),
-        Kind::ObjectEnd => out.object_end(),
-        Kind::ArrayStart => out.array_start(),
-        Kind::ArrayEnd => out.array_end(),
-        Kind::Key => out.key(bytes),
-        Kind::String => out.string(bytes),
-        Kind::Number => out.number(bytes),
-        Kind::True => out.boolean(true),
-        Kind::False => out.boolean(false),
-        Kind::Null => out.null(),
-        Kind::Long => unreachable!("whole document parsing retains bounded strings"),
-    }
-}
 fn text(bytes: &[u8]) -> Result<Box<[u8]>, Refusal> {
     let mut out = Encoder::measure(&OUTPUT);
     out.string(bytes);
@@ -250,7 +163,7 @@ fn paths(paths: &Paths) -> Result<(), Refusal> {
             return Err(read::why(&p, b"path must be UTF-8"));
         }
         let suffix = match name {
-            b"config" => b"/temper.json".len(),
+            b"config" => b"/github.json".len(),
             b"data" => b"/github-admin.token".len(),
             _ => 0,
         };
@@ -281,11 +194,9 @@ pub fn rewrite(temper: &[u8], paths: &Paths, peers: &Peers) -> Result<Documents,
     let d = read::document(temper)?;
     duplicates(&d)?;
     let root = Path::root();
-    let mut edits = Edits::new();
     let application = member(&d, 0, b"application", &root)?;
     let ap = root.member(b"application");
     let git = path(&paths.data, b"demo/bin/git");
-    forge(&d, application, &github, &git, &mut edits, &ap)?;
     let engine = member(&d, 0, b"engine", &root)?;
     if read::object(&d, engine, &root.member(b"engine"))?.member(&d, b"llm").is_some() {
         return Err(read::why(
@@ -294,14 +205,8 @@ pub fn rewrite(temper: &[u8], paths: &Paths, peers: &Peers) -> Result<Documents,
         ));
     }
     let clients = member(&d, application, b"clients", &ap)?;
-    let bundle = member(&d, clients, b"bundle", &ap.member(b"clients"))?;
-    if !read::is_null(&d, bundle) {
-        let _value = read::text(&d, bundle, 4096, &ap.member(b"clients").member(b"bundle"))?;
-    }
-    edits.text(&d, bundle, &paths.bundle, &ap.member(b"clients").member(b"bundle"))?;
     capacity();
     Ok(Documents {
-        temper: edits.finish(&d)?,
         providers: providers(peers)?,
         github: forge_document(&github, &paths.data, &d, clients)?,
         oauth: read::joined(&[
@@ -375,61 +280,12 @@ pub fn providers(peers: &Peers) -> Result<Box<[u8]>, Refusal> {
     Ok(out.finish())
 }
 
-// Insert at the closing token so edits to existing children remain independent.
-fn append(d: &Document, at: u32, bytes: &[u8], edits: &mut Edits) -> Result<(), Refusal> {
-    let close = config::after(d, at)
-        .or(Err(read::why(&Path::root(), b"invalid container")))?
-        .checked_sub(1)
-        .expect("container close");
-    let value = read::document(bytes)?;
-    // A zero-width insertion leaves the original container close to be emitted.
-    edits
-        .rows
-        .push(Edit { first: close, after: close, value: Some(value) })
-        .or(Err(read::why(&Path::root(), b"too many rewrites")))
-}
-fn object_member(d: &Document, at: u32, name: &[u8], value: &[u8], edits: &mut Edits) -> Result<(), Refusal> {
-    let p = Path::root().member(name);
-    let mut object = read::object(d, at, &p)?;
-    if let Some(old) = object.member(d, name) {
-        edits.set(d, old, value, &p)
-    } else {
-        // A fragment is encoded as an object; write strips its outer container.
-        append(d, at, &read::joined(&[b"{", &text(name)?, b":", value, b"}"]), edits)
-    }
-}
 fn capacity() {
     let stock = jig_protocol_config::stock();
     assert!(
         stock.core.documents.lines >= PROVIDER_LINES && stock.core.accounts.credentials >= 4,
         "the stock carries the fake backend provider offer and credentials"
     );
-}
-fn forge(
-    d: &Document,
-    application: u32,
-    github: &[u8],
-    git: &[u8],
-    edits: &mut Edits,
-    ap: &Path,
-) -> Result<(), Refusal> {
-    let origin = text(&read::joined(&[b"http://", github]))?;
-    let value = read::joined(&[
-        b"{\"api\":",
-        &address(github)?,
-        b",\"git\":",
-        &text(git)?,
-        b",\"transport\":\"plaintext\",\"remote\":",
-        &origin,
-        b",\"web\":",
-        &origin,
-        b"}",
-    ]);
-    let mut object = read::object(d, application, ap)?;
-    match object.member(d, b"test") {
-        Some(test) => object_member(d, test, b"github", &value, edits),
-        None => object_member(d, application, b"test", &read::joined(&[b"{\"github\":", &value, b"}"]), edits),
-    }
 }
 fn forge_document(socket: &[u8], data: &[u8], d: &Document, clients: u32) -> Result<Box<[u8]>, Refusal> {
     let p = Path::root().member(b"application").member(b"clients").member(b"listener");

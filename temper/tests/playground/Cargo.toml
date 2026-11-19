@@ -12,7 +12,6 @@ test = false
 doctest = false
 
 [dependencies]
-temper-client-walk-world.workspace = true
 temper-playground.workspace = true
 skein-sim-world.workspace = true
 skein-sim = { path = "../../../skein/crates/skein-sim" }
@@ -27,6 +26,8 @@ skein-fake-person.workspace = true
 serde_json.workspace = true
 
 [dev-dependencies]
+temper-client-walk-world.workspace = true
+skein-ui-screen-terminal.workspace = true
 jig-protocol-config-fixtures.workspace = true
 skein-scratch.workspace = true
 temper-test-env.workspace = true

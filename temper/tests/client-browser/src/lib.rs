@@ -224,7 +224,7 @@ impl Tier {
     /// Give the deployment a usable model without a credential or a reachable LLM peer.
     #[must_use]
     pub fn with_model(self) -> Self {
-        let mut value = temper_box_kit::limit_settings::configuration(self.scratch.path());
+        let mut value = configuration::configuration(self.scratch.path());
         value["world_providers"] = temper_agent_fixtures::providers::read(self.scratch.path());
         // As in jig's browser deployment, a provider offering no credential source gets a
         // deployment-held None account at startup: the view's demo_accounts fixture has this shape.
@@ -266,12 +266,12 @@ impl Tier {
         compressed.truncate(length);
         fs::write(path.with_extension("css.gz"), compressed).expect("private compressed stylesheet");
         fs::write(path, css).expect("private stylesheet");
-        let path = tier.scratch.path().join("temper.json");
-        let mut value = temper_playground::documents::Configuration::from_jig(
-            serde_json::from_slice(&fs::read(&path).expect("deployment")).expect("JSON"),
+        let mut file = configuration::read_init(tier.scratch.path()).file;
+        file.internal.bundle = Some(private_bundle);
+        configuration::private(
+            &tier.scratch.path().join(temper_config_shell::FILE),
+            &temper_config_shell::render(&file, temper_config_shell::Shape::Standalone),
         );
-        value["application"]["clients"]["bundle"] = serde_json::json!(private_bundle);
-        configuration::private(&path, &serde_json::to_vec(&value).expect("private bundle JSON"));
         tier.with_replies(&reading::replies())
     }
     /// Script the world's standalone model, with each cue selecting one whole answer.
@@ -294,7 +294,7 @@ impl Tier {
     #[must_use]
     pub fn accounts(name: &str) -> Self {
         let tier = Self::reserved(name);
-        let mut value = temper_box_kit::limit_settings::configuration(tier.scratch.path());
+        let mut value = configuration::configuration(tier.scratch.path());
         let private_bundle = tier.scratch.path().join("bundle");
         copy_bundle(&bundle(), &private_bundle);
         let digest = fs::read_dir(&private_bundle)
@@ -325,7 +325,7 @@ impl Tier {
         let listener = TcpListener::bind("127.0.0.1:0").expect("reserve issuer port");
         let address = listener.local_addr().expect("issuer address");
         let origin = format!("http://{address}");
-        let mut value = temper_box_kit::limit_settings::configuration(tier.scratch.path());
+        let mut value = configuration::configuration(tier.scratch.path());
         let sign_in = account_registration(&origin);
         account_provider(&mut value, &sign_in);
         welcome_provider(&mut value, &sign_in);
@@ -347,7 +347,7 @@ impl Tier {
         let tier = Self::reserved(name);
         let listener = TcpListener::bind("127.0.0.1:0").expect("reserve GitHub port");
         let address = listener.local_addr().expect("GitHub address");
-        let mut value = temper_box_kit::limit_settings::configuration(tier.scratch.path());
+        let mut value = configuration::configuration(tier.scratch.path());
         value["application"]["test"]["github"] = serde_json::json!({
             "api":{"socket":address.to_string()}, "transport":"plaintext",
             "remote":format!("http://{address}"), "web":format!("http://{address}")
@@ -394,7 +394,7 @@ impl Tier {
     pub fn reserved(name: &str) -> Self {
         let tier = Self::new(name);
         let address = temper_fixtures::ports::addresses::<1>(&[])[0];
-        let mut value = temper_box_kit::limit_settings::configuration(tier.scratch.path());
+        let mut value = configuration::configuration(tier.scratch.path());
         value["application"]["clients"]["listener"]["socket"] = serde_json::json!(address.to_string());
         configuration::persist(tier.scratch.path(), &value);
         tier
@@ -581,8 +581,8 @@ mod tests {
     }
     fn written_tier(directory: &Path) -> temper_playground::documents::Configuration {
         let mut value = super::configuration::write(directory, Path::new("/test/bundle"));
-        value.document = serde_json::from_slice(&fs::read(directory.join("temper.json")).expect("written deployment"))
-            .expect("deployment JSON");
+        value.document =
+            serde_json::from_slice(&super::configuration::read_init(directory).document).expect("file's start");
         value
     }
     fn assert_turn_admission(value: &temper_playground::documents::Configuration, directory: &Path) {
@@ -642,9 +642,9 @@ mod tests {
         let sign_in = super::account_registration("http://127.0.0.1:9");
         super::account_provider(&mut value, &sign_in);
         super::welcome_provider(&mut value, &sign_in);
-        let path = scratch.path().join("temper.json");
-        super::configuration::private(&path, &serde_json::to_vec(&value).expect("two-provider deployment JSON"));
-        value.document = serde_json::from_slice(&fs::read(path).expect("written deployment")).expect("deployment JSON");
+        super::configuration::persist(scratch.path(), &value);
+        value.document =
+            serde_json::from_slice(&super::configuration::read_init(scratch.path()).document).expect("file's start");
         assert_turn_admission(&value, scratch.path());
         let agent = temper_agent_fixtures::at(&value, scratch.path());
         value["world_providers"] = temper_agent_fixtures::providers::read(scratch.path());

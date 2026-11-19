@@ -2,7 +2,8 @@
 //! Exact page guards and atomic refusal are covered at the store unit seam in tests/transcripts.rs.
 
 use jig_domain_core as core;
-use jig_protocol_store::{Event, Limits, Request, TranscriptRead, sizes};
+use jig_protocol_store::{Event, Request, TranscriptRead, sizes};
+use jig_store_world::root::check_commits as checked;
 use jig_store_world::{
     World,
     root::{self, LIVE as TASK},
@@ -20,10 +21,6 @@ const CODEC_TRANSCRIPT_CEILING: u32 = 33_554_432;
 const DURABLE: u64 = 2;
 const REFUSED: u64 = 3;
 const KV_CHUNK_OVERHEAD: u32 = 20;
-
-fn checked(limits: &Limits) -> Result<sizes::Sizes, sizes::SizeRefusal> {
-    sizes::check_commits(&limits.core, &root::APPLICATION, &limits.commits, &limits.store, limits.orphan_erases)
-}
 
 fn row_floor() -> u32 {
     let bound = checked(&root::limits()).expect("world fixture passes the shell's check");
@@ -222,20 +219,4 @@ fn the_frame_bound_covers_each_transcript_size() {
     assert!(ceiling_bound > previous.expect("nonempty transcript table"));
     assert_eq!(sizes::frame(&core, ceiling + 1), None, "past the codec's transcript ceiling");
     assert_eq!(sizes::frame(&core, u32::MAX), None, "no clamping or overflow");
-}
-
-#[test]
-fn a_page_below_the_store_rows_fails_the_size_check() {
-    let mut limits = root::limits();
-    let bound = checked(&limits).expect("fixture limits pass the shell's check");
-    let floor = bound.key + bound.value;
-    eprintln!("store row floor: {floor}, key {}, value {}", bound.key, bound.value);
-    limits.store.page.bytes = floor - 1;
-    let result = checked(&limits);
-    assert!(
-        matches!(result, Err(sizes::SizeRefusal::Page { needs, has }) if needs == floor && has == floor - 1),
-        "expected row floor {floor} refusal: {result:?}"
-    );
-    limits.store.page.bytes = floor;
-    checked(&limits).expect("page exactly at row floor passes");
 }

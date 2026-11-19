@@ -9,7 +9,7 @@ use std::{
 };
 
 fn provider(directory: &Path, bits: Option<u32>, secret: bool) -> temper_playground::documents::Configuration {
-    let figures = support::configuration(directory, &support::Forge::Unreached);
+    let mut figures = support::configuration(directory, &support::Forge::Unreached);
     let key = directory.join("provider.key");
     if let Some(bits) = bits {
         let status = Command::new("openssl")
@@ -28,22 +28,17 @@ fn provider(directory: &Path, bits: Option<u32>, secret: bool) -> temper_playgro
         fs::write(&secret_path, b"synthetic-provider-client-secret").expect("scratch secret");
         fs::set_permissions(&secret_path, fs::Permissions::from_mode(0o600)).expect("private scratch secret");
     }
-    let path = directory.join("temper.json");
-    let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
-    value["engine"]["clients"]["provider"] = serde_json::json!({
+    // This admission fixture deliberately violates provider bounds in memory.
+    figures["engine"]["clients"]["provider"] = serde_json::json!({
         "key":key,
         "clients":[{"id":"forgejo","secret":secret_path,"redirect_uri":"http://127.0.0.1:9/callback"}],
         "addresses":[]
     });
-    fs::write(path, serde_json::to_vec(&value).expect("JSON")).expect("configuration");
     figures
 }
 
 fn refused(directory: &Path, field: &str, figures: &temper_playground::documents::Configuration) {
-    let bytes = fs::read(directory.join("temper.json")).expect("configuration");
-    let mut configuration = figures.clone();
-    configuration.document = serde_json::from_slice(&bytes).expect("provider document");
-    let why = support::admission(directory, &configuration).expect_err("provider admission refuses");
+    let why = support::admission(directory, figures).expect_err("provider admission refuses");
     assert!(why.contains("provider") && why.contains(field), "{why}");
 }
 

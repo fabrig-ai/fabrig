@@ -3,7 +3,7 @@ mod application;
 mod fixtures;
 mod reds;
 mod results;
-use crate::v1;
+use crate::v1::{self, Record};
 use alloc::boxed::Box;
 use skein_lib::List;
 
@@ -14,7 +14,7 @@ fn items_refuse_another_version_before_reading_the_body() {
     use skein_lib::Reader;
 
     let limits = fixtures::limits();
-    let value = v1::Items::new(&limits, fixtures::items(1)).expect("items within bounds");
+    let value = fixtures::items(1);
     let bytes = crate::items(&value);
     assert_eq!(skein_codec::version_of(&bytes), Ok(crate::wire::VERSION));
     assert_eq!(v1::Items::decode(&limits, &mut Reader::new(&bytes)), Ok(value));
@@ -27,13 +27,13 @@ fn items_refuse_another_version_before_reading_the_body() {
     for bytes in [changed.as_ref(), other.as_slice()] {
         assert_eq!(
             v1::Items::decode(&limits, &mut Reader::new(bytes)).expect_err("another version"),
-            v1::Problem { path: v1::Path::ItemsVersion, reason: Reason::Version }
+            v1::Problem { path: v1::paths::ITEMS_VERSION, reason: Reason::Version }
         );
     }
     assert_eq!(
         v1::Items::decode(&limits, &mut Reader::new(&crate::wire::VERSION.to_be_bytes()))
             .expect_err("missing repository count"),
-        v1::Problem { path: v1::Path::ItemsRepositories, reason: Reason::Short }
+        v1::Problem { path: v1::paths::ITEMS_REPOSITORIES, reason: Reason::Short }
     );
 }
 
@@ -89,22 +89,20 @@ fn limits_take_each_bound_from_its_source_field() {
 
 /// temper/docs/design/protocol/tooling.md, 2 and 6: command and request bytes are bounded.
 #[test]
-fn a_job_specs_fields_stop_at_their_bounds_when_built_and_decoded() {
+fn a_job_specs_fields_stop_at_their_bounds_when_encoded_and_decoded() {
     let limits = v1::Limits { job_spec_command: 8, job_spec_request: 16, ..fixtures::limits() };
     for (command, bound, path) in
-        [(true, 8_usize, v1::Path::JobSpecCommand), (false, 16_usize, v1::Path::JobSpecRequest)]
+        [(true, 8_usize, v1::paths::JOB_SPEC_COMMAND), (false, 16_usize, v1::paths::JOB_SPEC_REQUEST)]
     {
         for past in [false, true] {
             let length = bound.checked_add(usize::from(past)).expect("test length");
-            let parts = v1::JobSpecParts {
+            let parts = v1::JobSpec {
                 command: if command { skein_lib::bytes::zeroed(length) } else { b"tool".as_slice().into() },
                 request: if command { b"{}".as_slice().into() } else { skein_lib::bytes::zeroed(length) },
             };
-            let value = v1::JobSpec::new(&v1::CEILINGS, parts).expect("within schema ceilings");
-            let built = v1::JobSpec::new(&limits, value.clone().into_parts());
-            let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("bounded length"));
-            value.encode(&mut writer).expect("measured room");
-            let bytes = writer.finish();
+            let value = parts;
+            let built = value.encode(&limits);
+            let bytes = value.encode(&v1::CEILINGS).expect("within schema ceilings");
             let mut reader = skein_lib::Reader::new(&bytes);
             let decoded = v1::JobSpec::decode(&limits, &mut reader);
             if past {
@@ -112,7 +110,7 @@ fn a_job_specs_fields_stop_at_their_bounds_when_built_and_decoded() {
                 assert_eq!(built.expect_err("past bound"), problem);
                 assert_eq!(decoded.expect_err("past bound"), problem);
             } else {
-                assert_eq!(built.expect("at bound"), value);
+                assert_eq!(built.expect("at bound"), bytes);
                 assert_eq!(decoded.expect("at bound"), value);
                 assert!(reader.is_empty());
             }
@@ -123,20 +121,20 @@ fn a_job_specs_fields_stop_at_their_bounds_when_built_and_decoded() {
 #[test]
 fn items_one_repository_past_their_bound_are_refused() {
     let limits = fixtures::limits();
-    v1::Items::new(&limits, fixtures::items(2)).expect("at the bound");
-    let problem = v1::Items::new(&limits, fixtures::items(3)).expect_err("past the count");
-    assert_eq!(problem, v1::Problem { path: v1::Path::ItemsRepositories, reason: skein_codec::Reason::Bound });
+    fixtures::items(2).encode(&limits).expect("at the bound");
+    let problem = fixtures::items(3).encode(&limits).expect_err("past the count");
+    assert_eq!(problem, v1::Problem { path: v1::paths::ITEMS_REPOSITORIES, reason: skein_codec::Reason::Bound });
 }
 
 #[test]
 fn repository_byte_fields_stop_at_their_bounds() {
     let limits = fixtures::limits();
     for (program, bound, path) in
-        [(false, 48_usize, v1::Path::RepositoryRemote), (true, 4096_usize, v1::Path::RepositoryGit)]
+        [(false, 48_usize, v1::paths::REPOSITORY_REMOTE), (true, 4096_usize, v1::paths::REPOSITORY_GIT)]
     {
         for past in [false, true] {
             let length = if past { bound.checked_add(1).expect("test length") } else { bound };
-            let mut parts = fixtures::repository_parts(1, Box::from(&b"remote"[..]));
+            let mut parts = fixtures::repository(1, Box::from(&b"remote"[..]));
             let mut bytes = skein_lib::bytes::zeroed(length);
             bytes.fill(b'x');
             if program {
@@ -144,7 +142,7 @@ fn repository_byte_fields_stop_at_their_bounds() {
             } else {
                 parts.remote = bytes;
             }
-            let made = v1::Repository::new(&limits, parts);
+            let made = parts.encode(&limits);
             if past {
                 assert_eq!(made.expect_err("past bound"), v1::Problem { path, reason: skein_codec::Reason::Bound });
             } else {
@@ -160,17 +158,12 @@ fn saved_conflicts_past_their_count_are_refused() {
     for _ in 0_u32..3 {
         files.push(Box::from(&b"file"[..])).expect("counted room");
     }
-    let conflicts = v1::Files::new(&v1::CEILINGS, v1::FilesParts { files }).expect("within ceilings");
-    let repository = v1::SavedRepository::new(
-        &v1::CEILINGS,
-        v1::SavedRepositoryParts { tag: 1, from_saved: false, landing: v1::Landing::Conflicted(conflicts) },
-    )
-    .expect("within ceilings");
+    let conflicts = v1::Files { files };
+    let repository = v1::SavedRepository { tag: 1, from_saved: false, landing: v1::Landing::Conflicted(conflicts) };
     let mut repositories = List::with_capacity(1);
     repositories.push(repository).expect("counted room");
-    let problem =
-        v1::Saved::new(&fixtures::limits(), v1::SavedParts { repositories }).expect_err("past the conflicts count");
-    assert_eq!(problem, v1::Problem { path: v1::Path::FilesFiles, reason: skein_codec::Reason::Bound });
+    let problem = v1::Saved { repositories }.encode(&fixtures::limits()).expect_err("past the conflicts count");
+    assert_eq!(problem, v1::Problem { path: v1::paths::FILES_FILES, reason: skein_codec::Reason::Bound });
 }
 
 #[test]
@@ -199,43 +192,35 @@ fn largest_parts_are_the_generated_encoded_bounds() {
 fn largest_writable_items_count_the_own_delivery_head() {
     use skein_lib::bytes::zeroed;
     let limits = v1::Limits { prefixes_branches: 0, merged_heads: 0, ..fixtures::limits() };
-    let writable = v1::Writable::new(
-        &limits,
-        v1::WritableParts {
-            push: zeroed(usize::try_from(limits.writable_push).unwrap()),
-            expected: Some([1; 32]),
-            landing: Some(zeroed(usize::try_from(limits.writable_landing_some).unwrap())),
-            delivered: Some([7; 32]),
-        },
-    )
-    .unwrap();
-    assert_eq!(u64::from(writable.measure()), v1::Writable::encoded_bound(&limits).unwrap());
-    let repository = v1::Repository::new(
-        &limits,
-        v1::RepositoryParts {
-            tag: 7,
-            name: zeroed(usize::try_from(limits.repository_name).unwrap()),
-            remote: zeroed(usize::try_from(limits.repository_remote).unwrap()),
-            git: Some(zeroed(usize::try_from(limits.repository_git_some).unwrap())),
-            start: v1::Start::Merge(
-                v1::Merge::new(
-                    &limits,
-                    v1::MergeParts { branch: zeroed(usize::try_from(limits.merge_branch).unwrap()), base: [1; 32] },
-                )
-                .unwrap(),
-            ),
-            access: v1::Access::Writable(writable),
-            identity: 1,
-            account: Some(2),
-            save: Some(zeroed(usize::try_from(limits.repository_save_some).unwrap())),
-        },
-    )
-    .unwrap();
+    let writable = v1::Writable {
+        push: zeroed(usize::try_from(limits.writable_push).unwrap()),
+        expected: Some([1; 32]),
+        landing: Some(zeroed(usize::try_from(limits.writable_landing_some).unwrap())),
+        delivered: Some([7; 32]),
+    };
+    assert_eq!(
+        u64::from(writable.measure(&limits).expect("within bounds")),
+        v1::Writable::encoded_bound(&limits).unwrap()
+    );
+    let repository = v1::Repository {
+        tag: 7,
+        name: zeroed(usize::try_from(limits.repository_name).unwrap()),
+        remote: zeroed(usize::try_from(limits.repository_remote).unwrap()),
+        git: Some(zeroed(usize::try_from(limits.repository_git_some).unwrap())),
+        start: v1::Start::Merge(v1::Merge {
+            branch: zeroed(usize::try_from(limits.merge_branch).unwrap()),
+            base: [1; 32],
+        }),
+        access: v1::Access::Writable(writable),
+        identity: 1,
+        account: Some(2),
+        save: Some(zeroed(usize::try_from(limits.repository_save_some).unwrap())),
+    };
     let mut repositories = List::with_capacity(limits.items_repositories);
     for _ in 0..limits.items_repositories {
         repositories.push(repository.clone()).unwrap();
     }
-    let items = v1::Items::new(&limits, v1::ItemsParts { repositories }).unwrap();
+    let items = v1::Items { repositories };
     let bytes = crate::items(&items);
     assert_eq!(u32::try_from(bytes.len()).unwrap(), crate::largest(&limits).unwrap().items);
     assert_eq!(v1::Items::decode(&limits, &mut skein_lib::Reader::new(&bytes)).unwrap(), items);
@@ -259,21 +244,15 @@ fn identity_rules_refuse_each_forbidden_byte() {
         (b"login", b"name", b"a<b"),
         (b"login", b"name", b"a>b"),
     ];
-    for kind in [
-        original.kind().clone(),
-        v1::Kind::Github(
-            v1::Entries::new(&fixtures::limits(), v1::EntriesParts { entries: List::with_capacity(0) })
-                .expect("empty entries"),
-        ),
-    ] {
+    for kind in [original.kind.clone(), v1::Kind::Github(v1::Entries { entries: List::with_capacity(0) })] {
         for (row, (login, name, email)) in rows.iter().enumerate() {
-            let parts = v1::IdentityParts {
+            let parts = v1::Identity {
                 kind: kind.clone(),
                 login: Box::from(*login),
                 name: Box::from(*name),
                 email: Box::from(*email),
             };
-            let identity = v1::Identity::new(&fixtures::limits(), parts).expect("bounded valid text");
+            let identity = parts;
             assert!(!crate::valid(&identity), "forbidden row {row}");
         }
     }
@@ -288,28 +267,22 @@ fn a_github_values_entries_stop_at_their_bound() {
         let mut entries = List::with_capacity(count);
         for account in 0..count {
             entries
-                .push(
-                    v1::Entry::new(
-                        &limits,
-                        v1::EntryParts {
-                            account: u64::from(account),
-                            account_login: Box::from(&b"owner"[..]),
-                            token: skein_lib::Secret::new(Box::from(&b"token"[..])),
-                        },
-                    )
-                    .expect("entry"),
-                )
+                .push(v1::Entry {
+                    account: u64::from(account),
+                    account_login: Box::from(&b"owner"[..]),
+                    token: skein_lib::Secret::new(Box::from(&b"token"[..])),
+                })
                 .expect("counted room");
         }
-        let kind = v1::Kind::Github(v1::Entries::new(&v1::CEILINGS, v1::EntriesParts { entries }).expect("ceiling"));
-        let parts = v1::IdentityParts { kind, ..fixtures::identity(b"token").into_parts() };
-        let made = v1::Identity::new(&limits, parts);
+        let kind = v1::Kind::Github(v1::Entries { entries });
+        let parts = v1::Identity { kind, ..fixtures::identity(b"token") };
+        let made = parts.encode(&limits);
         if accepted {
             made.expect("at bound");
         } else {
             assert_eq!(
                 made.expect_err("past bound"),
-                v1::Problem { path: v1::Path::EntriesEntries, reason: skein_codec::Reason::Bound }
+                v1::Problem { path: v1::paths::ENTRIES_ENTRIES, reason: skein_codec::Reason::Bound }
             );
         }
     }
@@ -319,14 +292,14 @@ fn a_github_values_entries_stop_at_their_bound() {
 fn an_entrys_token_and_login_stop_at_their_bounds() {
     let limits = fixtures::limits();
     for (field, bound, path) in [
-        ("token", limits.entry_token, v1::Path::EntryToken),
-        ("login", limits.entry_account_login, v1::Path::EntryAccountLogin),
+        ("token", limits.entry_token, v1::paths::ENTRY_TOKEN),
+        ("login", limits.entry_account_login, v1::paths::ENTRY_ACCOUNT_LOGIN),
     ] {
         for past in [false, true] {
             let length = usize::try_from(bound.checked_add(u32::from(past)).expect("test bound")).expect("test length");
             let mut bytes = skein_lib::bytes::zeroed(length);
             bytes.fill(b'x');
-            let mut parts = v1::EntryParts {
+            let mut parts = v1::Entry {
                 account: 7,
                 account_login: Box::from(&b"owner"[..]),
                 token: skein_lib::Secret::new(Box::from(&b"token"[..])),
@@ -336,7 +309,7 @@ fn an_entrys_token_and_login_stop_at_their_bounds() {
             } else {
                 parts.account_login = bytes;
             }
-            let made = v1::Entry::new(&limits, parts);
+            let made = parts.encode(&limits);
             if past {
                 assert_eq!(
                     made.expect_err("past bound"),
@@ -354,20 +327,18 @@ fn an_entrys_token_and_login_stop_at_their_bounds() {
 fn landing_branch_uses_the_name_bound_and_largest_items_count_it() {
     let limits = v1::Limits { prefixes_branches: 0, ..fixtures::limits() };
     for length in [16, 17] {
-        let parts = v1::WritableParts {
+        let parts = v1::Writable {
             push: Box::from(&b"topic"[..]),
             expected: None,
             landing: Some(skein_lib::bytes::zeroed(length)),
             delivered: None,
         };
-        let value = v1::Writable::new(&limits, parts);
+        let value = parts;
         if length == 16 {
-            let value = value.expect("at bound");
-            let mut bytes = skein_lib::Writer::new(usize::try_from(value.measure()).unwrap());
-            value.encode(&mut bytes).unwrap();
-            assert_eq!(v1::Writable::decode(&limits, &mut skein_lib::Reader::new(&bytes.finish())).unwrap(), value);
+            let bytes = value.encode(&limits).expect("within bounds");
+            assert_eq!(v1::Writable::decode(&limits, &mut skein_lib::Reader::new(&bytes)).unwrap(), value);
         } else {
-            assert_eq!(value.expect_err("past bound").path, v1::Path::WritableLanding);
+            assert_eq!(value.encode(&limits).expect_err("past bound").path, v1::paths::WRITABLE_LANDING);
         }
     }
     let without = v1::Limits { writable_landing_some: 0, ..limits };
@@ -377,19 +348,17 @@ fn landing_branch_uses_the_name_bound_and_largest_items_count_it() {
     );
 }
 
-fn repository_with_save(length: u32) -> Result<v1::Repository, v1::Problem> {
-    let mut parts = fixtures::repository_parts(1, b"remote".as_slice().into());
+fn repository_with_save(length: u32) -> v1::Repository {
+    let mut parts = fixtures::repository(1, b"remote".as_slice().into());
     parts.save = Some(skein_lib::bytes::zeroed(usize::try_from(length).expect("bounded length")));
-    v1::Repository::new(&fixtures::limits(), parts)
+    parts
 }
 
 #[test]
 fn a_repositorys_save_branch_at_its_name_bound_is_admitted() {
     let limits = fixtures::limits();
-    let repository = repository_with_save(limits.repository_save_some).expect("at the bound");
-    let mut writer = skein_lib::Writer::new(usize::try_from(repository.measure()).expect("bounded length"));
-    repository.encode(&mut writer).expect("measured room");
-    let bytes = writer.finish();
+    let repository = repository_with_save(limits.repository_save_some);
+    let bytes = repository.encode(&limits).expect("within bounds");
     let mut reader = skein_lib::Reader::new(&bytes);
     assert_eq!(v1::Repository::decode(&limits, &mut reader).expect("roundtrip"), repository);
     assert!(reader.is_empty());
@@ -398,75 +367,73 @@ fn a_repositorys_save_branch_at_its_name_bound_is_admitted() {
 #[test]
 fn a_repositorys_save_branch_past_its_name_bound_is_refused() {
     assert_eq!(
-        repository_with_save(fixtures::limits().repository_save_some + 1).expect_err("past the bound").path,
-        v1::Path::RepositorySave
+        repository_with_save(fixtures::limits().repository_save_some + 1)
+            .encode(&fixtures::limits())
+            .expect_err("past the bound")
+            .path,
+        v1::paths::REPOSITORY_SAVE
     );
 }
 
 #[test]
-fn merged_heads_stop_at_sixty_four_when_built_and_decoded() {
+fn merged_heads_stop_at_sixty_four_when_encoded_and_decoded() {
     const HEADS: u32 = 64; // channel.md, 4: at most 64 heads.
     let limits = fixtures::limits();
     let mut heads = List::with_capacity(HEADS);
     for _ in 0..HEADS {
         heads.push([3; 32]).expect("counted heads");
     }
-    let value = v1::Merged::new(&limits, v1::MergedParts { branch: Box::from(&b"main"[..]), heads }).expect("at bound");
-    let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("bounded length"));
-    value.encode(&mut writer).expect("measured room");
-    let bytes = writer.finish();
+    let value = v1::Merged { branch: Box::from(&b"main"[..]), heads };
+    let bytes = value.encode(&limits).expect("within bounds");
     assert_eq!(v1::Merged::decode(&limits, &mut skein_lib::Reader::new(&bytes)).expect("roundtrip"), value);
     let smaller = v1::Limits { merged_heads: HEADS - 1, ..limits };
     assert_eq!(
         v1::Merged::decode(&smaller, &mut skein_lib::Reader::new(&bytes)).expect_err("past decode bound").path,
-        v1::Path::MergedHeads
+        v1::paths::MERGED_HEADS
     );
-    let mut parts = value.into_parts();
+    let mut parts = value;
     // List capacity is fixed, so supply the past-bound count in a fresh list.
     let mut heads = List::with_capacity(HEADS + 1);
     for _ in 0..=HEADS {
         heads.push([3; 32]).expect("counted heads");
     }
     parts.heads = heads;
-    assert_eq!(v1::Merged::new(&limits, parts).expect_err("past bound").path, v1::Path::MergedHeads);
+    assert_eq!(parts.encode(&limits).expect_err("past bound").path, v1::paths::MERGED_HEADS);
 }
 
 #[test]
-fn prefixes_bound_the_branch_count_and_each_name_when_built_and_decoded() {
+fn prefixes_bound_the_branch_count_and_each_name_when_encoded_and_decoded() {
     let limits = fixtures::limits();
     for count in [5_u32, 6] {
         let mut branches = List::with_capacity(count);
         for _ in 0..count {
             branches.push(Box::from(b"prefix".as_slice())).expect("fixture");
         }
-        let value = v1::Prefixes::new(&limits, v1::PrefixesParts { branches });
+        let value = v1::Prefixes { branches };
         if count == 5 {
-            let value = value.expect("five branches");
-            let mut bytes = skein_lib::Writer::new(usize::try_from(value.measure()).expect("bounded"));
-            value.encode(&mut bytes).expect("measured");
-            let bytes = bytes.finish();
+            let bytes = value.encode(&limits).expect("within bounds");
             assert_eq!(v1::Prefixes::decode(&limits, &mut skein_lib::Reader::new(&bytes)).expect("roundtrip"), value);
         } else {
-            assert_eq!(value.expect_err("six branches").path, v1::Path::PrefixesBranches);
+            assert_eq!(value.encode(&limits).expect_err("six branches").path, v1::paths::PREFIXES_BRANCHES);
             let raw = [0, 0, 0, 6];
             assert_eq!(
                 v1::Prefixes::decode(&limits, &mut skein_lib::Reader::new(&raw)).expect_err("wire count bound").path,
-                v1::Path::PrefixesBranches
+                v1::paths::PREFIXES_BRANCHES
             );
         }
     }
     for length in [16_usize, 17] {
         let mut branches = List::with_capacity(1);
         branches.push(skein_lib::bytes::zeroed(length)).expect("fixture");
-        let value = v1::Prefixes::new(&limits, v1::PrefixesParts { branches });
+        let value = v1::Prefixes { branches };
         if length == 16 {
-            value.expect("name at bound");
+            value.encode(&limits).expect("name at bound");
         } else {
-            assert_eq!(value.expect_err("name past bound").path, v1::Path::PrefixesBranches);
+            assert_eq!(value.encode(&limits).expect_err("name past bound").path, v1::paths::PREFIXES_BRANCHES);
             let raw = skein_lib::bytes::concat(&[&[0, 0, 0, 1, 0, 0, 0, 17], &[0; 17]]);
             assert_eq!(
                 v1::Prefixes::decode(&limits, &mut skein_lib::Reader::new(&raw)).expect_err("wire name bound").path,
-                v1::Path::PrefixesBranches
+                v1::paths::PREFIXES_BRANCHES
             );
         }
     }
