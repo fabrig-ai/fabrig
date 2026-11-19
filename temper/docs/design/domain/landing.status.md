@@ -1,6 +1,6 @@
 # landing: status
 
-2026-11-18. Where temper's code lags or departs from [landing.md](landing.md).
+2026-11-19. Where temper's code lags or departs from [landing.md](landing.md).
 
 
 
@@ -14,6 +14,9 @@ each follows, as the forge holds them (`forge/change/branch-path.md`).
   going on through the turn once proving, idle and held while preparing.
   It waits on jig’s drain and project-scoped placed holds
   (`jig/docs/design/domain/tasks/lifecycle.status.md`, 10).
+- **Not yet:** 9 (*A due step leaves its change out*, *Each train on
+  its own*): a waiting change whose step is due stops its train's
+  forming instead of being left out of it. [in flight: change 8933]
 - **Not yet:** 7.1, by plan `forge-polls-quiet`: a landing polls its
   runs in flight every `poll`, not at the client's `poll_at`.
 
