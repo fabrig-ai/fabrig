@@ -128,6 +128,12 @@ pub(super) fn apply(limits: &mut Limits, name: &[u8], value: u64) -> Result<(), 
         b"forge.changes_rows" => limits.forge.changes_rows = u32::try_from(value).or(Err(Refused::Range))?,
         b"forge.changes_landed" => limits.forge.changes_landed = u32::try_from(value).or(Err(Refused::Range))?,
         b"forge.landings_kept" => limits.forge.landings_kept = u32::try_from(value).or(Err(Refused::Range))?,
+        b"forge.landings_pending" => {
+            if value == 0 {
+                return Err(Refused::Range);
+            }
+            limits.forge.landings_pending = u32::try_from(value).or(Err(Refused::Range))?;
+        }
         b"forge.landings" => limits.forge.landings = u32::try_from(value).or(Err(Refused::Range))?,
         b"forge.key_entries" => {
             if value == 0 {
@@ -369,7 +375,7 @@ pub struct Name {
 }
 
 /// Every name the service override parser takes, including delegated setup host names.
-pub static NAMES: [Name; 194] = [
+pub static NAMES: [Name; 195] = [
     Name {
         name: "sign_in.members",
         unit: Unit::Count,
@@ -735,6 +741,12 @@ pub static NAMES: [Name; 194] = [
         unit: Unit::Count,
         line: "Bounds retained landings per repository.",
         value: |limits| u64::from(limits.forge.landings_kept),
+    },
+    Name {
+        name: "forge.landings_pending",
+        unit: Unit::Count,
+        line: "Bounds landings kept per repository until every tier following their branch has judged them.",
+        value: |limits| u64::from(limits.forge.landings_pending),
     },
     Name {
         name: "forge.landings",

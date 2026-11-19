@@ -1,4 +1,4 @@
-//! The printed sign-in URL is part of the mapping (protocol/client/sign-in.md).
+//! The printed link takes the route's or the application's page's form (protocol/client/default-http.md, 1 and 4).
 use crate::Mapping;
 use alloc::boxed::Box;
 use skein_lib::{
@@ -50,8 +50,20 @@ pub fn printed(mapping: &Mapping, url: &[u8]) -> Result<Printed, Unlinked> {
     let (host, path) = rest.split_once('/').ok_or(Unlinked::NoSecret)?;
     let _: core::net::SocketAddr = host.parse().or(Err(Unlinked::Address))?;
     let prefix = mapping.prefix.get(1..).expect("validated prefix");
-    let path = path.as_bytes().strip_prefix(prefix).ok_or(Unlinked::NoSecret)?;
-    let secret = path.strip_prefix(b"/v1/sign-in/link?secret=").ok_or(Unlinked::NoSecret)?;
+    let path = path.as_bytes();
+    let route_secret = match path.strip_prefix(prefix) {
+        Some(rest) => rest.strip_prefix(b"/v1/sign-in/link?secret="),
+        None => None,
+    };
+    let secret = match route_secret {
+        Some(secret) => secret,
+        None => {
+            let page = mapping.page.as_ref().ok_or(Unlinked::NoSecret)?;
+            let page = page.get(1..).expect("validated page");
+            let rest = path.strip_prefix(page).ok_or(Unlinked::NoSecret)?;
+            rest.strip_prefix(b"?secret=").ok_or(Unlinked::NoSecret)?
+        }
+    };
     let secret = base64::decode(Alphabet::Url, secret, 32).or(Err(Unlinked::NoSecret))?;
     if secret.len() != 32 {
         return Err(Unlinked::NoSecret);

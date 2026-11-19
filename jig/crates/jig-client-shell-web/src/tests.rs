@@ -58,23 +58,50 @@ fn the_link_route_s_secret_is_taken_and_the_address_is_the_home() {
         Some(sign_in::Taken { secret: Box::new([7; 32]), address: b"/".as_slice().into() })
     );
 }
-const OTHER: &[&[u8]] = &[b"/inbox?secret=foo", b"/jig/v1/sign-in/link", b"/jig/v1/sign-in/link?other=x"];
+#[test]
+fn the_link_page_s_secret_is_taken_and_the_address_is_the_home() {
+    let route = sign_in::Route { page: Some(b"/sign-in"), ..fixtures::route() };
+    let mut path = b"/sign-in?secret=".to_vec();
+    path.extend_from_slice(fixtures::SECRET);
+    assert_eq!(
+        sign_in::take(&route, &path),
+        Some(sign_in::Taken { secret: Box::new([7; 32]), address: b"/".as_slice().into() })
+    );
+}
+const OTHER: &[&[u8]] = &[
+    b"/inbox?secret=foo",
+    b"/jig/v1/sign-in/link",
+    b"/jig/v1/sign-in/link?other=x",
+    b"/sign-in",
+    b"/sign-in?other=1",
+    b"/sign-in/?secret=BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc",
+    b"/sign-inx?secret=BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc",
+];
 #[test]
 fn a_malformed_link_secret_is_taken_empty_and_the_address_is_the_home() {
-    for value in ["bad", "", "!", "_w", "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"] {
-        let path = format!("/jig/v1/sign-in/link?secret={value}");
-        assert_eq!(
-            sign_in::take(&fixtures::route(), path.as_bytes()),
-            Some(sign_in::Taken { secret: Box::new([]), address: b"/".as_slice().into() }),
-            "{value:?}",
-        );
+    let route = sign_in::Route { page: Some(b"/sign-in"), ..fixtures::route() };
+    for path in ["/jig/v1/sign-in/link", "/sign-in"] {
+        for value in ["bad", "", "!", "_w", "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"] {
+            let address = format!("{path}?secret={value}");
+            assert_eq!(
+                sign_in::take(&route, address.as_bytes()),
+                Some(sign_in::Taken { secret: Box::new([]), address: b"/".as_slice().into() }),
+                "{address:?}",
+            );
+        }
     }
 }
 #[test]
 fn another_path_takes_no_secret() {
-    for path in OTHER {
-        assert_eq!(sign_in::take(&fixtures::route(), path), None, "{path:?}");
+    for page in [None, Some(b"/sign-in".as_slice())] {
+        let route = sign_in::Route { page, ..fixtures::route() };
+        for path in OTHER {
+            assert_eq!(sign_in::take(&route, path), None, "{path:?}");
+        }
     }
+    let mut path = b"/sign-in?secret=".to_vec();
+    path.extend_from_slice(fixtures::SECRET);
+    assert_eq!(sign_in::take(&fixtures::route(), &path), None);
 }
 #[test]
 fn the_credential_dialog_s_words_are_jig_s() {

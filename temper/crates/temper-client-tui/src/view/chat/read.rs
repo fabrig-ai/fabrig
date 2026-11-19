@@ -312,6 +312,18 @@ pub(crate) fn last_reply(root: &Domain) -> Option<(c::TurnName, Box<[u8]>)> {
     reply
 }
 
+/// A delegated card keeps the domain title whole and the shared state's words.
+pub(crate) fn delegated(task: &c::Task, words: &Words) -> Entry {
+    Entry::Delegation {
+        title: delegation::facts(task).title.into(),
+        state: shared::delegation_line(task, words.view()).state,
+    }
+}
+
+pub(crate) fn proposal(card: &temper_client_domain::pages::inbox::Card) -> Option<Entry> {
+    Some(Entry::Proposal(shared::proposal_title(card)?))
+}
+
 pub(super) fn entries(root: &Domain, words: &Words) -> Box<[Entry]> {
     let chat = root.pages().chat().expect("chat page");
     let mut entries = List::uncapped();
@@ -378,14 +390,12 @@ pub(super) fn entries(root: &Domain, words: &Words) -> Box<[Entry]> {
     }
     for delegation in &chat.delegations {
         if let Some(task) = chat.delegation(root.client(), delegation.task) {
-            entries
-                .push(Entry::Delegation(shared::delegation_line(task, words.view())))
-                .expect("conversation entries fit memory");
+            entries.push(delegated(task, words)).expect("conversation entries fit memory");
         }
     }
     for card in &chat.cards {
-        if let Some(title) = shared::proposal_line(card, words.view()) {
-            entries.push(Entry::Proposal(title)).expect("conversation entries fit memory");
+        if let Some(entry) = proposal(card) {
+            entries.push(entry).expect("conversation entries fit memory");
         }
     }
     entries.into_boxed()

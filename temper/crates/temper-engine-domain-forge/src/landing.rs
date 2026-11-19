@@ -303,6 +303,7 @@ impl Domain {
                         gate_timeout: skein_lib::Duration::from_millis(settings.gate_timeout_ms)
                     },
                     crate::AfterLanding {
+                        wait: settings.wait,
                         verdict: temper_engine_domain_forge_tiers::Settings {
                             retries: u32::from(settings.tier_retries),
                             suspects: temper_engine_domain_forge_tiers::Suspects::Bisect

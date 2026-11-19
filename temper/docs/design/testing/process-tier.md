@@ -591,9 +591,9 @@
     is kept; Home before a landing and within the sitting after it shows
     no brief; past the sitting, the status run the plan pays for is
     admitted and its brief shown; the plan is usable after. It runs on
-    the stock's budgets, whose period funds the brief beyond the owner's
-    pool (`../domain/forge/attention.md`, 2; `../protocol/configuration/stock.md`), and fails
-    without that funding.
+    the stock's budgets, the person's pool in the project funding the
+    brief as their own work (`../domain/forge/attention.md`, 3;
+    `../protocol/configuration/stock.md`), and fails without that funding.
   - **Home's landing count across restarts,** `suite::status::a_restart_keeps_the_rows`:
     a real landing counted, Skip pressed before it, and after the
     engine's restart a fresh client reads the count and the skip kept.

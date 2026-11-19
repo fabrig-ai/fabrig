@@ -32,7 +32,12 @@ fn served(mut pages: serve::Pages, path: &str, peers: &[(Box<[u8]>, String)]) ->
     let mut held = Held::new(request.into_bytes().into_boxed_slice());
     let mut wire = Vec::new();
     for _ in 0..200 {
-        match pages.take().expect("page server has the next step") {
+        let Some(request) = pages.take() else {
+            assert_eq!(pages.open_streams(), 1, "only a streamed reply waits without finishing");
+            pages.stop();
+            continue;
+        };
+        match request {
             Request::Bind { socket, owner: bound } => {
                 assert_eq!(socket, Token::new(300));
                 assert_eq!(bound, owner);
@@ -50,6 +55,9 @@ fn served(mut pages: serve::Pages, path: &str, peers: &[(Box<[u8]>, String)]) ->
                     stream::Down::Send(bytes) => wire.extend_from_slice(&bytes),
                     stream::Down::Finish => panic!("HTTP server closes through io"),
                 }
+            }
+            Request::Close { entity } if entity == Token::new(200) => {
+                pages.event(Event::Closed { owner: serve::OWNER });
             }
             Request::Close { entity } if entity == Token::new(300) => {
                 pages.event(Event::Closed { owner });
@@ -70,10 +78,28 @@ fn served(mut pages: serve::Pages, path: &str, peers: &[(Box<[u8]>, String)]) ->
     }
     assert!(!pages.owns(owner));
     pages.stop();
-    assert_eq!(pages.take(), Some(Request::Close { entity: Token::new(200) }));
-    pages.event(Event::Closed { owner: serve::OWNER });
+    if let Some(request) = pages.take() {
+        assert_eq!(request, Request::Close { entity: Token::new(200) });
+        pages.event(Event::Closed { owner: serve::OWNER });
+    }
     assert!(pages.is_closed());
     wire
+}
+
+#[test]
+fn a_stream_sends_its_first_chunk_and_stays_open_until_the_origin_stops() {
+    let page = serve::Page {
+        path: b"/stream".as_slice().into(),
+        kind: b"text/plain".as_slice().into(),
+        body: b"first".as_slice().into(),
+        headers: vec![],
+    };
+    let mut pages = serve::Pages::new(vec![page], Time::ZERO, Wall::EPOCH);
+    pages.stream(b"/stream".as_slice().into());
+    let wire = served(pages, "/stream", &[]);
+    assert!(wire.starts_with(b"HTTP/1.1 200 OK\r\n"));
+    assert!(String::from_utf8_lossy(&wire).contains("Transfer-Encoding: chunked\r\n"));
+    assert!(wire.ends_with(b"5\r\nfirst\r\n"), "first chunk with no terminal chunk: {wire:?}");
 }
 
 #[test]

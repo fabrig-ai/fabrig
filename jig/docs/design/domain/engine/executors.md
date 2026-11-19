@@ -36,6 +36,8 @@ is due again once its dependencies are done.
 3. **Commits the claim:** the task claimed, with its new attempt number,
    the revision its preparation began under (`settings.md`, 3), the host kind it is placed on, the accounts and sources its check
    chose, the task's kept account among them (../accounts.md, 4.3), the
+   endpoint its main model runs on, which names its backend (2,
+   *Resumed only where it ran*), the
    writer slots of the holds its workspace writes (../tasks/holds.md, 3), its
    reasons and the kinds it is offered (../tasks/messages.md, 6), and the messages
    its start carries, those it is offered (../tasks/messages.md, 2).
@@ -212,6 +214,45 @@ program its endpoint names (`../../protocol/configuration.md`, section 3).
   failure and is closed; its retry continues fresh without that tail. A
   failed load, rather than an unread window, remains a preparation
   failure and closes nothing.
+- **Resumed only where it ran.** A window is resumed only on the
+  endpoint it ran on, program to direct or back alike. The endpoint
+  names the backend too: a program source runs on its model's program
+  endpoint, any other source on its provider's direct endpoint
+  (`Settings::model_endpoint`, `../../protocol/configuration.md`,
+  section 3). The run proof keeps the endpoint its claim chose for its
+  main model, `RunProof.endpoint` (core-v6, an added field whose default
+  is none). A claim whose main model's endpoint is another than its
+  previous proof's resumes nothing: a task moved from a program login to
+  a key or back, or to another provider. It starts fresh from a brief
+  that carries the transcript's tail, as one past the resume limit does.
+  That is a transition that counts nothing: no failure, no transient try,
+  no refusal, and no window closed. A standing task's session ends there,
+  `Fresh` (`../tasks/standing.md`, 5.2), so its next run is its session's
+  first and reads its Now whole and its notes' index, as on any fresh
+  session.
+  - **Judged where its accounts are chosen:** at the activation's check,
+    from whose choice the brief is planned, and again at the claim's own
+    check (section 1). If either finds another endpoint the run starts
+    fresh, so a window never crosses. That holds even when only the
+    second finds it, though then the brief, planned already, has no tail.
+  - **A proof that keeps no endpoint,** written before the field was
+    kept, gives its window's backend by its binding for this claim's
+    main provider. The window resumes only if that binding is there, its
+    source is still known, and its kind runs on the backend this claim's
+    source runs on: a program source on the program backend, any other
+    on the direct one. Otherwise it starts fresh.
+  - **Why the host decides, and not the agent.** A run that resumes has
+    no brief (`briefs.md`, 1). An agent sees its start only after the
+    claim, with no brief to start fresh from, so a window from another
+    backend is one it can only carry over, sending its history to a
+    backend that did not write it (smith's `domain/session.md`, 8.2). A
+    program's turns keep none of its reasoning (smith's
+    `protocol/programs.md`, 5.5), so whether a direct provider takes
+    what a program wrote, or a program what a provider wrote, would
+    depend on each pair of backends. A brief's tail is text, which every
+    backend takes. The core chooses the source, and with it the backend
+    and the endpoint, in the same preparation that decides resuming and
+    judges a standing session's end.
 - **A turn too large for a page.** A window is loaded a page at a time,
   each within the store's page room. A turn past that room is loaded
   cut: its fields and its length, never its bytes

@@ -96,7 +96,8 @@ pub struct World {
     idle_revision: Option<(u64, Option<Time>)>,
     auto_prepare: bool,
     restart_config: engine::Config,
-    oracle_documents: Vec<(Token, forge_top::Document)>,
+    /// Delivered forge documents, including updates to a live watch.
+    pub oracle_documents: Vec<(Token, forge_top::Document)>,
     oracle_watcher: u64,
     broken: bool,
     oracle_running: bool,
@@ -903,6 +904,7 @@ impl World {
                                 merge_job: None,
                                 tier_retries: 2,
                                 verification_bound_ms: tier.map_or(7_200_000, |tier| tier.bound_ms),
+                                wait: tier.map_or(temper_engine_domain_forge_change::Wait::Cleared, |tier| tier.wait),
                                 by: if turn {
                                     temper_landing_fixtures::Way::Turn
                                 } else {
@@ -2182,6 +2184,12 @@ impl World {
     /// Restart with a project's new landing configuration, retaining only durable rows.
     pub fn restart_with_project_landing(&mut self, project: u32, landing: temper_landing_fixtures::ProjectLanding) {
         crate::oracle::config::set_landing(&mut self.restart_config, project, landing);
+        self.restart_same();
+    }
+
+    /// Take kind 4's wait at a new start, keeping its other members and kind 5.
+    pub fn restart_with_change_wait(&mut self, wait: temper_engine_domain_forge_change::Wait) {
+        crate::oracle::config::landing(&mut self.restart_config, 1).wait = wait;
         self.restart_same();
     }
 

@@ -8,6 +8,7 @@
   lookups, runs and follows [in flight: change 97].
 
 
+
 - **Not yet:** 1, "What waits on it": a change's step on a forge not connected reads all the same, and a read of its step answered `NotConnected` holds the change `ResourceRefused` (`temper-engine-domain-forge/src/domain/admission.rs`, `read_failed`), never stepped again on `Connected`.
 
 - **Not yet:** 6, *Only under a box*: a link restored by a connector built

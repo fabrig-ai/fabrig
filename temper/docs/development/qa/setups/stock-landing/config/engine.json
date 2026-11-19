@@ -61,9 +61,9 @@
         "forge.judge_projects": 8,
         "forge_component.body_bytes": 127497,
         "root.journal.transcript_bytes": 18431846,
-        "root.loads.bytes": 18432090,
+        "root.loads.bytes": 18432098,
         "root.loads.read_bytes": 36863684,
-        "root.loads.reply_bytes": 18432090,
+        "root.loads.reply_bytes": 18432098,
         "root.loads.transcript_bytes": 18431842
       }
     }

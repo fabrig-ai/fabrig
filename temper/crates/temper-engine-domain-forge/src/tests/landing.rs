@@ -40,6 +40,7 @@ fn project_landing_keeps_repository_tiers_and_settings_separate_by_project() {
         },
     ]);
     let after = AfterLanding {
+        wait: temper_engine_domain_forge_change::Wait::Cleared,
         verdict: Settings { retries: 7, suspects: Suspects::Bisect },
         bound: Duration::from_millis(123_456),
     };
@@ -48,6 +49,7 @@ fn project_landing_keeps_repository_tiers_and_settings_separate_by_project() {
     assert!(d.project_landing(5, Way::Turn, repositories.clone(), settings, after));
     assert_eq!(d.landing.projects.get(&5).expect("configured project").5, settings);
     let other = AfterLanding {
+        wait: temper_engine_domain_forge_change::Wait::Cleared,
         verdict: Settings { retries: 0, suspects: Suspects::Bisect },
         bound: Duration::from_millis(456_789),
     };
@@ -88,6 +90,7 @@ fn a_projects_merge_job_is_kept_per_project() {
     const COMMAND: &[u8] = b".temper/merge";
     const OTHER_COMMAND: &[u8] = b"scripts/merge";
     let after = AfterLanding {
+        wait: temper_engine_domain_forge_change::Wait::Cleared,
         verdict: Settings { retries: 2, suspects: Suspects::Bisect },
         bound: Duration::from_millis(7_200_000),
     };
@@ -152,6 +155,7 @@ fn a_projects_close_job_is_kept_per_project() {
     const COMMAND: &[u8] = b".temper/close";
     const OTHER_COMMAND: &[u8] = b"scripts/close";
     let after = AfterLanding {
+        wait: temper_engine_domain_forge_change::Wait::Cleared,
         verdict: Settings { retries: 2, suspects: Suspects::Bisect },
         bound: Duration::from_millis(7_200_000),
     };
@@ -220,6 +224,7 @@ fn project_landing_refuses_tiers_past_the_bound_and_duplicate_check_names() {
         description: Box::default(),
     };
     let after = AfterLanding {
+        wait: temper_engine_domain_forge_change::Wait::Cleared,
         verdict: Settings { retries: 2, suspects: Suspects::Bisect },
         bound: Duration::from_millis(7_200_000),
     };
@@ -283,6 +288,7 @@ fn landing_fixture_with(mut d: Domain) -> Domain {
         Box::new([]),
         temper_engine_domain_forge_landing::Project::DEFAULT,
         AfterLanding {
+            wait: temper_engine_domain_forge_change::Wait::Cleared,
             verdict: temper_engine_domain_forge_tiers::Settings {
                 retries: 2,
                 suspects: temper_engine_domain_forge_tiers::Suspects::Bisect
@@ -1393,6 +1399,7 @@ fn merged_owner(turn: bool) -> (Domain, Box<[Request]>) {
             Box::new([]),
             temper_engine_domain_forge_landing::Project::DEFAULT,
             AfterLanding {
+                wait: temper_engine_domain_forge_change::Wait::Cleared,
                 verdict: temper_engine_domain_forge_tiers::Settings {
                     retries: 2,
                     suspects: temper_engine_domain_forge_tiers::Suspects::Bisect
@@ -1647,6 +1654,7 @@ fn project_tiers_require_a_nonempty_explicit_branch_only() {
                 }]),
                 temper_engine_domain_forge_landing::Project::DEFAULT,
                 AfterLanding {
+                    wait: temper_engine_domain_forge_change::Wait::Cleared,
                     verdict: Settings { retries: 2, suspects: Suspects::Bisect },
                     bound: Duration::from_secs(7200),
                 }

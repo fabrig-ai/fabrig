@@ -18,12 +18,27 @@ fn ready(logged: bool) -> Domain {
                 record: Stored::LandingLog(LandingLog {
                     repository: REPO,
                     landings: Box::new([LoggedLanding {
+                        tiers: Box::new([]),
                         commit: NEXT_TIP,
                         branch: b"main".as_slice().into(),
                         at: env().wall,
                         changes: Box::new([
-                            LoggedChange { task: CHANGE, pull: Some(PULL), title: Box::new([]), signed: Box::new([]) },
-                            LoggedChange { task: CHANGE + 1, pull: None, title: Box::new([]), signed: Box::new([]) },
+                            LoggedChange {
+                                goal: None,
+                                milestone: None,
+                                task: CHANGE,
+                                pull: Some(PULL),
+                                title: Box::new([]),
+                                signed: Box::new([]),
+                            },
+                            LoggedChange {
+                                goal: None,
+                                milestone: None,
+                                task: CHANGE + 1,
+                                pull: None,
+                                title: Box::new([]),
+                                signed: Box::new([]),
+                            },
                         ]),
                     }]),
                 }),
@@ -221,4 +236,63 @@ fn fault_status_precedes_the_hold_and_the_verdict_replaces_it() {
     assert_eq!(check, api::Check::Passed);
     made(&mut d, STATUS + 3, skein_forge_client::Made::Set);
     assert!(matches!(choice(&tier_step(&mut d, STATUS + 4, false)), Some(TierDecision::Done { .. })));
+}
+
+#[test]
+fn cancelled_verifications_past_the_log_bound_post_status_and_only_kept_members() {
+    let mut d = dispatched();
+    d.landing.limits.landings_pending = 3;
+    let mut landings = Vec::new();
+    for number in 1_u8..=4 {
+        let task = CHANGE + u64::from(number);
+        let commit = [number + 10; 32];
+        let mut change = fixtures::opening_row();
+        change.task = task;
+        change.change.task = task;
+        change.pending = None;
+        change.pull = Some(100 + u64::from(number));
+        change.base = b"main".as_slice().into();
+        change.change.state = temper_engine_domain_forge_change::State::Landed { merge: commit, since: env().wall };
+        d.changes.insert(task, change).unwrap();
+        verification::landed(&mut d, commit, task, &mut Queue::uncapped());
+        landing_log::landed(&mut d, env().wall, commit, task, Box::new([]), &mut Queue::uncapped());
+        assert!(d.landing_verification(REPO, &commit).is_some());
+        outputs(
+            &mut d,
+            Event::Release {
+                task,
+                root: task,
+                ending: ReleaseEnding::Cancelled,
+                reason: None,
+                entry: 200 + u64::from(number),
+            },
+        );
+        assert!(d.landing_verification(REPO, &commit).is_none(), "cancelling releases verification");
+        landings.push(p::Landing { commit, key: commit });
+    }
+    d.tiers.get_mut(&(REPO, TIER.into())).unwrap().record.run.as_mut().unwrap().landings = landings.into_boxed_slice();
+    completed(&mut d, api::Conclusion::Success, None);
+    tier_step(&mut d, RELEASE, false);
+    made(&mut d, RELEASE, skein_forge_client::Made::Set);
+    tier_step(&mut d, RELEASE + 1, false);
+    assert_eq!(
+        row(&d).posting.as_ref().unwrap().comments.iter().map(|comment| comment.pull).collect::<Vec<_>>(),
+        [102, 103, 104]
+    );
+    tier_step(&mut d, STATUS, false);
+    assert!(matches!(
+        d.describe_tier_effect(TIER_TASK, STATUS).unwrap().2.effect.write,
+        api::Write::Status { check: api::Check::Passed, .. }
+    ));
+    made(&mut d, STATUS, skein_forge_client::Made::Set);
+    for (entry, pull) in [(COMMENT, 102), (COMMENT + 1, 103), (COMMENT + 2, 104)] {
+        tier_step(&mut d, entry, false);
+        let write = d.describe_tier_effect(TIER_TASK, entry).unwrap().2.effect.write;
+        let api::Write::Post { number, body, .. } = write else { panic!("verdict comment") };
+        assert_eq!(number, pull);
+        assert_eq!(body.as_ref(), b"Cleared by browser run 1.\n\nRun: https://forge.example/run/71");
+        made(&mut d, entry, skein_forge_client::Made::Commented(entry));
+    }
+    let out = tier_step(&mut d, COMMENT + 3, false);
+    assert!(matches!(choice(&out), Some(TierDecision::Done { .. })));
 }

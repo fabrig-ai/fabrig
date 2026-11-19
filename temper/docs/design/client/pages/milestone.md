@@ -44,14 +44,26 @@ mockups' `../web/home-for-a-person/`.
   - *its goals,* its part's `goals`, at most 16, each a goal's line and
     its report's headline, in task number, the order they joined; `more`,
     its part's;
-  - *its totals,* its part's `totals`; none while its part isn't made.
+  - *its totals,* its part's `totals`; none until a part of it has
+    decoded.
+
+  Each is its part's as last decoded while the list is held: a delivery
+  whose part of it is not made keeps its facts, goals, headlines and
+  totals as they were (`../forge/parts.md`, 5), so its count, its state's
+  word and its strip don't fall back to "open" while nothing changed.
 
   A milestone's page holds its own, which lists every goal and reads
   them itself (section 3).
 - **A goal's milestone,** `Milestones::of(line) -> Option<u64>`: its goal
-  part's `milestone` (`../forge/parts.md`, 3); none while the part isn't
-  made, so that a goal is drawn on its own until its part comes. No
-  requester is read.
+  part's `milestone` (`../forge/parts.md`, 3), as last decoded while the
+  goals' list is held (`../forge/parts.md`, 5); where no part of the goal
+  has decoded, the drawn milestone whose part lists it among its goals;
+  none otherwise, so that a goal is drawn on its own only while nothing
+  read names its milestone. A decoded goal part saying it has none is
+  none, whatever a milestone's part lists. No requester is read. Every
+  page that groups goals asks `of`, Home's rows, Work's cards and Goals'
+  groups alike, so a goal under a drawn milestone is drawn there alone,
+  never also as a row of its own.
 - **A task's milestone from its lineage,** `milestones::lineage(task:
   &c::Task) -> Option<Lineage>`, pure: of a task document's
   `lineage_chips`, the chip that is a milestone (`is`) is its milestone,

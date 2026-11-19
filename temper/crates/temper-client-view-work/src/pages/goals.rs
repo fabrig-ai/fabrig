@@ -283,7 +283,7 @@ fn list(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings, 
             b.open(Role::Slot);
             b.style(look::GOALS_ROWS);
             let milestones = root.pages().milestones();
-            for group in &goals::groups(shown.as_slice(), milestones) {
+            for group in &goals::groups(shown.as_slice(), milestones, page) {
                 match *group {
                     goals::GroupRow::Goal(task) => {
                         if let Some(line) = goals::goal(shown.as_slice(), &[], task) {
@@ -301,7 +301,7 @@ fn list(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings, 
                             b.open(Role::Slot);
                             b.style(look::GOALS_GROUP_ROWS);
                             for goal in &shown {
-                                if milestones.of(goal) == Some(task) {
+                                if milestones.of(goal, page) == Some(task) {
                                     held_row(b, words, bindings, times, page, goal, &names);
                                 }
                             }

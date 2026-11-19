@@ -21,9 +21,11 @@ child domain `smith-domain-session`, whose own child is the tools domain
   and history is appended to, never edited. Near the model's context
   window the session compacts, and a summary opens a new window.
 - **Opened from a transcript,** a session goes on where an earlier one
-  stopped, from its last window, with the same affinity. A window that
-  ran on another endpoint, dialect, account or backend is carried over:
-  compacted on the charter's LLM, and a new window opened (8.2).
+  stopped, from its last window, with the same affinity. Whether it is
+  offered a window from another endpoint or backend is its opener's
+  decision (run.md, section 6). A window that ran on another endpoint,
+  dialect, account or backend is carried over: compacted on the
+  charter's LLM, and a new window opened (8.2).
 - **Provider-neutral.** Nothing in a session depends on which provider
   answers; each provider's API is skein's shared LLM client's.
 - **Bounded:** turns, tokens, spend, time and bytes held, each a budget
@@ -549,8 +551,17 @@ window, history only grows (section 3).
   compaction runs on the charter's main LLM, since the window's own
   account may not be granted, with the window's history less its
   opaque blocks and providers' replay, which go back only to the dialect
-  that wrote them. It is otherwise this section's compaction, a model
-  change's included: the new window opens on the charter's LLM, and its
+  that wrote them. A message that history leaves with no block keeps one
+  text block in its place, `[reasoning not carried over]`. That covers
+  an assistant message that held only reasoning, and a program's whose
+  reasoning the program did not tell (protocol/programs.md, 5.5). A
+  provider may refuse a message with no content, as Anthropic's does,
+  unsent, on every attempt. The marker's bytes and block count against
+  the session's limits as any block's (section 3). A carried-over
+  history they would take past those limits is refused as too large. A
+  gone session's history they would take past them ends the session
+  with the window's limit, as a window that cannot be compacted does.
+  It is otherwise this section's compaction, a model change's included: the new window opens on the charter's LLM, and its
   window turn records its endpoint, dialect, account and backend. On a
   program backend it runs as a program session of its own, with no
   tools (protocol/programs.md, 5.8).

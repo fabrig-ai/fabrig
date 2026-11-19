@@ -565,6 +565,7 @@ How work runs headline and lede; absent uses the way's words.
 ## project-landing
 Landing at the next start.
 - by:choice;? queue by default; at the next start. `queue`: Default. `turn`: Prepare, prove, turn.
+- wait:choice;? cleared by default; at the next start. `cleared`: Default. `landed`: Ends at landing.
 - combine:landing-combine-settings;? main merge, other squash.
 - batch:u16;? 1 to forge.landing_members; default 1.
 - landing_attempts:u8;? default 3. At least 1.
@@ -572,9 +573,9 @@ Landing at the next start.
 - tier_retries:u8;? default 2.
 - check_timeout_ms:u64;? 1000 to 86400000; default none.
 - gate_timeout_ms:u64;? 60000 to 86400000; default 3600000.
-- verification_bound_ms:u64;? u64 milliseconds; default 7200000.
-- merge_job:t[4096];? relative path, no NUL or .. segments; The merge command in configuration.
-- close_job:t[4096];? relative path, no NUL or .. segments.
+- verification_bound_ms:u64;? milliseconds; default 7200000.
+- merge_job:t[4096];? relative, no NUL or .. segments; see merge command in configuration.
+- close_job:t[4096];? relative, no NUL or .. segments.
 
 ## project-gates
 Project repository gates and tiers; next start.
@@ -594,25 +595,25 @@ One repository's test gates and tiers.
 
 ## gate-check
 A workflow gate proving a landing.
-- name:t[32];! letters, digits, dash or underscore; unique in the repository.
-- workflow:t[255];! workflow filename without slash.
+- name:t[32];! letters/digits/-/_; unique per repository.
+- workflow:t[255];! workflow file, no slash.
 - ignored:[1114240] t[1024];? <=forge.ignored_paths whole-segment paths, each <=forge.name_bytes.
 - blocking:bool;! whether the gate blocks.
-- base:bool;? default false; whether the gate reads the base.
+- base:bool;? false by default; reads the base.
 - report:gate-report;? artifact holding failed test ids.
 
 ## gate-report
 The failed tests uploaded by a gate.
-- artifact:t[32];! artifact name without slash.
+- artifact:t[32];! artifact, no slash.
 - format:choice;! `junit`: JUnit report. `lines`: One test id per line.
 - fuzzy:t[64];? nonempty name prefix of fuzzy tests.
 
 ## tier-check
 A slow workflow and the branch it follows.
-- name:t[32];! letters, digits, dash or underscore; unique in the repository.
-- workflow:t[255];! workflow filename without slash.
+- name:t[32];! letters/digits/-/_; unique per repository.
+- workflow:t[255];! workflow file, no slash.
 - ignored:[1114240] t[1024];? <=forge.ignored_paths whole-segment paths, each <=forge.name_bytes.
-- artifact:t[32];! artifact name without slash.
+- artifact:t[32];! artifact, no slash.
 - format:choice;! `junit`: JUnit report. `lines`: One test id per line.
 - branch:t[1048576];? default landing branch; goal follows goal branches.
 - span_ms:u64;? ms between starts; default 0, no span.
@@ -641,7 +642,7 @@ Owner: task, party, role or charter.
 - task:u64;live task of the project.
 - party:u64;party with a role in the project.
 - role:u32;Below authority.roles; 0 is the owners.
-- charter:u32;From 1 through tasks.charters.
+- charter:u32;From 1 through 64.
 
 ## agents
 Agent profile and endpoint limits, taken at each worker's next start.

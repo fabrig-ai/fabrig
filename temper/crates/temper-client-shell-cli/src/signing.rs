@@ -46,6 +46,11 @@ impl Signing {
         });
         Self {
             shell: Some(Shell::new(jig_client_shell_native::Settings {
+                mapping: jig_client_protocol_http::Mapping::with_page(
+                    b"/jig",
+                    temper_client_domain_forge::sign_in::LINK_PAGE,
+                )
+                .expect("temper mapping"),
                 engine,
                 directory: leaf,
                 limits: connections,
@@ -81,17 +86,17 @@ impl Signing {
         if bytes.is_empty() {
             return Err(b"sign-in: stdin held no link; give the box's sign-in link on stdin: temper ctl DIR sign-in -");
         }
-        let parsed = jig_client_protocol_http::printed(
-            &jig_client_protocol_http::Mapping::new(b"/jig").expect("mapping"),
-            bytes,
-        )
-        .map_err(|_| b"the sign-in link was refused".as_slice())?;
+        let mapping =
+            jig_client_protocol_http::Mapping::with_page(b"/jig", temper_client_domain_forge::sign_in::LINK_PAGE)
+                .expect("temper mapping");
+        let parsed = jig_client_protocol_http::printed(&mapping, bytes)
+            .map_err(|_| b"the sign-in link was refused".as_slice())?;
         let mut address = b"http://".to_vec();
         address.extend_from_slice(&parsed.host);
         address.push(b'\n');
         let engine = directory::address(&address)?;
         let mut shell =
-            Shell::new(jig_client_shell_native::Settings { engine, directory: leaf, limits: connections, io });
+            Shell::new(jig_client_shell_native::Settings { mapping, engine, directory: leaf, limits: connections, io });
         let with = shell.sign_in(bytes).map_err(|_| b"the sign-in link was refused".as_slice())?;
         out.push(Submit {
             op: OPEN,

@@ -50,6 +50,7 @@ struct Download {
     name: Box<[u8]>,
 }
 
+#[expect(clippy::struct_excessive_bools, reason = "request reporting is an opt-in independent of the page lifecycle")]
 #[derive(Debug)]
 struct Page {
     token: Token,
@@ -57,6 +58,7 @@ struct Page {
     target: Option<Box<[u8]>>,
     session: Option<Box<[u8]>>,
     initial_url: Box<[u8]>,
+    requests: bool,
     frame: Option<Box<[u8]>>,
     navigating: bool,
     opening: bool,
@@ -128,6 +130,7 @@ enum PendingKind {
     Target(Token),
     Attach(Token),
     Enable(Token, u8),
+    RequestFrame(Token),
     Viewport(Token),
     Navigate(Token),
     Step(Token, Step),
@@ -184,6 +187,7 @@ pub struct Browser {
     ops: Vec<Option<Operation>>,
     pending: Vec<Pending>,
     downloads: Vec<Download>,
+    requests: Vec<request::Waiting>,
     next_id: u64,
     framing: Framer,
     outgoing: VecDeque<Queued>,
@@ -208,6 +212,7 @@ impl Browser {
             ops: Vec::with_capacity(usize::try_from(limits.ops).expect("u32 fits usize")),
             pending: Vec::with_capacity(usize::try_from(limits.commands).expect("u32 fits usize")),
             downloads: Vec::with_capacity(usize::try_from(limits.downloads).expect("u32 fits usize")),
+            requests: Vec::new(),
             next_id: 1,
             framing: Framer::new(limits.message),
             outgoing: VecDeque::with_capacity(usize::try_from(limits.commands).expect("u32 fits usize")),
@@ -572,7 +577,7 @@ impl Browser {
                     self.close_person_local(person);
                 }
             }
-            Request::Page { person, page, url } => {
+            Request::Page { person, page, url, requests } => {
                 let context = match self.person(person) {
                     Some(person) if !person.closing => person.context.clone(),
                     Some(_) | None => None,
@@ -592,6 +597,7 @@ impl Browser {
                         target: None,
                         session: None,
                         initial_url: url,
+                        requests,
                         frame: None,
                         navigating: false,
                         opening: true,
@@ -925,6 +931,7 @@ impl Browser {
     }
 
     fn close_page_local(&mut self, token: Token) {
+        self.requests.retain(|request| request.page != token);
         let mut closing = Vec::new();
         for op in self.ops.iter().flatten() {
             if op.page == token {
@@ -1291,6 +1298,7 @@ pub fn fire(browser: &mut Browser, env: &Env<Limits>, now: Time, above: &mut Que
             | PendingKind::ClosePerson(person) => browser.close_person_local(person),
             PendingKind::Target(page)
             | PendingKind::Attach(page)
+            | PendingKind::RequestFrame(page)
             | PendingKind::Enable(page, _)
             | PendingKind::Viewport(page)
             | PendingKind::Navigate(page)
@@ -1443,6 +1451,7 @@ impl Browser {
             | PendingKind::ClosePerson(person) => self.close_person_local(person),
             PendingKind::Target(page)
             | PendingKind::Attach(page)
+            | PendingKind::RequestFrame(page)
             | PendingKind::Enable(page, _)
             | PendingKind::Viewport(page)
             | PendingKind::Navigate(page)
@@ -1565,6 +1574,7 @@ impl Browser {
                 }
             }
             PendingKind::Enable(page, index) => self.enable(env, page, index.saturating_add(1)),
+            PendingKind::RequestFrame(page) => self.request_frame(env, page, result),
             PendingKind::Viewport(page) => {
                 let url = match self.page(page) {
                     Some(page) => Some(page.initial_url.clone()),
@@ -1603,6 +1613,14 @@ impl Browser {
         ];
         if let Some(method) = DOMAINS.get(usize::from(index)) {
             if !self.queue_page(env, page, method, &Params::Empty, PendingKind::Enable(page, index)) {
+                self.close_page_local(page);
+            }
+        } else if index == 6 && self.page_requests(page) {
+            if !self.queue_page(env, page, b"Network.enable", &Params::Network, PendingKind::Enable(page, index)) {
+                self.close_page_local(page);
+            }
+        } else if index == 7 && self.page_requests(page) {
+            if !self.queue_page(env, page, b"Page.getFrameTree", &Params::Empty, PendingKind::RequestFrame(page)) {
                 self.close_page_local(page);
             }
         } else if !self.queue_page(
@@ -1682,11 +1700,22 @@ impl Browser {
         None
     }
 
+    #[expect(clippy::too_many_lines, reason = "each enabled CDP event selects its own bounded fields")]
     fn notification(&mut self, env: &Env<Limits>, method: &[u8], root: Value<'_>) {
         let session = field_text(root, b"sessionId");
         let page = self.notification_page(session.as_deref());
         let params = root.get(b"params");
         match method {
+            b"Network.requestWillBeSent" => {
+                if let (Some(page), Some(params)) = (page, params) {
+                    self.request_sent(env, page, params);
+                }
+            }
+            b"Network.dataReceived" | b"Network.loadingFinished" | b"Network.loadingFailed" => {
+                if let (Some(page), Some(params)) = (page, params) {
+                    self.request_answered(env, page, params);
+                }
+            }
             b"Browser.downloadWillBegin" => {
                 if let Some(params) = params {
                     self.download_begin(env, params);
@@ -2379,6 +2408,10 @@ mod type_tests;
 mod download_tests;
 
 mod download;
+mod request;
+
+#[cfg(test)]
+mod request_tests;
 
 #[cfg(test)]
 mod credit_tests;

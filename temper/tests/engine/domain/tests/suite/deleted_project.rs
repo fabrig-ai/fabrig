@@ -381,6 +381,7 @@ fn key_is(key: &forge::Key, repository: Repository) -> bool {
         | forge::Key::Finding { .. }
         | forge::Key::Dismissed { .. }
         | forge::Key::Making(_)
+        | forge::Key::PersonBrief { .. }
         | forge::Key::ProjectFacts { .. }
         | forge::Key::Looked { .. }
         | forge::Key::Away { .. }
@@ -503,6 +504,7 @@ fn names_repository(row: (&Key, &Record), repository: Repository) -> bool {
         | forge::Stored::Playground(_)
         | forge::Stored::Dismissed { .. }
         | forge::Stored::Milestone(_)
+        | forge::Stored::PersonBrief(_)
         | forge::Stored::ProjectFacts(_)
         | forge::Stored::Looked(_)
         | forge::Stored::Away(_)

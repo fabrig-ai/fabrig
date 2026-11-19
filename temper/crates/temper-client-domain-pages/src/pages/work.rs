@@ -698,11 +698,11 @@ pub fn facts(root: &dyn Root, project: u32) -> Option<Facts> {
     }
     if let Some(live) = goals.live(root.client()) {
         for line in &live.rows {
-            gather_goal(&mut facts, milestones, line, !super::chats::ended(&line.chip));
+            gather_goal(&mut facts, milestones, goals, line, !super::chats::ended(&line.chip));
         }
     }
     for line in goals.ended() {
-        gather_goal(&mut facts, milestones, line, false);
+        gather_goal(&mut facts, milestones, goals, line, false);
     }
     for milestone in milestones.drawn() {
         for line in milestones.lines() {
@@ -718,7 +718,7 @@ pub fn facts(root: &dyn Root, project: u32) -> Option<Facts> {
             }
         }
         for line in &milestone.goals {
-            gather_goal_in(&mut facts, line, !super::chats::ended(&line.chip), Some(milestone.task));
+            gather_goal(&mut facts, milestones, goals, line, !super::chats::ended(&line.chip));
         }
     }
     if let Some(panel) = panel {
@@ -800,8 +800,14 @@ pub fn facts(root: &dyn Root, project: u32) -> Option<Facts> {
     Some(facts)
 }
 
-fn gather_goal(facts: &mut Facts, milestones: &super::milestones::Milestones, row: &c::TaskLine, live: bool) {
-    gather_goal_in(facts, row, live, milestones.of(row));
+fn gather_goal(
+    facts: &mut Facts,
+    milestones: &super::milestones::Milestones,
+    goals: &super::goals::Goals,
+    row: &c::TaskLine,
+    live: bool,
+) {
+    gather_goal_in(facts, row, live, milestones.of(row, goals));
 }
 
 fn gather_goal_in(facts: &mut Facts, row: &c::TaskLine, live: bool, milestone: Option<u64>) {

@@ -185,6 +185,7 @@ const FORGE: forge::Limits = forge::Limits {
     // Fabrig’s development of 2026-11-16: dev’s 4, capped by the worker wire’s five prefixes.
     landing_members: 5,
     landings_kept: 16,
+    landings_pending: 64,
     changes_rows: 32,
     changes_landed: 8,
     gates: 2,
@@ -196,7 +197,8 @@ const FORGE: forge::Limits = forge::Limits {
     trees_in_flight: 2,
     tiers: temper_engine_domain_forge::TierLimits {
         tiers: 2,
-        failing_tests: 16,
+        // The most ids a finding’s signature holds (protocol/configuration/limits.md, “A tier’s failing tests”).
+        failing_tests: 64,
         // Twice the longest failing test’s id today, about 221 bytes, rounded up.
         test_id_bytes: 512,
     },
@@ -291,10 +293,10 @@ const ROOT: Root = Root {
         loads: 2,
         // Two rows per load page, bounding each owner read’s work.
         rows: 2,
-        // The whole note's 70,208 owned bytes and its 248-byte temper record slot.
-        bytes: 70_456,
+        // The whole note's 70,208 owned bytes and its 256-byte temper record slot.
+        bytes: 70_464,
         // The same whole note and record slot fit the reply before source derivation.
-        reply_bytes: 70_456,
+        reply_bytes: 70_464,
         // One authenticated read's owned bytes; jig stock core.load_bytes.
         read_bytes: 131_072,
         // A whole stock note: body 65,536, description and pattern 256 each,
@@ -337,8 +339,8 @@ const BRIEF: engine::BriefLimits = engine::BriefLimits {
         now: 4096,
     },
     // Three 131,584-byte task, pull and review sections, cut within charter 5’s
-    // 319,686-byte stock host room after 64 titles and framing, with 66 bytes spare.
-    brief_bytes: 319_686 - 64 * (16 + 7) - 66,
+    // 319,584-byte stock host room after 64 titles and framing, with 66 bytes spare.
+    brief_bytes: 319_584 - 64 * (16 + 7) - 66,
     // Fabrig’s development of 2026-11-16: 300 seconds to gather sequential forge reads.
     gather: Duration::from_secs(300),
 };
@@ -572,6 +574,13 @@ pub fn jobs(jig: &jig_protocol_config::Limits) -> Box<[JobBound]> {
 
 #[cfg(test)]
 mod making_tests {
+    #[test]
+    fn stock_tier_failures_fit_the_finding_signature() {
+        let tiers = stock().forge.tiers;
+        assert_eq!(tiers.failing_tests, 64);
+        assert_eq!(tiers.test_id_bytes, 512);
+    }
+
     #[test]
     fn retention_overrides_reach_the_effective_core_limits() {
         let mut jig = jig_protocol_config::stock();

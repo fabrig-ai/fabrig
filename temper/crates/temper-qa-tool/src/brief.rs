@@ -336,6 +336,9 @@ impl Inputs {
         if self.pages.contains_key("ctl") {
             text.push_str(r#" for ctl, page is one of its groups. For ctl steps, write do as ctl or forge drive lines, or `temper help PAGE`. In its pass, a `temper help PAGE` step is read with the place's own program, with no box; compare its words as a `see` is. Quoted bytes take printable ASCII alone; write other bytes as `\xHH`, with `\"` and `\\` for quote and backslash."#);
         }
+        if self.pages.contains_key("web") {
+            text.push_str(" For a web page whose draft promises a request budget, a step's do may be `web requests`, after a step that opens the page cold, such as a reload of its path; its see is that line's last line as the budget counts it, `N requests in W waves`: `2 requests in 2 waves` for two waves of two requests.");
+        }
         text.push_str(
             " Use only the pages and setups above; give at least one step, each with nonempty do and expect.\n",
         );

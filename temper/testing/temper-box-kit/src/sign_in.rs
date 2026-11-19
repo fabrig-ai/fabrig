@@ -51,12 +51,7 @@ pub fn patch_configuration(directory: &Path) -> oauth::Peer {
     super::own_listener_files(directory);
     let path = directory.join("temper.json");
     let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("init document")).expect("JSON");
-    let taken = [
-        "/application/clients/listener/socket",
-        "/application/webhooks/listener/socket",
-        "/engine/llm/endpoints/3/address/socket",
-    ]
-    .map(|pointer| {
+    let taken = ["/application/clients/listener/socket", "/application/webhooks/listener/socket"].map(|pointer| {
         value.pointer(pointer).expect("init listener").as_str().expect("socket string").parse().expect("socket")
     });
     let [listener] = super::reserve_listeners(&taken);
@@ -107,8 +102,9 @@ pub fn restart_issued_issuer(directory: &Path) -> oauth::Peer {
 }
 
 fn restarted_issuer(directory: &Path, issued: bool) -> oauth::Peer {
-    let mut registration =
-        temper_agent_fixtures::providers::read(directory)["providers"][0]["sources"]["sign_in"].clone();
+    let mut registration = temper_agent_fixtures::providers::read(&temper_agent_fixtures::data(directory))["providers"]
+        [0]["sources"]["sign_in"]
+        .clone();
     if issued {
         // Known fixture identity, never a credential read from a deployment.
         registration["client"] = "issued-client".into();

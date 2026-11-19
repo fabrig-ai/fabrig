@@ -18,6 +18,7 @@ temper-client-view-words.workspace = true
 temper-client-view-parts.workspace = true
 
 [dev-dependencies]
+temper-client-view-kit.workspace = true
 skein-scratch.workspace = true
 temper-test-env.workspace = true
 temper-protocol-reaches.workspace = true
