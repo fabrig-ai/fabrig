@@ -121,6 +121,7 @@ pub struct BoxPeer {
     requests: Option<Fd>,
     answers: Option<Fd>,
     disk: Rc<RefCell<skein_fake_machine::Machine>>,
+    seed: u64,
     script: Answers,
     output: std::collections::VecDeque<Box<[u8]>>,
     writing: bool,
@@ -136,6 +137,7 @@ impl BoxPeer {
             requests: Some(pipe(3)),
             answers: Some(pipe(4)),
             disk: programs::parameters().disk,
+            seed: programs::parameters().seed,
             script: Answers::default(),
             output: std::collections::VecDeque::new(),
             writing: false,
@@ -173,7 +175,7 @@ impl BoxPeer {
         if last {
             let entry = self.setup(forge).expect("owned group's setup");
             let path = Place { directory: entry.directory, user: Box::new([]) }.path(File::AdminToken);
-            machine::lay_handover(&mut self.disk.borrow_mut(), &path, temper_playground::fakes::ADMIN_TOKEN);
+            machine::lay_handover(&mut self.disk.borrow_mut(), &path, &temper_playground::stories::admin_token(self.seed));
         }
         self.output.push_back(line.bytes(forge));
     }

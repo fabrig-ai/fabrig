@@ -1,5 +1,5 @@
 //! Owned setup on the world's box pipe (journey-walks.md, 4.4 and 7).
-use skein_fake_person::Find;
+use skein_fake_person::{Find, Target};
 use skein_lib::Duration;
 use skein_ui::{Act, Node, Role};
 use temper_client_walk_world::{box_peer::OWNED, facts, web::Page};
@@ -50,7 +50,12 @@ fn owned_setup_draws_every_pipe_step_before_the_next_line() {
     ];
     let mut began = None;
     for (index, (line, (words, current))) in OWNED.iter().zip(states).enumerate() {
-        page.wait(&Find::text(words.as_bytes()), None, WITHIN).unwrap_or_else(|why| panic!("{words}: {why:?} at {:?}\n{}", page.now(), page.html()));
+        let find = Find::exactly_named(Role::Status, b"under way").within(Box::new([
+            Target::ExactRole { role: Role::Complementary, name: b"Forge and model".as_slice().into() },
+            Target::ExactRole { role: Role::List, name: b"Each step".as_slice().into() },
+            Target::Role { role: Role::Item, name: words.as_bytes().into() },
+        ]));
+        page.wait(&find, None, WITHIN).unwrap_or_else(|why| panic!("{words}: {why:?} at {:?}", page.now()));
         let start = *began.get_or_insert_with(|| page.world().processes().iter().find_map(|p| if let Process::Other(peer) = p { peer.began() } else { None }).expect("owned start read"));
         let now = page.now();
         assert!(now >= start.saturating_add(line.after), "{words} drawn before its pipe line at {now:?}");
@@ -61,7 +66,11 @@ fn owned_setup_draws_every_pipe_step_before_the_next_line() {
         assert_eq!(drawn.len(), 5);
         assert_eq!(drawn[current].0, words);
         for (at, (_, status)) in drawn.iter().enumerate() {
-            let wanted = if at < current { Some("done") } else if at == current { Some("under way") } else { None };
+            let wanted = match at.cmp(&current) {
+                std::cmp::Ordering::Less => Some("done"),
+                std::cmp::Ordering::Equal => Some("under way"),
+                std::cmp::Ordering::Greater => None,
+            };
             assert_eq!(status.as_deref(), wanted, "{words}: {drawn:?}");
         }
     }
