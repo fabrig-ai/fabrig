@@ -184,7 +184,15 @@ fn deployments_keep_swap_drain_refusal_and_done_invariants_seeded() {
                 let serving_verdict = (seed / 5) % 5;
                 verdicts.insert(format!("{mode:?}/{verdict}/{serving_verdict}/{stop_verdict}"));
                 let (serving_code, serving_line) = verdict_answer(serving_verdict);
-                deployment.verdict_answer(serving_code, serving_line);
+                deployment.verdict.push_back(if serving_verdict == 4 && seed % 2 == 0 {
+                    Output {
+                        code: Some(2),
+                        stdout: String::new(),
+                        stderr: "temper-engine: no command upgrade --workers; temper-engine --help lists them".into(),
+                    }
+                } else {
+                    output(serving_code, serving_line)
+                });
                 let (stop_code, stop_line) = verdict_answer(stop_verdict);
                 deployment.verdict_answer(stop_code, stop_line);
                 let ran_job = next(&mut random) % 3 == 0;
@@ -332,6 +340,17 @@ fn audit_outcome(hosts: &Audited, outcome: Outcome, record: &temper_redeploy_too
                 hosts.context
             );
             assert_eq!(record.verdict, None, "{}", hosts.context);
+            let lacks_workers = answer
+                .stdout
+                .lines()
+                .chain(answer.stderr.lines())
+                .any(|line| line.contains("no command upgrade --workers"));
+            assert_eq!(
+                record.lines.iter().filter(|line| line.line.contains("--together")).count(),
+                usize::from(lacks_workers),
+                "only a build without upgrade --workers gets the together hint: {}",
+                hosts.context
+            );
         }
     }
     match outcome {
@@ -373,7 +392,7 @@ fn verdict_answer(verdict: u64) -> (i32, &'static str) {
         1 => (0, "workers may stay: no"),
         2 => (0, "workers may stay: unknown; no wires kept"),
         3 => (0, "no verdict"),
-        4 => (1, "cannot read the checkpoint"),
+        4 => (1, "temper-engine upgrade: checkpoint is in use"),
         _ => unreachable!(),
     }
 }
