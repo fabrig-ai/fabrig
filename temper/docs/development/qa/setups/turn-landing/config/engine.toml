@@ -1,0 +1,7 @@
+listen = "{place.clients}"
+webhooks = "{place.webhooks}"
+workers = "{place.workers}"
+owner = "owner-a@example.invalid"
+
+[internal]
+bundle = "{place.bundle}"

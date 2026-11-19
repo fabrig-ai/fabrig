@@ -100,6 +100,7 @@ fn full_and_smallest_moved_records_round_trip() {
 
 #[test]
 fn schema_ceilings_match_the_parts_owners() {
+    use skein_oauth::v3::Record;
     assert_eq!(v1::CEILINGS.moved_application, moved::APPLICATION);
     assert_eq!(v1::CEILINGS.moved_issuer, moved::ISSUER);
     assert_eq!(v1::CEILINGS.moved_client_id, moved::CLIENT_ID);

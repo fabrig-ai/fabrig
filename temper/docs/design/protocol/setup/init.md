@@ -361,6 +361,14 @@ from its three directories (../configuration/directories.md) and what it
 finds on the machine. Alone, it writes a bare deployment: no welcome, no
 playground and no Forgejo on this machine.
 
+- **It writes `temper.toml`,** one line (3), rendered from the file's
+  table (`../configuration/file.md`, section 7). What it finds below,
+  git, `claude` and the person among it, it checks and says as below,
+  and writes into no file: the start finds each again. Where a bullet
+  here names a member of a document it writes, that member is the
+  start's document's, which the file gives (`../configuration/file.md`,
+  section 4).
+
 - **The box's parts, one flag:** `--box` adds them: the welcome's
   member; the owned Forgejo, its person and its port, the OpenID provider and
   its key (`../openid-provider.md`, 9); and the
@@ -369,9 +377,9 @@ playground and no Forgejo on this machine.
   too. The document keeps them as three members, so that splitting the
   flag later changes no format (`README.md`, section 9).
 - **Refused,** exit 1, before it writes anything, naming the file: when
-  the configuration directory holds `temper.json`, or the data
+  the configuration directory holds `temper.toml` or `temper.json`, or the data
   directory holds `worker.secret` or, with `--box`,
-  `demo/llm.key` or `demo/bin/git`. It never replaces a file; a person
+  `demo/bin/git`. It never replaces a file; a person
   who starts again removes them.
 - **Its directories:** the data and cache directories made and checked
   as every command makes and checks them (../configuration/directories.md
@@ -380,16 +388,16 @@ playground and no Forgejo on this machine.
   `--box`, the data directory's `demo/` and `demo/bin/`, made private
   (0o700).
 - **Its files,** each created new, in this order, the document last, so
-  that a configuration directory holding one holds them all, the two in
-  `demo/` with `--box` alone:
+  that a configuration directory holding one holds them all, the one in
+  `demo/` with `--box` alone; the scripted model's key, `demo/llm.key`,
+  is the playground's, made at its start (`playground.md`), not init's:
 
   | File | Directory | Mode | What it is |
   |---|---|---|---|
   | `worker.secret` | data | 0o600 | 32 bytes from the kernel's random source, as 64 lowercase hexadecimal digits and a newline |
   | `provider.key` | data | 0o600 | with `--box`, the OpenID provider's signing key, made as `owned.md`, 8's first step, and kept if already there (`../openid-provider.md`, 9); no such file when it can't be made |
-  | `demo/llm.key` | data | 0o600 | the scripted model's key (`playground.md`): 32 bytes from the kernel's random source, as 64 lowercase hexadecimal digits and a newline |
   | `demo/bin/git` | data | a link | the playground's git, `temper-box fake git` (`playground.md`): a symbolic link to the binary |
-  | `temper.json` | configuration | 0o644 | the default document (3) |
+  | `temper.toml` | configuration | 0o644 | the default file (3) |
 
   It writes no `agent.json`, and no worker part's `limits` or `agent`:
   temper writes the agent's configuration at each start, from the
@@ -502,172 +510,39 @@ playground and no Forgejo on this machine.
   starts the shipped box the same way and reads its welcome's Model step,
   ChatGPT's and Claude's cards, with no `claude` on `PATH` (`testing.md`, 1).
 
-## 3. The default document
+## 3. The default file
 
-Sized for a person's real work: a project of fabrig's scale, its own
-development, with five times the largest figure seen
-(../configuration/stock.md), so a fresh box runs such a project with no
-override.
+What `temper-box init` writes as `temper.toml`, with `--box` or
+without: one line, `listen`, under the file's two header lines
+(`../configuration/file.md`, section 7), and `webhooks` only where the
+port after `listen`'s isn't free. Everything else the start's document
+holds is a default, a constant or a derivation of the file's reader
+(`../configuration/file.md`, section 4), or a setting the store holds.
 
-- **The box's parts,** `temper-box init --box`'s alone (2):
-  `application.welcome` `true`; the machine's `owned`; and the
-  playground: the machine's `fake`, `application.demo`, the scripted
-  provider in `engine.llm` and in the agent's configuration, and the
-  reset's grant in `engine.acts`. A document without them is the same
-  document less those members: `application.demo` null, `engine.llm` the owned example's with
-  Anthropic's provider (below), and no `engine.acts`.
-- **No forge** (`init.md`): a first run's store holds none, and the
-  person makes each from the client, none needing a restart: the
-  playground's fake one by trying it (`playground.md`), an owned Forgejo by setting
-  it up under the box (`owned.md`, 5), GitHub or a Forgejo elsewhere by connecting
-  it (`github.md`, `reconcile.md`, section 5). A start resolves each kept forge's `api` name
-  once (../README.md, section 11), but GitHub's place's, which the
-  engine resolves once it serves, the forge waiting meanwhile, neither
-  connected nor refused (../forge/README.md, 2.6); a name that does not resolve, GitHub's
-  on a machine without DNS, refuses no start: that forge starts not
-  connected, and each connect of it, restored or asked, is answered
-  unreachable, naming the host, until a start that resolves it. The
-  other forges start as they would. A forge so held keeps its connection
-  and its setup entry, built with the address `127.0.0.1:0`, which no
-  listener can hold, and temper sends neither a connect nor a setup
-  request for it: the placeholder never reaches a socket.
-- **Its machine part,** `application.machine` (`init.md`):
-  - `owned`, the box's owned Forgejo: its `forgejo` and `runner.binary`
-    `"fetched"` (`owned.md`, 6); its runner the owned example's,
-    `temper-host:host`, capacity 1, and its `path`; its `listen`
-    `127.0.0.1:<its port>`, 8368 (2), and its `remote`
-    `http://127.0.0.1:<its port>`; and its person the one init finds,
-    `LOGIN@localhost` (2). Set up, it is forge N in `forge-N`, its
-    handover `forge-N/admin_token`; its access and git value are
-    records, with no other credential file written or read;
-  - `fake`, the playground's fake forge: its `listen`
-    `127.0.0.1:<the fake forge's port>`, its `remote`, and its `git` the
-    playground's link (2);
-  - `github` null, GitHub at github.com's addresses (`github.md`).
-
-- **The webhooks' listener,** `application.webhooks.listener`,
-  `127.0.0.1:<its port>` (2). Each Forgejo's `WebhookSecret` is a
-  record, drawn by the setup plan that makes its first hook (`reconcile.md`, 4).
-  Adoption makes the repository's hook; the fake's start-time adoption hooks its seeded
-  repositories (`playground.md`). GitHub's hints come from its App's delivery log.
-- **Its LLM providers:** the owned example's `engine.llm` with no
-  account and no model tables: the binary supplies stock model settings,
-  each with its `shown`, `efforts` and `effort` (../configuration/stock.md);
-  2, `anthropic`, on every document, whatever is on
-  `PATH`, so that the Model step offers ChatGPT and Claude
-  (`../../client/pages/README.md`): `signed_in_plan` false, `manage_usage`
-  `https://claude.ai/settings/usage`, its models Anthropic's of that table,
-  through Claude Code's `--model` (smith's `protocol/programs.md`, 5.1),
-  or directly on a key; its sources Claude Code's program and keys,
-  `{"programs": ["claude_code"], "keys": true}`; two endpoints, both
-  Anthropic's dialect, 2, at `api.anthropic.com:443` on TLS, with
-  OpenAI's bounds: `anthropic`, number 2, naming that program, the
-  provider's `endpoint`, which its models take, and `anthropic-api`,
-  number 4, naming none, the provider's `direct`, which its keys take
-  (jig's `protocol/configuration.md`, section 3; jig's
-  `domain/accounts.md`, 3.4); its models' prices are that table's,
-  counted alike on either way, though a subscription's runs bill
-  nobody; the agent's configuration declares both endpoints under the
-  same names, with `claude` on `PATH` or without it (2), and the
-  `standard` profile's `documents.lines`, 16, holds the offer's three
-  lines, so that no override is written; and 3, `demo`, the scripted
-  provider, the playground's (`playground.md`): one endpoint,
-  `demo`, at `127.0.0.1:<the fake LLM's port>`, plaintext, OpenAI's
-  dialect on its public route; one model, `demo`, priced as the owned
-  example's model is, 1 per 1,000,000 for input, cached and output (jig
-  and smith refuse a price of 0); its window `gpt-6-luna`'s, 1,048,576,
-  and its output 8,192, so the scripted model leaves every charter the
-  room luna leaves it: smith's host part, at the owned threshold, 4/5,
-  holds the largest stock charter's tools and the authorised brief with
-  a whole spec (`../../domain/agent/room.md`, 1, and `../../domain/agent/charter.md`, 5). The message bound is
-  the agent's (1), and a request at the threshold stays within the
-  fake's request bound; its source a key. The agent's configuration
-  declares it too (2).
-- **Its projects:** none. Its `engine.projects` is `[]`: jig makes
-  each first owner a deployment owner with no project configured
-  (jig's `domain/people/README.md`, 3), and the engine, the playground and the
-  client run a deployment with no project. Projects are made at
-  runtime: the playground's start makes the playground's, "Demo"
-  (`playground.md`), and the welcome's Ready the person's first, "Hello" for
-  `work/hello` (`../../client/pages/README.md`). A deployment whose
-  first start seeded a project, project 1 as the document seeded it
-  before, keeps it: no start removes or renames it. One policy, `engine.policies` 1 (jig's
-  `protocol/configuration.md`, section 3), which each project made
-  starts from: its owner's grants, the rules' ceiling and its
-  projections the owned example's, on the pattern below in place of
-  the org's. Each project's landing rule 1 covers every branch of each
-  of its repositories, the pattern `{"segments": ["branch"], "last":
-  "open", "value": ""}`, `enforce`d, with `ci`, `up_to_date` and gate
-  1, an agent's review, and no approval: a change lands on green CI and
-  an agent's review with no person in between, in every project, seeded
-  or made, until its owners change the rule (../configuration/settings.md, 2 and ../configuration/stock.md
-  ). Each project is made on that policy
-  by jig's `MakeProject` (`playground.md`, `owned.md`, 7). The policy and the landing rule are
-  the binary's stock settings, policy 1 and every project's rule 1, and
-  the document names neither (../configuration/stock.md); `temper-box init`
-  writes no `engine.policies`, `engine.rules` or `application.landing`.
-- **Its acts:** `engine.acts` (jig's `protocol/configuration.md`,
-  section 3) grants the forge connector, 1, the playground's reset's
-  acts (`playground.md`) and a made repository's adoption
-  (`../../domain/forge/adoption.md`, 5), `{"connector": 1, "may": ["remove_project",
-  "remove_account", "adopt"]}`, and no other connector any. The
-  document's first owner, whom the grant needs, is its `owners`' first.
-  A document without the grant still serves: `temper-box serve` starts on
-  it, and only the reset's acts are refused, *not offered*: each is
-  kept, and named in serve's log with the grant to add to
-  `engine.acts`, the one `temper-box init --box` writes, until a start's document
-  grants it.
-- **Its charters and templates** are the binary's stock
-  (../configuration/stock.md): charters 1, 2, 4, 5, 6, 9, 10 and 11 and
-  templates `chat`, `goal`, `goal for a draft` and `ask`, numbered
-  1, 2, 4 and 5. Their model choices include the scripted model,
-  `demo`, after their first choices and the rest of the real catalogue.
-  A task with no model chosen takes the
-  first of its charter's models whose provider has an account usable for
-  its payer (jig's `domain/accounts.md`, 4.3), so in the playground,
-  whose project's one account is the scripted one (`playground.md`), a chat and the
-  coding agent of the change it delegates both run on the scripted
-  model, with no pick. jig takes it at each run's check until the task
-  keeps an account: a chat started before an account of a real
-  provider stays on the model it took, and a chat started after takes
-  the first of its charter's models with an account usable,
-  `claude-opus-5-5` once a Claude login is. The composer's line says
-  which, before the start, from jig's `resolved_default` preview in
-  `me`, never by guessing from catalogue order (`../../client/pages/accounts.md`,
-  2). The request keeps its omitted choice; the preview does not turn
-  it into an explicit one. The charters, the
-  templates and the forge's charter are the binary's stock settings,
-  their models first choices and the rest of the catalogue
-  (../configuration/stock.md), the scripted model last where `demo` is
-  configured; the document names
-  none of them (../configuration/stock.md), and a person changes them from
-  "How work runs" (`../../client/pages/settings.md`, 2).
-- **One worker,** in the process, with 4 slots (1), its `root` `workspaces` in the data
-  directory, its `git` the machine's, or null (2); the deployment's directory
-  `deployment` in the data directory; the clients' listener
-  `127.0.0.1:<port>` (2).
-- **Its sign-ins:** `engine.clients`' `link` and `approval` both
-  `true`, in both documents and the owned example (1): the printed
-  link (`box.md`, 2) and a terminal approved by the person's browser
-  (`../../client/README.md`, 4.1), on the clients' loopback listener
-  (../configuration/engine.md, clients). The box prints the link
-  alone; the approval prints nothing.
-- **Its limits:** the owned example's (1), the `standard` profiles,
-  among them `forge.repositories`
-  and `forge.client.repositories` 3, counts of the deployment's
-  (../forge/README.md, section 6), and `forge.output` 82. Its `memory_bytes` are
-  deployment budgets, as the owned example's are (1). Startup checks
-  its limits with its strings at their bounds, the machine's
-  `fake.git`, which the engine names to the worker, among them; the two
-  literals of `temper-init`'s forgejo-elsewhere/demo document are
-  checked the same way.
-- **`application.demo`,** the scripted model's fake LLM (`playground.md`).
-- **Its box's steps** (`box.md`, 1): `temper-box serve`; the fake kind's group, the
-  fake LLM, a fake forge's preparation and the fake forge, dormant until
-  the person tries the playground (`playground.md`); and the owned kind's group,
-  dormant until the person sets up an owned Forgejo: its fetch, its
-  preparation, Forgejo's web and the runner's daemon; the engine takes
-  the handover and reconciles (`owned.md`, 5).
+- **What the file gives a box:** the clients' listener at `listen`; the
+  webhooks' listener at its next port; the first owner the process's
+  user, `LOGIN@localhost` at the printed link's provider (2); one
+  worker in the process, `local`, its secret `worker.secret`, its places
+  its setting's (`../configuration/figures.md`, section 4); with
+  `provider.key` in the data directory, the OpenID provider of
+  `../openid-provider.md`, 9; no Google sign-in, no push and no bundle
+  of another build.
+- **What the start finds,** at each start rather than in the file:
+  `git` and `claude` on `PATH`, `claude` fetched where there is none
+  (`../configuration/figures.md`, section 6), unless the file's
+  `[programs]` names one; the owned Forgejo's person (2); the fake
+  forge's git, `demo/bin/git`.
+- **Sized for real work** by the stock (`../configuration/stock.md`),
+  with no override: limits, LLM providers and the agents' figures are
+  settings with the stock's defaults (`../configuration/limit-settings.md`;
+  `../configuration/providers.md`; `../configuration/figures.md`,
+  section 5), the welcome is the box's (`../configuration/settings.md`,
+  2), and a forge's place is chosen at its set-up (`place.md`).
+- **No forge, no project:** a first run's store holds none; the person
+  makes each from the client, none needing a restart (`owned.md`, 5;
+  `github.md`; `reconcile.md`, section 5; `playground.md`).
+- **Its box's steps** (`box.md`, 1): `temper-box serve`; the fake kind's
+  group and the owned kind's, each dormant until its forge is set up.
 
 ## 4. Open questions
 

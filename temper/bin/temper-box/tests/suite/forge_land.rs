@@ -388,17 +388,20 @@ fn configure_claude(paths: &[std::path::PathBuf; 3]) {
 
 #[test]
 fn a_claude_configuration_replaces_openai_and_keeps_the_demo() {
-    use std::fs;
     // docs/help/box.md, step 1: Claude's fields over init's endpoint and model sizes.
     let (scratch, paths) = initialized_deployment("live-claude-configuration");
     let config = &paths[0];
     let agent_before = temper_agent_fixtures::read(config);
-    let before: Value =
-        serde_json::from_slice(&fs::read(config.join("temper.json")).expect("deployment")).expect("JSON");
+    let before: Value = serde_json::from_slice(
+        &support::read_start(&config.join(temper_config_shell::FILE), temper_config_shell::Shape::Standalone).document,
+    )
+    .expect("JSON");
     configure_claude(&paths);
     let agent = temper_agent_fixtures::read(config);
-    let value: Value =
-        serde_json::from_slice(&fs::read(config.join("temper.json")).expect("deployment")).expect("JSON");
+    let value: Value = serde_json::from_slice(
+        &support::read_start(&config.join(temper_config_shell::FILE), temper_config_shell::Shape::Standalone).document,
+    )
+    .expect("JSON");
     assert_eq!(
         agent["programs"],
         json!({"claude_code":{
@@ -446,7 +449,8 @@ fn a_claude_configuration_replaces_openai_and_keeps_the_demo() {
 fn stock_charters_keep_seven_models_and_choose_the_boxs_scripted_default() {
     let (scratch, paths) = initialized_deployment("live-claude-charters");
     configure_claude(&paths);
-    let deployment = std::fs::read(paths[0].join("temper.json")).expect("deployment");
+    let deployment =
+        support::read_start(&paths[0].join(temper_config_shell::FILE), temper_config_shell::Shape::Standalone).document;
     let document = jig_protocol_config::document(
         &deployment,
         &jig_protocol_config::DocumentLimits { bytes: 1 << 20, tokens: 1 << 20, depth: 32 },
@@ -506,7 +510,8 @@ fn live_model_world(
 
     let (scratch, paths) = initialized_deployment(case);
     configure(&paths);
-    let deployment = std::fs::read(paths[0].join("temper.json")).expect("deployment");
+    let deployment =
+        support::read_start(&paths[0].join(temper_config_shell::FILE), temper_config_shell::Shape::Standalone).document;
     let document = jig_protocol_config::document(
         &deployment,
         &jig_protocol_config::DocumentLimits { bytes: 1 << 20, tokens: 1 << 20, depth: 32 },
@@ -2062,10 +2067,9 @@ fn configure_key(paths: &[std::path::PathBuf; 3]) {
 
 #[test]
 fn a_key_configuration_changes_only_anthropics_list_policy_and_starts() {
-    use std::fs;
     let (scratch, paths) = initialized_deployment("live-key-configuration");
-    let path = paths[0].join("temper.json");
-    let expected: Value = serde_json::from_slice(&fs::read(&path).expect("init configuration")).expect("JSON");
+    let path = paths[0].join(temper_config_shell::FILE);
+    let expected: Value = support::start_document(&path, temper_config_shell::Shape::Standalone);
     let mut expected_providers = temper_agent_fixtures::providers::read(&paths[1]);
     let agent = temper_agent_fixtures::read(&paths[0]);
     let provider = expected_providers["providers"]
@@ -2079,7 +2083,7 @@ fn a_key_configuration_changes_only_anthropics_list_policy_and_starts() {
     assert!(provider.remove("keep").is_some());
     assert!(provider.remove("drop").is_some());
     configure_key(&paths);
-    let configured: Value = serde_json::from_slice(&fs::read(path).expect("key configuration")).expect("JSON");
+    let configured: Value = support::start_document(&path, temper_config_shell::Shape::Standalone);
     assert_eq!(configured, expected, "the startup document is unchanged");
     assert_eq!(temper_agent_fixtures::providers::read(&paths[1]), expected_providers, "only Anthropic's list changes");
     assert_eq!(temper_agent_fixtures::read(&paths[0]), agent, "Claude Code's program stays as init writes it");
@@ -2150,7 +2154,7 @@ fn a_key_store_is_kept_without_a_held_record() {
         fs::create_dir_all(store.join(directory)).expect("synthetic deployment directory");
     }
     for file in [
-        "config/temper.json".to_owned(),
+        format!("config/{}", temper_config_shell::FILE),
         "data/box/started/1".to_owned(),
         "data/forge-1/forgejo/app.ini".to_owned(),
         "data/forge-1/forgejo/forgejo.db".to_owned(),

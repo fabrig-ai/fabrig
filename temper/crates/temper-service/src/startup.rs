@@ -2,9 +2,7 @@
 pub mod application;
 pub use temper_service_core::startup::fixed_worker;
 pub mod members;
-mod reference;
 pub use crate::limits::{engine_reference, reference};
-pub use reference::{configuration_reference, engine_configuration_reference};
 
 use temper_worker_service::startup::worker;
 
@@ -121,9 +119,10 @@ pub fn box_worker(
     directories: &config::Directories,
     given: &crate::stock::Given,
     agents: &temper_client_protocol_wire::v1::AgentFigures,
+    places: u32,
     own: &[worker::application::EnvironmentEntry],
 ) -> Result<Option<WorkerPart>, Problems> {
-    box_worker_over(document, directories, given, agents, own, None, None)
+    box_worker_over(document, directories, given, agents, places, own, None, None)
 }
 
 /// Compose a box's carriers from the same agent declaration its engine starts with
@@ -133,29 +132,34 @@ pub fn box_worker_with_agent(
     directories: &config::Directories,
     given: &crate::stock::Given,
     agents: &temper_client_protocol_wire::v1::AgentFigures,
+    places: u32,
     own: &[worker::application::EnvironmentEntry],
     agent: &Declaration,
 ) -> Result<Option<WorkerPart>, Problems> {
-    box_worker_over(document, directories, given, agents, own, Some(agent), None)
+    box_worker_over(document, directories, given, agents, places, own, Some(agent), None)
 }
 
 /// Compose a world's or resolved start's local worker from the same engine figures.
+#[expect(clippy::too_many_arguments, reason = "the box supplies its local places beside resolved engine figures")]
 pub fn box_worker_with_limits(
     document: &[u8],
     directories: &config::Directories,
     given: &crate::stock::Given,
     agents: &temper_client_protocol_wire::v1::AgentFigures,
+    places: u32,
     own: &[worker::application::EnvironmentEntry],
     agent: Option<&Declaration>,
     limits: (&config::Limits, &crate::limits::Limits),
 ) -> Result<Option<WorkerPart>, Problems> {
-    box_worker_over(document, directories, given, agents, own, agent, Some(limits))
+    box_worker_over(document, directories, given, agents, places, own, agent, Some(limits))
 }
+#[expect(clippy::too_many_arguments, reason = "the box supplies its local places beside resolved engine figures")]
 fn box_worker_over(
     document: &[u8],
     directories: &config::Directories,
     given: &crate::stock::Given,
     agents: &temper_client_protocol_wire::v1::AgentFigures,
+    places: u32,
     own: &[worker::application::EnvironmentEntry],
     agent: Option<&Declaration>,
     limits: Option<(&config::Limits, &crate::limits::Limits)>,
@@ -176,7 +180,7 @@ fn box_worker_over(
     let figures =
         temper_engine_service::figures::Composer::new(&parsed.engine, &parsed.application.limits).compose(agents);
     let mut parts = figures.into_parts();
-    parts.places = parsed.engine.limits.core.fleet.slots;
+    parts.places = places;
     let figures =
         jig_protocol_worker_wire::Figures::new(&jig_protocol_worker_wire::CEILINGS, parts).expect("composed figures");
     let mut part =
@@ -569,15 +573,6 @@ fn load_document_over(
         &application.limits,
         &mut problems,
     );
-    if let Some(worker) = workers.first() {
-        checks::sockets(
-            engine.as_ref().expect("required engine checked"),
-            worker,
-            &application.limits.git_component,
-            &application,
-            &mut problems,
-        );
-    }
     if !problems.is_empty() {
         return Err(problems);
     }
@@ -646,7 +641,7 @@ pub fn operations_with(
     directories: &config::Directories,
     given: &crate::stock::Given,
 ) -> Result<u32, Problems> {
-    operations_over(document, directories, given, None)
+    operations_over(document, directories, given, None, None)
 }
 /// Kernel credit with a world's typed startup figures, without opening named files.
 pub fn operations_with_limits(
@@ -656,13 +651,24 @@ pub fn operations_with_limits(
     jig: &config::Limits,
     own: &crate::limits::Limits,
 ) -> Result<u32, Problems> {
-    operations_over(document, directories, given, Some((jig, own)))
+    operations_over(document, directories, given, Some((jig, own)), None)
+}
+/// Kernel credit at the box's applied places, before the store opens.
+pub fn operations_with_worker(
+    document: &[u8],
+    directories: &config::Directories,
+    given: &crate::stock::Given,
+    limits: Option<(&config::Limits, &crate::limits::Limits)>,
+    part: Option<&WorkerPart>,
+) -> Result<u32, Problems> {
+    operations_over(document, directories, given, limits, part)
 }
 fn operations_over(
     document: &[u8],
     directories: &config::Directories,
     given: &crate::stock::Given,
     limits: Option<(&config::Limits, &crate::limits::Limits)>,
+    part: Option<&WorkerPart>,
 ) -> Result<u32, Problems> {
     if shape_with(document, directories, given)? == Shape::WorkerAlone {
         let part = worker_part(document, directories, None, &[])?;
@@ -677,16 +683,26 @@ fn operations_over(
     let parsed = load_with_limits(document, directories, true, given, temper_service_core::derived::STOCK, limits)?
         .1
         .ok_or(problem(Path::root().member(b"engine"), What::Standalone))?;
-    let worker_io = match parsed.workers.first() {
-        Some(worker) => Some(&worker.limits.as_ref().expect("worker limits").io),
-        None => None,
+    let worker_io = match part {
+        Some(part) => Some(&part.worker.jig.limits.as_ref().expect("applied worker limits").io),
+        None => match parsed.workers.first() {
+            Some(worker) => Some(&worker.limits.as_ref().expect("worker limits").io),
+            None => None,
+        },
     };
     let io = checks::process_io(&parsed.engine.limits.io, worker_io).ok_or(operations_bound())?;
-    let worker = if parsed.workers.is_empty() {
-        0
-    } else {
-        crate::worker_settings::configured_operations(&parsed.application.limits.git_component)
-            .ok_or(operations_bound())?
+    let worker = match part {
+        Some(part) => {
+            crate::worker_settings::configured_operations(&part.limits.git_component).ok_or(operations_bound())?
+        }
+        None => {
+            if parsed.workers.is_empty() {
+                0
+            } else {
+                crate::worker_settings::configured_operations(&parsed.application.limits.git_component)
+                    .ok_or(operations_bound())?
+            }
+        }
     };
     crate::system::startup_operations(&io, worker).ok_or(operations_bound())
 }
@@ -967,10 +983,6 @@ fn checked_start_over(
         Some(part) => part.figures.clone(),
         None => None,
     };
-    if let Some(part) = part {
-        parsed.workers = Box::new([part.worker.jig]);
-    }
-
     let agent = match parsed.workers.first() {
         Some(_) => Some(agent.ok_or(problem(indexed(0).member(b"agent"), What::Half(EngineWhat::Agent)))?),
         None => None,
@@ -982,6 +994,13 @@ fn checked_start_over(
     if let Some(agent) = &declaration {
         parsed.compose(agent)?;
     }
+    let applied_limits = match part {
+        Some(part) => {
+            parsed.workers = Box::new([part.worker.jig]);
+            Some(part.limits)
+        }
+        None => None,
+    };
     check_files(&parsed, files)?;
     let mut problems = Problems::empty();
     let resolved = application::resolve(&parsed.application, files, &mut problems);
@@ -990,12 +1009,18 @@ fn checked_start_over(
     }
     let resolved = resolved.expect("resolved files checked");
     let own = &parsed.application.limits;
-    match worker_limits {
-        Some(worker) => {
-            checkout::capacity(Some(&parsed.engine.limits), &[], own, agent, &mut problems);
-            checkout::capacity(None, &parsed.workers, worker, agent, &mut problems);
-        }
-        None => checkout::capacity(Some(&parsed.engine.limits), &parsed.workers, own, agent, &mut problems),
+    let shared = match applied_limits {
+        Some(limits) => limits,
+        None => crate::limits::worker(worker_limits.unwrap_or(own)),
+    };
+    if applied_limits.is_some() || worker_limits.is_some() {
+        checkout::capacity(Some(&parsed.engine.limits), &[], own, agent, &mut problems);
+        worker::checkout::capacity(None, &parsed.workers, &shared, agent, &mut problems);
+    } else {
+        checkout::capacity(Some(&parsed.engine.limits), &parsed.workers, own, agent, &mut problems);
+    }
+    if let Some(worker) = parsed.workers.first() {
+        checks::sockets(&parsed.engine, worker, &shared.git_component, &parsed.application, &mut problems);
     }
     checks::turns(Some(&parsed.engine.limits), &parsed.workers, own, declaration.as_ref(), &mut problems);
     let remote = u32::try_from(
@@ -1050,9 +1075,7 @@ fn checked_start_over(
     }
     let not_set_up = List::with_capacity(0);
 
-    let worker_own = worker_limits.unwrap_or(&parsed.application.limits);
-    let shared = crate::limits::worker(worker_own);
-    let worker = checked_worker(parsed.workers, parsed.application.workers, &parsed.engine, worker_own, agent)?;
+    let worker = checked_worker(parsed.workers, parsed.application.workers, &parsed.engine, &shared, agent)?;
 
     let store_limits = match envelope {
         Some(store) => *store,
@@ -1071,6 +1094,8 @@ fn checked_start_over(
     let mut engine = settings::Engine {
         landing_held: false,
         setups: Box::new([]),
+        owned_forgejo: None,
+        owned_runner: None,
         host_reply_bytes: match &declaration {
             Some(agent) => Some(agent.host_reply_text),
             None => None,
@@ -1383,11 +1408,10 @@ fn checked_worker(
     workers: Box<[config::Worker]>,
     own: Box<[application::Worker]>,
     engine: &config::Engine,
-    limits: &crate::limits::Limits,
+    limits: &crate::worker_settings::Limits,
     agent: Option<&settings::Agent>,
 ) -> Result<Option<(settings::Worker, crate::worker_settings::Prepared)>, Problems> {
     let mut problems = Problems::empty();
-    let limits = &crate::limits::worker(limits);
     if let Some(agent) = agent {
         let worker = workers.into_iter().next().expect("one worker checked");
         let own = own.into_iter().next().expect("one application worker checked");

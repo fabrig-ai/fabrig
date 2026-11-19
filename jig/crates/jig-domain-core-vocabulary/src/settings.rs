@@ -178,6 +178,24 @@ pub struct Defaults {
     pub workers: Box<[WorkerSetting]>,
     pub providers: Box<[ProviderSetting]>,
 }
+impl Clone for Defaults {
+    fn clone(&self) -> Self {
+        let mut policies = Map::with_capacity(self.policies.capacity());
+        for (key, value) in &self.policies {
+            policies.insert(*key, value.clone()).expect("configuration policies fit their original capacity");
+        }
+        Self {
+            charters: self.charters.clone(),
+            templates: self.templates.clone(),
+            policies,
+            rules: self.rules.clone(),
+            limits: self.limits.clone(),
+            models: self.models.clone(),
+            workers: self.workers.clone(),
+            providers: self.providers.clone(),
+        }
+    }
+}
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Default {
     pub value: Value,

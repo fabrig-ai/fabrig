@@ -2,6 +2,7 @@ use crate::worker_route;
 use jig_domain_host as host;
 use smith_channel::Record;
 use smith_host_domain as agent;
+use temper_protocol_worker_wire::v1::Record;
 
 #[test]
 fn a_call_name_is_encoded_as_smiths_channel_record() {
@@ -207,12 +208,12 @@ fn left_and_saved_go_up_under_the_tokens_the_answer_names() {
     assert_eq!(parts.len(), 2);
     assert_eq!(parts[0].token, Token::new(11));
     let left = v1::Left::decode(&fixtures::wire_limits(), &mut Reader::new(&parts[0].bytes)).unwrap();
-    let head = left.landed().get(0).unwrap();
-    assert_eq!((head.tag(), head.commit(), head.checked()), (3, &[7; 32], false));
+    let head = left.landed.get(0).unwrap();
+    assert_eq!((head.tag, &head.commit, head.checked), (3, &[7; 32], false));
     assert_eq!(parts[1].token, Token::new(12));
     let saved = v1::Saved::decode(&fixtures::wire_limits(), &mut Reader::new(&parts[1].bytes)).unwrap();
-    let row = saved.repositories().get(0).unwrap();
-    assert_eq!((row.tag(), row.from_saved(), row.landing()), (3, true, &v1::Landing::Moved));
+    let row = saved.repositories.get(0).unwrap();
+    assert_eq!((row.tag, row.from_saved, &row.landing), (3, true, &v1::Landing::Moved));
     let (_, saved) = translate::work(&wire::Work { landed: Box::new([]), saved: None });
     assert_eq!(saved, None);
 }
@@ -254,19 +255,12 @@ fn an_identity_breaking_a_field_rule_is_dropped() {
         ("email empty", b"bot", b"Bot", b"", false),
         ("email bracket", b"bot", b"Bot", b"<bot@test>", false),
     ] {
-        let record = v1::Identity::new(
-            &limits,
-            v1::IdentityParts {
-                kind: v1::Kind::Forgejo(
-                    v1::Token::new(&limits, v1::TokenParts { token: Secret::new(b"credential".as_slice().into()) })
-                        .unwrap(),
-                ),
-                login: login.into(),
-                name: name.into(),
-                email: email.into(),
-            },
-        )
-        .unwrap();
+        let record = v1::Identity {
+            kind: v1::Kind::Forgejo(v1::Token { token: Secret::new(b"credential".as_slice().into()) }),
+            login: login.into(),
+            name: name.into(),
+            email: email.into(),
+        };
         let value = worker_route::identity(&payload::identity(&record), &limits);
         assert_eq!(value.is_some(), expected, "{row}");
         if expected {
@@ -317,34 +311,23 @@ fn a_late_older_generation_leaves_the_newest_in_place() {
 }
 
 fn preparation_rows() -> [(&'static str, wire::Preparation, Option<v1::Preparation>); 5] {
-    let limits = fixtures::wire_limits();
     [
         (
             "missing repository",
             wire::Preparation::Missing { tag: 3, missing: wire::Missing::Repository },
-            Some(v1::Preparation::Missing(
-                v1::Missed::new(&limits, v1::MissedParts { tag: 3, missing: v1::Missing::Repository }).unwrap(),
-            )),
+            Some(v1::Preparation::Missing(v1::Missed { tag: 3, missing: v1::Missing::Repository })),
         ),
         (
             "missing branch",
             wire::Preparation::Missing { tag: 7, missing: wire::Missing::Branch },
-            Some(v1::Preparation::Missing(
-                v1::Missed::new(&limits, v1::MissedParts { tag: 7, missing: v1::Missing::Branch }).unwrap(),
-            )),
+            Some(v1::Preparation::Missing(v1::Missed { tag: 7, missing: v1::Missing::Branch })),
         ),
         (
             "missing commit",
             wire::Preparation::Missing { tag: 9, missing: wire::Missing::Commit },
-            Some(v1::Preparation::Missing(
-                v1::Missed::new(&limits, v1::MissedParts { tag: 9, missing: v1::Missing::Commit }).unwrap(),
-            )),
+            Some(v1::Preparation::Missing(v1::Missed { tag: 9, missing: v1::Missing::Commit })),
         ),
-        (
-            "refused",
-            wire::Preparation::Refused { tag: 4 },
-            Some(v1::Preparation::Refused(v1::Tag::new(&limits, v1::TagParts { tag: 4 }).unwrap())),
-        ),
+        ("refused", wire::Preparation::Refused { tag: 4 }, Some(v1::Preparation::Refused(v1::Tag { tag: 4 }))),
         ("transient", wire::Preparation::Transient, None),
     ]
 }
@@ -370,18 +353,12 @@ fn program_resource_debug_exposes_only_counts() {
 #[test]
 fn an_empty_github_identity_is_decoded_and_kept() {
     let limits = fixtures::wire_limits();
-    let record = v1::Identity::new(
-        &limits,
-        v1::IdentityParts {
-            kind: v1::Kind::Github(
-                v1::Entries::new(&limits, v1::EntriesParts { entries: skein_lib::List::with_capacity(0) }).unwrap(),
-            ),
-            login: b"x-access-token".as_slice().into(),
-            name: b"Temper".as_slice().into(),
-            email: b"bot@example.test".as_slice().into(),
-        },
-    )
-    .unwrap();
+    let record = v1::Identity {
+        kind: v1::Kind::Github(v1::Entries { entries: skein_lib::List::with_capacity(0) }),
+        login: b"x-access-token".as_slice().into(),
+        name: b"Temper".as_slice().into(),
+        email: b"bot@example.test".as_slice().into(),
+    };
     let secret = payload::identity(&record);
     assert!(payload::valid(&record));
     let expected = worker_route::identity(&secret, &limits).expect("valid GitHub value");

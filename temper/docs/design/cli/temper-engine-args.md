@@ -80,7 +80,7 @@ Generated from temper-engine's table (`skein/docs/design/runtime/shell.md`, 14.3
 - **Set:** public
 - **Default:** $XDG_CONFIG_HOME/temper
 - **Twin:** `TEMPER_CONFIG`
-- Configuration, including temper.json.
+- Configuration files.
 
 ### `--data DATA`
 
@@ -133,7 +133,7 @@ Generated from temper-engine's table (`skein/docs/design/runtime/shell.md`, 14.3
 - **Forms:** `[DIRECTORIES] FORGE`
 - Make what people need to sign in to temper through a Forgejo, and print the Forgejo command that registers temper.
 - **Arguments:** `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.; `FORGE`: A forge's number in the configuration.
-- **Notes:** For a Forgejo of application.sign_in.forges, on temper's host, before temper serve. Writes the provider's key and the forge's client secret where they are missing, private, and leaves any already there; prints Forgejo's add-oauth command, never running it.
+- **Notes:** For a Forgejo of [[sign_in.forges]], on temper's host, before temper-engine serve. Writes the provider's key and the forge's client secret where they are missing, private, and leaves any already there; prints Forgejo's add-oauth command, never running it.
 
 ### `temper-engine forge source`
 

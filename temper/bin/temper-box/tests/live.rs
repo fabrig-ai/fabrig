@@ -116,7 +116,7 @@ fn owned_forge_landing(model: support::forge_land::LiveModel<'_>) {
     } else {
         forge_land::live_deployment(&paths, model);
         if let forge_land::LiveModel::ChatGpt { .. } = model {
-            forge_land::retain_live_model(&paths[0].join("temper.json"), model.name());
+            forge_land::retain_live_model(&paths[0].join(temper_config_shell::FILE), model.name());
         }
         let _ = forge_land::cache_forgejo_binaries(&paths[2]);
         None

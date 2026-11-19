@@ -19,27 +19,7 @@ use skein_lib::{List, Token};
 use temper_engine_domain_forge::{self as forge, settings as f};
 
 fn inputs() -> LimitInputs {
-    use ::core::num::NonZeroU16;
-    let generated = temper_init::files(
-        &temper_init::Facts {
-            sign_in: false,
-            binary: b"/bin/temper",
-            git: Some(b"/bin/git"),
-            claude: None,
-            login: Some(b"ada"),
-            ports: temper_init::Ports {
-                clients: NonZeroU16::new(8367).unwrap(),
-                webhooks: NonZeroU16::new(8371).unwrap(),
-            },
-        },
-        &temper_init::Directories { config: b"/config", data: b"/data" },
-        &[0; 32],
-    )
-    .unwrap();
-    let file = generated.files.into_iter().find(|file| file.name == b"temper.json").unwrap();
-    let temper_init::Content::Bytes { bytes, .. } = file.content else {
-        panic!("document");
-    };
+    let bytes = temper_config_shell::init_document(false);
     let mut document: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
     let mut providers = crate::stock::providers();
     for provider in &mut providers {

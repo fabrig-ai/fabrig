@@ -97,6 +97,7 @@ fn a_label_is_chosen_by_its_option() {
 }
 #[test]
 fn an_add_carries_each_form_value() {
+    use crate::records::Record;
     let mut state = State::start(1, b"/", &[], 0, b"en");
     for (binding, value) in
         [(view::TITLE, b"Shop".as_slice()), (view::BODY, b"Milk"), (view::DUE, b"2026-10-15"), (view::MINUTES, b"30")]
@@ -107,7 +108,7 @@ fn an_add_carries_each_form_value() {
     let sent = act(&mut state, view::ADD, Act::Press).exchanges.pop().expect("add sent");
     let add = crate::records::Add::decode(&crate::records::CEILINGS, &mut skein_lib::Reader::new(&sent.body)).unwrap();
     assert_eq!(
-        (add.title(), add.body(), add.due(), add.minutes(), add.label()),
+        (add.title.as_ref(), add.body.as_ref(), add.due.as_ref(), add.minutes, &add.label),
         (b"Shop".as_slice(), b"Milk".as_slice(), b"2026-10-15".as_slice(), 30, &crate::records::Label::Task)
     );
 }

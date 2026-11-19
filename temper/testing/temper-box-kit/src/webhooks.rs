@@ -6,7 +6,6 @@ use skein_shell::{Clock, Host};
 use skein_world::{Referee, end_to_end::Streams, real};
 use std::fmt::Write as _;
 use std::{
-    fs,
     io::{BufRead, BufReader, Read, Write},
     net::{SocketAddr, TcpListener},
     os::fd::AsRawFd,
@@ -26,9 +25,9 @@ pub const PING: &[u8] = b"ping";
 pub fn configuration(directory: &Path) -> SocketAddr {
     super::configuration(directory, &super::Forge::Unreached);
     let [address] = super::free_addresses(&[]);
-    let path = directory.join("temper.json");
-    let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
-    value["application"]["webhooks"] = serde_json::json!({"listener":{"socket":address.to_string()}});
+    let path = directory.join(temper_config_shell::FILE);
+    let mut file = super::read_file(&path, temper_config_shell::Shape::Standalone);
+    file.webhooks = Some(address);
     super::forgejo::bootstrap(directory, directory, directory);
     let forge = temper_real_loop_world::fixtures::forgejo_record("127.0.0.1:9".parse().expect("unreached forge"));
     temper_real_loop_world::fixtures::seed_forgejo(
@@ -39,7 +38,7 @@ pub fn configuration(directory: &Path) -> SocketAddr {
         SECRET,
         None,
     );
-    super::write_private(&path, &serde_json::to_vec(&value).expect("JSON"));
+    super::write_file(&path, &file, temper_config_shell::Shape::Standalone);
     address
 }
 #[must_use]

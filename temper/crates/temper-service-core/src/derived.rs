@@ -1,6 +1,7 @@
 //! Carriers computed before document overrides (temper/docs/design/protocol/configuration/derived.md, 2–5).
 use crate::agent::Declaration;
 use jig_protocol_config::Limits;
+use temper_protocol_worker_wire::v1::Record;
 
 /// Jig's stock with temper's counts (configuration/limits.md, one stock).
 #[must_use]

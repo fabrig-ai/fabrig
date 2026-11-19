@@ -11,12 +11,8 @@ fn encode_place(phase: &d::Phase) -> w::LandingPlace {
         d::Phase::Waiting => w::LandingPlace::Waiting,
         d::Phase::Preparing => w::LandingPlace::Preparing,
         d::Phase::Proving => w::LandingPlace::Proving,
-        d::Phase::Proved { at } => w::LandingPlace::Proved(
-            w::LandingAt::new(&w::CEILINGS, w::LandingAtParts { at: at.as_nanos() }).expect(FITS),
-        ),
-        d::Phase::Turn { at } => {
-            w::LandingPlace::Turn(w::LandingAt::new(&w::CEILINGS, w::LandingAtParts { at: at.as_nanos() }).expect(FITS))
-        }
+        d::Phase::Proved { at } => w::LandingPlace::Proved(w::LandingAt { at: at.as_nanos() }),
+        d::Phase::Turn { at } => w::LandingPlace::Turn(w::LandingAt { at: at.as_nanos() }),
         d::Phase::Landed => w::LandingPlace::Landed,
         d::Phase::Cancelled => w::LandingPlace::Cancelled,
         d::Phase::Held { .. } => unreachable!("one held wrapper"),
@@ -27,21 +23,17 @@ fn decode_place(phase: w::LandingPlace) -> d::Phase {
         w::LandingPlace::Waiting => d::Phase::Waiting,
         w::LandingPlace::Preparing => d::Phase::Preparing,
         w::LandingPlace::Proving => d::Phase::Proving,
-        w::LandingPlace::Proved(at) => d::Phase::Proved { at: Wall::from_nanos(at.at()) },
-        w::LandingPlace::Turn(at) => d::Phase::Turn { at: Wall::from_nanos(at.at()) },
+        w::LandingPlace::Proved(at) => d::Phase::Proved { at: Wall::from_nanos(at.at) },
+        w::LandingPlace::Turn(at) => d::Phase::Turn { at: Wall::from_nanos(at.at) },
         w::LandingPlace::Landed => d::Phase::Landed,
         w::LandingPlace::Cancelled => d::Phase::Cancelled,
     }
 }
 fn encode_phase(phase: &d::Phase) -> w::LandingPhase {
     let (place, held) = match phase {
-        d::Phase::Held { was, why: d::Hold::Faults { member, gate } } => (
-            encode_place(was),
-            Some(
-                w::LandingFaults::new(&w::CEILINGS, w::LandingFaultsParts { member: *member, gate: *gate })
-                    .expect(FITS),
-            ),
-        ),
+        d::Phase::Held { was, why: d::Hold::Faults { member, gate } } => {
+            (encode_place(was), Some(w::LandingFaults { member: *member, gate: *gate }))
+        }
         d::Phase::Held {
             was,
             why: d::Hold::Prepare | d::Hold::Record { .. } | d::Hold::Timeout { .. } | d::Hold::Turn,
@@ -54,14 +46,14 @@ fn encode_phase(phase: &d::Phase) -> w::LandingPhase {
         | d::Phase::Landed
         | d::Phase::Cancelled => (encode_place(phase), None),
     };
-    w::LandingPhase::new(&w::CEILINGS, w::LandingPhaseParts { place, held }).expect(FITS)
+    w::LandingPhase { place, held }
 }
 fn decode_phase(phase: w::LandingPhase) -> d::Phase {
-    let w::LandingPhaseParts { place, held } = phase.into_parts();
+    let w::LandingPhase { place, held } = phase;
     let phase = decode_place(place);
     match held {
         Some(held) => {
-            let w::LandingFaultsParts { member, gate } = held.into_parts();
+            let w::LandingFaults { member, gate } = held;
             d::Phase::Held { was: Box::new(phase), why: d::Hold::Faults { member, gate } }
         }
         None => phase,
@@ -70,45 +62,33 @@ fn decode_phase(phase: w::LandingPhase) -> d::Phase {
 fn encode_proof(proof: &d::GateProof) -> w::GateProof {
     let state = match proof.proof {
         d::Proof::Unkeyed => w::GateProofState::Unkeyed,
-        d::Proof::Dispatched { key, try_ } => w::GateProofState::Dispatched(
-            w::DispatchedKey::new(&w::CEILINGS, w::DispatchedKeyParts { key, try_ }).expect(FITS),
-        ),
-        d::Proof::Keyed { key } => {
-            w::GateProofState::Keyed(w::GateKey::new(&w::CEILINGS, w::GateKeyParts { key }).expect(FITS))
-        }
-        d::Proof::Passed { key } => {
-            w::GateProofState::Passed(w::GateKey::new(&w::CEILINGS, w::GateKeyParts { key }).expect(FITS))
-        }
-        d::Proof::Failed { key } => {
-            w::GateProofState::Failed(w::GateKey::new(&w::CEILINGS, w::GateKeyParts { key }).expect(FITS))
-        }
+        d::Proof::Dispatched { key, try_ } => w::GateProofState::Dispatched(w::DispatchedKey { key, try_ }),
+        d::Proof::Keyed { key } => w::GateProofState::Keyed(w::GateKey { key }),
+        d::Proof::Passed { key } => w::GateProofState::Passed(w::GateKey { key }),
+        d::Proof::Failed { key } => w::GateProofState::Failed(w::GateKey { key }),
     };
-    w::GateProof::new(
-        &w::CEILINGS,
-        w::GateProofParts {
-            proof: state,
-            posted: match proof.posted {
-                d::Posted::ByTest => w::GatePosted::ByTest,
-                d::Posted::Nothing => w::GatePosted::Nothing,
-                d::Posted::Pending => w::GatePosted::Pending,
-                d::Posted::Verdict => w::GatePosted::Verdict,
-            },
-            faults: proof.faults,
+    w::GateProof {
+        proof: state,
+        posted: match proof.posted {
+            d::Posted::ByTest => w::GatePosted::ByTest,
+            d::Posted::Nothing => w::GatePosted::Nothing,
+            d::Posted::Pending => w::GatePosted::Pending,
+            d::Posted::Verdict => w::GatePosted::Verdict,
         },
-    )
-    .expect(FITS)
+        faults: proof.faults,
+    }
 }
 fn decode_proof(proof: w::GateProof) -> d::GateProof {
-    let w::GateProofParts { proof, posted, faults } = proof.into_parts();
+    let w::GateProof { proof, posted, faults } = proof;
     let proof = match proof {
         w::GateProofState::Unkeyed => d::Proof::Unkeyed,
         w::GateProofState::Dispatched(value) => {
-            let w::DispatchedKeyParts { key, try_ } = value.into_parts();
+            let w::DispatchedKey { key, try_ } = value;
             d::Proof::Dispatched { key, try_ }
         }
-        w::GateProofState::Keyed(value) => d::Proof::Keyed { key: *value.key() },
-        w::GateProofState::Passed(value) => d::Proof::Passed { key: *value.key() },
-        w::GateProofState::Failed(value) => d::Proof::Failed { key: *value.key() },
+        w::GateProofState::Keyed(value) => d::Proof::Keyed { key: value.key },
+        w::GateProofState::Passed(value) => d::Proof::Passed { key: value.key },
+        w::GateProofState::Failed(value) => d::Proof::Failed { key: value.key },
     };
     d::GateProof {
         proof,
@@ -126,39 +106,35 @@ fn encode_member(member: &d::Member) -> w::LandingMember {
     for gate in &member.gates {
         gates.push(encode_proof(gate)).expect(FITS);
     }
-    w::LandingMember::new(
-        &w::CEILINGS,
-        w::LandingMemberParts {
-            round: member.round,
-            unit: member.unit,
-            branch: member.branch.clone(),
-            combined: encode_combine(member.combined),
-            recorded: member.recorded,
-            told: member.told,
-            judging: member.judging,
-            leave_told: member.leave_told,
-            change: member.change,
-            repository: names::encode_repository(skein_forge::api::Repository {
-                forge: member.repository.forge,
-                repository: member.repository.repository,
-            }),
-            pull: member.pull,
-            head: member.head,
-            base: member.base,
-            candidate: member.candidate,
-            gates,
-            asked: member.asked,
-            landed: member.landed,
-            left: match member.left {
-                Some(why) => Some(encode_leave(why)),
-                None => None,
-            },
+    w::LandingMember {
+        round: member.round,
+        unit: member.unit,
+        branch: member.branch.clone(),
+        combined: encode_combine(member.combined),
+        recorded: member.recorded,
+        told: member.told,
+        judging: member.judging,
+        leave_told: member.leave_told,
+        change: member.change,
+        repository: names::encode_repository(skein_forge::api::Repository {
+            forge: member.repository.forge,
+            repository: member.repository.repository,
+        }),
+        pull: member.pull,
+        head: member.head,
+        base: member.base,
+        candidate: member.candidate,
+        gates,
+        asked: member.asked,
+        landed: member.landed,
+        left: match member.left {
+            Some(why) => Some(encode_leave(why)),
+            None => None,
         },
-    )
-    .expect(FITS)
+    }
 }
 fn decode_member(member: w::LandingMember) -> d::Member {
-    let w::LandingMemberParts {
+    let w::LandingMember {
         round,
         change,
         repository,
@@ -177,7 +153,7 @@ fn decode_member(member: w::LandingMember) -> d::Member {
         told,
         judging,
         leave_told,
-    } = member.into_parts();
+    } = member;
     let repository = names::decode_repository(repository);
     let mut proofs = List::with_capacity(gates.len());
     for gate in gates.into_boxed() {
@@ -236,84 +212,64 @@ fn decode_operation(op: w::LandingOperation) -> top::Operation {
 fn encode_ask(ask: change::Ask) -> w::LandingAsk {
     match ask {
         change::Ask::Judge(target) => w::LandingAsk::Judge(super::change::encode_judgement(&target)),
-        change::Ask::Landed { prefix } => {
-            w::LandingAsk::Landed(w::LandingPrefix::new(&w::CEILINGS, w::LandingPrefixParts { prefix }).expect(FITS))
+        change::Ask::Landed { prefix } => w::LandingAsk::Landed(w::LandingPrefix { prefix }),
+        change::Ask::Resolve { base } => w::LandingAsk::Resolve(w::LandingResolve { base }),
+        change::Ask::Prepare { head, main } => w::LandingAsk::Prepare(w::LandingPrepare { head, main }),
+        change::Ask::Repair { gate, candidate, below } => {
+            w::LandingAsk::Repair(w::LandingRepairAsk { gate, candidate, below: super::change::encode_below(below) })
         }
-        change::Ask::Resolve { base } => {
-            w::LandingAsk::Resolve(w::LandingResolve::new(&w::CEILINGS, w::LandingResolveParts { base }).expect(FITS))
-        }
-        change::Ask::Prepare { head, main } => w::LandingAsk::Prepare(
-            w::LandingPrepare::new(&w::CEILINGS, w::LandingPrepareParts { head, main }).expect(FITS),
-        ),
-        change::Ask::Repair { gate, candidate, below } => w::LandingAsk::Repair(
-            w::LandingRepairAsk::new(
-                &w::CEILINGS,
-                w::LandingRepairAskParts { gate, candidate, below: super::change::encode_below(below) },
-            )
-            .expect(FITS),
-        ),
     }
 }
 fn decode_ask(ask: w::LandingAsk) -> change::Ask {
     match ask {
         w::LandingAsk::Judge(value) => change::Ask::Judge(super::change::decode_judgement(value)),
-        w::LandingAsk::Landed(value) => change::Ask::Landed { prefix: *value.prefix() },
-        w::LandingAsk::Resolve(value) => change::Ask::Resolve { base: *value.base() },
+        w::LandingAsk::Landed(value) => change::Ask::Landed { prefix: value.prefix },
+        w::LandingAsk::Resolve(value) => change::Ask::Resolve { base: value.base },
         w::LandingAsk::Prepare(value) => {
-            let w::LandingPrepareParts { head, main } = value.into_parts();
+            let w::LandingPrepare { head, main } = value;
             change::Ask::Prepare { head, main }
         }
         w::LandingAsk::Repair(value) => {
-            let w::LandingRepairAskParts { gate, candidate, below } = value.into_parts();
+            let w::LandingRepairAsk { gate, candidate, below } = value;
             change::Ask::Repair { gate, candidate, below: super::change::decode_below(below) }
         }
     }
 }
 fn encode_round(round: &d::Round) -> w::LandingRound {
-    w::LandingRound::new(
-        &w::CEILINGS,
-        w::LandingRoundParts {
-            merges: round.merges,
-            search: match &round.search {
-                Some(search) => Some(
-                    w::LandingSearch::new(
-                        &w::CEILINGS,
-                        w::LandingSearchParts {
-                            green: search.green,
-                            red: search.red,
-                            tests: encode_search_tests(&search.tests),
-                        },
-                    )
-                    .expect(FITS),
-                ),
-                None => None,
-            },
-            changed: round.changed,
-            branch: round.branch.clone(),
-            pull: round.pull,
-            upstream: round.upstream,
-            combined: match round.combined {
-                Some(d::Combine::Merge) => Some(w::LandingCombine::Merge),
-                Some(d::Combine::Squash) => Some(w::LandingCombine::Squash),
-                None => None,
-            },
-            recorded: round.recorded,
-            told: round.told,
-            failure: round.failure.clone(),
-            judging: round.judging,
-            ending: match round.ending {
-                Some(d::RoundEnd::Stale) => Some(w::LandingRoundEnd::Stale),
-                Some(d::RoundEnd::Leave) => Some(w::LandingRoundEnd::Leave),
-                Some(d::RoundEnd::Conflict) => Some(w::LandingRoundEnd::Conflict),
-                Some(d::RoundEnd::Cut) => Some(w::LandingRoundEnd::Cut),
-                None => None,
-            },
+    w::LandingRound {
+        merges: round.merges,
+        search: match &round.search {
+            Some(search) => Some(w::LandingSearch {
+                green: search.green,
+                red: search.red,
+                tests: encode_search_tests(&search.tests),
+            }),
+            None => None,
         },
-    )
-    .expect(FITS)
+        changed: round.changed,
+        branch: round.branch.clone(),
+        pull: round.pull,
+        upstream: round.upstream,
+        combined: match round.combined {
+            Some(d::Combine::Merge) => Some(w::LandingCombine::Merge),
+            Some(d::Combine::Squash) => Some(w::LandingCombine::Squash),
+            None => None,
+        },
+        recorded: round.recorded,
+        told: round.told,
+        failure: round.failure.clone(),
+        judging: round.judging,
+        ending: match round.ending {
+            Some(d::RoundEnd::Stale) => Some(w::LandingRoundEnd::Stale),
+            Some(d::RoundEnd::Leave) => Some(w::LandingRoundEnd::Leave),
+            Some(d::RoundEnd::Conflict) => Some(w::LandingRoundEnd::Conflict),
+            Some(d::RoundEnd::Cut) => Some(w::LandingRoundEnd::Cut),
+            None => None,
+        },
+    }
 }
 fn decode_round(round: w::LandingRound) -> d::Round {
-    let w::LandingRoundParts {
+    let w::LandingRound {
         merges,
         branch,
         pull,
@@ -326,15 +282,13 @@ fn decode_round(round: w::LandingRound) -> d::Round {
         judging,
         changed,
         search,
-    } = round.into_parts();
+    } = round;
     d::Round {
         merges,
         search: match search {
-            Some(search) => Some(d::Search {
-                green: search.green(),
-                red: search.red(),
-                tests: decode_search_tests(search.into_parts().tests),
-            }),
+            Some(search) => {
+                Some(d::Search { green: search.green, red: search.red, tests: decode_search_tests(search.tests) })
+            }
             None => None,
         },
         changed,
@@ -364,91 +318,71 @@ pub(super) fn encode(row: &top::LandingRow) -> w::LandingRow {
     for member in &row.landing.members {
         members.push(encode_member(member)).expect(FITS);
     }
-    let landing = w::LandingState::new(
-        &w::CEILINGS,
-        w::LandingStateParts {
-            searched: encode_searched(row.landing.searched.as_ref()),
-            task: row.landing.task,
-            project: row.landing.project,
-            phase: encode_phase(&row.landing.phase),
-            members,
-            preparation: row.landing.preparation,
-            stale_proofs: row.landing.stale_proofs,
-            last_left: row.landing.last_left,
-            branch: row.landing.branch.clone(),
-            round: if row.landing.round.branch.is_empty() { None } else { Some(encode_round(&row.landing.round)) },
-            own_hold: match row.landing.phase {
-                d::Phase::Held { why: d::Hold::Prepare, .. } => Some(w::LandingOwnHold::Prepare),
-                d::Phase::Held { why: d::Hold::Record { member }, .. } => Some(w::LandingOwnHold::Record(
-                    w::LandingRecordHold::new(&w::CEILINGS, w::LandingRecordHoldParts { member }).expect(FITS),
-                )),
-                d::Phase::Held { why: d::Hold::Timeout { member, gate, run }, .. } => Some(w::LandingOwnHold::Timeout(
-                    w::LandingTimeout::new(&w::CEILINGS, w::LandingTimeoutParts { member, gate, run }).expect(FITS),
-                )),
-                d::Phase::Held { why: d::Hold::Turn, .. } => Some(w::LandingOwnHold::Turn),
-                d::Phase::Held { why: d::Hold::Faults { .. }, .. }
-                | d::Phase::Waiting
-                | d::Phase::Preparing
-                | d::Phase::Proving
-                | d::Phase::Proved { .. }
-                | d::Phase::Turn { .. }
-                | d::Phase::Landed
-                | d::Phase::Cancelled => None,
-            },
+    let landing = w::LandingState {
+        searched: encode_searched(row.landing.searched.as_ref()),
+        task: row.landing.task,
+        project: row.landing.project,
+        phase: encode_phase(&row.landing.phase),
+        members,
+        preparation: row.landing.preparation,
+        stale_proofs: row.landing.stale_proofs,
+        last_left: row.landing.last_left,
+        branch: row.landing.branch.clone(),
+        round: if row.landing.round.branch.is_empty() { None } else { Some(encode_round(&row.landing.round)) },
+        own_hold: match row.landing.phase {
+            d::Phase::Held { why: d::Hold::Prepare, .. } => Some(w::LandingOwnHold::Prepare),
+            d::Phase::Held { why: d::Hold::Record { member }, .. } => {
+                Some(w::LandingOwnHold::Record(w::LandingRecordHold { member }))
+            }
+            d::Phase::Held { why: d::Hold::Timeout { member, gate, run }, .. } => {
+                Some(w::LandingOwnHold::Timeout(w::LandingTimeout { member, gate, run }))
+            }
+            d::Phase::Held { why: d::Hold::Turn, .. } => Some(w::LandingOwnHold::Turn),
+            d::Phase::Held { why: d::Hold::Faults { .. }, .. }
+            | d::Phase::Waiting
+            | d::Phase::Preparing
+            | d::Phase::Proving
+            | d::Phase::Proved { .. }
+            | d::Phase::Turn { .. }
+            | d::Phase::Landed
+            | d::Phase::Cancelled => None,
         },
-    )
-    .expect(FITS);
+    };
     let mut asks = List::with_capacity(u32::try_from(row.asks.len()).expect(FITS));
     for ask in &row.asks {
-        asks.push(
-            w::LandingAskSlot::new(
-                &w::CEILINGS,
-                w::LandingAskSlotParts {
-                    ask: match ask {
-                        Some(ask) => Some(encode_ask(ask.clone())),
-                        None => None,
-                    },
-                },
-            )
-            .expect(FITS),
-        )
+        asks.push(w::LandingAskSlot {
+            ask: match ask {
+                Some(ask) => Some(encode_ask(ask.clone())),
+                None => None,
+            },
+        })
         .expect(FITS);
     }
     let mut entries = List::with_capacity(u32::try_from(row.entries.len()).expect(FITS));
     for entry in &row.entries {
         entries
-            .push(
-                w::LandingEntry::new(
-                    &w::CEILINGS,
-                    w::LandingEntryParts {
-                        preparation: entry.preparation,
-                        base: entry.base,
-                        run: match entry.run {
-                            Some(run) => Some(encode_run(run)),
-                            None => None,
-                        },
-                        entry: entry.entry,
-                        member: entry.member,
-                        gate: entry.gate,
-                        operation: encode_operation(entry.operation),
-                    },
-                )
-                .expect(FITS),
-            )
+            .push(w::LandingEntry {
+                preparation: entry.preparation,
+                base: entry.base,
+                run: match entry.run {
+                    Some(run) => Some(encode_run(run)),
+                    None => None,
+                },
+                entry: entry.entry,
+                member: entry.member,
+                gate: entry.gate,
+                operation: encode_operation(entry.operation),
+            })
             .expect(FITS);
     }
-    w::LandingRow::new(
-        &w::CEILINGS,
-        w::LandingRowParts {
-            landing,
-            asks,
-            entries,
-            job: super::history::encode_job_record(row.job.as_ref()),
-            flake_reruns: encode_flake_reruns(&row.flake_reruns),
-            room: row.room,
-        },
-    )
-    .expect(FITS)
+    w::LandingRow {
+        landing,
+        asks,
+        entries,
+        job: super::history::encode_job_record(row.job.as_ref()),
+        flake_reruns: encode_flake_reruns(&row.flake_reruns),
+        room: row.room,
+    }
 }
 fn encode_flake_reruns(reruns: &[top::FlakeRerun]) -> List<w::LandingFlakeRerun> {
     let mut encoded = List::with_capacity(u32::try_from(reruns.len()).expect(FITS));
@@ -460,35 +394,23 @@ fn encode_flake_reruns(reruns: &[top::FlakeRerun]) -> List<w::LandingFlakeRerun>
         let mut pending = List::with_capacity(16);
         for attempt in &rerun.pending {
             pending
-                .push(
-                    w::JobAttempt::new(
-                        &w::CEILINGS,
-                        w::JobAttemptParts {
-                            head: attempt.head,
-                            run: attempt.run,
-                            job: attempt.job,
-                            attempt: attempt.attempt,
-                        },
-                    )
-                    .expect(FITS),
-                )
+                .push(w::JobAttempt {
+                    head: attempt.head,
+                    run: attempt.run,
+                    job: attempt.job,
+                    attempt: attempt.attempt,
+                })
                 .expect(FITS);
         }
         encoded
-            .push(
-                w::LandingFlakeRerun::new(
-                    &w::CEILINGS,
-                    w::LandingFlakeRerunParts {
-                        key: encode_receipt_key(&rerun.key),
-                        run: rerun.run,
-                        findings,
-                        pending,
-                        redispatch: rerun.redispatch,
-                        ended: rerun.ended,
-                    },
-                )
-                .expect(FITS),
-            )
+            .push(w::LandingFlakeRerun {
+                key: encode_receipt_key(&rerun.key),
+                run: rerun.run,
+                findings,
+                pending,
+                redispatch: rerun.redispatch,
+                ended: rerun.ended,
+            })
             .expect(FITS);
     }
     encoded
@@ -496,10 +418,10 @@ fn encode_flake_reruns(reruns: &[top::FlakeRerun]) -> List<w::LandingFlakeRerun>
 fn decode_flake_reruns(reruns: List<w::LandingFlakeRerun>) -> Box<[top::FlakeRerun]> {
     let mut decoded = List::with_capacity(reruns.len());
     for rerun in reruns.into_boxed() {
-        let w::LandingFlakeRerunParts { key, run, findings, pending, redispatch, ended } = rerun.into_parts();
+        let w::LandingFlakeRerun { key, run, findings, pending, redispatch, ended } = rerun;
         let mut attempts = List::with_capacity(pending.len());
         for attempt in pending.into_boxed() {
-            let w::JobAttemptParts { head, run, job, attempt } = attempt.into_parts();
+            let w::JobAttempt { head, run, job, attempt } = attempt;
             attempts.push(skein_forge::api::JobAttempt { head, run, job, attempt }).expect(FITS);
         }
         decoded
@@ -516,32 +438,23 @@ fn decode_flake_reruns(reruns: List<w::LandingFlakeRerun>) -> Box<[top::FlakeRer
     decoded.into_boxed()
 }
 pub(super) fn decode_receipt_key(key: w::ReceiptKey) -> top::ReceiptKey {
-    let w::ReceiptKeyParts { project, repository, check_name, key } = key.into_parts();
+    let w::ReceiptKey { project, repository, check_name, key } = key;
     let check = match check_name {
-        w::ReceiptCheck::Gate(name) => top::Check::Gate(name.into_parts().name),
-        w::ReceiptCheck::Tier(name) => top::Check::Tier(name.into_parts().name),
+        w::ReceiptCheck::Gate(name) => top::Check::Gate(name.name),
+        w::ReceiptCheck::Tier(name) => top::Check::Tier(name.name),
     };
     top::ReceiptKey { project, repository: names::decode_repository(repository), check, key }
 }
 fn encode_run(run: top::LandingRun) -> w::LandingRun {
-    w::LandingRun::new(
-        &w::CEILINGS,
-        w::LandingRunParts {
-            id: run.id,
-            attempt: run.attempt,
-            ended: run.ended,
-            clock: super::change::encode_clock(run.clock),
-        },
-    )
-    .expect(FITS)
+    w::LandingRun { id: run.id, attempt: run.attempt, ended: run.ended, clock: super::change::encode_clock(run.clock) }
 }
 fn decode_run(run: w::LandingRun) -> top::LandingRun {
-    let w::LandingRunParts { id, attempt, ended, clock } = run.into_parts();
+    let w::LandingRun { id, attempt, ended, clock } = run;
     top::LandingRun { id, attempt, ended, clock: super::change::decode_clock(clock) }
 }
 pub(super) fn decode(row: w::LandingRow) -> Result<top::LandingRow, super::Undecodable> {
-    let w::LandingRowParts { landing, asks, entries, job, flake_reruns, room } = row.into_parts();
-    let w::LandingStateParts {
+    let w::LandingRow { landing, asks, entries, job, flake_reruns, room } = row;
+    let w::LandingState {
         task,
         project,
         phase,
@@ -553,8 +466,8 @@ pub(super) fn decode(row: w::LandingRow) -> Result<top::LandingRow, super::Undec
         own_hold,
         last_left,
         searched,
-    } = landing.into_parts();
-    if phase.held().is_some() && own_hold.is_some() {
+    } = landing;
+    if phase.held.is_some() && own_hold.is_some() {
         return Err(super::Undecodable::Malformed);
     }
     let mut decoded_members = List::with_capacity(members.len());
@@ -564,7 +477,7 @@ pub(super) fn decode(row: w::LandingRow) -> Result<top::LandingRow, super::Undec
     let mut decoded_asks = List::with_capacity(asks.len());
     for ask in asks.into_boxed() {
         decoded_asks
-            .push(match ask.into_parts().ask {
+            .push(match ask.ask {
                 Some(ask) => Some(decode_ask(ask)),
                 None => None,
             })
@@ -572,7 +485,7 @@ pub(super) fn decode(row: w::LandingRow) -> Result<top::LandingRow, super::Undec
     }
     let mut decoded_entries = List::with_capacity(entries.len());
     for entry in entries.into_boxed() {
-        let w::LandingEntryParts { entry, member, gate, operation, preparation, base, run } = entry.into_parts();
+        let w::LandingEntry { entry, member, gate, operation, preparation, base, run } = entry;
         decoded_entries
             .push(top::LandingEntry {
                 entry,
@@ -595,7 +508,6 @@ pub(super) fn decode(row: w::LandingRow) -> Result<top::LandingRow, super::Undec
         landing: d::Landing {
             searched: match searched {
                 Some(value) => {
-                    let value = value.into_parts();
                     Some(d::Searched { red: value.red, green: value.green, changes: value.changes.into_boxed() })
                 }
                 None => None,
@@ -609,15 +521,14 @@ pub(super) fn decode(row: w::LandingRow) -> Result<top::LandingRow, super::Undec
                 }
                 Some(w::LandingOwnHold::Timeout(value)) => d::Phase::Held {
                     was: Box::new(decode_phase(phase)),
-                    why: d::Hold::Timeout { member: value.member(), gate: value.gate(), run: value.run() },
+                    why: d::Hold::Timeout { member: value.member, gate: value.gate, run: value.run },
                 },
                 Some(w::LandingOwnHold::Prepare) => {
                     d::Phase::Held { was: Box::new(decode_phase(phase)), why: d::Hold::Prepare }
                 }
-                Some(w::LandingOwnHold::Record(value)) => d::Phase::Held {
-                    was: Box::new(decode_phase(phase)),
-                    why: d::Hold::Record { member: value.member() },
-                },
+                Some(w::LandingOwnHold::Record(value)) => {
+                    d::Phase::Held { was: Box::new(decode_phase(phase)), why: d::Hold::Record { member: value.member } }
+                }
                 None => decode_phase(phase),
             },
             members: decoded_members.into_boxed(),
@@ -638,48 +549,32 @@ pub(super) fn encode_receipt_key(key: &top::ReceiptKey) -> w::ReceiptKey {
         top::Check::Gate(name) => (name.clone(), false),
         top::Check::Tier(name) => (name.clone(), true),
     };
-    let name = w::ReceiptName::new(&w::CEILINGS, w::ReceiptNameParts { name }).expect(FITS);
-    w::ReceiptKey::new(
-        &w::CEILINGS,
-        w::ReceiptKeyParts {
-            project: key.project,
-            repository: names::encode_repository(key.repository),
-            check_name: if tier { w::ReceiptCheck::Tier(name) } else { w::ReceiptCheck::Gate(name) },
-            key: key.key,
-        },
-    )
-    .expect(FITS)
+    let name = w::ReceiptName { name };
+    w::ReceiptKey {
+        project: key.project,
+        repository: names::encode_repository(key.repository),
+        check_name: if tier { w::ReceiptCheck::Tier(name) } else { w::ReceiptCheck::Gate(name) },
+        key: key.key,
+    }
 }
 pub(super) fn encode_receipt(key: &top::ReceiptKey, receipt: &top::Receipt) -> w::ReceiptRow {
-    w::ReceiptRow::new(
-        &w::CEILINGS,
-        w::ReceiptRowParts {
-            report: encode_report(&receipt.report),
-            key: encode_receipt_key(key),
-            receipt: encode_receipt_value(receipt),
-        },
-    )
-    .expect(FITS)
+    w::ReceiptRow {
+        report: encode_report(&receipt.report),
+        key: encode_receipt_key(key),
+        receipt: encode_receipt_value(receipt),
+    }
 }
 fn encode_report(report: &top::ReceiptReport) -> w::ReceiptReport {
     match report {
         top::ReceiptReport::Unset => w::ReceiptReport::Unset,
         top::ReceiptReport::Unread => w::ReceiptReport::Unread,
-        top::ReceiptReport::Many { bound } => w::ReceiptReport::Many(
-            w::ReceiptMany::new(&w::CEILINGS, w::ReceiptManyParts { bound: *bound }).expect(FITS),
-        ),
+        top::ReceiptReport::Many { bound } => w::ReceiptReport::Many(w::ReceiptMany { bound: *bound }),
         top::ReceiptReport::Tests(tests) => {
             let mut kept = List::with_capacity(u32::try_from(tests.len()).expect(FITS));
             for test in tests {
-                kept.push(
-                    w::ReceiptTest::new(&w::CEILINGS, w::ReceiptTestParts { key: test.key.clone(), fuzzy: test.fuzzy })
-                        .expect(FITS),
-                )
-                .expect(FITS);
+                kept.push(w::ReceiptTest { key: test.key.clone(), fuzzy: test.fuzzy }).expect(FITS);
             }
-            w::ReceiptReport::Tests(
-                w::ReceiptTests::new(&w::CEILINGS, w::ReceiptTestsParts { tests: kept }).expect(FITS),
-            )
+            w::ReceiptReport::Tests(w::ReceiptTests { tests: kept })
         }
     }
 }
@@ -687,12 +582,12 @@ fn decode_report(report: w::ReceiptReport) -> top::ReceiptReport {
     match report {
         w::ReceiptReport::Unset => top::ReceiptReport::Unset,
         w::ReceiptReport::Unread => top::ReceiptReport::Unread,
-        w::ReceiptReport::Many(many) => top::ReceiptReport::Many { bound: many.into_parts().bound },
+        w::ReceiptReport::Many(many) => top::ReceiptReport::Many { bound: many.bound },
         w::ReceiptReport::Tests(tests) => {
-            let tests = tests.into_parts().tests;
+            let tests = tests.tests;
             let mut kept = List::with_capacity(tests.len());
             for test in tests.into_boxed() {
-                let w::ReceiptTestParts { key, fuzzy } = test.into_parts();
+                let w::ReceiptTest { key, fuzzy } = test;
                 kept.push(top::ReceiptTest { key, fuzzy }).expect(FITS);
             }
             top::ReceiptReport::Tests(kept.into_boxed())
@@ -702,51 +597,39 @@ fn decode_report(report: w::ReceiptReport) -> top::ReceiptReport {
 
 // Gate reports belong to ReceiptRow, not the value a tier result embeds.
 pub(super) fn encode_receipt_value(receipt: &top::Receipt) -> w::Receipt {
-    let run = w::ReceiptRun::new(
-        &w::CEILINGS,
-        w::ReceiptRunParts { id: receipt.run.id, number: receipt.run.number, url: receipt.run.url.clone() },
-    )
-    .expect(FITS);
+    let run = w::ReceiptRun { id: receipt.run.id, number: receipt.run.number, url: receipt.run.url.clone() };
     let mut jobs = List::with_capacity(16);
     for job in &receipt.jobs {
-        let job = w::ReceiptJob::new(
-            &w::CEILINGS,
-            w::ReceiptJobParts { job: job.job, attempt: job.attempt, name: job.name.clone() },
-        )
-        .expect(FITS);
+        let job = w::ReceiptJob { job: job.job, attempt: job.attempt, name: job.name.clone() };
         jobs.push(job).expect(FITS);
     }
-    w::Receipt::new(
-        &w::CEILINGS,
-        w::ReceiptParts {
-            base: receipt.base,
-            jobs,
-            failures: match &receipt.failures {
-                Some(f) => Some(super::verification::encode_failures(f)),
-                None => None,
-            },
-            passed: receipt.passed,
-            run,
-            candidate: receipt.candidate,
-            ended: receipt.ended.as_nanos(),
-            logs: receipt.logs.clone(),
+    w::Receipt {
+        base: receipt.base,
+        jobs,
+        failures: match &receipt.failures {
+            Some(f) => Some(super::verification::encode_failures(f)),
+            None => None,
         },
-    )
-    .expect(FITS)
+        passed: receipt.passed,
+        run,
+        candidate: receipt.candidate,
+        ended: receipt.ended.as_nanos(),
+        logs: receipt.logs.clone(),
+    }
 }
 
 pub(super) fn decode_receipt(row: w::ReceiptRow) -> Result<top::Stored, crate::Undecodable> {
-    let w::ReceiptRowParts { report, key, receipt } = row.into_parts();
+    let w::ReceiptRow { report, key, receipt } = row;
     let mut receipt = decode_receipt_value(receipt)?;
     receipt.report = decode_report(report);
     Ok(top::Stored::Receipt { key: decode_receipt_key(key), receipt })
 }
 pub(super) fn decode_receipt_value(receipt: w::Receipt) -> Result<top::Receipt, crate::Undecodable> {
-    let w::ReceiptParts { base, jobs, failures, passed, run, candidate, ended, logs } = receipt.into_parts();
-    let w::ReceiptRunParts { id, number, url } = run.into_parts();
+    let w::Receipt { base, jobs, failures, passed, run, candidate, ended, logs } = receipt;
+    let w::ReceiptRun { id, number, url } = run;
     let mut kept = List::with_capacity(16);
     for job in jobs.into_boxed() {
-        let w::ReceiptJobParts { job, attempt, name } = job.into_parts();
+        let w::ReceiptJob { job, attempt, name } = job;
         kept.push(top::ReceiptJob { job, attempt, name }).expect(FITS);
     }
     Ok(top::Receipt {
@@ -769,42 +652,32 @@ pub(super) fn encode_leave(why: d::Leave) -> w::LandingLeave {
     match why {
         d::Leave::Conflict => w::LandingLeave::Conflict,
         d::Leave::EarlierConflict => w::LandingLeave::EarlierConflict,
-        d::Leave::Unit { change } => w::LandingLeave::Unit(
-            w::LandingLeftChange::new(&w::CEILINGS, w::LandingLeftChangeParts { change }).expect(FITS),
-        ),
-        d::Leave::Dependency { change } => w::LandingLeave::Dependency(
-            w::LandingLeftChange::new(&w::CEILINGS, w::LandingLeftChangeParts { change }).expect(FITS),
-        ),
-        d::Leave::Blamed { gate, run, red, green } => w::LandingLeave::Blamed(
-            w::LandingBlamed::new(&w::CEILINGS, w::LandingBlamedParts { gate, run, red, green }).expect(FITS),
-        ),
-        d::Leave::HeadMoved { head } => {
-            w::LandingLeave::HeadMoved(w::Commit::new(&w::CEILINGS, w::CommitParts { commit: head }).expect(FITS))
+        d::Leave::Unit { change } => w::LandingLeave::Unit(w::LandingLeftChange { change }),
+        d::Leave::Dependency { change } => w::LandingLeave::Dependency(w::LandingLeftChange { change }),
+        d::Leave::Blamed { gate, run, red, green } => {
+            w::LandingLeave::Blamed(w::LandingBlamed { gate, run, red, green })
         }
+        d::Leave::HeadMoved { head } => w::LandingLeave::HeadMoved(w::Commit { commit: head }),
         d::Leave::Cancelled => w::LandingLeave::Cancelled,
         d::Leave::Held => w::LandingLeave::Held,
-        d::Leave::Refused { gate } => w::LandingLeave::Refused(
-            w::LandingGateRefused::new(&w::CEILINGS, w::LandingGateRefusedParts { gate }).expect(FITS),
-        ),
-        d::Leave::Failed { gate, run } => w::LandingLeave::Failed(
-            w::LandingGateFailed::new(&w::CEILINGS, w::LandingGateFailedParts { gate, run }).expect(FITS),
-        ),
+        d::Leave::Refused { gate } => w::LandingLeave::Refused(w::LandingGateRefused { gate }),
+        d::Leave::Failed { gate, run } => w::LandingLeave::Failed(w::LandingGateFailed { gate, run }),
     }
 }
 pub(super) fn decode_leave(why: w::LandingLeave) -> d::Leave {
     match why {
         w::LandingLeave::Conflict => d::Leave::Conflict,
         w::LandingLeave::EarlierConflict => d::Leave::EarlierConflict,
-        w::LandingLeave::Unit(value) => d::Leave::Unit { change: value.change() },
-        w::LandingLeave::Dependency(value) => d::Leave::Dependency { change: value.change() },
+        w::LandingLeave::Unit(value) => d::Leave::Unit { change: value.change },
+        w::LandingLeave::Dependency(value) => d::Leave::Dependency { change: value.change },
         w::LandingLeave::Fallback(_) | w::LandingLeave::Held => d::Leave::Held,
         w::LandingLeave::Blamed(value) => {
-            d::Leave::Blamed { gate: value.gate(), run: value.run(), red: *value.red(), green: *value.green() }
+            d::Leave::Blamed { gate: value.gate, run: value.run, red: value.red, green: value.green }
         }
-        w::LandingLeave::HeadMoved(value) => d::Leave::HeadMoved { head: *value.commit() },
+        w::LandingLeave::HeadMoved(value) => d::Leave::HeadMoved { head: value.commit },
         w::LandingLeave::Cancelled => d::Leave::Cancelled,
-        w::LandingLeave::Refused(value) => d::Leave::Refused { gate: value.gate() },
-        w::LandingLeave::Failed(value) => d::Leave::Failed { gate: value.gate(), run: value.run() },
+        w::LandingLeave::Refused(value) => d::Leave::Refused { gate: value.gate },
+        w::LandingLeave::Failed(value) => d::Leave::Failed { gate: value.gate, run: value.run },
     }
 }
 
@@ -834,45 +707,26 @@ fn encode_search_tests(search: &d::SearchTests) -> w::LandingSearchTests {
                     Some(ids) => {
                         let mut tests = List::with_capacity(u32::try_from(ids.len()).expect(FITS));
                         for id in ids {
-                            tests
-                                .push(
-                                    w::FailingTest::new(&w::CEILINGS, w::FailingTestParts { test_id: id.clone() })
-                                        .expect(FITS),
-                                )
-                                .expect(FITS);
+                            tests.push(w::FailingTest { test_id: id.clone() }).expect(FITS);
                         }
-                        Some(w::LandingSelection::new(&w::CEILINGS, w::LandingSelectionParts { tests }).expect(FITS))
+                        Some(w::LandingSelection { tests })
                     }
                     None => None,
                 };
-                selected
-                    .push(
-                        w::LandingSelectedGate::new(&w::CEILINGS, w::LandingSelectedGateParts { selection })
-                            .expect(FITS),
-                    )
-                    .expect(FITS);
+                selected.push(w::LandingSelectedGate { selection }).expect(FITS);
             }
             let mut outcomes = List::with_capacity(u32::try_from(probed.len()).expect(FITS));
             for outcome in probed {
                 outcomes
-                    .push(
-                        w::LandingProbed::new(
-                            &w::CEILINGS,
-                            w::LandingProbedParts {
-                                member: outcome.member,
-                                gate: outcome.gate,
-                                run: outcome.run,
-                                passed: outcome.passed,
-                            },
-                        )
-                        .expect(FITS),
-                    )
+                    .push(w::LandingProbed {
+                        member: outcome.member,
+                        gate: outcome.gate,
+                        run: outcome.run,
+                        passed: outcome.passed,
+                    })
                     .expect(FITS);
             }
-            w::LandingSearchTests::ByTest(
-                w::LandingByTest::new(&w::CEILINGS, w::LandingByTestParts { gates: selected, probed: outcomes })
-                    .expect(FITS),
-            )
+            w::LandingSearchTests::ByTest(w::LandingByTest { gates: selected, probed: outcomes })
         }
     }
 }
@@ -881,15 +735,13 @@ fn decode_search_tests(search: w::LandingSearchTests) -> d::SearchTests {
         w::LandingSearchTests::Whole => d::SearchTests::Whole,
         w::LandingSearchTests::WholeAgain => d::SearchTests::WholeAgain,
         w::LandingSearchTests::ByTest(value) => {
-            let value = value.into_parts();
             let mut gates = List::with_capacity(value.gates.len());
             for gate in value.gates.into_boxed() {
-                let selection = match gate.into_parts().selection {
+                let selection = match gate.selection {
                     Some(selection) => {
-                        let selection = selection.into_parts();
                         let mut ids = List::with_capacity(selection.tests.len());
                         for id in selection.tests.into_boxed() {
-                            ids.push(id.into_parts().test_id).expect(FITS);
+                            ids.push(id.test_id).expect(FITS);
                         }
                         Some(ids.into_boxed())
                     }
@@ -899,7 +751,6 @@ fn decode_search_tests(search: w::LandingSearchTests) -> d::SearchTests {
             }
             let mut probed = List::with_capacity(value.probed.len());
             for outcome in value.probed.into_boxed() {
-                let outcome = outcome.into_parts();
                 probed
                     .push(d::Probed {
                         member: outcome.member,
@@ -919,11 +770,5 @@ fn encode_searched(searched: Option<&d::Searched>) -> Option<w::LandingSearched>
     for change in &searched.changes {
         changes.push(*change).expect(FITS);
     }
-    Some(
-        w::LandingSearched::new(
-            &w::CEILINGS,
-            w::LandingSearchedParts { red: searched.red, green: searched.green, changes },
-        )
-        .expect(FITS),
-    )
+    Some(w::LandingSearched { red: searched.red, green: searched.green, changes })
 }

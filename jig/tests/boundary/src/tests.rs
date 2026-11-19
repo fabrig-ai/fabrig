@@ -268,10 +268,12 @@ fn the_store_files_kit_uses_only_the_store_and_foundation() {
             "jig-protocol-store",
             "jig-domain-core",
             "jig-domain-tasks",
+            "skein-codec",
             "skein-lib",
             "skein-io",
             "skein-kv",
             "skein-fake-machine",
+            "skein-fork",
             "skein-sim",
         ]
         .contains(&name.as_str())

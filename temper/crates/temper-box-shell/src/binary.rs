@@ -51,7 +51,17 @@ fn dispatch(captured: &Capture, version: &'static str, commit: &'static str) -> 
         Reached::Unknown(why) => return Err((2, why)),
         Reached::Command(command, arguments) => {
             if command.reach == Reach::Words(&["help"]) {
-                print!("{}", temper_shell::table::help(&TABLE, arguments)?);
+                if let [page] = arguments
+                    && page.as_ref() == b"config"
+                {
+                    print!(
+                        "{}",
+                        std::str::from_utf8(&temper_config_shell::help(temper_config_shell::Shape::Standalone))
+                            .expect("help UTF-8")
+                    );
+                } else {
+                    print!("{}", temper_shell::table::help(&TABLE, arguments)?);
+                }
                 return Ok(ExitCode::SUCCESS);
             }
             if command.reach == Reach::Words(&["versions"]) {
@@ -101,4 +111,47 @@ fn dispatch(captured: &Capture, version: &'static str, commit: &'static str) -> 
     )
     .map(ExitCode::from)
     .map_err(|why| (1, why))
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn box_commands_refuse_the_former_file_by_name() {
+        use temper_config_shell::{FILE, FORMER};
+        let scratch = skein_scratch::Scratch::new("box-former-file");
+        let directories = crate::tests::configuration::directories(scratch.path());
+        std::fs::create_dir(scratch.path().join(FORMER)).expect("former directory");
+        for present in [false, true] {
+            if present {
+                std::fs::write(scratch.path().join(FILE), b"invalid TOML").expect("current file");
+            }
+            for (words, command) in [
+                (&["serve"][..], "temper-box serve"),
+                (&["program-login", "source"][..], "temper-box program-login"),
+                (&["upgrade", "--check", "/unused"][..], "temper-box upgrade"),
+                (&["upgrade", "--workers", "/unused"][..], "temper-box upgrade"),
+                (&["upgrade", "--back"][..], "temper-box upgrade"),
+                (&["checkpoint"][..], "temper-box checkpoint"),
+                (&["restore", "00000000000000000012-00000000000000ff"][..], "temper-box restore"),
+                (&[][..], "temper-box"),
+            ] {
+                let mut arguments: Vec<_> = words.iter().map(|word| Box::from(word.as_bytes())).collect();
+                arguments.extend(directories.flags());
+                let capture = super::Capture {
+                    run_as: b"temper-box".as_slice().into(),
+                    arguments: arguments.into(),
+                    environment: Box::new([]),
+                    working: Ok(scratch.path().into()),
+                };
+                let (code, why) = super::dispatch(&capture, "test", "test").expect_err("former file refused");
+                assert_eq!(code, 1, "{words:?}: {why}");
+                assert_eq!(
+                    why,
+                    format!(
+                        "{command}: {FORMER}: moved: the configuration is {FILE}; write it from temper-box help config, then remove {FORMER}\n"
+                    )
+                );
+            }
+        }
+    }
 }

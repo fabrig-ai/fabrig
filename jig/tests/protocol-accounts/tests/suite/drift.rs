@@ -1,5 +1,5 @@
 //! Records' drift and pinned constructs (skein's data/codec/README.md, 6).
-use skein_codegen::{generate, unpinned, values};
+use skein_codegen::{form_of, generate_as, unpinned, values};
 use std::fs;
 
 #[test]
@@ -8,8 +8,12 @@ fn moved_schema_matches_generated_records_and_is_pinned() {
     let source = jig_protocol_accounts::SCHEMA;
     let unpinned = unpinned(source).expect("schema valid");
     assert!(unpinned.is_empty(), "moved: unpinned constructs: {unpinned:?}");
-    let output = generate(&values(source).schema);
-    let path = skein_scratch::paths::tree().join("crates/jig-protocol-accounts-codec/src/generated/moved.rs");
+    let tree = skein_scratch::paths::tree();
+    let schema = &values(source).schema;
+    let form =
+        form_of(&tree.join("crates/jig-protocol-accounts/schema"), &schema.family).expect("family form readable");
+    let output = generate_as(schema, form);
+    let path = tree.join("crates/jig-protocol-accounts-codec/src/generated/moved.rs");
     let again =
         "run SKEIN_CODEGEN_WRITE=1 cargo nextest run -p jig-protocol-accounts-world --test suite -E 'test(drift::)'";
     if std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1") {

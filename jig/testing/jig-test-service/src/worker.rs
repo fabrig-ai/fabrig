@@ -74,6 +74,7 @@ impl Worker {
         directory: Fd,
         index: u32,
         seed: u64,
+        schema: Option<skein_channel::Schema>,
     ) -> Result<Self, Problems> {
         let configured_agent = config.agent.as_ref().ok_or(problem(index, b"agent", What::Missing))?;
         let settings = config.limits.as_ref().ok_or(problem(index, b"limits", What::Missing))?;
@@ -103,17 +104,17 @@ impl Worker {
         host::Process::new(Token::new(0), &agent.limits, agent.host_limits.detail_bytes, agent.endpoints.clone())
             .or(Err(problem(index, b"agent", What::Bound)))?;
         let link_limits = crate::limits::worker_link(&config);
-        let link = link::Component::new(
-            &link_limits,
-            jig_protocol_worker_wire::spoken(),
-            link::Credential {
-                opening: jig_protocol_worker_wire::Opening::Link,
-                name: config.name,
-                secret: config::secret(secret.into()),
-                application: jig_protocol_worker_wire::Application::opaque(List::with_capacity(0)),
-            },
-            seed,
-        )
+        let credential = link::Credential {
+            opening: jig_protocol_worker_wire::Opening::Link,
+            name: config.name,
+            secret: config::secret(secret.into()),
+            application: jig_protocol_worker_wire::Application::opaque(List::with_capacity(0)),
+        };
+        let spoken = jig_protocol_worker_wire::spoken();
+        let link = match schema {
+            Some(schema) => link::Component::with_schema(&link_limits, spoken, credential, seed, schema),
+            None => link::Component::new(&link_limits, spoken, credential, seed),
+        }
         .or(Err(problem(index, b"limits", What::Bound)))?;
         let slots = config.slots;
         let prefix = crate::tokens::worker(index).ok_or(problem(index, b"slots", What::Bound))?;

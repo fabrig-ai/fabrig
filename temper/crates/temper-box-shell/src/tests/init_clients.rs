@@ -1,40 +1,16 @@
 //! Init's document text fits its clients (temper/docs/design/protocol/setup/init.md, 1, and temper/docs/design/protocol/setup/README.md, 9).
-use core::num::NonZeroU16;
 
 #[test]
 fn every_client_receives_the_text_inits_documents_allow() {
-    let port = NonZeroU16::new(8367).expect("nonzero fixture port");
-    let facts = temper_init::Facts {
-        sign_in: false,
-        binary: b"/opt/temper/bin/temper",
-        git: Some(b"/usr/bin/git"),
-        claude: None,
-        login: Some(b"person"),
-        ports: temper_init::Ports { clients: port, webhooks: port },
-    };
-    let directories = temper_init::Directories { config: b"/etc/temper", data: b"/var/lib/temper" };
-    let boxed = temper_init::files(&facts, &directories, &[0; 32]).expect("box init");
-    let bare = temper_init::bare(
-        &temper_init::Bare {
-            binary: facts.binary,
-            git: facts.git,
-            claude: facts.claude,
-            clients: facts.ports.clients,
-            webhooks: facts.ports.webhooks,
-        },
-        &directories,
-        &[0; 32],
-    )
-    .expect("bare init");
-    for (document, files) in [("box", boxed.files.as_ref()), ("bare", bare.as_ref())] {
-        let file = files.iter().find(|file| file.name == b"temper.json").expect("init writes temper.json");
-        let temper_init::Content::Bytes { bytes, .. } = &file.content else { panic!("document bytes") };
-        let value: serde_json::Value = serde_json::from_slice(bytes).expect("init JSON");
+    for (document, bytes) in
+        [("box", temper_config_shell::init_document(true)), ("bare", temper_config_shell::init_document(false))]
+    {
+        let value: serde_json::Value = serde_json::from_slice(&bytes).expect("init JSON");
         assert!(value["engine"].get("limits").is_none());
         assert!(value["engine"].get("memory_bytes").is_none());
         assert!(value["application"].get("limits").is_none());
         let parsed = jig_protocol_config::document(
-            bytes,
+            &bytes,
             &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 65_536, depth: 32 },
         )
         .expect("init document");

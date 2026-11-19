@@ -6,12 +6,7 @@ use serde_json::Value;
 pub mod providers;
 #[must_use]
 pub fn stock(boxed: bool) -> Value {
-    let source = if boxed {
-        include_bytes!("../../../crates/temper-init/template/temper.json").as_slice()
-    } else {
-        include_bytes!("../../../crates/temper-init/template/bare.json").as_slice()
-    };
-    let mut document: Value = serde_json::from_slice(source).expect("init template");
+    let mut document: Value = serde_json::from_slice(&temper_config_shell::init_document(boxed)).expect("init start");
     document["engine"]["clients"]["provider"] = Value::Null;
     let mut agent = given_with(
         &document,
@@ -87,12 +82,36 @@ fn given_values(
     serde_json::from_slice(&bytes).expect("written agent JSON")
 }
 
+/// Resolve a fixture with shared roots, or a split config/data/cache layout.
+#[must_use]
+pub fn directories(directory: &std::path::Path) -> temper_shell::directories::Directories {
+    use std::os::unix::ffi::OsStrExt;
+    let data = data(directory);
+    let cache = if directory.ends_with("config") { directory.with_file_name("cache") } else { directory.into() };
+    let arguments: Vec<Box<[u8]>> = [
+        b"--config".as_slice(),
+        directory.as_os_str().as_bytes(),
+        b"--data",
+        data.as_os_str().as_bytes(),
+        b"--cache",
+        cache.as_os_str().as_bytes(),
+    ]
+    .into_iter()
+    .map(Box::from)
+    .collect();
+    temper_shell::directories::resolve(&arguments, &[], b"/").expect("fixture directories").0
+}
+
+/// Read a fixture's start from its shape's file.
+#[must_use]
+pub fn start(directory: &std::path::Path) -> Value {
+    serde_json::from_slice(&configuration_file(directory).0.document).expect("fixture start document")
+}
+
 /// Read the agent's prospective configuration without retaining a configuration-directory agent file.
 #[must_use]
 pub fn read(directory: &std::path::Path) -> Value {
-    let document: Value =
-        serde_json::from_slice(&std::fs::read(directory.join("temper.json")).expect("temper fixture"))
-            .expect("temper JSON");
+    let document = start(directory);
     at(&document, &data(directory))
 }
 #[must_use]
@@ -113,12 +132,24 @@ pub fn data(config: &std::path::Path) -> std::path::PathBuf {
     let sibling = config.parent().unwrap_or(config).join("data");
     if config.ends_with("config") && sibling.is_dir() { sibling } else { config.into() }
 }
-/// Apply a fixture's agent changes to the engine document and the kind-21 startup copy.
+fn configuration_file(directory: &std::path::Path) -> (temper_config_shell::Read, temper_config_shell::Shape) {
+    use temper_config_shell::{Shape, read};
+    let dirs = directories(directory);
+    for shape in [Shape::Standalone, Shape::EngineAlone, Shape::WorkerAlone] {
+        if let Ok(read) = read(&dirs, shape) {
+            return (read, shape);
+        }
+    }
+    panic!("fixture file must have a deployment shape");
+}
+
+/// Apply a fixture's agent changes to the file and the kind-21 startup copy.
 pub fn install(directory: &std::path::Path, agent: &Value) {
-    let path = directory.join("temper.json");
-    let mut document = serde_json::from_slice(&std::fs::read(&path).expect("temper fixture")).expect("temper JSON");
+    let (read, shape) = configuration_file(directory);
+    let mut document = serde_json::from_slice(&read.document).expect("fixture start document");
     apply(&mut document, &data(directory), agent);
-    std::fs::write(path, serde_json::to_vec_pretty(&document).expect("fixture JSON")).expect("engine fixture");
+    std::fs::write(directory.join(temper_config_shell::FILE), temper_config_shell::render(&read.file, shape))
+        .expect("fixture file");
 }
 /// Update a fixture already being edited, keeping the store copy beside its data.
 #[expect(

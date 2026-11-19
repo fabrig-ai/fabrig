@@ -125,7 +125,7 @@ pub fn task_digest(value: &Value) -> Result<&str, String> {
 )]
 pub fn deployment(paths: &[PathBuf; 3]) -> temper_playground::documents::Configuration {
     super::live_deployment(paths, super::LiveModel::ChatGpt { account: None });
-    let config = paths[0].join("temper.json");
+    let config = paths[0].join(temper_config_shell::FILE);
     let mut value = crate::limit_settings::configuration(&paths[0]);
     let mut worker = temper_agent_fixtures::read(&paths[0]);
     for table in ["providers", "endpoints"] {
@@ -152,11 +152,10 @@ pub fn deployment(paths: &[PathBuf; 3]) -> temper_playground::documents::Configu
     assert_eq!(value.limits.root.loads.loads, 32);
     assert_eq!(worker["endpoints"][0]["limits"]["output"], 48_000);
     assert_eq!(worker["endpoints"][0]["limits"]["reasoning_item"], 32_768);
-    write_json(&config, &value);
     crate::limit_settings::remember(&paths[0], &value);
     temper_agent_fixtures::apply(&mut value, &paths[1], &worker);
     value.jig_over("hub.run_calls", 1);
-    write_json(&config, &value);
+    crate::limit_settings::remember(&paths[0], &value);
     let mut directories = super::super::configuration::directories(paths[0].parent().expect("deployment root"));
     directories.config = paths[0].as_os_str().as_bytes().into();
     directories.data = paths[1].as_os_str().as_bytes().into();
@@ -166,7 +165,7 @@ pub fn deployment(paths: &[PathBuf; 3]) -> temper_playground::documents::Configu
         &[],
         b"/",
         &directories,
-        &fs::read(&config).expect("configuration"),
+        &crate::read_start(&config, temper_config_shell::Shape::Standalone).document,
         &temper_service::stock::Given::Stock,
         &value.jig,
         &value.limits,

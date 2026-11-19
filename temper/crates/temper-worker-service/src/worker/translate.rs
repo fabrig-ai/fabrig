@@ -1,7 +1,10 @@
 //! Worker payloads and values (protocol/channel.md, 7).
 use alloc::boxed::Box;
 use skein_lib::List;
-use temper_protocol_worker_wire::{self as wire, v1};
+use temper_protocol_worker_wire::{
+    self as wire,
+    v1::{self, Record},
+};
 
 /// Encode the worker's typed read, with the run identity supplied by jig.
 #[must_use]
@@ -9,9 +12,7 @@ pub fn ask(ask: temper_worker_domain::wire::Ask) -> Box<[u8]> {
     use temper_worker_domain::wire as worker;
     let value = match ask {
         worker::Ask::Reds => v1::Ask::Reds,
-        worker::Ask::Landed { head } => {
-            v1::Ask::Landed(v1::Head::new(&v1::CEILINGS, v1::HeadParts { head }).expect("fixed-size head"))
-        }
+        worker::Ask::Landed { head } => v1::Ask::Landed(v1::Head { head }),
         worker::Ask::Results(results) => {
             let mut passed = List::with_capacity(v1::CEILINGS.check_results_passed);
             for key in results.passed {
@@ -23,32 +24,21 @@ pub fn ask(ask: temper_worker_domain::wire::Ask) -> Box<[u8]> {
             }
             let mut flakes = List::with_capacity(v1::CEILINGS.check_results_flakes);
             for flake in results.flakes {
-                flakes
-                    .push(
-                        v1::Flake::new(&v1::CEILINGS, v1::FlakeParts { key: flake.key, log: flake.log })
-                            .expect("bounded flake"),
-                    )
-                    .expect("bounded flakes");
+                flakes.push(v1::Flake { key: flake.key, log: flake.log }).expect("bounded flakes");
             }
-            v1::Ask::Results(
-                v1::CheckResults::new(
-                    &v1::CEILINGS,
-                    v1::CheckResultsParts {
-                        tag: results.tag,
-                        check_number: results.check,
-                        tree: results.tree,
-                        base: results.base,
-                        verdict: match results.verdict {
-                            worker::Verdict::Passed => v1::Verdict::Passed,
-                            worker::Verdict::Refused => v1::Verdict::Refused,
-                        },
-                        passed,
-                        failed,
-                        flakes,
-                    },
-                )
-                .expect("bounded check report"),
-            )
+            v1::Ask::Results(v1::CheckResults {
+                tag: results.tag,
+                check_number: results.check,
+                tree: results.tree,
+                base: results.base,
+                verdict: match results.verdict {
+                    worker::Verdict::Passed => v1::Verdict::Passed,
+                    worker::Verdict::Refused => v1::Verdict::Refused,
+                },
+                passed,
+                failed,
+                flakes,
+            })
         }
     };
     wire::ask(&value)
@@ -68,13 +58,12 @@ pub fn answer(bytes: &[u8], limits: &v1::Limits) -> Option<temper_worker_domain:
         v1::Answer::Landed => worker::Answer::Landed,
         v1::Answer::Unlanded => worker::Answer::Unlanded,
         v1::Answer::Reds(value) => {
-            let mut reds = List::with_capacity(value.reds().len());
-            for red in value.into_parts().reds.into_boxed() {
-                if !wire::red_head(red.head()) {
+            let mut reds = List::with_capacity(value.reds.len());
+            for red in value.reds.into_boxed() {
+                if !wire::red_head(&red.head) {
                     return None;
                 }
-                let parts = red.into_parts();
-                reds.push(worker::Red { key: parts.key, head: parts.head }).expect("one row per decoded red");
+                reds.push(worker::Red { key: red.key, head: red.head }).expect("one row per decoded red");
             }
             worker::Answer::Reds { reds: reds.into_boxed() }
         }
@@ -89,39 +78,39 @@ pub type Assigned = temper_worker_domain::wire::Workspace;
 pub fn workspace(items: Option<&v1::Items>) -> Assigned {
     use temper_worker_domain::wire as worker;
     let Some(items) = items else { return worker::Workspace { repositories: Box::new([]) } };
-    let mut repositories = List::with_capacity(items.repositories().len());
-    for repository in items.repositories() {
-        let start = match repository.start() {
+    let mut repositories = List::with_capacity(items.repositories.len());
+    for repository in &items.repositories {
+        let start = match &repository.start {
             v1::Start::Merged(value) => {
-                worker::Start::Merged { branch: value.branch().into(), heads: value.heads().clone().into_boxed() }
+                worker::Start::Merged { branch: value.branch.clone(), heads: value.heads.clone().into_boxed() }
             }
-            v1::Start::Merge(value) => worker::Start::Merge { branch: value.branch().into(), base: *value.base() },
-            v1::Start::Base(value) => worker::Start::Base { branch: value.branch().into() },
-            v1::Start::Branch(value) => worker::Start::Branch { branch: value.branch().into() },
-            v1::Start::Commit(value) => worker::Start::Commit { commit: *value.commit() },
-            v1::Start::Saved(value) => worker::Start::Saved { branch: value.branch().into() },
+            v1::Start::Merge(value) => worker::Start::Merge { branch: value.branch.clone(), base: value.base },
+            v1::Start::Base(value) => worker::Start::Base { branch: value.branch.clone() },
+            v1::Start::Branch(value) => worker::Start::Branch { branch: value.branch.clone() },
+            v1::Start::Commit(value) => worker::Start::Commit { commit: value.commit },
+            v1::Start::Saved(value) => worker::Start::Saved { branch: value.branch.clone() },
         };
-        let access = match repository.access() {
+        let access = match &repository.access {
             v1::Access::Writable(value) => worker::Access::Writable {
-                push: value.push().into(),
-                expected: *value.expected(),
-                landing: value.landing().clone(),
-                delivered: *value.delivered(),
+                push: value.push.clone(),
+                expected: value.expected,
+                landing: value.landing.clone(),
+                delivered: value.delivered,
             },
             v1::Access::ReadOnly => worker::Access::ReadOnly,
-            v1::Access::Prefixes(value) => worker::Access::Prefixes { branches: value.branches().clone().into_boxed() },
+            v1::Access::Prefixes(value) => worker::Access::Prefixes { branches: value.branches.clone().into_boxed() },
         };
         repositories
             .push(worker::Repository {
-                save: repository.save().clone(),
-                tag: repository.tag(),
-                name: repository.name().into(),
-                remote: repository.remote().into(),
-                git: repository.git().clone(),
+                save: repository.save.clone(),
+                tag: repository.tag,
+                name: repository.name.clone(),
+                remote: repository.remote.clone(),
+                git: repository.git.clone(),
                 start,
                 access,
-                identity: repository.identity(),
-                account: *repository.account(),
+                identity: repository.identity,
+                account: repository.account,
             })
             .expect("one result per decoded repository");
     }
@@ -131,36 +120,23 @@ pub fn workspace(items: Option<&v1::Items>) -> Assigned {
 /// What a run left and saved, field for field under the payload's ceilings.
 #[must_use]
 pub fn work(work: &temper_worker_domain::wire::Work) -> (v1::Left, Option<v1::Saved>) {
-    let limits = &v1::CEILINGS;
     let mut landed = List::with_capacity(u32::try_from(work.landed.len()).expect("bounded repositories"));
     for head in &work.landed {
         landed
-            .push(
-                v1::Landed::new(limits, v1::LandedParts { tag: head.tag, commit: head.commit, checked: head.checked })
-                    .expect("fixed fields"),
-            )
+            .push(v1::Landed { tag: head.tag, commit: head.commit, checked: head.checked })
             .expect("one head per repository");
     }
-    let left = v1::Left::new(limits, v1::LeftParts { landed }).expect("root repositories fit the payload ceilings");
+    let left = v1::Left { landed };
     let saved = match &work.saved {
         Some(rows) => {
             let mut repositories = List::with_capacity(u32::try_from(rows.len()).expect("bounded repositories"));
             for row in rows {
                 let landing = landing(&row.landing);
                 repositories
-                    .push(
-                        v1::SavedRepository::new(
-                            limits,
-                            v1::SavedRepositoryParts { tag: row.tag, from_saved: row.from_saved, landing },
-                        )
-                        .expect("fixed fields"),
-                    )
+                    .push(v1::SavedRepository { tag: row.tag, from_saved: row.from_saved, landing })
                     .expect("one saved row per repository");
             }
-            Some(
-                v1::Saved::new(limits, v1::SavedParts { repositories })
-                    .expect("root repositories fit payload ceilings"),
-            )
+            Some(v1::Saved { repositories })
         }
         None => None,
     };
@@ -169,35 +145,21 @@ pub fn work(work: &temper_worker_domain::wire::Work) -> (v1::Left, Option<v1::Sa
 
 fn landing(landing: &temper_worker_domain::wire::Landing) -> v1::Landing {
     use temper_worker_domain::wire as worker;
-    let limits = &v1::CEILINGS;
     match landing {
         worker::Landing::Conflicted { files } => {
             let mut paths = List::with_capacity(u32::try_from(files.len()).expect("bounded conflict paths"));
             for path in files {
                 paths.push(path.clone()).expect("one path per conflict");
             }
-            v1::Landing::Conflicted(
-                v1::Files::new(limits, v1::FilesParts { files: paths }).expect("root paths fit ceilings"),
-            )
+            v1::Landing::Conflicted(v1::Files { files: paths })
         }
         worker::Landing::Explained { failure } => {
             let reason = push_reason(failure.reason);
-            let diagnostic = v1::Diagnostic::new(
-                limits,
-                v1::DiagnosticParts { output: failure.diagnostic.output().into(), cut: failure.diagnostic.cut() },
-            )
-            .expect("fixed diagnostic cap fits payload");
-            v1::Landing::Explained(
-                v1::PushFailure::new(
-                    limits,
-                    v1::PushFailureParts { repository: failure.repository, reason, diagnostic },
-                )
-                .expect("fixed fields"),
-            )
+            let diagnostic =
+                v1::Diagnostic { output: failure.diagnostic.output().into(), cut: failure.diagnostic.cut() };
+            v1::Landing::Explained(v1::PushFailure { repository: failure.repository, reason, diagnostic })
         }
-        worker::Landing::Landed { commit } => {
-            v1::Landing::Landed(v1::Commit::new(limits, v1::CommitParts { commit: *commit }).expect("fixed id"))
-        }
+        worker::Landing::Landed { commit } => v1::Landing::Landed(v1::Commit { commit: *commit }),
         worker::Landing::Moved => v1::Landing::Moved,
         worker::Landing::Failed => v1::Landing::Failed,
         worker::Landing::Refused => v1::Landing::Refused,
@@ -227,24 +189,19 @@ fn push_reason(reason: temper_worker_domain::wire::PushReason) -> v1::PushReason
 #[must_use]
 pub fn preparation(preparation: &temper_worker_domain::wire::Preparation) -> Option<v1::Preparation> {
     use temper_worker_domain::wire as worker;
-    let limits = &v1::CEILINGS;
     match preparation {
-        worker::Preparation::Conflicted { tag, head } => Some(v1::Preparation::Conflicted(
-            v1::Conflicted::new(limits, v1::ConflictedParts { tag: *tag, head: *head }).expect("fixed fields"),
-        )),
-        worker::Preparation::Transient => None,
-        worker::Preparation::Refused { tag } => {
-            Some(v1::Preparation::Refused(v1::Tag::new(limits, v1::TagParts { tag: *tag }).expect("fixed tag")))
+        worker::Preparation::Conflicted { tag, head } => {
+            Some(v1::Preparation::Conflicted(v1::Conflicted { tag: *tag, head: *head }))
         }
+        worker::Preparation::Transient => None,
+        worker::Preparation::Refused { tag } => Some(v1::Preparation::Refused(v1::Tag { tag: *tag })),
         worker::Preparation::Missing { tag, missing } => {
             let missing = match missing {
                 worker::Missing::Repository => v1::Missing::Repository,
                 worker::Missing::Branch => v1::Missing::Branch,
                 worker::Missing::Commit => v1::Missing::Commit,
             };
-            Some(v1::Preparation::Missing(
-                v1::Missed::new(limits, v1::MissedParts { tag: *tag, missing }).expect("fixed fields"),
-            ))
+            Some(v1::Preparation::Missing(v1::Missed { tag: *tag, missing }))
         }
     }
 }
@@ -256,24 +213,24 @@ pub fn value(identity: &v1::Identity) -> Option<crate::identities::Value> {
     if !wire::valid(identity) {
         return None;
     }
-    Some(match identity.kind() {
+    Some(match &identity.kind {
         v1::Kind::Forgejo(value) => Value::Forgejo(temper_worker_protocol_git::Identity {
-            token: value.token().clone(),
-            login: identity.login().into(),
-            name: identity.name().into(),
-            email: identity.email().into(),
+            token: value.token.clone(),
+            login: identity.login.clone(),
+            name: identity.name.clone(),
+            email: identity.email.clone(),
         }),
         v1::Kind::Github(value) => {
-            let mut entries = List::with_capacity(value.entries().len());
-            for entry in value.entries() {
+            let mut entries = List::with_capacity(value.entries.len());
+            for entry in &value.entries {
                 entries
-                    .push(Entry { account: entry.account(), token: entry.token().clone() })
+                    .push(Entry { account: entry.account, token: entry.token.clone() })
                     .expect("one entry per decoded installation");
             }
             Value::GitHub {
-                login: identity.login().into(),
-                name: identity.name().into(),
-                email: identity.email().into(),
+                login: identity.login.clone(),
+                name: identity.name.clone(),
+                email: identity.email.clone(),
                 entries,
             }
         }
@@ -285,37 +242,31 @@ mod tests {
     use super::*;
 
     fn items_with_access(access: v1::Access) -> v1::Items {
-        let limits = &v1::CEILINGS;
-        let repository = v1::Repository::new(
-            limits,
-            v1::RepositoryParts {
-                tag: 7,
-                name: b"work".as_slice().into(),
-                remote: b"org/work".as_slice().into(),
-                git: None,
-                start: v1::Start::Commit(v1::Commit::new(limits, v1::CommitParts { commit: [1; 32] }).expect("commit")),
-                access,
-                identity: 3,
-                account: None,
-                save: None,
-            },
-        )
-        .expect("repository");
+        let repository = v1::Repository {
+            tag: 7,
+            name: b"work".as_slice().into(),
+            remote: b"org/work".as_slice().into(),
+            git: None,
+            start: v1::Start::Commit(v1::Commit { commit: [1; 32] }),
+            access,
+            identity: 3,
+            account: None,
+            save: None,
+        };
         let mut repositories = List::with_capacity(1);
         repositories.push(repository).expect("fixture repository");
-        v1::Items::new(limits, v1::ItemsParts { repositories }).expect("items")
+        v1::Items { repositories }
     }
 
     #[test]
     fn writable_access_carries_the_tasks_own_delivery_to_the_domain() {
         for delivered in [None, Some([7; 32])] {
-            let access = v1::Access::Writable(
-                v1::Writable::new(
-                    &v1::CEILINGS,
-                    v1::WritableParts { push: b"change/7".as_slice().into(), expected: None, landing: None, delivered },
-                )
-                .expect("writable"),
-            );
+            let access = v1::Access::Writable(v1::Writable {
+                push: b"change/7".as_slice().into(),
+                expected: None,
+                landing: None,
+                delivered,
+            });
             let bytes = wire::items(&items_with_access(access));
             let decoded = v1::Items::decode(&v1::CEILINGS, &mut skein_lib::Reader::new(&bytes)).expect("wire items");
             let translated = workspace(Some(&decoded));
@@ -333,14 +284,13 @@ mod tests {
 
     #[test]
     fn prefix_access_keeps_every_branch_in_wire_order_without_a_writable_push() {
-        let limits = &v1::CEILINGS;
         let mut branches = List::with_capacity(3);
         for branch in [b"prefix-1".as_slice(), b"prefix-2", b"prefix-3"] {
             branches.push(Box::from(branch)).expect("fixture branches");
         }
-        let access = v1::Access::Prefixes(v1::Prefixes::new(limits, v1::PrefixesParts { branches }).expect("prefixes"));
+        let access = v1::Access::Prefixes(v1::Prefixes { branches });
         let bytes = wire::items(&items_with_access(access));
-        let decoded = v1::Items::decode(limits, &mut skein_lib::Reader::new(&bytes)).expect("wire items");
+        let decoded = v1::Items::decode(&v1::CEILINGS, &mut skein_lib::Reader::new(&bytes)).expect("wire items");
         let translated = workspace(Some(&decoded));
         assert_eq!(
             translated.repositories[0].access,

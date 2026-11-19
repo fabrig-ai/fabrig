@@ -334,7 +334,7 @@ fn pasted_items_round_trip_in_their_order() {
 
 // Use generated item encoders with an unchecked count to reach lists the schema refuses.
 fn untrusted_pasted(items: &[(u16, &[u8])]) -> Box<[u8]> {
-    use records::v1;
+    use records::v1::{self, Record};
     let mut size = size_of::<u16>() + size_of::<u32>();
     for &(_, bytes) in items {
         size += size_of::<u8>() + size_of::<u32>() + bytes.len();
@@ -344,28 +344,14 @@ fn untrusted_pasted(items: &[(u16, &[u8])]) -> Box<[u8]> {
     out.put(&u32::try_from(items.len()).expect("test count").to_be_bytes()).expect("count");
     for &(code, bytes) in items {
         let item = match code {
-            1 => v1::PastedItem::AdminToken(
-                v1::AdminToken::new(&v1::CEILINGS, v1::AdminTokenParts { value: Secret::new(bytes.into()) })
-                    .expect("token"),
-            ),
-            2 => v1::PastedItem::ApiToken(
-                v1::ApiToken::new(&v1::CEILINGS, v1::ApiTokenParts { value: Secret::new(bytes.into()) })
-                    .expect("token"),
-            ),
-            3 => v1::PastedItem::GitToken(
-                v1::GitToken::new(&v1::CEILINGS, v1::GitTokenParts { value: Secret::new(bytes.into()) })
-                    .expect("token"),
-            ),
-            5 => v1::PastedItem::WebhookSecret(
-                v1::WebhookSecret::new(&v1::CEILINGS, v1::WebhookSecretParts { value: Secret::new(bytes.into()) })
-                    .expect("secret"),
-            ),
-            11 => v1::PastedItem::Pem(
-                v1::Pem::new(&v1::CEILINGS, v1::PemParts { value: Secret::new(bytes.into()) }).expect("PEM"),
-            ),
+            1 => v1::PastedItem::AdminToken(v1::AdminToken { value: Secret::new(bytes.into()) }),
+            2 => v1::PastedItem::ApiToken(v1::ApiToken { value: Secret::new(bytes.into()) }),
+            3 => v1::PastedItem::GitToken(v1::GitToken { value: Secret::new(bytes.into()) }),
+            5 => v1::PastedItem::WebhookSecret(v1::WebhookSecret { value: Secret::new(bytes.into()) }),
+            11 => v1::PastedItem::Pem(v1::Pem { value: Secret::new(bytes.into()) }),
             _ => panic!("test item"),
         };
-        item.encode(&mut out).expect("test bundle fits");
+        out.put(&item.encode(&v1::CEILINGS).expect("test item fits")).expect("test bundle fits");
     }
     out.finish()
 }

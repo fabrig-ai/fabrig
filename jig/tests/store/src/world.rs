@@ -34,7 +34,10 @@ impl Restored {
     }
 }
 
+type OperationHook = Box<dyn FnMut(&mut World)>;
+
 pub struct World {
+    operation_hook: Option<OperationHook>,
     observer: Option<fn(Step)>,
     sets: OwnerSets,
     scratch: Option<Root>,
@@ -213,6 +216,7 @@ impl World {
             observe(Step::End { patching: jig_protocol_store::sizes::is_patching(&component) });
         }
         World {
+            operation_hook: None,
             observer,
             sets: OwnerSets::NONE,
             scratch: None,
@@ -321,6 +325,25 @@ impl World {
         })
     }
 
+    /// Observe the same boundary at which `cut_at` stops, before its next operation.
+    /// The hook is absent during its call, so a child can crash and recover directly.
+    pub fn on_operation(&mut self, hook: impl FnMut(&mut Self) + 'static) {
+        assert!(self.operation_hook.is_none());
+        self.operation_hook = Some(Box::new(hook));
+    }
+
+    /// Include the boundary after the final operation in a sweep.
+    pub fn operation_boundary(&mut self) {
+        if let Some(mut hook) = self.operation_hook.take() {
+            hook(self);
+            self.operation_hook = Some(hook);
+        }
+    }
+
+    pub fn stop_observing_operations(&mut self) {
+        self.operation_hook = None;
+    }
+
     pub fn cut_at(&mut self, operation: u32) {
         self.cut = Some(operation);
     }
@@ -370,6 +393,7 @@ impl World {
     }
 
     pub fn crash(&mut self, seed: u64) {
+        self.operation_hook = None;
         self.machine.crash(seed);
         let handle = self.machine.reopen_root(0);
         self.sim = Sim::new(seed, Config::calm());
@@ -1069,6 +1093,9 @@ impl World {
             self.observe(Step::Begin { input: 0, patching: jig_protocol_store::sizes::is_patching(&self.store) });
             jig_protocol_store::fire(&mut self.store, &self.env, &mut self.above, &mut self.below);
             self.observe(Step::End { patching: jig_protocol_store::sizes::is_patching(&self.store) });
+            if !self.kernel_cuts {
+                self.operation_boundary();
+            }
             if self.halted
                 || self.cut.is_some_and(|cut| self.operations >= cut)
                 || pause.is_some_and(|pause| self.operations >= pause)
@@ -1105,11 +1132,10 @@ impl World {
     }
 
     fn file_terminal(&mut self, driver: usize, request: file::Request) -> Option<Arrived> {
-        let io = self.io.get_mut(driver).expect("four drivers");
-        assert!(io.takes());
+        assert!(self.io.get(driver).expect("four drivers").takes());
         let mut events = Queue::with_capacity(QUEUE);
         let env = self.env.with(self.file_limits);
-        step::down(io, &env, request, &mut events, &mut self.subs);
+        step::down(self.io.get_mut(driver).expect("four drivers"), &env, request, &mut events, &mut self.subs);
         for _ in 0..100 {
             if !self.subs.is_empty() {
                 self.sim.submit(self.pid, &mut self.subs);
@@ -1125,6 +1151,7 @@ impl World {
                             if let Some(change) = change(&call.ask) {
                                 self.changes.push((self.operations, change));
                             }
+                            self.operation_boundary();
                             if self.cut == Some(self.operations) {
                                 self.halted = true;
                                 return None;
@@ -1144,17 +1171,21 @@ impl World {
             }
             self.sim.reap(self.pid, &mut self.completions);
             while let Some(complete) = self.completions.pop() {
-                step::up(io, &env, complete, &mut events, &mut self.subs);
+                step::up(self.io.get_mut(driver).expect("four drivers"), &env, complete, &mut events, &mut self.subs);
             }
-            if io.takes() {
+            if self.io.get(driver).expect("four drivers").takes() {
                 break;
             }
         }
-        assert!(io.takes(), "a calm file operation settles");
+        assert!(self.io.get(driver).expect("four drivers").takes(), "a calm file operation settles");
         assert!(!events.is_empty(), "one file terminal");
         let event = events.pop().expect("file request terminal");
         assert!(events.is_empty(), "one terminal per file request");
-        let fd = if let file::Event::Opened { file, .. } = &event { io.descriptor(*file) } else { None };
+        let fd = if let file::Event::Opened { file, .. } = &event {
+            self.io.get(driver).expect("four drivers").descriptor(*file)
+        } else {
+            None
+        };
         Some(Arrived { event, fd })
     }
     fn file(&mut self, driver: usize, request: file::Request) {

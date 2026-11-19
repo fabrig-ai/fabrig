@@ -1,0 +1,10 @@
+listen = "{story.clients}"
+webhooks = "127.0.0.1:0"
+owner = "owner-a@example.invalid"
+workers = "127.0.0.1:0"
+
+[test.github]
+api = "{proc.forge.ready.address}"
+transport = "plaintext"
+remote = "http://{proc.forge.ready.address}"
+web = "http://{proc.forge.ready.address}"

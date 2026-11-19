@@ -175,9 +175,9 @@ fn an_answer_goes_up_with_its_left_and_saved_parts() {
     assert_eq!(work.saved, Some(parts[1].token));
     let left = v1::Left::decode(&fixtures::wire_limits(), &mut Reader::new(&parts[0].bytes)).unwrap();
     let saved = v1::Saved::decode(&fixtures::wire_limits(), &mut Reader::new(&parts[1].bytes)).unwrap();
-    assert_eq!((left.landed().get(0).unwrap().tag(), left.landed().get(0).unwrap().commit()), (3, &[7; 32]));
-    let row = saved.repositories().get(0).unwrap();
-    assert_eq!((row.tag(), row.from_saved(), row.landing()), (3, true, &v1::Landing::Moved));
+    assert_eq!((left.landed.get(0).unwrap().tag, left.landed.get(0).unwrap().commit), (3, [7; 32]));
+    let row = saved.repositories.get(0).unwrap();
+    assert_eq!((row.tag, row.from_saved, &row.landing), (3, true, &v1::Landing::Moved));
 }
 
 #[test]

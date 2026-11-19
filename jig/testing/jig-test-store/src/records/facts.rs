@@ -4,31 +4,16 @@ use jig_test_connector as d;
 use skein_lib::Wall;
 pub(super) fn encode_refusal(value: &d::application_core::Refusal) -> w::Refusal {
     match value {
-        d::application_core::Refusal::Role { held } => w::Refusal::Role(
-            w::RefusalRole::new(&w::CEILINGS, w::RefusalRoleParts { held: *held }).expect("admitted fields fit schema"),
-        ),
-        d::application_core::Refusal::Authority { lacking, proposable } => w::Refusal::Authority(
-            w::RefusalAuthority::new(
-                &w::CEILINGS,
-                w::RefusalAuthorityParts { lacking: encode_lack(lacking), proposable: *proposable },
-            )
-            .expect("admitted fields fit schema"),
-        ),
-        d::application_core::Refusal::Limit { which } => w::Refusal::Limit(
-            w::RefusalLimit::new(&w::CEILINGS, w::RefusalLimitParts { which: encode_limit_kind(*which) })
-                .expect("admitted fields fit schema"),
-        ),
-        d::application_core::Refusal::Moved { now } => w::Refusal::Moved(
-            w::RefusalMoved::new(&w::CEILINGS, w::RefusalMovedParts { now: encode_moved(now) })
-                .expect("admitted fields fit schema"),
-        ),
-        d::application_core::Refusal::Ended { how } => w::Refusal::Ended(
-            w::RefusalEnded::new(&w::CEILINGS, w::RefusalEndedParts { how: encode_ending(how) })
-                .expect("admitted fields fit schema"),
-        ),
-        d::application_core::Refusal::Taken { by } => w::Refusal::Taken(
-            w::RefusalTaken::new(&w::CEILINGS, w::RefusalTakenParts { by: *by }).expect("admitted fields fit schema"),
-        ),
+        d::application_core::Refusal::Role { held } => w::Refusal::Role(w::RefusalRole { held: *held }),
+        d::application_core::Refusal::Authority { lacking, proposable } => {
+            w::Refusal::Authority(w::RefusalAuthority { lacking: encode_lack(lacking), proposable: *proposable })
+        }
+        d::application_core::Refusal::Limit { which } => {
+            w::Refusal::Limit(w::RefusalLimit { which: encode_limit_kind(*which) })
+        }
+        d::application_core::Refusal::Moved { now } => w::Refusal::Moved(w::RefusalMoved { now: encode_moved(now) }),
+        d::application_core::Refusal::Ended { how } => w::Refusal::Ended(w::RefusalEnded { how: encode_ending(how) }),
+        d::application_core::Refusal::Taken { by } => w::Refusal::Taken(w::RefusalTaken { by: *by }),
         d::application_core::Refusal::NotWaiting => w::Refusal::NotWaiting,
         d::application_core::Refusal::NoFurther => w::Refusal::NoFurther,
         d::application_core::Refusal::Unknown => w::Refusal::Unknown,
@@ -39,27 +24,27 @@ pub(super) fn encode_refusal(value: &d::application_core::Refusal) -> w::Refusal
 pub(super) fn decode_refusal(value: w::Refusal) -> d::application_core::Refusal {
     match value {
         w::Refusal::Role(value) => {
-            let w::RefusalRoleParts { held } = value.into_parts();
+            let w::RefusalRole { held } = value;
             d::application_core::Refusal::Role { held }
         }
         w::Refusal::Authority(value) => {
-            let w::RefusalAuthorityParts { lacking, proposable } = value.into_parts();
+            let w::RefusalAuthority { lacking, proposable } = value;
             d::application_core::Refusal::Authority { lacking: decode_lack(lacking), proposable }
         }
         w::Refusal::Limit(value) => {
-            let w::RefusalLimitParts { which } = value.into_parts();
+            let w::RefusalLimit { which } = value;
             d::application_core::Refusal::Limit { which: decode_limit_kind(which) }
         }
         w::Refusal::Moved(value) => {
-            let w::RefusalMovedParts { now } = value.into_parts();
+            let w::RefusalMoved { now } = value;
             d::application_core::Refusal::Moved { now: decode_moved(now) }
         }
         w::Refusal::Ended(value) => {
-            let w::RefusalEndedParts { how } = value.into_parts();
+            let w::RefusalEnded { how } = value;
             d::application_core::Refusal::Ended { how: decode_ending(how) }
         }
         w::Refusal::Taken(value) => {
-            let w::RefusalTakenParts { by } = value.into_parts();
+            let w::RefusalTaken { by } = value;
             d::application_core::Refusal::Taken { by }
         }
         w::Refusal::NotWaiting => d::application_core::Refusal::NotWaiting,
@@ -72,26 +57,16 @@ pub(super) fn decode_refusal(value: w::Refusal) -> d::application_core::Refusal 
 fn encode_lack(value: &d::application_core::Lack) -> w::Lack {
     match value {
         d::application_core::Lack::Approver => w::Lack::Approver,
-        d::application_core::Lack::Again { required } => w::Lack::Again(
-            w::LackAgain::new(&w::CEILINGS, w::LackAgainParts { required: *required })
-                .expect("admitted fields fit schema"),
-        ),
-        d::application_core::Lack::Budget { needs, left } => w::Lack::Budget(
-            w::LackBudget::new(&w::CEILINGS, w::LackBudgetParts { needs: *needs, left: *left })
-                .expect("admitted fields fit schema"),
-        ),
-        d::application_core::Lack::Grant { kind } => w::Lack::Grant(
-            w::LackGrant::new(&w::CEILINGS, w::LackGrantParts { kind: *kind }).expect("admitted fields fit schema"),
-        ),
+        d::application_core::Lack::Again { required } => w::Lack::Again(w::LackAgain { required: *required }),
+        d::application_core::Lack::Budget { needs, left } => {
+            w::Lack::Budget(w::LackBudget { needs: *needs, left: *left })
+        }
+        d::application_core::Lack::Grant { kind } => w::Lack::Grant(w::LackGrant { kind: *kind }),
         d::application_core::Lack::Funding => w::Lack::Funding,
         d::application_core::Lack::TaskKind => w::Lack::TaskKind,
-        d::application_core::Lack::Depth { most } => w::Lack::Depth(
-            w::LackDepth::new(&w::CEILINGS, w::LackDepthParts { most: *most }).expect("admitted fields fit schema"),
-        ),
+        d::application_core::Lack::Depth { most } => w::Lack::Depth(w::LackDepth { most: *most }),
         d::application_core::Lack::Deadline => w::Lack::Deadline,
-        d::application_core::Lack::Tasks { left } => w::Lack::Tasks(
-            w::LackTasks::new(&w::CEILINGS, w::LackTasksParts { left: *left }).expect("admitted fields fit schema"),
-        ),
+        d::application_core::Lack::Tasks { left } => w::Lack::Tasks(w::LackTasks { left: *left }),
         d::application_core::Lack::Tool => w::Lack::Tool,
         d::application_core::Lack::Scope => w::Lack::Scope,
         d::application_core::Lack::Models => w::Lack::Models,
@@ -101,44 +76,41 @@ fn encode_lack(value: &d::application_core::Lack) -> w::Lack {
         d::application_core::Lack::Shape => w::Lack::Shape,
         d::application_core::Lack::Account => w::Lack::Account,
         d::application_core::Lack::Writer => w::Lack::Writer,
-        d::application_core::Lack::Required { connector, kind } => w::Lack::Required(
-            w::LackRequired::new(&w::CEILINGS, w::LackRequiredParts { connector: *connector, kind: *kind })
-                .expect("admitted fields fit schema"),
-        ),
-        d::application_core::Lack::Failed { connector, kind } => w::Lack::Failed(
-            w::LackFailed::new(&w::CEILINGS, w::LackFailedParts { connector: *connector, kind: *kind })
-                .expect("admitted fields fit schema"),
-        ),
-        d::application_core::Lack::Unguarded { connector, kind } => w::Lack::Unguarded(
-            w::LackUnguarded::new(&w::CEILINGS, w::LackUnguardedParts { connector: *connector, kind: *kind })
-                .expect("admitted fields fit schema"),
-        ),
+        d::application_core::Lack::Required { connector, kind } => {
+            w::Lack::Required(w::LackRequired { connector: *connector, kind: *kind })
+        }
+        d::application_core::Lack::Failed { connector, kind } => {
+            w::Lack::Failed(w::LackFailed { connector: *connector, kind: *kind })
+        }
+        d::application_core::Lack::Unguarded { connector, kind } => {
+            w::Lack::Unguarded(w::LackUnguarded { connector: *connector, kind: *kind })
+        }
     }
 }
 fn decode_lack(value: w::Lack) -> d::application_core::Lack {
     match value {
         w::Lack::Approver => d::application_core::Lack::Approver,
         w::Lack::Again(value) => {
-            let w::LackAgainParts { required } = value.into_parts();
+            let w::LackAgain { required } = value;
             d::application_core::Lack::Again { required }
         }
         w::Lack::Budget(value) => {
-            let w::LackBudgetParts { needs, left } = value.into_parts();
+            let w::LackBudget { needs, left } = value;
             d::application_core::Lack::Budget { needs, left }
         }
         w::Lack::Grant(value) => {
-            let w::LackGrantParts { kind } = value.into_parts();
+            let w::LackGrant { kind } = value;
             d::application_core::Lack::Grant { kind }
         }
         w::Lack::Funding => d::application_core::Lack::Funding,
         w::Lack::TaskKind => d::application_core::Lack::TaskKind,
         w::Lack::Depth(value) => {
-            let w::LackDepthParts { most } = value.into_parts();
+            let w::LackDepth { most } = value;
             d::application_core::Lack::Depth { most }
         }
         w::Lack::Deadline => d::application_core::Lack::Deadline,
         w::Lack::Tasks(value) => {
-            let w::LackTasksParts { left } = value.into_parts();
+            let w::LackTasks { left } = value;
             d::application_core::Lack::Tasks { left }
         }
         w::Lack::Tool => d::application_core::Lack::Tool,
@@ -151,15 +123,15 @@ fn decode_lack(value: w::Lack) -> d::application_core::Lack {
         w::Lack::Account => d::application_core::Lack::Account,
         w::Lack::Writer => d::application_core::Lack::Writer,
         w::Lack::Required(value) => {
-            let w::LackRequiredParts { connector, kind } = value.into_parts();
+            let w::LackRequired { connector, kind } = value;
             d::application_core::Lack::Required { connector, kind }
         }
         w::Lack::Failed(value) => {
-            let w::LackFailedParts { connector, kind } = value.into_parts();
+            let w::LackFailed { connector, kind } = value;
             d::application_core::Lack::Failed { connector, kind }
         }
         w::Lack::Unguarded(value) => {
-            let w::LackUnguardedParts { connector, kind } = value.into_parts();
+            let w::LackUnguarded { connector, kind } = value;
             d::application_core::Lack::Unguarded { connector, kind }
         }
     }
@@ -252,31 +224,25 @@ fn decode_limit_kind(value: w::LimitKind) -> d::application_core::LimitKind {
 }
 fn encode_party(value: &d::application_core::Party) -> w::Party {
     match value {
-        d::application_core::Party::Person(value) => w::Party::Person(
-            w::PartyPerson::new(&w::CEILINGS, w::PartyPersonParts { value: *value })
-                .expect("admitted fields fit schema"),
-        ),
-        d::application_core::Party::Task(value) => w::Party::Task(
-            w::PartyTask::new(&w::CEILINGS, w::PartyTaskParts { value: *value }).expect("admitted fields fit schema"),
-        ),
-        d::application_core::Party::Deployment { project } => w::Party::Deployment(
-            w::PartyDeployment::new(&w::CEILINGS, w::PartyDeploymentParts { project: *project })
-                .expect("admitted fields fit schema"),
-        ),
+        d::application_core::Party::Person(value) => w::Party::Person(w::PartyPerson { value: *value }),
+        d::application_core::Party::Task(value) => w::Party::Task(w::PartyTask { value: *value }),
+        d::application_core::Party::Deployment { project } => {
+            w::Party::Deployment(w::PartyDeployment { project: *project })
+        }
     }
 }
 fn decode_party(value: w::Party) -> d::application_core::Party {
     match value {
         w::Party::Person(value) => {
-            let w::PartyPersonParts { value } = value.into_parts();
+            let w::PartyPerson { value } = value;
             d::application_core::Party::Person(value)
         }
         w::Party::Task(value) => {
-            let w::PartyTaskParts { value } = value.into_parts();
+            let w::PartyTask { value } = value;
             d::application_core::Party::Task(value)
         }
         w::Party::Deployment(value) => {
-            let w::PartyDeploymentParts { project } = value.into_parts();
+            let w::PartyDeployment { project } = value;
             d::application_core::Party::Deployment { project }
         }
     }
@@ -285,14 +251,12 @@ fn encode_ending(value: &d::application_core::Ending) -> w::Ending {
     match value {
         d::application_core::Ending::Done => w::Ending::Done,
         d::application_core::Ending::Failed => w::Ending::Failed,
-        d::application_core::Ending::Cancelled { by, at } => w::Ending::Cancelled(
-            w::EndingCancelled::new(&w::CEILINGS, w::EndingCancelledParts { by: encode_party(by), at: at.as_nanos() })
-                .expect("admitted fields fit schema"),
-        ),
-        d::application_core::Ending::Decided { by, at } => w::Ending::Decided(
-            w::EndingDecided::new(&w::CEILINGS, w::EndingDecidedParts { by: *by, at: at.as_nanos() })
-                .expect("admitted fields fit schema"),
-        ),
+        d::application_core::Ending::Cancelled { by, at } => {
+            w::Ending::Cancelled(w::EndingCancelled { by: encode_party(by), at: at.as_nanos() })
+        }
+        d::application_core::Ending::Decided { by, at } => {
+            w::Ending::Decided(w::EndingDecided { by: *by, at: at.as_nanos() })
+        }
         d::application_core::Ending::Deleted => w::Ending::Deleted,
     }
 }
@@ -301,11 +265,11 @@ fn decode_ending(value: w::Ending) -> d::application_core::Ending {
         w::Ending::Done => d::application_core::Ending::Done,
         w::Ending::Failed => d::application_core::Ending::Failed,
         w::Ending::Cancelled(value) => {
-            let w::EndingCancelledParts { by, at } = value.into_parts();
+            let w::EndingCancelled { by, at } = value;
             d::application_core::Ending::Cancelled { by: decode_party(by), at: Wall::from_nanos(at) }
         }
         w::Ending::Decided(value) => {
-            let w::EndingDecidedParts { by, at } = value.into_parts();
+            let w::EndingDecided { by, at } = value;
             d::application_core::Ending::Decided { by, at: Wall::from_nanos(at) }
         }
         w::Ending::Deleted => d::application_core::Ending::Deleted,
@@ -313,102 +277,73 @@ fn decode_ending(value: w::Ending) -> d::application_core::Ending {
 }
 fn encode_moved(value: &d::application_core::Moved) -> w::Moved {
     match value {
-        d::application_core::Moved::Hold { revision, reason } => w::Moved::Hold(
-            w::MovedHold::new(
-                &w::CEILINGS,
-                w::MovedHoldParts { revision: *revision, reason: encode_hold_reason(reason) },
-            )
-            .expect("admitted fields fit schema"),
-        ),
-        d::application_core::Moved::Spec { revision } => w::Moved::Spec(
-            w::MovedSpec::new(&w::CEILINGS, w::MovedSpecParts { revision: *revision })
-                .expect("admitted fields fit schema"),
-        ),
-        d::application_core::Moved::Person { revision } => w::Moved::Person(
-            w::MovedPerson::new(&w::CEILINGS, w::MovedPersonParts { revision: *revision })
-                .expect("admitted fields fit schema"),
-        ),
-        d::application_core::Moved::Note { revision } => w::Moved::Note(
-            w::MovedNote::new(&w::CEILINGS, w::MovedNoteParts { revision: *revision })
-                .expect("admitted fields fit schema"),
-        ),
+        d::application_core::Moved::Hold { revision, reason } => {
+            w::Moved::Hold(w::MovedHold { revision: *revision, reason: encode_hold_reason(reason) })
+        }
+        d::application_core::Moved::Spec { revision } => w::Moved::Spec(w::MovedSpec { revision: *revision }),
+        d::application_core::Moved::Person { revision } => w::Moved::Person(w::MovedPerson { revision: *revision }),
+        d::application_core::Moved::Note { revision } => w::Moved::Note(w::MovedNote { revision: *revision }),
     }
 }
 fn decode_moved(value: w::Moved) -> d::application_core::Moved {
     match value {
         w::Moved::Hold(value) => {
-            let w::MovedHoldParts { revision, reason } = value.into_parts();
+            let w::MovedHold { revision, reason } = value;
             d::application_core::Moved::Hold { revision, reason: decode_hold_reason(reason) }
         }
         w::Moved::Spec(value) => {
-            let w::MovedSpecParts { revision } = value.into_parts();
+            let w::MovedSpec { revision } = value;
             d::application_core::Moved::Spec { revision }
         }
         w::Moved::Person(value) => {
-            let w::MovedPersonParts { revision } = value.into_parts();
+            let w::MovedPerson { revision } = value;
             d::application_core::Moved::Person { revision }
         }
         w::Moved::Note(value) => {
-            let w::MovedNoteParts { revision } = value.into_parts();
+            let w::MovedNote { revision } = value;
             d::application_core::Moved::Note { revision }
         }
     }
 }
 fn encode_hold_reason(value: &d::application_core::HoldReason) -> w::HoldReason {
     match value {
-        d::application_core::HoldReason::Exceeded(value) => w::HoldReason::Exceeded(
-            w::Exceeded::new(
-                &w::CEILINGS,
-                w::ExceededParts {
-                    bound: match value.bound {
-                        d::application_core::Bound::Reasoning => w::Bound::Reasoning,
-                        d::application_core::Bound::Metadata => w::Bound::Metadata,
-                        d::application_core::Bound::Items => w::Bound::Items,
-                        d::application_core::Bound::Answer => w::Bound::Answer,
-                        d::application_core::Bound::Tools => w::Bound::Tools,
-                        d::application_core::Bound::HistoryItems => w::Bound::HistoryItems,
-                        d::application_core::Bound::History => w::Bound::History,
-                        d::application_core::Bound::Window => w::Bound::Window,
-                        d::application_core::Bound::Output => w::Bound::Output,
-                    },
-                    value: value.value,
-                },
-            )
-            .expect("admitted fields fit schema"),
-        ),
-        d::application_core::HoldReason::Failures { class } => w::HoldReason::Failures(
-            w::HoldReasonFailures::new(
-                &w::CEILINGS,
-                w::HoldReasonFailuresParts { class: encode_failure_class(*class) },
-            )
-            .expect("admitted fields fit schema"),
-        ),
+        d::application_core::HoldReason::Exceeded(value) => w::HoldReason::Exceeded(w::Exceeded {
+            bound: match value.bound {
+                d::application_core::Bound::Reasoning => w::Bound::Reasoning,
+                d::application_core::Bound::Metadata => w::Bound::Metadata,
+                d::application_core::Bound::Items => w::Bound::Items,
+                d::application_core::Bound::Answer => w::Bound::Answer,
+                d::application_core::Bound::Tools => w::Bound::Tools,
+                d::application_core::Bound::HistoryItems => w::Bound::HistoryItems,
+                d::application_core::Bound::History => w::Bound::History,
+                d::application_core::Bound::Window => w::Bound::Window,
+                d::application_core::Bound::Output => w::Bound::Output,
+            },
+            value: value.value,
+        }),
+        d::application_core::HoldReason::Failures { class } => {
+            w::HoldReason::Failures(w::HoldReasonFailures { class: encode_failure_class(*class) })
+        }
         d::application_core::HoldReason::Stalled => w::HoldReason::Stalled,
-        d::application_core::HoldReason::Dependency { task } => w::HoldReason::Dependency(
-            w::HoldReasonDependency::new(&w::CEILINGS, w::HoldReasonDependencyParts { task: *task })
-                .expect("admitted fields fit schema"),
-        ),
+        d::application_core::HoldReason::Dependency { task } => {
+            w::HoldReason::Dependency(w::HoldReasonDependency { task: *task })
+        }
         d::application_core::HoldReason::Stopped => w::HoldReason::Stopped,
-        d::application_core::HoldReason::Placed { hold } => w::HoldReason::Placed(
-            w::HoldReasonPlaced::new(&w::CEILINGS, w::HoldReasonPlacedParts { hold: *hold })
-                .expect("admitted fields fit schema"),
-        ),
+        d::application_core::HoldReason::Placed { hold } => w::HoldReason::Placed(w::HoldReasonPlaced { hold: *hold }),
         d::application_core::HoldReason::Drift => w::HoldReason::Drift,
         d::application_core::HoldReason::Effects => w::HoldReason::Effects,
         d::application_core::HoldReason::EffectFailed => w::HoldReason::EffectFailed,
-        d::application_core::HoldReason::Uncertain { entry } => w::HoldReason::Uncertain(
-            w::HoldReasonUncertain::new(&w::CEILINGS, w::HoldReasonUncertainParts { entry: *entry })
-                .expect("admitted fields fit schema"),
-        ),
+        d::application_core::HoldReason::Uncertain { entry } => {
+            w::HoldReason::Uncertain(w::HoldReasonUncertain { entry: *entry })
+        }
         d::application_core::HoldReason::Budget => w::HoldReason::Budget,
         d::application_core::HoldReason::Deadline => w::HoldReason::Deadline,
         d::application_core::HoldReason::HoldsWaited => w::HoldReason::HoldsWaited,
         d::application_core::HoldReason::ResourceUnavailable => w::HoldReason::ResourceUnavailable,
         d::application_core::HoldReason::ResourceAccess => w::HoldReason::ResourceAccess,
-        d::application_core::HoldReason::PoolLost { pool } => w::HoldReason::PoolLost(
-            w::HoldReasonPoolLost::new(&w::CEILINGS, w::HoldReasonPoolLostParts { pool: *pool })
-                .expect("admitted fields fit schema"),
-        ),
+        d::application_core::HoldReason::PoolLost { pool } => {
+            w::HoldReason::PoolLost(w::HoldReasonPoolLost { pool: *pool })
+        }
         d::application_core::HoldReason::Procedure => w::HoldReason::Procedure,
         d::application_core::HoldReason::Circle => w::HoldReason::Circle,
     }
@@ -416,7 +351,7 @@ fn encode_hold_reason(value: &d::application_core::HoldReason) -> w::HoldReason 
 fn decode_hold_reason(value: w::HoldReason) -> d::application_core::HoldReason {
     match value {
         w::HoldReason::Exceeded(value) => d::application_core::HoldReason::Exceeded(d::application_core::Exceeded {
-            bound: match value.bound() {
+            bound: match value.bound {
                 w::Bound::Reasoning => d::application_core::Bound::Reasoning,
                 w::Bound::Metadata => d::application_core::Bound::Metadata,
                 w::Bound::Items => d::application_core::Bound::Items,
@@ -427,27 +362,27 @@ fn decode_hold_reason(value: w::HoldReason) -> d::application_core::HoldReason {
                 w::Bound::Window => d::application_core::Bound::Window,
                 w::Bound::Output => d::application_core::Bound::Output,
             },
-            value: value.value(),
+            value: value.value,
         }),
         w::HoldReason::Failures(value) => {
-            let w::HoldReasonFailuresParts { class } = value.into_parts();
+            let w::HoldReasonFailures { class } = value;
             d::application_core::HoldReason::Failures { class: decode_failure_class(class) }
         }
         w::HoldReason::Stalled => d::application_core::HoldReason::Stalled,
         w::HoldReason::Dependency(value) => {
-            let w::HoldReasonDependencyParts { task } = value.into_parts();
+            let w::HoldReasonDependency { task } = value;
             d::application_core::HoldReason::Dependency { task }
         }
         w::HoldReason::Stopped => d::application_core::HoldReason::Stopped,
         w::HoldReason::Placed(value) => {
-            let w::HoldReasonPlacedParts { hold } = value.into_parts();
+            let w::HoldReasonPlaced { hold } = value;
             d::application_core::HoldReason::Placed { hold }
         }
         w::HoldReason::Drift => d::application_core::HoldReason::Drift,
         w::HoldReason::Effects => d::application_core::HoldReason::Effects,
         w::HoldReason::EffectFailed => d::application_core::HoldReason::EffectFailed,
         w::HoldReason::Uncertain(value) => {
-            let w::HoldReasonUncertainParts { entry } = value.into_parts();
+            let w::HoldReasonUncertain { entry } = value;
             d::application_core::HoldReason::Uncertain { entry }
         }
         w::HoldReason::Budget => d::application_core::HoldReason::Budget,
@@ -456,7 +391,7 @@ fn decode_hold_reason(value: w::HoldReason) -> d::application_core::HoldReason {
         w::HoldReason::ResourceUnavailable => d::application_core::HoldReason::ResourceUnavailable,
         w::HoldReason::ResourceAccess => d::application_core::HoldReason::ResourceAccess,
         w::HoldReason::PoolLost(value) => {
-            let w::HoldReasonPoolLostParts { pool } = value.into_parts();
+            let w::HoldReasonPoolLost { pool } = value;
             d::application_core::HoldReason::PoolLost { pool }
         }
         w::HoldReason::Procedure => d::application_core::HoldReason::Procedure,

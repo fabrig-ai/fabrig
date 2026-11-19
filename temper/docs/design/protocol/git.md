@@ -52,7 +52,7 @@ credentials.md's (`credentials.md`, section 4). What is open is listed in `git.m
   fast-forward; an expected head adds a compare-and-swap; a branch is
   created only where none exists. The one exception is `Rewrite`
   (4.10), a prepare job's candidate onto its branch, under a lease.
-- **Commits keep the checkout's ancestry at delivery,** using HEAD and a
+- **Commits keep the checkout's ancestry at delivery,** using the worker's HEAD and a
   merge's second parent; an unchanged local commit is kept unless `always` requires a fresh one. Preparation
   and saved-work commits use the parents the domain names. Git's plumbing (`write-tree`,
   `commit-tree`) records both parents, and delivery advances HEAD (4.7).
@@ -67,6 +67,10 @@ credentials.md's (`credentials.md`, section 4). What is open is listed in `git.m
   and takes the store's format; and a fetch goes into the store and then
   points the checkout's reference (4.2, 4.3, 4.11;
   `../domain/worker/checkouts.md`).
+- **Two git directories per checkout:** the worker's, named with the
+  work tree on every invocation, its configuration, hooks and references
+  the worker's alone; and the run's, the work tree's `.git`, never read,
+  given a view of the worker's (section 3, 4.13).
 - **Stores are blob-less.** A store's clone and every fetch into it carry
   `--filter=blob:none`: the commits and trees whole, no file contents. A
   `CheckOut` or `Merge` names its repository's identity and runs its
@@ -93,7 +97,8 @@ io                              processes (skein's `runtime/io/processes.md`) an
   ▲
 the worker's root directory     workers[].root
 ├── workspaces/<token>/         a workspace, named by the checkout's token in decimal
-│   └── <repository>/           a repository's working tree and its .git, side by side with the others
+│   └── <repository>/           a repository's work tree, side by side with the others; its .git the run's (4.13)
+├── gitdirs/<token>/<repository>/  the worker's git directory of that work tree, bare (4.2)
 ├── stores/<token>/             a repository's store, bare, named by the store's token in decimal (4.11), kept across starts
 ├── making/<m>/                 a store being made, moved into `stores` once whole (4.11)
 ├── trash/<n>/                  what Make set aside, emptied by the sweep
@@ -122,7 +127,7 @@ the worker's root directory     workers[].root
 - **The worker's root directory** is opened once at start by the
   worker's service and is the root every spawn and file operation
   resolves beneath (skein's `runtime/io/files.md`). At every start the
-  component renames `workspaces`, `making` and `home` into `trash` if they
+  component renames `workspaces`, `gitdirs`, `making` and `home` into `trash` if they
   exist, and makes them afresh, private (0o700), with `trash` and `stores`
   if they are absent. `stores` stays: a cache whose loss costs only clones
   made again, so a restart finds each remote's store made
@@ -141,8 +146,8 @@ Every invocation has this shape:
 
 ```
 program    the repository's item's git, else workers[].git: an absolute path (configuration/README.md, section 3)
-argv       git -c <setting> … <command> <options> [--] <operands>
-directory  beneath the worker's root: the repository's directory, the workspace's for Clone's init, the store's for Clone's format and Fetch's fetch, or `making` for Store's clone
+argv       git -c <setting> … [--git-dir=<dir> [--work-tree=<tree>]] <command> <options> [--] <operands>
+directory  the worker's root, always
 environment  given whole (section 5)
 pipes      stdin (written, then closed), stdout, stderr
 ```
@@ -172,18 +177,25 @@ the blob-less store lacks (4.5). No other invocation names it: one that
 finds an object missing fails, and a push's thin pack skips a delta base it
 lacks rather than fetching it.
 
-- **Command-line settings win** over the repository's own configuration
-  for the keys they name. The rest is the repository's own, which `Clone`
-  wrote; standalone trusts it until contained trees keep agents out of
-  the git directory (section 10).
-- **The working directory is the spawn's,** resolved by io beneath the
-  worker's root, never `-C`: a repository's directory is
-  `workspaces/<token>/<repository>`, with the workspace's token in
-  decimal and the repository's name, one path component
-  (`../domain/worker/README.md`, 4.1), and a store's is `stores/<token>`.
+- **Command-line settings win** over the worker's directory's own
+  configuration for the keys they name. The rest is that directory's own,
+  which `Clone` wrote and no run's git writes (4.13); a run's writing it
+  directly is confinement's to close (section 10).
+- **Named, never found.** Every invocation runs at the worker's root,
+  never `-C`, and names its repository after the settings, by paths
+  beneath the root: in a checkout `--git-dir=gitdirs/<token>/<repository>`
+  and `--work-tree=workspaces/<token>/<repository>`, the workspace's token
+  in decimal and the repository's name one path component
+  (`../domain/worker/README.md`, 4.1); in a store `--git-dir=stores/<token>`
+  alone. `git version` names neither, and `init` and `clone` name the
+  directory they make as their operand. So git never looks for a
+  repository from where it runs, never reads the `.git` a work tree holds,
+  and reads the work tree as files: its `.gitignore` and `.gitattributes`
+  are content, and no filter, merge or diff driver runs, since only the
+  worker's configuration could name one.
 - **Operands.** Object ids are hex the component writes; branches appear
   only inside refspecs the component composes (`refs/heads/<branch>`);
-  the remote URL and Clone's and Store's directories come after `--`. So no operand can
+  the remote URL and the directories `init` and `clone` make come after `--`. So no operand can
   be read as an option.
 - **A renamed repository.** The remote is made from the owner and name
   the engine's root holds (channel.md, section 4). git follows Forgejo's
@@ -228,9 +240,9 @@ lacks rather than fetching it.
 
 | Operation | Invocations | Ends in |
 |---|---|---|
-| `Make` | none: two file operations, and one for each store it names | `Succeeded` |
-| `Clone` | 3, and a file's write | `Succeeded` |
-| `Fetch` | 2: one in the store, one in the repository | `Fetched { commit }` |
+| `Make` | none: four file operations, and one for each store it names | `Succeeded` |
+| `Clone` | 4, a file's write and the view | `Succeeded` |
+| `Fetch` | 2: one in the store, one in the worker's directory | `Fetched { commit }` |
 | `Create` | 1 | `Succeeded`, `Exists` |
 | `CheckOut` | 2 | `Succeeded` |
 | `Merge` | 1 or 2 | `Merged`, `Conflicted { files }` |
@@ -242,22 +254,25 @@ lacks rather than fetching it.
 
 Each may also end failed, with the fault of section 6. Below, `<url>` is
 the operation's `remote`, `<dir>` its repository's name, and ids are as
-section 3 writes them. The settings of section 3 precede each command.
+section 3 writes them. The settings of section 3 precede each command,
+and then the directories it names. Each operation that writes the
+worker's directory then writes the run's view (4.13).
 
 ### 4.1 Make
 
-`Make { workspace, stores }`: the workspace's directory, empty, and its
-references in each store it names gone.
+`Make { workspace, stores }`: the workspace's directory and its git
+directories' (`gitdirs/<token>`), empty, and its references in each store
+it names gone.
 
-1. `Rename` `workspaces/<token>` to `trash/<n>`, `<n>` the component's
+1. `Rename` `workspaces/<token>`, then `gitdirs/<token>`, to `trash/<n>`, `<n>` the component's
    next serial number in decimal, counted from a number the component
    draws from its seed at each start. Every rename into `trash` refuses
    replacement: `Exists` takes the next serial number and tries the same
    source again, one submission at a time, within the operation's deadline
    where it has one. Thus a name an earlier start left in `trash` is not
-   taken again, even when the seed repeats after a power loss. A workspace
+   taken again, even when the seed repeats after a power loss. A directory
    that does not exist is nothing to move.
-2. `MakeDirectory` `workspaces/<token>`, mode 0o700.
+2. `MakeDirectory` `workspaces/<token>`, then `gitdirs/<token>`, mode 0o700.
 3. For each store, in order, `Rename` `stores/<store>/refs/temper/<token>`
    to `trash/<n>`, the workspace's references there (4.3): a git killed
    while it fetched for this workspace may have left a lock among them,
@@ -266,7 +281,7 @@ references in each store it names gone.
 
 `Succeeded` once all are done; a failed file operation is `Broken`. So
 what the cache evicted, or a worker left behind before a restart, never
-fails a prepare (`../domain/worker/README.md`, section 8), and Make takes two
+fails a prepare (`../domain/worker/README.md`, section 8), and Make takes four
 file operations however large the old tree was.
 
 **The sweep** empties `trash`, which io cannot do in one operation (io
@@ -289,53 +304,58 @@ for the next pass, which starts at the next `Make` or the next start.
 
 ### 4.2 Clone
 
-`Clone { at, remote, store }`: the repository, empty, borrowing the
-store's objects. It names no identity: nothing reaches the forge.
+`Clone { at, remote, store }`: the repository's two git directories,
+empty, the worker's borrowing the store's objects. It names no identity:
+nothing reaches the forge.
 
-1. In the store's directory, `stores/<store>`:
+1. In the store, `--git-dir=stores/<store>`:
    ```
    git rev-parse --show-object-format
    ```
    whose stdout is the store's format, `sha1` or `sha256`, and a newline;
    anything else is `Broken`. A repository borrows only from a store of its
    own format.
-2. In the workspace's directory, which `Make` left without it:
+2. The worker's directory, in `gitdirs/<token>`, which `Make` left without it:
    ```
-   git init --quiet --object-format=<format> -- <dir>
+   git init --quiet --bare --object-format=<format> -- gitdirs/<token>/<dir>
    ```
-3. The file `<dir>/.git/objects/info/alternates` written whole, holding
-   `../../../../../stores/<store>/objects` and a newline: git reads a
-   relative alternate from the repository's object directory, so the file
-   names no path of the machine, and a run's own git reads the store too.
-4. In the repository's directory:
+3. The file `gitdirs/<token>/<dir>/objects/info/alternates` written whole,
+   holding `../../../../stores/<store>/objects` and a newline: git reads a
+   relative alternate from the object directory, so the file names no path
+   of the machine.
+4. In the worker's directory:
    ```
    git remote add origin -- <url>
    ```
    so `remote.origin.url` is the remote, as `git clone` wrote it, and no
    reference is fetched.
+5. The run's directory, made as 4.13 makes it, with `<format>`: the work
+   tree's directory and its `.git`, given the view.
 
-- **Exit 0 from all three, and the file written:** `Succeeded`. Any other
+- **Exit 0 from all four, and the files written:** `Succeeded`. Any other
   exit, or a failed file operation, is `Broken`. A repository the forge
   lacks is the store's `Missing { Repository }` (4.11), or, once its store
   is made, the first fetch's (4.3).
 - **Commits and trees, no checkout.** No `--depth`: the store holds every
   commit and tree of what was fetched, and no file contents (4.11), which
-  `CheckOut` and `Merge` fetch into the repository as they need them, from
+  `CheckOut` and `Merge` fetch into the worker's directory as they need them, from
   `origin`, as the remote `remote add` named (4.5, 4.6). The working tree
   is made by `CheckOut`.
-- **Borrowed, never shared.** The repository's configuration, references,
-  index and own objects are its own; only the store's objects are read
-  through it. The store is written by the worker's git alone.
+- **Bare, its work tree named.** The worker's directory holds no work
+  tree of its own: git takes it from `--work-tree` alone (section 3).
+- **Borrowed, never shared.** The worker's directory's configuration,
+  references, index and own objects are its own; only the store's objects
+  are read through it. The store is written by the worker's git alone.
 
 ### 4.3 Fetch
 
 `Fetch { at, store, remote, want, into, identity }`: two invocations.
 
-1. In the store's directory, `stores/<store>`:
+1. In the store, `--git-dir=stores/<store>`:
    ```
    git fetch --porcelain --verbose --filter=blob:none --no-tags --no-write-fetch-head --no-recurse-submodules -- <url> +<source>:refs/temper/<token>/<name>
    ```
-2. In the repository's directory:
+2. In the worker's directory:
    ```
    git update-ref refs/temper/<name> <new-id>
    ```
@@ -371,8 +391,9 @@ workspace's last fetches under its own token.
   fetched (`../domain/worker/checkouts.md`), forced, since a cached
   checkout's pin from an earlier hold may be anywhere; no other operation
   names it, so it stays where prepare put it for the hold.
-- **These two are the references the component writes** in a repository,
-  and their twins under the workspace's token in a store.
+- **These two are the references the component writes** in the worker's
+  directory, and their twins under the workspace's token in a store; the
+  view copies them into the run's (4.13).
 - **Missing:** `Repository` for a repository the forge does not have,
   `Branch` for a branch, or a default branch, it does not have; `Commit`
   for a commit it does not have (section 6). A full id is required: git
@@ -415,8 +436,8 @@ git clean -ffdxq                                                          only w
 - **The contents it lacks.** The store is blob-less (4.11), so the
   checkout finds the commit's trees there and not every file's contents:
   git fetches those it lacks from `origin` in one batch before it writes
-  the tree, into the repository's own objects, where the next checkout of
-  the repository finds them. The fetch is git's own (`git fetch origin
+  the tree, into the worker's directory's objects, where the next checkout of
+  the repository and the run's git find them. The fetch is git's own (`git fetch origin
   --filter=blob:none --stdin`, its object ids on stdin), a child in the
   invocation's process group, run with the invocation's settings and
   environment, so the identity's header reaches it and nothing else does.
@@ -496,8 +517,11 @@ parent's contents. Every other file of the tree is taken, a new one included,
 since a run's new work is as untracked as a stray file: only this name and the
 repository's own ignore rules tell them apart.
 
-**A checked delivery or unchecked save** (`snapshot` is present) first reads the checkout, with no other
-writer, before the staging and commit sequence below:
+**A checked delivery or unchecked save** (`snapshot` is present) first reads the worker's directory, with no other
+writer, before the staging and commit sequence below. Its HEAD and
+MERGE_HEAD are the worker's, which only the component's operations move,
+so a commit or a merge a run made in its own directory reaches a delivery
+as its files alone (4.13):
 
 ```
 git log -1 --format='%H %P' HEAD --                    HEAD and its committed parents
@@ -573,6 +597,19 @@ git commit-tree <tree> -p <parent> -p <m> -F -
   still knows them at the next attempt. A path that is gone, a directory
   or a link holds no marker: deleting a conflicted file resolves it, as
   `git add --all` then records.
+- **Past the checkout's `conflicts`,** no count refuses a commit. A
+  listing cut by `conflicts` or `stdout_bytes`, its first `conflicts`
+  paths kept as 4.6 keeps a merge's, is a page, and the rest come in pages
+  through an index of the component's own: it copies the index whole to
+  `gitdirs/<token>/<dir>/temper-scan`, and while a listing was cut, scans
+  its page, stages it in the copy (`git update-index --add --remove -z
+  --stdin`, the page's paths on stdin) and lists again, these two with
+  `GIT_INDEX_FILE` naming the copy by its absolute path. A listing that
+  ends whole is the last page, and the sequence goes on in the index
+  itself. A page with markers ends `Conflicted { files }`, its marked
+  paths, nothing staged in the index; every way out removes the copy. So
+  a merge job's or a resolution's commit scans every file its merge left,
+  whatever the run staged in its own index.
 - **Why plumbing.** The domain always records both parents of a merge,
   also when git found `theirs` already merged and wrote no `MERGE_HEAD`,
   and git refuses to write that pseudo-reference through `update-ref`.
@@ -717,9 +754,9 @@ two `Store`s of one store at once, which the cache never starts
    (`../domain/worker/checkouts.md`), and the fetches that follow bring it
    up to date. Something there that is not a directory is `Broken`.
 3. `MakeDirectory` `making/<m>`, mode 0o700, `<m>` the component's next
-   serial number, the one `trash` names take, and in `making`:
+   serial number, the one `trash` names take, and:
    ```
-   git clone --bare --filter=blob:none --single-branch --no-tags --quiet -- <url> <m>
+   git clone --bare --filter=blob:none --single-branch --no-tags --quiet -- <url> making/<m>
    ```
    which git accepts into the empty directory.
 4. `Rename` `making/<m>` to `stores/<store>`, never replacing: where
@@ -760,13 +797,53 @@ two `Store`s of one store at once, which the cache never starts
 
 `Point { at, into, commit }`: the repository's `into` reference at
 `commit`, which the repository already reaches through its store, with
-no fetch. Local; it names no identity. In the repository's directory:
+no fetch. Local; it names no identity. In the worker's directory:
 
 ```
 git update-ref refs/temper/<name> <commit>
 ```
 
 `<name>` as in 4.3. Exit 0: `Succeeded`; any other is `Broken`.
+
+### 4.13 The run's git directory
+
+The `.git` in the work tree is the run's (`../domain/worker/checkouts.md`,
+*Two git directories*): its index, references and configuration are the
+run's to write, and no invocation reads it (section 3). The component
+writes into it, never reading what is there, and makes it:
+
+- **The view,** after each operation that writes the worker's directory
+  (`Clone`, `Fetch`, `Point`, `CheckOut`, `Merge`, `Commit`, `Reset`),
+  before it ends, unless it ends failed: the
+  worker's `HEAD`, `index`, `MERGE_HEAD`, `MERGE_MSG`, `MERGE_MODE`,
+  `refs/temper/fetched` and `refs/temper/landing`, each copied whole where
+  the worker's directory has it and removed where it has none; and
+  `objects/info/alternates`, holding
+  `../../../../../gitdirs/<token>/<repository>/objects` and a newline, so
+  the run's git reads the worker's objects and, through their alternates,
+  the store's. So a run's checkout is clean at its start, shows a merge
+  the worker left in progress, and has the pin its checks take their base
+  from (`tools/pre-pr/design.md`, section 2).
+- **Each file whole or not at all:** written to `temper-view.tmp` in its
+  directory, then renamed over its name, so a link or a file the run left
+  there is replaced, never followed; a directory missing on the way is
+  made, 0o700. The worker's files are read without following a link, in
+  chunks of `read_bytes`.
+- **Made again where it fails.** Where a step in the run's directory
+  fails (it is a file naming another directory, a link, or holds a file
+  where a directory goes), or there is none yet (4.2), the component
+  renames `.git` to `trash/<n>` (none is nothing to move), runs `git init
+  --quiet --object-format=<format> -- workspaces/<token>/<repository>`,
+  the format the worker's directory's (4.2's first command, on it), and
+  writes the view into what it made. What the run kept there, its own
+  branches and its checks' caches, goes with it. A failure then, or one
+  reading the worker's directory, is `Broken`.
+- **The rest it touches there:** the goal's reds files, beneath
+  `workspaces/<token>/<repository>/.git/temper`, a path the component
+  writes and never asks of git (`../domain/forge/reds.md`, 5.2); and the
+  check's report, `temper/check-results` beside them, the one file of the
+  run's it reads, as bytes, without following a link, never through git
+  (`../domain/forge/reds.md`, 5.5).
 
 ## 5. Credentials and environment
 
@@ -864,7 +941,7 @@ variable of the worker's own process reaches git.
   when it failed (`PushDiagnostic::command`): git's subcommand as its argv
   names it (section 4), `checkout`, `clean`, `fetch`, `merge-base` and the
   rest, or, for one of the sequence's file operations, its word: `store`,
-  `install`, `alternates`, `reds`, `results` or `scan`. It is the
+  `install`, `alternates`, `reds`, `results`, `scan` or `view`. It is the
   invocation running when the deadline passed, the cancel won or git
   failed, or, once the next was asked of io, that one. A `Failed { fault }`
   names none, nor does a diagnostic made outside the component (no
@@ -956,7 +1033,9 @@ checks this document's contract:
     `making` among them, the store's clone and fetch blob-less, and a
     checkout's and a merge's promisor setting and header; that no value of
     an identity appears in an argument; the
-    message's bytes; the alternates file's bytes;
+    message's bytes; both alternates files' bytes; that every invocation
+    runs at the root and names its directories (section 3); the view's
+    files, its removals and its making again (4.13);
   - **the parsers:** fetch's porcelain line, push's status lines, NUL
     lists, ids of 40 and 64 digits and malformed ones, the conversions
     both ways, and the classifier of section 6, each against transcripts
@@ -987,7 +1066,8 @@ checks this document's contract:
   the deadline at every invocation of every sequence; a cancel at every
   invocation and racing an exit; a missing identity's value; file
   operations failing; a `Store` whose store another made first; the sweep
-  over deep and wide trees in pages of two. Its referee: each operation ends exactly once, with the outcome
+  over deep and wide trees in pages of two; a view whose every step in the
+  run's directory fails once, made again, and fails twice. Its referee: each operation ends exactly once, with the outcome
   its scripted outputs imply; no invocation starts after a deadline or a
   cancel; every child is closed before its operation's terminal; no
   credential in an argument; scenario memory peaks under their ceilings.
@@ -999,39 +1079,38 @@ checks this document's contract:
   transcript's arguments and environment, run on the fake over the
   equivalent fixture, give the same exit status, the same stdout once
   masked, and stderr lines that classify alike.
+- **Real git, focused:** the checkout world's `suite`, on a throwaway
+  Forgejo: a run's `.git` rewritten as a file naming another directory, a
+  filter driver, a hook path and an alias in its configuration, its
+  references moved, and the worker's next operations running none of it
+  and delivering the work tree's files; a run's own git at its start and
+  after a delivery; a checkout made with one directory taken on; a merge's
+  commit past `conflicts`.
 - **The process tier** runs the machine's git, 2.41 or later, against
   its owned Forgejo: clone, fetch, create, check out, commit, push, in
   its story (`../testing/process-tier.md`).
 
 ## 10. Open questions
 
-- **Containment.** In standalone, git and agents run as one user in
-  process groups: an agent could read a running git's environment, or
-  write a repository's configuration (a URL rewrite, a proxy) before the
-  next invocation, or a store's, which sits beside the workspaces. A fetch
-  runs in the store, whose configuration only `Store`'s clone wrote, so a
-  checkout's own configuration reaches the forge only through a push, the
-  delivery's second-parent fetch (4.7), and a check out's or a merge's
-  lazy fetch, which takes `origin`'s URL from it (4.5). Default: accepted on one person's machine
-  (credentials.md, section 8); the command-line settings of section 3
-  and the URL on the command line cover what they name. Contained trees
-  (skein's `runtime/io/processes.md`, 3), with the git directory and the
-  stores unwritable by an agent's tree, close both. An agent's program surviving a forced stop
-  also needs containment on one person's machine; git's configured
-  helpers stay in its group (`git.md`, section 7; setup/README.md, section 9).
+- **Containment.** No git metadata a run writes in its `.git` reaches an
+  invocation (section 3, 4.13), but git and agents still run as one user:
+  an agent's command could read a running git's environment, or write the
+  worker's directory or a store directly, beside its workspace. Default:
+  accepted until confinement's fence keeps a run's commands out of both
+  (`../draft/confinement.md`, 5.2 and 6.3); the command-line settings of
+  section 3 and the URL on the command line cover what they name. An
+  agent's program surviving a forced stop also needs containment on one
+  person's machine; git's configured helpers stay in its group (`git.md`,
+  section 7; setup/README.md, section 9).
+- **A nested repository** in a work tree, a directory holding its own
+  `.git`, is staged by `add --all` as git stages one, by the commit its
+  HEAD names, which git reads without running anything it configures; a
+  `clean` removes it (4.5). Default: so, the run's delivery being its own.
 - **A stray file of another name** (4.7): `git add` still takes it, a new
   file being indistinguishable from a run's new work, unless the repository
   ignores it. Default: the repository's `.gitignore` is where such a name goes.
   A hidden log in conflict in a merge stays unmerged, so `write-tree` ends
   `Broken`; no story makes one.
-- **A merge's commit past the checkout's `conflicts`** (4.7): its scan
-  must read every unmerged path, so a listing past `conflicts` or
-  `stdout_bytes` ends it `Broken`, which the domain takes as transient. A
-  merge job's command stages each file it settles, so its commit lists
-  only what it left. A resolution's agent stages nothing, so one that
-  settles more files than `conflicts` cannot deliver. Default: as it
-  stands; scanning the listing in pages, staging each page found clean
-  before listing the next, would close it.
 - **HEAD after saving unfinished work.** Default: a commit without a delivery snapshot
   does not move HEAD (section 4.7). Preparation follows each clean producer
   merge or merged head's commit with `CheckOut`, moving HEAD and clearing
