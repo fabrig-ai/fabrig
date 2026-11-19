@@ -31,6 +31,7 @@ pub const JOURNEYS: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../docs/desi
 pub enum Refusal {
     Name(String),
     OtherClient { name: String },
+    Moved { name: String },
     TuiProof { name: String, refusal: temper_client_shell_tui::journey::Refusal },
     TuiFound { name: String, found: temper_client_shell_tui::journey::Found, file: Option<String> },
     TuiWalk { name: String, unreadable: temper_client_shell_tui::journey::Unreadable },
@@ -98,6 +99,7 @@ pub fn add_to(
     if !named(name) {
         return Err(Refusal::Name(name.to_owned()));
     }
+    refuse_moved(journeys, tui_journeys, name)?;
     let is_tui = recording
         .split(|byte| *byte == b'\n')
         .skip_while(|line| !line.starts_with(b"clocks "))
@@ -266,6 +268,9 @@ fn names(journeys: &Path) -> Result<Vec<String>, Refusal> {
         if !entry.file_type().map_err(|_| io_refusal(&path))?.is_dir() {
             continue;
         }
+        if moved(&path)? {
+            continue;
+        }
         let recording = path.join("recording");
         if recording.try_exists().map_err(|_| io_refusal(&recording))? {
             names.push(entry.file_name().into_string().map_err(|_| io_refusal(&path))?);
@@ -273,6 +278,19 @@ fn names(journeys: &Path) -> Result<Vec<String>, Refusal> {
     }
     names.sort();
     Ok(names)
+}
+
+fn moved(directory: &Path) -> Result<bool, Refusal> {
+    temper_client_walk_lines::walk::moved(directory).map_err(|_| io_refusal(&directory.join("walk")))
+}
+
+fn refuse_moved(web: &Path, tui: &Path, name: &str) -> Result<(), Refusal> {
+    for root in [web, tui] {
+        if moved(&root.join(name))? {
+            return Err(Refusal::Moved { name: name.to_owned() });
+        }
+    }
+    Ok(())
 }
 
 fn print_one(out: &Path, name: &str, recording: &[u8]) -> Result<Option<Stale>, Refusal> {
