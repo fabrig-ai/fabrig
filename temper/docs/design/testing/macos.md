@@ -228,7 +228,11 @@ built by a workflow of its own, which tests nothing (`../release.md`, 5.1).
   waits until the command has ended. The part is then cut short, a
   fault (5.4), its log's tail annotated as a failing check's, and its
   last steps prune and save its dependencies' build (6.2) and print its
-  disk within the minutes kept.
+  disk within the minutes kept. The prune's one command, the query
+  (`cargo metadata`) naming the workspace's packages and targets, builds
+  nothing and so runs past the deadline, still through the helper's
+  log; where it fails, the prune warns, removes nothing it would need
+  those names for, and the save goes on.
 - **A cancel stops it the same way:** the steps that install, build or
   run run the helper as the step's own process (`exec`), so the SIGINT
   or SIGTERM a cancel or GitHub's timeout sends the step reaches it;
