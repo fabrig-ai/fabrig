@@ -320,6 +320,7 @@ fn each_phone_target_stands_44_pixels() {
         "#app > .temper-work-page .temper-work-card a::after",
         "#app > .temper-work-page .temper-work-row > a::after",
         "#app > .temper-work-page .temper-work-section-head > a::after",
+        "#app > .temper-settings .temper-settings-row :is(button, a)",
     ] {
         assert!(
             rules.iter().any(|(selectors, declarations)| {
@@ -369,4 +370,33 @@ fn the_top_bar_night_switch_keeps_the_requested_rules() {
 fn the_top_bar_brand_keeps_the_left_edge_without_steps() {
     let css = include_str!("../../../temper-client-shell-web/temper.css");
     assert!(css.contains("#app > .temper-top > .temper-brand { margin-right: auto; }"));
+}
+
+#[test]
+#[expect(clippy::disallowed_macros, reason = "ordinary tests pin the requested stylesheet rules as text")]
+fn account_rows_keep_the_requested_quiet_rules() {
+    let css = include_str!("../../../temper-client-shell-web/temper.css");
+    for rule in [
+        "#app > .temper-settings .temper-settings-row > .temper-account-check, #app > .temper-settings .temper-settings-row > .temper-account-pays { font-size: 13.5px; color: var(--gf-muted); }",
+        "#app > .temper-settings .temper-settings-row :is(button, a), #app > .temper-settings .temper-settings-row li > :is(button, a),\n#app > .temper-settings .temper-settings-section-head > .temper-settings-btn, #app > .temper-settings .temper-settings-sign-out .temper-settings-btn {\n  min-height: 32px; padding: 5px 10px; border: 0; border-radius: 6px; background: none; color: var(--gf-muted); font-size: 13.5px; font-weight: 400; }",
+        "#app > .temper-settings .temper-settings-row :is(button, a):hover, #app > .temper-settings .temper-settings-section-head > .temper-settings-btn:hover,\n#app > .temper-settings .temper-settings-sign-out .temper-settings-btn:hover { background: var(--gf-hover); color: var(--gf-ink); }",
+        "#app > .temper-settings .temper-settings-row li > button:first-of-type { margin-left: -10px; }",
+        "#app > .temper-settings .temper-settings-row > .temper-account-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; margin: 10px 0 0 -10px; }",
+        "#app > .temper-settings .temper-account-acts > .temper-account-remove { margin-left: auto; }",
+        "#app > .temper-settings .temper-account-acts > .temper-account-remove:hover { color: var(--temper-red); }",
+        "#app > .temper-settings .temper-account-acts > .temper-account-move, #app > .temper-settings .temper-settings-row li > .temper-account-move { min-width: 32px; justify-content: center; padding: 5px 0; font-size: 0; }",
+        "#app > .temper-settings .temper-account-up::before { content: '↑'; font-size: 15px; }",
+        "#app > .temper-settings .temper-account-down::before { content: '↓'; font-size: 15px; }",
+        "@media (max-width: 760px) {\n  #app > .temper-settings .temper-settings-row :is(button, a) { min-height: 44px; }\n}",
+    ] {
+        assert!(css.contains(rule), "missing account-row rule: {rule}");
+    }
+    for old in [
+        ".temper-settings-row :is(button, a) { display: inline-flex; align-items: center; gap: 8px; min-height: 40px;",
+        ".temper-settings-row li > :is(button, a) { min-height: 34px;",
+        ".temper-settings .temper-settings-small { min-height: 34px;",
+        ".temper-settings-row .temper-flow-primary { border-color:",
+    ] {
+        assert!(!css.contains(old), "replaced box rule remains: {old}");
+    }
 }

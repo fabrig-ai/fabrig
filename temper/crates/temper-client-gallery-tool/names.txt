@@ -8,6 +8,7 @@ accounts-program-needs-sign-in
 accounts-reference
 accounts-removing
 accounts-renewed
+accounts-shared
 accounts-signing-in
 accounts-solo
 accounts-states

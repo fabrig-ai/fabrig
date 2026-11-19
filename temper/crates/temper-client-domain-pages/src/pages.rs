@@ -1386,6 +1386,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             None => false,
         };
     pages.accounts.configure(owner, &mut pages.next, out);
+    pages.accounts.configure_members(pages.accounts_open, client, &mut pages.next, out);
     let role = pages.builders_open
         && match accounts::current_me(client) {
             Some(me) => me.deployment_role.is_some(),
@@ -1611,6 +1612,11 @@ fn told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, out: 
         return true;
     }
     if let Some(members) = &mut pages.members
+        && members.told(&told)
+    {
+        return true;
+    }
+    if let Some(members) = &mut pages.accounts.members
         && members.told(&told)
     {
         return true;

@@ -44,6 +44,15 @@ pub const MS_GOAL: Style = Style { owner: owner(), token: 810 };
 /// A milestone in a need's from line (client/pages/needs-you.md, 1).
 pub const MS_FROM: Style = Style { owner: owner(), token: 830 };
 
+/// Account rows' quiet lines and moves (client/pages/accounts.md, 2).
+pub const ACCOUNT_CHECK: Style = Style { owner: owner(), token: 831 };
+pub const ACCOUNT_PAYS: Style = Style { owner: owner(), token: 832 };
+pub const ACCOUNT_ACTS: Style = Style { owner: owner(), token: 833 };
+pub const ACCOUNT_REMOVE: Style = Style { owner: owner(), token: 834 };
+pub const ACCOUNT_MOVE: Style = Style { owner: owner(), token: 835 };
+pub const ACCOUNT_UP: Style = Style { owner: owner(), token: 836 };
+pub const ACCOUNT_DOWN: Style = Style { owner: owner(), token: 837 };
+
 /// The goal column (client/web/look.md).
 pub const GOAL: Style = Style { owner: owner(), token: 377 };
 /// The goal heading (client/web/look.md).
@@ -1604,6 +1613,21 @@ pub const NAMES: Names<'static> = Names {
         b"temper-reserved-828",
         b"temper-reserved-829",
         b"temper-ms-from",
+        b"temper-account-check",
+        b"temper-account-pays",
+        b"temper-account-acts",
+        b"temper-account-remove",
+        b"temper-account-move",
+        b"temper-account-up",
+        b"temper-account-down",
+        b"temper-reserved-838",
+        b"temper-reserved-839",
+        b"temper-reserved-840",
+        b"temper-reserved-841",
+        b"temper-reserved-842",
+        b"temper-reserved-843",
+        b"temper-reserved-844",
+        b"temper-reserved-845",
     ],
     regions: &[b"temper-link"],
 };

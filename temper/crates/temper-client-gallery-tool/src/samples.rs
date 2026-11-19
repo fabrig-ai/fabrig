@@ -133,7 +133,7 @@ impl Sample {
         }
     }
 }
-pub const N: usize = 445;
+pub const N: usize = 446;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -1278,6 +1278,7 @@ pub fn samples() -> [Sample; N] {
             then: Shown,
         },
         Sample { name: "accounts-states", world: Reference, address: Address::Accounts, then: Shown },
+        Sample { name: "accounts-shared", world: Reference, address: Address::Accounts, then: Shown },
         Sample { name: "accounts-expiring", world: Reference, address: Address::Accounts, then: Shown },
         Sample { name: "accounts-key", world: Reference, address: Address::Accounts, then: Shown },
         Sample { name: "accounts-removing", world: Reference, address: Address::Accounts, then: Shown },
@@ -1904,6 +1905,7 @@ pub fn domain(sample: &Sample) -> Domain {
             | "work-empty"
             | "members"
             | "members-refused"
+            | "accounts-shared"
             | "limits"
             | "limits-not-owner"
     ) {

@@ -4900,6 +4900,27 @@ static HOLDS: [Holds; samples::N] = [
         parts: &[Part::Named { role: Role::Link, name: "Home" }, Part::Absent { role: Role::Button, name: "Answer" }],
     },
     Holds {
+        name: "accounts-shared",
+        heading: "What agents run on.",
+        parts: &[
+            Part::Named { role: Role::Heading { level: 2 }, name: "Your accounts · 2" },
+            Part::Described {
+                role: Role::Disclosure,
+                name: "Claude subscription · sam@example.com · Anthropic · held by Owner",
+                description: "Ready · Pays for 11 people",
+            },
+            Part::Described {
+                role: Role::Disclosure,
+                name: "ChatGPT · sam@example.com · OpenAI · held by Owner",
+                description: "Ready · Pays for 11 people",
+            },
+            Part::Named {
+                role: Role::Paragraph,
+                name: "Pays for Ana, Ben, Person 3, Dara, Eli, Femi, Gus, Hana and 3 more.",
+            },
+        ],
+    },
+    Holds {
         name: "accounts-states",
         heading: "What agents run on.",
         parts: &[

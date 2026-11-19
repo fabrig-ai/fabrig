@@ -235,6 +235,7 @@ pub(super) fn refused(b: &mut Builder, w: &Words, refusal: c::AccountRefusal) {
     };
     run(b, w, word);
 }
+#[expect(clippy::too_many_lines, reason = "account lists retain their full order when drawing bounded rows")]
 pub fn main(
     b: &mut Builder,
     root: &Domain,
@@ -295,8 +296,9 @@ pub fn main(
                 if crate::common::accounts::playground(root, row.provider) || shown >= bindings.counts().accounts {
                     continue;
                 }
-                rows::own(b, root, w, bindings, row, text_per_node);
-                shown = shown.checked_add(1).expect("displayed rows fit");
+                let next = shown.checked_add(1).expect("displayed rows fit");
+                rows::own(b, root, w, bindings, row, (shown != 0, u64::from(next) < count || doc.cut), text_per_node);
+                shown = next;
             }
             b.close();
         }
@@ -316,8 +318,19 @@ pub fn main(
         b.close();
         b.open(Role::Slot);
         b.style(look::SETTINGS_LINES);
-        for row in doc.accounts.iter().take(usize::try_from(bindings.counts().accounts).expect("u32 fits")) {
-            rows::deployment(b, root, w, bindings, row, text_per_node);
+        for (index, row) in
+            doc.accounts.iter().take(usize::try_from(bindings.counts().accounts).expect("u32 fits")).enumerate()
+        {
+            let next = u32::try_from(index).expect("displayed rows fit").checked_add(1).expect("displayed rows fit");
+            rows::deployment(
+                b,
+                root,
+                w,
+                bindings,
+                row,
+                (index != 0, next < doc.accounts.len() || doc.cut),
+                text_per_node,
+            );
         }
         b.close();
         omitted(b, w, W::AccountsOmitted, doc.accounts.len(), bindings.counts().accounts);
