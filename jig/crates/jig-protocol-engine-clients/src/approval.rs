@@ -265,7 +265,12 @@ impl Component {
                 Decision::Waiting => w::ApprovalState::Waiting(
                     w::ApprovalWaiting::new(
                         &env.limits.wire,
-                        w::ApprovalWaitingParts { asked: approval.asked.as_nanos() },
+                        w::ApprovalWaitingParts {
+                            asked: approval.asked.as_nanos(),
+                            kind: w::ApprovalKind::Listener,
+                            source: None,
+                            reader: None,
+                        },
                     )
                     .expect("fixed waiting fits"),
                 ),
@@ -286,7 +291,10 @@ impl Component {
                 Decision::Waiting => {
                     if approve {
                         approval.decision = Decision::Approved { sign_in };
-                        w::ApprovalDecided::Approved
+                        w::ApprovalDecided::Approved(
+                            w::ApprovalApproved::new(&w::CEILINGS, w::ApprovalApprovedParts { loopback: None })
+                                .expect("fixed approval fits"),
+                        )
                     } else {
                         self.approval.end(&digest, End::Refused);
                         w::ApprovalDecided::Refused

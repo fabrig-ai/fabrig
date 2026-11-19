@@ -26,6 +26,17 @@ fn body(secret: &[u8]) -> Box<[u8]> {
     bytes.into()
 }
 
+fn approval_body(secret: &[u8]) -> Box<[u8]> {
+    let record = w::ApprovalSignIn::new(
+        &w::CEILINGS,
+        w::ApprovalSignInParts { secret: skein_lib::Secret::new(secret.into()), grant: None },
+    )
+    .expect("approval take");
+    let mut bytes = Writer::new(usize::try_from(record.measure()).expect("small take"));
+    record.encode(&mut bytes).expect("measured take");
+    bytes.finish()
+}
+
 fn send(message: Sent, credential: Option<Box<[u8]>>) -> Line {
     Line::Send { exchange: 1, message, credential }
 }
@@ -103,7 +114,7 @@ fn each_original_is_replaced_and_scanned_in_each_field() {
             "approval take",
             Kind::Approval,
             approval.as_slice(),
-            vec![send(Sent::SignInApproval(body(&approval)), None)],
+            vec![send(Sent::SignInApproval(approval_body(&approval)), None)],
             vec![],
         ),
         ("credential start", Kind::Credential, credential.as_ref(), vec![Line::Credential(credential.clone())], vec![]),

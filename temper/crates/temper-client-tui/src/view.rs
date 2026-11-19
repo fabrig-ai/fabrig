@@ -181,7 +181,7 @@ fn approval_line(root: &Domain, words: &Words) -> Option<(Box<[u8]>, Style)> {
             }
             None
             | Some(
-                NotSignedIn::Approval(Taking::Waiting)
+                NotSignedIn::Approval(Taking::Waiting | Taking::NotGranted)
                 | NotSignedIn::LinkUsed
                 | NotSignedIn::LinkExpired
                 | NotSignedIn::LinkUnknown,

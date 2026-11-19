@@ -52,9 +52,15 @@ fn reached(state: State) -> Domain {
             }
         }
         State::Reading => {}
-        State::Asking { asked } => read(&mut root, Read::Waiting { asked }),
+        State::Asking { asked } => read(
+            &mut root,
+            Read::Waiting { asked, kind: jig_client::ApprovalKind::Listener, source: None, reader: None },
+        ),
         State::Deciding { approve, asked } => {
-            read(&mut root, Read::Waiting { asked });
+            read(
+                &mut root,
+                Read::Waiting { asked, kind: jig_client::ApprovalKind::Listener, source: None, reader: None },
+            );
             act(&mut root, if approve { Act::Approve } else { Act::Refuse });
         }
         State::Approved => read(&mut root, Read::Approved),
@@ -62,7 +68,15 @@ fn reached(state: State) -> Domain {
         State::Refused => read(&mut root, Read::Refused),
         State::Expired => read(&mut root, Read::Expired),
         State::Used => {
-            read(&mut root, Read::Waiting { asked: Wall::EPOCH });
+            read(
+                &mut root,
+                Read::Waiting {
+                    asked: Wall::EPOCH,
+                    kind: jig_client::ApprovalKind::Listener,
+                    source: None,
+                    reader: None,
+                },
+            );
             act(&mut root, Act::Approve);
             f::root_event(
                 &mut root,

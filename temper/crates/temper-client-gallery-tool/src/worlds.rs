@@ -334,7 +334,12 @@ pub(super) fn approve_world(name: &str) -> Domain {
         "approve-signed-out" => step(&mut root, Event::SignedOut, &mut out),
         _ => {
             let state = match name {
-                "approve-asking" | "approve-used" => ApprovalState::Waiting { asked },
+                "approve-asking" | "approve-used" => ApprovalState::Waiting {
+                    asked,
+                    kind: jig_client::ApprovalKind::Listener,
+                    source: None,
+                    reader: None,
+                },
                 "approve-approved" => ApprovalState::Approved,
                 "approve-signed-in" => ApprovalState::Taken,
                 "approve-refused" => ApprovalState::Refused,

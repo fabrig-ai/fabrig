@@ -225,7 +225,7 @@ pub(crate) fn answered(root: &mut Domain, env: &Env<Limits>, answer: jig_client:
 fn read_state(state: jig_client::ApprovalState, from: State) -> State {
     use jig_client::ApprovalState;
     match state {
-        ApprovalState::Waiting { asked } => State::Asking { asked },
+        ApprovalState::Waiting { asked, .. } => State::Asking { asked },
         ApprovalState::Approved => State::Approved,
         ApprovalState::Taken => State::SignedIn,
         ApprovalState::Refused => State::Refused,
@@ -244,7 +244,7 @@ fn read_state(state: jig_client::ApprovalState, from: State) -> State {
 fn decided_state(decided: jig_client::Decided) -> State {
     use jig_client::Decided;
     match decided {
-        Decided::Approved => State::Approved,
+        Decided::Approved { .. } => State::Approved,
         Decided::Refused => State::Refused,
         Decided::Used => State::Used,
         Decided::Expired => State::Expired,

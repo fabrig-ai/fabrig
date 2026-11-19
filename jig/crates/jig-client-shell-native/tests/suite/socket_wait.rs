@@ -196,7 +196,7 @@ impl Host for Process {
                     | client::Event::StartUnlinked { .. }
                     | client::Event::SignIn { .. }
                     | client::Event::AskLink
-                    | client::Event::AskApproval
+                    | client::Event::AskApproval { .. }
                     | client::Event::ReadApproval { .. }
                     | client::Event::DecideApproval { .. }
                     | client::Event::ApprovalAnswer { .. }

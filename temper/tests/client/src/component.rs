@@ -486,7 +486,7 @@ impl Composition {
                 link::Event::Streamed { message } => jig_client::Event::Streamed { message },
                 link::Event::StreamGone => jig_client::Event::StreamGone,
                 link::Event::AskLink
-                | link::Event::AskApproval
+                | link::Event::AskApproval { .. }
                 | link::Event::ReadApproval { .. }
                 | link::Event::DecideApproval { .. }
                 | link::Event::SignIn { .. }
@@ -524,7 +524,7 @@ impl Composition {
 
     pub fn approval(&mut self, client: ClientId, act: jig_client::ApprovalAct) {
         let event = match act {
-            jig_client::ApprovalAct::Ask => link::Event::AskApproval,
+            jig_client::ApprovalAct::Ask { port } => link::Event::AskApproval { port },
             jig_client::ApprovalAct::Read { code } => link::Event::ReadApproval { code },
             jig_client::ApprovalAct::Decide { code, approve } => link::Event::DecideApproval { code, approve },
         };
@@ -532,7 +532,7 @@ impl Composition {
     }
 
     pub fn ask_approval(&mut self, client: ClientId) {
-        self.approval(client, jig_client::ApprovalAct::Ask);
+        self.approval(client, jig_client::ApprovalAct::Ask { port: None });
     }
 
     #[must_use]
@@ -544,7 +544,7 @@ impl Composition {
         let (secret, _, _) = self.asked.get(&client).expect("client asked for approval");
         let secret = secret.clone();
         self.pending_reply = Some(Reply::SignIn { client });
-        self.link(client, link::Event::SignIn { with: link::With::Approval { secret } });
+        self.link(client, link::Event::SignIn { with: link::With::Approval { secret, grant: None } });
     }
 
     /// Bind the identity answered by the engine before the front releases parked work.

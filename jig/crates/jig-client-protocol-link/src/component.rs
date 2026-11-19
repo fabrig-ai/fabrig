@@ -137,7 +137,7 @@ impl Link {
             Event::OpenStream => self.open_stream(now, out),
             Event::Authorize { query } => self.authorize(query, out),
             Event::AskLink => self.ask_link(out),
-            Event::AskApproval => self.ask_approval(out),
+            Event::AskApproval { port } => self.ask_approval(port, out),
             Event::ReadApproval { code } => self.read_approval(code, out),
             Event::DecideApproval { code, approve } => self.decide_approval(code, approve, out),
             Event::Start { kept } => self.start_store(kept, out),

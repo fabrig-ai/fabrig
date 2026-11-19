@@ -15,7 +15,7 @@ pub enum Event {
     SignOut,
     Authorize { query: Box<[u8]> },
     AskLink,
-    AskApproval,
+    AskApproval { port: Option<u16> },
     ReadApproval { code: ApprovalCode },
     DecideApproval { code: ApprovalCode, approve: bool },
     ApprovalAnswer { answer: Approval },
@@ -110,14 +110,14 @@ pub(crate) struct DeferredRead {
 }
 #[derive(Debug)]
 enum SendAgain {
-    Approval { secret: Secret },
+    Approval { secret: Secret, grant: Option<Secret> },
     Service(Secret),
     Link { secret: Secret, held: Option<Secret> },
 }
 impl SendAgain {
     fn with(&self) -> With {
         match self {
-            Self::Approval { secret } => With::Approval { secret: secret.clone() },
+            Self::Approval { secret, grant } => With::Approval { secret: secret.clone(), grant: grant.clone() },
             Self::Service(credential) => With::Service(credential.clone()),
             Self::Link { secret, held } => With::Link { secret: secret.clone(), held: held.clone() },
         }
@@ -245,7 +245,9 @@ impl Client {
                 self.not_signed_in(None);
                 self.send_again = match &with {
                     With::Service(credential) if credential.len() == 40 => Some(SendAgain::Service(credential.clone())),
-                    With::Approval { secret } => Some(SendAgain::Approval { secret: secret.clone() }),
+                    With::Approval { secret, grant } => {
+                        Some(SendAgain::Approval { secret: secret.clone(), grant: grant.clone() })
+                    }
                     With::Link { secret, held } => Some(SendAgain::Link { secret: secret.clone(), held: held.clone() }),
                     With::Service(_) | With::Held(_) | With::Transport => None,
                 };
@@ -266,7 +268,7 @@ impl Client {
                 }
             }
             Event::AskLink => self.link_step(now, link::Event::AskLink),
-            Event::AskApproval => self.link_step(now, link::Event::AskApproval),
+            Event::AskApproval { port } => self.link_step(now, link::Event::AskApproval { port }),
             Event::ReadApproval { code } => self.link_step(now, link::Event::ReadApproval { code }),
             Event::DecideApproval { code, approve } => {
                 self.link_step(now, link::Event::DecideApproval { code, approve });
@@ -439,7 +441,7 @@ impl Client {
                 self.up(env, Up::SignedIn);
             }
             Event::AskLink => out.push(UnlinkedRequest::AskedLink(AskedLink::NotAsked(NotAsked::Lost))),
-            Event::AskApproval => out.push(UnlinkedRequest::ApprovalAct(ApprovalAct::Ask)),
+            Event::AskApproval { port } => out.push(UnlinkedRequest::ApprovalAct(ApprovalAct::Ask { port })),
             Event::ReadApproval { code } => out.push(UnlinkedRequest::ApprovalAct(ApprovalAct::Read { code })),
             Event::DecideApproval { code, approve } => {
                 out.push(UnlinkedRequest::ApprovalAct(ApprovalAct::Decide { code, approve }));
@@ -521,7 +523,15 @@ impl Client {
                 self.signing_until =
                     Some(env.now.saturating_add(Duration::from_nanos(self.rng.between(nanos.div_euclid(2), nanos))));
             }
-            link::Signing::Approval(Taking::Waiting) if !self.signing_out && self.send_again.is_some() => {
+            link::Signing::Approval(taking @ (Taking::Waiting | Taking::NotGranted))
+                if !self.signing_out && self.send_again.is_some() =>
+            {
+                if taking == Taking::NotGranted {
+                    match &mut self.send_again {
+                        Some(SendAgain::Approval { grant, .. }) => *grant = None,
+                        Some(SendAgain::Link { .. } | SendAgain::Service(_)) | None => {}
+                    }
+                }
                 self.signing_span = None;
                 self.signing_until = Some(env.now.saturating_add(APPROVAL_AGAIN));
             }
@@ -826,7 +836,7 @@ pub const APPROVAL_AGAIN: Duration = Duration::from_secs(1);
 /// What an unlinked client's host carries for approval (jig/docs/design/client/domain/client/README.md, 4.4).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ApprovalAct {
-    Ask,
+    Ask { port: Option<u16> },
     Read { code: ApprovalCode },
     Decide { code: ApprovalCode, approve: bool },
 }
@@ -841,7 +851,7 @@ impl core::fmt::Debug for Event {
             Self::SignOut => f.write_str("SignOut"),
             Self::Authorize { query } => f.debug_struct("Authorize").field("query", query).finish(),
             Self::AskLink => f.write_str("AskLink"),
-            Self::AskApproval => f.write_str("AskApproval"),
+            Self::AskApproval { port } => f.debug_struct("AskApproval").field("port", port).finish(),
             Self::ReadApproval { code } => f.debug_struct("ReadApproval").field("code", code).finish(),
             Self::DecideApproval { code, approve } => {
                 f.debug_struct("DecideApproval").field("code", code).field("approve", approve).finish()

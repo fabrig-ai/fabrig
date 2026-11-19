@@ -58,7 +58,7 @@ fn pump(front: &mut Joint, probes: &mut [Probe], now: Time) {
                     match act {
                         jig_client::ApprovalAct::Read { .. } => probe.read_acts += 1,
                         jig_client::ApprovalAct::Decide { .. } => probe.decisions += 1,
-                        jig_client::ApprovalAct::Ask => {}
+                        jig_client::ApprovalAct::Ask { .. } => {}
                     }
                 }
                 if let Duty::Wire(request) = Temper::duty(request) {
@@ -72,7 +72,7 @@ fn pump(front: &mut Joint, probes: &mut [Probe], now: Time) {
                 event: jig_client::Event::ApprovalAnswer { answer: jig_client::Approval::Read { state, .. } },
             }) = answer.root()
             {
-                probe.reads.push(*state);
+                probe.reads.push(state.clone());
             }
             front.received(who, &answer);
             Temper::step(&mut probe.root, &env, answer, &mut probe.out);
@@ -123,7 +123,15 @@ fn a_terminal_approved_by_a_browser_is_signed_in_as_the_browsers_party() {
     open(&mut probes[BROWSER.0], code);
     pump(&mut front, &mut probes, Time::ZERO);
     assert_eq!(probes[BROWSER.0].read_acts, 1);
-    assert_eq!(probes[BROWSER.0].reads, [jig_client::ApprovalState::Waiting { asked: Wall::EPOCH }]);
+    assert_eq!(
+        probes[BROWSER.0].reads,
+        [jig_client::ApprovalState::Waiting {
+            asked: Wall::EPOCH,
+            kind: jig_client::ApprovalKind::Listener,
+            source: None,
+            reader: None
+        }]
+    );
     assert_eq!(state(&probes[BROWSER.0]), approve::State::Asking { asked: Wall::EPOCH });
     approve(&mut probes[BROWSER.0]);
     pump(&mut front, &mut probes, Time::ZERO);

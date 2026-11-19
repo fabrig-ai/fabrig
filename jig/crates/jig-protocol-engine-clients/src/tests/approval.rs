@@ -11,7 +11,7 @@ fn new() -> Exchange {
     Exchange::configured(f::env(), Settings { approval: true, ..f::settings() })
 }
 fn ask_message() -> Message {
-    let value = w::ApprovalAsk::new(&f::wire(), w::ApprovalAskParts {}).expect("ask");
+    let value = w::ApprovalAsk::new(&f::wire(), w::ApprovalAskParts { port: None }).expect("ask");
     let mut bytes = Writer::new(usize_of(value.measure()));
     value.encode(&mut bytes).expect("ask bytes");
     Message::ApprovalAsk(bytes.finish())
@@ -29,8 +29,9 @@ fn decide_message(code: [u8; 8], approve: bool) -> Message {
     Message::ApprovalDecide(bytes.finish())
 }
 fn take_message(secret: &[u8]) -> Message {
-    let value = w::ApprovalSignIn::new(&f::wire(), w::ApprovalSignInParts { secret: Secret::new(secret.into()) })
-        .expect("take");
+    let value =
+        w::ApprovalSignIn::new(&f::wire(), w::ApprovalSignInParts { secret: Secret::new(secret.into()), grant: None })
+            .expect("take");
     let mut bytes = Writer::new(usize_of(value.measure()));
     value.encode(&mut bytes).expect("take bytes");
     Message::SignInApproval(bytes.finish())
@@ -109,7 +110,12 @@ fn signed_in(e: &mut Exchange, to: ReplyTo, owner: Token) -> w::SignedIn {
 }
 fn approved(e: &mut Exchange) -> w::ApprovalAsked {
     let value = asked(e);
-    assert_eq!(decide(e, *value.code(), true), w::ApprovalDecided::Approved);
+    assert_eq!(
+        decide(e, *value.code(), true),
+        w::ApprovalDecided::Approved(
+            w::ApprovalApproved::new(&w::CEILINGS, w::ApprovalApprovedParts { loopback: None }).expect("approval")
+        )
+    );
     value
 }
 
@@ -209,7 +215,11 @@ fn a_read_says_what_the_approval_is() {
         let code = *a.code();
         let expected = match case {
             "waiting" => w::ApprovalState::Waiting(
-                w::ApprovalWaiting::new(&f::wire(), w::ApprovalWaitingParts { asked: 123 }).expect("waiting"),
+                w::ApprovalWaiting::new(
+                    &f::wire(),
+                    w::ApprovalWaitingParts { asked: 123, kind: w::ApprovalKind::Listener, source: None, reader: None },
+                )
+                .expect("waiting"),
             ),
             "approved" => {
                 decide(&mut e, code, true);
@@ -258,7 +268,14 @@ fn the_first_decision_spends_the_approval() {
         let a = asked(&mut e);
         assert_eq!(
             decide(&mut e, *a.code(), first),
-            if first { w::ApprovalDecided::Approved } else { w::ApprovalDecided::Refused }
+            if first {
+                w::ApprovalDecided::Approved(
+                    w::ApprovalApproved::new(&w::CEILINGS, w::ApprovalApprovedParts { loopback: None })
+                        .expect("approval"),
+                )
+            } else {
+                w::ApprovalDecided::Refused
+            }
         );
         assert_eq!(decide(&mut e, *a.code(), next), expected);
     }
@@ -398,10 +415,19 @@ fn an_approved_take_signs_in_the_approvers_party_once() {
     assert_eq!(
         read(&mut e, *a.code()),
         w::ApprovalState::Waiting(
-            w::ApprovalWaiting::new(&f::wire(), w::ApprovalWaitingParts { asked: 0 }).expect("waiting")
+            w::ApprovalWaiting::new(
+                &f::wire(),
+                w::ApprovalWaitingParts { asked: 0, kind: w::ApprovalKind::Listener, source: None, reader: None }
+            )
+            .expect("waiting")
         )
     );
-    assert_eq!(decide(&mut e, *a.code(), true), w::ApprovalDecided::Approved);
+    assert_eq!(
+        decide(&mut e, *a.code(), true),
+        w::ApprovalDecided::Approved(
+            w::ApprovalApproved::new(&w::CEILINGS, w::ApprovalApprovedParts { loopback: None }).expect("approval")
+        )
+    );
     let owner = e.send(take_message(a.secret().expose()));
     let to = signer(&mut e);
     let first = signed_in(&mut e, to, owner);

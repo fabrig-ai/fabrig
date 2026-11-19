@@ -162,7 +162,7 @@ fn the_stream_s_bytes_reach_the_link_in_order() {
         }
     }
     assert_eq!(bytes, b"firstsecond");
-    assert!(peer.wire.received.starts_with(b"GET /jig/v1/stream?version=35 HTTP/1.1\r\n"));
+    assert!(peer.wire.received.starts_with(b"GET /jig/v1/stream?version=36 HTTP/1.1\r\n"));
     peer.shell.down(Time::ZERO, client::Request::CloseStream, &mut peer.below);
     peer.drive();
     assert!(peer.wire.finished);
@@ -299,7 +299,7 @@ impl skein_shell::Host for Disk {
                 client::Event::Lost { .. } => self.closing = true,
                 other @ (client::Event::SignIn { .. }
                 | client::Event::AskLink
-                | client::Event::AskApproval
+                | client::Event::AskApproval { .. }
                 | client::Event::ReadApproval { .. }
                 | client::Event::DecideApproval { .. }
                 | client::Event::ApprovalAnswer { .. }

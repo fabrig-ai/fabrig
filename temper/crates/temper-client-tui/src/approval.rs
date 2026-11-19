@@ -40,7 +40,7 @@ pub fn may_ask_again(tui: &Tui, root: &Domain) -> bool {
         ) => true,
         None
         | Some(
-            NotSignedIn::Approval(Taking::Waiting)
+            NotSignedIn::Approval(Taking::Waiting | Taking::NotGranted)
             | NotSignedIn::Busy
             | NotSignedIn::NotReady
             | NotSignedIn::LinkUsed

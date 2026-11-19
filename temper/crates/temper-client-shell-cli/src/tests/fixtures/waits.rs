@@ -46,7 +46,7 @@ impl Frame {
                 jig_client::Event::Lost { exchange: lost } if lost == exchange => panic!("probe exchange lost"),
                 event @ (jig_client::Event::Start { .. }
                 | jig_client::Event::AskLink
-                | jig_client::Event::AskApproval
+                | jig_client::Event::AskApproval { .. }
                 | jig_client::Event::ReadApproval { .. }
                 | jig_client::Event::DecideApproval { .. }
                 | jig_client::Event::ApprovalAnswer { .. }

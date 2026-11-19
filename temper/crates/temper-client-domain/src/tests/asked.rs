@@ -126,7 +126,7 @@ fn an_unlinked_root_holds_the_code_and_leaves_the_take_to_its_host() {
     let mut out = step(&mut root, Event::AskApproval);
     assert_eq!(
         out.pop(),
-        Some(Request::Unlinked { request: jig_client::UnlinkedRequest::ApprovalAct(ApprovalAct::Ask) })
+        Some(Request::Unlinked { request: jig_client::UnlinkedRequest::ApprovalAct(ApprovalAct::Ask { port: None }) })
     );
     assert!(out.is_empty());
     assert!(step(&mut root, Event::AskApproval).is_empty());

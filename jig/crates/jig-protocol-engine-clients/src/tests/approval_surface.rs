@@ -8,7 +8,7 @@ type ApprovalCase = (&'static str, fn(Box<[u8]>) -> Message, Box<[u8]>, Box<[u8]
 
 fn cases(stopping: bool) -> [ApprovalCase; 4] {
     let limits = f::wire();
-    let ask = w::ApprovalAsk::new(&limits, w::ApprovalAskParts {}).expect("ask");
+    let ask = w::ApprovalAsk::new(&limits, w::ApprovalAskParts { port: None }).expect("ask");
     let mut ask_bytes = Writer::new(usize_of(ask.measure()));
     ask.encode(&mut ask_bytes).expect("ask bytes");
     let read = w::ApprovalRead::new(&limits, w::ApprovalReadParts { code: *b"WDJBMJHT" }).expect("read");
@@ -18,8 +18,9 @@ fn cases(stopping: bool) -> [ApprovalCase; 4] {
         .expect("decision");
     let mut decide_bytes = Writer::new(usize_of(decide.measure()));
     decide.encode(&mut decide_bytes).expect("decision bytes");
-    let take = w::ApprovalSignIn::new(&limits, w::ApprovalSignInParts { secret: Secret::new(Box::new([7; 32])) })
-        .expect("take");
+    let take =
+        w::ApprovalSignIn::new(&limits, w::ApprovalSignInParts { secret: Secret::new(Box::new([7; 32])), grant: None })
+            .expect("take");
     let mut take_bytes = Writer::new(usize_of(take.measure()));
     take.encode(&mut take_bytes).expect("take bytes");
 

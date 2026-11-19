@@ -109,7 +109,7 @@ impl Side {
             | Event::StartUnlinked { .. }
             | Event::SignIn { .. }
             | Event::AskLink
-            | Event::AskApproval
+            | Event::AskApproval { .. }
             | Event::ReadApproval { .. }
             | Event::DecideApproval { .. }
             | Event::ApprovalAnswer { .. }
@@ -316,7 +316,7 @@ fn callback(event: &Event) -> Option<Callback> {
         | Event::StartUnlinked { .. }
         | Event::SignIn { .. }
         | Event::AskLink
-        | Event::AskApproval
+        | Event::AskApproval { .. }
         | Event::ReadApproval { .. }
         | Event::DecideApproval { .. }
         | Event::ApprovalAnswer { .. }

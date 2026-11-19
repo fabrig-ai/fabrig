@@ -203,7 +203,7 @@ fn heard(event: &Event) -> Line {
         | Event::SignOut
         | Event::Authorize { .. }
         | Event::AskLink
-        | Event::AskApproval
+        | Event::AskApproval { .. }
         | Event::ReadApproval { .. }
         | Event::DecideApproval { .. }
         | Event::ApprovalAnswer { .. }
