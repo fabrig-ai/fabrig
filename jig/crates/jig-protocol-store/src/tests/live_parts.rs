@@ -7,6 +7,7 @@
     reason = "ordinary Rust live-parts assertions"
 )]
 use super::fixtures;
+use crate::tasks_v13::Record as _;
 use crate::{Event, Get, Request, Restore, Row, Write, codec, commits, keys, restore, tasks_v13 as wire};
 use jig_domain_core_vocabulary::{Key, Record, RestoreRange, reads};
 use jig_domain_tasks::{self as tasks, Stored};
@@ -47,7 +48,7 @@ fn put_value(ops: &[skein_kv::Op], wanted: tasks::Key) -> wire::Value {
             _ => None,
         })
         .expect("part put");
-    wire::Row::decode(&wire::CEILINGS, &mut Reader::new(value)).unwrap().into_parts().value
+    wire::Row::decode(&wire::CEILINGS, &mut Reader::new(value)).unwrap().value
 }
 
 #[test]
@@ -168,10 +169,10 @@ fn generated_live_records_split_and_join_with_each_parts_own_model_names() {
         assert_eq!(codec::tasks::decode_live(&hot_bytes, &cold_bytes, &wire::CEILINGS, &now), Ok(expected));
         let hot = wire::Row::decode(&wire::CEILINGS, &mut Reader::new(&hot_bytes)).unwrap();
         let cold = wire::Row::decode(&wire::CEILINGS, &mut Reader::new(&cold_bytes)).unwrap();
-        assert_eq!(cold.models().len(), 1);
-        assert_eq!(hot.models().len(), 1, "nested recurring authorities stay hot");
-        assert_eq!(hot.models().as_slice()[0].value(), b"a");
-        assert_eq!(cold.models().as_slice()[0].value(), b"z");
+        assert_eq!(cold.models.len(), 1);
+        assert_eq!(hot.models.len(), 1, "nested recurring authorities stay hot");
+        assert_eq!(hot.models.as_slice()[0].value.as_ref(), b"a");
+        assert_eq!(cold.models.as_slice()[0].value.as_ref(), b"z");
         // EndedTalk keeps the whole payload.
         let whole = codec::tasks::encode(&Stored::Ended(Box::new(row)), &wire::CEILINGS, &names).unwrap();
         assert!(hot_bytes.len() < whole.len());
