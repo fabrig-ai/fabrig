@@ -239,6 +239,10 @@ BODY
 - **Its landing not held,** the log having let it go, or on another
   branch than the tier's: by the tier's first enumerated judged run
   that starts after the goal's end.
+- **Told apart by a kept change:** the log alone can't tell a landing
+  it let go from none. A goal with no landing in the log is judged as
+  one whose landing the log let go when the forge still keeps a change
+  of it landed, and as ended without landing when it keeps none.
 - **A many run judges nothing:** a finding waiting on a landing that a
   many run covers, or judged at once while the tier's last run was
   many, waits for the tier's next enumerated judged run.
