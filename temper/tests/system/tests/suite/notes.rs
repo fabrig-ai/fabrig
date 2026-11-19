@@ -181,26 +181,26 @@ fn decoded(record: &TurnRecord) -> smith_transcript::Turn {
 fn result(record: &TurnRecord, expected: &str) {
     let turn = decoded(record);
     let results: Vec<_> = turn
-        .messages()
+        .messages
         .iter()
-        .flat_map(smith_transcript::Message::blocks)
+        .flat_map(|message| &message.blocks)
         .filter_map(|block| if let smith_transcript::Block::Result(result) = block { Some(result) } else { None })
         .collect();
     let [result] = results.as_slice() else { panic!("one tool result: {turn:?}") };
-    let smith_transcript::Returned::Said(said) = result.returned() else { panic!("host's complete tool result") };
-    assert_eq!(said.text(), expected.as_bytes(), "complete tool result");
-    assert_eq!(said.error(), expected.starts_with("Note refused:"), "successful or refused call");
+    let smith_transcript::Returned::Said(said) = &result.returned else { panic!("host's complete tool result") };
+    assert_eq!(said.text.as_ref(), expected.as_bytes(), "complete tool result");
+    assert_eq!(said.error, expected.starts_with("Note refused:"), "successful or refused call");
 }
 
 fn reply(record: &TurnRecord, expected: &str) {
     let turn = decoded(record);
     assert!(
-        turn.messages()
+        turn.messages
             .iter()
-            .filter(|message| *message.role() == smith_transcript::Role::Assistant)
-            .flat_map(smith_transcript::Message::blocks)
+            .filter(|message| message.role == smith_transcript::Role::Assistant)
+            .flat_map(|message| &message.blocks)
             .any(|block| {
-                matches!(block, smith_transcript::Block::Text(text) if text.text() == expected.as_bytes())
+                matches!(block, smith_transcript::Block::Text(text) if text.text.as_ref() == expected.as_bytes())
             }),
         "the scripted reply is committed"
     );
@@ -285,9 +285,9 @@ fn a_long_document_is_built_in_parts_and_revised_by_a_fresh_run() {
     // An Open chat's task brief is user context beside the host's system text.
     let decoded = decoded(&fresh);
     assert!(
-        decoded.messages().iter().flat_map(smith_transcript::Message::blocks).any(|block| {
+        decoded.messages.iter().flat_map(|message| &message.blocks).any(|block| {
             matches!(block, smith_transcript::Block::Text(text)
-            if text.text().windows(INDEX.len()).any(|bytes| bytes == INDEX.as_bytes()))
+            if text.text.as_ref().windows(INDEX.len()).any(|bytes| bytes == INDEX.as_bytes()))
         }),
         "the fresh brief indexes revision 5"
     );

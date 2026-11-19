@@ -53,6 +53,7 @@ pub struct Engine {
     passing: Option<Box<root::Event>>,
     begin: bool,
     core_wait: crate::core_wait::Watch,
+    settings_warned: bool,
     pub(crate) credentials: List<u32>,
     pub(crate) ready: bool,
     settled_revision: Option<u64>,
@@ -192,6 +193,7 @@ impl Engine {
             passing: None,
             begin: true,
             core_wait: crate::core_wait::Watch::new(),
+            settings_warned: false,
             ready: true,
             settled_revision: None,
             aborted: None,
@@ -323,6 +325,13 @@ impl Engine {
         }
     }
     pub(crate) fn drain_notes(&mut self) {
+        if !self.settings_warned && self.domain.ready() && self.notes.room() != 0 {
+            let kept = self.domain.settings_kept();
+            self.settings_warned = true;
+            if !kept.is_empty() {
+                self.notes.push(crate::Note::StartupWarning { line: crate::core_wait::settings_kept(&kept) });
+            }
+        }
         self.drain_worker_notes();
         for _ in 0..self.notes.room() {
             let note = if let Some(diagnostic) = self.domain.pop_run_diagnostic() {

@@ -267,6 +267,22 @@ built by a workflow of its own, which tests nothing (`../release.md`, 5.1).
 - **The runner is small:** 14 GB of disk by GitHub's table. Line tables
   only for debug information, no incremental build,
   `TEMPER_INTERNAL_BUNDLE=none` and `NEXTEST_DOUBLE_SPAWN=0`.
+- **Debug information is not split:** beside the two settings that give
+  line tables, `CARGO_PROFILE_DEV_DEBUG` and `CARGO_PROFILE_TEST_DEBUG`,
+  the workflow's environment sets `CARGO_PROFILE_DEV_SPLIT_DEBUGINFO` and
+  `CARGO_PROFILE_TEST_SPLIT_DEBUGINFO` to `off`, with a comment saying
+  why. On macOS, Cargo's dev profile defaults to `unpacked`, which leaves
+  the debug information in the object files; with line tables alone, a
+  backtrace reads them and finds no function's name, and skein's
+  fail-stop tests check that a panic's backtrace names the panicking
+  function (`skein/tests/fail-stop/tests/suite/fail_stop.rs`). With
+  `off`, the object files go after linking, and a backtrace names each
+  frame from the executable's symbol table, without file and line; a
+  panic's own line still gives its location. `off` is also the one value
+  rustc accepts for `wasm32-unknown-unknown`, whose bundle the `browser`
+  part builds in a nested cargo that inherits the environment. The
+  workspace's profiles name no split, so Linux's builds keep their
+  platform's default, and the fail-stop tests keep their check on both.
 - **Each part's dependencies' build:** `target`, cached under a key of the
   part's, `target-macos-26-PART-rust-`, the toolchain file's hash, `-`,
   the lock's hash, restored by its prefix up to the lock's hash, and saved
@@ -396,6 +412,10 @@ built by a workflow of its own, which tests nothing (`../release.md`, 5.1).
 
 ## 10. Later
 
+- **`packed` for skein's part:** should skein's fail-stop tests still
+  find no function's name in a backtrace on the runner with split debug
+  information `off` (section 6), skein's part alone takes `packed`, whose
+  `.dSYM` keeps file and line too.
 - **The caches' sizes:** the first run by hand prints each part's; should
   they pass GitHub's 10 GB together, the parts that share most share a
   cache.

@@ -6,7 +6,8 @@ use jig_protocol_store::{self as store, codec, transcripts::frame};
 use serde_json::{Value, json};
 use skein_lib::{List, Writer};
 use skein_scratch::Scratch;
-use smith_transcript::{self as smith, Block, Message, MessageParts, Role, Turn, TurnParts};
+use smith_transcript::Record;
+use smith_transcript::{self as smith, Block, Message, Role, Turn};
 use std::path::{Path, PathBuf};
 use temper_twin_tool::{Input, Refusal, Replace, Take, Unheld, twin};
 
@@ -83,14 +84,14 @@ fn save(input: &Input, task: u64, records: &[jig_domain_core::TurnRecord]) {
     }
     std::fs::write(path(&input.data, task), bytes).expect("edited frames");
 }
-fn first(input: &Input) -> TurnParts {
+fn first(input: &Input) -> Turn {
     let records = records(input, CHAT);
-    smith::decode_archived(&smith::CEILINGS, &records[0].transcript).expect("Smith turn").into_parts()
+    smith::decode_archived(&smith::CEILINGS, &records[0].transcript).expect("Smith turn")
 }
-fn save_first(input: &Input, parts: TurnParts) {
-    let turn = Turn::new(&smith::CEILINGS, parts).expect("edited Smith turn");
-    let mut writer = Writer::new(turn.measure() as usize);
-    turn.encode(&mut writer).expect("measured turn");
+fn save_first(input: &Input, parts: Turn) {
+    let turn = parts;
+    let mut writer = Writer::new(turn.measure(&smith_transcript::CEILINGS).expect("bounded transcript") as usize);
+    turn.write(&smith_transcript::CEILINGS, &mut writer).expect("measured turn");
     let mut records = records(input, CHAT);
     let mut changed = 0;
     records[0].transcript = writer.finish();
@@ -103,32 +104,23 @@ fn message(blocks: Vec<Block>) -> Message {
     for block in blocks {
         list.push(block).expect("sized blocks");
     }
-    Message::new(&smith::CEILINGS, MessageParts { role: Role::Assistant, blocks: list }).expect("assistant message")
+    Message { role: Role::Assistant, blocks: list }
 }
-fn completion(parts: &mut TurnParts, blocks: Vec<Block>) {
+fn completion(parts: &mut Turn, blocks: Vec<Block>) {
     let mut messages = List::with_capacity(1);
     messages.push(message(blocks)).expect("one completion");
     parts.messages = messages;
 }
 fn text(words: &str) -> Block {
-    Block::Text(
-        smith::Text::new(&smith::CEILINGS, smith::TextParts { text: words.as_bytes().into(), replay: None })
-            .expect("text"),
-    )
+    Block::Text(smith::Text { text: words.as_bytes().into(), replay: None })
 }
 fn call(arguments: &[u8]) -> Block {
-    Block::Call(
-        smith::Call::new(
-            &smith::CEILINGS,
-            smith::CallParts {
-                id: b"recorded-call".as_slice().into(),
-                name: b"delegate".as_slice().into(),
-                input: arguments.into(),
-                replay: None,
-            },
-        )
-        .expect("call"),
-    )
+    Block::Call(smith::Call {
+        id: b"recorded-call".as_slice().into(),
+        name: b"delegate".as_slice().into(),
+        input: arguments.into(),
+        replay: None,
+    })
 }
 fn document(input: &Input) -> Value {
     serde_json::from_slice(&twin(input).expect("convert frames").document).expect("twin JSON")
@@ -193,18 +185,12 @@ fn replacements_leave_tool_output_and_user_text_unconsumed() {
     let (_scratch, mut input) = fixture(&[CHAT]);
     let mut parts = first(&input);
     completion(&mut parts, vec![text("finished")]);
-    let said =
-        smith::Said::new(&smith::CEILINGS, smith::SaidParts { text: b"unique-output".as_slice().into(), error: false })
-            .expect("tool output");
-    let result = smith::ToolResult::new(
-        &smith::CEILINGS,
-        smith::ToolResultParts { id: b"recorded-call".as_slice().into(), returned: smith::Returned::Said(said) },
-    )
-    .expect("tool result");
+    let said = smith::Said { text: b"unique-output".as_slice().into(), error: false };
+    let result = smith::ToolResult { id: b"recorded-call".as_slice().into(), returned: smith::Returned::Said(said) };
     let mut blocks = List::with_capacity(2);
     blocks.push(text("unique-output")).expect("user text");
     blocks.push(Block::Result(result)).expect("tool result");
-    let user = Message::new(&smith::CEILINGS, MessageParts { role: Role::User, blocks }).expect("user message");
+    let user = Message { role: Role::User, blocks };
     let mut messages = List::with_capacity(2);
     messages.push(user).expect("input");
     messages.push(parts.messages.as_slice()[0].clone()).expect("completion");
@@ -217,9 +203,9 @@ fn replacements_leave_tool_output_and_user_text_unconsumed() {
     assert_eq!(doc["cued"][0]["turns"][0]["lines"], json!([{"text":"finished"}]));
     let stored = first(&input);
     let input = &stored.messages.as_slice()[0];
-    assert!(matches!(&input.blocks().as_slice()[0], Block::Text(value) if value.text() == b"unique-output"));
-    assert!(matches!(&input.blocks().as_slice()[1], Block::Result(value)
-        if matches!(value.returned(), smith::Returned::Said(said) if said.text() == b"unique-output")));
+    assert!(matches!(&input.blocks.as_slice()[0], Block::Text(value) if value.text.as_ref() == b"unique-output"));
+    assert!(matches!(&input.blocks.as_slice()[1], Block::Result(value)
+        if matches!( &value.returned, smith::Returned::Said(said) if said.text.as_ref() == b"unique-output")));
 }
 
 #[test]
@@ -286,9 +272,7 @@ fn an_older_smith_turn_version_is_refused() {
 fn opaque_blocks_are_dropped_and_counted_without_changing_text_and_calls() {
     let (_scratch, input) = fixture(&[CHAT]);
     let mut parts = first(&input);
-    let opaque =
-        smith::Opaque::new(&smith::CEILINGS, smith::OpaqueParts { dialect: 1, bytes: b"opaque".as_slice().into() })
-            .expect("opaque");
+    let opaque = smith::Opaque { dialect: 1, bytes: b"opaque".as_slice().into() };
     completion(
         &mut parts,
         vec![Block::Opaque(opaque.clone()), text("before"), call(b"{}"), Block::Opaque(opaque), text("after")],
@@ -362,9 +346,9 @@ fn sixteen_scripts_fit_the_fakes_bound() {
 fn an_absent_token_count_becomes_one_and_text_finishes_stop() {
     let (_scratch, input) = fixture(&[CHAT]);
     let mut parts = first(&input);
-    let mut usage = parts.usage.into_parts();
+    let mut usage = parts.usage;
     usage.output = None;
-    parts.usage = smith::Usage::new(&smith::CEILINGS, usage).expect("optional usage");
+    parts.usage = usage;
     completion(&mut parts, vec![text("answer")]);
     save_first(&input, parts);
     let doc = document(&input);
@@ -377,18 +361,13 @@ fn a_recorded_cut_off_result_refuses_even_valid_placeholder_arguments() {
     let (_scratch, input) = fixture(&[CHAT]);
     let mut parts = first(&input);
     completion(&mut parts, vec![call(b"{}")]);
-    let problem = smith::CallProblem::CutOff(
-        smith::CutProblem::new(&smith::CEILINGS, smith::CutProblemParts { bytes: 7 }).expect("cut problem"),
-    );
-    let invalid = smith::Invalid::new(&smith::CEILINGS, smith::InvalidParts { problem }).expect("invalid result");
-    let result = smith::ToolResult::new(
-        &smith::CEILINGS,
-        smith::ToolResultParts { id: b"recorded-call".as_slice().into(), returned: smith::Returned::Invalid(invalid) },
-    )
-    .expect("cut result");
+    let problem = smith::CallProblem::CutOff(smith::CutProblem { bytes: 7 });
+    let invalid = smith::Invalid { problem };
+    let result =
+        smith::ToolResult { id: b"recorded-call".as_slice().into(), returned: smith::Returned::Invalid(invalid) };
     let mut blocks = List::with_capacity(1);
     blocks.push(Block::Result(result)).expect("one result");
-    let result = Message::new(&smith::CEILINGS, MessageParts { role: Role::User, blocks }).expect("result message");
+    let result = Message { role: Role::User, blocks };
     let mut messages = List::with_capacity(2);
     messages.push(parts.messages.as_slice()[0].clone()).expect("room for completion");
     messages.push(result).expect("room for result");
@@ -456,19 +435,18 @@ fn an_open_chats_user_cue_replays_its_converted_turns() {
         let answer = result.expect("accepted replay");
         let (blocks, usage) = round_trip::decoded(&answer);
         let recorded = smith::decode_archived(&smith::CEILINGS, &record.transcript).expect("recorded turn");
-        let expected =
-            recorded.messages().iter().find(|message| *message.role() == Role::Assistant).expect("completion");
+        let expected = recorded.messages.iter().find(|message| message.role == Role::Assistant).expect("completion");
         // The provider regenerates call ids and compacts argument JSON.
-        assert_eq!(usage.output(), recorded.usage().output());
-        assert_eq!(blocks.len(), expected.blocks().as_slice().len());
-        for (block, expected) in blocks.iter().zip(expected.blocks()) {
+        assert_eq!((&usage.output), (&recorded.usage.output));
+        assert_eq!(blocks.len(), expected.blocks.as_slice().len());
+        for (block, expected) in blocks.iter().zip(&expected.blocks) {
             match (block, expected) {
-                (Block::Text(got), Block::Text(expected)) => assert_eq!(got.text(), expected.text()),
+                (Block::Text(got), Block::Text(expected)) => assert_eq!(got.text.as_ref(), expected.text.as_ref()),
                 (Block::Call(got), Block::Call(expected)) => {
-                    assert_eq!(got.name(), expected.name());
+                    assert_eq!(got.name.as_ref(), expected.name.as_ref());
                     assert_eq!(
-                        serde_json::from_slice::<Value>(got.input()).expect("replayed arguments"),
-                        serde_json::from_slice::<Value>(expected.input()).expect("recorded arguments")
+                        serde_json::from_slice::<Value>(got.input.as_ref()).expect("replayed arguments"),
+                        serde_json::from_slice::<Value>(expected.input.as_ref()).expect("recorded arguments")
                     );
                 }
                 _ => panic!("replayed block differs: {block:?}, {expected:?}"),
@@ -494,11 +472,11 @@ fn opening_request(input: &Input, words: &str) {
     let mut parts = first(input);
     let mut blocks = List::with_capacity(1);
     blocks.push(text(words)).expect("one request");
-    let user = Message::new(&smith::CEILINGS, MessageParts { role: Role::User, blocks }).expect("opening request");
+    let user = Message { role: Role::User, blocks };
     let mut messages = List::with_capacity(2);
     messages.push(user).expect("request");
     messages
-        .push(parts.messages.iter().find(|message| *message.role() == Role::Assistant).expect("completion").clone())
+        .push(parts.messages.iter().find(|message| message.role == Role::Assistant).expect("completion").clone())
         .expect("completion");
     parts.messages = messages;
     save_first(input, parts);

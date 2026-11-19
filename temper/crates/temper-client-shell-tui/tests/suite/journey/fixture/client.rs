@@ -225,10 +225,10 @@ fn background_single(request: &Request) -> Option<Report> {
     let mut writer = Writer::new(usize::try_from(size).expect("answer size"));
     match message {
         Message::Watch(_) => {
-            w::OpenAnswer::Admitted.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("watch admitted")
+            w::OpenAnswer::Admitted.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("watch admitted");
         }
         Message::Unwatch(_) => {
-            w::CloseAnswer::Closed.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("watch closed")
+            w::CloseAnswer::Closed.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("watch closed");
         }
         Message::Read(_) => read.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("read answer"),
         Message::Batch(_)

@@ -5,6 +5,7 @@ use jig_client_protocol_world::{
     fixtures::{self, PROJECT},
 };
 use skein_lib::{Duration, length::len_u64};
+use smith_transcript::Record;
 // These handles belong to this story's single read, activity page and task watch.
 const TURN: Handle = Handle { asker: Asker::JIG, number: 31 };
 const ACTIVITY: Handle = Handle { asker: Asker::JIG, number: 32 };
@@ -265,13 +266,13 @@ fn a_message_past_text_reads_back_whole_through_the_engine() {
 // The component's core peer supplies the carrier; the core world checks who gets each mark.
 fn private_turn() -> jig_domain_core::TurnRecord {
     use smith_transcript::v7 as s;
-    let mut turn = smith_transcript::decode_archived(&s::CEILINGS, &fixtures::callable_turn())
-        .expect("callable turn")
-        .into_parts();
+    let mut turn = smith_transcript::decode_archived(&s::CEILINGS, &fixtures::callable_turn()).expect("callable turn");
     turn.system = Some(Box::from(b"## Preferences\n\n1. A private preference\n\n## Work\nDo the work.\n".as_slice()));
-    let turn = s::Turn::new(&s::CEILINGS, turn).expect("private section");
-    let mut bytes = skein_lib::Writer::new(skein_lib::length::usize_of(turn.measure()));
-    turn.encode(&mut bytes).expect("measured turn");
+    let turn = turn;
+    let mut bytes = skein_lib::Writer::new(skein_lib::length::usize_of(
+        turn.measure(&smith_transcript::CEILINGS).expect("bounded transcript"),
+    ));
+    turn.write(&smith_transcript::CEILINGS, &mut bytes).expect("measured turn");
     jig_domain_core::TurnRecord {
         opens_window: true,
         task: 1,

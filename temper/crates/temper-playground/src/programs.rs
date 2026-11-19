@@ -155,7 +155,9 @@ pub fn with<R>(parameters: Parameters, run: impl FnOnce() -> R) -> R {
     drop(reset);
     result
 }
-fn parameters() -> Parameters {
+/// Read the parameters scoped around a hosted program's factory or turn.
+#[must_use]
+pub fn parameters() -> Parameters {
     PARAMETERS.with(|at| at.borrow().as_ref().expect("factory parameters scoped around the world's steps").clone())
 }
 

@@ -7,8 +7,13 @@ use crate::{
 use skein_lib::List;
 
 fn loaded() -> (Core, Env<Limits>) {
+    loaded_with_charters(1)
+}
+
+fn loaded_with_charters(charters: u32) -> (Core, Env<Limits>) {
     let mut env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits() };
     env.limits.authority.projects = 2;
+    env.limits.tasks.charters = charters;
     let mut core = Core::new(config(401), &env.limits).expect("configured core");
     {
         let _begin = core.start_begin(false, env.wall);
@@ -186,6 +191,72 @@ fn settings_finish_drops_cross_record_revision_rules() {
     }
 }
 
+fn kept_rows(core: &Core) -> [(Setting, Value); 4] {
+    let charter = |number| {
+        let mut value = core.charter(1).expect("stock charter").clone();
+        value.number = number;
+        Value::Charter(Box::new(value))
+    };
+    let template = |number, executor| {
+        Value::Template(Box::new(crate::Template {
+            resources: Box::new([]),
+            number,
+            name: b"kept".as_slice().into(),
+            executor: people::TemplateExecutor::Charter(executor),
+            contract: crate::tasks::Contract::Report { words: 1 },
+            shallower: 0,
+            budget: people::TemplateBudget::Given,
+            deadline: people::TemplateDeadline::None,
+            tracked: None,
+            flags: crate::tasks::Flags::PLAIN,
+            label: 0,
+            grace: None,
+            llm: None,
+        }))
+    };
+    [
+        (Setting::Charter(17), charter(17)),
+        (Setting::Charter(19), charter(19)),
+        (Setting::Template(9), template(9, 19)),
+        (Setting::Template(16), template(16, 17)),
+    ]
+}
+
+#[test]
+fn stored_stock_number_settings_start_with_their_references() {
+    let (mut core, env) = loaded_with_charters(3);
+    for row in settings_rows(&core).into_boxed() {
+        assert_eq!(restore(&mut core, &env, row), Restored::Live);
+    }
+    for (setting, value) in kept_rows(&core) {
+        assert!(core.current.default_value(setting).is_none());
+        assert_eq!(
+            restore(&mut core, &env, Record::Changed { setting, changed: Changed { value: Some(value), revision: 1 } }),
+            Restored::Live
+        );
+    }
+    let mut out = Queue::uncapped();
+    let action = core.start_done(&env, Phase::LoadCore, &mut out);
+    if let Action::Refused(failure) = action {
+        panic!("kept settings refused: {failure:?}");
+    }
+    assert_eq!(core.start_failure(), None);
+    assert_eq!(
+        core.settings_kept().as_ref(),
+        &[Setting::Charter(17), Setting::Charter(19), Setting::Template(9), Setting::Template(16)]
+    );
+    for (setting, value) in kept_rows(&core) {
+        assert_eq!(core.current.value(setting), Some(&value));
+    }
+    assert!(core.charter(17).is_some());
+    assert!(core.charter(19).is_some());
+    for request in &out {
+        if let crate::Request::Write(write) = request {
+            panic!("settings start writes nothing: {write:?}");
+        }
+    }
+}
+
 #[test]
 fn stored_numbers_are_collected_before_the_whole_check() {
     let (mut core, env) = loaded();
@@ -194,10 +265,10 @@ fn stored_numbers_are_collected_before_the_whole_check() {
         assert_eq!(restore(&mut core, &env, row), Restored::Live);
     }
     let mut charter = core.charter(1).unwrap().clone();
-    charter.number = 17;
+    charter.number = 70;
     let template = crate::Template {
         resources: Box::new([]),
-        number: 9,
+        number: 65,
         name: b"old".as_slice().into(),
         executor: people::TemplateExecutor::Charter(31),
         contract: crate::tasks::Contract::Report { words: 1 },
@@ -211,8 +282,8 @@ fn stored_numbers_are_collected_before_the_whole_check() {
         llm: None,
     };
     for (setting, value) in [
-        (Setting::Charter(17), Value::Charter(Box::new(charter))),
-        (Setting::Template(9), Value::Template(Box::new(template))),
+        (Setting::Charter(70), Value::Charter(Box::new(charter))),
+        (Setting::Template(65), Value::Template(Box::new(template))),
     ] {
         assert_eq!(
             restore(&mut core, &env, Record::Changed { setting, changed: Changed { value: Some(value), revision: 1 } }),
@@ -221,8 +292,8 @@ fn stored_numbers_are_collected_before_the_whole_check() {
     }
     let expected = Failure::Numbers {
         settings: Box::new([
-            crate::start::Numbered { setting: Setting::Charter(17), changed: true },
-            crate::start::Numbered { setting: Setting::Template(9), changed: true },
+            crate::start::Numbered { setting: Setting::Charter(70), changed: true },
+            crate::start::Numbered { setting: Setting::Template(65), changed: true },
         ]),
     };
     let mut out = Queue::uncapped();
@@ -230,6 +301,50 @@ fn stored_numbers_are_collected_before_the_whole_check() {
     assert_eq!(found, expected);
     assert_eq!(core.start_failure(), Some(expected));
     assert!(out.is_empty());
+}
+
+#[test]
+fn a_new_default_cannot_take_a_stored_own_charters_number() {
+    for stored_default in [false, true] {
+        let (mut core, env) = loaded_with_charters(2);
+        let (setting, value) = kept_rows(&core).into_iter().next().expect("kept charter");
+        let rows = settings_rows(&core);
+        if stored_default {
+            core.current
+                .defaults
+                .insert(setting, crate::settings::Default { value: value.clone(), revision: 1 })
+                .unwrap();
+        }
+        let rows = if stored_default { settings_rows(&core) } else { rows };
+        for row in rows.into_boxed() {
+            assert_eq!(restore(&mut core, &env, row), Restored::Live);
+        }
+        assert_eq!(
+            restore(
+                &mut core,
+                &env,
+                Record::Changed { setting, changed: Changed { value: Some(value.clone()), revision: 1 } }
+            ),
+            Restored::Live
+        );
+        // The given stock brings 17; only an already stored default makes it ordinary.
+        core.current.defaults.insert(setting, crate::settings::Default { value, revision: 1 }).unwrap();
+        let mut out = Queue::uncapped();
+        let action = core.start_done(&env, Phase::LoadCore, &mut out);
+        if stored_default {
+            if let Action::Refused(failure) = action {
+                panic!("ordinary change refused: {failure:?}");
+            }
+            assert_eq!(core.start_failure(), None);
+            assert!(core.settings_kept().is_empty());
+        } else {
+            let expected = Failure::Taken { settings: Box::new([Setting::Charter(17)]) };
+            let Action::Refused(found) = action else { panic!("new default takes the kept number: {action:?}") };
+            assert_eq!(found, expected);
+            assert_eq!(core.start_failure(), Some(expected));
+            assert!(out.is_empty());
+        }
+    }
 }
 
 #[test]

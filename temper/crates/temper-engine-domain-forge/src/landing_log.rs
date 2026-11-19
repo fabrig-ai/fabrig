@@ -51,11 +51,15 @@ pub(crate) fn landed(
     let change = d.changes.get(&task).expect("landed change");
     let logged = LoggedChange {
         task,
+        fixes: fixes(&change.body),
         pull: change.pull,
         title: crate::text::fit(&change.title, LOGGED_TITLE_BYTES, b"..."),
         signed,
         goal: change.goal,
         milestone: change.milestone,
+        person: change.person,
+        goal_title: change.goal_title.clone(),
+        draft: change.draft.clone(),
     };
     let branch = change.base.clone();
     let mut tiers = List::with_capacity(d.landing.limits.tiers.tiers);
@@ -119,6 +123,32 @@ pub(crate) fn landed(
         out.push(Request::Save { read_afresh: None, release: None, record: Stored::LandingLog(row.clone()) });
     }
     d.landing_logs.insert(repository, row).expect("one log per adopted repository");
+}
+
+/// Keep the first eight distinct exact body lines, sorted by finding number (red-findings.md, 6).
+fn fixes(body: &[u8]) -> Box<[u32]> {
+    let mut fixes = List::with_capacity(8);
+    let mut rest = body;
+    for _byte in body {
+        if rest.is_empty() {
+            break;
+        }
+        let end = skein_lib::bytes::find(rest, b"\n").unwrap_or(rest.len());
+        let line = rest.get(..end).expect("line end within body");
+        rest = rest.get(end..).expect("remaining body").strip_prefix(b"\n").unwrap_or(b"");
+        let line = line.strip_suffix(b"\r").unwrap_or(line);
+        let Some(number) = line.strip_prefix(b"Fixes-finding: ") else { continue };
+        let Some(number) = skein_lib::bytes::decimal(number) else { continue };
+        if let Ok(value) = u32::try_from(number)
+            && !fixes.as_slice().contains(&value)
+            && fixes.room() > 0
+        {
+            fixes.push(value).expect("finding room checked");
+        }
+    }
+    let mut fixes = fixes.into_boxed();
+    fixes.sort_unstable();
+    fixes
 }
 
 pub(crate) fn erased(d: &mut Domain, repository: Repository, out: &mut Queue<Request>) {

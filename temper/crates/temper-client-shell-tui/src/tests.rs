@@ -34,6 +34,7 @@ use jig_client_test_records as records;
 use skein_lib::{Duration, List, Reader, Secret, Time, Wall, Writer};
 use skein_ui_screen::{Rgb, Size};
 use skein_ui_screen_terminal::Key;
+use smith_transcript::Record;
 use temper_client_domain::{
     self as root, Address, Place,
     pages::{
@@ -1954,27 +1955,20 @@ fn reply_host_draft(draft: bool) -> Host {
         let page = pane_document();
         read_reply(&mut host, read, &w::ReadValue::Notes(page));
     }
-    let mut turn = s::decode_archived(&s::CEILINGS, &records::full_turn()).unwrap().into_parts();
-    let text = s::Block::Text(
-        s::Text::new(
-            &s::CEILINGS,
-            s::TextParts {
-                text: "Choose.\n\n1. Move it at once — no mixed state\n2. Side by side\n3. Tell me something else"
-                    .as_bytes()
-                    .into(),
-                replay: None,
-            },
-        )
-        .unwrap(),
-    );
-    turn.messages = List::from_boxed(Box::new([s::Message::new(
-        &s::CEILINGS,
-        s::MessageParts { role: s::Role::Assistant, blocks: List::from_boxed(Box::new([text])) },
-    )
-    .unwrap()]));
-    let turn = s::Turn::new(&s::CEILINGS, turn).unwrap();
-    let mut writer = Writer::new(usize::try_from(turn.measure()).unwrap());
-    turn.encode(&mut writer).unwrap();
+    let mut turn = s::decode_archived(&s::CEILINGS, &records::full_turn()).unwrap();
+    let text = s::Block::Text(s::Text {
+        text: "Choose.\n\n1. Move it at once — no mixed state\n2. Side by side\n3. Tell me something else"
+            .as_bytes()
+            .into(),
+        replay: None,
+    });
+    turn.messages = List::from_boxed(Box::new([s::Message {
+        role: s::Role::Assistant,
+        blocks: List::from_boxed(Box::new([text])),
+    }]));
+    let mut writer =
+        Writer::new(usize::try_from(turn.measure(&smith_transcript::CEILINGS).expect("bounded transcript")).unwrap());
+    turn.write(&smith_transcript::CEILINGS, &mut writer).unwrap();
     let mut page = records::activity_rows(&[records::turn_line(1, 0, 1, &writer.finish())]);
     page.after = None;
     page.cut = false;
@@ -2865,10 +2859,6 @@ fn shared_question(host: &Host) -> jig_client::contract::ObjectKey {
         .object
 }
 
-#[expect(
-    clippy::too_many_lines,
-    reason = "one wire fixture delivers a waiting chat or launchpad and its answerable question"
-)]
 fn waiting_at(chat: bool) -> Host {
     let (mut host, _, mut watches) = signed_host(true);
     // The fixture supplies the terminal look so event rows isolate event translation.
@@ -3074,10 +3064,10 @@ fn background_single(request: &Request) -> Option<Report> {
     let mut writer = Writer::new(usize::try_from(size).expect("answer size"));
     match message {
         Message::Watch(_) => {
-            w::OpenAnswer::Admitted.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("watch admitted")
+            w::OpenAnswer::Admitted.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("watch admitted");
         }
         Message::Unwatch(_) => {
-            w::CloseAnswer::Closed.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("watch closed")
+            w::CloseAnswer::Closed.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("watch closed");
         }
         Message::Read(_) => read.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("read answer"),
         Message::Batch(_)

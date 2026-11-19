@@ -53,7 +53,7 @@ mod seen_closed;
 mod settings;
 mod standing;
 mod stopping;
-mod tiers;
+pub(crate) mod tiers;
 mod unpushed;
 mod views;
 mod workflows;
@@ -624,6 +624,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::TierRun { .. }
         | Request::TierDecision { .. }
         | Request::FileRedFinding { .. }
+        | Request::FileVerdict { .. }
         | Request::MakingCopied { .. }
         | Request::MakingAct { .. }
         | Request::Decided { .. }
@@ -726,6 +727,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::TierRun { .. }
         | Request::TierDecision { .. }
         | Request::FileRedFinding { .. }
+        | Request::FileVerdict { .. }
         | Request::MakingCopied { .. }
         | Request::MakingAct { .. }
         | Request::Decided { .. }
@@ -821,6 +823,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::TierRun { .. }
         | Request::TierDecision { .. }
         | Request::FileRedFinding { .. }
+        | Request::FileVerdict { .. }
         | Request::MakingCopied { .. }
         | Request::MakingAct { .. }
         | Request::Decided { .. }

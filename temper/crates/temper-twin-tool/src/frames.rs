@@ -94,7 +94,7 @@ fn decode(bytes: &[u8], limits: &codec::View, task: u64, at: u64) -> Result<smit
     let turn = match smith::decode_archived(&smith::CEILINGS, &record.transcript) {
         Ok(turn) => turn,
         Err(problem) => {
-            if problem.path == smith::v7::Path::TurnVersion && record.transcript.len() >= 2 {
+            if problem.path == smith::v7::paths::TURN_VERSION && record.transcript.len() >= 2 {
                 return Err(Refusal::Version {
                     task,
                     version: u16::from_be_bytes([record.transcript[0], record.transcript[1]]),
@@ -108,26 +108,26 @@ fn decode(bytes: &[u8], limits: &codec::View, task: u64, at: u64) -> Result<smit
 }
 
 fn check(turn: &smith::Turn, task: u64, number: u32) -> Result<(), Refusal> {
-    if *turn.kind() == TurnKind::Window {
+    if turn.kind == TurnKind::Window {
         return Err(Refusal::Turn { task, turn: number, why: Unheld::Compaction });
     }
     let mut completions = 0;
-    for message in turn.messages() {
-        if *message.role() == Role::Assistant {
+    for message in &turn.messages {
+        if message.role == Role::Assistant {
             completions += 1;
         }
-        for block in message.blocks() {
+        for block in &message.blocks {
             match block {
                 Block::Result(result) => {
-                    if let Returned::Invalid(invalid) = result.returned()
-                        && matches!(invalid.problem(), CallProblem::CutOff(_))
+                    if let Returned::Invalid(invalid) = &result.returned
+                        && matches!(&invalid.problem, CallProblem::CutOff(_))
                     {
                         return Err(Refusal::Turn { task, turn: number, why: Unheld::CutShort });
                     }
                 }
                 Block::Call(call) => {
                     if !matches!(
-                        serde_json::from_slice::<serde_json::Value>(call.input()),
+                        serde_json::from_slice::<serde_json::Value>(call.input.as_ref()),
                         Ok(serde_json::Value::Object(_))
                     ) {
                         return Err(Refusal::Turn { task, turn: number, why: Unheld::CutShort });

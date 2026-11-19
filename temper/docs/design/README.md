@@ -170,7 +170,8 @@ forge, temper adds:
 
 - **`domain/`:** temper's domain layer on jig's: its root, the forge
   connector, landings by turn (`landing.md`), what follows a landing
-  (`after-landing.md`) and findings (`findings.md`), the worker, and
+  (`after-landing.md`) and findings (`findings.md`, its reds after
+  landing `red-findings.md`), the worker, and
   what temper fills in of smith's agent; and `testing/README.md`, temper's tiers, its fakes, its scenarios and its layout,
   on skein's testing strategy and jig's worlds. Its `README.md` gives the
   reading order, the structure, the names and the decisions.

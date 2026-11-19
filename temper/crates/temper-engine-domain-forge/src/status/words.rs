@@ -27,7 +27,7 @@ pub(super) fn findings(d: &Domain, project: u32) -> (Box<[u8]>, Option<[u8; 32]>
     let mut high = 0_u64;
     let mut titles = List::uncapped();
     for (_, finding) in d.findings(project).rev() {
-        if finding.state.ended() {
+        if finding.needs_no_triage() || (finding.state.ended() && !finding.uncleared_red()) {
             continue;
         }
         total = total.checked_add(1).expect("bounded findings");
