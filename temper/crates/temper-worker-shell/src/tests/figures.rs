@@ -207,7 +207,7 @@ fn worker_inputs_refuse_the_old_file_and_validate_derived_program_and_claude() {
     let (_, document) = super::worker_document(data);
     let directories = super::configuration::directories(data);
     let mut part = temper_worker_service::startup::worker_part(
-        &serde_json::to_vec(&document).expect("JSON"),
+        &super::worker_start(&document),
         &temper_service_shell::jig_directories(&directories),
         None,
         &[],

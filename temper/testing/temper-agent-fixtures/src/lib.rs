@@ -102,13 +102,13 @@ pub fn directories(directory: &std::path::Path) -> temper_shell::directories::Di
     temper_shell::directories::resolve(&arguments, &[], b"/").expect("fixture directories").0
 }
 
-/// Read a fixture's start, deriving it from the file when it came from init.
+/// Read a fixture's start from its shape's file.
+/// The legacy fallback is transitional, owned by the remaining harness migrations.
 #[must_use]
 pub fn start(directory: &std::path::Path) -> Value {
     let file = directory.join(temper_config_shell::FILE);
     let bytes = if file.exists() {
-        let dirs = directories(directory);
-        temper_config_shell::read(&dirs, temper_config_shell::Shape::Standalone).expect("init file").document
+        configuration_file(directory).0.document
     } else {
         std::fs::read(directory.join(temper_config_shell::FORMER)).expect("fixture start").into()
     };
@@ -166,9 +166,30 @@ pub fn data(config: &std::path::Path) -> std::path::PathBuf {
     let sibling = config.parent().unwrap_or(config).join("data");
     if config.ends_with("config") && sibling.is_dir() { sibling } else { config.into() }
 }
-/// Apply a fixture's agent changes to the engine document and the kind-21 startup copy.
+fn configuration_file(directory: &std::path::Path) -> (temper_config_shell::Read, temper_config_shell::Shape) {
+    use temper_config_shell::{Shape, parse};
+    let text = std::fs::read(directory.join(temper_config_shell::FILE)).expect("fixture file");
+    let facts = temper_config_shell::facts(&directories(directory)).expect("fixture facts");
+    for shape in [Shape::Standalone, Shape::EngineAlone, Shape::WorkerAlone] {
+        if let Ok(read) = parse(&text, shape, &facts) {
+            return (read, shape);
+        }
+    }
+    panic!("fixture file must have a deployment shape");
+}
+
+/// Apply a fixture's agent changes to the file and the kind-21 startup copy.
+/// The legacy write branch is transitional, owned by the remaining harness migrations.
 pub fn install(directory: &std::path::Path, agent: &Value) {
     let path = directory.join(temper_config_shell::FORMER);
+    if directory.join(temper_config_shell::FILE).exists() {
+        let (read, shape) = configuration_file(directory);
+        let mut document = serde_json::from_slice(&read.document).expect("fixture start document");
+        apply(&mut document, &data(directory), agent);
+        std::fs::write(directory.join(temper_config_shell::FILE), temper_config_shell::render(&read.file, shape))
+            .expect("fixture file");
+        return;
+    }
     let mut document = start(directory);
     apply(&mut document, &data(directory), agent);
     if !directory.join(temper_config_shell::FILE).exists() {

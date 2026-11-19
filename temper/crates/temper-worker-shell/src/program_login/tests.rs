@@ -52,35 +52,48 @@ fn a_worker_alone_login_reads_only_its_worker_part() {
     let program = directory.join("claude");
     std::fs::copy("/bin/sh", &program).expect("worker-alone program");
     let environment = [(OsString::from("PATH"), directory.as_os_str().to_owned())];
-    std::fs::write(directory.join("temper.json"), serde_json::to_vec(&input).expect("worker-alone fixture"))
-        .expect("worker-alone fixture");
+    std::fs::write(
+        directory.join(temper_config_shell::FILE),
+        temper_config_shell::render(&input, temper_config_shell::Shape::WorkerAlone),
+    )
+    .expect("worker-alone fixture");
     let command =
         command(&crate::tests::configuration::directories(&directory), OsStr::new("source"), environment, None)
             .expect("worker-alone fixture");
     assert_eq!(command.get_program(), program.as_os_str());
     assert_eq!(command.get_args().collect::<Vec<_>>(), ["auth", "login"]);
     assert!(!directory.join("state").exists());
-    assert!(!directory.join("worker.secret").exists(), "no link secret needed for program login");
+    assert!(!directory.join("secrets/worker.secret").exists(), "no link secret needed for program login");
     std::fs::remove_dir_all(directory).expect("worker-alone fixture");
 }
 
 #[test]
-fn a_document_of_another_shape_needs_a_deployment_reader() {
+fn an_engine_file_is_refused_at_its_key_before_program_setup() {
     let scratch = skein_scratch::Scratch::new("temper-login-shape");
     let directory = scratch.path();
-    let (agent, input) = crate::tests::configuration::documents(directory, "/missing/temper");
-    let mut input: serde_json::Value = serde_json::from_slice(&input).expect("engine-alone fixture");
-    input["engine"]["hosts"]["listener"] = serde_json::json!([{"socket":"127.0.0.1:7100"}]);
-    input["workers"] = serde_json::json!([]);
+    let (agent, _) = crate::tests::configuration::documents(directory, "/missing/temper");
+    let input = temper_config_shell::File {
+        workers: Some("127.0.0.1:7100".parse().expect("workers address")),
+        ..temper_config_shell::File::default()
+    };
 
     let programs = directory.join("programs");
     let mut agent: serde_json::Value = serde_json::from_slice(&agent).expect("agent fixture");
     agent["programs"] = serde_json::json!({"claude_code":{"path":"/missing/claude","directory":programs}});
     std::fs::write(directory.join("agent.json"), serde_json::to_vec(&agent).expect("agent fixture"))
         .expect("agent fixture");
-    std::fs::write(directory.join("temper.json"), serde_json::to_vec(&input).expect("engine-alone fixture"))
-        .expect("engine-alone fixture");
+    std::fs::write(
+        directory.join(temper_config_shell::FILE),
+        temper_config_shell::render(&input, temper_config_shell::Shape::EngineAlone),
+    )
+    .expect("engine-alone fixture");
     let directories = crate::tests::configuration::directories(directory);
-    assert_eq!(command(&directories, OsStr::new("work"), [], None).unwrap_err(), "temper.json holds no worker alone");
+    assert_eq!(
+        command(&directories, OsStr::new("work"), [], None).unwrap_err(),
+        format!(
+            "{file}:4: workers: a key of temper-engine's file, not temper-worker's\n{file}: engine: required in temper-worker's file",
+            file = temper_config_shell::FILE
+        )
+    );
     assert!(!programs.exists(), "a refused shape makes no programs directory");
 }

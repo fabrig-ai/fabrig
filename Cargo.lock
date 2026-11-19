@@ -6443,6 +6443,7 @@ dependencies = [
  "skein-scratch",
  "skein-shell",
  "temper-agent-fixtures",
+ "temper-config-shell",
  "temper-shell",
 ]
 
@@ -6471,9 +6472,12 @@ dependencies = [
  "temper-engine-service-stock",
  "temper-engine-service-vocabulary",
  "temper-engine-shell",
+ "temper-forge-setup",
+ "temper-forge-setup-shell",
  "temper-github-app",
  "temper-protocol-store",
  "temper-service-core",
+ "temper-service-shell",
  "temper-shell",
  "temper-version",
 ]
