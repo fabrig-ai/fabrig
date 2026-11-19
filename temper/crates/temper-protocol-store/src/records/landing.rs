@@ -526,12 +526,7 @@ pub(super) fn decode(row: w::LandingRow) -> Result<top::LandingRow, super::Undec
         room,
         job: super::history::decode_job_record(job),
         landing: d::Landing {
-            searched: match searched {
-                Some(value) => {
-                    Some(d::Searched { red: value.red, green: value.green, changes: value.changes.into_boxed() })
-                }
-                None => None,
-            },
+            searched: decode_searched(searched),
             last_left,
             task,
             project,
@@ -559,23 +554,7 @@ pub(super) fn decode(row: w::LandingRow) -> Result<top::LandingRow, super::Undec
                 Some(round) => decode_round(round),
                 None => d::Round::new(Box::new([])),
             },
-            last_prepare: match last_prepare {
-                Some(value) => {
-                    let w::LandingLastPrepare { member, head, main, suffix, asks, again } = value;
-                    Some(d::LastPrepare {
-                        member,
-                        head,
-                        main,
-                        suffix: suffix.into_boxed(),
-                        asks,
-                        again: match again {
-                            Some(at) => Some(Wall::from_nanos(at)),
-                            None => None,
-                        },
-                    })
-                }
-                None => None,
-            },
+            last_prepare: decode_last_prepare(last_prepare),
         },
         asks: decoded_asks.into_boxed(),
         entries: decoded_entries.into_boxed(),
@@ -810,6 +789,13 @@ fn encode_searched(searched: Option<&d::Searched>) -> Option<w::LandingSearched>
     Some(w::LandingSearched { red: searched.red, green: searched.green, changes })
 }
 
+fn decode_searched(searched: Option<w::LandingSearched>) -> Option<d::Searched> {
+    match searched {
+        Some(value) => Some(d::Searched { red: value.red, green: value.green, changes: value.changes.into_boxed() }),
+        None => None,
+    }
+}
+
 fn encode_last_prepare(last: Option<&d::LastPrepare>) -> Option<w::LandingLastPrepare> {
     let last = last?;
     let mut suffix = List::with_capacity(u32::try_from(last.suffix.len()).expect(FITS));
@@ -827,6 +813,26 @@ fn encode_last_prepare(last: Option<&d::LastPrepare>) -> Option<w::LandingLastPr
             None => None,
         },
     })
+}
+
+fn decode_last_prepare(last: Option<w::LandingLastPrepare>) -> Option<d::LastPrepare> {
+    match last {
+        Some(value) => {
+            let w::LandingLastPrepare { member, head, main, suffix, asks, again } = value;
+            Some(d::LastPrepare {
+                member,
+                head,
+                main,
+                suffix: suffix.into_boxed(),
+                asks,
+                again: match again {
+                    Some(at) => Some(Wall::from_nanos(at)),
+                    None => None,
+                },
+            })
+        }
+        None => None,
+    }
 }
 
 fn encode_wait(wait: Option<d::Awaited>) -> Option<w::LandingAwaited> {

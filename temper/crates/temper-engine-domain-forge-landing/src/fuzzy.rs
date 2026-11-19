@@ -35,13 +35,7 @@ fn run(seed: u64) -> (Landing, Box<[Decision]>, [bool; 3], bool) {
     let units = usize::try_from(rng.below(4).checked_add(1).unwrap()).unwrap().min(count);
     let mut landing = stack(count);
     let mut world = Top::new(rng, count, units);
-    let mut disturbances = usize::from(world.stale.is_some())
-        .checked_add(usize::from(world.cancel))
-        .unwrap()
-        .checked_add(usize::from(world.red.is_some()))
-        .unwrap()
-        .checked_add(usize::try_from(world.unkept).unwrap())
-        .unwrap();
+    let mut disturbances = world.disturbances();
     for (index, member) in landing.members.iter_mut().enumerate() {
         member.unit = u16::try_from(index.checked_mul(units).unwrap().checked_div(count).unwrap()).unwrap();
         let fresh = &mut world.facts.members[index];
@@ -103,11 +97,11 @@ fn run(seed: u64) -> (Landing, Box<[Decision]>, [bool; 3], bool) {
                     assert!(member.landed.is_some() || member.left.is_some(), "terminal seed {seed}");
                 }
                 if world.pending.is_empty() {
-                    return (next.landing, trace.into_boxed(), world.reached(), world.stale_after_cut);
+                    return (next.landing, trace.into_boxed(), world.reached(), world.coverage.stale_after_cut);
                 }
             }
             Decision::Hold(_) | Decision::Cancel => {
-                return (next.landing, trace.into_boxed(), world.reached(), world.stale_after_cut);
+                return (next.landing, trace.into_boxed(), world.reached(), world.coverage.stale_after_cut);
             }
             Decision::None
             | Decision::Wait { .. }
@@ -299,10 +293,14 @@ struct Top {
     by_test: bool,
     stale: Option<StaleAt>,
     cancel: bool,
-    cuts: [bool; 2],
-    stale_after_cut: bool,
+    coverage: Coverage,
     /// Prepares still to end with no answer their round keeps, read as absent.
     unkept: u32,
+}
+
+struct Coverage {
+    cuts: [bool; 2],
+    stale_after_cut: bool,
     absent: bool,
 }
 
@@ -357,16 +355,24 @@ impl Top {
             by_test,
             stale,
             cancel,
-            cuts: [false; 2],
-            stale_after_cut: false,
+            coverage: Coverage { cuts: [false; 2], stale_after_cut: false, absent: false },
             unkept,
-            absent: false,
         }
     }
 
+    fn disturbances(&self) -> usize {
+        usize::from(self.stale.is_some())
+            .checked_add(usize::from(self.cancel))
+            .unwrap()
+            .checked_add(usize::from(self.red.is_some()))
+            .unwrap()
+            .checked_add(usize::try_from(self.unkept).unwrap())
+            .unwrap()
+    }
+
     fn reached(&self) -> [bool; 3] {
-        let [whole, selected] = self.cuts;
-        [whole, selected, self.absent]
+        let [whole, selected] = self.coverage.cuts;
+        [whole, selected, self.coverage.absent]
     }
 
     fn merge_pending(&self) -> bool {
@@ -420,7 +426,7 @@ impl Top {
             };
             if due {
                 if let StaleAt::Cut = at {
-                    self.stale_after_cut = true;
+                    self.coverage.stale_after_cut = true;
                     assert_ne!(self.facts.opening, Status::Pending, "the cut precedes its next open");
                 }
                 for fresh in &mut self.facts.members {
@@ -448,7 +454,7 @@ impl Top {
                     // It ended with no answer the round keeps (landing-preparing.md, 2).
                     self.unkept = self.unkept.checked_sub(1).unwrap();
                     self.facts.preparation = Preparation::Absent;
-                    self.absent = true;
+                    self.coverage.absent = true;
                 }
                 Effect::Prepare => {
                     self.facts.preparation = Preparation::Idle;
@@ -574,7 +580,7 @@ impl Top {
     fn start(&mut self, landing: &Landing, decision: Decision, tick: u32) {
         let round = landing.preparation;
         if landing.round.ending == Some(crate::RoundEnd::Cut) {
-            self.cuts[usize::from(by_test(landing))] = true;
+            self.coverage.cuts[usize::from(by_test(landing))] = true;
         }
         match decision {
             Decision::Prepare { member, .. } => {

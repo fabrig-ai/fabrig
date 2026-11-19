@@ -573,6 +573,7 @@ fn largest_roots_stay_within_decoded_bounds() {
             binding_subject,
             landing_member_gates,
             landing_member_branch,
+            landing_last_prepare_suffix,
             failing_test_test_id,
             shown_test_test_id,
             many_tests_tests,
