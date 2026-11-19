@@ -1028,6 +1028,8 @@ fn save_is_an_empty_object_write_offered_only_under_its_descriptor() {
     assert!(skein_lib::bytes::find(&save.schema, b"\"additionalProperties\":false").is_some());
 }
 
+mod refusals;
+
 fn direct_limits() -> crate::Limits {
     crate::fixture::small(skein_llm_kit::limits(), crate::Stated::from_tools(&tools(), 4096).expect("stated"))
 }
@@ -1036,6 +1038,117 @@ fn direct_prompt() -> smith_domain::llm::Prompt {
     let mut prompt = described_prompt();
     prompt.tools = tools::Grants { inspect: false, modify: false, shell: false };
     prompt
+}
+
+#[test]
+fn empty_turns_translate_in_place_for_both_roles_and_dialects() {
+    use smith_domain::llm;
+    for role in [llm::Role::Assistant, llm::Role::User] {
+        let mut input = direct_prompt();
+        input.messages = Box::new([
+            llm::Message {
+                role: llm::Role::User,
+                content: Box::new([llm::Block::Text { text: b"go".as_slice().into(), replay: None }]),
+            },
+            llm::Message { role, content: Box::new([]) },
+            llm::Message {
+                role: llm::Role::User,
+                content: Box::new([llm::Block::Text { text: b"next\n\"exact\"".as_slice().into(), replay: None }]),
+            },
+        ]);
+        let translated = crate::prompt(input, &[], &direct_limits()).expect("empty turn translation");
+        let native_role = match role {
+            llm::Role::User => skein_llm::Role::User,
+            llm::Role::Assistant => skein_llm::Role::Assistant,
+        };
+        assert_eq!(
+            translated,
+            native_text_prompt(Box::new([
+                native_text(skein_llm::Role::User, b"go"),
+                native_text(native_role, b"[an empty turn]"),
+                native_text(skein_llm::Role::User, b"next\n\"exact\""),
+            ]))
+        );
+        for provider in [skein_llm::Provider::OpenAi, skein_llm::Provider::Anthropic] {
+            let mut call = match provider {
+                skein_llm::Provider::OpenAi => skein_llm_kit::public_call(1),
+                skein_llm::Provider::Anthropic => skein_llm_kit::anthropic_call(1),
+            };
+            call.prompt = translated.clone();
+            call.prompt.output_ceiling(provider, 16).expect("dialect output cap");
+            let mut peer = skein_llm_kit::fake::Exchange::new(call, skein_llm_kit::limits_for(provider), Box::new([]));
+            peer.start();
+            peer.run();
+            assert!(skein_lib::bytes::find(&peer.requests, br#""text":"[an empty turn]""#).is_some(), "{provider:?}");
+        }
+    }
+}
+
+#[test]
+fn nonempty_turns_keep_their_exact_blocks() {
+    use smith_domain::llm;
+    let mut input = direct_prompt();
+    input.messages = Box::new([
+        llm::Message {
+            role: llm::Role::User,
+            content: Box::new([llm::Block::Text { text: b"\n\"go\"".as_slice().into(), replay: None }]),
+        },
+        llm::Message {
+            role: llm::Role::Assistant,
+            content: Box::new([llm::Block::Text { text: Box::new([]), replay: None }]),
+        },
+    ]);
+    let translated = crate::prompt(input, &[], &direct_limits()).expect("nonempty messages");
+    assert_eq!(
+        translated,
+        native_text_prompt(Box::new([
+            native_text(skein_llm::Role::User, b"\n\"go\""),
+            native_text(skein_llm::Role::Assistant, b""),
+        ]))
+    );
+}
+
+#[test]
+fn empty_turn_marker_counts_toward_history_items() {
+    use smith_domain::llm;
+    for maximum in [2, 3] {
+        let mut input = direct_prompt();
+        input.messages = Box::new([
+            llm::Message {
+                role: llm::Role::User,
+                content: Box::new([
+                    llm::Block::Text { text: b"one".as_slice().into(), replay: None },
+                    llm::Block::Text { text: b"two".as_slice().into(), replay: None },
+                ]),
+            },
+            llm::Message { role: llm::Role::Assistant, content: Box::new([]) },
+        ]);
+        let mut limits = direct_limits();
+        limits.client.history_items = maximum;
+        let result = crate::prompt(input, &[], &limits);
+        if maximum == 2 {
+            assert_eq!(result, Err(crate::Error::Limit));
+        } else {
+            result.expect("three blocks including the marker fit at the bound");
+        }
+    }
+}
+
+fn native_text(role: skein_llm::Role, text: &[u8]) -> skein_llm::Message {
+    skein_llm::Message { role, content: Box::new([skein_llm::Block::Text { text: text.into(), replay: None }]) }
+}
+
+fn native_text_prompt(messages: Box<[skein_llm::Message]>) -> skein_llm::Prompt {
+    skein_llm::Prompt {
+        model: b"test".as_slice().into(),
+        instructions: Box::new([]),
+        tools: Box::new([]),
+        choice: skein_llm::ToolChoice::Auto,
+        messages,
+        reasoning_effort: None,
+        affinity: Some(skein_llm::Affinity { key: [0; 16], thread: 0 }),
+        max_output_tokens: Some(16),
+    }
 }
 
 fn host_tool(schema: &[u8]) -> smith_domain::llm::Served {
@@ -1192,7 +1305,13 @@ fn direct_translation_refuses_non_object_host_schemas() {
                 &limits,
             )
             .expect_err("host schema must be refused before a request is built"),
-            crate::Error::Invalid
+            crate::Error::Invalid {
+                cause: crate::Cause::Smith(if schema == b"[]" {
+                    crate::Refusal::NotObject
+                } else {
+                    crate::Refusal::HostSchema
+                })
+            }
         );
     }
 }

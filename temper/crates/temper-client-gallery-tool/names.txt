@@ -53,6 +53,7 @@ ask-refused
 ask-sending
 ask-typing
 ask-ways-approve
+ask-ways-approve-menu
 ask-ways-card
 ask-ways-card-person
 ask-ways-draft

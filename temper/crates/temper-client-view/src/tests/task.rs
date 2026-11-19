@@ -1194,7 +1194,7 @@ fn an_agent_pages_conversation_draws_its_runs_but_not_its_milestones() {
     let mut page = f::activity(false);
     page.rows = List::with_capacity(3);
     for (position, line) in [
-        (1, c::Activity::RunBegan { attempt: 1, why: c::RunWhy::Made, resumed: false }),
+        (1, c::Activity::RunBegan { attempt: 1, why: c::RunWhy::Made, resumed: false, fresh: None }),
         (2, c::Activity::Milestone { position: 2 }),
         (3, c::Activity::RunEnded { attempt: 1, end: c::RunEnd::Finished, spent: 0 }),
     ] {
@@ -2192,4 +2192,37 @@ fn a_refused_talk_is_said_in_jigs_words_instead_of_a_message_composer() {
     assert!(named(view.tree().nodes(), Role::Paragraph, b"Talk"));
     assert!(fixtures::find(view.tree(), Role::TextArea, b"Message").is_none());
     assert!(fixtures::find(view.tree(), Role::TextArea, b"Talk").is_none());
+}
+
+#[test]
+fn an_agent_pages_conversation_says_why_a_run_began_fresh() {
+    for (fresh, expected) in [
+        (None, b"Run 3 began".as_slice()),
+        (Some(c::RunFresh::Moved), b"Run 3 began fresh: its conversation ran on another endpoint"),
+        (Some(c::RunFresh::Closed), b"Run 3 began fresh: its conversation was closed"),
+        (Some(c::RunFresh::Cut), b"Run 3 began fresh: a turn was too large to load"),
+        (Some(c::RunFresh::Limit), b"Run 3 began fresh: its conversation passed the resume limit"),
+        (Some(c::RunFresh::Session), b"Run 3 began fresh: its session had ended"),
+    ] {
+        let mut task = f::delegate();
+        task.activity = 1;
+        let mut page = f::activity(false);
+        page.rows = List::with_capacity(1);
+        page.rows
+            .push(c::DecodedActivityLine {
+                source: Box::new(c::ActivityLine {
+                    task: TASK,
+                    position: 1,
+                    at: skein_lib::Wall::EPOCH,
+                    line: c::Activity::RunBegan { attempt: 3, why: c::RunWhy::Ready, resumed: false, fresh },
+                }),
+                decoded: None,
+            })
+            .expect("run beginning");
+        let view = fixtures::page_view(&f::agent_root_with_page(task, Some(f::tree()), page));
+        let tree = view.tree();
+        let said = fixtures::node_text(tree, index_of(tree, Role::Log, b"Conversation"));
+        assert!(skein_lib::bytes::find(&said, expected).is_some(), "{fresh:?}: {said:?}");
+        assert_eq!(skein_lib::bytes::find(&said, b"began fresh").is_some(), fresh.is_some());
+    }
 }

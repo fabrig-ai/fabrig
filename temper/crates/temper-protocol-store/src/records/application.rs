@@ -1,7 +1,8 @@
 //! Retained outcomes, field for field with the forge's application family.
 use super::{FITS, names};
 use crate::{Bounds, Undecodable, v25 as w};
-use skein_lib::{Reader, Wall, Writer};
+use jig_protocol_store::people_v17::Record as _;
+use skein_lib::{Reader, Wall};
 use temper_engine_domain_forge_vocabulary as d;
 mod refusal;
 
@@ -31,9 +32,8 @@ pub(super) fn encode(token: u64, until: Wall, outcome: &d::ApplicationOutcome) -
         d::ApplicationOutcome::CoreRefused(v) => {
             let record =
                 refusal::encode_refusal(v, &jig_protocol_store::people_v17::CEILINGS).expect("refusal facts fit");
-            let mut writer = Writer::new(usize::try_from(record.measure()).expect("small refusal"));
-            record.encode(&mut writer).expect("measured room");
-            w::ApplicationOutcome::CoreRefused(w::CoreRefused { refusal: writer.finish() })
+            let refusal = record.encode(&jig_protocol_store::people_v17::CEILINGS).expect("refusal facts fit");
+            w::ApplicationOutcome::CoreRefused(w::CoreRefused { refusal })
         }
         d::ApplicationOutcome::ForgeRefused(v) => {
             w::ApplicationOutcome::ForgeRefused(w::ForgeRefused { reason: encode_reason(*v) })

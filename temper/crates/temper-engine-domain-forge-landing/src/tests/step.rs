@@ -1,6 +1,6 @@
 use crate::{
-    Decision, Facts, Fault, Flight, GateFacts, GateProof, Hold, Landing, Limits, Member, MemberFacts, Phase, Posted,
-    Posting, Project, Proof, Repository, Status, Stepped, Verdict, step,
+    Awaited, Decision, Facts, Fault, Flight, GateFacts, GateProof, Hold, Landing, Limits, Member, MemberFacts, Phase,
+    Posted, Posting, Project, Proof, Repository, Status, Stepped, Verdict, step,
 };
 use alloc::boxed::Box;
 use skein_lib::{Duration, Wall};
@@ -25,6 +25,7 @@ fn landing_of_one() -> Landing {
         phase: Phase::Waiting,
         preparation: 0,
         stale_proofs: 0,
+        last_prepare: None,
         branch: Box::from(b"main".as_slice()),
         members: Box::new([Member {
             round: None,
@@ -133,7 +134,7 @@ fn a_member_not_ready_waits() {
     let mut f = facts();
     f.members[0].ready = false;
     let next = decide(&landing_of_one(), &f);
-    assert_eq!(next.decision, Decision::Wait { until: None });
+    assert_eq!(next.decision, Decision::Wait { until: None, on: Awaited::Ready { member: 0 } });
     assert_eq!(next.landing.phase, Phase::Waiting);
 }
 #[test]
@@ -154,7 +155,7 @@ fn a_prepare_job_waits_and_its_branch_supplies_the_candidate() {
     assert_eq!(one.decision, Decision::Prepare { member: 0, head: HEAD, main: MAIN });
     assert_eq!(one.landing.preparation, 1);
     f.preparation = crate::Preparation::Running;
-    assert_eq!(decide(&one.landing, &f).decision, Decision::Wait { until: None });
+    assert_eq!(decide(&one.landing, &f).decision, Decision::Wait { until: None, on: Awaited::Prepare });
     f.members[0].candidate = Some((NEW, crate::Combine::Merge));
     let two = decide(&one.landing, &f);
     assert_eq!(two.landing.members[0].candidate, Some(NEW));
@@ -186,14 +187,17 @@ fn a_key_with_no_receipt_is_dispatched_then_posted_pending() {
     let two = decide(&one.landing, &facts());
     assert_eq!(two.decision, Decision::Post { member: 0, gate: 0, posting: Posting::Pending });
     assert_eq!(two.landing.members[0].gates[0].posted, Posted::Pending);
-    assert_eq!(decide(&two.landing, &facts()).decision, Decision::Wait { until: None });
+    assert_eq!(
+        decide(&two.landing, &facts()).decision,
+        Decision::Wait { until: Some(at(15)), on: Awaited::Receipt { member: 0, gate: 0 } }
+    );
 }
 #[test]
 fn a_key_in_flight_for_another_landing_waits() {
     let mut f = facts();
     f.members[0].gates[0].flight = Flight::Other;
     let next = decide(&keyed(), &f);
-    assert_eq!(next.decision, Decision::Wait { until: None });
+    assert_eq!(next.decision, Decision::Wait { until: Some(at(15)), on: Awaited::Receipt { member: 0, gate: 0 } });
     assert_eq!(next.landing.members[0].gates[0].proof, Proof::Keyed { key: KEY });
 }
 #[test]
@@ -204,7 +208,10 @@ fn a_runners_fault_retries_up_to_gate_retries_then_holds() {
     assert_eq!(one.decision, Decision::Retry { member: 0, gate: 0, key: KEY, try_: 2 });
     assert_eq!(one.landing.members[0].gates[0].faults, 1);
     f.members[0].gates[0].flight = Flight::Mine { run: None };
-    assert_eq!(decide(&one.landing, &f).decision, Decision::Wait { until: Some(at(15)) });
+    assert_eq!(
+        decide(&one.landing, &f).decision,
+        Decision::Wait { until: Some(at(15)), on: Awaited::Run { member: 0, gate: 0 } }
+    );
     f.members[0].gates[0].flight = Flight::Mine { run: Some(Verdict::Fault(Fault::Completion)) };
     let two = decide(&one.landing, &f);
     assert_eq!(two.decision, Decision::Retry { member: 0, gate: 0, key: KEY, try_: 3 });
@@ -239,7 +246,7 @@ fn a_failed_gate_posts_its_verdict_even_while_its_member_repairs() {
     f.members[0].gates[0].posting = Status::Pending;
     let waiting = decide(&repair.landing, &f);
     assert_eq!(waiting.landing.phase, Phase::Proving);
-    assert_eq!(waiting.decision, Decision::Wait { until: None });
+    assert_eq!(waiting.decision, Decision::Wait { until: None, on: Awaited::Post { member: 0, gate: 0 } });
     f.members[0].gates[0].posting = Status::Passed;
     let posted = decide(&waiting.landing, &f);
     assert_eq!(posted.decision, Decision::Post { member: 0, gate: 0, posting: Posting::Ran { passed: false } });
@@ -272,7 +279,7 @@ fn a_repaired_head_does_not_erase_the_old_candidates_unposted_failure() {
     f.members[0].head = NEW;
     f.members[0].gates[0].posting = Status::Pending;
     let pending = decide(&repair.landing, &f);
-    assert_eq!(pending.decision, Decision::Wait { until: None });
+    assert_eq!(pending.decision, Decision::Wait { until: None, on: Awaited::Post { member: 0, gate: 0 } });
     assert_eq!(pending.landing.members[0].candidate, Some(HEAD));
     f.members[0].gates[0].posting = Status::Passed;
     let posted = decide(&pending.landing, &f);
@@ -336,7 +343,7 @@ fn a_proved_landing_takes_its_own_trains_turn() {
             assert_eq!(next.decision, Decision::None);
         } else {
             assert_eq!(next.landing.phase, landing.phase);
-            assert_eq!(next.decision, Decision::Wait { until: None });
+            assert_eq!(next.decision, Decision::Wait { until: None, on: Awaited::Turn });
         }
     }
 }
@@ -347,7 +354,7 @@ fn the_turn_merges_at_the_candidate_then_tells_its_change_after_readback() {
     let one = decide(&landing, &f);
     assert_eq!(one.decision, Decision::Merge { member: 0, candidate: HEAD });
     f.members[0].merge = Status::Passed;
-    assert_eq!(decide(&one.landing, &f).decision, Decision::Wait { until: None });
+    assert_eq!(decide(&one.landing, &f).decision, Decision::Wait { until: Some(at(15)), on: Awaited::Merge });
     f.members[0].main = HEAD;
     f.members[0].merged = Some(HEAD);
     let two = decide(&one.landing, &f);
@@ -398,7 +405,7 @@ fn a_held_landing_waits_until_released() {
     let mut landing = dispatched();
     landing.members[0].gates[0].faults = 2;
     landing.phase = Phase::Held { was: Box::new(Phase::Proving), why: Hold::Faults { member: 0, gate: 0 } };
-    assert_eq!(decide(&landing, &facts()).decision, Decision::Wait { until: None });
+    assert_eq!(decide(&landing, &facts()).decision, Decision::Wait { until: None, on: Awaited::Release });
     let mut f = facts();
     f.released = true;
     let next = decide(&landing, &f);
@@ -412,7 +419,17 @@ fn current_runs_poll_and_wait_for_a_receipt_before_proving() {
         let mut f = facts();
         f.members[0].gates[0].flight = Flight::Mine { run };
         let next = decide(&dispatched(), &f);
-        assert_eq!(next.decision, Decision::Wait { until: Some(at(15)) });
+        assert_eq!(
+            next.decision,
+            Decision::Wait {
+                until: Some(at(15)),
+                on: if run == Some(Verdict::Passed) || run == Some(Verdict::Failed) {
+                    Awaited::Receipt { member: 0, gate: 0 }
+                } else {
+                    Awaited::Run { member: 0, gate: 0 }
+                }
+            }
+        );
         assert_eq!(next.landing.phase, Phase::Proving);
     }
 }
@@ -422,7 +439,7 @@ fn a_passed_run_posts_ran_after_the_pending_post_completes() {
     f.members[0].gates[0].receipt = Status::Passed;
     f.members[0].gates[0].posting = Status::Pending;
     let one = decide(&dispatched(), &f);
-    assert_eq!(one.decision, Decision::Wait { until: None });
+    assert_eq!(one.decision, Decision::Wait { until: None, on: Awaited::Post { member: 0, gate: 0 } });
     f.members[0].gates[0].posting = Status::Passed;
     let two = decide(&one.landing, &f);
     assert_eq!(two.decision, Decision::Post { member: 0, gate: 0, posting: Posting::Ran { passed: true } });
@@ -559,7 +576,7 @@ fn a_stack_of_three_prepares_once_and_proves_only_its_top() {
         assert_eq!(member.base, Some(MAIN));
     }
     f.preparation = crate::Preparation::Running;
-    assert_eq!(decide(&prepare.landing, &f).decision, Decision::Wait { until: None });
+    assert_eq!(decide(&prepare.landing, &f).decision, Decision::Wait { until: None, on: Awaited::Prepare });
     found(&mut f);
     let open = decide(&prepare.landing, &f);
     assert_eq!(open.decision, Decision::Open);
@@ -822,7 +839,10 @@ fn judgement_is_asked_once_per_member_and_all_must_hold() {
     f.members[2].gates[0].key = Some(KEY);
     f.members[2].gates[0].receipt = Status::Passed;
     let post = decide(&landing, &f);
-    assert_eq!(decide(&post.landing, &f).decision, Decision::Wait { until: None });
+    assert_eq!(
+        decide(&post.landing, &f).decision,
+        Decision::Wait { until: None, on: Awaited::Judgement { member: 0 } }
+    );
     for fresh in &mut f.members {
         fresh.judgement = Status::Passed;
     }
@@ -840,7 +860,7 @@ fn a_merged_member_waits_for_detection_before_its_change_can_close() {
     landing.phase = Phase::Turn { at: at(4) };
     f.members[0].main = prefix(0);
     let waiting = decide(&landing, &f);
-    assert_eq!(waiting.decision, Decision::Wait { until: Some(at(15)) });
+    assert_eq!(waiting.decision, Decision::Wait { until: Some(at(15)), on: Awaited::Merge });
     assert_eq!(waiting.landing.members[0].landed, Some(prefix(0)));
     assert!(!waiting.landing.members[0].told);
     f.members[0].merged = Some(prefix(0));
@@ -858,7 +878,7 @@ fn the_turn_rebuilds_stale_stacks_and_lands_each_member_at_its_prefix() {
     landing.members[2].combined = Some(crate::Combine::Squash);
     assert_eq!(decide(&landing, &f).decision, Decision::Merge { member: 2, candidate: prefix(2) });
     f.members[2].merge = Status::Passed;
-    assert_eq!(decide(&landing, &f).decision, Decision::Wait { until: None });
+    assert_eq!(decide(&landing, &f).decision, Decision::Wait { until: Some(at(15)), on: Awaited::Merge });
     for fresh in &mut f.members {
         fresh.main = prefix(2);
     }
@@ -1061,13 +1081,13 @@ fn a_merged_member_waits_for_its_pull_before_its_change_is_told() {
         fresh.main = prefix(2);
     }
     let waiting = decide(&landing, &f);
-    assert_eq!(waiting.decision, Decision::Wait { until: Some(at(15)) });
+    assert_eq!(waiting.decision, Decision::Wait { until: Some(at(15)), on: Awaited::Merge });
     assert_eq!(waiting.landing.members[0].landed, Some(prefix(0)));
     assert!(!waiting.landing.members[0].told);
     f.members[0].merged = Some(prefix(0));
     let told = decide(&waiting.landing, &f);
     assert_eq!(told.decision, Decision::Landed { member: 0, prefix: prefix(0) });
-    assert_eq!(decide(&told.landing, &f).decision, Decision::Wait { until: Some(at(15)) });
+    assert_eq!(decide(&told.landing, &f).decision, Decision::Wait { until: Some(at(15)), on: Awaited::Merge });
 }
 
 #[test]
@@ -1078,7 +1098,7 @@ fn a_forges_missing_merge_mark_cannot_keep_the_turn_past_its_poll() {
         fresh.main = prefix(2);
     }
     let waiting = decide(&landing, &f);
-    assert_eq!(waiting.decision, Decision::Wait { until: Some(at(15)) });
+    assert_eq!(waiting.decision, Decision::Wait { until: Some(at(15)), on: Awaited::Merge });
     let told = step(&waiting.landing, &f, &PROJECT, &LIMITS, at(15));
     assert_eq!(told.decision, Decision::Landed { member: 0, prefix: prefix(0) });
     let restored = told.landing.clone();
@@ -1099,10 +1119,13 @@ fn a_late_merge_readback_gives_manual_detection_a_whole_poll() {
         fresh.main = prefix(2);
     }
     let waiting = step(&landing, &f, &PROJECT, &LIMITS, at(100));
-    assert_eq!(waiting.decision, Decision::Wait { until: Some(at(105)) });
+    assert_eq!(waiting.decision, Decision::Wait { until: Some(at(105)), on: Awaited::Merge });
     assert_eq!(waiting.landing.members[0].landed, Some(prefix(0)));
     let restored = waiting.landing.clone();
-    assert_eq!(step(&restored, &f, &PROJECT, &LIMITS, at(104)).decision, Decision::Wait { until: Some(at(105)) });
+    assert_eq!(
+        step(&restored, &f, &PROJECT, &LIMITS, at(104)).decision,
+        Decision::Wait { until: Some(at(105)), on: Awaited::Merge }
+    );
     assert_eq!(
         step(&restored, &f, &PROJECT, &LIMITS, at(105)).decision,
         Decision::Landed { member: 0, prefix: prefix(0) }
@@ -1114,15 +1137,61 @@ fn a_prepare_intent_waits_only_once_its_job_is_admitted() {
     let mut f = stack_facts(3);
     f.preparation = crate::Preparation::Absent;
     let asked = decide(&stack(3), &f);
-    let reoffered = decide(&asked.landing, &f);
+    // A second absence asks again once its poll has passed (landing-preparing.md, 5).
+    let reoffered = step(&decide(&asked.landing, &f).landing, &f, &PROJECT, &LIMITS, at(15));
     assert_eq!(reoffered.decision, asked.decision);
     assert_eq!(reoffered.landing.preparation, asked.landing.preparation);
     f.preparation = crate::Preparation::Running;
-    assert_eq!(decide(&reoffered.landing, &f).decision, Decision::Wait { until: None });
+    assert_eq!(decide(&reoffered.landing, &f).decision, Decision::Wait { until: None, on: Awaited::Prepare });
     f.preparation = crate::Preparation::Idle;
-    assert_eq!(decide(&reoffered.landing, &f).decision, Decision::Wait { until: None });
+    assert_eq!(decide(&reoffered.landing, &f).decision, Decision::Wait { until: Some(at(15)), on: Awaited::Prefixes });
     found(&mut f);
     assert_eq!(decide(&reoffered.landing, &f).decision, Decision::Open);
+}
+
+#[test]
+fn the_same_absent_prepare_is_asked_again_once_after_a_poll_then_held() {
+    let mut f = stack_facts(3);
+    f.preparation = crate::Preparation::Absent;
+    let prepare = Decision::Prepare { member: 0, head: head(0), main: MAIN };
+    let asked = decide(&stack(3), &f);
+    assert_eq!(asked.decision, prepare);
+    let backoff = decide(&asked.landing, &f);
+    let poll = Decision::Wait { until: Some(at(15)), on: Awaited::Prefixes };
+    assert_eq!(backoff.decision, poll);
+    assert_eq!(step(&backoff.landing, &f, &PROJECT, &LIMITS, at(14)).decision, poll);
+    let again = step(&backoff.landing, &f, &PROJECT, &LIMITS, at(15));
+    assert_eq!(again.decision, prepare);
+    let held = step(&again.landing, &f, &PROJECT, &LIMITS, at(40));
+    assert_eq!(held.decision, Decision::Hold(Hold::Prepare));
+    assert_eq!(held.landing.phase, Phase::Held { was: Box::new(Phase::Preparing), why: Hold::Prepare });
+    // A person's release asks again at once, in a new round.
+    f.released = true;
+    let released = decide(&held.landing, &f);
+    f.released = false;
+    let stale = decide(&released.landing, &f);
+    assert_eq!(stale.decision, Decision::Stale);
+    assert_eq!(decide(&stale.landing, &f).decision, prepare);
+    // A head move, or a new main in a stale round, is another prepare, asked at once.
+    let mut moved = f.clone();
+    moved.members[0].head = NEW;
+    let left = decide(&backoff.landing, &moved);
+    assert_eq!(left.decision, Decision::Leave { member: 0, why: crate::Leave::HeadMoved { head: NEW } });
+    assert_eq!(decide(&left.landing, &moved).decision, Decision::Prepare { member: 1, head: head(1), main: MAIN });
+    let mut fresh = f.clone();
+    found(&mut fresh);
+    for member in &mut fresh.members {
+        member.main = NEW;
+        member.deleted = Status::Passed;
+    }
+    let ending = decide(&backoff.landing, &fresh);
+    assert_eq!(ending.landing.round.ending, Some(crate::RoundEnd::Stale));
+    let stale = decide(&ending.landing, &fresh);
+    assert_eq!(stale.decision, Decision::Stale);
+    for member in &mut fresh.members {
+        member.candidate = None;
+    }
+    assert_eq!(decide(&stale.landing, &fresh).decision, Decision::Prepare { member: 0, head: head(0), main: NEW });
 }
 
 #[test]
@@ -1148,7 +1217,7 @@ fn a_released_prepares_prefix_is_deleted_before_the_stale_round_restarts() {
     let fresh = decide(&stale.landing, &f);
     assert_eq!(fresh.decision, Decision::Prepare { member: 0, head: HEAD, main: NEW });
     assert_eq!(fresh.landing.preparation, 2);
-    assert_eq!(decide(&fresh.landing, &f).decision, Decision::Wait { until: None });
+    assert_eq!(decide(&fresh.landing, &f).decision, Decision::Wait { until: Some(at(15)), on: Awaited::Prefixes });
 }
 
 #[test]
@@ -1165,7 +1234,7 @@ fn a_prepare_finishing_on_a_stale_base_closes_before_proof() {
     assert_eq!(finished.landing.members[0].candidate, Some(HEAD));
     assert_eq!(finished.decision, Decision::None);
     f.preparation = crate::Preparation::Running;
-    assert_eq!(decide(&finished.landing, &f).decision, Decision::Wait { until: None });
+    assert_eq!(decide(&finished.landing, &f).decision, Decision::Wait { until: None, on: Awaited::Prepare });
 }
 
 #[test]
@@ -1183,6 +1252,103 @@ fn cleanup_does_not_restore_a_departed_members_unrecorded_prefix() {
     assert!(closed.landing.round.ending.is_none());
     assert_eq!(closed.landing.members[1].candidate, None);
     assert_eq!(closed.landing.members[1].combined, None);
+}
+
+#[test]
+fn opening_and_cleanup_wait_on_the_first_outstanding_effect() {
+    let mut f = stack_facts(2);
+    found(&mut f);
+    f.opening = Status::Pending;
+    let opening = decide(&stack(2), &f);
+    assert_eq!(opening.decision, Decision::Wait { until: None, on: Awaited::Open });
+    f.opened = Some(99);
+    let mut landing = decide(&opening.landing, &f).landing;
+    landing.round.ending = Some(crate::RoundEnd::Stale);
+    landing.round.changed = Some(0);
+    f.preparation = crate::Preparation::Running;
+    f.closed = Status::Pending;
+    f.members[0].deleted = Status::Pending;
+    assert_eq!(decide(&landing, &f).decision, Decision::Wait { until: None, on: Awaited::Prepare });
+    f.preparation = crate::Preparation::Idle;
+    assert_eq!(decide(&landing, &f).decision, Decision::Wait { until: None, on: Awaited::Close });
+    f.closed = Status::Passed;
+    assert_eq!(decide(&landing, &f).decision, Decision::Wait { until: None, on: Awaited::Delete { member: 0 } });
+    f.members[0].deleted = Status::Passed;
+    f.members[1].deleted = Status::Pending;
+    assert_eq!(decide(&landing, &f).decision, Decision::Wait { until: None, on: Awaited::Delete { member: 1 } });
+}
+
+#[test]
+fn a_squashed_member_waits_on_its_record() {
+    let (mut landing, mut f) = stacked(2);
+    landing.phase = Phase::Turn { at: at(10) };
+    landing.members[0].combined = Some(crate::Combine::Squash);
+    for fresh in &mut f.members {
+        fresh.main = prefix(1);
+    }
+    f.members[0].record = Status::Pending;
+    assert_eq!(decide(&landing, &f).decision, Decision::Wait { until: None, on: Awaited::Record { member: 0 } });
+}
+
+#[test]
+fn the_first_judgement_wait_precedes_a_later_gate_wait() {
+    let (mut landing, mut f) = stacked(2);
+    landing.members[1].judging = true;
+    f.members[1].judgement = Status::Pending;
+    f.members[1].gates[0].key = Some(KEY);
+    f.members[1].gates[0].flight = Flight::Other;
+    assert_eq!(decide(&landing, &f).decision, Decision::Wait { until: None, on: Awaited::Judgement { member: 1 } });
+    f.members[1].judgement = Status::Passed;
+    assert_eq!(
+        decide(&landing, &f).decision,
+        Decision::Wait { until: Some(at(15)), on: Awaited::Receipt { member: 1, gate: 0 } }
+    );
+}
+
+#[test]
+fn a_single_member_polls_ancestry_unless_its_change_is_taking_the_ask() {
+    let mut landing = preparing();
+    landing.round = crate::Round::new(Box::new([]));
+    let mut f = facts();
+    f.members[0].contains_main = Status::Unknown;
+    assert_eq!(
+        decide(&landing, &f).decision,
+        Decision::Wait { until: Some(at(15)), on: Awaited::Ancestry { member: 0 } }
+    );
+    f.members[0].contains_main = Status::Failed;
+    let asked = decide(&landing, &f);
+    assert_eq!(asked.decision, Decision::Prepare { member: 0, head: HEAD, main: MAIN });
+    assert_eq!(
+        decide(&asked.landing, &f).decision,
+        Decision::Wait { until: Some(at(15)), on: Awaited::Ancestry { member: 0 } }
+    );
+    f.members[0].asked = true;
+    assert_eq!(decide(&asked.landing, &f).decision, Decision::Wait { until: None, on: Awaited::Ready { member: 0 } });
+}
+
+#[test]
+fn a_single_landing_names_its_run_receipt_post_and_merge_waits() {
+    let mut landing = dispatched();
+    landing.round = crate::Round::new(Box::new([]));
+    let mut f = facts();
+    f.members[0].gates[0].flight = Flight::Mine { run: Some(Verdict::Running) };
+    assert_eq!(
+        decide(&landing, &f).decision,
+        Decision::Wait { until: Some(at(15)), on: Awaited::Run { member: 0, gate: 0 } }
+    );
+    f.members[0].gates[0].flight = Flight::Other;
+    assert_eq!(
+        decide(&landing, &f).decision,
+        Decision::Wait { until: Some(at(15)), on: Awaited::Receipt { member: 0, gate: 0 } }
+    );
+    f.members[0].gates[0].receipt = Status::Passed;
+    f.members[0].gates[0].posting = Status::Pending;
+    assert_eq!(decide(&landing, &f).decision, Decision::Wait { until: None, on: Awaited::Post { member: 0, gate: 0 } });
+    landing.phase = Phase::Turn { at: at(10) };
+    f.members[0].merge = Status::Pending;
+    assert_eq!(decide(&landing, &f).decision, Decision::Wait { until: None, on: Awaited::Merge });
+    f.members[0].merge = Status::Passed;
+    assert_eq!(decide(&landing, &f).decision, Decision::Wait { until: Some(at(15)), on: Awaited::Merge });
 }
 
 #[test]
@@ -1228,7 +1394,15 @@ fn a_failed_merge_is_settled_by_its_tip_and_fresh_round_pull() {
             None,
             None,
         ),
-        ("unread", MAIN, Status::Failed, RoundPull::Unread, Decision::Wait { until: None }, None, None),
+        (
+            "unread",
+            MAIN,
+            Status::Failed,
+            RoundPull::Unread,
+            Decision::Wait { until: None, on: Awaited::Merge },
+            None,
+            None,
+        ),
     ] {
         let mut f = facts();
         f.round_pull = pull;
@@ -1280,6 +1454,6 @@ fn unknown_merges_are_counted_and_reasked_only_below_the_rounds_bound() {
     f.released = false;
     f.round_pull = RoundPull::Unread;
     let unread = decide(&first.landing, &f);
-    assert_eq!(unread.decision, Decision::Wait { until: None });
+    assert_eq!(unread.decision, Decision::Wait { until: None, on: Awaited::Merge });
     assert_eq!(unread.landing.round.merges, 1);
 }

@@ -132,8 +132,14 @@
        Forgejo's on the welcome (`welcome.md`, 1, *Forge*), "Add a repository to
        PROJECT", the muted "Made or copied on your Forgejo, then in this
        project at once.", the legend "A repository", "An empty repository"
-       with its two fields and "Copies of public repositories" with its
-       addresses, opened at the one pressed; "Cancel", also Escape; and the
+       with "A README and a starter CI check." and its two fields, and
+       "Copies of public repositories" with "Copied into your Forgejo from
+       GitHub or another git host, to play around with. Nothing is sent
+       back." and its addresses, opened at the one pressed. Both lines are
+       the sheet's own words: the welcome's sheet offers the sample in the
+       empty repository's place, and says "your local forge" where this
+       sheet, which opens on a managed Forgejo too, says "your Forgejo"
+       (the look request `local-forge`). Then "Cancel", also Escape; and the
        primary "Add it". Its fields are read and its alerts said as the
        welcome's are. It sends `MakeRepository` `into { project, home: true
        }`, the first of several the home, under keys of its own; the step's

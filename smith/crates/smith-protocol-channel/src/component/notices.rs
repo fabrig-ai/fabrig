@@ -4,6 +4,7 @@ use crate::{Error, Heard};
 use alloc::boxed::Box;
 use skein_channel::{Lower, Request};
 use skein_lib::{Duration, Queue, Token};
+use smith_channel::Record;
 
 impl Component {
     /// Tell the host a provider rejected one named credential generation.
@@ -17,13 +18,11 @@ impl Component {
         if !self.state.admitted() {
             return Err(Error::Order);
         }
-        let record = match smith_channel::Unauthorized::new(
-            &self.bodies,
-            smith_channel::UnauthorizedParts { account: name.account, generation: name.generation },
-        ) {
-            Ok(value) => value,
+        let record = smith_channel::Unauthorized { account: name.account, generation: name.generation };
+        match record.measure(&self.bodies) {
+            Ok(_) => (),
             Err(problem) => return Err(Error::ChannelBody(problem)),
-        };
+        }
         let frame = match smith_channel::frame(smith_channel::Body::Unauthorized(record)) {
             Ok(value) => value,
             Err(problem) => return Err(Error::Frame(problem)),
@@ -46,10 +45,11 @@ impl Component {
         if !self.state.admitted() {
             return Err(Error::Order);
         }
-        let record = match smith_channel::Limited::new(&self.bodies, smith_channel::LimitedParts { account, reset }) {
-            Ok(value) => value,
+        let record = smith_channel::Limited { account, reset };
+        match record.measure(&self.bodies) {
+            Ok(_) => (),
             Err(problem) => return Err(Error::ChannelBody(problem)),
-        };
+        }
         let frame = match smith_channel::frame(smith_channel::Body::Limited(record)) {
             Ok(value) => value,
             Err(problem) => return Err(Error::Frame(problem)),
@@ -74,6 +74,10 @@ impl Component {
             return Err(Error::Order);
         }
         let record = refused_notice(&self.bodies, account, code, reason)?;
+        match record.measure(&self.bodies) {
+            Ok(_) => (),
+            Err(problem) => return Err(Error::ChannelBody(problem)),
+        }
         let frame = match smith_channel::frame(smith_channel::Body::AccountRefused(record)) {
             Ok(value) => value,
             Err(problem) => return Err(Error::Frame(problem)),
@@ -100,19 +104,11 @@ fn refused_notice(
             Some(_) | None => break,
         }
     }
-    Ok(
-        match smith_channel::AccountRefused::new(
-            limits,
-            smith_channel::AccountRefusedParts {
-                account,
-                code: Box::from(code),
-                reason: Box::from(reason.get(..end).ok_or(Error::Grants)?),
-            },
-        ) {
-            Ok(value) => value,
-            Err(problem) => return Err(Error::ChannelBody(problem)),
-        },
-    )
+    Ok(smith_channel::AccountRefused {
+        account,
+        code: Box::from(code),
+        reason: Box::from(reason.get(..end).ok_or(Error::Grants)?),
+    })
 }
 
 #[cfg(test)]
@@ -135,7 +131,7 @@ mod tests {
             (b"code".as_slice(), &cut_reason[..], b"code".as_slice(), &prefix[..]),
         ] {
             let notice = refused_notice(&limits, 7, code, reason).expect("bounded notice");
-            assert_eq!((notice.code(), notice.reason()), (expected_code, expected_reason));
+            assert_eq!((notice.code.as_ref(), notice.reason.as_ref()), (expected_code, expected_reason));
         }
     }
 }

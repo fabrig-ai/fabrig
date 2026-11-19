@@ -74,6 +74,7 @@ fn note(scope: &notes::Scope, name: u64, description: &[u8], body: &[u8], recall
             author: notes::Author::Party { party: support::OWNER },
         },
         recalled,
+        records: Box::new([]),
     }
 }
 
@@ -112,7 +113,8 @@ fn written(
 ) -> u64 {
     let before = world.env().wall;
     let answer = call(world, completion, action);
-    let core::CallPart::NoteWritten { name, revision: found, lines: 0, added: 0, removed: 0, first: 1 } = answer else {
+    let core::CallPart::NoteWritten { name, revision: found, lines: 0, added: 0, removed: 0, first: 1, .. } = answer
+    else {
         panic!("preference written: {answer:?}")
     };
     assert_eq!(found, revision);
@@ -201,6 +203,7 @@ fn preferences(world: &mut World, scope: &notes::Scope) {
                 },
                 recalled: 1,
                 range: notes::LineRange { first: 1, remove: 0, join: false },
+                records: Box::new([]),
             },
             notes::Refusal::PastBound { bytes: 0, bound: 0 },
         ),

@@ -286,7 +286,7 @@ const ROOT: Root = Root {
         // Outputs at the journal's door, counted in the default admission watermark.
         deliveries: 512,
         // The stock’s deep task row before source derivation; derive() supplies the resume carrier.
-        transcript_bytes: 22_468_272,
+        transcript_bytes: 22_468_296,
         // At least brief.brief_bytes and jig stock people.words: the root's worst case.
         result_bytes: BRIEF.brief_bytes,
         // Holds the stock goal agent's charter and room for an overlay.

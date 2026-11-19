@@ -132,6 +132,7 @@ fn forge_rows(root: &mut Domain, watch: Token, number: Option<u16>, adopted: boo
                                     state: w::FirstState::Made(w::Made::new(&limits, w::MadeParts { id: 1 }).unwrap()),
                                     label: Box::new([]),
                                     playground: false,
+                                    sample: false,
                                 },
                             )
                             .unwrap(),

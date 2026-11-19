@@ -19,8 +19,8 @@ use skein_lib::stream::{Down, Read, Up};
 use skein_lib::{Decimal, Env, List, Queue, Token, Writer, bytes, usize_of};
 
 use crate::{
-    Block, Call, Completion, Credential, Delta, Encoding, Endpoint, Error, Failure, Prompt, Provider, Report, Scheme,
-    anthropic, dialect, filter, openai, translate,
+    Block, Call, Completion, Credential, Delta, Encoding, Endpoint, Error, Failure, Invalid, Prompt, Provider, Report,
+    Scheme, anthropic, dialect, filter, openai, translate,
 };
 
 /// Maximum retained bytes of each provider report value (llm/README.md, section 4.2).
@@ -459,7 +459,7 @@ fn check_preparation(limits: &Limits) -> Result<(), Error> {
         }
     }
     if !valid(limits) {
-        return Err(Error::Invalid);
+        return Err(Error::Invalid { cause: Invalid::Limits });
     }
     Ok(())
 }
@@ -1356,7 +1356,7 @@ fn output(
             Err(error) => {
                 let failure = match error {
                     Error::Limit { which, bound } => Failure::Limit { which, bound },
-                    Error::Invalid | Error::Unsupported => Failure::Protocol,
+                    Error::Invalid { .. } | Error::Unsupported { .. } => Failure::Protocol,
                 };
                 fail_closing(client, env, failure, bytes::copy_of(b"completion translation failed"), above, below);
             }
@@ -1611,13 +1611,13 @@ fn measure_headers(
     if let Some(credential) = credential
         && (credential.value.is_empty() || !header_value(&credential.value))
     {
-        return Err(Error::Invalid);
+        return Err(Error::Invalid { cause: Invalid::Credential });
     }
     if endpoint.provider == Provider::Anthropic
         && let Some(credential) = credential
         && credential.scheme == Scheme::Bearer
     {
-        return Err(Error::Invalid);
+        return Err(Error::Invalid { cause: Invalid::Credential });
     }
     let (scheme, value_bytes) = match credential {
         Some(credential) => (Some(credential.scheme), credential.value.len()),
@@ -1702,15 +1702,15 @@ pub fn credential_headers(endpoint: &Endpoint, credential: Option<&Credential>) 
     }
     if let Some(credential) = credential {
         if credential.value.is_empty() || !header_value(&credential.value) {
-            return Err(Error::Invalid);
+            return Err(Error::Invalid { cause: Invalid::Credential });
         }
         let field = match (endpoint.provider, credential.scheme) {
             (Provider::Anthropic, Scheme::Key) => {
                 Header { name: bytes::copy_of(b"x-api-key"), value: credential.value.clone() }
             }
-            (Provider::Anthropic, Scheme::Bearer) => return Err(Error::Invalid),
+            (Provider::Anthropic, Scheme::Bearer) => return Err(Error::Invalid { cause: Invalid::Credential }),
             (Provider::OpenAi, Scheme::Key | Scheme::Bearer) => {
-                let len = credential.value.len().checked_add(7).ok_or(Error::Invalid)?;
+                let len = credential.value.len().checked_add(7).ok_or(Error::Invalid { cause: Invalid::Head })?;
                 let mut bearer = Writer::new(len);
                 bearer.put(b"Bearer ").expect("the bearer prefix was measured");
                 bearer.put(&credential.value).expect("the credential was measured");
@@ -1732,26 +1732,28 @@ fn head_length(
 ) -> Result<usize, Error> {
     if endpoint.authority.is_empty() || !valid_authority(&endpoint.authority) || endpoint.target.first() != Some(&b'/')
     {
-        return Err(Error::Invalid);
+        return Err(Error::Invalid { cause: Invalid::Endpoint });
     }
     for &byte in &endpoint.target {
         if !(0x21..=0x7e).contains(&byte) || byte == b'#' {
-            return Err(Error::Invalid);
+            return Err(Error::Invalid { cause: Invalid::Endpoint });
         }
     }
-    let mut total = header::field_len(b"Host".len(), endpoint.authority.len()).ok_or(Error::Invalid)?;
-    total = total.checked_add(value_bytes).ok_or(Error::Invalid)?;
+    let mut total =
+        header::field_len(b"Host".len(), endpoint.authority.len()).ok_or(Error::Invalid { cause: Invalid::Head })?;
+    total = total.checked_add(value_bytes).ok_or(Error::Invalid { cause: Invalid::Head })?;
     for (index, header) in endpoint.headers.iter().enumerate() {
         if reserved(&header.name) || !header::is_token(&header.name) || !header_value(&header.value) {
-            return Err(Error::Invalid);
+            return Err(Error::Invalid { cause: Invalid::Header });
         }
-        for previous in endpoint.headers.get(..index).ok_or(Error::Invalid)? {
+        for previous in endpoint.headers.get(..index).ok_or(Error::Invalid { cause: Invalid::Header })? {
             if previous.is(&header.name) {
-                return Err(Error::Invalid);
+                return Err(Error::Invalid { cause: Invalid::Header });
             }
         }
-        let len = header::field_len(header.name.len(), header.value.len()).ok_or(Error::Invalid)?;
-        total = total.checked_add(len).ok_or(Error::Invalid)?;
+        let len =
+            header::field_len(header.name.len(), header.value.len()).ok_or(Error::Invalid { cause: Invalid::Head })?;
+        total = total.checked_add(len).ok_or(Error::Invalid { cause: Invalid::Head })?;
     }
     // Check the wire length before allocating a request head or credential copy.
     for (name, value) in [
@@ -1759,28 +1761,31 @@ fn head_length(
         (b"Accept", b"text/event-stream"),
         (b"Accept-Encoding", b"identity"),
     ] {
-        let len = header::field_len(name.len(), value.len()).ok_or(Error::Invalid)?;
-        total = total.checked_add(len).ok_or(Error::Invalid)?;
+        let len = header::field_len(name.len(), value.len()).ok_or(Error::Invalid { cause: Invalid::Head })?;
+        total = total.checked_add(len).ok_or(Error::Invalid { cause: Invalid::Head })?;
     }
     if coding == Encoding::Gzip {
-        let len = header::field_len(b"Content-Encoding".len(), b"gzip".len()).ok_or(Error::Invalid)?;
-        total = total.checked_add(len).ok_or(Error::Invalid)?;
+        let len = header::field_len(b"Content-Encoding".len(), b"gzip".len())
+            .ok_or(Error::Invalid { cause: Invalid::Head })?;
+        total = total.checked_add(len).ok_or(Error::Invalid { cause: Invalid::Head })?;
     }
     let credential_field = match (endpoint.provider, scheme) {
-        (Provider::Anthropic, Some(Scheme::Bearer)) => return Err(Error::Invalid),
+        (Provider::Anthropic, Some(Scheme::Bearer)) => return Err(Error::Invalid { cause: Invalid::Credential }),
         (Provider::OpenAi, Some(Scheme::Key | Scheme::Bearer)) => {
             header::field_len(b"Authorization".len(), b"Bearer ".len())
         }
         (Provider::Anthropic, Some(Scheme::Key)) => header::field_len(b"x-api-key".len(), 0),
         (Provider::OpenAi | Provider::Anthropic, None) => Some(0),
     };
-    total = total.checked_add(credential_field.ok_or(Error::Invalid)?).ok_or(Error::Invalid)?;
+    total = total
+        .checked_add(credential_field.ok_or(Error::Invalid { cause: Invalid::Head })?)
+        .ok_or(Error::Invalid { cause: Invalid::Head })?;
     for (name, value) in fields.iter().flatten() {
-        let len = header::field_len(name.len(), value.len()).ok_or(Error::Invalid)?;
-        total = total.checked_add(len).ok_or(Error::Invalid)?;
+        let len = header::field_len(name.len(), value.len()).ok_or(Error::Invalid { cause: Invalid::Head })?;
+        total = total.checked_add(len).ok_or(Error::Invalid { cause: Invalid::Head })?;
     }
     http::request_head_len(Method::Post, endpoint.target.len(), total, http::Body::Length(content_length), false)
-        .ok_or(Error::Invalid)
+        .ok_or(Error::Invalid { cause: Invalid::Head })
 }
 
 /// The field that keeps a conversation's Responses calls on the provider's

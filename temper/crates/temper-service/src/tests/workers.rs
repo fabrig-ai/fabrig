@@ -2,6 +2,7 @@
 use super::fixtures;
 use jig_domain_host as host;
 use jig_domain_tasks as tasks;
+use jig_protocol_worker_wire::Record;
 use skein_lib::{Time, Token};
 fn review_assignment(pull_bytes: usize) -> temper_engine_domain::Assignment {
     use temper_engine_domain::{BriefBody, BriefKind, BriefSection, ForgeBriefKind};
@@ -62,26 +63,24 @@ fn admit_review_wire(assignment: &host::Assignment, settings: &crate::settings::
     let limits = crate::workers::limits(settings).unwrap();
     let bodies = wire::sizes::limits(&limits.sizes).unwrap();
     let run = &assignment.assignment;
-    let record = wire::Assignment::new(
-        &bodies,
-        wire::AssignmentParts {
-            task: run.run.raw(),
-            attempt: run.attempt.raw(),
-            identity: run.identity,
-            workspace: None,
-            save: run.save,
-            live: wire::LiveAsk::new(&bodies, wire::LiveAskParts { text: false, reasoning: false, input: false })
-                .unwrap(),
-            charter: run.charter.clone(),
-            transcript: Box::new([]),
-            answered: skein_lib::List::with_capacity(0),
-            messages: skein_lib::List::with_capacity(0),
-            grants: skein_lib::List::with_capacity(0),
-        },
-    )
-    .expect("review passes assignment wire admission");
-    let mut bytes = skein_lib::Writer::new(usize::try_from(record.measure()).unwrap());
-    record.encode(&mut bytes).unwrap();
+    let record = wire::Assignment {
+        task: run.run.raw(),
+        attempt: run.attempt.raw(),
+        identity: run.identity,
+        workspace: None,
+        save: run.save,
+        live: wire::LiveAsk { text: false, reasoning: false, input: false },
+        charter: run.charter.clone(),
+        transcript: Box::new([]),
+        answered: skein_lib::List::with_capacity(0),
+        messages: skein_lib::List::with_capacity(0),
+        grants: skein_lib::List::with_capacity(0),
+    };
+    let mut bytes = skein_lib::Writer::new(
+        usize::try_from(record.measure(&jig_protocol_worker_wire::CEILINGS).expect("record within limits"))
+            .expect("record within limits"),
+    );
+    record.write(&jig_protocol_worker_wire::CEILINGS, &mut bytes).unwrap();
     wire::Assignment::decode(&bodies, &mut skein_lib::Reader::new(&bytes.finish())).unwrap();
 }
 

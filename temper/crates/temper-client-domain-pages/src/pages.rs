@@ -1202,7 +1202,8 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             }
         }
         Event::Act { act: Act::AddOpen { start } } => {
-            if start != crate::forge::forges::Start::Nothing
+            if start != crate::forge::forges::Start::Sample
+                && start != crate::forge::forges::Start::Nothing
                 && let Address::Home { project } = pages.address
             {
                 let rows = copy_rows(env, client);
@@ -1216,7 +1217,8 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             }
         }
         Event::Act { act: Act::AddChoose { start } } => {
-            if start != crate::forge::forges::Start::Nothing
+            if start != crate::forge::forges::Start::Sample
+                && start != crate::forge::forges::Start::Nothing
                 && let Some(home) = &mut pages.home
                 && let Some(sheet) = &mut home.add
                 && sheet.out.is_none()

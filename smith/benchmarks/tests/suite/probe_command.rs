@@ -36,6 +36,8 @@ fn calibration_stops_at_ten_passes_or_once_ten_are_out_of_reach() {
     assert!(!count.reachable());
 }
 
+// The probe's plan reads /proc, its attempts use GNU cp --reflink and /proc/self, and its arm needs source history.
+#[cfg(target_os = "linux")]
 #[test]
 fn a_replay_arm_runs_through_the_probe_command_and_prints_one_line() {
     let scratch = root("replay");
@@ -75,6 +77,7 @@ fn a_replay_arm_runs_through_the_probe_command_and_prints_one_line() {
     assert!(login.join("tokens/chatgpt").is_file());
 }
 
+#[cfg(target_os = "linux")]
 fn replay_arm(directory: &Path) -> PathBuf {
     use sha2::{Digest, Sha256};
     use std::os::unix::fs::PermissionsExt;

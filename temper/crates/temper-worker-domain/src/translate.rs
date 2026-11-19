@@ -38,10 +38,10 @@ pub(crate) fn workstream(key: &[u8]) -> u64 {
 
 fn repository(repository: wire::Repository) -> checkout::Repository {
     let wire::Repository { tag: _, name, remote, git, start, access, identity, account, save } = repository;
-    let (push, expected, landing, delivered, prefixes): (_, _, _, _, Box<[Box<[u8]>]>) = match access {
-        wire::Access::ReadOnly => (None, None, None, None, Box::new([])),
-        wire::Access::Prefixes { branches } => (None, None, None, None, branches),
-        wire::Access::Writable { push, expected, landing, delivered } => {
+    let (push, expected, landing, delivered, pin, prefixes): (_, _, _, _, _, Box<[Box<[u8]>]>) = match access {
+        wire::Access::ReadOnly => (None, None, None, None, None, Box::new([])),
+        wire::Access::Prefixes { branches } => (None, None, None, None, None, branches),
+        wire::Access::Writable { push, expected, landing, delivered, pin } => {
             let expected = match expected {
                 Some(raw) => Some(git::Commit::new(raw)),
                 None => None,
@@ -50,7 +50,11 @@ fn repository(repository: wire::Repository) -> checkout::Repository {
                 Some(raw) => Some(git::Commit::new(raw)),
                 None => None,
             };
-            (Some(push), expected, landing, delivered, Box::new([]))
+            let pin = match pin {
+                Some(raw) => Some(git::Commit::new(raw)),
+                None => None,
+            };
+            (Some(push), expected, landing, delivered, pin, Box::new([]))
         }
     };
     checkout::Repository {
@@ -65,6 +69,7 @@ fn repository(repository: wire::Repository) -> checkout::Repository {
         prefixes,
         expected,
         delivered,
+        pin,
         landing,
     }
 }
@@ -460,6 +465,30 @@ mod tests {
     }
 
     #[test]
+    fn a_named_pin_reaches_checkout_without_changing_the_other_heads() {
+        for pin in [None, Some([8; 32])] {
+            let mut item =
+                crate::tests::fixtures::items(&[b"app"]).repositories.into_iter().next().expect("repository");
+            item.access = wire::Access::Writable {
+                push: b"change/7".as_slice().into(),
+                expected: Some([1; 32]),
+                landing: None,
+                delivered: Some([7; 32]),
+                pin,
+            };
+            let translated = repository(item);
+            let expected_pin = match pin {
+                Some(raw) => Some(git::Commit::new(raw)),
+                None => None,
+            };
+            assert_eq!(translated.pin, expected_pin);
+            assert_eq!(translated.expected, Some(git::Commit::new([1; 32])));
+            assert_eq!(translated.delivered, Some(git::Commit::new([7; 32])));
+            assert_eq!(translated.landing, None);
+        }
+    }
+
+    #[test]
     fn the_tasks_own_delivery_reaches_checkout_only_for_writable_access() {
         for delivered in [None, Some([7; 32])] {
             let mut item =
@@ -469,6 +498,7 @@ mod tests {
                 expected: Some([1; 32]),
                 landing: Some(b"main".as_slice().into()),
                 delivered,
+                pin: None,
             };
             let translated = repository(item);
             assert_eq!(translated.push.as_deref(), Some(b"change/7".as_slice()));

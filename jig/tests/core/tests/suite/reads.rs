@@ -12,6 +12,7 @@ use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use jig_test_domain as root;
 use skein_lib::length::len_u64;
+use smith_channel::Record;
 
 fn a_read_waits_for_the_commit_in_flight_before_it() {
     assert_eq!(Fence(7).answered(6), Err("read preceded its durable prerequisite"));
@@ -877,13 +878,8 @@ fn a_task_answering_for_its_person_is_refused_by_name() {
     let question = question(&mut world, director, 1);
     let input = format!(r#"{{"target":{delegate},"form":"answer","question":{question},"words":"proceed"}}"#);
     let key = run_key(&world, director, 2);
-    let name = smith_channel::CallName::new(
-        &smith_channel::CEILINGS,
-        smith_channel::CallNameParts { activation: key.attempt, completion: key.completion, position: 0 },
-    )
-    .expect("call name");
-    let mut encoded = skein_lib::Writer::new(name.measure() as usize);
-    name.encode(&mut encoded).expect("measured name");
+    let name = smith_channel::CallName { activation: key.attempt, completion: key.completion, position: 0 };
+    let encoded = name.encode(&smith_channel::CEILINGS).expect("fixed call name");
     let commits = world.store.applied;
     world.send(root::Event::Core(core::Event::Fleet(jig_domain_fleet::Event::Relay {
         channel: skein_lib::Token::new(7),
@@ -891,7 +887,7 @@ fn a_task_answering_for_its_person_is_refused_by_name() {
         attempt: skein_lib::Token::new(key.attempt),
         call: jig_domain_fleet::Call {
             contract: 1,
-            name: encoded.finish(),
+            name: encoded,
             tool: b"message".as_slice().into(),
             input: input.into_bytes().into(),
             writes: true,

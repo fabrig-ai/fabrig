@@ -18,7 +18,7 @@ pub enum Activity {
     Words { message: u64, by: Requester, kind: MessageKind, words: Text },
     Heard(Word),
     Notified { recipient: Requester, word: Word },
-    RunBegan { attempt: u64, why: RunWhy, resumed: bool },
+    RunBegan { attempt: u64, why: RunWhy, resumed: bool, fresh: Option<RunFresh> },
     RunEnded { attempt: u64, end: RunEnd, spent: u64 },
     Turn { reply: u64, attempt: u64, turn: u32, read: Option<u64> },
     Decided { revision: u64, proposal: Option<DecidedProposal> },
@@ -39,6 +39,14 @@ pub enum SessionEnd {
     Rules,
     Talk,
     Left,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum RunFresh {
+    Moved,
+    Closed,
+    Cut,
+    Limit,
+    Session,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum RunWhy {

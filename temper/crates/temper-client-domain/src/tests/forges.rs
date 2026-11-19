@@ -572,6 +572,7 @@ fn first_repository_decodes_each_state_and_creation_step() {
             &limits(),
             w::FirstRepositoryParts {
                 playground: false,
+                sample: false,
                 org: b"team".as_slice().into(),
                 repository: b"widget".as_slice().into(),
                 state: wire_state.clone(),
@@ -617,6 +618,7 @@ fn first_repository_decodes_each_state_and_creation_step() {
             rows(&record, &fixtures::limits().forge).unwrap()[0].first,
             Some(First {
                 playground: false,
+                sample: false,
                 org: b"team".as_slice().into(),
                 repository: b"widget".as_slice().into(),
                 state,

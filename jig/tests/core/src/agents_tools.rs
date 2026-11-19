@@ -3,6 +3,7 @@ use crate::world::{Cut, Setup, World};
 use jig_domain_core as core;
 use jig_domain_link::{Hello, Hosting, Phase};
 use jig_domain_tasks as tasks;
+use smith_channel::Record;
 const CHILD: u64 = 2;
 const REQUESTER: u64 = 1;
 const SUBSCRIPTION: u64 = 1;
@@ -123,15 +124,10 @@ fn reconnect(world: &mut World, key: core::CallKey) {
 }
 
 fn replay(world: &mut World, key: core::CallKey, tool: &[u8], input: &[u8]) {
-    let name = smith_channel::CallName::new(
-        &smith_channel::CEILINGS,
-        smith_channel::CallNameParts { activation: key.attempt, completion: key.completion, position: key.position },
-    )
-    .expect("call name");
-    let mut bytes = skein_lib::Writer::new(name.measure() as usize);
-    name.encode(&mut bytes).expect("measured call name");
+    let name = smith_channel::CallName { activation: key.attempt, completion: key.completion, position: key.position };
+    let bytes = name.encode(&smith_channel::CEILINGS).expect("fixed call name");
     let answered = world.host_answers.len();
-    world.relay_call(&bytes.finish(), tool, input, true);
+    world.relay_call(&bytes, tool, input, true);
     assert_eq!(world.host_answers.len(), answered + 1, "one answer to the repeated call");
 }
 fn release_moved(world: &mut World, cut: Option<Cut>) -> u64 {

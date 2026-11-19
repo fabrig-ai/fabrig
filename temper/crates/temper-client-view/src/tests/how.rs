@@ -552,18 +552,37 @@ fn parts_draw_the_current_way_and_the_shown_path() {
                 .iter()
                 .filter(|n| if browser == 1 { n.role == Role::MenuItem } else { n.role == Role::Button })
                 .collect();
-            assert_eq!(items.len(), 3);
-            let mut choices = Vec::new();
-            for (index, (item, name)) in items.iter().zip(NAMES).enumerate() {
-                let running = case.current == Some(u32::try_from(index).unwrap());
-                let expected = if browser == 0 && running { [name, b", now"].concat() } else { name.to_vec() };
-                assert_eq!(item.name.as_deref(), Some(expected.as_slice()));
-                assert_eq!(item.states.as_slice().contains(&State::Selected), browser == 1 && running);
-                choices.push((item.id, u32::try_from(index).unwrap()));
+            let mut names: Vec<_> = NAMES.into_iter().map(<[u8]>::to_vec).collect();
+            if case.current.is_none() {
+                names.insert(0, b"Shop's own".to_vec());
             }
-            let back = main.iter().find(|n| n.role == Role::Button && n.name.as_deref() == Some(b"Back"));
-            assert_eq!(back.is_some(), case.current != Some(case.shown) && case.shown < 3);
-            let back = back.map(|n| n.id);
+            assert_eq!(items.len(), names.len());
+            let mut choices = Vec::new();
+            for (position, (item, name)) in items.iter().zip(&names).enumerate() {
+                let index =
+                    if case.current.is_none() { if position == 0 { 3 } else { position - 1 } } else { position };
+                let index = u32::try_from(index).unwrap();
+                let running = case.current == Some(index) || index == 3;
+                let expected =
+                    if browser == 0 && running { [name.as_slice(), b", now"].concat() } else { name.clone() };
+                assert_eq!(item.name.as_deref(), Some(expected.as_slice()));
+                assert_eq!(item.states.as_slice().contains(&State::Selected), browser == 1 && case.shown == index);
+                if browser == 1 {
+                    assert_eq!(item.description.as_deref(), if running { Some(b"current".as_slice()) } else { None });
+                }
+                choices.push((item.id, index));
+            }
+            assert!(!main.iter().any(|n| n.name.as_deref() == Some(b"Back")));
+            if browser == 1 {
+                let button = styled(tree, look::WAY_MENU)[0].button.as_ref().unwrap();
+                let name = if case.shown == 3 {
+                    b"Shop's own".as_slice()
+                } else {
+                    NAMES[usize::try_from(case.shown).unwrap()]
+                };
+                assert_eq!(button.words.as_ref(), name);
+                assert_eq!(button.name.as_ref(), [b"Way shown: ".as_slice(), name].concat());
+            }
             let panel = styled(tree, look::WAYS_PANEL);
             assert_eq!(
                 panel[0].name.as_deref(),
@@ -703,14 +722,16 @@ fn parts_draw_the_current_way_and_the_shown_path() {
                 if let Some(act) = act {
                     ordered.push(core::str::from_utf8(act).unwrap());
                 }
-                if back.is_some() {
-                    ordered.push("Back");
-                }
+                assert!(!text.contains("Back"));
                 ordered.push("Stock ways:");
                 let mut after = text.find("The path of a change").unwrap();
                 for part in ordered {
                     after += text[after..].find(part).unwrap_or_else(|| panic!("missing ordered {part}: {text}"))
                         + part.len();
+                }
+                if case.current.is_none() {
+                    let own = "Shop's own, now";
+                    after += text[after..].find(own).expect("own way first") + own.len();
                 }
                 let expected_names: Vec<_> = NAMES
                     .iter()
@@ -731,12 +752,6 @@ fn parts_draw_the_current_way_and_the_shown_path() {
                 assert_eq!(
                     crate::act(&mut view, id, Act::Press),
                     Some(d::Action::Pages(pages::Act::WayTab { project: f::PROJECT, tab }))
-                );
-            }
-            if let Some(id) = back {
-                assert_eq!(
-                    crate::act(&mut view, id, Act::Press),
-                    Some(d::Action::Pages(pages::Act::WayTab { project: f::PROJECT, tab: case.current.unwrap() }))
                 );
             }
             for (id, charter) in role_links {
@@ -796,28 +811,44 @@ fn press(root: &mut d::Domain, browser: bool, role: Role, name: &[u8]) {
 }
 
 #[test]
-fn choosing_stock_and_back_show_the_running_way_and_close_cards() {
+fn choosing_stock_then_running_way_closes_cards() {
     for browser in [false, true] {
         let (mut root, _) = fixture(&agents());
         let choice = b"You approve";
         let role = if browser { Role::MenuItem } else { Role::Button };
         press(&mut root, browser, Role::Button, b"review, an agent");
-        for back in [true, false] {
-            press(&mut root, browser, role, choice);
-            let shown = view(&root, browser);
-            assert_eq!(f::nodes_text(styled(shown.tree(), look::WAY_LINE)).as_ref(), LINES[0]);
-            named(styled(shown.tree(), look::WAY_ACTS), Role::Button, b"Use this");
-            assert!(!shown.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&look::WAYS_ZOOM)));
-            press(&mut root, browser, Role::Button, b"review, an agent");
-            if back {
-                press(&mut root, browser, Role::Button, b"Back");
-            } else {
-                press(&mut root, browser, role, if browser { b"Agents review" } else { b"Agents review, now" });
-            }
-            let shown = view(&root, browser);
-            assert_eq!(f::nodes_text(styled(shown.tree(), look::WAY_LINE)).as_ref(), LINES[1]);
-            named(styled(shown.tree(), look::WAY_ACTS), Role::Button, b"Keep it");
-            assert!(!shown.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&look::WAYS_ZOOM)));
+        press(&mut root, browser, role, choice);
+        let shown = view(&root, browser);
+        assert_eq!(f::nodes_text(styled(shown.tree(), look::WAY_LINE)).as_ref(), LINES[0]);
+        named(styled(shown.tree(), look::WAY_ACTS), Role::Button, b"Use this");
+        assert!(!shown.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&look::WAYS_ZOOM)));
+        press(&mut root, browser, Role::Button, b"review, an agent");
+        press(&mut root, browser, role, if browser { b"Agents review" } else { b"Agents review, now" });
+        let shown = view(&root, browser);
+        assert_eq!(f::nodes_text(styled(shown.tree(), look::WAY_LINE)).as_ref(), LINES[1]);
+        named(styled(shown.tree(), look::WAY_ACTS), Role::Button, b"Keep it");
+        assert!(!shown.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&look::WAYS_ZOOM)));
+    }
+}
+
+#[test]
+fn the_menu_returns_to_the_projects_own_way() {
+    for browser in [false, true] {
+        let (mut root, _) = fixture(&Case { current: None, shown: 3, ..agents() });
+        let role = if browser { Role::MenuItem } else { Role::Button };
+        press(&mut root, browser, role, b"You approve");
+        let shown = view(&root, browser);
+        assert_eq!(f::nodes_text(styled(shown.tree(), look::WAY_LINE)).as_ref(), LINES[0]);
+        assert!(!shown.tree().nodes().iter().any(|n| n.name.as_deref() == Some(b"Back")));
+        press(&mut root, browser, role, if browser { b"Shop's own" } else { b"Shop's own, now" });
+        let shown = view(&root, browser);
+        assert_eq!(root.pages().stock_ways().unwrap().shown(), Some(3));
+        assert_eq!(f::nodes_text(styled(shown.tree(), look::WAY_LINE)).as_ref(), b"Shop runs settings of its own.");
+        assert!(!shown.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&look::WAYS_USE)));
+        if browser {
+            let button = styled(shown.tree(), look::WAY_MENU)[0].button.as_ref().unwrap();
+            assert_eq!(button.words.as_ref(), b"Shop's own");
+            assert_eq!(button.name.as_ref(), b"Way shown: Shop's own");
         }
     }
 }

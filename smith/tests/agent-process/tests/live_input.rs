@@ -2,6 +2,7 @@
 use skein_fake_llm_domain::api;
 use skein_world::domain::heap::Counting;
 use smith_agent_process_world::{TraceCase, World, charter};
+use smith_channel::Record;
 
 #[global_allocator]
 static HEAP: Counting = Counting;
@@ -33,23 +34,27 @@ fn three_calls_and_a_finish_stream_input_in_each_dialect() {
         let pieces = world.pieces();
         let mut streams: Vec<InputStream> = Vec::new();
         for piece in &pieces {
-            assert_eq!(*piece.kind(), smith_channel::LiveKind::Input);
-            assert_eq!(piece.retry(), 0);
-            let call = piece.call().as_ref().expect("call");
-            assert_ne!(call.id().len(), 0);
-            if streams.last().is_none_or(|stream| stream.turn != piece.turn() || stream.id.as_slice() != call.id()) {
-                assert_eq!(piece.offset(), 0);
-                assert!(streams.iter().all(|stream| stream.id.as_slice() != call.id()), "distinct call identities");
+            assert_eq!(piece.kind, smith_channel::LiveKind::Input);
+            assert_eq!(piece.retry, 0);
+            let call = piece.call.as_ref().expect("call");
+            assert_ne!(call.id.as_ref().len(), 0);
+            if streams.last().is_none_or(|stream| stream.turn != piece.turn || stream.id.as_slice() != call.id.as_ref())
+            {
+                assert_eq!(piece.offset, 0);
+                assert!(
+                    streams.iter().all(|stream| stream.id.as_slice() != call.id.as_ref()),
+                    "distinct call identities"
+                );
                 streams.push(InputStream {
-                    turn: piece.turn(),
-                    id: call.id().to_vec(),
-                    tool: call.tool().to_vec(),
+                    turn: piece.turn,
+                    id: call.id.as_ref().to_vec(),
+                    tool: call.tool.as_ref().to_vec(),
                     input: Vec::new(),
                 });
             }
             let stream = streams.last_mut().expect("current stream");
-            assert_eq!(usize::try_from(piece.offset()).expect("fixture offset"), stream.input.len());
-            stream.input.extend_from_slice(piece.bytes());
+            assert_eq!(usize::try_from(piece.offset).expect("fixture offset"), stream.input.len());
+            stream.input.extend_from_slice(piece.bytes.as_ref());
         }
         assert_eq!(streams.len(), 4, "three main calls and finish; children give none");
         for (index, InputStream { turn, tool, input, .. }) in streams.iter().enumerate() {
@@ -75,7 +80,7 @@ fn three_calls_and_a_finish_stream_input_in_each_dialect() {
                 let piece =
                     smith_channel::Live::decode(&smith_channel::CEILINGS, &mut skein_lib::Reader::new(&frame.body))
                         .expect("live frame");
-                assert!(piece.turn() > last_turn, "no piece follows its turn");
+                assert!(piece.turn > last_turn, "no piece follows its turn");
             }
         }
     }

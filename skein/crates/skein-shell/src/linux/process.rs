@@ -104,6 +104,59 @@ pub(crate) fn spawn_dying_with_parent(
     })
 }
 
+/// Unit tests exercise the POSIX watcher over Linux's process-exit handles.
+/// Raw descriptors keep the post-fork watcher free of Rust destructors.
+#[cfg(test)]
+pub(crate) fn open_exit_watch(parent: i32, program: i32) -> Result<(i32, i32), i32> {
+    let open = |pid: i32| {
+        // SAFETY: pidfd_open takes a numeric pid and returns a fresh descriptor.
+        let raw = unsafe { libc::syscall(libc::SYS_pidfd_open, pid, 0) };
+        if raw < 0 { Err(super::last_errno()) } else { i32::try_from(raw).map_err(|_| libc::EOVERFLOW) }
+    };
+    let first = open(parent)?;
+    match open(program) {
+        Ok(second) => Ok((first, second)),
+        Err(errno) => {
+            // SAFETY: first is uniquely owned here and not transferred on failure.
+            let _closed = unsafe { libc::close(first) };
+            Err(errno)
+        }
+    }
+}
+
+/// Bits 1 and 2 name the parent's and program's exits respectively.
+#[cfg(test)]
+pub(crate) fn wait_exit_watch(first: i32, second: i32, _parent: i32, _program: i32) -> Result<i32, i32> {
+    let mut events = [
+        libc::pollfd { fd: first, events: libc::POLLIN, revents: 0 },
+        libc::pollfd { fd: second, events: libc::POLLIN, revents: 0 },
+    ];
+    loop {
+        // SAFETY: events has two initialized, exclusive records borrowed until
+        // poll returns. Both descriptors belong to this watcher.
+        let count = unsafe { libc::poll(events.as_mut_ptr(), 2, -1) };
+        if count < 0 {
+            let errno = super::last_errno();
+            if errno != libc::EINTR {
+                return Err(errno);
+            }
+            continue;
+        }
+        let mut exits = 0;
+        for (event, bit) in events.iter().zip([1, 2]) {
+            if event.revents & (libc::POLLERR | libc::POLLNVAL) != 0 {
+                return Err(libc::EIO);
+            }
+            if event.revents & (libc::POLLIN | libc::POLLHUP) != 0 {
+                exits |= bit;
+            }
+        }
+        if exits != 0 {
+            return Ok(exits);
+        }
+    }
+}
+
 pub(crate) fn open_signals(watch: crate::Watch) -> Result<Fd, i32> {
     // SAFETY: sigemptyset initializes this plain C signal set.
     let mut set: libc::sigset_t = unsafe { std::mem::zeroed() };

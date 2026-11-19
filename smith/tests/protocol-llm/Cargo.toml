@@ -49,6 +49,8 @@ disallowed_types = "deny"
 disallowed_methods = "deny"
 
 [dev-dependencies]
+smith-channel.workspace = true
+smith-charter.workspace = true
 skein-tls-kit.workspace = true
 smith-domain-session-fixtures.workspace = true
 smith-events-fixtures.workspace = true

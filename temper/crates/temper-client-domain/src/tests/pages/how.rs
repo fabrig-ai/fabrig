@@ -629,6 +629,7 @@ fn parts_and_facts_follow_the_project_rules() {
                 kind_line(Kind::Wording, 1, Class::Decide),
                 kind_line(Kind::Retry, 2, Class::Decide),
                 kind_line(Kind::Tests, 3, Class::Decide),
+                kind_line(Kind::Findings, 8, Class::Decide),
             ]),
             Box::new([
                 kind_line(Kind::Implementation, 4, Class::Ask),

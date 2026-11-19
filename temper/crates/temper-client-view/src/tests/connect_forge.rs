@@ -31,7 +31,8 @@ fn connect_offers_the_three_kinds() {
         &[
             "Connect a forge",
             "Where your code lives",
-            "Forgejo",
+            "Local",
+            "A forge of your own: temper starts Forgejo on this machine and manages it. You can import existing repositories into it, from GitHub or elsewhere.",
             "Run Forgejo here",
             "GitHub",
             "Connect GitHub",
@@ -41,7 +42,8 @@ fn connect_offers_the_three_kinds() {
         ],
     );
     assert!(f::find(view.tree(), Role::List, b"Steps").is_none());
-    let card = view.tree().find(node(view.tree(), Role::Region, b"Forgejo")).unwrap();
+    node(view.tree(), Role::Heading { level: 2 }, b"Local");
+    let card = view.tree().find(node(view.tree(), Role::Region, b"Local")).unwrap();
     assert!(card.styles.as_slice().contains(&crate::look::CONNECT_DEFAULT));
     assert_eq!(
         press(&root, Role::Link, b"Connect your Forgejo"),
@@ -65,7 +67,15 @@ fn connect_offers_forgejo_on_this_machine_from_the_deployment() {
     for owned in [false, true] {
         let root = deployment_root(Address::ConnectForge { forge: None }, owned);
         for view in [f::page_view(&root), f::browser_page_view(&root)] {
-            assert_eq!(f::find(view.tree(), Role::Heading { level: 2 }, b"Forgejo").is_some(), owned);
+            assert_eq!(f::find(view.tree(), Role::Heading { level: 2 }, b"Local").is_some(), owned);
+            if owned {
+                node(view.tree(), Role::Region, b"Local");
+                node(
+                    view.tree(),
+                    Role::Paragraph,
+                    b"A forge of your own: temper starts Forgejo on this machine and manages it. You can import existing repositories into it, from GitHub or elsewhere.",
+                );
+            }
             node(view.tree(), Role::Button, b"Connect GitHub");
             node(view.tree(), Role::Link, b"Connect your Forgejo");
         }
@@ -180,9 +190,9 @@ fn settings_opens_the_welcome_sheet_and_cancel_returns_to_choose() {
     let root = f::forge_root(Address::ConnectForge { forge: Some(Choice::Owned) }, List::with_capacity(0));
     for view in [f::page_view(&root), f::browser_page_view(&root)] {
         let tree = view.tree();
-        node(tree, Role::Dialog, b"Forgejo on this machine");
+        node(tree, Role::Dialog, b"Local forge");
         node(tree, Role::Link, b"Run Forgejo here");
-        node(tree, Role::Choice, b"An empty repository");
+        node(tree, Role::Choice, b"A sample project");
         node(tree, Role::Button, b"Run on this machine");
         assert!(f::find(tree, Role::List, b"Steps").is_none());
     }
@@ -200,8 +210,20 @@ fn connected_cards_move_the_default_and_offer_forgejos_sign_in() {
     facts.read("3 forgejo https://forgejo.example owned");
     view.forge_sign_in(facts);
     let tree = f::build(&mut view, &root);
-    words_in_order(tree, &["Forgejo", "✓ Connected", "work/hello", "Open Forgejo ↗", "GitHub", "Connect GitHub"]);
-    let owned = tree.find(node(tree, Role::Region, b"Forgejo")).unwrap();
+    words_in_order(
+        tree,
+        &[
+            "Local",
+            "A forge of your own: temper starts Forgejo on this machine and manages it. You can import existing repositories into it, from GitHub or elsewhere.",
+            "✓ Connected",
+            "work/hello",
+            "Open Forgejo ↗",
+            "GitHub",
+            "Connect GitHub",
+        ],
+    );
+    node(tree, Role::Heading { level: 2 }, b"Local");
+    let owned = tree.find(node(tree, Role::Region, b"Local")).unwrap();
     assert!(!owned.styles.as_slice().contains(&crate::look::CONNECT_DEFAULT));
     let github = tree.find(node(tree, Role::Region, b"GitHub")).unwrap();
     assert!(github.styles.as_slice().contains(&crate::look::CONNECT_DEFAULT));
@@ -1226,6 +1248,7 @@ fn admin_first(state: w::FirstState) -> w::FirstRepository {
         &w::CEILINGS,
         w::FirstRepositoryParts {
             playground: false,
+            sample: false,
             org: b"work".as_slice().into(),
             repository: b"hello".as_slice().into(),
             state,

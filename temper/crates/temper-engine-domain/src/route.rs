@@ -610,6 +610,9 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
                 }
                 domain.forge.link_names(&domain.core.tasks, &env.limits.forge);
                 domain.forge.link_tiers(&domain.core.tasks, &env.limits.forge);
+                let mut output = Queue::uncapped();
+                domain.forge.link_landings(&domain.core.tasks, &environment_forge(env), &mut output);
+                forge_route::outputs(domain, env, decision, &mut output);
                 if domain.forge.fit_restored(&env.limits.forge).is_err() {
                     refuse_forge_fit(domain);
                     return;
@@ -631,6 +634,9 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
             Work::Forge(forge::Event::StatusTask { project, party, task }) => {
                 let event = forge_route::status_route::admission(domain, project, party, task);
                 forge_event(domain, env, decision, event);
+            }
+            Work::LandingAdmission { row, names } => {
+                forge_route::landing_admission(domain, env, decision, row, &names);
             }
             Work::StatusAccount { procedure } => forge_route::status_route::check_account(domain, procedure),
             Work::Forge(event) => forge_event(domain, env, decision, event),
@@ -719,6 +725,7 @@ pub(crate) fn decide_call(
         | core::CallPart::Delegated(_)
         | core::CallPart::DelegationDenied { .. }
         | core::CallPart::DelegationRefused(_)
+        | core::CallPart::WordsRecorded { .. }
         | core::CallPart::NoteWritten { .. }
         | core::CallPart::NoteDeleted { .. }
         | core::CallPart::NoteRecalled { .. }

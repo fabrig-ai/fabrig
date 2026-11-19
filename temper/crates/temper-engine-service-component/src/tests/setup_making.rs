@@ -488,6 +488,7 @@ fn the_label_is_the_records_or_the_modes() {
         record.first = match first {
             Some(label) => Some(domain::FirstIntent::Empty(domain::EmptyIntent {
                 playground: false,
+                sample: false,
                 org: b"other".as_slice().into(),
                 repository: b"first".as_slice().into(),
                 label: label.into(),

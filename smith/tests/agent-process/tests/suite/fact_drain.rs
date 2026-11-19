@@ -107,27 +107,27 @@ fn every_answer_kind_reaches_the_trace_with_its_terminal_fact_once() {
             | TraceCase::ThreeChildren
             | TraceCase::StoppedReasoning => {
                 assert!(
-                    matches!(answer.result(), RunResult::Accepted(_)),
+                    matches!(&answer.result, RunResult::Accepted(_)),
                     "answer={:?}; records={:?}",
-                    answer.result(),
+                    answer.result,
                     world.records()
                 );
                 assert_eq!(ended, &Status::Accepted);
             }
             TraceCase::Failed | TraceCase::ProviderRejected => {
-                assert!(matches!(answer.result(), RunResult::Failed(_)));
+                assert!(matches!(&answer.result, RunResult::Failed(_)));
                 assert_eq!(ended, &Status::Failed);
             }
             TraceCase::Refused => {
-                assert!(matches!(answer.result(), RunResult::Refused(_)));
+                assert!(matches!(&answer.result, RunResult::Refused(_)));
                 assert_eq!(ended, &Status::Refused);
             }
             TraceCase::Parked => {
-                assert!(matches!(answer.result(), RunResult::Parked));
+                assert!(matches!(&answer.result, RunResult::Parked));
                 assert_eq!(ended, &Status::Parked);
             }
             TraceCase::Cancelled => {
-                assert!(matches!(answer.result(), RunResult::Failed(_)));
+                assert!(matches!(&answer.result, RunResult::Failed(_)));
                 assert_eq!(ended, &Status::Failed);
                 assert_eq!(
                     terminal(&world).failure.as_ref().expect("cancelled failure").class,
@@ -145,7 +145,7 @@ fn a_real_child_joins_its_seen_opening_response_usage_and_enclosing_tool_termina
     world.observe_facts(TraceCase::ChildAnswered, 4);
     world.check_memory();
     assert!(world.settle());
-    assert!(matches!(world.answer().expect("host answer").result(), RunResult::Accepted(_)));
+    assert!(matches!(&world.answer().expect("host answer").result, RunResult::Accepted(_)));
     world.assert_event_conformance();
     let children: Vec<_> = world
         .records()
@@ -272,7 +272,7 @@ fn a_childs_answer_of_three_thousand_bytes_reaches_main_whole() {
     world.capture(smith_protocol_events::sinks::Capture::Everything);
     world.observe_facts(TraceCase::LongChildAnswered, 4);
     assert!(world.settle());
-    assert!(matches!(world.answer().expect("host answer").result(), RunResult::Accepted(_)));
+    assert!(matches!(&world.answer().expect("host answer").result, RunResult::Accepted(_)));
     let child = world
         .records()
         .iter()

@@ -1366,6 +1366,7 @@ fn task_document(task: u64, project: u32) -> c::Task {
         result_contract: c::TaskContractDocument::Report { words: 512 },
         dependencies: List::with_capacity(0),
         dependency_facts: List::with_capacity(0),
+        unread: List::with_capacity(0),
         references: List::with_capacity(0),
         cut: false,
         resources: List::with_capacity(0),

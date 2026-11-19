@@ -57,6 +57,20 @@ sections 2 and 4). The policy's types it adds are section 10's.
   baseline, has its artifact read (skein's `Read::Artifact`), bounded as
   a tier's report's read is, before its failed receipt is made. A
   passed run, or a runner's fault (`landing.md`, 7.4), reads none.
+- **The gate's own verdict:** a report is what the gate writes once it
+  has judged, so a failed run whose artifact the forge answers absent
+  (skein's `Error::Missing`) is one whose gate wrote no verdict, cut by
+  a signal, a runner's shutdown or a lost job: `unreported`, a runner's
+  fault (`landing.md`, 7.4), retried within `gate_retries` and holding
+  past them, with no receipt, no search and no repair. That answer
+  alone: an artifact past the read's bound, one in no form its format
+  reads, or a read that failed otherwise makes the failed receipt as
+  below, its ids many or not read. Every run of the landing's gates is
+  read so: a top, a
+  probe, a baseline, a flake rerun and a superseding run
+  (`landing-regate.md`, 2 and 3). A gate naming no report has no
+  verdict of its own to read, and its failed step stands for one
+  (`landing.md`, 7.3).
 - **What is read:** the failed cases' ids, as `after-landing.md`, 4
   reads a tier's, but for errored cases, which are not taken: a case
   the run did not observe failed nowhere. A JUnit file's cases with a
@@ -355,7 +369,10 @@ engine's domain stories:
 
 - **the report:** a failed top's receipt keeping its ids; many past
   `failing_tests`, `test_id_bytes` or the read, and for an id with a
-  control character; none from an absent or unreadable report; errored
+  control character; none from an unreadable report; an absent one
+  (section 2, *The gate's own verdict*) `unreported`, its failed jobs
+  rerun, held past `gate_retries`, never receipted, searched or
+  repaired, at a round of several units as of one; errored
   cases left out; a key moved by a report added, and unchanged without
   one;
 - **the selection:** a search by test where every gate red at the top

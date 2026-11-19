@@ -258,7 +258,9 @@ this shell's text (README.md, 14.1).
     no focus), an image's source, a placeholder (its field's name says
     what it takes, and a hint beside `(empty)` could read as its value),
     a node's hint (the text shell has no pointer, and a hint is never
-    needed to decide: README.md, 3.2), and shortcuts, Escape among them: the text shell takes no keys
+    needed to decide: README.md, 3.2), a menu's button (the text shell
+    prints a menu's items in place, behind no button, a chosen one with its
+    state), and shortcuts, Escape among them: the text shell takes no keys
     (section 6).
 - **Text** is a node's runs, in order: a code run between backticks,
   every other run as it is. Style tokens and region names are not

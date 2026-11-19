@@ -105,6 +105,7 @@ Design documents:
 - [`net/push.md`](net/push.status.md)
 - [`net/channel.md`](net/channel.status.md)
 - [`llm/README.md`](llm/README.status.md)
+- [`llm/admission.md`](llm/admission.status.md)
 - [`llm/connection.md`](llm/connection.status.md)
 - [`testing/fakes/README.md`](testing/fakes/README.status.md)
 - [`testing/fakes/llm.md`](testing/fakes/llm.status.md)

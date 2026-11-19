@@ -178,6 +178,22 @@ pub struct Landing {
     /// The train's landing branch (domain/landing.md, 9, 12).
     pub branch: Box<[u8]>,
     pub round: Round,
+    /// Kept across rounds, which a stale end re-forms (domain/landing-preparing.md, 5).
+    pub last_prepare: Option<LastPrepare>,
+}
+
+/// The round's prepare last asked, and how often in a row (domain/landing-preparing.md, 5).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct LastPrepare {
+    pub member: u16,
+    pub head: Commit,
+    pub main: Commit,
+    /// Positions of the members it prepares, upstream first.
+    pub suffix: Box<[u16]>,
+    /// 1, or 2 once asked again.
+    pub asks: u16,
+    /// Kept by the step that read its absence: no second ask before it.
+    pub again: Option<Wall>,
 }
 
 /// A round's own branch, preparation and pull request (domain/landing.md, 5.1).
@@ -368,12 +384,55 @@ pub enum Posting {
     Received,
 }
 
+/// What holds this step (domain/landing-waits.md, 2–3).
+/// Member and gate positions are counted from zero.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Awaited {
+    Release,
+    Ready {
+        member: u16,
+    },
+    Turn,
+    Prepare,
+    Prefixes,
+    Open,
+    Close,
+    Delete {
+        member: u16,
+    },
+    Post {
+        member: u16,
+        gate: u16,
+    },
+    Run {
+        member: u16,
+        gate: u16,
+    },
+    Receipt {
+        member: u16,
+        gate: u16,
+    },
+    Judgement {
+        member: u16,
+    },
+    Merge,
+    Record {
+        member: u16,
+    },
+    Ancestry {
+        member: u16,
+    },
+    /// An incomplete fact read in the top; the policy never decides this wait.
+    Read,
+}
+
 /// One thing due in this snapshot, as for a change.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Decision {
     None,
     Wait {
         until: Option<Wall>,
+        on: Awaited,
     },
     /// Stack from `main`, the round's base or the last kept prefix, starting at `member`.
     Prepare {

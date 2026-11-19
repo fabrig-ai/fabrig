@@ -1,4 +1,5 @@
 //! Worker FIFO and hand-out orders over the actual services and agent processes.
+use jig_protocol_worker_wire::Record;
 pub(crate) mod probe;
 
 use crate::{
@@ -41,7 +42,7 @@ impl Outcome {
             if *kind == wire::Kind::Answer.number() {
                 let answer = wire::Answer::decode(&wire::CEILINGS, &mut Reader::new(bytes))
                     .map_err(|why| format!("answer: {why:?}"))?;
-                if answer.task() != probe::OTHER_RUN {
+                if answer.task != probe::OTHER_RUN {
                     self.answers.push(answer);
                 }
             }
@@ -253,7 +254,7 @@ impl Judge {
                     name: Some([99; 16]),
                     request: jig_client::Ask::Jig(Box::new(jig_client::contract::Ask::Cancel {
                         project: 1,
-                        task: assignment.task(),
+                        task: assignment.task,
                         reason: jig_client::contract::Text::new(b"Stop".as_slice().into(), 512)
                             .map_err(|why| format!("bounded reason: {why:?}"))?,
                         grace: None,

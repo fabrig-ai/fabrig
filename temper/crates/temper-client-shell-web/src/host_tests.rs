@@ -469,7 +469,7 @@ fn the_first_task_activity_answer_survives_transport_sign_in() {
     let event = w::Activity::RunBegan(
         w::ActivityRunBegan::new(
             &w::CEILINGS,
-            w::ActivityRunBeganParts { attempt: RUN, why: w::RunWhy::Made, resumed: true },
+            w::ActivityRunBeganParts { attempt: RUN, why: w::RunWhy::Made, resumed: true, fresh: None },
         )
         .expect("run marker"),
     );

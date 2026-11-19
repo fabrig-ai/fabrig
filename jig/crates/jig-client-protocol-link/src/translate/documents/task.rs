@@ -126,6 +126,26 @@ pub(crate) fn task_context_fields(value: &w::TaskContext, limits: &Limits) -> Re
     })
 }
 
+fn unread(value: &List<w::UnreadWords>, limits: &Limits) -> Result<List<c::UnreadWords>, w::Problem> {
+    let mut result = List::with_capacity(value.len());
+    for word in value {
+        result
+            .push(c::UnreadWords {
+                message: word.message(),
+                by: crate::translate::facts::requester(word.by()),
+                at: Wall::from_nanos(word.at()),
+                seen: word.seen(),
+                head: match c::Text::new(skein_lib::bytes::copy_of(word.head()), limits.receiving().unread_words_head) {
+                    Ok(head) => head,
+                    Err(_) => return Err(too_large()),
+                },
+                bytes: word.bytes(),
+            })
+            .expect("supplied unread words");
+    }
+    Ok(result)
+}
+
 #[expect(clippy::too_many_lines, reason = "one bounded task document translation preserves its optional facts")]
 pub(crate) fn task_fields(value: &w::Task, limits: &Limits) -> Result<c::Task, w::Problem> {
     let opt0 = match value.goal() {
@@ -204,6 +224,7 @@ pub(crate) fn task_fields(value: &w::Task, limits: &Limits) -> Result<c::Task, w
             None => None,
         },
         dependency_facts: crate::translate::facts::dependencies(value.dependency_facts()),
+        unread: unread(value.unread(), limits)?,
         label: value.label(),
         flags: crate::translate::queries::flags(value.flags()),
         last_activity: Wall::from_nanos(value.last_activity()),

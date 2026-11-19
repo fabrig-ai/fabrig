@@ -18,6 +18,18 @@ const GRACE: Duration = Duration::from_millis(20);
 const TEARDOWN_AT: Time = Time::from_nanos(339_000_000);
 const KILL_AT: Time = Time::from_nanos(359_000_000);
 
+#[test]
+fn containment_requests_the_walk_only_on_linux() {
+    for (linux, force_walk, expected) in [
+        (true, true, Containment::Walk),
+        (true, false, Containment::Best),
+        (false, true, Containment::Best),
+        (false, false, Containment::Best),
+    ] {
+        assert_eq!(containment(force_walk, linux), expected, "linux={linux}, force_walk={force_walk}");
+    }
+}
+
 fn policy() -> Policy {
     Policy {
         finding: None,

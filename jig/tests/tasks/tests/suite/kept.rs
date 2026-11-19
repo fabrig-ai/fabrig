@@ -48,6 +48,7 @@ fn unclaimable(world: &mut World) {
     assert!(!world.runs.contains_key(&KEPT));
     let attempt = world.record(KEPT).attempt + 1;
     assert!(matches!(response(world, |reply_to| Event::Claim {
+            fresh: None,
             session_end: None, offered: jig_domain_tasks::Reasons::ALL, reasons: jig_domain_tasks::Reasons::FIRST,
         reply_to, task: KEPT, attempt, resumed: false, budget: 1, account: None, writes: Box::new([]),
     }), Reply::Refused(problem) if problem.why == Refusal::State));

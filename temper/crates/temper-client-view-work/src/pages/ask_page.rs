@@ -152,7 +152,7 @@ fn opening(
         b.close();
     }
     if w.shell == crate::words::Shell::Terminal {
-        crate::common::ways::head_acts(b, ways, w, bindings, project);
+        crate::common::ways::head_acts(b, ways, project_name, w, bindings, project);
     }
     b.open(Role::Paragraph);
     b.style(look::WAY_ASK);

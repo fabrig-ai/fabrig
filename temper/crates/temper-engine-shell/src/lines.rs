@@ -473,6 +473,29 @@ pub fn note_line(binary: &str, note: temper_engine_service::Note) -> String {
         temper_engine_service::Note::StartupWarning { line } => {
             format!("{binary} serve: warning: {}\n", String::from_utf8_lossy(&line))
         }
+        temper_engine_service::Note::LandingUnmade { task, repository, branch, changes } => {
+            let changes = changes.iter().map(u64::to_string).collect::<Vec<_>>().join(", ");
+            format!(
+                "{binary} serve: warning: landing {task} into {} of repository {}/{} has no task: ended; its changes {changes} wait again\n",
+                String::from_utf8_lossy(&branch),
+                repository.forge,
+                repository.repository
+            )
+        }
+        temper_engine_service::Note::HoldDropped { name, task } => {
+            let branch = match name.what {
+                temper_engine_domain_forge::What::Branch(segments) => {
+                    segments.iter().map(|segment| String::from_utf8_lossy(segment)).collect::<Vec<_>>().join("/")
+                }
+                temper_engine_domain_forge::What::Repository => "repository".to_owned(),
+                temper_engine_domain_forge::What::Pull(number) => format!("pull {number}"),
+                temper_engine_domain_forge::What::Issue(number) => format!("issue {number}"),
+            };
+            format!(
+                "{binary} serve: warning: hold on {branch} of repository {}/{} by task {task}, which has no task: dropped\n",
+                name.forge, name.repository
+            )
+        }
         temper_engine_service::Note::ForgeLink { forge, note } => {
             let words = match note {
                 temper_engine_domain_forge::LinkNote::Gone => "their account is gone, the link kept",
@@ -481,6 +504,26 @@ pub fn note_line(binary: &str, note: temper_engine_service::Note) -> String {
                 temper_engine_domain_forge::LinkNote::Cleared => "cleared",
             };
             format!("forge {forge}'s person: {words}\n")
+        }
+        temper_engine_service::Note::LandingRefused { task, repository, branch, why, changes } => {
+            use std::fmt::Write as _;
+            let why = match why {
+                Some(why) => format!("{why:?}"),
+                None => "unknown".to_owned(),
+            };
+            let mut members = String::new();
+            for (index, change) in changes.iter().enumerate() {
+                if index != 0 {
+                    members.push_str(", ");
+                }
+                write!(members, "{change}").expect("format landing members");
+            }
+            format!(
+                "{binary} serve: warning: landing {task} into {} of repository {}/{} not formed: jig refused its task: {why}; its changes {members} wait\n",
+                String::from_utf8_lossy(&branch),
+                repository.forge,
+                repository.repository
+            )
         }
         temper_engine_service::Note::RunFailed(diagnostic) => run_failure_line(
             binary,

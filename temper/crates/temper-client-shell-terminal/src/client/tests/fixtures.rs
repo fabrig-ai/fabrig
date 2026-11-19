@@ -115,7 +115,7 @@ pub(super) fn activity_answer(nonempty: bool) -> Box<[u8]> {
     let event = w::Activity::RunBegan(
         w::ActivityRunBegan::new(
             &w::CEILINGS,
-            w::ActivityRunBeganParts { attempt: RUN, why: w::RunWhy::Made, resumed: true },
+            w::ActivityRunBeganParts { attempt: RUN, why: w::RunWhy::Made, resumed: true, fresh: None },
         )
         .expect("run marker"),
     );

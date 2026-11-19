@@ -147,7 +147,7 @@ fn owner_activity_all_nine_lines_keep_task_commit_clock_and_exact_variant_facts(
             recipient: Requester::Deployment { project: u32::MAX },
             word: fixture(MessageKind::Words),
         },
-        Activity::RunBegan { attempt: u64::MAX, why: RunWhy::Made, resumed: false },
+        Activity::RunBegan { attempt: u64::MAX, why: RunWhy::Made, resumed: false, fresh: None },
         Activity::RunEnded { attempt: u64::MAX, end: RunEnd::Refused, spent: u64::MAX },
         Activity::Turn { reply: u64::MAX, attempt: u64::MAX, turn: u32::MAX, read: Some(u64::MAX) },
         Activity::Decided { revision: u64::MAX, proposal: None },
@@ -222,13 +222,13 @@ fn owner_activity_closed_run_causes_and_ends_keep_all_seven_failure_classes_and_
     ]);
     for why in causes {
         for resumed in [false, true] {
-            let value = activity(Activity::RunBegan { attempt: u64::MAX, why, resumed });
+            let value = activity(Activity::RunBegan { fresh: None, attempt: u64::MAX, why, resumed });
             let tree = build(&value, normal_words());
             goldens.check(&tree);
         }
     }
     let tree = build(
-        &activity(Activity::RunBegan { attempt: 9, why: RunWhy::Retry { tries }, resumed: true }),
+        &activity(Activity::RunBegan { fresh: None, attempt: 9, why: RunWhy::Retry { tries }, resumed: true }),
         normal_words(),
     );
     goldens.check(&tree);
@@ -267,7 +267,7 @@ fn assert_max_tries() {
         infrastructure: 0,
     };
     let tree = build(
-        &activity(Activity::RunBegan { attempt: 0, why: RunWhy::Retry { tries }, resumed: false }),
+        &activity(Activity::RunBegan { fresh: None, attempt: 0, why: RunWhy::Retry { tries }, resumed: false }),
         normal_words(),
     );
     goldens.check(&tree);
@@ -487,4 +487,30 @@ fn a_kept_activity_names_its_question_as_a_question() {
         normal_words(),
     );
     goldens.check(&tree);
+}
+
+#[test]
+fn owner_activity_says_why_a_run_began_fresh_after_not_resumed() {
+    let mut goldens = Goldens::new("tree/fragments/activity/owner_activity_fresh");
+    for (fresh, expected) in [
+        (RunFresh::Moved, b"its conversation ran on another endpoint".as_slice()),
+        (RunFresh::Closed, b"its conversation was closed"),
+        (RunFresh::Cut, b"a turn was too large to load"),
+        (RunFresh::Limit, b"its conversation passed the resume limit"),
+        (RunFresh::Session, b"its session had ended"),
+    ] {
+        let tree = build(
+            &activity(Activity::RunBegan { attempt: 3, why: RunWhy::Ready, resumed: false, fresh: Some(fresh) }),
+            normal_words(),
+        );
+        let said: Box<[u8]> = tree
+            .nodes()
+            .iter()
+            .flat_map(|node| node.text.as_slice().iter().flat_map(|run| run.text.iter().copied()))
+            .collect();
+        let not_resumed = skein_lib::bytes::find(&said, b"Not resumed").expect("not resumed");
+        let why = skein_lib::bytes::find(&said, expected).expect("fresh cause");
+        assert!(not_resumed < why, "the why follows Not resumed");
+        goldens.check(&tree);
+    }
 }

@@ -72,6 +72,7 @@ fn start_task(h: &mut Harness, number: u64, attempt: u64, offered: R) {
     let reasons = h.domain.run_context(number).expect("activation context").reasons;
     h.send(Event::Prepare { reply_to: to(), task: number });
     let out = h.send(Event::Claim {
+        fresh: None,
         session_end: None,
         reply_to: to(),
         task: number,
@@ -580,6 +581,10 @@ fn runs_hear_and_take_only_what_their_parts_offer() {
             Request::TurnAcknowledged { .. } => true,
             _ => false,
         });
+        // Offered words handled by this fixture are recorded; this table pins offering,
+        // not the extra wake for leaving directing words unrecorded.
+        let messages = h.domain.task(TASK).expect("task").unrecorded.iter().map(|word| word.number).collect();
+        h.send(Event::RecordWords { reply_to: to(), task: TASK, messages });
         if case.park {
             end(&mut h, End::Parked);
         }

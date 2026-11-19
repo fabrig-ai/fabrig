@@ -422,6 +422,7 @@ fn first_page(root: &mut f::Harness, connection: w::Connection, state: w::FirstS
         &l,
         w::FirstRepositoryParts {
             playground: false,
+            sample: false,
             org: b"work".as_slice().into(),
             repository: b"hello".as_slice().into(),
             label: b"docker".as_slice().into(),

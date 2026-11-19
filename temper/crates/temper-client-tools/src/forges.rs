@@ -1544,6 +1544,7 @@ fn setup_ask(intent: &Intent, limits: &Limits) -> Option<jig_client::Ask> {
                             org: intent.org.clone(),
                             repository: intent.repository.clone(),
                             playground: intent.playground,
+                            sample: false,
                         },
                     )
                     .ok()?,
@@ -1569,6 +1570,7 @@ fn resolve_forge(intent: &mut Intent, call: &jig::call::Call, rows: &[Row]) {
                 && first.org == intent.org
                 && first.repository == intent.repository
                 && first.playground == intent.playground
+                && !first.sample
             {
                 intent.forge = row.number;
                 break;

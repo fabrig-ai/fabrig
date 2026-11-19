@@ -8,8 +8,8 @@ use crate::Binding;
 use crate::Limits;
 use crate::tree::length;
 use crate::{
-    Drawing, DrawingKind, EntryKind, Fraction, Key, Modifier, Node, Picture, Region, Role, Run, Shortcut, SlotRef,
-    Sort, Source, Spans, State, Style, TextRun, Tree, Value,
+    Drawing, DrawingKind, EntryKind, Fraction, Key, MenuButton, Modifier, Node, Picture, Region, Role, Run, Shortcut,
+    SlotRef, Sort, Source, Spans, State, Style, TextRun, Tree, Value,
 };
 
 use alloc::boxed::Box;
@@ -235,6 +235,21 @@ impl Builder {
         let hint = copy_of(bytes);
         self.node_mut().hint = Some(hint);
     }
+    /// Give a menu's button its words and name, within the menu's text bound
+    /// (ui/README.md, 3.2 and 13).
+    pub fn menu_button(&mut self, words: &[u8], name: &[u8]) {
+        assert!(self.node().role == Role::Menu, "a menu's button belongs to a menu");
+        assert!(!self.node().states.as_slice().contains(&State::Options), "an options menu has no button");
+        let old = match &self.node().button {
+            Some(button) => length(&button.words).checked_add(length(&button.name)).expect("button bytes fit u32"),
+            None => 0,
+        };
+        let new = length(words).checked_add(length(name)).expect("button bytes fit u32");
+        self.charge(old, new);
+        let words = copy_of(words);
+        let name = copy_of(name);
+        self.node_mut().button = Some(MenuButton { words, name });
+    }
     /// Offer the keyboard or control for a text field.
     pub fn entry(&mut self, kind: EntryKind) {
         assert!(self.node().role == Role::TextField, "entry kinds belong to text fields");
@@ -290,6 +305,7 @@ impl Builder {
         }
         if state == State::Options {
             assert!(self.node().role == Role::Menu, "options belongs to menus");
+            assert!(self.node().button.is_none(), "an options menu has no button");
         }
         if state == State::Required {
             assert!(self.node().role.takes_required(), "required belongs to fields");

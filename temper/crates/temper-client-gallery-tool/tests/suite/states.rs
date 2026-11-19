@@ -123,7 +123,7 @@ enum Part {
     Plan { live: u32, title: &'static str },
 }
 const ASK_KEEP: Part = Part::Buttons { style: temper_client_view::look::WAY_ACTS, names: &["Keep it"] };
-const ASK_USE: Part = Part::Buttons { style: temper_client_view::look::WAY_ACTS, names: &["Use this", "Back"] };
+const ASK_USE: Part = Part::Buttons { style: temper_client_view::look::WAY_ACTS, names: &["Use this"] };
 const ASK_ALONE: Part = Part::Buttons { style: temper_client_view::look::WAY_ACTS, names: &[] };
 const REMEMBERED_THREE: &[&str] = &[
     "Keep answers concise and start with the result.",
@@ -902,7 +902,12 @@ static HOLDS: [Holds; samples::N] = [
             Part::Named { role: Role::Text, name: "on Hello" },
             Part::GroupLines {
                 name: "Agents decide, then tell you",
-                lines: &["wording and names inside a spec", "retrying or splitting a task", "test-only changes"],
+                lines: &[
+                    "wording and names inside a spec",
+                    "retrying or splitting a task",
+                    "test-only changes",
+                    "starting work on findings: a goal for them, the backlog or a hand-off under “a repair goal for a routine red after landing”",
+                ],
             },
             Part::GroupLines {
                 name: "Asks you",
@@ -3015,6 +3020,10 @@ static HOLDS: [Holds; samples::N] = [
         parts: &[
             Part::Named { role: Role::Dialog, name: "Add a repository to Hello" },
             Part::Named { role: Role::ChoiceGroup, name: "A repository" },
+            Part::Named {
+                role: Role::Paragraph,
+                name: "Copied into your Forgejo from GitHub or another git host, to play around with. Nothing is sent back.",
+            },
             Part::Value { role: Role::TextField, name: "Organization", value: "work" },
             Part::Value { role: Role::TextField, name: "Name", value: "hello" },
             Part::Named { role: Role::Button, name: "Cancel" },
@@ -3694,7 +3703,7 @@ static HOLDS: [Holds; samples::N] = [
         heading: "Connect a forge",
         parts: &[
             Part::WelcomeFrame { box_note: false },
-            Part::Named { role: Role::Region, name: "Forgejo" },
+            Part::Named { role: Role::Region, name: "Local" },
             Part::Named { role: Role::Link, name: "Run on this machine" },
             Part::Named { role: Role::Region, name: "GitHub" },
             Part::Named { role: Role::Button, name: "Connect GitHub" },
@@ -3705,10 +3714,10 @@ static HOLDS: [Holds; samples::N] = [
         heading: "Connect a forge",
         parts: &[
             Part::WelcomeFrame { box_note: false },
-            Part::Named { role: Role::Dialog, name: "Forgejo on this machine" },
-            Part::Named { role: Role::Choice, name: "An empty repository" },
-            Part::Named { role: Role::TextField, name: "Organization" },
-            Part::Named { role: Role::TextField, name: "Name" },
+            Part::Named { role: Role::Dialog, name: "Local forge" },
+            Part::Named { role: Role::Choice, name: "A sample project" },
+            Part::Absent { role: Role::TextField, name: "Organization" },
+            Part::Absent { role: Role::TextField, name: "Name" },
             Part::Named { role: Role::Button, name: "Run on this machine" },
         ],
     },
@@ -3717,7 +3726,7 @@ static HOLDS: [Holds; samples::N] = [
         heading: "Connect a forge",
         parts: &[
             Part::WelcomeFrame { box_note: false },
-            Part::Named { role: Role::Dialog, name: "Forgejo on this machine" },
+            Part::Named { role: Role::Dialog, name: "Local forge" },
             Part::Named { role: Role::Choice, name: "Copies of public repositories" },
             Part::Named { role: Role::TextArea, name: "Their addresses, one per line" },
             Part::Named { role: Role::Button, name: "Run on this machine" },
@@ -3728,7 +3737,7 @@ static HOLDS: [Holds; samples::N] = [
         heading: "Connect a forge",
         parts: &[
             Part::WelcomeFrame { box_note: false },
-            Part::Named { role: Role::Dialog, name: "Forgejo on this machine" },
+            Part::Named { role: Role::Dialog, name: "Local forge" },
             Part::Named { role: Role::Choice, name: "Copies of public repositories" },
             Part::Named {
                 role: Role::Alert,
@@ -3742,7 +3751,7 @@ static HOLDS: [Holds; samples::N] = [
         heading: "Connect a forge",
         parts: &[
             Part::WelcomeFrame { box_note: false },
-            Part::Named { role: Role::Dialog, name: "Forgejo on this machine" },
+            Part::Named { role: Role::Dialog, name: "Local forge" },
             Part::Named { role: Role::Choice, name: "Nothing for now" },
             Part::Named { role: Role::Button, name: "Run on this machine" },
         ],
@@ -3801,8 +3810,9 @@ static HOLDS: [Holds; samples::N] = [
         name: "forge-details",
         heading: "Connect a forge",
         parts: &[
-            Part::Named { role: Role::TextField, name: "Organization" },
-            Part::Named { role: Role::TextField, name: "Name" },
+            Part::Named { role: Role::Choice, name: "A sample project" },
+            Part::Absent { role: Role::TextField, name: "Organization" },
+            Part::Absent { role: Role::TextField, name: "Name" },
             Part::Absent { role: Role::TextField, name: "Into a new project, named" },
         ],
     },
@@ -3926,7 +3936,7 @@ static HOLDS: [Holds; samples::N] = [
         heading: "Connect a forge",
         parts: &[
             Part::Named { role: Role::Region, name: "GitHub" },
-            Part::Named { role: Role::Region, name: "Forgejo" },
+            Part::Named { role: Role::Region, name: "Local" },
             Part::Named { role: Role::Heading { level: 2 }, name: "Or a server of your own" },
             Part::Named { role: Role::Link, name: "Connect your Forgejo" },
             Part::Absent { role: Role::List, name: "Steps" },
@@ -4036,6 +4046,11 @@ static HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds { name: "ask-ways-menu", heading: "Ask temper", parts: &[ASK_KEEP, Part::StockWays { current: Some(1) }] },
+    Holds {
+        name: "ask-ways-approve-menu",
+        heading: "Ask temper",
+        parts: &[ASK_USE, Part::Named { role: Role::Group, name: "You approve" }, Part::StockWays { current: Some(1) }],
+    },
     Holds {
         name: "ask-ways-approve",
         heading: "Ask temper",
@@ -5642,16 +5657,33 @@ fn each_state_holds_what_its_name_says() {
                 Part::StockWays { current } => {
                     let menu = descendants(tree, Role::Menu, "Stock ways", sample.name);
                     let items: Vec<_> = menu.iter().filter(|node| node.role == Role::MenuItem).collect();
-                    assert_eq!(items.len(), 3, "{}: stock ways alone", sample.name);
-                    for (index, (item, name)) in
-                        items.into_iter().zip(["You approve", "Agents review", "Draft first"]).enumerate()
-                    {
-                        assert_eq!(item.name.as_deref(), Some(name.as_bytes()), "{}: read order", sample.name);
+                    let ways = root.pages().stock_ways().expect("ways shown");
+                    let shown = usize::try_from(ways.shown().expect("shown way")).unwrap();
+                    let mut names =
+                        vec!["You approve".to_string(), "Agents review".to_string(), "Draft first".to_string()];
+                    if current.is_none() {
+                        let project = root.pages().me(root.client()).unwrap().projects.get(0).unwrap();
+                        names.insert(0, format!("{}'s own", String::from_utf8_lossy(project.name.bytes())));
+                    }
+                    assert_eq!(items.len(), names.len(), "{}: own first, then stock", sample.name);
+                    assert!(!tree.nodes().iter().any(|n| n.name.as_deref() == Some(b"Back")));
+                    let button = menu[0].button.as_ref().expect("shown way button");
+                    let name = if shown == 3 { &names[0] } else { &names[shown + usize::from(current.is_none())] };
+                    assert_eq!(button.words.as_ref(), name.as_bytes());
+                    assert_eq!(button.name.as_ref(), format!("Way shown: {name}").as_bytes());
+                    for (position, (item, name)) in items.iter().zip(&names).enumerate() {
+                        let index =
+                            if current.is_none() { if position == 0 { 3 } else { position - 1 } } else { position };
+                        assert_eq!(item.name.as_deref(), Some(name.as_bytes()), "{}", sample.name);
                         assert_eq!(
                             item.states.as_slice().contains(&skein_ui::State::Selected),
-                            *current == Some(index),
-                            "{}: running way ticked",
+                            shown == index,
+                            "{}: shown way ticked",
                             sample.name
+                        );
+                        assert_eq!(
+                            item.description.as_deref(),
+                            if *current == Some(index) || index == 3 { Some(b"current".as_slice()) } else { None }
                         );
                     }
                     assert!(!tree.nodes().iter().any(|node| node.role == Role::Tabs), "{}: no tabs", sample.name);
@@ -5677,10 +5709,35 @@ fn each_state_holds_what_its_name_says() {
                                 .any(|n| n.styles.as_slice().contains(&temper_client_view::look::WAY_ASK))
                         );
                     }
-                    if matches!(sample.name, "ask-ways-menu" | "ask-ways-yours-menu" | "how-menu") {
+                    if matches!(
+                        sample.name,
+                        "ask-ways-menu" | "ask-ways-approve-menu" | "ask-ways-yours-menu" | "how-menu"
+                    ) {
                         assert_eq!(sample.open_menu(), Some(b"Stock ways".as_slice()));
                         let html = page(&sample, &skein_ui_bundle::Digest(*b"0123456789abcdef"));
-                        assert!(html.contains("aria-expanded=\"true\">Stock ways"), "{}: menu open", sample.name);
+                        assert!(html.contains(&format!("aria-expanded=\"true\">{name}")), "{}: menu open", sample.name);
+                        assert!(html.contains(&format!("aria-label=\"Way shown: {name}\"")));
+                        for item in &items {
+                            let start = html.find(&format!("<div data-node=\"{}\"", item.id.0)).unwrap();
+                            let printed = html[start..].split_once("</div>").unwrap().0;
+                            let (attributes, body) = printed.split_once('>').unwrap();
+                            assert_eq!(
+                                attributes.contains("aria-selected=\"true\""),
+                                item.states.as_slice().contains(&skein_ui::State::Selected)
+                            );
+                            if item.description.is_some() {
+                                assert_eq!(
+                                    body,
+                                    format!(
+                                        "<span>{}</span><span id=\"skein-ui-description-{}\">current</span>",
+                                        String::from_utf8_lossy(item.name.as_deref().unwrap()),
+                                        item.id.0
+                                    ),
+                                    "{}: name then description span",
+                                    sample.name
+                                );
+                            }
+                        }
                         assert!(
                             !html.contains(&format!("id=\"skein-ui-menu-{}\" hidden", menu[0].id.0)),
                             "{}: menu visible",

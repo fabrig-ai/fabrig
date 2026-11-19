@@ -30,7 +30,7 @@ fn repairing_flake() -> (Domain, ReceiptKey, api::Run) {
     (d, key, run)
 }
 
-fn change_step_at(d: &mut Domain, head: api::Commit) -> change::Decision {
+pub(super) fn change_step_at(d: &mut Domain, head: api::Commit) -> change::Decision {
     let mut requests = outputs(d, waiting_step(false, false));
     for _ in 0..30_u32 {
         for request in &requests {
@@ -57,7 +57,7 @@ fn change_step_at(d: &mut Domain, head: api::Commit) -> change::Decision {
     panic!("change decides")
 }
 
-fn restart(d: &Domain, key: &ReceiptKey) -> Domain {
+pub(super) fn restart(d: &Domain, key: &ReceiptKey) -> Domain {
     let mut restored = landing_routes::landing_fixture();
     let (cold, hot) = d.change(fixtures::CHANGE).unwrap().clone().split();
     outputs(&mut restored, Event::Restore { record: Stored::ChangeCold(Box::new(cold)) });

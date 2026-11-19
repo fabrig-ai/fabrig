@@ -67,6 +67,10 @@ pub fn forge(
     if let Some(temper_engine_domain_forge::Document::Change(panel)) = &mut document {
         durable_panel(panel);
     }
+    if let Some(temper_engine_domain_forge::Document::Landings(view)) = &mut document {
+        // The document's clock is read anew; its event and turn times remain retained evidence.
+        view.now = skein_lib::Wall::EPOCH;
+    }
     document
 }
 fn durable_panel(panel: &mut temper_engine_domain_forge::Panel) {

@@ -701,6 +701,68 @@ enum Cut {
 }
 
 #[test]
+fn an_unmade_landings_members_form_again_and_land_after_restart() {
+    let mut world = turn_world();
+    world.drain_cut();
+    world.restart_with_batch(2);
+    world.send(worker_hello(&world));
+    world.until(Until::Ready);
+    world.root.hold_landings(true);
+    let people::Ask::Create { project, mut batch } = adoption_chat(&world) else { panic!("chat") };
+    batch[0].budget = people::Budget::AsAllowed { cap: Some(250) };
+    let chat = assigned_chat(&mut world, 92, people::Ask::Create { project, batch });
+    let (a, producer_a) = pushed_change(&mut world, &chat, 95);
+    let (b, producer_b) = pushed_change(&mut world, &chat, 96);
+    finish_producer(&mut world, &producer_a, forge_world::REPO);
+    finish_producer(&mut world, &producer_b, forge_world::REPO);
+    for _ in 0..PAIR_TICKS {
+        tick(&mut world);
+        if batch_waiting(&world, &[a, b]) {
+            break;
+        }
+    }
+    assert!(batch_waiting(&world, &[a, b]), "two ready changes before the cut");
+    world.drain_cut();
+    let mut changes = [world.store.change(a).expect("first change"), world.store.change(b).expect("second change")];
+    changes.sort_by_key(|row| (row.change.ready_since, row.task));
+    let queue = changes.each_ref().map(|row| row.task);
+    let ready = changes.each_ref().map(|row| row.change.ready_since);
+    let unmade = crate::reconcile::unmade_landing(&changes);
+    world.store.seed(unmade.into_iter().map(|row| Record::Forge { row: Box::new(row) }).collect(), Box::new([]));
+    world.restart_same();
+    // As in restart_waiting_batch, finish both restart reads before letting the train form.
+    world.root.hold_landings(true);
+    world.send(worker_hello(&world));
+    for _ in 0..PAIR_TICKS {
+        tick(&mut world);
+        if batch_waiting(&world, &queue) {
+            break;
+        }
+    }
+    assert!(batch_waiting(&world, &queue), "members ready after the start");
+    assert!(!world.store.rows.contains_key(&Key::Forge(forge_top::Key::Landing(crate::reconcile::UNMADE))));
+    for (task, first_ready) in queue.iter().zip(ready) {
+        let row = world.store.change(*task).expect("member");
+        assert_eq!(row.change.landing, None);
+        assert_eq!(row.change.ready_since, first_ready);
+    }
+    world.root.hold_landings(false);
+    let landing = await_prepare(&mut world);
+    assert_ne!(landing, crate::reconcile::UNMADE);
+    answer_prepare(&mut world);
+    await_landed(&mut world, landing);
+    assert_landed(&world, landing, &queue);
+    assert_eq!(world.merges, 1, "one train turn lands both members");
+    for change in queue {
+        assert!(matches!(
+            world.store.change(change).expect("landed change").change.state,
+            temper_engine_domain_forge_change::State::Landed { .. }
+        ));
+    }
+    world.close();
+}
+
+#[test]
 fn an_engine_restarts_in_each_turn_landing_phase() {
     let mut world = turn_world();
     let people::Ask::Create { project, mut batch } = adoption_chat(&world) else { panic!("chat") };

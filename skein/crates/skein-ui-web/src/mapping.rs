@@ -169,8 +169,13 @@ fn menu_element(mut e: Element, made: &Made) -> Element {
     button.set("type", "button");
     button.set("aria-haspopup", "menu");
     button.set("aria-controls", &id);
+    if let Some(menu_button) = &a.button {
+        button.set("aria-label", &words(&menu_button.name));
+    }
     button.set("aria-expanded", "false");
-    if let Some(name) = &a.name {
+    if let Some(menu_button) = &a.button {
+        button.text(&menu_button.words);
+    } else if let Some(name) = &a.name {
         button.text(name);
     }
     let mut pair = Element::new("");

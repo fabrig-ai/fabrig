@@ -251,15 +251,22 @@ pub(crate) fn relay_payload(
                     key,
                     part: core::CallPart::NoteRefused(why),
                 })),
-                Tool::Note { entry, recalled } => domain.work.push(Work::Core(core::Event::NamedAction {
+                Tool::Note { entry, recalled, records } => domain.work.push(Work::Core(core::Event::NamedAction {
                     to: reply_to,
                     key,
-                    action: core::NamedAction::Note { entry, recalled },
+                    action: core::NamedAction::Note { entry, recalled, records },
                 })),
-                Tool::NoteLines { entry, recalled, range } => domain.work.push(Work::Core(core::Event::NamedAction {
+                Tool::NoteLines { entry, recalled, range, records } => {
+                    domain.work.push(Work::Core(core::Event::NamedAction {
+                        to: reply_to,
+                        key,
+                        action: core::NamedAction::NoteLines { entry, recalled, range, records },
+                    }));
+                }
+                Tool::MarkRead { messages } => domain.work.push(Work::Core(core::Event::NamedAction {
                     to: reply_to,
                     key,
-                    action: core::NamedAction::NoteLines { entry, recalled, range },
+                    action: core::NamedAction::MarkRead { messages },
                 })),
                 Tool::Recall { by, page } => domain.work.push(Work::Core(core::Event::NamedAction {
                     to: reply_to,

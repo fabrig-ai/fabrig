@@ -1328,9 +1328,9 @@ fn binding_schema_refuses_fields_one_past_their_bounds() {
 fn embedded_people_refusals_changed_at_store_nine() {
     // The people v12 generated Unknown golden was [9]; v13 inserts NameTaken
     // before every existing refusal. All 38 existing Refusal goldens change.
-    let mut after = skein_lib::Writer::new(1);
-    jig_protocol_store::people_v17::Refusal::Unknown.encode(&mut after).unwrap();
-    assert_eq!(after.finish().as_ref(), &[10]);
+    let after =
+        jig_protocol_store::people_v17::Refusal::Unknown.encode(&jig_protocol_store::people_v17::CEILINGS).unwrap();
+    assert_eq!(after.as_ref(), &[10]);
     assert_eq!(crate::STORE_VERSION, 25);
 }
 
@@ -1512,6 +1512,66 @@ fn a_turn_change_ready_or_preparing_round_trips_with_its_landing() {
 }
 
 #[test]
+fn a_change_round_trips_the_ask_handed_over_by_its_landing() {
+    use temper_engine_domain_forge_change::{Ask, Below, Landed, State};
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
+    let mut row = fixtures::change_row(State::Ready { head: [1; 32], ready_since: skein_lib::Wall::from_nanos(2) });
+    row.change.landing = None;
+    row.change.landing_ask = Some(Box::new(Ask::Repair {
+        gate: 3,
+        candidate: [4; 32],
+        below: Some(Below {
+            green: [5; 32],
+            changes: [Some(Landed { change: 6, pull: 7 }), None, None, None],
+            by_test: true,
+            top: false,
+        }),
+    }));
+    let stored = fixtures::change_hot(row);
+    assert_eq!(records::decode(&records::encode(&stored), &bounds), Ok(stored));
+}
+
+#[test]
+fn a_change_stored_before_handed_over_asks_reads_with_none() {
+    let mut family = None;
+    for candidate in crate::OWNER_SET.families {
+        if candidate.name == "temper-store" {
+            family = Some(candidate);
+        }
+    }
+    let family = family.unwrap();
+    let before = family.current.replace(" landing_ask: option LandingAsk = none", "");
+    assert_ne!(before, family.current);
+    let old = skein_codec::schema::parse(before.as_bytes()).unwrap();
+    let new = skein_codec::schema::parse(family.current.as_bytes()).unwrap();
+    let mut row = fixtures::change_row(temper_engine_domain_forge_change::State::Ready {
+        head: [1; 32],
+        ready_since: skein_lib::Wall::from_nanos(2),
+    });
+    row.change.landing_ask = Some(Box::new(temper_engine_domain_forge_change::Ask::Landed { prefix: [3; 32] }));
+    let mut bytes = records::encode(&fixtures::change_hot(row.clone()));
+    for (source, target) in [(&new, &old), (&old, &new)] {
+        let plan = skein_codec::layout::Plan::derive(
+            source,
+            source.root(b"Row", None).unwrap(),
+            &[],
+            target,
+            target.root(b"Row", None).unwrap(),
+            &[],
+        )
+        .unwrap();
+        let mut work = skein_codec::layout::Workspace::new();
+        assert!(work.fit(&plan));
+        let mut out = skein_lib::Buffer::with_capacity(131_072);
+        plan.convert(&bytes, &mut out, &mut work).unwrap();
+        bytes = out.as_slice().into();
+    }
+    row.change.landing_ask = None;
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
+    assert_eq!(records::decode(&bytes, &bounds), Ok(fixtures::change_hot(row)));
+}
+
+#[test]
 fn turn_writes_round_trip_with_their_parameters() {
     use skein_forge::api as a;
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
@@ -1572,6 +1632,9 @@ fn landing_rows_preserve_phases_proofs_asks_and_effects() {
                 Some(c::Ask::Repair { gate: 0, candidate: [1; 32], below: None }),
             ] {
                 let row = forge::Stored::Landing(forge::LandingRow {
+                    last_event: None,
+                    turn_since: None,
+                    waiting: None,
                     flake_reruns: Box::new([]),
                     room: Some(11),
                     job: Some(forge::history::JobRecord {
@@ -1617,6 +1680,7 @@ fn landing_rows_preserve_phases_proofs_asks_and_effects() {
                         }]),
                         preparation: 1,
                         stale_proofs: 3,
+                        last_prepare: None,
                         branch: Box::from(b"temper/g1".as_slice()),
                     },
                     asks: Box::new([ask]),
@@ -1640,6 +1704,9 @@ fn landing_rows_preserve_phases_proofs_asks_and_effects() {
 fn landing_with_clock(clock: Option<temper_engine_domain_forge_change::Clock>) -> forge::Stored {
     use temper_engine_domain_forge_landing as l;
     forge::Stored::Landing(forge::LandingRow {
+        last_event: None,
+        turn_since: None,
+        waiting: None,
         flake_reruns: Box::new([]),
         room: None,
         job: None,
@@ -1650,6 +1717,7 @@ fn landing_with_clock(clock: Option<temper_engine_domain_forge_change::Clock>) -
             members: Box::new([]),
             preparation: 1,
             stale_proofs: 0,
+            last_prepare: None,
             branch: b"main".as_slice().into(),
             round: l::Round::new(b"temper/1/l61".as_slice().into()),
             last_left: None,
@@ -1751,8 +1819,12 @@ fn landing_faults_and_own_holds_are_mutually_exclusive() {
                 own_hold: own.then_some(v25::LandingOwnHold::Turn),
                 last_left: None,
                 searched: None,
+                last_prepare: None,
             };
             let row = v25::LandingRow {
+                last_event: None,
+                turn_since: None,
+                waiting: None,
                 flake_reruns: List::with_capacity(0),
                 room: None,
                 landing,
@@ -1946,6 +2018,7 @@ fn forge_record_round_trips_every_mode_and_state() {
                         record.first = if first {
                             Some(forge::FirstIntent::Empty(forge::EmptyIntent {
                                 playground: optional,
+                                sample: false,
                                 ..match record.first.take().expect("fixture first intent") {
                                     forge::FirstIntent::Empty(first) => first,
                                     forge::FirstIntent::Copies { .. } | forge::FirstIntent::Nothing => {
@@ -2398,18 +2471,60 @@ fn each_setup_intent_round_trips_in_its_forge_record() {
             repository: Box::new([]),
             label: Box::new([]),
             playground: false,
+            sample: false,
         }),
         FirstIntent::Empty(EmptyIntent {
             org: skein_lib::bytes::zeroed(usize::try_from(limits.empty_intent_org).unwrap()),
             repository: skein_lib::bytes::zeroed(usize::try_from(limits.empty_intent_repository).unwrap()),
             label: skein_lib::bytes::zeroed(usize::try_from(limits.empty_intent_label).unwrap()),
             playground: true,
+            sample: true,
         }),
     ] {
         let mut record = fixtures::forge_record();
         record.first = Some(first);
         new_family_round_trip(&forge::Stored::Forge(record));
     }
+}
+
+#[test]
+fn a_forge_written_without_sample_decodes_with_false() {
+    let mut family = None;
+    for candidate in crate::OWNER_SET.families {
+        if candidate.name == "temper-store" {
+            family = Some(candidate);
+        }
+    }
+    let family = family.unwrap();
+    let before = family.current.replace(" sample: bool = false", "");
+    assert_ne!(before, family.current);
+    let old = skein_codec::schema::parse(before.as_bytes()).unwrap();
+    let new = skein_codec::schema::parse(family.current.as_bytes()).unwrap();
+    let mut row = fixtures::forge_record();
+    let Some(forge::FirstIntent::Empty(first)) = &mut row.first else { panic!("empty fixture intent") };
+    first.sample = true;
+    let mut bytes = records::encode(&forge::Stored::Forge(row.clone()));
+    let mut work = skein_codec::layout::Workspace::new();
+    // Removing the sample flag and defaulting it to false cannot grow the row.
+    let mut out = skein_lib::Buffer::with_capacity(u32::try_from(bytes.len()).unwrap());
+    for (source, target) in [(&new, &old), (&old, &new)] {
+        let plan = skein_codec::layout::Plan::derive(
+            source,
+            source.root(b"Row", Some(b"forge")).unwrap(),
+            &[],
+            target,
+            target.root(b"Row", Some(b"forge")).unwrap(),
+            &[],
+        )
+        .unwrap();
+        assert!(work.fit(&plan));
+        plan.convert(&bytes, &mut out, &mut work).unwrap();
+        bytes = out.as_slice().into();
+    }
+    let Some(forge::FirstIntent::Empty(first)) = &mut row.first else { panic!("empty fixture intent") };
+    first.sample = false;
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    assert_eq!(records::decode(&bytes, &bounds), Ok(forge::Stored::Forge(row)));
 }
 
 pub(super) fn full_copy_addresses(count: u32, length: u32) -> Box<[Box<[u8]>]> {
@@ -3651,4 +3766,60 @@ fn project_facts_written_with_a_brief_and_run_decode_with_both_dropped() {
     plan.convert(&bytes.finish(), &mut out, &mut work).unwrap();
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
     assert_eq!(records::decode(out.as_slice(), &bounds), Ok(facts));
+}
+
+#[test]
+fn a_no_test_terminal_and_hold_round_trip_in_the_hot_part() {
+    use temper_engine_domain_forge_change::{Hold, Repair, State};
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    let repairing = State::Repairing { requested: true, why: Repair::Landing { gate: 0 } };
+    for state in [repairing.clone(), State::Held { was: Box::new(repairing), why: Hold::NoTest }] {
+        let mut row = fixtures::change_row(state);
+        row.delegate_no_test = true;
+        row.delegate_head = Some([6; 32]);
+        let (cold, hot) = row.clone().split();
+        let stored = forge::Stored::ChangeHot(Box::new(hot));
+        let decoded = records::decode(&records::encode(&stored), &bounds).unwrap();
+        assert_eq!(decoded, stored);
+        let forge::Stored::ChangeHot(decoded) = decoded else { panic!("change hot part") };
+        assert_eq!(forge::ChangeRow::join(cold, *decoded), row);
+    }
+}
+
+/// A registered field defaults at layout conversion, not in the fixed-layout decoder.
+#[test]
+fn a_change_row_written_before_no_test_defaults_its_verdict_to_false() {
+    let mut family = None;
+    for candidate in crate::OWNER_SET.families {
+        if candidate.name == "temper-store" {
+            family = Some(candidate);
+        }
+    }
+    let family = family.unwrap();
+    let before = family.current.replace(" delegate_no_test: bool = false", "");
+    let old = skein_codec::schema::parse(before.as_bytes()).unwrap();
+    let new = skein_codec::schema::parse(family.current.as_bytes()).unwrap();
+    let stored = fixtures::change_hot(fixtures::change_row(temper_engine_domain_forge_change::State::Producing {
+        requested: true,
+    }));
+    let mut bytes = records::encode(&stored);
+    // Write the row at the preceding layout, then read it as the registry does.
+    for (source, target) in [(&new, &old), (&old, &new)] {
+        let plan = skein_codec::layout::Plan::derive(
+            source,
+            source.root(b"Row", None).unwrap(),
+            &[],
+            target,
+            target.root(b"Row", None).unwrap(),
+            &[],
+        )
+        .unwrap();
+        let mut work = skein_codec::layout::Workspace::new();
+        assert!(work.fit(&plan));
+        let mut out = skein_lib::Buffer::with_capacity(131_072);
+        plan.convert(&bytes, &mut out, &mut work).unwrap();
+        bytes = out.as_slice().into();
+    }
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
+    assert_eq!(records::decode(&bytes, &bounds), Ok(stored));
 }

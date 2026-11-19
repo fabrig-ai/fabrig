@@ -35,8 +35,14 @@ fn receipt(world: &World) -> (&top::ReceiptKey, &top::Receipt) {
         .expect("saved receipt")
 }
 fn documents(world: &World) -> [top::Document; 3] {
-    [LANDING, top::landings_subject(landings::PROJECT, true), CHANGE]
-        .map(|subject| world.document(landings::PROJECT, subject).expect("settled document"))
+    [LANDING, top::landings_subject(landings::PROJECT, true), CHANGE].map(|subject| {
+        let mut document = world.document(landings::PROJECT, subject).expect("settled document");
+        // A new read has a new clock; every stored event and turn time still compares.
+        if let top::Document::Landings(view) = &mut document {
+            view.now = skein_lib::Wall::EPOCH;
+        }
+        document
+    })
 }
 fn hex(bytes: &[u8]) -> Box<[u8]> {
     bytes.iter().flat_map(|byte| top::hex(*byte)).collect()

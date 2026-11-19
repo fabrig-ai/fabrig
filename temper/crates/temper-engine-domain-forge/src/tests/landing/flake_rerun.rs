@@ -231,8 +231,8 @@ fn a_second_red_reads_new_attempts_and_repairs_without_a_third_run() {
         policy::Decision::Leave { member: 0, why: policy::Leave::Failed { gate: 0, run: run.number } }
     );
     assert_eq!(
-        d.landing.rows.get(&61).unwrap().asks[0],
-        Some(temper_engine_domain_forge_change::Ask::Repair { gate: 0, candidate: run.commit, below: None })
+        d.change(fixtures::CHANGE).unwrap().change.landing_ask.as_deref(),
+        Some(&temper_engine_domain_forge_change::Ask::Repair { gate: 0, candidate: run.commit, below: None })
     );
     assert_eq!(d.finding(5, 1).unwrap().seen, Some(1));
     assert!(!d.landing.flights.contains_key(&key));
@@ -252,7 +252,7 @@ fn incomplete_or_unmatched_reports_publish_the_failure_without_rerunning() {
             1 => finding.state = FindingState::Dropped,
             2 => finding.signature.as_mut().unwrap().repository.repository = 99,
             3 => finding.signature.as_mut().unwrap().source = b"other-gate".as_slice().into(),
-            4 => report = Err(api::Error::Missing),
+            4 => report = Err(api::Error::Forbidden),
             5 => {
                 let Ok(Answer::File { truncated, .. }) = &mut report else { unreachable!() };
                 *truncated = true;

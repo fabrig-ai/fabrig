@@ -11,7 +11,7 @@ use skein_json::{Document, Kind as JsonKind};
 use skein_lib::List;
 use smith_domain::{llm, run};
 
-use crate::{Error, Limits};
+use crate::{Cause, Error, Limits};
 
 /// A JSON Schema for each final form the admitted charter allows.
 /// Host labels, item kinds and required fields are byte-exact.
@@ -60,7 +60,9 @@ pub(crate) const fn schema_limits(depth: u32, length: u32) -> writer::Limits {
 
 fn schema_error(refusal: writer::Refusal) -> Error {
     match refusal {
-        writer::Refusal::Text | writer::Refusal::Number => Error::Invalid,
+        writer::Refusal::Text | writer::Refusal::Number => {
+            Error::Invalid { cause: Cause::Invalid(skein_llm::Invalid::Text) }
+        }
         writer::Refusal::TooLong | writer::Refusal::TooDeep => Error::Limit,
     }
 }

@@ -4,9 +4,9 @@ use smith_agent_process_world::{
     program,
     program_world::{self, Case, Run},
 };
+use smith_channel::Record;
 use smith_events::{ConversationEnd, ConversationKind, Event};
 use smith_fake_claude::{Decision, Script, Seen, Step, Story, Turn};
-use smith_transcript::Record;
 
 fn argument<'a>(arguments: &'a [String], flag: &str) -> Option<&'a str> {
     let mut arguments = arguments.iter();
@@ -44,7 +44,7 @@ fn run(modify: bool) -> Run {
 
 fn accepted(run: &Run) {
     assert!(
-        matches!(run.answer().expect("answer").result(), smith_channel::RunResult::Accepted(_)),
+        matches!(&run.answer().expect("answer").result, smith_channel::RunResult::Accepted(_)),
         "answer={:?}, errors={}",
         run.answer(),
         String::from_utf8_lossy(&run.errors)
@@ -58,7 +58,7 @@ fn results(run: &Run) -> Vec<smith_transcript::ToolResult> {
             continue;
         }
         let turn = smith_channel::Turn::decode(&smith_channel::CEILINGS, &mut Reader::new(&frame.body)).expect("turn");
-        let turn = smith_transcript::Turn::decode(&smith_transcript::CEILINGS, &mut Reader::new(turn.body()))
+        let turn = smith_transcript::Turn::decode(&smith_transcript::CEILINGS, &mut Reader::new(turn.body.as_ref()))
             .expect("transcript");
         for message in turn.messages.as_slice() {
             for block in message.blocks.as_slice() {
@@ -262,14 +262,11 @@ fn survey_charter(direct: bool) -> Box<[u8]> {
     smith_agent_process_world::wire::edit_charter(&program_world::child_charter(), |parts| {
         smith_agent_process_world::wire::budget(parts, 32, 80);
         if direct {
-            let mut child = parts.models.as_slice()[0].clone().into_parts();
+            let mut child = parts.models.as_slice()[0].clone();
             child.endpoint = b"direct".as_slice().into();
             child.account = Some(1);
             parts.models = skein_lib::List::with_capacity(1);
-            parts
-                .models
-                .push(smith_charter::Llm::new(&smith_charter::CEILINGS, child).expect("direct child"))
-                .expect("model");
+            parts.models.push(child).expect("model");
         }
     })
 }
@@ -479,7 +476,7 @@ fn cancelled_child(step: Step) -> Run {
     };
     let run = program_world::cancel_with_child(&story, &program_world::child_charter());
     assert!(
-        matches!(run.answer().expect("answer").result(), smith_channel::RunResult::Failed(failed) if matches!(failed.reason(), smith_channel::RunFailure::Cancelled))
+        matches!( &run.answer().expect("answer").result, smith_channel::RunResult::Failed(failed) if matches!( &failed.reason, smith_channel::RunFailure::Cancelled))
     );
     assert_eq!(
         run.invocations.iter().filter(|invocation| invocation.arguments.first().is_some_and(|arg| arg == "-p")).count(),
@@ -511,28 +508,22 @@ fn chat_charter() -> Box<[u8]> {
     smith_agent_process_world::wire::edit_charter(&program_world::child_charter(), |parts| {
         parts.mode = smith_charter::Mode::Open;
         parts.resume = true;
-        let mut tools = parts.tools.clone().into_parts();
+        let mut tools = parts.tools.clone();
         tools.wait = true;
         tools.deliver = None;
-        parts.tools = smith_charter::Tools::new(&smith_charter::CEILINGS, tools).expect("chat tools");
+        parts.tools = tools;
         parts.waiting = skein_lib::Duration::from_millis(10);
         smith_agent_process_world::wire::budget(parts, 24, 80);
-        let mut main = parts.main.clone().into_parts();
+        let mut main = parts.main.clone();
         main.effort = Some(b"medium".as_slice().into());
-        parts.main = smith_charter::Llm::new(&smith_charter::CEILINGS, main).expect("main effort");
+        parts.main = main;
         parts.brief = skein_lib::List::with_capacity(1);
         parts
             .brief
-            .push(
-                smith_charter::Section::new(
-                    &smith_charter::CEILINGS,
-                    smith_charter::SectionParts {
-                        title: b"Request".as_slice().into(),
-                        body: b"Have two sub-agents read src/main.rs and README.md side by side.".as_slice().into(),
-                    },
-                )
-                .expect("chat brief"),
-            )
+            .push(smith_charter::Section {
+                title: b"Request".as_slice().into(),
+                body: b"Have two sub-agents read src/main.rs and README.md side by side.".as_slice().into(),
+            })
             .expect("one brief");
     })
 }
@@ -577,7 +568,7 @@ fn chat_story() -> Story {
 
 fn chat_parked(run: &Run, children: usize) {
     assert!(
-        matches!(run.answer().expect("answer").result(), smith_channel::RunResult::Parked),
+        matches!(&run.answer().expect("answer").result, smith_channel::RunResult::Parked),
         "answer={:?}, errors={}",
         run.answer(),
         String::from_utf8_lossy(&run.errors)

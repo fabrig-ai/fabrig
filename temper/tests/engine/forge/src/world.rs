@@ -1307,6 +1307,18 @@ impl World {
     pub fn ended_landing_fixture(&mut self, task: u64) {
         let mut row = self.landing(task).clone();
         row.landing.phase = temper_engine_domain_forge_landing::Phase::Landed;
+        for member in &mut row.landing.members {
+            let mut change = self.change(member.change).clone();
+            let merge = change.change.last_head.expect("ready member's head");
+            member.landed = Some(merge);
+            member.recorded = true;
+            member.told = true;
+            change.change.state = temper_engine_domain_forge_change::State::Landed { merge, since: self.env.wall };
+            let (_, hot) = change.split();
+            self.stored
+                .insert(top::Key::ChangeHot(hot.task), top::Stored::ChangeHot(Box::new(hot)))
+                .expect("existing member");
+        }
         self.stored.insert(top::Key::Landing(task), top::Stored::Landing(row)).expect("existing landing");
         self.restart();
     }
@@ -1682,8 +1694,7 @@ impl World {
     fn take_top(&mut self) {
         let mut calls = List::with_capacity(self.top_out.len());
         let mut restart = None;
-        for _ in 0..self.top_out.len() {
-            let request = self.top_out.pop().expect("counted top output");
+        while let Some(request) = self.top_out.pop() {
             match request {
                 top::Request::ChoosePlace { request, kind, .. } => {
                     let port = match kind {
@@ -1701,6 +1712,9 @@ impl World {
                         top::Event::PlaceChosen { request, place: Some(place), git_program: None },
                         &mut self.top_out,
                     );
+                }
+                top::Request::LandingReady { task } => {
+                    self.top.decide_landing(&self.env, task, true, &mut self.top_out);
                 }
                 top::Request::LoadHistory { load, range, after, most } => self.history_load(load, range, after, most),
                 page @ top::Request::HistoryPage { .. } => {
@@ -1787,6 +1801,8 @@ impl World {
                 other @ (top::Request::Bound { .. }
                 | top::Request::PlaygroundActs { .. }
                 | top::Request::ResetAct { .. }
+                | top::Request::LandingUnmade { .. }
+                | top::Request::HoldDropped { .. }
                 | top::Request::LinkNoted { .. }
                 | top::Request::ForgeKept(_)
                 | top::Request::ForgeGone { .. }
@@ -2281,6 +2297,7 @@ mod records {
                 asked: false,
                 first: Some(top::FirstIntent::Empty(top::EmptyIntent {
                     playground: false,
+                    sample: false,
                     org: b"org".as_slice().into(),
                     repository: b"repo".as_slice().into(),
                     label: b"Work".as_slice().into(),

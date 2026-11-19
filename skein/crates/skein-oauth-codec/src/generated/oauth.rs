@@ -193,6 +193,15 @@ impl Record for SavedToken {
         Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 18)?.decoded)
     }
 
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
         field::put(out, &VERSION.to_be_bytes(), paths::SAVED_TOKEN_VERSION)?;
         field::write(field::U32, &self.key, limits, out, paths::SAVED_TOKEN_KEY)?;

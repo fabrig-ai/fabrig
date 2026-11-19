@@ -1,6 +1,7 @@
 # records: status
 
-2026-11-18. Where the tree's code lags or departs from [records.md](records.md).
+2026-11-19. Where the tree's code lags or departs from [records.md](records.md).
+
 
 
 - **Not yet:** *`OpenChange`* and *A project's changes*: `into` left
@@ -144,3 +145,4 @@ Linux and macOS, is `../README.md`, section 5's after-landing work, owned by tem
 
 - **Not yet:** the subject `approvals`: `ApprovalRow`'s `size` and `ApprovalSize` on the wire [in flight: change 533].
 - **Not yet:** the subject `approvals`: `size` filled from the change's approval evidence [in flight: change 534].
+- **Not yet:** `TriageFinding`'s `repair` and `blame`, the triaged outcome's `goal` and `FindingRefusal`'s longer `words`, in the wire's next layout [in flight: change 10374].

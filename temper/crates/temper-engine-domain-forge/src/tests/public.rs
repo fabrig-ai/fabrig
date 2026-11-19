@@ -240,6 +240,7 @@ fn change_row() -> ChangeRow {
         change: change::Change {
             ended_held: None,
             early: change::Early::None,
+            landing_ask: None,
             way: temper_engine_domain_forge_change::Way::Queue,
             landing: None,
             task: CHANGE,
@@ -267,6 +268,7 @@ fn change_row() -> ChangeRow {
         delegate: None,
         delegate_status: change::Status::Passed,
         delegate_flake: false,
+        delegate_no_test: false,
         delegate_head: None,
         verdicts: Box::new([]),
         milestone: None,
@@ -367,6 +369,7 @@ fn member(task: u64) -> policy::Member {
 fn setup() -> Domain {
     setup_with_limits(&LIMITS)
 }
+#[expect(clippy::too_many_lines, reason = "bounded public view fixture with its stored landing")]
 fn setup_with_limits(limits: &Limits) -> Domain {
     let mut d = domain_with_limits(limits);
     d.repositories.insert(REPO, Box::new(adopted())).expect("repository");
@@ -430,6 +433,9 @@ fn setup_with_limits(limits: &Limits) -> Domain {
         .insert(
             LANDING,
             LandingRow {
+                last_event: None,
+                turn_since: None,
+                waiting: None,
                 flake_reruns: Box::new([]),
                 room: None,
                 job: None,
@@ -444,6 +450,7 @@ fn setup_with_limits(limits: &Limits) -> Domain {
                     members: Box::new([member(CHANGE), member(SECOND)]),
                     preparation: 2,
                     stale_proofs: 3,
+                    last_prepare: None,
                     branch: Box::from(b"main".as_slice()),
                 },
                 asks: Box::new([None, None]),
@@ -929,6 +936,9 @@ fn maximal() -> (Domain, Limits, Box<[PublicTask]>) {
             .insert(
                 task,
                 LandingRow {
+                    last_event: None,
+                    turn_since: None,
+                    waiting: None,
                     flake_reruns: Box::new([]),
                     room: None,
                     job: None,
@@ -943,6 +953,7 @@ fn maximal() -> (Domain, Limits, Box<[PublicTask]>) {
                         members: members.clone(),
                         preparation: u16::MAX,
                         stale_proofs: u32::MAX,
+                        last_prepare: None,
                         branch: Box::from(b"main".as_slice()),
                     },
                     asks: Box::new([const { None }; 8]),

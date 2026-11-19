@@ -765,6 +765,7 @@ fn admitted_admin_connect_marks_connecting_and_keeps_the_first_repository_intent
             d.forges().rows[0].first,
             first.map(|first| First {
                 playground: false,
+                sample: false,
                 org: first.org,
                 repository: first.repository,
                 state: FirstState::Making,

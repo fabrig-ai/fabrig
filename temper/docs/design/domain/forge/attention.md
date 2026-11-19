@@ -508,8 +508,11 @@ wire's records alone (`../../draft/what-reaches-you.md`, sections 2 to 5).
   first*, `wording`, `retry` and `tests` at `Decide`, then
   `implementation`, `dependency`, `departure` and `findings` at `Ask`,
   in that order, so that starting work on findings asks unless the
-  person is away (`../../draft/home-for-a-person.md`, 5); no set in
-  any. A project whose kind 8 holds a table without a `findings` item
+  person is away (`../../draft/home-for-a-person.md`, 5), then an
+  eighth item, `findings` with the words "a repair goal for a routine
+  red after landing" at `Decide`, so that a triager's `decided` naming
+  it by `under` 8 is decided (`../red-repairs.md`, sections 2 and 9);
+  no set in any. A project whose kind 8 holds a table without a `findings` item
   asks it even when away, as any subject with no item, until its
   person's Stop asking or a proposal moves it. A project whose kind 8 holds no value has Agents
   review's, the stock way of kind 2's stock rule 1
