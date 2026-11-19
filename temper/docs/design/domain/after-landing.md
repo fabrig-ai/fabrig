@@ -865,8 +865,11 @@ Run: URL
   bytes of an id (`../protocol/store.md`, 4); and a tier's name at most
   32 bytes. A many's names, wherever kept, hold at most
   `failing_tests` ids. A tier row's `many` and a landing log's red
-  entry keep at most 64 of them, the store's ceiling (2026-11-19): a
-  tier row is within 223 KB of the store codec's `u32` worst case,
+  entry keep at most 64 of them, the store's ceiling (2026-11-19).
+  A tier row's `many` uses `list 64 ShownTest`,
+  `ShownTest { test_id: bytes 1024 }`, which the store's wide text
+  (`../protocol/store.md`, 4) leaves alone: no older layout holds them.
+  A tier row is within 223 KB of the store codec's `u32` worst case at 759 landings,
   which 1,024 names of 1,024 bytes pass; 256 landings of 32 tiers each
   keeping 1,024 ids of 1,024 bytes pass the store codec's `u32` worst
   case, and 64 is the stock `failing_tests` and a finding's signature's

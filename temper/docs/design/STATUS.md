@@ -323,8 +323,7 @@ released by a person, `temper ctl tier hold` and `tier release`, the hold
 kept on the tier's record and said on a verifying change's line; a red
 range is bisected over its changed-key landings; each verdict is posted
 on the forge, `temper/verdict/<tier>` on the run's tip and a comment on
-each member's pull request, `Repaired by #M` once a repair passes; a
-many red names its lowest ids and how many more. A
+each member's pull request, `Repaired by #M` once a repair passes. A
 project whose kind 4 says `wait: landed` ends each change at its
 landing, so its goal and the goals waiting on it go on then, while the
 tiers judge the landing from the landing log, which keeps each landing
