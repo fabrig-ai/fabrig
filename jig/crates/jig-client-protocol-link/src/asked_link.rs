@@ -1,4 +1,5 @@
 //! Asked links are transient exchanges (jig/docs/design/client/domain/client/README.md, 9).
+use jig_client_protocol_wire::Record as _;
 use crate::component::{Attempt, ExchangeKind};
 use crate::{AskedLink, Link, Message, NotAsked, Request, Signing};
 use jig_client_protocol_wire as w;
@@ -45,9 +46,9 @@ impl Link {
                 },
             )
             .expect("checked exchange capacity");
-        let record = w::LinkAsk::new(self.limits.wire(), w::LinkAskParts {}).expect("empty link ask");
-        let mut bytes = Writer::new(skein_lib::length::usize_of(record.measure()));
-        record.encode(&mut bytes).expect("measured link ask");
+        let record = w::LinkAsk {};
+        let mut bytes = Writer::new(skein_lib::length::usize_of(record.measure(self.limits.wire()).expect("bounded client record")));
+        record.write(self.limits.wire(), &mut bytes).expect("measured link ask");
         self.emit_exchange(exchange, self.credential.clone(), Message::LinkAsk(bytes.finish()));
     }
 
@@ -56,7 +57,7 @@ impl Link {
         let answer = match w::LinkAskAnswer::decode(self.limits.wire(), &mut reader) {
             Ok(answer) if reader.is_empty() => match answer {
                 w::LinkAskAnswer::Asked(value) => {
-                    let fields = value.into_parts();
+                    let fields = value;
                     if fields.secret.len() == 32 {
                         AskedLink::Asked { secret: fields.secret, expires: fields.expires }
                     } else {

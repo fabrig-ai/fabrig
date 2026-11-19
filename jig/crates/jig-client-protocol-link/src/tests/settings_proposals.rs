@@ -166,8 +166,7 @@ fn proposed_items_refuse_one_past_either_ceiling() {
     for _ in 0..=PROPOSAL_ITEMS {
         writer.put(&[0, 0, 0, 2, 3, 2]).expect("rules reset piece");
     }
-    let value = w::ProposeSettings::new(limits.wire(), w::ProposeSettingsParts { against: 6, items: writer.finish() })
-        .expect("outer record");
+    let value = w::ProposeSettings { against: 6, items: writer.finish() };
     t::restore_propose_settings(&value, &limits).expect_err("one past the decoded proposal item count");
 }
 #[test]
@@ -193,11 +192,7 @@ fn reviews_keep_their_byte_bound_and_refuse_malformed_pieces() {
     t::restore_settings_review(&wire, &limits).expect_err("the receiving review byte bound is enforced");
     limits = fixtures::limits();
     for bytes in [b"\0".as_slice(), b"\0\0\0\x07\x03\x02\x02\x02\x02\0\0".as_slice()] {
-        let wire = w::SettingsReview::new(
-            limits.wire(),
-            w::SettingsReviewParts { key: None, newest: 6, cut: false, items: skein_lib::bytes::copy_of(bytes) },
-        )
-        .expect("outer review");
+        let wire = w::SettingsReview { key: None, newest: 6, cut: false, items: skein_lib::bytes::copy_of(bytes) };
         t::restore_settings_review(&wire, &limits).expect_err("malformed review framing is refused");
     }
 }
@@ -280,27 +275,23 @@ fn a_settings_decision_keeps_its_three_outcomes_through_the_wire_and_link() {
     for (outcome, expected) in [
         (
             w::SettingsOutcome::Accepted(
-                w::SettingsAccepted::new(limits.wire(), w::SettingsAcceptedParts { revision: 7 }).unwrap(),
+                w::SettingsAccepted { revision: 7 },
             ),
             c::SettingsOutcome::Accepted { revision: 7 },
         ),
         (w::SettingsOutcome::Rejected, c::SettingsOutcome::Rejected),
         (
             w::SettingsOutcome::Stale(
-                w::SettingsStale::new(limits.wire(), w::SettingsStaleParts { newest: 9 }).unwrap(),
+                w::SettingsStale { newest: 9 },
             ),
             c::SettingsOutcome::Stale { newest: 9 },
         ),
     ] {
         let value = w::MessageKind::SettingsDecision(
-            w::MessageKindSettingsDecision::new(
-                limits.wire(),
-                w::MessageKindSettingsDecisionParts { proposal: 41, outcome },
-            )
-            .unwrap(),
+            w::MessageKindSettingsDecision { proposal: 41, outcome },
         );
-        let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(value.measure()));
-        value.encode(&mut writer).unwrap();
+        let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+        value.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
         let value = w::MessageKind::decode(limits.wire(), &mut Reader::new(&writer.finish())).unwrap();
         assert_eq!(
             translate::pages::message_kind_fields(&value, &limits).unwrap(),
@@ -315,8 +306,8 @@ fn settings_review_keys_cross_the_wire_and_link_whole() {
     for key in [None, Some(1), Some(u64::MAX)] {
         let review = c::SettingsReview { key, newest: 6, items: skein_lib::List::with_capacity(0), cut: false };
         let wire = e::wire_settings_review(&review, limits.wire()).unwrap();
-        let mut bytes = skein_lib::Writer::new(skein_lib::length::usize_of(wire.measure()));
-        wire.encode(&mut bytes).unwrap();
+        let mut bytes = skein_lib::Writer::new(skein_lib::length::usize_of(wire.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+        wire.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
         let wire = w::SettingsReview::decode(limits.wire(), &mut Reader::new(&bytes.finish())).unwrap();
         assert_eq!(t::restore_settings_review(&wire, &limits), Ok(review));
     }

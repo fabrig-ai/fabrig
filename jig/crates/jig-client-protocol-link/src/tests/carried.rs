@@ -16,7 +16,7 @@ fn posted(h: &Harness) -> Option<w::Keyed> {
     for request in &h.out {
         if let Request::Exchange { message: Message::Request(body), .. } = request {
             let record = w::Keyed::decode(limits().wire(), &mut Reader::new(body)).expect("keyed request");
-            if record.key() == &CARRIED_KEY {
+            if record.key == CARRIED_KEY {
                 return Some(record);
             }
         }
@@ -31,7 +31,7 @@ fn a_carried_request_leaves_while_the_table_waits_on_a_write() {
     carry(&mut h, ATTEMPT);
     assert_eq!(h.exchanges(), 1, "the carried request alone leaves");
     let record = posted(&h).expect("the carried request left");
-    assert_eq!(record.value(), &Some(Secret::new(Box::new(VALUE))));
+    assert_eq!((&record.value), &Some(Secret::new(Box::new(VALUE))));
     h.write_failed();
     assert!(h.has(&Request::NotKept { attempt: Token::new(5) }));
     assert_eq!(h.answered(ATTEMPT), None, "a failed write never answers it");
@@ -82,7 +82,7 @@ fn a_move_out_leaves_while_the_table_waits_on_a_write() {
     h.send_kept(Token::new(5));
     move_out(&mut h, ATTEMPT);
     assert_eq!(h.exchanges(), 1);
-    assert_eq!(posted(&h).expect("move out left").value(), &None);
+    assert_eq!((&posted(&h).expect("move out left").value), &None);
     h.write_failed();
     assert_eq!(h.answered(ATTEMPT), None);
 }

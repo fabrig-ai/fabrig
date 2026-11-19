@@ -1,15 +1,16 @@
 //! Lent-terminal account forms at the client boundary (domain/terminal-login.md, 5).
+use jig_client_protocol_wire::Record as _;
 use super::{c, fixtures, translate, w};
 use skein_lib::{Reader, Writer};
 fn exits() -> [(c::LoginExit, w::LoginExit); 3] {
     [
         (
             c::LoginExit::Exited { code: 17 },
-            w::LoginExit::Exited(w::LoginExitExited::new(&w::CEILINGS, w::LoginExitExitedParts { code: 17 }).unwrap()),
+            w::LoginExit::Exited(w::LoginExitExited { code: 17 }),
         ),
         (
             c::LoginExit::Killed { signal: 9 },
-            w::LoginExit::Killed(w::LoginExitKilled::new(&w::CEILINGS, w::LoginExitKilledParts { signal: 9 }).unwrap()),
+            w::LoginExit::Killed(w::LoginExitKilled { signal: 9 }),
         ),
         (c::LoginExit::NotStarted, w::LoginExit::NotStarted),
     ]
@@ -17,16 +18,12 @@ fn exits() -> [(c::LoginExit, w::LoginExit); 3] {
 fn login(cancelled: bool) -> (c::TerminalLogin, w::TerminalLogin) {
     (
         c::TerminalLogin { number: 1, provider: 2, name: b"work".as_slice().into(), cancelled },
-        w::TerminalLogin::new(
-            &w::CEILINGS,
-            w::TerminalLoginParts { number: 1, provider: 2, name: b"work".as_slice().into(), cancelled },
-        )
-        .unwrap(),
+        w::TerminalLogin { number: 1, provider: 2, name: b"work".as_slice().into(), cancelled },
     )
 }
 fn delivery(value: &w::DeliveryValue) -> c::Delivery {
-    let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
-    value.encode(&mut out).unwrap();
+    let mut out = Writer::new(skein_lib::length::usize_of(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+    value.write(&jig_client_protocol_wire::CEILINGS, &mut out).unwrap();
     translate::watches::delivery(&out.finish(), &fixtures::limits()).unwrap()
 }
 #[test]
@@ -37,18 +34,13 @@ fn login_changes_and_the_asked_answer_translate() {
         (
             c::AccountChange::LoginProgram { provider: 2, name: b"work".as_slice().into() },
             w::AccountChange::LoginProgram(
-                w::AccountChangeLoginProgram::new(
-                    limits.wire(),
-                    w::AccountChangeLoginProgramParts { provider: 2, name: b"work".as_slice().into() },
-                )
-                .unwrap(),
+                w::AccountChangeLoginProgram { provider: 2, name: b"work".as_slice().into() },
             ),
         ),
         (
             c::AccountChange::CancelLogin { number: 1 },
             w::AccountChange::CancelLogin(
-                w::AccountChangeCancelLogin::new(limits.wire(), w::AccountChangeCancelLoginParts { number: 1 })
-                    .unwrap(),
+                w::AccountChangeCancelLogin { number: 1 },
             ),
         ),
     ] {
@@ -59,11 +51,7 @@ fn login_changes_and_the_asked_answer_translate() {
             .push((
                 c::AccountChange::LoginEnded { number: 1, exit },
                 w::AccountChange::LoginEnded(
-                    w::AccountChangeLoginEnded::new(
-                        limits.wire(),
-                        w::AccountChangeLoginEndedParts { number: 1, exit: wire },
-                    )
-                    .unwrap(),
+                    w::AccountChangeLoginEnded { number: 1, exit: wire },
                 ),
             ))
             .unwrap();
@@ -76,16 +64,16 @@ fn login_changes_and_the_asked_answer_translate() {
             let ask = c::Ask::AccountChange { holder, change: change.clone() };
             let wire = translate::asks::ask(&ask, limits.wire()).unwrap();
             let w::Ask::AccountChange(row) = &wire else { panic!("account change") };
-            assert_eq!(row.change(), expected);
-            assert_eq!(row.holder(), &wire_holder);
-            let mut out = Writer::new(skein_lib::length::usize_of(wire.measure()));
-            wire.encode(&mut out).unwrap();
+            assert_eq!((&row.change), expected);
+            assert_eq!((&row.holder), &wire_holder);
+            let mut out = Writer::new(skein_lib::length::usize_of(wire.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+            wire.write(&jig_client_protocol_wire::CEILINGS, &mut out).unwrap();
             let restored = w::Ask::decode(limits.wire(), &mut Reader::new(&out.finish())).unwrap();
             assert_eq!(translate::store::restore_ask(restored, &limits), Ok(ask));
         }
     }
     let answer = w::DocumentOutcome::AccountLoginAsked(
-        w::OutcomeAccountLoginAsked::new(limits.wire(), w::OutcomeAccountLoginAskedParts { number: 1 }).unwrap(),
+        w::OutcomeAccountLoginAsked { number: 1 },
     );
     assert_eq!(
         translate::answers::document_outcome(&answer, &limits),
@@ -106,7 +94,7 @@ fn terminal_and_accounts_documents_preserve_login_facts() {
         assert_eq!(
             translate::watches::subject(&c::Subject::Terminal { terminal }, limits.wire()),
             Ok(w::Subject::Terminal(
-                w::SubjectTerminal::new(limits.wire(), w::SubjectTerminalParts { terminal }).unwrap()
+                w::SubjectTerminal { terminal }
             ))
         );
     }
@@ -117,15 +105,15 @@ fn terminal_and_accounts_documents_preserve_login_facts() {
                 None => (None, None),
                 Some((n, w)) => (Some(n), Some(w)),
             };
-            let row = w::Terminal::new(limits.wire(), w::TerminalParts { login: wire.clone() }).unwrap();
+            let row = w::Terminal { login: wire.clone() };
             assert_eq!(
                 delivery(&w::DeliveryValue::Terminal(row)),
                 c::Delivery::Terminal(Box::new(c::Terminal { login: native.clone() }))
             );
-            let mut parts = jig_client_test_records::accounts_record(None).into_parts();
+            let mut parts = jig_client_test_records::accounts_record(None);
             parts.lendable = native.is_some();
             parts.lending = wire;
-            let value = w::Accounts::new(limits.wire(), parts).unwrap();
+            let value = parts;
             let c::Delivery::Accounts(doc) = delivery(&w::DeliveryValue::Accounts(value)) else { panic!("accounts") };
             assert_eq!(doc.lendable, native.is_some());
             assert_eq!(doc.lending, native);
@@ -137,21 +125,20 @@ fn terminal_and_accounts_documents_preserve_login_facts() {
         (
             c::LoginEnd::SignedIn { source: 19 },
             w::LoginEnd::SignedIn(
-                w::LoginEndSignedIn::new(limits.wire(), w::LoginEndSignedInParts { source: 19 }).unwrap(),
+                w::LoginEndSignedIn { source: 19 },
             ),
         ),
         (
             c::LoginEnd::NotFinished { exit: None },
             w::LoginEnd::NotFinished(
-                w::LoginEndNotFinished::new(limits.wire(), w::LoginEndNotFinishedParts { exit: None }).unwrap(),
+                w::LoginEndNotFinished { exit: None },
             ),
         ),
         (c::LoginEnd::Cancelled, w::LoginEnd::Cancelled),
         (
             c::LoginEnd::Refused { refusal: c::AccountRefusal::Numbers },
             w::LoginEnd::Refused(
-                w::LoginEndRefused::new(limits.wire(), w::LoginEndRefusedParts { refusal: w::AccountRefusal::Numbers })
-                    .unwrap(),
+                w::LoginEndRefused { refusal: w::AccountRefusal::Numbers },
             ),
         ),
     ] {
@@ -161,16 +148,16 @@ fn terminal_and_accounts_documents_preserve_login_facts() {
         ends.push((
             c::LoginEnd::NotFinished { exit: Some(exit) },
             w::LoginEnd::NotFinished(
-                w::LoginEndNotFinished::new(limits.wire(), w::LoginEndNotFinishedParts { exit: Some(wire) }).unwrap(),
+                w::LoginEndNotFinished { exit: Some(wire) },
             ),
         ))
         .unwrap();
     }
     for (end, wire) in ends.into_boxed() {
-        let mut parts = jig_client_test_records::accounts_record(None).into_parts();
+        let mut parts = jig_client_test_records::accounts_record(None);
         parts.lent_end =
-            Some(w::AccountLentEnd::new(limits.wire(), w::AccountLentEndParts { number: 1, end: wire }).unwrap());
-        let doc = w::Accounts::new(limits.wire(), parts).unwrap();
+            Some(w::AccountLentEnd { number: 1, end: wire });
+        let doc = parts;
         let c::Delivery::Accounts(doc) = delivery(&w::DeliveryValue::Accounts(doc)) else { panic!("accounts") };
         assert_eq!(doc.lent_end, Some(c::AccountLentEnd { number: 1, end }));
     }
@@ -178,9 +165,9 @@ fn terminal_and_accounts_documents_preserve_login_facts() {
 #[test]
 fn terminal_names_are_validated_and_charged_to_the_document() {
     let (_, row) = login(false);
-    let mut parts = row.clone().into_parts();
+    let mut parts = row.clone();
     parts.name = b"../bad".as_slice().into();
-    let invalid = w::TerminalLogin::new(&w::CEILINGS, parts).unwrap();
+    let invalid = parts;
     let mut room = 4;
     assert_eq!(
         translate::documents::terminal_login(Some(&invalid), &mut room).unwrap_err().reason,

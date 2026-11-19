@@ -1,4 +1,5 @@
 //! Whole document decoding (protocol/client/wire.md, 1; client/domain/contract/documents.md and client/domain/contract/README.md, 4–5).
+use jig_client_protocol_wire::Record as _;
 use super::{Undecodable, classify, piece_problem, too_large};
 use crate::Limits;
 use alloc::boxed::Box;
@@ -54,13 +55,9 @@ fn raw(value: &[u8], limits: &Limits) -> Result<Box<[u8]>, w::Problem> {
 }
 
 pub fn frame(record: w::Me, limits: &Limits) -> Result<c::Me, Undecodable> {
-    if u64::from(record.measure()) > limits.client().document_bytes {
+    if u64::from(match record.measure(limits.wire()) { Ok(size) => size, Err(problem) => return Err(classify(problem)) }) > limits.client().document_bytes {
         return Err(Undecodable::TooLarge);
     }
-    let record = match w::Me::new(limits.receiving(), record.into_parts()) {
-        Ok(value) => value,
-        Err(problem) => return Err(classify(problem)),
-    };
     match frame_fields(&record, limits) {
         Ok(value) => Ok(value),
         Err(problem) => Err(classify(problem)),
@@ -68,13 +65,9 @@ pub fn frame(record: w::Me, limits: &Limits) -> Result<c::Me, Undecodable> {
 }
 
 pub fn task(record: w::Task, limits: &Limits) -> Result<c::Task, Undecodable> {
-    if u64::from(record.measure()) > limits.client().document_bytes {
+    if u64::from(match record.measure(limits.wire()) { Ok(size) => size, Err(problem) => return Err(classify(problem)) }) > limits.client().document_bytes {
         return Err(Undecodable::TooLarge);
     }
-    let record = match w::Task::new(limits.receiving(), record.into_parts()) {
-        Ok(value) => value,
-        Err(problem) => return Err(classify(problem)),
-    };
     match task_fields(&record, limits) {
         Ok(value) => Ok(value),
         Err(problem) => Err(classify(problem)),
@@ -82,13 +75,9 @@ pub fn task(record: w::Task, limits: &Limits) -> Result<c::Task, Undecodable> {
 }
 
 pub fn tasks(record: w::Tasks, limits: &Limits) -> Result<c::Tasks, Undecodable> {
-    if u64::from(record.measure()) > limits.client().document_bytes {
+    if u64::from(match record.measure(limits.wire()) { Ok(size) => size, Err(problem) => return Err(classify(problem)) }) > limits.client().document_bytes {
         return Err(Undecodable::TooLarge);
     }
-    let record = match w::Tasks::new(limits.receiving(), record.into_parts()) {
-        Ok(value) => value,
-        Err(problem) => return Err(classify(problem)),
-    };
     match tasks_fields(&record, limits) {
         Ok(value) => Ok(value),
         Err(problem) => Err(classify(problem)),
@@ -96,13 +85,9 @@ pub fn tasks(record: w::Tasks, limits: &Limits) -> Result<c::Tasks, Undecodable>
 }
 
 pub fn deployment(record: w::Deployment, limits: &Limits) -> Result<c::Deployment, Undecodable> {
-    if u64::from(record.measure()) > limits.client().document_bytes {
+    if u64::from(match record.measure(limits.wire()) { Ok(size) => size, Err(problem) => return Err(classify(problem)) }) > limits.client().document_bytes {
         return Err(Undecodable::TooLarge);
     }
-    let record = match w::Deployment::new(limits.receiving(), record.into_parts()) {
-        Ok(value) => value,
-        Err(problem) => return Err(classify(problem)),
-    };
     match deployment_fields(&record, limits) {
         Ok(value) => Ok(value),
         Err(problem) => Err(classify(problem)),
@@ -110,13 +95,9 @@ pub fn deployment(record: w::Deployment, limits: &Limits) -> Result<c::Deploymen
 }
 
 pub fn project(record: w::Project, limits: &Limits) -> Result<c::Project, Undecodable> {
-    if u64::from(record.measure()) > limits.client().document_bytes {
+    if u64::from(match record.measure(limits.wire()) { Ok(size) => size, Err(problem) => return Err(classify(problem)) }) > limits.client().document_bytes {
         return Err(Undecodable::TooLarge);
     }
-    let record = match w::Project::new(limits.receiving(), record.into_parts()) {
-        Ok(value) => value,
-        Err(problem) => return Err(classify(problem)),
-    };
     match project_fields(&record, limits) {
         Ok(value) => Ok(value),
         Err(problem) => Err(classify(problem)),
@@ -124,7 +105,7 @@ pub fn project(record: w::Project, limits: &Limits) -> Result<c::Project, Undeco
 }
 
 pub fn chip(record: w::Chip, limits: &Limits) -> Result<c::Chip, Undecodable> {
-    if u64::from(record.measure()) > limits.client().document_bytes {
+    if u64::from(match record.measure(limits.wire()) { Ok(size) => size, Err(problem) => return Err(classify(problem)) }) > limits.client().document_bytes {
         return Err(Undecodable::TooLarge);
     }
     match chip_fields(&record, limits) {

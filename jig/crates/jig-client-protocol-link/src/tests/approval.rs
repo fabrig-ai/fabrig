@@ -5,8 +5,8 @@ use skein_lib::{Secret, Wall, Writer};
 macro_rules! encoded {
     ($record:expr) => {{
         let record = $record;
-        let mut bytes = Writer::new(usize::try_from(record.measure()).unwrap());
-        record.encode(&mut bytes).unwrap();
+        let mut bytes = Writer::new(usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+        record.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
         bytes.finish()
     }};
 }
@@ -20,15 +20,11 @@ fn ask_rows() -> Box<[(Box<[u8]>, Approval)]> {
     Box::new([
         (
             encoded!(w::ApprovalAskAnswer::Asked(
-                w::ApprovalAsked::new(
-                    &w::CEILINGS,
-                    w::ApprovalAskedParts {
+                w::ApprovalAsked {
                         secret: Secret::new(Box::new([7; 32])),
                         code: *code().letters(),
                         expires: 300,
                     }
-                )
-                .unwrap()
             )),
             asked(),
         ),
@@ -42,7 +38,7 @@ fn read_rows() -> Box<[(Box<[u8]>, Approval)]> {
     for (record, state) in [
         (
             w::ApprovalState::Waiting(
-                w::ApprovalWaiting::new(&w::CEILINGS, w::ApprovalWaitingParts { asked: 100 }).unwrap(),
+                w::ApprovalWaiting { asked: 100 },
             ),
             ApprovalState::Waiting { asked: Wall::from_nanos(100) },
         ),
@@ -101,18 +97,18 @@ fn exchange(h: &mut Harness, kind: u8) -> Token {
     match message {
         Message::ApprovalAsk(body) => {
             assert_eq!(kind, 0);
-            assert_eq!(body, encoded!(w::ApprovalAsk::new(&w::CEILINGS, w::ApprovalAskParts {}).unwrap()));
+            assert_eq!(body, encoded!(w::ApprovalAsk {}));
         }
         Message::ApprovalRead(body) => {
             assert_eq!(kind, 1);
             let record = w::ApprovalRead::decode(&w::CEILINGS, &mut Reader::new(&body)).unwrap();
-            assert_eq!(record.code(), code().letters());
+            assert_eq!((&record.code), code().letters());
         }
         Message::ApprovalDecide(body) => {
             assert_eq!(kind, 2);
             let record = w::ApprovalDecide::decode(&w::CEILINGS, &mut Reader::new(&body)).unwrap();
-            assert_eq!(record.code(), code().letters());
-            assert!(record.approve());
+            assert_eq!((&record.code), code().letters());
+            assert!(record.approve);
         }
         other @ (Message::LinkAsk(_)
         | Message::Authorize(_)
@@ -211,11 +207,7 @@ fn an_invalid_asked_code_or_secret_is_lost() {
         let mut h = Harness::new(&limits());
         let exchange = exchange(&mut h, 0);
         let body = encoded!(w::ApprovalAskAnswer::Asked(
-            w::ApprovalAsked::new(
-                &w::CEILINGS,
-                w::ApprovalAskedParts { secret: Secret::new(secret), code, expires: 300 }
-            )
-            .unwrap()
+            w::ApprovalAsked { secret: Secret::new(secret), code, expires: 300 }
         ));
         h.answer(exchange, &body);
         assert_eq!(h.out.pop(), Some(Request::Approval(Approval::NotAsked(NotAsked::Lost))));

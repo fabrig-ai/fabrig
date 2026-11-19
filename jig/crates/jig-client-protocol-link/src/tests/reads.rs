@@ -4,42 +4,29 @@ use skein_lib::length::len_u64;
 fn an_activity_answer_with_a_heard_job_result_is_served_whole() {
     use skein_lib::{Wall, Writer};
     let limits = fixtures::limits();
-    let wire = limits.wire();
-    let word = w::Word::new(
-        wire,
-        w::WordParts {
+    let word = w::Word {
             number: 19,
-            from: w::Requester::Task(w::RequesterTask::new(wire, w::RequesterTaskParts { value: 11 }).unwrap()),
+            from: w::Requester::Task(w::RequesterTask { value: 11 }),
             kind: w::MessageKind::Result(
-                w::MessageKindResult::new(wire, w::MessageKindResultParts { value: w::WordResult::Job }).unwrap(),
+                w::MessageKindResult { value: w::WordResult::Job },
             ),
             words: Box::new([]),
             at: 23,
             hits: 2,
             eligible: true,
-        },
-    )
-    .unwrap();
-    let source = w::ActivityLine::new(
-        wire,
-        w::ActivityLineParts {
+        };
+    let source = w::ActivityLine {
             task: 7,
             position: 2,
             at: 29,
-            line: w::Activity::Heard(w::ActivityHeard::new(wire, w::ActivityHeardParts { value: word }).unwrap()),
-        },
-    )
-    .unwrap();
-    let row = w::DecodedActivityLine::new(wire, w::DecodedActivityLineParts { source, decoded: None }).unwrap();
-    let mut encoded = Writer::new(usize::try_from(row.measure()).unwrap());
-    row.encode(&mut encoded).unwrap();
-    let mut pieces = Writer::new(usize::try_from(row.measure()).unwrap().checked_add(4).unwrap());
+            line: w::Activity::Heard(w::ActivityHeard { value: word }),
+        };
+    let row = w::DecodedActivityLine { source, decoded: None };
+    let mut encoded = Writer::new(usize::try_from(row.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    row.write(&jig_client_protocol_wire::CEILINGS, &mut encoded).unwrap();
+    let mut pieces = Writer::new(usize::try_from(row.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap().checked_add(4).unwrap());
     skein_codec::piece::write(&mut pieces, &encoded.finish()).unwrap();
-    let page = w::ActivityPage::new(
-        wire,
-        w::ActivityPageParts { rows: pieces.finish(), cut: false, before: None, after: None },
-    )
-    .unwrap();
+    let page = w::ActivityPage { rows: pieces.finish(), cut: false, before: None, after: None };
     let mut h = fixtures::Harness::new(&limits);
     let exchange = h.read(Readable::Jig(c::Read::Activity { task: 7, before: None }));
     h.answer(exchange, &fixtures::jig_read_value_answer(&w::ReadValue::Activity(page)));
@@ -75,16 +62,16 @@ fn an_activity_answer_with_a_heard_job_result_is_served_whole() {
 fn a_read_keeps_its_long_cursor_as_opaque_bytes() {
     let actual = translate::reads::read(&fixtures::history_read(), fixtures::limits().wire()).unwrap();
     let w::Read::History(record) = actual else { panic!("history record") };
-    assert_eq!(record.task(), 7);
-    assert!(record.subtree());
-    assert_eq!(record.after().as_ref().unwrap().value(), fixtures::READ_CURSOR);
+    assert_eq!(record.task, 7);
+    assert!(record.subtree);
+    assert_eq!(record.after.as_ref().unwrap().value.as_ref(), fixtures::READ_CURSOR);
 }
 #[test]
 fn a_read_cursor_past_its_wire_bound_is_refused() {
     let mut limits = *fixtures::limits().wire();
     limits.cursor_value = 47;
     let problem = translate::reads::read(&fixtures::history_read(), &limits).unwrap_err();
-    assert_eq!(problem.path, w::Path::CursorValue);
+    assert_eq!(problem.path, w::paths::CURSOR_VALUE);
     assert_eq!(problem.reason, skein_codec::Reason::Bound);
 }
 #[test]
@@ -97,26 +84,26 @@ fn a_notes_read_keeps_its_scope_and_filter_with_its_cursor() {
             let c::Read::Notes { scope, .. } = &mut read else { panic!("notes read") };
             *scope = c::NoteScope::Party { party };
             expected = w::NoteScope::Party(
-                w::NoteScopeParty::new(fixtures::limits().wire(), w::NoteScopePartyParts { party }).unwrap(),
+                w::NoteScopeParty { party },
             );
         }
         let actual = translate::reads::read(&read, fixtures::limits().wire()).unwrap();
         let w::Read::Notes(record) = actual else { panic!("notes record") };
-        assert_eq!(record.scope(), &expected);
-        assert_eq!(record.description().as_deref(), Some(b"filter".as_slice()));
-        assert_eq!(record.after().as_ref().unwrap().value(), fixtures::READ_CURSOR);
+        assert_eq!((&record.scope), &expected);
+        assert_eq!(record.description.as_deref(), Some(b"filter".as_slice()));
+        assert_eq!(record.after.as_ref().unwrap().value.as_ref(), fixtures::READ_CURSOR);
     }
 }
 
 #[test]
 fn a_read_body_names_jigs_wire_and_keeps_its_read() {
     let record = translate::reads::owned(Readable::Jig(fixtures::history_read()), fixtures::limits().wire()).unwrap();
-    assert_eq!(record.owner(), &w::Owner::Jig);
-    assert_eq!(record.version(), jig_client_protocol_wire::VERSION);
-    let read = w::Read::decode(fixtures::limits().wire(), &mut Reader::new(record.record())).unwrap();
+    assert_eq!((&record.owner), &w::Owner::Jig);
+    assert_eq!(record.version, jig_client_protocol_wire::VERSION);
+    let read = w::Read::decode(fixtures::limits().wire(), &mut Reader::new(record.record.as_ref())).unwrap();
     let w::Read::History(read) = read else { panic!("history read") };
-    assert_eq!(read.task(), 7);
-    assert_eq!(read.after().as_ref().unwrap().value(), fixtures::READ_CURSOR);
+    assert_eq!(read.task, 7);
+    assert_eq!(read.after.as_ref().unwrap().value.as_ref(), fixtures::READ_CURSOR);
 }
 #[test]
 fn a_family_read_body_keeps_its_opaque_owner_record() {
@@ -129,11 +116,11 @@ fn a_family_read_body_keeps_its_opaque_owner_record() {
         fixtures::limits().wire(),
     )
     .unwrap();
-    let w::Owner::Family(owner) = record.owner() else { panic!("family owner") };
-    assert_eq!(owner.number(), 19);
-    assert_eq!(record.version(), 23);
-    let family = w::FamilyRecord::decode(fixtures::limits().wire(), &mut Reader::new(record.record())).unwrap();
-    assert_eq!(family.record(), &[255, 0, 1]);
+    let w::Owner::Family(owner) = &record.owner else { panic!("family owner") };
+    assert_eq!(owner.number, 19);
+    assert_eq!(record.version, 23);
+    let family = w::FamilyRecord::decode(fixtures::limits().wire(), &mut Reader::new(record.record.as_ref())).unwrap();
+    assert_eq!(family.record.as_ref(), &[255, 0, 1]);
 }
 #[test]
 fn each_wire_none_keeps_its_reason() {
@@ -141,13 +128,13 @@ fn each_wire_none_keeps_its_reason() {
         (w::ReadNone::Malformed, c::ReadNone::Malformed),
         (
             w::ReadNone::TooLinked(
-                w::ReadTooLinked::new(fixtures::limits().wire(), w::ReadTooLinkedParts { joins: 4 }).expect("bound"),
+                w::ReadTooLinked { joins: 4 },
             ),
             c::ReadNone::TooLinked { joins: 4 },
         ),
         (
             w::ReadNone::TooLarge(
-                w::TurnTooLarge::new(fixtures::limits().wire(), w::TurnTooLargeParts { bytes: 8192 }).expect("size"),
+                w::TurnTooLarge { bytes: 8192 },
             ),
             c::ReadNone::TooLarge { bytes: 8192 },
         ),
@@ -169,14 +156,14 @@ fn a_read_becomes_one_post_with_its_owner_and_cursor() {
         panic!("expected read exchange")
     };
     let record = w::Owned::decode(fixtures::limits().wire(), &mut Reader::new(&body)).unwrap();
-    assert_eq!(record.owner(), &w::Owner::Jig);
-    assert_eq!(record.version(), jig_client_protocol_wire::VERSION);
+    assert_eq!((&record.owner), &w::Owner::Jig);
+    assert_eq!(record.version, jig_client_protocol_wire::VERSION);
     let w::Read::History(value) =
-        w::Read::decode(fixtures::limits().wire(), &mut Reader::new(record.record())).unwrap()
+        w::Read::decode(fixtures::limits().wire(), &mut Reader::new(record.record.as_ref())).unwrap()
     else {
         panic!("history read")
     };
-    assert_eq!(value.after().as_ref().unwrap().value(), fixtures::READ_CURSOR);
+    assert_eq!(value.after.as_ref().unwrap().value.as_ref(), fixtures::READ_CURSOR);
 }
 #[test]
 fn a_read_signed_out_is_answered_signed_out() {
@@ -215,13 +202,13 @@ fn a_read_none_answer_keeps_each_wire_reason_once() {
         (w::ReadNone::Malformed, c::ReadNone::Malformed),
         (
             w::ReadNone::TooLinked(
-                w::ReadTooLinked::new(fixtures::limits().wire(), w::ReadTooLinkedParts { joins: 4 }).expect("bound"),
+                w::ReadTooLinked { joins: 4 },
             ),
             c::ReadNone::TooLinked { joins: 4 },
         ),
         (
             w::ReadNone::TooLarge(
-                w::TurnTooLarge::new(fixtures::limits().wire(), w::TurnTooLargeParts { bytes: 8192 }).expect("size"),
+                w::TurnTooLarge { bytes: 8192 },
             ),
             c::ReadNone::TooLarge { bytes: 8192 },
         ),
@@ -373,7 +360,7 @@ fn a_read_activity_keeps_each_undecodable_turn_in_its_page() {
 fn me_s_projects_past_the_document_bytes_are_refused_as_too_large() {
     let value = jig_client_test_records::frame_two_projects_record();
     let mut client = *fixtures::limits().client();
-    client.document_bytes = u64::from(value.measure()).checked_sub(1).unwrap();
+    client.document_bytes = u64::from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).checked_sub(1).unwrap();
     let limits = Limits::new(client, 4).unwrap();
     assert_eq!(translate::documents::frame(value, &limits), Err(Undecodable::TooLarge));
 }
@@ -382,7 +369,7 @@ fn me_s_projects_past_the_document_bytes_are_refused_as_too_large() {
 fn a_turn_read_keeps_all_three_numbers() {
     let value = translate::reads::read(&fixtures::turn_read(), fixtures::limits().wire()).unwrap();
     let w::Read::Turn(value) = value else { panic!("turn read") };
-    assert_eq!((value.task(), value.attempt(), value.turn()), (7, 44, 3));
+    assert_eq!((value.task, value.attempt, value.turn), (7, 44, 3));
 }
 #[test]
 fn a_turn_read_keeps_its_archive_metadata() {
@@ -436,10 +423,10 @@ fn an_undecodable_single_turn_is_malformed() {
 #[test]
 fn a_turn_answer_for_another_identity_is_rejected() {
     for (task, attempt, turn) in [(8, 44, 3), (7, 45, 3), (7, 44, 4)] {
-        let mut record = fixtures::single_turn_record(&fixtures::full_turn()).into_parts();
+        let mut record = fixtures::single_turn_record(&fixtures::full_turn());
         record.task = task;
-        record.name = w::TurnName::new(&w::CEILINGS, w::TurnNameParts { attempt, number: turn }).unwrap();
-        let value = w::ReadValue::Turn(w::ArchivedTurn::new(&w::CEILINGS, record).unwrap());
+        record.name = w::TurnName { attempt, number: turn };
+        let value = w::ReadValue::Turn(record);
         let harness = fixtures::answered_turn(&fixtures::limits(), &fixtures::jig_read_value_answer(&value));
         assert_eq!(
             harness.read_answered(),
@@ -476,7 +463,7 @@ fn the_single_turn_decoder_uses_the_archive_bound() {
 fn a_too_linked_read_keeps_its_bound_after_decoding() {
     let (mut h, exchange) = fixtures::Harness::reading();
     let none = w::ReadNone::TooLinked(
-        w::ReadTooLinked::new(fixtures::limits().wire(), w::ReadTooLinkedParts { joins: 4 }).expect("bound"),
+        w::ReadTooLinked { joins: 4 },
     );
     h.answer(exchange, &fixtures::read_none_answer(none));
     assert_eq!(h.read_answered(), Some(&Readout::Jig(c::ReadResult::None(c::ReadNone::TooLinked { joins: 4 }))));
@@ -491,8 +478,8 @@ fn source_text_reads_keep_offsets_and_reject_false_continuations() {
     else {
         panic!("source read")
     };
-    assert_eq!(read.from(), 127);
-    assert_eq!(read.field(), &w::TaskTextField::Result);
+    assert_eq!(read.from, 127);
+    assert_eq!((&read.field), &w::TaskTextField::Result);
     for (from, total, next, text, valid) in [
         (127, 130, None, "éZ", true),
         (127, 131, Some(130), "éZ", true),
@@ -503,9 +490,7 @@ fn source_text_reads_keep_offsets_and_reject_false_continuations() {
         (u64::MAX, u64::MAX, None, "éZ", false),
     ] {
         let value = w::ReadValue::TaskText(
-            w::TaskText::new(
-                limits.wire(),
-                w::TaskTextParts {
+            w::TaskText {
                     task: 7,
                     field: w::TaskTextField::Result,
                     from,
@@ -513,11 +498,9 @@ fn source_text_reads_keep_offsets_and_reject_false_continuations() {
                     next,
                     words: Box::from(text.as_bytes()),
                 },
-            )
-            .unwrap(),
         );
-        let mut bytes = skein_lib::Writer::new(usize::try_from(value.measure()).unwrap());
-        value.encode(&mut bytes).unwrap();
+        let mut bytes = skein_lib::Writer::new(usize::try_from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+        value.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
         let decoded = translate::reads::value(&bytes.finish(), &limits);
         assert_eq!(decoded.is_ok(), valid, "{from} {total} {next:?}");
         if let Ok(c::ReadValue::TaskText(page)) = decoded {
@@ -531,9 +514,9 @@ fn a_tasks_read_is_sent_with_its_project() {
     let limits = fixtures::limits();
     let read = c::Read::Notes { scope: c::NoteScope::Tasks { project: 7 }, description: None, after: None };
     let w::Read::Notes(value) = translate::reads::read(&read, limits.wire()).unwrap() else { panic!("notes read") };
-    let w::NoteScope::Tasks(scope) = value.scope() else { panic!("tasks scope") };
-    assert_eq!(scope.project(), 7);
-    assert_eq!(value.description(), &None);
+    let w::NoteScope::Tasks(scope) = &value.scope else { panic!("tasks scope") };
+    assert_eq!(scope.project, 7);
+    assert_eq!((&value.description), &None);
 }
 
 #[test]
@@ -551,7 +534,7 @@ fn a_tasks_scope_is_refused_for_both_client_writes() {
                 body: empty,
                 references: skein_lib::List::with_capacity(0),
             },
-            w::Path::EditNoteScope,
+            w::paths::EDIT_NOTE_SCOPE,
         ),
         (
             c::Ask::DeleteNote {
@@ -560,7 +543,7 @@ fn a_tasks_scope_is_refused_for_both_client_writes() {
                 scope: c::NoteScope::Tasks { project: 7 },
                 revision: c::Revision { value: 1 },
             },
-            w::Path::DeleteNoteScope,
+            w::paths::DELETE_NOTE_SCOPE,
         ),
     ] {
         assert_eq!(
@@ -574,24 +557,24 @@ fn a_tasks_scope_is_refused_for_both_client_writes() {
 fn a_tasks_scope_on_a_note_row_is_undecodable() {
     let limits = fixtures::limits();
     let page = jig_client_test_records::scoped_notes_page();
-    let mut rows = Reader::new(page.rows());
+    let mut rows = Reader::new(page.rows.as_ref());
     let bytes = skein_codec::piece::split(&mut rows).unwrap().unwrap();
-    let source = w::Note::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap().into_parts();
+    let source = w::Note::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap();
     for (scope, readable) in [
         (
             w::NoteScope::Task(
-                w::NoteScopeTask::new(&w::CEILINGS, w::NoteScopeTaskParts { project: 13, task: 19 }).unwrap(),
+                w::NoteScopeTask { project: 13, task: 19 },
             ),
             true,
         ),
         (
-            w::NoteScope::Tasks(w::NoteScopeTasks::new(&w::CEILINGS, w::NoteScopeTasksParts { project: 13 }).unwrap()),
+            w::NoteScope::Tasks(w::NoteScopeTasks { project: 13 }),
             false,
         ),
     ] {
         let mut parts = source.clone();
         parts.scope = scope;
-        let record = w::Note::new(&w::CEILINGS, parts).unwrap();
+        let record = parts;
         let result = translate::pages::note_fields(&record, &limits);
         if readable {
             assert_eq!(result.unwrap().scope, c::NoteScope::Task { project: 13, task: 19 });

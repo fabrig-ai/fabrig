@@ -3,11 +3,8 @@ use super::*;
 // MODEL_DESCRIPTION_BYTES (protocol/limits.md).
 const DESCRIPTION_BYTES: usize = 512;
 
-fn me_with_model(prices: w::MePricesParts, description: Option<Box<[u8]>>) -> w::Me {
-    let limits = fixtures::limits();
-    let model = w::MeModel::new(
-        limits.wire(),
-        w::MeModelParts {
+fn me_with_model(prices: w::MePrices, description: Option<Box<[u8]>>) -> w::Me {
+    let model = w::MeModel {
             new_until: None,
             number: 1,
             source: w::ModelSource::Stock,
@@ -21,42 +18,35 @@ fn me_with_model(prices: w::MePricesParts, description: Option<Box<[u8]>>) -> w:
             window: 8192,
             output: 1024,
             efforts: skein_lib::List::with_capacity(0),
-            prices: w::MePrices::new(limits.wire(), prices).unwrap(),
+            prices,
             description,
-        },
-    )
-    .unwrap();
+        };
     me_with_offer(model, skein_lib::List::with_capacity(0))
 }
 fn me_with_offer(model: w::MeModel, defaults: skein_lib::List<w::MeDefault>) -> w::Me {
     let limits = fixtures::limits();
-    let project = w::MeProject::new(
-        limits.wire(),
-        w::MeProjectParts {
+    let project = w::MeProject {
             left_out: 0,
             defaults,
             public: None,
             project: 3,
-            name: w::DocumentText::new(limits.wire(), w::DocumentTextParts { bytes: Box::from(*b"Tally"), cut: false })
-                .unwrap(),
+            name: w::DocumentText { bytes: Box::from(*b"Tally"), cut: false },
             role: w::HeldRole::Owner,
             pool: None,
             templates: Box::default(),
             creating: None,
             models: fixtures::list([model]),
-        },
-    )
-    .unwrap();
-    let mut encoded = skein_lib::Writer::new(usize::try_from(project.measure()).unwrap());
-    project.encode(&mut encoded).unwrap();
+        };
+    let mut encoded = skein_lib::Writer::new(usize::try_from(project.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    project.write(&jig_client_protocol_wire::CEILINGS, &mut encoded).unwrap();
     let encoded = encoded.finish();
     let mut pieces = skein_lib::Writer::new(encoded.len().checked_add(4).unwrap());
     skein_codec::piece::write(&mut pieces, &encoded).unwrap();
-    let mut me = fixtures::frame_record().into_parts();
+    let mut me = fixtures::frame_record();
     me.projects = pieces.finish();
-    let me = w::Me::new(limits.wire(), me).unwrap();
-    let mut encoded = skein_lib::Writer::new(usize::try_from(me.measure()).unwrap());
-    me.encode(&mut encoded).unwrap();
+    let me = me;
+    let mut encoded = skein_lib::Writer::new(usize::try_from(me.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    me.write(&jig_client_protocol_wire::CEILINGS, &mut encoded).unwrap();
     w::Me::decode(limits.wire(), &mut Reader::new(&encoded.finish())).unwrap()
 }
 
@@ -68,7 +58,7 @@ fn models_decode_configured_prices_and_optional_descriptions() {
     for (description, expected) in [(None, None), (Some(full), Some(described))] {
         for cache_write in [None, Some(5)] {
             let me = me_with_model(
-                w::MePricesParts { input: 2, cached: 1, cache_write, output: 7, unit: 1000 },
+                w::MePrices { input: 2, cached: 1, cache_write, output: 7, unit: 1000 },
                 description.clone(),
             );
             let me = translate::documents::frame(me, &limits).unwrap();
@@ -84,7 +74,7 @@ fn models_decode_configured_prices_and_optional_descriptions() {
 fn an_empty_model_description_is_malformed() {
     let limits = fixtures::limits();
     let me = me_with_model(
-        w::MePricesParts { input: 2, cached: 1, cache_write: None, output: 7, unit: 1000 },
+        w::MePrices { input: 2, cached: 1, cache_write: None, output: 7, unit: 1000 },
         Some(Box::default()),
     );
     assert_eq!(translate::documents::frame(me, &limits), Err(Undecodable::Malformed));
@@ -100,7 +90,7 @@ fn zero_model_prices_or_units_are_malformed() {
         (2, 1, None, 0, 1000),
         (2, 1, None, 7, 0),
     ] {
-        let me = me_with_model(w::MePricesParts { input, cached, cache_write, output, unit }, None);
+        let me = me_with_model(w::MePrices { input, cached, cache_write, output, unit }, None);
         assert_eq!(translate::documents::frame(me, &limits), Err(Undecodable::Malformed));
     }
 }
@@ -131,7 +121,7 @@ fn an_account_refusal_keeps_its_reason_in_the_link() {
         (w::AccountWhy::Limited, c::AccountWhy::Limited),
     ] {
         let wire = w::Refusal::Account(
-            w::RefusalAccount::new(limits.wire(), w::RefusalAccountParts { account: 42, why: wire }).unwrap(),
+            w::RefusalAccount { account: 42, why: wire },
         );
         assert_eq!(
             translate::answers::refusal(&wire, &limits).unwrap(),
@@ -144,16 +134,15 @@ fn an_account_refusal_keeps_its_reason_in_the_link() {
 fn an_unknown_limit_reset_stays_unknown_in_the_task_wait() {
     let limits = fixtures::limits();
     let state = w::TaskSourceState::Limited(
-        w::TaskSourceStateUntil::new(limits.wire(), w::TaskSourceStateUntilParts { until: None }).unwrap(),
+        w::TaskSourceStateUntil { until: None },
     );
-    let why = w::TaskWaitWhy::Source(w::TaskWaitSource::new(limits.wire(), w::TaskWaitSourceParts { state }).unwrap());
+    let why = w::TaskWaitWhy::Source(w::TaskWaitSource { state });
     let wire = w::TaskRunWait::Account(
-        w::TaskWaitAccount::new(limits.wire(), w::TaskWaitAccountParts { account: Some(42), source: Some(91), why })
-            .unwrap(),
+        w::TaskWaitAccount { account: Some(42), source: Some(91), why },
     );
-    let mut task = fixtures::task_record().into_parts();
+    let mut task = fixtures::task_record();
     task.run_wait = Some(wire);
-    let wire = w::Task::new(limits.wire(), task).unwrap();
+    let wire = task;
     assert_eq!(
         translate::documents::task_fields(&wire, &limits).unwrap().run_wait,
         Some(c::TaskRunWait::Account {
@@ -168,14 +157,13 @@ fn an_unknown_limit_reset_stays_unknown_in_the_task_wait() {
 fn an_untooled_wait_round_trips_with_its_account_source_and_worker() {
     let limits = fixtures::limits();
     let why = w::TaskWaitWhy::Untooled(
-        w::TaskWaitUntooled::new(limits.wire(), w::TaskWaitUntooledParts { worker: 2 }).unwrap(),
+        w::TaskWaitUntooled { worker: 2 },
     );
     let wire = w::TaskRunWait::Account(
-        w::TaskWaitAccount::new(limits.wire(), w::TaskWaitAccountParts { account: Some(4), source: Some(7), why })
-            .unwrap(),
+        w::TaskWaitAccount { account: Some(4), source: Some(7), why },
     );
-    let mut writer = skein_lib::Writer::new(usize::try_from(wire.measure()).unwrap());
-    wire.encode(&mut writer).unwrap();
+    let mut writer = skein_lib::Writer::new(usize::try_from(wire.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    wire.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
     let bytes = writer.finish();
     let mut reader = Reader::new(&bytes);
     let decoded = w::TaskRunWait::decode(limits.wire(), &mut reader).unwrap();
@@ -200,9 +188,7 @@ fn malformed_offer_efforts_and_shown_names_are_refused() {
         (fixtures::list([Box::from(b"low".as_slice())]), None, None),
         (skein_lib::List::with_capacity(0), None, Some(Box::default())),
     ] {
-        let model = w::MeModel::new(
-            limits.wire(),
-            w::MeModelParts {
+        let model = w::MeModel {
                 new_until: None,
                 number: 1,
                 source: w::ModelSource::Stock,
@@ -216,15 +202,9 @@ fn malformed_offer_efforts_and_shown_names_are_refused() {
                 shown,
                 accounts: skein_lib::List::with_capacity(0),
                 picker: true,
-                prices: w::MePrices::new(
-                    limits.wire(),
-                    w::MePricesParts { input: 1, cached: 1, cache_write: None, output: 1, unit: 1 },
-                )
-                .unwrap(),
+                prices: w::MePrices { input: 1, cached: 1, cache_write: None, output: 1, unit: 1 },
                 description: None,
-            },
-        )
-        .unwrap();
+            };
         assert_eq!(
             translate::documents::frame(me_with_offer(model, skein_lib::List::with_capacity(0)), &limits),
             Err(Undecodable::Malformed)

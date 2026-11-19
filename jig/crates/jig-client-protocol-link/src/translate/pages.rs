@@ -1,4 +1,5 @@
 //! Whole pages and single documents (protocol/client/wire.md, 1, and protocol/client/README.md, 4).
+use jig_client_protocol_wire::Record as _;
 use super::classify;
 use super::documents::{
     authority_document_fields, authority_fields, chip_ending_fields, chip_fields, cursor_fields, ending_fields,
@@ -52,13 +53,9 @@ mod spend;
 pub(crate) use spend::*;
 
 pub fn history_page(record: w::HistoryPage, limits: &Limits) -> Result<c::HistoryPage, Undecodable> {
-    if u64::from(record.measure()) > limits.client().document_bytes {
+    if u64::from(match record.measure(limits.wire()) { Ok(size) => size, Err(problem) => return Err(classify(problem)) }) > limits.client().document_bytes {
         return Err(Undecodable::TooLarge);
     }
-    let record = match w::HistoryPage::new(limits.receiving(), record.into_parts()) {
-        Ok(value) => value,
-        Err(problem) => return Err(classify(problem)),
-    };
     match history_page_fields(&record, limits) {
         Ok(value) => Ok(value),
         Err(problem) => Err(classify(problem)),
@@ -66,13 +63,9 @@ pub fn history_page(record: w::HistoryPage, limits: &Limits) -> Result<c::Histor
 }
 
 pub fn note_page(record: w::NotePage, limits: &Limits) -> Result<c::NotePage, Undecodable> {
-    if u64::from(record.measure()) > limits.client().document_bytes {
+    if u64::from(match record.measure(limits.wire()) { Ok(size) => size, Err(problem) => return Err(classify(problem)) }) > limits.client().document_bytes {
         return Err(Undecodable::TooLarge);
     }
-    let record = match w::NotePage::new(limits.receiving(), record.into_parts()) {
-        Ok(value) => value,
-        Err(problem) => return Err(classify(problem)),
-    };
     match note_page_fields(&record, limits) {
         Ok(value) => Ok(value),
         Err(problem) => Err(classify(problem)),
@@ -80,13 +73,9 @@ pub fn note_page(record: w::NotePage, limits: &Limits) -> Result<c::NotePage, Un
 }
 
 pub fn ended_page(record: w::EndedPage, limits: &Limits) -> Result<c::EndedPage, Undecodable> {
-    if u64::from(record.measure()) > limits.client().document_bytes {
+    if u64::from(match record.measure(limits.wire()) { Ok(size) => size, Err(problem) => return Err(classify(problem)) }) > limits.client().document_bytes {
         return Err(Undecodable::TooLarge);
     }
-    let record = match w::EndedPage::new(limits.receiving(), record.into_parts()) {
-        Ok(value) => value,
-        Err(problem) => return Err(classify(problem)),
-    };
     match ended_page_fields(&record, limits) {
         Ok(value) => Ok(value),
         Err(problem) => Err(classify(problem)),
@@ -94,13 +83,9 @@ pub fn ended_page(record: w::EndedPage, limits: &Limits) -> Result<c::EndedPage,
 }
 
 pub fn inbox_page(record: w::InboxPage, limits: &Limits) -> Result<c::InboxPage, Undecodable> {
-    if u64::from(record.measure()) > limits.client().document_bytes {
+    if u64::from(match record.measure(limits.wire()) { Ok(size) => size, Err(problem) => return Err(classify(problem)) }) > limits.client().document_bytes {
         return Err(Undecodable::TooLarge);
     }
-    let record = match w::InboxPage::new(limits.receiving(), record.into_parts()) {
-        Ok(value) => value,
-        Err(problem) => return Err(classify(problem)),
-    };
     match inbox_page_fields(&record, limits) {
         Ok(value) => Ok(value),
         Err(problem) => Err(classify(problem)),
@@ -108,13 +93,9 @@ pub fn inbox_page(record: w::InboxPage, limits: &Limits) -> Result<c::InboxPage,
 }
 
 pub fn spend_page(record: w::SpendPage, limits: &Limits) -> Result<c::SpendPage, Undecodable> {
-    if u64::from(record.measure()) > limits.client().document_bytes {
+    if u64::from(match record.measure(limits.wire()) { Ok(size) => size, Err(problem) => return Err(classify(problem)) }) > limits.client().document_bytes {
         return Err(Undecodable::TooLarge);
     }
-    let record = match w::SpendPage::new(limits.receiving(), record.into_parts()) {
-        Ok(value) => value,
-        Err(problem) => return Err(classify(problem)),
-    };
     match spend_page_fields(&record, limits) {
         Ok(value) => Ok(value),
         Err(problem) => Err(classify(problem)),
@@ -122,13 +103,9 @@ pub fn spend_page(record: w::SpendPage, limits: &Limits) -> Result<c::SpendPage,
 }
 
 pub fn activity_page(record: w::ActivityPage, limits: &Limits) -> Result<c::ActivityPage, Undecodable> {
-    if u64::from(record.measure()) > limits.client().document_bytes {
+    if u64::from(match record.measure(limits.wire()) { Ok(size) => size, Err(problem) => return Err(classify(problem)) }) > limits.client().document_bytes {
         return Err(Undecodable::TooLarge);
     }
-    let record = match w::ActivityPage::new(limits.receiving(), record.into_parts()) {
-        Ok(value) => value,
-        Err(problem) => return Err(classify(problem)),
-    };
     match activity_page_fields(&record, limits) {
         Ok(value) => Ok(value),
         Err(problem) => Err(classify(problem)),
@@ -141,10 +118,10 @@ pub(crate) fn carried_turn_fields(value: &[u8], limits: &Limits) -> c::TurnRead 
 }
 
 pub(crate) fn task_page(value: w::TaskPage, limits: &Limits) -> Result<c::TaskPage, Undecodable> {
-    if u64::from(value.measure()) > limits.client().document_bytes {
+    if u64::from(match value.measure(limits.wire()) { Ok(size) => size, Err(problem) => return Err(classify(problem)) }) > limits.client().document_bytes {
         return Err(Undecodable::TooLarge);
     }
-    let value = match w::TaskPage::new(limits.receiving(), value.into_parts()) {
+    let value = match Ok(value) {
         Ok(value) => value,
         Err(problem) => return Err(classify(problem)),
     };
@@ -154,21 +131,21 @@ pub(crate) fn task_page(value: w::TaskPage, limits: &Limits) -> Result<c::TaskPa
     }
 }
 fn task_page_fields(value: &w::TaskPage, limits: &Limits) -> Result<c::TaskPage, w::Problem> {
-    let live = super::documents::task_line_piece(value.live(), limits, limits.client().rows)?;
-    let live_after = match value.live_after() {
+    let live = super::documents::task_line_piece(&value.live, limits, limits.client().rows)?;
+    let live_after = match &value.live_after {
         Some(v) => Some(cursor_fields(v, limits)?),
         None => None,
     };
-    let ended = match value.ended() {
+    let ended = match &value.ended {
         w::EndedGroup::None => c::EndedGroup::None,
         w::EndedGroup::Rows(v) => c::EndedGroup::Rows {
-            rows: super::documents::task_line_piece(v.rows(), limits, limits.client().rows)?,
-            after: match v.after() {
+            rows: super::documents::task_line_piece(&v.rows, limits, limits.client().rows)?,
+            after: match &v.after {
                 Some(v) => Some(cursor_fields(v, limits)?),
                 None => None,
             },
-            cut: v.cut(),
+            cut: v.cut,
         },
     };
-    Ok(c::TaskPage { ended_mark: value.ended_mark(), live, live_after, ended })
+    Ok(c::TaskPage { ended_mark: value.ended_mark, live, live_after, ended })
 }

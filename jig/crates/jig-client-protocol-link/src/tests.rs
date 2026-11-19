@@ -1,3 +1,4 @@
+use jig_client_protocol_wire::Record as _;
 use crate::*;
 use alloc::boxed::Box;
 use jig_client_domain::contract as c;
@@ -98,7 +99,7 @@ fn a_person_answer_notice_keeps_its_question_number() {
     let limits = fixtures::limits();
     for question in [0, 1, u64::MAX] {
         let notice = w::MessageKind::QuestionAnswered(
-            w::MessageKindAnswer::new(limits.wire(), w::MessageKindAnswerParts { question }).expect("question number"),
+            w::MessageKindAnswer { question },
         );
         assert_eq!(
             translate::pages::message_kind_fields(&notice, &limits),
@@ -113,8 +114,8 @@ mod jobs;
 #[test]
 fn job_kinds_hello_refusal_round_trips() {
     let refusal = w::HelloRefusal::JobKinds;
-    let mut writer = skein_lib::Writer::new(usize::try_from(refusal.measure()).unwrap());
-    refusal.encode(&mut writer).unwrap();
+    let mut writer = skein_lib::Writer::new(usize::try_from(refusal.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    refusal.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
     let decoded = w::HelloRefusal::decode(fixtures::limits().wire(), &mut Reader::new(&writer.finish())).unwrap();
     assert_eq!(translate::documents::hello_refusal_fields(&decoded), c::HelloRefusal::JobKinds);
 }

@@ -5,23 +5,15 @@ pub fn compound_operations() -> [Operation; 2] {
     let limits = limits();
     [
         Operation::Message(
-            Message::new(
-                &limits,
-                MessageParts { project: COMPOUND_PROJECT, task: COMPOUND_TASK, words: b"words".as_slice().into() },
-            )
-            .unwrap(),
+            Message { project: COMPOUND_PROJECT, task: COMPOUND_TASK, words: b"words".as_slice().into() },
         ),
         Operation::Release(
-            Release::new(
-                &limits,
-                ReleaseParts {
+            Release {
                     project: COMPOUND_PROJECT,
                     task: COMPOUND_TASK,
-                    revision: Revision::new(&limits, RevisionParts { value: 4 }).unwrap(),
+                    revision: Revision { value: 4 },
                     again: None,
                 },
-            )
-            .unwrap(),
         ),
     ]
 }

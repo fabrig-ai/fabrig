@@ -7,9 +7,9 @@ fn a_sign_in_ask_is_translated_both_ways() {
         let ask = c::Ask::SignIn { holder, provider: u32::MAX };
         let wire = translate::asks::ask(&ask, fixtures::limits().wire()).unwrap();
         let w::Ask::SignIn(row) = &wire else { panic!("account sign-in ask") };
-        assert_eq!(row.provider(), u32::MAX);
+        assert_eq!(row.provider, u32::MAX);
         assert_eq!(
-            row.holder(),
+            (&row.holder),
             &match holder {
                 c::AskAccountHolder::Own => w::AskAccountHolder::Own,
                 c::AskAccountHolder::Deployment => w::AskAccountHolder::Deployment,
@@ -30,9 +30,9 @@ fn a_sign_out_ask_is_translated_both_ways() {
         let ask = c::Ask::SignOut { holder, source: u32::MAX };
         let wire = translate::asks::ask(&ask, fixtures::limits().wire()).unwrap();
         let w::Ask::SignOut(row) = &wire else { panic!("account sign-in end ask") };
-        assert_eq!(row.source(), u32::MAX);
+        assert_eq!(row.source, u32::MAX);
         assert_eq!(
-            row.holder(),
+            (&row.holder),
             &match holder {
                 c::AskAccountHolder::Own => w::AskAccountHolder::Own,
                 c::AskAccountHolder::Deployment => w::AskAccountHolder::Deployment,
@@ -49,15 +49,14 @@ fn a_sign_in_is_refused_in_a_compound() {
         c::Ask::SignOut { holder: c::AskAccountHolder::Deployment, source: 9 },
     ] {
         let wire = translate::asks::ask(&ask, fixtures::limits().wire()).unwrap();
-        let mut out = skein_lib::Writer::new(usize::try_from(wire.measure()).unwrap());
-        wire.encode(&mut out).unwrap();
+        let mut out = skein_lib::Writer::new(usize::try_from(wire.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+        wire.write(&jig_client_protocol_wire::CEILINGS, &mut out).unwrap();
         let bytes = out.finish();
         let mut out = skein_lib::Writer::new(bytes.len() + 4);
         out.put(&u32::try_from(bytes.len()).unwrap().to_be_bytes()).unwrap();
         out.put(&bytes).unwrap();
         let compound = w::Ask::Compound(
-            w::Compound::new(fixtures::limits().wire(), w::CompoundParts { project: 1, operations: out.finish() })
-                .unwrap(),
+            w::Compound { project: 1, operations: out.finish() },
         );
         translate::store::restore_ask(compound, &fixtures::limits())
             .expect_err("LLM account sign-in asks are not compound operations");
@@ -69,11 +68,7 @@ fn the_account_outcomes_are_read() {
     for length in [0, 1, 2048] {
         let address: Box<[u8]> = skein_lib::bytes::zeroed(length);
         let wire = w::DocumentOutcome::AccountSignInStarted(
-            w::OutcomeAccountSignInStarted::new(
-                limits.wire(),
-                w::OutcomeAccountSignInStartedParts { source: u32::MAX, address: address.clone() },
-            )
-            .unwrap(),
+            w::OutcomeAccountSignInStarted { source: u32::MAX, address: address.clone() },
         );
         assert_eq!(
             translate::answers::document_outcome(&wire, &limits).unwrap(),
@@ -82,11 +77,7 @@ fn the_account_outcomes_are_read() {
     }
     for confirmed in [false, true] {
         let wire = w::DocumentOutcome::AccountSignedOut(
-            w::OutcomeAccountSignedOut::new(
-                limits.wire(),
-                w::OutcomeAccountSignedOutParts { confirmed, failed_hosts: skein_lib::List::with_capacity(0) },
-            )
-            .unwrap(),
+            w::OutcomeAccountSignedOut { confirmed, failed_hosts: skein_lib::List::with_capacity(0) },
         );
         assert_eq!(
             translate::answers::document_outcome(&wire, &limits).unwrap(),
@@ -136,18 +127,14 @@ fn the_key_outcomes_and_provider_refusal_are_read() {
     for (wire, client) in [
         (
             w::DocumentOutcome::AccountKeyKept(
-                w::OutcomeAccountKeyKept::new(limits.wire(), w::OutcomeAccountKeyKeptParts { source: 9 }).unwrap(),
+                w::OutcomeAccountKeyKept { source: 9 },
             ),
             c::DocumentOutcome::AccountKeyKept { source: 9 },
         ),
         (w::DocumentOutcome::AccountChanged, c::DocumentOutcome::AccountChanged),
         (
             w::DocumentOutcome::AccountRemoved(
-                w::OutcomeAccountRemoved::new(
-                    limits.wire(),
-                    w::OutcomeAccountRemovedParts { confirmed: true, failed_hosts: skein_lib::List::with_capacity(0) },
-                )
-                .unwrap(),
+                w::OutcomeAccountRemoved { confirmed: true, failed_hosts: skein_lib::List::with_capacity(0) },
             ),
             c::DocumentOutcome::AccountRemoved { confirmed: true, failed_hosts: Box::new([]) },
         ),
@@ -161,15 +148,11 @@ fn the_key_outcomes_and_provider_refusal_are_read() {
 fn a_declared_program_name_is_validated_on_receipt() {
     let limits = fixtures::limits();
     let wire = w::DocumentOutcome::AccountProgramDeclared(
-        w::OutcomeAccountProgramDeclared::new(
-            limits.wire(),
-            w::OutcomeAccountProgramDeclaredParts { source: 0, name: b"../escape".as_slice().into() },
-        )
-        .unwrap(),
+        w::OutcomeAccountProgramDeclared { source: 0, name: b"../escape".as_slice().into() },
     );
     assert_eq!(
         translate::answers::document_outcome(&wire, &limits).err(),
-        Some(w::Problem { path: w::Path::OwnedRecord, reason: skein_codec::Reason::Malformed })
+        Some(w::Problem { path: w::paths::OWNED_RECORD, reason: skein_codec::Reason::Malformed })
     );
 }
 #[test]
@@ -178,23 +161,15 @@ fn program_host_results_share_the_native_answer_budget() {
     let mut failed_hosts = skein_lib::List::with_capacity(1);
     failed_hosts
         .push(
-            w::AccountHostFailure::new(
-                limits.wire(),
-                w::AccountHostFailureParts { name: b"worker".as_slice().into(), why: w::AccountHostWhy::Lost },
-            )
-            .unwrap(),
+            w::AccountHostFailure { name: b"worker".as_slice().into(), why: w::AccountHostWhy::Lost },
         )
         .unwrap();
     let wire = w::DocumentOutcome::AccountSignedOut(
-        w::OutcomeAccountSignedOut::new(
-            limits.wire(),
-            w::OutcomeAccountSignedOutParts { confirmed: false, failed_hosts },
-        )
-        .unwrap(),
+        w::OutcomeAccountSignedOut { confirmed: false, failed_hosts },
     );
     assert_eq!(
         translate::answers::document_outcome(&wire, &limits).err(),
-        Some(w::Problem { path: w::Path::OwnedRecord, reason: skein_codec::Reason::Bound })
+        Some(w::Problem { path: w::paths::OWNED_RECORD, reason: skein_codec::Reason::Bound })
     );
 }
 
@@ -220,26 +195,18 @@ fn a_moving_out_answer_decodes_its_secret_record() {
     for bytes in [b"".as_slice(), b"moved record"] {
         let record = skein_lib::Secret::new(Box::from(bytes));
         let what = w::Made::MovingOut(
-            w::MadeMovingOut::new(
-                limits.wire(),
-                w::MadeMovingOutParts { account: u32::MAX, number: u32::MAX, record: record.clone() },
-            )
-            .unwrap(),
+            w::MadeMovingOut { account: u32::MAX, number: u32::MAX, record: record.clone() },
         );
-        let outcome = w::Outcome::Made(w::OutcomeMade::new(limits.wire(), w::OutcomeMadeParts { what }).unwrap());
-        let done = w::Final::Done(w::Done::new(limits.wire(), w::DoneParts { outcome }).unwrap());
-        let mut writer = skein_lib::Writer::new(usize::try_from(done.measure()).unwrap());
-        done.encode(&mut writer).unwrap();
+        let outcome = w::Outcome::Made(w::OutcomeMade { what });
+        let done = w::Final::Done(w::Done { outcome });
+        let mut writer = skein_lib::Writer::new(usize::try_from(done.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+        done.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
         let answer = w::KeyedAnswer::FinalAnswer(
-            w::Owned::new(
-                limits.wire(),
-                w::OwnedParts {
+            w::Owned {
                     owner: w::Owner::Jig,
                     version: jig_client_protocol_wire::VERSION,
                     record: writer.finish(),
                 },
-            )
-            .unwrap(),
         );
         assert_eq!(
             translate::answers::answer(answer, &limits),
@@ -254,8 +221,7 @@ fn moved_in_outcomes_keep_the_renewed_fact() {
     let limits = fixtures::limits();
     for renewed in [false, true] {
         let wire = w::DocumentOutcome::AccountMovedIn(
-            w::OutcomeAccountMovedIn::new(limits.wire(), w::OutcomeAccountMovedInParts { account: u32::MAX, renewed })
-                .unwrap(),
+            w::OutcomeAccountMovedIn { account: u32::MAX, renewed },
         );
         assert_eq!(
             translate::answers::document_outcome(&wire, &limits),
@@ -274,7 +240,7 @@ fn account_move_refusals_keep_each_reason() {
         (w::AccountMoveWhy::Moving, c::AccountMoveWhy::Moving),
     ] {
         let wire = w::Refusal::AccountMove(
-            w::RefusalAccountMove::new(limits.wire(), w::RefusalAccountMoveParts { why: wire }).unwrap(),
+            w::RefusalAccountMove { why: wire },
         );
         assert_eq!(translate::answers::refusal(&wire, &limits), Ok(c::Refusal::AccountMove { why }));
     }
@@ -284,22 +250,17 @@ fn moving_states_cross_into_account_and_task_documents() {
     let limits = fixtures::limits();
     assert_eq!(translate::documents::account_state_fields(&w::AccountState::Moving), c::AccountState::Moving);
     let wait = w::TaskRunWait::Account(
-        w::TaskWaitAccount::new(
-            limits.wire(),
-            w::TaskWaitAccountParts {
+        w::TaskWaitAccount {
                 account: Some(u32::MAX),
                 source: Some(u32::MAX),
                 why: w::TaskWaitWhy::Source(
-                    w::TaskWaitSource::new(limits.wire(), w::TaskWaitSourceParts { state: w::TaskSourceState::Moving })
-                        .unwrap(),
+                    w::TaskWaitSource { state: w::TaskSourceState::Moving },
                 ),
             },
-        )
-        .unwrap(),
     );
-    let mut task = fixtures::task_record().into_parts();
+    let mut task = fixtures::task_record();
     task.run_wait = Some(wait);
-    let wire = w::Task::new(limits.wire(), task).unwrap();
+    let wire = task;
     assert_eq!(
         translate::documents::task_fields(&wire, &limits).unwrap().run_wait,
         Some(c::TaskRunWait::Account {
@@ -314,7 +275,7 @@ fn moving_states_cross_into_account_and_task_documents() {
 fn a_finishing_outcome_preserves_its_source() {
     let limits = fixtures::limits();
     let wire = w::DocumentOutcome::AccountFinishing(
-        w::OutcomeAccountFinishing::new(limits.wire(), w::OutcomeAccountFinishingParts { source: u32::MAX }).unwrap(),
+        w::OutcomeAccountFinishing { source: u32::MAX },
     );
     assert_eq!(
         translate::answers::document_outcome(&wire, &limits),
@@ -331,7 +292,7 @@ fn sign_in_redirect_refusals_keep_each_reason() {
         (w::SignInRedirectWhy::TooMany, c::SignInRedirectWhy::TooMany),
     ] {
         let wire = w::Refusal::SignInRedirect(
-            w::RefusalSignInRedirect::new(limits.wire(), w::RefusalSignInRedirectParts { why: wire }).unwrap(),
+            w::RefusalSignInRedirect { why: wire },
         );
         assert_eq!(translate::answers::refusal(&wire, &limits), Ok(c::Refusal::SignInRedirect { why }));
     }

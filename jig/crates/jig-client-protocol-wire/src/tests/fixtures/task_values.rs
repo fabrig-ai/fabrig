@@ -2,9 +2,7 @@ use super::*;
 
 pub fn task(limits: &Limits) -> Task {
     let rows = chip_facts(limits, chip_phase_owner_fields(limits));
-    Task::new(
-        limits,
-        TaskParts {
+    Task {
             concluded: None,
             talk: None,
             session: None,
@@ -12,21 +10,16 @@ pub fn task(limits: &Limits) -> Task {
             kept_account: None,
             run_wait: None,
             settings: Some(
-                TaskSettings::new(limits, TaskSettingsParts { task: 1, run: None, newest: 1 })
-                    .expect("fixture settings"),
+                TaskSettings { task: 1, run: None, newest: 1 },
             ),
             llm: None,
             label: 0,
-            flags: TaskFlags::new(
-                limits,
-                TaskFlagsParts {
+            flags: TaskFlags {
                     ended_by: EndedBy::Result,
                     conversation: false,
                     listed: true,
                     retention: Retention::Kept,
                 },
-            )
-            .expect("fixture flags"),
             last_activity: 0,
             made: 0,
             tasks_left: 5,
@@ -61,50 +54,36 @@ pub fn task(limits: &Limits) -> Task {
             result: None,
             delegates: Box::from([]),
             context: None,
-        },
-    )
-    .expect("whole task")
+        }
 }
 
 pub fn document_specification(limits: &Limits) -> DocumentSpecification {
-    DocumentSpecification::new(
-        limits,
-        DocumentSpecificationParts {
+    DocumentSpecification {
             asks: false,
             words: document_text(limits),
             parameters: List::with_capacity(0),
             inputs: List::with_capacity(0),
-        },
-    )
-    .expect("bounded document_specification")
+        }
 }
 
 pub fn specification_document(limits: &Limits) -> SpecificationDocument {
-    SpecificationDocument::new(
-        limits,
-        SpecificationDocumentParts { specification: document_specification(limits), cut: true },
-    )
-    .expect("bounded specification_document")
+    SpecificationDocument { specification: document_specification(limits), cut: true }
 }
 
 pub fn subscriptions(limits: &Limits) -> Subscriptions {
-    Subscriptions::new(limits, SubscriptionsParts { entries: List::with_capacity(0) }).expect("bounded subscriptions")
+    Subscriptions { entries: List::with_capacity(0) }
 }
 
 pub fn task_contract_document_report(limits: &Limits) -> TaskContractDocumentReport {
-    TaskContractDocumentReport::new(limits, TaskContractDocumentReportParts { words: u32::MAX })
-        .expect("bounded task_contract_document_report")
+    TaskContractDocumentReport { words: u32::MAX }
 }
 
 pub fn delegation(limits: &Limits) -> Delegation {
-    Delegation::new(limits, DelegationParts { kinds: List::with_capacity(0), tasks: u32::MAX, depth: u32::MAX })
-        .expect("bounded delegation")
+    Delegation { kinds: List::with_capacity(0), tasks: u32::MAX, depth: u32::MAX }
 }
 
 pub fn authority(limits: &Limits) -> Authority {
-    Authority::new(
-        limits,
-        AuthorityParts {
+    Authority {
             models: None,
             tools: u64::MAX,
             grants: Box::from([]),
@@ -113,16 +92,13 @@ pub fn authority(limits: &Limits) -> Authority {
             deadline: None,
             notes: u8::MAX,
             note_resources: Box::from([]),
-        },
-    )
-    .expect("bounded authority")
+        }
 }
 
 pub fn authority_document(limits: &Limits) -> AuthorityDocument {
-    AuthorityDocument::new(limits, AuthorityDocumentParts { cut: false, authority: authority(limits) })
-        .expect("bounded authority_document")
+    AuthorityDocument { cut: false, authority: authority(limits) }
 }
 
 pub fn requester_person(limits: &Limits) -> RequesterPerson {
-    RequesterPerson::new(limits, RequesterPersonParts { value: u64::MAX }).expect("bounded requester_person")
+    RequesterPerson { value: u64::MAX }
 }

@@ -36,20 +36,16 @@ fn the_opened_stream_delivers_me_and_watch_zero_delivers_its_later_value() {
     let w::StreamEvent::Opened(opened) = w::StreamEvent::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap() else {
         panic!("opened fixture");
     };
-    let mut document = opened.into_parts().me.into_parts();
-    let mut me = fixtures::frame_record().into_parts();
+    let mut document = opened.me;
+    let mut me = fixtures::frame_record();
     me.needs_total = 8;
-    let value = w::DeliveryValue::Me(w::Me::new(&w::CEILINGS, me).unwrap());
-    let mut record = skein_lib::Writer::new(usize::try_from(value.measure()).unwrap());
-    value.encode(&mut record).unwrap();
+    let value = w::DeliveryValue::Me(me);
+    let mut record = skein_lib::Writer::new(usize::try_from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    value.write(&jig_client_protocol_wire::CEILINGS, &mut record).unwrap();
     document.record = record.finish();
     h.clear();
     h.stream_record(&fixtures::event_bytes(&w::StreamEvent::Delivery(
-        w::Delivery::new(
-            &w::CEILINGS,
-            w::DeliveryParts { watch: 0, document: w::Owned::new(&w::CEILINGS, document).unwrap() },
-        )
-        .unwrap(),
+        w::Delivery { watch: 0, document },
     )));
     let mut me = fixtures::frame();
     me.needs_total = 8;
@@ -68,7 +64,7 @@ fn a_hello_alone_serving_the_client_is_out_of_order() {
         panic!("opened fixture");
     };
     h.clear();
-    h.stream_record(&fixtures::event_bytes(&w::StreamEvent::Hello(opened.into_parts().hello)));
+    h.stream_record(&fixtures::event_bytes(&w::StreamEvent::Hello(opened.hello)));
     assert!(h.has(&Request::CloseStream));
     assert!(h.has(&Request::Fact { fact: Fact::StreamDropped }));
     assert!(!h.has(&Request::Fact { fact: Fact::UndecodableEvent }));
@@ -166,26 +162,22 @@ fn a_hello_reopens_no_watch_of_an_owner_it_does_not_serve() {
     let w::StreamEvent::Opened(opened) = w::StreamEvent::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap() else {
         panic!("fixture hello");
     };
-    let mut opened = opened.into_parts();
-    let mut hello = opened.hello.into_parts();
+    let mut opened = opened;
+    let mut hello = opened.hello;
     hello.served.clear();
     hello
         .served
         .push(
-            w::Served::new(
-                &w::CEILINGS,
-                w::ServedParts {
+            w::Served {
                     owner: w::Owner::Jig,
                     first: jig_client_protocol_wire::VERSION,
                     last: jig_client_protocol_wire::VERSION,
                 },
-            )
-            .unwrap(),
         )
         .unwrap();
-    opened.hello = w::Hello::new(&w::CEILINGS, hello).unwrap();
+    opened.hello = hello;
     harness
-        .stream_record(&fixtures::event_bytes(&w::StreamEvent::Opened(w::Opened::new(&w::CEILINGS, opened).unwrap())));
+        .stream_record(&fixtures::event_bytes(&w::StreamEvent::Opened(opened)));
     assert!(harness.has(&Request::Hello { family: Some(19), versions: None }));
     for request in &harness.out {
         if let Request::Exchange { .. } = request {
@@ -258,7 +250,7 @@ fn each_watch_refusal_is_handed_up() {
         let mut harness = fixtures::Harness::streaming(fixtures::application_subject());
         let (exchange, _) = harness.opening();
         let value = w::OpenAnswer::Refused(
-            w::OpenAnswerRefused::new(fixtures::limits().wire(), w::OpenAnswerRefusedParts { why }).unwrap(),
+            w::OpenAnswerRefused { why },
         );
         harness.answer(exchange, &fixtures::open_answer(&value));
         assert_eq!(harness.ended(fixtures::WATCH), Some(expected));
@@ -320,10 +312,10 @@ fn held_openings_leave_in_request_order_not_handle_order() {
         panic!("two openings share freed credit")
     };
     let batch = w::Batch::decode(h.link.limits.wire(), &mut Reader::new(body)).unwrap();
-    let [w::Member::Open(a), w::Member::Open(b)] = batch.members().as_slice() else { panic!("two ordered openings") };
-    assert!(a.watch() < b.watch(), "the names follow asked order");
-    assert_eq!(a.subject().owner(), &w::Owner::Jig);
-    assert_ne!(b.subject().owner(), &w::Owner::Jig);
+    let [w::Member::Open(a), w::Member::Open(b)] = batch.members.as_slice() else { panic!("two ordered openings") };
+    assert!(a.watch < b.watch, "the names follow asked order");
+    assert_eq!((&a.subject.owner), &w::Owner::Jig);
+    assert_ne!((&b.subject.owner), &w::Owner::Jig);
     assert_eq!(h.closed_count(), 0);
 }
 
@@ -388,7 +380,7 @@ fn held_closings_and_openings_share_request_order() {
         panic!("closing and opening share freed credit")
     };
     let batch = w::Batch::decode(h.link.limits.wire(), &mut Reader::new(body)).unwrap();
-    let [w::Member::Close(_), w::Member::Open(_)] = batch.members().as_slice() else {
+    let [w::Member::Close(_), w::Member::Open(_)] = batch.members.as_slice() else {
         panic!("closing precedes opening")
     };
     assert_eq!(h.out.len(), 2);
@@ -465,7 +457,7 @@ fn a_refused_opening_never_sends_its_held_closing() {
     h.link.step(Time::ZERO, Event::Close { watch: fixtures::WATCH }, &mut h.out);
     h.link.settle(&mut h.out);
     let refused = w::OpenAnswer::Refused(
-        w::OpenAnswerRefused::new(&w::CEILINGS, w::OpenAnswerRefusedParts { why: w::WatchRefusal::Busy }).unwrap(),
+        w::OpenAnswerRefused { why: w::WatchRefusal::Busy },
     );
     h.answer(opening, &fixtures::open_answer(&refused));
     assert_eq!(h.closed_count(), 1);
@@ -606,11 +598,10 @@ fn a_stream_end_keeps_authorization_waiting_for_its_http_exchanges() {
             authorize_when_room(&mut harness, &mut fetch).expect("the opening's terminal frees credit");
         let location = b"https://app.example.com/callback?code=one";
         let answer = w::AuthorizeAnswer::Go(
-            w::AuthorizeGo::new(&w::CEILINGS, w::AuthorizeGoParts { location: Box::from(location.as_slice()) })
-                .unwrap(),
+            w::AuthorizeGo { location: Box::from(location.as_slice()) },
         );
-        let mut writer = skein_lib::Writer::new(skein_lib::usize_of(answer.measure()));
-        answer.encode(&mut writer).unwrap();
+        let mut writer = skein_lib::Writer::new(skein_lib::usize_of(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+        answer.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
         assert!(fetch.piece(ticket, &writer.finish()).is_none());
         let Some(skein_ui_web::fetch::Report::Answered { body, .. }) = fetch.finish(ticket, 200, &[]) else {
             panic!("a whole authorization answer");
@@ -728,10 +719,10 @@ fn a_continued_watch_has_a_fresh_name_and_retains_its_run_offset() {
         panic!("cleanup and continued opening")
     };
     let batch = w::Batch::decode(fixtures::limits().wire(), &mut Reader::new(&bytes)).unwrap();
-    let [w::Member::Close(_), w::Member::Open(open)] = batch.members().as_slice() else {
+    let [w::Member::Close(_), w::Member::Open(open)] = batch.members.as_slice() else {
         panic!("continued watch members")
     };
-    assert_ne!(old, open.watch());
+    assert_ne!(old, open.watch);
     fixtures::assert_run_subject(open);
     harness.stream_record(&fixtures::ending(old, w::WatchEnd::Closed));
     assert_eq!(harness.ended(fixtures::WATCH), None);
@@ -782,7 +773,7 @@ fn a_delivery_over_the_original_document_bound_is_refused() {
     let bytes = fixtures::encoded_delivery(&value);
     let limits = Limits::new(*fixtures::limits().client(), 4).unwrap();
     let mut client = *limits.client();
-    client.document_bytes = u64::from(value.measure()).checked_sub(1).unwrap();
+    client.document_bytes = u64::from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).checked_sub(1).unwrap();
     let limits = Limits::new(client, 4).unwrap();
     assert_eq!(translate::watches::delivery(&bytes, &limits), Err(Undecodable::TooLarge));
 }
@@ -897,11 +888,11 @@ fn a_full_stream_tells_the_bound_and_drops_its_watches_without_signing_out() {
 }
 
 fn run_delivery(bytes: &[u8]) -> w::RunText {
-    let mut parts = fixtures::text_record().into_parts();
+    let mut parts = fixtures::text_record();
     parts.from = 0;
     parts.through = u32::try_from(bytes.len()).unwrap();
     parts.text = Box::from(bytes);
-    w::RunText::new(&w::CEILINGS, parts).unwrap()
+    parts
 }
 
 #[test]
@@ -922,7 +913,7 @@ fn a_delivery_past_a_fields_text_is_received_within_long_text() {
         harness.stream_record(&fixtures::hello_event(fixtures::HEARTBEAT));
         let (_, name) = harness.opening();
         let event = w::StreamEvent::Text(
-            w::StreamText::new(&w::CEILINGS, w::StreamTextParts { watch: name, value: run_delivery(&bytes) }).unwrap(),
+            w::StreamText { watch: name, value: run_delivery(&bytes) },
         );
         harness.stream_record(&fixtures::event_bytes(&event));
         let Some(c::Delivery::Run(value)) = harness.delivered() else {
@@ -941,7 +932,7 @@ fn a_delivery_past_long_text_is_refused() {
     let client = jig_client_domain::Limits { long_text: 64, ..*base.client() };
     let limits = Limits::new(client, base.exchanges()).unwrap();
     assert_eq!(translate::live::run_text(run_delivery(&[b'x'; 65]), &limits), Err(Undecodable::TooLarge));
-    let mut parts = fixtures::text_record().into_parts();
+    let mut parts = fixtures::text_record();
     parts.text = skein_lib::bytes::zeroed(usize::try_from(w::CEILINGS.run_text_text + 1).unwrap());
-    assert_eq!(w::RunText::new(&w::CEILINGS, parts).unwrap_err().path, w::Path::RunTextText);
+    assert_eq!(parts.encode(limits.wire()).unwrap_err().path, w::paths::RUN_TEXT_TEXT);
 }

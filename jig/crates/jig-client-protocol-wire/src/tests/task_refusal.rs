@@ -13,7 +13,7 @@ fn refused_task_documents_reject_truncated_or_unknown_nested_tags() {
     parts.run_wait = Some(wait);
     parts.lineage = skein_lib::List::with_capacity(1);
     parts.lineage.push(77).expect("one ancestor");
-    let record = w::Task::new(&limits, parts).expect("whole task");
+    let record = parts;
     let mut out = Writer::new(skein_lib::length::usize_of(record.measure()));
     record.encode(&mut out).expect("measured writer");
     let bytes = out.finish();

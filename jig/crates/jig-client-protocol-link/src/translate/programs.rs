@@ -1,4 +1,5 @@
 //! Whole program facts, admitted against the document's shared byte budget.
+use jig_client_protocol_wire::Record as _;
 use super::documents::{charge, piece_count};
 use super::piece_problem;
 use crate::Limits;
@@ -26,32 +27,32 @@ fn state(value: &w::ProgramState, room: &mut u64) -> Result<c::ProgramState, w::
         w::ProgramState::Usable => c::ProgramState::Usable,
         w::ProgramState::NotSignedIn => c::ProgramState::NotSignedIn,
         w::ProgramState::SignedInOtherwise(row) => {
-            if !c::valid_program_method(row.method()) {
+            if !c::valid_program_method(&row.method) {
                 return Err(piece_problem(skein_codec::Reason::Malformed));
             }
-            c::ProgramState::SignedInOtherwise { method: copy(row.method(), room)? }
+            c::ProgramState::SignedInOtherwise { method: copy(&row.method, room)? }
         }
         w::ProgramState::Failed(row) => {
-            c::ProgramState::Failed { reason: failure(row.reason()), detail: copy(row.detail(), room)? }
+            c::ProgramState::Failed { reason: failure(&row.reason), detail: copy(&row.detail, room)? }
         }
     })
 }
 fn login(value: &w::ProgramLogin, room: &mut u64) -> Result<c::ProgramLogin, w::Problem> {
-    if !c::valid_program_name(value.name()) {
+    if !c::valid_program_name(&value.name) {
         return Err(piece_problem(skein_codec::Reason::Malformed));
     }
-    let state = match value.state() {
+    let state = match &value.state {
         Some(value) => Some(state(value, room)?),
         None => None,
     };
-    let sign_out = match value.sign_out() {
+    let sign_out = match &value.sign_out {
         Some(w::ProgramSignOut::SignedOut) => Some(c::ProgramSignOut::SignedOut),
         Some(w::ProgramSignOut::Failed(value)) => {
-            Some(c::ProgramSignOut::Failed { reason: failure(value.reason()), detail: copy(value.detail(), room)? })
+            Some(c::ProgramSignOut::Failed { reason: failure(&value.reason), detail: copy(&value.detail, room)? })
         }
         None => None,
     };
-    Ok(c::ProgramLogin { name: copy(value.name(), room)?, state, sign_out, cleanup: value.cleanup(), cut: value.cut() })
+    Ok(c::ProgramLogin { name: copy(&value.name, room)?, state, sign_out, cleanup: value.cleanup, cut: value.cut })
 }
 pub(crate) fn logins(value: &[u8], limits: &Limits, room: &mut u64) -> Result<List<c::ProgramLogin>, w::Problem> {
     let count = piece_count(value)?;
@@ -80,12 +81,12 @@ pub(crate) fn hosts(value: &[u8], limits: &Limits, room: &mut u64) -> Result<Lis
         let item = skein_codec::piece::counted(&mut reader);
         let row = w::ProgramHost::decode(limits.receiving(), &mut Reader::new(&item))?;
         rows.push(c::ProgramHost {
-            name: name(row.name(), room)?,
-            channel: row.channel(),
-            connected: row.connected(),
-            awaiting_logins: row.awaiting_logins(),
-            programs: logins(row.programs(), limits, room)?,
-            cut: row.cut(),
+            name: name(&row.name, room)?,
+            channel: row.channel,
+            connected: row.connected,
+            awaiting_logins: row.awaiting_logins,
+            programs: logins(&row.programs, limits, room)?,
+            cut: row.cut,
         })
         .expect("counted host pieces");
     }

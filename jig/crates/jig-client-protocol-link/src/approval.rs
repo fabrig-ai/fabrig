@@ -1,4 +1,5 @@
 //! Approval exchanges are transient and answered once (jig/docs/design/protocol/client/sign-in.md).
+use jig_client_protocol_wire::Record as _;
 use crate::component::{Attempt, ExchangeKind};
 use crate::{Approval, ApprovalCode, ApprovalState, Decided, Link, Message, NotAsked, Request, Signing};
 use jig_client_protocol_wire as w;
@@ -35,24 +36,22 @@ impl ApprovalKind {
 }
 impl Link {
     pub(super) fn ask_approval(&mut self, out: &mut Queue<Request>) {
-        let record = w::ApprovalAsk::new(self.limits.wire(), w::ApprovalAskParts {}).expect("empty approval ask");
-        let mut bytes = Writer::new(skein_lib::length::usize_of(record.measure()));
-        record.encode(&mut bytes).expect("measured approval ask");
+        let record = w::ApprovalAsk {};
+        let mut bytes = Writer::new(skein_lib::length::usize_of(record.measure(self.limits.wire()).expect("bounded client record")));
+        record.write(self.limits.wire(), &mut bytes).expect("measured approval ask");
         self.approval_exchange(ApprovalKind::Ask, Message::ApprovalAsk(bytes.finish()), out);
     }
     pub(super) fn read_approval(&mut self, code: ApprovalCode, out: &mut Queue<Request>) {
-        let record = w::ApprovalRead::new(self.limits.wire(), w::ApprovalReadParts { code: *code.letters() })
-            .expect("fixed approval code");
-        let mut bytes = Writer::new(skein_lib::length::usize_of(record.measure()));
-        record.encode(&mut bytes).expect("measured approval read");
+        let record = w::ApprovalRead { code: *code.letters() };
+        let mut bytes = Writer::new(skein_lib::length::usize_of(record.measure(self.limits.wire()).expect("bounded client record")));
+        record.write(self.limits.wire(), &mut bytes).expect("measured approval read");
         self.approval_exchange(ApprovalKind::Read { code }, Message::ApprovalRead(bytes.finish()), out);
     }
     pub(super) fn decide_approval(&mut self, code: ApprovalCode, approve: bool, out: &mut Queue<Request>) {
         let record =
-            w::ApprovalDecide::new(self.limits.wire(), w::ApprovalDecideParts { code: *code.letters(), approve })
-                .expect("fixed approval decision");
-        let mut bytes = Writer::new(skein_lib::length::usize_of(record.measure()));
-        record.encode(&mut bytes).expect("measured approval decision");
+            w::ApprovalDecide { code: *code.letters(), approve };
+        let mut bytes = Writer::new(skein_lib::length::usize_of(record.measure(self.limits.wire()).expect("bounded client record")));
+        record.write(self.limits.wire(), &mut bytes).expect("measured approval decision");
         self.approval_exchange(ApprovalKind::Decide { code }, Message::ApprovalDecide(bytes.finish()), out);
     }
     fn approval_exchange(&mut self, kind: ApprovalKind, message: Message, out: &mut Queue<Request>) {
@@ -104,7 +103,7 @@ impl Link {
             ApprovalKind::Ask => match w::ApprovalAskAnswer::decode(self.limits.wire(), &mut reader) {
                 Ok(answer) if reader.is_empty() => match answer {
                     w::ApprovalAskAnswer::Asked(value) => {
-                        let fields = value.into_parts();
+                        let fields = value;
                         match ApprovalCode::parse(&fields.code) {
                             Some(code) if code.letters() == &fields.code && fields.secret.len() == 32 => {
                                 Approval::Asked {
@@ -126,7 +125,7 @@ impl Link {
                 let state = match w::ApprovalState::decode(self.limits.wire(), &mut reader) {
                     Ok(answer) if reader.is_empty() => match answer {
                         w::ApprovalState::Waiting(value) => {
-                            ApprovalState::Waiting { asked: Wall::from_nanos(value.asked()) }
+                            ApprovalState::Waiting { asked: Wall::from_nanos(value.asked) }
                         }
                         w::ApprovalState::Approved => ApprovalState::Approved,
                         w::ApprovalState::Taken => ApprovalState::Taken,

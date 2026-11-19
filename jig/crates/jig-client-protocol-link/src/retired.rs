@@ -1,5 +1,6 @@
 //! A continued watch's old name keeps its room through admission and closing
 //! (protocol/client/README.md, 5 and 10; client/domain/client/watches.md, 1).
+use jig_client_protocol_wire::Record as _;
 use crate::{
     Fact, Link, Request, Signing,
     component::{Attempt, ExchangeKind},
@@ -35,7 +36,7 @@ impl Link {
                 }
                 Ok(w::OpenAnswer::Refused(why)) => {
                     self.retired.remove(&name);
-                    match why.why() {
+                    match &why.why {
                         w::WatchRefusal::SignedOut => {
                             self.end_sign_in(out);
                             out.push(Request::Signing { signing: Signing::SignedOut });

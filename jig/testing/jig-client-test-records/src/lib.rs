@@ -2,6 +2,7 @@
 /// Template numbers used by the literal wire fixtures.
 pub const CHAT: u32 = 1;
 pub const GOAL: u32 = 2;
+use jig_client_protocol_wire::Record as _;
 use jig_client_protocol_wire as w;
 use skein_lib::{Duration, List, Writer};
 mod owner;
@@ -11,14 +12,10 @@ pub use owner::*;
 #[must_use]
 pub fn opened(hello: w::Hello, me: w::Me) -> w::StreamEvent {
     let value = w::DeliveryValue::Me(me);
-    let mut record = Writer::new(skein_lib::length::usize_of(value.measure()));
-    value.encode(&mut record).expect("fixture me fits");
-    let me = w::Owned::new(
-        &w::CEILINGS,
-        w::OwnedParts { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: record.finish() },
-    )
-    .expect("fixture envelope fits");
-    w::StreamEvent::Opened(w::Opened::new(&w::CEILINGS, w::OpenedParts { hello, me }).expect("fixture opening fits"))
+    let mut record = Writer::new(skein_lib::length::usize_of(value.measure(&limits()).expect("bounded fixture")));
+    value.write(&limits(), &mut record).expect("fixture me fits");
+    let me = w::Owned { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: record.finish() };
+    w::StreamEvent::Opened(w::Opened { hello, me })
 }
 
 #[must_use]
@@ -57,8 +54,7 @@ pub fn limits() -> w::Limits {
 }
 #[must_use]
 pub fn wire_text(value: &[u8]) -> w::DocumentText {
-    w::DocumentText::new(&limits(), w::DocumentTextParts { bytes: Box::from(value), cut: false })
-        .expect("literal fixture fits")
+    w::DocumentText { bytes: Box::from(value), cut: false }
 }
 #[must_use]
 pub fn chip_record() -> w::Chip {
@@ -68,8 +64,8 @@ pub fn chip_record() -> w::Chip {
 #[must_use]
 pub fn chip_pieces(count: u32) -> Box<[u8]> {
     let row = chip_record();
-    let mut encoded = Writer::new(skein_lib::length::usize_of(row.measure()));
-    row.encode(&mut encoded).expect("literal fixture fits");
+    let mut encoded = Writer::new(skein_lib::length::usize_of(row.measure(&limits()).expect("bounded fixture")));
+    row.write(&limits(), &mut encoded).expect("literal fixture fits");
     let encoded = encoded.finish();
     let mut pieces = Writer::new(
         encoded
@@ -86,47 +82,31 @@ pub fn chip_pieces(count: u32) -> Box<[u8]> {
 }
 #[must_use]
 pub fn frame_record() -> w::Me {
-    let lim = limits();
-    w::Me::new(
-        &lim,
-        w::MeParts {
+    w::Me {
             providers: Box::new([]),
             providers_cut: false,
             key_bytes: 256,
             redirect_bytes: 4096,
             words_bytes: 8192,
-            party: w::MeParty::new(
-                &lim,
-                w::MePartyParts {
+            party: w::MeParty {
                     number: 7,
                     kind: w::PartyKind::Person,
-                    login: w::DocumentText::new(&lim, w::DocumentTextParts { bytes: Box::from([]), cut: false })
-                        .expect("literal fixture fits"),
-                    name: w::DocumentText::new(&lim, w::DocumentTextParts { bytes: Box::from([]), cut: false })
-                        .expect("literal fixture fits"),
+                    login: w::DocumentText { bytes: Box::from([]), cut: false },
+                    name: w::DocumentText { bytes: Box::from([]), cut: false },
                 },
-            )
-            .expect("literal fixture fits"),
             projects: Box::from([]),
-            needs: w::Needs::new(&lim, w::NeedsParts { questions: 7, proposals: 7, escalations: 7, person_tasks: 7 })
-                .expect("literal fixture fits"),
+            needs: w::Needs { questions: 7, proposals: 7, escalations: 7, person_tasks: 7 },
             needs_total: 7,
-            updates: w::Count::new(&lim, w::CountParts { value: 7, limited: false }).expect("literal fixture fits"),
+            updates: w::Count { value: 7, limited: false },
             results_seen: 7,
             cut: false,
             retention: Duration::from_nanos(19),
             deployment_role: None,
-        },
-    )
-    .expect("literal fixture fits")
+        }
 }
 #[must_use]
-#[expect(clippy::too_many_lines, reason = "one complete task wire fixture supplies all owner fields together")]
 pub fn task_record() -> w::Task {
-    let lim = limits();
-    w::Task::new(
-        &lim,
-        w::TaskParts {
+    w::Task {
             concluded: None,
             talk: None,
             session: None,
@@ -134,21 +114,16 @@ pub fn task_record() -> w::Task {
             kept_account: None,
             run_wait: None,
             settings: Some(
-                w::TaskSettings::new(&lim, w::TaskSettingsParts { task: 1, run: None, newest: 1 })
-                    .expect("fixture settings"),
+                w::TaskSettings { task: 1, run: None, newest: 1 },
             ),
             llm: None,
             label: 0,
-            flags: w::TaskFlags::new(
-                &lim,
-                w::TaskFlagsParts {
+            flags: w::TaskFlags {
                     ended_by: w::EndedBy::Result,
                     conversation: false,
                     listed: false,
                     retention: w::Retention::Kept,
                 },
-            )
-            .expect("fixture flags"),
             last_activity: 0,
             made: 7,
             tasks_left: 5,
@@ -160,17 +135,15 @@ pub fn task_record() -> w::Task {
             inputs: Box::from([]),
             project: 7,
             requester: w::Requester::Task(
-                w::RequesterTask::new(&lim, w::RequesterTaskParts { value: 7 }).expect("literal fixture fits"),
+                w::RequesterTask { value: 7 },
             ),
             lineage: List::with_capacity(0),
             spec: wire_specification_document(),
-            spec_revision: w::Revision::new(&lim, w::RevisionParts { value: 7 }).expect("literal fixture fits"),
+            spec_revision: w::Revision { value: 7 },
             person_revision: None,
             taken_by: None,
             instructions: None,
-            wake: w::WakePolicy::new(
-                &lim,
-                w::WakePolicyParts {
+            wake: w::WakePolicy {
                     words: w::WakeRule::Never,
                     notices: w::WakeRule::Never,
                     news: w::WakeRule::Never,
@@ -179,51 +152,31 @@ pub fn task_record() -> w::Task {
                     answers: false,
                     timers: false,
                 },
-            )
-            .expect("literal fixture fits"),
-            subscriptions: w::Subscriptions::new(&lim, w::SubscriptionsParts { entries: List::with_capacity(0) })
-                .expect("literal fixture fits"),
+            subscriptions: w::Subscriptions { entries: List::with_capacity(0) },
             result_contract: w::TaskContractDocument::Approval(
-                w::TaskContractDocumentApproval::new(
-                    &lim,
-                    w::TaskContractDocumentApprovalParts {
+                w::TaskContractDocumentApproval {
                         state: Box::from([]),
-                        part: w::Part::new(
-                            &lim,
-                            w::PartParts {
+                        part: w::Part {
                                 connector: 7,
                                 kind: w::PartKind::Resource,
                                 key: w::PartKey::Path(
-                                    w::PartKeyPath::new(&lim, w::PartKeyPathParts { value: List::with_capacity(0) })
-                                        .expect("literal fixture fits"),
+                                    w::PartKeyPath { value: List::with_capacity(0) },
                                 ),
                             },
-                        )
-                        .expect("literal fixture fits"),
                     },
-                )
-                .expect("literal fixture fits"),
             ),
             dependencies: Box::from([]),
             references: Box::from([]),
             cut: false,
             resources: Box::from([]),
-            budget: w::Budget::new(
-                &lim,
-                w::BudgetParts {
-                    numbers: w::Numbers::new(
-                        &lim,
-                        w::NumbersParts { budget: 7, spent: 7, spent_below: 7, reserved: 7 },
-                    )
-                    .expect("literal fixture fits"),
+            budget: w::Budget {
+                    numbers: w::Numbers { budget: 7, spent: 7, spent_below: 7, reserved: 7 },
                     left: 7,
                     funder: w::Funder::Task(
-                        w::FunderTask::new(&lim, w::FunderTaskParts { value: 7 }).expect("literal fixture fits"),
+                        w::FunderTask { value: 7 },
                     ),
                     deadline: None,
                 },
-            )
-            .expect("literal fixture fits"),
             authority: wire_owner_authority_document(),
             hold: None,
             proposals: List::with_capacity(0),
@@ -233,111 +186,68 @@ pub fn task_record() -> w::Task {
             result: None,
             delegates: Box::from([]),
             context: None,
-        },
-    )
-    .expect("literal fixture fits")
+        }
 }
 #[must_use]
 pub fn wire_specification_document() -> w::SpecificationDocument {
-    let lim = limits();
-    w::SpecificationDocument::new(
-        &lim,
-        w::SpecificationDocumentParts {
-            specification: w::DocumentSpecification::new(
-                &lim,
-                w::DocumentSpecificationParts {
+    w::SpecificationDocument {
+            specification: w::DocumentSpecification {
                     asks: false,
-                    words: w::DocumentText::new(&lim, w::DocumentTextParts { bytes: Box::from([]), cut: false })
-                        .expect("literal fixture fits"),
+                    words: w::DocumentText { bytes: Box::from([]), cut: false },
                     parameters: List::with_capacity(0),
                     inputs: List::with_capacity(0),
                 },
-            )
-            .expect("literal fixture fits"),
             cut: false,
-        },
-    )
-    .expect("literal fixture fits")
+        }
 }
 #[must_use]
 pub fn wire_owner_authority_document() -> w::AuthorityDocument {
-    let lim = limits();
-    w::AuthorityDocument::new(
-        &lim,
-        w::AuthorityDocumentParts {
+    w::AuthorityDocument {
             cut: false,
-            authority: w::Authority::new(
-                &lim,
-                w::AuthorityParts {
+            authority: w::Authority {
                     models: Some(w::ModelSet::All),
                     tools: 7,
                     grants: Box::from([]),
-                    delegation: w::Delegation::new(
-                        &lim,
-                        w::DelegationParts { kinds: List::with_capacity(0), tasks: 7, depth: 7 },
-                    )
-                    .expect("literal fixture fits"),
+                    delegation: w::Delegation { kinds: List::with_capacity(0), tasks: 7, depth: 7 },
                     spend: 7,
                     deadline: None,
                     notes: 7,
                     note_resources: Box::from([]),
                 },
-            )
-            .expect("literal fixture fits"),
-        },
-    )
-    .expect("literal fixture fits")
+        }
 }
 #[must_use]
 pub fn chip_root_fact() -> w::Fact {
-    let lim = limits();
     w::Fact::Chip(
-        w::ChipRow::new(
-            &lim,
-            w::ChipRowParts {
+        w::ChipRow {
                 parent: None,
-                value: w::ChipFields::new(
-                    &lim,
-                    w::ChipFieldsParts {
+                value: w::ChipFields {
                         task: 7,
                         title: wire_text(b""),
                         executor: w::ChipExecutor::Agent(
-                            w::ChipExecutorAgent::new(&lim, w::ChipExecutorAgentParts { charter: 7 })
-                                .expect("literal fixture fits"),
+                            w::ChipExecutorAgent { charter: 7 },
                         ),
                         phase: w::Phase::Waiting,
                         details: 1,
                     },
-                )
-                .expect("literal fixture fits"),
             },
-        )
-        .expect("literal fixture fits"),
     )
 }
 #[must_use]
 pub fn wire_owner_chip_details_row() -> w::ChipDetailsRow {
-    let lim = limits();
-    w::ChipDetailsRow::new(
-        &lim,
-        w::ChipDetailsRowParts {
+    w::ChipDetailsRow {
             parent: Some(1),
-            value: w::ChipDetailsFields::new(
-                &lim,
-                w::ChipDetailsFieldsParts {
+            value: w::ChipDetailsFields {
                     dependencies: List::with_capacity(0),
                     project: 7,
                     executor: w::Executor::Agent(
-                        w::ExecutorAgent::new(&lim, w::ExecutorAgentParts { charter: 7 })
-                            .expect("literal fixture fits"),
+                        w::ExecutorAgent { charter: 7 },
                     ),
                     phase_since: 7,
                     run_since: None,
                     attempt: None,
                     retry: None,
-                    wake: w::WakePolicy::new(
-                        &lim,
-                        w::WakePolicyParts {
+                    wake: w::WakePolicy {
                             words: w::WakeRule::Never,
                             notices: w::WakeRule::Never,
                             news: w::WakeRule::Never,
@@ -346,27 +256,16 @@ pub fn wire_owner_chip_details_row() -> w::ChipDetailsRow {
                             answers: false,
                             timers: false,
                         },
-                    )
-                    .expect("literal fixture fits"),
                     person_wait: None,
                     hold: None,
-                    budget: w::Budget::new(
-                        &lim,
-                        w::BudgetParts {
-                            numbers: w::Numbers::new(
-                                &lim,
-                                w::NumbersParts { budget: 7, spent: 7, spent_below: 7, reserved: 7 },
-                            )
-                            .expect("literal fixture fits"),
+                    budget: w::Budget {
+                            numbers: w::Numbers { budget: 7, spent: 7, spent_below: 7, reserved: 7 },
                             left: 7,
                             funder: w::Funder::Task(
-                                w::FunderTask::new(&lim, w::FunderTaskParts { value: 7 })
-                                    .expect("literal fixture fits"),
+                                w::FunderTask { value: 7 },
                             ),
                             deadline: None,
                         },
-                    )
-                    .expect("literal fixture fits"),
                     activity: 7,
                     resources: Box::from([]),
                     resources_cut: false,
@@ -378,18 +277,14 @@ pub fn wire_owner_chip_details_row() -> w::ChipDetailsRow {
                     ended_at: None,
                     observation: None,
                 },
-            )
-            .expect("literal fixture fits"),
-        },
-    )
-    .expect("literal fixture fits")
+        }
 }
 #[must_use]
 pub fn chip_from_rows(rows: &[w::Fact]) -> w::Chip {
     let mut length = 0_usize;
     for row in rows {
         length = length
-            .checked_add(skein_lib::length::usize_of(row.measure()))
+            .checked_add(skein_lib::length::usize_of(row.measure(&limits()).expect("bounded fixture")))
             .expect("literal fixture fits")
             .checked_add(4)
             .expect("literal fixture fits");
@@ -398,14 +293,14 @@ pub fn chip_from_rows(rows: &[w::Fact]) -> w::Chip {
     for row in rows {
         bytes.put(&fact_bytes(row)).expect("literal fixture fits");
     }
-    w::Chip::new(&limits(), w::ChipParts { rows: bytes.finish() }).expect("literal fixture fits")
+    w::Chip { rows: bytes.finish() }
 }
 #[must_use]
 pub fn fact_bytes(value: &w::Fact) -> Box<[u8]> {
-    let mut row = Writer::new(skein_lib::length::usize_of(value.measure()));
-    value.encode(&mut row).expect("literal fixture fits");
+    let mut row = Writer::new(skein_lib::length::usize_of(value.measure(&limits()).expect("bounded fixture")));
+    value.write(&limits(), &mut row).expect("literal fixture fits");
     let mut piece =
-        Writer::new(skein_lib::length::usize_of(value.measure().checked_add(4).expect("literal fixture fits")));
+        Writer::new(skein_lib::length::usize_of(value.measure(&limits()).expect("bounded fixture").checked_add(4).expect("literal fixture fits")));
     skein_codec::piece::write(&mut piece, &row.finish()).expect("literal fixture fits");
     piece.finish()
 }

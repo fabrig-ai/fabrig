@@ -1,4 +1,5 @@
 //! Catalogue decoding owns no account selection (client/domain/contract/documents.md, 1, and client/domain/contract/README.md, 5.1).
+use jig_client_protocol_wire::Record as _;
 use super::accounts::{charge, checked_manage_usage, piece_count};
 use super::{Limits, List, Reader, c, piece_problem, too_large, w};
 use skein_lib::length::len_u64;
@@ -14,40 +15,40 @@ pub(super) fn offers(bytes: &[u8], limits: &Limits, room: &mut u64) -> Result<Li
     for _ in 0..count {
         let item = skein_codec::piece::counted(&mut reader);
         let value = w::ProviderOffer::decode(limits.receiving(), &mut Reader::new(&item))?;
-        if value.key_bytes() > limits.receiving().keyed_value_some {
+        if value.key_bytes > limits.receiving().keyed_value_some {
             return Err(too_large());
         }
-        if value.programs().len() > limits.client().rows {
+        if value.programs.len() > limits.client().rows {
             return Err(too_large());
         }
-        charge(room, List::<c::Text>::price(value.programs().len()))?;
-        charge(room, Some(len_u64(value.name().bytes().len())))?;
-        let mut programs = List::with_capacity(value.programs().len());
-        for name in value.programs() {
+        charge(room, List::<c::Text>::price(value.programs.len()))?;
+        charge(room, Some(len_u64(value.name.bytes.len())))?;
+        let mut programs = List::with_capacity(value.programs.len());
+        for name in &value.programs {
             charge(room, Some(len_u64(name.len())))?;
             programs
                 .push(c::Text::new(name.clone(), limits.receiving().provider_offer_programs_item).or(Err(too_large()))?)
                 .or(Err(too_large()))?;
         }
-        let address = checked_manage_usage(value.manage_usage().as_deref(), w::Path::ProviderOfferManageUsage)?;
+        let address = checked_manage_usage(value.manage_usage.as_deref(), w::paths::PROVIDER_OFFER_MANAGE_USAGE)?;
         if let Some(address) = &address {
             charge(room, Some(len_u64(address.len())))?;
         }
         for old in &rows {
-            if old.provider == value.provider() {
+            if old.provider == value.provider {
                 return Err(piece_problem(skein_codec::Reason::Malformed));
             }
         }
         rows.push(c::ProviderOffer {
-            provider: value.provider(),
-            key_bytes: value.key_bytes(),
-            name: crate::translate::facts::document_text(value.name(), limits)?,
-            sign_in: value.sign_in(),
-            key: value.key(),
+            provider: value.provider,
+            key_bytes: value.key_bytes,
+            name: crate::translate::facts::document_text(&value.name, limits)?,
+            sign_in: value.sign_in,
+            key: value.key,
             programs,
-            programs_cut: value.programs_cut(),
-            none: value.none(),
-            signed_in_plan: value.signed_in_plan(),
+            programs_cut: value.programs_cut,
+            none: value.none,
+            signed_in_plan: value.signed_in_plan,
             manage_usage: address,
         })
         .or(Err(too_large()))?;
@@ -65,21 +66,21 @@ pub(super) fn readiness(bytes: &[u8], limits: &Limits, room: &mut u64) -> Result
     for _ in 0..count {
         let item = skein_codec::piece::counted(&mut reader);
         let value = w::PayerReadiness::decode(limits.receiving(), &mut Reader::new(&item))?;
-        let payer = super::accounts::account_use(value.payer());
+        let payer = super::accounts::account_use(&value.payer);
         for old in &rows {
-            if old.provider == value.provider() && old.payer == payer {
+            if old.provider == value.provider && old.payer == payer {
                 return Err(piece_problem(skein_codec::Reason::Malformed));
             }
         }
         rows.push(c::PayerReadiness {
-            provider: value.provider(),
+            provider: value.provider,
             payer,
-            readiness: match value.readiness() {
+            readiness: match &value.readiness {
                 w::Readiness::Usable => c::Readiness::Usable,
                 w::Readiness::Unavailable => c::Readiness::Unavailable,
                 w::Readiness::Unknown => c::Readiness::Unknown,
             },
-            settled: *value.settled(),
+            settled: value.settled,
         })
         .or(Err(too_large()))?;
     }

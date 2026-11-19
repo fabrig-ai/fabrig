@@ -3,6 +3,7 @@
 //! Transport admission counts unfinished exchanges (jig/docs/design/protocol/client/README.md, 10).
 //! The link gathers transport work until settling (protocol/client/wire.md, 2.3).
 //! Stream bounds and order refusals differ from unreadable records (protocol/client/README.md, 6).
+use jig_client_protocol_wire::Record as _;
 use crate::{Event, Fact, Limits, Message, Request, Streamed, Unusable, translate};
 use alloc::boxed::Box;
 use jig_client_domain::{Answered, Ask, Family, Readable, Readout, Retry, Watchable};
@@ -239,13 +240,13 @@ impl Link {
             parts: skein_lib::List::with_capacity(0),
             held: None,
             token: attempt,
-            owner: record.owner().clone(),
-            version: record.version(),
+            owner: record.owner.clone(),
+            version: record.version,
             kind: ExchangeKind::Attempt { carrying, key },
         };
         self.attempts.insert(exchange, state).expect("checked exchange capacity");
-        let mut writer = Writer::new(skein_lib::length::usize_of(record.measure()));
-        record.encode(&mut writer).expect("measured envelope");
+        let mut writer = Writer::new(skein_lib::length::usize_of(record.measure(self.limits.wire()).expect("bounded client record")));
+        record.write(self.limits.wire(), &mut writer).expect("measured envelope");
         self.exchange(exchange, Message::Request(writer.finish()), out);
     }
     fn read(&mut self, read: Token, what: Readable, again: bool, out: &mut Queue<Request>) {
@@ -257,8 +258,7 @@ impl Link {
         let owner = match &what {
             Readable::Jig(_) => w::Owner::Jig,
             Readable::Family { record: value, .. } => w::Owner::Family(
-                w::Family::new(self.limits.wire(), w::FamilyParts { number: value.family })
-                    .expect("unbounded family number"),
+                w::Family { number: value.family },
             ),
         };
         if !self.has_exchange_room() {
@@ -285,12 +285,12 @@ impl Link {
             held: None,
             token: read,
             owner,
-            version: record.version(),
+            version: record.version,
             kind: ExchangeKind::Read { turn, retry },
         };
         self.attempts.insert(exchange, state).expect("checked exchange capacity");
-        let mut writer = Writer::new(skein_lib::length::usize_of(record.measure()));
-        record.encode(&mut writer).expect("measured read envelope");
+        let mut writer = Writer::new(skein_lib::length::usize_of(record.measure(self.limits.wire()).expect("bounded client record")));
+        record.write(self.limits.wire(), &mut writer).expect("measured read envelope");
         self.exchange(exchange, Message::Read(writer.finish()), out);
     }
     pub(super) fn answered(&mut self, exchange: Token, body: &[u8], out: &mut Queue<Request>) {
@@ -345,7 +345,7 @@ impl Link {
         let why = match &record {
             w::KeyedAnswer::Busy => Some(Retry::Busy),
             w::KeyedAnswer::AnswersFull(value) => {
-                Some(Retry::Full { held: value.held(), room_at: Wall::from_nanos(value.room_at()) })
+                Some(Retry::Full { held: value.held, room_at: Wall::from_nanos(value.room_at) })
             }
             w::KeyedAnswer::NotReady => Some(Retry::NotReady),
             w::KeyedAnswer::SignedOut | w::KeyedAnswer::NotServed(_) => None,
@@ -385,20 +385,20 @@ impl Link {
         out.push(Request::Answer { attempt: attempt.token, envelope, answer: None, why });
     }
     fn final_answer(&self, attempt: &Attempt, record: w::Owned) -> Result<Answered, translate::Undecodable> {
-        if record.owner() == &attempt.owner && record.version() == attempt.version {
-            return match record.owner() {
+        if record.owner == attempt.owner && record.version == attempt.version {
+            return match &record.owner {
                 w::Owner::Jig => match translate::answers::answer(w::KeyedAnswer::FinalAnswer(record), &self.limits) {
                     Ok(answer) => Ok(Answered::Jig(answer)),
                     Err(problem) => Err(problem),
                 },
                 w::Owner::Family(owner) => Ok(Answered::Family(Family {
-                    family: owner.number(),
-                    version: record.version(),
-                    bytes: skein_lib::bytes::copy_of(record.record()),
+                    family: owner.number,
+                    version: record.version,
+                    bytes: skein_lib::bytes::copy_of(&record.record),
                 })),
             };
         }
-        if record.owner() == &w::Owner::Jig && record.version() == w::VERSION && attempt.owner != w::Owner::Jig {
+        if record.owner == w::Owner::Jig && record.version == w::VERSION && attempt.owner != w::Owner::Jig {
             let answer = translate::answers::answer(w::KeyedAnswer::FinalAnswer(record), &self.limits)?;
             return match answer {
                 answer @ jig_client_domain::contract::Answer::Refused { .. } => Ok(Answered::Jig(answer)),
@@ -427,18 +427,18 @@ impl Link {
                 out.push(Request::Read {
                     read: attempt.token,
                     result: Readout::NotServed {
-                        family: translate::envelope::family(value.owner()),
+                        family: translate::envelope::family(&value.owner),
                         served: translate::envelope::versions(&value),
                     },
                 });
                 return;
             }
             Ok(w::ReadAnswer::None(record)) => {
-                if record.value() == &w::ReadNone::SignedOut {
+                if record.value == w::ReadNone::SignedOut {
                     self.end_sign_in(out);
                     out.push(Request::Signing { signing: crate::Signing::SignedOut });
                 }
-                read_none(attempt.token, &attempt.owner, translate::reads::none(record.value()), out);
+                read_none(attempt.token, &attempt.owner, translate::reads::none(&record.value), out);
                 return;
             }
             Ok(w::ReadAnswer::Value(record)) => read_value(&attempt, record, &self.limits),
@@ -467,12 +467,12 @@ impl Link {
     }
 }
 fn read_value(attempt: &Attempt, record: w::Owned, limits: &Limits) -> Result<Readout, translate::Undecodable> {
-    if record.owner() != &attempt.owner || record.version() != attempt.version {
+    if record.owner != attempt.owner || record.version != attempt.version {
         return Err(translate::Undecodable::Version);
     }
-    match record.owner() {
+    match &record.owner {
         w::Owner::Jig => {
-            let value = translate::reads::value(record.record(), limits)?;
+            let value = translate::reads::value(&record.record, limits)?;
             if let jig_client_domain::contract::ReadValue::Tasks(page) = &value {
                 translate::queries::check_rows(&page.live, &attempt.parts)?;
                 match &page.ended {
@@ -485,8 +485,8 @@ fn read_value(attempt: &Attempt, record: w::Owned, limits: &Limits) -> Result<Re
             Ok(Readout::Jig(jig_client_domain::contract::ReadResult::Value(value)))
         }
         w::Owner::Family(owner) => {
-            let family = owner.number();
-            Ok(Readout::Family { family, record: Some(record.into_parts().record) })
+            let family = owner.number;
+            Ok(Readout::Family { family, record: Some(record.record) })
         }
     }
 }
@@ -505,7 +505,7 @@ fn read_none(read: Token, owner: &w::Owner, why: jig_client_domain::contract::Re
         | ReadNone::SignedOut => false,
     };
     let result = match owner {
-        w::Owner::Family(owner) if !transient => Readout::Family { family: owner.number(), record: None },
+        w::Owner::Family(owner) if !transient => Readout::Family { family: owner.number, record: None },
         w::Owner::Jig | w::Owner::Family(_) => Readout::Jig(jig_client_domain::contract::ReadResult::None(why)),
     };
     out.push(Request::Read { read, result });
@@ -539,16 +539,16 @@ fn keyed(key: RequestKey, ask: Ask, value: Option<Secret>, limits: &w::Limits) -
     let (owner, version, request) = match ask {
         Ask::Jig(ask) => {
             let record = translate::asks::ask(&ask, limits)?;
-            let mut writer = Writer::new(skein_lib::length::usize_of(record.measure()));
-            record.encode(&mut writer).expect("measured ask");
+            let mut writer = Writer::new(skein_lib::length::usize_of(record.measure(limits)?));
+            record.write(limits, &mut writer).expect("measured ask");
             (w::Owner::Jig, w::VERSION, writer.finish())
         }
         Ask::Family { scope, record } => {
-            let owner = w::Family::new(limits, w::FamilyParts { number: record.family })?;
+            let owner = w::Family { number: record.family };
             (w::Owner::Family(owner), record.version, translate::envelope::request(scope, &record, limits)?)
         }
     };
-    w::Keyed::new(limits, w::KeyedParts { key, owner, version, request, value })
+    Ok(w::Keyed { key, owner, version, request, value })
 }
 
 impl Link {
@@ -582,8 +582,8 @@ impl Link {
         let opening = crate::watches::Opening {
             parts,
             name: name.raw(),
-            owner: subject.owner().clone(),
-            version: subject.version(),
+            owner: subject.owner.clone(),
+            version: subject.version,
             subject: Some(subject),
             live: false,
             admitted: false,
@@ -648,8 +648,7 @@ impl Link {
         let opening = self.watches.0.get_mut(&watch).expect("pending opening");
         let Some(subject) = opening.subject.take() else { return };
         opening.held = None;
-        let record = w::Open::new(self.limits.wire(), w::OpenParts { stream, watch: opening.name, subject })
-            .expect("checked owned subject");
+        let record = w::Open { stream, watch: opening.name, subject };
         let attempt = Attempt {
             parts: skein_lib::List::with_capacity(0),
             held: None,
@@ -659,8 +658,8 @@ impl Link {
             kind: ExchangeKind::WatchOpen { name: opening.name },
         };
         self.attempts.insert(exchange, attempt).expect("checked opening exchange capacity");
-        let mut writer = Writer::new(skein_lib::length::usize_of(record.measure()));
-        record.encode(&mut writer).expect("measured opening");
+        let mut writer = Writer::new(skein_lib::length::usize_of(record.measure(self.limits.wire()).expect("bounded client record")));
+        record.write(self.limits.wire(), &mut writer).expect("measured opening");
         self.exchange(exchange, Message::Watch(writer.finish()), out);
     }
     fn close(&mut self, watch: Token, out: &mut Queue<Request>) {
@@ -796,9 +795,9 @@ impl Link {
     }
     pub(super) fn unwatch(&mut self, exchange: Token, stream: [u8; 16], watch: u64, out: &mut Queue<Request>) {
         let record =
-            w::WatchClose::new(self.limits.wire(), w::WatchCloseParts { stream, watch }).expect("fixed closing names");
-        let mut writer = Writer::new(skein_lib::length::usize_of(record.measure()));
-        record.encode(&mut writer).expect("measured closing");
+            w::WatchClose { stream, watch };
+        let mut writer = Writer::new(skein_lib::length::usize_of(record.measure(self.limits.wire()).expect("bounded client record")));
+        record.write(self.limits.wire(), &mut writer).expect("measured closing");
         self.exchange(exchange, Message::Unwatch(writer.finish()), out);
     }
     fn watch_answer(&mut self, attempt: Attempt, name: u64, body: &[u8], out: &mut Queue<Request>) {
@@ -817,7 +816,7 @@ impl Link {
                     self.watches.opened(attempt.token, out);
                 }
                 Ok(w::OpenAnswer::Refused(why)) => {
-                    let end = translate::watches::refused(why.why());
+                    let end = translate::watches::refused(&why.why);
                     self.watches.end(attempt.token, end, out);
                     if end == jig_client_domain::contract::WatchEnd::SignedOut {
                         self.end_sign_in(out);
@@ -935,11 +934,9 @@ impl Link {
                 if stream.name.is_some() {
                     return Err(StreamRefusal::Order);
                 }
-                let opened = opened.into_parts();
                 self.hello(opened.hello, out)?;
                 let value =
-                    w::Delivery::new(self.limits.receiving(), w::DeliveryParts { watch: 0, document: opened.me })
-                        .expect("decoded opening fits delivery");
+                    w::Delivery { watch: 0, document: opened.me };
                 if let Err(why) = self.watches.delivery(value, &self.limits, out) {
                     return Err(StreamRefusal::Record(why));
                 }
@@ -956,8 +953,8 @@ impl Link {
                 if stream.name.is_none() {
                     return Err(StreamRefusal::Order);
                 }
-                if value.watch() == 0 {
-                    if value.why() == &w::WatchEnd::SignedOut {
+                if value.watch == 0 {
+                    if value.why == w::WatchEnd::SignedOut {
                         self.end_sign_in(out);
                         out.push(Request::Signing { signing: crate::Signing::SignedOut });
                     } else {
@@ -965,15 +962,15 @@ impl Link {
                     }
                     return Ok(());
                 }
-                if let Some(watch) = self.retired.remove(&value.watch()) {
-                    self.cancel_open(watch, value.watch());
+                if let Some(watch) = self.retired.remove(&value.watch) {
+                    self.cancel_open(watch, value.watch);
                 }
-                if let Some(watch) = self.watches.named(value.watch()) {
-                    self.cancel_open(watch, value.watch());
-                    if let w::WatchEnd::NotServed(value) = value.why() {
+                if let Some(watch) = self.watches.named(value.watch) {
+                    self.cancel_open(watch, value.watch);
+                    if let w::WatchEnd::NotServed(value) = &value.why {
                         translate::envelope::not_served(value, out);
                     }
-                    let end = translate::watches::ended(value.why());
+                    let end = translate::watches::ended(&value.why);
                     self.watches.end(watch, end, out);
                     if end == jig_client_domain::contract::WatchEnd::SignedOut {
                         self.end_sign_in(out);
@@ -985,13 +982,13 @@ impl Link {
                 if stream.name.is_none() {
                     return Err(StreamRefusal::Order);
                 }
-                if let Some(watch) = self.watches.named(value.watch()) {
+                if let Some(watch) = self.watches.named(value.watch) {
                     let opening = self.watches.0.get(&watch).expect("named run watch");
                     if !opening.closing {
                         if opening.owner != w::Owner::Jig || opening.version != w::VERSION {
                             return Err(StreamRefusal::Record(crate::Undecodable::Version));
                         }
-                        let value = match translate::live::run_text(value.into_parts().value, &self.limits) {
+                        let value = match translate::live::run_text(value.value, &self.limits) {
                             Ok(value) => value,
                             Err(why) => return Err(StreamRefusal::Record(why)),
                         };
@@ -1014,13 +1011,13 @@ impl Link {
         if let Err(why) = stream.hello(&hello) {
             return Err(StreamRefusal::Record(why));
         }
-        for served in hello.served() {
-            if served.first() > served.last() {
+        for served in &hello.served {
+            if served.first > served.last {
                 return Err(StreamRefusal::Record(crate::Undecodable::Malformed));
             }
         }
-        self.predecessor = Some(*hello.stream());
-        if let Err(why) = self.save_stream(*hello.stream(), out) {
+        self.predecessor = Some(hello.stream);
+        if let Err(why) = self.save_stream(hello.stream, out) {
             return Err(StreamRefusal::Record(why));
         }
         out.push(Request::Hello { family: None, versions: hello_versions(&hello, None) });
@@ -1032,7 +1029,7 @@ impl Link {
         for (watch, opening) in &self.watches.0 {
             let family = match &opening.owner {
                 w::Owner::Jig => None,
-                w::Owner::Family(owner) => Some(owner.number()),
+                w::Owner::Family(owner) => Some(owner.number),
             };
             let served = match hello_versions(&hello, family) {
                 Some(range) => range.contains(opening.version),
@@ -1118,13 +1115,13 @@ impl Link {
 }
 
 fn hello_versions(hello: &w::Hello, family: Option<u16>) -> Option<jig_client_domain::contract::VersionRange> {
-    for served in hello.served() {
-        let owner = match served.owner() {
+    for served in &hello.served {
+        let owner = match &served.owner {
             w::Owner::Jig => None,
-            w::Owner::Family(owner) => Some(owner.number()),
+            w::Owner::Family(owner) => Some(owner.number),
         };
         if owner == family {
-            return Some(jig_client_domain::contract::VersionRange { first: served.first(), last: served.last() });
+            return Some(jig_client_domain::contract::VersionRange { first: served.first, last: served.last });
         }
     }
     None

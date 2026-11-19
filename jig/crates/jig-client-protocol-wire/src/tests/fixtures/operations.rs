@@ -1,35 +1,23 @@
 use super::*;
 pub fn merged_targets() -> [(&'static str, Ask); 4] {
     let limits = limits();
-    let proposal = ProposalKey::new(
-        &limits,
-        ProposalKeyParts {
+    let proposal = ProposalKey {
             proposer: Proposer::Party(
-                ProposerParty::new(&limits, ProposerPartyParts { value: u64::MAX }).expect("party"),
+                ProposerParty { value: u64::MAX },
             ),
             number: u64::MAX,
-        },
-    )
-    .expect("proposal");
+        };
     let decide = [
         (
             "proposal",
             DecideOn::Proposal(
-                DecideProposal::new(
-                    &limits,
-                    DecideProposalParts { proposal, decision: Decision::Accepted, running: None },
-                )
-                .expect("proposal decision"),
+                DecideProposal { proposal, decision: Decision::Accepted, running: None },
             ),
         ),
         (
             "escalation",
             DecideOn::Escalation(
-                DecideEscalation::new(
-                    &limits,
-                    DecideEscalationParts { task: u64::MAX, revision: revision(&limits), decision: Decision::PassedUp },
-                )
-                .expect("escalation decision"),
+                DecideEscalation { task: u64::MAX, revision: revision(&limits), decision: Decision::PassedUp },
             ),
         ),
     ];
@@ -37,31 +25,19 @@ pub fn merged_targets() -> [(&'static str, Ask); 4] {
         (
             "question",
             AnswerOn::Question(
-                AnswerQuestion::new(
-                    &limits,
-                    AnswerQuestionParts { task: u64::MAX, message: u64::MAX, words: b"answer".as_slice().into() },
-                )
-                .expect("question answer"),
+                AnswerQuestion { task: u64::MAX, message: u64::MAX, words: b"answer".as_slice().into() },
             ),
         ),
         (
             "person",
             AnswerOn::Person(
-                AnswerPerson::new(
-                    &limits,
-                    AnswerPersonParts {
+                AnswerPerson {
                         task: u64::MAX,
                         revision: revision(&limits),
                         answer: PersonAnswer::Words(
-                            PersonAnswerWords::new(
-                                &limits,
-                                PersonAnswerWordsParts { value: b"answer".as_slice().into() },
-                            )
-                            .expect("answer words"),
+                            PersonAnswerWords { value: b"answer".as_slice().into() },
                         ),
                     },
-                )
-                .expect("person answer"),
             ),
         ),
     ];
@@ -70,19 +46,19 @@ pub fn merged_targets() -> [(&'static str, Ask); 4] {
     [
         (
             proposal_name,
-            Ask::Decide(Decide::new(&limits, DecideParts { project: u32::MAX, on: proposal }).expect("decide")),
+            Ask::Decide(Decide { project: u32::MAX, on: proposal }),
         ),
         (
             escalation_name,
-            Ask::Decide(Decide::new(&limits, DecideParts { project: u32::MAX, on: escalation }).expect("decide")),
+            Ask::Decide(Decide { project: u32::MAX, on: escalation }),
         ),
         (
             question_name,
-            Ask::Answer(Answer::new(&limits, AnswerParts { project: u32::MAX, on: question }).expect("answer")),
+            Ask::Answer(Answer { project: u32::MAX, on: question }),
         ),
         (
             person_name,
-            Ask::Answer(Answer::new(&limits, AnswerParts { project: u32::MAX, on: person }).expect("answer")),
+            Ask::Answer(Answer { project: u32::MAX, on: person }),
         ),
     ]
 }

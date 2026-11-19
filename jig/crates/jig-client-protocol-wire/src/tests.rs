@@ -21,23 +21,19 @@ fn version_constants_match_their_schemas() {
 fn kept_holds_the_widest_table_entry_and_round_trips_a_ceiling_request() {
     let widest = TableEntry::encoded_bound(&CEILINGS).expect("representable table entry");
     assert!(u64::from(CEILINGS.kept_record) >= widest, "Kept must hold TableEntry's widest encoding");
-    let table = TableEntry::new(
-        &CEILINGS,
-        TableEntryParts {
+    let table = TableEntry {
             asker: u32::MAX,
             number: u64::MAX,
             key: [255; 16],
             scope: u64::MAX,
             first_sent: Some(u64::MAX),
-            owner: Owner::Family(Family::new(&CEILINGS, FamilyParts { number: u16::MAX }).expect("family")),
+            owner: Owner::Family(Family { number: u16::MAX }),
             version: u32::MAX,
             request: fixtures::bytes(CEILINGS.table_entry_request),
-        },
-    )
-    .expect("ceiling table entry");
+        };
     assert_eq!(u64::from(table.measure()), widest);
     let record = fixtures::encoded(&table, TableEntry::measure, TableEntry::encode);
-    let kept = Kept::new(&CEILINGS, KeptParts { store_version: 1, record }).expect("ceiling entry fits Kept");
+    let kept = Kept { store_version: 1, record };
     let bytes = fixtures::encoded(&kept, Kept::measure, Kept::encode);
     let decoded = Kept::decode(&CEILINGS, &mut Reader::new(&bytes)).expect("kept round trip");
     assert_eq!(decoded, kept);
@@ -47,8 +43,8 @@ fn kept_holds_the_widest_table_entry_and_round_trips_a_ceiling_request() {
 fn a_keyed_request_past_its_bound_is_refused_naming_it() {
     let limits = fixtures::limits();
     let request = fixtures::bytes(limits.keyed_request.checked_add(1).expect("small bound"));
-    let refused = Keyed::new(&limits, KeyedParts { key: [7; 16], owner: Owner::Jig, version: 1, request, value: None });
-    assert_eq!(refused, Err(Problem { path: Path::KeyedRequest, reason: skein_codec::Reason::Bound }));
+    let refused = Ok(Keyed { key: [7; 16], owner: Owner::Jig, version: 1, request, value: None });
+    assert_eq!(refused, Err(Problem { path: paths::KEYED_REQUEST, reason: skein_codec::Reason::Bound }));
 }
 
 fn an_owned_record_keeps_its_owners_version() {
@@ -72,7 +68,7 @@ fn each_answer_kind_round_trips_unchanged() {
         KeyedAnswer::FinalAnswer(fixtures::owned()),
         KeyedAnswer::Busy,
         KeyedAnswer::AnswersFull(
-            AnswersFull::new(&limits, AnswersFullParts { held: u32::MAX, room_at: u64::MAX }).expect("full facts"),
+            AnswersFull { held: u32::MAX, room_at: u64::MAX },
         ),
         KeyedAnswer::NotReady,
         KeyedAnswer::SignedOut,
@@ -85,7 +81,7 @@ fn each_answer_kind_round_trips_unchanged() {
 #[test]
 fn a_batch_round_trips_its_read_open_and_close() {
     let limits = fixtures::stream_limits();
-    let close = WatchClose::new(&limits, WatchCloseParts { stream: [7; 16], watch: 23 }).expect("closing watch");
+    let close = WatchClose { stream: [7; 16], watch: 23 };
     let mut members = skein_lib::List::with_capacity(3);
     for member in [
         Member::Read(fixtures::stream_owned(&limits)),
@@ -94,7 +90,7 @@ fn a_batch_round_trips_its_read_open_and_close() {
     ] {
         members.push(member).expect("three members");
     }
-    let batch = Batch::new(&limits, BatchParts { members }).expect("mixed batch");
+    let batch = Batch { members };
     let bytes = fixtures::encoded(&batch, Batch::measure, Batch::encode);
     assert_eq!(Batch::decode(&limits, &mut Reader::new(&bytes)), Ok(batch));
 }
@@ -112,7 +108,7 @@ fn batch_replies_preserve_the_member_and_optional_answer() {
         Some(fixtures::encoded(&OpenAnswer::Admitted, OpenAnswer::measure, OpenAnswer::encode)),
         Some(fixtures::encoded(&CloseAnswer::Closed, CloseAnswer::measure, CloseAnswer::encode)),
     ] {
-        let reply = BatchReply::new(&limits, BatchReplyParts { member: 2, reply }).expect("member's optional answer");
+        let reply = BatchReply { member: 2, reply };
         let bytes = fixtures::encoded(&reply, BatchReply::measure, BatchReply::encode);
         assert_eq!(BatchReply::decode(&limits, &mut Reader::new(&bytes)), Ok(reply));
     }
@@ -121,18 +117,18 @@ fn batch_replies_preserve_the_member_and_optional_answer() {
 #[test]
 fn a_batch_accepts_64_members_and_refuses_65() {
     let limits = fixtures::limits();
-    let close = WatchClose::new(&limits, WatchCloseParts { stream: [7; 16], watch: 23 }).expect("closing watch");
+    let close = WatchClose { stream: [7; 16], watch: 23 };
     for count in [64, 65] {
         let members = fixtures::repeated(Member::Close(close.clone()), count);
         let bytes = fixtures::encoded_batch_members(&members);
         let decoded = Batch::decode(&limits, &mut Reader::new(&bytes));
         if count == 64 {
-            let batch = Batch::new(&limits, BatchParts { members }).expect("64 members fit");
+            let batch = Batch { members };
             assert_eq!(decoded, Ok(batch));
         } else {
-            let expected = Err(Problem { path: Path::BatchMembers, reason: skein_codec::Reason::Bound });
+            let expected = Err(Problem { path: paths::BATCH_MEMBERS, reason: skein_codec::Reason::Bound });
             assert_eq!(decoded, expected);
-            assert_eq!(Batch::new(&limits, BatchParts { members }), expected);
+            assert_eq!(Ok(Batch { members }), expected);
         }
     }
 }
@@ -154,8 +150,8 @@ fn a_bearer_token_past_its_bound_is_refused() {
     let limits = fixtures::limits();
     let token = fixtures::bytes(limits.signed_in_token_some.checked_add(1).expect("small bound"));
     assert_eq!(
-        SignedIn::new(&limits, SignedInParts { token: Some(skein_lib::Secret::new(token)), party: 17, expires: 29 }),
-        Err(Problem { path: Path::SignedInToken, reason: skein_codec::Reason::Bound })
+        Ok(SignedIn { token: Some(skein_lib::Secret::new(token)), party: 17, expires: 29 }),
+        Err(Problem { path: paths::SIGNED_IN_TOKEN, reason: skein_codec::Reason::Bound })
     );
 }
 
@@ -163,8 +159,8 @@ fn a_cursor_past_its_bound_is_refused() {
     let limits = fixtures::limits();
     let value = fixtures::bytes(limits.cursor_value.checked_add(1).expect("small bound"));
     assert_eq!(
-        Cursor::new(&limits, CursorParts { value }),
-        Err(Problem { path: Path::CursorValue, reason: skein_codec::Reason::Bound })
+        Ok(Cursor { value }),
+        Err(Problem { path: paths::CURSOR_VALUE, reason: skein_codec::Reason::Bound })
     );
 }
 
@@ -177,8 +173,8 @@ fn each_read_none_round_trips_unchanged() {
         ReadNone::Busy,
         ReadNone::SignedOut,
         ReadNone::Malformed,
-        ReadNone::TooLinked(ReadTooLinked::new(&limits, ReadTooLinkedParts { joins: 4 }).expect("join bound")),
-        ReadNone::TooLarge(TurnTooLarge::new(&limits, TurnTooLargeParts { bytes: 8192 }).expect("size")),
+        ReadNone::TooLinked(ReadTooLinked { joins: 4 }),
+        ReadNone::TooLarge(TurnTooLarge { bytes: 8192 }),
     ] {
         let answer = ReadAnswer::None(fixtures::read_none(none));
         let bytes = fixtures::encoded(&answer, ReadAnswer::measure, ReadAnswer::encode);
@@ -198,8 +194,8 @@ fn a_page_one_row_past_its_limit_is_refused() {
     let limits = fixtures::limits();
     let rows = fixtures::funding_rows(limits.spend_page_rows.checked_add(1).expect("small bound"));
     assert_eq!(
-        SpendPage::new(&limits, SpendPageParts { rows, before: None, after: None, cut: false }),
-        Err(Problem { path: Path::SpendPageRows, reason: skein_codec::Reason::Bound })
+        Ok(SpendPage { rows, before: None, after: None, cut: false }),
+        Err(Problem { path: paths::SPEND_PAGE_ROWS, reason: skein_codec::Reason::Bound })
     );
 }
 
@@ -218,7 +214,7 @@ fn a_page_whose_rows_do_not_split_to_its_end_is_refused_as_malformed() {
         let bytes = fixtures::encoded(&page, ActivityPage::measure, ActivityPage::encode);
         assert_eq!(
             fixtures::decode_activity_page(&limits, &bytes, 8),
-            Err(Problem { path: Path::ActivityPageRows, reason: skein_codec::Reason::Malformed })
+            Err(Problem { path: paths::ACTIVITY_PAGE_ROWS, reason: skein_codec::Reason::Malformed })
         );
     }
 }
@@ -246,9 +242,9 @@ fn a_task_one_byte_past_its_text_bound_is_refused() {
     let task = fixtures::task(&limits);
     let bytes = fixtures::encoded(&task, Task::measure, Task::encode);
     limits.document_text_bytes -= 1;
-    let expected = Err(Problem { path: Path::DocumentTextBytes, reason: skein_codec::Reason::Bound });
+    let expected = Err(Problem { path: paths::DOCUMENT_TEXT_BYTES, reason: skein_codec::Reason::Bound });
     assert_eq!(Task::decode(&limits, &mut Reader::new(&bytes)), expected);
-    assert_eq!(Task::new(&limits, task.into_parts()), expected);
+    assert_eq!(Ok(task), expected);
 }
 
 fn a_run_state_without_writing_or_call_round_trips() {
@@ -335,29 +331,26 @@ fn a_ended_goal_holding_keeps_its_opaque_segments() {
 }
 
 fn small_store_family(limits: &Limits) -> Family {
-    Family::new(limits, FamilyParts { number: u16::MAX }).expect("whole small-store owner number")
+    Family { number: u16::MAX }
 }
 
 #[test]
 fn a_kept_record_of_another_family_version_is_refused() {
     let limits = fixtures::limits();
-    let kept = Kept::new(&limits, KeptParts { store_version: u16::MAX, record: Box::from([255, 0]) })
-        .expect("bounded kept record");
+    let kept = Kept { store_version: u16::MAX, record: Box::from([255, 0]) };
     let mut bytes = fixtures::encoded(&kept, Kept::measure, Kept::encode);
     bytes[0] = 2;
     bytes[1] = 0;
     assert_eq!(
         Kept::decode(&limits, &mut Reader::new(&bytes)),
-        Err(Problem { path: Path::KeptVersion, reason: skein_codec::Reason::Version })
+        Err(Problem { path: paths::KEPT_VERSION, reason: skein_codec::Reason::Version })
     );
 }
 
 fn a_table_entry_never_sent_round_trips_with_no_wall() {
     let limits = fixtures::limits();
     let family = small_store_family(&limits);
-    let entry = TableEntry::new(
-        &limits,
-        TableEntryParts {
+    let entry = TableEntry {
             asker: 65536,
             number: 1,
             key: [7; 16],
@@ -366,9 +359,7 @@ fn a_table_entry_never_sent_round_trips_with_no_wall() {
             owner: Owner::Family(family),
             version: u32::MAX,
             request: Box::from([255, 0]),
-        },
-    )
-    .expect("unsent whole request");
+        };
     let bytes = fixtures::encoded(&entry, TableEntry::measure, TableEntry::encode);
     let decoded = TableEntry::decode(&limits, &mut Reader::new(&bytes)).expect("whole table entry");
     assert_eq!(decoded.first_sent(), &None);
@@ -405,13 +396,12 @@ fn each_turn_bytes_variant_round_trips_with_the_carried_ceiling() {
         (
             "carried at 8 MiB",
             TurnBytes::Carried(
-                TurnCarried::new(&limits, TurnCarriedParts { bytes: fixtures::bytes(8_388_608) })
-                    .expect("store and worker turn ceiling"),
+                TurnCarried { bytes: fixtures::bytes(8_388_608) },
             ),
         ),
         (
             "too large",
-            TurnBytes::TooLarge(TurnTooLarge::new(&limits, TurnTooLargeParts { bytes: u64::MAX }).expect("turn size")),
+            TurnBytes::TooLarge(TurnTooLarge { bytes: u64::MAX }),
         ),
     ];
     for (name, value) in rows {
@@ -497,12 +487,11 @@ fn a_family_record_round_trips_with_its_scope_and_window() {
     for scope in [
         Scope::Own,
         Scope::Deployment,
-        Scope::Project(ScopeProject::new(&limits, ScopeProjectParts { value: FAMILY_PROJECT }).expect("project")),
+        Scope::Project(ScopeProject { value: FAMILY_PROJECT }),
     ] {
-        let after = Some(Cursor::new(&limits, CursorParts { value: Box::from([1, 2, 3]) }).expect("cursor"));
-        let window = Window::new(&limits, WindowParts { rows: 3, after }).expect("window");
-        let record = FamilyRecord::new(&limits, FamilyRecordParts { scope, window, record: Box::from([255, 0]) })
-            .expect("record");
+        let after = Some(Cursor { value: Box::from([1, 2, 3]) });
+        let window = Window { rows: 3, after };
+        let record = FamilyRecord { scope, window, record: Box::from([255, 0]) };
         let bytes = fixtures::encoded(&record, FamilyRecord::measure, FamilyRecord::encode);
         assert_eq!(FamilyRecord::decode(&limits, &mut Reader::new(&bytes)), Ok(record));
     }
@@ -531,8 +520,7 @@ fn a_compound_s_operations_round_trip_as_pieces() {
         value.encode(&mut bytes).unwrap();
     }
     let record =
-        Compound::new(&limits, CompoundParts { project: fixtures::COMPOUND_PROJECT, operations: bytes.finish() })
-            .unwrap();
+        Compound { project: fixtures::COMPOUND_PROJECT, operations: bytes.finish() };
     let bytes = fixtures::encoded(&record, Compound::measure, Compound::encode);
     let restored = Compound::decode(&limits, &mut Reader::new(&bytes)).unwrap();
     assert_eq!(restored, record);
@@ -552,7 +540,7 @@ fn a_me_project_without_its_name_cannot_decode() {
     prefix.put(&u32::MAX.to_be_bytes()).expect("project number");
     assert_eq!(
         MeProject::decode(&limits, &mut Reader::new(&prefix.finish())),
-        Err(Problem { path: Path::DocumentTextBytes, reason: skein_codec::Reason::Short })
+        Err(Problem { path: paths::DOCUMENT_TEXT_BYTES, reason: skein_codec::Reason::Short })
     );
 }
 
@@ -562,11 +550,7 @@ const MOVED_FILE_BYTES: usize = 131_072;
 fn a_keyed_value_at_the_move_bound_round_trips() {
     let limits = CEILINGS;
     let value = skein_lib::Secret::new(skein_lib::bytes::zeroed(MOVED_FILE_BYTES));
-    let keyed = Keyed::new(
-        &limits,
-        KeyedParts { key: [7; 16], owner: Owner::Jig, version: VERSION, request: Box::new([]), value: Some(value) },
-    )
-    .expect("128 KiB value fits");
+    let keyed = Keyed { key: [7; 16], owner: Owner::Jig, version: VERSION, request: Box::new([]), value: Some(value) };
     let bytes = fixtures::encoded(&keyed, Keyed::measure, Keyed::encode);
     assert_eq!(Keyed::decode(&limits, &mut Reader::new(&bytes)), Ok(keyed));
 }
@@ -574,29 +558,26 @@ fn a_keyed_value_at_the_move_bound_round_trips() {
 fn a_keyed_value_one_byte_past_the_move_bound_is_refused() {
     let value = skein_lib::Secret::new(skein_lib::bytes::zeroed(MOVED_FILE_BYTES + 1));
     assert_eq!(
-        Keyed::new(
-            &CEILINGS,
-            KeyedParts { key: [7; 16], owner: Owner::Jig, version: VERSION, request: Box::new([]), value: Some(value) }
-        ),
-        Err(Problem { path: Path::KeyedValue, reason: skein_codec::Reason::Bound })
+        Ok(Keyed { key: [7; 16], owner: Owner::Jig, version: VERSION, request: Box::new([]), value: Some(value) }),
+        Err(Problem { path: paths::KEYED_VALUE, reason: skein_codec::Reason::Bound })
     );
 }
 
 #[test]
 fn authorization_query_and_each_answer_round_trip_at_their_bounds() {
     let limits = CEILINGS;
-    let record = Authorize::new(&limits, AuthorizeParts { query: fixtures::bytes(8192) }).unwrap();
+    let record = Authorize { query: fixtures::bytes(8192) };
     let bytes = fixtures::encoded(&record, Authorize::measure, Authorize::encode);
     assert_eq!(Authorize::decode(&limits, &mut Reader::new(&bytes)), Ok(record));
     assert_eq!(
-        Authorize::new(&limits, AuthorizeParts { query: fixtures::bytes(8193) }),
-        Err(Problem { path: Path::AuthorizeQuery, reason: skein_codec::Reason::Bound })
+        Ok(Authorize { query: fixtures::bytes(8193) }),
+        Err(Problem { path: paths::AUTHORIZE_QUERY, reason: skein_codec::Reason::Bound })
     );
     assert_eq!(
-        AuthorizeGo::new(&limits, AuthorizeGoParts { location: fixtures::bytes(16385) }),
-        Err(Problem { path: Path::AuthorizeGoLocation, reason: skein_codec::Reason::Bound })
+        Ok(AuthorizeGo { location: fixtures::bytes(16385) }),
+        Err(Problem { path: paths::AUTHORIZE_GO_LOCATION, reason: skein_codec::Reason::Bound })
     );
-    let go = AuthorizeGo::new(&limits, AuthorizeGoParts { location: fixtures::bytes(16384) }).unwrap();
+    let go = AuthorizeGo { location: fixtures::bytes(16384) };
     for answer in
         [AuthorizeAnswer::Go(go), AuthorizeAnswer::SignedOut, AuthorizeAnswer::NotReady, AuthorizeAnswer::Busy]
     {
@@ -610,7 +591,7 @@ fn authorization_query_and_each_answer_round_trip_at_their_bounds() {
         AuthorizeWhy::NoProvider,
         AuthorizeWhy::NotAPerson,
     ] {
-        let answer = AuthorizeAnswer::Refused(AuthorizeRefused::new(&limits, AuthorizeRefusedParts { why }).unwrap());
+        let answer = AuthorizeAnswer::Refused(AuthorizeRefused { why });
         let bytes = fixtures::encoded(&answer, AuthorizeAnswer::measure, AuthorizeAnswer::encode);
         assert_eq!(AuthorizeAnswer::decode(&limits, &mut Reader::new(&bytes)), Ok(answer));
     }
@@ -620,11 +601,8 @@ fn authorization_query_and_each_answer_round_trip_at_their_bounds() {
 fn lent_login_names_are_bounded_at_32_bytes() {
     for length in [32, 33] {
         let name = skein_lib::bytes::zeroed(length);
-        let terminal = TerminalLogin::new(
-            &CEILINGS,
-            TerminalLoginParts { number: 1, provider: 2, name: name.clone(), cancelled: false },
-        );
-        let change = AccountChangeLoginProgram::new(&CEILINGS, AccountChangeLoginProgramParts { provider: 2, name });
+        let terminal = Ok(TerminalLogin { number: 1, provider: 2, name: name.clone(), cancelled: false });
+        let change = Ok(AccountChangeLoginProgram { provider: 2, name });
         assert_eq!(terminal.is_ok(), length == 32);
         assert_eq!(change.is_ok(), length == 32);
     }

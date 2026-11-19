@@ -30,7 +30,7 @@ fn an_inbox_entry_33_goals_deep_is_received() {
     use skein_lib::{List, Writer};
     let base = fixtures::limits();
     let limits = Limits::new(jig_client_domain::Limits { rows: 8, ..*base.client() }, base.exchanges()).unwrap();
-    let mut page = jig_client_test_records::selected_inbox_pages()[0].clone().into_parts();
+    let mut page = jig_client_test_records::selected_inbox_pages()[0].clone();
     let mut rows = Reader::new(&page.rows);
     let bytes = skein_codec::piece::split(&mut rows).unwrap().unwrap();
     let row = w::InboxEntry::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap();
@@ -38,20 +38,16 @@ fn an_inbox_entry_33_goals_deep_is_received() {
     for goal in 1..=33 {
         goals.push(goal).unwrap();
     }
-    let selection = w::InboxSelection::new(
-        &w::CEILINGS,
-        w::InboxSelectionParts { cursor: row.cursor().clone(), goals: goals.clone() },
-    )
-    .unwrap();
-    let mut encoded = Writer::new(usize::try_from(selection.measure()).unwrap());
-    selection.encode(&mut encoded).unwrap();
+    let selection = w::InboxSelection { cursor: row.cursor.clone(), goals: goals.clone() };
+    let mut encoded = Writer::new(usize::try_from(selection.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    selection.write(&jig_client_protocol_wire::CEILINGS, &mut encoded).unwrap();
     let bytes = encoded.finish();
     let mut piece = Writer::new(bytes.len().checked_add(4).unwrap());
     skein_codec::piece::write(&mut piece, &bytes).unwrap();
     page.selection = Some(piece.finish());
-    let page = w::InboxPage::new(&w::CEILINGS, page).unwrap();
-    let mut encoded = Writer::new(usize::try_from(page.measure()).unwrap());
-    page.encode(&mut encoded).unwrap();
+    let page = page;
+    let mut encoded = Writer::new(usize::try_from(page.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    page.write(&jig_client_protocol_wire::CEILINGS, &mut encoded).unwrap();
     let bytes = encoded.finish();
     let page = w::InboxPage::decode(limits.receiving(), &mut Reader::new(&bytes)).unwrap();
     let page = translate::pages::inbox_page(page, &limits).unwrap();
@@ -78,21 +74,17 @@ fn a_owner_proposal_record_becomes_its_literal_contract_value() {
 fn escalation_acts_fit_the_contract_bound() {
     let base = fixtures::limits();
     let limits = Limits::new(jig_client_domain::Limits { rows: 32, ..*base.client() }, base.exchanges()).unwrap();
-    let offered = w::Offered::new(
-        limits.wire(),
-        w::OfferedParts { effect: None, act: w::ActKind::Accept, admission: w::Admission::Allowed },
-    )
-    .unwrap();
-    let mut encoded = skein_lib::Writer::new(usize::try_from(offered.measure()).unwrap());
-    offered.encode(&mut encoded).unwrap();
+    let offered = w::Offered { effect: None, act: w::ActKind::Accept, admission: w::Admission::Allowed };
+    let mut encoded = skein_lib::Writer::new(usize::try_from(offered.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    offered.write(&jig_client_protocol_wire::CEILINGS, &mut encoded).unwrap();
     let encoded = encoded.finish();
     let mut acts = skein_lib::Writer::new(5 * (encoded.len() + 4));
     for _ in 0_u32..5 {
         skein_codec::piece::write(&mut acts, &encoded).unwrap();
     }
-    let mut parts = fixtures::read_wire_owner_escalation().into_parts();
+    let mut parts = fixtures::read_wire_owner_escalation();
     parts.acts = acts.finish();
-    let record = w::Escalation::new(limits.wire(), parts).unwrap();
+    let record = parts;
     let document = translate::pages::escalation_fields(&record, &limits).unwrap();
     assert_eq!(document.acts.len(), 5);
     assert!(document.acts.capacity() <= c::MAX_OFFERED_ACTS);
@@ -175,7 +167,7 @@ fn a_page_with_trailing_row_bytes_is_refused() {
 fn a_page_one_byte_past_the_document_limit_is_refused() {
     let record = fixtures::ended_page_piece(fixtures::ended_rows(1));
     let mut client = *fixtures::limits().client();
-    client.document_bytes = u64::from(record.measure()).checked_sub(1).unwrap();
+    client.document_bytes = u64::from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).checked_sub(1).unwrap();
     let limits = Limits::new(client, 4).unwrap();
     assert_eq!(translate::pages::ended_page(record, &limits), Err(Undecodable::TooLarge));
 }
@@ -300,14 +292,14 @@ fn table<const N: usize>(cases: [Case; N]) {
 #[test]
 fn a_task_page_decodes_its_two_groups_with_their_cursors() {
     let limits = fixtures::limits();
-    let mut page = jig_client_test_records::task_page_record().into_parts();
-    page.live = jig_client_test_records::tasks_rows_record().into_parts().rows;
-    page.live_after = Some(w::Cursor::new(limits.wire(), w::CursorParts { value: b"live".as_slice().into() }).unwrap());
-    let after = Some(w::Cursor::new(limits.wire(), w::CursorParts { value: b"ended".as_slice().into() }).unwrap());
+    let mut page = jig_client_test_records::task_page_record();
+    page.live = jig_client_test_records::tasks_rows_record().rows;
+    page.live_after = Some(w::Cursor { value: b"live".as_slice().into() });
+    let after = Some(w::Cursor { value: b"ended".as_slice().into() });
     page.ended = w::EndedGroup::Rows(
-        w::EndedRows::new(limits.wire(), w::EndedRowsParts { rows: Box::new([]), after, cut: true }).unwrap(),
+        w::EndedRows { rows: Box::new([]), after, cut: true },
     );
-    let page = translate::pages::task_page(w::TaskPage::new(limits.wire(), page).unwrap(), &limits).unwrap();
+    let page = translate::pages::task_page(page, &limits).unwrap();
     assert_eq!(page.live.len(), 1);
     assert_eq!(page.live_after.as_ref().unwrap().value.bytes(), b"live");
     let c::EndedGroup::Rows { rows, after, cut } = page.ended else { panic!("ended rows") };
@@ -319,41 +311,31 @@ fn a_task_page_decodes_its_two_groups_with_their_cursors() {
 #[test]
 fn an_offer_decodes_the_effect_with_its_counts_or_reservation() {
     let limits = fixtures::limits();
-    let mut impact = fixtures::read_wire_impact().into_parts();
+    let mut impact = fixtures::read_wire_impact();
     impact.live_runs = 11;
     impact.proposals = 13;
-    let effect = w::Effect::Cancel(w::Impact::new(limits.wire(), impact).unwrap());
-    let value = w::Offered::new(
-        limits.wire(),
-        w::OfferedParts { act: w::ActKind::Cancel, admission: w::Admission::Allowed, effect: Some(effect) },
-    )
-    .unwrap();
+    let effect = w::Effect::Cancel(impact);
+    let value = w::Offered { act: w::ActKind::Cancel, admission: w::Admission::Allowed, effect: Some(effect) };
     let value = translate::documents::offered_fields(&value, &limits).unwrap();
     let Some(c::Effect::Cancel(impact)) = value.effect else { panic!("cancel effect") };
     assert_eq!((impact.live_runs, impact.proposals), (11, 13));
     assert_eq!(impact.tasks, fixtures::read_value_impact().tasks);
     let effect =
-        w::Effect::MoveTask(w::EffectMove::new(limits.wire(), w::EffectMoveParts { reservation: 17 }).unwrap());
+        w::Effect::MoveTask(w::EffectMove { reservation: 17 });
     assert_eq!(translate::documents::effect_fields(&effect), c::Effect::Move { reservation: 17 });
 }
 
 #[test]
 fn proposal_history_and_activity_keep_their_card_facts() {
     let limits = fixtures::limits();
-    let wire = limits.wire();
     for made in [false, true] {
         let record = w::Activity::Decided(
-            w::ActivityDecided::new(
-                wire,
-                w::ActivityDecidedParts {
+            w::ActivityDecided {
                     revision: 5,
                     proposal: Some(
-                        w::ActivityDecidedProposal::new(wire, w::ActivityDecidedProposalParts { number: 19, made })
-                            .unwrap(),
+                        w::ActivityDecidedProposal { number: 19, made },
                     ),
                 },
-            )
-            .unwrap(),
         );
         assert_eq!(
             translate::pages::activity_fields(&record, &limits).unwrap(),
@@ -362,30 +344,21 @@ fn proposal_history_and_activity_keep_their_card_facts() {
     }
     let mut projects = skein_lib::List::with_capacity(1);
     projects.push(23).unwrap();
-    let record = w::ProposalHistory::new(
-        wire,
-        w::ProposalHistoryParts {
-            reason: w::DocumentText::new(wire, w::DocumentTextParts { bytes: b"why".as_slice().into(), cut: true })
-                .unwrap(),
+    let record = w::ProposalHistory {
+            reason: w::DocumentText { bytes: b"why".as_slice().into(), cut: true },
             action: w::RetainedAction::Settings(
-                w::RetainedActionSettings::new(
-                    wire,
-                    w::RetainedActionSettingsParts {
+                w::RetainedActionSettings {
                         projects: projects.clone(),
                         against: 3,
                         items: skein_lib::List::with_capacity(0),
                         made: Some(5),
                     },
-                )
-                .unwrap(),
             ),
             number: 19,
             proposer: 7,
             as_holder: false,
             state: w::ProposalHistoryState::Withdrawn,
-        },
-    )
-    .unwrap();
+        };
     let proposal = translate::pages::proposal_history_fields(&record, &limits).unwrap();
     assert_eq!(proposal.reason.bytes(), b"why");
     assert!(proposal.reason.cut);
@@ -401,11 +374,9 @@ fn line_limits() -> Limits {
 
 fn word_lines(words: &[u8]) -> [w::Activity; 3] {
     let requester = w::Requester::Deployment(
-        w::RequesterDeployment::new(&w::CEILINGS, w::RequesterDeploymentParts { project: 1 }).unwrap(),
+        w::RequesterDeployment { project: 1 },
     );
-    let word = w::Word::new(
-        &w::CEILINGS,
-        w::WordParts {
+    let word = w::Word {
             number: 1,
             from: requester.clone(),
             kind: w::MessageKind::Words,
@@ -413,49 +384,35 @@ fn word_lines(words: &[u8]) -> [w::Activity; 3] {
             at: 2,
             hits: 1,
             eligible: true,
-        },
-    )
-    .unwrap();
+        };
     [
         w::Activity::Words(
-            w::ActivityWords::new(
-                &w::CEILINGS,
-                w::ActivityWordsParts {
+            w::ActivityWords {
                     message: 1,
                     by: requester.clone(),
                     kind: w::MessageKind::Words,
                     words: Box::from(words),
                 },
-            )
-            .unwrap(),
         ),
-        w::Activity::Heard(w::ActivityHeard::new(&w::CEILINGS, w::ActivityHeardParts { value: word.clone() }).unwrap()),
+        w::Activity::Heard(w::ActivityHeard { value: word.clone() }),
         w::Activity::Notified(
-            w::ActivityNotified::new(&w::CEILINGS, w::ActivityNotifiedParts { recipient: requester, word }).unwrap(),
+            w::ActivityNotified { recipient: requester, word },
         ),
     ]
 }
 
 fn word_line(line: w::Activity) -> w::ActivityLine {
-    w::ActivityLine::new(&w::CEILINGS, w::ActivityLineParts { task: 7, position: 1, at: 2, line }).unwrap()
+    w::ActivityLine { task: 7, position: 1, at: 2, line }
 }
 
 fn word_page(line: w::Activity) -> w::ActivityPage {
-    let row = w::DecodedActivityLine::new(
-        &w::CEILINGS,
-        w::DecodedActivityLineParts { source: word_line(line), decoded: None },
-    )
-    .unwrap();
-    let mut encoded = skein_lib::Writer::new(usize::try_from(row.measure()).unwrap());
-    row.encode(&mut encoded).unwrap();
+    let row = w::DecodedActivityLine { source: word_line(line), decoded: None };
+    let mut encoded = skein_lib::Writer::new(usize::try_from(row.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    row.write(&jig_client_protocol_wire::CEILINGS, &mut encoded).unwrap();
     let encoded = encoded.finish();
     let mut piece = skein_lib::Writer::new(encoded.len().checked_add(4).unwrap());
     skein_codec::piece::write(&mut piece, &encoded).unwrap();
-    w::ActivityPage::new(
-        &w::CEILINGS,
-        w::ActivityPageParts { rows: piece.finish(), before: None, after: None, cut: false },
-    )
-    .unwrap()
+    w::ActivityPage { rows: piece.finish(), before: None, after: None, cut: false }
 }
 
 #[test]
@@ -497,37 +454,27 @@ fn a_line_past_long_text_fails_its_page() {
 #[test]
 fn an_ended_question_answer_past_text_decodes() {
     let limits = line_limits();
-    let mut ended = fixtures::read_wire_owner_ended().into_parts();
+    let mut ended = fixtures::read_wire_owner_ended();
     let question = fixtures::read_wire_question();
     ended.key = w::ObjectKey::Question(
-        w::ObjectKeyQuestion::new(&w::CEILINGS, w::ObjectKeyQuestionParts { task: 7, message: question.message() })
-            .unwrap(),
+        w::ObjectKeyQuestion { task: 7, message: question.message },
     );
     let answer = word_line(w::Activity::Words(
-        w::ActivityWords::new(
-            &w::CEILINGS,
-            w::ActivityWordsParts {
+        w::ActivityWords {
                 message: 19,
                 by: w::Requester::Deployment(
-                    w::RequesterDeployment::new(&w::CEILINGS, w::RequesterDeploymentParts { project: 1 }).unwrap(),
+                    w::RequesterDeployment { project: 1 },
                 ),
                 kind: w::MessageKind::Answer(
-                    w::MessageKindAnswer::new(&w::CEILINGS, w::MessageKindAnswerParts { question: question.message() })
-                        .unwrap(),
+                    w::MessageKindAnswer { question: question.message },
                 ),
                 words: Box::new([b'a'; 128]),
             },
-        )
-        .unwrap(),
     ));
     ended.value = w::EndedValue::Question(
-        w::EndedValueQuestion::new(
-            &w::CEILINGS,
-            w::EndedValueQuestionParts { question, answer: Some(answer), ending: None },
-        )
-        .unwrap(),
+        w::EndedValueQuestion { question, answer: Some(answer), ending: None },
     );
-    let ended = translate::objects::ended(w::Ended::new(&w::CEILINGS, ended).unwrap(), &limits).unwrap();
+    let ended = translate::objects::ended(ended, &limits).unwrap();
     let c::EndedValue::Question { answer: Some(answer), .. } = ended.value else { panic!("answered question") };
     let c::Activity::Words { words, .. } = answer.line else { panic!("answer words") };
     assert_eq!(words.bytes(), &[b'a'; 128]);
@@ -551,11 +498,11 @@ fn a_message_and_an_answer_encode_to_long_text() {
             }
             let record = record.unwrap();
             let encoded_words = if let w::Ask::Message(record) = &record {
-                record.words()
+                record.words.as_ref()
             } else {
                 let w::Ask::Answer(record) = &record else { panic!("words ask: {record:?}") };
-                let w::AnswerOn::Question(answer) = record.on() else { panic!("question answer") };
-                answer.words()
+                let w::AnswerOn::Question(answer) = &record.on else { panic!("question answer") };
+                answer.words.as_ref()
             };
             assert_eq!(encoded_words, &[b'w'; 128]);
         }
@@ -621,9 +568,7 @@ fn history_rows_keep_attempts_holds_and_their_absences() {
             ending: None
         }
     );
-    let absent = w::AttemptLine::new(
-        limits.wire(),
-        w::AttemptLineParts {
+    let absent = w::AttemptLine {
             task: 0,
             attempt: u64::MAX,
             claimed: None,
@@ -631,9 +576,7 @@ fn history_rows_keep_attempts_holds_and_their_absences() {
             ended: None,
             end: None,
             phases: None,
-        },
-    )
-    .unwrap();
+        };
     assert_eq!(
         translate::pages::attempt_line_fields(&absent),
         c::AttemptLine {
@@ -646,10 +589,10 @@ fn history_rows_keep_attempts_holds_and_their_absences() {
             phases: None
         }
     );
-    let mut source = jig_client_test_records::mixed_history_page().into_parts();
-    source.before = Some(w::Cursor::new(limits.wire(), w::CursorParts { value: Box::from([0, 255]) }).unwrap());
-    source.after = Some(w::Cursor::new(limits.wire(), w::CursorParts { value: Box::from([254, 1]) }).unwrap());
-    let page = translate::pages::history_page(w::HistoryPage::new(limits.wire(), source).unwrap(), &limits).unwrap();
+    let mut source = jig_client_test_records::mixed_history_page();
+    source.before = Some(w::Cursor { value: Box::from([0, 255]) });
+    source.after = Some(w::Cursor { value: Box::from([254, 1]) });
+    let page = translate::pages::history_page(source, &limits).unwrap();
     assert_eq!(page.before.unwrap().value.bytes(), &[0, 255]);
     assert_eq!(page.after.unwrap().value.bytes(), &[254, 1]);
 }
@@ -662,13 +605,13 @@ fn task_queries_carry_parts_and_pages_return_opaque_values_and_the_ended_mark() 
     let exchange = h.read(Readable::Jig(c::Read::Tasks { query: query.clone(), live: None, ended: None }));
     let Request::Exchange { message: Message::Read(bytes), .. } = h.out.iter().next().unwrap() else { panic!("read") };
     let owned = w::Owned::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
-    let w::Read::Tasks(read) = w::Read::decode(limits.wire(), &mut Reader::new(owned.record())).unwrap() else {
+    let w::Read::Tasks(read) = w::Read::decode(limits.wire(), &mut Reader::new(owned.record.as_ref())).unwrap() else {
         panic!("task query")
     };
-    assert_eq!(read.query().parts().len(), query.parts.len());
-    for (actual, expected) in read.query().parts().iter().zip(query.parts.iter()) {
+    assert_eq!(read.query.parts.len(), query.parts.len());
+    for (actual, expected) in read.query.parts.iter().zip(query.parts.iter()) {
         assert_eq!(
-            (actual.owner().number(), actual.kind(), actual.version()),
+            (actual.owner.number, actual.kind, actual.version),
             (expected.owner, expected.kind, expected.version)
         );
     }
@@ -707,21 +650,17 @@ fn mismatched_row_part_counts_and_value_envelopes_make_reads_malformed() {
 fn a_v28_task_page_has_empty_parts_and_zero_ended_mark() {
     use jig_client_protocol_wire as w;
     let limits = fixtures::limits();
-    let rows = jig_client_test_records::tasks_rows_record().into_parts().rows;
-    let record = w::TaskPage::new(
-        limits.wire(),
-        w::TaskPageParts {
+    let rows = jig_client_test_records::tasks_rows_record().rows;
+    let record = w::TaskPage {
             ended_mark: 0,
             live: rows.clone(),
             live_after: None,
             ended: w::EndedGroup::Rows(
-                w::EndedRows::new(limits.wire(), w::EndedRowsParts { rows, after: None, cut: false }).unwrap(),
+                w::EndedRows { rows, after: None, cut: false },
             ),
-        },
-    )
-    .unwrap();
-    let mut writer = skein_lib::Writer::new(usize::try_from(record.measure()).unwrap());
-    record.encode(&mut writer).unwrap();
+        };
+    let mut writer = skein_lib::Writer::new(usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    record.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
     let bytes = writer.finish();
     let record = w::TaskPage::decode(limits.receiving(), &mut Reader::new(&bytes)).unwrap();
     let page = translate::pages::task_page(record, &limits).unwrap();

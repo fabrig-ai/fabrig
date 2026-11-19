@@ -1,4 +1,5 @@
 //! Whole pages and single documents (protocol/client/wire.md, 1, and protocol/client/README.md, 4).
+use jig_client_protocol_wire::Record as _;
 use super::{
     Box, Limits, List, Reader, Wall, authority_document_fields, c, chip_ending_fields, cursor_fields,
     message_proposal_kind_fields, proposed_task_piece, specification_document_fields, too_large, w,
@@ -22,8 +23,8 @@ pub(crate) fn history_change_fields(value: &w::HistoryChange) -> c::HistoryChang
 
 pub(crate) fn address_change_fields(value: &w::AddressChange) -> c::AddressChange {
     c::AddressChange {
-        revision: crate::translate::answers::revision(value.revision()),
-        address: crate::translate::facts::person_address(value.address()),
+        revision: crate::translate::answers::revision(&value.revision),
+        address: crate::translate::facts::person_address(&value.address),
     }
 }
 
@@ -31,31 +32,31 @@ pub(crate) fn retained_amendment_fields(
     value: &w::RetainedAmendment,
     limits: &Limits,
 ) -> Result<c::RetainedAmendment, w::Problem> {
-    let opt0 = match value.addressed() {
+    let opt0 = match &value.addressed {
         Some(item) => Some(address_change_fields(item)),
         None => None,
     };
-    let opt1 = match value.instructions() {
+    let opt1 = match &value.instructions {
         Some(item) => Some(crate::translate::facts::document_text(item, limits)?),
         None => None,
     };
-    let opt2 = match value.release() {
+    let opt2 = match &value.release {
         Some(item) => Some(*item),
         None => None,
     };
-    let opt3 = match value.spec() {
+    let opt3 = match &value.spec {
         Some(item) => Some(specification_document_fields(item, limits)?),
         None => None,
     };
-    let opt4 = match value.authority() {
+    let opt4 = match &value.authority {
         Some(item) => Some(authority_document_fields(item, limits)?),
         None => None,
     };
-    let opt5 = match value.wake() {
+    let opt5 = match &value.wake {
         Some(item) => Some(crate::translate::facts::wake_policy(item)),
         None => None,
     };
-    let opt6 = match value.dependencies() {
+    let opt6 = match &value.dependencies {
         Some(item) => {
             if (item).len() > limits.client().rows {
                 return Err(too_large());
@@ -76,8 +77,8 @@ pub(crate) fn retained_amendment_fields(
         authority: opt4,
         wake: opt5,
         dependencies: opt6,
-        reason: crate::translate::facts::document_text(value.reason(), limits)?,
-        cut: value.cut(),
+        reason: crate::translate::facts::document_text(&value.reason, limits)?,
+        cut: value.cut,
     })
 }
 
@@ -90,40 +91,40 @@ pub(crate) fn retained_action_fields(
             crate::translate::settings_proposals::restore_owner_retained_action_settings(row, limits)?,
         ),
         w::RetainedAction::Batch(row) => {
-            c::RetainedAction::Batch(proposed_task_piece(row.value(), limits, limits.client().rows)?)
+            c::RetainedAction::Batch(proposed_task_piece(&row.value, limits, limits.client().rows)?)
         }
         w::RetainedAction::Effect(row) => c::RetainedAction::Effect {
-            part: crate::translate::facts::part(row.part()),
-            authority: authority_document_fields(row.authority(), limits)?,
-            attempt: row.attempt(),
-            completion: row.completion(),
-            position: row.position(),
-            purpose: row.purpose(),
+            part: crate::translate::facts::part(&row.part),
+            authority: authority_document_fields(&row.authority, limits)?,
+            attempt: row.attempt,
+            completion: row.completion,
+            position: row.position,
+            purpose: row.purpose,
         },
         w::RetainedAction::ProcedureEffect(row) => c::RetainedAction::ProcedureEffect {
-            part: crate::translate::facts::part(row.part()),
-            authority: authority_document_fields(row.authority(), limits)?,
-            step: row.step(),
-            purpose: row.purpose(),
+            part: crate::translate::facts::part(&row.part),
+            authority: authority_document_fields(&row.authority, limits)?,
+            step: row.step,
+            purpose: row.purpose,
         },
         w::RetainedAction::Amend(row) => c::RetainedAction::Amend {
-            task: row.task(),
-            change: Box::new(retained_amendment_fields(row.change(), limits)?),
+            task: row.task,
+            change: Box::new(retained_amendment_fields(&row.change, limits)?),
         },
         w::RetainedAction::Widen(row) => c::RetainedAction::Widen {
-            task: row.task(),
-            authority: authority_document_fields(row.authority(), limits)?,
+            task: row.task,
+            authority: authority_document_fields(&row.authority, limits)?,
         },
-        w::RetainedAction::Release(row) => c::RetainedAction::Release { task: row.task() },
+        w::RetainedAction::Release(row) => c::RetainedAction::Release { task: row.task },
     })
 }
 
 pub(crate) fn history_holder_fields(value: &w::HistoryHolder) -> c::HistoryHolder {
     match value {
-        w::HistoryHolder::Task(row) => c::HistoryHolder::Task(row.value()),
-        w::HistoryHolder::Person(row) => c::HistoryHolder::Person(row.value()),
+        w::HistoryHolder::Task(row) => c::HistoryHolder::Task(row.value),
+        w::HistoryHolder::Person(row) => c::HistoryHolder::Person(row.value),
         w::HistoryHolder::Policy(row) => {
-            c::HistoryHolder::Policy { project: row.project(), kind: message_proposal_kind_fields(row.kind()) }
+            c::HistoryHolder::Policy { project: row.project, kind: message_proposal_kind_fields(&row.kind) }
         }
     }
 }
@@ -134,15 +135,15 @@ pub(crate) fn proposal_history_state_fields(
 ) -> Result<c::ProposalHistoryState, w::Problem> {
     Ok(match value {
         w::ProposalHistoryState::Pending(row) => c::ProposalHistoryState::Pending {
-            holder: history_holder_fields(row.holder()),
-            since: Wall::from_nanos(row.since()),
+            holder: history_holder_fields(&row.holder),
+            since: Wall::from_nanos(row.since),
         },
         w::ProposalHistoryState::Accepted(row) => {
-            c::ProposalHistoryState::Accepted { by: crate::translate::facts::requester(row.by()) }
+            c::ProposalHistoryState::Accepted { by: crate::translate::facts::requester(&row.by) }
         }
         w::ProposalHistoryState::Rejected(row) => c::ProposalHistoryState::Rejected {
-            by: crate::translate::facts::requester(row.by()),
-            reason: crate::translate::facts::document_text(row.reason(), limits)?,
+            by: crate::translate::facts::requester(&row.by),
+            reason: crate::translate::facts::document_text(&row.reason, limits)?,
         },
         w::ProposalHistoryState::Withdrawn => c::ProposalHistoryState::Withdrawn,
     })
@@ -153,12 +154,12 @@ pub(crate) fn proposal_history_fields(
     limits: &Limits,
 ) -> Result<c::ProposalHistory, w::Problem> {
     Ok(c::ProposalHistory {
-        reason: crate::translate::facts::document_text(value.reason(), limits)?,
-        action: retained_action_fields(value.action(), limits)?,
-        number: value.number(),
-        proposer: value.proposer(),
-        as_holder: value.as_holder(),
-        state: proposal_history_state_fields(value.state(), limits)?,
+        reason: crate::translate::facts::document_text(&value.reason, limits)?,
+        action: retained_action_fields(&value.action, limits)?,
+        number: value.number,
+        proposer: value.proposer,
+        as_holder: value.as_holder,
+        state: proposal_history_state_fields(&value.state, limits)?,
     })
 }
 
@@ -166,59 +167,59 @@ pub(crate) fn amendment_state_fields(
     value: &w::AmendmentState,
     limits: &Limits,
 ) -> Result<c::AmendmentState, w::Problem> {
-    let opt0 = match value.addressed() {
+    let opt0 = match &value.addressed {
         Some(item) => Some(crate::translate::facts::person_address(item)),
         None => None,
     };
-    let opt1 = match value.taken_by() {
+    let opt1 = match &value.taken_by {
         Some(item) => Some(*item),
         None => None,
     };
-    let opt2 = match value.instructions() {
+    let opt2 = match &value.instructions {
         Some(item) => Some(crate::translate::facts::document_text(item, limits)?),
         None => None,
     };
-    if value.dependencies().len() > limits.client().rows {
+    if value.dependencies.len() > limits.client().rows {
         return Err(too_large());
     }
-    let mut list3 = List::with_capacity(value.dependencies().len());
-    for item in value.dependencies() {
+    let mut list3 = List::with_capacity(value.dependencies.len());
+    for item in &value.dependencies {
         list3.push(*item).expect("reserved supplied list");
     }
     Ok(c::AmendmentState {
         addressed: opt0,
         taken_by: opt1,
         instructions: opt2,
-        spec: specification_document_fields(value.spec(), limits)?,
-        authority: authority_document_fields(value.authority(), limits)?,
-        wake: crate::translate::facts::wake_policy(value.wake()),
+        spec: specification_document_fields(&value.spec, limits)?,
+        authority: authority_document_fields(&value.authority, limits)?,
+        wake: crate::translate::facts::wake_policy(&value.wake),
         dependencies: list3,
-        cut: value.cut(),
+        cut: value.cut,
     })
 }
 
 pub(crate) fn history_line_fields(value: &w::HistoryLine, limits: &Limits) -> Result<c::HistoryLine, w::Problem> {
-    let opt0 = match value.proposal() {
+    let opt0 = match &value.proposal {
         Some(item) => Some(proposal_history_fields(item, limits)?),
         None => None,
     };
-    let opt1 = match value.amendment() {
+    let opt1 = match &value.amendment {
         Some(item) => Some((
-            Box::new(amendment_state_fields(item.before(), limits)?),
-            Box::new(amendment_state_fields(item.after(), limits)?),
+            Box::new(amendment_state_fields(&item.before, limits)?),
+            Box::new(amendment_state_fields(&item.after, limits)?),
         )),
         None => None,
     };
-    let opt2 = match value.at() {
+    let opt2 = match &value.at {
         Some(item) => Some(Wall::from_nanos(*item)),
         None => None,
     };
     Ok(c::HistoryLine {
-        task: value.task(),
-        revision: value.revision(),
-        by: crate::translate::facts::requester(value.by()),
-        change: history_change_fields(value.change()),
-        reason: crate::translate::facts::document_text(value.reason(), limits)?,
+        task: value.task,
+        revision: value.revision,
+        by: crate::translate::facts::requester(&value.by),
+        change: history_change_fields(&value.change),
+        reason: crate::translate::facts::document_text(&value.reason, limits)?,
         proposal: opt0,
         amendment: opt1,
         at: opt2,
@@ -227,39 +228,39 @@ pub(crate) fn history_line_fields(value: &w::HistoryLine, limits: &Limits) -> Re
 
 pub(crate) fn attempt_line_fields(value: &w::AttemptLine) -> c::AttemptLine {
     c::AttemptLine {
-        task: value.task(),
-        attempt: value.attempt(),
-        claimed: match value.claimed() {
+        task: value.task,
+        attempt: value.attempt,
+        claimed: match &value.claimed {
             Some(at) => Some(Wall::from_nanos(*at)),
             None => None,
         },
-        started: match value.started() {
+        started: match &value.started {
             Some(at) => Some(Wall::from_nanos(*at)),
             None => None,
         },
-        ended: match value.ended() {
+        ended: match &value.ended {
             Some(at) => Some(Wall::from_nanos(*at)),
             None => None,
         },
-        end: match value.end() {
+        end: match &value.end {
             Some(end) => Some(super::run_end_fields(end)),
             None => None,
         },
-        phases: *value.phases(),
+        phases: value.phases,
     }
 }
 pub(crate) fn hold_line_fields(value: &w::HoldLine, limits: &Limits) -> Result<c::HoldLine, w::Problem> {
     Ok(c::HoldLine {
-        task: value.task(),
-        position: value.position(),
-        at: Wall::from_nanos(value.at()),
-        before: crate::translate::facts::prior_phase(value.before()),
-        why: crate::translate::answers::hold_category(value.why()),
-        source: match value.source() {
+        task: value.task,
+        position: value.position,
+        at: Wall::from_nanos(value.at),
+        before: crate::translate::facts::prior_phase(&value.before),
+        why: crate::translate::answers::hold_category(&value.why),
+        source: match &value.source {
             Some(part) => Some(crate::translate::facts::part(part)),
             None => None,
         },
-        ending: match value.ending() {
+        ending: match &value.ending {
             Some(item) => Some(chip_ending_fields(item, limits)?),
             None => None,
         },
@@ -267,9 +268,9 @@ pub(crate) fn hold_line_fields(value: &w::HoldLine, limits: &Limits) -> Result<c
 }
 pub(crate) fn history_row_fields(value: &w::HistoryRow, limits: &Limits) -> Result<c::HistoryRow, w::Problem> {
     Ok(match value {
-        w::HistoryRow::Change(row) => c::HistoryRow::Change(Box::new(history_line_fields(row.value(), limits)?)),
-        w::HistoryRow::Attempt(row) => c::HistoryRow::Attempt(Box::new(attempt_line_fields(row.value()))),
-        w::HistoryRow::Hold(row) => c::HistoryRow::Hold(Box::new(hold_line_fields(row.value(), limits)?)),
+        w::HistoryRow::Change(row) => c::HistoryRow::Change(Box::new(history_line_fields(&row.value, limits)?)),
+        w::HistoryRow::Attempt(row) => c::HistoryRow::Attempt(Box::new(attempt_line_fields(&row.value))),
+        w::HistoryRow::Hold(row) => c::HistoryRow::Hold(Box::new(hold_line_fields(&row.value, limits)?)),
     })
 }
 
@@ -289,17 +290,17 @@ pub(crate) fn history_row_piece(bytes: &[u8], limits: &Limits, bound: u32) -> Re
 }
 
 pub(crate) fn history_page_fields(value: &w::HistoryPage, limits: &Limits) -> Result<c::HistoryPage, w::Problem> {
-    let opt0 = match value.before() {
+    let opt0 = match &value.before {
         Some(item) => Some(cursor_fields(item, limits)?),
         None => None,
     };
-    let opt1 = match value.after() {
+    let opt1 = match &value.after {
         Some(item) => Some(cursor_fields(item, limits)?),
         None => None,
     };
     Ok(c::HistoryPage {
-        cut: value.cut(),
-        rows: history_row_piece(value.rows(), limits, limits.client().rows)?,
+        cut: value.cut,
+        rows: history_row_piece(&value.rows, limits, limits.client().rows)?,
         before: opt0,
         after: opt1,
     })

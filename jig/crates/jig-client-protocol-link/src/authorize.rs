@@ -1,4 +1,5 @@
 //! One authorization in flight; no retained request (protocol/client/openid.md).
+use jig_client_protocol_wire::Record as _;
 use crate::{
     AuthorizeWhy, Authorized, Link, Message, Request,
     component::{Attempt, ExchangeKind},
@@ -6,7 +7,7 @@ use crate::{
 use alloc::boxed::Box;
 use jig_client_protocol_wire as w;
 use jig_client_protocol_wire::VERSION;
-use skein_lib::{Queue, Reader, Writer};
+use skein_lib::{Queue, Reader};
 impl Link {
     pub(super) fn authorize(&mut self, query: Box<[u8]>, out: &mut Queue<Request>) {
         for (_, attempt) in &self.attempts {
@@ -26,7 +27,7 @@ impl Link {
                 | ExchangeKind::WatchClose { .. } => {}
             }
         }
-        let Ok(record) = w::Authorize::new(self.limits.wire(), w::AuthorizeParts { query }) else {
+        let Ok(record) = (w::Authorize { query }).encode(self.limits.wire()) else {
             out.push(Request::Authorized(Authorized::Lost));
             return;
         };
@@ -47,16 +48,14 @@ impl Link {
                 },
             )
             .expect("checked exchange capacity");
-        let mut writer = Writer::new(skein_lib::length::usize_of(record.measure()));
-        record.encode(&mut writer).expect("measured authorization");
-        self.exchange(exchange, Message::Authorize(writer.finish()), out);
+        self.exchange(exchange, Message::Authorize(record), out);
     }
     pub(super) fn authorized(&self, body: &[u8], out: &mut Queue<Request>) {
         let mut reader = Reader::new(body);
         let answer = match w::AuthorizeAnswer::decode(self.limits.wire(), &mut reader) {
             Ok(answer) if reader.is_empty() => match answer {
-                w::AuthorizeAnswer::Go(go) => Authorized::Go { location: go.into_parts().location },
-                w::AuthorizeAnswer::Refused(refused) => Authorized::Refused(match refused.why() {
+                w::AuthorizeAnswer::Go(go) => Authorized::Go { location: go.location },
+                w::AuthorizeAnswer::Refused(refused) => Authorized::Refused(match &refused.why {
                     w::AuthorizeWhy::Malformed => AuthorizeWhy::Malformed,
                     w::AuthorizeWhy::UnknownClient => AuthorizeWhy::UnknownClient,
                     w::AuthorizeWhy::UnknownRedirect => AuthorizeWhy::UnknownRedirect,

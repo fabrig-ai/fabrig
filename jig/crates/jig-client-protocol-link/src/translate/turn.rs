@@ -77,16 +77,16 @@ pub(crate) fn inspect(
 }
 
 pub(crate) fn archive(record: w::ArchivedTurn, limits: &Limits) -> Result<c::ArchivedTurn, Undecodable> {
-    let w::TurnBytes::Carried(carried) = record.turn() else { return Err(Undecodable::TooLarge) };
-    let c::TurnRead::Decoded(turn) = decode(carried.bytes(), limits.turn_read(), true) else {
+    let w::TurnBytes::Carried(carried) = &record.turn else { return Err(Undecodable::TooLarge) };
+    let c::TurnRead::Decoded(turn) = decode(&carried.bytes, limits.turn_read(), true) else {
         return Err(Undecodable::Malformed);
     };
     Ok(c::ArchivedTurn {
-        task: record.task(),
-        name: c::TurnName { attempt: record.name().attempt(), number: record.name().number() },
-        cumulative: record.cumulative(),
-        read: *record.read(),
-        at: Wall::from_nanos(record.at()),
+        task: record.task,
+        name: c::TurnName { attempt: record.name.attempt, number: record.name.number },
+        cumulative: record.cumulative,
+        read: record.read,
+        at: Wall::from_nanos(record.at),
         turn: c::TurnRead::Decoded(turn),
     })
 }

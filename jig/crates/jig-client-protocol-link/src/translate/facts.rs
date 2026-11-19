@@ -1,4 +1,5 @@
 //! Field-for-field client contract translation (protocol/client/wire.md, 1, and protocol/client/README.md, 3).
+use jig_client_protocol_wire::Record as _;
 use crate::Limits;
 use crate::translate::{piece_problem, too_large};
 use alloc::boxed::Box;
@@ -116,7 +117,7 @@ fn take_ending(index: u32, parent: u32, children: &mut Map<u32, Child>) -> Resul
     }
 }
 pub(crate) fn ending(value: &w::Ending, limits: &Limits) -> Result<c::Ending, w::Problem> {
-    let root = decode(value.rows(), limits)?;
+    let root = decode(&value.rows, limits)?;
     match root {
         Node::Ending(value) => Ok(*value),
         Node::Chip(_)
@@ -130,7 +131,7 @@ pub(crate) fn ending(value: &w::Ending, limits: &Limits) -> Result<c::Ending, w:
     }
 }
 pub(crate) fn hold_reason(value: &w::HoldReason, limits: &Limits) -> Result<c::HoldReason, w::Problem> {
-    let root = decode(value.rows(), limits)?;
+    let root = decode(&value.rows, limits)?;
     match root {
         Node::HoldReason(value) => Ok(*value),
         Node::Chip(_)
@@ -227,36 +228,36 @@ pub(crate) fn decode(bytes: &[u8], limits: &Limits) -> Result<Node, w::Problem> 
         let row = rows.remove(&index).expect("fact row exists");
         let (parent, value) = match row {
             w::Fact::Chip(row) => {
-                (*row.parent(), Node::Chip(Box::new(chip_fields(row.value(), limits, index, &mut children)?)))
+                (row.parent, Node::Chip(Box::new(chip_fields(&row.value, limits, index, &mut children)?)))
             }
             w::Fact::ChipPhase(row) => {
-                (*row.parent(), Node::ChipPhaseFacts(Box::new(chip_phase_fields(row.value(), index, &mut children)?)))
+                (row.parent, Node::ChipPhaseFacts(Box::new(chip_phase_fields(&row.value, index, &mut children)?)))
             }
             w::Fact::Closing(row) => {
-                (*row.parent(), Node::Closing(Box::new(closing_fields(row.value(), index, &mut children)?)))
+                (row.parent, Node::Closing(Box::new(closing_fields(&row.value, index, &mut children)?)))
             }
             w::Fact::Ending(row) => {
-                (*row.parent(), Node::Ending(Box::new(ending_fields(row.value(), limits, index, &mut children)?)))
+                (row.parent, Node::Ending(Box::new(ending_fields(&row.value, limits, index, &mut children)?)))
             }
             w::Fact::HeldRuntime(row) => (
-                *row.parent(),
-                Node::HeldRuntime(Box::new(held_runtime_fields(row.value(), limits, index, &mut children)?)),
+                row.parent,
+                Node::HeldRuntime(Box::new(held_runtime_fields(&row.value, limits, index, &mut children)?)),
             ),
             w::Fact::HoldReason(row) => (
-                *row.parent(),
-                Node::HoldReason(Box::new(hold_reason_fields(row.value(), limits, index, &mut children)?)),
+                row.parent,
+                Node::HoldReason(Box::new(hold_reason_fields(&row.value, limits, index, &mut children)?)),
             ),
             w::Fact::ChipDetails(row) => (
-                *row.parent(),
-                Node::ChipDetails(Box::new(chip_details_fields(row.value(), limits, index, &mut children)?)),
+                row.parent,
+                Node::ChipDetails(Box::new(chip_details_fields(&row.value, limits, index, &mut children)?)),
             ),
             w::Fact::ChipEnding(row) => (
-                *row.parent(),
-                Node::ChipEnding(Box::new(chip_ending_fields(row.value(), limits, index, &mut children)?)),
+                row.parent,
+                Node::ChipEnding(Box::new(chip_ending_fields(&row.value, limits, index, &mut children)?)),
             ),
             w::Fact::ResultValue(row) => (
-                *row.parent(),
-                Node::ResultValue(Box::new(result_value_fields(row.value(), limits, index, &mut children)?)),
+                row.parent,
+                Node::ResultValue(Box::new(result_value_fields(&row.value, limits, index, &mut children)?)),
             ),
         };
         if index == 0 {

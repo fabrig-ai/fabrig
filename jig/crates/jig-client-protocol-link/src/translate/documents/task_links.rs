@@ -1,4 +1,5 @@
 //! Field-for-field document values (client/domain/contract/documents.md and client/domain/contract/README.md, 4–5).
+use jig_client_protocol_wire::Record as _;
 use super::{Limits, List, Reader, Wall, c, chip_fields, too_large, w};
 
 pub(crate) fn task_status_fields(value: &w::TaskStatus) -> c::TaskStatus {
@@ -11,20 +12,20 @@ pub(crate) fn task_status_fields(value: &w::TaskStatus) -> c::TaskStatus {
 
 pub(crate) fn task_link_fields(value: &w::TaskLink, limits: &Limits) -> Result<c::TaskLink, w::Problem> {
     Ok(match value {
-        w::TaskLink::Live(row) => c::TaskLink::Live(chip_fields(row.value(), limits)?),
+        w::TaskLink::Live(row) => c::TaskLink::Live(chip_fields(&row.value, limits)?),
         w::TaskLink::Retained(row) => {
-            let opt0 = match row.at() {
+            let opt0 = match &row.at {
                 Some(item) => Some(Wall::from_nanos(*item)),
                 None => None,
             };
-            c::TaskLink::Retained { chip: chip_fields(row.chip(), limits)?, at: opt0 }
+            c::TaskLink::Retained { chip: chip_fields(&row.chip, limits)?, at: opt0 }
         }
         w::TaskLink::Stored(row) => {
-            let opt0 = match row.status() {
+            let opt0 = match &row.status {
                 Some(item) => Some(task_status_fields(item)),
                 None => None,
             };
-            c::TaskLink::Stored { number: row.number(), status: opt0 }
+            c::TaskLink::Stored { number: row.number, status: opt0 }
         }
     })
 }
@@ -47,31 +48,31 @@ pub(crate) fn task_link_piece(bytes: &[u8], limits: &Limits, bound: u32) -> Resu
 pub(crate) fn subscription_kind_fields(value: &w::SubscriptionKind) -> c::SubscriptionKind {
     match value {
         w::SubscriptionKind::Task(row) => {
-            c::SubscriptionKind::Task { target: row.target(), held: row.held(), result: row.result() }
+            c::SubscriptionKind::Task { target: row.target, held: row.held, result: row.result }
         }
         w::SubscriptionKind::Timer(row) => {
-            let opt0 = match row.period() {
+            let opt0 = match &row.period {
                 Some(item) => Some(*item),
                 None => None,
             };
-            c::SubscriptionKind::Timer { at: Wall::from_nanos(row.at()), period: opt0 }
+            c::SubscriptionKind::Timer { at: Wall::from_nanos(row.at), period: opt0 }
         }
         w::SubscriptionKind::Topic(row) => {
-            c::SubscriptionKind::Topic { connector: row.connector(), topic: row.topic() }
+            c::SubscriptionKind::Topic { connector: row.connector, topic: row.topic }
         }
     }
 }
 
 pub(crate) fn subscription_fields(value: &w::Subscription) -> c::Subscription {
-    c::Subscription { number: value.number(), kind: subscription_kind_fields(value.kind()) }
+    c::Subscription { number: value.number, kind: subscription_kind_fields(&value.kind) }
 }
 
 pub(crate) fn subscriptions_fields(value: &w::Subscriptions, limits: &Limits) -> Result<c::Subscriptions, w::Problem> {
-    if value.entries().len() > limits.client().rows {
+    if value.entries.len() > limits.client().rows {
         return Err(too_large());
     }
-    let mut list0 = List::with_capacity(value.entries().len());
-    for item in value.entries() {
+    let mut list0 = List::with_capacity(value.entries.len());
+    for item in &value.entries {
         list0.push(subscription_fields(item)).expect("reserved supplied list");
     }
     Ok(c::Subscriptions { entries: list0 })
@@ -97,7 +98,7 @@ pub(crate) fn task_resource_piece(
 }
 
 pub(crate) fn live_delegate_fields(value: &w::LiveDelegate, limits: &Limits) -> Result<c::LiveDelegate, w::Problem> {
-    Ok(c::LiveDelegate { chip: chip_fields(value.chip(), limits)?, takeover_budget: value.takeover_budget() })
+    Ok(c::LiveDelegate { chip: chip_fields(&value.chip, limits)?, takeover_budget: value.takeover_budget })
 }
 
 pub(crate) fn live_delegate_piece(

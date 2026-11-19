@@ -44,32 +44,32 @@ fn one_more_entry_is_refused_by_each_public_list_limit() {
     .expect("one more within schema ceilings");
     let projects = fixtures::projects(&more, more.public_projects_projects);
     assert_eq!(
-        w::PublicProjects::new(&limits, projects.into_parts()).expect_err("extra project"),
-        w::Problem { path: w::Path::PublicProjectsProjects, reason: skein_codec::Reason::Bound }
+        Ok(projects).expect_err("extra project"),
+        w::Problem { path: w::paths::PUBLIC_PROJECTS_PROJECTS, reason: skein_codec::Reason::Bound }
     );
     for (live, ended, path) in [
-        (more.public_board_live, limits.public_board_ended, w::Path::PublicBoardLive),
-        (limits.public_board_live, more.public_board_ended, w::Path::PublicBoardEnded),
+        (more.public_board_live, limits.public_board_ended, w::paths::PUBLIC_BOARD_LIVE),
+        (limits.public_board_live, more.public_board_ended, w::paths::PUBLIC_BOARD_ENDED),
     ] {
         let board_limits = w::Limits { public_goal_tree: limits.public_goal_tree, ..more };
         let board = fixtures::board(&board_limits, live, ended);
         assert_eq!(
-            w::PublicBoard::new(&limits, board.into_parts()).expect_err("extra goal"),
+            Ok(board).expect_err("extra goal"),
             w::Problem { path, reason: skein_codec::Reason::Bound }
         );
     }
     let goal = fixtures::goal(&more);
     assert_eq!(
-        w::PublicGoal::new(&limits, goal.into_parts()).expect_err("extra tree line"),
-        w::Problem { path: w::Path::PublicGoalTree, reason: skein_codec::Reason::Bound }
+        Ok(goal).expect_err("extra tree line"),
+        w::Problem { path: w::paths::PUBLIC_GOAL_TREE, reason: skein_codec::Reason::Bound }
     );
     for (lineage, delegates, path) in [
-        (more.public_card_lineage, limits.public_card_delegates, w::Path::PublicCardLineage),
-        (limits.public_card_lineage, more.public_card_delegates, w::Path::PublicCardDelegates),
+        (more.public_card_lineage, limits.public_card_delegates, w::paths::PUBLIC_CARD_LINEAGE),
+        (limits.public_card_lineage, more.public_card_delegates, w::paths::PUBLIC_CARD_DELEGATES),
     ] {
         let card = fixtures::card(&more, lineage, delegates);
         assert_eq!(
-            w::PublicCard::new(&limits, card.into_parts()).expect_err("extra card entry"),
+            Ok(card).expect_err("extra card entry"),
             w::Problem { path, reason: skein_codec::Reason::Bound }
         );
     }

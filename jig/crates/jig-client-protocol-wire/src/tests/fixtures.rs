@@ -36,43 +36,37 @@ pub fn ceiling_text(n: u32) -> Box<[u8]> {
 
 pub fn message() -> Message {
     let limits = limits();
-    Message::new(&limits, MessageParts { project: 17, task: 19, words: ceiling_text(limits.message_words) })
-        .expect("bounded message")
+    Message { project: 17, task: 19, words: ceiling_text(limits.message_words) }
 }
 
 pub fn refused_moved() -> Refused {
     let limits = limits();
-    let how = EndingTaskFields::new(&limits, EndingTaskFieldsParts { value: 2 }).expect("ending index");
-    let reason = HoldReasonDependencyFields::new(&limits, HoldReasonDependencyFieldsParts { task: 31, how: 1 })
-        .expect("dependency index");
-    let words = DocumentText::new(&limits, DocumentTextParts { bytes: Box::from(b"failed".as_slice()), cut: true })
-        .expect("bounded failure words");
+    let how = EndingTaskFields { value: 2 };
+    let reason = HoldReasonDependencyFields { task: 31, how: 1 };
+    let words = DocumentText { bytes: Box::from(b"failed".as_slice()), cut: true };
     let failed =
-        ChipEndingFailedFields::new(&limits, ChipEndingFailedFieldsParts { value: words }).expect("complete failure");
+        ChipEndingFailedFields { value: words };
     let mut rows = List::with_capacity(3);
     rows.push(Fact::HoldReason(
-        HoldReasonRow::new(&limits, HoldReasonRowParts { parent: None, value: HoldReasonFields::Dependency(reason) })
-            .expect("root fact"),
+        HoldReasonRow { parent: None, value: HoldReasonFields::Dependency(reason) },
     ))
     .expect("three rows");
     rows.push(Fact::Ending(
-        EndingRow::new(&limits, EndingRowParts { parent: Some(0), value: EndingFields::Task(how) })
-            .expect("ending fact"),
+        EndingRow { parent: Some(0), value: EndingFields::Task(how) },
     ))
     .expect("three rows");
     rows.push(Fact::ChipEnding(
-        ChipEndingRow::new(&limits, ChipEndingRowParts { parent: Some(1), value: ChipEndingFields::Failed(failed) })
-            .expect("failure fact"),
+        ChipEndingRow { parent: Some(1), value: ChipEndingFields::Failed(failed) },
     ))
     .expect("three rows");
     let rows = piece_items(&rows, Fact::measure, Fact::encode);
-    let reason = HoldReason::new(&limits, HoldReasonParts { rows }).expect("flattened reason");
-    let reason = CurrentHoldDocument::new(&limits, CurrentHoldDocumentParts { value: reason }).expect("current hold");
+    let reason = HoldReason { rows };
+    let reason = CurrentHoldDocument { value: reason };
     let what =
-        MovedHold::new(&limits, MovedHoldParts { reason: Some(CurrentHold::Document(reason)) }).expect("moved hold");
-    let now = Revision::new(&limits, RevisionParts { value: u64::MAX }).expect("whole revision");
-    let moved = RefusalMoved::new(&limits, RefusalMovedParts { now, what: Moved::Hold(what) }).expect("refusal facts");
-    Refused::new(&limits, RefusedParts { at: None, refusal: Refusal::Moved(moved) }).expect("complete refusal")
+        MovedHold { reason: Some(CurrentHold::Document(reason)) };
+    let now = Revision { value: u64::MAX };
+    let moved = RefusalMoved { now, what: Moved::Hold(what) };
+    Refused { at: None, refusal: Refusal::Moved(moved) }
 }
 
 pub fn encoded<T>(value: &T, measure: fn(&T) -> u32, encode: fn(&T, &mut Writer) -> Result<(), Overflow>) -> Box<[u8]> {
@@ -87,13 +81,12 @@ pub fn message_bytes() -> Box<[u8]> {
 
 pub fn owned() -> Owned {
     let limits = limits();
-    let family = Family::new(&limits, FamilyParts { number: u16::MAX }).expect("whole family number");
-    Owned::new(&limits, OwnedParts { owner: Owner::Family(family), version: u32::MAX, record: message_bytes() })
-        .expect("whole owner's version")
+    let family = Family { number: u16::MAX };
+    Owned { owner: Owner::Family(family), version: u32::MAX, record: message_bytes() }
 }
 
 pub fn read_none(none: ReadNone) -> ReadAnswerNone {
-    ReadAnswerNone::new(&limits(), ReadAnswerNoneParts { value: none }).expect("wire read outcome")
+    ReadAnswerNone { value: none }
 }
 
 pub fn encoded_batch_members(members: &List<Member>) -> Box<[u8]> {
@@ -112,23 +105,18 @@ pub fn encoded_batch_members(members: &List<Member>) -> Box<[u8]> {
 pub fn funding_rows(count: u32) -> List<FundingRecord> {
     let limits = limits();
     let period =
-        PeriodTimes::new(&limits, PeriodTimesParts { began: u64::MAX, next: None }).expect("optional next period");
-    let numbers = Numbers::new(&limits, NumbersParts { budget: u64::MAX, spent: 11, spent_below: 17, reserved: 23 })
-        .expect("owner funding numbers");
+        PeriodTimes { began: u64::MAX, next: None };
+    let numbers = Numbers { budget: u64::MAX, spent: 11, spent_below: 17, reserved: 23 };
     let source =
-        FunderPeriod::new(&limits, FunderPeriodParts { project: 17, period: u64::MAX }).expect("whole period identity");
-    let row = FundingRecord::new(
-        &limits,
-        FundingRecordParts {
+        FunderPeriod { project: 17, period: u64::MAX };
+    let row = FundingRecord {
             period: Some(period),
             funder: Funder::Period(source),
             parent: None,
             numbers,
             made: u32::MAX,
             closed: true,
-        },
-    )
-    .expect("whole funding row");
+        };
     let mut rows = List::with_capacity(count);
     for _ in 0..count {
         rows.push(row.clone()).expect("reserved funding rows");
@@ -156,37 +144,24 @@ pub fn piece_items<T>(
 
 pub fn activity_line(turn: Box<[u8]>) -> DecodedActivityLine {
     let limits = limits();
-    let name = TurnName::new(&limits, TurnNameParts { attempt: u64::MAX, number: u32::MAX }).expect("turn name");
-    let source = ActivityLine::new(
-        &limits,
-        ActivityLineParts {
+    let name = TurnName { attempt: u64::MAX, number: u32::MAX };
+    let source = ActivityLine {
             task: u64::MAX,
             position: u64::MAX,
             at: u64::MAX,
             line: Activity::Turn(
-                ActivityTurn::new(
-                    &limits,
-                    ActivityTurnParts { reply: 0, attempt: u64::MAX, turn: u32::MAX, read: None },
-                )
-                .expect("turn source"),
+                ActivityTurn { reply: 0, attempt: u64::MAX, turn: u32::MAX, read: None },
             ),
-        },
-    )
-    .expect("activity source");
-    let decoded = ArchivedTurn::new(
-        &limits,
-        ArchivedTurnParts {
+        };
+    let decoded = ArchivedTurn {
             task: u64::MAX,
             name,
             cumulative: 0,
             read: None,
             at: u64::MAX,
-            turn: TurnBytes::Carried(TurnCarried::new(&limits, TurnCarriedParts { bytes: turn }).expect("turn bytes")),
-        },
-    )
-    .expect("archive");
-    DecodedActivityLine::new(&limits, DecodedActivityLineParts { source, decoded: Some(decoded) })
-        .expect("activity line")
+            turn: TurnBytes::Carried(TurnCarried { bytes: turn }),
+        };
+    DecodedActivityLine { source, decoded: Some(decoded) }
 }
 
 pub fn activity_rows(count: u32, width: u32) -> List<DecodedActivityLine> {
@@ -199,8 +174,7 @@ pub fn activity_rows(count: u32, width: u32) -> List<DecodedActivityLine> {
 }
 
 pub fn activity_page(limits: &Limits, rows: Box<[u8]>) -> ActivityPage {
-    ActivityPage::new(limits, ActivityPageParts { cut: true, rows, before: None, after: None })
-        .expect("page within its piece bound")
+    ActivityPage { cut: true, rows, before: None, after: None }
 }
 
 pub fn encoded_activity_page(limits: &Limits, rows: &List<DecodedActivityLine>) -> Box<[u8]> {
@@ -214,7 +188,7 @@ fn next_activity_row(
 ) -> Result<Option<DecodedActivityLine>, Problem> {
     let bytes = match skein_codec::piece::split(reader) {
         Ok(bytes) => bytes,
-        Err(reason) => return Err(Problem { path: Path::ActivityPageRows, reason }),
+        Err(reason) => return Err(Problem { path: paths::ACTIVITY_PAGE_ROWS, reason }),
     };
     let Some(bytes) = bytes else { return Ok(None) };
     let row = DecodedActivityLine::decode(limits, &mut skein_lib::Reader::new(&bytes))?;
@@ -231,7 +205,7 @@ pub fn decode_activity_page(
     let mut rows = List::with_capacity(row_limit);
     while let Some(row) = next_activity_row(limits, &mut reader)? {
         if rows.push(row).is_err() {
-            return Err(Problem { path: Path::ActivityPageRows, reason: skein_codec::Reason::Bound });
+            return Err(Problem { path: paths::ACTIVITY_PAGE_ROWS, reason: skein_codec::Reason::Bound });
         }
     }
     Ok(rows)
@@ -264,36 +238,28 @@ pub fn repeated<T: Clone + core::fmt::Debug>(value: T, count: u32) -> List<T> {
 }
 
 pub fn document_text(limits: &Limits) -> DocumentText {
-    DocumentText::new(limits, DocumentTextParts { bytes: ceiling_text(limits.document_text_bytes), cut: true })
-        .expect("bounded document_text")
+    DocumentText { bytes: ceiling_text(limits.document_text_bytes), cut: true }
 }
 
 pub fn numbers(limits: &Limits) -> Numbers {
-    Numbers::new(limits, NumbersParts { budget: u64::MAX, spent: 11, spent_below: 17, reserved: 23 })
-        .expect("bounded numbers")
+    Numbers { budget: u64::MAX, spent: 11, spent_below: 17, reserved: 23 }
 }
 
 pub fn funder_period(limits: &Limits) -> FunderPeriod {
-    FunderPeriod::new(limits, FunderPeriodParts { project: u32::MAX, period: u64::MAX }).expect("bounded funder_period")
+    FunderPeriod { project: u32::MAX, period: u64::MAX }
 }
 
 pub fn budget(limits: &Limits) -> Budget {
-    Budget::new(
-        limits,
-        BudgetParts {
+    Budget {
             numbers: numbers(limits),
             left: u64::MAX,
             funder: Funder::Period(funder_period(limits)),
             deadline: Some(u64::MAX),
-        },
-    )
-    .expect("bounded budget")
+        }
 }
 
 pub fn pool_ledger(limits: &Limits) -> PoolLedger {
-    PoolLedger::new(
-        limits,
-        PoolLedgerParts {
+    PoolLedger {
             source: Funder::Period(funder_period(limits)),
             parent: Some(Funder::Task(funder_task(limits))),
             numbers: numbers(limits),
@@ -301,23 +267,19 @@ pub fn pool_ledger(limits: &Limits) -> PoolLedger {
             closed: true,
             began: Some(u64::MAX),
             next: None,
-        },
-    )
-    .expect("bounded pool_ledger")
+        }
 }
 
 pub fn funder_task(limits: &Limits) -> FunderTask {
-    FunderTask::new(limits, FunderTaskParts { value: u64::MAX }).expect("bounded funder_task")
+    FunderTask { value: u64::MAX }
 }
 
 pub fn held_role_policy(limits: &Limits) -> HeldRolePolicy {
-    HeldRolePolicy::new(limits, HeldRolePolicyParts { role: u32::MAX }).expect("bounded held_role_policy")
+    HeldRolePolicy { role: u32::MAX }
 }
 
 pub fn project_role(limits: &Limits) -> MeProject {
-    MeProject::new(
-        limits,
-        MeProjectParts {
+    MeProject {
             left_out: 0,
             defaults: List::with_capacity(0),
             public: None,
@@ -328,89 +290,66 @@ pub fn project_role(limits: &Limits) -> MeProject {
             name: document_text(limits),
             role: HeldRole::Policy(held_role_policy(limits)),
             pool: Some(pool_ledger(limits)),
-        },
-    )
-    .expect("bounded project_role")
+        }
 }
 
 pub fn frame_party(limits: &Limits) -> MeParty {
-    MeParty::new(
-        limits,
-        MePartyParts {
+    MeParty {
             number: u64::MAX,
             kind: PartyKind::Service,
             login: document_text(limits),
             name: document_text(limits),
-        },
-    )
-    .expect("bounded frame_party")
+        }
 }
 
 pub fn needs(limits: &Limits) -> Needs {
-    Needs::new(
-        limits,
-        NeedsParts { questions: u32::MAX, proposals: u32::MAX, escalations: u32::MAX, person_tasks: u32::MAX },
-    )
-    .expect("bounded needs")
+    Needs { questions: u32::MAX, proposals: u32::MAX, escalations: u32::MAX, person_tasks: u32::MAX }
 }
 
 pub fn count(limits: &Limits) -> Count {
-    Count::new(limits, CountParts { value: u32::MAX, limited: true }).expect("bounded count")
+    Count { value: u32::MAX, limited: true }
 }
 
 pub fn run_state(limits: &Limits) -> RunState {
-    RunState::new(
-        limits,
-        RunStateParts { task: u64::MAX, attempt: Some(u64::MAX), committed_turn: u32::MAX, writing: None, call: None },
-    )
-    .expect("bounded run_state")
+    RunState { task: u64::MAX, attempt: Some(u64::MAX), committed_turn: u32::MAX, writing: None, call: None }
 }
 
 pub fn revision(limits: &Limits) -> Revision {
-    Revision::new(limits, RevisionParts { value: u64::MAX }).expect("bounded revision")
+    Revision { value: u64::MAX }
 }
 
 pub fn wake_rule_batch(limits: &Limits) -> WakeRuleBatch {
-    WakeRuleBatch::new(limits, WakeRuleBatchParts { count: u32::MAX, age: skein_lib::Duration::from_nanos(u64::MAX) })
-        .expect("bounded wake_rule_batch")
+    WakeRuleBatch { count: u32::MAX, age: skein_lib::Duration::from_nanos(u64::MAX) }
 }
 
 pub fn wake_policy(limits: &Limits) -> WakePolicy {
-    WakePolicy::new(
-        limits,
-        WakePolicyParts {
+    WakePolicy {
             words: WakeRule::Batch(wake_rule_batch(limits)),
             notices: WakeRule::Immediate,
             news: WakeRule::Paced(
-                WakeRulePaced::new(limits, WakeRulePacedParts { span: skein_lib::Duration::from_nanos(u64::MAX) })
-                    .expect("bounded wake pace"),
+                WakeRulePaced { span: skein_lib::Duration::from_nanos(u64::MAX) },
             ),
             results: ResultsWake::LastOrFailure,
             questions: true,
             answers: false,
             timers: true,
-        },
-    )
-    .expect("bounded wake_policy")
+        }
 }
 
 pub fn chip_executor_agent(limits: &Limits) -> ChipExecutorAgent {
-    ChipExecutorAgent::new(limits, ChipExecutorAgentParts { charter: u32::MAX }).expect("bounded executor_agent")
+    ChipExecutorAgent { charter: u32::MAX }
 }
 
 pub fn chip_phase_owner_fields(limits: &Limits) -> ChipPhaseOwnerFields {
-    ChipPhaseOwnerFields::new(limits, ChipPhaseOwnerFieldsParts { phase: ChipPhase::Ended, details: 2 })
-        .expect("bounded chip_phase_owner_fields")
+    ChipPhaseOwnerFields { phase: ChipPhase::Ended, details: 2 }
 }
 
 pub fn executor_agent(limits: &Limits) -> ExecutorAgent {
-    ExecutorAgent::new(limits, ExecutorAgentParts { charter: u32::MAX }).expect("bounded executor_agent")
+    ExecutorAgent { charter: u32::MAX }
 }
 
 pub fn chip_details_fields(limits: &Limits) -> ChipDetailsFields {
-    ChipDetailsFields::new(
-        limits,
-        ChipDetailsFieldsParts {
+    ChipDetailsFields {
             dependencies: List::with_capacity(0),
             project: u32::MAX,
             executor: Executor::Agent(executor_agent(limits)),
@@ -432,15 +371,11 @@ pub fn chip_details_fields(limits: &Limits) -> ChipDetailsFields {
             ending: None,
             ended_at: None,
             observation: None,
-        },
-    )
-    .expect("bounded chip_details_fields")
+        }
 }
 
 pub fn frame_at_ceilings(limits: &Limits) -> Me {
-    Me::new(
-        limits,
-        MeParts {
+    Me {
             providers: Box::new([]),
             providers_cut: false,
             key_bytes: 256,
@@ -455,14 +390,12 @@ pub fn frame_at_ceilings(limits: &Limits) -> Me {
             cut: true,
             retention: skein_lib::Duration::from_nanos(u64::MAX),
             deployment_role: Some(HeldRole::Owner),
-        },
-    )
-    .expect("frame at configured ceilings")
+        }
 }
 
 pub fn chip(limits: &Limits, rows: &List<Fact>) -> Chip {
     let rows = piece_items(rows, Fact::measure, Fact::encode);
-    Chip::new(limits, ChipParts { rows }).expect("whole chip piece")
+    Chip { rows }
 }
 
 pub fn decode_chip_facts(limits: &Limits, bytes: &[u8]) -> List<Fact> {
@@ -480,9 +413,9 @@ pub fn not_served() -> NotServed {
     let lim = limits();
     let mut served = List::with_capacity(1);
     served
-        .push(Served::new(&lim, ServedParts { owner: Owner::Jig, first: 28, last: 28 }).expect("range"))
+        .push(Served { owner: Owner::Jig, first: 28, last: 28 })
         .expect("range slot");
-    NotServed::new(&lim, NotServedParts { owner: Owner::Jig, served }).expect("version refusal")
+    NotServed { owner: Owner::Jig, served }
 }
 mod operations;
 pub use operations::merged_targets;
@@ -498,33 +431,24 @@ pub fn chip_phases(limits: &Limits) -> [ChipPhaseOwnerFields; 1] {
 pub fn chip_facts(limits: &Limits, phase: ChipPhaseOwnerFields) -> List<Fact> {
     let mut rows = List::with_capacity(3);
     rows.push(Fact::Chip(
-        ChipRow::new(
-            limits,
-            ChipRowParts {
+        ChipRow {
                 parent: None,
-                value: ChipFields::new(
-                    limits,
-                    ChipFieldsParts {
+                value: ChipFields {
                         task: u64::MAX,
                         title: document_text(limits),
                         executor: ChipExecutor::Agent(chip_executor_agent(limits)),
                         phase: Phase::Ended,
                         details: 1,
                     },
-                )
-                .expect("chip fields"),
             },
-        )
-        .expect("chip row"),
     ))
     .expect("root row");
     rows.push(Fact::ChipPhase(
-        ChipPhaseRow::new(limits, ChipPhaseRowParts { parent: Some(0), value: phase }).expect("phase row"),
+        ChipPhaseRow { parent: Some(0), value: phase },
     ))
     .expect("phase");
     rows.push(Fact::ChipDetails(Box::new(
-        ChipDetailsRow::new(limits, ChipDetailsRowParts { parent: Some(1), value: chip_details_fields(limits) })
-            .expect("owner row"),
+        ChipDetailsRow { parent: Some(1), value: chip_details_fields(limits) },
     )))
     .expect("details");
     rows

@@ -21,13 +21,13 @@ pub enum Undecodable {
     Version,
 }
 pub(crate) fn too_large() -> w::Problem {
-    w::Problem { path: w::Path::OwnedRecord, reason: skein_codec::Reason::Bound }
+    w::Problem { path: w::paths::OWNED_RECORD, reason: skein_codec::Reason::Bound }
 }
 pub(crate) fn text_problem() -> w::Problem {
     too_large()
 }
 pub(crate) fn piece_problem(reason: skein_codec::Reason) -> w::Problem {
-    w::Problem { path: w::Path::OwnedRecord, reason }
+    w::Problem { path: w::paths::OWNED_RECORD, reason }
 }
 /// Splits framing while retaining its codec reason (skein/docs/design/data/codec/README.md, 3).
 pub(crate) fn piece(reader: &mut Reader<'_>) -> Result<Option<Box<[u8]>>, w::Problem> {

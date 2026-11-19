@@ -1,29 +1,28 @@
 //! Family scopes and windows outside the application's opaque records (client/domain/contract/README.md, 5.5).
+use jig_client_protocol_wire::Record as _;
 use alloc::boxed::Box;
 use jig_client_domain::{Family, contract as c};
 use jig_client_protocol_wire as w;
 use skein_lib::{Reader, Writer, bytes};
-pub(crate) fn scope(value: c::Scope, limits: &w::Limits) -> Result<w::Scope, w::Problem> {
+#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
+pub(crate) fn scope(value: c::Scope, _limits: &w::Limits) -> Result<w::Scope, w::Problem> {
     Ok(match value {
-        c::Scope::Project(value) => w::Scope::Project(w::ScopeProject::new(limits, w::ScopeProjectParts { value })?),
+        c::Scope::Project(value) => w::Scope::Project(w::ScopeProject { value }),
         c::Scope::Deployment => w::Scope::Deployment,
         c::Scope::Own => w::Scope::Own,
     })
 }
 pub(crate) fn read_scope(value: &w::Scope) -> c::Scope {
     match value {
-        w::Scope::Project(value) => c::Scope::Project(value.value()),
+        w::Scope::Project(value) => c::Scope::Project(value.value),
         w::Scope::Deployment => c::Scope::Deployment,
         w::Scope::Own => c::Scope::Own,
     }
 }
 pub(crate) fn request(scope_value: c::Scope, record: &Family, limits: &w::Limits) -> Result<Box<[u8]>, w::Problem> {
-    let value = w::FamilyRequest::new(
-        limits,
-        w::FamilyRequestParts { scope: scope(scope_value, limits)?, record: bytes::copy_of(&record.bytes) },
-    )?;
-    let mut writer = Writer::new(skein_lib::length::usize_of(value.measure()));
-    value.encode(&mut writer).expect("measured family request");
+    let value = w::FamilyRequest { scope: scope(scope_value, limits)?, record: bytes::copy_of(&record.bytes) };
+    let mut writer = Writer::new(skein_lib::length::usize_of(value.measure(limits)?));
+    value.write(limits, &mut writer).expect("measured family request");
     Ok(writer.finish())
 }
 pub(crate) fn record(
@@ -33,26 +32,23 @@ pub(crate) fn record(
     limits: &w::Limits,
 ) -> Result<Box<[u8]>, w::Problem> {
     let after = match window.after {
-        Some(value) => Some(w::Cursor::new(limits, w::CursorParts { value: bytes::copy_of(value.value.bytes()) })?),
+        Some(value) => Some(w::Cursor { value: bytes::copy_of(value.value.bytes()) }),
         None => None,
     };
-    let window = w::Window::new(limits, w::WindowParts { rows: window.rows, after })?;
-    let value = w::FamilyRecord::new(
-        limits,
-        w::FamilyRecordParts { scope: scope(scope_value, limits)?, window, record: record.bytes },
-    )?;
-    let mut writer = Writer::new(skein_lib::length::usize_of(value.measure()));
-    value.encode(&mut writer).expect("measured family record");
+    let window = w::Window { rows: window.rows, after };
+    let value = w::FamilyRecord { scope: scope(scope_value, limits)?, window, record: record.bytes };
+    let mut writer = Writer::new(skein_lib::length::usize_of(value.measure(limits)?));
+    value.write(limits, &mut writer).expect("measured family record");
     Ok(writer.finish())
 }
 pub(crate) fn restore(bytes: &[u8], limits: &w::Limits) -> Result<(c::Scope, Box<[u8]>), w::Problem> {
     let value = w::FamilyRequest::decode(limits, &mut Reader::new(bytes))?;
-    Ok((read_scope(value.scope()), value.into_parts().record))
+    Ok((read_scope(&value.scope), value.record))
 }
 pub(crate) fn versions(value: &w::NotServed) -> Option<c::VersionRange> {
-    for range in value.served() {
-        if range.owner() == value.owner() {
-            return Some(c::VersionRange { first: range.first(), last: range.last() });
+    for range in &value.served {
+        if range.owner == value.owner {
+            return Some(c::VersionRange { first: range.first, last: range.last });
         }
     }
     None
@@ -60,10 +56,10 @@ pub(crate) fn versions(value: &w::NotServed) -> Option<c::VersionRange> {
 pub(crate) fn family(owner: &w::Owner) -> Option<u16> {
     match owner {
         w::Owner::Jig => None,
-        w::Owner::Family(owner) => Some(owner.number()),
+        w::Owner::Family(owner) => Some(owner.number),
     }
 }
 
 pub(crate) fn not_served(value: &w::NotServed, out: &mut skein_lib::Queue<crate::Request>) {
-    out.push(crate::Request::Hello { family: family(value.owner()), versions: versions(value) });
+    out.push(crate::Request::Hello { family: family(&value.owner), versions: versions(value) });
 }

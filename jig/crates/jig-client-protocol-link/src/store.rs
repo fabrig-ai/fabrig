@@ -1,4 +1,5 @@
 //! Durability before exchanges, and owner-versioned restoration (protocol/client/README.md, 7).
+use jig_client_protocol_wire::Record as _;
 use crate::component::Gathered;
 use crate::{Fact, Limits, Link, Message, Record, Request, Saved, translate};
 use alloc::boxed::Box;
@@ -33,23 +34,21 @@ pub(super) fn key(record: &Saved) -> Box<[u8]> {
 }
 fn encoded(value: &Saved, limits: &Limits) -> Result<Box<[u8]>, w::Problem> {
     let table = translate::store::table(&value.record, limits)?;
-    let mut writer = Writer::new(skein_lib::length::usize_of(table.measure()));
-    table.encode(&mut writer).expect("measured table record");
-    let record = w::Kept::new(limits.wire(), w::KeptParts { store_version: value.version, record: writer.finish() })?;
-    if u64::from(record.measure()) > limits.client().document_bytes {
+    let mut writer = Writer::new(skein_lib::length::usize_of(table.measure(limits.wire())?));
+    table.write(limits.wire(), &mut writer).expect("measured table record");
+    let record = w::Kept { store_version: value.version, record: writer.finish() };
+    if u64::from(record.measure(limits.wire())?) > limits.client().document_bytes {
         return Err(translate::too_large());
     }
-    let mut writer = Writer::new(skein_lib::length::usize_of(record.measure()));
-    record.encode(&mut writer).expect("measured kept record");
-    Ok(writer.finish())
+    record.encode(limits.wire())
 }
 fn restore(value: w::Kept, storage_key: &[u8], limits: &Limits) -> Result<Saved, w::Problem> {
-    let mut reader = Reader::new(value.record());
+    let mut reader = Reader::new(&value.record);
     let record = translate::store::restore_table(w::TableEntry::decode(limits.wire(), &mut reader)?, limits)?;
     if reader.remaining() != 0 || record.key.as_slice() != storage_key {
         return Err(translate::piece_problem(skein_codec::Reason::Malformed));
     }
-    Ok(Saved { version: value.store_version(), record })
+    Ok(Saved { version: value.store_version, record })
 }
 impl Link {
     /// Keeps keyed exchanges behind writes the composing client has already given.
@@ -222,15 +221,10 @@ impl Link {
         }
     }
     pub(super) fn save_stream(&mut self, stream: [u8; 16], out: &mut Queue<Request>) -> Result<(), crate::Undecodable> {
-        let Ok(value) = w::Kept::new(
-            self.limits.wire(),
-            w::KeptParts { store_version: jig_client_domain::TABLE_VERSION, record: Box::from(stream) },
-        ) else {
+        let Ok(value) = (w::Kept { store_version: jig_client_domain::TABLE_VERSION, record: Box::from(stream) }).encode(self.limits.wire()) else {
             return Err(crate::Undecodable::TooLarge);
         };
-        let mut writer = Writer::new(skein_lib::length::usize_of(value.measure()));
-        value.encode(&mut writer).expect("measured stream record");
-        out.push(Request::Save { record: Record { key: bytes::copy_of(crate::STREAM_KEY), bytes: writer.finish() } });
+        out.push(Request::Save { record: Record { key: bytes::copy_of(crate::STREAM_KEY), bytes: value } });
         Ok(())
     }
     pub(super) fn start_store(&mut self, kept: List<Record>, out: &mut Queue<Request>) {
@@ -259,12 +253,12 @@ impl Link {
                 out.push(Request::Fact { fact: Fact::UndecodableStore });
                 continue;
             };
-            if reader.remaining() != 0 || value.store_version() != jig_client_domain::TABLE_VERSION {
+            if reader.remaining() != 0 || value.store_version != jig_client_domain::TABLE_VERSION {
                 out.push(Request::Dropped);
                 continue;
             }
             if entry.key.as_ref() == crate::STREAM_KEY {
-                match <[u8; 16]>::try_from(value.record()) {
+                match <[u8; 16]>::try_from(value.record.as_ref()) {
                     Ok(stream) => self.predecessor = Some(stream),
                     Err(_) => {
                         out.push(Request::Dropped);

@@ -1,4 +1,5 @@
 //! Watch subjects and terminal reasons (protocol/client/README.md, 5).
+use jig_client_protocol_wire::Record as _;
 use super::{documents, live, objects, pages};
 use crate::{Limits, Undecodable};
 use alloc::boxed::Box;
@@ -13,35 +14,29 @@ pub fn subject(value: &c::Subject, limits: &w::Limits) -> Result<w::Subject, w::
         c::Subject::Settings => w::Subject::Settings,
         c::Subject::Me => w::Subject::Me,
         c::Subject::Task { task } => {
-            w::Subject::Task(w::SubjectTask::new(limits, w::SubjectTaskParts { task: *task })?)
+            w::Subject::Task(w::SubjectTask { task: *task })
         }
         c::Subject::Tree { task, window } => {
-            w::Subject::Tree(w::SubjectTree::new(limits, w::SubjectTreeParts { task: *task, window: *window })?)
+            w::Subject::Tree(w::SubjectTree { task: *task, window: *window })
         }
         c::Subject::Chips { tasks } => {
-            w::Subject::Chips(w::SubjectChips::new(limits, w::SubjectChipsParts { tasks: tasks.clone() })?)
+            w::Subject::Chips(w::SubjectChips { tasks: tasks.clone() })
         }
         c::Subject::Inbox { window } => {
-            w::Subject::Inbox(w::SubjectInbox::new(limits, w::SubjectInboxParts { window: *window })?)
+            w::Subject::Inbox(w::SubjectInbox { window: *window })
         }
-        c::Subject::Tasks { query, window } => w::Subject::Tasks(w::SubjectTasks::new(
-            limits,
-            w::SubjectTasksParts { query: super::queries::query(query, limits)?, window: *window },
-        )?),
+        c::Subject::Tasks { query, window } => w::Subject::Tasks(w::SubjectTasks { query: super::queries::query(query, limits)?, window: *window }),
         c::Subject::Run { task, turn, offset } => {
             let turn = match turn {
-                Some(turn) => Some(w::ProvisionalTurnName::new(
-                    limits,
-                    w::ProvisionalTurnNameParts { attempt: turn.attempt, number: turn.number, retry: turn.retry },
-                )?),
+                Some(turn) => Some(w::ProvisionalTurnName { attempt: turn.attempt, number: turn.number, retry: turn.retry }),
                 None => None,
             };
-            w::Subject::Run(w::SubjectRun::new(limits, w::SubjectRunParts { task: *task, turn, offset: *offset })?)
+            w::Subject::Run(w::SubjectRun { task: *task, turn, offset: *offset })
         }
         c::Subject::Deployment => w::Subject::Deployment,
         c::Subject::Accounts => w::Subject::Accounts,
         c::Subject::Terminal { terminal } => {
-            w::Subject::Terminal(w::SubjectTerminal::new(limits, w::SubjectTerminalParts { terminal: *terminal })?)
+            w::Subject::Terminal(w::SubjectTerminal { terminal: *terminal })
         }
     })
 }
@@ -49,17 +44,17 @@ pub fn owned(value: Watchable, limits: &w::Limits) -> Result<w::Owned, w::Proble
     let (owner, version, record) = match value {
         Watchable::Jig(value) => {
             let value = subject(&value, limits)?;
-            let mut writer = Writer::new(skein_lib::length::usize_of(value.measure()));
-            value.encode(&mut writer).expect("measured subject");
+            let mut writer = Writer::new(skein_lib::length::usize_of(value.measure(limits)?));
+            value.write(limits, &mut writer).expect("measured subject");
             (w::Owner::Jig, VERSION, writer.finish())
         }
         Watchable::Family { scope, window, record: value } => (
-            w::Owner::Family(w::Family::new(limits, w::FamilyParts { number: value.family })?),
+            w::Owner::Family(w::Family { number: value.family }),
             value.version,
             super::envelope::record(scope, window, value, limits)?,
         ),
     };
-    w::Owned::new(limits, w::OwnedParts { owner, version, record })
+    Ok(w::Owned { owner, version, record })
 }
 #[must_use]
 pub fn refused(value: &w::WatchRefusal) -> c::WatchEnd {
@@ -122,7 +117,7 @@ pub fn delivery(bytes: &[u8], limits: &Limits) -> Result<c::Delivery, Undecodabl
         w::DeliveryValue::RunState(value) => c::Delivery::RunState(Box::new(live::run_state(value, limits)?)),
         w::DeliveryValue::Deployment(value) => c::Delivery::Deployment(Box::new(documents::deployment(value, limits)?)),
         w::DeliveryValue::Chips(value) => {
-            c::Delivery::Chips(match documents::chip_piece(value.rows(), limits, limits.client().rows) {
+            c::Delivery::Chips(match documents::chip_piece(&value.rows, limits, limits.client().rows) {
                 Ok(value) => value,
                 Err(problem) => return Err(super::classify(problem)),
             })
@@ -130,64 +125,64 @@ pub fn delivery(bytes: &[u8], limits: &Limits) -> Result<c::Delivery, Undecodabl
     })
 }
 fn inbox(record: w::Inbox, limits: &Limits) -> Result<c::Inbox, Undecodable> {
-    let needs = match pages::inbox_entry_piece(record.needs(), limits, limits.client().rows) {
+    let needs = match pages::inbox_entry_piece(&record.needs, limits, limits.client().rows) {
         Ok(value) => value,
         Err(problem) => return Err(super::classify(problem)),
     };
-    let updates = match pages::inbox_entry_piece(record.updates(), limits, limits.client().rows) {
+    let updates = match pages::inbox_entry_piece(&record.updates, limits, limits.client().rows) {
         Ok(value) => value,
         Err(problem) => return Err(super::classify(problem)),
     };
-    let selection = match record.selection() {
+    let selection = match &record.selection {
         Some(value) => Some(match pages::inbox_selection_piece(value, limits, limits.client().rows) {
             Ok(value) => value,
             Err(problem) => return Err(super::classify(problem)),
         }),
         None => None,
     };
-    let next = match record.next() {
+    let next = match &record.next {
         Some(value) => Some(pages::inbox_cursor_fields(value)),
         None => None,
     };
     Ok(c::Inbox {
-        party: record.party(),
+        party: record.party,
         needs,
         updates,
         next,
-        cached_needs: record.cached_needs(),
-        cached_updates: documents::count_fields(record.cached_updates()),
-        results_seen: record.results_seen(),
-        updates_time_complete: record.updates_time_complete(),
+        cached_needs: record.cached_needs,
+        cached_updates: documents::count_fields(&record.cached_updates),
+        results_seen: record.results_seen,
+        updates_time_complete: record.updates_time_complete,
         selection,
     })
 }
 fn tree(record: w::Tree, limits: &Limits) -> Result<c::Tree, Undecodable> {
-    let root = match documents::chip_fields(record.root(), limits) {
+    let root = match documents::chip_fields(&record.root, limits) {
         Ok(value) => value,
         Err(problem) => return Err(super::classify(problem)),
     };
-    let rows = match tree_rows(record.rows(), limits) {
+    let rows = match tree_rows(&record.rows, limits) {
         Ok(value) => value,
         Err(problem) => return Err(super::classify(problem)),
     };
-    let mut folded = List::with_capacity(record.folded().len());
-    for value in record.folded() {
+    let mut folded = List::with_capacity(record.folded.len());
+    for value in &record.folded {
         folded
             .push(c::TreeFold {
-                parent: value.parent(),
-                phases: documents::phase_counts_fields(value.phases()),
-                held_below: value.held_below(),
+                parent: value.parent,
+                phases: documents::phase_counts_fields(&value.phases),
+                held_below: value.held_below,
             })
             .expect("bounded folds");
     }
-    let next = match record.next() {
+    let next = match &record.next {
         Some(value) => Some(match documents::cursor_fields(value, limits) {
             Ok(value) => value,
             Err(problem) => return Err(super::classify(problem)),
         }),
         None => None,
     };
-    Ok(c::Tree { root, rows, folded, held_below: record.held_below(), next })
+    Ok(c::Tree { root, rows, folded, held_below: record.held_below, next })
 }
 fn tree_rows(bytes: &[u8], limits: &Limits) -> Result<List<c::TreeRow>, w::Problem> {
     let mut reader = Reader::new(bytes);
@@ -196,18 +191,18 @@ fn tree_rows(bytes: &[u8], limits: &Limits) -> Result<List<c::TreeRow>, w::Probl
     for _ in 0..=limits.client().rows {
         let Some(item) = crate::translate::next_piece(&mut reader, &mut sum, limits)? else { return Ok(rows) };
         let row = w::TreeRow::decode(limits.receiving(), &mut Reader::new(&item))?;
-        let mut proposals = List::with_capacity(row.proposals().len());
-        for key in row.proposals() {
+        let mut proposals = List::with_capacity(row.proposals.len());
+        for key in &row.proposals {
             proposals.push(super::facts::proposal_key(key)).expect("bounded proposals");
         }
         let row = c::TreeRow {
-            chip: documents::chip_fields(row.chip(), limits)?,
-            parent: row.parent(),
-            depth: row.depth(),
+            chip: documents::chip_fields(&row.chip, limits)?,
+            parent: row.parent,
+            depth: row.depth,
             proposals,
-            spent: row.spent(),
-            dependencies: documents::task_link_piece(row.dependencies(), limits, limits.client().rows)?,
-            cut: row.cut(),
+            spent: row.spent,
+            dependencies: documents::task_link_piece(&row.dependencies, limits, limits.client().rows)?,
+            cut: row.cut,
         };
         if rows.push(row).is_err() {
             return Err(super::too_large());

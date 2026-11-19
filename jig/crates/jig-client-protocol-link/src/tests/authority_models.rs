@@ -17,7 +17,7 @@ fn selectors_and_cut_authorities_round_trip_without_becoming_replacements() {
         let wire = translate::asks::wire_owner_authority(&authority, limits.wire()).unwrap();
         assert_eq!(translate::documents::authority_fields(&wire, &limits), Ok(authority.clone()));
         let document =
-            w::AuthorityDocument::new(limits.wire(), w::AuthorityDocumentParts { authority: wire, cut: true }).unwrap();
+            w::AuthorityDocument { authority: wire, cut: true };
         let read = translate::documents::authority_document_fields(&document, &limits).unwrap();
         assert!(read.cut);
         assert_eq!(read.whole(), None);
