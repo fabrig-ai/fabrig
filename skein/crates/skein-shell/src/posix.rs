@@ -5,7 +5,10 @@
 //! Shutdown, close and fcntl take only integers; close relinquishes descriptor
 //! ownership once. Geteuid takes no arguments and has no preconditions.
 //! Poll borrows one initialized, exclusive pollfd until return, retains no
-//! pointer and takes no descriptor ownership.
+//! pointer and takes no descriptor ownership. The parent-death watcher prepares
+//! its pipe, signal set and integer plan before fork, then makes only
+//! async-signal-safe calls and the system's exit wait until _exit; its module
+//! documents that process boundary.
 
 #![expect(
     unsafe_code,
@@ -14,6 +17,8 @@
 
 pub(crate) mod files;
 pub(crate) mod group;
+#[cfg(any(target_os = "macos", test))]
+pub(crate) mod parent_death;
 pub(crate) mod process;
 pub(crate) mod terminal;
 
