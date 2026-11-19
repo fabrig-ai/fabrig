@@ -19,7 +19,7 @@ impl Sha1 {
     /// Hashes the next piece; asserts the standard's bound, 2^64 - 1 bits.
     #[expect(clippy::disallowed_methods, reason = "bulk copies only the incomplete block's bounded pieces")]
     pub fn update(&mut self, mut piece: &[u8]) {
-        let used = usize::try_from(self.hashed % 64).expect("block position fits usize");
+        let used = crate::usize_of(u32::try_from(self.hashed % 64).expect("block position below 64"));
         self.hashed = self.hashed.checked_add(crate::len_u64(piece.len())).expect("SHA-1 hashes at most 2^64 - 1 bits");
         assert!(self.hashed <= u64::MAX / 8, "SHA-1 hashes at most 2^64 - 1 bits");
         if used != 0 {
@@ -46,7 +46,7 @@ impl Sha1 {
     #[expect(clippy::disallowed_methods, reason = "bulk copies the fixed eight-byte bit count into its block")]
     #[must_use]
     pub fn finish(mut self) -> [u8; 20] {
-        let used = usize::try_from(self.hashed % 64).expect("block position fits usize");
+        let used = crate::usize_of(u32::try_from(self.hashed % 64).expect("block position below 64"));
         self.block.get_mut(used..).expect("block position fits").fill(0);
         *self.block.get_mut(used).expect("block position below 64") = 0x80;
         if used >= 56 {
