@@ -410,6 +410,7 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
             &mut view.pages,
             rail_project,
             view.limits.tree.text_per_node,
+            &mut times,
         );
     } else if let temper_client_domain::Address::ConnectForge { forge } = root.pages().address() {
         forge::connect::main(

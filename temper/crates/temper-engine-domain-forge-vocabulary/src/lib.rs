@@ -117,7 +117,7 @@ pub use panel::{
     PanelSource, PanelStands, PanelStep, PanelUsed, PanelWait, ReviewFacts, ReviewRead, UnmappedReview,
 };
 pub use reconcile::{MissingLink, Need, RecordKind};
-pub use red::{JobLog, RedNews, RedOn, red_news_words};
+pub use red::{JobLog, RedNews, RedOn, many_remainder, red_news_words};
 pub use reds::{RecordRed, Recorder, Red, RedOutcome, RedPass, RedRecorded, RedRefusal, RedReply};
 pub use refusal::{RefusalCause, bound_words};
 pub use restore::{RestoreFit, RestoreSet};

@@ -126,30 +126,39 @@ fn landing_failure(
     repository: Repository,
     commit: api::Commit,
 ) -> Option<forge::LandingFailure> {
-    let context = domain.core.tasks.delegation(task)?;
-    let super::tasks::Party::Task(parent) = context.requester else { return None };
-    let row = domain.forge.change(parent)?;
-    let (child, super::forge_change::Delegate::Repair(why)) = row.delegate? else { return None };
-    if row.terminal() || child != task || row.repository != repository {
-        return None;
-    }
-    let failure = domain.forge.landing_failure(parent, why)?;
-    if row.change.last_head != Some(commit) && failure.prefix != commit {
-        return None;
-    }
-    Some(failure)
+    let super::tasks::Party::Task(parent) = domain.core.tasks.delegation(task)?.requester else { return None };
+    domain.forge.landing_failure_at(parent, task, repository, commit)
 }
 
 /// Busy reads wait in the host's bounded backoff (temper/docs/design/domain/forge/keeping-up.md, 3).
 pub(super) fn read_answer(domain: &mut Domain, owner: Token, result: Result<Answer, Error>) {
     let Some((to, key, repository, checks)) = domain.forge_reading.remove(&owner) else { return };
     let mut result = result;
-    // The forge client validates its answer's pins before this receipt-only overlay.
+    let right = to.into_token();
+    let to = ReplyTo::new(right);
+    // The forge client validates its answer's pins before the local overlays.
     if let Some(commit) = checks
         && let Ok(Answer::Checks(statuses)) = &mut result
-        && let Some(failure) = landing_failure(domain, key.task, repository, commit)
     {
-        forge::checks::append_gate_checks(statuses, failure, domain.limits.forge.client.rows);
+        let tiers = domain.forge.logged_tiers(repository, commit);
+        let failure = landing_failure(domain, key.task, repository, commit);
+        let cap = u32::try_from(smith_domain_run::HostAnswer::CAPACITY).expect("host cap fits u32");
+        let tool_bytes = domain.call_renders.get(&right).expect("decoded read").tool.len();
+        let bound = domain
+            .limits
+            .call_answer_bytes
+            .min(domain.limits.journal.transcript_bytes)
+            .saturating_sub(u32::try_from(tool_bytes).expect("admitted tool name"))
+            .min(domain.reply_bound(key).unwrap_or(cap))
+            .min(cap);
+        forge::checks::append_tier_checks(
+            statuses,
+            tiers,
+            failure,
+            domain.limits.forge.client.rows,
+            domain.limits.forge.client.op_bytes,
+            bound,
+        );
     }
     if let Err(error) = &result {
         let reason = if *error == Error::Busy { "read admission busy" } else { "forge read failed" };

@@ -34,9 +34,9 @@ use crate::{
     )
 )]
 pub enum Op {
-    Insert { node: NodeId, parent: NodeId, before: Option<NodeId>, element: Element },
+    Insert { node: NodeId, parent: NodeId, before: Option<NodeId>, shown_folded: bool, element: Element },
     Remove { node: NodeId },
-    Move { node: NodeId, parent: NodeId, before: Option<NodeId> },
+    Move { node: NodeId, parent: NodeId, before: Option<NodeId>, shown_folded: bool },
     Replace { node: NodeId, element: Element },
     Attributes { node: NodeId, element: Element },
     Text { node: NodeId, element: Element },
@@ -168,7 +168,12 @@ impl<'a> Page<'a> {
                     self.detach(*node, old_parent);
                     self.attach(*node, *parent, *before);
                     self.nodes.get_mut(node).expect("held node").parent = *parent;
-                    ops.push(Op::Move { node: *node, parent: *parent, before: *before });
+                    ops.push(Op::Move {
+                        node: *node,
+                        parent: *parent,
+                        before: *before,
+                        shown_folded: self.shown_folded(*node),
+                    });
                 }
                 Patch::Text { node, text } => {
                     self.held(*node);
@@ -178,6 +183,7 @@ impl<'a> Page<'a> {
                 }
                 Patch::Attribute { node, attribute } => {
                     let old_tag = semantic(&self.held(*node).element).tag.clone();
+                    let was_shown_folded = self.shown_folded(*node);
                     let held = self.nodes.get_mut(node).expect("held node");
                     if (attribute.role == Role::Log || (attribute.role == Role::List && attribute.bound))
                         && held.made.attribute.states.as_slice().contains(&State::Busy)
@@ -202,6 +208,17 @@ impl<'a> Page<'a> {
                         ops.push(Op::Attributes { node: *node, element });
                     } else {
                         ops.push(Op::Replace { node: *node, element });
+                    }
+                    if was_shown_folded != self.shown_folded(*node) {
+                        let parent = self.held(*node).parent;
+                        let children = &self.held(parent).children;
+                        let at = children.iter().position(|child| child == node).expect("child belongs to parent");
+                        ops.push(Op::Move {
+                            node: *node,
+                            parent,
+                            before: children.get(at + 1).copied(),
+                            shown_folded: self.shown_folded(*node),
+                        });
                     }
                 }
                 Patch::Value { node, value } => {
@@ -402,7 +419,13 @@ impl<'a> Page<'a> {
             open.push((made.id, end));
         }
         let node = nodes[0].id;
-        ops.push(Op::Insert { node, parent, before, element: self.render(node) });
+        ops.push(Op::Insert {
+            node,
+            parent,
+            before,
+            shown_folded: self.shown_folded(node),
+            element: self.render(node),
+        });
         for made in nodes {
             self.component_op(made.id, ops);
         }
@@ -511,6 +534,10 @@ impl<'a> Page<'a> {
         element
     }
 
+    fn shown_folded(&self, node: NodeId) -> bool {
+        self.held(node).made.attribute.states.as_slice().contains(&State::ShownFolded)
+    }
+
     fn render(&self, node: NodeId) -> Element {
         let mut element = self.own_element(node);
         let core = semantic_mut(&mut element);
@@ -538,6 +565,13 @@ impl<'a> Page<'a> {
         let mut option_descriptions = Vec::new();
         for child in &self.held(node).children {
             let rendered = self.render(*child);
+            if self.held(node).made.attribute.role == Role::Disclosure && self.shown_folded(*child) {
+                match destination.children.first_mut().expect("disclosure has a summary") {
+                    Child::Element(summary) => summary.append(rendered),
+                    Child::Text(_) => unreachable!("summary is an element"),
+                }
+                continue;
+            }
             if self.held(node).made.attribute.role == Role::TreeItem {
                 if self.held(*child).made.attribute.role == Role::TreeItem {
                     let group = tree_group.get_or_insert_with(|| {

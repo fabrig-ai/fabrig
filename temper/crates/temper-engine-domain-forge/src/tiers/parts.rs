@@ -81,10 +81,25 @@ pub(crate) fn artifact_read(run: u64, name: Box<[u8]>, format: p::Format, env: &
 pub(super) fn reported(
     d: &Domain,
     env: &Env<Limits>,
-    row: &TierRow,
+    row: &mut TierRow,
     answer: Result<api::Answer, api::Error>,
 ) -> p::Outcome {
-    report_answer(configured(d, row).expect("configured tier").format, env, answer)
+    let format = configured(d, row).expect("configured tier").format;
+    if row.record.run.as_ref().expect("reported run").part == p::Part::Whole {
+        row.many = match &answer {
+            Ok(api::Answer::File { bytes, truncated, .. }) => p::many_tests(
+                format,
+                bytes,
+                &p::Limits {
+                    failing_tests: env.limits.tiers.failing_tests,
+                    test_id_bytes: env.limits.tiers.test_id_bytes,
+                },
+                *truncated,
+            ),
+            Ok(_) | Err(_) => None,
+        };
+    }
+    report_answer(format, env, answer)
 }
 pub(crate) fn report_answer(
     format: p::Format,
