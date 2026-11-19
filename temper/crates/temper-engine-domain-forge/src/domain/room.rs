@@ -108,6 +108,7 @@ pub(super) fn drop_released(d: &mut Domain, task: u64, parts: bool, out: &mut Qu
         emit(out, Request::Erase { key: Key::ChangeCold(task) });
         emit(out, Request::Erase { key: Key::ChangeHot(task) });
     }
+    d.forming_holds.remove(&task);
     d.stall_words.remove(&task);
     d.panel_ci.remove(&task);
     d.settling.remove(&task);

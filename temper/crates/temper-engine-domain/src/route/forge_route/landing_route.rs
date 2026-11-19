@@ -202,24 +202,30 @@ pub(super) fn settled_steps(domain: &mut Domain, env: &Env<Limits>) {
 }
 
 fn form_train(domain: &mut Domain, env: &Env<Limits>, repository: skein_forge::api::Repository, branch: &[u8]) -> bool {
-    // A due waiting change leaves its unit out unless its step began before
-    // readiness. Such a step, like a not-yet-ready change's due step, holds only
-    // this train until it settles (domain/landing.md, 9).
+    // Due waiting changes leave their units out unless still settling readiness.
+    // Only a gating change whose gates and dependencies have settled holds this
+    // train, for one due step at that head (domain/landing.md, 9).
     let mut excluded = List::with_capacity(env.limits.forge.changes);
     for task in domain.forge.changes_for(repository, env.limits.forge.changes) {
         let Some(row) = domain.forge.change(task) else { continue };
         if row.base.as_ref() == branch
             && row.change.way == forge_change::Way::Turn
             && row.change.landing.is_none()
-            && domain.core.tasks.procedure_due(task).is_some()
+            && let Some((_, _, step)) = domain.core.tasks.procedure_due(task)
         {
-            if let forge_change::State::Ready { .. } = row.change.state
-                && !domain.forge_settling.contains(&task)
-            {
+            if let forge_change::State::Ready { .. } = row.change.state {
+                if domain.forge_settling.contains(&task) {
+                    return false;
+                }
                 excluded.push(task).expect("bounded changes");
                 continue;
             }
-            return false;
+            if forge::gates_settled(row, returned_gate(domain, row), env.limits.forge.change_policy.gates)
+                && !kept(domain, env, task)
+                && domain.forge.hold_forming(task, step)
+            {
+                return false;
+            }
         }
     }
     let Some(repo) = domain.forge.repository(repository) else { return false };
@@ -264,6 +270,33 @@ fn form_train(domain: &mut Domain, env: &Env<Limits>, repository: skein_forge::a
         return false;
     }
     create_landing(domain, env, members, project, branch)
+}
+
+/// The current gate's terminal can be in jig's retained task or its owner's
+/// inbox before the change step copies it into the row (domain/landing.md, 9).
+fn returned_gate(domain: &Domain, row: &forge::ChangeRow) -> Option<(u64, skein_forge::api::Commit)> {
+    let (child, kind) = row.delegate?;
+    let gate = match kind {
+        forge_change::Delegate::Gate { number, head } => (number, head),
+        forge_change::Delegate::Produce
+        | forge_change::Delegate::Close
+        | forge_change::Delegate::Repair(_)
+        | forge_change::Delegate::Resolve { .. }
+        | forge_change::Delegate::Merge { .. } => return None,
+    };
+    if let Some(child) = domain.core.tasks.task(child) {
+        match child.phase {
+            tasks::Phase::Ended(_) => return Some(gate),
+            tasks::Phase::Active(_) | tasks::Phase::Waiting | tasks::Phase::Held { .. } | tasks::Phase::Closing(_) => {}
+        }
+    }
+    let owner = domain.core.tasks.task(row.task)?;
+    for word in &owner.inbox {
+        if word.from == tasks::Party::Task(child) && super::change_delegate_status(&word.kind).is_some() {
+            return Some(gate);
+        }
+    }
+    None
 }
 
 fn create_landing(

@@ -7,6 +7,7 @@ mod flake;
 mod reds;
 mod room;
 mod settling;
+mod settling_due;
 mod taking;
 
 const SHA1: [u8; 32] = [

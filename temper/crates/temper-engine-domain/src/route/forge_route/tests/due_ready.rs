@@ -3,7 +3,7 @@ use super::super::{Domain, Limits, Work, forge, forge_change as change, tasks};
 use alloc::boxed::Box;
 use skein_lib::{Env, List, Queue};
 
-fn ready_changes(changes: &[u64], batch_size: u16) -> (Domain, Env<Limits>) {
+pub(super) fn ready_changes(changes: &[u64], batch_size: u16) -> (Domain, Env<Limits>) {
     let mut limits = crate::tests::resume_fixture::limits();
     limits.tasks.tasks = 16;
     limits.tasks.project_tasks = 16;
@@ -100,7 +100,7 @@ fn ready_changes(changes: &[u64], batch_size: u16) -> (Domain, Env<Limits>) {
 }
 
 // As in train_root, end the completed readiness step without changing its ready row.
-fn settle(domain: &mut Domain, env: &Env<Limits>, task: u64) {
+pub(super) fn settle(domain: &mut Domain, env: &Env<Limits>, task: u64) {
     let (_, _, step) = domain.core.tasks.procedure_due(task).expect("step due before settling");
     tasks::step(
         &mut domain.core.tasks,
@@ -119,7 +119,7 @@ fn settle(domain: &mut Domain, env: &Env<Limits>, task: u64) {
     domain.forge.wait_change(&crate::translate::environment_forge(env), task, None);
 }
 
-fn wake(domain: &mut Domain, env: &Env<Limits>, task: u64) {
+pub(super) fn wake(domain: &mut Domain, env: &Env<Limits>, task: u64) {
     tasks::step(
         &mut domain.core.tasks,
         &env.with(env.limits.tasks),
@@ -148,7 +148,7 @@ fn rotating_due_ready_steps_do_not_starve_a_free_train() {
     panic!("a free train must form despite a ready step due at every judgement");
 }
 
-fn members(domain: &Domain, task: u64) -> Box<[u64]> {
+pub(super) fn members(domain: &Domain, task: u64) -> Box<[u64]> {
     let landing = &domain.forge.landing(task).unwrap().landing;
     let mut changes = List::with_capacity(u32::try_from(landing.members.len()).unwrap());
     for member in &landing.members {

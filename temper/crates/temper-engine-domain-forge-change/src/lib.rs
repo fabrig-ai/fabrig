@@ -30,7 +30,7 @@ pub use boundary::{
     Verification, WORDS_WAITING, Waiting, Way,
 };
 pub use clock::{Clock, Execution, Reading};
-pub use domain::{authority_words, held_on_ci, prefix_verdict, released, review_failed, step};
+pub use domain::{authority_words, gates_pass, held_on_ci, prefix_verdict, released, review_failed, step};
 pub use passing::{Passed, WordAct, pass};
 pub use queue::first;
 pub use relay::{Asked, RelayAct, RelayHeard, Relayed, relay};
