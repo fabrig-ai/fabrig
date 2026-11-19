@@ -1,6 +1,8 @@
 use super::{Reason, read_count, read_len, read_text, version_of};
 use skein_lib::Reader;
 
+mod bounds;
+mod fields;
 mod piece;
 
 // The patcher's step tests count what a reused pass allocates (data/codec/patches.md, 8).

@@ -560,6 +560,31 @@ fn full_flake_record_keeps_old_counts_and_refuses_new() {
 }
 
 #[test]
+#[expect(clippy::disallowed_macros, reason = "the test generates ordered distinct flake ids")]
+fn stock_flake_record_keeps_sixty_four_ids_and_counts_retained_ids_when_full() {
+    let limits = crate::Limits { failing_tests: 64, test_id_bytes: 512 };
+    let mut names = List::with_capacity(64);
+    let mut expected = List::with_capacity(64);
+    for n in 0_u32..64 {
+        let test: Box<[u8]> = Box::from(format!("t{n:02}").as_bytes());
+        names.push(test.clone()).unwrap();
+        expected.push(Flake { test, count: 1 }).unwrap();
+    }
+    let expected = expected.into_boxed();
+    let mut record = record(tests(&[]));
+    let run = run(&record, pair());
+    let mut verdict = verdict(step(&record, &run, Outcome::Passed, &SETTINGS));
+    verdict.flakes = names.into_boxed();
+    record = judged(&record, &verdict, &limits);
+    assert_eq!(record.flakes, expected);
+    verdict.flakes = ids(&["t63", "t64"]);
+    let retained = judged(&record, &verdict, &limits);
+    let mut expected = expected;
+    expected.last_mut().unwrap().count = 2;
+    assert_eq!(retained.flakes, expected);
+}
+
+#[test]
 fn repair_depends_on_the_blamed_failures_only() {
     let cases = [
         (Blame::Cleared, Failures::Many, true),

@@ -249,6 +249,13 @@ and `core.policy_bytes` limit. Unknown references name their member.
 - **Numbered, never renumbered.** A number, above zero, is the
   template's identity across the configuration, projects' policies and
   clients; a template dropped leaves its number unused.
+- **In two ranges,** as charters, policies and models are: the
+  application's templates, the defaults, take 1 to 32, and a
+  deployment's own, added by a change, 33 to 64; a start refuses
+  anything else (`../domain/engine/settings.md`, 1). The document's
+  charters, templates, policies and `llm` models are defaults when the
+  application passes none (`../domain/engine/settings.md`, 7), so they
+  take 1 to 32 too.
 - **What each carries,** every field required (section 9):
   - a name, for showing;
   - the executor: an agent under a charter the template names, by its

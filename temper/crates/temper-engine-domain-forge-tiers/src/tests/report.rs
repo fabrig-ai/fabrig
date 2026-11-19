@@ -119,6 +119,30 @@ fn report_count_accepts_four_and_refuses_five_unique_ids() {
 }
 
 #[test]
+#[expect(clippy::disallowed_macros, reason = "the test generates ordered distinct report ids")]
+fn stock_report_names_sixty_four_tests_and_sixty_five_are_many() {
+    let limits = crate::Limits { failing_tests: 64, test_id_bytes: 512 };
+    let mut names = skein_lib::List::with_capacity(64);
+    let mut file = skein_lib::Writer::new(256);
+    for n in 0_u32..64 {
+        let name = format!("t{n:02}");
+        names.push(Box::from(name.as_bytes())).unwrap();
+    }
+    for name in names.iter().rev() {
+        file.put(name).unwrap();
+        file.put(b"\n").unwrap();
+    }
+    let file = file.finish();
+    assert_eq!(report(Format::Lines, &file, &limits), Ok(Failures::Tests(names.into_boxed())));
+    let mut larger = skein_lib::Writer::new(260);
+    larger.put(&file).unwrap();
+    larger.put(b"t64\n").unwrap();
+    assert_eq!(report(Format::Lines, &larger.finish(), &limits), Ok(Failures::Many));
+    assert_eq!(report(Format::Lines, &[b'x'; 512], &limits), Ok(tests(&[&"x".repeat(512)])));
+    assert_eq!(report(Format::Lines, &[b'x'; 513], &limits), Ok(Failures::Many));
+}
+
+#[test]
 fn report_id_accepts_sixteen_bytes_and_refuses_seventeen() {
     // LIMITS.test_id_bytes is 16, including classname and separator.
     const AT_BOUND: &str = "1234567890123456";

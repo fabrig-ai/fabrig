@@ -267,7 +267,7 @@ impl Domain {
             stubs: Map::with_capacity(crate::limits::stub_capacity(limits).expect("valid stub bound")),
             alarms: Deadlines::with_capacity(limits.tasks),
             grace_alarms: Deadlines::with_capacity(limits.tasks),
-            timers: Deadlines::with_capacity(limits.tasks.checked_mul(limits.subscriptions).expect("timer room")),
+            timers: Deadlines::with_capacity(crate::limits::timer_capacity(limits).expect("timer room")),
             wakes: Deadlines::with_capacity(limits.tasks),
             proposal_alarms: Deadlines::with_capacity(limits.tasks),
             escalation_alarms: Deadlines::with_capacity(limits.tasks),
@@ -685,10 +685,37 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
             crate::moving::apply(domain, env, reply_to, operation, funding, out);
         }
         Event::Subscribe { reply_to, task, subscription } => {
-            crate::subscriptions::subscribe(domain, env, reply_to, task, subscription, false, out);
+            crate::subscriptions::subscribe(
+                domain,
+                env,
+                reply_to,
+                task,
+                subscription,
+                crate::subscriptions::Admission::Own,
+                out,
+            );
         }
         Event::SubscribeTopic { reply_to, task, subscription } => {
-            crate::subscriptions::subscribe(domain, env, reply_to, task, subscription, true, out);
+            crate::subscriptions::subscribe(
+                domain,
+                env,
+                reply_to,
+                task,
+                subscription,
+                crate::subscriptions::Admission::Topic,
+                out,
+            );
+        }
+        Event::SubscribeTopicApart { reply_to, task, subscription } => {
+            crate::subscriptions::subscribe(
+                domain,
+                env,
+                reply_to,
+                task,
+                subscription,
+                crate::subscriptions::Admission::TopicApart,
+                out,
+            );
         }
         Event::Unsubscribe { reply_to, task, subscription } => {
             crate::subscriptions::unsubscribe(domain, env, reply_to, task, subscription, out);

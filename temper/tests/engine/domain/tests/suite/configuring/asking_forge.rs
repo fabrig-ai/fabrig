@@ -22,6 +22,7 @@ fn an_asking_chat_reads_the_forge() {
             merge_job: Some(b"scripts/merge".as_slice().into()),
             tier_retries: 2,
             verification_bound_ms: 7_200_000,
+            wait: temper_engine_domain_forge_change::Wait::Cleared,
             repositories: Box::new([temper_landing_fixtures::RepositoryChecks {
                 repository: skein_forge::api::Repository { forge: 1, repository: 2 },
                 gates: Box::new([temper_landing_fixtures::GateCheck {

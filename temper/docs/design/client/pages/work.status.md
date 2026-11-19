@@ -22,3 +22,11 @@
   kicker and the lede alone, with no heading and no filters, where the section
   says "No goals yet."; a project with no tracked template has a lede that
   stops at "landed work.", which the section has no words for.
+- **Not yet:** 1, *In flight*, *One stable list*: a delivery whose rows'
+  parts aren't made drops goals' headlines and bylines, empties a
+  milestone's card and draws its goals as cards of their own, so In
+  flight's N and the heading's "in flight" move [in flight: change 8572].
+- **Not yet:** 1, *In flight*, *One stable list*: no focused test draws
+  Work whose reads answer in turns, with nothing changed in the store, and
+  checks it draws the same text each time [in flight: change 8592].
+- **Not yet:** 1, *Goals*, its reads: the goals' needs read answering without its value clears its `selection`, so a goal's "waiting on you" goes until the next [in flight: change 8572].

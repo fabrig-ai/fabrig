@@ -36,6 +36,89 @@ pub fn landing_words(
     out.into_boxed()
 }
 
+/// Name each landing's retained clearing run before its verification row is released
+/// (temper/docs/design/domain/after-landing.md, 6).
+pub fn verification_words(
+    state: &forge_change::State,
+    verification: Option<&forge::Verification>,
+    ends_at_landing: bool,
+    waits_landed: bool,
+    cancelled: bool,
+    bound: u32,
+) -> Box<[u8]> {
+    let mut words = List::with_capacity(bound);
+    match state {
+        forge_change::State::Landed { .. } if ends_at_landing => {
+            append(&mut words, b"Ended at landing; after landing judges it later.");
+        }
+        forge_change::State::Uncleared { .. } => {
+            append(
+                &mut words,
+                if cancelled {
+                    b"Not cleared: cancelled while verifying.".as_slice()
+                } else if waits_landed {
+                    b"Not cleared: its project now ends a change at its landing; after landing judges it later."
+                        .as_slice()
+                } else {
+                    b"Not cleared: no verdict within the verification bound.".as_slice()
+                },
+            );
+        }
+        forge_change::State::Cleared { .. } => {
+            let Some(verification) = verification else {
+                return words.into_boxed();
+            };
+            for tier in &verification.tiers {
+                let run = match (&tier.repaired, &tier.verdict) {
+                    (Some(repaired), _) => repaired.run,
+                    (None, Some(verdict)) => verdict.run,
+                    (None, None) => continue,
+                };
+                if !words.is_empty() {
+                    append(&mut words, b"\n");
+                }
+                append(&mut words, b"Cleared by ");
+                append(&mut words, &tier.tier);
+                append(&mut words, b" run ");
+                append(&mut words, skein_lib::Decimal::of(run).as_bytes());
+                if let Some(repaired) = &tier.repaired {
+                    append(&mut words, b", which passed the failures blamed on it");
+                    if let Some(by) = &repaired.by {
+                        append(&mut words, b"; repaired by ");
+                        let digits = commit_text(by);
+                        append(&mut words, digits.get(..12).expect("a commit has at least 40 hexadecimal digits"));
+                    }
+                }
+                append(&mut words, b".");
+            }
+        }
+        forge_change::State::Taking { .. }
+        | forge_change::State::Producing { .. }
+        | forge_change::State::Opening { .. }
+        | forge_change::State::Recreating { .. }
+        | forge_change::State::Reopening { .. }
+        | forge_change::State::Checking { .. }
+        | forge_change::State::Judging { .. }
+        | forge_change::State::Gating { .. }
+        | forge_change::State::CancellingGates { .. }
+        | forge_change::State::Queued { .. }
+        | forge_change::State::First { .. }
+        | forge_change::State::Ready { .. }
+        | forge_change::State::Preparing { .. }
+        | forge_change::State::Updating { .. }
+        | forge_change::State::WaitingProducer { .. }
+        | forge_change::State::Resolving { .. }
+        | forge_change::State::Repairing { .. }
+        | forge_change::State::Landing { .. }
+        | forge_change::State::Landed { .. }
+        | forge_change::State::Red { .. }
+        | forge_change::State::NoChange { .. }
+        | forge_change::State::Ended
+        | forge_change::State::Held { .. } => {}
+    }
+    words.into_boxed()
+}
+
 fn landing_pull(
     repository: &forge::Repository,
     pull: u64,

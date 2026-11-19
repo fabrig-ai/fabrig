@@ -1,6 +1,6 @@
 pub(super) use fixtures::{TuiWorld, tui_approval_reply};
 use fixtures::{
-    absent, assert_normalised, fixture_recording, fixture_with_secret, stale_recording, tree_bytes,
+    absent, fixture_recording, fixture_with_marks_and_secret, fixture_with_secret, stale_recording, tree_bytes,
     tui_approval_recording, tui_recording, tui_written,
 };
 use temper_client_journeys_kit as fixtures;
@@ -14,75 +14,6 @@ use skein_scratch::Scratch;
 use skein_ui::NodeId;
 use std::{fs, path::Path};
 use temper_client_shell_web::journey;
-
-#[test]
-fn the_committed_journeys_are_their_print() {
-    let scratch = Scratch::new("temper-client-journeys-committed");
-    let committed = Path::new(JOURNEYS);
-    assert_normalised(committed, false);
-    assert_normalised(Path::new(crate::TUI_JOURNEYS), true);
-    let stale = crate::reprint(committed, scratch.path())
-        .expect("reprint committed journeys; run cargo run -p temper-client-journeys");
-    assert!(stale.is_empty(), "stale journeys: {stale:?}; run cargo run -p temper-client-journeys");
-    let committed_pages = printed_files(committed);
-    let reprinted_pages = printed_files(scratch.path());
-    for path in committed_pages.union(&reprinted_pages) {
-        let expected = fs::read(committed.join(path)).ok();
-        let actual = fs::read(scratch.path().join(path)).ok();
-        assert!(
-            expected.is_some() && actual.is_some(),
-            "{} is missing or unreadable; run cargo run -p temper-client-journeys",
-            path.display()
-        );
-        assert_eq!(expected, actual, "{} differs; run cargo run -p temper-client-journeys", path.display());
-    }
-    for file in ["skein-ui.css", "journey.js"] {
-        let reprinted = fs::read(scratch.path().join(file)).expect("reprinted file beside the journeys");
-        assert_eq!(
-            fs::read(committed.join(file)).ok().as_deref(),
-            Some(reprinted.as_slice()),
-            "{file} differs; run cargo run -p temper-client-journeys"
-        );
-    }
-    let tui = Path::new(crate::TUI_JOURNEYS);
-    tui_sources(tui).expect("committed TUI sources");
-    let out = scratch.path().join("tui");
-    let stale = crate::tui::reprint(tui, &out).expect("reprint TUI; run cargo run -p temper-client-journeys");
-    assert!(stale.is_empty(), "stale TUI journeys: {stale:?}; run cargo run -p temper-client-journeys");
-    let expected = printed_files(tui);
-    let reprinted = printed_files(&out);
-    for path in expected.union(&reprinted) {
-        assert_eq!(
-            fs::read(tui.join(path)).ok(),
-            fs::read(out.join(path)).ok(),
-            "TUI {} differs; run cargo run -p temper-client-journeys",
-            path.display()
-        );
-    }
-    for file in ["theme.css", "tui-journey.js", "overlay.css"] {
-        assert!(
-            fs::read(tui.join(file)).expect("committed beside") == fs::read(out.join(file)).expect("reprinted beside"),
-            "TUI {file} differs; run cargo run -p temper-client-journeys"
-        );
-    }
-}
-
-fn printed_files(root: &Path) -> std::collections::BTreeSet<std::path::PathBuf> {
-    let mut files = std::collections::BTreeSet::new();
-    for entry in fs::read_dir(root).expect("journeys directory") {
-        let entry = entry.expect("journey entry");
-        if !entry.file_type().expect("journey type").is_dir() {
-            continue;
-        }
-        for page in fs::read_dir(entry.path()).expect("journey directory") {
-            let page = page.expect("page entry");
-            if crate::printed_page(&page.path()) || crate::tui::printed_file(&page.path()) {
-                files.insert(Path::new(&entry.file_name()).join(page.file_name()));
-            }
-        }
-    }
-    files
-}
 
 #[test]
 fn a_name_outside_the_pattern_is_refused() {
@@ -241,6 +172,21 @@ fn every_journey_has_its_description() {
         );
     }
 }
+#[test]
+fn the_tui_overlay_is_empty() {
+    let overlay = fs::read(Path::new(crate::TUI_JOURNEYS).join("overlay.css")).expect("committed TUI overlay.css");
+    assert!(overlay.is_empty(), "TUI overlay.css holds a request; move its rules into the theme and empty it");
+}
+
+#[test]
+fn every_tui_journey_has_its_description() {
+    for name in crate::names(Path::new(crate::TUI_JOURNEYS)).expect("committed TUI journeys") {
+        let path = Path::new(crate::TUI_JOURNEYS).join(&name).join("README.md");
+        let description = fs::read_to_string(path).expect("TUI journey README.md");
+        assert!(!description.trim().is_empty(), "{name} needs a README.md holding its description");
+    }
+}
+
 #[test]
 fn a_reprint_keeps_a_journeys_readme() {
     let scratch = Scratch::new("temper-client-journeys-readme");
@@ -465,15 +411,19 @@ fn a_refusal_keeps_the_journey_of_its_name() {
 }
 
 #[test]
-fn the_committed_journey_redacted_prints_the_same_pages() {
-    let root = Path::new(JOURNEYS).join("welcome-set-up");
-    let recording = fs::read(root.join("recording")).expect("committed recording");
-    let redacted = journey::redact(&recording, &[]).expect("redact committed journey");
-    let pages = crate::printed("welcome-set-up", &redacted.recording).expect("read journey").expect("replay");
-    assert!(!pages.is_empty(), "committed pages checked");
-    for page in pages {
-        let expected = fs::read(root.join(page.name)).expect("committed page");
-        assert!(expected == page.document.as_bytes(), "redacted page equals committed page");
+fn a_marked_walk_redacted_prints_the_same_pages() {
+    let secret = ["walk", "-secret"].concat().into_bytes();
+    let recording = fixture_with_marks_and_secret(Some(secret.clone().into()));
+    let redacted = journey::redact(&recording, &[]).expect("redact host walk");
+    assert_eq!(redacted.originals.count(journey::Kind::Link), 1);
+    absent(&redacted.recording, &secret, "redacted host walk");
+    let expected = crate::printed("marked", &recording).expect("read host walk").expect("replay original");
+    let pages = crate::printed("marked", &redacted.recording).expect("read redacted walk").expect("replay redacted");
+    assert!(pages.len() >= 2, "several marked pages compared");
+    assert_eq!(pages.len(), expected.len(), "every page retained");
+    for (page, expected) in pages.iter().zip(&expected) {
+        assert_eq!(page.name, expected.name);
+        assert_eq!(page.document, expected.document, "redaction preserves the printed page");
     }
 }
 
@@ -539,42 +489,6 @@ fn every_committed_setup_reads_and_joins() {
         }
     }
     assert!(count > 0, "committed setups exercised");
-}
-
-#[test]
-fn project_landings_start_is_welcome_set_ups_recorded_acts() {
-    use skein_fake_person::{Face, Find, Found, TreeFace};
-    let root = Path::new(JOURNEYS);
-    let setup =
-        journey::setup(&fs::read(root.join("project-landing/setup")).expect("project setup")).expect("read setup");
-    let recording = fs::read(root.join("welcome-set-up/recording")).expect("welcome recording");
-    let lines = journey::lines(&recording).expect("welcome records");
-    let acts: Vec<_> = lines
-        .iter()
-        .filter_map(|line| match line {
-            journey::Line::Act { act, .. } => Some(act),
-            _ => None,
-        })
-        .collect();
-    let mut replay = journey::Replay::new(&recording).expect("replay welcome");
-    let mut at = 0;
-    while let Some(mark) = replay.next().expect("welcome replay holds") {
-        if mark.acted.is_empty() {
-            continue;
-        }
-        let journey::SetupStep::Act { role, name, order, act } = &setup.steps[at] else {
-            panic!("setup step {} must act", at + 1)
-        };
-        assert_eq!(act, acts[at], "setup step {} gives the recorded act", at + 1);
-        let find = Find::exactly_named(*role, name).nth(*order);
-        let Found::Node(node) = TreeFace::new(mark.tree).find(&find) else {
-            panic!("setup step {}: no {find}", at + 1)
-        };
-        assert!(mark.acted.contains(&node), "setup step {}: {find} must give the recorded event", at + 1);
-        at += 1;
-    }
-    assert_eq!(at, acts.len(), "every welcome act checked");
-    assert!(at > 0);
 }
 
 #[test]

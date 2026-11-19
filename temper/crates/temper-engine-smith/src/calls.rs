@@ -101,15 +101,15 @@ fn family_name(family: jig_domain_authority::Tools) -> &'static [u8] {
 const READ_FORGE_SPEC: Spec = Spec {
     name: b"read_forge",
     description: b"Repository reads; forge.client.rows/answer_bytes bounded. Compare names only; file by path. Each what: read_docs host-tools.",
-    schema: br#"{"type":"object","properties":{"what":{"type":"string","enum":["branch","branches","compare","file","protection","settings","collaborators","permission"]},"repository":{"type":"string"},"branch":{"type":"string"},"prefix":{"type":"string"},"before":{"type":"string"},"after":{"type":"string"},"commit":{"type":"string"},"path":{"type":"string"},"max_bytes":{"type":"integer","minimum":1},"page":{"type":"integer","minimum":1},"user":{"type":"integer","minimum":1}},"required":["what"]}"#,
-    whole: Some(br#"{"type":"object","properties":{"what":{"type":"string","enum":["branch","branches","compare","file","protection","settings","collaborators","permission"],"description":"Read to make; each what below lists its required and optional members."},"repository":{"type":"string","description":"owner/name; omit or empty for the project's one."},"branch":{"type":"string","description":"Branch name; pull_for: the branch it merges from."},"prefix":{"type":"string","description":"Nonempty name prefix, as temper/; longer reads fewer."},"before":{"type":"string","description":"Earlier commit: 40 or 64 lowercase hex digits."},"after":{"type":"string","description":"Later commit: 40 or 64 lowercase hex digits."},"commit":{"type":"string","description":"Commit id: 40 or 64 lowercase hex digits."},"path":{"type":"string","description":"File or directory path; dot or empty for root."},"max_bytes":{"type":"integer","minimum":1,"description":"Raw prefix or log bytes; default: read limit. Leave room for metadata and escaping (up to 4x); cuts are incomplete.","maximum":4294967295},"page":{"type":"integer","minimum":1,"description":"Page from 1; default 1. Next page uncut; same page and skip if cut.","maximum":4294967295,"default":1},"user":{"type":"integer","minimum":1,"description":"Forge user's id; permission names their login.","maximum":18446744073709551615}},"required":["what"]}"#),
+    schema: br#"{"type":"object","properties":{"what":{"enum":["branch","branches","compare","file","protection","settings","collaborators","permission"],"description":"Needs: branches prefix; compare before, after; file path; permission user. No branch: the default branch."},"repository":{"type":"string"},"branch":{"type":"string"},"prefix":{"type":"string"},"before":{"type":"string"},"after":{"type":"string"},"commit":{"type":"string"},"path":{"type":"string"},"max_bytes":{"type":"integer"},"page":{"type":"integer"},"user":{"type":"integer"}},"required":["what"]}"#,
+    whole: Some(br#"{"type":"object","properties":{"what":{"type":"string","enum":["branch","branches","compare","file","protection","settings","collaborators","permission"],"description":"Read to make; each what below lists its required and optional members."},"repository":{"type":"string","description":"owner/name; omit or empty for the project's one."},"branch":{"type":"string","description":"Branch name; omit or empty for the default branch. file: read at its head unless commit."},"prefix":{"type":"string","description":"Nonempty name prefix, as temper/; longer reads fewer."},"before":{"type":"string","description":"Earlier commit: 40 or 64 lowercase hex digits."},"after":{"type":"string","description":"Later commit: 40 or 64 lowercase hex digits."},"commit":{"type":"string","description":"Commit id: 40 or 64 lowercase hex digits. file: omit to read at branch's head."},"path":{"type":"string","description":"File or directory path; dot or empty for root."},"max_bytes":{"type":"integer","minimum":1,"description":"Raw prefix or log bytes; default: read limit. Leave room for metadata and escaping (up to 4x); cuts are incomplete.","maximum":4294967295},"page":{"type":"integer","minimum":1,"description":"Page from 1; default 1. Next page uncut; same page and skip if cut.","maximum":4294967295,"default":1},"user":{"type":"integer","minimum":1,"description":"Forge user's id; permission names their login.","maximum":18446744073709551615}},"required":["what"]}"#),
     effect: run::HostEffect::Read,
     offer: Offer::Family(FAMILIES.read),
 };
 const READ_ISSUES_SPEC: Spec = Spec {
     name: b"read_issues",
     description: b"Issues and pulls; forge.client.rows/answer_bytes bounded. Advance page; if cut, same page/skip. Each what: read_docs host-tools.",
-    schema: br#"{"type":"object","properties":{"what":{"type":"string","enum":["items","item","pull","pull_for","reviews","remarks","pull_files"]},"repository":{"type":"string"},"since":{"type":"integer","minimum":0},"page":{"type":"integer","minimum":1},"item_kind":{"type":"string","enum":["issue","pull"]},"number":{"type":"integer","minimum":1},"comment":{"type":"integer","minimum":0},"branch":{"type":"string"},"base":{"type":"string"},"skip":{"type":"integer","minimum":0},"review":{"type":"integer","minimum":1},"commit":{"type":"string"}},"required":["what"]}"#,
+    schema: br#"{"type":"object","properties":{"what":{"enum":["items","item","pull","pull_for","reviews","remarks","pull_files"],"description":"Needs: item, pull, reviews number; pull_for branch, base; remarks number, review; pull_files number, commit."},"repository":{"type":"string"},"since":{"type":"integer"},"page":{"type":"integer"},"item_kind":{"type":"string","enum":["issue","pull"]},"number":{"type":"integer"},"comment":{"type":"integer"},"branch":{"type":"string"},"base":{"type":"string"},"skip":{"type":"integer"},"review":{"type":"integer"},"commit":{"type":"string"}},"required":["what"]}"#,
     whole: Some(br#"{"type":"object","properties":{"what":{"type":"string","enum":["items","item","pull","pull_for","reviews","remarks","pull_files"],"description":"Read to make; each what below lists its required and optional members."},"repository":{"type":"string","description":"owner/name; omit or empty for the project's one."},"since":{"type":"integer","minimum":0,"description":"Items updated at or after this time in nanoseconds; default 0.","maximum":18446744073709551615,"default":0},"page":{"type":"integer","minimum":1,"description":"Page from 1; default 1. Next page uncut; same page and skip if cut.","maximum":4294967295,"default":1},"item_kind":{"type":"string","enum":["issue","pull"],"description":"issue or pull alone; both when absent."},"number":{"type":"integer","minimum":1,"description":"Issue or pull number.","maximum":18446744073709551615},"comment":{"type":"integer","minimum":0,"description":"Comments after this id; default 0.","maximum":18446744073709551615,"default":0},"branch":{"type":"string","description":"Branch name; pull_for: the branch it merges from."},"base":{"type":"string","description":"Branch it merges into."},"skip":{"type":"integer","minimum":0,"description":"Rows of page already read; default 0.","maximum":4294967295,"default":0},"review":{"type":"integer","minimum":1,"description":"Review id from read_issues what=reviews.","maximum":18446744073709551615},"commit":{"type":"string","description":"Commit id: 40 or 64 lowercase hex digits."}},"required":["what"]}"#),
     effect: run::HostEffect::Read,
     offer: Offer::Family(FAMILIES.read),
@@ -117,7 +117,7 @@ const READ_ISSUES_SPEC: Spec = Spec {
 const READ_CI_SPEC: Spec = Spec {
     name: b"read_ci",
     description: b"Checks, statuses and job logs; forge.client.rows/answer_bytes bounded. Statuses by page; logs by max_bytes. Each what: read_docs host-tools.",
-    schema: br#"{"type":"object","properties":{"what":{"type":"string","enum":["checks","job","statuses"]},"repository":{"type":"string"},"commit":{"type":"string"},"run":{"type":"integer","minimum":1},"job":{"type":"integer","minimum":0},"attempt":{"type":"integer","minimum":0},"max_bytes":{"type":"integer","minimum":1},"page":{"type":"integer","minimum":1}},"required":["what"]}"#,
+    schema: br#"{"type":"object","properties":{"what":{"enum":["checks","job","statuses"],"description":"Needs: checks, statuses commit; job commit, run, job, attempt."},"repository":{"type":"string"},"commit":{"type":"string"},"run":{"type":"integer"},"job":{"type":"integer"},"attempt":{"type":"integer"},"max_bytes":{"type":"integer"},"page":{"type":"integer"}},"required":["what"]}"#,
     whole: Some(br#"{"type":"object","properties":{"what":{"type":"string","enum":["checks","job","statuses"],"description":"Read to make; each what below lists its required and optional members."},"repository":{"type":"string","description":"owner/name; omit or empty for the project's one."},"commit":{"type":"string","description":"Commit id: 40 or 64 lowercase hex digits."},"run":{"type":"integer","minimum":1,"description":"Run id from read_ci what=checks or what=statuses; never a link's run number.","maximum":18446744073709551615},"job":{"type":"integer","minimum":0,"description":"Job id from read_ci what=checks or what=statuses; never a link's job index.","maximum":18446744073709551615},"attempt":{"type":"integer","minimum":0,"description":"Attempt from read_ci what=checks or what=statuses; may be 0 on Forgejo.","maximum":4294967295},"max_bytes":{"type":"integer","minimum":1,"description":"Raw prefix or log bytes; default: read limit. Leave room for metadata and escaping (up to 4x); cuts are incomplete.","maximum":4294967295},"page":{"type":"integer","minimum":1,"description":"Page from 1; default 1. Next page uncut; same page and skip if cut.","maximum":4294967295,"default":1}},"required":["what"]}"#),
     effect: run::HostEffect::Read,
     offer: Offer::Family(FAMILIES.read),
@@ -312,13 +312,10 @@ pub fn call_in(
             };
             return Ok(Decoded::Answered(answer));
         }
-        b"read_forge" | b"read_issues" | b"read_ci" => {
-            let read = match crate::forge_reads::decode(tool, &value)? {
-                Ok(read) => read,
-                Err(answer) => return Ok(Decoded::Answered(answer)),
-            };
-            engine::Tool::ReadNamed { repository: forge_repository(&value)?, read }
-        }
+        b"read_forge" | b"read_issues" | b"read_ci" => match crate::forge_reads::decode(tool, &value)? {
+            Ok(tool) => tool,
+            Err(answer) => return Ok(Decoded::Answered(answer)),
+        },
         b"read_items"
         | b"read_item"
         | b"read_pull"
@@ -894,7 +891,7 @@ fn task_read(value: &Value) -> Result<engine::Tool, Problem> {
     })
 }
 
-fn forge_repository(value: &Value) -> Result<Option<Box<[u8]>>, Problem> {
+pub(crate) fn forge_repository(value: &Value) -> Result<Option<Box<[u8]>>, Problem> {
     match value.field(b"repository")? {
         Some(value) => {
             let name = value.text(b"repository")?;

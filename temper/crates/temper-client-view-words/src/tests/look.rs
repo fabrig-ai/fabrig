@@ -280,6 +280,7 @@ fn each_phone_target_stands_44_pixels() {
         "#app > .temper-rail .temper-projects > summary",
         "#app > .temper-rail > .temper-away-chip::after",
         "#app > .temper-rail > .temper-night-switch::after",
+        "#app > .temper-top > .temper-night-switch::after",
         "#app > .temper-tabbar > a",
         "#app > .temper-session .temper-session-composer > button::after",
         "#app > .temper-session .temper-model > summary::before",
@@ -342,4 +343,30 @@ fn each_phone_target_stands_44_pixels() {
 fn team_and_how_resolve_to_distinct_style_names() {
     assert_eq!(NAMES.style(TEAM), Some(b"temper-team".as_slice()));
     assert_eq!(NAMES.style(HOW_WIDE), Some(b"temper-how-wide".as_slice()));
+}
+
+#[test]
+#[expect(clippy::disallowed_macros, reason = "ordinary tests read the browser stylesheet as text")]
+fn the_top_bar_night_switch_keeps_the_requested_rules() {
+    let css = include_str!("../../../temper-client-shell-web/temper.css");
+    for rule in [
+        r"#app > .temper-top > .temper-night-switch { position: relative; flex: none; width: 30px; height: 30px; margin: 0 -6px 0 0; padding: 0; font-size: 0; border: 0; border-radius: 8px; background: none; color: var(--gf-muted); cursor: pointer; }",
+        r"#app > .temper-top > .temper-night-switch::before { content: ''; position: absolute; inset: 7px; background: currentColor;
+  -webkit-mask: url(files/moon.svg) center / contain no-repeat;
+          mask: url(files/moon.svg) center / contain no-repeat; }",
+        r#"#app > .temper-top > .temper-night-switch[aria-pressed="true"]::before { -webkit-mask-image: url(files/sun.svg); mask-image: url(files/sun.svg); }"#,
+        r"#app > .temper-top > .temper-night-switch:hover { background: var(--gf-hover); color: var(--gf-ink); }",
+        r"@media (max-width: 760px) {
+  #app > .temper-top > .temper-night-switch::after { content: ''; position: absolute; inset: 50% auto auto 50%; min-width: 44px; min-height: 44px; transform: translate(-50%, -50%); }
+}",
+    ] {
+        assert!(css.contains(rule), "missing top-bar switch rule: {rule}");
+    }
+}
+
+#[test]
+#[expect(clippy::disallowed_macros, reason = "ordinary tests read the browser stylesheet as text")]
+fn the_top_bar_brand_keeps_the_left_edge_without_steps() {
+    let css = include_str!("../../../temper-client-shell-web/temper.css");
+    assert!(css.contains("#app > .temper-top > .temper-brand { margin-right: auto; }"));
 }

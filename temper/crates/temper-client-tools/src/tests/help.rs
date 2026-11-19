@@ -578,7 +578,7 @@ fn goal_start_help_explains_the_title_line() {
     assert!(text.contains(concat!(
         "TEXT's first line is the goal's title, as Home and Work show it: ",
         "at most 60 characters naming the work for a person, ",
-        "as \"Store shape S7: history in task logs\"; the rest of TEXT follows on the lines below."
+        "as \"Store shape: history in task logs\"; the rest of TEXT follows on the lines below."
     )));
 }
 

@@ -390,6 +390,57 @@ fn a_landing_temper_did_not_make_asks_to_file_its_red() {
 }
 
 #[test]
+fn a_project_ending_at_landing_files_red_even_while_a_subscribed_verification_survives() {
+    let mut d = one();
+    d.landing.projects.get_mut(&5).unwrap().2.wait = temper_engine_domain_forge_change::Wait::Landed;
+    settled_step(&mut d, RELEASE, false);
+    logs(&mut d, Ok(log(SECOND_ATTEMPT, SECOND_LOG)));
+    let out = settled_step(&mut d, RELEASE + 1, false);
+    assert!(news(&out).is_empty(), "no goal hears a main red under landed, even before a switched row closes");
+    let calls = filings(&out);
+    assert_eq!(calls, [expected_finding()]);
+    let write = d.prepare_file_finding(&LIMITS, env().wall, Filer::Task(TIER_TASK), calls[0].clone()).unwrap();
+    let mut later = one();
+    later.landing.projects.get_mut(&5).unwrap().2.wait = temper_engine_domain_forge_change::Wait::Landed;
+    later.verifications.remove(&(REPO, NEXT_TIP));
+    outputs(&mut later, Event::Restore { record: Stored::Finding(write.row) });
+    later.tiers.get_mut(&(REPO, TIER.into())).unwrap().record.run.as_mut().unwrap().number = 2;
+    settled_step(&mut later, RELEASE + 2, false);
+    logs(&mut later, Ok(log(SECOND_ATTEMPT, SECOND_LOG)));
+    let out = settled_step(&mut later, RELEASE + 3, false);
+    assert!(filings(&out).is_empty(), "a second red blaming the landing files none");
+    assert_eq!(news(&out).len(), 0);
+}
+
+#[test]
+fn a_red_reads_the_lowest_member_follow_from_the_landing_log() {
+    let mut d = one();
+    d.landing.projects.get_mut(&5).unwrap().2.wait = temper_engine_domain_forge_change::Wait::Landed;
+    d.verifications.remove(&(REPO, NEXT_TIP));
+    for (task, follow) in [(THIRD_CHANGE, 9), (SECOND_CHANGE, 4)] {
+        let mut change = fixtures::opening_row();
+        change.task = task;
+        change.repository = REPO;
+        change.base = b"main".as_slice().into();
+        change.follows = Some(ChangeFollows { follow, commits: Box::new([BASE]) });
+        outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(change)) });
+        landing_log::landed(&mut d, env().wall, NEXT_TIP, task, Box::new([]), &mut Queue::uncapped());
+    }
+    settled_step(&mut d, RELEASE, false);
+    logs(&mut d, Ok(log(SECOND_ATTEMPT, SECOND_LOG)));
+    let out = settled_step(&mut d, RELEASE + 1, false);
+    assert_eq!(news(&out).len(), 0);
+    let filings: Vec<_> = out
+        .iter()
+        .filter_map(|request| match request {
+            Request::FileRedFinding { follow, finding, .. } => Some((*follow, finding)),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(filings, [(Some(4), &expected_finding())]);
+}
+
+#[test]
 fn a_red_names_the_lowest_kept_member_follow() {
     let mut d = one();
     d.subscriptions.remove(&(GOAL, Topic::Landings { repository: REPO, branch: b"main".as_slice().into() }));

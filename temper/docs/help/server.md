@@ -142,14 +142,14 @@ Keep `DATA` as is; report it.
 
 ## 4. The TLS proxy
 
-Caddy alone faces the world on 80/443:
+Caddy alone faces 80/443:
 
 ```
 git.example.com {
     reverse_proxy 127.0.0.1:3000
 }
 temper.example.com {
-    @link path /jig/v1/sign-in/link /jig/v1/sign-in/link/*
+    @link path /jig/v1/sign-in/link /jig/v1/sign-in/link/* /sign-in
     respond @link 403
     reverse_proxy 127.0.0.1:8367 {
         flush_interval -1
@@ -164,8 +164,9 @@ Keep `Host` for cookies' `Secure`; no retries. With no `trusted_proxies`,
 Caddy overwrites client-sent `X-Forwarded-For` with the client's address;
 temper reads its last entry as a terminal's approval source: leave it so.
 
-Expect: `https://temper.example.com/` answers 200; a `POST` to
-`/jig/v1/sign-in/link` answers 403; `/sign-in/google` answers 303 to
+Expect: `https://temper.example.com/` answers 200;
+`POST /jig/v1/sign-in/link` and `GET /sign-in` answer 403;
+`/sign-in/google` answers 303 to
 `accounts.google.com` with your redirect URI.
 
 If not: 502: engine down or listening elsewhere; read its journal.

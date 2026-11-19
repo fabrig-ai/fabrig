@@ -1,4 +1,5 @@
 //! Connections on sockets, with private durable storage (protocol/client/README.md, 9).
+//! Paths and printed links use the application's mapping (protocol/client/default-http.md, 4).
 use crate::{Conn, Connections, Limits, files::Files};
 use jig_client as client;
 use jig_client_protocol_http::{Mapping, Unlinked};
@@ -16,6 +17,7 @@ pub struct Settings {
     pub directory: Box<[u8]>,
     pub limits: Limits,
     pub io: io::Limits,
+    pub mapping: Mapping,
 }
 struct Socket {
     entity: Option<Token>,
@@ -63,7 +65,7 @@ impl Shell {
         let max = settings.io.sockets;
         let room = max.checked_mul(64).expect("queue bound");
         Self {
-            transport: Transport::new(settings.engine, &settings.limits, max, 0),
+            transport: Transport::new(settings.engine, &settings.limits, max, 0, settings.mapping),
             files: Files::new(settings.directory, settings.limits.body_bytes),
             io: io::Io::new(&settings.io),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: settings.io },
@@ -109,12 +111,6 @@ impl Shell {
     /// # Errors
     /// Refuses a printed link whose address differs from the configured engine.
     pub fn sign_in(&mut self, printed: &[u8]) -> Result<Secret, Unlinked> {
-        let parsed = jig_client_protocol_http::printed(&Mapping::new(b"/jig").expect("default mapping"), printed)?;
-        let host = std::str::from_utf8(&parsed.host).map_err(|_| Unlinked::Address)?;
-        let addr = host.parse().map_err(|_| Unlinked::Address)?;
-        if self.engine != io::Addr::Ip(addr) {
-            return Err(Unlinked::Address);
-        }
         self.transport.connections.printed(printed)
     }
     /// Route one link output; call iterate after the whole step's outputs.
@@ -207,11 +203,15 @@ impl Shell {
 impl Transport {
     /// `sockets` is the capacity reserved for this transport on the caller's io.
     #[must_use]
-    pub fn new(engine: io::Addr, limits: &Limits, sockets: u32, owner: u64) -> Self {
+    pub fn new(engine: io::Addr, limits: &Limits, sockets: u32, owner: u64, mapping: Mapping) -> Self {
         assert!(sockets > limits.exchanges, "io fits exchanges and the stream");
         assert_eq!(owner & u64::from(u32::MAX), 0, "owner tag leaves connection bits free");
         Self {
-            connections: Connections::new(limits, &engine.socket().expect("HTTP engine has an IP address").to_string()),
+            connections: Connections::new(
+                limits,
+                &engine.socket().expect("HTTP engine has an IP address").to_string(),
+                mapping,
+            ),
             engine,
             sockets: BTreeMap::new(),
             below: Queue::uncapped(),

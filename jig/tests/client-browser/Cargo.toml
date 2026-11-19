@@ -20,6 +20,8 @@ jig-client-protocol-link.workspace = true
 [dev-dependencies]
 skein-world.workspace = true
 jig-protocol-config.workspace = true
+jig-protocol-config-fixtures.workspace = true
+jig-domain-core.workspace = true
 jig-client-protocol-http.workspace = true
 [lints.rust] # harness: tools/lints/design.md, 2.2
 unsafe_code = "forbid"

@@ -37,6 +37,7 @@ pub enum Request {
         person: Token,
         page: Token,
         url: Box<[u8]>,
+        requests: bool,
     },
     Go {
         page: Token,
@@ -188,6 +189,19 @@ pub enum Event {
         text: Box<[u8]>,
         url: Box<[u8]>,
     },
+    /// A main-frame request, reported only where the page asks (browser.md, 5).
+    Sent {
+        page: Token,
+        id: Box<[u8]>,
+        load: Box<[u8]>,
+        document: bool,
+        method: Box<[u8]>,
+        url: Box<[u8]>,
+    },
+    Answered {
+        page: Token,
+        id: Box<[u8]>,
+    },
     Closed {
         owner: Token,
     },
@@ -327,4 +341,5 @@ pub enum Trouble {
     Crash,
     Dialog,
     Download,
+    Request,
 }

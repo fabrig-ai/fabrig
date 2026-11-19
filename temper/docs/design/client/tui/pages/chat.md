@@ -94,14 +94,52 @@ Illustrative (the request's 03, with the look request
   - *the three dots:* while the chat works and the turn being written
     has no word and no call yet, "✦" and "…" (`tui-dots`), as the
     browser's dots stand;
-  - *a card,* one line each, after the conversation's lines in the
-    order the page holds them: a delegated task (`Chat::delegations`,
-    its task as `Chat::delegation` reads it) "✦", "TN · KIND", its title
-    and its state (`shared::delegation_line`); a proposal in the chat's
-    subtree (`Chat::cards`) "✦", "Proposal" (`tui-signal`) and its title
-    (`shared::proposal_line`). A card carries no act: a proposal is
-    accepted on the web. Placing each at the call that made it is later
-    TUI work (`../../README.md`, section 5);
+  - *a card,* a paragraph each, after the conversation's lines in the
+    order the page holds them, its title whole (the user's request of
+    2026-11-18: "output is truncated, and perhaps we should not print
+    "T3 REPORT""). Illustrative, a delegated task's card in a row of 80
+    and of 150:
+
+    ```
+    ✦ Should README.md hold just "hello world", or keep its "# hello" heading with
+      "hello world" below it? · Running
+
+    ✦ Should README.md hold just "hello world", or keep its "# hello" heading with "hello world" below it? · Running
+    ```
+
+    - *a delegated task* (`Chat::delegations`, its task as
+      `Chat::delegation` reads it): "✦", its title, then " · "
+      (`tui-faint`) and its state (`tui-hint`). The title is the task's
+      words' first line, whole, as its card's facts hold it
+      (`delegation::facts`'s `title`), never `shared::row_title`'s cut
+      at 80 (`../../pages/README.md`, 2, *A task's title on a line*);
+      its state is the browser's terminal card's words
+      (`shared::delegation_line`'s `state`), "Running", "Held",
+      "Landed".
+    - *a proposal* in the chat's subtree (`Chat::cards`): "✦",
+      "Proposal" (`tui-signal`) and its title whole, its batch's first
+      proposed task's words' first line, else its reason's first line
+      (`shared::proposal_title`, of which `shared::proposal_line` is the
+      browser's cut).
+    - *No number and no kind:* "T3 · REPORT" are temper's own words
+      for its delegations ("REPORT", "CHANGE", "VERDICT"), and a person
+      reads a card's title and its state; the state, dim after the
+      title, tells the card from the agent's text, so no word stands
+      before the title. The number goes nowhere else in the TUI:
+      `/chats` lists the person's chats, not the tasks their chats
+      delegate (`README.md`, section 2, *A command's list*), and a
+      delegated task's page is the web's, reached from the chat's page
+      that `/open` opens. The browser's terminal card keeps "TN · KIND"
+      and the cut at 80 (`../../pages/chat/terminal.md`, 1).
+    - *At the window's edge:* the request asked for the title cut only
+      at the window's edge, taking skein to cut a line's end; skein
+      wraps a paragraph at its room instead (skein's `ui/screen.md`,
+      5.1), so a title wider than the row goes on to the next at the
+      card's indent, whole, and its state follows it. The TUI measures
+      and cuts nothing.
+    - *No act:* a card carries none: a proposal is accepted on the web.
+      Placing each at the call that made it is later TUI work
+      (`../../README.md`, section 5);
   - *a view,* printed, not drawn (`../../../draft/surfaces.md`, 11.5; the
     user, 2026-11-08): an agent's committed text is split at its `view`
     blocks by the domain's `views::parts`, as the browser's is (`../../pages/chat/conversation.md`, 3),
@@ -241,3 +279,10 @@ Answer csv-export's question with "Comma"?
   with "Later": the TUI puts the recommended choice first and "Tell it
   something else" last, as `../../../draft/tui.md`, section 3 asks, and has no
   Later, since the box is there for an answer in the person's words.
+
+## 3. Open questions
+
+- **A delegate's words** keep "TN · " before them (section 1, *a
+  delegate's words*) while its card names no number (section 1, *a
+  card*): whether they name their task otherwise, by its title, is
+  open; the request of 2026-11-18 asked about the card alone.

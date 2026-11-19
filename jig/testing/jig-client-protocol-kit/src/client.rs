@@ -114,7 +114,11 @@ impl Front {
         let limits = client::Limits { domain, exchanges: 8 };
         Self {
             client: client::Client::new(&limits, seed).expect("bounded client"),
-            connections: Connections::new(&fixtures::connections_limits(), fixtures::HOST),
+            connections: Connections::new(
+                &fixtures::connections_limits(),
+                fixtures::HOST,
+                jig_client_protocol_http::Mapping::new(b"/jig").expect("default mapping"),
+            ),
             out: Queue::uncapped(),
             up: Queue::uncapped(),
             below: Queue::uncapped(),

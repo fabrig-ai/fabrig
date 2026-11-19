@@ -17,6 +17,7 @@ CODEC = 'a/src/generated/note.rs'
 SCHEMAS = ['b/schema/note-v1.schema', 'b/schema/note-v1-part1.schema']
 CODEC_SOURCES = ['skein/testing/skein-codegen/src/lib.rs', 'skein/crates/skein-codec/src/schema.rs']
 CODEC_LIST = 'tools/merge/codecs.txt'
+JOURNEYS = 'temper/docs/design/client/web/journeys/'
 
 
 def counts(first, second, comment='# Head baseline\n'):
@@ -183,6 +184,135 @@ class Merge(unittest.TestCase):
         expected = counts(6, 6, comment).encode()
         self.assertEqual((self.repository / path).read_bytes(), expected)
         self.assertEqual(self.git('show', f':0:{path}').stdout, expected)
+
+    def forbid_journey_generation(self):
+        executable = self.job / 'bin/cargo'
+        executable.parent.mkdir()
+        executable.write_text('#!/bin/sh\ntouch "$TEMPER_JOB/unexpected-cargo"\nexit 1\n',
+                              encoding='utf-8')
+        executable.chmod(0o755)
+        self.env['PATH'] = str(executable.parent) + ':' + self.env['PATH']
+        self.addCleanup(lambda: self.assertFalse((self.job / 'unexpected-cargo').exists()))
+
+    def assert_base_entry(self, path):
+        base = self.git('rev-parse', 'MERGE_HEAD').stdout.decode().strip()
+        self.assertEqual((self.repository / path).read_bytes(),
+                         self.git('show', f'{base}:{path}').stdout)
+        self.assertEqual(self.git('show', f':0:{path}').stdout,
+                         self.git('show', f'{base}:{path}').stdout)
+        entry = self.git('ls-tree', base, '--', path).stdout.split()[0]
+        self.assertEqual(self.git('ls-files', '--stage', '--', path).stdout.split()[0], entry)
+        self.assertEqual((self.repository / path).stat().st_mode & 0o111,
+                         0o111 if entry == b'100755' else 0)
+
+    def test_journey_written_conflicts_take_base_bytes_and_mode_without_generation(self):
+        paths = (JOURNEYS + 'x/01.html',
+                 JOURNEYS.replace('/web/', '/tui/') + 'x/123.txt',
+                 JOURNEYS + 'x/recording', JOURNEYS + 'skein-ui.css',
+                 JOURNEYS + 'journey.js',
+                 JOURNEYS.replace('/web/', '/tui/') + 'theme.css',
+                 JOURNEYS.replace('/web/', '/tui/') + 'tui-journey.js')
+        for index, path in enumerate(paths):
+            with self.subTest(path=path):
+                self.setUp()
+                self.forbid_journey_generation()
+                self.write(path, 'common\n')
+                # Alternate which side supplies an executable file.
+                head_mode, base_mode = ((0o644, 0o755) if index % 2 == 0
+                                        else (0o755, 0o644))
+                (self.repository / path).chmod(head_mode)
+                self.commit('common')
+                self.git('branch', 'base')
+                self.write(path, b'head\r\n\x00\xff\n')
+                head = self.commit('head')
+                self.git('checkout', '-q', 'base')
+                self.write(path, b'base\r\n\x00\xfe\n')
+                (self.repository / path).chmod(base_mode)
+                base = self.commit('base')
+                self.merge_conflict(head, base)
+                self.run_merge([path], [])
+                self.assert_base_entry(path)
+
+    def test_journey_base_deletion_removes_tree_and_all_index_stages(self):
+        path = JOURNEYS + 'x/01.html'
+        self.forbid_journey_generation()
+        self.write(path, 'common\n')
+        self.commit('common')
+        self.git('branch', 'base')
+        self.write(path, 'head\n')
+        head = self.commit('head')
+        self.git('checkout', '-q', 'base')
+        self.git('rm', path)
+        base = self.commit('base deletes page')
+        self.merge_conflict(head, base)
+        self.assert_stages({path: {1, 2}})
+        self.run_merge([path], [])
+        self.assertFalse((self.repository / path).exists())
+        self.assertEqual(self.git('ls-files', '--stage', '--', path).stdout, b'')
+
+    def test_journey_head_deletion_restores_base_copy(self):
+        path = JOURNEYS + 'x/01.html'
+        self.forbid_journey_generation()
+        self.write(path, 'common\n')
+        self.commit('common')
+        self.git('branch', 'base')
+        self.git('rm', path)
+        head = self.commit('head deletes page')
+        self.git('checkout', '-q', 'base')
+        self.write(path, 'base\n')
+        (self.repository / path).chmod(0o755)
+        base = self.commit('base')
+        self.merge_conflict(head, base)
+        self.assert_stages({path: {1, 3}})
+        self.run_merge([path], [])
+        self.assert_base_entry(path)
+
+    def test_journey_renames_use_base_tree_at_each_conflicted_path(self):
+        old, head_path, base_path = (JOURNEYS + 'x/' + name
+                                     for name in ('01.html', '02.html', '03.html'))
+        self.forbid_journey_generation()
+        self.write(old, 'common\n' * 10)
+        self.commit('common')
+        self.git('branch', 'base')
+        self.git('mv', old, head_path)
+        head = self.commit('head renames page')
+        self.git('checkout', '-q', 'base')
+        self.git('mv', old, base_path)
+        base = self.commit('base renames page')
+        self.merge_conflict(head, base)
+        self.assert_stages({old: {1}, head_path: {2}, base_path: {3}})
+        self.run_merge(sorted([old, head_path, base_path]), [])
+        for path in (old, head_path):
+            self.assertFalse((self.repository / path).exists())
+            self.assertEqual(self.git('ls-files', '--stage', '--', path).stdout, b'')
+        self.assert_base_entry(base_path)
+
+    def test_journey_sources_and_near_matches_are_left_with_their_records(self):
+        for relative in ('x/README.md', 'x/setup', 'x/walk', 'overlay.css',
+                         'x/1.html', 'x/01.html.bak', 'x/nested/01.html',
+                         'x/skein-ui.css', 'recording'):
+            with self.subTest(path=relative):
+                self.setUp()
+                self.forbid_journey_generation()
+                path = JOURNEYS + relative
+                self.write(path, 'common\n')
+                self.conflict(baseline=False, head_files=[(path, 'head\n')],
+                              base_files=[(path, 'base\n')])
+                self.run_merge([], [path])
+
+    def test_journey_page_preserves_other_merge_rules(self):
+        self.recording_generator()
+        path = JOURNEYS + 'x/01.html'
+        self.write(path, 'common\n')
+        self.conflict(other=True,
+                      head_files=[(path, 'head\n'), (RECORDING, 'head recording\n')],
+                      base_files=[(path, 'base\n'), (RECORDING, 'base recording\n')])
+        self.run_merge(sorted([BASELINE, RECORDING, path]), ['temper/x.rs'])
+        self.assert_base_entry(path)
+        self.assert_recounted()
+        self.assert_generator_called()
+        self.assertEqual((self.repository / RECORDING).read_text(),
+                         'merged generator\ncommon left\ncommon right\n')
 
     def recording_generator(self, outcome='write'):
         self.write(RECORDING, 'common recording\n')

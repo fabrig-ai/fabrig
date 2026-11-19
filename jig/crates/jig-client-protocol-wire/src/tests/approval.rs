@@ -107,7 +107,7 @@ fn debug_of_an_approval_shows_the_secrets_length_never_its_bytes() {
 #[test]
 #[expect(clippy::disallowed_macros, reason = "the eight approval declarations are the client wire's contract")]
 fn approval_records_follow_the_sign_in_contract() {
-    let schema = include_str!("../../schema/client-v36.schema");
+    let schema = include_str!("../../schema/client-v37.schema");
     for line in [
         "record ApprovalAsk { port: option u16 }",
         "enum ApprovalKind { listener, returned, typed }",

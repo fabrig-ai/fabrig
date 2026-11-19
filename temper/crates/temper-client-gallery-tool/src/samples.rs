@@ -3648,6 +3648,7 @@ fn morning_status() -> temper_client_protocol_wire::v1::ProjectStatus {
         queued: 3,
         red: false,
         branch: b"main".as_slice().into(),
+        unpaid: false,
     }).expect("morning status fits")
 }
 

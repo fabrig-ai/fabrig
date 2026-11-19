@@ -20,6 +20,43 @@ fn page_trouble_reports_kind_text_and_url_without_judging() {
     assert!(matches!(page_report(event), Err(Event::Opened { .. })));
 }
 
+#[test]
+fn the_session_page_asks_for_requests() {
+    let url: Box<[u8]> = b"http://127.0.0.1:9/".as_slice().into();
+    let skein_browser::boundary::Request::Page { person, page, url: opened, requests } =
+        super::session_page(url.clone())
+    else {
+        panic!("Page")
+    };
+    assert_eq!(person, super::PERSON);
+    assert_eq!(page, super::PAGE);
+    assert_eq!(opened, url);
+    assert!(requests);
+}
+
+#[test]
+fn page_requests_report_every_field_without_judging() {
+    let sent = Event::Sent {
+        page: Token::new(100),
+        id: b"7.1".as_slice().into(),
+        load: b"L1".as_slice().into(),
+        document: true,
+        method: b"POST".as_slice().into(),
+        url: b"http://127.0.0.1:9/s?x=1#part".as_slice().into(),
+    };
+    let Report::Sent { id, load, document, method, url } = page_report(sent).expect("Sent report") else {
+        panic!("Sent")
+    };
+    assert_eq!(id.as_ref(), b"7.1");
+    assert_eq!(load.as_ref(), b"L1");
+    assert!(document);
+    assert_eq!(method.as_ref(), b"POST");
+    assert_eq!(url.as_ref(), b"http://127.0.0.1:9/s?x=1#part");
+    let answered = Event::Answered { page: Token::new(100), id: b"7.1".as_slice().into() };
+    let Report::Answered { id } = page_report(answered).expect("Answered report") else { panic!("Answered") };
+    assert_eq!(id.as_ref(), b"7.1");
+}
+
 // Three ordinary completions and the root close fill the queue.
 const CAPACITY: u32 = 4;
 

@@ -1,7 +1,10 @@
 //! The inbox keeps cards through refreshes (temper/docs/design/client/pages/README.md).
 mod tasks;
 pub mod whole;
-use super::Request;
+use super::{
+    Request,
+    activity::{self, Asking},
+};
 use crate::{
     Limits,
     address::{Filter, Kind},
@@ -12,7 +15,7 @@ use jig_client::{
     Client, Handle, Latest, Readable, Readout, Told, Watchable,
     contract::{self, Delivery, InboxGroup, InboxReadGroup, ObjectKey, Read, ReadResult, ReadValue},
 };
-use skein_lib::{List, Queue, Set};
+use skein_lib::{List, Queue, Set, Time};
 pub use tasks::TaskRead;
 use whole::Whole;
 
@@ -134,6 +137,7 @@ pub struct Inbox {
     /// Needs' rows through the last page, bounded independently of the cards.
     pub rows: List<contract::InboxEntry>,
     needs_page: Option<Box<contract::InboxPage>>,
+    needs_asking: Asking,
     /// The needs read's supplied ancestry, retained for milestone bands.
     pub selection: Option<List<contract::InboxSelection>>,
     /// Incomplete source documents, for needs and updates respectively.
@@ -176,6 +180,7 @@ impl Inbox {
             cards: List::with_capacity(cards),
             rows: List::with_capacity(ROWS),
             needs_page: None,
+            needs_asking: Asking::new(),
             selection: None,
             previous: List::with_capacity(cards),
             arrived: [None, None],
@@ -248,6 +253,7 @@ impl Inbox {
     fn refresh(&mut self, source: &Client, out: &mut Queue<Request>) {
         self.arrived = [None, None];
         self.needs_page = None;
+        self.needs_asking = Asking::new();
         if self.filter.kind == Some(Kind::Finding) {
             self.replace(out);
             self.release_previous(out);
@@ -265,39 +271,52 @@ impl Inbox {
             }
             return;
         }
-        self.replace(out);
-        let previous_cut = self.cut[0];
         let mut read_needs = false;
-        self.cut = [false; 2];
         let latest = match source.document(self.entries) {
             Some(document) => document.latest,
             None => None,
         };
         if let Some(Latest::Jig(Delivery::Inbox(inbox))) = latest {
-            self.answered = [true, self.filter.kind.is_none()];
-            read_needs = inbox.next.is_some();
-            self.cut = [if read_needs && self.known { previous_cut } else { read_needs }, read_needs];
-            if !read_needs || !self.known {
-                self.rows.clear();
+            read_needs = inbox.next.is_some() && inbox.updates.is_empty();
+            if !read_needs {
+                let mut rows = List::with_capacity(ROWS);
+                let mut cut = false;
                 for row in &inbox.needs {
-                    if self.rows.len() == self.rows.capacity() {
-                        self.cut[0] = true;
-                        read_needs = true;
+                    if rows.len() == rows.capacity() {
+                        cut = true;
                         break;
                     }
-                    self.rows.push(row.clone()).expect("needs rows bounded");
+                    rows.push(row.clone()).expect("needs rows bounded");
                 }
+                self.arrived[0] =
+                    Some(Box::new(contract::InboxPage { rows, selection: None, before: None, after: None, cut }));
             }
-            for rows in [&inbox.needs, &inbox.updates] {
-                for row in rows {
-                    self.add(row, out);
-                }
+            if self.filter.kind.is_none() {
+                self.arrived[1] = Some(Box::new(contract::InboxPage {
+                    rows: inbox.updates.clone(),
+                    selection: None,
+                    before: None,
+                    after: None,
+                    cut: inbox.next.is_some(),
+                }));
             }
         }
-        self.release_previous(out);
         if read_needs {
             self.read_section(InboxReadGroup::Needs, None, out);
+        } else {
+            self.apply(out);
         }
+    }
+    pub(super) fn fire(&mut self, now: Time, out: &mut Queue<Request>) {
+        if let Some(at) = self.needs_asking.next_deadline()
+            && at <= now
+        {
+            self.pending.insert(self.queries[0]).expect("inbox query reads fit");
+            self.needs_asking.fire(now, self.queries[0], out);
+        }
+    }
+    pub(super) const fn next_deadline(&self) -> Option<Time> {
+        self.needs_asking.next_deadline()
     }
     fn read_section(&mut self, group: InboxReadGroup, after: Option<contract::Cursor>, out: &mut Queue<Request>) {
         let handle = match group {
@@ -305,25 +324,25 @@ impl Inbox {
             InboxReadGroup::Updates => self.queries[1],
         };
         self.pending.insert(handle).expect("inbox query reads fit");
-        client(
-            out,
-            jig_client::Event::Read {
-                handle,
-                read: Readable::Jig(Read::Inbox {
-                    group,
-                    project: self.filter.project,
-                    kind: match self.filter.kind {
-                        Some(value) => kind(value),
-                        None => None,
-                    },
-                    goal: self.filter.goal,
-                    after,
-                }),
+        let first_needs = group == InboxReadGroup::Needs && after.is_none();
+        let read = Read::Inbox {
+            group,
+            project: self.filter.project,
+            kind: match self.filter.kind {
+                Some(value) => kind(value),
+                None => None,
             },
-        );
+            goal: self.filter.goal,
+            after,
+        };
+        if first_needs {
+            self.needs_asking.ask(handle, read, out);
+        } else {
+            client(out, jig_client::Event::Read { handle, read: Readable::Jig(read) });
+        }
     }
     /// Stage one needs chain; only its terminal answer replaces the visible rows.
-    fn needs_answer(&mut self, page: Readout, out: &mut Queue<Request>) -> bool {
+    fn needs_answer(&mut self, source: &Client, now: Time, page: Readout, out: &mut Queue<Request>) -> bool {
         if let Readout::Jig(ReadResult::Value(ReadValue::Inbox(page))) = page {
             if self.needs_page.is_none() {
                 self.needs_page = Some(Box::new(contract::InboxPage {
@@ -354,17 +373,18 @@ impl Inbox {
                 }
                 staged.rows.push(row.clone()).expect("needs rows bounded");
             }
-            staged.cut = overflow || page.after.is_some();
+            staged.cut |= page.cut || overflow || (staged.rows.len() == ROWS && page.after.is_some());
             if page.after.is_some() && staged.rows.len() < staged.rows.capacity() {
                 self.read_section(InboxReadGroup::Needs, page.after, out);
                 return false;
             }
+            self.needs_asking.answered();
         } else {
-            self.cut[0] = true;
-            if self.answered(InboxReadGroup::Needs) {
-                self.needs_page = None;
-            } else if let Some(staged) = &mut self.needs_page {
-                staged.cut = true;
+            self.needs_page = None;
+            if activity::read_end(source, &page).transient() {
+                self.needs_asking.ended(now);
+            } else {
+                self.needs_asking.answered();
             }
         }
         self.arrived[0] = self.needs_page.take();
@@ -637,7 +657,14 @@ impl Inbox {
     pub const fn known(&self) -> bool {
         self.known
     }
-    pub(super) fn told(&mut self, source: &Client, told: Told, limits: &Limits, out: &mut Queue<Request>) -> bool {
+    pub(super) fn told(
+        &mut self,
+        source: &Client,
+        now: Time,
+        told: Told,
+        limits: &Limits,
+        out: &mut Queue<Request>,
+    ) -> bool {
         if let Some(milestone) = &mut self.milestone
             && milestone.told(&told, source, limits, out)
         {
@@ -655,15 +682,28 @@ impl Inbox {
                 return true;
             }
         }
-        let changed = self.receive(source, told, out);
+        let changed = self.receive(source, now, told, out);
         self.known |= self.answered(InboxReadGroup::Needs) && self.delivered(source);
         changed
     }
-    fn receive(&mut self, source: &Client, told: Told, out: &mut Queue<Request>) -> bool {
+    fn receive(&mut self, source: &Client, now: Time, told: Told, out: &mut Queue<Request>) -> bool {
         if let Told::Changed { handle } = &told
             && *handle == self.entries
         {
             self.refresh(source, out);
+            return true;
+        }
+        if let Told::Ended { handle, .. } = &told
+            && self.queries.contains(handle)
+        {
+            self.pending.remove(handle);
+            if *handle == self.queries[0] {
+                self.needs_page = None;
+                self.needs_asking.answered();
+            }
+            if !self.pending.contains(&self.queries[0]) && !self.pending.contains(&self.queries[1]) {
+                self.apply(out);
+            }
             return true;
         }
         let Told::Page { handle, page } = told else { return false };
@@ -679,15 +719,7 @@ impl Inbox {
         let answered = self.pending.remove(&handle);
         if self.queries.contains(&handle) {
             if handle == self.queries[0] {
-                if !self.needs_answer(page, out) {
-                    return true;
-                }
-                if self.filter.project.is_none() && self.filter.goal.is_none() {
-                    if let Some(page) = self.arrived[0].take() {
-                        self.rows = page.rows;
-                        self.cut[0] = page.cut;
-                        self.selection = page.selection;
-                    }
+                if !self.needs_answer(source, now, page, out) {
                     return true;
                 }
             } else if let Readout::Jig(ReadResult::Value(ReadValue::Inbox(page))) = page {

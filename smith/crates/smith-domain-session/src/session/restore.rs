@@ -232,7 +232,13 @@ pub(super) fn restore(
         validate_transcript(conversation, &transcript, &answered, withheld_name, limits)?;
     conversation.jobs.highest = transcript.turns.last().expect("validated nonempty history").jobs;
     compaction::restore(conversation, &transcript, &mut bytes)?;
-    bytes = bytes.checked_sub(compaction::carry_over(conversation, &mut transcript)?).ok_or(Refusal::TooLarge)?;
+    compaction::carry_over(conversation, &mut transcript, &mut bytes)?;
+    let mut blocks = 1_u32;
+    for turn in &transcript.turns {
+        for message in &turn.messages {
+            blocks = recorded_blocks(blocks, message, limits)?;
+        }
+    }
     conversation.affinity = match &transcript.turns.first().expect("validated nonempty history").kind {
         crate::record::Kind::First(opener) | crate::record::Kind::Window(opener) => opener.affinity,
         crate::record::Kind::Ordinary => unreachable!("validated opening kind"),

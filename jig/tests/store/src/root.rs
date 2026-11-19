@@ -429,6 +429,7 @@ pub fn run_proof(task: u64) -> core::Record {
         task,
         attempt: 1,
         conversation: 1,
+        endpoint: None,
         credentials: Box::new([]),
         window: Some(core::CurrentWindow { attempt: 1, turn: 1, closed: false }),
         crossed: false,

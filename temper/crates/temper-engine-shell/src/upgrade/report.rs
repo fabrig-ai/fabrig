@@ -33,138 +33,145 @@ pub(crate) fn job_counts(counts: &[jig_protocol_store::JobCount]) -> String {
 /// Store progress, then the start's outcome and worker compatibility.
 #[must_use]
 pub fn lines(binary: &str, report: &Report, directories: &Directories, deployment: &[u8]) -> (String, u8) {
-    render(binary, report, directories, deployment, false)
-}
-
-/// Only the workers' verdict, or the same opening refusal as the whole check.
-#[must_use]
-pub fn workers_lines(binary: &str, report: &Report, directories: &Directories, deployment: &[u8]) -> (String, u8) {
-    render(binary, report, directories, deployment, true)
-}
-
-#[expect(clippy::too_many_lines, reason = "upgrade reporting exhaustively ignores checkpoint terminals")]
-fn render(
-    binary: &str,
-    report: &Report,
-    directories: &Directories,
-    deployment: &[u8],
-    only_workers: bool,
-) -> (String, u8) {
     let mut text = String::new();
-    let mut kept = None;
-    let mut openings = &[][..];
-    let mut rehearsal = false;
-    let mut passed = report.restored || only_workers;
+    let mut passed = report.restored;
     for event in &report.events {
-        match event {
-            Event::Rehearsing { wires, openings: stated, .. } => {
-                rehearsal = true;
-                kept = wires.as_deref();
-                openings = stated;
-            }
-            Event::Decoded { records, .. } if !only_workers => {
-                writeln!(text, "{binary} upgrade: decoded {records} records").expect("string write");
-            }
-            Event::Undecodable { family, version, at, .. } => {
-                passed = false;
-                write!(text, "{binary} upgrade: record not decodable: {family} {version}, ").expect("string write");
-                place(&mut text, at);
-            }
-            Event::Ran { of, job, rows, commits, counts, .. } if !only_workers => {
-                writeln!(
-                    text,
-                    "{binary} upgrade: ran {} {job}: {rows} rows in {commits} commits{}; time unavailable",
-                    owner(*of),
-                    job_counts(counts)
-                )
-                .expect("string write");
-            }
-            Event::Back { to, .. } => {
-                passed = true;
-                writeln!(text, "{binary} upgrade: generation {to} active again; start the old binary")
-                    .expect("string write");
-            }
-            Event::BackRefused { why, .. } => {
-                let words = match why {
-                    BackRefusal::Committed { .. } => {
-                        "the patched generation is past its first commit; going back is restoring a backup"
-                    }
-                    BackRefusal::NoPrevious => "no previous generation; restore a backup to go back",
-                    BackRefusal::Busy => "a process holds the deployment; stop it before going back",
-                    BackRefusal::Unreadable => {
-                        "the deployment could not be read; check its directory and permissions, or restore a backup"
-                    }
-                };
-                writeln!(text, "{binary} upgrade: {words}").expect("string write");
-            }
-            Event::Closed { removed: false, .. } => {
-                passed = false;
-                writeln!(text, "{binary} upgrade: scratch cleanup failed; check the cache directory")
-                    .expect("string write");
-            }
-            // Upgrade progress does not consume the census (jig protocol/store/README.md, 6.3).
-            Event::Decoded { .. }
-            | Event::Ran { .. }
-            | Event::Checkpointed { .. }
-            | Event::CheckpointRefused { .. }
-            | Event::Restored { .. }
-            | Event::RestoreRefused { .. }
-            | Event::CheckpointHeld { .. }
-            | Event::CheckpointRemoved { .. }
-            | Event::Census { .. }
-            | Event::Closed { removed: true, .. }
-            | Event::Opened { .. }
-            | Event::OpenRefused { .. }
-            | Event::Switched { .. }
-            | Event::Site { .. }
-            | Event::Job { .. }
-            | Event::Committed { .. }
-            | Event::Failed { .. }
-            | Event::FrameTooLarge { .. }
-            | Event::Page { .. }
-            | Event::PageRefused { .. }
-            | Event::Loaded { .. }
-            | Event::Read { .. }
-            | Event::Got { .. }
-            | Event::Turns { .. }
-            | Event::Unread { .. }
-            | Event::Corrupt { .. }
-            | Event::SecretsNotReady { .. }
-            | Event::Kept { .. }
-            | Event::Stale { .. }
-            | Event::Erased { .. }
-            | Event::Carried { .. }
-            | Event::Secret { .. }
-            | Event::SecretsLoaded { .. } => {}
-        }
-    }
-    if !only_workers {
-        writeln!(text, "{binary} upgrade: whole rehearsal/tool time: {} ns", report.elapsed.as_nanos())
+        passed = event_refusal(&mut text, binary, event, passed);
+        if let Event::Decoded { records, .. } = event {
+            writeln!(text, "{binary} upgrade: decoded {records} records").expect("string write");
+        } else if let Event::Ran { of, job, rows, commits, counts, .. } = event {
+            writeln!(
+                text,
+                "{binary} upgrade: ran {} {job}: {rows} rows in {commits} commits{}; time unavailable",
+                owner(*of),
+                job_counts(counts)
+            )
             .expect("string write");
-    }
-    if let Some(failure) = &report.open_failure {
-        if only_workers {
-            passed = false;
         }
-        writeln!(text, "{binary} upgrade: store opening failed: {failure:?}").expect("string write");
     }
-    if let Some(end) = &report.end {
-        if only_workers {
-            passed = false;
-        }
-        let (refusal, _) = crate::lines::ending_with_binary(binary, Some(end), false, directories, deployment, &[]);
-        text.push_str(&refusal);
-    } else if report.restored && !only_workers {
+    writeln!(text, "{binary} upgrade: whole rehearsal/tool time: {} ns", report.elapsed.as_nanos())
+        .expect("string write");
+    refusal(&mut text, binary, report, directories, deployment);
+    if report.end.is_none() && report.restored {
         writeln!(
             text,
             "{binary} upgrade: registry commit, jobs and restores pass; what follows the switch is not rehearsed"
         )
         .expect("string write");
     }
-    if rehearsal || report.end.is_some() {
-        workers(&mut text, binary, kept, openings, &report.workers);
+    verdict(&mut text, binary, report);
+    (text, u8::from(!passed || !report.done))
+}
+
+/// Only the workers' verdict, or the same opening refusal as the whole check.
+#[must_use]
+pub fn workers_lines(binary: &str, report: &Report, directories: &Directories, deployment: &[u8]) -> (String, u8) {
+    let mut text = String::new();
+    let mut passed = true;
+    for event in &report.events {
+        passed = event_refusal(&mut text, binary, event, passed);
     }
-    (text, u8::from(!passed || !report.done || only_workers && !rehearsal))
+    passed &= refusal(&mut text, binary, report, directories, deployment);
+    let rehearsal = verdict(&mut text, binary, report);
+    (text, u8::from(!passed || !report.done || !rehearsal))
+}
+
+// Event refusals stay interleaved with the whole check's progress.
+fn event_refusal(text: &mut String, binary: &str, event: &Event, mut passed: bool) -> bool {
+    match event {
+        Event::Undecodable { family, version, at, .. } => {
+            passed = false;
+            write!(text, "{binary} upgrade: record not decodable: {family} {version}, ").expect("string write");
+            place(text, at);
+        }
+        Event::Back { to, .. } => {
+            passed = true;
+            writeln!(text, "{binary} upgrade: generation {to} active again; start the old binary")
+                .expect("string write");
+        }
+        Event::BackRefused { why, .. } => {
+            let words = match why {
+                BackRefusal::Committed { .. } => {
+                    "the patched generation is past its first commit; going back is restoring a backup"
+                }
+                BackRefusal::NoPrevious => "no previous generation; restore a backup to go back",
+                BackRefusal::Busy => "a process holds the deployment; stop it before going back",
+                BackRefusal::Unreadable => {
+                    "the deployment could not be read; check its directory and permissions, or restore a backup"
+                }
+            };
+            writeln!(text, "{binary} upgrade: {words}").expect("string write");
+        }
+        Event::Closed { removed: false, .. } => {
+            passed = false;
+            writeln!(text, "{binary} upgrade: scratch cleanup failed; check the cache directory")
+                .expect("string write");
+        }
+        // Upgrade progress does not consume the census (jig protocol/store/README.md, 6.3).
+        Event::Rehearsing { .. }
+        | Event::Decoded { .. }
+        | Event::Ran { .. }
+        | Event::Checkpointed { .. }
+        | Event::CheckpointRefused { .. }
+        | Event::Restored { .. }
+        | Event::RestoreRefused { .. }
+        | Event::CheckpointHeld { .. }
+        | Event::CheckpointRemoved { .. }
+        | Event::Census { .. }
+        | Event::Closed { removed: true, .. }
+        | Event::Opened { .. }
+        | Event::OpenRefused { .. }
+        | Event::Switched { .. }
+        | Event::Site { .. }
+        | Event::Job { .. }
+        | Event::Committed { .. }
+        | Event::Failed { .. }
+        | Event::FrameTooLarge { .. }
+        | Event::Page { .. }
+        | Event::PageRefused { .. }
+        | Event::Loaded { .. }
+        | Event::Read { .. }
+        | Event::Got { .. }
+        | Event::Turns { .. }
+        | Event::Unread { .. }
+        | Event::Corrupt { .. }
+        | Event::SecretsNotReady { .. }
+        | Event::Kept { .. }
+        | Event::Stale { .. }
+        | Event::Erased { .. }
+        | Event::Carried { .. }
+        | Event::Secret { .. }
+        | Event::SecretsLoaded { .. } => {}
+    }
+    passed
+}
+
+fn refusal(text: &mut String, binary: &str, report: &Report, directories: &Directories, deployment: &[u8]) -> bool {
+    if let Some(failure) = &report.open_failure {
+        writeln!(text, "{binary} upgrade: store opening failed: {failure:?}").expect("string write");
+    }
+    if let Some(end) = &report.end {
+        let (refusal, _) = crate::lines::ending_with_binary(binary, Some(end), false, directories, deployment, &[]);
+        text.push_str(&refusal);
+    }
+    report.open_failure.is_none() && report.end.is_none()
+}
+
+fn verdict(text: &mut String, binary: &str, report: &Report) -> bool {
+    let mut kept = None;
+    let mut openings = &[][..];
+    let mut rehearsal = false;
+    for event in &report.events {
+        if let Event::Rehearsing { wires, openings: stated, .. } = event {
+            rehearsal = true;
+            kept = wires.as_deref();
+            openings = stated;
+        }
+    }
+    if rehearsal || report.end.is_some() {
+        workers(text, binary, kept, openings, &report.workers);
+    }
+    rehearsal
 }
 
 fn place(text: &mut String, at: &Undecoded) {

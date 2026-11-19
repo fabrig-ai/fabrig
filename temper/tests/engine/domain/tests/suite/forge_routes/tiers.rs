@@ -286,6 +286,100 @@ fn a_silent_runner_past_the_bound_ends_landed_uncleared() {
     eprintln!("seed={SEED}, simulated={:?}", world.env.now);
 }
 
+fn ended_at_landing(turn: bool) {
+    let options = Tier { wait: temper_engine_domain_forge_change::Wait::Landed, ..Tier::default() };
+    let (mut world, chat) = chat_world(turn, options);
+    let number = produce(&mut world, &chat, 93, b"file", b"small fix");
+    until(&mut world, LANDING_TICKS, "change ended at landing", |world| {
+        matches!(task(world, number).phase, tasks::Phase::Ended(_))
+    });
+    let commit = merge(&world, number);
+    assert!(matches!(change(&world, number).change.state, State::Landed { .. }));
+    assert!(
+        !world
+            .store
+            .rows
+            .contains_key(&Key::Forge(forge_top::Key::Verification { repository: forge_world::REPO, commit }))
+    );
+    let words = result(&world, number);
+    assert!(words.starts_with(std::str::from_utf8(&forge_top::commit_text(&commit)).expect("commit text")), "{words}");
+    assert!(words.contains("Ended at landing; after landing judges it later."), "{words}");
+    assert_eq!(tier(&world).record.sequence, 0, "baseline has not judged yet");
+    let branch = change(&world, number).branch.clone();
+    assert!(
+        world.writes.iter().any(
+            |write| matches!(write, skein_forge::api::Write::DeleteBranch { branch: deleted } if *deleted == branch)
+        ),
+        "branch deleted as the change closes"
+    );
+}
+
+#[test]
+fn a_queued_change_ends_at_landing_before_the_tier_runs() {
+    ended_at_landing(false);
+}
+
+#[test]
+fn a_change_by_turn_ends_at_landing_before_the_tier_runs() {
+    ended_at_landing(true);
+}
+
+#[test]
+fn switching_to_landed_ends_verifying_and_red_changes_and_later_posts_from_the_log() {
+    let mut world = tier_runs::news_world();
+    world.adopt();
+    let mut event = protocol::hello_slots(Token::new(7), 2, Box::new([]));
+    let engine::Event::Worker(engine::WorkerInput::Link { link: engine::Link::Hello { hello, .. }, .. }) = &mut event
+    else {
+        panic!("worker hello")
+    };
+    hello.bounds.message_bytes = world.env.limits.tasks.message_bytes;
+    world.send(event);
+    let ask = tier_runs::goal(&world);
+    let goal = assigned_chat(&mut world, 92, ask);
+    baseline(&mut world);
+    let red = produce(&mut world, &goal, 93, b"failures", b"suite.alpha\n");
+    until(&mut world, RUN_TICKS * 3, "first change red", |world| {
+        matches!(change(world, red).change.state, State::Red { .. }) && tier(world).posting.is_none()
+    });
+    let before = tier_runs::red_news(&world, goal.task).len();
+    assert_eq!(before, 1);
+    let verifying = produce(&mut world, &goal, 94, b"failures", b"suite.alpha\nsuite.beta\n");
+    assert!(matches!(change(&world, verifying).change.state, State::Landed { .. }));
+    until(&mut world, LANDING_TICKS, "restart cut", restart_cut);
+    world.restart_with_change_wait(temper_engine_domain_forge_change::Wait::Landed);
+    until(&mut world, LANDING_TICKS, "switched changes end", |world| {
+        [red, verifying].iter().all(|number| matches!(task(world, *number).phase, tasks::Phase::Ended(_)))
+    });
+    for number in [red, verifying] {
+        let commit = merge(&world, number);
+        assert_eq!(change(&world, number).change.state, State::Uncleared { merge: commit });
+        assert!(
+            result(&world, number)
+                .contains("Not cleared: its project now ends a change at its landing; after landing judges it later."),
+            "{}",
+            result(&world, number)
+        );
+        assert!(
+            !world
+                .store
+                .rows
+                .contains_key(&Key::Forge(forge_top::Key::Verification { repository: forge_world::REPO, commit }))
+        );
+    }
+    until(&mut world, RUN_TICKS * 3, "later red posts from log", |world| {
+        tier(world).record.sequence == 3 && tier(world).posting.is_none()
+    });
+    let pull = change(&world, verifying).pull.expect("member pull");
+    assert!(world.writes.iter().any(|write| matches!(write, skein_forge::api::Write::Post { number, body, .. } if *number == pull && body.starts_with(b"Red: slow run 3 blames this landing for suite.beta."))));
+    assert!(
+        tier_runs::red_news(&world, goal.task)
+            .iter()
+            .all(|word| !String::from_utf8_lossy(&word.words).contains("tier slow run 3")),
+        "switched project sends no further red"
+    );
+}
+
 #[test]
 fn a_change_landed_by_turn_waits_for_main_to_clear_it() {
     let _ = green(true);

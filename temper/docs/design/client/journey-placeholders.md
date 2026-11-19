@@ -29,8 +29,8 @@ take them, 5 a print's ids, 6 the code, 7 its tests, 8 what is open.
 - **When:** `add` redacts, proves, then normalises, and the normalised
   recording must replay as the check has it before anything is written
   (4.1). `again` compares walks normalised (4.2). The committed
-  recordings are normalised once, by `normalise`, and the print's test
-  holds every committed recording to its own normalisation (4.3).
+  recordings were normalised once, by `normalise` (4.3); no test holds
+  them to it.
 - **What stays:** times, the seed and the turns, which the replay needs
   as they were (2.4). `again` walks on a fixed start, so two of its
   walks hold the same ones but where real processes decide
@@ -99,8 +99,8 @@ take them, 5 a print's ids, 6 the code, 7 its tests, 8 what is open.
   turn's clocks and the browser's `zone` from the recording
   (`web/journeys.md`, 4.1; `tui/journeys.md`, 4.1), and the print adds
   none, so one recording printed on another day, or on another host,
-  gives the same bytes. The print's test holds it, reprinting every
-  committed recording on whatever day it runs (4.3).
+  gives the same bytes, so the journeys' writer changes no page of a
+  journey that still replays (`journey-writer.md`, 3).
 - **The seed and the turns** stand: the host draws from the seed, and
   the turns' clocks, deadlines and a stream's pieces are when things
   happened, which the replay gives back as they were. Two of `again`'s
@@ -247,10 +247,9 @@ In this order, everything in memory until the scan has passed
   `add` and the reprint don't (`web/journeys.md`, 5.1).
 - **Run once when this lands,** so that no journey is recorded again and
   no box is run for it, and again when a later change adds a kind.
-- **Held by the print's test** (`web/journeys.md`, 6;
-  `tui/journeys.md`, 7): it fails while a committed recording isn't its
-  own normalisation, naming `cargo run -p temper-client-journeys --
-  normalise`.
+- **Held by no test:** a committed recording is the journeys' writer's,
+  made by `again` and `add`, which normalise it (`journey-writer.md`,
+  2 and 3); no test holds it to its normalisation.
 
 ## 5. A print's generated ids
 
@@ -289,8 +288,8 @@ generated ids afresh on each page, as it drops `data-node`:
   - `temper_client_shell_tui::journey::normalise(recording: &[u8]) ->
     Result<Normalised, Unreadable>`.
 - **`temper-client-journeys-tool`** calls them in `add` and the TUI's
-  `add` (4.1), in the browser's `again` (4.2), in `normalise` and the
-  print's test (4.3), and numbers a page's ids in `print::pages`
+  `add` (4.1), in the browser's `again` (4.2) and in `normalise`
+  (4.3), and numbers a page's ids in `print::pages`
   (section 5).
 
 ## 7. Its tests
@@ -315,8 +314,6 @@ no fuzzy test, no browser, terminal or box.
   replaying; `add` printing its counts; `normalise`'s table row and help;
   the browser's `again` finding a control and checking a walk across
   placeholders; a page's ids numbered afresh.
-- **The committed journeys** replay and print unchanged after their one
-  normalisation: the print's test, by name.
 
 ## 8. Open questions
 

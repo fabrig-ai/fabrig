@@ -332,8 +332,8 @@ fn a_full_catalogue_counts_the_names_left_out() {
     let names: Vec<_> = (0..64).map(|number| format!("new-{number}").into_bytes()).collect();
     let rows: Vec<&[u8]> = names.iter().map(Vec::as_slice).collect();
     world.answer_list(listed(&rows));
-    assert_eq!(record(&world).left_out, 1); // One of the 64 numbers is the stock model.
-    assert_eq!(record(&world).names.count_ones(), 63);
+    assert_eq!(record(&world).left_out, 32); // Only the deployment's 33 to 64 are free.
+    assert_eq!(record(&world).names.count_ones(), 32);
 }
 
 #[test]
@@ -427,7 +427,7 @@ fn a_pending_provider_model_is_not_offered_and_running_lists_still_read() {
     world.answer_list(listed(&[b"scripted"]));
     let provider = jig_test_profile::fixtures::provider_setting(4, b"local", 5);
     let mut model = entry(&world, 1);
-    model.number = 2;
+    model.number = 33;
     model.model.name = b"local-model".as_slice().into();
     model.model.provider = 4;
     model.model.endpoint = 5;
@@ -443,7 +443,7 @@ fn a_pending_provider_model_is_not_offered_and_running_lists_still_read() {
                     setting: s::Setting::Provider(4),
                     edit: s::Edit::Set(s::Value::Provider(Box::new(provider.clone()))),
                 },
-                s::Item { setting: s::Setting::Model(2), edit: s::Edit::Set(s::Value::Model(Box::new(model))) },
+                s::Item { setting: s::Setting::Model(33), edit: s::Edit::Set(s::Value::Model(Box::new(model))) },
             ]),
         ),
         against + 1,
