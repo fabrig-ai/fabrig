@@ -20,7 +20,7 @@
 
 use std::any::type_name;
 
-use skein_heap::Meter;
+use skein_heap::{Meter, Span};
 use skein_lib::length::usize_of;
 use skein_lib::stream::{Delimiter, Read};
 use skein_lib::{Deadlines, Id, Intake, Journal, List, Lru, Map, Queue, Rng, Set, Slab, Stack, Time};
@@ -1022,6 +1022,31 @@ fn a_list_grows_to_its_capacity_exactly() {
         }
         metered.end(());
         assert_eq!(metered.meter.held(), bound, "refilling keeps the buffer");
+    }
+}
+
+#[test]
+fn an_allocated_list_allocates_once_at_its_capacity() {
+    for capacity in [0, 16] {
+        let price = i64::try_from(List::<u64>::price(capacity).expect("test capacity fits")).expect("small price");
+        let allocations = u64::from(capacity != 0);
+        let span = Span::start();
+        let mut list = List::<u64>::allocated(capacity);
+        assert_eq!(span.made(), allocations, "storage allocated once, unless empty");
+        assert_eq!(list.capacity(), capacity);
+        assert!(list.is_empty());
+        for n in 0..capacity {
+            list.push(u64::from(n)).expect("room below capacity");
+        }
+        assert_eq!(list.push(999), Err(999), "refuses past capacity");
+        assert_eq!(span.made(), allocations, "filling never allocates");
+        let measured = span.end();
+        assert_eq!(measured.peak, price, "no growth peak above the final storage");
+        assert_eq!(measured.net, price, "storage costs exactly its price");
+        assert_eq!(list.len(), capacity);
+        for n in 0..capacity {
+            assert_eq!(list.get(n), Some(&u64::from(n)));
+        }
     }
 }
 
