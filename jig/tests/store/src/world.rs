@@ -1131,17 +1131,11 @@ impl World {
         panic!("store did not quiesce");
     }
 
-<<<<<<< HEAD
     fn file_terminal(&mut self, driver: usize, request: file::Request) -> Option<Arrived> {
-        let io = self.io.get_mut(driver).expect("four drivers");
-        assert!(io.takes());
-=======
-    fn file(&mut self, driver: usize, request: file::Request) {
-        assert!(self.io.get(driver).expect("three drivers").takes());
->>>>>>> refs/manual3/g6710
+        assert!(self.io.get(driver).expect("four drivers").takes());
         let mut events = Queue::with_capacity(QUEUE);
         let env = self.env.with(self.file_limits);
-        step::down(self.io.get_mut(driver).expect("three drivers"), &env, request, &mut events, &mut self.subs);
+        step::down(self.io.get_mut(driver).expect("four drivers"), &env, request, &mut events, &mut self.subs);
         for _ in 0..100 {
             if !self.subs.is_empty() {
                 self.sim.submit(self.pid, &mut self.subs);
@@ -1177,18 +1171,21 @@ impl World {
             }
             self.sim.reap(self.pid, &mut self.completions);
             while let Some(complete) = self.completions.pop() {
-                step::up(self.io.get_mut(driver).expect("three drivers"), &env, complete, &mut events, &mut self.subs);
+                step::up(self.io.get_mut(driver).expect("four drivers"), &env, complete, &mut events, &mut self.subs);
             }
-            if self.io.get(driver).expect("three drivers").takes() {
+            if self.io.get(driver).expect("four drivers").takes() {
                 break;
             }
         }
-        assert!(self.io.get(driver).expect("three drivers").takes(), "a calm file operation settles");
+        assert!(self.io.get(driver).expect("four drivers").takes(), "a calm file operation settles");
         assert!(!events.is_empty(), "one file terminal");
-<<<<<<< HEAD
         let event = events.pop().expect("file request terminal");
         assert!(events.is_empty(), "one terminal per file request");
-        let fd = if let file::Event::Opened { file, .. } = &event { io.descriptor(*file) } else { None };
+        let fd = if let file::Event::Opened { file, .. } = &event {
+            self.io.get(driver).expect("four drivers").descriptor(*file)
+        } else {
+            None
+        };
         Some(Arrived { event, fd })
     }
     fn file(&mut self, driver: usize, request: file::Request) {
@@ -1209,29 +1206,6 @@ impl World {
         jig_protocol_store::up(&mut self.store, &self.env, event, &mut self.above, &mut self.below);
         if let Some(observe) = self.observer {
             observe(Step::End { patching: jig_protocol_store::sizes::is_patching(&self.store) });
-=======
-        while let Some(event) = events.pop() {
-            let fd = if let file::Event::Opened { file, .. } = &event {
-                self.io.get(driver).expect("three drivers").descriptor(*file)
-            } else {
-                None
-            };
-            let input = if self.observer.is_some() { file_heap(&event) } else { 0 };
-            let arrived = Arrived { event, fd };
-            let event = match driver {
-                0 => Io::Store(arrived),
-                1 => Io::Secrets(arrived),
-                2 => Io::Transcripts(arrived),
-                _ => panic!("three drivers"),
-            };
-            if let Some(observe) = self.observer {
-                observe(Step::Begin { input, patching: jig_protocol_store::sizes::is_patching(&self.store) });
-            }
-            jig_protocol_store::up(&mut self.store, &self.env, event, &mut self.above, &mut self.below);
-            if let Some(observe) = self.observer {
-                observe(Step::End { patching: jig_protocol_store::sizes::is_patching(&self.store) });
-            }
->>>>>>> refs/manual3/g6710
         }
     }
 

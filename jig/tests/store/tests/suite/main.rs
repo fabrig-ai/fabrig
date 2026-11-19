@@ -24,11 +24,8 @@ mod readers;
 mod records;
 mod refused_after_switch;
 mod registry_memory;
-<<<<<<< HEAD
 mod restoring;
-=======
 mod sweep;
->>>>>>> refs/manual3/g6710
 mod transcript_golden;
 mod upgrades;
 

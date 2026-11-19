@@ -1357,11 +1357,8 @@ dependencies = [
  "jig-test-store-files",
  "jig-test-system",
  "sha2",
-<<<<<<< HEAD
  "skein-codegen",
-=======
  "skein-fork",
->>>>>>> refs/manual3/g6710
  "skein-lib",
  "skein-world",
  "tempfile",

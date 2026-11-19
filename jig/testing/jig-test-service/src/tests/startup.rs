@@ -138,7 +138,6 @@ fn the_test_service_refuses_clients_provider_because_it_serves_no_provider_route
 }
 
 #[test]
-<<<<<<< HEAD
 fn reference_workers_still_require_agent_and_limits_by_name() {
     for (name, member) in [
         (
@@ -158,7 +157,9 @@ fn reference_workers_still_require_agent_and_limits_by_name() {
         assert_eq!(got.path, Path::root().member(b"workers").child(Segment::Index(0)).member(name));
         assert_eq!(got.what, What::Missing);
     }
-=======
+}
+
+#[test]
 #[expect(clippy::disallowed_macros, reason = "compare complete admitted service snapshots and initial submissions")]
 fn a_prepared_document_builds_the_same_admitted_service_as_fresh_startup() {
     let document = fixtures::combined_document();
@@ -198,5 +199,4 @@ fn a_prepared_document_builds_the_same_admitted_service_as_fresh_startup() {
     crate::iterate(&mut cached, skein_lib::Time::ZERO, skein_lib::Wall::EPOCH);
     assert_eq!(configuration(&cached), configuration(&fresh));
     assert_eq!(format!("{:?}", cached.submissions), format!("{:?}", fresh.submissions));
->>>>>>> refs/manual3/g6710
 }

@@ -72,11 +72,7 @@ mod run_positions;
 mod runs;
 mod sessions;
 mod settings;
-<<<<<<< HEAD
 mod settings_limits;
-mod settings_memory;
-=======
->>>>>>> refs/manual3/g6710
 mod settings_project_policy;
 mod settings_proposal_edges;
 mod settings_proposals;

@@ -414,14 +414,9 @@ impl Store {
         }
     }
 
-<<<<<<< HEAD
     /// Independent durable memory maps and payload logs for a domain world's
     /// fork. The caller opens a fresh component over the result.
     /// Directory-backed stores have no in-memory fork.
-=======
-    /// Copy the committed storage of an in-memory component for a cold open.
-    /// Directory-backed components copy their filesystem instead.
->>>>>>> refs/manual3/g6710
     #[must_use]
     pub fn fork_memory(&self) -> Option<Stores> {
         Some(Stores {
@@ -430,14 +425,11 @@ impl Store {
         })
     }
 
-<<<<<<< HEAD
     #[must_use]
     pub fn work_pending(&self) -> bool {
         directory::ready(self)
     }
 
-=======
->>>>>>> refs/manual3/g6710
     #[must_use]
     pub fn into_stores(self) -> Stores {
         self.stores

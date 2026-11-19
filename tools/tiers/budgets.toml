@@ -10,7 +10,6 @@
 references = { step = 0.04, domain = 0.2, system = 0.6, machine = 0.2, protocol = 0.2, io = 0.2, simulated = 1, real-loop = 1, end-to-end = 1, checks = 1 }
 
 [[gate.default.moves]]
-<<<<<<< HEAD
 from = "temper.real-loop"
 to = "temper.domain"
 cpu_s = 1.5
@@ -106,7 +105,8 @@ binary = "temper-service"
 test = "startup::members::tests::every_row_is_a_member_its_decoder_takes"
 cpu_s = 0.11
 why = "Same-work backlog (the user, 11-18): its CPU alone swung 2.0 times (0.036 s at the base, 0.073 s at the head, gate run 1465 of 11-18, whose change touched jig's domain crates and temper's domain tests), so a gate can flag it on noise. The line is half again its largest figure; the repair that makes its work the same at every run drops it (skein/docs/foundation/testing-strategy.md, 10)."
-=======
+
+[[gate.default.moves]]
 from = "jig.protocol"
 to = "jig.domain"
 cpu_s = 1.5
@@ -117,7 +117,6 @@ from = "jig.protocol"
 to = "jig.step"
 cpu_s = 0.1
 why = "The controls binary checks client steps, view fragments and referee observations without driving a world."
->>>>>>> refs/manual3/g6710
 
 [gate.default.skein]
 ideal_s = 40
@@ -292,27 +291,20 @@ to = "jig.step"
 cpu_s = 0.2
 why = "The core step binary drives referee and store controls, direct Core steps and allocation and profile bounds without a world."
 
-[[gate.default.reasons]]
-binary = "jig-core-world::disk"
-test = "faults::a_kill_at_each_file_operation_of_a_decision_starts_from_a_whole_one"
-cpu_s = 2.5
-why = "The story cuts each file operation of three whole decisions, chosen recovery operations and the following decision, checking independent whole-store readback after recovery."
-
 [gate.fuzzy]
 references = { step = 10, domain = 10, system = 10, machine = 10, protocol = 10, io = 10, simulated = 10, real-loop = 10, end-to-end = 10 }
 
 [[gate.fuzzy.moves]]
-<<<<<<< HEAD
 from = "temper.real-loop"
 to = "temper.domain"
 cpu_s = 2.8
 why = "The checkout world's seeded fake-disk merge and simulation stories run below the real loop in their own binary."
-=======
+
+[[gate.fuzzy.moves]]
 from = "jig.protocol"
 to = "jig.domain"
 cpu_s = 1.4
 why = "The scripted starts, truth sweeps, named regressions and memory world retained by suite move below the joint shipping components."
->>>>>>> refs/manual3/g6710
 
 [gate.fuzzy.skein]
 ideal_s = 120

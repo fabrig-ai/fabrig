@@ -135,7 +135,6 @@ impl Store {
         sets: protocol::OwnerSets,
         on_disk: bool,
     ) -> Store {
-<<<<<<< HEAD
         Self::prepared(
             limits,
             models,
@@ -155,16 +154,8 @@ impl Store {
         application: protocol::sizes::Application,
     ) -> Store {
         let disk = if sets.sets.is_empty() && !on_disk { None } else { Some(crate::disk::Disk::new(component_limits)) };
-        let mut component = if let Some(disk) = &disk {
-            protocol::Store::on_directory(component_limits, application, models, disk.seeded())
-=======
-        let component_limits = component_limits(limits);
-        let disk =
-            if sets.sets.is_empty() && !on_disk { None } else { Some(crate::disk::Disk::new(&component_limits)) };
-        let application = jig_test_store::application(&limits.connector);
         let component = if let Some(disk) = &disk {
-            protocol::Store::on_directory(&component_limits, application, models, disk.seeded())
->>>>>>> refs/manual3/g6710
+            protocol::Store::on_directory(component_limits, application, models, disk.seeded())
         } else {
             let stores = Stores {
                 store: skein_kv::Store::memory(&component_limits.store),
@@ -172,10 +163,12 @@ impl Store {
             };
             protocol::Store::over(component_limits, application, models, stores)
         };
-        let mut store = Self::over_storage(limits, models, sets, component, Files::new(), disk);
+        let mut store =
+            Self::over_storage(limits, models, sets, component, Files::new(), disk, component_limits, application);
         store.open();
         store
     }
+    #[expect(clippy::too_many_arguments, reason = "fresh and forked storage retain the same checked configuration")]
     fn over_storage(
         limits: &root::Limits,
         models: &[jig_domain_core::Model],
@@ -183,18 +176,14 @@ impl Store {
         mut component: protocol::Store,
         files: Files,
         disk: Option<crate::disk::Disk>,
+        component_limits: &Limits,
+        application: protocol::sizes::Application,
     ) -> Store {
-        let component_limits = component_limits(limits);
         component.owner_sets(component_sets(sets));
         let mut routes = route::Routes::new(limits.routes);
         routes.configure(limits);
-<<<<<<< HEAD
         routes.configure_restore(component_limits).expect("restart page bounds fit");
-        let mut store = Store {
-=======
-        routes.configure_restore(&component_limits).expect("restart page bounds fit");
         Store {
->>>>>>> refs/manual3/g6710
             applied: 0,
             prefixes: BTreeMap::from([(0, BTreeMap::new())]),
             acknowledged: 0,
@@ -475,26 +464,24 @@ impl Store {
     }
     /// Copy the durable image, then cold-open it without resubmitting history.
     pub fn fork(&self) -> Result<Store, ReadbackFinding> {
-<<<<<<< HEAD
-        let mut fresh = Store::prepared(
-            &self.limits,
-            &self.models,
-            self.initial_sets,
-            self.disk.is_some(),
-            &self.component_limits,
-            self.application,
-        );
-=======
         let disk = self.disk.as_ref().map(|disk| disk.fork(&self.component_limits));
-        let application = jig_test_store::application(&self.limits.connector);
+        let application = self.application;
         let component = if let Some(disk) = &disk {
             protocol::Store::on_directory(&self.component_limits, application, &self.models, disk.seeded())
         } else {
             let stores = self.component.as_ref().expect("component").fork_memory().expect("memory store");
             protocol::Store::over(&self.component_limits, application, &self.models, stores)
         };
-        let mut fresh = Self::over_storage(&self.limits, &self.models, self.sets, component, self.files.fork(), disk);
->>>>>>> refs/manual3/g6710
+        let mut fresh = Self::over_storage(
+            &self.limits,
+            &self.models,
+            self.sets,
+            component,
+            self.files.fork(),
+            disk,
+            &self.component_limits,
+            self.application,
+        );
         fresh.wires(self.wires);
         fresh.rows.clone_from(&self.rows);
         fresh.prefixes.clone_from(&self.prefixes);

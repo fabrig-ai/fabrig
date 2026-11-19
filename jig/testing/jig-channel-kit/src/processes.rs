@@ -225,19 +225,6 @@ fn engine_configured(inherited: &Inherited, calls: bool) -> Proc {
     };
     engine_document(inherited, prepared)
 }
-<<<<<<< HEAD
-pub(crate) fn engine_document(inherited: &Inherited, document: &[u8]) -> Proc {
-    let mut service = jig_test_service::startup_with_workers(
-        document,
-        &fixtures::files(false),
-        None,
-        &fixtures::seeds(),
-        None,
-        None,
-        fixtures::workers(),
-    )
-    .expect("engine configuration");
-=======
 pub(crate) fn engine_prepared() -> &'static Prepared {
     static PREPARED: OnceLock<Prepared> = OnceLock::new();
     PREPARED.get_or_init(|| prepare(&fixtures::engine_document()).expect("engine configuration"))
@@ -247,9 +234,9 @@ pub(crate) fn providers_prepared() -> &'static Prepared {
     PREPARED.get_or_init(|| prepare(&fixtures::providers_document()).expect("providers configuration"))
 }
 pub(crate) fn engine_document(inherited: &Inherited, prepared: &Prepared) -> Proc {
-    let mut service =
-        prepared.startup(&fixtures::files(false), None, &fixtures::seeds(), None, None).expect("engine configuration");
->>>>>>> refs/manual3/g6710
+    let mut service = prepared
+        .startup_with_workers(&fixtures::files(false), None, &fixtures::seeds(), None, None, fixtures::workers())
+        .expect("engine configuration");
     service.adopt_signals(inherited.signal).expect("engine signal source");
     let root = inherited.roots.iter().find(|(name, _)| name.as_ref() == b"state").expect("deployment root").1;
     service.adopt_store(root, 1000).expect("store directory");

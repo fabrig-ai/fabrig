@@ -103,17 +103,8 @@ pub use crate::patches::fixture_turn as turn;
 // Six file operations and two patch stops cover one small fixture frame.
 const STEPS: u32 = 8;
 
-<<<<<<< HEAD:jig/tests/store/tests/support/frame_reads.rs
 #[expect(clippy::too_many_lines, reason = "the frame driver exhaustively rejects checkpoint terminals too")]
-pub(crate) fn decode(
-    component: &mut store::Store,
-    env: &Env<store::Limits>,
-    raw: &[u8],
-    no_site: bool,
-) -> Option<Box<[u8]>> {
-=======
 pub fn decode(component: &mut store::Store, env: &Env<store::Limits>, raw: &[u8], no_site: bool) -> Option<Box<[u8]>> {
->>>>>>> refs/manual3/g6710:jig/tests/store/src/frame_reads.rs
     let mut above = Queue::uncapped();
     let mut below = store::Below {
         store: Queue::uncapped(),

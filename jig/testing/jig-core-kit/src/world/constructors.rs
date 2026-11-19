@@ -174,21 +174,17 @@ impl World {
 
     #[expect(clippy::too_many_lines, reason = "the world initializes each peer and observation in one place")]
     #[expect(clippy::disallowed_methods, reason = "jig's round: reads JIG_WORLD_TRACE to enable world tracing")]
-<<<<<<< HEAD
-    fn empty(mut configuration: root::Config, limits: &root::Limits, sets: jig_protocol_store::OwnerSets) -> World {
+    fn empty(
+        mut configuration: root::Config,
+        limits: &root::Limits,
+        sets: jig_protocol_store::OwnerSets,
+        disk: bool,
+    ) -> World {
         // These nominal fixture workers offer the scenario's full fleet capacity.
         // Stories that change places do so through settings after the start.
         for worker in &mut configuration.core.defaults.workers {
             worker.places = limits.core.fleet.slots;
         }
-=======
-    fn empty(
-        configuration: root::Config,
-        limits: &root::Limits,
-        sets: jig_protocol_store::OwnerSets,
-        disk: bool,
-    ) -> World {
->>>>>>> refs/manual3/g6710
         let observer = crate::conformance::Observer::new(&configuration);
         let heap = crate::conformance::Heap::new();
         let creating = jig_test_profile::fixtures::Creating::new(&configuration.core, limits.core.tasks.tree_tasks);

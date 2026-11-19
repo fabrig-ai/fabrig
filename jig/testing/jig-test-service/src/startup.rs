@@ -27,11 +27,8 @@ pub(super) struct Parsed {
     clients: bool,
     listener: skein_io::Addr,
     bundle: Option<Box<[u8]>>,
-<<<<<<< HEAD
     worker_defaults: Box<[jig_domain_core::settings::WorkerSetting]>,
-=======
     schema: Option<skein_channel::Schema>,
->>>>>>> refs/manual3/g6710
 }
 
 fn problem(path: Path, what: What) -> Problems {
@@ -470,17 +467,12 @@ pub(super) fn engine_startup(
         None
     };
     let workers = if parsed.workers {
-<<<<<<< HEAD
-        Some(crate::workers::Workers::new(&parsed.engine, seeds.deployment, &parsed.limits.workers)?)
-=======
         Some(crate::workers::Workers::new(
             &parsed.engine,
-            files,
             seeds.deployment,
             &parsed.limits.workers,
             parsed.schema.take(),
         )?)
->>>>>>> refs/manual3/g6710
     } else {
         None
     };
@@ -672,8 +664,7 @@ pub fn startup(
     accounts: Option<crate::AccountsRuntime>,
     runtime: Option<crate::WorkerRuntime>,
 ) -> Result<Service, Problems> {
-<<<<<<< HEAD
-    startup_with_workers(document, files, agent, seeds, accounts, runtime, Box::default())
+    parsed_startup(document)?.start(files, agent, seeds, accounts, runtime, Box::default())
 }
 
 /// Supply the application's default worker settings before the first store restore.
@@ -686,68 +677,7 @@ pub fn startup_with_workers(
     runtime: Option<crate::WorkerRuntime>,
     workers: Box<[jig_domain_core::settings::WorkerSetting]>,
 ) -> Result<Service, Problems> {
-    let document = self::document(document)?;
-    let (has_engine, specs) = worker_specs_in(&document)?;
-    let mut bundle = None;
-    let engine = if has_engine {
-        let mut parsed = parse_in(&document)?;
-        parsed.worker_defaults = workers;
-        bundle = parsed.bundle.take();
-        Some(engine_startup(parsed, files, agent, seeds, accounts, !specs.is_empty())?)
-    } else {
-        None
-    };
-    let mut io = match &engine {
-        Some((_, io)) => *io,
-        None => {
-            let mut io = specs.get(0).expect("engine or worker").config.limits.expect("checked worker limits").io;
-            io.sockets = 0;
-            io.names = 0;
-            io
-        }
-    };
-    let mut workers = List::with_capacity(specs.len());
-    let mut queue = 1;
-    for (index, spec) in specs.into_boxed().into_iter().enumerate() {
-        let path = indexed(&Path::root().member(b"application").member(b"workers"), index).member(b"root");
-        let index = u32::try_from(index).expect("worker index");
-        let runtime = runtime.as_ref().ok_or(problem(path.clone(), What::Refers))?;
-        let directory = *runtime.roots.get(index).ok_or(problem(path.clone(), What::Refers))?;
-        for prior in 0..index {
-            if runtime.roots.get(prior) == Some(&directory) {
-                return Err(problem(path.clone(), What::Duplicate));
-            }
-        }
-        let agent = agent.ok_or(problem(
-            Path::root().member(b"workers").child(Segment::Index(index)).member(b"agent"),
-            What::Refers,
-        ))?;
-        if files.contents(&spec.config.agent.as_ref().expect("checked worker agent").configuration).is_none() {
-            return Err(problem(
-                Path::root().member(b"workers").child(Segment::Index(index)).member(b"agent").member(b"configuration"),
-                What::Unreadable,
-            ));
-        }
-        if !valid_program_endpoints(&agent.bounds.program_endpoints) {
-            return Err(problem(path.clone(), What::Bound));
-        }
-        io.sockets = io
-            .sockets
-            .checked_add(spec.config.limits.expect("checked worker limits").io.sockets)
-            .ok_or(problem(path.clone(), What::Bound))?;
-        io.names = io
-            .names
-            .checked_add(spec.config.limits.expect("checked worker limits").io.names)
-            .ok_or(problem(path.clone(), What::Bound))?;
-        io.intake = io.intake.max(spec.config.limits.expect("checked worker limits").io.intake);
-        io.receive = io.receive.max(spec.config.limits.expect("checked worker limits").io.receive);
-        io.output = io.output.max(spec.config.limits.expect("checked worker limits").io.output);
-        io.sends = io.sends.max(spec.config.limits.expect("checked worker limits").io.sends);
-        let worker = crate::Worker::new(spec.config, agent, files, directory, index, seeds.seed)?;
-        queue = queue.max(crate::Worker::queue_room());
-        workers.push(worker).expect("worker count");
-=======
-    parsed_startup(document)?.start(files, agent, seeds, accounts, runtime)
+    parsed_startup(document)?.start(files, agent, seeds, accounts, runtime, workers)
 }
 
 /// Immutable admitted documents and channel tables, with no files, seeds or runtime state.
@@ -797,7 +727,20 @@ impl Prepared {
         accounts: Option<crate::AccountsRuntime>,
         runtime: Option<crate::WorkerRuntime>,
     ) -> Result<Service, Problems> {
-        self.clone().start(files, agent, seeds, accounts, runtime)
+        self.clone().start(files, agent, seeds, accounts, runtime, Box::default())
+    }
+
+    /// Supply fresh default worker settings for this service instance.
+    pub fn startup_with_workers(
+        &self,
+        files: &Files,
+        agent: Option<&Agent>,
+        seeds: &Seeds,
+        accounts: Option<crate::AccountsRuntime>,
+        runtime: Option<crate::WorkerRuntime>,
+        workers: Box<[jig_domain_core::settings::WorkerSetting]>,
+    ) -> Result<Service, Problems> {
+        self.clone().start(files, agent, seeds, accounts, runtime, workers)
     }
 
     fn start(
@@ -807,10 +750,12 @@ impl Prepared {
         seeds: &Seeds,
         accounts: Option<crate::AccountsRuntime>,
         runtime: Option<crate::WorkerRuntime>,
+        worker_defaults: Box<[jig_domain_core::settings::WorkerSetting]>,
     ) -> Result<Service, Problems> {
         let specs = self.workers;
         let mut bundle = None;
         let engine = if let Some(mut parsed) = self.engine {
+            parsed.worker_defaults = worker_defaults;
             bundle = parsed.bundle.take();
             Some(engine_startup(parsed, files, agent, seeds, accounts, !specs.is_empty())?)
         } else {
@@ -819,7 +764,7 @@ impl Prepared {
         let mut io = match &engine {
             Some((_, io)) => *io,
             None => {
-                let mut io = specs.get(0).expect("engine or worker").config.limits.io;
+                let mut io = specs.get(0).expect("engine or worker").config.limits.expect("checked worker limits").io;
                 io.sockets = 0;
                 io.names = 0;
                 io
@@ -841,7 +786,7 @@ impl Prepared {
                 Path::root().member(b"workers").child(Segment::Index(index)).member(b"agent"),
                 What::Refers,
             ))?;
-            if files.contents(&spec.config.agent.configuration).is_none() {
+            if files.contents(&spec.config.agent.as_ref().expect("checked worker agent").configuration).is_none() {
                 return Err(problem(
                     Path::root()
                         .member(b"workers")
@@ -854,13 +799,18 @@ impl Prepared {
             if !valid_program_endpoints(&agent.bounds.program_endpoints) {
                 return Err(problem(path.clone(), What::Bound));
             }
-            io.sockets =
-                io.sockets.checked_add(spec.config.limits.io.sockets).ok_or(problem(path.clone(), What::Bound))?;
-            io.names = io.names.checked_add(spec.config.limits.io.names).ok_or(problem(path.clone(), What::Bound))?;
-            io.intake = io.intake.max(spec.config.limits.io.intake);
-            io.receive = io.receive.max(spec.config.limits.io.receive);
-            io.output = io.output.max(spec.config.limits.io.output);
-            io.sends = io.sends.max(spec.config.limits.io.sends);
+            io.sockets = io
+                .sockets
+                .checked_add(spec.config.limits.expect("checked worker limits").io.sockets)
+                .ok_or(problem(path.clone(), What::Bound))?;
+            io.names = io
+                .names
+                .checked_add(spec.config.limits.expect("checked worker limits").io.names)
+                .ok_or(problem(path.clone(), What::Bound))?;
+            io.intake = io.intake.max(spec.config.limits.expect("checked worker limits").io.intake);
+            io.receive = io.receive.max(spec.config.limits.expect("checked worker limits").io.receive);
+            io.output = io.output.max(spec.config.limits.expect("checked worker limits").io.output);
+            io.sends = io.sends.max(spec.config.limits.expect("checked worker limits").io.sends);
             let worker = crate::Worker::new(spec.config, agent, files, directory, index, seeds.seed, spec.schema)?;
             queue = queue.max(crate::Worker::queue_room());
             workers.push(worker).expect("worker count");
@@ -872,7 +822,6 @@ impl Prepared {
         };
         service.bundle_directory = bundle;
         Ok(service)
->>>>>>> refs/manual3/g6710
     }
 }
 

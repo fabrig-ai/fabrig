@@ -15,28 +15,21 @@ pub(super) struct Workers {
     endpoints: List<jig_protocol_charter::EndpointName>,
 }
 impl Workers {
-<<<<<<< HEAD
-    pub fn new(config: &config::Engine, deployment: [u8; 16], limits: &kit::Limits) -> Result<Self, Problems> {
-=======
     pub fn new(
         config: &config::Engine,
-        files: &Files,
         deployment: [u8; 16],
         limits: &kit::Limits,
         schema: Option<skein_channel::Schema>,
     ) -> Result<Self, Problems> {
->>>>>>> refs/manual3/g6710
         let tokens = kit::host::Tokens {
             listeners: crate::tokens::WORKER_LISTENERS,
             connections: crate::tokens::WORKER_CONNECTIONS,
         };
-<<<<<<< HEAD
-        let mut host = kit::host::Workers::new(
-            config,
-            tokens,
-            jig_protocol_worker_wire::Application::opaque(List::with_capacity(0)),
-            limits,
-        )?;
+        let application = jig_protocol_worker_wire::Application::opaque(List::with_capacity(0));
+        let mut host = match schema {
+            Some(schema) => kit::host::Workers::with_schema(config, tokens, application, limits, schema),
+            None => kit::host::Workers::new(config, tokens, application, limits),
+        }?;
         let mut limits_by_name = List::with_capacity(wire::CEILINGS.figures_limits);
         for (name, value) in &config::overrides::list(&config.limits) {
             limits_by_name
@@ -55,13 +48,6 @@ impl Workers {
             wire::Figures::new(&wire::CEILINGS, wire::FiguresParts { places: 0, limits: limits_by_name, agents })
                 .expect("jig limits fit figures");
         host.down(Time::ZERO, kit::Event::Figures { figures });
-=======
-        let application = jig_protocol_worker_wire::Application::opaque(List::with_capacity(0));
-        let host = match schema {
-            Some(schema) => kit::host::Workers::with_schema(config, files, tokens, application, limits, schema),
-            None => kit::host::Workers::new(config, files, tokens, application, limits),
-        }?;
->>>>>>> refs/manual3/g6710
         let mut endpoints = List::with_capacity(u32::try_from(config.llm.endpoints.len()).expect("endpoint count"));
         for endpoint in &config.llm.endpoints {
             endpoints

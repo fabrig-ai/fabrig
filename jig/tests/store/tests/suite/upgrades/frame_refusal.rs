@@ -2,12 +2,8 @@
 //! Exact page guards and atomic refusal are covered at the store unit seam in tests/transcripts.rs.
 
 use jig_domain_core as core;
-<<<<<<< HEAD
-use jig_protocol_store::{Event, Limits, Request, TranscriptRead, sizes};
-=======
-use jig_protocol_store::{Event, Request, TranscriptRead, Write, sizes};
+use jig_protocol_store::{Event, Request, TranscriptRead, sizes};
 use jig_store_world::root::check_commits as checked;
->>>>>>> refs/manual3/g6710
 use jig_store_world::{
     World,
     root::{self, LIVE as TASK},

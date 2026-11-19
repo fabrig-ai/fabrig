@@ -1182,13 +1182,12 @@ impl Referee {
                             ));
                         }
                     }
-<<<<<<< HEAD
-                    host.service = jig_test_service::startup_with_workers(
-                        &if matches!(self.story, crate::stories::Story::Providers) {
-                            crate::fixtures::providers_document()
-                        } else {
-                            crate::fixtures::engine_document()
-                        },
+                    host.service = if matches!(self.story, crate::stories::Story::Providers) {
+                        crate::processes::providers_prepared()
+                    } else {
+                        crate::processes::engine_prepared()
+                    }
+                    .startup_with_workers(
                         &crate::fixtures::files(false),
                         None,
                         &crate::fixtures::seeds(),
@@ -1196,14 +1195,6 @@ impl Referee {
                         None,
                         crate::fixtures::workers(),
                     )
-=======
-                    host.service = if matches!(self.story, crate::stories::Story::Providers) {
-                        crate::processes::providers_prepared()
-                    } else {
-                        crate::processes::engine_prepared()
-                    }
-                    .startup(&crate::fixtures::files(false), None, &crate::fixtures::seeds(), None, None)
->>>>>>> refs/manual3/g6710
                     .map_err(|why| format!("restart after drained: {why:?}"))?;
                     let root = host.restart_root.take().ok_or("independent directory for the drained restart")?;
                     host.service.adopt_store(root, 1000).map_err(|why| format!("restart store directory: {why:?}"))?;
