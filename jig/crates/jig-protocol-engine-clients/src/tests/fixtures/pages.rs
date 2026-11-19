@@ -3,6 +3,7 @@ use super::inbox_document;
 use jig_domain_core_vocabulary::{documents as d, reads};
 use jig_domain_tasks as t;
 use skein_lib::{List, Wall};
+use smith_transcript::Record;
 
 pub fn page(rows: List<reads::PageRow>) -> reads::Page {
     reads::Page { rows, before: None, next: None, cut: true, inbox_selection: None }
@@ -137,76 +138,41 @@ pub fn private_transcript(projected: bool) -> Box<[u8]> {
     let input: &[u8] = if projected { b"{}" } else { b"{\"line\":\"Secret.\"}" };
     let result: &[u8] = if projected { b"Withheld: shown to its person alone." } else { b"Kept Secret." };
     let messages = List::from_boxed(Box::new([
-        s::Message::new(
-            &s::CEILINGS,
-            s::MessageParts {
-                role: s::Role::Assistant,
-                blocks: List::from_boxed(Box::new([s::Block::Call(
-                    s::Call::new(
-                        &s::CEILINGS,
-                        s::CallParts {
-                            id: Box::from(b"c1".as_slice()),
-                            name: Box::from(b"keep".as_slice()),
-                            input: Box::from(input),
-                            replay: None,
-                        },
-                    )
-                    .unwrap(),
-                )])),
-            },
-        )
-        .unwrap(),
-        s::Message::new(
-            &s::CEILINGS,
-            s::MessageParts {
-                role: s::Role::User,
-                blocks: List::from_boxed(Box::new([s::Block::Result(
-                    s::ToolResult::new(
-                        &s::CEILINGS,
-                        s::ToolResultParts {
-                            id: Box::from(b"c1".as_slice()),
-                            returned: s::Returned::Said(
-                                s::Said::new(&s::CEILINGS, s::SaidParts { text: Box::from(result), error: false })
-                                    .unwrap(),
-                            ),
-                        },
-                    )
-                    .unwrap(),
-                )])),
-            },
-        )
-        .unwrap(),
-    ]));
-    let turn = s::Turn::new(
-        &s::CEILINGS,
-        s::TurnParts {
-            system: Some(Box::from(system)),
-            model: Box::from(b"model".as_slice()),
-            effort: None,
-            kind: s::TurnKind::Ordinary,
-            opening: None,
-            endpoint: Box::from(b"endpoint".as_slice()),
-            dialect: 3,
-            place: 1,
-            usage: s::Usage::new(
-                &s::CEILINGS,
-                s::UsageParts {
-                    input: Some(11),
-                    output: Some(12),
-                    cache_read: None,
-                    cache_write: None,
-                    reasoning: None,
-                },
-            )
-            .unwrap(),
-            spent: 15,
-            jobs: 0,
-            messages,
+        s::Message {
+            role: s::Role::Assistant,
+            blocks: List::from_boxed(Box::new([s::Block::Call(s::Call {
+                id: Box::from(b"c1".as_slice()),
+                name: Box::from(b"keep".as_slice()),
+                input: Box::from(input),
+                replay: None,
+            })])),
         },
-    )
-    .unwrap();
-    let mut writer = skein_lib::Writer::new(usize::try_from(turn.measure()).unwrap());
-    turn.encode(&mut writer).unwrap();
+        s::Message {
+            role: s::Role::User,
+            blocks: List::from_boxed(Box::new([s::Block::Result(s::ToolResult {
+                id: Box::from(b"c1".as_slice()),
+                returned: s::Returned::Said(s::Said { text: Box::from(result), error: false }),
+            })])),
+        },
+    ]));
+    let turn = s::Turn {
+        system: Some(Box::from(system)),
+        model: Box::from(b"model".as_slice()),
+        effort: None,
+        kind: s::TurnKind::Ordinary,
+        opening: None,
+        endpoint: Box::from(b"endpoint".as_slice()),
+        dialect: 3,
+        place: 1,
+        usage: s::Usage { input: Some(11), output: Some(12), cache_read: None, cache_write: None, reasoning: None },
+        spent: 15,
+        jobs: 0,
+        messages,
+    };
+    let mut writer = skein_lib::Writer::new(
+        usize::try_from(turn.measure(&smith_transcript::CEILINGS).expect("bounded transcript")).unwrap(),
+    );
+    turn.write(&smith_transcript::CEILINGS, &mut writer).unwrap();
     writer.finish()
 }
 

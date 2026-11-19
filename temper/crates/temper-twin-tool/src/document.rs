@@ -27,20 +27,20 @@ fn quoted(bytes: &[u8]) -> Result<String, Refusal> {
 /// The transcript records messages, not the system text or the run mode.
 pub(crate) fn asked(take: &Take, turns: &[smith_transcript::Turn]) -> bool {
     // frames::read admits at least one turn.
-    for message in turns[0].messages() {
-        match message.role() {
+    for message in &turns[0].messages {
+        match &message.role {
             Role::Assistant => break,
             Role::User => {
-                for block in message.blocks() {
+                for block in &message.blocks {
                     if let Block::Text(text) = block {
                         // Finite main and delegate openings carry the begin instruction,
                         // even when an offered message also quotes the cue.
-                        if text.text().starts_with(b"Begin the work your brief describes.")
-                            || text.text().starts_with(b"Begin the work your instructions describe.")
+                        if text.text.as_ref().starts_with(b"Begin the work your brief describes.")
+                            || text.text.as_ref().starts_with(b"Begin the work your instructions describe.")
                         {
                             return false;
                         }
-                        if skein_lib::bytes::find(text.text(), &take.cue).is_some() {
+                        if skein_lib::bytes::find(text.text.as_ref(), &take.cue).is_some() {
                             return true;
                         }
                     }
@@ -66,13 +66,13 @@ pub(crate) fn script(
         script.push_str("{\"lines\":[");
         let mut lines = 0;
         let mut calls = false;
-        for message in turn.messages() {
-            for block in message.blocks() {
+        for message in &turn.messages {
+            for block in &message.blocks {
                 if matches!(block, Block::Opaque(_)) {
                     *dropped = dropped.checked_add(1).ok_or(Refusal::Bounds { what: "opaque count" })?;
                     continue;
                 }
-                if *message.role() != Role::Assistant {
+                if message.role != Role::Assistant {
                     continue;
                 }
                 if lines == temper_fake::ENTRIES {
@@ -83,12 +83,12 @@ pub(crate) fn script(
                 }
                 match block {
                     Block::Text(text) | Block::Refusal(text) => {
-                        let text = replace(text.text(), replaces, counts)?;
+                        let text = replace(text.text.as_ref(), replaces, counts)?;
                         write!(script, "{{\"text\":{}}}", quoted(&text)?).expect("writing to String");
                     }
                     Block::Call(call) => {
                         calls = true;
-                        let arguments = replace(call.input(), replaces, counts)?;
+                        let arguments = replace(call.input.as_ref(), replaces, counts)?;
                         if !matches!(
                             serde_json::from_slice::<serde_json::Value>(&arguments),
                             Ok(serde_json::Value::Object(_))
@@ -100,7 +100,7 @@ pub(crate) fn script(
                         let Ok(text) = std::str::from_utf8(&arguments) else {
                             return Err(Refusal::Bounds { what: "arguments" });
                         };
-                        write!(script, "{{\"call\":{},\"arguments\":{text}}}", quoted(call.name())?)
+                        write!(script, "{{\"call\":{},\"arguments\":{text}}}", quoted(call.name.as_ref())?)
                             .expect("writing to String");
                     }
                     Block::Opaque(_) | Block::Result(_) => return Err(Refusal::Bounds { what: "assistant block" }),
@@ -109,7 +109,7 @@ pub(crate) fn script(
             }
         }
         let finish = if calls { "tool_calls" } else { "stop" };
-        let tokens = turn.usage().output().unwrap_or(1);
+        let tokens = turn.usage.output.unwrap_or(1);
         write!(script, "],\"finish\":\"{finish}\",\"tokens\":{tokens}}}").expect("writing to String");
         if script.len() > temper_fake::DOCUMENT_BYTES as usize {
             return Err(Refusal::Bounds { what: "document bytes" });

@@ -2,6 +2,7 @@
 //! Decoded-bound literals use the generated types' sizes on a 64-bit target.
 
 use super::codec_memory::family;
+use smith_transcript::Record;
 
 const CAP: u64 = 64 * 1024 * 1024;
 
@@ -153,7 +154,7 @@ fn largest_roots_stay_within_decoded_bounds() {
     family!(
         CAP,
         smith_transcript::SCHEMA,
-        smith_transcript::v7, sealed,
+        smith_transcript::v7, lean,
         limits [
             replay_bytes,
             text_text,
