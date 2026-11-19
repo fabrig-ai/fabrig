@@ -197,7 +197,9 @@ start afresh. Staging is made again at dev's build for each drill
   this build with production sets: the open registers this build's
   layouts in a new generation, the start's restore pages and its census
   pass, and each ended task's history reads back through the kept
-  client's token. The source generation's files stay unchanged, and a
+  client's token. The source generation's files stay unchanged, a log
+  it shares with the new generation unchanged up to the source's
+  extent, past which a resumed task appends (jig's `logs.md`, 7); a
   second start writes no generation and reads the same. Its
   configuration is loaded as the floor's is. When dev.fabrig.ai moves to
   a newer build, the image is replaced by that build's, in the landing
