@@ -2,7 +2,7 @@
 //! temper/docs/design/domain/worker/jobs.md).
 use alloc::boxed::Box;
 use skein_lib::{List, Writer};
-use temper_protocol_worker_wire::v1;
+use temper_protocol_worker_wire::v1::{self, Record};
 
 pub(super) fn spec(
     repository: &[u8],
@@ -22,13 +22,9 @@ pub(super) fn spec(
     super::append(&mut request, b"\",\"base\":\"");
     super::append(&mut request, &super::commit_text(base));
     super::append(&mut request, b"\"}");
-    let spec =
-        v1::JobSpec::new(&v1::CEILINGS, v1::JobSpecParts { command: path.finish(), request: request.into_boxed() })
-            .ok()?;
-    if spec.measure() > bound {
+    let spec = v1::JobSpec { command: path.finish(), request: request.into_boxed() };
+    if spec.measure(&v1::CEILINGS).ok()? > bound {
         return None;
     }
-    let mut writer = Writer::new(usize::try_from(spec.measure()).ok()?);
-    spec.encode(&mut writer).ok()?;
-    Some(writer.finish())
+    spec.encode(&v1::CEILINGS).ok()
 }

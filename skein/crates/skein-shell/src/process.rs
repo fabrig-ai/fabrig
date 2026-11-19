@@ -70,6 +70,26 @@ pub fn spawn_dying_with_parent(
     }
 }
 
+/// The effective user's login from the system command at startup (runtime/shell.md, 6).
+/// Kept on every Unix platform so tests can compare macOS's lookup with passwd's.
+#[expect(clippy::disallowed_types, reason = "startup waits for id to finish before the service loop starts")]
+pub fn login_id() -> Result<Box<[u8]>, String> {
+    let output = std::process::Command::new("/usr/bin/id")
+        .arg("-un")
+        .stdin(std::process::Stdio::null())
+        .env_clear()
+        .output()
+        .map_err(|why| format!("user: /usr/bin/id -un: {why}"))?;
+    if !output.status.success() {
+        return Err(format!("user: /usr/bin/id -un: {}", output.status));
+    }
+    let name = output.stdout.strip_suffix(b"\n").ok_or("user: /usr/bin/id -un: missing line feed")?;
+    if name.is_empty() || name.contains(&b'\n') {
+        return Err("user: /usr/bin/id -un: expected one login line".into());
+    }
+    Ok(name.into())
+}
+
 /// Opens the service's termination signal source for io
 /// to adopt before the loop starts (runtime/shell.md, section 6; runtime/io/README.md, section 4).
 pub fn open_termination_signals() -> Result<Fd, i32> {

@@ -119,8 +119,8 @@ fn the_visitors_exchanges_are_the_pages_fetch_bound() {
     assert_eq!(documents::VISITOR_EXCHANGES, temper_client_shell_web::limits::EXCHANGES + 1);
 }
 
-fn assert_main<H: temper_playground::programs::Harness>(
-    world: &skein_sim_world::World<temper_playground::programs::Process<H>, temper_playground::machine::Machine>,
+fn assert_main<H: programs::Harness>(
+    world: &skein_sim_world::World<programs::Process<H>, temper_playground::machine::Machine>,
 ) {
     let transport = story::parameters(world).forge;
     let forge = transport.forge.borrow();

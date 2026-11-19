@@ -116,7 +116,9 @@ check them; policy 1 changes affect projects created afterward, so
 apply them before creating the project.
 
 Before forge setup, size live concurrency and lifetime tree capacity
-under `engine.limits.overrides` in `temper.json`:
+in the `limits` setting
+(`temper ctl settings show limits`, then `temper ctl settings apply`);
+these are not keys of `temper.toml`:
 
 | Member | Bounds |
 |---|---|

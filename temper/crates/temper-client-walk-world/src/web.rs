@@ -1,10 +1,15 @@
 //! The web client's native page (temper/docs/design/playground.md, 6 and 9).
 
+use crate::{
+    Clients, Native, facts,
+    tui::{self, Held, Terminal},
+};
 use jig_client_shell_web::{adapter, sign_in};
 use skein_fake_person::{Doing, Face, Find, Found, Next, Person, TreeFace, Why};
 use skein_lib::{Duration, Time};
 use skein_playground::{memory::Memory, slices::Wake};
 use skein_ui::{Act, NodeId, Role, Tree};
+use skein_ui_screen_terminal::Key;
 use skein_ui_web::{
     bridge, fetch,
     inbox::Inbox,
@@ -15,6 +20,7 @@ use skein_ui_web::{
 };
 use std::rc::Rc;
 use temper_client_domain::{Address, address};
+use temper_client_shell_tui::host::Report as TuiReport;
 use temper_client_shell_web::host;
 use temper_playground::{machine::Machine, programs, programs::Process, story};
 
@@ -34,7 +40,10 @@ pub enum Report {
 /// One page's life: the story's world behind the bridge, the shipped host in front.
 pub struct Page {
     host: host::Host,
-    memory: Memory<Process<crate::Journey>, Machine, Report>,
+    memory: Memory<Process<Clients>, Machine, Report>,
+    terminal: Option<Terminal>,
+    held: Held,
+    tui_starts: u64,
     inbox: Rc<Inbox<Report>>,
     store: Store,
     surface: skein_ui_web::page::Page<'static>,
@@ -52,6 +61,9 @@ pub enum Failed {
     Stopped,
     Turns,
     NoLink,
+    Closed,
+    NotBrowsed,
+    Asked(&'static str),
 }
 
 /// The person's terminal result.
@@ -67,7 +79,7 @@ impl Page {
         let seed = start.seed;
         let wall = start.wall;
         let inbox = Inbox::new();
-        let mut world = story::world_harness::<crate::Journey, _>(start, skein_sim_world::Bare);
+        let mut world = story::world_with::<Clients, _>(start, skein_sim_world::Bare);
         world.host(skein_sim_world::HostedProgram {
             program: crate::box_peer::PROGRAM.into(),
             make: crate::box_peer::BoxPeer::program,
@@ -131,7 +143,20 @@ impl Page {
         let surface = host::page(&host.bounds.tree, Primary::Control);
         let store = Store::new(b"temper.", None);
         host.start(&taken.address, store.read_all(&memory), Some(taken.secret));
-        let mut page = Page { host, memory, inbox, store, surface, browser, pending_input: false, seed, ways };
+        let mut page = Page {
+            host,
+            memory,
+            inbox,
+            store,
+            surface,
+            browser,
+            pending_input: false,
+            seed,
+            ways,
+            terminal: None,
+            held: Held::default(),
+            tui_starts: 0,
+        };
         page.give(host::Report::Start, false);
         page.turn()?;
         Ok(page)
@@ -158,6 +183,23 @@ impl Page {
     pub fn wait(&mut self, find: &Find, act: Option<&Act>, within: Duration) -> Result<NodeId, Failed> {
         let (now, _) = self.memory.clocks(self.browser);
         let end = now.saturating_add(within);
+        self.until(end, |page| {
+            let mut face = TreeFace::new(page.tree());
+            if let Found::Node(node) = face.find(find)
+                && act.is_none_or(|act| face.allows(node, act))
+            {
+                Ok(Some(node))
+            } else {
+                Ok(None)
+            }
+        })
+    }
+
+    fn until<T>(
+        &mut self,
+        end: Time,
+        mut ready: impl FnMut(&mut Self) -> Result<Option<T>, Failed>,
+    ) -> Result<T, Failed> {
         let mut instant = self.browser;
         let mut turns = 0;
         loop {
@@ -173,11 +215,8 @@ impl Page {
             let wake = programs::with(parameters, || self.memory.slice(self.browser));
             self.pending_input = false;
             self.turn()?;
-            let mut face = TreeFace::new(self.tree());
-            if let Found::Node(node) = face.find(find)
-                && act.is_none_or(|act| face.allows(node, act))
-            {
-                return Ok(node);
+            if let Some(value) = ready(self)? {
+                return Ok(value);
             }
             let (now, _) = self.memory.clocks(self.browser);
             if now >= end {
@@ -187,6 +226,11 @@ impl Page {
                 continue;
             }
             let due = self.host.deadline().and_then(|at| self.memory.timer(at, self.browser));
+            let tui_due = self
+                .terminal
+                .as_ref()
+                .and_then(|tui| tui.host.deadline())
+                .and_then(|at| self.memory.timer(at, self.browser));
             let world_due = match wake {
                 Wake::At(at) => Some(at),
                 Wake::Message => None,
@@ -195,12 +239,114 @@ impl Page {
             // The platform's timer refuses deadlines beyond the world's next due.
             // The driver's bound still competes with that earlier wake, at 1x.
             let bound = self.browser.saturating_add(end.saturating_since(now));
-            let at = [world_due, due, Some(bound)].into_iter().flatten().min().ok_or(Failed::Bound)?;
+            let at = [world_due, due, tui_due, Some(bound)].into_iter().flatten().min().ok_or(Failed::Bound)?;
             self.browser = at;
             if due.is_some_and(|due| due <= at) {
                 self.inbox.raise(Report::Due);
             }
         }
+    }
+
+    /// The path and query shown by the browser.
+    #[must_use]
+    pub fn address(&self) -> Box<[u8]> {
+        self.memory.shown().unwrap_or(b"/welcome").into()
+    }
+
+    pub fn tui(&mut self) -> Option<&mut tui::Terminal> {
+        self.terminal.as_mut()
+    }
+
+    /// Admit a native connection only when a terminal first starts.
+    pub fn tui_start(&mut self) -> Result<(), Failed> {
+        if let Some(terminal) = &self.terminal {
+            return terminal.check();
+        }
+        let (now, wall) = self.memory.clocks(self.browser);
+        let world = self.memory.slices_mut().world_mut();
+        let at = world.spawn(|| Process::Other(Native::Terminal(Box::new(tui::Connection::new()))));
+        let seed = facts::tui_seed(self.tui_starts);
+        self.tui_starts = self.tui_starts.wrapping_add(1);
+        let mut terminal = Terminal::new(at, std::mem::take(&mut self.held), seed, now, wall);
+        let (_, _, processes) = world.parts();
+        let Process::Other(Native::Terminal(connection)) = &mut processes[at] else {
+            unreachable!("terminal connection")
+        };
+        self.pending_input |= terminal.start(connection)?;
+        self.terminal = Some(terminal);
+        self.turn()
+    }
+
+    pub fn tui_key(&mut self, key: Key) -> Result<(), Failed> {
+        self.tui_start()?;
+        // Render before a key, as the shipped run does before reading one.
+        self.terminal.as_mut().expect("started").frame();
+        self.give_tui(TuiReport::Key(key))?;
+        self.turn()
+    }
+
+    pub fn tui_wait(&mut self, text: &[u8], within: Duration) -> Result<(), Failed> {
+        self.tui_start()?;
+        let (now, _) = self.memory.clocks(self.browser);
+        self.until(now.saturating_add(within), |page| {
+            let terminal = page.terminal.as_mut().expect("started");
+            terminal.check()?;
+            let frame = terminal.frame().text();
+            Ok(skein_lib::bytes::find(&frame, text).map(|_| ()))
+        })
+    }
+
+    /// Spend the terminal's approval in the browser, then restore its previous address.
+    pub fn tui_approve(&mut self, within: Duration) -> Result<(), Failed> {
+        self.tui_start()?;
+        let address = self.address();
+        let (now, _) = self.memory.clocks(self.browser);
+        let end = now.saturating_add(within);
+        let origin = format!("http://{}/", facts::SERVICE);
+        let path = self
+            .until(end, |page| {
+                let terminal = page.terminal.as_ref().expect("started");
+                terminal.check()?;
+                Ok(terminal
+                    .browsed()
+                    .and_then(|address| address.strip_prefix(origin.as_bytes()))
+                    .map(|path| [b"/".as_slice(), path].concat()))
+            })
+            .map_err(|why| if why == Failed::Bound { Failed::NotBrowsed } else { why })?;
+        let remaining = self.remaining(end);
+        self.reload(&path, remaining)?;
+        let remaining = self.remaining(end);
+        let approve = self.wait(&Find::exactly_named(Role::Button, b"Approve"), Some(&Act::Press), remaining)?;
+        self.act(approve, Act::Press)?;
+        let remaining = self.remaining(end);
+        self.reload(&address, remaining)
+    }
+
+    pub fn tui_stop(&mut self) {
+        if let Some(terminal) = self.terminal.take() {
+            let (_, _, processes) = self.memory.slices_mut().world_mut().parts();
+            let Process::Other(Native::Terminal(connection)) = &mut processes[terminal.at] else {
+                unreachable!("terminal connection")
+            };
+            connection.close();
+            self.held = terminal.held();
+            self.pending_input = true;
+        }
+    }
+
+    fn remaining(&mut self, end: Time) -> Duration {
+        let (now, _) = self.memory.clocks(self.browser);
+        end.saturating_since(now)
+    }
+
+    fn give_tui(&mut self, report: TuiReport) -> Result<(), Failed> {
+        let terminal = self.terminal.as_mut().expect("started terminal");
+        let (_, _, processes) = self.memory.slices_mut().world_mut().parts();
+        let Process::Other(Native::Terminal(connection)) = &mut processes[terminal.at] else {
+            unreachable!("terminal connection")
+        };
+        self.pending_input |= terminal.report(report, connection)?;
+        Ok(())
     }
 
     /// Give an act to the shipped host and draw its result.
@@ -215,6 +361,7 @@ impl Page {
         self.host =
             host::Host::new(temper_client_shell_web::limits::client(), self.seed, now, wall, 0, self.ways.clone());
         self.surface = host::page(&self.host.bounds.tree, Primary::Control);
+        self.memory.navigate(path);
         self.host.start(path, self.store.read_all(&self.memory), None);
         self.give(host::Report::Start, false);
         self.turn()?;
@@ -270,13 +417,18 @@ impl Page {
                 continue;
             }
             let due = self.host.deadline().and_then(|at| self.memory.timer(at, self.browser));
+            let tui_due = self
+                .terminal
+                .as_ref()
+                .and_then(|tui| tui.host.deadline())
+                .and_then(|at| self.memory.timer(at, self.browser));
             let person_due = until.and_then(|at| self.memory.timer(at, self.browser));
             let world_due = match wake {
                 Wake::At(at) => Some(at),
                 Wake::Message => None,
                 Wake::Now => unreachable!("busy slices continue at this browser instant"),
             };
-            let Some(at) = [world_due, due, person_due].into_iter().flatten().min() else {
+            let Some(at) = [world_due, due, tui_due, person_due].into_iter().flatten().min() else {
                 self.failed(person.at(), "no world, host or person wake");
                 panic!("the person's walk has no wake");
             };
@@ -326,6 +478,20 @@ impl Page {
             };
             self.give(report, read_on);
         }
+        if let Some(terminal) = &mut self.terminal {
+            terminal.host.clocks(now, wall);
+            let (_, _, processes) = self.memory.slices_mut().world_mut().parts();
+            let Process::Other(Native::Terminal(connection)) = &mut processes[terminal.at] else {
+                unreachable!("terminal connection")
+            };
+            let events = connection.take();
+            for event in events {
+                self.give_tui(TuiReport::Heard(event))?;
+            }
+            if self.terminal.as_ref().is_some_and(|terminal| terminal.host.deadline().is_some_and(|at| at <= now)) {
+                self.give_tui(TuiReport::Due)?;
+            }
+        }
         self.host.draw(&mut self.surface, &mut Vec::new());
         Ok(())
     }
@@ -335,7 +501,10 @@ impl Page {
             Ok(()) => {}
             Err(Failed::Stopped) => panic!("world stopped during the walk"),
             Err(Failed::World(words)) => panic!("world failed: {}", String::from_utf8_lossy(&words)),
-            Err(Failed::Bound | Failed::Turns | Failed::NoLink) => unreachable!("turn only reports world failures"),
+            Err(why @ (Failed::Closed | Failed::NotBrowsed | Failed::Asked(_))) => panic!("terminal failed: {why:?}"),
+            Err(Failed::Bound | Failed::Turns | Failed::NoLink) => {
+                unreachable!("turn only reports world or terminal failures")
+            }
         }
     }
 

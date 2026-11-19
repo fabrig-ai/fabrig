@@ -34,6 +34,8 @@ pub enum Tui {
     See(Box<[u8]>),
     Stop,
     Look,
+    Mark,
+    Approve,
 }
 #[derive(Debug, PartialEq, Eq)]
 pub enum Forge {
@@ -61,11 +63,8 @@ impl Document {
     }
     /// Relative to the scratch directory (testing/qa/deployment.md, 3).
     #[must_use]
-    pub fn path(self) -> &'static str {
-        match self {
-            Self::Engine => "config/engine/temper.json",
-            Self::Worker => "config/worker/temper.json",
-        }
+    pub fn path(self) -> std::path::PathBuf {
+        std::path::Path::new("config").join(self.name()).join(temper_config_shell::FILE)
     }
 }
 /// Names substituted only in ctl arguments (client/drive.md, 3.4).
@@ -288,6 +287,8 @@ fn tui(fields: &mut Fields) -> Result<Tui, String> {
         b"key" => Tui::Key(key(fields)?),
         b"see" => Tui::See(bytes(fields, "text")?),
         b"stop" => Tui::Stop,
+        b"mark" => Tui::Mark,
+        b"approve" => Tui::Approve,
         b"look" => Tui::Look,
         other => return Err(format!("unknown tui record {:?}", String::from_utf8_lossy(other))),
     })

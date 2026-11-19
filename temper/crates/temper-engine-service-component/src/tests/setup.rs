@@ -1122,10 +1122,10 @@ fn kept_local_records_wait_for_restore_done_and_origin_before_connecting_as_the_
         let (generation, value) = engine.values.identities.newest(1).unwrap();
         assert_eq!(generation, 1);
         let value = fixtures::decoded_identity(value);
-        assert_eq!(value.login(), if fake { b"temper".as_slice() } else { b"temper" });
+        assert_eq!(value.login.as_ref(), if fake { b"temper".as_slice() } else { b"temper" });
         assert_eq!(
-            match value.kind() {
-                temper_protocol_worker_wire::v1::Kind::Forgejo(token) => token.token(),
+            match &value.kind {
+                temper_protocol_worker_wire::v1::Kind::Forgejo(token) => &token.token,
                 temper_protocol_worker_wire::v1::Kind::Github(_) => panic!("Forgejo identity"),
             },
             &Secret::new(b"test-git".as_slice().into())
@@ -1435,8 +1435,8 @@ fn takeover_waits_for_kept_done_and_correlated_removal_before_restored_reconcile
     lifecycle::connect_local(engine, 1);
     assert_eq!(engine.values.identities.newest(1).unwrap().0, 2, "every local connect puts the current git token");
     let identity = fixtures::decoded_identity(engine.values.identities.newest(1).unwrap().1);
-    let temper_protocol_worker_wire::v1::Kind::Forgejo(token) = identity.kind() else { panic!("local git identity") };
-    assert!(token.token().expose() == b"replacement-git", "the next generation serves the replacement");
+    let temper_protocol_worker_wire::v1::Kind::Forgejo(token) = &identity.kind else { panic!("local git identity") };
+    assert!(token.token.expose() == b"replacement-git", "the next generation serves the replacement");
     for generation in [1, 2] {
         let mut count = 0_u32;
         for event in &engine.events {

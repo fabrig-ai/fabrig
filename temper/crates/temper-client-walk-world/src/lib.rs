@@ -3,14 +3,15 @@
 pub mod box_peer;
 pub mod facts;
 mod harness;
+pub mod tui;
 pub mod walk;
 pub mod web;
 
-pub use harness::Journey;
+pub use harness::{Clients, Native};
 
-/// The composition and its box pipe peer, with no ctl.
+/// The composition with its box pipe peer and the terminal's native connection.
 pub type Playground =
-    skein_sim_world::World<temper_playground::programs::Process<Journey>, temper_playground::machine::Machine>;
+    skein_sim_world::World<temper_playground::programs::Process<Clients>, temper_playground::machine::Machine>;
 
 // The composition's startup step bound.
 const STARTUP_STEPS: u64 = 10_000;

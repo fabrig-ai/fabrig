@@ -1,6 +1,7 @@
 //! Whole owner cursors, with keys carried by the store codec (jig/docs/design/protocol/client/README.md, 4).
 use crate::cursor_v2::{self as c, CEILINGS as C};
 use alloc::boxed::Box;
+use c::Record as _;
 use jig_domain_core_vocabulary::{Key, documents, reads};
 use jig_domain_notes as notes;
 use jig_domain_people as people;
@@ -11,36 +12,30 @@ pub const CURSOR_VERSION: u16 = 2;
 
 pub fn encode(value: &reads::Cursor, limit: u32) -> Option<Box<[u8]>> {
     let cursor = match value.clone() {
-        reads::Cursor::Live { scope, after, store_after } => c::Cursor::Live(
-            c::LiveCursor::new(
-                &C,
-                c::LiveCursorParts {
-                    scope: put_scope(scope)?,
-                    after: put_document(after),
-                    store_after: put_position(store_after)?,
-                },
-            )
-            .ok()?,
-        ),
-        reads::Cursor::Store { scope, after } => c::Cursor::Store(
-            c::StoreCursor::new(&C, c::StoreCursorParts { scope: put_scope(scope)?, after: put_position(after)? })
-                .ok()?,
-        ),
+        reads::Cursor::Live { scope, after, store_after } => c::Cursor::Live(c::LiveCursor {
+            scope: put_scope(scope)?,
+            after: put_document(after),
+            store_after: put_position(store_after)?,
+        }),
+        reads::Cursor::Store { scope, after } => {
+            c::Cursor::Store(c::StoreCursor { scope: put_scope(scope)?, after: put_position(after)? })
+        }
     };
-    let owner = c::Owner::new(&C, c::OwnerParts { cursor }).ok()?;
+    let owner = c::Owner { cursor };
     write(c::Form::Owner(owner), limit)
 }
 pub(crate) fn encode_tree(value: &documents::Cursor, task: u64, window: u32, limit: u32) -> Option<Box<[u8]>> {
-    let tree = c::Tree::new(&C, c::TreeParts { task, window, after: put_document(*value) }).ok()?;
+    let tree = c::Tree { task, window, after: put_document(*value) };
     write(c::Form::Tree(tree), limit)
 }
 fn write(form: c::Form, limit: u32) -> Option<Box<[u8]>> {
-    let held = c::Held::new(&C, c::HeldParts { form }).ok()?;
-    if held.measure() > limit {
+    let held = c::Held { form };
+    let measured = held.measure(&C).ok()?;
+    if measured > limit {
         return None;
     }
-    let mut writer = Writer::new(skein_lib::length::usize_of(held.measure()));
-    held.encode(&mut writer).ok()?;
+    let mut writer = Writer::new(skein_lib::length::usize_of(measured));
+    held.write(&C, &mut writer).ok()?;
     Some(writer.finish())
 }
 pub fn decode(bytes: &[u8]) -> Option<reads::Cursor> {
@@ -51,13 +46,13 @@ pub fn decode(bytes: &[u8]) -> Option<reads::Cursor> {
         return None;
     }
     let held = c::Held::decode(&C, &mut Reader::new(bytes)).ok()?;
-    let owner = match held.into_parts().form {
+    let owner = match held.form {
         c::Form::Owner(owner) => owner,
         c::Form::Tree(_) => return None,
     };
-    Some(match owner.into_parts().cursor {
+    Some(match owner.cursor {
         c::Cursor::Live(value) => {
-            let c::LiveCursorParts { scope, after, store_after } = value.into_parts();
+            let c::LiveCursor { scope, after, store_after } = value;
             reads::Cursor::Live {
                 scope: take_scope(scope)?,
                 after: take_document(after),
@@ -65,7 +60,7 @@ pub fn decode(bytes: &[u8]) -> Option<reads::Cursor> {
             }
         }
         c::Cursor::Store(value) => {
-            let c::StoreCursorParts { scope, after } = value.into_parts();
+            let c::StoreCursor { scope, after } = value;
             reads::Cursor::Store { scope: take_scope(scope)?, after: take_position(after)? }
         }
     })
@@ -75,10 +70,10 @@ pub(crate) fn decode_window(bytes: &[u8]) -> Option<documents::Cursor> {
     Some(take_document(c::DocumentCursor::decode(&C, &mut Reader::new(bytes)).ok()?))
 }
 fn number(value: u64) -> c::Number {
-    c::Number::new(&C, c::NumberParts { value }).expect("unbounded number")
+    c::Number { value }
 }
 fn project(value: u32) -> c::Project {
-    c::Project::new(&C, c::ProjectParts { value }).expect("unbounded project")
+    c::Project { value }
 }
 fn put_scope(value: reads::Scope) -> Option<c::Scope> {
     Some(match value {
@@ -94,59 +89,49 @@ fn put_scope(value: reads::Scope) -> Option<c::Scope> {
         reads::Scope::Task { task } => c::Scope::Task(number(task)),
         reads::Scope::Proposal { proposer, proposal } => c::Scope::Proposal(put_proposal(proposer, proposal)),
         reads::Scope::Escalation { task } => c::Scope::Escalation(number(task)),
-        reads::Scope::Question { task, message } => {
-            c::Scope::Question(c::Question::new(&C, c::QuestionParts { task, message }).ok()?)
-        }
+        reads::Scope::Question { task, message } => c::Scope::Question(c::Question { task, message }),
         reads::Scope::PersonTask { task } => c::Scope::PersonTask(number(task)),
         reads::Scope::Result { task } => c::Scope::Result(number(task)),
-        reads::Scope::Reply { task, activity } => {
-            c::Scope::Reply(c::Reply::new(&C, c::ReplyParts { task, activity }).ok()?)
-        }
-        reads::Scope::Turn { task, attempt, turn } => {
-            c::Scope::Turn(c::Turn::new(&C, c::TurnParts { task, attempt, number: turn }).ok()?)
-        }
+        reads::Scope::Reply { task, activity } => c::Scope::Reply(c::Reply { task, activity }),
+        reads::Scope::Turn { task, attempt, turn } => c::Scope::Turn(c::Turn { task, attempt, number: turn }),
         reads::Scope::EndedDelegates { task } => c::Scope::EndedDelegates(number(task)),
-        reads::Scope::History { task, subtree } => {
-            c::Scope::History(c::History::new(&C, c::HistoryParts { task, subtree }).ok()?)
-        }
+        reads::Scope::History { task, subtree } => c::Scope::History(c::History { task, subtree }),
         reads::Scope::Activity { task } => c::Scope::Activity(number(task)),
         reads::Scope::Inbox { group, filter } => {
-            let filter = c::Filter::new(&C, c::FilterParts { project: filter.project, goal: filter.goal }).ok()?;
-            c::Scope::Inbox(c::Inbox::new(&C, c::InboxParts { group: put_group(group), filter }).ok()?)
+            let filter = c::Filter { project: filter.project, goal: filter.goal };
+            c::Scope::Inbox(c::Inbox { group: put_group(group), filter })
         }
         reads::Scope::Notes { project: value } => c::Scope::Notes(project(value)),
-        reads::Scope::ScopedNotes { scope, description } => c::Scope::ScopedNotes(
-            c::ScopedNotes::new(&C, c::ScopedNotesParts { scope: put_note_scope(scope)?, description }).ok()?,
-        ),
+        reads::Scope::ScopedNotes { scope, description } => {
+            c::Scope::ScopedNotes(c::ScopedNotes { scope: put_note_scope(scope), description })
+        }
         reads::Scope::Spend { project: value } => c::Scope::Spend(project(value)),
         reads::Scope::Tasks { query } => c::Scope::Tasks(put_query(query)?),
     })
 }
 fn take_scope(value: c::Scope) -> Option<reads::Scope> {
     Some(match value {
-        c::Scope::Task(v) => reads::Scope::Task { task: v.value() },
-        c::Scope::Proposal(v) => {
-            reads::Scope::Proposal { proposer: take_proposer(v.proposer().clone()), proposal: v.number() }
-        }
-        c::Scope::Escalation(v) => reads::Scope::Escalation { task: v.value() },
-        c::Scope::Question(v) => reads::Scope::Question { task: v.task(), message: v.message() },
-        c::Scope::PersonTask(v) => reads::Scope::PersonTask { task: v.value() },
-        c::Scope::Result(v) => reads::Scope::Result { task: v.value() },
-        c::Scope::Reply(v) => reads::Scope::Reply { task: v.task(), activity: v.activity() },
-        c::Scope::Turn(v) => reads::Scope::Turn { task: v.task(), attempt: v.attempt(), turn: v.number() },
-        c::Scope::EndedDelegates(v) => reads::Scope::EndedDelegates { task: v.value() },
-        c::Scope::History(v) => reads::Scope::History { task: v.task(), subtree: v.subtree() },
-        c::Scope::Activity(v) => reads::Scope::Activity { task: v.value() },
+        c::Scope::Task(v) => reads::Scope::Task { task: v.value },
+        c::Scope::Proposal(v) => reads::Scope::Proposal { proposer: take_proposer(v.proposer), proposal: v.number },
+        c::Scope::Escalation(v) => reads::Scope::Escalation { task: v.value },
+        c::Scope::Question(v) => reads::Scope::Question { task: v.task, message: v.message },
+        c::Scope::PersonTask(v) => reads::Scope::PersonTask { task: v.value },
+        c::Scope::Result(v) => reads::Scope::Result { task: v.value },
+        c::Scope::Reply(v) => reads::Scope::Reply { task: v.task, activity: v.activity },
+        c::Scope::Turn(v) => reads::Scope::Turn { task: v.task, attempt: v.attempt, turn: v.number },
+        c::Scope::EndedDelegates(v) => reads::Scope::EndedDelegates { task: v.value },
+        c::Scope::History(v) => reads::Scope::History { task: v.task, subtree: v.subtree },
+        c::Scope::Activity(v) => reads::Scope::Activity { task: v.value },
         c::Scope::Inbox(v) => reads::Scope::Inbox {
-            group: take_group(v.group().clone()),
-            filter: reads::Filter { project: *v.filter().project(), goal: *v.filter().goal() },
+            group: take_group(v.group),
+            filter: reads::Filter { project: v.filter.project, goal: v.filter.goal },
         },
-        c::Scope::Notes(v) => reads::Scope::Notes { project: v.value() },
+        c::Scope::Notes(v) => reads::Scope::Notes { project: v.value },
         c::Scope::ScopedNotes(v) => {
-            let c::ScopedNotesParts { scope, description } = v.into_parts();
+            let c::ScopedNotes { scope, description } = v;
             reads::Scope::ScopedNotes { scope: take_note_scope(scope), description }
         }
-        c::Scope::Spend(v) => reads::Scope::Spend { project: v.value() },
+        c::Scope::Spend(v) => reads::Scope::Spend { project: v.value },
         c::Scope::Tasks(v) => reads::Scope::Tasks { query: take_query(v)? },
     })
 }
@@ -155,34 +140,33 @@ fn put_position(value: Option<reads::Position>) -> Option<Option<c::Position>> {
     Some(match value {
         None => None,
         Some(reads::Position::Owner(key)) => Some(c::Position::Owner(put_key(&key)?)),
-        Some(reads::Position::Inbox { at, task, object, key }) => Some(c::Position::Inbox(
-            c::InboxPosition::new(
-                &C,
-                c::InboxPositionParts { at: wall(at), task, object: put_inbox(object), key: put_key(&key)? },
-            )
-            .ok()?,
-        )),
+        Some(reads::Position::Inbox { at, task, object, key }) => Some(c::Position::Inbox(c::InboxPosition {
+            at: wall(at),
+            task,
+            object: put_inbox(object),
+            key: put_key(&key)?,
+        })),
     })
 }
 #[expect(clippy::option_option, reason = "outer absence is malformed; inner absence is an owner's absent field")]
 fn take_position(value: Option<c::Position>) -> Option<Option<reads::Position>> {
     Some(match value {
         None => None,
-        Some(c::Position::Owner(key)) => Some(reads::Position::Owner(jig_protocol_store::keys::decode(key.value())?)),
+        Some(c::Position::Owner(key)) => Some(reads::Position::Owner(jig_protocol_store::keys::decode(&key.value)?)),
         Some(c::Position::Inbox(v)) => {
-            let c::InboxPositionParts { at, task, object, key } = v.into_parts();
+            let c::InboxPosition { at, task, object, key } = v;
             Some(reads::Position::Inbox {
                 at: take_wall(at),
                 task,
                 object: take_inbox(object),
-                key: jig_protocol_store::keys::decode(key.value())?,
+                key: jig_protocol_store::keys::decode(&key.value)?,
             })
         }
     })
 }
 fn put_key(value: &Key) -> Option<c::OwnerKey> {
     let value = jig_protocol_store::keys::encode(value, super::w::CEILINGS.cursor_value)?;
-    c::OwnerKey::new(&C, c::OwnerKeyParts { value }).ok()
+    Some(c::OwnerKey { value })
 }
 fn wall(value: Option<Wall>) -> Option<u64> {
     match value {
@@ -199,17 +183,16 @@ fn take_wall(value: Option<u64>) -> Option<Wall> {
 fn put_document(value: documents::Cursor) -> c::DocumentCursor {
     match value {
         documents::Cursor::Number { number: value } => c::DocumentCursor::Number(number(value)),
-        documents::Cursor::Inbox { task, object, at } => c::DocumentCursor::Inbox(
-            c::InboxCursor::new(&C, c::InboxCursorParts { task, object: put_inbox(object), at: wall(at) })
-                .expect("unbounded document cursor"),
-        ),
+        documents::Cursor::Inbox { task, object, at } => {
+            c::DocumentCursor::Inbox(c::InboxCursor { task, object: put_inbox(object), at: wall(at) })
+        }
     }
 }
 fn take_document(value: c::DocumentCursor) -> documents::Cursor {
     match value {
-        c::DocumentCursor::Number(v) => documents::Cursor::Number { number: v.value() },
+        c::DocumentCursor::Number(v) => documents::Cursor::Number { number: v.value },
         c::DocumentCursor::Inbox(v) => {
-            let c::InboxCursorParts { task, object, at } = v.into_parts();
+            let c::InboxCursor { task, object, at } = v;
             documents::Cursor::Inbox { task, object: take_inbox(object), at: take_wall(at) }
         }
     }
@@ -219,12 +202,12 @@ fn put_proposal(proposer: people::Proposer, value: u64) -> c::Proposal {
         people::Proposer::Task(v) => c::Proposer::Task(number(v)),
         people::Proposer::Party(v) => c::Proposer::Party(number(v)),
     };
-    c::Proposal::new(&C, c::ProposalParts { proposer, number: value }).expect("unbounded proposal")
+    c::Proposal { proposer, number: value }
 }
 fn take_proposer(value: c::Proposer) -> people::Proposer {
     match value {
-        c::Proposer::Task(v) => people::Proposer::Task(v.value()),
-        c::Proposer::Party(v) => people::Proposer::Party(v.value()),
+        c::Proposer::Task(v) => people::Proposer::Task(v.value),
+        c::Proposer::Party(v) => people::Proposer::Party(v.value),
     }
 }
 fn put_inbox(value: documents::InboxObject) -> c::InboxObject {
@@ -241,14 +224,14 @@ fn put_inbox(value: documents::InboxObject) -> c::InboxObject {
 }
 fn take_inbox(value: c::InboxObject) -> documents::InboxObject {
     match value {
-        c::InboxObject::Question(v) => documents::InboxObject::Question { message: v.value() },
+        c::InboxObject::Question(v) => documents::InboxObject::Question { message: v.value },
         c::InboxObject::Proposal(v) => {
-            documents::InboxObject::Proposal { proposer: take_proposer(v.proposer().clone()), number: v.number() }
+            documents::InboxObject::Proposal { proposer: take_proposer(v.proposer), number: v.number }
         }
-        c::InboxObject::Escalation(v) => documents::InboxObject::Escalation { revision: v.value() },
+        c::InboxObject::Escalation(v) => documents::InboxObject::Escalation { revision: v.value },
         c::InboxObject::PersonTask => documents::InboxObject::PersonTask,
-        c::InboxObject::Reply(v) => documents::InboxObject::Reply { message: v.value() },
-        c::InboxObject::Result(v) => documents::InboxObject::Result { position: v.value() },
+        c::InboxObject::Reply(v) => documents::InboxObject::Reply { message: v.value },
+        c::InboxObject::Result(v) => documents::InboxObject::Result { position: v.value },
     }
 }
 fn put_group(value: reads::Group) -> c::Group {
@@ -275,39 +258,35 @@ fn take_group(value: c::Group) -> reads::Group {
         c::Group::Replies => reads::Group::Replies,
     }
 }
-fn put_note_scope(value: notes::Scope) -> Option<c::NoteScope> {
-    Some(match value {
-        notes::Scope::Party { party } => {
-            c::NoteScope::Party(c::NoteScopeParty::new(&C, c::NoteScopePartyParts { party }).ok()?)
-        }
+fn put_note_scope(value: notes::Scope) -> c::NoteScope {
+    match value {
+        notes::Scope::Party { party } => c::NoteScope::Party(c::NoteScopeParty { party }),
         notes::Scope::Deployment => c::NoteScope::Deployment,
         notes::Scope::Project { project: v } => c::NoteScope::Project(project(v)),
-        notes::Scope::Goal { project, goal } => {
-            c::NoteScope::Goal(c::Goal::new(&C, c::GoalParts { project, goal }).ok()?)
-        }
+        notes::Scope::Goal { project, goal } => c::NoteScope::Goal(c::Goal { project, goal }),
         notes::Scope::Resources { project, connector, pattern } => {
             let last = match pattern.last {
-                notes::Last::Exact(value) => c::Last::Exact(c::Blob::new(&C, c::BlobParts { value }).ok()?),
-                notes::Last::Open(value) => c::Last::Open(c::Blob::new(&C, c::BlobParts { value }).ok()?),
+                notes::Last::Exact(value) => c::Last::Exact(c::Blob { value }),
+                notes::Last::Open(value) => c::Last::Open(c::Blob { value }),
             };
             let segments = skein_lib::List::from_boxed(pattern.segments);
-            let pattern = c::Pattern::new(&C, c::PatternParts { segments, last }).ok()?;
-            c::NoteScope::Resources(c::Resources::new(&C, c::ResourcesParts { project, connector, pattern }).ok()?)
+            let pattern = c::Pattern { segments, last };
+            c::NoteScope::Resources(c::Resources { project, connector, pattern })
         }
-    })
+    }
 }
 fn take_note_scope(value: c::NoteScope) -> notes::Scope {
     match value {
-        c::NoteScope::Party(value) => notes::Scope::Party { party: value.party() },
+        c::NoteScope::Party(value) => notes::Scope::Party { party: value.party },
         c::NoteScope::Deployment => notes::Scope::Deployment,
-        c::NoteScope::Project(v) => notes::Scope::Project { project: v.value() },
-        c::NoteScope::Goal(v) => notes::Scope::Goal { project: v.project(), goal: v.goal() },
+        c::NoteScope::Project(v) => notes::Scope::Project { project: v.value },
+        c::NoteScope::Goal(v) => notes::Scope::Goal { project: v.project, goal: v.goal },
         c::NoteScope::Resources(v) => {
-            let c::ResourcesParts { project, connector, pattern } = v.into_parts();
-            let c::PatternParts { segments, last } = pattern.into_parts();
+            let c::Resources { project, connector, pattern } = v;
+            let c::Pattern { segments, last } = pattern;
             let last = match last {
-                c::Last::Exact(v) => notes::Last::Exact(v.into_parts().value),
-                c::Last::Open(v) => notes::Last::Open(v.into_parts().value),
+                c::Last::Exact(v) => notes::Last::Exact(v.value),
+                c::Last::Open(v) => notes::Last::Open(v.value),
             };
             notes::Scope::Resources {
                 project,
@@ -355,45 +334,32 @@ fn put_query(query: documents::TaskQuery) -> Option<c::Query> {
         O::Priority => 3,
         O::Ended => 4,
     };
-    c::Query::new(
-        &C,
-        c::QueryParts {
-            project: query.project,
-            requester,
-            root: query.root,
-            parent: query.parent,
-            label: query.label,
-            phase,
-            executor,
-            tracked,
-            order,
-            parts: {
-                let mut parts = skein_lib::List::with_capacity(query.parts.len());
-                for ask in &query.parts {
-                    parts
-                        .push(
-                            c::PartAsk::new(
-                                &C,
-                                c::PartAskParts { owner: ask.owner, kind: ask.kind, version: ask.version },
-                            )
-                            .ok()?,
-                        )
-                        .ok()?;
-                }
-                parts
-            },
+    Some(c::Query {
+        project: query.project,
+        requester,
+        root: query.root,
+        parent: query.parent,
+        label: query.label,
+        phase,
+        executor,
+        tracked,
+        order,
+        parts: {
+            let mut parts = skein_lib::List::with_capacity(query.parts.len());
+            for ask in &query.parts {
+                parts.push(c::PartAsk { owner: ask.owner, kind: ask.kind, version: ask.version }).ok()?;
+            }
+            parts
         },
-    )
-    .ok()
+    })
 }
 fn take_query(value: c::Query) -> Option<documents::TaskQuery> {
     use documents::{ExecutorKind as E, PhaseClass as P, QueryOrder as O};
-    let c::QueryParts { project, requester, root, parent, label, phase, executor, tracked, order, parts } =
-        value.into_parts();
+    let c::Query { project, requester, root, parent, label, phase, executor, tracked, order, parts } = value;
     let requester = match requester {
         c::Requester::None => None,
-        c::Requester::Person(v) => Some(jig_domain_tasks::Party::Person(v.value())),
-        c::Requester::Task(v) => Some(jig_domain_tasks::Party::Task(v.value())),
+        c::Requester::Person(v) => Some(jig_domain_tasks::Party::Person(v.value)),
+        c::Requester::Task(v) => Some(jig_domain_tasks::Party::Task(v.value)),
     };
     let phase = match phase {
         None => None,
@@ -430,7 +396,7 @@ fn take_query(value: c::Query) -> Option<documents::TaskQuery> {
         parts: {
             let mut asks = skein_lib::List::with_capacity(parts.len());
             for ask in &parts {
-                asks.push(documents::PartAsk { owner: ask.owner(), kind: ask.kind(), version: ask.version() }).ok()?;
+                asks.push(documents::PartAsk { owner: ask.owner, kind: ask.kind, version: ask.version }).ok()?;
             }
             asks
         },

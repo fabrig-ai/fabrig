@@ -4,7 +4,6 @@ pub fn seed_numbered_settings(directories: &temper_shell::directories::Directori
     use jig_domain_core::{CoreRecord, Record as Core, settings as s};
     use jig_protocol_store::Write;
     use std::{os::unix::ffi::OsStrExt, path::Path};
-    let config = Path::new(std::ffi::OsStr::from_bytes(&directories.config));
     let data = Path::new(std::ffi::OsStr::from_bytes(&directories.data));
     if !moved {
         // The floor needs upgrade jobs; seed a current-format stopped store instead.
@@ -14,7 +13,9 @@ pub fn seed_numbered_settings(directories: &temper_shell::directories::Directori
         std::fs::set_permissions(&state, std::os::unix::fs::PermissionsExt::from_mode(0o700))
             .expect("private deployment");
     }
-    let bytes = std::fs::read(config.join("temper.json")).expect("configuration");
+    let bytes = temper_config_shell::read(directories, temper_config_shell::Shape::EngineAlone)
+        .expect("engine configuration")
+        .document;
     let stock =
         temper_engine_shell::serve::settings(&bytes, directories, &temper_engine_service_stock::stock::Given::Stock);
     assert!(!stock.templates.iter().any(|item| item.number == 9));

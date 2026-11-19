@@ -134,7 +134,7 @@ impl BoxPeer {
     pub(crate) fn program(
         _: &skein_io::kernel::Spawn,
         inherited: &skein_sim_world::Inherited,
-    ) -> programs::Process<crate::Journey> {
+    ) -> programs::Process<crate::Clients> {
         let pipe = |child| inherited.pipes.iter().find(|(number, _)| *number == child).expect("box pipe").1;
         let mut peer = Self {
             requests: Some(pipe(3)),
@@ -151,7 +151,7 @@ impl BoxPeer {
         };
         peer.submit(Op::Close { fd: inherited.signal });
         peer.read(pipe(3));
-        programs::Process::Other(peer)
+        programs::Process::Other(crate::Native::Box(Box::new(peer)))
     }
     fn submit(&mut self, kind: Op) {
         self.serial += 1;

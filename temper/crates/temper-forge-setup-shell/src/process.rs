@@ -105,20 +105,7 @@ pub fn id() -> u32 {
 /// The effective user's login from the system command (protocol/setup/init.md, 2).
 /// Kept on every platform so Linux tests compare macOS's lookup with passwd's.
 pub fn login_id() -> Result<Box<[u8]>, String> {
-    let output = Command::new("/usr/bin/id")
-        .arg("-un")
-        .stdin(Stdio::null())
-        .env_clear()
-        .output()
-        .map_err(|why| format!("user: /usr/bin/id -un: {why}"))?;
-    if !output.status.success() {
-        return Err(format!("user: /usr/bin/id -un: {}", output.status));
-    }
-    let name = output.stdout.strip_suffix(b"\n").ok_or("user: /usr/bin/id -un: missing line feed")?;
-    if name.is_empty() || name.contains(&b'\n') {
-        return Err("user: /usr/bin/id -un: expected one login line".into());
-    }
-    Ok(name.into())
+    skein_shell::login_id()
 }
 
 /// Streams one archive member into a preopened part file, bounded and hashed.

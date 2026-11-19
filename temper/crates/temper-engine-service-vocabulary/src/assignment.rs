@@ -8,7 +8,7 @@ use jig_domain_tasks as tasks;
 use jig_protocol_engine_workers as kit;
 use skein_lib::{List, Time, Token, Writer};
 use temper_engine_domain as root;
-use temper_protocol_worker_wire as wire;
+use temper_protocol_worker_wire::{self as wire, v1::Record};
 
 /// A worker's charter allowance where the engine doesn't know it: smith's
 /// `run_bytes` at its floor, which the stock agent's `tool_payload` doesn't
@@ -96,7 +96,30 @@ pub fn down(
 ) -> Result<kit::Event, kit::Unencoded> {
     let items = match crate::translate::items(&assignment, forges, &values.tokens, &encoding.limits) {
         Ok(items) => items,
-        Err(problem) => return Err(kit::Unencoded { reason: Some(problem.reason), ..unencoded(problem.path.name()) }),
+        Err(problem) => {
+            return Err(kit::Unencoded {
+                reason: Some(problem.reason),
+                ..unencoded(wire::v1::name(problem.path).expect("worker wire path"))
+            });
+        }
+    };
+    let mut parts = List::with_capacity(1);
+    let workspace = match items {
+        Some(items) => {
+            let bytes = match items.encode(&encoding.limits) {
+                Ok(bytes) => bytes,
+                Err(problem) => {
+                    return Err(kit::Unencoded {
+                        reason: Some(problem.reason),
+                        ..unencoded(wire::v1::name(problem.path).expect("worker wire path"))
+                    });
+                }
+            };
+            let token = Token::new(0);
+            parts.push(jig_protocol_worker_wire::Part { token, bytes }).expect("one workspace part");
+            Some(host::Workspace { workstream: assignment.workstream, items: token })
+        }
+        None => None,
     };
     let mut charter = temper_engine_smith::charter(&assignment);
     for (section, from) in charter.brief.sections.iter_mut().zip(&assignment.sections) {
@@ -108,17 +131,6 @@ pub fn down(
     }
     let charter = fitted_charter(charter, encoding)?;
     let identity = jig_protocol_charter::run_identity(&encoding.deployment, assignment.task, assignment.conversation);
-    let mut parts = List::with_capacity(1);
-    let workspace = match items {
-        Some(items) => {
-            let token = Token::new(0);
-            parts
-                .push(jig_protocol_worker_wire::Part { token, bytes: wire::items(&items) })
-                .expect("one workspace part");
-            Some(host::Workspace { workstream: assignment.workstream, items: token })
-        }
-        None => None,
-    };
     let grants = grants(&assignment.grants);
     let filled = values.grants(&grants, now);
     Ok(kit::Event::Down {
@@ -165,7 +177,7 @@ pub fn job_down(
     let parts: Box<[jig_protocol_worker_wire::Part]> = match items {
         Some(items) => Box::new([jig_protocol_worker_wire::Part {
             token: job.workspace.as_ref()?.items,
-            bytes: temper_protocol_worker_wire::items(&items),
+            bytes: items.encode(&encoding.limits).ok()?,
         }]),
         None => Box::new([]),
     };

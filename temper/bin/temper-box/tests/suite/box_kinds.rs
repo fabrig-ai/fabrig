@@ -140,7 +140,11 @@ fn a_box_starts_an_owned_slot_on_start_kind_and_removes_it() {
         }),
     );
     let bytes = serde_json::to_vec(&document).expect("document JSON");
-    fs::write(root.join("temper.json"), &bytes).expect("document");
+    fs::write(
+        root.join(temper_config_shell::FILE),
+        temper_config_shell::render(&support::configuration::file(), temper_config_shell::Shape::Standalone),
+    )
+    .expect("document");
     let mut directories = support::configuration::directories(root);
     directories.cache = cache.as_os_str().as_encoded_bytes().into();
     let (mut steps, limits) =

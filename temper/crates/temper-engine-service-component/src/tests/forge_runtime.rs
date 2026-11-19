@@ -6,6 +6,7 @@ use temper_engine_domain as root;
 use temper_engine_domain_forge as domain;
 use temper_protocol_records::{self as records, Item};
 use temper_protocol_records_forge as forge_records;
+use temper_protocol_worker_wire::v1::Record;
 
 const NUMBER: u16 = 77;
 const PORT: u16 = 3076;
@@ -205,9 +206,9 @@ fn identities_and_tokens_take_a_forge_kept_at_runtime() {
     let mut reader = skein_lib::Reader::new(value.expose());
     let identity =
         temper_protocol_worker_wire::v1::Identity::decode(&engine.workers.encoding.limits, &mut reader).unwrap();
-    assert_eq!(identity.login(), b"writer");
-    let temper_protocol_worker_wire::v1::Kind::Forgejo(token) = identity.kind() else { panic!("Forgejo identity") };
-    assert_eq!(token.token().expose(), b"git-credential");
+    assert_eq!(identity.login.as_ref(), b"writer");
+    let temper_protocol_worker_wire::v1::Kind::Forgejo(token) = &identity.kind else { panic!("Forgejo identity") };
+    assert_eq!(token.token.expose(), b"git-credential");
     let mut github = record(b"127.0.0.1");
     github.number = NUMBER + 1;
     github.kind = domain::Kind::GitHub;

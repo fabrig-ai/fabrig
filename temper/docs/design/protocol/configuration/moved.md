@@ -3,10 +3,9 @@
 Provisional, 2026-11-16, from `../../draft/config.md`, 6.4 and 6.5
 (`../../draft/config.execution.md`, N5). The members a document no
 longer holds, where each went, and the constants that took the place of
-those nobody changes. The document stays JSON, `temper.json`, until
-`temper.toml` replaces it (`../../draft/config.md`, section 4); the
-members that become its keys (`listen`, `public`, `owner`, `[internal]
-bundle`) stay as they are until then.
+those nobody changes. A person writes `temper.toml` (`file.md`), whose
+keys give the start's document; the members this document names are
+that document's, and the file's names that moved are `file.md`, 3.3's.
 
 ## 1. In one page
 
@@ -122,6 +121,6 @@ GitHub is `application.test.github`.
 ## 6. Open questions
 
 - **A managed Forgejo's sign-in through temper** keeps
-  `engine.clients.provider` in the document; `../../draft/config.md`,
-  section 4's file has no key for it. Default: the TOML file's milestone
-  gives it one, or derives it as the owned forge's is.
+  `engine.clients.provider` in the start's document, which the file's
+  `[openid]` gives (`file.md`, 3.1), and a box's provider is derived
+  from its `provider.key` as `init` made it.

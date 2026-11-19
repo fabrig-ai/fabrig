@@ -11,7 +11,7 @@ Generated from the tree's tables (`skein/docs/design/runtime/shell.md`, 14.3): a
 - **Form:** CONFIG
 - **Absent:** default $XDG_CONFIG_HOME/temper
 - **Twin of:** `--config`
-- Configuration, including temper.json.
+- Configuration files.
 - **Read by:** temper-box, temper-engine, temper-worker, temper
 
 ### `TEMPER_DATA`

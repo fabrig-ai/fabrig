@@ -1,0 +1,137 @@
+//! Engine command boundaries read only the engine's file (configuration/file.md, 6).
+use std::{
+    fs,
+    os::unix::{ffi::OsStrExt, fs::PermissionsExt},
+};
+use temper_config_shell::{FILE, FORMER};
+use temper_shell::directories::Directories;
+
+const ENGINE: &str = r#"listen = "127.0.0.1:7100"
+public = "https://temper.example.com"
+workers = "127.0.0.1:7200"
+owner = "sam@example.com"
+[sign_in.google]
+client = "1234.apps.googleusercontent.com"
+secret = "secrets/google.secret"
+[[sign_in.members]]
+address = "sam@example.com"
+login = "sam"
+[test.google]
+issuer = "http://127.0.0.1:9000"
+authorization = "http://127.0.0.1:9000/auth"
+token = "http://127.0.0.1:9000/token"
+keys = "http://127.0.0.1:9000/keys"
+transport = "plaintext"
+"#;
+
+fn fixture(text: &str) -> (skein_scratch::Scratch, Directories) {
+    let scratch = skein_scratch::Scratch::new("engine-config-file");
+    let arguments = [
+        b"--config".as_slice(),
+        scratch.path().as_os_str().as_bytes(),
+        b"--data",
+        scratch.path().as_os_str().as_bytes(),
+        b"--cache",
+        scratch.path().as_os_str().as_bytes(),
+    ]
+    .map(Box::from);
+    let (directories, _) = temper_shell::directories::resolve(&arguments, &[], b"/").expect("directories");
+    fs::write(scratch.path().join(FILE), text).expect("configuration file");
+    (scratch, directories)
+}
+
+fn engine_fixture() -> (skein_scratch::Scratch, Directories) {
+    let (scratch, directories) = fixture(ENGINE);
+    fs::create_dir(scratch.path().join("secrets")).expect("fixture secrets");
+    let secret = scratch.path().join("secrets/google.secret");
+    fs::write(&secret, b"fixture-google-client-secret").expect("fixture secret");
+    fs::set_permissions(&secret, fs::Permissions::from_mode(0o600)).expect("private");
+    (scratch, directories)
+}
+
+#[test]
+fn toml_engine_prepares_serve_from_its_file() {
+    let (_scratch, directories) = engine_fixture();
+    let mut service =
+        crate::serve::prepare_in("temper-engine", &[], b"/", &directories).unwrap_or_else(|why| panic!("{why}"));
+    assert!(service.operations() > 0);
+    crate::serve::close_limits_store(service.engine_component().store()).expect("close store");
+}
+
+#[test]
+fn toml_engine_stopped_tools_read_the_file() {
+    let (scratch, directories) = engine_fixture();
+    let (service, deployment) =
+        crate::stopped::prepare("temper-engine", &directories).unwrap_or_else(|why| panic!("{why}"));
+    assert!(service.operations() > 0);
+    assert_eq!(deployment.as_ref(), scratch.path().join("state").as_os_str().as_bytes());
+}
+
+#[test]
+fn toml_engine_refuses_a_box_file_without_workers() {
+    let (_scratch, directories) = fixture("listen = \"127.0.0.1:7100\"\n");
+    let Err(why) = crate::serve::prepare_in_with(
+        "temper-engine",
+        &[],
+        b"/",
+        &directories,
+        &temper_engine_service::stock::Given::Stock,
+    ) else {
+        panic!("engine requires workers listener")
+    };
+    assert_eq!(why, format!("temper-engine serve: {FILE}: workers: required in temper-engine's file\n"));
+}
+
+fn fake_setup(directories: &Directories) {
+    let jig = temper_service_shell::jig_directories(directories);
+    let setup =
+        temper_forge_setup::setup_file::chosen(temper_forge_setup::machine::BoxKind::Fake, 3007, b"sam", false, &jig)
+            .expect("fake setup");
+    temper_forge_setup_shell::setup_file::write(&jig, 7, &setup).expect("setup file");
+    let root = std::path::Path::new(std::ffi::OsStr::from_bytes(&directories.data));
+    fs::create_dir_all(root.join("box/groups")).expect("group directory");
+    fs::write(root.join("box/groups/7"), b"fake\n").expect("fake group");
+}
+
+#[test]
+fn toml_engine_forge_prepare_reads_the_document() {
+    let (scratch, directories) = fixture(ENGINE);
+    fake_setup(&directories);
+    assert_eq!(crate::forge::start(&directories, &["prepare".into(), "7".into()], None, &[]).unwrap(), 0);
+    assert!(scratch.path().join("playground-7/admin_token").is_file());
+}
+
+#[test]
+fn toml_engine_commands_refuse_the_former_file_alone_or_beside_the_current_file() {
+    for present in [false, true] {
+        let (scratch, directories) = fixture(ENGINE);
+        fs::create_dir(scratch.path().join(FORMER)).expect("former directory");
+        if !present {
+            fs::remove_file(scratch.path().join(FILE)).expect("current absent");
+        }
+        let expected = format!(
+            "{FORMER}: moved: the configuration is {FILE}; write it from temper-engine help config, then remove {FORMER}"
+        );
+        let Err(serve) = crate::serve::prepare_in("temper-engine", &[], b"/", &directories) else {
+            panic!("both refused")
+        };
+        assert_eq!(serve, format!("temper-engine serve: {expected}\n"));
+        let Err(stopped) = crate::stopped::prepare("temper-engine", &directories) else { panic!("both refused") };
+        assert_eq!(stopped, expected);
+        fake_setup(&directories);
+        for words in [
+            &["fetch", "7"][..],
+            &["prepare", "7"][..],
+            &["run", "7", "forgejo"][..],
+            &["run", "7", "runner"][..],
+            &["source", "7"][..],
+            &["sign-in", "7"][..],
+        ] {
+            let arguments: Vec<_> = words.iter().map(std::ffi::OsString::from).collect();
+            let why =
+                crate::forge::start(&directories, &arguments, None, &[]).unwrap_err().line_with_binary("temper-engine");
+            assert_eq!(why, format!("temper-engine forge {}: forge 7: {expected}\n", words.first().expect("verb")));
+        }
+        assert!(!scratch.path().join("playground-7/admin_token").exists());
+    }
+}

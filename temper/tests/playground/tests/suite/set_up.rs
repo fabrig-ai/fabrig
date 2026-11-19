@@ -2,7 +2,7 @@
 use skein_fake_person::{Find, Target};
 use skein_lib::Duration;
 use skein_ui::{Act, Node, Role};
-use temper_client_walk_world::{box_peer::OWNED, facts, web::Page};
+use temper_client_walk_world::{Native, box_peer::OWNED, facts, web::Page};
 use temper_playground::programs::Process;
 
 const WITHIN: Duration = Duration::from_secs(60);
@@ -77,7 +77,7 @@ fn owned_setup_draws_every_pipe_step_before_the_next_line() {
             page.world()
                 .processes()
                 .iter()
-                .find_map(|p| if let Process::Other(peer) = p { peer.began() } else { None })
+                .find_map(|p| if let Process::Other(Native::Box(peer)) = p { peer.began() } else { None })
                 .expect("owned start read")
         });
         let now = page.now();

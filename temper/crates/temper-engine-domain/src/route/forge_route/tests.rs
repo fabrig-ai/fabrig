@@ -2975,18 +2975,18 @@ fn malformed_repairs_refuses_a_change_start() {
     reason = "unit fixtures format expected protocol bytes and resolution text"
 )]
 fn a_merge_jobs_spec_is_its_command_and_its_two_commits() {
-    use temper_protocol_worker_wire::v1;
+    use temper_protocol_worker_wire::v1::{self, Record};
     for (head, head_text) in COMMITS {
         for (base, base_text) in COMMITS {
             let bytes = super::merge::spec(b"fabrig", b".temper/merge", head, base, 4096).expect("merge spec");
             let decoded = v1::JobSpec::decode(&v1::CEILINGS, &mut skein_lib::Reader::new(&bytes)).unwrap();
-            assert_eq!(decoded.command(), b"fabrig/.temper/merge");
+            assert_eq!(decoded.command.as_ref(), b"fabrig/.temper/merge");
             let expected = alloc::format!(
                 "{{\"version\":1,\"head\":\"{}\",\"base\":\"{}\"}}",
                 core::str::from_utf8(head_text).unwrap(),
                 core::str::from_utf8(base_text).unwrap(),
             );
-            assert_eq!(decoded.request(), expected.as_bytes());
+            assert_eq!(decoded.request.as_ref(), expected.as_bytes());
             let bound = u32::try_from(bytes.len()).unwrap();
             assert_eq!(super::merge::spec(b"fabrig", b".temper/merge", head, base, bound), Some(bytes));
             assert_eq!(super::merge::spec(b"fabrig", b".temper/merge", head, base, bound - 1), None);
@@ -4644,7 +4644,11 @@ fn a_hold_decided_while_its_procedure_is_not_due_keeps_its_account() {
 #[test]
 fn the_job_root_names_the_declaration_the_engine_encodes() {
     use jig_protocol_worker_wire::Carried;
-    use temper_protocol_worker_wire::{application, v1, wire};
+    use temper_protocol_worker_wire::{
+        application,
+        v1::{self, Record},
+        wire,
+    };
     let application = application(&v1::CEILINGS).expect("temper's application");
     let mut found = None;
     for root in &application.roots {
@@ -4660,20 +4664,20 @@ fn the_job_root_names_the_declaration_the_engine_encodes() {
         super::merge::spec(b"repo", b"merge", &[3; 32], &[4; 32], 4096).expect("merge spec"),
     ] {
         let spec = v1::JobSpec::decode(&v1::CEILINGS, &mut skein_lib::Reader::new(&bytes)).expect("JobSpec bytes");
-        assert_ne!(spec.command(), []);
-        assert_ne!(spec.request(), []);
+        assert_ne!(spec.command.as_ref(), []);
+        assert_ne!(spec.request.as_ref(), []);
     }
 }
 
 /// temper/docs/design/domain/worker/jobs.md: preserve the close request whole.
 #[test]
 fn a_close_jobs_spec_is_its_command_and_its_request() {
-    use temper_protocol_worker_wire::v1;
+    use temper_protocol_worker_wire::v1::{self, Record};
     let request = br#"{"version":1,"goal":7,"changes":[{"task":9,"landed":true}]}"#;
     let bytes = super::close::spec(b"fabrig", b".temper/close", request, 16384).expect("close spec");
     let decoded = v1::JobSpec::decode(&v1::CEILINGS, &mut skein_lib::Reader::new(&bytes)).expect("job spec");
-    assert_eq!(decoded.command(), b"fabrig/.temper/close");
-    assert_eq!(decoded.request(), request);
+    assert_eq!(decoded.command.as_ref(), b"fabrig/.temper/close");
+    assert_eq!(decoded.request.as_ref(), request);
     let bound = u32::try_from(bytes.len()).expect("bounded spec");
     assert_eq!(super::close::spec(b"fabrig", b".temper/close", request, bound), Some(bytes));
     assert_eq!(

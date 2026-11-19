@@ -85,12 +85,12 @@ pub fn world(start: Start) -> World<Process<()>, Machine> {
 /// Make a harness-free world with a meter installed before admitting any process.
 #[must_use]
 pub fn world_metered<N: Meter>(start: Start, meter: N) -> World<Process<()>, Machine, N> {
-    world_harness::<(), N>(start, meter)
+    world_with::<(), N>(start, meter)
 }
 
-/// Make the same composition with a world's harness, keeping its service at zero.
+/// Make the composition with the caller's harness, preserving process order.
 #[must_use]
-pub fn world_harness<H: Harness, N: Meter>(start: Start, meter: N) -> World<Process<H>, Machine, N> {
+pub fn world_with<H: Harness, N: Meter>(start: Start, meter: N) -> World<Process<H>, Machine, N> {
     let Start { seed, wall, deployment, fakes, links } = start;
     let mut disk = machine::fresh();
     prepare(&mut disk, &deployment, seed);
@@ -181,7 +181,13 @@ pub const SLICE_STEPS: u32 = 256;
 /// A story's world in skein's slices, its visitor reached, at 1× from `browser`.
 #[must_use]
 pub fn slices(start: Start, budget: u32, browser: Time) -> Slices<Process<()>, Machine> {
-    Slices::new(world(start), reach(), budget, browser)
+    slices_with::<()>(start, budget, browser)
+}
+
+/// The caller's harness on the composition's slices, with the same visitor and pace.
+#[must_use]
+pub fn slices_with<H: Harness>(start: Start, budget: u32, browser: Time) -> Slices<Process<H>, Machine> {
+    Slices::new(world_with::<H, Bare>(start, Bare), reach(), budget, browser)
 }
 
 /// Make slices from a worker start message; an unknown story has no world.

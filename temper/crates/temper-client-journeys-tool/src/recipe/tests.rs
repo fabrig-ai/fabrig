@@ -18,6 +18,20 @@ fn web_mark_is_refused_at_its_recipe_line() {
     }
 }
 
+#[test]
+fn tui_journey_lines_are_refused_at_their_recipe_line() {
+    let mut files = Files::new();
+    for source in ["tui mark", "tui approve"] {
+        for prefix in ["", "tui see \"Ready\"\n", "check\n"] {
+            put(&mut files, "a", "recipe", format!("recipe 1\n{prefix}{source}\nweb see \"Hi\"\n").as_bytes());
+            let error = read(&files, "a").expect_err("TUI journey line in a recipe");
+            assert_eq!(error.name, "a");
+            assert_eq!(error.line, Some(if prefix.is_empty() { 2 } else { 3 }));
+            assert_eq!(error.why, format!("{source} is a journey's line"));
+        }
+    }
+}
+
 type Files = BTreeMap<String, BTreeMap<OsString, Vec<u8>>>;
 fn put(files: &mut Files, name: &str, file: &str, bytes: &[u8]) {
     files.entry(name.into()).or_default().insert(file.into(), bytes.into());
@@ -864,7 +878,7 @@ fn walk_success_and_session_failures_keep_their_statuses() {
     }
 }
 fn config(files: &mut Files, name: &str) {
-    for document in ["engine.json", "worker.json", "forgejo.json", "model.json", "providers.json"] {
+    for document in ["engine.toml", "worker.toml", "forgejo.json", "model.json", "providers.json"] {
         put(files, name, &format!("config/{document}"), b"opaque, not parsed here");
     }
 }
@@ -877,12 +891,12 @@ fn deployment_chain() -> Files {
 #[test]
 fn deployment_config_requires_exactly_four_bounded_documents_without_parsing() {
     let mut files = deployment_chain();
-    put(&mut files, "root", "config/engine.json", &vec![b'x'; 262_144]);
+    put(&mut files, "root", "config/engine.toml", &vec![b'x'; 262_144]);
     let chain = read(&files, "child").expect("256 KiB inclusive, opaque documents");
     assert_eq!(chain.kind(), Kind::Deployment);
     assert_eq!(chain.names().collect::<Vec<_>>(), ["root", "child"]);
     assert_eq!(chain.config_dir(Path::new("/recipes")), Some("/recipes/root/config".into()));
-    for document in ["engine.json", "worker.json", "forgejo.json", "model.json", "providers.json"] {
+    for document in ["engine.toml", "worker.toml", "forgejo.json", "model.json", "providers.json"] {
         let mut missing = files.clone();
         let path = format!("config/{document}");
         missing.get_mut("root").expect("root").remove(OsStr::new(&path));
@@ -892,8 +906,8 @@ fn deployment_config_requires_exactly_four_bounded_documents_without_parsing() {
     }
     for (path, bytes, why) in [
         ("config/extra.json", b"extra".to_vec(), "unexpected document"),
-        ("config/sub/engine.json", b"nested".to_vec(), "unexpected document"),
-        ("config/engine.json", vec![b'x'; 262_145], "256 KiB"),
+        ("config/sub/engine.toml", b"nested".to_vec(), "unexpected document"),
+        ("config/engine.toml", vec![b'x'; 262_145], "256 KiB"),
     ] {
         let mut invalid = files.clone();
         put(&mut invalid, "root", path, &bytes);
@@ -925,9 +939,9 @@ fn chain_kind_refuses_the_other_kinds_lines_and_deployment_checks() {
     {
         let mut files = if deployment { deployment_chain() } else { ctl_chain() };
         let source = if after_check {
-            b"recipe 1\ncheck\ndeployment patch engine \"patch.json\"\n".as_slice()
+            b"recipe 1\ncheck\ndeployment patch engine \"patch.toml\"\n".as_slice()
         } else {
-            b"recipe 1\ndeployment patch engine \"patch.json\"\ncheck\nctl project list\n"
+            b"recipe 1\ndeployment patch engine \"patch.toml\"\ncheck\nctl project list\n"
         };
         put(&mut files, "root", "recipe", source);
         let refusal = read(&files, "child").expect_err(why);
@@ -976,11 +990,11 @@ fn deployment_hash_frames_config_after_files_in_name_byte_order() {
     let files = deployment_chain();
     let mut chain = read(&files, "child").expect("deployment");
     let hash = chain.hash();
-    assert_eq!(hex(hash), "566d0e9fb9a9b8af083f76d548abf138d5036f8e07039b34991d318365883e1b");
+    assert_eq!(hex(hash), "62550dbd1fffcad7ee7d3a8c13198c2305495567a46d67ad3febe62f5a2f6515");
     let mut changed = files.clone();
-    put(&mut changed, "root", "config/engine.json", b"Opaque, not parsed here");
+    put(&mut changed, "root", "config/engine.toml", b"Opaque, not parsed here");
     assert_ne!(read(&changed, "child").expect("one changed byte").hash(), hash);
-    let bytes = chain.recipes[0].config.remove(b"engine.json".as_slice()).expect("engine");
+    let bytes = chain.recipes[0].config.remove(b"engine.toml".as_slice()).expect("engine");
     chain.recipes[0].config.insert(b"renamed.json".as_slice().into(), bytes);
     assert_ne!(chain.hash(), hash, "name alone counts, without changing recipe bytes");
 }
@@ -995,9 +1009,9 @@ fn deployment_walk_passes_root_config_ports_and_each_recipes_patch_files_without
             &mut files,
             name,
             "recipe",
-            format!("recipe 1\n{after}deployment patch engine \"patch.json\"\ncheck\nctl project list\n").as_bytes(),
+            format!("recipe 1\n{after}deployment patch engine \"patch.toml\"\ncheck\nctl project list\n").as_bytes(),
         );
-        put(&mut files, name, "files/patch.json", bytes);
+        put(&mut files, name, "files/patch.toml", bytes);
         put(&mut files, name, "README.md", format!("The {name}.").as_bytes());
     }
     let chain = read(&files, "child").expect("patches named by deployment lines");
@@ -1018,9 +1032,9 @@ fn deployment_walk_passes_root_config_ports_and_each_recipes_patch_files_without
     assert_eq!(
         shown(fresh.clone()),
         [
-            "root:2 deployment patch engine \"patch.json\"",
+            "root:2 deployment patch engine \"patch.toml\"",
             "root:4 ctl project list",
-            "child:3 deployment patch engine \"patch.json\"",
+            "child:3 deployment patch engine \"patch.toml\"",
             "child:5 ctl project list"
         ]
     );
@@ -1030,7 +1044,7 @@ fn deployment_walk_passes_root_config_ports_and_each_recipes_patch_files_without
         let directory = line.files(setups).expect("own files");
         assert_eq!(directory, setups.join(name).join("files"));
         assert_eq!(
-            chain.recipes.iter().find(|r| r.name == name).expect("recipe").files[b"patch.json".as_slice()],
+            chain.recipes.iter().find(|r| r.name == name).expect("recipe").files[b"patch.toml".as_slice()],
             bytes
         );
     }
@@ -1050,9 +1064,9 @@ fn deployment_walk_passes_root_config_ports_and_each_recipes_patch_files_without
     );
     for name in ["root", "child"] {
         let mut missing = files.clone();
-        missing.get_mut(name).expect("recipe").remove(OsStr::new("files/patch.json"));
+        missing.get_mut(name).expect("recipe").remove(OsStr::new("files/patch.toml"));
         let refusal = read(&missing, "child").expect_err("patch must be in its own recipe");
-        assert_eq!((refusal.name.as_str(), refusal.file.as_deref()), (name, Some("files/patch.json")));
+        assert_eq!((refusal.name.as_str(), refusal.file.as_deref()), (name, Some("files/patch.toml")));
         assert!(refusal.why.contains("missing"), "{refusal}");
     }
 }

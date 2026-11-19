@@ -143,6 +143,9 @@ fn failed(why: Failed, bound: &str) -> String {
         Failed::Stopped => "the world stopped".into(),
         Failed::Turns => "the turn bound at one instant passed".into(),
         Failed::NoLink => "the service printed no sign-in link".into(),
+        Failed::Closed => "the TUI closed".into(),
+        Failed::NotBrowsed => "the TUI asked to browse no address on the service within 30 s".into(),
+        Failed::Asked(duty) => format!("the TUI asked to {duty} its terminal, which a world does not play"),
     }
 }
 
