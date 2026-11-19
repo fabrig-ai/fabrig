@@ -1,7 +1,9 @@
 # store: status
 
-2026-11-18. Where jig's code lags or departs from [README.md](README.md).
+2026-11-19. Where jig's code lags or departs from [README.md](README.md).
 
+- **Not yet:** 6.3: a census row has no pending places, and the
+  application's root sets none [in flight: change 9172].
 
 
 

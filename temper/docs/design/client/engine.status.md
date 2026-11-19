@@ -1,7 +1,11 @@
 # engine: status
 
-2026-11-11. Where the tree's code lags or departs from [engine.md](engine.md).
+2026-11-19. Where the tree's code lags or departs from [engine.md](engine.md).
 
+- **Not yet:** the forge's kept outcomes: a request admitted while they
+  and the pending requests fill `forge.applications` is answered busy
+  until the oldest's retention ends, rather than the oldest making room
+  (`../domain/forge/adoption.md`, 9) [in flight: change 9150].
 - **Not yet:** the FORGE requests' `SetDraft`: the engine neither routes
   nor answers it (`../domain/forge/drafts.md`) [in flight: change 663].
 - **Not yet:** 
