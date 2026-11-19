@@ -20,7 +20,7 @@ mod emit_types;
 mod parse;
 pub mod patch;
 
-pub use constructs::{CONSTRUCTS, Construct, Kind, constructs, unpinned};
+pub use constructs::{CONSTRUCTS, Construct, Kind, constructs, missing, unpinned};
 pub use emit_limits::{pascal, snake};
 pub use parse::{Error, parse};
 

@@ -6,7 +6,7 @@ mod tests {
     use std::fs;
     use std::path::Path;
 
-    use skein_codegen::{CONSTRUCTS, constructs, generate, goldens, parse, unpinned};
+    use skein_codegen::{generate, goldens, missing, parse, unpinned};
 
     const FAMILIES: [(&str, &str, Option<&str>); 7] = [
         ("schema/every-v1.schema", "src/every/v1.rs", Some("golden/every-v1")),
@@ -20,8 +20,7 @@ mod tests {
 
     #[test]
     fn every_v3_holds_every_construct() {
-        let found = constructs(include_str!("../../schema/every-v3.schema")).expect("every-v3 valid");
-        let missing = CONSTRUCTS.iter().filter(|construct| !found.contains(construct)).collect::<Vec<_>>();
+        let missing = missing(include_str!("../../schema/every-v3.schema")).expect("every-v3 valid");
         assert!(missing.is_empty(), "every-v3 lacks constructs: {missing:?}");
     }
 
