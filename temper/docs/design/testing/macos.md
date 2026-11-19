@@ -269,9 +269,12 @@ built by a workflow of its own, which tests nothing (`../release.md`, 5.1).
   cache holds the dependencies alone and the parts' caches stay within
   GitHub's 10 GB a repository; it prints the cache's size.
 - **`browser`'s:** the `wasm32-unknown-unknown` target, checked present,
-  and Chrome for Testing at the build Linux's browser tiers run, its
-  version and the SHA-256 of its `mac-arm64` archive pinned in the
-  workflow; the archive comes from Chrome for Testing's public storage, is
+  and Chrome for Testing at the build nearest the Chromium Linux's
+  browser tiers run, on that Chromium's branch: Chrome for Testing does
+  not publish every patch, so today the pin is 147.0.7727.117 beside
+  Linux's 147.0.7727.101. Its version and the SHA-256 of its `mac-arm64`
+  archive are pinned in the workflow, and they move with Linux's Chromium
+  when its major version moves. The archive comes from Chrome for Testing's public storage, is
   checked against the digest before it is unpacked, and
   `SKEIN_TEST_CHROMIUM` names its executable.
 - **`process`'s and `live`'s:** Forgejo and its runner, fetched as section
