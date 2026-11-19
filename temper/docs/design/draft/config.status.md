@@ -3,6 +3,7 @@
 2026-11-19. Where the design lags or departs from [config.md](config.md).
 
 - **Design lags:**
+  - 5.2: jig's stock holds 16 charter versions besides the newest's (`core.settings.versions`), under twice dev.fabrig.ai's 19, so a start over dev's store is refused; N10 sets it to `live_goals`.
   - 5.2: `../protocol/configuration/limits.md`, `forge.changes`, and `../protocol/store.md`, section 4, cap `forge.changes` at 379 by the tier rows' ceiling of 759 and keep a failing test's id within 4 KiB; `forge.tiers.test_id_bytes` is 256.
   - 6.1: `../protocol/configuration/limit-settings.md`, section 5, takes a raise at once of five figures alone, `transcript_memory`, `forge.tasks`, `forge.holds`, `forge.entries` and `forge.client.entries`; every other count and time bound, jig's all among them, takes a raise at the next start, by 11's default, since its holders size their tables or copy it at construction (its section 11).
   - 7: `../protocol/configuration/derived.md` derives the turn's, the payload's and the clients' carriers and a worker's places, but not the graces, and not the engine's limits on workers from the workers' settings.
