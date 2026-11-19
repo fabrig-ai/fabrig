@@ -51,9 +51,7 @@ impl WorkerStand {
             for _ in 0..self.worker.io().len() {
                 let request = self.worker.io().pop().unwrap();
                 if let io::Request::Spawn { owner, spawn } = request {
-                    if let Some(word) = spawn.args.get(26)
-                        && word.as_ref() == command
-                    {
+                    if spawn.args.contains(&Box::from(command)) {
                         return (owner, spawn);
                     }
                     self.below.out.io.push(io::Request::Spawn { owner, spawn });

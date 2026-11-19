@@ -380,6 +380,29 @@ fn transcript_store() -> (Store, Vec<core::TurnRecord>) {
 }
 
 #[test]
+fn a_fork_copies_committed_storage_and_accepts_the_next_commit() {
+    let (mut source, _) = transcript_store();
+    source.seed(Box::new([]));
+    let expected = source.readback().expect("source readback");
+    let mut forked = source.fork().expect("fork image");
+    forked.crash(CRASH_SEED).expect("fork cold open");
+    assert_eq!(forked.applied, source.applied);
+    assert_eq!(forked.readback().expect("fork readback"), expected);
+    let next = source.applied + 1;
+    let writes = Box::new([result(1, ROWS + 1)]);
+    forked.seed(writes.clone());
+    assert_eq!(forked.applied, next);
+    assert_eq!(source.readback().expect("source unchanged"), expected);
+    source.seed(writes);
+    assert_eq!(source.applied, next);
+    assert_eq!(forked.readback().expect("fork next commit"), source.readback().expect("source next commit"));
+
+    source.unread_transcript(1);
+    let mut forked = source.fork().expect("copy unread physical transcript");
+    assert!(matches!(forked.readback(), Err(super::ReadbackFinding::Transcript { .. })));
+}
+
+#[test]
 fn readback_of_agrees_with_readback() {
     let (mut store, _) = transcript_store();
     let inventory = store.retained().expect("complete readback");

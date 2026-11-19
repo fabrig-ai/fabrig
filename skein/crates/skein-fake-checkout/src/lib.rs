@@ -45,6 +45,8 @@ pub struct Checkout {
     versions: u64,
     /// Scripts selected by exact command bytes.
     programs: BTreeMap<Vec<u8>, Program>,
+    /// Explicit git directories selected by an invocation, keyed by work tree.
+    git_directories: BTreeMap<Vec<u8>, Vec<u8>>,
 }
 
 /// A world-supplied command script, cloned when spawned. Duration and output

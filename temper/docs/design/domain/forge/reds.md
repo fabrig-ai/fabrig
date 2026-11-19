@@ -149,14 +149,17 @@ section 9.
 - **In each writable repository of the run's checkout with a pin,**
   `refs/temper/landing` (`../worker/checkouts.md`, *The landing pin*),
   the worker finds the check's base as the check does before stepping
-  past unchecked saves (`../../../../../tools/pre-pr/design.md`, 2):
+  past unchecked saves (`../../../../../tools/pre-pr/design.md`, 2), in its
+  own git directory, whose HEAD and pin the run's holds too
+  (`../../protocol/git.md`, 4.13):
   `git merge-base refs/temper/landing HEAD`, with `MERGE_HEAD` as a third
   where a merge is in progress, the first it prints. It keeps each red
   whose head is an ancestor of that base or is that base
   (`git merge-base --is-ancestor HEAD_OF_RED BASE`). A head the checkout
   doesn't have is not contained; with no base, it keeps none.
 - **`temper/reds`,** at `git rev-parse --git-path temper/reds` in that
-  repository: the line `temper-reds 1`, then one line `- KEY` for each red
+  repository, the run's `.git/temper/reds`, which the worker writes by that
+  path, never asking git: the line `temper-reds 1`, then one line `- KEY` for each red
   it kept, in key order, each key once; every line ends with a line
   feed. A file of the header alone is no reds. It is written to
   `temper/reds.tmp` beside it and renamed over it, so the check reads a

@@ -2,7 +2,7 @@
 //! Decoded-bound literals use the generated types' sizes on a 64-bit target.
 
 use super::codec_memory::family;
-use temper_protocol_worker_wire::v1::Record;
+use temper_protocol_records::v1::Record;
 
 const CAP: u64 = 64 * 1024 * 1024;
 
@@ -402,7 +402,7 @@ fn largest_roots_stay_within_decoded_bounds() {
     family!(
         CAP,
         temper_protocol_records::SCHEMA,
-        temper_protocol_records::v1, sealed,
+        temper_protocol_records::v1, lean,
         limits [
             admin_token_value,
             api_token_value,

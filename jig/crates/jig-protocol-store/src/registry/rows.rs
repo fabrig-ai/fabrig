@@ -118,12 +118,12 @@ pub(super) fn register(store: &Store, layouts: &mut Layouts, binary: &mut texts:
                     .version();
                 let mut found = None;
                 let mut greatest = None;
-                for ((name, number, id), row) in &layouts.rows {
-                    if name.as_ref() == family.name && *number == ty.number {
-                        greatest = Some(greatest.unwrap_or(0_u16).max(*id));
-                        if row.value.layout() == value.layout() {
-                            found = Some(*id);
-                        }
+                let first = (Box::from(family.name), ty.number, u16::MIN);
+                let last = (Box::from(family.name), ty.number, u16::MAX);
+                for ((_, _, id), row) in layouts.rows.range(first..=last) {
+                    greatest = Some(*id);
+                    if row.value.layout() == value.layout() {
+                        found = Some(*id);
                     }
                 }
                 let id = match found {

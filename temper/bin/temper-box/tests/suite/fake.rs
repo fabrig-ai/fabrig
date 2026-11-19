@@ -1225,14 +1225,14 @@ fn git_run() {
     let format = || GitStep { stdout: "sha1\n", ..git_step(GitCommand::Format, None, "work/pool") };
     let init = || {
         git_step(
-            GitCommand::Clone { directory: b"widget".as_slice().into(), format: invocation::Format::Sha1 },
+            GitCommand::Clone { directory: b"widget".as_slice().into(), format: invocation::Format::Sha1, bare: false },
             None,
             "work",
         )
     };
     let origin = || GitStep {
         edit: Some((".git/objects/info/alternates", b"../../../pool/objects\n")),
-        ..git_step(GitCommand::Remote { remote: Box::new([]) }, None, "work/widget")
+        ..git_step(GitCommand::Remote { remote: Box::new([]), format: invocation::Format::Sha1 }, None, "work/widget")
     };
     let check_out = || git_step(GitCommand::CheckOut { commit: object(BASE) }, Some(Kind::CheckOut), "work/widget");
     let mut files: Vec<_> = temper_fake::forge::FILES
@@ -1445,7 +1445,7 @@ fn git_run() {
             match &mut step.command {
                 GitCommand::SnapshotFetch { remote: url, .. }
                 | GitCommand::Store { remote: url, .. }
-                | GitCommand::Remote { remote: url }
+                | GitCommand::Remote { remote: url, .. }
                 | GitCommand::Push { remote: url, .. } => {
                     *url = remote.as_bytes().into();
                 }
@@ -1464,6 +1464,7 @@ fn git_run() {
                 | GitCommand::Clean
                 | GitCommand::Merge { .. }
                 | GitCommand::Unmerged
+                | GitCommand::UpdateIndex { .. }
                 | GitCommand::Add
                 | GitCommand::DiffPaths { .. }
                 | GitCommand::DiffIndex { .. }

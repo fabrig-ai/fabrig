@@ -1,4 +1,5 @@
 use super::fixtures;
+use crate::records::{self, Record as _};
 use crate::{Record, Report, State};
 use skein_lib::{Time, Wall};
 
@@ -50,17 +51,11 @@ fn a_list_answer_keeps_a_note_already_added() {
         &mut fixtures::duties(),
     );
     let notes = fixtures::notes();
-    let mut writer = skein_lib::Writer::new(usize::try_from(notes.measure()).unwrap());
-    notes.encode(&mut writer).unwrap();
-    state.step(
-        Report::Answered { exchange: 0, status: 200, body: writer.finish() },
-        Time::ZERO,
-        Wall::EPOCH,
-        &mut fixtures::duties(),
-    );
+    let body = notes.encode(&records::CEILINGS).unwrap();
+    state.step(Report::Answered { exchange: 0, status: 200, body }, Time::ZERO, Wall::EPOCH, &mut fixtures::duties());
     let mut numbers = skein_lib::List::with_capacity(3);
-    for note in state.notes.notes() {
-        numbers.push(note.number()).unwrap();
+    for note in &state.notes.notes {
+        numbers.push(note.number).unwrap();
     }
     assert_eq!(numbers.as_slice(), &[1, 7, 9]);
 }

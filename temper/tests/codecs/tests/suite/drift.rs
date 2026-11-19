@@ -8,7 +8,7 @@ fn schema_matches(codec_crate: &str, family: &str, module: &str, source: &'stati
     let unpinned = skein_codegen::unpinned(source).expect("schema valid");
     assert!(unpinned.is_empty(), "{family}: unpinned constructs: {unpinned:?}");
     let schema = &values(source).schema;
-    let form = form_of(&crates.join(codec_crate).join("schema"), &schema.family).expect("clean family form");
+    let form = form_of(&crates.join(codec_crate).join("schema"), &schema.family).expect("family form");
     let output = generate_as(schema, form);
     let code = crates.join(codec_crate).join("src/generated").join(format!("{module}.rs"));
     check_text(&code, &output.records, temper_test_env::rewrite());

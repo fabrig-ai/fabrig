@@ -35,7 +35,7 @@ fn task_event(domain: &mut core::Core, env: &Env<core::Limits>, event: tasks::Ev
 fn seeded_core() -> (core::Core, Env<core::Limits>) {
     let (config, limits) = fixture(1900, false);
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.core };
-    let domain = super::start_links::first(config.core, &env);
+    let domain = crate::first_support::first(config.core, &env);
     (domain, env)
 }
 

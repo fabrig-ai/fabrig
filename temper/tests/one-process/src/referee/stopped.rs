@@ -202,18 +202,23 @@ pub(super) fn checkout(stopped: &mut Stopped, disk: &mut skein_fake_machine::Mac
     let directory = workspace.directories().as_slice().first().ok_or_else(|| String::from("prepared repository"))?;
     let at = directory.path().strip_prefix(b"/worker/").ok_or_else(|| String::from("checkout below worker root"))?;
     let root = disk.reopen_root(1);
-    let mut read = |suffix: &[u8]| {
+    let metadata =
+        [b"gitdirs/".as_slice(), at.strip_prefix(b"workspaces/").ok_or_else(|| String::from("workspace path"))?]
+            .concat();
+    let mut read = |path: &[u8]| {
         let file = disk
-            .open(root, &[at, suffix].concat(), skein_fake_machine::How::ReadNoFollow)
+            .open(root, path, skein_fake_machine::How::ReadNoFollow)
             .map_err(|why| format!("checkout file: {why:?}"))?;
         let bytes = disk.read(file, 0, 4096).map_err(|why| format!("checkout bytes: {why:?}"))?;
         disk.close(file);
         Ok::<_, String>(bytes)
     };
     stopped.checkout_head = Some(u64::from_le_bytes(
-        read(b"/.git/temper-head")?.try_into().map_err(|why| format!("counted git head: {why:?}"))?,
+        read(&[metadata.as_slice(), b"/temper-head"].concat())?
+            .try_into()
+            .map_err(|why| format!("counted git head: {why:?}"))?,
     ));
-    stopped.checkout_file = Some(read(b"/conflict.txt")?);
+    stopped.checkout_file = Some(read(&[at, b"/conflict.txt"].concat())?);
     disk.close(root);
 
     Ok(())

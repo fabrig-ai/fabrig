@@ -210,7 +210,7 @@ fn random_drawn_commit_cuts_preserve_whole_turns_and_atomic_effect_decisions() {
             match cut {
                 Cut::Submitted(_) => assert_eq!(turns.len(), 0),
                 Cut::Durable(_) => assert_eq!(turns.len(), 1),
-                Cut::Disk { .. } => panic!("this table selects transaction cuts"),
+                Cut::Disk { .. } | Cut::Failed(_) => panic!("this table selects transaction cuts"),
             }
             assert!(turns.iter().all(|turn| turn.transcript.as_ref() == b"one whole turn at the cut"));
             assert!(world.domain.ready());
@@ -225,11 +225,9 @@ fn every_commit_of_a_turn_effect_and_terminal_survives_both_crash_cuts() {
     crate::faults::effect_scenario(&mut reference);
     let last = reference.store.applied;
     assert!(last >= first + 2);
-    for number in first..=last {
-        for cut in [Cut::Submitted(number), Cut::Durable(number)] {
-            crate::faults::an_effect_cut_recovers(cut);
-        }
-    }
+    crate::faults::effect_cut_sweep(
+        &(first..=last).flat_map(|number| [Cut::Submitted(number), Cut::Durable(number)]).collect::<Vec<_>>(),
+    );
 }
 
 #[test]
@@ -237,9 +235,7 @@ fn a_failed_commit_at_every_scenario_boundary_stops_before_any_later_output() {
     let mut reference = World::new(Setup { seed: 301, ..Setup::default() });
     let first = reference.store.applied + 1;
     crate::faults::effect_scenario(&mut reference);
-    for number in first..=reference.store.applied {
-        crate::faults::a_failed_commit_stops(number);
-    }
+    crate::faults::failed_commit_sweep(&(first..=reference.store.applied).map(Cut::Failed).collect::<Vec<_>>());
 }
 
 #[test]
@@ -250,15 +246,11 @@ fn every_startup_sign_in_chat_and_assignment_commit_restarts_on_either_side_of_d
         if engine {
             reference.broken();
         }
-        for number in 1..=reference.store.applied {
-            for cut in [Cut::Submitted(number), Cut::Durable(number)] {
-                crate::faults::a_startup_cut_restarts(engine, cut);
-            }
-        }
+        crate::faults::startup_cut_sweep(
+            engine,
+            &(1..=reference.store.applied)
+                .flat_map(|number| [Cut::Submitted(number), Cut::Durable(number)])
+                .collect::<Vec<_>>(),
+        );
     }
-}
-
-#[test]
-fn every_operation_of_a_restart_after_a_torn_decision_can_be_killed_again() {
-    crate::faults::restart_operation_sweep();
 }

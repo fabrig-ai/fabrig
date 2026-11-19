@@ -90,7 +90,11 @@ fn restart_started(seed: u64, cut: Cut, noise: bool) -> (StoryWorld, ClientId, u
 
 fn p_story(seed: u64, cut: Cut, noise: bool) -> StoryWorld {
     let (mut world, p, lead, remedy) = restart_started(seed, cut, noise);
-    let outcome = world.run(Until::Time(world.now().saturating_add(Duration::from_secs(8))));
+    let service = jig_ops_fake_production::ServiceName::new("production", "checkout");
+    let outcome = completed(&mut world, |production| {
+        let facts = production.read_service(&service).expect("restarted service");
+        facts.healthy_replicas == facts.replicas
+    });
     assert_eq!(outcome.verdict, Verdict::Passed, "{}", outcome.trace.join("\n"));
     fixture::refresh(world.front());
     world.person(
@@ -312,7 +316,10 @@ fn q_story(seed: u64, cut: Cut, noise: bool, reload: bool) -> StoryWorld {
     );
     let outcome = world.run(Until::Done);
     assert_eq!(outcome.verdict, Verdict::Passed, "{}", outcome.trace.join("\n"));
-    let outcome = world.run(Until::Time(outcome.now.saturating_add(Duration::from_secs(8))));
+    let environment = jig_ops_fake_production::EnvironmentName::new("staging", "payments");
+    let outcome = completed(&mut world, |production| {
+        production.read_environment(&environment).is_some_and(|facts| facts.ready_at <= production.now())
+    });
     assert_eq!(outcome.verdict, Verdict::Passed, "{}", outcome.trace.join("\n"));
     if noise {
         wander(&mut world, q, seed);
@@ -576,6 +583,24 @@ fn assert_durable_end(
         })
         .expect("the owner saved its desired end separately from the observed lease");
     assert_eq!(end, infra::EnvironmentEnd { revision: 1, until: 1_209_600 });
+}
+
+/// Keep driving the real timers and byte face until the independent system
+/// completes the operation, rather than keeping a settled story alive.
+fn completed(
+    world: &mut StoryWorld,
+    ready: impl Fn(&mut jig_ops_fake_production::Production) -> bool,
+) -> jig_client_kit::harness::Outcome {
+    let deadline = world.now().saturating_add(Duration::from_secs(8));
+    while !ready(&mut world.front().engine.systems.production) {
+        assert!(world.now() < deadline, "independent system did not complete within eight seconds");
+        let until = world.now().saturating_add(Duration::from_secs(1));
+        let outcome = world.run(Until::Time(until));
+        if matches!(outcome.verdict, Verdict::Failed(_) | Verdict::Stopped { .. }) {
+            return outcome;
+        }
+    }
+    world.run(Until::Done)
 }
 
 fn passed(world: &mut StoryWorld) {

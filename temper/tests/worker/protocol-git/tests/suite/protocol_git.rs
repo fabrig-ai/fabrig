@@ -50,12 +50,11 @@ fn a_deadline_at_each_invocation_ends_timed_out_and_starts_no_more() {
 }
 
 #[test]
-fn a_cancel_racing_the_last_exit_ends_with_whichever_won() {
-    for (race, fault) in [(fixtures::Race::ExitFirst, None), (fixtures::Race::CancelFirst, Some(git::Fault::Cancelled))]
-    {
+fn a_cancel_racing_the_last_git_exit_still_preempts_the_view() {
+    for race in [fixtures::Race::ExitFirst, fixtures::Race::CancelFirst] {
         let outcome = world::run(&fixtures::cancel_race(race), fixtures::SEED);
         assert_eq!(outcome.verdict, Verdict::Passed, "{race:?}");
-        assert_eq!(outcome.faults(), [(fixtures::OWNER, fault)]);
+        assert_eq!(outcome.faults(), [(fixtures::OWNER, Some(git::Fault::Cancelled))]);
     }
     for (name, mut scenario) in fixtures::operations() {
         for invocation in 1..=u32::try_from(scenario.script.invocations.len()).expect("sequence") {
@@ -141,7 +140,7 @@ fn a_store_already_there_is_kept_without_a_clone_after_setting_aside() {
         assert_eq!(outcome.spawns, 0, "existing store needs no clone");
         assert!(!outcome.tree.keys().any(|path| path.starts_with(b"making/")));
         if aside.is_some() {
-            assert!(outcome.tree.contains_key(b"trash/1003/old".as_slice()));
+            assert!(outcome.tree.contains_key(b"trash/1004/old".as_slice()));
         }
     }
 }

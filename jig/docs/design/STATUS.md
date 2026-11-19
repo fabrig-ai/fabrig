@@ -155,7 +155,7 @@ budgets are by layer, by the user's word of 11-16 (`domain/testing.status.md`, 9
 setup avoid repeated formatting and construction; protocol wires skip idle
 polls and parse only new bytes, and due agents check holds and credentials
 before joint account and host selection. The seven store sweeps run in fuzzy
-with the focused cuts' checks; the focused stray-cut departure remains `domain/testing.status.md`, 9. Whole-suite savings and fuzzy's fit remain `domain/testing.status.md`, 9; the channel's root-check coverage departure remains `protocol/channel/README.status.md`, 11.
+with the focused cuts' checks; the focused stray-cut departure remains `domain/testing.status.md`, 9. Whole-suite savings and fuzzy's fit remain `domain/testing.status.md`, 9. The worlds' crash sweeps hold their prefix once and each binary sits in the layer of what its tests check (`domain/testing.md`, sections 4 and 9), but the client-protocol world's byte stories, which wait in `simulated` for jig's protocol layer to be within its budget at main (`domain/testing.status.md`, 9); the channel's root-check coverage departure remains `protocol/channel/README.status.md`, 11.
 A Finite report can deliver when its policy and workspace permit it,
 keeping its report contract; a procedure on its requester's resource can
 step beside that requester's writing run (`domain/hosts/charters.md`;

@@ -12,148 +12,77 @@ use fixtures::{PROJECT, REVISION, UNTIL, request};
 #[test]
 fn an_environment_request_round_trips_through_its_bytes() {
     let value = request();
-    assert_eq!(infra::ask_value(&infra::ask(&value)), Ok(value));
+    assert_eq!(infra::ask_value(&infra::ask(&value).expect("record fits schema")), Ok(value));
 }
 
 #[test]
 fn an_environment_answer_round_trips_through_its_bytes() {
-    let value = w::InfrastructureAnswerMovedEnd::new(
-        &w::CEILINGS,
-        w::InfrastructureAnswerMovedEndParts { environment: fixtures::environment(), revision: REVISION, until: UNTIL },
-    )
-    .expect("answer");
-    let value = w::InfrastructureAnswerRecord::new(
-        &w::CEILINGS,
-        w::InfrastructureAnswerRecordParts { value: w::InfrastructureAnswer::MovedEnd(value) },
-    )
-    .expect("answer record");
-    assert_eq!(infra::answer(&infra::answer_record(&value)), Ok(value));
+    let value =
+        w::InfrastructureAnswerMovedEnd { environment: fixtures::environment(), revision: REVISION, until: UNTIL };
+    let value = w::InfrastructureAnswerRecord { value: w::InfrastructureAnswer::MovedEnd(value) };
+    assert_eq!(infra::answer(&infra::answer_record(&value).expect("record fits schema")), Ok(value));
 }
 
 #[test]
 fn an_infrastructure_subject_round_trips_through_its_bytes() {
     let subject = fixtures::infrastructure_subject();
-    let value = w::InfrastructureSubjectRecord::new(
-        &w::CEILINGS,
-        w::InfrastructureSubjectRecordParts { value: subject.into_parts().kind },
-    )
-    .expect("subject record");
-    assert_eq!(infra::subject_value(&infra::subject(&value)), Ok(value));
+    let value = w::InfrastructureSubjectRecord { value: subject.kind };
+    assert_eq!(infra::subject_value(&infra::subject(&value).expect("record fits schema")), Ok(value));
 }
 
 #[test]
 fn an_observability_subject_round_trips_through_its_bytes() {
-    let value = w::ObservabilitySubjectRecord::new(
-        &w::CEILINGS,
-        w::ObservabilitySubjectRecordParts { value: w::ObservabilityKind::Deployment },
-    )
-    .expect("subject record");
-    assert_eq!(obs::subject_value(&obs::subject(&value)), Ok(value));
+    let value = w::ObservabilitySubjectRecord { value: w::ObservabilityKind::Deployment };
+    assert_eq!(obs::subject_value(&obs::subject(&value).expect("record fits schema")), Ok(value));
 }
 
 #[test]
 fn an_environment_document_round_trips_through_its_bytes() {
-    let project = w::InfrastructureValueProject::new(
-        &w::CEILINGS,
-        w::InfrastructureValueProjectParts {
-            project: PROJECT,
-            resources: List::with_capacity(0),
-            environments: List::with_capacity(0),
+    let project = w::InfrastructureValueProject {
+        project: PROJECT,
+        resources: List::with_capacity(0),
+        environments: List::with_capacity(0),
+    };
+    let value = w::InfrastructureDocumentData {
+        subject: w::InfrastructureSubject {
+            scope: w::InfrastructureScope::Project(w::InfrastructureScopeProject { value: PROJECT }),
+            kind: w::InfrastructureKind::Environments(w::InfrastructureKindEnvironments { pool: None }),
         },
-    )
-    .expect("project");
-    let value = w::InfrastructureDocumentData::new(
-        &w::CEILINGS,
-        w::InfrastructureDocumentDataParts {
-            subject: w::InfrastructureSubject::new(
-                &w::CEILINGS,
-                w::InfrastructureSubjectParts {
-                    scope: w::InfrastructureScope::Project(
-                        w::InfrastructureScopeProject::new(
-                            &w::CEILINGS,
-                            w::InfrastructureScopeProjectParts { value: PROJECT },
-                        )
-                        .expect("project scope"),
-                    ),
-                    kind: w::InfrastructureKind::Environments(
-                        w::InfrastructureKindEnvironments::new(
-                            &w::CEILINGS,
-                            w::InfrastructureKindEnvironmentsParts { pool: None },
-                        )
-                        .expect("environments"),
-                    ),
-                },
-            )
-            .expect("subject"),
-            value: w::InfrastructureValue::Project(project),
-        },
-    )
-    .expect("environment list");
-    let value = w::InfrastructureDocumentValue::new(&w::CEILINGS, w::InfrastructureDocumentValueParts { value })
-        .expect("values document");
-    let value = w::InfrastructureDocumentRecord::new(
-        &w::CEILINGS,
-        w::InfrastructureDocumentRecordParts { value: w::InfrastructureDocument::Value(value) },
-    )
-    .expect("document record");
-    assert_eq!(infra::document(&infra::document_record(&value)), Ok(value));
+        value: w::InfrastructureValue::Project(project),
+    };
+    let value = w::InfrastructureDocumentValue { value };
+    let value = w::InfrastructureDocumentRecord { value: w::InfrastructureDocument::Value(value) };
+    assert_eq!(infra::document(&infra::document_record(&value).expect("record fits schema")), Ok(value));
 }
 
 #[test]
 fn an_incident_document_round_trips_through_its_bytes() {
     let incident = fixtures::incident();
-    assert_eq!(incident.project(), PROJECT);
-    let number = incident.number();
-    let value =
-        w::ObservabilityValueIncident::new(&w::CEILINGS, w::ObservabilityValueIncidentParts { incident, fact: None })
-            .expect("incident value");
-    let value = w::ObservabilityDocumentData::new(
-        &w::CEILINGS,
-        w::ObservabilityDocumentDataParts {
-            subject: w::ObservabilitySubject::new(
-                &w::CEILINGS,
-                w::ObservabilitySubjectParts {
-                    scope: w::ObservabilityScope::Project(
-                        w::ObservabilityScopeProject::new(
-                            &w::CEILINGS,
-                            w::ObservabilityScopeProjectParts { value: PROJECT },
-                        )
-                        .expect("project scope"),
-                    ),
-                    kind: w::ObservabilityKind::Incident(
-                        w::ObservabilityKindIncident::new(
-                            &w::CEILINGS,
-                            w::ObservabilityKindIncidentParts { value: number },
-                        )
-                        .expect("incident kind"),
-                    ),
-                },
-            )
-            .expect("subject"),
-            value: w::ObservabilityValue::Incident(value),
+    assert_eq!(incident.project, PROJECT);
+    let number = incident.number;
+    let value = w::ObservabilityValueIncident { incident, fact: None };
+    let value = w::ObservabilityDocumentData {
+        subject: w::ObservabilitySubject {
+            scope: w::ObservabilityScope::Project(w::ObservabilityScopeProject { value: PROJECT }),
+            kind: w::ObservabilityKind::Incident(w::ObservabilityKindIncident { value: number }),
         },
-    )
-    .expect("values incident");
-    let value = w::ObservabilityDocumentValue::new(&w::CEILINGS, w::ObservabilityDocumentValueParts { value })
-        .expect("document");
-    let value = w::ObservabilityDocumentRecord::new(
-        &w::CEILINGS,
-        w::ObservabilityDocumentRecordParts { value: w::ObservabilityDocument::Value(value) },
-    )
-    .expect("document record");
-    assert_eq!(obs::document(&obs::document_record(&value)), Ok(value));
+        value: w::ObservabilityValue::Incident(value),
+    };
+    let value = w::ObservabilityDocumentValue { value };
+    let value = w::ObservabilityDocumentRecord { value: w::ObservabilityDocument::Value(value) };
+    assert_eq!(obs::document(&obs::document_record(&value).expect("record fits schema")), Ok(value));
 }
 
 #[test]
 fn a_record_of_another_version_is_undecodable() {
-    let mut bytes = infra::ask(&request());
+    let mut bytes = infra::ask(&request()).expect("record fits schema");
     bytes[1] = 2;
     assert_eq!(infra::ask_value(&bytes), Err(codec::Undecodable));
 }
 
 #[test]
 fn trailing_bytes_are_undecodable() {
-    let bytes = infra::ask(&request());
+    let bytes = infra::ask(&request()).expect("record fits schema");
     let mut longer = skein_lib::Writer::new(bytes.len() + 1);
     longer.put(&bytes).expect("request");
     longer.put(&[0]).expect("trailing byte");
@@ -162,6 +91,16 @@ fn trailing_bytes_are_undecodable() {
 
 #[test]
 fn a_truncated_record_is_undecodable() {
-    let bytes = infra::ask(&request());
+    let bytes = infra::ask(&request()).expect("record fits schema");
     assert_eq!(infra::ask_value(&bytes[..bytes.len() - 1]), Err(codec::Undecodable));
+}
+
+#[test]
+fn encoding_reports_a_nested_bound_refusal() {
+    let mut value = request();
+    let w::InfrastructureAsk::MoveEnd(ask) = &mut value.value;
+    ask.environment.pool = Box::new([b'p'; 4097]);
+    let problem = infra::ask(&value).expect_err("a public field may exceed its wire bound");
+    assert_eq!(problem.path, w::paths::INFRASTRUCTURE_ENVIRONMENT_POOL);
+    assert_eq!(problem.reason, skein_codec::Reason::Bound);
 }

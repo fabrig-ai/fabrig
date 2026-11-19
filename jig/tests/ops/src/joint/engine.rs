@@ -446,7 +446,7 @@ impl Application for OpsApplication {
     }
     fn observed(
         peers: &mut Peers,
-        systems: &Systems,
+        _: &Systems,
         store: &Rows,
         clock: Clock,
     ) -> Result<Vec<referee::Observed>, referee::Violation> {
@@ -479,14 +479,24 @@ impl Application for OpsApplication {
                     peers.milestones.push((milestone, store.applied));
                 }
             }
-            peers.observations.extend(peers.truth.applied(jig_core_kit::store_peer::DurableSnapshot {
-                commit: store.applied,
-                at: Time::from_nanos(clock.now),
-                rows: core_store(store).rows,
-            }));
             peers.applied = store.applied;
         }
-        Ops::observed(&mut peers.conformance, systems, store, clock)
+        conformance::observed_with(&mut peers.conformance, store, clock, |view| {
+            peers.observations.extend(
+                peers.truth.applied(jig_core_kit::store_peer::DurableSnapshot {
+                    commit: view.applied,
+                    at: Time::from_nanos(clock.now),
+                    rows: view
+                        .rows
+                        .values()
+                        .map(|row| {
+                            let row = jig_test_domain::Record::Core((*row).clone());
+                            (row.key(), row)
+                        })
+                        .collect(),
+                }),
+            );
+        })
     }
     fn ready(domain: &root::Domain) -> bool {
         Ops::ready(domain)
@@ -499,5 +509,34 @@ impl Application for OpsApplication {
     }
     fn maximum(_: &Config) -> u64 {
         OPS_JOINT_HEAP_CEILING
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn shared_projection_matches_separate_observers_at_one_revision() {
+        let world = conformance::night(17, jig_conformance::Cut::None);
+        let config = Config::new(17, conformance::Story::Night);
+        let clock = world.clock();
+        let mut shared = OpsApplication::peers(&config, 17);
+        let mut separate = OpsApplication::peers(&config, 17);
+        OpsApplication::cold(&mut shared, &world.store, clock).expect("shared cold observer");
+        OpsApplication::cold(&mut separate, &world.store, clock).expect("separate cold observer");
+
+        let expected = Ops::observed(&mut separate.conformance, &world.systems, &world.store, clock)
+            .expect("independent core observer");
+        let rows = core_store(&world.store);
+        let expected_client = separate.truth.applied(jig_core_kit::store_peer::DurableSnapshot {
+            commit: rows.applied,
+            at: Time::from_nanos(clock.now),
+            rows: rows.rows,
+        });
+        let observed =
+            OpsApplication::observed(&mut shared, &world.systems, &world.store, clock).expect("shared observers");
+        assert_eq!(observed, expected);
+        assert_eq!(shared.observations, expected_client);
     }
 }
