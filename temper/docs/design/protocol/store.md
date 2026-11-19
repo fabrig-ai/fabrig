@@ -692,31 +692,28 @@ and that bound before the store's sizing runs
 bound's bytes read unchanged through the registry, so the widening from
 759 is derived.
 
-A failing test's id (`FailingTest.test_id`) and a flake's
-(`TierFlake.test`) each have a ceiling of 1,024 bytes, which holds the
-tier row's worst-case encoding within the codec's u32 length envelope at
-1,537 landings: about 1.9 GB, a finding's blamed landings' failures most
-of it, where at ids of 4,096 it passed the envelope past 759 landings
-(4,294,744,175 bytes at 759). `temper-protocol-store`'s focused test
-pins the figure. Their runtime bound is `forge.tiers.test_id_bytes`,
-512 in the stock; a value above 512, the most a finding's signature
-holds of an id and within the least of the two ceilings, 1,024,
-refuses the start, naming `forge.tiers.test_id_bytes` and that bound,
-before the store's sizing runs (`configuration/limits.md`); a focused
-test pins the signature's bound within the ceilings. A store
-written at 4,096 is brought within by the `test-ids-*` jobs (above). A
-receipt report's test keys (`ReceiptTest.key`) keep their ceiling of
-4,096: no tier row holds them, and their runtime bound is
-`test_id_bytes` too, so what the store writes is within 1,024.
+Failing-test and flake ids (`FailingTest.test_id`, `TierFlake.test`)
+have 1,024-byte ceilings: worst-case tier rows fit the codec's u32 length
+envelope at 1,537 landings (~1.9 GB, mostly a finding's blamed landings'
+failures). 4,096-byte ids exceeded it past 759 landings (4,294,744,175
+bytes at 759), pinned by `temper-protocol-store`'s focused test. Runtime bound
+`forge.tiers.test_id_bytes` is stock 512, a finding signature's id
+capacity, within both ceilings (least: 1,024). Start refuses values
+above 512, naming setting and bound before store sizing
+(`configuration/limits.md`); a focused test pins the signature bound
+within the ceilings. `test-ids-*` jobs (above) bring 4,096-written stores
+within bounds. Receipt report keys (`ReceiptTest.key`) retain their
+4,096 ceiling: no tier row holds them. Runtime bound `test_id_bytes`
+also keeps stored keys within 1,024.
 
-A tier's lists of failing tests and flakes (`FailedTests.tests`,
-`TierRecord.flakes`, `TierFinding.flakes`, `TierTests.tests`, a gate's
-selection's `LandingSelection.tests` and a receipt's
-`ReceiptTests.tests`, among others) each have a ceiling of 1,024. Their runtime bound is `forge.tiers.failing_tests`, 64 in the
-stock, at most a finding's signature's 64 ids, which a start checks
-(`configuration/limits.md`). A list encodes its count, so a tier row
-written at a smaller bound, 16 among them, reads unchanged through the
-registry at 64: the raise moves no version and brings no patch.
+Tier failing-test and flake lists (`FailedTests.tests`,
+`TierRecord.flakes`, `TierFinding.flakes`, `TierTests.tests`, gate
+selection's `LandingSelection.tests`, receipt's `ReceiptTests.tests`,
+among others) each have a 1,024 ceiling. Runtime bound
+`forge.tiers.failing_tests` is stock 64, start-checked against a finding
+signature's 64 ids (`configuration/limits.md`). Lists encode their
+count: tier rows written at smaller bounds (including 16) read unchanged
+through the registry at 64; the raise moves no version and brings no patch.
 
 A repository's stored CI workflows, the record's `workflows`, are a list
 with a ceiling of 16 names, each of at most 255 bytes: its bounds are the
