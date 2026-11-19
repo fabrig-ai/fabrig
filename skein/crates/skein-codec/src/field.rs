@@ -23,8 +23,6 @@ pub fn write<L, T, F: Field<L, T>>(
 }
 
 /// Reads one field, checking lengths before allocation.
-#[expect(clippy::inline_always, reason = "field composition must not add decoder calls in unoptimized builds")]
-#[inline(always)]
 pub fn read<L, T, F: Field<L, T>>(shape: F, limits: &L, reader: &mut Reader<'_>, path: Path) -> Result<T, Problem> {
     shape.read(limits, reader, path)
 }
@@ -38,8 +36,6 @@ pub fn put(out: &mut Writer, bytes: &[u8], path: Path) -> Result<(), Problem> {
 }
 
 /// Reads a version prefix before any of the record's fields.
-#[expect(clippy::inline_always, reason = "field composition must not add decoder calls in unoptimized builds")]
-#[inline(always)]
 pub fn version(reader: &mut Reader<'_>, expected: u16, path: Path) -> Result<(), Problem> {
     match reader.u16() {
         Some(found) => {
@@ -60,8 +56,6 @@ impl<L> Field<L, u8> for U8 {
     fn write(&self, value: &u8, _limits: &L, out: &mut Writer, path: Path) -> Result<(), Problem> {
         put(out, &value.to_be_bytes(), path)
     }
-    #[expect(clippy::inline_always, reason = "field composition must not add decoder calls in unoptimized builds")]
-    #[inline(always)]
     fn read(&self, _limits: &L, reader: &mut Reader<'_>, path: Path) -> Result<u8, Problem> {
         reader.u8().ok_or(path.problem(Reason::Short))
     }
@@ -74,8 +68,6 @@ impl<L> Field<L, u16> for U16 {
     fn write(&self, value: &u16, _limits: &L, out: &mut Writer, path: Path) -> Result<(), Problem> {
         put(out, &value.to_be_bytes(), path)
     }
-    #[expect(clippy::inline_always, reason = "field composition must not add decoder calls in unoptimized builds")]
-    #[inline(always)]
     fn read(&self, _limits: &L, reader: &mut Reader<'_>, path: Path) -> Result<u16, Problem> {
         reader.u16().ok_or(path.problem(Reason::Short))
     }
@@ -88,8 +80,6 @@ impl<L> Field<L, u32> for U32 {
     fn write(&self, value: &u32, _limits: &L, out: &mut Writer, path: Path) -> Result<(), Problem> {
         put(out, &value.to_be_bytes(), path)
     }
-    #[expect(clippy::inline_always, reason = "field composition must not add decoder calls in unoptimized builds")]
-    #[inline(always)]
     fn read(&self, _limits: &L, reader: &mut Reader<'_>, path: Path) -> Result<u32, Problem> {
         reader.u32().ok_or(path.problem(Reason::Short))
     }
@@ -102,8 +92,6 @@ impl<L> Field<L, u64> for U64 {
     fn write(&self, value: &u64, _limits: &L, out: &mut Writer, path: Path) -> Result<(), Problem> {
         put(out, &value.to_be_bytes(), path)
     }
-    #[expect(clippy::inline_always, reason = "field composition must not add decoder calls in unoptimized builds")]
-    #[inline(always)]
     fn read(&self, _limits: &L, reader: &mut Reader<'_>, path: Path) -> Result<u64, Problem> {
         reader.u64().ok_or(path.problem(Reason::Short))
     }
@@ -116,8 +104,6 @@ impl<L> Field<L, bool> for Boolean {
     fn write(&self, value: &bool, _limits: &L, out: &mut Writer, path: Path) -> Result<(), Problem> {
         put(out, &[u8::from(*value)], path)
     }
-    #[expect(clippy::inline_always, reason = "field composition must not add decoder calls in unoptimized builds")]
-    #[inline(always)]
     fn read(&self, _limits: &L, reader: &mut Reader<'_>, path: Path) -> Result<bool, Problem> {
         match reader.u8().ok_or(path.problem(Reason::Short))? {
             0 => Ok(false),
@@ -134,8 +120,6 @@ impl<L> Field<L, Duration> for Span {
     fn write(&self, value: &Duration, _limits: &L, out: &mut Writer, path: Path) -> Result<(), Problem> {
         put(out, &value.as_nanos().to_be_bytes(), path)
     }
-    #[expect(clippy::inline_always, reason = "field composition must not add decoder calls in unoptimized builds")]
-    #[inline(always)]
     fn read(&self, _limits: &L, reader: &mut Reader<'_>, path: Path) -> Result<Duration, Problem> {
         Ok(Duration::from_nanos(reader.u64().ok_or(path.problem(Reason::Short))?))
     }
@@ -148,8 +132,6 @@ impl<L, const N: usize> Field<L, [u8; N]> for Fixed<N> {
     fn write(&self, value: &[u8; N], _limits: &L, out: &mut Writer, path: Path) -> Result<(), Problem> {
         put(out, value, path)
     }
-    #[expect(clippy::inline_always, reason = "field composition must not add decoder calls in unoptimized builds")]
-    #[inline(always)]
     fn read(&self, _limits: &L, reader: &mut Reader<'_>, path: Path) -> Result<[u8; N], Problem> {
         let length = u32::try_from(N).expect("schema fixed width fits u32");
         Ok(reader.bytes(length).ok_or(path.problem(Reason::Short))?.try_into().expect("fixed width checked"))
@@ -175,8 +157,6 @@ impl<L> Field<L, Box<[u8]>> for Bytes {
     fn write(&self, value: &Box<[u8]>, _limits: &L, out: &mut Writer, path: Path) -> Result<(), Problem> {
         write_bytes(value, self.limit, out, path)
     }
-    #[expect(clippy::inline_always, reason = "field composition must not add decoder calls in unoptimized builds")]
-    #[inline(always)]
     fn read(&self, _limits: &L, reader: &mut Reader<'_>, path: Path) -> Result<Box<[u8]>, Problem> {
         read_bytes(reader, self.limit, path)
     }
@@ -188,8 +168,6 @@ fn write_bytes(value: &[u8], limit: u32, out: &mut Writer, path: Path) -> Result
     put(out, value, path)
 }
 
-#[expect(clippy::inline_always, reason = "field composition must not add decoder calls in unoptimized builds")]
-#[inline(always)]
 fn read_bytes(reader: &mut Reader<'_>, limit: u32, path: Path) -> Result<Box<[u8]>, Problem> {
     let length = match read_len(reader, limit) {
         Ok(length) => length,
@@ -207,8 +185,6 @@ impl<L> Field<L, Secret> for Hidden {
     fn write(&self, value: &Secret, _limits: &L, out: &mut Writer, path: Path) -> Result<(), Problem> {
         write_bytes(value.expose(), self.limit, out, path)
     }
-    #[expect(clippy::inline_always, reason = "field composition must not add decoder calls in unoptimized builds")]
-    #[inline(always)]
     fn read(&self, _limits: &L, reader: &mut Reader<'_>, path: Path) -> Result<Secret, Problem> {
         Ok(Secret::new(read_bytes(reader, self.limit, path)?))
     }
@@ -228,8 +204,6 @@ impl<L> Field<L, Box<[u8]>> for Text {
         put(out, &length.to_be_bytes(), path)?;
         put(out, value, path)
     }
-    #[expect(clippy::inline_always, reason = "field composition must not add decoder calls in unoptimized builds")]
-    #[inline(always)]
     fn read(&self, _limits: &L, reader: &mut Reader<'_>, path: Path) -> Result<Box<[u8]>, Problem> {
         match crate::read_text(reader, self.limit) {
             Ok(value) => Ok(value),
@@ -256,8 +230,6 @@ impl<L, T, F: Field<L, T>> Field<L, List<T>> for Sequence<F> {
         }
         Ok(())
     }
-    #[expect(clippy::inline_always, reason = "field composition must not add decoder calls in unoptimized builds")]
-    #[inline(always)]
     fn read(&self, limits: &L, reader: &mut Reader<'_>, path: Path) -> Result<List<T>, Problem> {
         let count = match read_count(reader, self.limit) {
             Ok(count) => count,
@@ -290,8 +262,6 @@ impl<L, T, F: Field<L, T>> Field<L, Option<T>> for Optional<F> {
         }
         Ok(())
     }
-    #[expect(clippy::inline_always, reason = "field composition must not add decoder calls in unoptimized builds")]
-    #[inline(always)]
     fn read(&self, limits: &L, reader: &mut Reader<'_>, path: Path) -> Result<Option<T>, Problem> {
         match reader.u8().ok_or(path.problem(Reason::Short))? {
             0 => Ok(None),
@@ -308,8 +278,6 @@ impl<L, T: Record<Limits = L>> Field<L, T> for Nested {
     fn write(&self, value: &T, limits: &L, out: &mut Writer, _path: Path) -> Result<(), Problem> {
         value.write(limits, out)
     }
-    #[expect(clippy::inline_always, reason = "field composition must not add decoder calls in unoptimized builds")]
-    #[inline(always)]
     fn read(&self, limits: &L, reader: &mut Reader<'_>, _path: Path) -> Result<T, Problem> {
         T::read(limits, reader)
     }

@@ -246,8 +246,18 @@ preserve the measured nanoseconds. Samples are in round order.
   `field::version`, `read_bytes` and the field shapes' `read` implementations.
   Question 213211's answer authorizes these attributes despite the
   body-only overlap restriction. No signature, byte, bound, refusal,
-  schema, generated module or generator changes. B/C are diagnostic
-  test-profile runs; release is measured on A and D.
+  schema, generated module or generator changes. D was saved as
+  `b59792bda589d4ce8baa3c6fb4060778b194e253` (unchecked). B is a
+  diagnostic test-profile run; release is measured on A, C and D.
+
+C release was measured after dropping all of D's attributes, per the
+answer to question 213246, on host-refreshed head
+`cbe1668c374abe7f59a322b29f1d333afd5267c0` plus that attribute removal.
+This head merged `95d677837a9e41a8df11f4f7ef3d6ce8b6b8cdc6`; compared
+with A, the tasks schema, committed tasks module, skein-codegen and
+skein-lib are unchanged, and skein-codec differs only by C's two bodies.
+The harness and corpus construction are the same; the only harness
+annotation difference from A is suppressing unused generated items.
 
 **A test.**
 
@@ -297,9 +307,18 @@ preserve the measured nanoseconds. Samples are in round order.
 | Mutated | 3.508067, 3.452639, 3.461847, 3.701066, 3.548357 | 3.508067 [3.452639–3.701066] | 5.862285, 5.845095, 5.790234, 5.895845, 5.952688 | 5.862285 [5.790234–5.952688] | 1.6711 |
 | Full row | 0.251410, 0.269960, 0.250859, 0.263490, 0.269700 | 0.263490 [0.250859–0.269960] | 0.205799, 0.195960, 0.204020, 0.215860, 0.199809 | 0.204020 [0.195960–0.215860] | 0.7743 |
 
+**C release (after discarding D).**
+
+| Corpus | Sealed samples, ms | Sealed median [spread], ms | Lean samples, ms | Lean median [spread], ms | Lean / sealed medians |
+|---|---|---|---|---|---:|
+| Fixed | 0.850662, 0.853816, 0.923732, 0.858381, 0.864852 | 0.858381 [0.850662–0.923732] | 1.112862, 1.194004, 1.165260, 1.098596, 1.143233 | 1.143233 [1.098596–1.194004] | 1.3318 |
+| Mutated | 4.224101, 4.422629, 4.417093, 4.235051, 4.328741 | 4.328741 [4.224101–4.422629] | 5.569683, 5.648583, 5.596909, 5.541251, 5.698731 | 5.596909 [5.541251–5.698731] | 1.2930 |
+| Full row | 0.218076, 0.211921, 0.219743, 0.213298, 0.212878 | 0.213298 [0.211921–0.219743] | 0.177670, 0.183431, 0.167706, 0.167738, 0.170043 | 0.170043 [0.167706–0.183431] | 0.7972 |
+
 Harness UTC starts (from its SystemTime, not the controller's starts):
 A test `1795093612`, A release `1795093642`, B test `1795093688`,
-C test `1795093723`, D test `1795093893`, D release `1795094209`.
+C test `1795093723`, D test `1795093893`, D release `1795094209`,
+C release `1795094448`.
 An initial D release command exhausted the shell's 120 s deadline while
 compiling, with no test output or sample; that attempt is unobserved,
 not passed. After suppressing the throwaway modules' unused-item warnings,
@@ -317,6 +336,9 @@ that overhead. Full-row decoding improves with the helper changes.
 A release is within about 10% on both corpus sets and faster on the full
 row; A test is not. D test remains slower (1.55 / 1.56 / 1.12), and D
 release **regresses the refusal-heavy corpora** (2.06 / 1.67 / 0.77).
-The forced-inlining candidate therefore does not establish the requested
-two-profile 10% criterion. Decision pending the coordinator's ruling on
-these changed release figures; no further tuning is assumed.
+All D's forced-inline attributes were discarded: they did not close the
+test-profile gap and worsened the release comparison. C release still
+exceeds about 10% on the refusal-heavy corpora (1.33 / 1.29 / 0.80),
+so neither helper candidate establishes the requested criterion.
+Per question 213246's answer, decision pending the coordinator's ruling
+on C release before any delivery; no further tuning is assumed.

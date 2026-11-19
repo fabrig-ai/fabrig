@@ -46,8 +46,6 @@ pub trait Record: Sized {
         Ok(out.finish())
     }
 
-    #[expect(clippy::inline_always, reason = "the root boundary must not copy decoded values through an unoptimized wrapper")]
-    #[inline(always)]
     fn decode(limits: &Self::Limits, reader: &mut Reader<'_>) -> Result<Self, Problem> {
         let result = Self::read(limits, reader);
         if result.is_ok() && !reader.is_empty() {
