@@ -630,7 +630,20 @@ its bounded retry path.
   its dependencies' and inputs' results), a delegate batch's inputs, and
   the core's historical reads (ended conversations, decided escalations
   and proposals) are loads the root makes for the core and answers back
-  in its terms; a full table of them answers busy.
+  in its terms; a full table answers busy all but an ended task's load,
+  which waits (below).
+- **An ended task's load waits for a slot.** The core's load of an
+  ended task (jig's `Now::EndedTask`: a run's dependencies' and inputs'
+  results, and the ended task an amendment, a batch or a decision
+  reads) that finds the archive's read table or the load slots full, a
+  retired slot awaiting its reclaim among them, is not answered busy:
+  the root keeps it, in the order asked, and issues it once a slot
+  frees, before any read asked after it, still held behind the commits
+  made before the core asked (jig's `domain/engine/README.md`, 5.3).
+  Busy is left for a load that failed: a page refused or cut, or an
+  answer the archive cannot read. The core's other loads (an ended
+  conversation and its read position, a decided escalation or proposal,
+  a batch's inputs, a person's ended task) keep busy on a full table.
 - **An issued transcript load that fails** answers the core's
   `TranscriptLoad::Unread`, retiring its read once; an answer to a stale
   preparation is ignored. The core owns the window policy (jig's
