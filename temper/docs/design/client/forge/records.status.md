@@ -10,7 +10,8 @@
 - **Not yet:** *A project's findings*, *One finding*, *A milestone's
   totals* and *Reds on goals and milestones*: no `FindingsFilter`, no
   `FindingRow` `goal`, `reason` or `cleared`, no `FindingAnswer`
-  `blame`, no `MilestoneTotals` `reds`, and `CLIENT_VERSION` unmoved.
+  `blame`, no `MilestoneTotals` `reds`, and `CLIENT_VERSION` unmoved
+  [in flight: change 10345].
 
 
 - **Not yet:** *A project's ways, the subject `ways`*: `WaysPanel`'s
