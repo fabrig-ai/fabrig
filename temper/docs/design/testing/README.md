@@ -362,10 +362,13 @@ terminal client, the captures and the faults.
 ### 2.8 macOS
 
 What macOS tests is `macos.md`'s: one workflow, outside the gate, on
-GitHub's `macos-26`; every target compiled, then the one story, its
-Forgejo and runner fetched first through `temper-box forge fetch`, after
-the set-up the forge commands ask of a host with no box; and Linux's own
-tests, listed by name.
+GitHub's `macos-26`, dispatched after landing at a commit of main for a
+set of parts, each a job: the process tier's stories, the one story among
+them, its Forgejo and runner fetched first through `temper-box forge
+fetch`; the browser tiers; each tree's focused and fuzzy suites; and the
+live stories on the user's key. One JUnit report names the failing tests
+by tier main's ids, a build that fails among them, and fabrig's forge
+hands it its macOS tiers' runs. Linux's own tests are listed by name.
 
 ## 3. Neighbours and their faces
 
@@ -926,4 +929,4 @@ scripts/proof-live.sh               the live tier
   again. The slow tiers wait: a process story's restore has its meaning to
   prove, and the request `test-speed` of 2026-11-06 takes what needs no cache
   first.
-- **macOS's later work** is `macos.md`, 4's.
+- **macOS's later work** is `macos.md`, 10's.

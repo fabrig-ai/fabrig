@@ -3,8 +3,7 @@
 2026-11-19. Where the design lags or departs from [macos-tiers.md](macos-tiers.md).
 
 - **Design lags:**
-  - 3 to 6: `../testing/macos.md`, sections 1 and 2 have `macos.yml` run on main four times a day by a schedule, compile every target and run the one story; it says nothing of dispatch, sets, parts, the report, the relay or live on macOS, and no tier of macOS's is in `.forgejo/workflows/`. Its section 4 has the suites under a `macos` nextest profile and no reader of the results.
-  - 4.3: `.config/nextest.toml` has no override for `cfg(target_os = "macos")`.
   - 7: smith and jig have no list of their Linux-only tests.
-- **Design departs:** none.
+- **Design departs:**
+  - 4.3: every profile of `.config/nextest.toml` gains the overrides that double its slow timeout on macOS, not only those the parts run (`../testing/macos.md`, section 7): nextest applies `default`'s overrides to every profile after its own, so a profile with none of its own would take `default`'s doubled timeouts on macOS in place of its own. The goal's designer chose it, 2026-11-19; the draft's intent, a slow timeout doubled on macOS and no profile of macOS's own, holds.
 - **Open:** 10's three questions.

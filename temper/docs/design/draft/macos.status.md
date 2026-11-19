@@ -1,6 +1,6 @@
 # macos: status
 
-2026-11-18. Where the design lags or departs from [macos.md](macos.md).
+2026-11-19. Where the design lags or departs from [macos.md](macos.md).
 
 skein carries section 3: the readiness backend on epoll and kqueue (skein's `runtime/kernel.md`; `skein/docs/design/runtime/readiness.md`, 5). `macos.md`, section 6's steps 1 to 5 stand in the design: skein's `forge/README.md`, 4.3, `../protocol/setup/owned.md`, 1 and 6, and `../testing/macos.md`, 1 and 2 and `../testing/real-loop.md`'s story, this draft's acceptance, passes on the runner.
 
@@ -9,7 +9,7 @@ skein carries section 3: the readiness backend on epoll and kqueue (skein's `run
   - 4.3: skein's `runtime/shell.md`, section 8 keeps the throwaway Forgejo Linux's, saying macOS has no owned Forgejo, until section 6's step 6 takes it off the list.
   - 4.3: no design says that errors print errno's names, and temper's print numbers (`temper/crates/temper-box-shell/src/box_command.rs`). Section 6's first steps leave it out, and the story doesn't need it.
   - 4.4: `../protocol/configuration/README.md` does not say that the XDG directories hold on macOS, or that case-only differences in a checkout's names are refused.
-  - 5: `.config/nextest.toml` doubles no slow timeout on macOS, and no design lists smith's or jig's Linux-only tests by name; `../testing/macos.md`, 1 and 2 have the workflow on a schedule, compiling every target and running the one story, what the first stages ask of it. The rest of 2.1, 2.2 and 2.3 comes after landing (`macos-tiers.md`).
+  - 5: no design lists smith's or jig's Linux-only tests by name. `../testing/macos.md` has the workflow dispatched after landing for its sets of parts, the suites among them (`macos-tiers.md`); the rest of 2.1, 2.2 and 2.3 comes after landing.
 - **Design departs:**
   - 4.3: `../protocol/setup/box.md`, 2, and `../protocol/setup/init.md`, 2: the pipe check stays Linux's and asks the shell nothing, and macOS's login is what `/usr/bin/id -un` prints, where the draft has the shell's `getpwuid` answer on both. It needs no change to skein and leaves Linux as it is, by the user's rule of 2026-11-04; the cut of `macos-cheap` chose it.
-  - 5.1: `../testing/macos.md`, 1, installs the toolchain the repository's `rust-toolchain.toml` pins, `nightly-2026-10-21` with LLVM, where the draft has Rust 1.95, the workspace's `rust-version`: the later draft `crate-graph.md`, 2, moves the workspace to that nightly, by the user's choice of 2026-11-12.
+  - 5.1: `../testing/macos.md`, 6, installs the toolchain the repository's `rust-toolchain.toml` pins, `nightly-2026-10-21` with LLVM, where the draft has Rust 1.95, the workspace's `rust-version`: the later draft `crate-graph.md`, 2, moves the workspace to that nightly, by the user's choice of 2026-11-12.
