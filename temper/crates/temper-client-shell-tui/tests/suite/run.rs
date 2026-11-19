@@ -1895,8 +1895,7 @@ fn the_box_ending_while_lent_leaves_the_login_to_its_end() {
     world.end_loan_world();
 }
 
-const HANDED_LINK: &[u8] =
-    b"http://127.0.0.1:8367/jig/v1/sign-in/link?secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+const HANDED_LINK: &[u8] = b"http://127.0.0.1:8367/sign-in?secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
 
 #[test]
 fn a_front_connects_after_early_readiness_or_a_refused_connect() {

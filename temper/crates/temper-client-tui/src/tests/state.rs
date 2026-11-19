@@ -442,8 +442,8 @@ fn the_surface_state_changes_only_when_its_facts_change() {
 fn the_printed_link_is_live_until_a_new_sign_in_is_seen() {
     use crate::BoxLine;
     use skein_lib::Secret;
-    let url = b"http://127.0.0.1:8367/jig/v1/sign-in/link?secret=first".as_slice();
-    let fresh = b"http://127.0.0.1:8367/jig/v1/sign-in/link?secret=fresh".as_slice();
+    let url = b"http://127.0.0.1:8367/sign-in?secret=first".as_slice();
+    let fresh = b"http://127.0.0.1:8367/sign-in?secret=fresh".as_slice();
     let link = Told::BoxLine { line: BoxLine::Link { url: Secret::new(url.into()) } };
     let new_link = Told::BoxLine { line: BoxLine::Link { url: Secret::new(fresh.into()) } };
     let yes = Told::Linked { linked: true };

@@ -1481,9 +1481,7 @@ mod tests {
             engine: io::Addr::Ip("[::1]:9400".parse().expect("handed engine")),
             address: temper_client_tui::Origin::Http("[::1]:9400".parse().expect("fixture socket")),
             link: Secret::new(
-                b"http://[::1]:9400/jig/v1/sign-in/link?secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-                    .as_slice()
-                    .into(),
+                b"http://[::1]:9400/sign-in?secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA".as_slice().into(),
             ),
         });
         run.event(&io::Event::Shutdown { signal: io::kernel::ServiceSignal::Terminate, from: None });

@@ -9,8 +9,8 @@
    /web      Open temper in your browser
  Open this link in a browser that reaches temper:
 
- http://127.0.0.1:8367/jig/v1/sign-in/link?secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAA
- AAAAAAAAAAAAAA
+ http://127.0.0.1:8367/sign-in?secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+ AA
 
  It signs you in as this temper's owner, once, within 2 hours.
  Opened after that, temper makes a fresh one: /web again opens the fresh one.
