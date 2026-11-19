@@ -10,6 +10,13 @@ in section 14. The log's other gaps and the retained change rows remain below.
   *In the store*, the tier row's many names: a report read as many keeps
   no id, so a many red's news and its finding say `many` alone
   [in flight: change 9164].
+- **Not yet:** 9, *The comments*, a many's names; 10, *The completed run
+  task's report*, its `Its report names:` line: a many verdict's comments
+  and report say `many tests` with no id [in flight: change 9171].
+- **Not yet:** 9, *`read_ci` reads a logged landing's red*; 10, *The
+  landing log*, a red entry's ids and names: the log keeps a red's count
+  alone, and `read_ci what=checks` answers the forge's checks and a
+  landing repair's gate rows alone [in flight: change 9174].
 - **Not yet:** 6, *`wait`* and *Switching*: kind 4 has no `wait`, so
   every project's changes live to cleared, and a start ends no
   verifying or red change [in flight: change 8587].
