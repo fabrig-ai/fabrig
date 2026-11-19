@@ -17,8 +17,11 @@ pub use crate::system::process::HostedPipes;
 /// that thread runs the shell's kernel and lives as long as the loop.
 /// `parent` must be the PID the caller's parent gave it, for example as an
 /// argument, so the re-check after installing the signal detects a parent
-/// that already died. macOS and other non-Linux systems return
-/// [`std::io::ErrorKind::Unsupported`] without executing the command.
+/// that already died. On macOS a watcher forked before exec sends the
+/// signal when the parent process exits; the parent re-check is the same.
+/// The watcher lives in the program's group and session, ends with it, and
+/// cannot signal a setuid/setgid program. A program waiting for every child
+/// until none is left waits for the watcher too.
 #[expect(clippy::disallowed_types, reason = "the child consumes Command only to exec, without a Child handle")]
 #[must_use]
 pub fn exec_dying_with_parent(
@@ -26,26 +29,7 @@ pub fn exec_dying_with_parent(
     parent: u32,
     signal: skein_io::kernel::Signal,
 ) -> std::io::Error {
-    #[cfg(target_os = "linux")]
-    {
-        system::process::exec_dying_with_parent(command, parent, signal)
-    }
-    #[cfg(not(target_os = "linux"))]
-    {
-        let _unused = (command, parent, signal);
-        std::io::Error::new(std::io::ErrorKind::Unsupported, "parent-death exec requires Linux")
-    }
-}
-
-#[cfg(all(test, not(target_os = "linux")))]
-#[test]
-#[expect(clippy::disallowed_types, reason = "the refused command must never be executed")]
-fn parent_death_exec_is_unsupported() {
-    assert_eq!(
-        exec_dying_with_parent(std::process::Command::new("/no-such-program"), 0, skein_io::kernel::Signal::Kill)
-            .kind(),
-        std::io::ErrorKind::Unsupported
-    );
+    system::process::exec_dying_with_parent(command, parent, signal)
 }
 
 /// Spawns a command with a parent-death signal (runtime/shell.md, 3).
@@ -53,21 +37,15 @@ fn parent_death_exec_is_unsupported() {
 /// by a setuid/setgid exec. It fires when the spawning thread exits, rather
 /// than when the spawning process exits: spawn on the thread that keeps
 /// the process. A parent re-check before exec refuses a changed parent.
-/// Off Linux it spawns without the signal.
+/// On macOS a watcher forked in the child's pre-exec hook sends the signal
+/// when the spawning process exits, with the watcher's limits described by
+/// [`exec_dying_with_parent`].
 #[expect(clippy::disallowed_types, reason = "a test kit needs a Command and Child without its own exec binary")]
 pub fn spawn_dying_with_parent(
     command: &mut std::process::Command,
     signal: skein_io::kernel::Signal,
 ) -> std::io::Result<std::process::Child> {
-    #[cfg(target_os = "linux")]
-    {
-        system::process::spawn_dying_with_parent(command, signal)
-    }
-    #[cfg(not(target_os = "linux"))]
-    {
-        let _unused = signal;
-        command.spawn()
-    }
+    system::process::spawn_dying_with_parent(command, signal)
 }
 
 /// The effective user's login from the system command at startup (runtime/shell.md, 6).

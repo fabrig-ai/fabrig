@@ -223,6 +223,7 @@ synchronous operations, the error tables, what decodes a `statx` or a
 | A child's handle | its pidfd | a kqueue of the child's own, its `EVFILT_PROC` exit registered: a descriptor that is readable once the child has exited |
 | A child's exit | `waitid` on the pidfd | `waitid` on the child's pid, `WNOWAIT` to observe |
 | Signalling a child | `pidfd_send_signal` | `kill`, `killpg`, by the pid its handle names |
+| A child dying with its parent | `PR_SET_PDEATHSIG` | a watcher process, forked before the exec, the parent's and the program's `EVFILT_PROC` exits registered (below) |
 | Signals to the service | `signalfd` | a kqueue of the service's own, its `EVFILT_SIGNAL`s registered, the signals ignored |
 | The seed | `getrandom` | `getentropy` |
 | Usage's resident size | KiB | bytes |
@@ -236,6 +237,51 @@ synchronous operations, the error tables, what decodes a `statx` or a
   conformance suite are the same on both systems: a `Wait` waits for its
   handle to be readable, a `Signal` finds the pid its handle names, and
   a `Close` of the handle forgets it.
+- **A child dying with its parent, on macOS, has a watcher**
+  (`shell.md`, 3): macOS has no parent-death signal, so the process
+  about to exec, the program to be, first forks a watcher that sends
+  the signal for it. In the child-side exec that process is the
+  caller; in the parent-side spawn, the forked child, in its pre-exec
+  hook. The watcher's parent is the program, whose pid the exec keeps.
+  1. **The watcher** blocks every signal it can, so a signal sent to the
+     program's group (a terminal's interrupt, a supervisor's
+     termination) leaves it watching. It closes every descriptor it
+     inherited but its handshake's writing end, so it holds none of the
+     program's pipes, nor the exec-error pipe a spawn reads to its end.
+     It registers the exits of the parent and of the program on a
+     kqueue of its own, then writes its handshake: four bytes, zero once
+     both are registered, or the registration's error number, after
+     which it exits. It closes the handshake either way.
+  2. **The program to be** closes its own copy of the writing end and
+     reads the four bytes. Zero, it re-checks its parent as Linux does
+     and execs. An error number refuses the exec: `ESRCH` (the parent
+     already gone) as the re-check's "parent changed before exec", any
+     other as itself. Fewer than four bytes, the watcher ended before
+     answering, refuses with `EIO`. It reaps a watcher that refused or
+     ended before it refuses.
+  3. **The watcher then waits** for either exit. The program's: it
+     exits. The parent's: while it is still the program's child
+     (`getppid()` names the program), it sends the program the signal,
+     then exits. A program that ended first has made it launchd's, so a
+     pid that has gone is never signalled, and when one wait reports
+     both exits the program's wins and nothing is sent.
+
+  Everything the watcher uses is prepared before its fork: the pipe,
+  both pids, the signal's number and the close bound, taken as the
+  terminal's child takes it. Between its fork and its exit it makes
+  only async-signal-safe calls and the kqueue's, and runs no
+  allocation, formatting, lock or destructor, since a spawning process
+  may have other threads. It fires at the parent **process**'s exit,
+  not a thread's. It lives in the program's group and session and no
+  longer than the program or the parent; once the program has ended,
+  launchd reaps it, and a group kill ends it with the program. A
+  program that waits for every child it has until none is left waits
+  for it too. It cannot signal a setuid or setgid program, as such an
+  exec clears Linux's signal. The watcher is `posix`'s, built for macOS
+  and for Linux's unit tests; each system gives its wait on two
+  processes' exits, Darwin's a kqueue with an `EVFILT_PROC` `NOTE_EXIT`
+  for each, and Linux's, for those tests alone, two pidfds and `poll`.
+  Linux's exec and spawn keep `PR_SET_PDEATHSIG`.
 
 **The crate's layout.** `unsafe` is in `linux`, `darwin` and `posix` alone; every
 other module is safe Rust, the same on both systems.
@@ -247,7 +293,7 @@ other module is safe Rust, the same on both systems.
 | `calls` | what every backend decodes the same way: each operation's error table, the kind of what an `Open` opened, the paths' checks, `Open`'s retries, the listing buffer's size, a release against a floor (6) | both |
 | `linux` | Linux's calls and wait (`linux::epoll`), and the ring adapter (`linux::ring`), the only user of `io-uring` | Linux |
 | `darwin` | Darwin's calls and wait (`darwin::kqueue`) | macOS |
-| `posix` | what both systems write alike: terminal modes and sizes, a signal to a group and the probes of a group or a process, a socket's shutdown, the wait for a readable descriptor, a startup file's read and a mode's kind, `SIGPIPE`'s block, the error numbers' meaning | both |
+| `posix` | what both systems write alike: terminal modes and sizes, a signal to a group and the probes of a group or a process, a socket's shutdown, the wait for a readable descriptor, a startup file's read and a mode's kind, `SIGPIPE`'s block, the error numbers' meaning; the parent-death watcher (above), on macOS and in Linux's unit tests | both |
 | `clock`, `seed`, `startup`, `terminal`, `settings`, `drive` | the public startup and loop, calling `system` | both |
 | `keeper` | what a test harness alone needs of the processes it keeps (below) | both, Linux's own parts on Linux |
 
