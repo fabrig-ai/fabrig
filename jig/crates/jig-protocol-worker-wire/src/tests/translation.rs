@@ -1,6 +1,6 @@
 //! The shared component bridge machine (jig/docs/design/protocol/channel/bridges.md, 5 and 9).
 use crate::translation::Translation;
-use crate::{self as channel, Agreed, Application, Carried, Kept, Root, Spoken, v17 as wire};
+use crate::{self as channel, Agreed, Application, Carried, Kept, Root, Spoken, v18 as wire};
 use skein_channel::{Frame, frame_writer};
 use skein_codec::{
     bridge::Bridge,
@@ -93,9 +93,13 @@ fn worker_value(frame: &Frame) -> wire::FromWorker {
     wire::FromWorker::decode(&wire::CEILINGS, &mut Reader::new(&bytes)).unwrap()
 }
 fn golden(text: &str, name: &str) -> Box<[u8]> {
-    for golden in skein_codegen::goldens(&skein_codegen::parse(text).unwrap()) {
+    let goldens = skein_codegen::goldens(&skein_codegen::parse(text).unwrap());
+    fixture_golden(&goldens, name)
+}
+fn fixture_golden(goldens: &[skein_codegen::Golden], name: &str) -> Box<[u8]> {
+    for golden in goldens {
         if golden.name.strip_suffix(".bin") == Some(name) {
-            return golden.bytes.into_boxed_slice();
+            return golden.bytes.clone().into_boxed_slice();
         }
     }
     panic!("missing golden {name}")
@@ -137,7 +141,7 @@ fn an_untooled_answer_is_unheld_below_seventeen() {
     let record = failed_answer(wire::RunFailure::Untooled);
     let refusal = opaque().send(worker(&record), 16, &agreed(16, 5), &wire::CEILINGS).unwrap_err();
     assert_eq!(refusal.wire.as_ref(), b"jig-worker-wire");
-    assert_eq!(refusal.version, 17);
+    assert_eq!(refusal.version, 18);
     let Halt::Unheld(_) = refusal.halt else { panic!("untooled is unheld: {refusal:?}") };
 }
 
@@ -175,10 +179,13 @@ fn older_run_failures_round_trip_through_sixteen_without_changing() {
 }
 
 #[test]
-fn a_worker_of_seventeen_cannot_send_whole_to_an_engine_of_sixteen() {
-    let agreed = [Agreed { name: "jig-worker-wire", version: 16 }];
-    assert_eq!(opaque().incomplete(&agreed).as_slice(), &agreed);
-    assert!(opaque().incomplete(&[Agreed { name: "jig-worker-wire", version: 17 }]).is_empty());
+fn a_worker_of_eighteen_cannot_send_whole_to_an_older_engine() {
+    let mut translation = opaque();
+    for version in [16, 17] {
+        let agreed = [Agreed { name: "jig-worker-wire", version }];
+        assert_eq!(translation.incomplete(&agreed).as_slice(), &agreed);
+    }
+    assert!(translation.incomplete(&[Agreed { name: "jig-worker-wire", version: 18 }]).is_empty());
 }
 
 #[test]
@@ -653,5 +660,149 @@ fn current_application_links_keep_no_plans_and_older_parts_reuse_one_bridge() {
         let up = receiver.receive(sent.kind(), body(&sent), channel::VERSION, &older, &wire::CEILINGS).unwrap();
         assert_eq!(worker_value(&up), original);
         assert_eq!((sender.planned(), receiver.planned()), (1, 1));
+    }
+}
+
+fn usage_records() -> [wire::FromWorker; 5] {
+    let window = wire::UsageWindow::new(
+        &wire::CEILINGS,
+        wire::UsageWindowParts {
+            label: b"five_hour".as_slice().into(),
+            length: Some(skein_lib::Duration::from_secs(18_000)),
+            used: Some(2800),
+            resets: Some(123_456),
+            state: 2,
+        },
+    )
+    .unwrap();
+    let mut windows = List::with_capacity(8);
+    windows.push(window.clone()).unwrap();
+    let notice = wire::Usage::new(
+        &wire::CEILINGS,
+        wire::UsageParts {
+            task: 7,
+            attempt: 2,
+            account: 3,
+            label: window.label().into(),
+            length: *window.length(),
+            used: *window.used(),
+            resets: *window.resets(),
+            state: window.state(),
+        },
+    )
+    .unwrap();
+    let read = |outcome| {
+        wire::FromWorker::UsageRead(
+            wire::UsageRead::new(&wire::CEILINGS, wire::UsageReadParts { read: 42, outcome }).unwrap(),
+        )
+    };
+    [
+        wire::FromWorker::Usage(notice),
+        read(wire::UsageOutcome::Read(
+            wire::UsageWindows::new(&wire::CEILINGS, wire::UsageWindowsParts { windows }).unwrap(),
+        )),
+        read(wire::UsageOutcome::NotSignedIn),
+        read(wire::UsageOutcome::Spent),
+        read(wire::UsageOutcome::Failed(
+            wire::SourceFailed::new(
+                &wire::CEILINGS,
+                wire::SourceFailedParts { reason: wire::SourceFailure::Unconfigured, detail: Box::new([]) },
+            )
+            .unwrap(),
+        )),
+    ]
+}
+#[test]
+fn usage_records_round_trip_at_eighteen() {
+    for record in usage_records() {
+        let frame = opaque().send(worker(&record), 18, &agreed(18, 5), &wire::CEILINGS).unwrap();
+        let up = opaque().receive(frame.kind(), body(&frame), 18, &agreed(18, 5), &wire::CEILINGS).unwrap();
+        assert_eq!(worker_value(&up), record);
+    }
+    let record = wire::FromEngine::ReadUsage(
+        wire::ReadUsage::new(&wire::CEILINGS, wire::ReadUsageParts { read: 42, source: b"personal".as_slice().into() })
+            .unwrap(),
+    );
+    let frame = opaque().send(engine(&record), 18, &agreed(18, 5), &wire::CEILINGS).unwrap();
+    let up = opaque().receive(frame.kind(), body(&frame), 18, &agreed(18, 5), &wire::CEILINGS).unwrap();
+    assert_eq!(engine_value(&up), record);
+}
+#[test]
+fn usage_and_usage_read_are_unheld_below_eighteen() {
+    let mut translation = opaque();
+    for version in [16, 17] {
+        // One representative per new up kind; outcomes round-trip above.
+        for record in usage_records().into_iter().take(2) {
+            let refusal = translation.send(worker(&record), version, &agreed(version, 5), &wire::CEILINGS).unwrap_err();
+            assert_eq!(refusal.wire.as_ref(), b"jig-worker-wire");
+            assert_eq!(refusal.version, 18);
+            let Halt::Unheld(_) = refusal.halt else { panic!("usage is unheld: {refusal:?}") };
+        }
+    }
+}
+#[test]
+fn older_notices_and_calls_round_trip_through_seventeen_unchanged() {
+    let mut sender = opaque();
+    let mut receiver = opaque();
+    let notice = failed_answer(wire::RunFailure::Untooled);
+    let frame = sender.send(worker(&notice), 17, &agreed(17, 5), &wire::CEILINGS).unwrap();
+    let up = receiver.receive(frame.kind(), body(&frame), 17, &agreed(17, 5), &wire::CEILINGS).unwrap();
+    assert_eq!(worker_value(&up), notice);
+    let call = wire::FromEngine::Cancel(
+        wire::Cancel::new(&wire::CEILINGS, wire::CancelParts { task: 7, attempt: 2 }).unwrap(),
+    );
+    let frame = sender.send(engine(&call), 17, &agreed(17, 5), &wire::CEILINGS).unwrap();
+    let up = receiver.receive(frame.kind(), body(&frame), 17, &agreed(17, 5), &wire::CEILINGS).unwrap();
+    assert_eq!(engine_value(&up), call);
+}
+
+#[test]
+#[expect(clippy::disallowed_macros, reason = "the bridge test reads its current schema as the expected bytes")]
+fn seventeens_kept_goldens_go_up_to_eighteens_equal_bytes_and_back() {
+    use crate::patches::kept::jig_worker_wire as kept;
+    use skein_codegen::{Declaration, goldens, parse, snake};
+    let mut old = None;
+    for text in kept::TEXTS {
+        if text.starts_with("family jig-worker-wire 17\n") {
+            old = Some(*text);
+        }
+    }
+    let old = parse(old.expect("kept 17")).unwrap();
+    let current = parse(include_str!("../../schema/worker-wire-v18.schema")).unwrap();
+    let older = goldens(&old);
+    let newer = goldens(&current);
+    let mut bridge = kept::bridge(Capacity {
+        versions: u32::try_from(kept::TEXTS.len()).unwrap(),
+        patches: u32::try_from(crate::patches::PATCHES.len() * 2).unwrap(),
+        text: skein_codec::schema::MAX_TEXT,
+        bytes: 65_536,
+        nodes: 65_536,
+    })
+    .unwrap();
+    for declaration in &old.declarations {
+        let mut names = List::uncapped();
+        let root = match declaration {
+            Declaration::Record(record) => {
+                names.push(format!("record_{}", snake(&record.name))).unwrap();
+                &record.name
+            }
+            Declaration::Enum(value) => {
+                for variant in &value.variants {
+                    names.push(format!("enum_{}_{}", snake(&value.name), variant.name)).unwrap();
+                }
+                &value.name
+            }
+        };
+        for name in names.into_boxed() {
+            for size in ["smallest", "full"] {
+                let name = format!("{name}_{size}");
+                let before = fixture_golden(&older, &name);
+                let after = fixture_golden(&newer, &name);
+                let up = bridge.translate(17, 18, root.as_bytes(), before.clone()).unwrap();
+                assert_eq!(up, after, "{name}.bin");
+                let down = bridge.translate(18, 17, root.as_bytes(), up).unwrap();
+                assert_eq!(down, before, "{name}.bin");
+            }
+        }
     }
 }

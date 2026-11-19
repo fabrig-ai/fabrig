@@ -34,6 +34,7 @@ impl Referee {
                 | FromAgent::Piece { .. }
                 | FromAgent::Activity { .. }
                 | FromAgent::Unauthorized { .. }
+                | FromAgent::Usage { .. }
                 | FromAgent::Limited { .. }
                 | FromAgent::AccountRefused { .. }
                 | FromAgent::Finished { .. }

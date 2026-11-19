@@ -240,7 +240,7 @@ pub(crate) fn hello(
     }
     let _previous = domain.worker_links.insert(worker, (true, env.wall)).expect("configured worker link bound");
     let places = domain.worker_names.places(worker).expect("admitted worker setting");
-    let Hello { slots, workstreams, hosting, stop_bound: _, bounds, jobs } = hello;
+    let Hello { slots, workstreams, hosting, stop_bound: _, bounds, jobs, reads_usage: _ } = hello;
     let mut worker = Channel {
         jobs,
         evidence: crate::needs::evidence(&bounds),

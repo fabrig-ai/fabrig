@@ -72,3 +72,89 @@ fn a_restart_says_nothing_before_hello_or_after_closing() {
     assert!(!world.root().iter().any(|r| matches!(r, Request::Told { .. })));
     assert!(!world.observed(connection).iter().any(|r| r.kind == 0x018f));
 }
+
+#[test]
+fn usage_reads_and_hello_capability_follow_the_agreed_channel_version() {
+    use jig_domain_host::LinkDown;
+    use skein_lib::{Secret, Writer};
+    for version in [17, 18] {
+        let mut world = World::new(&fixtures::limits(), &fixtures::workers(), 1);
+        let codec = wire::sizes::limits(&fixtures::limits().sizes).expect("codec");
+        let mut schema = fixtures::schema();
+        schema.versions.truncate(u32::from(version - wire::wire::FLOOR + 1));
+        let mut wires = fixtures::statement(fixtures::APPLICATION_VERSION);
+        for entry in wires.iter_mut() {
+            if entry.name() == b"jig-worker-wire" {
+                let mut parts = entry.clone().into_parts();
+                parts.layouts.truncate(u32::from(version - parts.lowest + 1));
+                *entry = wire::Wire::new(&codec, parts).expect("capped statement");
+            }
+        }
+        let credential = wire::Credential::new(
+            &codec,
+            wire::CredentialParts {
+                opening: wire::Opening::Link,
+                name: fixtures::WORKER_A.into(),
+                secret: Secret::new(fixtures::SECRET_A.into()),
+                wires,
+                output: fixtures::LIMITS.room,
+            },
+        )
+        .expect("credential");
+        let mut bytes = Writer::new(usize::try_from(credential.measure()).expect("credential length"));
+        credential.encode(&mut bytes).expect("credential");
+        let peer = skein_fake_channel::ScriptedPeer::new(
+            schema,
+            skein_channel::Role::Initiator,
+            fixtures::channel_limits(),
+            version,
+            bytes.finish(),
+        )
+        .expect("capped worker");
+        let connection = world.connect(peer);
+        world.run();
+        assert!(world.ready(connection));
+        world.play(connection, fixtures::hello_frame());
+        world.run();
+        let (channel, reads_usage) = world
+            .root()
+            .iter()
+            .find_map(|request| match request {
+                Request::Hello { channel, hello, .. } => Some((*channel, hello.reads_usage)),
+                _ => None,
+            })
+            .expect("hello");
+        assert_eq!(reads_usage, version == 18);
+        world.down(Event::Down {
+            channel,
+            down: LinkDown::ReadUsage {
+                read: 42,
+                source: jig_domain_link::SourceName::new(b"personal").expect("source"),
+            },
+            parts: Box::new([]),
+            values: Box::new([]),
+        });
+        world.run();
+        let reads: Vec<_> =
+            world.observed(connection).iter().filter(|record| record.kind == wire::Kind::ReadUsage.number()).collect();
+        assert_eq!(reads.len(), usize::from(version == 18));
+        assert!(
+            !world.root().iter().any(|request| matches!(request,
+            Request::Unsent { unsent, .. } if unsent.kind == wire::Kind::ReadUsage)),
+            "an older channel is skipped, not reported as an encoding or translation fault"
+        );
+        if let Some(record) = reads.first() {
+            let record = wire::ReadUsage::decode(&codec, &mut Reader::new(&record.body)).expect("read usage");
+            assert_eq!((record.read(), record.source()), (42, b"personal".as_slice()));
+        }
+        // An older channel remains usable after declining a usage read.
+        world.down(Event::Down {
+            channel,
+            down: LinkDown::Sources { sources: Box::new([]) },
+            parts: Box::new([]),
+            values: Box::new([]),
+        });
+        world.run();
+        assert!(world.observed(connection).iter().any(|record| record.kind == wire::Kind::Sources.number()));
+    }
+}

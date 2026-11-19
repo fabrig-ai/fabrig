@@ -2,6 +2,7 @@
 use crate::{joined_world::Joined, translation};
 use jig_domain_host as host;
 use jig_domain_link::{ListFailure, ListOutcome, SourceName};
+use jig_protocol_worker_link::Request;
 use jig_protocol_worker_wire as wire;
 use jig_worker_link_world::fixtures::{self, ATTEMPT_TWO as ATTEMPT, RUN_SEVEN as RUN};
 use skein_lib::{Duration, Rng, Token};
@@ -130,6 +131,59 @@ fn exercise(world: &mut Joined, seed: u64, version: u16) {
     world.engine_busy();
     world.run();
 }
+// Usage's new up records are unheld below 18; its down call is gated before translation.
+fn usage_records(world: &mut Joined, seed: u64, version: u16) {
+    use jig_domain_link::{FactWindow, UsageOutcome, UsageWindow, WINDOW_WARNED};
+    use skein_lib::Wall;
+    let window = UsageWindow {
+        label: b"five_hour".as_slice().into(),
+        window: FactWindow {
+            length: Some(Duration::from_secs(18_000)),
+            used: Some(u16::try_from(seed).expect("bounded share")),
+            resets: Some(Wall::from_nanos(seed)),
+            state: WINDOW_WARNED,
+        },
+    };
+    for (kind, record) in [
+        (wire::Kind::Usage, host::LinkUp::Usage { run: RUN, attempt: ATTEMPT, account: 1, window: window.clone() }),
+        (
+            wire::Kind::UsageRead,
+            host::LinkUp::UsageRead { read: seed, outcome: UsageOutcome::Read(Box::new([window])) },
+        ),
+    ] {
+        let expected = format!("{record:?}");
+        let heard = world.engine_root.len();
+        let sent = world.worker_records().len();
+        world.worker_up(record, Box::new([]));
+        world.run();
+        if version >= 18 {
+            let Some(jig_protocol_engine_workers::Request::Up { up, parts, .. }) = world.engine_root.last() else {
+                panic!("usage arrived")
+            };
+            assert_eq!(format!("{up:?}"), expected);
+            assert_eq!(parts.as_ref(), &[], "usage has no application parts");
+        } else {
+            assert_eq!(world.engine_root.len(), heard, "an unheld usage record never arrives");
+            assert_eq!(world.worker_records().len(), sent, "an unheld usage record sends no frame");
+            assert!(
+                matches!(world.worker_root.last(), Some(Request::Untranslated { kind: found, halt: skein_codec::patch::Halt::Unheld(_) }) if *found == kind.number())
+            );
+        }
+    }
+    let source = SourceName::new(b"alice").expect("usage source");
+    let sent = world.engine_records().len();
+    let heard = world.worker_root.len();
+    world.engine_down(host::LinkDown::ReadUsage { read: seed, source }, Box::new([]), Box::new([]));
+    world.run();
+    if version >= 18 {
+        let Some(Request::Down { down, parts }) = world.worker_root.last() else { panic!("usage read arrived") };
+        assert_eq!(down, &host::LinkDown::ReadUsage { read: seed, source });
+        assert_eq!(parts.as_ref(), &[], "usage read has no application parts");
+    } else {
+        assert_eq!(world.engine_records().len(), sent, "read usage never crosses an older channel");
+        assert_eq!(world.worker_root.len(), heard, "an older worker hears no usage read");
+    }
+}
 fn engine_scheme() -> jig_protocol_engine_workers::Scheme {
     jig_protocol_engine_workers::Scheme::Bearer
 }
@@ -148,6 +202,8 @@ fn fuzzy_every_kind_at_drawn_agreed_versions_arrives_unchanged_or_is_refused() {
         exercise(&mut capped, seed, version);
         assert_eq!(format!("{:?}", capped.engine_root), format!("{:?}", current.engine_root), "seed {seed}");
         assert_eq!(format!("{:?}", capped.worker_root), format!("{:?}", current.worker_root), "seed {seed}");
+        usage_records(&mut current, seed, wire::VERSION);
+        usage_records(&mut capped, seed, version);
         let wait = Duration::from_millis(rng.between(0, 1_200_000));
         current.engine_restarting(wait);
         capped.engine_restarting(wait);

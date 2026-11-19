@@ -165,6 +165,7 @@ fn two_projects() -> (World, u64, ProjectTasks, ProjectTasks) {
         worker: 0,
         channel: Token::new(7),
         hello: jig_domain_link::Hello {
+            reads_usage: true,
             jobs: Box::default(),
             bounds: jig_test_profile::fixtures::bounds(),
             stop_bound: Duration::from_millis(1),

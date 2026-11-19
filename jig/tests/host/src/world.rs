@@ -664,7 +664,8 @@ impl World {
             | Event::LinkLost
             | Event::SourceLost
             | Event::Down(
-                LinkDown::ReadList { .. }
+                LinkDown::ReadUsage { .. }
+                | LinkDown::ReadList { .. }
                 | LinkDown::Sources { .. }
                 | LinkDown::Check { .. }
                 | LinkDown::SignOut { .. }
@@ -680,6 +681,7 @@ impl World {
                 | FromAgent::Piece { .. }
                 | FromAgent::Activity { .. }
                 | FromAgent::Unauthorized { .. }
+                | FromAgent::Usage { .. }
                 | FromAgent::Limited { .. }
                 | FromAgent::AccountRefused { .. }
                 | FromAgent::Withdrawn { .. }
@@ -789,13 +791,15 @@ impl World {
                 assert!(self.admitted.insert((run, attempt), *owner).is_none(), "an attempt is admitted once");
             }
             Request::Up(
-                LinkUp::ListRead { .. }
+                LinkUp::UsageRead { .. }
+                | LinkUp::ListRead { .. }
                 | LinkUp::Draining
                 | LinkUp::Logins { .. }
                 | LinkUp::SignedOut { .. }
                 | LinkUp::Piece { .. }
                 | LinkUp::Activity { .. }
                 | LinkUp::Unauthorized { .. }
+                | LinkUp::Usage { .. }
                 | LinkUp::Limited { .. }
                 | LinkUp::AccountRefused { .. }
                 | LinkUp::Ask { .. }
@@ -856,13 +860,15 @@ impl World {
                 unreachable!("source scheduling has its own world")
             }
             Request::Up(
-                LinkUp::ListRead { .. }
+                LinkUp::UsageRead { .. }
+                | LinkUp::ListRead { .. }
                 | LinkUp::Draining
                 | LinkUp::Logins { .. }
                 | LinkUp::SignedOut { .. }
                 | LinkUp::Piece { .. }
                 | LinkUp::Activity { .. }
                 | LinkUp::Unauthorized { .. }
+                | LinkUp::Usage { .. }
                 | LinkUp::Limited { .. }
                 | LinkUp::AccountRefused { .. },
             ) => {

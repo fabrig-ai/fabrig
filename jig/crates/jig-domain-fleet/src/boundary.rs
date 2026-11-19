@@ -321,6 +321,20 @@ pub enum Event {
         account: u32,
         generation: u64,
     },
+    /// From a worker: a program's usage window through the run's granted source.
+    Usage {
+        channel: Token,
+        run: Token,
+        attempt: Token,
+        account: u32,
+        window: jig_domain_link::UsageWindow,
+    },
+    /// A usage read's answer; a read no longer held is dropped.
+    UsageRead {
+        channel: Token,
+        read: u64,
+        outcome: jig_domain_link::UsageOutcome,
+    },
     /// From a worker: the account reached its provider limit; `reset`, when
     /// the provider gave one, is how long until it lifts.
     Limited {
@@ -527,6 +541,13 @@ pub enum Request {
         attempt: Token,
         account: u32,
         generation: u64,
+    },
+    /// To the parent: a program's usage window, fenced by its attempt and channel.
+    Usage {
+        run: Token,
+        attempt: Token,
+        account: u32,
+        window: jig_domain_link::UsageWindow,
     },
     /// To the parent: a worker's notice that the account reached its
     /// provider limit, `reset` from now when the provider gave one.

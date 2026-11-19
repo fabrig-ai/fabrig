@@ -108,13 +108,15 @@ impl Measured {
                 | Request::Source { .. }
                 | Request::SourceFault => unreachable!("source scheduling has its own world"),
                 Request::Up(
-                    LinkUp::ListRead { .. }
+                    LinkUp::UsageRead { .. }
+                    | LinkUp::ListRead { .. }
                     | LinkUp::Draining
                     | LinkUp::Logins { .. }
                     | LinkUp::SignedOut { .. }
                     | LinkUp::Piece { .. }
                     | LinkUp::Activity { .. }
                     | LinkUp::Unauthorized { .. }
+                    | LinkUp::Usage { .. }
                     | LinkUp::Limited { .. }
                     | LinkUp::AccountRefused { .. },
                 ) => continue,
@@ -578,11 +580,13 @@ fn maximum_input_pieces_keep_their_payloads_and_order() {
                 pieces += 1;
             }
             LinkUp::Activity { .. } => activity += 1,
-            other @ (LinkUp::ListRead { .. }
+            other @ (LinkUp::UsageRead { .. }
+            | LinkUp::ListRead { .. }
             | LinkUp::Draining
             | LinkUp::Logins { .. }
             | LinkUp::SignedOut { .. }
             | LinkUp::Unauthorized { .. }
+            | LinkUp::Usage { .. }
             | LinkUp::Limited { .. }
             | LinkUp::AccountRefused { .. }
             | LinkUp::Turn { .. }

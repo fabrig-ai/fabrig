@@ -816,6 +816,7 @@ fn program_host(core: &mut Core, env: &Env<Limits>, worker: u32, channel: Token)
             worker,
             channel,
             hello: Hello {
+                reads_usage: true,
                 jobs: Box::default(),
                 bounds: fixtures::bounds(),
                 stop_bound: Duration::ZERO,

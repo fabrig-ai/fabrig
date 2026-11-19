@@ -318,13 +318,15 @@ impl Parent {
             Request::Release { workspace } => self.release(workspace),
             Request::Agent(ToAgent::Grant { .. } | ToAgent::Renewals { .. }) => Vec::new(),
             Request::Up(
-                LinkUp::ListRead { .. }
+                LinkUp::UsageRead { .. }
+                | LinkUp::ListRead { .. }
                 | LinkUp::Draining
                 | LinkUp::Logins { .. }
                 | LinkUp::SignedOut { .. }
                 | LinkUp::Piece { .. }
                 | LinkUp::Activity { .. }
                 | LinkUp::Unauthorized { .. }
+                | LinkUp::Usage { .. }
                 | LinkUp::Limited { .. }
                 | LinkUp::AccountRefused { .. }
                 | LinkUp::Turn { .. }

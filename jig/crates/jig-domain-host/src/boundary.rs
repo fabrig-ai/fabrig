@@ -232,6 +232,8 @@ pub enum FromAgent {
     Activity { owner: Token, activity: crate::AgentActivity },
     /// The provider rejected the account's credential of `generation`.
     Unauthorized { owner: Token, account: u32, generation: u64 },
+    /// A program's usage window, naming the source by its grant's number.
+    Usage { owner: Token, account: u32, window: jig_domain_link::UsageWindow },
     /// The account reached its provider limit; `reset`, when the provider
     /// gave one, is how long until it lifts.
     Limited { owner: Token, account: u32, reset: Option<Duration> },
@@ -652,7 +654,8 @@ impl Event {
             Event::Agent(event) => event.new_work(),
             Event::Opened { .. } | Event::Ask { .. } => true,
             Event::Down(event) => match event {
-                crate::LinkDown::ReadList { .. }
+                crate::LinkDown::ReadUsage { .. }
+                | crate::LinkDown::ReadList { .. }
                 | crate::LinkDown::Sources { .. }
                 | crate::LinkDown::Check { .. }
                 | crate::LinkDown::SignOut { .. }
@@ -692,6 +695,7 @@ impl FromAgent {
             | FromAgent::Piece { .. }
             | FromAgent::Activity { .. }
             | FromAgent::Unauthorized { .. }
+            | FromAgent::Usage { .. }
             | FromAgent::Limited { .. }
             | FromAgent::AccountRefused { .. }
             | FromAgent::Finished { .. }

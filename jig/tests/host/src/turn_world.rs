@@ -636,8 +636,10 @@ impl World {
             }
             Request::Up(
                 record @ (LinkUp::Unauthorized { .. }
+                | LinkUp::Usage { .. }
                 | LinkUp::Limited { .. }
                 | LinkUp::AccountRefused { .. }
+                | LinkUp::UsageRead { .. }
                 | LinkUp::ListRead { .. }
                 | LinkUp::Draining
                 | LinkUp::Logins { .. }

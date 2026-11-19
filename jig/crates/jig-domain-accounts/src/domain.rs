@@ -558,6 +558,18 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         Event::ForgetProject { project } => crate::changes::forget_project(domain, project, out),
         Event::Restore { record } => restore(domain, env, record),
         Event::Want => want(domain, env, out),
+        Event::Usage { source, window } => {
+            let Some(entry) = domain.sources.get(&source) else { return };
+            if !domain.issued.contains_key(&source) {
+                return;
+            }
+            let account = entry.account;
+            if crate::facts::report_window(&mut domain.said, account, source, crate::ORIGIN_PROGRAM, &window, env.wall)
+            {
+                let facts = domain.account_facts(account).into();
+                out.push(Request::Save { record: Stored::Facts { account, facts } });
+            }
+        }
         Event::ProgramSaid { name, email } => {
             let Some(source) = crate::programs::source_named(domain, &name) else { return };
             let account = domain.sources.get(&source).expect("live program source").account;

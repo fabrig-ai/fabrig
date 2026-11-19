@@ -297,12 +297,14 @@ fn from_host(domain: &mut Domain, env: &Env<Limits>, request: host::Request, out
                             jobs::answered(domain, run, attempt, answer, env.limits.host.detail_bytes, out);
                         }
                         up @ (host::LinkUp::Piece { .. }
+                        | host::LinkUp::UsageRead { .. }
                         | host::LinkUp::ListRead { .. }
                         | host::LinkUp::Draining
                         | host::LinkUp::Logins { .. }
                         | host::LinkUp::SignedOut { .. }
                         | host::LinkUp::Activity { .. }
                         | host::LinkUp::Unauthorized { .. }
+                        | host::LinkUp::Usage { .. }
                         | host::LinkUp::Limited { .. }
                         | host::LinkUp::AccountRefused { .. }
                         | host::LinkUp::Turn { .. }

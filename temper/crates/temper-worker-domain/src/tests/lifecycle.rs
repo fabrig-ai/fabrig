@@ -262,10 +262,14 @@ fn no_notices(rows: &[Request]) {
     for row in rows {
         let Request::Link(up) = row else { continue };
         match up {
-            host::LinkUp::Unauthorized { .. } | host::LinkUp::Limited { .. } | host::LinkUp::AccountRefused { .. } => {
+            host::LinkUp::Unauthorized { .. }
+            | host::LinkUp::Usage { .. }
+            | host::LinkUp::Limited { .. }
+            | host::LinkUp::AccountRefused { .. } => {
                 panic!("unexpected notice: {up:?}")
             }
-            host::LinkUp::ListRead { .. }
+            host::LinkUp::UsageRead { .. }
+            | host::LinkUp::ListRead { .. }
             | host::LinkUp::Draining
             | host::LinkUp::Logins { .. }
             | host::LinkUp::SignedOut { .. }

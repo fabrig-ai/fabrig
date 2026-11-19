@@ -20,9 +20,8 @@ pub const ORIGIN_ANSWER: u16 = 3;
 pub const ORIGIN_LIMIT: u16 = 4;
 pub const ORIGIN_PROGRAM: u16 = 5;
 pub const ORIGIN_USAGE_READ: u16 = 6;
-pub const WINDOW_OPEN: u16 = 1;
-pub const WINDOW_WARNED: u16 = 2;
-pub const WINDOW_LIMITED: u16 = 3;
+use jig_domain_link::UsageWindow;
+pub use jig_domain_link::{FactWindow, WINDOW_LIMITED, WINDOW_OPEN, WINDOW_WARNED};
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Audience {
@@ -59,13 +58,6 @@ pub enum FactValue {
     Span(Duration),
     Share(u16),
     Window(FactWindow),
-}
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub struct FactWindow {
-    pub length: Option<Duration>,
-    pub used: Option<u16>,
-    pub resets: Option<Wall>,
-    pub state: u16,
 }
 impl AccountFact {
     /// Whether this build registers its kind, its origin and, for a window, its state.
@@ -186,4 +178,74 @@ fn keep(
         assert!(domain.said.insert(account, facts.clone()).is_ok(), "one facts record per admitted account");
         out.push(crate::Request::Save { record: crate::Stored::Facts { account, facts } });
     }
+}
+
+/// Apply one kind 7 report, preserving absent fields and the first equal report's time.
+pub(crate) fn report_window(
+    said: &mut skein_lib::Map<u32, Box<[AccountFact]>>,
+    account: u32,
+    source: u32,
+    origin: u16,
+    window: &UsageWindow,
+    wall: Wall,
+) -> bool {
+    if window.label.is_empty() || window.label.len() > skein_lib::length::usize_of(FACT_LABEL) {
+        return false;
+    }
+    for byte in &window.label {
+        if !byte.is_ascii() || byte.is_ascii_control() {
+            return false;
+        }
+    }
+    if window.window.used > Some(SHARE_WHOLE) {
+        return false;
+    }
+    let mut value = window.window;
+    let held = said.get(&account);
+    if let Some(facts) = held {
+        for fact in facts.as_ref() {
+            if fact.kind == KIND_USAGE && fact.label == window.label {
+                match fact.value {
+                    FactValue::Window(old) => {
+                        value.length = value.length.or(old.length);
+                        value.used = value.used.or(old.used);
+                        value.resets = value.resets.or(old.resets);
+                    }
+                    FactValue::Text(_)
+                    | FactValue::Count(_)
+                    | FactValue::Instant(_)
+                    | FactValue::Span(_)
+                    | FactValue::Share(_) => {}
+                }
+                if fact.value == FactValue::Window(value) && fact.source == Some(source) && fact.origin == origin {
+                    return false;
+                }
+            }
+        }
+    }
+    let next = AccountFact {
+        kind: KIND_USAGE,
+        label: window.label.clone(),
+        value: FactValue::Window(value),
+        seen: wall,
+        source: Some(source),
+        origin,
+    };
+    let mut facts = skein_lib::List::with_capacity(FACTS);
+    let mut replaced = false;
+    if let Some(held) = held {
+        for fact in held.as_ref() {
+            if fact.kind == KIND_USAGE && fact.label == window.label {
+                facts.push(next.clone()).expect("replacement stays in bound");
+                replaced = true;
+            } else {
+                facts.push(fact.clone()).expect("held facts fit their bound");
+            }
+        }
+    }
+    if !replaced && facts.push(next).is_err() {
+        return false;
+    }
+    assert!(said.insert(account, facts.into_boxed()).is_ok(), "one facts record per admitted account");
+    true
 }

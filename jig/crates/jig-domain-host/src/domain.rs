@@ -284,6 +284,9 @@ pub fn step(domain: &mut Hub, env: &Env<Limits>, event: Event, out: &mut Queue<R
         Event::Agent(crate::FromAgent::Unauthorized { owner, account, generation }) => {
             crate::activity::unauthorized(domain, owner, account, generation, out);
         }
+        Event::Agent(crate::FromAgent::Usage { owner, account, window }) => {
+            crate::activity::usage(domain, owner, account, window, out);
+        }
         Event::Agent(crate::FromAgent::Limited { owner, account, reset }) => {
             crate::activity::limited(domain, owner, account, reset, out);
         }
@@ -355,6 +358,15 @@ pub fn step(domain: &mut Hub, env: &Env<Limits>, event: Event, out: &mut Queue<R
         Event::Down(down) => match down {
             LinkDown::Asked { run, attempt, number, answer } => {
                 crate::asks::asked(domain, env, run, attempt, number, answer, out);
+            }
+            LinkDown::ReadUsage { read, source: _ } => {
+                out.push(Request::Up(LinkUp::UsageRead {
+                    read,
+                    outcome: jig_domain_link::UsageOutcome::Failed {
+                        reason: jig_domain_link::SourceFailure::Unconfigured,
+                        detail: Box::new([]),
+                    },
+                }));
             }
             LinkDown::ReadList { read, endpoint, grant } => {
                 crate::sources::read(&mut domain.sources, env, read, endpoint, grant, out);

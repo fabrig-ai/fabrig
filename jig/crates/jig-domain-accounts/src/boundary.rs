@@ -42,6 +42,11 @@ pub enum Event {
         failure: crate::ReadFailure,
         at: Wall,
     },
+    /// A run's program reports a usage window through its live source (accounts.md, 3.7).
+    Usage {
+        source: u32,
+        window: jig_domain_link::UsageWindow,
+    },
     /// A usable host login reports through its live program source (accounts.md, 3.7).
     ProgramSaid {
         name: Box<[u8]>,

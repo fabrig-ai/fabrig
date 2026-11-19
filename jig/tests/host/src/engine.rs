@@ -208,13 +208,15 @@ impl Engine {
                 unreachable!("source scheduling has its own world")
             }
             Request::Up(
-                LinkUp::ListRead { .. }
+                LinkUp::UsageRead { .. }
+                | LinkUp::ListRead { .. }
                 | LinkUp::Draining
                 | LinkUp::Logins { .. }
                 | LinkUp::SignedOut { .. }
                 | LinkUp::Piece { .. }
                 | LinkUp::Activity { .. }
                 | LinkUp::Unauthorized { .. }
+                | LinkUp::Usage { .. }
                 | LinkUp::Limited { .. }
                 | LinkUp::AccountRefused { .. },
             ) => Vec::new(),

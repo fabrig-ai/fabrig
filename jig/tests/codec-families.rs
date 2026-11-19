@@ -132,7 +132,7 @@ pub const FAMILIES: &[Family] = &[
         name: "worker wire",
         root: "crates/jig-protocol-worker-wire",
         codec_root: "crates/jig-protocol-worker-wire",
-        schemas: &["schema/worker-wire-v17.schema"],
+        schemas: &["schema/worker-wire-v18.schema"],
         generated: &["src/generated/worker_wire.rs"],
     },
     Family {

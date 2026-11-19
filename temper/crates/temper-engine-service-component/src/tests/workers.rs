@@ -1281,6 +1281,7 @@ fn hello_for_loss_notes(worker: u32) -> jig_protocol_engine_workers::host::Outpu
         worker,
         channel: Token::new(7),
         hello: jig_domain_link::Hello {
+            reads_usage: true,
             jobs: Box::new([]),
             slots: 1,
             stop_bound: skein_lib::Duration::from_millis(100),

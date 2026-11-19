@@ -628,6 +628,15 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
                 out,
             );
         }
+        Event::UsageRead { .. } => {}
+        Event::Usage { channel, run, attempt, account, window } => call::credential_notice(
+            domain,
+            channel,
+            run,
+            attempt,
+            Request::Usage { run, attempt, account, window },
+            out,
+        ),
         Event::Limited { channel, run, attempt, account, reset } => call::credential_notice(
             domain,
             channel,

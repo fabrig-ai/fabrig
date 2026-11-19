@@ -12,10 +12,12 @@ fn assert_activity(record: LinkUp) {
         other @ (LinkUp::Ask { .. }
         | LinkUp::Draining
         | LinkUp::Piece { .. }
+        | LinkUp::UsageRead { .. }
         | LinkUp::ListRead { .. }
         | LinkUp::Logins { .. }
         | LinkUp::SignedOut { .. }
         | LinkUp::Unauthorized { .. }
+        | LinkUp::Usage { .. }
         | LinkUp::Limited { .. }
         | LinkUp::AccountRefused { .. }
         | LinkUp::Turn { .. }

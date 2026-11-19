@@ -1534,6 +1534,8 @@ fn fleet_new_work(event: &fleet::Event) -> bool {
         | fleet::Event::Loaded
         | fleet::Event::Grant { .. }
         | fleet::Event::Unauthorized { .. }
+        | fleet::Event::Usage { .. }
+        | fleet::Event::UsageRead { .. }
         | fleet::Event::Limited { .. }
         | fleet::Event::AccountRefused { .. }
         | fleet::Event::Hello { .. }
@@ -1579,6 +1581,7 @@ fn account_new_work(event: &accounts::Event) -> bool {
         | accounts::Event::SignOut { .. } => true,
         accounts::Event::ForgetProject { .. }
         | accounts::Event::Restore { .. }
+        | accounts::Event::Usage { .. }
         | accounts::Event::ProgramSaid { .. }
         | accounts::Event::ProgramTargets { .. }
         | accounts::Event::ProgramSignedOut { .. }

@@ -572,6 +572,7 @@ fn a_goal_interrupted_in_its_first_cut_keeps_its_parts_and_choice() {
         worker: 0,
         channel: skein_lib::Token::new(7),
         hello: jig_domain_link::Hello {
+            reads_usage: true,
             jobs: Box::new([]),
             bounds: jig_test_profile::fixtures::bounds(),
             stop_bound: skein_lib::Duration::from_millis(100),

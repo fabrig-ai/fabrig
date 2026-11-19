@@ -19,6 +19,7 @@ fn hello_endpoints(channel: Token, slots: u32, endpoints: &[u32]) -> Event {
         channel,
         worker: u32::from(channel == SECOND),
         hello: Hello {
+            reads_usage: true,
             slots,
             bounds: jig_domain_link::Bounds {
                 endpoints: endpoints.iter().map(|&endpoint| EndpointBound { endpoint, window: 0, output: 0 }).collect(),
