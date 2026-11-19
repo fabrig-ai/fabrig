@@ -116,20 +116,21 @@ fn the_forge_step_shows_choices_after_reset() {
     assert!(root.forge().playground().is_none());
     assert_eq!(d::address::print(root.pages().address()).as_ref(), b"/welcome?at=forge");
     for view in [f::page_view(&root), f::browser_page_view(&root)] {
-        assert_eq!(choice_cards(view.tree()), [b"Forgejo".as_slice(), b"GitHub"]);
+        assert_eq!(choice_cards(view.tree()), [b"Local".as_slice(), b"GitHub"]);
         let github = node(view.tree(), Role::Button, "Connect GitHub");
         let run = node(view.tree(), Role::Link, "Run on this machine");
         assert!(styled(view.tree(), run, crate::look::FLOW_PRIMARY));
         assert!(!styled(view.tree(), github, crate::look::FLOW_PRIMARY));
+        node(view.tree(), Role::Heading { level: 2 }, "Local");
         node(view.tree(), Role::Paragraph, FORGEJO_CARD);
         node(view.tree(), Role::Paragraph, "In this tab, on GitHub · about two minutes");
         assert!(f::find(view.tree(), Role::Link, b"Or connect your deployment").is_none());
-        assert!(f::find(view.tree(), Role::Dialog, b"Forgejo on this machine").is_none());
+        assert!(f::find(view.tree(), Role::Dialog, b"Local forge").is_none());
     }
     assert_eq!(press(&root, Role::Link, "Run on this machine"), d::Action::Pages(pages::Act::Go { address: SHEET }));
 }
 
-const FORGEJO_CARD: &str = "A forge of your own: temper starts it on this machine and manages it. \
+const FORGEJO_CARD: &str = "A forge of your own: temper starts Forgejo on this machine and manages it. \
     You can import existing repositories into it, from GitHub or elsewhere.";
 const SHEET: Address = Address::Welcome { step: Step::Forge { forge: Some(d::Choice::Owned) } };
 fn sheet_root() -> d::Domain {
@@ -155,19 +156,19 @@ fn the_sheet_opens_over_the_forge_choices() {
     let root = sheet_root();
     assert_eq!(d::address::print(root.pages().address()).as_ref(), b"/welcome?at=forge&forge=owned");
     for view in [f::page_view(&root), f::browser_page_view(&root)] {
-        assert_eq!(choice_cards(view.tree()), [b"Forgejo".as_slice(), b"GitHub"]);
+        assert_eq!(choice_cards(view.tree()), [b"Local".as_slice(), b"GitHub"]);
         assert_eq!(skein_ui::outline::check(view.tree()), None);
         let nodes = sheet(view.tree());
         assert!(nodes[0].styles.as_slice().contains(&crate::look::WELCOME_SHEET));
-        assert_eq!(nodes[0].name.as_deref(), Some(b"Forgejo on this machine".as_slice()));
-        assert_eq!(named(nodes, Role::Heading { level: 2 }), [b"Forgejo on this machine".as_slice()]);
+        assert_eq!(nodes[0].name.as_deref(), Some(b"Local forge".as_slice()));
+        assert_eq!(named(nodes, Role::Heading { level: 2 }), [b"Local forge".as_slice()]);
         assert_eq!(named(nodes, Role::Heading { level: 3 }), [b"Start it with".as_slice()]);
         assert_eq!(
             named(nodes, Role::Paragraph),
             [
-                b"temper starts it here and connects to it; you connect your model meanwhile.".as_slice(),
+                b"temper starts Forgejo here and connects to it; you connect your model meanwhile.".as_slice(),
                 b"A README and a starter CI check.",
-                b"Copied into your Forgejo from GitHub or another git host, to play around with. Nothing is sent back.",
+                b"Copied into your local forge from GitHub or another git host, to play around with. Nothing is sent back.",
                 "Your first project opens with no repository. Make or copy one later from temper’s UI, or adopt one you push yourself."
                     .as_bytes(),
             ]

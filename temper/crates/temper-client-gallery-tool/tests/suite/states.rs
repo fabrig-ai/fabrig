@@ -3015,6 +3015,10 @@ static HOLDS: [Holds; samples::N] = [
         parts: &[
             Part::Named { role: Role::Dialog, name: "Add a repository to Hello" },
             Part::Named { role: Role::ChoiceGroup, name: "A repository" },
+            Part::Named {
+                role: Role::Paragraph,
+                name: "Copied into your Forgejo from GitHub or another git host, to play around with. Nothing is sent back.",
+            },
             Part::Value { role: Role::TextField, name: "Organization", value: "work" },
             Part::Value { role: Role::TextField, name: "Name", value: "hello" },
             Part::Named { role: Role::Button, name: "Cancel" },
@@ -3694,7 +3698,7 @@ static HOLDS: [Holds; samples::N] = [
         heading: "Connect a forge",
         parts: &[
             Part::WelcomeFrame { box_note: false },
-            Part::Named { role: Role::Region, name: "Forgejo" },
+            Part::Named { role: Role::Region, name: "Local" },
             Part::Named { role: Role::Link, name: "Run on this machine" },
             Part::Named { role: Role::Region, name: "GitHub" },
             Part::Named { role: Role::Button, name: "Connect GitHub" },
@@ -3705,7 +3709,7 @@ static HOLDS: [Holds; samples::N] = [
         heading: "Connect a forge",
         parts: &[
             Part::WelcomeFrame { box_note: false },
-            Part::Named { role: Role::Dialog, name: "Forgejo on this machine" },
+            Part::Named { role: Role::Dialog, name: "Local forge" },
             Part::Named { role: Role::Choice, name: "An empty repository" },
             Part::Named { role: Role::TextField, name: "Organization" },
             Part::Named { role: Role::TextField, name: "Name" },
@@ -3717,7 +3721,7 @@ static HOLDS: [Holds; samples::N] = [
         heading: "Connect a forge",
         parts: &[
             Part::WelcomeFrame { box_note: false },
-            Part::Named { role: Role::Dialog, name: "Forgejo on this machine" },
+            Part::Named { role: Role::Dialog, name: "Local forge" },
             Part::Named { role: Role::Choice, name: "Copies of public repositories" },
             Part::Named { role: Role::TextArea, name: "Their addresses, one per line" },
             Part::Named { role: Role::Button, name: "Run on this machine" },
@@ -3728,7 +3732,7 @@ static HOLDS: [Holds; samples::N] = [
         heading: "Connect a forge",
         parts: &[
             Part::WelcomeFrame { box_note: false },
-            Part::Named { role: Role::Dialog, name: "Forgejo on this machine" },
+            Part::Named { role: Role::Dialog, name: "Local forge" },
             Part::Named { role: Role::Choice, name: "Copies of public repositories" },
             Part::Named {
                 role: Role::Alert,
@@ -3742,7 +3746,7 @@ static HOLDS: [Holds; samples::N] = [
         heading: "Connect a forge",
         parts: &[
             Part::WelcomeFrame { box_note: false },
-            Part::Named { role: Role::Dialog, name: "Forgejo on this machine" },
+            Part::Named { role: Role::Dialog, name: "Local forge" },
             Part::Named { role: Role::Choice, name: "Nothing for now" },
             Part::Named { role: Role::Button, name: "Run on this machine" },
         ],
@@ -3926,7 +3930,7 @@ static HOLDS: [Holds; samples::N] = [
         heading: "Connect a forge",
         parts: &[
             Part::Named { role: Role::Region, name: "GitHub" },
-            Part::Named { role: Role::Region, name: "Forgejo" },
+            Part::Named { role: Role::Region, name: "Local" },
             Part::Named { role: Role::Heading { level: 2 }, name: "Or a server of your own" },
             Part::Named { role: Role::Link, name: "Connect your Forgejo" },
             Part::Absent { role: Role::List, name: "Steps" },

@@ -3193,6 +3193,11 @@ fn home_add_sheet_keeps_choices_fields_cancel_escape_and_input_in_both_shells() 
             main_find(view.tree(), Role::Dialog, b"Add a repository to Shop");
             main_find(view.tree(), Role::Paragraph, b"Made or copied on your Forgejo, then in this project at once.");
             main_find(view.tree(), Role::ChoiceGroup, b"A repository");
+            main_find(
+                view.tree(),
+                Role::Paragraph,
+                b"Copied into your Forgejo from GitHub or another git host, to play around with. Nothing is sent back.",
+            );
             absent(&f::main_text(view.tree()), "Nothing for now");
             for (choice, name) in
                 [(Start::Empty, b"An empty repository".as_slice()), (Start::Copies, b"Copies of public repositories")]

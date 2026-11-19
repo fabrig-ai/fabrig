@@ -1075,6 +1075,7 @@ pub enum Word {
     HomeAddOther,
     HomeAddSheet,
     HomeAddSheetLead,
+    HomeAddCopiesDetail,
     HomeAddLegend,
     HomeAddIt,
     HomeMaking,
@@ -2277,7 +2278,7 @@ pub const SCRIPTED_MODEL: &[u8] = b"demo";
 // The composer picker replaces fourteen phrases with thirteen (client/pages/README.md).
 // Repository making rows use eight phrases and eighteen segments (client/pages/README.md).
 // Landing searches show the probe, both bounds and blamed prefixes (domain/landing-search.md, 8).
-const PHRASES: u32 = 2836;
+const PHRASES: u32 = 2837;
 // Settings and Needs you include their literal phrases (client/pages/README.md, client/pages/settings.md, 2).
 // Overturn adds its button and three toast phrases (client/pages/README.md).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -2304,10 +2305,10 @@ const PHRASES: u32 = 2836;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/pages/README.md).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 5268;
+const SEGMENTS: u32 = 5269;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 66686;
-const ALL: [Word; 2103] = [
+const ENGLISH_BYTES: u32 = 66786;
+const ALL: [Word; 2104] = [
     Word::WorkMilestoneLede,
     Word::MsGoals,
     Word::MsWhole,
@@ -3320,6 +3321,7 @@ const ALL: [Word; 2103] = [
     Word::HomeAddOther,
     Word::HomeAddSheet,
     Word::HomeAddSheetLead,
+    Word::HomeAddCopiesDetail,
     Word::HomeAddLegend,
     Word::HomeAddIt,
     Word::HomeMaking,
@@ -5464,6 +5466,7 @@ impl Word {
             Self::HomeAddOther => 3352,
             Self::HomeAddSheet => 3353,
             Self::HomeAddSheetLead => 3354,
+            Self::HomeAddCopiesDetail => 9961,
             Self::HomeAddLegend => 3355,
             Self::HomeAddIt => 3356,
             Self::HomeMaking => 3357,
@@ -7840,6 +7843,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::HomeAddOther => (&[b"Adopt another\xe2\x80\xa6"], &[]),
         Word::HomeAddSheet => (&[b"Add a repository to ", b""], &[Name]),
         Word::HomeAddSheetLead => (&[b"Made or copied on your Forgejo, then in this project at once."], &[]),
+        Word::HomeAddCopiesDetail => (&[b"Copied into your Forgejo from GitHub or another git host, to play around with. Nothing is sent back."], &[]),
         Word::HomeAddLegend => (&[b"A repository"], &[]),
         Word::HomeAddIt => (&[b"Add it"], &[]),
         Word::HomeMaking => (&[b"Making ", b"/", b"\xe2\x80\xa6"], &[Name, Name]),
@@ -7898,7 +7902,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ForgeStartOver => (&[b"Start over"], &[]),
         Word::ForgeGoOn => (&[b"Go on"], &[]),
         Word::ConnectGitHub => (&[b"GitHub"], &[]),
-        Word::ConnectOwned => (&[b"Forgejo on this machine"], &[]),
+        Word::ConnectOwned => (&[b"Local forge"], &[]),
         Word::ConnectManaged => (&[b"Your Forgejo"], &[]),
         Word::ConnectHow => (&[b"How temper connects"], &[]),
         Word::ConnectAdminWay => (&[b"As its admin"], &[]),
@@ -7952,18 +7956,18 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::GitHubReadNotFound => (&[b"GitHub no longer has this installation: install the App again."], &[]),
         Word::GitHubReadReload => (&[b"Reload this page to try again."], &[]),
         Word::GitHubRepositories => (&[b"Repositories"], &[]),
-        Word::WelcomeForgejo => (&[b"Forgejo"], &[]),
+        Word::WelcomeForgejo => (&[b"Local"], &[]),
         Word::WelcomeForgejoDescription => (
-            &[b"A forge of your own: temper starts it on this machine and manages it. You can import existing repositories into it, from GitHub or elsewhere."],
+            &[b"A forge of your own: temper starts Forgejo on this machine and manages it. You can import existing repositories into it, from GitHub or elsewhere."],
             &[],
         ),
         Word::WelcomeForgejoRun => (&[b"Run on this machine"], &[]),
-        Word::WelcomeForgejoLead => (&[b"temper starts it here and connects to it; you connect your model meanwhile."], &[]),
+        Word::WelcomeForgejoLead => (&[b"temper starts Forgejo here and connects to it; you connect your model meanwhile."], &[]),
         Word::WelcomeForgejoStartWith => (&[b"Start it with"], &[]),
         Word::WelcomeForgejoEmpty => (&[b"An empty repository"], &[]),
         Word::WelcomeForgejoEmptyDetail => (&[b"A README and a starter CI check."], &[]),
         Word::WelcomeForgejoCopies => (&[b"Copies of public repositories"], &[]),
-        Word::WelcomeForgejoCopiesDetail => (&[b"Copied into your Forgejo from GitHub or another git host, to play around with. Nothing is sent back."], &[]),
+        Word::WelcomeForgejoCopiesDetail => (&[b"Copied into your local forge from GitHub or another git host, to play around with. Nothing is sent back."], &[]),
         Word::WelcomeForgejoAddresses => (&[b"Their addresses, one per line"], &[]),
         Word::WelcomeForgejoAddressHint => (&[b"github.com/owner/name"], &[]),
         Word::WelcomeForgejoNothing => (&[b"Nothing for now"], &[]),
