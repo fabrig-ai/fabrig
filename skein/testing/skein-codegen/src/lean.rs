@@ -105,19 +105,14 @@ fn limits(context: &Context<'_>, out: &mut String) {
         line(out, "        values");
     }
     line(out, "    }\n}\n");
-    expectation(out, bounds.len().checked_add(2).expect("source length"));
-    let arg = if bounds.is_empty() { "_limits" } else { "limits" };
-    line(out, &format!("pub fn check_limits({arg}: &Limits) -> Result<(), Problem> {{"));
-    for (name, _, path) in bounds {
-        line(
-            out,
-            &format!(
-                "    if limits.{name} > CEILINGS.{name} {{ return Err(Problem {{ path: paths::{}, reason: skein_codec::Reason::Bound }}); }}",
-                constant(path)
-            ),
-        );
+    line(out, "const LIMIT_PATHS: &[Path] = &[");
+    for (_, _, path) in bounds {
+        line(out, &format!("    paths::{},", constant(path)));
     }
-    line(out, "    Ok(())\n}\n");
+    line(
+        out,
+        "];\n\npub fn check_limits(limits: &Limits) -> Result<(), Problem> {\n    for ((value, ceiling), path) in limits.values().as_slice().iter().zip(CEILING_VALUES).zip(LIMIT_PATHS) {\n        if value > ceiling {\n            return Err(path.problem(skein_codec::Reason::Bound));\n        }\n    }\n    Ok(())\n}\n",
+    );
 }
 
 fn shape(context: &Context<'_>, ty: &Type, bound: &str) -> String {

@@ -5,8 +5,26 @@ use crate::{Path, Problem, Reason, Record, read_count, read_len, text_is_valid};
 use alloc::boxed::Box;
 use skein_lib::{Duration, List, Reader, Secret, Writer};
 
+mod sealed {
+    pub trait Sealed {}
+
+    impl Sealed for super::U8 {}
+    impl Sealed for super::U16 {}
+    impl Sealed for super::U32 {}
+    impl Sealed for super::U64 {}
+    impl Sealed for super::Boolean {}
+    impl Sealed for super::Span {}
+    impl<const N: usize> Sealed for super::Fixed<N> {}
+    impl Sealed for super::Bytes {}
+    impl Sealed for super::Hidden {}
+    impl Sealed for super::Text {}
+    impl Sealed for super::Nested {}
+    impl<F: Sealed> Sealed for super::Sequence<F> {}
+    impl<F: Sealed> Sealed for super::Optional<F> {}
+}
+
 /// A shape's typed operations, shared by the generic composition helpers.
-pub trait Field<L, T> {
+pub trait Field<L, T>: sealed::Sealed {
     fn write(&self, value: &T, limits: &L, out: &mut Writer, path: Path<L>) -> Result<(), Problem<L>>;
     fn read(&self, limits: &L, reader: &mut Reader<'_>, path: Path<L>) -> Result<T, Problem<L>>;
 }
