@@ -780,6 +780,10 @@ The `ask-temper-ways` request's hand-made `ask-temper-ways/01.html`
 through `04.html` are not journeys to reprint or land (section 7): no
 journey reaches the ways, and the gallery draws them and the states its
 message names in words (`gallery.md`, 2, the `ask-ways-*` states).
+So are the `ways-shown` request's hand-made `ways-shown/review-*.html`
+and `approve-*.html`, from a browser recording: the gallery draws their
+states, `ask-first-run`, `ask-ways-menu`, `ask-ways-approve` and
+`ask-ways-approve-menu`, and How work runs' `how` and `how-menu`.
 
 The `bundle-loading` request's hand-made `bundle-loading/01.html` through
 `04.html` are not journeys to reprint or land (section 7): they draw the
