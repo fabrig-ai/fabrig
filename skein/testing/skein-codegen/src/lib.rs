@@ -21,11 +21,13 @@ mod largest;
 mod lean;
 mod parse;
 pub mod patch;
+mod values;
 
 pub use constructs::{CONSTRUCTS, Construct, Kind, constructs, missing, unpinned};
 pub use emit_limits::{pascal, snake};
 pub use largest::{largest, roots};
 pub use parse::{Error, parse};
+pub use values::{Values, values};
 
 /// One schema version of a family.
 #[derive(Clone, Debug, PartialEq, Eq)]
