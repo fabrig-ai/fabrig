@@ -36,6 +36,13 @@ LEAK_S = 0.1
 EVENT = 'tiers-one-process: '
 
 
+def default_lanes():
+    """Count affinity CPUs, else machine CPUs, else one (tools/tiers/design.md, 11.4)."""
+    if hasattr(os, 'sched_getaffinity'):
+        return len(os.sched_getaffinity(0))
+    return os.cpu_count() or 1
+
+
 def filterset(expression):
     """Compile precisely the filterset subset in design.md, 11.3."""
     position = 0
@@ -681,7 +688,7 @@ class BinaryProcess:
 
 
 def lanes(plan):
-    count = plan['lanes'] or len(os.sched_getaffinity(0))
+    count = plan['lanes'] or default_lanes()
     jobs = split_jobs(plan, count)
     active, processes = [], plan.get('process_offset', 0)
     cancelled, first, kill_at = None, plan.get('first_start'), None
@@ -1040,7 +1047,7 @@ def execute_plan(plan, prefix, env, directory, limits, *, no_tests='fail', outpu
     reasons = {(binary, name): why for binary, name, why in picks}
     reference_indices, empty_indices = {}, {}
     starts, active = {}, set()
-    lane_count = plan['lanes'] or len(os.sched_getaffinity(0))
+    lane_count = plan['lanes'] or default_lanes()
     code, kill_at = None, None
     wall_starved = False
     forced_at, cancelled_at = None, None

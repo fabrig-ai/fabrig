@@ -17,6 +17,7 @@ or builds, temporary directories inside the checkout, under 60 seconds).
   or validate JUnit using explicit paths. `report` reads the JSON `PARTS` list,
   accepts flat files or `gh run download`'s `part-PART/PART.xml` directories, and
   copies the full part files beside the failure-only report. A fault exits 2.
+- `wasm-compiler`: check Homebrew's newest LLVM targets wasm32 and export its target-only C tools.
 - `setup-runner`, `annotate`: keep each check's log and annotate failures; the
   runner preserves the command's exit status.
 - `install`, `build`, `fetch-forge`, `run`, `verdict`, `prune`: the jobs' common

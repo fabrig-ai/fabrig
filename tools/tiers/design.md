@@ -10,6 +10,14 @@ Provisional, 2026-10-29. Run one tree's slow tier with its prerequisites.
   using the pair's sorted package names from `tools/tiers/packages.toml`,
   followed by the extra arguments unchanged. The map is generated from the
   packages with selected tests in each profile's workspace JSON listing.
+- **A build alone takes no run's flag:** where the extra arguments hold
+  `--no-run`, the runner builds the pair's prerequisites and test
+  binaries and runs `cargo nextest run -p PKG ... --profile TIER-TREE`
+  with them, without `--no-fail-fast`, which nextest refuses beside
+  `--no-run`. The flag is the runner's own, so the runner drops it; the
+  caller's arguments still pass unchanged, and a run that executes its
+  tests takes the flag as before. The macOS workflow builds each pair so
+  (`temper/docs/design/testing/macos.md`, 4.3).
 - **The config owns the pairs:** the root `.config/nextest.toml` profile
   tables whose names contain a hyphen supply the pairs, split at the last
   hyphen into tier and tree. Unknown pairs and pairs missing a valid package
@@ -1136,8 +1144,14 @@ processes, and report each event as one line of their stdout beginning
 and is forwarded. The lanes write no file but those named pipes, which hold
 nothing.
 
-- **As many lanes as CPUs:** `len(os.sched_getaffinity(0))` where the lanes
-  run, which is nextest's default number of test threads.
+- **As many lanes as CPUs:** the CPUs the lanes may use where they run,
+  which is nextest's default number of test threads: the process's
+  affinity, `len(os.sched_getaffinity(0))`, where Python's `os` has it,
+  as on Linux; elsewhere, as on macOS, which has no affinity call, the
+  machine's usable CPUs, `os.cpu_count()`, the count nextest takes there;
+  and one lane where neither answers. A plan that fixes its lanes, as
+  `--again`'s one (11.9), keeps them. `run.json`'s `lanes` records the
+  count either way (11.8).
 - **Longest first.** A binary's estimate is the sum of its tests' kept wall
   times (11.8); a test with none counts the mean kept time per test of the
   selection, and with none kept anywhere every test counts 1, so binaries
