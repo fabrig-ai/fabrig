@@ -8,7 +8,7 @@ use crate::{
         Bindings, Meaning,
         words::{self, Word as W},
     },
-    words::Words,
+    words::{Times, Words},
 };
 use alloc::boxed::Box;
 use jig_client::contract as c;
@@ -19,6 +19,7 @@ use temper_client_domain::{
     pages::accounts::{self, Act, Operation, Row, SignInState, Way},
 };
 
+#[expect(clippy::too_many_arguments, reason = "the row borrows its account, bindings and page clock")]
 pub(super) fn own(
     b: &mut Builder,
     root: &Domain,
@@ -27,6 +28,7 @@ pub(super) fn own(
     account: &c::AccountLine,
     neighbours: (bool, bool),
     text_bytes: u32,
+    times: &mut Times,
 ) {
     draw(
         b,
@@ -40,6 +42,7 @@ pub(super) fn own(
         account.provider_name.as_ref(),
         &account.display,
         account.email(),
+        &account.facts,
         account.holder,
         account.plan,
         account.uses.as_ref(),
@@ -49,8 +52,10 @@ pub(super) fn own(
         None,
         account.cut,
         text_bytes,
+        times,
     );
 }
+#[expect(clippy::too_many_arguments, reason = "the row borrows its account, bindings and page clock")]
 pub(super) fn deployment(
     b: &mut Builder,
     root: &Domain,
@@ -59,6 +64,7 @@ pub(super) fn deployment(
     account: &c::Account,
     neighbours: (bool, bool),
     text_bytes: u32,
+    times: &mut Times,
 ) {
     draw(
         b,
@@ -72,6 +78,7 @@ pub(super) fn deployment(
         account.provider_name.as_ref(),
         &account.display,
         account.email(),
+        &account.facts,
         account.holder,
         account.plan,
         account.uses.as_ref(),
@@ -81,6 +88,7 @@ pub(super) fn deployment(
         Some(&account.waiting),
         account.cut,
         text_bytes,
+        times,
     );
 }
 #[expect(
@@ -100,6 +108,7 @@ fn draw(
     provider_text: Option<&c::DocumentText>,
     display: &c::DocumentText,
     email: Option<&[u8]>,
+    facts: &List<c::AccountFact>,
     holder: c::AccountHolder,
     plan: bool,
     uses: Option<&List<c::AccountUse>>,
@@ -109,6 +118,7 @@ fn draw(
     waiting: Option<&List<c::Chip>>,
     cut: bool,
     text_bytes: u32,
+    times: &mut Times,
 ) {
     if playground(root, provider) {
         return;
@@ -149,6 +159,7 @@ fn draw(
         &use_line,
     ]);
     b.description(&summary);
+    super::usage::draw(b, w, facts, times);
     let Some(page) = root.pages().accounts() else {
         b.close();
         return;

@@ -9,10 +9,11 @@ use crate::{
         Bindings, Meaning,
         words::{self, Word as W},
     },
-    words::Words,
+    words::{Times, Words},
 };
 use alloc::boxed::Box;
 mod rows;
+mod usage;
 use jig_client::contract as c;
 use skein_ui::{Builder, Role, Run, State, phrases::Hole};
 use temper_client_domain::{
@@ -236,6 +237,7 @@ pub(super) fn refused(b: &mut Builder, w: &Words, refusal: c::AccountRefusal) {
     run(b, w, word);
 }
 #[expect(clippy::too_many_lines, reason = "account lists retain their full order when drawing bounded rows")]
+#[expect(clippy::too_many_arguments, reason = "the page borrows its bindings and clock from the composed view")]
 pub fn main(
     b: &mut Builder,
     root: &Domain,
@@ -244,6 +246,7 @@ pub fn main(
     pages: &mut crate::bindings::Bindings,
     project: Option<u32>,
     text_per_node: u32,
+    times: &mut Times,
 ) {
     b.open(Role::Main);
     b.style(look::MAIN);
@@ -297,7 +300,16 @@ pub fn main(
                     continue;
                 }
                 let next = shown.checked_add(1).expect("displayed rows fit");
-                rows::own(b, root, w, bindings, row, (shown != 0, u64::from(next) < count || doc.cut), text_per_node);
+                rows::own(
+                    b,
+                    root,
+                    w,
+                    bindings,
+                    row,
+                    (shown != 0, u64::from(next) < count || doc.cut),
+                    text_per_node,
+                    times,
+                );
                 shown = next;
             }
             b.close();
@@ -330,6 +342,7 @@ pub fn main(
                 row,
                 (index != 0, next < doc.accounts.len() || doc.cut),
                 text_per_node,
+                times,
             );
         }
         b.close();

@@ -3912,6 +3912,57 @@ fn activity(w: World, task: u64) -> c::ActivityPage {
     }
     c::ActivityPage { rows, after: None, before: None, cut: false }
 }
+/// Held facts for the usage gallery; no account read is simulated (client/pages/accounts.md, 2, Usage).
+pub(super) fn account_usage(doc: &mut c::Accounts, name: &str, now: Wall) {
+    doc.accounts.truncate(1);
+    let account = doc.accounts.get_mut(0).expect("reference Claude account");
+    account.plan = true;
+    account.display = self::doc("");
+    account.manage_usage = Some(Box::from(b"https://claude.ai/settings/usage".as_slice()));
+    account.sources.truncate(1);
+    account.facts = List::with_capacity(3);
+    account
+        .facts
+        .push(c::AccountFact {
+            kind: c::FACT_EMAIL,
+            label: Box::new([]),
+            value: c::AccountFactValue::Text(Box::from(b"sam@example.com".as_slice())),
+            seen: now,
+            source: Some(1),
+            origin: 5,
+        })
+        .expect("sample email");
+    let windows: &[(&[u8], u64, u64, u16, u16)] = match name {
+        "accounts-usage-filling" => &[(b"seven_day", 168, 48 * 60, 8300, 1), (b"five_hour", 5, 120, 7500, 1)],
+        "accounts-usage-calm" => &[(b"seven_day", 168, 48 * 60, 4200, 1), (b"five_hour", 5, 60, 1000, 1)],
+        "accounts-usage-limited" => &[(b"five_hour", 5, 40, 10000, c::WINDOW_LIMITED)],
+        "accounts-usage" => &[(b"seven_day", 168, 110 * 60, 2900, 1)],
+        other => panic!("not a usage sample: {other}"),
+    };
+    for &(label, hours, remaining, used, state) in windows {
+        account
+            .facts
+            .push(c::AccountFact {
+                kind: c::FACT_USAGE,
+                label: Box::from(label),
+                value: c::AccountFactValue::Window(c::AccountWindow {
+                    length: Some(skein_lib::Duration::from_secs(hours.checked_mul(3600).expect("sample hours"))),
+                    used: Some(used),
+                    resets: Some(Wall::from_nanos(
+                        now.as_nanos()
+                            .checked_add(remaining.checked_mul(60_000_000_000).expect("sample minutes"))
+                            .expect("future sample reset"),
+                    )),
+                    state,
+                }),
+                seen: now,
+                source: Some(1),
+                origin: 5,
+            })
+            .expect("sample usage");
+    }
+}
+
 #[expect(clippy::too_many_lines, reason = "literal account and source facts from the mockup worlds")]
 pub(super) fn accounts(w: World, then: Then) -> c::Accounts {
     let mut rows = List::with_capacity(2);

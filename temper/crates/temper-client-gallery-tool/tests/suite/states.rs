@@ -4939,6 +4939,47 @@ static HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
+        name: "accounts-usage",
+        heading: "What agents run on.",
+        parts: &[
+            Part::Named { role: Role::Group, name: "Usage" },
+            Part::Named { role: Role::Meter, name: "Week" },
+            Part::Text { text: "29% used" },
+            Part::Text { text: "resets in 4 d 14 h · 0.5%/h · about 84% at reset" },
+            Part::Absent { role: Role::Meter, name: "5 h" },
+        ],
+    },
+    Holds {
+        name: "accounts-usage-filling",
+        heading: "What agents run on.",
+        parts: &[
+            Part::Named { role: Role::Meter, name: "5 h" },
+            Part::Named { role: Role::Meter, name: "Week" },
+            Part::Text { text: "full in 1 h" },
+            Part::Text { text: "83% used" },
+            Part::Text { text: "full in 1 d" },
+        ],
+    },
+    Holds {
+        name: "accounts-usage-calm",
+        heading: "What agents run on.",
+        parts: &[
+            Part::Named { role: Role::Meter, name: "Week" },
+            Part::Text { text: "resets in 2 d · 0.4%/h · about 59% at reset" },
+            Part::Absent { role: Role::Meter, name: "5 h" },
+        ],
+    },
+    Holds {
+        name: "accounts-usage-limited",
+        heading: "What agents run on.",
+        parts: &[
+            Part::Named { role: Role::Meter, name: "5 h" },
+            Part::Text { text: "100% used" },
+            Part::Text { text: "resets in 40 min" },
+            Part::Absent { role: Role::Meter, name: "Week" },
+        ],
+    },
+    Holds {
         name: "accounts-expiring",
         heading: "What agents run on.",
         parts: &[

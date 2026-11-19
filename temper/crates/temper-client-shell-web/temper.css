@@ -3044,6 +3044,21 @@ button.temper-sheet-link { border: 0; background: none; padding: 0; cursor: poin
 .temper-settings-row .temper-flow-card h2 { margin: 0; font: 500 15px/1.6 var(--gf-sans); letter-spacing: normal; }
 
 
+/* accounts-usage: held windows in the folded head. */
+#app > .temper-settings .temper-settings-row > summary > .temper-usage { display: grid; gap: 4px; margin-top: 10px; }
+#app > .temper-settings .temper-usage-window { display: grid; grid-template-columns: 40px 120px 36px minmax(0, 1fr); align-items: center; column-gap: 12px; font-size: 13px; line-height: 1.6; color: var(--gf-muted); font-variant-numeric: tabular-nums; }
+#app > .temper-settings .temper-usage-bar { height: 4px; border-radius: 2px; background: linear-gradient(to right, var(--gf-ink-2) 0 var(--skein-ui-progress, 0%), var(--gf-line) var(--skein-ui-progress, 0%) 100%); }
+#app > .temper-settings .temper-usage-bar { font-size: 0; overflow: hidden; }
+#app > .temper-settings .temper-usage-window.temper-usage-warned > .temper-usage-bar { background: linear-gradient(to right, var(--temper-amber) 0 var(--skein-ui-progress, 0%), var(--gf-line) var(--skein-ui-progress, 0%) 100%); }
+#app > .temper-settings .temper-usage-window.temper-usage-limited > .temper-usage-bar { background: var(--temper-red); }
+#app > .temper-settings .temper-usage-used { text-align: right; color: var(--gf-ink); }
+#app > .temper-settings .temper-usage-pace { min-width: 0; color: var(--gf-faint); }
+#app > .temper-settings .temper-usage-fills { color: var(--temper-amber); }
+@media (max-width: 760px) {
+  #app > .temper-settings .temper-usage-window { grid-template-columns: 40px minmax(0, 1fr) 36px; }
+  #app > .temper-settings .temper-usage-pace { grid-column: 2 / -1; }
+}
+
 /* accounts-usage: the check line, named uses and quiet acts. */
 #app > .temper-settings .temper-settings-row > .temper-account-check, #app > .temper-settings .temper-settings-row > .temper-account-pays { font-size: 13.5px; color: var(--gf-muted); }
 #app > .temper-settings .temper-settings-row :is(button, a), #app > .temper-settings .temper-settings-row li > :is(button, a),

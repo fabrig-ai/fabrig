@@ -2216,3 +2216,120 @@ fn the_old_chrome_is_gone() {
     assert_no_old_chrome(&owner_root().0);
     assert_no_old_chrome(&fixtures::playground_root(d::Address::Accounts, fixtures::PROJECT, true));
 }
+
+fn usage_text(tree: &skein_ui::Tree, id: skein_ui::NodeId) -> Box<[u8]> {
+    fixtures::node_text(tree, tree.nodes().iter().position(|node| node.id == id).unwrap())
+}
+fn usage_fact(label: &[u8], hours: u64, remaining: u64, used: u16, state: u16) -> c::AccountFact {
+    c::AccountFact {
+        kind: c::FACT_USAGE,
+        label: Box::from(label),
+        value: c::AccountFactValue::Window(c::AccountWindow {
+            length: Some(skein_lib::Duration::from_secs(hours.checked_mul(3600).unwrap())),
+            used: Some(used),
+            resets: Some(skein_lib::Wall::from_nanos(
+                fixtures::NOW.as_nanos().checked_add(remaining.checked_mul(60_000_000_000).unwrap()).unwrap(),
+            )),
+            state,
+        }),
+        seen: fixtures::NOW,
+        source: None,
+        origin: 5,
+    }
+}
+
+#[test]
+fn held_usage_is_in_each_holders_folded_head_and_the_terminal() {
+    use crate::look;
+    use skein_ui::{Fraction, State};
+    const PACE: &str = "resets in 4 d 14 h · 0.5%/h · about 84% at reset";
+    const LINE: &str = "Week: 29% used · resets in 4 d 14 h · 0.5%/h · about 84% at reset";
+    for deployment in [false, true] {
+        let (mut root, deployment_watch, own_watch) = owner_root_with_accounts();
+        let facts = List::from_boxed(Box::new([usage_fact(b"seven_day", 168, 110 * 60, 2900, 1)]));
+        let mut own = card_document(b"anthropic", b"Pat", c::AccountKind::Program);
+        let mut shared = root.pages().accounts().unwrap().deployment(root.client()).unwrap().clone();
+        shared.accounts.truncate(1);
+        if deployment {
+            own.accounts.clear();
+            let account = shared.accounts.get_mut(0).unwrap();
+            account.provider_name = Some(text(b"anthropic"));
+            account.provider = Some(PROVIDER);
+            account.facts = facts;
+        } else {
+            shared.accounts.clear();
+            own.accounts.get_mut(0).unwrap().facts = facts;
+        }
+        deliver(&mut root, own_watch, own);
+        deliver_deployment(&mut root, deployment_watch, shared);
+        let browser = fixtures::browser_page_view(&root);
+        let tree = browser.tree();
+        let row = account_nodes(tree);
+        assert_eq!(row[1].role, Role::Group);
+        assert_eq!(row[1].name.as_deref(), Some(b"Usage".as_slice()));
+        assert!(row[1].styles.as_slice().contains(&look::USAGE));
+        assert!(row[1].states.as_slice().contains(&State::ShownFolded));
+        let window = &row[2];
+        assert_eq!(window.role, Role::Group);
+        assert!(window.styles.as_slice().contains(&look::USAGE_WINDOW));
+        let mut children = Vec::new();
+        let mut rest = &row[3..2 + usize::try_from(window.size).unwrap()];
+        while let Some(child) = rest.first() {
+            children.push(child);
+            rest = &rest[usize::try_from(child.size).unwrap()..];
+        }
+        assert_eq!(children.len(), 4);
+        assert_eq!(children[0].role, Role::Text);
+        assert_eq!(usage_text(tree, children[0].id).as_ref(), b"Week");
+        assert!(children[0].styles.as_slice().contains(&look::USAGE_NAME));
+        assert_eq!(children[1].role, Role::Meter);
+        assert_eq!(children[1].name.as_deref(), Some(b"Week".as_slice()));
+        assert_eq!(children[1].fraction, Some(Fraction { done: 2900, total: 10000 }));
+        assert_eq!(usage_text(tree, children[1].id).as_ref(), b"29% used");
+        assert!(children[1].styles.as_slice().contains(&look::USAGE_BAR));
+        assert_eq!(children[2].role, Role::Text);
+        assert_eq!(usage_text(tree, children[2].id).as_ref(), b"29%");
+        assert!(children[2].styles.as_slice().contains(&look::USAGE_USED));
+        assert!(children[3].styles.as_slice().contains(&look::USAGE_PACE));
+        assert_eq!(usage_text(tree, children[3].id).as_ref(), PACE.as_bytes());
+        assert_eq!(browser.next_change(), Some(skein_lib::Wall::from_nanos(60_000_000_000)));
+        let mut terminal = fixtures::page_view(&root);
+        let tree = terminal.tree();
+        let paragraph = fixtures::find(tree, Role::Paragraph, LINE.as_bytes()).expect("one paragraph per window");
+        assert_eq!(usage_text(tree, paragraph).as_ref(), LINE.as_bytes());
+        assert!(!tree.nodes().iter().any(|node| node.role == Role::Meter));
+        let mut print = skein_ui_text::Print::new(&terminal.limits().tree).unwrap();
+        skein_ui_text::render(tree, b"temper", None, &mut print);
+        assert!(String::from_utf8_lossy(print.text.as_slice()).contains(LINE));
+        assert_eq!(terminal.next_change(), Some(skein_lib::Wall::from_nanos(60_000_000_000)));
+        let mut patches = skein_lib::Queue::with_capacity(terminal.limits().tree.patches);
+        crate::build(&mut terminal, &root, skein_lib::Wall::from_nanos(90_000_000_000), &mut patches);
+        assert_eq!(terminal.next_change(), Some(skein_lib::Wall::from_nanos(120_000_000_000)));
+    }
+}
+
+#[test]
+fn usage_warns_limits_and_disappears_when_no_window_is_held() {
+    use crate::look;
+    let (mut root, watch) = fixtures::account_root();
+    let mut doc = card_document(b"anthropic", b"Pat", c::AccountKind::Program);
+    doc.accounts.get_mut(0).unwrap().facts = List::from_boxed(Box::new([
+        usage_fact(b"seven_day", 168, 48 * 60, 8300, 1),
+        usage_fact(b"five_hour", 5, 40, 10000, c::WINDOW_LIMITED),
+    ]));
+    deliver(&mut root, watch, doc);
+    let view = fixtures::browser_page_view(&root);
+    let tree = view.tree();
+    let windows: Vec<_> = tree.nodes().iter().filter(|n| n.styles.as_slice().contains(&look::USAGE_WINDOW)).collect();
+    assert_eq!(windows.len(), 2);
+    assert!(windows[0].styles.as_slice().contains(&look::USAGE_LIMITED));
+    assert!(windows[1].styles.as_slice().contains(&look::USAGE_WARNED));
+    let fills = tree.nodes().iter().find(|n| n.styles.as_slice().contains(&look::USAGE_FILLS)).unwrap();
+    assert_eq!(usage_text(tree, fills.id).as_ref(), b"full in 1 d");
+    let limited = super::inbox::subtree(tree, tree.nodes().iter().position(|n| n.id == windows[0].id).unwrap());
+    assert!(!limited.iter().any(|n| n.styles.as_slice().contains(&look::USAGE_FILLS)));
+    deliver(&mut root, watch, card_document(b"openai", b"Pat", c::AccountKind::SignIn));
+    let view = fixtures::browser_page_view(&root);
+    assert!(!view.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&look::USAGE)));
+    assert!(view.next_change().is_none());
+}

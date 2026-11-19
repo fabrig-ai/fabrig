@@ -52,6 +52,16 @@ pub const ACCOUNT_REMOVE: Style = Style { owner: owner(), token: 834 };
 pub const ACCOUNT_MOVE: Style = Style { owner: owner(), token: 835 };
 pub const ACCOUNT_UP: Style = Style { owner: owner(), token: 836 };
 pub const ACCOUNT_DOWN: Style = Style { owner: owner(), token: 837 };
+/// Held usage windows (client/pages/accounts.md, 2, Usage).
+pub const USAGE: Style = Style { owner: owner(), token: 846 };
+pub const USAGE_WINDOW: Style = Style { owner: owner(), token: 847 };
+pub const USAGE_NAME: Style = Style { owner: owner(), token: 848 };
+pub const USAGE_BAR: Style = Style { owner: owner(), token: 849 };
+pub const USAGE_USED: Style = Style { owner: owner(), token: 850 };
+pub const USAGE_PACE: Style = Style { owner: owner(), token: 851 };
+pub const USAGE_FILLS: Style = Style { owner: owner(), token: 852 };
+pub const USAGE_WARNED: Style = Style { owner: owner(), token: 853 };
+pub const USAGE_LIMITED: Style = Style { owner: owner(), token: 854 };
 
 /// The goal column (client/web/look.md).
 pub const GOAL: Style = Style { owner: owner(), token: 377 };
@@ -719,6 +729,10 @@ pub const SETTINGS: Style = Style { owner: owner(), token: 230 };
 /// Native browser elements for the admin group, Model’s definition list and
 /// the welcome sheet's choices.
 pub const ELEMENTS: &[(skein_ui::Owner, skein_ui::Role, Style, &str)] = &[
+    (owner(), skein_ui::Role::Group, USAGE, "span"),
+    (owner(), skein_ui::Role::Group, USAGE_WINDOW, "span"),
+    (owner(), skein_ui::Role::Group, USAGE_PACE, "span"),
+    (owner(), skein_ui::Role::Meter, USAGE_BAR, "span"),
     (owner(), skein_ui::Role::Text, SETTINGS_DETAIL, "small"),
     (owner(), skein_ui::Role::Region, SETTINGS_PROPOSAL, "article"),
     (owner(), skein_ui::Role::ChoiceGroup, SHEET_FIELDSET, "fieldset"),
@@ -1628,6 +1642,21 @@ pub const NAMES: Names<'static> = Names {
         b"temper-reserved-843",
         b"temper-reserved-844",
         b"temper-reserved-845",
+        b"temper-usage",
+        b"temper-usage-window",
+        b"temper-usage-name",
+        b"temper-usage-bar",
+        b"temper-usage-used",
+        b"temper-usage-pace",
+        b"temper-usage-fills",
+        b"temper-usage-warned",
+        b"temper-usage-limited",
+        b"temper-reserved-855",
+        b"temper-reserved-856",
+        b"temper-reserved-857",
+        b"temper-reserved-858",
+        b"temper-reserved-859",
+        b"temper-reserved-860",
     ],
     regions: &[b"temper-link"],
 };
