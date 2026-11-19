@@ -388,7 +388,10 @@ child, signed in by the link the box hands it on a pipe, the welcome
 following the box's start and then the browser's steps, "Signed in as
 the owner" from the forges document's `linked`, the playground's header
 and quiet line, a quit that asks while work runs and stops the box,
-showing it stopping, and the box's state and `/log`; `temper-box` alone
+showing it stopping, the box's state and `/log`, and `/web`, which
+opens temper in the browser by the box's printed link while it is
+live and the web's Home once a browser signed in by it, the link in a
+note to copy where no browser opens; `temper-box` alone
 runs the box with no TUI (`client/tui/box.md`; `client/box-binary.md`;
 `protocol/setup/box.md`, 6). Its journey waits
 for `again` to start the box in the pseudo-terminal

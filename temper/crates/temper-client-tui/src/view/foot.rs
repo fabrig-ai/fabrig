@@ -20,7 +20,7 @@ use temper_client_view_words::words::Word as Shared;
 
 pub(crate) mod lists;
 mod notes;
-pub(crate) use notes::{Notes, draw_notes, read_notes};
+pub(crate) use notes::{Notes, draw_link_note, draw_notes, draw_other_notes, read_notes};
 
 #[derive(Debug)]
 #[expect(clippy::struct_excessive_bools, reason = "independent view facts read from the root, not a lifecycle")]
