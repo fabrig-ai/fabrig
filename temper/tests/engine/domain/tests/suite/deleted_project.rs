@@ -430,6 +430,7 @@ fn setting_is(edit: &forge::settings::Edit, repository: Repository) -> bool {
 }
 
 // Exhaustive, deliberately independent of the production release's list.
+#[expect(clippy::too_many_lines, reason = "the independent repository predicate exhausts every stored record kind")]
 fn names_repository(row: (&Key, &Record), repository: Repository) -> bool {
     let (key, record) = row;
     if let Key::Forge(key) = key
