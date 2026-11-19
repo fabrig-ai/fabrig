@@ -84,6 +84,8 @@ pub enum Op {
     Fetch { at: Place, store: Token, remote: Box<[u8]>, want: Want, into: Into, identity: u32, account: Option<u64> },
     /// Point a repository reference at a commit already present. Ends in `Succeeded`.
     Point { at: Place, into: Into, commit: Commit },
+    /// Count and repack the store, then the repository (protocol/git.md, 4.13).
+    Pack { at: Place, store: Option<Token> },
     /// Create `branch` on the forge at `commit`, only if it does not exist:
     /// a branch that does is left where it is, and the operation ends in
     /// `Exists`.
@@ -278,6 +280,7 @@ pub enum Kind {
     Clone,
     Fetch,
     Point,
+    Pack,
     Create,
     CheckOut,
     Merge,
@@ -300,6 +303,7 @@ impl Op {
             Op::Clone { .. } => Kind::Clone,
             Op::Fetch { .. } => Kind::Fetch,
             Op::Point { .. } => Kind::Point,
+            Op::Pack { .. } => Kind::Pack,
             Op::Create { .. } => Kind::Create,
             Op::CheckOut { .. } => Kind::CheckOut,
             Op::Merge { .. } => Kind::Merge,
@@ -324,6 +328,7 @@ impl Op {
             Op::Commit { snapshot, .. } => snapshot.is_some(),
             Op::Reds { .. }
             | Op::Reset { .. }
+            | Op::Pack { .. }
             | Op::Point { .. }
             | Op::Clone { .. }
             | Op::Look { .. }

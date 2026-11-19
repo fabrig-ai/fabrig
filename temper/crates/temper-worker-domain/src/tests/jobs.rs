@@ -112,6 +112,7 @@ fn git(h: &mut Harness, initial: Box<[Request]>, stale: bool) -> Box<[Request]> 
                 Op::Look { .. } | Op::IsAncestor { .. } => Done::IsAncestor { contains: true },
                 Op::Reds { .. }
                 | Op::Reset { .. }
+                | Op::Pack { .. }
                 | Op::Point { .. }
                 | Op::Store { .. }
                 | Op::Make { .. }

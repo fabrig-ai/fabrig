@@ -101,7 +101,7 @@ impl<T: Transport> Git<T> {
                 jobs.push_back(Job::Input(*pipes.get(&0).expect("commit stdin")));
             }
             match &checked.command {
-                Command::Version => {}
+                Command::Version | Command::CountObjects { .. } | Command::Repack { .. } => {}
                 Command::Origin { directory } | Command::Clone { directory, .. } | Command::Store { directory, .. } => {
                     jobs.push_back(Job::Scan(path(&checked.at, directory)));
                 }
@@ -178,7 +178,9 @@ impl<T: Transport> Git<T> {
                 temper_worker_protocol_git::reds::CheckCommand::Path { .. }
                 | temper_worker_protocol_git::reds::CheckCommand::Merge => false,
             },
-            Command::Format
+            Command::CountObjects { .. }
+            | Command::Repack { .. }
+            | Command::Format
             | Command::Remote { .. }
             | Command::SnapshotHead
             | Command::SnapshotMerge { .. }

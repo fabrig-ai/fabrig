@@ -97,6 +97,8 @@ pub fn check(spawn: &Spawn) -> Result<Checked, Refusal> {
             | Command::Clone { .. }
             | Command::Remote { .. }
             | Command::Store { .. }
+            | Command::CountObjects { .. }
+            | Command::Repack { .. }
             | Command::Format
             | Command::UpdateRef { .. }
             | Command::SnapshotFetch { .. }
@@ -221,6 +223,8 @@ pub(crate) fn remote(command: &Command) -> Option<&[u8]> {
         | Command::Version
         | Command::Clone { .. }
         | Command::Remote { .. }
+        | Command::CountObjects { .. }
+        | Command::Repack { .. }
         | Command::Format
         | Command::UpdateRef { .. }
         | Command::CheckOut { .. }
@@ -268,6 +272,10 @@ fn parse(args: &[&[u8]]) -> Option<Command> {
             Command::SnapshotReachable { head: dummy(), merging: None, second: invocation::object(second)? }
         }
         [b"reset", b"--mixed", b"-q", commit] => Command::SnapshotReset { commit: invocation::object(commit)? },
+        [b"count-objects", b"-v"] => Command::CountObjects { store: None },
+        [b"-c", b"remote.origin.promisor=true", b"repack", b"-A", b"-d", b"-l", b"-q", b"--no-write-bitmap-index"] => {
+            Command::Repack { store: None }
+        }
         [b"version"] => Command::Version,
         [git_dir, b"config", b"--local", b"--get", b"remote.origin.url"] => {
             Command::Origin { directory: git_dir.strip_prefix(b"--git-dir=")?.strip_suffix(b"/.git")?.into() }

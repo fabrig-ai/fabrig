@@ -6,10 +6,11 @@ use crate::{
     limits,
     operation::Operation,
     sequence::{self, Next},
+    store_lock::Access,
 };
 use alloc::boxed::Box;
 use skein_io::{self as io, kernel};
-use skein_lib::{Id, Map, Slab, Time, Token};
+use skein_lib::{Id, List, Map, Slab, Time, Token};
 use temper_worker_domain_checkout::{self as checkout, git};
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -29,6 +30,8 @@ pub struct Component {
     pub(crate) settings: Settings,
     slots: Slab<Operation>,
     index: Map<Token, Id<Operation>>,
+    /// Arrival-ordered store waiters; each is one admitted operation (git.md, 4.13).
+    store_waiters: Map<Token, Id<Operation>>,
     serial: u64,
     start: Start,
     shutting_down: bool,
@@ -57,6 +60,7 @@ impl Component {
             settings,
             slots: Slab::with_capacity(slots),
             index: Map::with_capacity(capacity),
+            store_waiters: Map::with_capacity(limits.operations),
             serial: 0,
             start: Start::Idle,
             shutting_down: false,
@@ -125,6 +129,78 @@ impl Component {
                 self.maintain(false, out);
             }
         }
+        self.wake_stores(now, out);
+    }
+    /// Lock holders and waiters are operations, bounded by `Limits::operations` (git.md, 4.13).
+    fn store_step(&mut self, id: Id<Operation>, command: &Command) -> bool {
+        let operation = self.slots.get(id).expect("live operation");
+        let access = match &operation.op {
+            Some(op) => Access::for_command(op, command),
+            None => None,
+        };
+        let Some(access) = access else {
+            self.slots.get_mut(id).expect("live operation").store_lock = None;
+            return true;
+        };
+        if operation.store_lock == Some(access) && !operation.waiting() {
+            return true;
+        }
+        let admission = operation.admission;
+        let free = self.store_free(admission, access);
+        self.slots.get_mut(id).expect("live operation").store_lock = Some(access);
+        if !free {
+            assert!(self.store_waiters.insert(admission, id).expect("one waiter per operation").is_none(), "wait once");
+        }
+        free
+    }
+    fn store_free(&self, admission: Token, access: Access) -> bool {
+        for (_, id) in &self.index {
+            let operation = self.slots.get(*id).expect("live index");
+            if operation.admission != admission
+                && !operation.waiting()
+                && let Some(held) = operation.store_lock
+                && access.conflicts(held)
+            {
+                return false;
+            }
+        }
+        for (earlier, id) in &self.store_waiters {
+            if *earlier >= admission {
+                break;
+            }
+            let waiting = self.slots.get(*id).expect("live waiter").store_lock.expect("waiter requests a lock");
+            if waiting.store == access.store {
+                return false;
+            }
+        }
+        true
+    }
+    fn wake_stores(&mut self, now: Time, out: &mut Outputs) {
+        if self.store_waiters.is_empty() {
+            return;
+        }
+        let mut queued = List::with_capacity(self.store_waiters.len());
+        for (_, id) in &self.store_waiters {
+            queued.push(*id).expect("at most one waiter per operation");
+        }
+        for &id in &queued {
+            let operation = self.slots.get_mut(id).expect("live waiter");
+            if operation.stop.is_none() && now >= operation.deadline {
+                operation.stop = Some(git::Fault::TimedOut);
+            }
+            if let Some(fault) = operation.stop {
+                self.finish(id, git::Done::Failed { fault }, out);
+                continue;
+            }
+            let admission = operation.admission;
+            let access = operation.store_lock.expect("waiter requests a lock");
+            if self.store_free(admission, access) {
+                self.store_waiters.remove(&admission).expect("queued waiter");
+                let command = self.slots.get_mut(id).expect("live waiter").resume();
+                self.advance(id, Next::Run(command), out);
+            }
+        }
+        self.maintain(false, out);
     }
     fn begin(
         &mut self,
@@ -135,7 +211,7 @@ impl Component {
         identity: Option<Identity>,
         out: &mut Outputs,
     ) {
-        let needs_identity = match op {
+        let needs_identity = match &op {
             git::Op::Store { .. }
             | git::Op::CheckOut { .. }
             | git::Op::Merge { .. }
@@ -145,6 +221,7 @@ impl Component {
             | git::Op::Push { .. } => true,
             git::Op::Reds { .. }
             | git::Op::Reset { .. }
+            | git::Op::Pack { .. }
             | git::Op::Point { .. }
             | git::Op::Make { .. }
             | git::Op::Clone { .. }
@@ -263,9 +340,14 @@ impl Component {
                 self.maintain(false, out);
             }
         }
+        self.wake_stores(now, out);
     }
     fn retire(&mut self, id: Id<Operation>) {
         let operation = self.slots.get_mut(id).expect("live index");
+        if operation.waiting() {
+            self.store_waiters.remove(&operation.admission).expect("retiring a queued waiter");
+        }
+        operation.store_lock = None;
         operation.identity = None;
         operation.op = None;
         operation.command = Command::Version;
@@ -312,6 +394,10 @@ impl Component {
         };
         match next {
             Next::Run(command) => {
+                if !self.store_step(id, &command) {
+                    self.slots.get_mut(id).expect("live waiter").wait(command);
+                    return;
+                }
                 let operation = self.slots.get(id).expect("live index");
                 if let Command::Store { .. } = &command
                     && let Some(program) =
@@ -403,6 +489,7 @@ impl Component {
                     git::Op::Commit { at, .. } => at,
                     git::Op::Reds { .. }
                     | git::Op::Reset { .. }
+                    | git::Op::Pack { .. }
                     | git::Op::Point { .. }
                     | git::Op::Store { .. }
                     | git::Op::Make { .. }
@@ -538,7 +625,7 @@ impl Component {
             task.complete(complete, &mut self.directories, &self.settings, &self.limits, operation.stop.is_some());
         self.file_action(id, task, action, out);
     }
-    /// Kill and settle at most one operation whose one deadline has elapsed.
+    /// Kill at most one due child, and settle due store waiters without a child.
     pub fn fire(&mut self, now: Time, out: &mut Outputs) {
         for (_, id) in &self.index {
             let operation = self.slots.get_mut(*id).expect("live index");
@@ -547,6 +634,7 @@ impl Component {
                 break;
             }
         }
+        self.wake_stores(now, out);
     }
     /// Abort each child and pipe; retain a pending spawn until it can settle.
     pub fn abort(&mut self, out: &mut Outputs) {
@@ -558,6 +646,7 @@ impl Component {
             operation.identity = None;
             operation.cancel(git::Fault::Cancelled, &self.checkout, out);
         }
+        self.wake_stores(Time::ZERO, out);
         self.maintain(false, out);
     }
     #[must_use]

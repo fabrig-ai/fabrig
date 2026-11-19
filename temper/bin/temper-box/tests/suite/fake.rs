@@ -1456,6 +1456,8 @@ fn git_run() {
                 | GitCommand::SnapshotReset { .. }
                 | GitCommand::Version
                 | GitCommand::Clone { .. }
+                | GitCommand::CountObjects { .. }
+                | GitCommand::Repack { .. }
                 | GitCommand::Format
                 | GitCommand::UpdateRef { .. }
                 | GitCommand::Fetch { .. }

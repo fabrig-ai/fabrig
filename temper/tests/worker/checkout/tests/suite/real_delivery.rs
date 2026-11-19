@@ -183,6 +183,7 @@ impl World {
             git::Op::Clone { at, .. }
             | git::Op::Reds { at, .. }
             | git::Op::Reset { at, .. }
+            | git::Op::Pack { at, .. }
             | git::Op::Point { at, .. }
             | git::Op::Fetch { at, .. }
             | git::Op::Create { at, .. }

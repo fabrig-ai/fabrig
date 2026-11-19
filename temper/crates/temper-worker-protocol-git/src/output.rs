@@ -22,6 +22,34 @@ fn split(input: &[u8], delimiter: u8) -> Option<(&[u8], &[u8])> {
     Some((input.get(..at)?, input.get(at.checked_add(1)?..)?))
 }
 
+/// The one decimal packs line from bounded count-objects stdout (protocol/git.md, 4.13).
+#[must_use]
+pub fn packs(stdout: &[u8]) -> Option<u32> {
+    let mut found = None;
+    let mut start = 0_usize;
+    for (end, byte) in stdout.iter().enumerate() {
+        if *byte != b'\n' {
+            continue;
+        }
+        let line = stdout.get(start..end)?;
+        start = end.checked_add(1)?;
+        if let Some(value) = line.strip_prefix(b"packs:") {
+            if found.is_some() {
+                return None;
+            }
+            let (count, rest) = number(value.strip_prefix(b" ")?)?;
+            if !rest.is_empty() {
+                return None;
+            }
+            found = Some(count);
+        }
+    }
+    if start != stdout.len() {
+        return None;
+    }
+    found
+}
+
 /// Exactly one complete porcelain fetch line, with valid old and new ids.
 #[must_use]
 pub fn fetched(stdout: &[u8], reference: &[u8]) -> Option<git::Commit> {
@@ -225,6 +253,7 @@ pub fn classify(tail: &[u8], kind: git::Kind) -> git::Fault {
     match kind {
         git::Kind::Reds
         | git::Kind::Reset
+        | git::Kind::Pack
         | git::Kind::Point
         | git::Kind::Clone
         | git::Kind::Look
