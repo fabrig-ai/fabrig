@@ -1,4 +1,5 @@
 //! Real-loop fixtures on kernel-assigned ports (temper/docs/design/protocol/forge/engine.md, 1).
+pub(crate) mod file;
 mod kept;
 pub(crate) use kept::seed;
 pub use kept::{forgejo_record, seed_forgejo, seed_record, seed_settings_file};
@@ -109,8 +110,7 @@ pub(crate) fn sign_in_documents(
     issuer: SocketAddr,
     config: &mut temper_playground::documents::Configuration,
 ) -> std::io::Result<()> {
-    let path = directory.join("temper.json");
-    config.document = serde_json::from_slice(&std::fs::read(&path)?)?;
+    config.document = file::document(directory, temper_config_shell::Shape::Standalone);
     config["world_settings"] = serde_json::from_slice(&std::fs::read(directory.join("world-settings.json"))?)?;
     config["world_settings"]["llm"]["providers"] = serde_json::json!([{
         "name":"openai", "number":1, "signed_in_plan":true, "manage_usage":format!("https://{issuer}/settings/usage"), "endpoint":"fake",
@@ -234,7 +234,7 @@ pub(crate) fn bind(
     config: &mut temper_playground::documents::Configuration,
 ) -> std::io::Result<()> {
     let mut agent: serde_json::Value = serde_json::from_slice(&std::fs::read(directory.join("world-agent.json"))?)?;
-    config.document = serde_json::from_slice(&std::fs::read(directory.join("temper.json"))?)?;
+    config.document = file::document(directory, temper_config_shell::Shape::Standalone);
     config["world_settings"] = serde_json::from_slice(&std::fs::read(directory.join("world-settings.json"))?)?;
     bind_documents(&mut agent, config, llm, forge);
     private(&directory.join("world-agent.json"), &serde_json::to_vec(&agent)?)?;
@@ -249,8 +249,13 @@ fn bind_documents(agent: &mut serde_json::Value, config: &mut serde_json::Value,
     let http = format!("http://{address}");
     // These records carry forge destinations and authority patterns. Listeners
     // and the independent LLM destination never participate in this rebinding.
-    for path in ["/world_settings/forge", "/application/machine", "/world_settings/landing", "/world_settings/policies"]
-    {
+    for path in [
+        "/world_settings/forge",
+        "/application/machine",
+        "/application/test/github",
+        "/world_settings/landing",
+        "/world_settings/policies",
+    ] {
         if let Some(value) = config.pointer_mut(path) {
             bind_forge(value, [(&previous, &address), (&previous_http, &http)]);
         }
@@ -528,13 +533,13 @@ pub(crate) fn finish_configuration(
         private(&directory.join("local.setting"), &writer.finish())?;
     }
     private(&directory.join("world-settings.json"), &serde_json::to_vec(&flags)?)?;
-    private(&directory.join("temper.json"), &serde_json::to_vec(value)?)
+    file::write(directory, &file::standalone(value), temper_config_shell::Shape::Standalone)?;
+    value.document = file::document(directory, temper_config_shell::Shape::Standalone);
+    Ok(())
 }
 #[must_use]
 pub fn setup_items(directory: &Path) -> Option<serde_json::Value> {
-    let mut value: serde_json::Value =
-        serde_json::from_slice(&std::fs::read(directory.join("temper.json")).expect("deployment document"))
-            .expect("deployment JSON");
+    let mut value = file::document(directory, temper_config_shell::Shape::Standalone);
     let flags = if directory.join("world-settings.json").exists() {
         serde_json::from_slice(&std::fs::read(directory.join("world-settings.json")).expect("fixture flags"))
             .expect("fixture flags JSON")
@@ -606,9 +611,7 @@ pub fn given_and_projects(
     directory: &Path,
     configuration: &temper_playground::documents::Configuration,
 ) -> (temper_service::stock::Given, Box<[jig_protocol_config::Project]>) {
-    let deployment: serde_json::Value =
-        serde_json::from_slice(&std::fs::read(directory.join("temper.json")).expect("deployment document"))
-            .expect("deployment JSON");
+    let deployment = file::document(directory, temper_config_shell::Shape::Standalone);
     let flags = if directory.join("world-settings.json").exists() {
         serde_json::from_slice(&std::fs::read(directory.join("world-settings.json")).expect("world flags"))
             .expect("world flags JSON")

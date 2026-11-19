@@ -129,9 +129,25 @@ pub fn prepare_with_store(
     bytes: &[u8],
     owned: &mut Vec<Fd>,
 ) -> Result<(service::Service, Box<[u8]>), String> {
-    prepare_given(binary, environment, working, directories, bytes, owned, &service::stock::Given::Stock, false, "")
+    prepare_given(
+        binary,
+        environment,
+        working,
+        directories,
+        bytes,
+        owned,
+        &service::stock::Given::Stock,
+        false,
+        "",
+        &[],
+        None,
+    )
 }
-#[expect(clippy::too_many_arguments, reason = "startup carries the command recording switch beside process facts")]
+#[expect(
+    clippy::too_many_arguments,
+    clippy::too_many_lines,
+    reason = "startup carries process facts and the in-process world's optional typed inputs through the same checked start"
+)]
 fn prepare_given(
     binary: &str,
     environment: &[EnvironmentEntry],
@@ -142,6 +158,8 @@ fn prepare_given(
     given: &service::stock::Given,
     record: bool,
     build_name: &'static str,
+    projects: &[config::Project],
+    limits: Option<(&config::Limits, &service::limits::Limits)>,
 ) -> Result<(service::Service, Box<[u8]>), String> {
     let providers = temper_service_shell::providers::read(
         &path(&directories.data).join("providers.setting"),
@@ -159,6 +177,10 @@ fn prepare_given(
     service::startup::shape_with(bytes, &jig_directories(directories), given)
         .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
     let setup::Deployment { mut named, checked, .. } = setup::check_with(bytes, &jig_directories(directories), given)?;
+    if let Some((jig, own)) = limits {
+        named = service::startup::named_with_limits(bytes, &jig_directories(directories), given, jig, own)
+            .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
+    }
     let engine = settings(bytes, directories, given);
     let Runtimes { roots, github } = runtimes(named.test_github.as_ref())?;
     let user = skein_shell::effective_user();
@@ -182,7 +204,7 @@ fn prepare_given(
         &seeds,
         given,
         false,
-        None,
+        limits,
     );
     let models = config::core(&engine, seeds.deployment, seeds.seed).settings.models;
     let (mut store, state) =
@@ -205,6 +227,21 @@ fn prepare_given(
             return Err(String::from_utf8_lossy(&service::startup::lines(&why)).into_owned());
         }
     };
+    if !projects.is_empty() {
+        start.engine.jig.owners = start
+            .engine
+            .jig
+            .owners
+            .iter()
+            .flat_map(|owner| {
+                projects.iter().map(|project| jig_domain_people::InitialOwner {
+                    project: project.number,
+                    identity: owner.identity.clone(),
+                })
+            })
+            .collect();
+        start.engine.jig.projects = projects.into();
+    }
     start.engine.program_environment =
         program_environment(directories, environment, working, &printed::running_word(environment));
     let mut service =
@@ -266,13 +303,47 @@ pub fn prepare_in_with(
         .map_err(|why| prefixed(&format!("{binary} serve"), &why))?;
     let bytes = &read.document;
     let mut owned = Vec::new();
-    let result = prepare_given(binary, environment, working, directories, bytes, &mut owned, given, false, "")
-        .map(|(service, _)| service);
+    let result =
+        prepare_given(binary, environment, working, directories, bytes, &mut owned, given, false, "", &[], None)
+            .map(|(service, _)| service);
     if result.is_err() {
         close(owned);
     }
     result.map_err(|why| prefixed(&format!("{binary} serve"), &read.problems(&why)))
 }
+/// Prepare an in-process world's engine with typed seeds and limits beside its file.
+pub fn prepare_in_with_inputs_and_limits(
+    binary: &str,
+    environment: &[EnvironmentEntry],
+    working: &[u8],
+    directories: &Directories,
+    given: &service::stock::Given,
+    projects: &[config::Project],
+    limits: Option<(&config::Limits, &service::limits::Limits)>,
+) -> Result<service::Service, String> {
+    let read = temper_service_shell::configuration::read(directories, temper_config_shell::Shape::EngineAlone)
+        .map_err(|why| prefixed(&format!("{binary} serve"), &why))?;
+    let mut owned = Vec::new();
+    let result = prepare_given(
+        binary,
+        environment,
+        working,
+        directories,
+        &read.document,
+        &mut owned,
+        given,
+        false,
+        "",
+        projects,
+        limits,
+    )
+    .map(|(service, _)| service);
+    if result.is_err() {
+        close(owned);
+    }
+    result.map_err(|why| prefixed(&format!("{binary} serve"), &read.problems(&why)))
+}
+
 /// The same for an in-process world's service, with the supplied defaults.
 pub fn operations_in_with(
     binary: &str,
@@ -284,12 +355,13 @@ pub fn operations_in_with(
 ) -> Result<u32, String> {
     directories.open(skein_shell::effective_user())?;
     let mut owned = Vec::new();
-    let result = prepare_given(binary, environment, working, directories, config, &mut owned, given, false, "")
-        .and_then(|(mut service, _)| {
-            let operations = service.operations();
-            close_limits_store(service.engine_component().store())?;
-            Ok(operations)
-        });
+    let result =
+        prepare_given(binary, environment, working, directories, config, &mut owned, given, false, "", &[], None)
+            .and_then(|(mut service, _)| {
+                let operations = service.operations();
+                close_limits_store(service.engine_component().store())?;
+                Ok(operations)
+            });
     close(owned);
     result.map_err(|why| prefixed(&format!("{binary} serve"), &why))
 }
@@ -320,6 +392,8 @@ pub fn run(
                 &service::stock::Given::Stock,
                 record,
                 build_name,
+                &[],
+                None,
             )
             .map(|(service, store)| temper_service_shell::Prepared { service, store, adoption: () })
         },

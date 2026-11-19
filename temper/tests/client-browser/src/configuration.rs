@@ -148,15 +148,14 @@ fn absolute_paths(value: &mut serde_json::Value, directory: &Path) {
     }
 }
 pub(crate) fn private(path: &Path, bytes: &[u8]) {
-    let mut rendered = None;
-    if path.file_name().is_some_and(|name| name == "temper.json")
-        && let Ok(mut document) = serde_json::from_slice::<serde_json::Value>(bytes)
-        && document.get("world_providers").is_some()
-    {
-        let directory = path.parent().expect("fixture root");
-        let wanted = document.as_object_mut().expect("deployment").remove("world_providers").expect("providers");
+    fs::write(path, bytes).expect("fixture file");
+    fs::set_permissions(path, fs::Permissions::from_mode(0o600)).expect("private fixture");
+}
+
+fn keep_providers(directory: &Path, document: &serde_json::Value) {
+    if let Some(wanted) = document.get("world_providers") {
         let providers: Vec<_> =
-            temper_box_kit::provider_setup::items(&wanted).into_iter().map(|item| item["set"].clone()).collect();
+            temper_box_kit::provider_setup::items(wanted).into_iter().map(|item| item["set"].clone()).collect();
         private(
             &directory.join("world-providers.json"),
             &serde_json::to_vec(&serde_json::json!({"providers":providers})).expect("world inputs"),
@@ -167,10 +166,7 @@ pub(crate) fn private(path: &Path, bytes: &[u8]) {
             provider_settings(directory, &mut value);
             private(&settings, &serde_json::to_vec(&value).expect("agents and providers JSON"));
         }
-        rendered = Some(serde_json::to_vec(&document).expect("deployment JSON"));
     }
-    fs::write(path, rendered.as_deref().unwrap_or(bytes)).expect("fixture file");
-    fs::set_permissions(path, fs::Permissions::from_mode(0o600)).expect("private fixture");
 }
 
 /// The deployment and its prospective agents and providers, applied by ctl before the ordinary stories.
@@ -203,7 +199,63 @@ pub(crate) fn write(directory: &Path, bundle: &Path) -> temper_playground::docum
 /// Keep the typed figures beside the document for the owner's setup sitting.
 pub(crate) fn persist(directory: &Path, value: &temper_playground::documents::Configuration) {
     temper_box_kit::limit_settings::remember(directory, value);
-    private(&directory.join("temper.json"), &serde_json::to_vec(value).expect("deployment JSON"));
+    keep_providers(directory, value);
+    let mut file = if directory.join(temper_config_shell::FILE).is_file() {
+        read_init(directory).file
+    } else {
+        temper_config_shell::File {
+            owner: Some("owner-a@localhost".into()),
+            webhooks: Some("127.0.0.1:0".parse().expect("webhooks")),
+            ..Default::default()
+        }
+    };
+    file.listen =
+        Some(value["application"]["clients"]["listener"]["socket"].as_str().expect("listen").parse().expect("socket"));
+    file.internal.bundle = value["application"]["clients"]["bundle"].as_str().map(Into::into);
+    file.test.github =
+        value["application"]["test"]["github"].as_object().map(|github| temper_config_shell::TestGitHub {
+            api: github["api"]["socket"].as_str().expect("fake API socket").into(),
+            transport: temper_config_shell::Transport::Plaintext,
+            remote: github["remote"].as_str().expect("fake remote").into(),
+            web: github["web"].as_str().expect("fake web").into(),
+            git: None,
+        });
+    write_file(directory, &file);
+}
+
+pub(crate) fn write_file(directory: &Path, file: &temper_config_shell::File) {
+    private(
+        &directory.join(temper_config_shell::FILE),
+        &temper_config_shell::render(file, temper_config_shell::Shape::Standalone),
+    );
+}
+
+/// Restore the start's document from the file, and the world's typed limits from its setup inputs.
+pub(crate) fn configuration(directory: &Path) -> temper_playground::documents::Configuration {
+    let mut value = temper_playground::documents::Configuration::stock(
+        serde_json::from_slice(&read_init(directory).document).expect("file's start"),
+    );
+    let path = directory.join("fixture-limits.json");
+    if path.is_file() {
+        let figures: serde_json::Value =
+            serde_json::from_slice(&fs::read(path).expect("fixture limits")).expect("limits JSON");
+        for item in figures["limits"].as_array().expect("jig figures") {
+            jig_protocol_config::overrides::apply(
+                &mut value.jig,
+                item["name"].as_str().expect("name").as_bytes(),
+                item["value"].as_u64().expect("figure"),
+            )
+            .expect("jig figure");
+        }
+        for item in figures["temper-limits"].as_array().expect("temper figures") {
+            temper_playground::documents::Configuration::temper_over(
+                &mut value,
+                item["name"].as_str().expect("name"),
+                item["value"].as_u64().expect("figure"),
+            );
+        }
+    }
+    value
 }
 
 /// Commit the prospective settings in a no-task sitting, then let the browser's start take them.
@@ -395,7 +447,6 @@ fn own_demo_listeners(file: &mut temper_config_shell::File) {
 
 /// Replace the turns of exactly one request offered by the demo.
 pub(crate) fn demo_asked(directory: &Path, cue: &str, turns: serde_json::Value) {
-    temper_agent_fixtures::legacy_init(directory);
     let mut value: serde_json::Value = serde_json::from_slice(temper_fake::demo::SCRIPTS).expect("embedded scripts");
     let scripts = value["asked"].as_array_mut().expect("asked scripts");
     let script = scripts.iter_mut().find(|script| script["cue"] == cue).expect("offered demo request");
@@ -407,7 +458,6 @@ pub(crate) fn demo_asked(directory: &Path, cue: &str, turns: serde_json::Value) 
 /// jig/docs/design/domain/people/public-reading.md, 7). Its two-second freshness is the walk's subject.
 pub(crate) fn public_demo(directory: &Path, program: &Path, bundle: &Path) {
     demo(directory, program, bundle);
-    temper_agent_fixtures::legacy_init(directory);
     let figures = [
         ("clients.public.rate", 20),
         ("clients.public.rate_burst", 20),
@@ -533,14 +583,38 @@ mod tests {
     }
 
     #[test]
+    fn a_file_edit_preserves_explicit_keys_and_the_settings_inputs() {
+        let scratch = skein_scratch::Scratch::new("browser-file-edit");
+        super::write(scratch.path(), &scratch.path().join("bundle"));
+        let mut file = super::read_init(scratch.path()).file;
+        file.public = Some("http://localhost:7100".into());
+        super::write_file(scratch.path(), &file);
+        let mut value = super::configuration(scratch.path());
+        value["application"]["clients"]["listener"]["socket"] = "127.0.0.1:42004".into();
+        super::persist(scratch.path(), &value);
+        assert!(!scratch.path().join(temper_config_shell::FORMER).exists());
+        let read = super::read_init(scratch.path());
+        assert_eq!(read.file.public, file.public);
+        assert_eq!(read.file.listen, Some("127.0.0.1:42004".parse().expect("listener")));
+        assert_eq!(read.file.internal.bundle, file.internal.bundle);
+        assert_eq!(super::configuration(scratch.path()).jig, value.jig);
+        let start: serde_json::Value = serde_json::from_slice(&read.document).expect("start");
+        assert!(start.get("world_providers").is_none());
+        let settings: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(scratch.path().join("browser-agents.json")).expect("settings"))
+                .expect("JSON");
+        assert!(settings["items"].as_array().expect("items").iter().any(|item| item["setting"]["kind"] == "provider"));
+    }
+
+    #[test]
     fn subprocess_figures_survive_document_edits() {
         let scratch = skein_scratch::Scratch::new("browser-figures");
         super::write(scratch.path(), &scratch.path().join("bundle"));
-        let mut value = temper_box_kit::limit_settings::configuration(scratch.path());
+        let mut value = super::configuration(scratch.path());
         assert_eq!(value.jig.core.documents.lines, 11);
         crate::account_provider(&mut value, &crate::account_registration("http://127.0.0.1:9"));
         super::persist(scratch.path(), &value);
-        let restored = temper_box_kit::limit_settings::configuration(scratch.path());
+        let restored = super::configuration(scratch.path());
         assert_eq!(restored.jig, value.jig);
         assert_eq!(restored.limits, value.limits);
         assert_eq!(restored.limits.git_component.operations, 1);
