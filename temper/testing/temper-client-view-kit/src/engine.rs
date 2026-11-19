@@ -1,4 +1,5 @@
 //! A wave-at-a-time engine double for linked page budgets (client/pages/work.md, 1).
+use jig_client_protocol_wire::Record as _;
 use jig_client::{Event, Message, Request, Streamed};
 use jig_client_protocol_wire as w;
 use skein_lib::{Duration, List, Reader, Writer};
@@ -14,12 +15,12 @@ pub fn encoded(size: u32, write: impl FnOnce(&mut Writer) -> Result<(), skein_li
 pub fn owned(record: Box<[u8]>, family: Option<u16>) -> w::Owned {
     let (owner, version) = match family {
         Some(number) => (
-            w::Owner::Family(w::Family::new(&w::CEILINGS, w::FamilyParts { number }).expect("family")),
+            w::Owner::Family(w::Family { number }),
             temper_client_protocol_wire::CLIENT_VERSION,
         ),
         None => (w::Owner::Jig, w::VERSION),
     };
-    w::Owned::new(&w::CEILINGS, w::OwnedParts { owner, version, record }).expect("owned fixture")
+    w::Owned { owner, version, record }
 }
 
 /// The fake leaves keyed requests unanswered: the page must not depend on them.
@@ -47,17 +48,13 @@ impl Engine {
                 }
                 Request::Exchange { exchange, message: Message::Batch(body), .. } => {
                     let batch = w::Batch::decode(&w::CEILINGS, &mut Reader::new(body)).expect("batch");
-                    for (place, member) in batch.members().as_slice().iter().enumerate() {
+                    for (place, member) in batch.members.as_slice().iter().enumerate() {
                         let mut deliveries = Vec::new();
                         let reply = Self::member(member, &answer, &mut deliveries);
-                        let part = w::BatchReply::new(
-                            &w::CEILINGS,
-                            w::BatchReplyParts { member: u16::try_from(place).expect("member"), reply: Some(reply) },
-                        )
-                        .expect("batch reply");
+                        let part = w::BatchReply { member: u16::try_from(place).expect("member"), reply: Some(reply) };
                         events.push(Event::Part {
                             exchange: *exchange,
-                            message: encoded(part.measure(), |w| part.encode(w)),
+                            message: part.encode(&w::CEILINGS).expect("fixture encoding"),
                         });
                         events.extend(deliveries);
                     }
@@ -99,46 +96,42 @@ impl Engine {
             (w::Owner::Jig, w::VERSION),
             (
                 w::Owner::Family(
-                    w::Family::new(&w::CEILINGS, w::FamilyParts { number: temper_client_protocol_wire::FORGE })
-                        .expect("family"),
+                    w::Family { number: temper_client_protocol_wire::FORGE },
                 ),
                 temper_client_protocol_wire::CLIENT_VERSION,
             ),
         ] {
             served
                 .push(
-                    w::Served::new(&w::CEILINGS, w::ServedParts { owner, first: version, last: version })
-                        .expect("served"),
+                    w::Served { owner, first: version, last: version },
                 )
                 .expect("two owners");
         }
         let hello =
-            w::Hello::new(&w::CEILINGS, w::HelloParts { stream: [7; 16], served, heartbeat: Duration::from_secs(30) })
-                .expect("hello");
+            w::Hello { stream: [7; 16], served, heartbeat: Duration::from_secs(30) };
         streamed(&jig_client_test_records::opened(hello, self.me.clone()))
     }
     fn member(member: &w::Member, answer: &impl Fn(&w::Owned, bool) -> w::Owned, events: &mut Vec<Event>) -> Box<[u8]> {
         match member {
             w::Member::Read(read) => {
                 let reply = w::ReadAnswer::Value(answer(read, false));
-                encoded(reply.measure(), |w| reply.encode(w))
+                reply.encode(&w::CEILINGS).expect("fixture encoding")
             }
             w::Member::Open(open) => {
-                let document = answer(open.subject(), true);
+                let document = answer(&open.subject, true);
                 let delivery = w::StreamEvent::Delivery(
-                    w::Delivery::new(&w::CEILINGS, w::DeliveryParts { watch: open.watch(), document })
-                        .expect("delivery"),
+                    w::Delivery { watch: open.watch, document },
                 );
                 events.push(streamed(&delivery));
-                encoded(w::OpenAnswer::Admitted.measure(), |w| w::OpenAnswer::Admitted.encode(w))
+                w::OpenAnswer::Admitted.encode(&w::CEILINGS).expect("fixture encoding")
             }
-            w::Member::Close(_) => encoded(w::CloseAnswer::Closed.measure(), |w| w::CloseAnswer::Closed.encode(w)),
+            w::Member::Close(_) => w::CloseAnswer::Closed.encode(&w::CEILINGS).expect("fixture encoding"),
         }
     }
 }
 #[must_use]
 pub fn streamed(record: &w::StreamEvent) -> Event {
-    Event::Streamed { message: Streamed::Record(encoded(record.measure(), |w| record.encode(w))) }
+    Event::Streamed { message: Streamed::Record(record.encode(&w::CEILINGS).expect("fixture encoding")) }
 }
 
 /// Wire request count, excluding durable storage and kept keyed routes.

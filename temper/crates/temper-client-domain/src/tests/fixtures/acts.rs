@@ -1,3 +1,4 @@
+use jig_client_protocol_wire::Record as _;
 use super::*;
 use crate::pages::{self, Act, Pages, inbox::Card};
 use jig_client::contract::*;
@@ -201,40 +202,28 @@ pub fn live_client() -> jig_client::Client {
         &mut out,
     );
     client.settle(Time::ZERO, Wall::EPOCH, &mut out);
-    let served = w::Served::new(
-        &w::CEILINGS,
-        w::ServedParts {
+    let served = w::Served {
             owner: w::Owner::Jig,
             first: jig_client_protocol_wire::VERSION,
             last: jig_client_protocol_wire::VERSION,
-        },
-    )
-    .expect("served");
+        };
     let mut rows = List::with_capacity(ONE_OFFER);
     rows.push(served).expect("one version");
     let hello = jig_client_test_records::opened(
-        w::Hello::new(&w::CEILINGS, w::HelloParts { stream: STREAM, served: rows, heartbeat: HEARTBEAT })
-            .expect("hello"),
+        w::Hello { stream: STREAM, served: rows, heartbeat: HEARTBEAT },
         jig_client_test_records::frame_record(),
     );
-    let mut bytes = Writer::new(usize::try_from(hello.measure()).expect("hello fits"));
-    hello.encode(&mut bytes).expect("encoded hello");
+    let mut bytes = Writer::new(usize::try_from(hello.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("hello fits"));
+    hello.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("encoded hello");
     client.step(
         Time::ZERO,
         Wall::EPOCH,
         jig_client::Event::Streamed { message: jig_client::Streamed::Record(bytes.finish()) },
         &mut out,
     );
-    let empty = w::DocumentText::new(&w::CEILINGS, w::DocumentTextParts { bytes: Box::from([]), cut: false })
-        .expect("empty words");
-    let party = w::MeParty::new(
-        &w::CEILINGS,
-        w::MePartyParts { number: PARTY, kind: w::PartyKind::Person, login: empty.clone(), name: empty },
-    )
-    .expect("party");
-    let me = w::Me::new(
-        &w::CEILINGS,
-        w::MeParts {
+    let empty = w::DocumentText { bytes: Box::from([]), cut: false };
+    let party = w::MeParty { number: PARTY, kind: w::PartyKind::Person, login: empty.clone(), name: empty };
+    let me = w::Me {
             providers: Box::new([]),
             providers_cut: false,
             key_bytes: 256,
@@ -242,38 +231,28 @@ pub fn live_client() -> jig_client::Client {
             words_bytes: 8192,
             party,
             projects: Box::from([]),
-            needs: w::Needs::new(
-                &w::CEILINGS,
-                w::NeedsParts {
+            needs: w::Needs {
                     questions: NO_NEEDS,
                     proposals: NO_NEEDS,
                     escalations: NO_NEEDS,
                     person_tasks: NO_NEEDS,
                 },
-            )
-            .expect("needs"),
             needs_total: NO_NEEDS,
-            updates: w::Count::new(&w::CEILINGS, w::CountParts { value: NO_UPDATES, limited: false }).expect("count"),
+            updates: w::Count { value: NO_UPDATES, limited: false },
             results_seen: RESULTS_SEEN,
             cut: false,
             retention: RETENTION,
             deployment_role: None,
-        },
-    )
-    .expect("me");
+        };
     let value = w::DeliveryValue::Me(me);
-    let mut bytes = Writer::new(usize::try_from(value.measure()).expect("me fits"));
-    value.encode(&mut bytes).expect("encoded me");
-    let document = w::Owned::new(
-        &w::CEILINGS,
-        w::OwnedParts { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: bytes.finish() },
-    )
-    .expect("owned");
+    let mut bytes = Writer::new(usize::try_from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("me fits"));
+    value.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("encoded me");
+    let document = w::Owned { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: bytes.finish() };
     let delivery = w::StreamEvent::Delivery(
-        w::Delivery::new(&w::CEILINGS, w::DeliveryParts { watch: 0, document }).expect("delivery"),
+        w::Delivery { watch: 0, document },
     );
-    let mut bytes = Writer::new(usize::try_from(delivery.measure()).expect("delivery fits"));
-    delivery.encode(&mut bytes).expect("encoded delivery");
+    let mut bytes = Writer::new(usize::try_from(delivery.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("delivery fits"));
+    delivery.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("encoded delivery");
     client.step(
         Time::ZERO,
         Wall::EPOCH,

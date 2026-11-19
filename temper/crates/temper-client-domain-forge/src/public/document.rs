@@ -1,4 +1,5 @@
 //! Each document expires independently of visibility (temper/docs/design/client/web/public.md, 2).
+use jig_client_protocol_wire::Record as _;
 use super::{Doc, Heard, PublicLimits, PublicRead};
 use crate::address::Public;
 use jig_client_protocol_wire::public_v1 as jig;
@@ -167,27 +168,27 @@ fn decode(doc: Doc, bytes: &[u8], limits: &PublicLimits) -> Option<Document> {
         Doc::JigCard => Some(Document::Card(jig::PublicCard::decode(&limits.jig, &mut reader).ok()?)),
         Doc::ForgeChange | Doc::ForgeLandings | Doc::ForgeLanding => {
             let application = jig::PublicApplication::decode(&limits.jig, &mut reader).ok()?;
-            let mut reader = Reader::new(application.record());
+            let mut reader = Reader::new(application.record.as_ref());
             match doc {
                 Doc::ForgeChange => {
                     let record = forge::PublicChange::decode(&limits.forge, &mut reader).ok()?;
-                    application.tasks().get(u32::from(record.task()))?;
+                    application.tasks.get(u32::from(record.task()))?;
                     Some(Document::Change(application, record))
                 }
                 Doc::ForgeLandings => {
                     let record = forge::PublicLandings::decode(&limits.forge, &mut reader).ok()?;
                     if let Some(task) = record.turn() {
-                        application.tasks().get(u32::from(*task))?;
+                        application.tasks.get(u32::from(*task))?;
                     }
                     for landing in record.landings() {
                         for task in landing.members() {
-                            application.tasks().get(u32::from(*task))?;
+                            application.tasks.get(u32::from(*task))?;
                         }
                     }
                     for queue in record.queues() {
                         for change in queue.changes() {
-                            application.tasks().get(u32::from(change.task()))?;
-                            application.tasks().get(u32::from(change.goal()))?;
+                            application.tasks.get(u32::from(change.task()))?;
+                            application.tasks.get(u32::from(change.goal()))?;
                         }
                     }
                     Some(Document::Landings(application, record))
@@ -195,7 +196,7 @@ fn decode(doc: Doc, bytes: &[u8], limits: &PublicLimits) -> Option<Document> {
                 Doc::ForgeLanding => {
                     let record = forge::PublicLanding::decode(&limits.forge, &mut reader).ok()?;
                     for member in record.members() {
-                        application.tasks().get(u32::from(member.task()))?;
+                        application.tasks.get(u32::from(member.task()))?;
                     }
                     Some(Document::Landing(application, record))
                 }

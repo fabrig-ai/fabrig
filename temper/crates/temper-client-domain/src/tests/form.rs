@@ -1,3 +1,4 @@
+use jig_client_protocol_wire::Record as _;
 use super::fixtures;
 use crate::{Event, Request, forge};
 use skein_lib::{Queue, RequestEnvelope};
@@ -333,23 +334,19 @@ fn a_family_the_engine_does_not_serve_marks_the_form_out_of_date() {
 }
 
 const NEXT_FORGE_VERSION: u32 = temper_client_protocol_wire::CLIENT_VERSION + 1;
-fn version_answer(limits: &jig_client_protocol_link::Limits) -> Box<[u8]> {
+fn version_answer(_limits: &jig_client_protocol_link::Limits) -> Box<[u8]> {
     use jig_client_protocol_wire as w;
-    let owner = w::Owner::Family(w::Family::new(limits.wire(), w::FamilyParts { number: fixtures::FORGE }).unwrap());
+    let owner = w::Owner::Family(w::Family { number: fixtures::FORGE });
     let mut served = skein_lib::List::with_capacity(1);
     served
         .push(
-            w::Served::new(
-                limits.wire(),
-                w::ServedParts { owner: owner.clone(), first: NEXT_FORGE_VERSION, last: NEXT_FORGE_VERSION },
-            )
-            .unwrap(),
+            w::Served { owner: owner.clone(), first: NEXT_FORGE_VERSION, last: NEXT_FORGE_VERSION },
         )
         .unwrap();
     let answer =
-        w::KeyedAnswer::NotServed(w::NotServed::new(limits.wire(), w::NotServedParts { owner, served }).unwrap());
-    let mut bytes = skein_lib::Writer::new(usize::try_from(answer.measure()).unwrap());
-    answer.encode(&mut bytes).unwrap();
+        w::KeyedAnswer::NotServed(w::NotServed { owner, served });
+    let mut bytes = skein_lib::Writer::new(usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    answer.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
     bytes.finish()
 }
 fn version_refused() -> (crate::Domain, jig_client::Key) {

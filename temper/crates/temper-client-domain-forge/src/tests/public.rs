@@ -1,4 +1,5 @@
 //! Public reader steps (temper/docs/design/client/web/public.md, 4).
+use jig_client_protocol_wire::Record as _;
 use crate::{
     address::Public,
     public::{Doc, Heard, PublicEvent, PublicLimits, PublicRead, Reader, Shown},
@@ -22,13 +23,9 @@ fn opened(page: Public) -> (Reader, Queue<PublicRead>) {
     (reader, out)
 }
 fn projects() -> Box<[u8]> {
-    let record = jig::PublicProjects::new(
-        &jig::CEILINGS,
-        jig::PublicProjectsParts { projects: List::with_capacity(0), max_age: 8 },
-    )
-    .expect("projects");
-    let mut writer = Writer::new(usize::try_from(record.measure()).expect("small record"));
-    record.encode(&mut writer).expect("record encodes");
+    let record = jig::PublicProjects { projects: List::with_capacity(0), max_age: 8 };
+    let mut writer = Writer::new(usize::try_from(record.measure(&jig_client_protocol_wire::public_v1::CEILINGS).expect("bounded fixture")).expect("small record"));
+    record.write(&jig_client_protocol_wire::public_v1::CEILINGS, &mut writer).expect("record encodes");
     writer.finish()
 }
 fn answer(reader: &mut Reader, out: &mut Queue<PublicRead>, seconds: u64, doc: Doc, heard: Heard) {
@@ -160,19 +157,15 @@ fn unknown_drops_the_page_and_shows_its_main() {
     assert!(out.pop().is_none(), "unknown page reads only its main");
 }
 fn board() -> Box<[u8]> {
-    let record = jig::PublicBoard::new(
-        &jig::CEILINGS,
-        jig::PublicBoardParts {
+    let record = jig::PublicBoard {
             project: PROJECT,
             name: b"Public project".as_slice().into(),
             live: List::with_capacity(0),
             live_folded: 0,
             ended: List::with_capacity(0),
-        },
-    )
-    .expect("board");
-    let mut writer = Writer::new(usize::try_from(record.measure()).expect("small record"));
-    record.encode(&mut writer).expect("record");
+        };
+    let mut writer = Writer::new(usize::try_from(record.measure(&jig_client_protocol_wire::public_v1::CEILINGS).expect("bounded fixture")).expect("small record"));
+    record.write(&jig_client_protocol_wire::public_v1::CEILINGS, &mut writer).expect("record");
     writer.finish()
 }
 fn landings() -> Box<[u8]> {
@@ -183,13 +176,9 @@ fn landings() -> Box<[u8]> {
     .expect("landings");
     let mut writer = Writer::new(usize::try_from(record.measure()).expect("small record"));
     record.encode(&mut writer).expect("record");
-    let record = jig::PublicApplication::new(
-        &jig::CEILINGS,
-        jig::PublicApplicationParts { tasks: List::with_capacity(0), record: writer.finish() },
-    )
-    .expect("application");
-    let mut writer = Writer::new(usize::try_from(record.measure()).expect("small record"));
-    record.encode(&mut writer).expect("envelope");
+    let record = jig::PublicApplication { tasks: List::with_capacity(0), record: writer.finish() };
+    let mut writer = Writer::new(usize::try_from(record.measure(&jig_client_protocol_wire::public_v1::CEILINGS).expect("bounded fixture")).expect("small record"));
+    record.write(&jig_client_protocol_wire::public_v1::CEILINGS, &mut writer).expect("envelope");
     writer.finish()
 }
 #[test]

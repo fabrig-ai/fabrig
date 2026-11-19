@@ -1,3 +1,4 @@
+use jig_client_protocol_wire::Record as _;
 use super::fixtures;
 use crate::{Domain, Event, Request, asked::State};
 use jig_client::{Approval, ApprovalAct, ApprovalCode, Message, NotAsked};
@@ -36,8 +37,8 @@ fn exchange(out: &mut Queue<Request>) -> (Token, Message) {
     found.expect("one exchange")
 }
 fn encoded_ask(answer: &w::ApprovalAskAnswer) -> Box<[u8]> {
-    let mut writer = Writer::new(usize::try_from(answer.measure()).unwrap());
-    answer.encode(&mut writer).unwrap();
+    let mut writer = Writer::new(usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    answer.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
     writer.finish()
 }
 #[expect(clippy::disallowed_macros, reason = "the test formats root Debug to detect secret bytes")]
@@ -70,11 +71,7 @@ fn an_answered_ask_signs_in_with_its_secret_and_keeps_the_code_and_expiry() {
     let Message::ApprovalAsk(body) = message else { panic!("ask") };
     w::ApprovalAsk::decode(&w::CEILINGS, &mut Reader::new(&body)).unwrap();
     let answer = w::ApprovalAskAnswer::Asked(
-        w::ApprovalAsked::new(
-            &w::CEILINGS,
-            w::ApprovalAskedParts { secret: Secret::new(Box::new([7; 32])), code: *code().letters(), expires: 300 },
-        )
-        .unwrap(),
+        w::ApprovalAsked { secret: Secret::new(Box::new([7; 32])), code: *code().letters(), expires: 300 },
     );
     let mut out = step(
         &mut root,
@@ -84,17 +81,13 @@ fn an_answered_ask_signs_in_with_its_secret_and_keeps_the_code_and_expiry() {
     let (id, message) = exchange(&mut out);
     let Message::SignInApproval(body) = message else { panic!("immediate take") };
     let take = w::ApprovalSignIn::decode(&w::CEILINGS, &mut Reader::new(&body)).unwrap();
-    assert_eq!(take.secret().expose(), &[7; 32]);
+    assert_eq!(take.secret.expose(), &[7; 32]);
     no_secret(&root);
     let answer = w::ApprovalSignInAnswer::SignedIn(
-        w::SignedIn::new(
-            &w::CEILINGS,
-            w::SignedInParts { token: Some(Secret::new(Box::new([9; 40]))), party: 73, expires: 300 },
-        )
-        .unwrap(),
+        w::SignedIn { token: Some(Secret::new(Box::new([9; 40]))), party: 73, expires: 300 },
     );
-    let mut writer = Writer::new(usize::try_from(answer.measure()).unwrap());
-    answer.encode(&mut writer).unwrap();
+    let mut writer = Writer::new(usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    answer.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
     step(&mut root, Event::Client { event: jig_client::Event::Reply { exchange: id, message: writer.finish() } });
     assert_ne!(root.client().link().state, jig_client::Link::SignedOut);
     assert_eq!(root.asked(), None);

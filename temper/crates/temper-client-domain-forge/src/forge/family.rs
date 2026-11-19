@@ -7,10 +7,11 @@
     clippy::panic,
     clippy::wildcard_enum_match_arm
 )]
+use jig_client_protocol_wire::Record as _;
 use crate::forge;
 use alloc::boxed::Box;
 use jig_client_protocol_link as link;
-use skein_lib::{List, Reader, Writer};
+use skein_lib::{List, Reader};
 use temper_client_protocol_wire::{self as wire, v1 as w};
 #[must_use]
 pub fn request(a: &forge::Adoption, limits: &w::Limits) -> Option<jig_client::Family> {
@@ -190,14 +191,9 @@ pub fn core_refusal(bytes: &[u8], limits: &link::Limits) -> Option<jig_client::c
     if !reader.is_empty() {
         return None;
     }
-    let final_answer = j::Final::Refused(j::Refused::new(limits.wire(), j::RefusedParts { refusal, at: None }).ok()?);
-    let mut writer = Writer::new(usize::try_from(final_answer.measure()).expect("measured record fits usize"));
-    final_answer.encode(&mut writer).ok()?;
-    let owned = j::Owned::new(
-        limits.wire(),
-        j::OwnedParts { owner: j::Owner::Jig, version: j::VERSION, record: writer.finish() },
-    )
-    .ok()?;
+    let final_answer = j::Final::Refused(j::Refused { refusal, at: None });
+    let record = final_answer.encode(limits.wire()).ok()?;
+    let owned = j::Owned { owner: j::Owner::Jig, version: j::VERSION, record };
     match link::translate::answers::answer(j::KeyedAnswer::FinalAnswer(owned), limits).ok()? {
         jig_client::contract::Answer::Refused { refusal, .. } => Some(refusal),
         jig_client::contract::Answer::Done(_) => None,
