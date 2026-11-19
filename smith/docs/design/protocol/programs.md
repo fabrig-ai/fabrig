@@ -477,6 +477,25 @@ open is section 9.
 
 ### 5.6 Failures and notices
 
+- **Every `rate_limit_event` reports a usage window,** whatever its
+  status: the agent sends the usage notice for the run's account
+  (channel.md, section 4), its window read from `rate_limit_info`:
+  - the label, `rateLimitType` as given (`five_hour`, `seven_day`,
+    `seven_day_opus`), 1 to 32 printable ASCII bytes; an event without
+    one reports no window;
+  - the length: 5 hours for `five_hour`, 7 days for a label that begins
+    `seven_day`, none for any other;
+  - the state, from `status`: `allowed` open, `allowed_warning` warned,
+    `rejected` limited; any other status reports no window;
+  - the reset, `resetsAt`, the provider's wall time in Unix seconds, as
+    given, or none;
+  - the share used, `utilization`, a fraction of 1 in plain decimal
+    (`0.28`), read to basis points with digits past the fourth decimal
+    dropped; none where it is absent, in another form or past 1.
+
+  It reports each event, equal to the last or not: the core keeps what
+  changes (jig's `domain/accounts.md`, 3.7). A rejected event's window goes
+  before its limit, which stays as below.
 - **A usage limit** shows as a `rate_limit_event` whose
   `rate_limit_info.status` is `rejected`, with its
   `rate_limit_info.resetsAt`, in Unix seconds, when given, or as the
@@ -762,6 +781,33 @@ backend.
   failed; main goes on. A usage limit or a lost login on its account is
   told as 5.6 says, the notice sent for its account.
 
+### 5.11 The usage read
+
+- **When its host asks,** for a program source, with the check's
+  deadline (host.md, section 2). It is no run: no turn, budget, slot or
+  model call.
+- **The command,** in the source's environment (4.2), started as a
+  status check is (5.1): `claude -p /usage --output-format json
+  --setting-sources user --tools ""`. `/usage` is Claude Code's own local
+  command: it prints the subscription's windows and calls no model.
+- **Its answer** is the JSON `result`, `is_error` false, whose `result`
+  text is read line by line. A line that begins `Current session` opens
+  `five_hour`; `Current week (all models)` opens `seven_day`; any other
+  `Current week (` opens `seven_day_` and the first word after the
+  parenthesis in lower case (`seven_day_opus`). The first `N% used` after
+  it, N a whole or decimal percent, is its share; a window with none is
+  not reported. A share of 100% is limited, any other open; the length is
+  as 5.6 gives; the reset is not read, since the text words it in the
+  host's local time. At most 8 windows.
+- **It fails** not signed in where the check's inspection finds no
+  login; missing, deadline or exited as a check does, with the detail;
+  unreadable where the answer does not read or names no window; and
+  *spent* where the result's `usage` names a token or `total_cost_usd`
+  is above zero, a model call the read must never make (jig's
+  `domain/accounts.md`, 3.7 asks no more of that account).
+- **The form is Claude Code's,** recorded nowhere: 9, *The usage
+  command*.
+
 ## 6. The terms it keeps
 
 Anthropic allows a person's own Claude Code to run in a product under
@@ -837,6 +883,10 @@ conditions. smith keeps each as a rule of its own:
   - `auth status`, `auth login` and `auth logout`, answering signed in,
     not signed in or signed in otherwise, and refusing to run without
     `CLAUDE_CONFIG_DIR`;
+  - `-p /usage --output-format json` (5.11), printing the result the
+    story gives: windows in `/usage`'s words, an error, or a spent one;
+  - `rate_limit_event` of each status, with or without `rateLimitType`,
+    `resetsAt` and `utilization` (5.6);
   - `-p` with stream-json both ways: `system/init` with the tools
     `--tools` gave and the MCP servers the configuration named;
     assistant and partial messages, with usage; `rate_limit_event`;
@@ -867,6 +917,9 @@ conditions. smith keeps each as a rule of its own:
   - a built-in tool not granted, listed by `system/init`, failing the
     start;
   - a usage limit, with a reset and without one;
+  - usage windows: an allowed, a warned and a rejected event each
+    reported, and one with no type reporting none (5.6); a usage read
+    answered, failed and spent (5.11);
   - a login lost mid-run, and each answer of the check;
   - a credential variable in the host's environment, absent from the
     program's;
@@ -889,7 +942,8 @@ conditions. smith keeps each as a rule of its own:
   (`docs/design/testing.md`, 2.3), and checks what the fake assumes: the
   prompt tool's shape, `system/init`'s tools and capabilities, a
   summary session's `system/init` with no tools and no MCP servers
-  (5.8), a limit's events, that `-p` reads the login, and what 5.9
+  (5.8), a limit's events, a `rate_limit_event`'s fields (5.6),
+  `/usage`'s answer, spending nothing (5.11), that `-p` reads the login, and what 5.9
   relies on: after a turn's `result`, with its input left open, the
   same process takes a second user message that needs the first
   turn's context, answers it with a second `result`, and exits when its
@@ -934,6 +988,10 @@ the next turn of that same cued script (decided 2026-11-02).
 - **The prompt tool's shape:** Claude Code does not document its input
   and answer. Default: the shape the live suite checks against the
   release it runs.
+- **The usage command** (5.11): whether `/usage` answers in `-p`, and its
+  words, are recorded nowhere, nor `utilization`'s form (5.6). Default:
+  5.11's command and words, and a fraction, until the live suite or a
+  person's recording says otherwise.
 - **How the MCP server reaches its agent:** Claude Code starts it with
   pipes of its own, and skein's io has no local sockets. Default: a
   loopback listener of the agent's (skein's `runtime/io/sockets.md`, 2), its address

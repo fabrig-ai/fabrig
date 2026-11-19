@@ -494,6 +494,13 @@ The words for each offered source are:
   and moves no task. A plan's row shows its limit's state and "Manage
   usage" alone: its usage is ChatGPT's settings' to show (jig's
   `domain/providers.md`, 2.6), and temper reads no plan's windows.
+- **A Claude subscription's usage:** its windows are the account's kind 7
+  facts (jig's `domain/accounts.md`, 3.7), drawn as the look request
+  `accounts-usage` draws them. A window's pace is its rate as the
+  document serves it ("2.0%/h", jig's `client/domain/contract/documents.md`,
+  1), and "full in" is the share left at that rate, drawn where it comes
+  before the reset. A window the document gives no rate draws no pace, and
+  a window no fact holds isn't drawn.
 - **A sign-in:** no words while it waits in a browser, which is at the
   provider (1, `ConnectModel`); in the terminal, "Open this address in
   a browser:" and the address, then the paste (below), as an external

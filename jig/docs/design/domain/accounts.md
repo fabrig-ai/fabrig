@@ -526,7 +526,7 @@ Value, one of
   | 4 | workspace | text | account | nothing yet |
   | 5 | renews | instant | holder | nothing yet |
   | 6 | ends | instant | holder | nothing yet |
-  | 7 | usage | window | account | nothing yet |
+  | 7 | usage | window | account | a program's `rate_limit_event`, origin 5 (smith's `protocol/programs.md`, 5.6); a program's usage read, origin 6 (*A usage read*, below) |
 
   Origins: 1 a sign-in, 2 a refresh, 3 a call's answer, 4 a limit error, 5 a
   program's status or event, 6 a provider's usage read. A window's states:
@@ -548,6 +548,51 @@ Value, one of
   removes nothing, and a later report replaces it, from whichever host. A
   source's facts are the account's: when two hosts' logins of one source name
   two emails, the latest report stands (3.3).
+- **A program's usage window:** a window a run's program reports
+  (`../protocol/channel/records.md`, 1, `usage`) is kept through the run's
+  source as kind 7, labelled with the window's name, origin 5; a usage read's,
+  through the source read, origin 6. A report replaces only the window it
+  names, and a field it leaves absent, its share, length or reset, keeps the
+  one held for that label, so that a report equal to what is held writes
+  nothing.
+- **A usage read,** when no run speaks: the program's own usage command, run on
+  a host that keeps the login (smith's `protocol/programs.md`, 5.11):
+  - *Which accounts:* one with a program source; its first program source in
+    its holder's order that is usable is read.
+  - *When it is due:* 30 minutes after the latest of a kind 7 report for the
+    account, a run's or a read's, equal or not; the end of its last read; and
+    the moment its program source turned usable in this process, the engine's
+    start counting as one. And once at the reset of each window held limited,
+    the held facts read at the start too. A source not usable holds what is due
+    until it is, and an account being read isn't read again.
+  - *How:* the core gives the fleet the account's read number and the source's
+    name. The fleet holds it until a ready worker whose last `logins` names the
+    source usable speaks a version with `read usage`, sends it there, one usage
+    read in flight per worker, and holds it again if that worker's channel is
+    lost before it answers. The host's half runs it (`hosts/README.md`, 5.1).
+    No budget, no slot, no turn and no model call.
+  - *Its answer:* each window a report, as above. A failure keeps the facts
+    held, the next read due 30 minutes after it. A read *spent*, whose program
+    used the model, isn't asked of that account again until the engine
+    restarts.
+  - *Nothing is stored:* due times and reads in flight are memory, and a
+    restart starts them again.
+- **A window's rate,** its pace, is the core's memory beside the fact, never
+  stored, and a restart starts it again:
+  - *Readings:* for each kind 7 fact with a share, at most 13, each a wall time
+    and a share. A report keeps the fact's share after it as a reading when the
+    newest is at least 5 minutes older, or none is kept, and those more than 60
+    minutes older than the newest go. A share lower than the newest reading's,
+    a reset, clears them first. A fact gone takes its readings.
+  - *The rate,* a share per hour in basis points, saturating: from the oldest
+    reading to the newest when the oldest is at least 30 minutes older;
+    otherwise the window's average since it opened, its share over the time
+    from its reset less its length to the newest reading, where both are held
+    and that time is above zero; otherwise none. It is computed as the readings
+    change, and served beside the fact (`../client/domain/contract/documents.md`, 1).
+  - *Marks:* a rate that changes marks the accounts documents that show the
+    account, as a fact's change does; one that doesn't marks nothing. So an
+    equal report may move a window's rate at most once every 5 minutes.
 - **A source gone** takes the facts that came through it, sign-in and refresh
   or program's alike, with the record rewritten in the decision that removes
   it.
@@ -876,10 +921,10 @@ construction, never by a person deleting a copy.
   the existing refusal; a declaration's not offered and a resume's have
   the single meanings in section 5.
 
-- **An account's other facts:** kinds 3 to 7 (3.7) wait for each provider's
-  adapter to learn them, Claude Code's usage windows from its rate-limit
-  events first (`../draft/account-facts.md`, section 6). The user is still
-  deciding on them; the format holds them. Default: nothing says them.
+- **An account's other facts:** kinds 3 to 6 (3.7) wait for each provider's
+  adapter to learn them (`../draft/account-facts.md`, section 6); kind 7 is
+  said (temper's `draft/usage-windows.md`). The user is still deciding on
+  them; the format holds them. Default: nothing says them.
 - **A stored default that reads as named:** a store from when Create
   recorded a task's default holds that default as a choice, so its task
   waits for it as named until it is amended through its chooser or closed.

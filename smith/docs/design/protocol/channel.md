@@ -227,6 +227,7 @@ of domain/host.md, section 2.
 | unauthorized | an account and a generation | when a provider refused that credential, or a program source's login was lost (programs.md, 5.6) |
 | limited | an account, and its reset (below) | when its account reached a usage limit |
 | refused | an account, and the provider's code and reason (below) | when its provider refused the account what the run asked, such as a model its plan does not serve |
+| usage | an account, and one usage window (below) | at each `rate_limit_event` a program reports (programs.md, 5.6) |
 | fact | one fact (section 8) | while the run is admitted and has not answered, with room to spare; any other is not projected, and counted (section 7) |
 | live | a piece of live content (below) | while the run is admitted and has not answered, only for a kind the start asked for, with room to spare; any other is dropped, and counted (section 7) |
 | answer | the turns it took; what it spent; the last message read, if any; how it ended (below) | the last word |
@@ -306,6 +307,14 @@ last one with `opens_window` (domain/host.md, section 6).
 
 The code and the reason are each text within its bound, which
 limits.md, 2.4, gives.
+
+**The usage window,** in usage, added in version 12 (`UsageWindow`): its
+label, 1 to 32 printable ASCII bytes; its length, an optional
+`duration`; its share used, optional basis points from 0 to 10,000; its
+reset, the provider's optional wall time in Unix seconds, as given, never
+a duration, so that two reports of one reset are equal; and its state,
+`UsageState`: open, warned or limited. The channel is per-build, so the
+version moves with no bridge (temper's `draft/redeploys.md`, 4.4).
 
 **How a run ended** (domain/run.md, section 9):
 

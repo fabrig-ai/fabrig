@@ -308,6 +308,10 @@ gets the account's kinds alone. A fact is whole, at its
 own bounds: neither the document's text bound nor a line's `cut` touches it.
 The wire and the client's contract carry the registry's numbers, and the
 contract names those a client reads. The client link refuses a share past 10000.
+A window's value also carries its rate (`AccountWindow.rate`, `Option<u32>`),
+its share per hour in basis points, or none: the core's memory beside the fact
+(`../../../domain/accounts.md`, 3.7), never stored. It moved the client wire to
+version 36.
 
 The public provider catalogue in `me` carries the configured provider number,
 cut-aware name, sign-in and key offers, whole program names (at most 32 bytes

@@ -316,6 +316,15 @@ takes no slot and no workspace, and its answer, the rows or a typed failure, goe
 up with the read's number. The hub hears the grant's name alone; its value comes
 from the worker's table, as a run's does. A link lost cancels it and sends nothing.
 
+A read of a program source's usage (../accounts.md, 3.7) is one of the source
+machine's commands, queued with a list's read and serialized as every command is:
+the engine names the source, and the protocol layer has smith's host half inspect
+its two levels and run the program's usage command, with the check's deadline
+(smith's `protocol/host.md`, section 2). Its answer, the windows, not signed in,
+spent or a failure, goes up with the read's number; it takes no slot and no
+workspace, and a link lost cancels it and sends nothing. A run's usage notice is
+relayed as its limited notice is (`../../protocol/channel/records.md`, 1).
+
 The hub's source machine owns when to check: on a new list, an explicit
 check and a positive interval. An explicit check queues a fresh command;
 requests for that queued command coalesce, while a command already running
