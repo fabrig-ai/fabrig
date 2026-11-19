@@ -193,6 +193,44 @@ class RunnerFixture(unittest.TestCase):
             signal.signal(signal.SIGALRM, previous)
 
 
+class LaneTests(RunnerFixture):
+    cpu_counts = [(None, 3, 3), ({0, 1}, 8, 2), (None, None, 1)]
+
+    def check_lane_counts(self, fixed):
+        self.binary(names=())
+        self.run.__globals__['LANES'] = fixed
+        for index, (affinity, cpus, default) in enumerate(self.cpu_counts):
+            with self.subTest(affinity=affinity, cpus=cpus), contextlib.ExitStack() as patches:
+                if affinity is None:
+                    if hasattr(os, 'sched_getaffinity'):
+                        patches.enter_context(mock.patch.object(os, 'sched_getaffinity'))
+                        del os.sched_getaffinity
+                else:
+                    patches.enter_context(mock.patch.object(os, 'sched_getaffinity',
+                                                           return_value=affinity, create=True))
+                patches.enter_context(mock.patch.object(os, 'cpu_count', return_value=cpus))
+                self.assertEqual(self.module['default_lanes'](), default)
+                self.directory = self.root / f'run-{index}'
+                self.invoke()
+                expected = fixed or default
+                self.assertEqual(self.record['lanes'], expected)
+                plan = json.loads((self.directory / 'plan.json').read_text())
+                self.assertEqual(plan['lanes'], fixed)
+                output = io.StringIO()
+                with contextlib.redirect_stdout(output):
+                    self.module['lanes'](plan)
+                events = [json.loads(line.removeprefix(self.module['EVENT']))
+                          for line in output.getvalue().splitlines()]
+                self.assertEqual([event['lanes'] for event in events if event['event'] == 'lanes'],
+                                 [expected])
+
+    def test_default_lanes_follow_available_cpu_counts(self):
+        self.check_lane_counts(None)
+
+    def test_fixed_lanes_ignore_cpu_counts(self):
+        self.check_lane_counts(1)
+
+
 class PlacementTests(RunnerFixture):
     def placement_binaries(self, rows):
         self.listing['rust-suites'].clear()
