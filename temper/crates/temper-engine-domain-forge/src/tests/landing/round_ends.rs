@@ -6,6 +6,7 @@ use skein_lib::List;
 const TASK: u64 = 61;
 const GREEN: api::Commit = [11; 32];
 const RED: api::Commit = [12; 32];
+const FRESH: api::Commit = [20; 32];
 const TEST: &[u8] = b"test bin broken";
 
 fn member_at(row: &LandingRow, branch: &[u8]) -> usize {
@@ -33,6 +34,13 @@ fn has_entry(row: &LandingRow, entry: u64) -> bool {
     false
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum MainMove {
+    Closing,
+    Cleaned,
+    Opened,
+}
+
 struct World {
     d: Domain,
     env: Env<Limits>,
@@ -41,16 +49,28 @@ struct World {
     main: api::Commit,
     entry: u64,
     by_test: bool,
+    main_move: Option<MainMove>,
 }
 impl World {
     fn new(round: u16, goal: bool, by_test: bool) -> Self {
+        Self::with_members(round, goal, by_test, if goal { 1 } else { 4 })
+    }
+    fn with_members(round: u16, goal: bool, by_test: bool, count: u64) -> Self {
         let mut e = env();
         e.limits.landing_members = 4;
         let mut d = domain_with_limits(&e.limits);
         d.restore_begin(Wall::EPOCH);
-        let mut w = Self { d, env: e, prefixes: [None; 4], pull: None, main: fixtures::BASE, entry: 90, by_test };
+        let mut w = Self {
+            d,
+            env: e,
+            prefixes: [None; 4],
+            pull: None,
+            main: fixtures::BASE,
+            entry: 90,
+            by_test,
+            main_move: None,
+        };
         w.send(Event::Restore { record: Stored::Repository(adopted()) });
-        let count = if goal { 1 } else { 4 };
         let mut members = List::uncapped();
         for n in 0..count {
             let mut change = fixtures::opening_row();
@@ -126,6 +146,12 @@ impl World {
         w.send(Event::SettleOutbox);
         w
     }
+    fn move_main(&mut self, at: MainMove) {
+        if self.main_move == Some(at) {
+            self.main = [19; 32];
+            self.main_move = None;
+        }
+    }
     fn send(&mut self, event: Event) -> Queue<Request> {
         let mut out = Queue::uncapped();
         step(&mut self.d, &self.env, event, &mut out);
@@ -157,7 +183,7 @@ impl World {
                 }
                 let mut pull = fixtures::open_pull();
                 pull.number = number;
-                if self.main == GREEN {
+                if self.main == GREEN || self.main == FRESH {
                     pull.merged = merged_member(row, number);
                 }
                 Ok(Answer::Pull(pull))
@@ -300,6 +326,7 @@ impl World {
                             Answer::Created(entry)
                         }
                         Write::Close { .. } => {
+                            self.move_main(MainMove::Closing);
                             self.pull = None;
                             Answer::Done
                         }
@@ -514,6 +541,66 @@ fn a_later_by_test_cut_opens_and_lands_the_member_below_the_blame() {
 #[test]
 fn a_whole_cut_after_two_conflicts_opens_the_green_turn() {
     cut_to_kept_prefix(1, false);
+}
+fn cut_on_a_stale_base(point: MainMove) {
+    use policy::{Decision as D, Leave, Posting};
+    let mut w = World::with_members(1, false, true, 3);
+    w.decide(D::Prepare { member: 0, head: fixtures::HEAD, main: fixtures::BASE });
+    // The middle member left on an earlier conflict, before the search blamed the top.
+    w.prefixes = [Some(GREEN), None, Some(RED), None];
+    w.d.landing.rows.get_mut(&TASK).unwrap().landing.round.failure = br#"{"combined":[{"member":1,"by":"merge"},{"member":3,"by":"merge"}],"conflicts":[{"member":2,"with":"member","files":["file"]}]}"#.as_slice().into();
+    w.seed_receipts();
+    w.decide(D::Leave { member: 1, why: Leave::EarlierConflict });
+    w.decide(D::Open);
+    w.decide(D::None);
+    w.decide(D::Key { member: 2, gate: 0, candidate: RED });
+    w.decide(D::None);
+    w.decide(D::Post { member: 2, gate: 0, posting: Posting::Ran { passed: false } });
+    w.decide(D::Key { member: 0, gate: 0, candidate: GREEN });
+    w.decide(D::None);
+    w.decide(D::Leave { member: 2, why: Leave::Blamed { gate: 0, run: 8, red: RED, green: GREEN } });
+    w.main_move = Some(point);
+    w.decide(D::Close);
+    w.decide(D::Delete { member: 2 });
+    w.decide(D::None);
+    w.move_main(MainMove::Cleaned);
+    if point == MainMove::Opened {
+        w.decide(D::Open);
+        w.move_main(MainMove::Opened);
+    }
+    w.decide(D::None);
+    assert_eq!(w.d.landing(TASK).unwrap().landing.round.ending, Some(policy::RoundEnd::Stale));
+    w.decide(D::Delete { member: 0 });
+    w.decide(D::Stale);
+    w.decide(D::Prepare { member: 0, head: fixtures::HEAD, main: [19; 32] });
+    assert_eq!(w.d.landing(TASK).unwrap().landing.members[0].base, Some([19; 32]));
+    w.prefixes[0] = Some(FRESH);
+    let gate = w.d.landing.gates(5, REPO)[0].clone();
+    seed_receipt(&mut w, &gate, FRESH, true);
+    w.d.landing.rows.get_mut(&TASK).unwrap().landing.round.failure =
+        br#"{"combined":[{"member":1,"by":"merge"}]}"#.as_slice().into();
+    w.decide(D::Open);
+    w.decide(D::None);
+    w.decide(D::Key { member: 0, gate: 0, candidate: FRESH });
+    w.decide(D::Post { member: 0, gate: 0, posting: Posting::Received });
+    w.decide(D::Proved);
+    w.decide(D::Merge { member: 0, candidate: FRESH });
+    w.decide(D::Landed { member: 0, prefix: FRESH });
+    w.decide(D::Finish);
+    assert_eq!(w.main_move, None);
+    assert_eq!(w.main, FRESH);
+}
+#[test]
+fn main_moving_before_a_cuts_close_is_answered_prepares_and_lands() {
+    cut_on_a_stale_base(MainMove::Closing);
+}
+#[test]
+fn main_moving_after_cut_cleanup_prepares_and_lands() {
+    cut_on_a_stale_base(MainMove::Cleaned);
+}
+#[test]
+fn main_moving_after_the_kept_round_opens_prepares_and_lands() {
+    cut_on_a_stale_base(MainMove::Opened);
 }
 #[test]
 fn a_stale_squash_turn_without_gates_cleans_up_and_prepares_again() {

@@ -7,21 +7,24 @@ use skein_lib::{Duration, List, Rng, Wall};
 fn seeded_stacks_keep_their_prefix_and_turn_invariants() {
     let mut whole_cut = false;
     let mut selected_cut = false;
+    let mut stale_after_cut = false;
     for seed in 0..256 {
         prefix_search(seed);
         let played = run(seed);
         let [whole, selected] = played.2;
         whole_cut |= whole;
         selected_cut |= selected;
+        stale_after_cut |= played.3;
         assert_eq!(played, run(seed), "replay seed {seed}");
     }
     assert!(whole_cut && selected_cut, "the sweep reaches both kinds of cut");
+    assert!(stale_after_cut, "the sweep moves main after a cut, before the next open is answered");
 }
 
 // Each effect takes 1–3 steps, separately from its result becoming readable.
 // The settling bound is 32 + 20 per member + 24 per drawn disturbance:
 // member steps, round cleanup, and another proof after each disturbance.
-fn run(seed: u64) -> (Landing, Box<[Decision]>, [bool; 2]) {
+fn run(seed: u64) -> (Landing, Box<[Decision]>, [bool; 2], bool) {
     let mut rng = Rng::new(seed);
     let count = usize::try_from(rng.below(6).checked_add(1).unwrap()).unwrap();
     let units = usize::try_from(rng.below(4).checked_add(1).unwrap()).unwrap().min(count);
@@ -91,10 +94,12 @@ fn run(seed: u64) -> (Landing, Box<[Decision]>, [bool; 2]) {
                     assert!(member.landed.is_some() || member.left.is_some(), "terminal seed {seed}");
                 }
                 if world.pending.is_empty() {
-                    return (next.landing, trace.into_boxed(), world.cuts);
+                    return (next.landing, trace.into_boxed(), world.cuts, world.stale_after_cut);
                 }
             }
-            Decision::Hold(_) | Decision::Cancel => return (next.landing, trace.into_boxed(), world.cuts),
+            Decision::Hold(_) | Decision::Cancel => {
+                return (next.landing, trace.into_boxed(), world.cuts, world.stale_after_cut);
+            }
             Decision::None
             | Decision::Wait { .. }
             | Decision::Prepare { .. }
@@ -214,6 +219,13 @@ enum Effect {
     Record,
 }
 
+#[derive(Clone, Copy)]
+enum StaleAt {
+    Proved,
+    Merging,
+    Cut,
+}
+
 struct Top {
     rng: Rng,
     facts: crate::Facts,
@@ -222,9 +234,10 @@ struct Top {
     noise: Box<[Option<(u32, bool)>]>,
     red: Option<u16>,
     by_test: bool,
-    stale: Option<bool>,
+    stale: Option<StaleAt>,
     cancel: bool,
     cuts: [bool; 2],
+    stale_after_cut: bool,
 }
 
 impl Top {
@@ -254,8 +267,9 @@ impl Top {
         };
         let by_test = rng.below(2) == 0;
         let stale = match rng.below(4) {
-            0 => Some(false),
-            1 => Some(true),
+            0 => Some(StaleAt::Proved),
+            1 => Some(StaleAt::Merging),
+            2 => Some(StaleAt::Cut),
             _ => None,
         };
         let cancel = rng.below(32) == 0;
@@ -273,6 +287,7 @@ impl Top {
             stale,
             cancel,
             cuts: [false; 2],
+            stale_after_cut: false,
         }
     }
 
@@ -313,9 +328,23 @@ impl Top {
                 disturbed = true;
             }
         }
-        if let Some(during) = self.stale {
-            let due = if during { self.merge_pending() } else { proved(landing) };
+        if let Some(at) = self.stale {
+            let due = match at {
+                StaleAt::Proved => proved(landing),
+                StaleAt::Merging => self.merge_pending(),
+                StaleAt::Cut => {
+                    landing.round.ending == Some(crate::RoundEnd::Cut)
+                        && match &landing.round.search {
+                            Some(search) => search.green != 0,
+                            None => false,
+                        }
+                }
+            };
             if due {
+                if let StaleAt::Cut = at {
+                    self.stale_after_cut = true;
+                    assert_ne!(self.facts.opening, Status::Pending, "the cut precedes its next open");
+                }
                 for fresh in &mut self.facts.members {
                     fresh.main = [91; 32];
                 }
