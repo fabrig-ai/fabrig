@@ -116,7 +116,7 @@ def tree(root, git_dir, index, env):
     private['GIT_INDEX_FILE'] = str(index)
     source = Path(env.get('GIT_INDEX_FILE', git_dir / 'index'))
     if source.exists():
-        shutil.copyfile(source, index)
+        shutil.copy2(source, index)  # mtime kept: git still sees a same-size edit in the same second
     for arguments in (['add', '-A'], ['write-tree']):
         result = git(arguments, root, private)
         if result.returncode:
