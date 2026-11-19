@@ -126,6 +126,9 @@ pub struct Engine {
     pub period_span: skein_lib::Duration,
     pub kinds_stock: Box<[temper_engine_domain_forge::settings::Stock]>,
     pub limits: super::limits::Limits,
+    /// Deployment envelope laid out over the store base before runtime overrides.
+    /// Typed component fixtures may leave it absent to lay out their own profile.
+    pub store_limits: Option<jig_protocol_store::Limits>,
 }
 
 pub use temper_service_core::agent::Declaration as Agent;
