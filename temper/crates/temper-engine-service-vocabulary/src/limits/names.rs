@@ -810,7 +810,7 @@ pub static NAMES: [Name; 198] = [
         name: "forge.applications",
         unit: Unit::Count,
         applies: Applies::NextStart,
-        line: "Bounds keyed adoption answers retained for request retention.",
+        line: "Bounds the forge's kept answers to keyed requests; the oldest answered makes room for a new one.",
         value: |limits| u64::from(limits.forge.applications),
     },
     Name {

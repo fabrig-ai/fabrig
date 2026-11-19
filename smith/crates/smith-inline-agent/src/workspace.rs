@@ -202,12 +202,14 @@ pub(crate) fn probe(
     out.push(Output::Lower { agent, request: Lower::Probe { owner, at, deadline } });
 }
 
+#[expect(clippy::too_many_arguments, reason = "relay the check held bound and absolute cap unchanged")]
 pub(crate) fn check(
     slot: &mut Slot,
     agent: Token,
     owner: Token,
     program: run::Place,
-    deadline: Time,
+    bound: skein_lib::Duration,
+    cap: Time,
     tail: u32,
     out: &mut Queue<Output>,
 ) {
@@ -215,7 +217,7 @@ pub(crate) fn check(
         slot.machine.insert(owner, Machine::Check { cancelled: false }).expect("bounded run check rights").is_none(),
         "root machine requests own one callback right"
     );
-    out.push(Output::Lower { agent, request: Lower::Check { owner, program, deadline, tail } });
+    out.push(Output::Lower { agent, request: Lower::Check { owner, program, bound, cap, tail } });
 }
 
 pub(crate) fn abort(slot: &mut Slot, agent: Token, owner: Token, out: &mut Queue<Output>) {

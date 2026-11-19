@@ -4,7 +4,9 @@
 use alloc::boxed::Box;
 
 use super::ROUNDS;
-use crate::bytes::{concat, count, decimal, find, find_from, hex_digit, hex_value, is_utf8, utf8_prefix};
+use crate::bytes::{
+    concat, count, decimal, find, find_from, hex_digit, hex_value, is_utf8, utf8_prefix, utf8_replaced,
+};
 use crate::{Decimal, List, Overflow, Reader, Rng, Writer};
 
 #[test]
@@ -36,6 +38,22 @@ fn utf8_accepts_scalar_values_and_rejects_invalid_encodings() {
         &[0xc2, b'a'], // A leading byte followed by ASCII.
     ] {
         assert!(!is_utf8(bytes), "{bytes:?}");
+    }
+}
+
+#[test]
+fn utf8_replaced_keeps_characters_and_replaces_each_invalid_byte_without_growing() {
+    for (input, expected) in [
+        (b"ok\xffok".as_slice(), b"ok?ok".as_slice()),
+        (b"a\xe2\x82", b"a??"),
+        (b"\xe2\x82X", b"??X"),
+        ("é€".as_bytes(), "é€".as_bytes()),
+        (b"", b""),
+    ] {
+        let text = utf8_replaced(input);
+        assert_eq!(text.as_ref(), expected, "input {input:?}");
+        assert_eq!(text.len(), input.len());
+        assert!(is_utf8(&text));
     }
 }
 

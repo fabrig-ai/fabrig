@@ -110,7 +110,7 @@ fn drill_16_a_batch_four_conflict_is_settled_by_the_merge_job_without_an_agent()
     )));
     world.manual_prepare_jobs();
     world.drain_cut();
-    world.restart_with_batch(4);
+    restart_waiting_batch(&mut world, 4, &changes);
     world.send(hello());
     for _ in 0..PAIR_TICKS {
         world.tick();

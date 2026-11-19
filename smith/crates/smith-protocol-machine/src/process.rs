@@ -2,7 +2,10 @@
 //! (protocol/agent.md, sections 2 and 3; domain/tools.md, section 5).
 //! Commands may yield; their ends are answered after both pipes and the child close.
 
+mod check_clock;
+
 use alloc::boxed::Box;
+use check_clock::CheckClock;
 
 use skein_io::{self as io, file, kernel};
 use skein_lib::stream::{Down, Read, Up};
@@ -120,7 +123,7 @@ impl Capture {
 #[derive(Debug)]
 pub(crate) enum Work {
     Shell,
-    Check,
+    Check(CheckClock),
     Search(Search),
     List { listing: Listing, directory: Directory },
 }
@@ -161,7 +164,7 @@ impl Process {
     pub(crate) fn purpose(&self) -> Purpose {
         match &self.work {
             Work::Shell => Purpose::Shell,
-            Work::Check => Purpose::Check,
+            Work::Check(_) => Purpose::Check,
             Work::Search(_) => Purpose::Search,
             Work::List { .. } => Purpose::List,
         }
@@ -179,7 +182,7 @@ impl Process {
                     self.child_closed = true;
                 }
             }
-            Work::Shell | Work::Check | Work::Search(_) => unreachable!("only a listing opens a directory"),
+            Work::Shell | Work::Check(_) | Work::Search(_) => unreachable!("only a listing opens a directory"),
         }
     }
 
@@ -226,13 +229,23 @@ impl Process {
         }
     }
 
-    pub(crate) fn byte(&mut self, pipe: Token, byte: u8) {
+    pub(crate) fn byte(&mut self, now: Time, pipe: Token, byte: u8) {
         let index = usize::from(self.pipes.first().copied().expect("pipe slot") != Some(pipe));
         assert_eq!(self.pipes.get(index).copied().expect("pipe slot"), Some(pipe), "byte belongs to child");
+        let running = match self.stop {
+            Stop::Running => self.exit.is_none() && !self.child_closed && now < self.deadline,
+            Stop::Terminating { .. } | Stop::Killing { .. } | Stop::Closing { .. } => false,
+        };
         match &mut self.work {
+            Work::Check(clock) if index == 1 && running => {
+                if let Some(deadline) = clock.byte(now, byte) {
+                    self.deadline = deadline;
+                }
+                self.output.push(byte);
+            }
             Work::Search(search) if index == 0 => search.push(byte),
             Work::List { listing, .. } if index == 0 => listing.push(byte),
-            Work::Shell | Work::Check | Work::Search(_) | Work::List { .. } => self.output.push(byte),
+            Work::Shell | Work::Check(_) | Work::Search(_) | Work::List { .. } => self.output.push(byte),
         }
     }
 
@@ -276,7 +289,7 @@ impl Process {
                 }
                 match &self.work {
                     Work::List { directory, .. } => directory.cancel(below),
-                    Work::Shell | Work::Check | Work::Search(_) => {}
+                    Work::Shell | Work::Check(_) | Work::Search(_) => {}
                 }
                 self.stop = Stop::Terminating { next: now.saturating_add(grace), why };
                 if let Some(child) = self.child {
@@ -398,7 +411,7 @@ impl Process {
                 };
                 ToDomain::Done { owner, done }
             }
-            Work::Check => {
+            Work::Check(_) => {
                 if cancelled {
                     ToDomain::Aborted { owner }
                 } else {
@@ -519,12 +532,15 @@ pub(crate) fn search(
     Some((Process::new(Work::Search(parser), deadline, bytes, bytes), Below::Spawn { owner, root: at.root, spawn }))
 }
 
+#[expect(clippy::too_many_arguments, reason = "the check held bound and absolute cap cross the machine boundary")]
 pub(crate) fn check(
+    now: Time,
     owner: Token,
     program: run::Place,
     environment: &crate::Environment,
     tail: u32,
-    deadline: Time,
+    bound: Duration,
+    cap: Time,
     limits: &Limits,
 ) -> Option<(Process, Below)> {
     if tail > limits.output_bytes || program.path.is_empty() || program.path.contains(&0) {
@@ -538,14 +554,16 @@ pub(crate) fn check(
         dir: crate::files::io_path(Box::new([])),
         pipes: pipes(),
     };
-    Some((Process::new(Work::Check, deadline, 0, tail), Below::Spawn { owner, root: program.root, spawn }))
+    let clock = CheckClock::new(now, bound, cap);
+    let deadline = now.saturating_add(bound).min(cap);
+    Some((Process::new(Work::Check(clock), deadline, 0, tail), Below::Spawn { owner, root: program.root, spawn }))
 }
 
-pub(crate) fn stream(process: &mut Process, pipe: Token, up: Up, below: &mut Queue<Below>) {
+pub(crate) fn stream(process: &mut Process, now: Time, pipe: Token, up: Up, below: &mut Queue<Below>) {
     match up {
         Up::Bytes(bytes) => {
             for byte in bytes {
-                process.byte(pipe, byte);
+                process.byte(now, pipe, byte);
             }
             below.push(Below::Process(io::Request::Stream {
                 stream: pipe,
@@ -644,7 +662,12 @@ mod signal_tests {
     #[test]
     fn a_check_ended_by_a_signal_keeps_its_number() {
         for signal in [1, 15, 27, u32::MAX] {
-            let mut process = Process::new(Work::Check, Time::ZERO, 0, 0);
+            let mut process = Process::new(
+                Work::Check(super::CheckClock::new(Time::ZERO, skein_lib::Duration::ZERO, Time::ZERO)),
+                Time::ZERO,
+                0,
+                0,
+            );
             process.exited(kernel::Exit::Signal(signal), &mut skein_lib::Queue::uncapped());
             let ToDomain::Checked { owner, ran } = process.answer(Token::new(7)) else {
                 panic!("a check has a checked terminal");

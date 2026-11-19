@@ -752,7 +752,8 @@ The default, for a project with no prepare command:
   live, with aging past the deployment's queue window, and the task's
   number last. Derived, not kept.
 - **Forming is level-triggered:** whenever a train is free and has a
-  waiting unit (4.1), every change of it waiting, a decision forms its
+  waiting unit (4.1), every change of it waiting and none of them left
+  out (below), a decision forms its
   next landing: the waiting units in order, each whole, up to the
   project's `batch` changes for a train into a repository's main, and
   one unit for a train into any other branch (`landing-settings.md`, 1.1). The first unit is
@@ -760,12 +761,36 @@ The default, for a project with no prepare command:
   beside those before it ends the batch and waits, first in line. A refused unit (4.1) is held
   and passed over. Forming is judged when a change becomes ready, when
   a landing ends, when a change's priority moves, and at a restart, for
-  each train they touch. Changes made ready by one event (a dependency
-  they share ending, one decision's gates) are waiting together:
-  forming is judged once the readiness that event makes due has
-  settled, so they form one landing, never the first alone, and no
-  timer or delay stands in for that settling.
-  Other trains settle and form independently.
+  each train they touch.
+- **A due step leaves its change out:** a waiting change whose own step
+  is due (stepped again each queue window, `forge/queues.md`; woken when
+  a landing ends; or awaiting its step's forge read) is left out of the
+  forming judged while it is due, and so is a unit with such a member.
+  It never stops its train: the train forms from the waiting units left
+  in, at that judgement, however many waiting changes it has and however
+  often they are stepped or woken. A change left out keeps its place in
+  line, the time it first became ready, and joins a later landing once
+  its step has settled.
+- **Changes made ready by one event** (a dependency they share ending,
+  one decision's gates) are waiting together: a change into the train
+  under turn, in no landing and not yet ready, whose due step will make
+  it ready, holds that train's forming while that step is due, so they
+  form one landing, never the first alone, and no timer or delay stands
+  in for that settling. Its step will make it ready when it is gating
+  at its head, each blocking gate passed there or its gate's result come
+  back for that step to take in, and no dependency of it pending
+  outside its unit (4.1).
+- **One step at most:** the hold lasts that one step. A change whose
+  step ends with it not ready holds no more while it stays gating at
+  that head, whatever wakes it again. The running engine remembers
+  that, unstored, so after a restart such a change may hold for one more
+  step. No other due step holds a train:
+  not a change still checking or producing, gating with a gate
+  outstanding, kept by a pending dependency, or already waiting (left
+  out, above).
+- **Each train on its own:** a change's step or wake holds or leaves out
+  only its own train's forming; other trains settle and form
+  independently.
 - **No race, no reservation:** a train's branch moves only by its
   landing's turn, or by a push from outside temper, which makes a round
   stale (section 8). Stale rounds are counted on the landing and

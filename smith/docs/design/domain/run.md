@@ -699,6 +699,18 @@ its next run to hear of. smith does not make the host's judgement.
   project's goal-sized landings) gives its charter a larger bound; the
   reserve still holds one run at `check_timeout` alone (budget.md, 1),
   so a larger bound's check in the wind-down is cut at the run's end.
+- **A wait for what a check needs** is not its time. A check queued for a
+  place its environment limits (a build's, among other repositories'
+  builds) says so on its stderr: the whole line `smith-check: waiting`
+  stops its bound's clock, and `smith-check: admitted` starts it again,
+  each newline-ended, those bytes exactly; a `waiting` while it waits,
+  or an `admitted` while it does not, changes nothing. While it waits,
+  only the call's own deadline and the run's end bound it; admitted, it
+  has what was left of its bound, from then, cut as before. A check that
+  says neither is bounded as before. The deadline told to the host at
+  its start can so move later, never past the call's own deadline,
+  within which the host's watchdog never stops a run (host.md, section 4).
+  The time a check was given, in its feedback and its retry's, is its bound.
 - **Out of time, once more.** A check stopped at its deadline (it timed
   out: it neither exited, nor failed to start, nor was cancelled) runs
   once more at once, on the same tree under the same lease, given twice

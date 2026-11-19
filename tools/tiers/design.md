@@ -170,12 +170,24 @@ default names a tool:
      point's process group and session (never one of the hold's own, so that
      a stop of the entry point's tree stops it too), with its stdin a pipe the entry point
      keeps open, its stdout a pipe, its stderr the entry point's;
-  2. waits for the hold's first line on stdout, whatever it says: the hold
-     is taken. Until then no cargo runs. A hold that cannot start, exits or
-     closes its stdout before that line, or gives none within 60 seconds is
-     a warning, `<entry point>: hold: <why>; going on unheld`, the entry
-     point `one-process` or `pre-pr`, and never a failure: the hold's
-     process, if alive, is killed, and the run goes on with none;
+  2. waits for the hold's held line on stdout: its first line that does
+     not start with `waiting`, whatever it says: the hold is taken. Until
+     then no cargo runs. A line that starts with `waiting` says the hold
+     waits for a place it takes (below): at the first, the entry point
+     prints `<entry point>: hold: <the line>` and writes the line
+     `smith-check: waiting` to its stderr, so that smith stops the checks'
+     bound's clock (`smith/docs/design/domain/run.md`, 8.1, *A wait for
+     what a check needs*); later ones it reads and keeps waiting. After
+     any `waiting` line, the held line, or the warning below, first writes
+     `smith-check: admitted` to its stderr, and the held line prints
+     `<entry point>: hold: held after <S> s`, S the whole seconds since
+     the hold started. A hold that cannot start, exits or closes its stdout
+     before its held line, or gives no line within 60 seconds of its start
+     or of its last `waiting` line, is a warning, `<entry point>: hold:
+     <why>; going on unheld`, the entry point `one-process` or `pre-pr`,
+     and never a failure: the hold's process, if alive, is killed, and the
+     run goes on with none. A hold that writes no `waiting` line is read
+     as before, and the entry point writes neither line to its stderr;
   3. runs with `TIERS_HOLD` removed from every child's environment, so that
      an entry point under it (one-process under pre-pr) takes no hold of its
      own: one hold for the run;
@@ -190,13 +202,27 @@ default names a tool:
 
   So a hold program, the prefix started alone with no arguments added and
   without `TIERS_HOLD` in its environment: keeps the directory first, then
-  writes one line, newline-ended and flushed, to its stdout within 60
-  seconds; writes nothing more there, since no one reads it after that
-  line; keeps the directory until it reads end of file on its stdin; then
-  gives it back and exits within 10 seconds. Its keeping must also end if
-  it is killed by `SIGKILL` at that point, and a signal sent to the entry
-  point's process group reaches it too. It holds no build of its own: no
-  cargo command waits on it.
+  writes one held line, newline-ended and flushed, to its stdout, not
+  starting with `waiting`, within 60 seconds of its start or of its last
+  `waiting` line (below); writes nothing more there,
+  since no one reads it after that line; keeps the directory until it
+  reads end of file on its stdin; then gives it back and exits within 10
+  seconds. Its keeping must also end if it is killed by `SIGKILL` at that
+  point, and a signal sent to the entry point's process group reaches it
+  too. It holds no build of its own: no cargo command waits on it.
+
+  **The places it may hold.** An environment that admits its cargo
+  commands to a limited number of build places (builds at once) may have
+  its hold take the run's place too, before its held line, and keep it to
+  its end, so that the run waits for a place once and its cargo commands,
+  run under the hold, wait for none of them: how a command knows it runs
+  under a held place is the environment's. While it waits for one, it
+  writes a line starting `waiting` (`waiting for a build place`, with
+  what it waits behind if it knows), newline-ended and flushed, at once
+  and then at least every 60 seconds, so that a hold that waits is told
+  from one that hangs; then the held line once it holds them. The entry
+  point's waiting has no bound of its own: smith's call deadline and the
+  run's end bound it (smith's `smith/docs/design/domain/run.md`, 8.1).
 
 The runner sets umask 077, closes child stdin, and leaves child output visible,
 what a wrapper prints around a command included. Commands remain sequential,

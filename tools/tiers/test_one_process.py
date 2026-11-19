@@ -1098,6 +1098,26 @@ class HoldTests(RunnerFixture):
         self.assertEqual(sum(e[0] == 'hold-start' for e in events), 1)
         self.assertIn('default: 1 tests', result.stdout)
 
+    def test_waiting_hold_delays_metadata_until_held(self):
+        command, env = self.prepare_command(str(self.root / 'hold') + ' waiting')
+        result = subprocess.run(command, cwd=self.root, env=env, stdin=subprocess.DEVNULL,
+                                capture_output=True, text=True, timeout=10)
+        self.assertEqual(result.returncode, 4, result.stderr)
+        events = self.events()
+        self.assertEqual(events[0][0:2], ['hold-start', ['waiting']])
+        self.assertEqual(events[1], ['held'], events)
+        self.assertEqual(events[2][0:2], ['cargo', ['metadata', '--format-version', '1', '--no-deps']])
+        self.assertEqual(events[-1], ['hold-end', result.stdout.splitlines()[-1]])
+        self.assertEqual(sum(e[0] == 'hold-start' for e in events), 1)
+        lines = result.stderr.splitlines()
+        self.assertEqual(lines[0:3], ['one-process: hold: waiting for a build place',
+                                     'smith-check: waiting', 'smith-check: admitted'])
+        self.assertRegex(lines[3], r'^one-process: hold: held after [0-9]+ s$')
+        self.assertEqual(sum(line == 'smith-check: waiting' for line in lines), 1)
+        self.assertEqual(sum(line == 'smith-check: admitted' for line in lines), 1)
+        self.assertEqual(sum(line == 'one-process: hold: waiting for a build place' for line in lines), 1)
+        self.assertIn('default: 0 tests', result.stdout)
+
     def test_unset_or_empty_hold_starts_none(self):
         for setting in (None, ''):
             with self.subTest(setting=setting):

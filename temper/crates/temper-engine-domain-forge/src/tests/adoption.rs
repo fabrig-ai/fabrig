@@ -541,7 +541,7 @@ fn a_core_refusal_is_kept_as_jigs_refusal() {
 }
 
 #[test]
-fn a_full_outcome_table_answers_the_application_again_busy() {
+fn a_full_outcome_table_drops_the_oldest_answer_for_the_application() {
     let mut d = domain();
     for index in 1..=LIMITS.applications {
         let request = Token::new(u64::from(index));
@@ -572,8 +572,18 @@ fn a_full_outcome_table_answers_the_application_again_busy() {
             ask: Ask::Adopt(fixtures::adoption()),
         },
     );
-    assert_eq!(requests.as_ref(), &[Request::ApplicationAgain { request: Token::new(99), why: people::Again::Busy }]);
-    assert_eq!(d.application_outcome(Token::new(99)), None);
+    assert!(requests.contains(&Request::Erase { key: Key::Application(1) }));
+    assert!(!requests.contains(&Request::ApplicationAgain { request: Token::new(99), why: people::Again::Busy }));
+    assert_eq!(d.application_outcome(Token::new(1)), None);
+    let requests = outputs(
+        &mut d,
+        Event::ApplicationAnswered {
+            request: Token::new(99),
+            outcome: people::Outcome::Refused(people::Refusal::Unknown),
+        },
+    );
+    assert!(requests.contains(&Request::ApplicationDone { request: Token::new(99), token: Token::new(99) }));
+    assert_eq!(d.application_outcome(Token::new(99)), Some(&ApplicationOutcome::CoreRefused(people::Refusal::Unknown)));
 }
 
 #[test]
@@ -826,7 +836,31 @@ fn thirty_two_adoptions_are_answered_during_retention() {
         },
         &mut out,
     );
-    assert_eq!(out.pop(), Some(Request::ApplicationAgain { request, why: people::Again::Busy }));
+    assert_eq!(out.pop(), Some(Request::Erase { key: Key::Application(1) }));
+    while let Some(output) = out.pop() {
+        assert_ne!(output, Request::ApplicationAgain { request, why: people::Again::Busy });
+    }
+    assert_eq!(d.application_outcome(Token::new(1)), None);
+    step(
+        &mut d,
+        &env,
+        Event::ApplicationAnswered { request, outcome: people::Outcome::Refused(people::Refusal::Unknown) },
+        &mut out,
+    );
+    assert_eq!(d.application_outcome(request), Some(&ApplicationOutcome::CoreRefused(people::Refusal::Unknown)));
+    assert_eq!(
+        out.pop(),
+        Some(Request::Save {
+            record: Stored::Application {
+                token: request.raw(),
+                until: Wall::from_nanos(env.wall.as_nanos() + Duration::from_secs(86400).as_nanos()),
+                outcome: ApplicationOutcome::CoreRefused(people::Refusal::Unknown),
+            },
+            release: None,
+            read_afresh: None,
+        })
+    );
+    assert_eq!(out.pop(), Some(Request::ApplicationDone { request, token: request }));
     assert!(out.is_empty());
 }
 
