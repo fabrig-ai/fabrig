@@ -5,7 +5,9 @@
 //! Shutdown, close and fcntl take only integers; close relinquishes descriptor
 //! ownership once. Geteuid takes no arguments and has no preconditions.
 //! Poll borrows one initialized, exclusive pollfd until return, retains no
-//! pointer and takes no descriptor ownership.
+//! pointer and takes no descriptor ownership. Uname writes one exclusive local
+//! utsname; on success the system NUL-terminates nodename, which is borrowed
+//! only while that local lives.
 
 #![expect(
     unsafe_code,
@@ -68,6 +70,17 @@ pub(crate) fn close(fd: Fd) -> Result<(), i32> {
 pub fn effective_user() -> u32 {
     // SAFETY: geteuid takes no pointers and has no preconditions.
     unsafe { libc::geteuid() }
+}
+
+/// The host's name, as the kernel gives it (runtime/shell.md, 6.1).
+pub fn host_name() -> Result<Box<[u8]>, i32> {
+    // SAFETY: utsname is a plain C structure of byte arrays, valid when zeroed.
+    let mut name: libc::utsname = unsafe { std::mem::zeroed() };
+    // SAFETY: name is exclusive and writable for one utsname throughout the call.
+    status(unsafe { libc::uname(ptr::from_mut(&mut name)) })?;
+    // SAFETY: successful uname NUL-terminated nodename, which lives across this borrow.
+    let hostname = unsafe { std::ffi::CStr::from_ptr(name.nodename.as_ptr()) };
+    Ok(Box::from(hostname.to_bytes()))
 }
 
 /// A user's login at startup (runtime/shell.md, 6). macOS's directory
