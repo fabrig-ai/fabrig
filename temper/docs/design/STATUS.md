@@ -1,41 +1,38 @@
 # Status
 
-2026-11-16. First milestone built. Engine, worker, agent and client
-wires version layouts, stated and checked at channel opening;
-builds speak from each wire's floor, jig's channel bridging versions
-shared by engine and worker (`protocol/wires.md`; `draft/redeploys.md`, R1 and R4).
-The engine restarts alone while workers keep runs: stop settles placing
-nothing; workers' grace covers an upgrading start; engine grace exceeds
-their stop bound. `upgrade --check` names workers that may stay from
-openings kept by the engine (`protocol/wires.md`, 10; `domain/root.md`, 8.2; R5, goal 2288).
-`temper-redeploy` uses the operator's kept description: stage every host,
-checkpoint while the old build serves, check the new build over it,
-and, before the engine goes alone, read the new build's verdict on the
-workers over it too, refusing with nothing stopped a build that cannot;
-then restart the engine alone if workers may stay, using its settled
-stop's checkpoint as backup and rereading the workers' verdict over it
-by links and small copies;
-restart workers in turn when asked, otherwise all parts together,
-draining each worker while the old engine serves. Each redeploy is
-recorded and refereed: workers' agreed versions and returns against
-their waits, no try spent or task held since except for a run's own
-failure (`redeploy.md`; R6, goal 2487; C3, goal 7552; its follow-up,
-goal 8397).
-The engine's settled stop tells workers it restarts: those told keep
-runs through the restart wait (default twenty minutes), relayed calls
-and completions waiting within deadlines; the next start holds their
-claims as long. Redeploy names who was told (`domain/root.md`, 8.2;
-`domain/worker/README.md`, section 2; jig's `protocol/channel/restart.md`;
-R8, goal 4843). Deployment drills follow landing, each an operator-started
-redeploy.
-A model provider unreachable for minutes holds no task: its run waits
-as an infrastructure failure; a model-call failure's hold names the call
-from structured fields alone (`draft/run-provider-outage.status.md`;
+2026-11-16. First milestone built. Engine, worker, agent and client wire
+layouts are versioned, stated and checked at channel opening. Builds
+speak from each wire's floor; jig bridges engine/worker shared channel
+versions (`protocol/wires.md`; `draft/redeploys.md`, R1 and R4).
+Engine-only restart keeps workers' runs: stop settles placing nothing;
+workers' grace covers upgrading start; engine grace exceeds their stop
+bound. `upgrade --check` names workers that may stay from kept openings
+(`protocol/wires.md`, 10; `domain/root.md`, 8.2; R5, goal 2288).
+`temper-redeploy`, from the operator's kept description, stages every host,
+checkpoints while the old build serves, checks the new build over it and,
+before engine-only restart, reads its verdict on workers over it too,
+refusing an incompatible build without stopping anything. If workers may
+stay, restart the engine alone, back up with its settled-stop checkpoint,
+and reread workers' verdict by links and small copies; restart workers in
+turn when asked, otherwise all parts together, draining each worker while
+the old engine serves. Each redeploy is recorded and refereed: workers'
+agreed versions and returns against waits, no try spent or task held
+since except for a run's own failure (`redeploy.md`; R6, goal 2487; C3,
+goal 7552; follow-up goal 8397).
+Settled engine stop tells workers it restarts: those told keep runs through
+the restart wait (default twenty minutes), with relayed calls/completions
+waiting within deadlines; next start holds claims as long. Redeploy names
+who was told (`domain/root.md`, 8.2; `domain/worker/README.md`, section 2;
+jig's `protocol/channel/restart.md`; R8, goal 4843). Operator-started
+redeploy drills follow landing.
+Minutes of model-provider unreachability hold no task: the run waits as an
+infrastructure failure. Model-call failure holds name the call from
+structured fields alone (`draft/run-provider-outage.status.md`;
 `domain/worker/README.md`, 4.3).
-Failed workspace preparation says where and why: worker, workspace,
-repository, stage, git command (check out distinct from clean), operation
-and prepare times; the worker logs it
-(`draft/checkout-failure-words.status.md`; `domain/worker/checkouts.md`, 1).
+Failed workspace preparation names worker, workspace, repository, stage,
+git command (check out distinct from clean), operation and prepare times;
+the worker logs it (`draft/checkout-failure-words.status.md`;
+`domain/worker/checkouts.md`, 1).
 A real-loop story failing on an unasked kill names target, killer, time,
 reason and service notes from the run's last seconds
 (`draft/real-loop-kill-cause.status.md`; `testing/real-loop.md`).
@@ -78,14 +75,13 @@ oldest; "One more" and its line; shared why said once in the plural;
 Decided for you rows with object alone, tick, no agent's why; goal rows
 with bar, number words, titles cut at 80. Walk follows landing
 (`draft/home-for-a-person.status.md`; `client/pages/home.md`, 1).
-Its milestone F1, goal 4585, draws the triager's groups: a question
-whose line form names findings, with `Findings:` and `Group:` lines, is
-a group's card on Needs you and on Home, its chip "3 bugs" on its
-highest severity's ground, its phrase and its oldest age, a row a
-finding, its context and its choices; the stock triager groups what it
-keeps and asks one question a group; the headline and Needs you's head
-count the findings the open cards concern, each once. Its walk follows
-landing (`draft/home-for-a-person.status.md`; `client/pages/needs-you.md`, 1).
+F1, goal 4585: triager groups appear as cards on Needs you and Home from
+questions naming findings in `Findings:`/`Group:` lines: chip "3 bugs" on
+highest-severity ground, phrase, oldest age, a row per finding, context
+and choices. Stock triager groups kept findings, asks one question per
+group; headline and Needs you's head count each finding concerned by open
+cards once. Walk follows landing (`draft/home-for-a-person.status.md`;
+`client/pages/needs-you.md`, 1).
 Its milestone F2, goal 4747, says why a group reached its person: a
 kind of decision of its own, `findings`, starting work on findings,
 which the stock's Agents review and Draft first tables ask unless the
@@ -94,14 +90,12 @@ line reads "Reached you because it starts work on findings, which asks
 you unless you’re away.", said once on Home, with its Stop asking, "Let
 the triager start goals for findings, then tell you." Its walk follows
 landing (`draft/home-for-a-person.status.md`; `domain/forge/attention.md`, 6).
-Its milestone M3, goal 5517, draws milestones on the pages: a goal that
-waits says on what, "waits on S6", or "waits for its resources"; a
-milestone is one row on Home with its count, state, strip of its goals and
-headline, one card in Work's In flight holding its goals and their changes,
-a group under the Goals filter, and a page of its own; Needs you's cards,
-Decided for you's rows and Landed this week name a goal's milestone, and a
-goal's page says "in Store shape". Its walk follows landing
-(`draft/milestones.status.md`; `client/pages/milestone.md`).
+M3, goal 5517: waiting goals say on what, "waits on S6" or "waits for its
+resources". Each milestone has a Home row with count, state, goals strip
+and headline; a Work/In flight card holding goals/changes; a Goals-filter
+group; and its own page. Needs you cards, Decided for you rows and Landed
+this week name goals' milestones; goal pages say "in Store shape". Walk
+follows landing (`draft/milestones.status.md`; `client/pages/milestone.md`).
 Home and Work hold still between reads, goal 8538: redraw from whole
 answers; busy needs reads keep the old headline, "N+" means a cut inbox
 list, and the rail uses the page count. Parts not made keep their last
@@ -109,22 +103,21 @@ decoded values: milestone goals/headlines stay on Home and Work's In
 flight, whose count stands (`client/pages/README.md`;
 `client/pages/work.md`, 1, *In flight*; `client/forge/parts.md`, 5).
 
-Landed drafts, whole story P8, goal 638: projects keep drafts landed in
-their repositories and marked ready by the writer with `temper ctl draft ready`,
-read at landing-branch head, with commit, title, chat and eventual goal.
-Work's Drafts lists ready ones, each starting a goal at the project's
-way; render check follows landing (`domain/forge/drafts.md`;
-`client/pages/work.md`, 1; `draft/surfaces.status.md`, 5). People use
-`role talk` with standing roles; instructions for every case become
-rules by settings proposals. Roles report via Now (in Home's brief's
-words), a line per session and weekly `report` note. Areas/routing:
-R2, goal 684; Team talk/report: P4c, goal 1983; terminal talk: T3,
-goal 1984 (`draft/standing-roles.status.md`). Being told, whole story
-N3b, goal 492, is built against fakes alone: devices, jig's need arrival,
-root pushes, service Web Push, `temper ctl push add`, browser Telling
-you, service worker and manifest. Mail/digest are designed, unbuilt;
-real push needs a named HTTPS deployment and its VAPID key
-(`domain/forge/attention.status.md`, 7.4; `draft/what-reaches-you.status.md`, 9).
+Landed drafts P8, goal 638: projects keep repository-landed drafts marked
+ready by their writer via `temper ctl draft ready`, read at landing-branch
+head with commit, title, chat and eventual goal. Work's Drafts lists ready
+ones, each starting a goal the project's way; render check follows landing
+(`domain/forge/drafts.md`; `client/pages/work.md`, 1;
+`draft/surfaces.status.md`, 5). People `role talk` with standing roles;
+every-case instructions become rules by settings proposals. Roles report
+via Now (Home brief's words), a line per session and weekly `report` note.
+Areas/routing: R2, goal 684; Team talk/report: P4c, goal 1983; terminal
+talk: T3, goal 1984 (`draft/standing-roles.status.md`). Being told N3b,
+goal 492, is built on fakes alone: devices, jig need arrival, root pushes,
+service Web Push, `temper ctl push add`, browser Telling you, service worker
+and manifest. Mail/digest: designed, unbuilt. Real push needs a named
+HTTPS deployment and its VAPID key (`domain/forge/attention.status.md`, 7.4;
+`draft/what-reaches-you.status.md`, 9).
 
 
 QA's hands are landed-qa's milestone Q2,
@@ -137,41 +130,39 @@ process-tier story runs after landing (`client/drive.md`;
 5; `draft/landed-qa.status.md`).
 
 Landed QA's Q1, Q3, Q4 and Q5: `temper-qa` watches main's ref, triages
-goal landings into cases in main's order, and keeps deployment builds
-of landed tips until no pass can need them, in one ledger. Goal 1210's
-pass takes the newest reached build and all its cases, restores each
-setup at a place from copy or recipe, drives the box line by line,
-records outcomes and findings, files open findings as one request and
-goal, then resumes on a build holding its landing, two goals at most.
-Goal 1334 adds TUI cases. Places have separate ports; `temper-qa tune`
-gives their and the bounds' tuning figures. Box fake forges retain state
-across restarts; a head's CI is as declared. Fake-model scripts use
-conversation values, so B0/B1 twins replay as setups. Goal 1676 keeps
-QA on fakes alone: each setup uses the box's fake Forgejo, connected
-by ctl lines naming box values; recipe `forge` lines commit held files,
-naming no credential. Goals 3014 and 5217 add deployments, ctl first:
-triage writes and passes run ctl cases first, in browserless ctl/`forge`
-sessions. A deployment-kind place starts the kept build's engine,
+goal landings in main order and keeps landed-tip deployment builds until
+no pass needs them, in one ledger. Goal 1210's pass takes the newest
+reached build and all its cases, restores each setup at a place from
+copy or recipe, drives the box line by line, records outcomes/findings,
+files open findings as one request and goal, then resumes on a build
+holding its landing, two goals at most. Goal 1334 adds TUI cases. Places
+have separate ports; `temper-qa tune` gives place/bounds tuning figures.
+Box fake forges retain state across restarts; head CI is as declared.
+Fake-model scripts use conversation values; B0/B1 twins replay as setups.
+Goal 1676 keeps QA on fakes alone: setups use the box's fake Forgejo,
+connected by ctl lines naming box values; recipe `forge` lines commit
+held files, naming no credential. Goals 3014/5217 add deployments,
+ctl first: triage writes and passes run ctl cases first in browserless
+ctl/`forge` sessions. Deployment places start the kept build's engine,
 worker and agent from setup `config/` at its ports beside fake Forgejo
-and model; each is saved and restored with a newer build. `deployment patch`
+and model; each is saved/restored with a newer build. `deployment patch`
 gives the project's landing to the recipe's result. Fake Forgejo
-dispatches setup-declared, content-decided gates. The first deployment
-setup lands by `turn`, `batch` two: scripts ready two goals' changes
-together with a red top on the real loop; the engine's domain world
-checks both landing on one green gate. Passes and the deployment-place
-process story follow landing. QA gaps go to people without goals,
-reopened for judgement by a closing landing. Goal 5214's ctl-only box
-setup `ctl-hello` connects the fake model as the person's account and
-scripts approving review verdicts, so a ctl change lands by stock rule.
-Goal 5641 adds web/TUI at deployment places: non-ctl sessions sign the
-browser in through the engine's fresh link and drive both clients on
-its origin with the kept build's bundle. Triage and passes take web/tui
-cases after ctl on deployment setups; `turn-landing-clients` sees
-landing through turn's state in both. Goal 5747 unifies box and
-deployment behind one drive-session/QA-tool interface, differing only
-in kind values. Copies omit the deployment's pinned agent as the box's;
-each box setup is weighed and stays box-only. `stock-landing` reaches
-`ctl-hello`'s state at a deployment place; triage offers setups of the
+dispatches setup-declared, content-decided gates. First deployment setup
+lands by `turn`, `batch` two: scripts ready two goals' changes together
+with a red top on the real loop; engine domain checks both land on one
+green gate. Passes and the deployment-place process story follow landing.
+QA gaps go to people without goals, reopened for judgement by a closing
+landing. Goal 5214's ctl-only box setup `ctl-hello` connects the fake
+model as the person's account and scripts approving review verdicts, so
+a ctl change lands by stock rule. Goal 5641 adds deployment-place web/TUI:
+non-ctl sessions sign the browser in through the engine's fresh link,
+driving both clients on its origin with the kept build's bundle. Triage
+and passes take web/tui cases after ctl on deployment setups;
+`turn-landing-clients` sees landing through turn's state in both. Goal
+5747 unifies box/deployment behind one drive-session/QA-tool interface,
+differing only in kind values. Copies omit deployment's pinned agent,
+as for box; each box setup is weighed and stays box-only. `stock-landing`
+reaches `ctl-hello`'s state at a deployment place; triage offers setup
 kinds the places run
 (`testing/qa/README.md`; `testing/qa/deployment.md`;
 `testing/qa/kinds.md`; `testing/qa/setups.md`; `testing/qa/gaps.md`;
@@ -199,38 +190,34 @@ each on fake forge and owned Forgejo, run by choice
 (`testing/process-tier.md`); staging walks follow landing
 (`draft/merge-queue.status.md`).
 
-Landing history H1, goal 2474: change/landing steps survive their rows
-as events (`domain/landing-history.md`), written by the deciding or
-observing step under `queue` and `turn`, one change per event. Families
-are demand-loaded through the root by the forge, omitted at restart;
-swept by change past `forge.history_days` or `forge.history_events`,
-including idle/deleted projects; read by `temper ctl landing history`
-and `change show` after the row goes. H2, goal 2649, reads events alone
-for timing (`domain/landing-times.md`): a fold splits ready-to-landed/ended
-spans into non-overlapping states, held first, waiting last, partial if
-history starts after ready; landing rounds, probes and proof time;
-paged by change with running totals in the cursor, read by
-`temper ctl landing times` (`draft/landing-history.status.md`).
+Landing history H1, goal 2474: change/landing steps outlive rows as
+events (`domain/landing-history.md`), written by deciding/observing steps
+under `queue`/`turn`, one change per event. Forge demand-loads families
+through root, omits them at restart, sweeps each change past
+`forge.history_days`/`forge.history_events`, including idle/deleted projects;
+`temper ctl landing history` and `change show` read them after rows go.
+H2, goal 2649: timing reads events alone (`domain/landing-times.md`), folding
+ready-to-landed/ended spans into disjoint states, held first, waiting last,
+partial when history starts after ready; landing rounds, probes and proof
+time. `temper ctl landing times` pages by change, cursor carrying running
+totals (`draft/landing-history.status.md`).
 
-A held landing recovers (`draft/held-landing-recovery.status.md`): a
-release takes effect once, fenced, read afresh and decided on those
-reads, never on the ended delegate it retires, so a failed resolution's
-release checks the head its branch now holds, or asks one fresh
-resolution pinned to it (`domain/forge/change/repairs.md`, *A
-release*); a change owns only the pull request it opened or whose
-number it stored, never a closed one found by its branches
-(`domain/forge/change/README.md`, 2); an ended change's pull request,
-branch and history are frozen (`domain/forge/keeping-up.md`, 3); and a
-job's attempt names why it ended (`domain/landing-history.md`, 2.2).
+Held landing recovery (`draft/held-landing-recovery.status.md`): release
+is once-only, fenced, decided on fresh reads, never the ended delegate it
+retires. A failed resolution's release checks its branch's current head
+or asks one fresh resolution pinned to it (`domain/forge/change/repairs.md`,
+*A release*). A change owns only its opened or stored-number pull request,
+never a closed one found by branches (`domain/forge/change/README.md`, 2).
+Ended changes' pull requests, branches and history are frozen
+(`domain/forge/keeping-up.md`, 3); job attempts name why they ended
+(`domain/landing-history.md`, 2.2).
 
-A landing's prepare survives a restart
-(`draft/prepare-restart.status.md`): a round at preparing reads at each
-step whether its prepare lives, has answered or is absent, from jig's
-context and its job record, never from its own marks; the forge's start
-reads and wakes each landing, deciding nothing; a lost attempt is
-retried in the same child once its writer slots settle; proven absence
-asks once again, fenced by jig's step, keeping the prefixes recovered;
-and a release at preparing reconciles the same way
+Prepare survives restart (`draft/prepare-restart.status.md`): each
+preparing step reads jig's context and job record, not its own marks, for
+prepare living, answered or absent. Forge start reads/wakes each landing,
+deciding nothing. Lost attempts retry in the same child once writer slots
+settle; proven absence asks once again, fenced by jig's step, keeping
+recovered prefixes. Release at preparing reconciles likewise
 (`domain/landing-preparing.md`).
 
 A follow across projects is the whole story's milestone F1
@@ -293,30 +280,26 @@ no cargo command; and a person's or a role's report contract bound at 0
 words is refused, as no answer could meet it
 (`draft/small-fixes-1116.status.md`).
 
-A landing's gate red only from known flakes runs once more
-(`domain/landing-regate.md`; `draft/flake-regate.status.md`): where every
-test a gate's run failed is named by an open flake finding of the gate
-or of a delivery's check, its failed jobs run again once before any
-receipt, kept on the landing's row across a restart, and only that
-attempt's verdict makes the receipt, its green counting the findings. A
-landing repair whose failed tests are known may end with verdict 1,
-`flake`, on its change contract's choice (jig's
-`domain/tasks/README.md`, section 3); its
-change holds, and a person's release names the failed receipt as the
-change's regate, so the next landing at that key dispatches the gate
-afresh at the same content and its receipt replaces the failed one, with
-no commit made. A red again is repaired and counted as ever.
+A gate red solely from known flakes reruns once (`domain/landing-regate.md`;
+`draft/flake-regate.status.md`): if open gate/delivery-check flake findings
+name every failed test, failed jobs rerun once before any receipt, kept
+on the landing row across restart. Only that attempt makes the receipt;
+green counts the findings. Landing repairs with known failed tests may
+end with verdict 1, `flake`, by change-contract choice (jig's
+`domain/tasks/README.md`, section 3). The change holds; a person's release
+names the failed receipt as its regate. Next landing at that key reruns
+the gate at the same content, replacing the failed receipt without a
+commit. Red again is repaired and counted as ever.
 
-A task's delivery stays delivered across its runs
-(`domain/worker/checkouts.md`, *A task's own delivery outlives its
-hold*; `draft/delivered-across-runs.status.md`): a change keeps, beside
-its last checked head, the delegate task whose push set it, and that
-task's next assignment names that head as its own delivery, so a
-producer, a repair or a resolution that delivered, asked and parked
-finishes as a change in its next run. Its new hold, starting on that
-head, pushes it again, leased on what prepare fetched, and answers
-delivered; a clean tree with no delivery of its own is still nothing,
-and smith still refuses it.
+Delivery stays delivered across runs (`domain/worker/checkouts.md`,
+*A task's own delivery outlives its hold*;
+`draft/delivered-across-runs.status.md`): a change keeps its last checked
+head and the delegate whose push set it. That task's next assignment
+names the head as its own delivery: a producer/repair/resolution that
+delivered, asked and parked finishes as a change next run. Its new hold
+starts there, pushes again leased on what prepare fetched and answers
+delivered. A clean tree with no own delivery is still nothing; smith
+still refuses it.
 
 A project's tiers after landing (`domain/after-landing.md`) are held and
 released by a person, `temper ctl tier hold` and `tier release`, the hold
