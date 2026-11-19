@@ -1,4 +1,4 @@
-family temper-client-wire 39
+family temper-client-wire 40
 
 # The role, as temper-engine-domain-forge's Role, in its order.
 enum Role { owned, adopted, fork, context }
@@ -493,7 +493,12 @@ record ProjectQuestions { route: QuestionsRoute }
 enum SettingsLandingWay { queue, turn }
 enum SettingsLandingWait { cleared, landed }
 enum SettingsCombine { merge, squash }
-record ProjectLanding { by: SettingsLandingWay batch: u16 combine_main: SettingsCombine combine_other: SettingsCombine merge_job: option bytes 4096 close_job: option bytes 4096 landing_attempts: u8 check_timeout_ms: option u64 gate_retries: u8 gate_timeout_ms: u64 tier_retries: u8 verification_bound_ms: u64 wait: SettingsLandingWait }
+record NamedModel { model: bytes 4096 effort: option bytes 32 }
+record NamedLater { main: NamedModel subagents: list 64 NamedModel }
+record NamedLlm { account: option u32 main: NamedModel subagents: list 64 NamedModel later: option NamedLater }
+record RepairGoalSettings { charter: u32 llm: option NamedLlm priority: u32 budget: u64 }
+record RepairSettings { goals: u8 attempts: u8 deadline_ms: u64 goal: RepairGoalSettings }
+record ProjectLanding { by: SettingsLandingWay batch: u16 combine_main: SettingsCombine combine_other: SettingsCombine merge_job: option bytes 4096 close_job: option bytes 4096 landing_attempts: u8 check_timeout_ms: option u64 gate_retries: u8 gate_timeout_ms: u64 tier_retries: u8 verification_bound_ms: u64 wait: SettingsLandingWait repairs: option RepairSettings }
 enum SettingsReportFormat { junit, lines }
 record SettingsGateReport { artifact: bytes 32 format: SettingsReportFormat fuzzy: option bytes 64 }
 record SettingsGate { name: bytes 32 workflow: bytes 255 ignored: list 1114240 bytes 1024 blocking: bool base: bool report: option SettingsGateReport }

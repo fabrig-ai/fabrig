@@ -102,6 +102,7 @@ impl ProjectLanding {
                 tier_retries: landing.tier_retries,
                 verification_bound_ms: landing.verification_bound_ms,
                 wait: landing.wait,
+                repairs: None,
             },
             forge::settings::ProjectGates { repositories: repositories.into_boxed() },
         )

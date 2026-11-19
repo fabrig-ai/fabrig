@@ -527,6 +527,9 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
                 for command in [&value.merge_job, &value.close_job].into_iter().flatten() {
                     held = held.checked_add(bytes(command))?;
                 }
+                if let Some(repairs) = &value.repairs {
+                    held = held.checked_add(settings::repairs_heap(repairs)?)?;
+                }
                 Some(held)
             }
             settings::Edit::Set(settings::SizedValue { value: settings::Value::Gates(value), .. }) => {

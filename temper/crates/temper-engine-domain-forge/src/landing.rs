@@ -31,6 +31,7 @@ pub(crate) struct State {
     pub(crate) receipts: Map<ReceiptKey, Receipt>,
     pub(crate) projects: Map<u32, ProjectLanding>,
     pub(crate) settings: Map<u32, crate::settings::ProjectLanding>,
+    repairs: Map<u32, Result<crate::settings::Repairs, &'static [u8]>>,
     pub(crate) held: bool,
     pub(crate) pending: Map<Token, Pending>,
     pub(crate) keys: Map<Position, (api::Commit, Option<api::Commit>, policy::Key)>,
@@ -159,6 +160,7 @@ impl State {
             receipts: Map::with_capacity(receipt_slots(l).expect("receipt bounds")),
             projects: Map::with_capacity(l.judge_projects),
             settings: Map::with_capacity(l.judge_projects),
+            repairs: Map::with_capacity(l.judge_projects),
             held: false,
             pending: Map::with_capacity(l.landings),
             keys: Map::with_capacity(slots),
@@ -234,8 +236,27 @@ impl Domain {
     pub fn landing_settings(&self, project: u32) -> Option<&crate::settings::ProjectLanding> {
         self.landing.settings.get(&project)
     }
+    /// One start's resolution, supplied by the root with jig's current facts (red-repairs.md, 7).
+    pub fn take_project_repairs(&mut self, project: u32, repairs: Result<crate::settings::Repairs, &'static [u8]>) {
+        self.landing.repairs.insert(project, repairs).expect("restored project repairs");
+    }
+    /// Repairs available for this start alone (red-repairs.md, 4.2).
+    pub fn project_repairs(&self, project: u32) -> Result<&crate::settings::Repairs, Box<[u8]>> {
+        let field = match self.landing.repairs.get(&project) {
+            Some(Ok(repairs)) => return Ok(repairs),
+            Some(Err(field)) => Some(*field),
+            None => None,
+        };
+        let number = skein_lib::Decimal::of(u64::from(project));
+        let suffix = match field {
+            Some(field) => skein_lib::bytes::concat(&[b": ", field]),
+            None => Box::new([]),
+        };
+        Err(skein_lib::bytes::concat(&[b"repairs are off in project ", number.as_bytes(), &suffix]))
+    }
     pub(crate) fn restore_landing_settings(&mut self) {
         use crate::settings::{SettingSlot, Value};
+        self.landing.repairs = Map::with_capacity(self.landing.limits.judge_projects);
         let mut projects = Map::uncapped();
         for (key, _) in &self.setting_rows {
             if (key.kind == 4 || key.kind == 5) && (key.slot == SettingSlot::Change || key.slot == SettingSlot::Default)

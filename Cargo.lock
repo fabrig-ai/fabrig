@@ -6610,6 +6610,7 @@ dependencies = [
  "jig-domain-authority",
  "jig-domain-brief",
  "jig-domain-core",
+ "jig-domain-core-vocabulary",
  "jig-domain-fleet",
  "jig-domain-host",
  "jig-domain-hub-link",

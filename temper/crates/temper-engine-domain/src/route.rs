@@ -627,6 +627,7 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
                     decision,
                     forge::Event::Restored { clock: skein_forge_client::RecoveryClock::Wall },
                 );
+                kinds::restored_repairs(domain, env.limits.tasks.spec_bytes);
             }
             Work::Forge(forge::Event::StatusTask { project, party, task }) => {
                 let event = forge_route::status_route::admission(domain, project, party, task);

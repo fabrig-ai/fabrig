@@ -42,6 +42,7 @@ pub struct Item {
     pub edit: Edit,
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
+#[expect(clippy::large_enum_variant, reason = "settings edits own their typed value, including named repair settings")]
 pub enum Edit {
     Set(Value),
     Remove,
