@@ -52,6 +52,7 @@ mod rows;
 mod secrets;
 pub mod sizes;
 pub mod transcripts;
+use crate::tasks_v13::Record as _;
 use alloc::boxed::Box;
 use skein_lib::{Env, Queue, Time, Wall};
 

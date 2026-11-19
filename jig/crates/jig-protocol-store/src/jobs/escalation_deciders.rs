@@ -3,7 +3,8 @@ use super::{JobAnswer, JobPage, JobRefusal, JobRow, JobWrite};
 use crate::Store;
 use alloc::boxed::Box;
 use jig_protocol_store_tasks::tasks_v13 as wire;
-use skein_lib::{List, Reader, Writer};
+use skein_lib::{List, Reader};
+use wire::Record;
 
 fn refusal(key: &[u8], why: &str) -> JobRefusal {
     JobRefusal { key: Some(Box::from(key)), why: Box::from(why) }
@@ -45,28 +46,19 @@ pub(super) fn page(page: &JobPage, store: &mut Store) -> Result<JobAnswer, JobRe
 }
 
 fn judge(row: &JobRow, store: &mut Store, limits: &wire::Limits) -> Result<Option<JobWrite>, JobRefusal> {
-    let mut parts = decode(row, limits)?.into_parts();
-    let wire::Value::LiveHot(hot) = parts.value else { return Ok(None) };
-    let mut hot = hot.into_parts();
-    let mut run = hot.run.into_parts();
-    let wire::Escalation::Rejected(rejected) = run.escalation else { return Ok(None) };
-    match rejected.by_kind() {
+    let mut value = decode(row, limits)?;
+    let wire::Value::LiveHot(hot) = &mut value.value else { return Ok(None) };
+    let wire::Escalation::Rejected(rejected) = &mut hot.run.escalation else { return Ok(None) };
+    match rejected.by_kind {
         wire::DeciderKind::Task => return Ok(None),
         wire::DeciderKind::Person => {}
     }
-    if !ancestor(store, &run.requester, rejected.by(), limits, &row.key)? {
+    if !ancestor(store, &hot.run.requester, rejected.by, limits, &row.key)? {
         return Ok(None);
     }
-    let mut rejected = rejected.into_parts();
     rejected.by_kind = wire::DeciderKind::Task;
-    run.escalation =
-        wire::Escalation::Rejected(wire::RejectedEscalation::new(limits, rejected).expect("only decider kind changed"));
-    hot.run = wire::TaskRun::new(limits, run).expect("only decider kind changed");
-    parts.value = wire::Value::LiveHot(wire::LiveHot::new(limits, hot).expect("only decider kind changed"));
-    let updated = wire::Row::new(limits, parts).expect("only decider kind changed");
-    let mut writer = Writer::new(usize::try_from(updated.measure()).expect("bounded tasks row"));
-    updated.encode(&mut writer).expect("measured tasks row");
-    Ok(Some(JobWrite::Put { key: row.key.clone(), value: writer.finish() }))
+    let bytes = value.encode(limits).expect("only decider kind changed");
+    Ok(Some(JobWrite::Put { key: row.key.clone(), value: bytes }))
 }
 
 fn ancestor(
@@ -79,7 +71,7 @@ fn ancestor(
     let mut requester = requester.clone();
     for _ in 0..store.limits.core.tasks.depth {
         let number = match requester {
-            wire::Party::Task(number) => number.value(),
+            wire::Party::Task(number) => number.value,
             wire::Party::Person(_) | wire::Party::Deployment(_) => return Ok(false),
         };
         if number == by {
@@ -98,8 +90,8 @@ fn ancestor(
             return Ok(false);
         }
         let row = decode(&JobRow { key: row.key, value: row.value }, limits)?;
-        let wire::Value::LiveHot(hot) = row.value() else { return Ok(false) };
-        requester = hot.run().requester().clone();
+        let wire::Value::LiveHot(hot) = row.value else { return Ok(false) };
+        requester = hot.run.requester;
     }
     match requester {
         wire::Party::Person(_) | wire::Party::Deployment(_) => Ok(false),
