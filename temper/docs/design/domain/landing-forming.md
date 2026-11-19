@@ -146,6 +146,9 @@ the start's link pass refused that store, a hold linking a missing task.
     BINARY serve: warning: landing L into BRANCH of repository F/R has no task: ended; its changes C1, C2 wait again
     BINARY serve: warning: hold on BRANCH of repository F/R by task T, which has no task: dropped
     ```
+
+    A landing row with no members, which forming never writes, names no
+    repository: it is ended like the rest, without a line.
 - **What it still refuses:** every other link the pass judges, as
   before: anything a task jig holds names, a hold a live writer names, a
   live landing with an entry in its outbox, and every other family's
