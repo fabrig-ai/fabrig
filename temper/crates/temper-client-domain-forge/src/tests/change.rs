@@ -233,3 +233,18 @@ fn after_landing_steps_keep_the_merge_tiers_and_completed_slots() {
         assert_eq!(shown.tiers(), tiers.as_slice());
     }
 }
+
+#[test]
+fn a_no_test_hold_names_the_repairs_finding() {
+    let word = change::hold(&w::Hold::NoTest);
+    assert_eq!(word, W::NoTestHold);
+    let mut found = false;
+    for row in crate::forge::words::CHANGES {
+        if row.0 == word {
+            assert_eq!(row.1, &[b"its repair found no failed test".as_slice()]);
+            assert_eq!(row.2, []);
+            found = true;
+        }
+    }
+    assert!(found);
+}

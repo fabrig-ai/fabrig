@@ -3695,3 +3695,59 @@ fn project_facts_written_with_a_brief_and_run_decode_with_both_dropped() {
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
     assert_eq!(records::decode(out.as_slice(), &bounds), Ok(facts));
 }
+
+#[test]
+fn a_no_test_terminal_and_hold_round_trip_in_the_hot_part() {
+    use temper_engine_domain_forge_change::{Hold, Repair, State};
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    let repairing = State::Repairing { requested: true, why: Repair::Landing { gate: 0 } };
+    for state in [repairing.clone(), State::Held { was: Box::new(repairing), why: Hold::NoTest }] {
+        let mut row = fixtures::change_row(state);
+        row.delegate_no_test = true;
+        row.delegate_head = Some([6; 32]);
+        let (cold, hot) = row.clone().split();
+        let stored = forge::Stored::ChangeHot(Box::new(hot));
+        let decoded = records::decode(&records::encode(&stored), &bounds).unwrap();
+        assert_eq!(decoded, stored);
+        let forge::Stored::ChangeHot(decoded) = decoded else { panic!("change hot part") };
+        assert_eq!(forge::ChangeRow::join(cold, *decoded), row);
+    }
+}
+
+/// A registered field defaults at layout conversion, not in the fixed-layout decoder.
+#[test]
+fn a_change_row_written_before_no_test_defaults_its_verdict_to_false() {
+    let mut family = None;
+    for candidate in crate::OWNER_SET.families {
+        if candidate.name == "temper-store" {
+            family = Some(candidate);
+        }
+    }
+    let family = family.unwrap();
+    let before = family.current.replace(" delegate_no_test: bool = false", "");
+    let old = skein_codec::schema::parse(before.as_bytes()).unwrap();
+    let new = skein_codec::schema::parse(family.current.as_bytes()).unwrap();
+    let stored = fixtures::change_hot(fixtures::change_row(temper_engine_domain_forge_change::State::Producing {
+        requested: true,
+    }));
+    let mut bytes = records::encode(&stored);
+    // Write the row at the preceding layout, then read it as the registry does.
+    for (source, target) in [(&new, &old), (&old, &new)] {
+        let plan = skein_codec::layout::Plan::derive(
+            source,
+            source.root(b"Row", None).unwrap(),
+            &[],
+            target,
+            target.root(b"Row", None).unwrap(),
+            &[],
+        )
+        .unwrap();
+        let mut work = skein_codec::layout::Workspace::new();
+        assert!(work.fit(&plan));
+        let mut out = skein_lib::Buffer::with_capacity(131_072);
+        plan.convert(&bytes, &mut out, &mut work).unwrap();
+        bytes = out.as_slice().into();
+    }
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
+    assert_eq!(records::decode(&bytes, &bounds), Ok(stored));
+}

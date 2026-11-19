@@ -456,7 +456,8 @@ pub fn held_on_ci(state: &State) -> bool {
         | Hold::Updates
         | Hold::Rejected
         | Hold::Questions
-        | Hold::Flake => false,
+        | Hold::Flake
+        | Hold::NoTest => false,
     }
 }
 
@@ -608,9 +609,10 @@ fn release(mut change: Change, was: &State, why: Hold, facts: &Facts) -> Stepped
         | Hold::Updates
         | Hold::Failed
         | Hold::Flake
+        | Hold::NoTest
         | Hold::Rejected
         | Hold::Authority(_) => {
-            if why == Hold::Flake {
+            if why == Hold::Flake || why == Hold::NoTest {
                 change.clean = Box::new([]);
                 change.last_head = facts.branch.or(change.last_head);
             }
@@ -626,7 +628,7 @@ fn released_state(change: &Change, was: &State, why: Hold, pull: Pull) -> State 
         Pull::Missing | Pull::Closed | Pull::Merged { .. } => false,
     };
     match was {
-        State::Repairing { .. } if why == Hold::Flake => {
+        State::Repairing { .. } if (why == Hold::Flake || why == Hold::NoTest) => {
             let Some(head) = change.last_head else { return State::Opening { requested: false } };
             match pull {
                 Pull::Open { .. } => pushed(change, head),
@@ -1786,11 +1788,11 @@ fn delegated(
     match standing.delegate {
         Status::Passed => {
             let Some(head) = facts.branch else { return waiting_on_agent(change, facts, standing, now, limits) };
-            if standing.flake
+            if (standing.flake || standing.no_test)
                 && Some(head) == change.last_head
                 && let Delegate::Repair(Repair::Landing { .. } | Repair::LandingAt { .. }) = delegate
             {
-                return hold(change, Hold::Flake);
+                return hold(change, if standing.no_test { Hold::NoTest } else { Hold::Flake });
             }
             take_pushed_head(change, head, now)
         }

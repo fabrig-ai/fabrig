@@ -50,6 +50,7 @@ pub(crate) fn change_row(pull: Option<u64>) -> temper_engine_domain_forge::Chang
         delegate: None,
         delegate_status: change::Status::Unknown,
         delegate_flake: false,
+        delegate_no_test: false,
         delegate_head: None,
         verdicts: Box::new([]),
         milestone: None,

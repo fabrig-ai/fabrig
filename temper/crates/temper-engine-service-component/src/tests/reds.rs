@@ -138,6 +138,7 @@ fn check_change_row(task: u64) -> forge::ChangeRow {
         delegate: None,
         delegate_status: change::Status::Unknown,
         delegate_flake: false,
+        delegate_no_test: false,
         delegate_head: None,
         verdicts: Box::new([]),
         milestone: None,

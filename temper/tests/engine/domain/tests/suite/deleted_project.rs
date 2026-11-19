@@ -183,6 +183,7 @@ fn ended_change(repository: Repository) -> forge::Stored {
         delegate: None,
         delegate_status: change::Status::Passed,
         delegate_flake: false,
+        delegate_no_test: false,
         delegate_head: None,
         verdicts: Box::new([]),
         gate_remarks: Box::new([]),

@@ -53118,6 +53118,8 @@ pub enum Hold {
     Questions,
     /// `flake` without a payload.
     Flake,
+    /// `no_test` without a payload.
+    NoTest,
 }
 
 impl Hold {
@@ -53130,7 +53132,7 @@ impl Hold {
     fn check(&self, limits: &Limits) -> Result<(), Problem> {
         match self {
             Self::Authority(record) => AuthorityHold::check(record, limits),
-            Self::Stalled | Self::Repairs | Self::Resolutions | Self::Updates | Self::Moved | Self::Missing | Self::Closed | Self::Retargeted | Self::Failed | Self::Rejected | Self::Questions | Self::Flake => Ok(()),
+            Self::Stalled | Self::Repairs | Self::Resolutions | Self::Updates | Self::Moved | Self::Missing | Self::Closed | Self::Retargeted | Self::Failed | Self::Rejected | Self::Questions | Self::Flake | Self::NoTest => Ok(()),
         }?;
         Ok(())
     }
@@ -53142,7 +53144,7 @@ impl Hold {
     pub fn measure(&self) -> u32 {
         match self {
             Self::Authority(record) => 1_u32.checked_add(AuthorityHold::measure(record)).expect("schema ceilings fit u32"),
-            Self::Stalled | Self::Repairs | Self::Resolutions | Self::Updates | Self::Moved | Self::Missing | Self::Closed | Self::Retargeted | Self::Failed | Self::Rejected | Self::Questions | Self::Flake => 1,
+            Self::Stalled | Self::Repairs | Self::Resolutions | Self::Updates | Self::Moved | Self::Missing | Self::Closed | Self::Retargeted | Self::Failed | Self::Rejected | Self::Questions | Self::Flake | Self::NoTest => 1,
         }
     }
 
@@ -53162,6 +53164,7 @@ impl Hold {
             Self::Authority(record) => { writer.put(&[10_u8])?; record.encode(writer)?; }
             Self::Questions => writer.put(&[11_u8])?,
             Self::Flake => writer.put(&[12_u8])?,
+            Self::NoTest => writer.put(&[13_u8])?,
         }
         Ok(())
     }
@@ -53189,6 +53192,7 @@ impl Hold {
             10 => Self::Authority(AuthorityHold::decode_from(limits, reader)?),
             11 => Self::Questions,
             12 => Self::Flake,
+            13 => Self::NoTest,
             _ => return Err(Problem { path: Path::HoldTag, reason: skein_codec::Reason::Tag }),
         };
         Ok(value)

@@ -2276,10 +2276,14 @@ pub const SCRIPTED_MODEL: &[u8] = b"demo";
 // Repository making rows use eight phrases and eighteen segments (client/pages/README.md).
 // Landing searches show the probe, both bounds and blamed prefixes (domain/landing-search.md, 8).
 <<<<<<< HEAD
+<<<<<<< HEAD
 const PHRASES: u32 = 2831;
 =======
 const PHRASES: u32 = 2832;
 >>>>>>> refs/hand5/10159
+=======
+const PHRASES: u32 = 2830;
+>>>>>>> refs/hand5/10157
 // Settings and Needs you include their literal phrases (client/pages/README.md, client/pages/settings.md, 2).
 // Overturn adds its button and three toast phrases (client/pages/README.md).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -2307,6 +2311,7 @@ const PHRASES: u32 = 2832;
 // The command’s Copy adds three literal segments (client/pages/README.md).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
 <<<<<<< HEAD
+<<<<<<< HEAD
 const SEGMENTS: u32 = 5259;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
 const ENGLISH_BYTES: u32 = 66005;
@@ -2317,6 +2322,12 @@ const SEGMENTS: u32 = 5256;
 const ENGLISH_BYTES: u32 = 66179;
 const ALL: [Word; 2099] = [
 >>>>>>> refs/hand5/10159
+=======
+const SEGMENTS: u32 = 5254;
+// Literal bytes across every English phrase, at the larger shell vocabulary.
+const ENGLISH_BYTES: u32 = 66016;
+const ALL: [Word; 2096] = [
+>>>>>>> refs/hand5/10157
     Word::WorkMilestoneLede,
     Word::MsGoals,
     Word::MsWhole,

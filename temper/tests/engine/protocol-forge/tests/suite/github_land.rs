@@ -18,6 +18,7 @@ fn step(world: &mut Protocol, entry: u64, delegate: change::Status) -> change::D
         heard: change::Heard {
             delegate_running: false,
             flake: false,
+            no_test: false,
             delegate_live: false,
             review_request: None,
             start_conflict: None,
@@ -197,6 +198,7 @@ fn scheduled_landing(world: &mut Protocol, first_entry: u64, seconds: u64) -> Ve
                 heard: change::Heard {
                     delegate_running: false,
                     flake: false,
+                    no_test: false,
                     delegate_live: false,
                     review_request: None,
                     start_conflict: None,
@@ -332,6 +334,7 @@ fn pushed_change_requests_its_pull_once() {
         heard: change::Heard {
             delegate_running: false,
             flake: false,
+            no_test: false,
             delegate_live: false,
             review_request: None,
             start_conflict: None,

@@ -86,10 +86,7 @@ fn only_landing_repairs_with_named_failed_tests_offer_the_flake_choice() {
             }])),
             true,
         ),
-        (forge::ReceiptReport::Unset, false),
-        (forge::ReceiptReport::Unread, false),
         (forge::ReceiptReport::Many { bound: 16 }, false),
-        (forge::ReceiptReport::Tests(Box::new([])), false),
     ] {
         forge::step(
             &mut domain.forge,
@@ -193,4 +190,134 @@ fn an_inbox_repair_verdict_reaches_the_forge_as_a_flake_with_its_words() {
     assert!(flake);
     assert!(!failed && !no_change);
     assert_eq!(words.as_ref(), b"test a::t x passed again");
+}
+
+const NO_TEST: &[u8] = b"\nNo test: if no test failed in the run below and nothing needs changing, finish with verdict 2, saying what its jobs show; a person then releases the change to run its gate once more.";
+
+#[test]
+fn only_landing_repairs_naming_no_failed_test_offer_the_no_test_choice() {
+    let (mut domain, env, task, key) = contract_fixture();
+    for report in [forge::ReceiptReport::Unset, forge::ReceiptReport::Unread, forge::ReceiptReport::Tests(Box::new([]))]
+    {
+        forge::step(
+            &mut domain.forge,
+            &env.with(env.limits.forge),
+            forge::Event::Restore {
+                record: forge::Stored::Receipt {
+                    key: key.clone(),
+                    receipt: forge::Receipt {
+                        passed: false,
+                        run: forge::ReceiptRun { id: 41, number: 42, url: b"run/41".as_slice().into() },
+                        candidate: SHA1,
+                        base: Some(SHA256),
+                        ended: env.wall,
+                        jobs: Box::new([]),
+                        logs: Box::new([]),
+                        report,
+                        failures: None,
+                    },
+                },
+            },
+            &mut Queue::uncapped(),
+        );
+        for why in [
+            change::Repair::Landing { gate: 0 },
+            change::Repair::LandingAt { gate: 0, candidate: SHA1, below: None },
+            change::Repair::Ci,
+        ] {
+            let delegate = super::super::change_delegate(&domain, &env, task, change::Delegate::Repair(why)).unwrap();
+            let tasks::Contract::Change { choices, words, .. } = delegate.contract else { panic!("change contract") };
+            let expected: Box<[tasks::Verdict]> = if why == change::Repair::Ci {
+                Box::new([])
+            } else {
+                Box::new([tasks::Verdict { code: forge::REPAIR_NO_TEST, words, followups: 0, fields: Box::new([]) }])
+            };
+            assert_eq!(choices, expected, "{why:?}");
+            assert!(find(&delegate.spec.words, FLAKE).is_none());
+            let line = find(&delegate.spec.words, NO_TEST);
+            assert_eq!(line.is_some(), why != change::Repair::Ci);
+            if let Some(at) = line {
+                assert!(delegate.spec.words[..at].ends_with(super::super::REPAIR_PRESERVATION));
+                assert!(delegate.spec.words[at + NO_TEST.len()..].starts_with(b"\nGate run:"));
+            }
+        }
+    }
+    // An unresolved failure is not evidence of a run naming no tests.
+    forge::step(
+        &mut domain.forge,
+        &env.with(env.limits.forge),
+        forge::Event::Restore {
+            record: forge::Stored::Receipt {
+                key,
+                receipt: forge::Receipt {
+                    passed: false,
+                    run: forge::ReceiptRun { id: 99, number: 99, url: Box::new([]) },
+                    candidate: SHA1,
+                    base: None,
+                    ended: env.wall,
+                    jobs: Box::new([]),
+                    logs: Box::new([]),
+                    report: forge::ReceiptReport::Unset,
+                    failures: None,
+                },
+            },
+        },
+        &mut Queue::uncapped(),
+    );
+    let delegate = super::super::change_delegate(
+        &domain,
+        &env,
+        task,
+        change::Delegate::Repair(change::Repair::Landing { gate: 0 }),
+    )
+    .unwrap();
+    let tasks::Contract::Change { choices, .. } = delegate.contract else { panic!("change contract") };
+    assert!(choices.is_empty());
+    assert!(find(&delegate.spec.words, NO_TEST).is_none());
+    assert!(find(&delegate.spec.words, b"Gate run: the landing no longer keeps its failure").is_some());
+}
+
+#[test]
+fn an_inbox_repair_verdict_reaches_the_forge_as_no_test_with_its_words() {
+    let (mut domain, env, mut context) = change_start_fixture();
+    let mut row = change_row(Some(7));
+    row.task = context.task;
+    row.change.task = context.task;
+    row.delegate = Some((52, change::Delegate::Repair(change::Repair::Landing { gate: 0 })));
+    forge::step(
+        &mut domain.forge,
+        &env.with(env.limits.forge),
+        forge::Event::Restore { record: forge::Stored::Change(Box::new(row)) },
+        &mut Queue::uncapped(),
+    );
+    context.inbox = Box::new([tasks::Word {
+        number: 1,
+        at: env.wall,
+        hits: 1,
+        eligible: true,
+        from: tasks::Party::Task(52),
+        kind: tasks::MessageKind::Result(tasks::ResultKind::Verdict {
+            code: forge::REPAIR_NO_TEST,
+            fields: Box::new([]),
+        }),
+        words: b"no tests ran; the build job failed".as_slice().into(),
+    }]);
+    super::super::change_results(&mut domain, &context, None);
+    let Some(super::super::Work::Forge(forge::Event::DelegateResult {
+        status,
+        flake,
+        no_test,
+        no_change,
+        failed,
+        words,
+        ..
+    })) = domain.work.pop()
+    else {
+        panic!("typed terminal")
+    };
+    assert_eq!(status, change::Status::Passed);
+    assert!(no_test);
+    assert!(!flake);
+    assert!(!failed && !no_change);
+    assert_eq!(words.as_ref(), b"no tests ran; the build job failed");
 }

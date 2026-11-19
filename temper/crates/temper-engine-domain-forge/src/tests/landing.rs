@@ -4,6 +4,8 @@ use temper_engine_domain_forge_landing as policy;
 mod flake_rerun;
 #[path = "landing/room.rs"]
 mod room;
+#[path = "landing/unreported.rs"]
+mod unreported;
 
 #[test]
 fn project_landing_keeps_repository_tiers_and_settings_separate_by_project() {
@@ -2078,7 +2080,7 @@ fn connected_member_landing() -> Domain {
     d
 }
 
-fn clocked_gate() -> (Domain, ReceiptKey, skein_forge::api::Run) {
+pub(super) fn clocked_gate() -> (Domain, ReceiptKey, skein_forge::api::Run) {
     use skein_forge::api as a;
     let mut d = connected_member_landing();
     let after = d.after_landing(5).expect("project");
@@ -2712,6 +2714,7 @@ fn failed_gate_reports_are_read_once_and_kept_without_rejudging_the_failure() {
         ),
         (Format::Junit, b"not XML".as_slice(), false, None, ReceiptReport::Unread, None),
         (Format::Junit, b"".as_slice(), false, Some(api::Error::Missing), ReceiptReport::Unread, None),
+        (Format::Junit, b"".as_slice(), false, Some(api::Error::Forbidden), ReceiptReport::Unread, None),
     ] {
         let (mut d, key, run) = reporting_failed_gate(format);
         let mut reads = 0_u32;
@@ -2758,13 +2761,17 @@ fn failed_gate_reports_are_read_once_and_kept_without_rejudging_the_failure() {
                 api::Op::Read(_) | api::Op::Write(_) => panic!("unexpected failed gate read {op:?}"),
             };
             for request in fixtures::answer(&mut d, call, answer) {
-                assert!(!matches!(request, Request::Refused { .. }), "a report never faults the run");
+                assert!(!matches!(request, Request::Refused { .. }), "a report read never refuses the landing");
                 if let Request::LandingDecision { decision, .. } = request {
                     assert!(reads > 0, "gather decided before reading the failed run report: {decision:?}");
-                    assert!(
-                        !matches!(decision, policy::Decision::Retry { .. } | policy::Decision::Hold(_)),
-                        "a report cannot retry or hold a failed gate: {decision:?}"
-                    );
+                    if error == Some(api::Error::Missing) {
+                        assert_eq!(decision, policy::Decision::Retry { member: 0, gate: 0, key: key.key, try_: 2 });
+                    } else {
+                        assert!(
+                            !matches!(decision, policy::Decision::Retry { .. } | policy::Decision::Hold(_)),
+                            "an uploaded or unreadable report keeps the failure: {decision:?}"
+                        );
+                    }
                     decided = true;
                 }
             }
@@ -2774,18 +2781,32 @@ fn failed_gate_reports_are_read_once_and_kept_without_rejudging_the_failure() {
         }
         assert!(decided);
         assert_eq!((reads, jobs), (1, 1));
+        if error == Some(api::Error::Missing) {
+            assert!(d.receipt(&key).is_none());
+            assert_eq!(
+                d.entries.get(&91).unwrap().entry.effect.write,
+                api::Write::Rerun { attempt: api::JobAttempt { head: run.commit, run: run.id, job: 9, attempt: 2 } }
+            );
+            continue;
+        }
         let receipt = d.receipt(&key).expect("failed receipt");
         assert!(!receipt.passed);
         assert_eq!(receipt.report, expected);
         assert_eq!(receipt.failures, failures, "the same artifact also supplies safe probe ids");
         assert_eq!((receipt.run.id, receipt.base, receipt.jobs[0].job), (run.id, Some(fixtures::BASE), 9));
-        assert!(!d.landing.flights.contains_key(&key), "no retry for a missing report");
+        assert!(!d.landing.flights.contains_key(&key), "no retry for an uploaded or unreadable report");
     }
 }
 
 fn reporting_failed_gate(
     format: temper_engine_domain_forge_tiers::Format,
 ) -> (Domain, ReceiptKey, skein_forge::api::Run) {
+    let (mut d, key, run) = reporting_gate(format);
+    begin_reporting_gate(&mut d, 91);
+    (d, key, run)
+}
+
+fn reporting_gate(format: temper_engine_domain_forge_tiers::Format) -> (Domain, ReceiptKey, skein_forge::api::Run) {
     use skein_forge::api::{self, Conclusion, RunState};
     const KEY: policy::Key = [7; 32];
     let mut d = connected_member_landing();
@@ -2813,8 +2834,8 @@ fn reporting_failed_gate(
         after
     ));
     d.landing.rows.get_mut(&61).unwrap().landing.members[0].gates = Box::new([policy::GateProof {
-        proof: policy::Proof::Keyed { key: KEY },
-        posted: policy::Posted::Nothing,
+        proof: policy::Proof::Dispatched { key: KEY, try_: 1 },
+        posted: policy::Posted::Pending,
         faults: 0,
     }]);
     d.changes.get_mut(&fixtures::CHANGE).unwrap().change.state =
@@ -2824,25 +2845,17 @@ fn reporting_failed_gate(
     let mut flight = runs::follow();
     flight.task = 61;
     flight.commit = fixtures::HEAD;
+    flight.purpose = purpose::EffectPurpose::Landing {
+        task: 61,
+        member: 0,
+        gate: 0,
+        operation: 1,
+        preparation: d.landing.rows.get(&61).unwrap().landing.preparation,
+        attempt: 1,
+    }
+    .identity()
+    .unwrap();
     d.landing.flights.insert(key.clone(), flight).unwrap();
-    outputs(
-        &mut d,
-        Event::StepLanding {
-            task: 61,
-            entry: 91,
-            heard: LandingHeard {
-                job: None,
-                outcomes: Box::new([]),
-                dependencies: Box::new([]),
-                held: Box::new([]),
-                failure: Box::new([]),
-                preparation: Some(policy::Preparation::Idle),
-                released: false,
-                cancelled: false,
-                kept: Box::new([]),
-            },
-        },
-    );
     let run = api::Run {
         id: 7,
         number: 8,
@@ -2865,6 +2878,27 @@ fn reporting_failed_gate(
         }]),
     };
     (d, key, run)
+}
+
+fn begin_reporting_gate(d: &mut Domain, entry: u64) {
+    outputs(
+        d,
+        Event::StepLanding {
+            task: 61,
+            entry,
+            heard: LandingHeard {
+                job: None,
+                outcomes: Box::new([]),
+                dependencies: Box::new([]),
+                held: Box::new([]),
+                failure: Box::new([]),
+                preparation: Some(policy::Preparation::Idle),
+                released: false,
+                cancelled: false,
+                kept: Box::new([]),
+            },
+        },
+    );
 }
 
 pub(super) fn regate_landing() -> (Domain, ReceiptKey, skein_forge::api::Run) {

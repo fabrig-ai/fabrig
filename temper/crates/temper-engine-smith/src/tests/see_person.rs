@@ -1177,3 +1177,18 @@ fn a_persons_task_names_its_own_question_after_its_phase() {
     }
     assert!(found, "{bytes:?}");
 }
+
+#[test]
+fn a_no_test_hold_says_its_repair_found_no_failed_test() {
+    let mut document = panel(Some(1));
+    let temper_engine_domain_forge::Document::Change(panel) = document.as_mut() else { panic!("change panel") };
+    panel.hold = Some(temper_engine_domain_forge_change::Hold::NoTest);
+    let answer = SeeAnswer::Person(Box::new(SeePerson {
+        read: SeeRead::Change { number: 41, panel: document },
+        names: names(),
+    }));
+    let (bytes, error) =
+        crate::see_answer(b"change 41", 0, &answer, &catalogue(), 20_000, crate::ForgeReadBounds::STOCK).into_parts();
+    assert!(!error);
+    assert!(skein_lib::bytes::find(&bytes, b"hold: its repair found no failed test").is_some());
+}

@@ -9,6 +9,7 @@ use alloc::boxed::Box;
 
 /// A landing repair found only flakes (domain/forge/change/repairs.md).
 pub const REPAIR_FLAKE: u32 = 1;
+pub const REPAIR_NO_TEST: u32 = 2;
 
 pub mod address;
 pub mod approvals;

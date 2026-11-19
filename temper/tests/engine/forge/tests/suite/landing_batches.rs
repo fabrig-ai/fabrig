@@ -438,6 +438,7 @@ fn every_exact_judgement_uses_its_members_prefix_branch_and_survives_restart() {
             cancelled: false,
             no_change: false,
             flake: false,
+            no_test: false,
             words: b"prefix reviewed".as_slice().into(),
         });
         changes::change_step_task(&mut world, task, 2000 + member, change::Status::Passed, Box::new([]), false, false);

@@ -217,6 +217,7 @@ fn release_with_result_in_record(placed: bool) {
             delegate: temper_engine_domain_forge_change::Status::Unknown,
             delegate_running: false,
             flake: false,
+            no_test: false,
             delegate_live: false,
             effect: temper_engine_domain_forge_change::EffectResult::None,
             released: false,

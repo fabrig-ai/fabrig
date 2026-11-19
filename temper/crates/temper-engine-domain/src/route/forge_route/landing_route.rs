@@ -302,7 +302,7 @@ fn returned_gate(domain: &Domain, row: &forge::ChangeRow) -> Option<(u64, skein_
     }
     let owner = domain.core.tasks.task(row.task)?;
     for word in &owner.inbox {
-        if word.from == tasks::Party::Task(child) && super::change_delegate_status(&word.kind).is_some() {
+        if word.from == tasks::Party::Task(child) && super::change_delegate_status(&word.kind, kind).is_some() {
             return Some(gate);
         }
     }

@@ -1655,6 +1655,17 @@ fn advance(
             cleanup_branch(d, env, owner, p, &row, member.checked_add(1).expect("member bound"), out);
         }
         Stage::FailedReport { key, run, report, words } => {
+            if let Err(api::Error::Missing) = answer {
+                d.landing.flights.get_mut(&key).expect("unreported flight").outcome =
+                    Some(policy::Verdict::Fault(policy::Fault::Unreported));
+                reported_end(d, env, &key, crate::history::GateVerdict::Fault, out);
+                retain_fault(d, &key, out);
+                p.polled.push(key).expect("one poll per flight");
+                p.stage = Stage::Collect;
+                collect(d, env, owner, p, out);
+                return;
+            }
+            reported_end(d, env, &key, crate::history::GateVerdict::Failed, out);
             let failures = match &answer {
                 Ok(api::Answer::File { truncated: true, .. }) => Some(temper_engine_domain_forge_tiers::Failures::Many),
                 Ok(api::Answer::File { bytes, .. }) => temper_engine_domain_forge_tiers::selection(
@@ -1734,9 +1745,8 @@ fn advance(
             let mut verdict = match &ended {
                 Some(ended) => match ended.outcome {
                     policy::Verdict::Passed => Some(crate::history::GateVerdict::Passed),
-                    policy::Verdict::Failed => Some(crate::history::GateVerdict::Failed),
+                    policy::Verdict::Failed | policy::Verdict::Running => None,
                     policy::Verdict::Fault(_) => Some(crate::history::GateVerdict::Fault),
-                    policy::Verdict::Running => None,
                 },
                 None => None,
             };
@@ -1783,26 +1793,7 @@ fn advance(
                         }
                         finish_flight(d, &key, Some((run.number, true)), out);
                     }
-                    policy::Verdict::Fault(_) => {
-                        let purpose = d.landing.flights.get(&key).expect("faulting flight").purpose.clone();
-                        let mut position = None;
-                        if let Some(crate::purpose::EffectPurpose::Landing { member, gate, preparation, .. }) =
-                            crate::purpose::EffectPurpose::decode(&purpose)
-                            && preparation == dispatching.landing.preparation
-                            && dispatching.landing.members.get(usize::from(member)).expect("flight member").candidate
-                                == Some(candidate)
-                        {
-                            position = Some((flight.task, member, gate));
-                        }
-                        if let Some(position) = position {
-                            if let Some(flight) = d.landing.flights.remove(&key) {
-                                d.landing.faults.insert(position, flight).expect("bounded faults");
-                            }
-                        } else {
-                            finish_flight(d, &key, None, out);
-                        }
-                        mark_key(d, &key, out);
-                    }
+                    policy::Verdict::Fault(_) => retain_fault(d, &key, out),
                     policy::Verdict::Running => {}
                 }
             } else if let Some(read) = next {
@@ -5566,6 +5557,45 @@ fn matches_failed(left: Option<policy::Leave>, gate: u16) -> bool {
     }
 }
 
+/// A failed step's end waits until the gate's report decides its verdict (landing.md, 7.3–7.4).
+fn reported_end(
+    d: &mut Domain,
+    env: &Env<Limits>,
+    key: &ReceiptKey,
+    verdict: crate::history::GateVerdict,
+    out: &mut Queue<Request>,
+) {
+    let flight = d.landing.flights.get(key).expect("reported flight").clone();
+    let dispatching = d.landing.rows.get(&flight.task).expect("dispatching landing").clone();
+    let mut observed = dispatching.clone();
+    crate::landing_proofs::run(d, env, &mut observed, &flight, Some(verdict), out);
+    if observed.entries != dispatching.entries {
+        save(d, observed, out);
+    }
+}
+
+/// Keep the failed run's job attempts for the policy's retry, never a receipt (landing.md, 7.4).
+fn retain_fault(d: &mut Domain, key: &ReceiptKey, out: &mut Queue<Request>) {
+    let flight = d.landing.flights.get(key).expect("faulting flight");
+    let dispatching = d.landing.rows.get(&flight.task).expect("dispatching landing");
+    let mut position = None;
+    if let Some(crate::purpose::EffectPurpose::Landing { member, gate, preparation, .. }) =
+        crate::purpose::EffectPurpose::decode(&flight.purpose)
+        && preparation == dispatching.landing.preparation
+        && dispatching.landing.members.get(usize::from(member)).expect("flight member").candidate == Some(flight.commit)
+    {
+        position = Some((flight.task, member, gate));
+    }
+    if let Some(position) = position {
+        if let Some(flight) = d.landing.flights.remove(key) {
+            d.landing.faults.insert(position, flight).expect("bounded faults");
+        }
+    } else {
+        finish_flight(d, key, None, out);
+    }
+    mark_key(d, key, out);
+}
+
 fn receipt_report(
     report: &policy::GateReport,
     env: &Env<Limits>,
@@ -5679,10 +5709,11 @@ fn failed_jobs(
     } else {
         ReceiptReport::Unset
     };
+    reported_end(d, env, &key, crate::history::GateVerdict::Failed, out);
     failed_receipt(d, env, owner, p, key, run, evidence, None, row_logs, out);
 }
 
-/// A report read is evidence, never a second verdict on a failed gate (domain/landing.md, 7.3).
+/// An uploaded report keeps the gate's failure (domain/landing.md, 7.3).
 #[expect(
     clippy::too_many_arguments,
     reason = "the failed run and both report interpretations complete one landing read"

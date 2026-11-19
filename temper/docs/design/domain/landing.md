@@ -8,13 +8,17 @@ stacked by a merge job, a prefix per member on a branch the landing
 holds; gates proved by receipts kept by key, at the stack's top; and
 the landing's own pull request fast-forwarded into the branch, which
 lands its members by containment. It is the merge queue
-(`../draft/merge-queue.md`, its execution's M1 to M3); a red round of
+(`../draft/merge-queue.md`); a red round of
 several units is narrowed by prefixes, `landing-search.md`. It replaces, for such a project, the change's CI, its queue,
 its updates and its merge in the repository's style
 (`forge/change/README.md`, 2 steps 3 and 5 to 7, `forge/queues.md` and
 `forge/README.md`, section 6). What follows a landing, its tiers and its
 verdict, is `after-landing.md`. The forge's calls it makes are skein's
+<<<<<<< HEAD
 `forge/README.md`, 3.2.
+=======
+`forge/README.md`, 3.2. What is still open is section 17.
+>>>>>>> refs/hand5/10157
 
 ## 1. In one page
 
@@ -607,36 +611,36 @@ The default, for a project with no prepare command:
 
 ### 7.3 A real failure
 
-- **A run whose workflow's own step failed** makes a failed receipt,
-  read with each failed job's failed step and the end of its log
-  (skein's `Read::Job`) as the landing makes it, and, where its gate
-  names a report (`landing-settings.md`, 1.1), its failed tests, read as a tier's
-  (`after-landing.md`, 4): a report not read leaves them unknown, never
-  a fault.
+- **A run whose workflow's own step failed, by its gate's own verdict,**
+  makes a failed receipt, read with each failed job's failed step and
+  the end of its log (skein's `Read::Job`) as the landing makes it, and,
+  where its gate names a report (`landing-settings.md`, 1.1), its failed
+  tests, read as a tier's (`after-landing.md`, 4): a report there but
+  not read leaves them unknown. The gate's verdict is its report, one
+  its run never uploaded a fault (7.4); a gate naming none, its failed
+  step (the requester, 2026-11-19).
 - **A round of one unit:** its changes are repaired
-  (`forge/change/repairs.md`), each one's words naming the run, the
-  candidate, its base and its failed tests and jobs, its brief those
-  steps and logs. Its
-  members leave (4.3), and the landing ends with nothing landed. A
+  (`forge/change/repairs.md`), its members leave (4.3), and the landing ends with nothing landed. A
   repaired head waits for a later landing, whose keys that did not
   change hold by their receipts.
 - **A round of several units is narrowed by prefixes**
-  (`landing-search.md`): the same gates at the unit boundaries below
-  the candidate find a green prefix and the red one a unit above it;
-  that unit's changes are repaired and leave, the green prefix lands in
-  the round's turn, and the units above it go on in the next round.
+  (`landing-search.md`): the same gates at the unit boundaries find a
+  green prefix and the red unit above it, whose changes are repaired and
+  leave; the green prefix lands in the round's turn, the units above it
+  in the next round.
 
 ### 7.4 A fault of the runner
 
 - **The runner's, not the change's:** a job whose set-up step failed, or
   whose completion step alone failed, or that failed with no step
-  failed; a run cancelled by no one of temper's; a run never found, or
-  found at another commit; a dispatch refused for a missing workflow or
-  runner. Never read from a log's words (`../draft/ci-on-forgejo-17.md`,
-  2.1).
-- **Retried, never repaired:** the failed jobs rerun (skein's
-  `Write::Rerun`, naming each job's attempt, so that a rerun whose
-  outcome was lost is found by the job's next attempt), or the gate
+  failed; a failed run whose gate's report it never uploaded
+  (`unreported`: the gate cut by a signal, a shutdown, a lost job); a
+  run cancelled by no one of temper's; a run never found, or found at
+  another commit; a dispatch refused for a missing workflow or runner.
+  Never read from a log's words (`../draft/ci-on-forgejo-17.md`, 2.1).
+- **Retried, never repaired or searched:** the failed jobs rerun (skein's
+  `Write::Rerun`, naming each job's attempt, so that a lost rerun is
+  found by the job's next), or the gate
   dispatched again, up to the project's `gate_retries` per key: a run
   cancelled, or never found, is dispatched afresh, never rerun. No
   receipt is made.
@@ -1039,8 +1043,8 @@ stories supply prepare outcomes as a worker does. The forge's world holds:
   `exact` one asked at the prefix on the landing's pull request;
 - **a real failure** repairs the member, which leaves, and only its
   changed keys run in its next landing;
-- **a runner's fault** is rerun, never repaired, and past its bound
-  holds the landing; a run cancelled by a person is dispatched afresh
+- **a runner's fault,** an unreported run's too, is rerun, never repaired,
+  and past its bound holds the landing; a run cancelled by a person is dispatched afresh
   at its key and candidate; a run past `gate_timeout` holds it;
 - **a stale base as prepare ends or at the turn** ends the round, every
   member stacked again once on the new base, and the next round lands;
