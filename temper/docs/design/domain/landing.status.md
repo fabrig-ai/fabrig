@@ -17,6 +17,12 @@ each follows, as the forge holds them (`forge/change/branch-path.md`).
 - **Not yet:** 9 (*A due step leaves its change out*, *Each train on
   its own*): a waiting change whose step is due stops its train's
   forming instead of being left out of it. [in flight: change 8933]
+- **Not yet:** 9 (*Changes made ready by one event*, *One step at
+  most*): every change not yet ready whose step is due holds its
+  train's forming for as long as it stays due: one still checking,
+  gating with a gate outstanding or kept by a pending dependency, as
+  well as one whose due step will make it ready; and that hold is not
+  limited to one step. [in flight: change 8937]
 - **Not yet:** 7.1, by plan `forge-polls-quiet`: a landing polls its
   runs in flight every `poll`, not at the client's `poll_at`.
 
