@@ -5353,6 +5353,7 @@ version = "0.0.0"
 dependencies = [
  "skein-fake-checkout",
  "skein-fake-llm-domain",
+ "skein-io",
  "skein-lib",
  "skein-world",
  "smith-agent-world",
@@ -5360,6 +5361,8 @@ dependencies = [
  "smith-domain-run",
  "smith-domain-run-fixtures",
  "smith-machine-world",
+ "smith-protocol-machine",
+ "smith-protocol-machine-fixtures",
  "smith-tools-world",
 ]
 

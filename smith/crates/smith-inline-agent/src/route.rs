@@ -167,8 +167,8 @@ pub(crate) fn route(agent: &mut Domain, env: &Env<Limits>, id: Id<Slot>, out: &m
             smith::Request::Lower(Lower::Probe { owner, at, deadline }) => {
                 crate::workspace::probe(slot, id.token(), owner, at, deadline, out);
             }
-            smith::Request::Lower(Lower::Check { owner, program, deadline, tail }) => {
-                crate::workspace::check(slot, id.token(), owner, program, deadline, tail, out);
+            smith::Request::Lower(Lower::Check { owner, program, bound, cap, tail }) => {
+                crate::workspace::check(slot, id.token(), owner, program, bound, cap, tail, out);
             }
             smith::Request::Lower(Lower::Abort { owner }) => crate::workspace::abort(slot, id.token(), owner, out),
         }

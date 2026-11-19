@@ -111,9 +111,10 @@ pub(crate) fn checked(
                 && may_finish
                 && let Some(until) = crate::run::check_retry_deadline(run)
             {
-                let deadline = landing.deadline.min(until).min(env.now.saturating_add(given.saturating_add(given)));
-                if deadline.saturating_since(env.now) > given {
-                    landing.stage = start_check(id, run, check, deadline, true, env, out);
+                let cap = landing.deadline.min(until);
+                let bound = given.saturating_add(given).min(cap.saturating_since(env.now));
+                if bound > given {
+                    landing.stage = start_check(id, run, check, bound, cap, true, env, out);
                     return Settled::Going;
                 }
             }
@@ -270,19 +271,22 @@ fn next(landing: &Landing, id: Id<Call>, run: &Run, check: u32, env: &Env<Limits
         });
         return Stage::Delivering;
     };
-    let deadline = landing.deadline.min(run.deadline).min(env.now.saturating_add(checks_bound(run, env)));
-    start_check(id, run, check, deadline, false, env, out)
+    let cap = landing.deadline.min(run.deadline);
+    let bound = checks_bound(run, env).min(cap.saturating_since(env.now));
+    start_check(id, run, check, bound, cap, false, env, out)
 }
 
 fn checks_bound(run: &Run, env: &Env<Limits>) -> Duration {
     run.charter.check_timeout.unwrap_or(env.limits.check_timeout)
 }
 
+#[expect(clippy::too_many_arguments, reason = "the check's held bound and absolute cap travel separately")]
 fn start_check(
     id: Id<Call>,
     run: &Run,
     check: u32,
-    deadline: Time,
+    bound: Duration,
+    cap: Time,
     retry: bool,
     env: &Env<Limits>,
     out: &mut Queue<Request>,
@@ -290,9 +294,10 @@ fn start_check(
     run.lease.assert_workspace(id.token());
     let root = repository(run, check).root;
     let program = Place { root, path: copy_of(conventions::checks(&run.charter)) };
-    out.push(Request::Check { owner: id.token(), program, deadline, tail: env.limits.check_tail });
+    let deadline = env.now.saturating_add(bound).min(cap);
+    out.push(Request::Check { owner: id.token(), program, bound, cap, tail: env.limits.check_tail });
     out.push(Request::Checking { host_run: run.host_name, deadline });
-    Stage::Checking { check, given: deadline.saturating_since(env.now), retry }
+    Stage::Checking { check, given: bound, retry }
 }
 
 fn back(owner: Token, result: Returned, settled: Settled, out: &mut Queue<Request>) -> Settled {
