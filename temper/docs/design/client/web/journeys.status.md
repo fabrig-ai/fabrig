@@ -2,7 +2,6 @@
 
 2026-11-19. Where temper's code lags or departs from [journeys.md](journeys.md).
 
-- **Not yet:** 5.1: `pages` takes no `--within` and no `--check` [in flight: change 9579].
 
 
 Section 9 has the `ask-temper-start` account (`b14f146fc5`), the
