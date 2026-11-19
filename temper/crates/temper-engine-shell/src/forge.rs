@@ -35,7 +35,8 @@ impl Refused {
     pub fn line(&self) -> String {
         self.line_with_binary("temper")
     }
-    fn line_with_binary(&self, binary: &str) -> String {
+    #[must_use]
+    pub fn line_with_binary(&self, binary: &str) -> String {
         let forge = self.number.map_or_else(String::new, |n| format!("forge {n}: "));
         super::prefixed(&format!("{binary} forge {}", self.verb), &format!("{forge}{}", self.why))
     }
@@ -458,27 +459,6 @@ pub fn run(
         ssl_cert_file,
         environment,
         super::setup::check,
-    )
-}
-
-/// The standalone reader seam used by the box's retained-document callers.
-#[must_use]
-pub fn run_with_reader(
-    binary: &str,
-    directories: &super::Directories,
-    arguments: &[OsString],
-    ssl_cert_file: Option<std::path::PathBuf>,
-    environment: &[EnvironmentEntry],
-    reader: Reader,
-) -> u8 {
-    run_with_shape_reader(
-        binary,
-        temper_config_shell::Shape::Standalone,
-        directories,
-        arguments,
-        ssl_cert_file,
-        environment,
-        reader,
     )
 }
 

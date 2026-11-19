@@ -19,7 +19,7 @@ fn toml_box_prepares_from_its_one_line_file() {
     fs::write(scratch.path().join("worker.secret"), b"fixture-worker-secret").expect("fixture secret");
     fs::set_permissions(scratch.path().join("worker.secret"), fs::Permissions::from_mode(0o600)).expect("private");
     let service = crate::serve::prepare_in("temper-box", &[], b"/", &directories).unwrap_or_else(|why| panic!("{why}"));
-    let crate::Service::Joined(mut service) = service else { panic!("standalone service") };
+    let mut service = service;
     assert!(service.operations() > 0);
     temper_engine_shell::serve::close_limits_store(service.engine_component().store()).expect("close store");
 }
@@ -32,7 +32,7 @@ fn toml_box_problem_names_public_key_and_line_on_serve_output() {
     arguments.extend(directories.flags());
     let command = crate::configure_with(&arguments, &[], b"/").expect("serve command");
     let why = crate::run(command, &[], b"/", b"temper-box", "test", "test").expect_err("refused before io");
-    assert_eq!(why, format!("temper serve: {FILE}:4: public: invalid form\n"));
+    assert_eq!(why, format!("temper-box serve: {FILE}:4: public: invalid form\n"));
 }
 
 #[test]
@@ -114,11 +114,8 @@ fn toml_box_git_wins_over_path_and_absent_key_uses_path() {
         } else {
             Vec::new()
         };
-        let crate::Service::Joined(mut service) =
-            crate::serve::prepare_in("temper-box", &environment, b"/", &directories).expect("prepared box")
-        else {
-            panic!("standalone")
-        };
+        let mut service =
+            crate::serve::prepare_in("temper-box", &environment, b"/", &directories).expect("prepared box");
         let mut program = None;
         let mut descriptor = 1000_i32;
         for _ in 0..32 {
@@ -217,7 +214,7 @@ fn toml_box_claude_wins_then_path_then_fetched_in_pinned_configuration() {
             &programs,
         )
         .expect("prepared box");
-        let crate::Service::Joined(mut service) = service else { panic!("standalone") };
+        let mut service = service;
         let bytes = fs::read(root.join("workspaces/agent/agent.json")).expect("pinned agent");
         let written: serde_json::Value = serde_json::from_slice(&bytes).expect("agent JSON");
         let expected = if explicit {
@@ -273,16 +270,46 @@ fn toml_box_program_paths_refuse_at_the_keys_line_before_preparation() {
 }
 
 #[test]
-fn toml_box_commands_refuse_both_files() {
-    let (scratch, directories) = fixture("listen = \"127.0.0.1:7100\"\n");
-    fs::write(scratch.path().join(FORMER), b"never decoded").expect("former file");
-    let expected = format!(
-        "{FORMER}: moved: the configuration is {FILE}; write it from temper-box help config, then remove {FORMER}"
-    );
-    let Err(serve) = crate::serve::prepare_in("temper-box", &[], b"/", &directories) else { panic!("both refused") };
-    assert_eq!(serve, format!("temper-box serve: {expected}\n"));
-    assert_eq!(crate::program_login::command(&directories, OsStr::new("source"), []).unwrap_err(), expected);
-    let Err(upgrade) = crate::upgrade::prepare(&directories) else { panic!("both refused") };
-    assert_eq!(upgrade, expected);
-    assert_eq!(crate::box_command::configuration(&directories, &[]).unwrap_err(), expected);
+fn toml_box_commands_refuse_the_former_file_alone_or_beside_the_current_file() {
+    for present in [false, true] {
+        let (scratch, directories) = fixture("listen = \"127.0.0.1:7100\"\n");
+        fs::create_dir(scratch.path().join(FORMER)).expect("former directory");
+        if !present {
+            fs::remove_file(scratch.path().join(FILE)).expect("current absent");
+        }
+        let expected = format!(
+            "{FORMER}: moved: the configuration is {FILE}; write it from temper-box help config, then remove {FORMER}"
+        );
+        let Err(serve) = crate::serve::prepare_in("temper-box", &[], b"/", &directories) else {
+            panic!("both refused")
+        };
+        assert_eq!(serve, format!("temper-box serve: {expected}\n"));
+        assert_eq!(crate::program_login::command(&directories, OsStr::new("source"), []).unwrap_err(), expected);
+        let Err(upgrade) = crate::upgrade::prepare(&directories) else { panic!("both refused") };
+        assert_eq!(upgrade, expected);
+        assert_eq!(crate::box_command::configuration(&directories, &[]).unwrap_err(), expected);
+        let jig = temper_service_shell::jig_directories(&directories);
+        let setup = temper_forge_setup::setup_file::chosen(
+            temper_forge_setup::machine::BoxKind::Owned,
+            3007,
+            b"sam",
+            false,
+            &jig,
+        )
+        .expect("owned setup");
+        temper_forge_setup_shell::setup_file::write(&jig, 7, &setup).expect("setup file");
+        for words in [
+            &["fetch", "7"][..],
+            &["prepare", "7"][..],
+            &["run", "7", "forgejo"][..],
+            &["run", "7", "runner"][..],
+            &["source", "7"][..],
+            &["sign-in", "7"][..],
+        ] {
+            let arguments: Vec<_> = words.iter().map(std::ffi::OsString::from).collect();
+            let why =
+                crate::forge::start(&directories, &arguments, None, &[]).unwrap_err().line_with_binary("temper-box");
+            assert_eq!(why, format!("temper-box forge {}: forge 7: {expected}\n", words.first().expect("verb")));
+        }
+    }
 }

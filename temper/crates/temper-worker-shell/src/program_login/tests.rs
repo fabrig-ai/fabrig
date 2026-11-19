@@ -57,9 +57,8 @@ fn a_worker_alone_login_reads_only_its_worker_part() {
         temper_config_shell::render(&input, temper_config_shell::Shape::WorkerAlone),
     )
     .expect("worker-alone fixture");
-    let command =
-        command(&crate::tests::configuration::directories(&directory), OsStr::new("source"), environment, None)
-            .expect("worker-alone fixture");
+    let command = command(&crate::tests::configuration::directories(&directory), OsStr::new("source"), environment)
+        .expect("worker-alone fixture");
     assert_eq!(command.get_program(), program.as_os_str());
     assert_eq!(command.get_args().collect::<Vec<_>>(), ["auth", "login"]);
     assert!(!directory.join("state").exists());
@@ -89,7 +88,7 @@ fn an_engine_file_is_refused_at_its_key_before_program_setup() {
     .expect("engine-alone fixture");
     let directories = crate::tests::configuration::directories(directory);
     assert_eq!(
-        command(&directories, OsStr::new("work"), [], None).unwrap_err(),
+        command(&directories, OsStr::new("work"), []).unwrap_err(),
         format!(
             "{file}:4: workers: a key of temper-engine's file, not temper-worker's\n{file}: engine: required in temper-worker's file",
             file = temper_config_shell::FILE

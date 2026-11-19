@@ -21,7 +21,7 @@ use std::{
 };
 use temper_fake::check::{self, Reason};
 
-const COMMAND: &str = "temper fake forge check";
+const COMMAND: &str = "temper-box fake forge check";
 
 /// The check's exit status and its two streams (protocol/setup/playground.md).
 #[derive(Debug, PartialEq, Eq)]
@@ -76,15 +76,7 @@ pub(crate) fn outcome(directories: &Directories, check: &Check) -> Outcome {
     Outcome { status: output.status, stdout: output.stdout, stderr: stderr.into_boxed_slice() }
 }
 fn configuration(directories: &Directories) -> Result<temper_service::startup::StoreLimits, String> {
-    let read = temper_service_shell::configuration::read_with_legacy(
-        directories,
-        temper_config_shell::Shape::Standalone,
-        || {
-            let document = directories.document();
-            skein_shell::read_file(&document, crate::CONFIG_BYTES)
-                .map_err(|why| format!("configuration {}: {}", document.display(), crate::unread(why)))
-        },
-    )?;
+    let read = temper_service_shell::configuration::read_only(directories, temper_config_shell::Shape::Standalone)?;
     let programs = read.programs()?;
     read.prepare(|bytes| {
         let jig = jig_directories(directories);

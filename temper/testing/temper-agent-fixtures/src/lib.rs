@@ -103,43 +103,9 @@ pub fn directories(directory: &std::path::Path) -> temper_shell::directories::Di
 }
 
 /// Read a fixture's start from its shape's file.
-/// The legacy fallback is transitional, owned by the remaining harness migrations.
 #[must_use]
 pub fn start(directory: &std::path::Path) -> Value {
-    let file = directory.join(temper_config_shell::FILE);
-    let bytes = if file.exists() {
-        configuration_file(directory).0.document
-    } else {
-        std::fs::read(directory.join(temper_config_shell::FORMER)).expect("fixture start").into()
-    };
-    serde_json::from_slice(&bytes).expect("fixture start document")
-}
-
-/// Transitional adapter for harnesses that edit whole legacy snapshots after
-/// running init. The harness migrations remove it; dedicated init tests keep
-/// the TOML file and never call this adapter.
-pub fn legacy_init(directory: &std::path::Path) {
-    use std::{io::Write, os::unix::fs::OpenOptionsExt};
-    let path = directory.join(temper_config_shell::FILE);
-    if !path.exists() {
-        return;
-    }
-    let dirs = directories(directory);
-    let facts = temper_config_shell::facts(&dirs).expect("fixture facts");
-    let read = temper_config_shell::parse(
-        &std::fs::read(&path).expect("init file"),
-        temper_config_shell::Shape::Standalone,
-        &facts,
-    )
-    .expect("init start");
-    std::fs::remove_file(path).expect("remove init file before selecting the legacy snapshot");
-    let mut snapshot = std::fs::OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .mode(0o600)
-        .open(directory.join(temper_config_shell::FORMER))
-        .expect("fresh legacy snapshot");
-    snapshot.write_all(&read.document).expect("legacy snapshot bytes");
+    serde_json::from_slice(&configuration_file(directory).0.document).expect("fixture start document")
 }
 
 /// Read the agent's prospective configuration without retaining a configuration-directory agent file.
@@ -167,11 +133,10 @@ pub fn data(config: &std::path::Path) -> std::path::PathBuf {
     if config.ends_with("config") && sibling.is_dir() { sibling } else { config.into() }
 }
 fn configuration_file(directory: &std::path::Path) -> (temper_config_shell::Read, temper_config_shell::Shape) {
-    use temper_config_shell::{Shape, parse};
-    let text = std::fs::read(directory.join(temper_config_shell::FILE)).expect("fixture file");
-    let facts = temper_config_shell::facts(&directories(directory)).expect("fixture facts");
+    use temper_config_shell::{Shape, read};
+    let dirs = directories(directory);
     for shape in [Shape::Standalone, Shape::EngineAlone, Shape::WorkerAlone] {
-        if let Ok(read) = parse(&text, shape, &facts) {
+        if let Ok(read) = read(&dirs, shape) {
             return (read, shape);
         }
     }
@@ -179,22 +144,12 @@ fn configuration_file(directory: &std::path::Path) -> (temper_config_shell::Read
 }
 
 /// Apply a fixture's agent changes to the file and the kind-21 startup copy.
-/// The legacy write branch is transitional, owned by the remaining harness migrations.
 pub fn install(directory: &std::path::Path, agent: &Value) {
-    let path = directory.join(temper_config_shell::FORMER);
-    if directory.join(temper_config_shell::FILE).exists() {
-        let (read, shape) = configuration_file(directory);
-        let mut document = serde_json::from_slice(&read.document).expect("fixture start document");
-        apply(&mut document, &data(directory), agent);
-        std::fs::write(directory.join(temper_config_shell::FILE), temper_config_shell::render(&read.file, shape))
-            .expect("fixture file");
-        return;
-    }
-    let mut document = start(directory);
+    let (read, shape) = configuration_file(directory);
+    let mut document = serde_json::from_slice(&read.document).expect("fixture start document");
     apply(&mut document, &data(directory), agent);
-    if !directory.join(temper_config_shell::FILE).exists() {
-        std::fs::write(path, serde_json::to_vec_pretty(&document).expect("fixture JSON")).expect("engine fixture");
-    }
+    std::fs::write(directory.join(temper_config_shell::FILE), temper_config_shell::render(&read.file, shape))
+        .expect("fixture file");
 }
 /// Update a fixture already being edited, keeping the store copy beside its data.
 #[expect(

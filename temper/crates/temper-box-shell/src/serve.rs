@@ -79,22 +79,7 @@ pub(crate) fn prepare_with_limits(
     fixed_start: Option<&skein_shell::FixedStart>,
     programs: &temper_config_shell::Programs,
 ) -> Result<(Service, Box<[u8]>, u32), String> {
-    let shape = service::startup::shape_with(bytes, &jig_directories(directories), given)
-        .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
-    if shape == service::startup::Shape::WorkerAlone {
-        return worker::alone(directories, bytes, owned, environment)
-            .map(|service| (Service::Worker(service), Box::new([]) as Box<[u8]>, 0));
-    }
-    let given = if shape == service::startup::Shape::Standalone {
-        crate::scripted::given(directories, given, crate::scripted::address(environment)?)
-    } else {
-        let providers = temper_service_shell::providers::read(
-            &path(&directories.data).join("providers.setting"),
-            given.running(),
-            &mut std::io::stderr(),
-        );
-        given.with_providers(providers, Box::new([]))
-    };
+    let given = crate::scripted::given(directories, given, crate::scripted::address(environment)?);
     let given = &given;
     let setup::Deployment { mut named, checked, limits: box_limits, demo } =
         setup::check_over(bytes, &jig_directories(directories), given, limits)?;
@@ -325,7 +310,7 @@ pub(crate) fn prepare_with_limits(
     if let Some(bundle) = bundle {
         service.engine_component().adopt_bundle(bundle);
     }
-    Ok((Service::Joined(service), named.deployment, box_limits.line_bytes))
+    Ok((service, named.deployment, box_limits.line_bytes))
 }
 pub(crate) fn configured_agent(
     bytes: &[u8],
@@ -654,9 +639,6 @@ fn operations_over(
 ) -> Result<u32, String> {
     let dirs = jig_directories(directories);
     let convert = |why| prefixed(&format!("{binary} serve"), &String::from_utf8_lossy(&service::startup::lines(&why)));
-    if service::startup::shape_with(config, &dirs, given).map_err(convert)? == service::startup::Shape::WorkerAlone {
-        return service::startup::operations_with_worker(config, &dirs, given, limits, None).map_err(convert);
-    }
     // Startup reports bad copies once; reserving the ring uses the same fallback silently.
     let local = local_setting(&path(&directories.data).join("local.setting"), &mut std::io::sink());
     let places = local.as_ref().map_or(4, jig_client_protocol_wire::WorkerSetting::places);

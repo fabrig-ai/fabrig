@@ -4,7 +4,7 @@ use skein_shell::{self as settings, Base, Fallback, Origin, Setting, Settings};
 use std::{
     fmt,
     os::unix::fs::{DirBuilderExt, MetadataExt},
-    path::{Path, PathBuf},
+    path::Path,
 };
 
 pub const SETTINGS: Settings = Settings {
@@ -14,7 +14,7 @@ pub const SETTINGS: Settings = Settings {
         Setting {
             name: "config",
             value: "CONFIG",
-            about: "Configuration, including temper.toml.",
+            about: "Configuration files.",
             fallback: Fallback::Base(Base::Config),
             set: skein_shell::Set::Public,
             twin: Some("TEMPER_CONFIG"),
@@ -103,10 +103,6 @@ pub type Paths = Directories;
 
 impl Directories {
     #[must_use]
-    pub fn document(&self) -> PathBuf {
-        super::path(&self.config).join("temper.json")
-    }
-    #[must_use]
     pub fn flags(&self) -> Box<[Argument]> {
         vec![
             Box::from(b"--config".as_slice()),
@@ -123,20 +119,6 @@ impl Directories {
             make_private(super::path(directory), user)?;
         }
         Ok(())
-    }
-    /// Missing documents are refused before data or cache is touched.
-    pub fn read(&self) -> Result<Box<[u8]>, String> {
-        let document = self.document();
-        match std::fs::symlink_metadata(&document) {
-            Err(why) if why.kind() == std::io::ErrorKind::NotFound => {
-                return Err(format!("configuration {}: absent; temper init writes one", document.display()));
-            }
-            Err(why) => return Err(format!("configuration {}: {why}", document.display())),
-            Ok(_) => {}
-        }
-        self.open(skein_shell::effective_user())?;
-        skein_shell::read_file(&document, CONFIG_BYTES)
-            .map_err(|why| format!("configuration {}: {}", document.display(), unread(why)))
     }
 }
 pub fn private_root(path: &Path, user: u32) -> Result<(), String> {
@@ -159,7 +141,6 @@ pub fn make_private(path: &Path, user: u32) -> Result<(), String> {
     }
     private_root(path, user).map_err(|why| format!("{}: {why}", path.display()))
 }
-const CONFIG_BYTES: u32 = 1 << 20;
 
 #[must_use]
 pub fn errno(error: Error) -> i32 {

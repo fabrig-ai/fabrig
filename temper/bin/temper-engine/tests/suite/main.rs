@@ -235,21 +235,21 @@ const ROWS: &[Case] = &[
         Some(Shape::WorkerAlone),
         1,
         empty,
-        "temper-engine serve: temper.toml:3: engine: a key of temper-worker's file, not temper-engine's\ntemper-engine serve: temper.toml: workers: required in temper-engine's file\n",
+        "temper-engine serve: {file}:3: engine: a key of temper-worker's file, not temper-engine's\ntemper-engine serve: {file}: workers: required in temper-engine's file\n",
     ),
     (
         SERVE,
         Some(Shape::Standalone),
         1,
         empty,
-        "temper-engine serve: temper.toml: workers: required in temper-engine's file\n",
+        "temper-engine serve: {file}: workers: required in temper-engine's file\n",
     ),
     (
         FETCH,
         Some(Shape::WorkerAlone),
         1,
         empty,
-        "temper-engine forge fetch: forge 1: temper.toml:3: engine: a key of temper-worker's file, not temper-engine's\ntemper-engine forge fetch: temper.toml: workers: required in temper-engine's file\n",
+        "temper-engine forge fetch: forge 1: {file}:3: engine: a key of temper-worker's file, not temper-engine's\ntemper-engine forge fetch: {file}: workers: required in temper-engine's file\n",
     ),
     (
         &["upgrade", "--check"],
@@ -327,7 +327,10 @@ fn the_binary_answers_its_table_and_refuses_other_shapes() {
             .expect("run temper-engine");
         let out = String::from_utf8(output.stdout).expect("UTF-8 stdout");
         let err = String::from_utf8(output.stderr).expect("UTF-8 stderr");
-        if output.status.code() != Some(*code) || !stdout(&out) || err != *stderr {
+        if output.status.code() != Some(*code)
+            || !stdout(&out)
+            || err != stderr.replace("{file}", temper_config_shell::FILE)
+        {
             failures.push(format!("{arguments:?}, document {contents:?}: exit {:?}, stdout {out:?}, stderr {err:?}; expected exit {code}, stderr {stderr:?}", output.status.code()));
         }
     }

@@ -145,11 +145,10 @@ pub fn prepare_with_store(
 }
 #[expect(
     clippy::too_many_arguments,
-    clippy::too_many_lines,
     reason = "startup carries process facts and the in-process world's optional typed inputs through the same checked start"
 )]
 fn prepare_given(
-    binary: &str,
+    _binary: &str,
     environment: &[EnvironmentEntry],
     working: &[u8],
     directories: &Directories,
@@ -168,12 +167,6 @@ fn prepare_given(
     );
     let given = given.with_providers(providers, Box::new([]));
     let given = &given;
-    if matches!(
-        service::startup::nearest(bytes),
-        Some(service::startup::Shape::WorkerAlone | service::startup::Shape::Standalone)
-    ) {
-        return Err(format!("temper.json names a worker, and {binary} runs none"));
-    }
     service::startup::shape_with(bytes, &jig_directories(directories), given)
         .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
     let setup::Deployment { mut named, checked, .. } = setup::check_with(bytes, &jig_directories(directories), given)?;

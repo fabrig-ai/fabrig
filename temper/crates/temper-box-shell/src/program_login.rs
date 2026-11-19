@@ -48,14 +48,6 @@ pub(crate) fn run(
     environment: &[super::EnvironmentEntry],
 ) -> Result<u8, String> {
     use std::os::unix::ffi::OsStrExt;
-    let read = temper_service_shell::configuration::read(directories, temper_config_shell::Shape::Standalone)?;
-    if read.prepare(|bytes| {
-        temper_service::startup::shape(bytes, &temper_service_shell::jig_directories(directories))
-            .map_err(|why| String::from_utf8_lossy(&temper_service::startup::lines(&why)).into_owned())
-    })? == temper_service::startup::Shape::WorkerAlone
-    {
-        return temper_worker_shell::program_login::run(directories, name, environment, None);
-    }
     let environment = environment.iter().map(|(name, value)| {
         (std::ffi::OsStr::from_bytes(name).to_os_string(), std::ffi::OsStr::from_bytes(value).to_os_string())
     });

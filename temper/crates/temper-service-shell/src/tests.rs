@@ -31,7 +31,8 @@ fn a_refused_start_is_its_binarys_serve_line() {
     ];
     let (directories, _) = temper_shell::directories::resolve(&arguments, &[], b"/").expect("fixture directories");
     std::fs::create_dir(scratch.path().join("config")).expect("configuration directory");
-    std::fs::write(directories.document(), b"{}").expect("document");
+    std::fs::write(scratch.path().join("config").join(temper_config_shell::FILE), b"engine = \"127.0.0.1:7200\"\n")
+        .expect("configuration file");
     assert_eq!(
         super::run(
             "temper-worker",

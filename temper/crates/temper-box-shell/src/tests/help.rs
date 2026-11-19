@@ -38,7 +38,7 @@ fn box_help_configures_coding_run_tools() {
     let (_, recipe) = before_start.split_once("**Coding runs:**").expect("coding run tools recipe before startup");
     let text = recipe.split_whitespace().collect::<Vec<_>>().join(" ");
     for required in [
-        "`CONFIG/temper.toml`",
+        &format!("`CONFIG/{}`", temper_config_shell::FILE),
         "preserve the rest of the document",
         "`[environment]`",
         "Absent: the worker's own `HOME` and `PATH`",
@@ -845,7 +845,7 @@ fn account_and_deployment_help_explain_offering_another_model() {
         "`sources`",
         "`endpoint` names an entry in its `endpoints` list",
         "`address.socket`",
-        "`CONFIG/temper.toml`",
+        &format!("`CONFIG/{}`", temper_config_shell::FILE),
         "claude-haiku-5-5",
         "output",
         "reasoning_item",
@@ -955,7 +955,7 @@ fn box_and_tier_help_explain_shared_capacity_and_existing_boxes() {
             "other repositories",
             "Ctrl-C or SIGTERM",
             wait,
-            "`temper.toml`",
+            &format!("`{}`", temper_config_shell::FILE),
             "same",
             "registration and secrets",
         ] {

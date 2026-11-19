@@ -72,8 +72,10 @@ enum Stderr {
 impl Stderr {
     fn accepts(&self, text: &str) -> bool {
         match self {
-            Self::Exact(expected) => text == *expected,
-            Self::WorkerChecks => text.starts_with("temper-worker serve: ") && !text.contains("temper.toml:"),
+            Self::Exact(expected) => text == expected.replace("{file}", temper_config_shell::FILE),
+            Self::WorkerChecks => {
+                text.starts_with("temper-worker serve: ") && !text.contains(&format!("{}:", temper_config_shell::FILE))
+            }
         }
     }
 }
@@ -106,7 +108,7 @@ const ROWS: &[Case] = &[
         1,
         empty,
         Exact(
-            "temper-worker serve: temper.toml:4: workers: a key of temper-engine's file, not temper-worker's\ntemper-worker serve: temper.toml: engine: required in temper-worker's file\n",
+            "temper-worker serve: {file}:4: workers: a key of temper-engine's file, not temper-worker's\ntemper-worker serve: {file}: engine: required in temper-worker's file\n",
         ),
     ),
     (
@@ -115,7 +117,7 @@ const ROWS: &[Case] = &[
         1,
         empty,
         Exact(
-            "temper-worker serve: temper.toml:4: listen: a key of temper-box's or temper-engine's file, not temper-worker's\ntemper-worker serve: temper.toml: engine: required in temper-worker's file\n",
+            "temper-worker serve: {file}:4: listen: a key of temper-box's or temper-engine's file, not temper-worker's\ntemper-worker serve: {file}: engine: required in temper-worker's file\n",
         ),
     ),
     (
@@ -124,7 +126,7 @@ const ROWS: &[Case] = &[
         1,
         empty,
         Exact(
-            "temper-worker program-login: temper.toml:4: workers: a key of temper-engine's file, not temper-worker's\ntemper-worker program-login: temper.toml: engine: required in temper-worker's file\n",
+            "temper-worker program-login: {file}:4: workers: a key of temper-engine's file, not temper-worker's\ntemper-worker program-login: {file}: engine: required in temper-worker's file\n",
         ),
     ),
     (
@@ -133,7 +135,7 @@ const ROWS: &[Case] = &[
         1,
         empty,
         Exact(
-            "temper-worker program-login: temper.toml:4: listen: a key of temper-box's or temper-engine's file, not temper-worker's\ntemper-worker program-login: temper.toml: engine: required in temper-worker's file\n",
+            "temper-worker program-login: {file}:4: listen: a key of temper-box's or temper-engine's file, not temper-worker's\ntemper-worker program-login: {file}: engine: required in temper-worker's file\n",
         ),
     ),
     (

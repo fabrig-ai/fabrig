@@ -1,43 +1,29 @@
-//! Binary-shaped configuration with the temporary legacy branch
+//! Binary-shaped configuration through the file's table
 //! (temper/docs/design/protocol/configuration/file.md, 6).
-use std::{io::ErrorKind, os::unix::ffi::OsStrExt, path::Path};
 use temper_config_shell::{Keys, Shape};
 use temper_shell::directories::Directories;
 
 pub struct Read {
-    pub file: Option<temper_config_shell::File>,
+    pub file: temper_config_shell::File,
     pub document: Box<[u8]>,
-    pub keys: Option<Keys>,
+    pub keys: Keys,
 }
 
-/// The legacy branch lives here alone; a present TOML file always uses the table's reader.
+/// Refuse the configuration before opening data or cache.
 pub fn read(directories: &Directories, shape: Shape) -> Result<Read, String> {
-    let read = read_with_legacy(directories, shape, || directories.read())?;
-    if read.keys.is_some() {
-        directories.open(skein_shell::effective_user())?;
-    }
+    let read = read_only(directories, shape)?;
+    directories.open(skein_shell::effective_user())?;
     Ok(read)
 }
 
-/// Offline readers keep their legacy io and diagnostics, without opening data directories.
-pub fn read_with_legacy(
-    directories: &Directories,
-    shape: Shape,
-    legacy: impl FnOnce() -> Result<Box<[u8]>, String>,
-) -> Result<Read, String> {
-    let config = Path::new(std::ffi::OsStr::from_bytes(&directories.config));
-    if let Err(why) = std::fs::symlink_metadata(config.join(temper_config_shell::FILE))
-        && why.kind() == ErrorKind::NotFound
-        && std::fs::symlink_metadata(config.join(temper_config_shell::FORMER)).is_ok()
-    {
-        return legacy().map(|document| Read { file: None, document, keys: None });
-    }
+/// Offline readers do not create or open data directories.
+pub fn read_only(directories: &Directories, shape: Shape) -> Result<Read, String> {
     let temper_config_shell::Read { file, document, keys } =
         temper_config_shell::read(directories, shape).map_err(|why| why.to_string())?;
-    Ok(Read { file: Some(file), document, keys: Some(keys) })
+    Ok(Read { file, document, keys })
 }
 
-/// Program-login keeps its legacy single-line output, but file refusals are one per line.
+/// Program-login prints file refusals one per line and other problems on one line.
 #[must_use]
 pub fn login_problems(command: &str, lines: &str) -> String {
     if lines.lines().any(|line| {
@@ -53,7 +39,7 @@ pub fn login_problems(command: &str, lines: &str) -> String {
 impl Read {
     /// Programs are process inputs, not members of the start's document (file.md, 4).
     pub fn programs(&self) -> Result<temper_config_shell::Programs, String> {
-        let programs = self.file.as_ref().map(|file| file.programs.clone()).unwrap_or_default();
+        let programs = self.file.programs.clone();
         let mut problems = Vec::new();
         for (key, path) in [
             ("programs.git", &programs.git),
@@ -70,7 +56,7 @@ impl Read {
                 None
             };
             if let Some(words) = words {
-                problems.push(self.keys.as_ref().expect("TOML programs").render_key(key, &words));
+                problems.push(self.keys.render_key(key, &words));
             }
         }
         if problems.is_empty() { Ok(programs) } else { Err(problems.join("\n")) }
@@ -80,12 +66,11 @@ impl Read {
     /// output boundary, leaving lines outside the configuration and their endings intact.
     #[must_use]
     pub fn problems(&self, lines: &str) -> String {
-        let Some(keys) = &self.keys else { return lines.into() };
         let mut rendered = String::new();
         for line in lines.split_inclusive('\n') {
             let (line, ending) = line.strip_suffix('\n').map_or((line, ""), |line| (line, "\n"));
             match line.split_once(": ") {
-                Some((member, words)) => rendered.push_str(&keys.render_member(member, words)),
+                Some((member, words)) => rendered.push_str(&self.keys.render_member(member, words)),
                 None => rendered.push_str(line),
             }
             rendered.push_str(ending);

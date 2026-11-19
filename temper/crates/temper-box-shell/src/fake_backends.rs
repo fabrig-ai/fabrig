@@ -22,7 +22,7 @@ use std::{
 use temper_fake::backends::{self, Paths, Peers};
 use temper_forge_setup_shell::process as locks;
 
-use temper_config_shell::{FILE, FORMER, Shape};
+use temper_config_shell::{FILE, Shape};
 
 const ADAPTER: &str = "fake-claude.path";
 const REQUIRED: &[&str] = &[FILE, "github.json", "oauth.json", "llm.json", "forgejo.json", ADAPTER];
@@ -224,17 +224,8 @@ fn public_path(path: &Path) -> Result<(), String> {
     }
     Ok(())
 }
-fn refuse_former(dirs: &Directories) -> Result<(), String> {
-    match fs::symlink_metadata(crate::path(&dirs.config).join(FORMER)) {
-        Ok(_) => Err(format!(
-            "{FORMER}: moved: the configuration is {FILE}; write it from temper-box help config, then remove {FORMER}"
-        )),
-        Err(why) if why.kind() == std::io::ErrorKind::NotFound => Ok(()),
-        Err(why) => Err(format!("{FORMER}: {why}")),
-    }
-}
+/// Check an in-memory candidate before it replaces the retained file.
 fn configuration(dirs: &Directories, text: &[u8]) -> Result<temper_config_shell::Read, String> {
-    refuse_former(dirs)?;
     let facts = temper_config_shell::facts(dirs).map_err(|why| String::from_utf8_lossy(&why.lines()).into_owned())?;
     temper_config_shell::parse(text, Shape::Standalone, &facts)
         .map_err(|why| String::from_utf8_lossy(&why.lines()).into_owned())
@@ -695,14 +686,16 @@ fn prepare(
             }
             public_path(&path).and_then(|()| private_document(&path)).map_err(|why| reset(&root, &why))?;
         }
+        let document =
+            temper_config_shell::read(&effective, Shape::Standalone).map_err(|why| why.to_string())?.document;
         let content = public(&crate::path(&effective.config).join(FILE))?;
-        let document = configuration(&effective, &content)?.document;
         let peers = checked_peers(&effective, &document)?;
         let steps = scripts_for_start(&effective, &peers, options)?;
-        let bytes = replace_bundle(&effective, content, bundle, adapter)?;
+        let _bytes = replace_bundle(&effective, content, bundle, adapter)?;
         let providers = backends::providers(&peers).map_err(|why| String::from_utf8_lossy(&why.line()).into_owned())?;
         write(&crate::path(&effective.data).join("providers.setting"), &providers, true)?;
-        let document = configuration(&effective, &bytes)?.document;
+        let document =
+            temper_config_shell::read(&effective, Shape::Standalone).map_err(|why| why.to_string())?.document;
         return Ok(Prepared {
             directories: effective,
             bytes: document,
@@ -738,8 +731,7 @@ fn prepare(
         // Imported listeners retain their source values; init's new reservations do not represent them.
         crate::close(std::mem::take(&mut held.0).into_iter().map(|(fd, _)| fd).collect());
     }
-    let initial = public(&crate::path(&effective.config).join(FILE))?;
-    let initial = configuration(&effective, &initial)?;
+    let initial = temper_config_shell::read(&effective, Shape::Standalone).map_err(|why| why.to_string())?;
     let mut excluded = ordinary_ports(&effective, &initial.document)?;
     let github = reserve_chosen(&excluded, chosen.map(|ports| ports.peers[0]))?;
     excluded.push(addr(&github)?.port());
@@ -793,7 +785,7 @@ fn prepare(
     )?;
     write(&crate::path(&effective.config).join(ADAPTER), adapter.as_os_str().as_bytes(), false)?;
     validate(&effective, &text, adapter)?;
-    let document = configuration(&effective, &text)?.document;
+    let document = temper_config_shell::read(&effective, Shape::Standalone).map_err(|why| why.to_string())?.document;
     let peers = checked_peers(&effective, &document)?;
     let steps = scripts_for_start(&effective, &peers, options)?;
     // Last: a crash or refusal earlier is visibly partial and is never repaired by importing records.

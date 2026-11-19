@@ -3,9 +3,8 @@ use crate::{INTERNAL_WORKSPACE_REUSE, PROGRAM_LOGIN};
 use skein_io::kernel::Exit;
 use skein_shell::{Argument, Command, Reach, Reached, Set, Table};
 use std::{ffi::OsStr, os::unix::ffi::OsStrExt, path::PathBuf, process::ExitCode};
-use temper_service_core::startup::{Shape, nearest};
 use temper_shell::{
-    directories::{self, Directories, EnvironmentEntry},
+    directories::{self, EnvironmentEntry},
     environment, table,
 };
 
@@ -117,7 +116,6 @@ fn dispatch(command: &Command, arguments: &[Box<[u8]>], captured: &Capture) -> R
             if !rest.is_empty() {
                 return Err(refused("invalid arguments"));
             }
-            refuse_document(command, &directories).map_err(|why| (1, why))?;
             Ok(
                 match temper_service_shell::run(
                     WORKER.binary,
@@ -151,35 +149,12 @@ fn dispatch(command: &Command, arguments: &[Box<[u8]>], captured: &Capture) -> R
                 directories::resolve(arguments, &captured.environment, working.as_os_str().as_bytes())
                     .map_err(|why| refused(&why.to_string()))?;
             let [name] = rest.as_ref() else { return Err(refused("invalid arguments")) };
-            refuse_document(command, &directories).map_err(|why| (1, why))?;
-            crate::program_login::run(&directories, OsStr::from_bytes(name), &captured.environment, None).map_err(
-                |why| (1, temper_service_shell::configuration::login_problems("temper-worker program-login", &why)),
-            )
+            crate::program_login::run(&directories, OsStr::from_bytes(name), &captured.environment).map_err(|why| {
+                (1, temper_service_shell::configuration::login_problems("temper-worker program-login", &why))
+            })
         }
         Reach::Words(_) | Reach::RunAs(_) => Err(refused("invalid arguments")),
     }
-}
-
-/// Refuse another binary's nearest shape before the worker's document checks (protocol/binaries.md, 5).
-fn refuse_document(command: &Command, directories: &Directories) -> Result<(), String> {
-    let Ok(read) = temper_service_shell::configuration::read(directories, temper_config_shell::Shape::WorkerAlone)
-    else {
-        return Ok(());
-    };
-    if read.keys.is_some() {
-        return Ok(());
-    }
-    let bytes = read.document;
-    let why = match nearest(&bytes) {
-        Some(Shape::EngineAlone) => "an engine alone; temper-engine serve runs it",
-        Some(Shape::Standalone) => "an engine and its worker in one process; temper-box serve runs it",
-        Some(Shape::WorkerAlone) | None => return Ok(()),
-    };
-    let words = match command.reach {
-        Reach::Words(words) => words.join(" "),
-        Reach::RunAs(name) => name.into(),
-    };
-    Err(format!("{} {words}: temper.json holds {why}\n", WORKER.binary))
 }
 
 #[cfg(test)]
@@ -220,31 +195,35 @@ mod configuration_tests {
     }
 
     #[test]
-    fn toml_worker_serve_refuses_both_files_with_exit_one() {
-        let scratch = skein_scratch::Scratch::new("worker-serve-both-files");
+    fn worker_commands_refuse_the_former_file_by_name() {
+        use temper_config_shell::{FILE, FORMER};
+        let scratch = skein_scratch::Scratch::new("worker-former-file");
         let directories = crate::tests::configuration::directories(scratch.path());
-        std::fs::write(scratch.path().join(temper_config_shell::FILE), "engine = \"127.0.0.1:7200\"\n")
-            .expect("worker file");
-        std::fs::write(scratch.path().join(temper_config_shell::FORMER), b"never decoded").expect("former file");
-        let mut arguments = vec![Box::from(b"serve".as_slice())];
-        arguments.extend(directories.flags());
-        let capture = super::Capture {
-            run_as: b"temper-worker".as_slice().into(),
-            arguments: arguments.into(),
-            environment: Box::new([]),
-            working: Ok(scratch.path().into()),
-        };
-        assert_eq!(
-            super::run(&capture, "test", "test"),
-            Err((
-                1,
-                format!(
-                    "temper-worker serve: {}: moved: the configuration is {}; write it from temper-worker help config, then remove {}\n",
-                    temper_config_shell::FORMER,
-                    temper_config_shell::FILE,
-                    temper_config_shell::FORMER
-                )
-            ))
-        );
+        std::fs::create_dir(scratch.path().join(FORMER)).expect("former directory");
+        for present in [false, true] {
+            if present {
+                std::fs::write(scratch.path().join(FILE), b"invalid TOML").expect("current file");
+            }
+            for words in [&["serve"][..], &["program-login", "source"][..]] {
+                let mut arguments: Vec<_> = words.iter().map(|word| Box::from(word.as_bytes())).collect();
+                arguments.extend(directories.flags());
+                let capture = super::Capture {
+                    run_as: b"temper-worker".as_slice().into(),
+                    arguments: arguments.into(),
+                    environment: Box::new([]),
+                    working: Ok(scratch.path().into()),
+                };
+                assert_eq!(
+                    super::run(&capture, "test", "test"),
+                    Err((
+                        1,
+                        format!(
+                            "temper-worker {}: {FORMER}: moved: the configuration is {FILE}; write it from temper-worker help config, then remove {FORMER}\n",
+                            words.first().expect("command")
+                        )
+                    ))
+                );
+            }
+        }
     }
 }

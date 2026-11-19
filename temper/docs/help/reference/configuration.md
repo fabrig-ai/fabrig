@@ -2,7 +2,7 @@
 
 Kind: reference
 
-The keys of `temper.toml`, their shapes, bounds and defaults.
+The configuration file's keys, their shapes, bounds and defaults.
 
 Every key is read at a start; changing any key needs a restart.
 

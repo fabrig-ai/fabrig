@@ -72,8 +72,7 @@ fn key(row: &Row) -> String {
 #[must_use]
 pub fn reference() -> Box<[u8]> {
     let mut out = format!(
-        "# Configuration\n\nKind: reference\n\nThe keys of `{}`, their shapes, bounds and defaults.\n\n{RESTART}\n",
-        crate::FILE
+        "# Configuration\n\nKind: reference\n\nThe configuration file's keys, their shapes, bounds and defaults.\n\n{RESTART}\n"
     );
     out.push_str("S: `temper-box`; E: `temper-engine`; W: `temper-worker`. Help lists public keys alone.\n\n## Keys\n\n| Key | Shapes | Set | Form and bound | Default | What it says |\n|---|---|---|---|---|---|\n");
     for row in rows::ROWS {

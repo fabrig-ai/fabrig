@@ -1145,13 +1145,14 @@ fn linked_provisioned_page_refuses_before_reading_its_target() {
 }
 
 #[test]
-fn source_public_asset_links_are_refused_before_reading_them() {
+fn source_public_asset_links_are_refused_before_hashing_them() {
     let scratch = Scratch::new("source-links");
     let source = provisioned_source(&scratch);
     let document = crate::path(&source.config).join(FILE);
-    fs::remove_file(&document).expect("remove public fixture");
-    // The target is absent, so a refusal about links proves it was never opened or copied.
-    std::os::unix::fs::symlink(scratch.0.join("unread-target"), &document).expect("linked public fixture");
+    let target = scratch.0.join("source-file");
+    fs::rename(&document, &target).expect("move public fixture");
+    // The central reader checks the source first; identity hashing still refuses links.
+    std::os::unix::fs::symlink(&target, &document).expect("linked public fixture");
     let error = start(&source, None).err().expect("source public link refused");
     assert!(error.contains("links"), "{error}");
     assert!(!crate::path(&source.data).join("box/fake-backends").exists());
@@ -1427,5 +1428,25 @@ fn chosen_ports_refuses_all_but_nine_nonzero_ports() {
     ] {
         let why = chosen_ports(&value).err().expect("invalid choice refused");
         assert!(why.contains(CHOSEN_PORTS), "{why}");
+    }
+}
+
+#[test]
+fn import_refuses_the_former_file_before_hashing_source_bytes() {
+    use temper_config_shell::{FILE, FORMER};
+    let scratch = skein_scratch::Scratch::new("fake-import-former");
+    let directories = crate::tests::configuration::directories(scratch.path());
+    std::fs::create_dir(scratch.path().join(FORMER)).expect("former directory");
+    for present in [false, true] {
+        if present {
+            std::fs::write(scratch.path().join(FILE), b"not TOML").expect("current file");
+        }
+        let Err(why) = super::import::Source::read(&directories, &[]) else { panic!("former refused") };
+        assert_eq!(
+            why,
+            format!(
+                "{FORMER}: moved: the configuration is {FILE}; write it from temper-box help config, then remove {FORMER}"
+            )
+        );
     }
 }

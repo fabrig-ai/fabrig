@@ -1597,7 +1597,7 @@ fn check_run() {
     assert_eq!(
         ended.stderr,
         format!(
-            "{{\"boundary\":{{\"lines\":1,\"lost\":0}}}}\ntemper fake forge check: opening {}: errno 2\n",
+            "{{\"boundary\":{{\"lines\":1,\"lost\":0}}}}\ntemper-box fake forge check: opening {}: errno 2\n",
             store.display()
         )
         .as_bytes()

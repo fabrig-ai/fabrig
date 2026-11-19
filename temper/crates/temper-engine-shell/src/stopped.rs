@@ -6,16 +6,10 @@ use temper_service_shell::jig_directories;
 use temper_shell::directories::Directories;
 
 /// No worker root, listener or external system is started.
-pub fn prepare(binary: &str, directories: &Directories) -> Result<(service::Service, Box<[u8]>), String> {
+pub fn prepare(_binary: &str, directories: &Directories) -> Result<(service::Service, Box<[u8]>), String> {
     let read = temper_service_shell::configuration::read(directories, temper_config_shell::Shape::EngineAlone)?;
     read.prepare(|bytes| {
         let held = crate::serve::limits_hold(crate::path(&directories.data))?;
-        if matches!(
-            service::startup::nearest(bytes),
-            Some(service::startup::Shape::Standalone | service::startup::Shape::WorkerAlone)
-        ) {
-            return Err(format!("temper.json names a worker, and {binary} runs none"));
-        }
         let providers = temper_service_shell::providers::read(
             &crate::path(&directories.data).join("providers.setting"),
             service::stock::providers(),

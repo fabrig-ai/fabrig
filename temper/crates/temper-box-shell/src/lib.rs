@@ -383,7 +383,7 @@ pub fn run(
             return init::run(&directories, boxed, environment).map_err(|why| prefixed("temper init", &why));
         }
         Command::Serve { directories, boxed, record, fixed_start } => {
-            serve::run("temper", environment, working, &directories, boxed, record, fixed_start.as_ref())?
+            serve::run("temper-box", environment, working, &directories, boxed, record, fixed_start.as_ref())?
         }
         Command::BoxFakeBackends { directories, bundle, scripts, strict, fixed_start, echo, front, record } => {
             fake_backends::run(
@@ -423,7 +423,7 @@ pub fn run(
         }
         Command::Forge { directories, arguments, ssl_cert_file, environment } => {
             return forge::command(
-                "temper",
+                "temper-box",
                 forge::Command::Forge { directories, arguments, ssl_cert_file, environment },
             );
         }

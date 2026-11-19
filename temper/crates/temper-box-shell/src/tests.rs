@@ -231,9 +231,7 @@ fn the_standalone_operations_check_retains_no_descriptors() {
     )
     .expect("same standalone preparation");
     assert_eq!(operations, service.operations());
-    if let super::Service::Joined(service) = &mut service {
-        temper_engine_shell::serve::close_limits_store(service.engine_component().store()).expect("close opened store");
-    }
+    temper_engine_shell::serve::close_limits_store(service.engine_component().store()).expect("close opened store");
     drop(service);
     super::close(owned);
     assert_no_descriptors_in(&directory);
@@ -415,34 +413,6 @@ fn forge_commands_refuse_the_recorded_fake_kind_for_owned_operations() {
     .expect_err("fake is not owned");
     assert_eq!(refused.line(), "temper forge run: forge 1: it is fake, not owned\n");
     assert!(!scratch.path().join("forge-1").exists());
-}
-
-pub(crate) fn worker_document(directory: &std::path::Path) -> (Vec<u8>, serde_json::Value) {
-    let (agent, input) = configuration::documents(directory, "/missing/temper");
-    let mut input: serde_json::Value = serde_json::from_slice(&input).expect("fixture document");
-    input.as_object_mut().expect("document object").remove("engine");
-    input["workers"][0]["engine"] = serde_json::json!({"socket":"127.0.0.1:7100"});
-    input["application"] = serde_json::json!({});
-    input["workers"][0].as_object_mut().expect("worker").remove("agent");
-    input["workers"][0].as_object_mut().expect("worker").remove("limits");
-    (agent, input)
-}
-#[test]
-fn serve_prepares_a_worker_alone_without_a_deployment_or_setup_host() {
-    let scratch = skein_scratch::Scratch::new("worker-alone-preflight");
-    let directory = scratch.path();
-    let (_, input) = worker_document(directory);
-    let directories = configuration::directories(directory);
-    let part = temper_service::startup::worker_part(
-        &serde_json::to_vec(&input).expect("worker document"),
-        &temper_service_shell::jig_directories(&directories),
-        None,
-        &[],
-    )
-    .expect("worker-alone preflight");
-    assert_eq!(part.files.len(), 1, "only its link secret is read before figures");
-    assert!(part.named.program.is_empty(), "no worker is built before figures");
-    assert!(!directory.join("state").exists(), "no deployment store");
 }
 
 #[test]

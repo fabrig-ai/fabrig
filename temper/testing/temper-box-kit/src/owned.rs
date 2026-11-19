@@ -74,8 +74,9 @@ pub fn prepare_with_reader(directory: &Path, reader: temper_engine_shell::forge:
     let err = fs::File::create(&err_path).expect("stderr file");
     rustix::stdio::dup2_stdout(&out).expect("capture stdout");
     rustix::stdio::dup2_stderr(&err).expect("capture stderr");
-    let code = temper_engine_shell::forge::run_with_reader(
-        "temper",
+    let code = temper_engine_shell::forge::run_with_shape_reader(
+        "temper-box",
+        temper_config_shell::Shape::Standalone,
         &super::configuration::directories(directory),
         &["prepare".into(), "1".into()],
         None,

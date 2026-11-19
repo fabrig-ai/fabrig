@@ -33,7 +33,6 @@ fn toml_worker_program_login_reads_the_file() {
         &directories,
         OsStr::new("source"),
         [("PATH".into(), scratch.path().as_os_str().to_owned())],
-        None,
     )
     .expect("worker login without link secret");
     assert_eq!(command.get_program(), program.as_os_str());
@@ -55,23 +54,27 @@ fn toml_worker_program_login_uses_the_named_claude() {
         &directories,
         OsStr::new("source"),
         [("PATH".into(), scratch.path().as_os_str().to_owned())],
-        None,
     )
     .expect("named login");
     assert_eq!(command.get_program(), program.as_os_str());
 }
 
 #[test]
-fn toml_worker_login_refuses_both_files() {
-    let scratch = skein_scratch::Scratch::new("worker-both-files");
-    let directories = crate::tests::configuration::directories(scratch.path());
-    fs::write(scratch.path().join(FILE), "engine = \"127.0.0.1:7200\"\n").expect("worker file");
-    fs::write(scratch.path().join(FORMER), b"never decoded").expect("former file");
-    let why = crate::program_login::command(&directories, OsStr::new("source"), [], None).unwrap_err();
-    assert_eq!(
-        why,
-        format!(
-            "{FORMER}: moved: the configuration is {FILE}; write it from temper-worker help config, then remove {FORMER}"
-        )
-    );
+fn toml_worker_login_refuses_the_former_file_alone_or_beside_the_current_file() {
+    for present in [false, true] {
+        let scratch = skein_scratch::Scratch::new("worker-both-files");
+        let directories = crate::tests::configuration::directories(scratch.path());
+        fs::write(scratch.path().join(FILE), "engine = \"127.0.0.1:7200\"\n").expect("worker file");
+        fs::create_dir(scratch.path().join(FORMER)).expect("former directory");
+        if !present {
+            fs::remove_file(scratch.path().join(FILE)).expect("current absent");
+        }
+        let why = crate::program_login::command(&directories, OsStr::new("source"), []).unwrap_err();
+        assert_eq!(
+            why,
+            format!(
+                "{FORMER}: moved: the configuration is {FILE}; write it from temper-worker help config, then remove {FORMER}"
+            )
+        );
+    }
 }

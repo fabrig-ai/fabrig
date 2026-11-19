@@ -350,7 +350,7 @@ fn a_prepared_forge_runs_forgejo_and_its_runner_once_each() {
     runner.declared();
     let refused = owned::command(scratch.path(), "forgejo").output().expect("second run");
     assert_eq!(refused.status.code(), Some(1));
-    assert_eq!(refused.stderr, b"temper forge run: forge 1: forgejo is running or being prepared already\n");
+    assert_eq!(refused.stderr, b"temper-box forge run: forge 1: forgejo is running or being prepared already\n");
     runner.stop();
     forgejo.stop();
     assert!(owned::answer(port, "/api/v1/version", None).is_err());

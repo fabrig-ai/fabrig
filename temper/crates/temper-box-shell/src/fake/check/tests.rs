@@ -4,20 +4,29 @@ use crate::directories::tests::scratch;
 use std::fs;
 
 #[test]
-fn toml_fake_check_refuses_both_files() {
-    let scratch = skein_scratch::Scratch::new("fake-check-both-files");
-    let directories = crate::tests::configuration::directories(scratch.path());
-    std::fs::write(scratch.path().join(temper_config_shell::FILE), "listen = \"127.0.0.1:7100\"\n").expect("box file");
-    std::fs::write(scratch.path().join(temper_config_shell::FORMER), b"never decoded").expect("former file");
-    assert_eq!(
-        super::configuration(&directories).unwrap_err(),
-        format!(
-            "{}: moved: the configuration is {}; write it from temper-box help config, then remove {}",
-            temper_config_shell::FORMER,
-            temper_config_shell::FILE,
-            temper_config_shell::FORMER
-        )
-    );
+fn toml_fake_check_refuses_the_former_file_alone_or_beside_the_current_file() {
+    for present in [false, true] {
+        let scratch = skein_scratch::Scratch::new("fake-check-both-files");
+        let directories = crate::tests::configuration::directories(scratch.path());
+        std::fs::write(scratch.path().join(temper_config_shell::FILE), "listen = \"127.0.0.1:7100\"\n")
+            .expect("box file");
+        std::fs::create_dir(scratch.path().join(temper_config_shell::FORMER)).expect("former directory");
+        if !present {
+            std::fs::remove_file(scratch.path().join(temper_config_shell::FILE)).expect("current absent");
+        }
+        let check = super::super::Check {
+            forge: 1,
+            observations: scratch.path().join("absent-observations"),
+            store: scratch.path().join("absent-store"),
+        };
+        let actual = super::outcome(&directories, &check);
+        assert_eq!(actual.status, 1);
+        assert!(actual.stdout.is_empty());
+        assert_eq!(actual.stderr.as_ref(), format!(
+        "temper-box fake forge check: {}: moved: the configuration is {}; write it from temper-box help config, then remove {}\n",
+        temper_config_shell::FORMER, temper_config_shell::FILE, temper_config_shell::FORMER
+    ).as_bytes());
+    }
 }
 
 fn store_limits() -> jig_protocol_store::Limits {
@@ -343,7 +352,7 @@ fn expected(status: u8, stdout: &[u8], stderr: &[u8]) -> Outcome {
     Outcome { status, stdout: stdout.into(), stderr: stderr.into() }
 }
 fn diagnostic(why: &str) -> Vec<u8> {
-    format!("temper fake forge check: {why}\n").into_bytes()
+    format!("temper-box fake forge check: {why}\n").into_bytes()
 }
 fn refused(why: &str) -> Outcome {
     expected(1, b"", &diagnostic(why))

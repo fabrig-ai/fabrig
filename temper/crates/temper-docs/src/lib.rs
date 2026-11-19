@@ -578,7 +578,7 @@ pub static PAGES: [Page; 76] = [
         name: "configuration",
         kind: Kind::Reference,
         title: "Configuration",
-        summary: "The keys of `temper.toml`, their shapes, bounds and defaults.",
+        summary: "The configuration file's keys, their shapes, bounds and defaults.",
         text: include_str!("../../../docs/help/reference/configuration.md"),
     },
     Page {

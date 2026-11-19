@@ -176,17 +176,30 @@ impl ServiceHost {
         };
         let config =
             fixtures::file::read(std::path::Path::new(std::ffi::OsStr::from_bytes(&roots.config)), shape).document;
-        let operations = temper_box_shell::operations_in_with_limits(
-            "temper",
-            &[(b"PATH".as_slice().into(), b"/usr/bin:/bin".as_slice().into())],
-            b"/",
-            &roots,
-            &config,
-            &fixtures::given(&path, &configuration),
-            &configuration.jig,
-            &configuration.limits,
-        )
-        .expect("standalone operation count");
+        let given = fixtures::given(&path, &configuration);
+        let operations = match shape {
+            temper_config_shell::Shape::Standalone => temper_box_shell::operations_in_with_limits(
+                "temper-box",
+                &[(b"PATH".as_slice().into(), b"/usr/bin:/bin".as_slice().into())],
+                b"/",
+                &roots,
+                &config,
+                &given,
+                &configuration.jig,
+                &configuration.limits,
+            ),
+            temper_config_shell::Shape::EngineAlone | temper_config_shell::Shape::WorkerAlone => {
+                temper_service::startup::operations_with_worker(
+                    &config,
+                    &temper_service_shell::jig_directories(&roots),
+                    &given,
+                    Some((&configuration.jig, &configuration.limits)),
+                    None,
+                )
+                .map_err(|why| String::from_utf8_lossy(&temper_service::startup::lines(&why)).into_owned())
+            }
+        }
+        .expect("shape's operation count");
         let restartable = cluster.is_some();
         let queued = if restartable { operations } else { 1 };
         let records_seeded =
@@ -485,7 +498,7 @@ impl ServiceHost {
             let files =
                 temper_service_shell::read_files(core::mem::take(&mut part.files), skein_shell::effective_user())
                     .expect("worker files");
-            Driven::new(temper_box_shell::Service::Worker(
+            Driven::worker(
                 temper_worker_shell::worker::from_figures(
                     part,
                     figures.clone(),
@@ -495,7 +508,7 @@ impl ServiceHost {
                     &fixtures::environment(&self.path),
                 )
                 .expect("worker built from figures"),
-            ))
+            )
         } else if matches!(self.cluster, Some(crate::cluster::Shape::Engine { .. })) {
             let (given, projects) = fixtures::given_and_projects(&self.path, &self.configuration);
             Driven::engine(

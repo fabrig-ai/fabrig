@@ -39,7 +39,7 @@ fn a_second_preparation_is_refused_while_the_first_holds_the_lock() {
     let _lock = process::lock(&scratch.path().join("forge-1/forgejo.lock")).expect("first holds lock");
     let refused = support::owned::prepare(scratch.path(), 1);
     assert_eq!(refused.status.code(), Some(1));
-    assert_eq!(refused.stderr, b"temper forge prepare: forge 1: forgejo is running or being prepared already\n");
+    assert_eq!(refused.stderr, b"temper-box forge prepare: forge 1: forgejo is running or being prepared already\n");
     scratch.remove();
 }
 #[test]
@@ -49,7 +49,7 @@ fn a_preparation_cut_short_is_begun_again_from_an_empty_layout() {
     programs.fail("forgejo", "admin");
     let first = support::owned::prepare(scratch.path(), 1);
     assert_eq!(first.status.code(), Some(1));
-    assert_eq!(first.stderr, b"temper forge prepare: forge 1: CreateAdmin ended with status 1: broken\n");
+    assert_eq!(first.stderr, b"temper-box forge prepare: forge 1: CreateAdmin ended with status 1: broken\n");
     fs::write(scratch.path().join("forge-1/forgejo/left-over"), b"x").expect("left-over");
     programs.mend("forgejo");
     let second = support::owned::prepare(scratch.path(), 1);
@@ -70,7 +70,7 @@ fn forgejo_files_with_no_state_are_refused_naming_the_directory() {
     assert_eq!(
         String::from_utf8_lossy(&refused.stderr),
         format!(
-            "temper forge prepare: forge 1: {}: Forgejo files have no preparation state\n",
+            "temper-box forge prepare: forge 1: {}: Forgejo files have no preparation state\n",
             scratch.path().join("forge-1").display()
         )
     );
@@ -99,7 +99,7 @@ fn a_first_preparation_refuses_a_running_runner() {
     let _lock = process::lock(&scratch.path().join("forge-1/runner.lock")).expect("runner runs");
     let refused = support::owned::prepare(scratch.path(), 1);
     assert_eq!(refused.status.code(), Some(1));
-    assert_eq!(refused.stderr, b"temper forge prepare: forge 1: runner is running or being prepared already\n");
+    assert_eq!(refused.stderr, b"temper-box forge prepare: forge 1: runner is running or being prepared already\n");
     scratch.remove();
 }
 #[test]
@@ -113,7 +113,7 @@ fn a_forge_directory_open_to_others_is_refused_naming_it() {
     assert_eq!(
         String::from_utf8_lossy(&refused.stderr),
         format!(
-            "temper forge prepare: forge 1: {}: must be a private directory of this user's, not reached through a link\n",
+            "temper-box forge prepare: forge 1: {}: must be a private directory of this user's, not reached through a link\n",
             scratch.path().join("forge-1").display()
         )
     );
@@ -139,7 +139,7 @@ fn a_termination_signal_kills_the_commands_group_and_ends_the_preparation_interr
     );
     let ended = run.wait_with_output().expect("preparation ends");
     assert_eq!(ended.status.code(), Some(1));
-    assert_eq!(ended.stderr, b"temper forge prepare: forge 1: interrupted\n");
+    assert_eq!(ended.stderr, b"temper-box forge prepare: forge 1: interrupted\n");
     let clock = skein_shell::Clock::new();
     let deadline = clock.now().now.saturating_add(support::WITHIN);
     let stat = loop {
@@ -168,7 +168,7 @@ fn a_second_run_is_refused_while_the_first_holds_the_lock() {
     let refused = support::owned::command(scratch.path(), "forgejo").output().expect("second run");
     first.kill().and_then(|()| first.wait()).expect("first stopped");
     assert_eq!(refused.status.code(), Some(1));
-    assert_eq!(refused.stderr, b"temper forge run: forge 1: forgejo is running or being prepared already\n");
+    assert_eq!(refused.stderr, b"temper-box forge run: forge 1: forgejo is running or being prepared already\n");
     scratch.remove();
 }
 #[test]
@@ -244,7 +244,7 @@ fn no_secret_of_the_state_reaches_a_refusal() {
     assert_eq!(refused.status.code(), Some(1));
     assert_eq!(
         refused.stderr,
-        format!("temper forge run: forge 1: its preparation did not end: run temper forge prepare --config {0} --data {0} --cache {0} 1\n", scratch.path().display()).as_bytes()
+        format!("temper-box forge run: forge 1: its preparation did not end: run temper-box forge prepare --config {0} --data {0} --cache {0} 1\n", scratch.path().display()).as_bytes()
     );
     for secret in [&state.secrets.secret_key, &state.secrets.internal_token, &state.secrets.jwt_secret] {
         assert_eq!(skein_lib::bytes::find(&refused.stderr, secret.expose()), None);
@@ -264,7 +264,7 @@ fn a_newer_recorded_forgejo_refuses_the_preparation_untouched() {
         .iter()
         .map(|name| fs::read(scratch.path().join("forge-1").join(name)).expect("upgrade fixture"))
         .collect();
-    owned::refused(scratch.path(), "prepare", b"temper forge prepare: forge 1: forgejo is prepared at 999.0.0, newer than this temper's pin 17.0.1: its migrations only go forward\n");
+    owned::refused(scratch.path(), "prepare", b"temper-box forge prepare: forge 1: forgejo is prepared at 999.0.0, newer than this temper-box's pin 17.0.1: its migrations only go forward\n");
     let after: Vec<_> = files
         .iter()
         .map(|name| fs::read(scratch.path().join("forge-1").join(name)).expect("upgrade fixture"))
@@ -280,7 +280,7 @@ fn the_run_refuses_a_newer_recorded_version_in_its_own_words() {
     let _programs = owned::scripted(scratch.path());
     owned::finished(scratch.path());
     owned::record_versions(scratch.path(), Some(b"999.0.0"), None);
-    owned::refused(scratch.path(), "run", b"temper forge run: forge 1: prepared at 999.0.0 / 13.2.1, this temper pins 17.0.1 / 13.2.1: no command of this temper runs it\n");
+    owned::refused(scratch.path(), "run", b"temper-box forge run: forge 1: prepared at 999.0.0 / 13.2.1, this temper-box pins 17.0.1 / 13.2.1: no command of this temper-box runs it\n");
     scratch.remove();
 }
 #[test]
@@ -290,7 +290,7 @@ fn the_run_refuses_an_unreadable_recorded_version_in_its_own_words() {
     let _programs = owned::scripted(scratch.path());
     owned::finished(scratch.path());
     owned::record_versions(scratch.path(), Some(b"private-looking-garbage"), None);
-    owned::refused(scratch.path(), "run", b"temper forge run: forge 1: prepared at a version this temper cannot read: no command of this temper runs it\n");
+    owned::refused(scratch.path(), "run", b"temper-box forge run: forge 1: prepared at a version this temper-box cannot read: no command of this temper-box runs it\n");
     scratch.remove();
 }
 #[test]
@@ -300,7 +300,7 @@ fn the_run_names_prepare_for_a_runner_added() {
     let _programs = owned::scripted(scratch.path());
     owned::finished(scratch.path());
     owned::recorded_without_runner(scratch.path());
-    owned::refused(scratch.path(), "run", format!("temper forge run: forge 1: prepared without a runner, and the setup has one: run temper forge prepare --config {0} --data {0} --cache {0} 1\n", scratch.path().display()).as_bytes());
+    owned::refused(scratch.path(), "run", format!("temper-box forge run: forge 1: prepared without a runner, and the setup has one: run temper-box forge prepare --config {0} --data {0} --cache {0} 1\n", scratch.path().display()).as_bytes());
     scratch.remove();
 }
 #[test]
@@ -310,7 +310,7 @@ fn the_run_names_prepare_for_a_runner_removed() {
     let _programs = owned::scripted(scratch.path());
     owned::finished(scratch.path());
     owned::setup_without_runner(scratch.path());
-    owned::refused(scratch.path(), "run", format!("temper forge run: forge 1: prepared with a runner, and the setup has none: run temper forge prepare --config {0} --data {0} --cache {0} 1\n", scratch.path().display()).as_bytes());
+    owned::refused(scratch.path(), "run", format!("temper-box forge run: forge 1: prepared with a runner, and the setup has none: run temper-box forge prepare --config {0} --data {0} --cache {0} 1\n", scratch.path().display()).as_bytes());
     scratch.remove();
 }
 #[test]
@@ -342,7 +342,7 @@ fn an_interrupted_upgrade_leaves_the_state_for_the_next_preparation() {
     );
     let ended = run.wait_with_output().expect("interrupted");
     assert_eq!(ended.status.code(), Some(1));
-    assert_eq!(ended.stderr, b"temper forge prepare: forge 1: interrupted\n");
+    assert_eq!(ended.stderr, b"temper-box forge prepare: forge 1: interrupted\n");
     assert_eq!(fs::read(path).expect("old state kept"), before);
     assert_eq!(fs::read_dir(scratch.path().join("forge-1/backups")).expect("upgrade fixture").count(), 0);
     scratch.remove();
@@ -392,7 +392,7 @@ fn fake_preparation_refuses_an_open_directory_and_run_still_refuses_fake() {
         support::owned::refused(
             scratch.path(),
             verb,
-            format!("temper forge {verb}: forge 1: {location}{reason}\n").as_bytes(),
+            format!("temper-box forge {verb}: forge 1: {location}{reason}\n").as_bytes(),
         );
         assert_eq!(fs::read_dir(directory).expect("untouched directory").count(), 1, "the setup file stays");
         scratch.remove();
@@ -479,15 +479,15 @@ fn forge_fetch_command() {
             peer.check();
         }
         let expected = match row {
-            "managed" => "temper forge fetch: forge 3: it is managed, not owned\n".into(),
-            "fake" => "temper forge fetch: forge 3: it is fake, not owned\n".into(),
-            "paths" => "temper forge fetch: forge 3: neither of its binaries is \"fetched\"\n".into(),
+            "managed" => "temper-box forge fetch: forge 3: it is managed, not owned\n".into(),
+            "fake" => "temper-box forge fetch: forge 3: it is fake, not owned\n".into(),
+            "paths" => "temper-box forge fetch: forge 3: neither of its binaries is \"fetched\"\n".into(),
             "digest" => {
                 let peer = server.as_ref().expect("local peer");
                 let mut hash = Sha256::new();
                 hash.update(b"abc");
                 format!(
-                    "temper forge fetch: forge 3: https://{}/forgejo/forgejo/releases/download/v17.0.1/forgejo-17.0.1-linux-{}: digest differs: pinned {}, got {}\n",
+                    "temper-box forge fetch: forge 3: https://{}/forgejo/forgejo/releases/download/v17.0.1/forgejo-17.0.1-linux-{}: digest differs: pinned {}, got {}\n",
                     peer.address,
                     match std::env::consts::ARCH {
                         "x86_64" => "amd64",
@@ -509,9 +509,9 @@ fn forge_fetch_command() {
                 )
             }
             "present" | "present-no-group" => {
-                format!("temper forge fetch: forge 3: {}: does not match the pinned digest\n", file.display())
+                format!("temper-box forge fetch: forge 3: {}: does not match the pinned digest\n", file.display())
             }
-            "missing-roots" => format!("temper forge fetch: forge 3: {}: roots: Absent\n", root.display()),
+            "missing-roots" => format!("temper-box forge fetch: forge 3: {}: roots: Absent\n", root.display()),
             "usage" => {
                 "temper-box forge fetch: invalid arguments\nusage: temper-box forge fetch [DIRECTORIES] FORGE\n".into()
             }
@@ -1009,6 +1009,6 @@ fn a_termination_signal_during_source_maintenance_still_stops_preparation() {
     );
     let output = child.wait_with_output().expect("interrupted preparation ends");
     assert_eq!(output.status.code(), Some(1));
-    assert_eq!(output.stderr, b"temper forge prepare: forge 1: interrupted\n");
+    assert_eq!(output.stderr, b"temper-box forge prepare: forge 1: interrupted\n");
     scratch.remove();
 }

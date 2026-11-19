@@ -29,9 +29,9 @@ impl Source {
                 bundle_limits: temper_service::limits::stock().clients,
             });
         }
-        super::refuse_former(dirs)?;
+        let read = temper_config_shell::read(dirs, Shape::Standalone).map_err(|why| why.to_string())?;
+        // Exact source bytes identify reuse; only the table's reader interprets them.
         let source = public(&config.join(FILE))?;
-        let read = super::configuration(dirs, &source)?;
         let file = read.file;
         let listen = file.listen.ok_or_else(|| format!("{FILE}: listen: expected init's listener"))?;
         let webhook = file.webhooks.unwrap_or_else(|| {

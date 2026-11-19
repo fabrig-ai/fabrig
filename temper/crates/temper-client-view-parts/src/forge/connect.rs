@@ -944,30 +944,8 @@ fn elsewhere(
         b.open(Role::Slot);
         b.style(look::CONNECT_PANEL);
         b.name(&w.say(Word::ForgeElsewhere, &[]));
-        instruction(b, w, Word::ForgeConfigLead, b"~/.config/temper/temper.json");
-        b.open(Role::List);
-        b.ordered(1);
-        b.style(look::CONNECT_STEPS);
-        let number = u64::from(connect::next_number(root.forges()));
-        for (word, snippet, key) in [
-            (Word::ForgeConfigStep, Word::ForgeConfigCode, b"application.forges".as_slice()),
-            (Word::ForgeIdentityStep, Word::ForgeIdentityCode, b"application.identities".as_slice()),
-            (Word::ForgeSetupStep, Word::ForgeSetupCode, b"application.setup".as_slice()),
-        ] {
-            b.open(Role::Item);
-            instruction(b, w, word, key);
-            let holes: &[Hole] = if snippet == Word::ForgeIdentityCode {
-                &[Hole::Number(number), Hole::Number(number)]
-            } else {
-                &[Hole::Number(number)]
-            };
-            flow::command(b, root, w, accounts, &w.say(snippet, holes), true);
-            b.close();
-        }
-        b.open(Role::Item);
-        instruction(b, w, Word::ForgeRestart, b"temper box");
-        b.close();
-        b.close();
+        text(b, w, Role::Paragraph, Word::ForgeElsewhereLead);
+        elsewhere_steps(b, root, w, Some(accounts));
         b.open(Role::Slot);
         b.style(look::CONNECT_ACTS);
         flow::connect_control(
@@ -983,25 +961,30 @@ fn elsewhere(
     }
     flow::details(b, &w.say(Word::ForgeElsewhere, &[]));
     text(b, w, Role::Paragraph, Word::ForgeElsewhereDetails);
-    let number = u64::from(connect::next_number(root.forges()));
-    for (word, snippet) in [
-        (Word::ForgeConfig, Word::ForgeConfigCode),
-        (Word::ForgeIdentity, Word::ForgeIdentityCode),
-        (Word::ForgeSetupEntry, Word::ForgeSetupCode),
+    text(b, w, Role::Paragraph, Word::ForgeElsewhereLead);
+    elsewhere_steps(b, root, w, None);
+    b.close();
+}
+fn elsewhere_steps(b: &mut Builder, root: &Domain, w: &Words, mut accounts: Option<&mut crate::accounts::Bindings>) {
+    b.open(Role::List);
+    b.ordered(1);
+    b.style(look::CONNECT_STEPS);
+    for (word, command, verb) in [
+        (Word::ForgeAdminStep, Word::ForgeAdminCommand, b"forge connect forgejo-admin".as_slice()),
+        (Word::ForgeBotStep, Word::ForgeBotCommand, b"forge connect forgejo".as_slice()),
     ] {
-        text(b, w, Role::Paragraph, word);
-        let holes: &[Hole] = if snippet == Word::ForgeIdentityCode {
-            &[Hole::Number(number), Hole::Number(number)]
+        b.open(Role::Item);
+        instruction(b, w, word, verb);
+        if let Some(accounts) = accounts.as_deref_mut() {
+            flow::command(b, root, w, accounts, &w.say(command, &[]), true);
         } else {
-            &[Hole::Number(number)]
-        };
-        code(b, &w.say(snippet, holes));
-    }
-    for word in [Word::ForgeBotOnly, Word::ForgeRestart] {
-        text(b, w, Role::Paragraph, word);
+            code(b, &w.say(command, &[]));
+        }
+        b.close();
     }
     b.close();
 }
+
 pub(crate) fn setup_control(
     b: &mut Builder,
     root: &Domain,

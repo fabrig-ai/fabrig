@@ -102,18 +102,36 @@ fn toml_engine_forge_prepare_reads_the_document() {
 }
 
 #[test]
-fn toml_engine_commands_refuse_both_files() {
-    let (scratch, directories) = fixture(ENGINE);
-    fs::write(scratch.path().join(FORMER), b"never decoded").expect("former file");
-    let expected = format!(
-        "{FORMER}: moved: the configuration is {FILE}; write it from temper-engine help config, then remove {FORMER}"
-    );
-    let Err(serve) = crate::serve::prepare_in("temper-engine", &[], b"/", &directories) else { panic!("both refused") };
-    assert_eq!(serve, format!("temper-engine serve: {expected}\n"));
-    let Err(stopped) = crate::stopped::prepare("temper-engine", &directories) else { panic!("both refused") };
-    assert_eq!(stopped, expected);
-    fake_setup(&directories);
-    let why = crate::forge::start(&directories, &["prepare".into(), "7".into()], None, &[]).unwrap_err().line();
-    assert!(why.ends_with(&format!("{expected}\n")), "{why}");
-    assert!(!scratch.path().join("playground-7/admin_token").exists());
+fn toml_engine_commands_refuse_the_former_file_alone_or_beside_the_current_file() {
+    for present in [false, true] {
+        let (scratch, directories) = fixture(ENGINE);
+        fs::create_dir(scratch.path().join(FORMER)).expect("former directory");
+        if !present {
+            fs::remove_file(scratch.path().join(FILE)).expect("current absent");
+        }
+        let expected = format!(
+            "{FORMER}: moved: the configuration is {FILE}; write it from temper-engine help config, then remove {FORMER}"
+        );
+        let Err(serve) = crate::serve::prepare_in("temper-engine", &[], b"/", &directories) else {
+            panic!("both refused")
+        };
+        assert_eq!(serve, format!("temper-engine serve: {expected}\n"));
+        let Err(stopped) = crate::stopped::prepare("temper-engine", &directories) else { panic!("both refused") };
+        assert_eq!(stopped, expected);
+        fake_setup(&directories);
+        for words in [
+            &["fetch", "7"][..],
+            &["prepare", "7"][..],
+            &["run", "7", "forgejo"][..],
+            &["run", "7", "runner"][..],
+            &["source", "7"][..],
+            &["sign-in", "7"][..],
+        ] {
+            let arguments: Vec<_> = words.iter().map(std::ffi::OsString::from).collect();
+            let why =
+                crate::forge::start(&directories, &arguments, None, &[]).unwrap_err().line_with_binary("temper-engine");
+            assert_eq!(why, format!("temper-engine forge {}: forge 7: {expected}\n", words.first().expect("verb")));
+        }
+        assert!(!scratch.path().join("playground-7/admin_token").exists());
+    }
 }

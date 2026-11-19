@@ -80,7 +80,7 @@ Generated from temper-engine's table (`skein/docs/design/runtime/shell.md`, 14.3
 - **Set:** public
 - **Default:** $XDG_CONFIG_HOME/temper
 - **Twin:** `TEMPER_CONFIG`
-- Configuration, including temper.toml.
+- Configuration files.
 
 ### `--data DATA`
 

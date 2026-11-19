@@ -30,7 +30,7 @@ fn a_stock_policy_past_its_limit_refuses_before_listening() {
     // Each executor place in four policy authorities adds 32 bytes.
     assert_eq!(
         String::from_utf8_lossy(&output.stderr),
-        "temper serve: limits-held line 1: core.policy_bytes (setting limits): core.policy_bytes is 100; the stock's policy 1 needs 6455 bytes; raise it in engine.limits.overrides\n",
+        "temper-box serve: limits-held line 1: core.policy_bytes (setting limits): core.policy_bytes is 100; the stock's policy 1 needs 6455 bytes; raise it in engine.limits.overrides\n",
         "stdout: {}",
         String::from_utf8_lossy(&output.stdout)
     );
@@ -430,9 +430,7 @@ fn typed_prepare(
         &figures.limits,
     )?;
     // These tests inspect a prepared start without driving its root.
-    if let temper_box_shell::Service::Joined(service) = &mut service {
-        temper_engine_shell::serve::close_limits_store(service.engine_component().store())?;
-    }
+    temper_engine_shell::serve::close_limits_store(service.engine_component().store())?;
     Ok(service)
 }
 fn box_document(scratch: &support::Scratch) -> serde_json::Value {
@@ -768,9 +766,7 @@ fn serve_checks_the_owned_agents_admission_at_each_bound() {
         let result = typed_prepare(scratch.path(), &figures);
         match expected {
             Some(line) if member != "tool_payload" => {
-                let temper_box_shell::Service::Joined(mut service) = result.expect("charter shortfalls warn") else {
-                    panic!("standalone service")
-                };
+                let mut service = result.expect("charter shortfalls warn");
                 assert_eq!(
                     service.notes().pop(),
                     Some(temper_service::Note::Engine(temper_service::EngineNote::StartupWarning {
@@ -956,11 +952,11 @@ fn every_command_checks_setup_before_reading_files() {
         );
     }
     for verb in ["prepare", "run"] {
-        support::owned::refused(scratch.path(), verb, format!("temper forge {verb}: forge 1: {line}").as_bytes());
+        support::owned::refused(scratch.path(), verb, format!("temper-box forge {verb}: forge 1: {line}").as_bytes());
     }
     let runner = support::owned::command(scratch.path(), "runner").output().expect("runner refuses");
     assert_eq!(runner.status.code(), Some(1));
-    assert_eq!(runner.stderr, format!("temper forge run: forge 1: {line}").as_bytes());
+    assert_eq!(runner.stderr, format!("temper-box forge run: forge 1: {line}").as_bytes());
     scratch.remove();
 }
 
@@ -1609,7 +1605,7 @@ fn serve_box_refuses_closed_or_non_pipe_descriptors_before_starting() {
             assert_eq!((output.stdout).len(), 0);
             assert_eq!(
                 String::from_utf8(output.stderr).expect("UTF-8 diagnostic"),
-                format!("temper serve: --box: fd {fd} is not an open pipe\n")
+                format!("temper-box serve: --box: fd {fd} is not an open pipe\n")
             );
         }
     }
@@ -1999,7 +1995,7 @@ fn the_template_agent_refuses_jigs_small_hub_turn_bound_before_serving() {
     let turn = support::configuration::turn_bounds::turn_body(&agent);
     assert!(!output.status.success());
     assert!(String::from_utf8_lossy(&output.stderr).contains(&format!(
-        "temper serve: limits-held line 1: hub.turn_bytes (setting limits): 65536 bytes, short of the source's derivation, {turn} bytes"
+        "temper-box serve: limits-held line 1: hub.turn_bytes (setting limits): 65536 bytes, short of the source's derivation, {turn} bytes"
     )), "{}", String::from_utf8_lossy(&output.stderr));
     scratch.remove();
 }
@@ -2025,7 +2021,7 @@ fn forge_run_refuses_a_listener_at_the_wrong_address_before_taking_the_lock() {
     assert_eq!(ended.status.code(), Some(1));
     assert_eq!(
         String::from_utf8(ended.stderr).expect("diagnostic"),
-        format!("temper forge run: forge 1: fd 3 listens at {found}, expected owned.listen 127.0.0.1:9\n")
+        format!("temper-box forge run: forge 1: fd 3 listens at {found}, expected owned.listen 127.0.0.1:9\n")
     );
     assert!(!scratch.path().join("forge-1/forgejo.lock").exists());
     scratch.remove();

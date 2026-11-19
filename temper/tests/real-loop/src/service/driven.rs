@@ -14,11 +14,10 @@ pub(crate) struct Driven {
 }
 impl Driven {
     pub(crate) fn new(service: temper_box_shell::Service) -> Self {
-        let service = match service {
-            temper_box_shell::Service::Joined(service) => Service::Joined(Box::new(service)),
-            temper_box_shell::Service::Worker(service) => Service::Worker(Box::new(service)),
-        };
-        Self::from_service(service)
+        Self::from_service(Service::Joined(Box::new(service)))
+    }
+    pub(crate) fn worker(service: temper_worker_service::worker_alone::Service) -> Self {
+        Self::from_service(Service::Worker(Box::new(service)))
     }
     pub(crate) fn engine(service: temper_engine_service::Service) -> Self {
         Self::from_service(Service::Engine(Box::new(service)))
