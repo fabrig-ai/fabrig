@@ -1954,6 +1954,7 @@ fn a_fake_forges_panel_has_no_address_and_real_forgejos_keep_theirs() {
 
 fn landing_view() -> forge::LandingView {
     forge::LandingView {
+        waits: None,
         probe: None,
         train: Some(forge::LandingTrain {
             repository: skein_forge::api::Repository { forge: 1, repository: 9 },
@@ -2221,9 +2222,13 @@ fn a_landing_view_encodes_to_its_panel() {
 #[test]
 fn a_landings_view_encodes_to_its_list() {
     let value = forge::LandingsView {
+        now: skein_lib::Wall::EPOCH,
+        turn_since: None,
         project: 7,
         turn: Some(61),
         landings: Box::new([forge::LandingLine {
+            step: None,
+            last_event: None,
             train: None,
             task: 61,
             phase: forge::LandingPhase::Turn { at: skein_lib::Wall::EPOCH },

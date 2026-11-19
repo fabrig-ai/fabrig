@@ -97,6 +97,9 @@ fn landing(d: &mut Domain) {
         .insert(
             61,
             LandingRow {
+                last_event: None,
+                turn_since: None,
+                waiting: None,
                 flake_reruns: Box::new([]),
                 room: None,
                 job: None,

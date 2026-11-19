@@ -296,6 +296,9 @@ fn landing_fixture_with(mut d: Domain) -> Domain {
 }
 fn landing_row(task: u64, phase: policy::Phase) -> LandingRow {
     LandingRow {
+        last_event: None,
+        turn_since: None,
+        waiting: None,
         flake_reruns: Box::new([]),
         room: None,
         job: None,
@@ -428,6 +431,7 @@ fn landing_candidate_uses_reverse_ancestry_and_waits_on_unknown() {
             }
         }
         let decision = decision.expect("decision");
+        assert_eq!(d.landing(61).unwrap().waiting, if complete { None } else { Some(policy::Awaited::Read) });
         assert!(if complete {
             decision == policy::Decision::Open
         } else {
@@ -3449,6 +3453,7 @@ fn a_landing_without_a_regate_waits_for_the_keys_superseding_run_then_reads_its_
 #[test]
 fn the_tops_held_wait_names_its_release() {
     let mut d = landing_fixture();
+    outputs(&mut d, Event::Restore { record: Stored::Landing(landing_row(61, policy::Phase::Waiting)) });
     d.landing.held = true;
     let out = outputs(&mut d, Event::StepLanding { task: 61, entry: 91, heard: preparing_heard(None) });
     let mut decision = None;
@@ -3458,4 +3463,5 @@ fn the_tops_held_wait_names_its_release() {
         }
     }
     assert_eq!(decision, Some(policy::Decision::Wait { until: None, on: policy::Awaited::Release }));
+    assert_eq!(d.landing(61).unwrap().waiting, Some(policy::Awaited::Release));
 }

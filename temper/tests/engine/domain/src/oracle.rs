@@ -501,6 +501,34 @@ mod tests {
     }
 
     #[test]
+    fn landings_documents_compare_retained_times_not_the_read_clock() {
+        let before = forge::LandingsView {
+            now: skein_lib::Wall::from_nanos(7),
+            turn_since: Some(skein_lib::Wall::from_nanos(3)),
+            project: 1,
+            turn: Some(61),
+            landings: Box::new([]),
+        };
+        let mut after = before.clone();
+        after.now = skein_lib::Wall::from_nanos(11);
+        assert_eq!(
+            compare_forge(
+                1,
+                2,
+                Some(forge::Document::Landings(before.clone())),
+                Some(forge::Document::Landings(after.clone()))
+            ),
+            Ok(())
+        );
+        after.turn_since = None;
+        assert!(
+            compare_forge(1, 2, Some(forge::Document::Landings(before)), Some(forge::Document::Landings(after)))
+                .is_err(),
+            "the turn's stored start still compares"
+        );
+    }
+
+    #[test]
     fn a_missing_forge_document_names_its_project_and_key() {
         let before = Some(forge::Document::Dismissals(Box::new([])));
         assert_eq!(compare_forge(42, 7, before.clone(), before.clone()), Ok(()));

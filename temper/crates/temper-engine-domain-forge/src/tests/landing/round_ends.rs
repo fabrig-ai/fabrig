@@ -519,11 +519,15 @@ fn a_stale_squash_turn_without_gates_cleans_up_and_prepares_again() {
     w.decide(D::Open);
     w.decide(D::None);
     w.decide(D::Proved);
+    let since = w.env.wall;
+    assert_eq!(w.d.landing(TASK).unwrap().turn_since, Some(since));
     w.main = [19; 32];
     w.decide(D::None);
+    assert_eq!(w.d.landing(TASK).unwrap().turn_since, Some(since));
     w.decide(D::Close);
     w.decide(D::Delete { member: 0 });
     w.decide(D::Stale);
+    assert_eq!(w.d.landing(TASK).unwrap().turn_since, None);
     w.decide(D::Prepare { member: 0, head: fixtures::HEAD, main: [19; 32] });
     assert_eq!(w.d.landing(TASK).unwrap().landing.preparation, 2);
 }

@@ -132,7 +132,11 @@ fn finish(d: &mut Domain, base: api::Commit) -> Box<[Request]> {
             Op::Read(Read::Branch { branch }) => {
                 Ok(Answer::Commit(if branch.as_ref() == b"main" { base } else { fixtures::HEAD }))
             }
-            Op::Read(Read::Pull { .. }) => Ok(Answer::Pull(fixtures::open_pull())),
+            Op::Read(Read::Pull { number, .. }) => {
+                let mut pull = fixtures::open_pull();
+                pull.number = number;
+                Ok(Answer::Pull(pull))
+            }
             Op::Read(Read::Reviews { .. }) => Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }),
             Op::Read(Read::PullFor { head, .. }) => {
                 if head.as_ref() == b"temper/51" {
@@ -232,7 +236,8 @@ fn landing_writes_wait_and_keep_one_fresh_entry() {
         let mut prior = d.landing(TASK).unwrap().clone();
         assert_wait(&drive(&mut d, TASK, 91), on);
         prior.room = Some(1);
-        assert_eq!(d.landing(TASK), Some(&prior), "{kind}: only its place is saved");
+        prior.waiting = Some(on);
+        assert_eq!(d.landing(TASK), Some(&prior), "{kind}: only its place and wait are saved");
         assert!(d.landing.pending.is_empty(), "no decision or entry number survives");
         assert!(!d.entries.contains_key(&91));
         d.wait_landing(&env(), TASK, None);
@@ -255,6 +260,7 @@ fn landing_writes_wait_and_keep_one_fresh_entry() {
             "{write:?}"
         );
         assert_eq!(d.landing(TASK).unwrap().room, None);
+        assert_eq!(d.landing(TASK).unwrap().waiting, None);
         assert_eq!(room::reserved(&d), 0);
         assert_eq!(d.entries.len(), env().limits.entries);
     }
@@ -437,4 +443,21 @@ fn cancelling_a_waiting_or_asked_landing_returns_its_room() {
         assert!(asks(&out).contains(&OTHER));
         assert_eq!(room::reserved(&d), 1);
     }
+}
+
+#[test]
+fn a_closing_round_keeps_the_close_wait_on_its_row() {
+    let mut d = full("merge");
+    let row = d.landing.rows.get_mut(&TASK).unwrap();
+    row.landing.phase = policy::Phase::Proving;
+    row.landing.round.ending = Some(policy::RoundEnd::Leave);
+    d.landing.results.insert((TASK, 0, 0, 7), policy::Status::Pending).unwrap();
+    assert_wait(&drive(&mut d, TASK, 91), policy::Awaited::Close);
+    assert_eq!(d.landing(TASK).unwrap().waiting, Some(policy::Awaited::Close));
+    let Document::Landing(view) =
+        d.document(TASK, jig_domain_people::ApplicationScope::Project(5), 1, env().wall, &env().limits).unwrap()
+    else {
+        panic!("landing")
+    };
+    assert_eq!(view.waits.unwrap().on, LandingWaitFor::Close);
 }

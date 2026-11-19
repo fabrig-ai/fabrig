@@ -866,6 +866,12 @@ pub(crate) fn save(d: &mut Domain, mut row: LandingRow, out: &mut Queue<Request>
         None => false,
     };
     let turn_changed = was_turn != crate::views::matches_turn(&row.landing.phase);
+    if !crate::views::matches_turn(&row.landing.phase) {
+        row.turn_since = None;
+    }
+    if let Some(prior) = d.landing.rows.get(&task) {
+        row.last_event = prior.last_event.or(row.last_event);
+    }
     d.landing.rows.insert(task, row.clone()).expect("admitted landing");
     emit(out, Request::Save { record: Stored::Landing(row), release: None, read_afresh: None });
     emit(
@@ -1085,7 +1091,7 @@ pub(crate) fn step(
     }
     crate::room::stepping(d, task);
     if d.landing.held {
-        emit(
+        emit_decision(
             out,
             Request::LandingDecision {
                 task,
@@ -1093,6 +1099,7 @@ pub(crate) fn step(
                 entry: None,
                 evidence: None,
             },
+            d,
         );
         return;
     }
@@ -1111,9 +1118,10 @@ pub(crate) fn step(
         if entry == 0 {
             emit(out, Request::WakeProcedure { task });
         } else {
-            emit(
+            emit_decision(
                 out,
                 Request::LandingDecision { task, decision: policy::Decision::Cancel, entry: None, evidence: None },
+                d,
             );
         }
         return;
@@ -1306,7 +1314,7 @@ fn wait(
         emit(out, Request::WakeProcedure { task });
         return;
     }
-    emit(
+    emit_decision(
         out,
         Request::LandingDecision {
             task,
@@ -1317,6 +1325,7 @@ fn wait(
             entry: None,
             evidence: None,
         },
+        d,
     );
 }
 pub(crate) fn answered(
@@ -1897,7 +1906,7 @@ fn advance(
                                 ),
                             )
                             .expect("bounded landing gates");
-                        emit(
+                        emit_decision(
                             out,
                             Request::LandingDecision {
                                 task: p.task,
@@ -1905,6 +1914,7 @@ fn advance(
                                 entry: None,
                                 evidence: None,
                             },
+                            d,
                         );
                     }
                 }
@@ -3177,7 +3187,7 @@ fn commit_decision(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pendi
                 save(d, row.clone(), out);
                 if !single_turn(d, &row, &p.heard.kept) {
                     save(d, row, out);
-                    emit(
+                    emit_decision(
                         out,
                         Request::LandingDecision {
                             task: p.task,
@@ -3185,6 +3195,7 @@ fn commit_decision(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pendi
                             entry: None,
                             evidence: None,
                         },
+                        d,
                     );
                     return;
                 }
@@ -3310,6 +3321,9 @@ fn commit_decision(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pendi
             }
         }
     }
+    if crate::views::matches_turn(&row.landing.phase) && !crate::views::matches_turn(&prior.landing.phase) {
+        row.turn_since = Some(env.wall);
+    }
     save(d, row, out);
     if let Some(step) = news {
         for member in news_members.into_boxed() {
@@ -3332,7 +3346,7 @@ fn commit_decision(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pendi
     } else {
         decision
     };
-    emit(out, Request::LandingDecision { task: p.task, decision, entry: committed, evidence });
+    emit_decision(out, Request::LandingDecision { task: p.task, decision, entry: committed, evidence }, d);
 }
 fn end_runs(
     d: &mut Domain,
@@ -4539,7 +4553,7 @@ fn continue_flake_rerun(
     if flight.waiting || entry == 0 {
         leave_room(d, row);
         save(d, row.clone(), out);
-        emit(
+        emit_decision(
             out,
             Request::LandingDecision {
                 task: row.landing.task,
@@ -4550,6 +4564,7 @@ fn continue_flake_rerun(
                 entry: None,
                 evidence: None,
             },
+            d,
         );
         return true;
     }
@@ -4584,7 +4599,7 @@ fn continue_flake_rerun(
     }
     save(d, row.clone(), out);
     mark_key(d, &key, out);
-    emit(
+    emit_decision(
         out,
         Request::LandingDecision {
             task: row.landing.task,
@@ -4592,6 +4607,7 @@ fn continue_flake_rerun(
             entry: Some(entry),
             evidence: None,
         },
+        d,
     );
     true
 }
@@ -4643,7 +4659,7 @@ fn continue_retry(
     if result(d, row.landing.task, member, gate, 2) == policy::Status::Pending {
         leave_room(d, row);
         save(d, row.clone(), out);
-        emit(
+        emit_decision(
             out,
             Request::LandingDecision {
                 task: row.landing.task,
@@ -4654,6 +4670,7 @@ fn continue_retry(
                 entry: None,
                 evidence: None,
             },
+            d,
         );
         return true;
     }
@@ -4666,7 +4683,7 @@ fn continue_retry(
     {
         leave_room(d, row);
         save(d, row.clone(), out);
-        emit(
+        emit_decision(
             out,
             Request::LandingDecision {
                 task: row.landing.task,
@@ -4677,6 +4694,7 @@ fn continue_retry(
                 entry: None,
                 evidence: None,
             },
+            d,
         );
         return true;
     }
@@ -4687,7 +4705,7 @@ fn continue_retry(
     let write = flight.write(entry).expect("next failed job");
     keep(d, row, entry, member, gate, Operation::Rerun, write, skein_forge_client::Condition::None, out);
     save(d, row.clone(), out);
-    emit(
+    emit_decision(
         out,
         Request::LandingDecision {
             task: row.landing.task,
@@ -4695,6 +4713,7 @@ fn continue_retry(
             entry: Some(entry),
             evidence: None,
         },
+        d,
     );
     true
 }
@@ -5510,7 +5529,7 @@ fn admit_entry(
         save(d, prior, out);
     }
     d.landing.due.remove(&task);
-    emit(
+    emit_decision(
         out,
         Request::LandingDecision {
             task,
@@ -5518,6 +5537,7 @@ fn admit_entry(
             entry: None,
             evidence: None,
         },
+        d,
     );
     false
 }
@@ -5878,4 +5898,18 @@ pub(crate) fn erase_repository_receipts(d: &mut Domain, repository: api::Reposit
         let _row = d.landing.receipts.remove(&key).expect("collected landing.receipts");
         groups.push(Box::new([Key::Receipt(key)]));
     }
+}
+
+/// Keep the wait of the decision carried out by the top (domain/landing-waits.md, 4).
+fn emit_decision(out: &mut Queue<Request>, request: Request, d: &mut Domain) {
+    if let Request::LandingDecision { task, decision, .. } = &request {
+        let waiting = if let policy::Decision::Wait { on, .. } = decision { Some(*on) } else { None };
+        if let Some(mut row) = d.landing.rows.get(task).cloned()
+            && row.waiting != waiting
+        {
+            row.waiting = waiting;
+            save(d, row, out);
+        }
+    }
+    emit(out, request);
 }

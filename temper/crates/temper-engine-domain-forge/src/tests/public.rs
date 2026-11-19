@@ -364,6 +364,7 @@ fn member(task: u64) -> policy::Member {
 fn setup() -> Domain {
     setup_with_limits(&LIMITS)
 }
+#[expect(clippy::too_many_lines, reason = "bounded public view fixture with its stored landing")]
 fn setup_with_limits(limits: &Limits) -> Domain {
     let mut d = domain_with_limits(limits);
     d.repositories.insert(REPO, Box::new(adopted())).expect("repository");
@@ -426,6 +427,9 @@ fn setup_with_limits(limits: &Limits) -> Domain {
         .insert(
             LANDING,
             LandingRow {
+                last_event: None,
+                turn_since: None,
+                waiting: None,
                 flake_reruns: Box::new([]),
                 room: None,
                 job: None,
@@ -925,6 +929,9 @@ fn maximal() -> (Domain, Limits, Box<[PublicTask]>) {
             .insert(
                 task,
                 LandingRow {
+                    last_event: None,
+                    turn_since: None,
+                    waiting: None,
                     flake_reruns: Box::new([]),
                     room: None,
                     job: None,

@@ -185,6 +185,9 @@ fn drop_requires_a_full_table_and_no_landing_member_even_after_landing_ends() {
         env.limits.changes = 1;
         for phase in [landing::Phase::Waiting, landing::Phase::Landed, landing::Phase::Cancelled] {
             let row = crate::LandingRow {
+                last_event: None,
+                turn_since: None,
+                waiting: None,
                 flake_reruns: Box::new([]),
                 room: None,
                 job: None,
@@ -363,6 +366,9 @@ fn erased_change_stays_while_a_landing_names_it() {
         .insert(
             60,
             crate::LandingRow {
+                last_event: None,
+                turn_since: None,
+                waiting: None,
                 flake_reruns: Box::new([]),
                 room: None,
                 job: None,

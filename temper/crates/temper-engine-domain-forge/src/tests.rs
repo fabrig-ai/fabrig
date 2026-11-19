@@ -250,6 +250,9 @@ fn the_connectors_own_reads_are_outside_the_roots_range() {
         &mut d,
         Event::Landing {
             row: LandingRow {
+                last_event: None,
+                turn_since: None,
+                waiting: None,
                 flake_reruns: Box::new([]),
                 room: None,
                 job: None,

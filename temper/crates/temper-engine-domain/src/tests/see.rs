@@ -208,7 +208,13 @@ fn read_answer(read: &Read, tracked: bool) -> Part {
         Part::Jig(Answer::None(Why::Unknown))
     } else if let Read::Application { .. } = read {
         Part::Forge(Some(Box::new(temper_engine_domain_forge::Document::Landings(
-            temper_engine_domain_forge::LandingsView { project: 7, turn: None, landings: Box::new([]) },
+            temper_engine_domain_forge::LandingsView {
+                now: skein_lib::Wall::EPOCH,
+                turn_since: None,
+                project: 7,
+                turn: None,
+                landings: Box::new([]),
+            },
         ))))
     } else {
         Part::Jig(Answer::Document(Box::new(d::Document::Chips(List::with_capacity(0)))))

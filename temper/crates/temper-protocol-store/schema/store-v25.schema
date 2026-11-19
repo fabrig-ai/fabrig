@@ -321,7 +321,10 @@ record ReceiptName { name: bytes 32 }
 enum ReceiptCheck { gate: ReceiptName, tier: ReceiptName }
 record ReceiptKey { project: u32 repository: Repository check_name: ReceiptCheck key: fixed 32 }
 record LandingFlakeRerun { key: ReceiptKey run: u64 findings: list 64 u32 pending: list 16 JobAttempt redispatch: bool ended: bool = false }
-record LandingRow { room: option u64 = none job: option HistoryJobRecord landing: LandingState asks: list 64 LandingAskSlot entries: list 65536 LandingEntry flake_reruns: list 65536 LandingFlakeRerun = [] }
+record LandingWaitMember { member: u16 }
+record LandingWaitGate { member: u16 gate: u16 }
+enum LandingAwaited { release, ready: LandingWaitMember, turn, prepare, prefixes, open, close, delete: LandingWaitMember, post: LandingWaitGate, run: LandingWaitGate, receipt: LandingWaitGate, judgement: LandingWaitMember, merge, record: LandingWaitMember, ancestry: LandingWaitMember, read }
+record LandingRow { last_event: option u64 = none turn_since: option u64 = none waiting: option LandingAwaited = none room: option u64 = none job: option HistoryJobRecord landing: LandingState asks: list 64 LandingAskSlot entries: list 65536 LandingEntry flake_reruns: list 65536 LandingFlakeRerun = [] }
 record ReceiptRun { id: u64 number: u64 url: bytes 2048 }
 # Families 28 and 29 (temper/docs/design/protocol/store.md, 2).
 record FailedTests { tests: list 1024 FailingTest }

@@ -7,6 +7,9 @@ use temper_engine_domain_forge_landing as landing;
 
 fn seed() -> forge::LandingRow {
     forge::LandingRow {
+        last_event: None,
+        turn_since: None,
+        waiting: None,
         flake_reruns: Box::new([]),
         room: None,
         job: None,
@@ -213,4 +216,65 @@ fn a_by_test_repair_keeps_its_top_fact() {
         let row = forge::Stored::Landing(row);
         assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
     }
+}
+
+#[test]
+#[expect(clippy::disallowed_methods, reason = "ordinary Rust registered layout contract test")]
+fn landing_waits_and_clocks_round_trip_and_default_on_older_rows() {
+    use skein_codec::{
+        layout::{Plan, Workspace},
+        schema,
+    };
+    use skein_lib::{Buffer, Wall};
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    let mut row = seed();
+    row.last_event = Some(Wall::from_nanos(17));
+    row.turn_since = Some(Wall::from_nanos(11));
+    for wait in [
+        None,
+        Some(landing::Awaited::Release),
+        Some(landing::Awaited::Ready { member: 3 }),
+        Some(landing::Awaited::Turn),
+        Some(landing::Awaited::Prepare),
+        Some(landing::Awaited::Prefixes),
+        Some(landing::Awaited::Open),
+        Some(landing::Awaited::Close),
+        Some(landing::Awaited::Delete { member: 2 }),
+        Some(landing::Awaited::Post { member: 1, gate: 2 }),
+        Some(landing::Awaited::Run { member: 2, gate: 3 }),
+        Some(landing::Awaited::Receipt { member: 3, gate: 4 }),
+        Some(landing::Awaited::Judgement { member: 4 }),
+        Some(landing::Awaited::Merge),
+        Some(landing::Awaited::Record { member: 5 }),
+        Some(landing::Awaited::Ancestry { member: 6 }),
+        Some(landing::Awaited::Read),
+    ] {
+        row.waiting = wait;
+        let stored = forge::Stored::Landing(row.clone());
+        assert_eq!(records::decode(&records::encode(&stored), &bounds), Ok(stored));
+    }
+    let family = crate::OWNER_SET.families.iter().find(|family| family.name == "temper-store").unwrap();
+    let mut before = family.current.to_owned();
+    for field in
+        ["last_event: option u64 = none ", "turn_since: option u64 = none ", "waiting: option LandingAwaited = none "]
+    {
+        before = before.replacen(field, "", 1);
+    }
+    let old = schema::parse(before.as_bytes()).unwrap();
+    let new = schema::parse(family.current.as_bytes()).unwrap();
+    let old_root = old.root(b"Row", Some(b"landing")).unwrap();
+    let new_root = new.root(b"Row", Some(b"landing")).unwrap();
+    let down = Plan::derive_dropping(&new, new_root, &[], &old, old_root, &[]).unwrap();
+    let up = Plan::derive(&old, old_root, &[], &new, new_root, &[]).expect("landing's added fields default to none");
+    let mut work = Workspace::new();
+    assert!(work.fit(&down));
+    let mut earlier = Buffer::with_capacity(4096);
+    down.convert(&records::encode(&forge::Stored::Landing(row.clone())), &mut earlier, &mut work).unwrap();
+    assert!(work.fit(&up));
+    let mut current = Buffer::with_capacity(4096);
+    up.convert(earlier.as_slice(), &mut current, &mut work).unwrap();
+    row.last_event = None;
+    row.turn_since = None;
+    row.waiting = None;
+    assert_eq!(records::decode(current.as_slice(), &bounds), Ok(forge::Stored::Landing(row)));
 }

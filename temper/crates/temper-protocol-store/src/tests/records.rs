@@ -1576,6 +1576,9 @@ fn landing_rows_preserve_phases_proofs_asks_and_effects() {
                 Some(c::Ask::Repair { gate: 0, candidate: [1; 32], below: None }),
             ] {
                 let row = forge::Stored::Landing(forge::LandingRow {
+                    last_event: None,
+                    turn_since: None,
+                    waiting: None,
                     flake_reruns: Box::new([]),
                     room: Some(11),
                     job: Some(forge::history::JobRecord {
@@ -1644,6 +1647,9 @@ fn landing_rows_preserve_phases_proofs_asks_and_effects() {
 fn landing_with_clock(clock: Option<temper_engine_domain_forge_change::Clock>) -> forge::Stored {
     use temper_engine_domain_forge_landing as l;
     forge::Stored::Landing(forge::LandingRow {
+        last_event: None,
+        turn_since: None,
+        waiting: None,
         flake_reruns: Box::new([]),
         room: None,
         job: None,
@@ -1774,6 +1780,9 @@ fn landing_faults_and_own_holds_are_mutually_exclusive() {
             let row = v25::LandingRow::new(
                 &v25::CEILINGS,
                 v25::LandingRowParts {
+                    last_event: None,
+                    turn_since: None,
+                    waiting: None,
                     flake_reruns: List::with_capacity(0),
                     room: None,
                     landing,
