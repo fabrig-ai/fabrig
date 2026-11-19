@@ -251,7 +251,7 @@ fn incomplete_or_unmatched_reports_publish_the_failure_without_rerunning() {
             1 => finding.state = FindingState::Dropped,
             2 => finding.signature.as_mut().unwrap().repository.repository = 99,
             3 => finding.signature.as_mut().unwrap().source = b"other-gate".as_slice().into(),
-            4 => report = Err(api::Error::Missing),
+            4 => report = Err(api::Error::Forbidden),
             5 => {
                 let Ok(Answer::File { truncated, .. }) = &mut report else { unreachable!() };
                 *truncated = true;

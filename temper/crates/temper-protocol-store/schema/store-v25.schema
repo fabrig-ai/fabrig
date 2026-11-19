@@ -352,7 +352,7 @@ record TierRecord { sequence: u64 judged: option TierJudged failing: Failures fl
 record TierPending { commit: fixed 32 key: option fixed 32 }
 record TierBranchEntry { entry: u64 }
 enum TierBranch { absent, pending: TierBranchEntry, made }
-enum TierFault { setup, completion, no_step, cancelled, other_commit, lost, missing_workflow }
+enum TierFault { setup, completion, no_step, cancelled, other_commit, lost, missing_workflow, unreported }
 record TierProbeBranch { landing: u32 branch: TierBranch }
 record TierFlight { entry: u64 start: option u64 since: option u64 waiting: bool next: option u64 run: option u64 pending: list 65536 JobAttempt fault: option TierFault report: option ReceiptRun }
 record ReceiptJob { job: u64 attempt: u32 name: bytes 256 }

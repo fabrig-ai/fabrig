@@ -445,6 +445,7 @@ fn encode_fault(fault: temper_engine_domain_forge_landing::Fault) -> w::TierFaul
         Fault::OtherCommit => w::TierFault::OtherCommit,
         Fault::Lost => w::TierFault::Lost,
         Fault::MissingWorkflow => w::TierFault::MissingWorkflow,
+        Fault::Unreported => w::TierFault::Unreported,
     }
 }
 fn decode_fault(fault: w::TierFault) -> temper_engine_domain_forge_landing::Fault {
@@ -457,6 +458,7 @@ fn decode_fault(fault: w::TierFault) -> temper_engine_domain_forge_landing::Faul
         w::TierFault::OtherCommit => Fault::OtherCommit,
         w::TierFault::Lost => Fault::Lost,
         w::TierFault::MissingWorkflow => Fault::MissingWorkflow,
+        w::TierFault::Unreported => Fault::Unreported,
     }
 }
 pub(super) fn encode_flight(flight: &d::TierFlight) -> w::TierFlight {

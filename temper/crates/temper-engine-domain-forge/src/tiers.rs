@@ -717,6 +717,7 @@ fn fault_words(run: &p::Run, workflow: &[u8], fault: landing::Fault) -> Box<[u8]
         landing::Fault::SetUp => b"set-up",
         landing::Fault::Completion => b"completion",
         landing::Fault::NoStep => b"no step",
+        landing::Fault::Unreported => b"no report uploaded",
         landing::Fault::Cancelled => b"cancelled",
         landing::Fault::OtherCommit => b"other commit",
         landing::Fault::Lost => b"lost",

@@ -48806,6 +48806,8 @@ pub enum TierFault {
     Lost,
     /// `missing_workflow` without a payload.
     MissingWorkflow,
+    /// `unreported` without a payload.
+    Unreported,
 }
 
 impl TierFault {
@@ -48821,7 +48823,7 @@ impl TierFault {
     #[must_use]
     pub fn measure(&self) -> u32 {
         match self {
-            Self::Setup | Self::Completion | Self::NoStep | Self::Cancelled | Self::OtherCommit | Self::Lost | Self::MissingWorkflow => 1,
+            Self::Setup | Self::Completion | Self::NoStep | Self::Cancelled | Self::OtherCommit | Self::Lost | Self::MissingWorkflow | Self::Unreported => 1,
         }
     }
 
@@ -48835,6 +48837,7 @@ impl TierFault {
             Self::OtherCommit => writer.put(&[4_u8])?,
             Self::Lost => writer.put(&[5_u8])?,
             Self::MissingWorkflow => writer.put(&[6_u8])?,
+            Self::Unreported => writer.put(&[7_u8])?,
         }
         Ok(())
     }
@@ -48856,6 +48859,7 @@ impl TierFault {
             4 => Self::OtherCommit,
             5 => Self::Lost,
             6 => Self::MissingWorkflow,
+            7 => Self::Unreported,
             _ => return Err(Problem { path: Path::TierFaultTag, reason: skein_codec::Reason::Tag }),
         };
         Ok(value)
