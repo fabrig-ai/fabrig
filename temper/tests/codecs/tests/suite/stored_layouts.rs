@@ -318,6 +318,60 @@ fn running_build_layouts_open() {
     deployed(RUNNING, "13efa77461");
 }
 
+// Test the defaults themselves, without pending conversion jobs masking a missing
+// default on tier. The written-job escape hatch is pinned separately below.
+fn dev_mutation(current: &str) -> Vec<String> {
+    let family = KeptFamily {
+        current: Box::leak(current.to_owned().into_boxed_str()),
+        ..temper_protocol_store::OWNER_SET.families[0]
+    };
+    let sets = OwnerSets {
+        sets: Box::leak(Box::new([store::OwnerSet {
+            families: Box::leak(Box::new([family])),
+            jobs: &[],
+            ..temper_protocol_store::OWNER_SET
+        }])),
+    };
+    let texts = BTreeMap::from([(
+        family.name.to_owned(),
+        parsed(include_str!("../../deployed/13efa77461/temper-store-v25.schema")),
+    )]);
+    guard(RUNNING, &sets, &texts, &BTreeMap::new())
+}
+fn dev_default_refusal(field: &str, without: &str, number: u16, variant: &str) {
+    let current = temper_protocol_store::OWNER_SET.families[0].current;
+    assert_eq!(current.matches(field).count(), 1, "mutation selects one field");
+    let failures = dev_mutation(&current.replace(field, without));
+    assert_eq!(failures.len(), 1, "{failures:?}");
+    let failure = failures.first().expect("missing default refusal");
+    for required in [
+        RUNNING,
+        "temper-store",
+        &format!("value type {number}"),
+        &format!("variant Some({variant:?})"),
+        "NoDefault",
+        "= value",
+    ] {
+        assert!(failure.contains(required), "missing {required}: {failure}");
+    }
+    assert_eq!(dev_mutation(current), Vec::<String>::new());
+}
+#[test]
+fn dev_tier_waiting_needs_its_default() {
+    dev_default_refusal("waiting: list 8 VerdictFiling = []", "waiting: list 8 VerdictFiling", 25, "tier");
+}
+#[test]
+fn dev_finding_signature_many_needs_its_default() {
+    dev_default_refusal("many: bool = false", "many: bool", 28, "finding");
+}
+#[test]
+fn dev_finding_blame_keeps_implicit_none() {
+    let current = temper_protocol_store::OWNER_SET.families[0].current;
+    let field = "blame: option FindingBlame = none";
+    assert_eq!(current.matches(field).count(), 1);
+    assert_eq!(dev_mutation(&current.replace(field, "blame: option FindingBlame")), Vec::<String>::new());
+}
+
 // In-memory mutations of a kept layout; no kept file is ever rewritten.
 const KEPT: &str = "family fixture-map 1\nversioned record Value { count: u32 }";
 const FAMILY: KeptFamily = KeptFamily {
