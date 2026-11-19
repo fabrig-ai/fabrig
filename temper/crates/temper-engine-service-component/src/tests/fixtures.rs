@@ -1866,20 +1866,16 @@ pub fn forge_connecting(
     let record = wire::requesting(&w::Requesting::new(&w::CEILINGS, w::RequestingParts { request }).unwrap());
     let engine = service.engine.as_mut().unwrap();
     let limits = &engine.clients.env.limits.wire;
-    let family = j::FamilyRequest::new(limits, j::FamilyRequestParts { scope: j::Scope::Deployment, record }).unwrap();
+    let family = j::FamilyRequest { scope: j::Scope::Deployment, record };
     let mut bytes = skein_lib::Writer::new(usize::try_from(family.measure()).unwrap());
     family.encode(&mut bytes).unwrap();
-    let keyed = j::Keyed::new(
-        limits,
-        j::KeyedParts {
+    let keyed = j::Keyed {
             key: [key; 16],
-            owner: j::Owner::Family(j::Family::new(limits, j::FamilyParts { number: wire::FORGE }).unwrap()),
+            owner: j::Owner::Family(j::Family { number: wire::FORGE }),
             version: wire::CLIENT_VERSION,
             request: bytes.finish(),
             value: Some(bundle),
-        },
-    )
-    .unwrap();
+        };
     let mut bytes = skein_lib::Writer::new(usize::try_from(keyed.measure()).unwrap());
     keyed.encode(&mut bytes).unwrap();
     let mut peer = http::Peer::new(engine, b"POST", b"/jig/v1/request", &bytes.finish(), Some(bearer));

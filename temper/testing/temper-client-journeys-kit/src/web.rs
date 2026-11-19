@@ -106,16 +106,14 @@ pub fn managed_capture(mut capture: Capture) -> Capture {
     let mut served = List::with_capacity(1);
     served
         .push(
-            w::Served::new(&w::CEILINGS, w::ServedParts { owner: w::Owner::Jig, first: w::VERSION, last: w::VERSION })
-                .expect("served jig"),
+            w::Served { owner: w::Owner::Jig, first: w::VERSION, last: w::VERSION },
         )
         .expect("one owner");
     let mut me = jig_client_test_records::frame_two_projects_record().into_parts();
     me.deployment_role = Some(w::HeldRole::Owner);
     capture.stream(&jig_client_test_records::opened(
-        w::Hello::new(&w::CEILINGS, w::HelloParts { stream: [7; 16], served, heartbeat: Duration::from_secs(30) })
-            .expect("hello"),
-        w::Me::new(&w::CEILINGS, me).expect("deployment owner"),
+        w::Hello { stream: [7; 16], served, heartbeat: Duration::from_secs(30) },
+        me,
     ));
     capture.report(Report::Place { path: b"/forges/connect?forge=managed".as_slice().into() });
     capture.act(Role::TextField, b"Its address", Act::Input { value: b"https://forge.example".as_slice().into() });

@@ -253,25 +253,21 @@ fn root(input: &Input) -> Domain {
     if let Some(bytes) = input.writing {
         let mut writing = jig_client_test_records::run_text_record().into_parts();
         writing.attempt = ATTEMPT;
-        writing.turn = jig_client_protocol_wire::ProvisionalTurnName::new(
-            &jig_client_protocol_wire::CEILINGS,
-            jig_client_protocol_wire::ProvisionalTurnNameParts { attempt: ATTEMPT, number: 2, retry: 0 },
-        )
-        .unwrap();
+        writing.turn = jig_client_protocol_wire::ProvisionalTurnName { attempt: ATTEMPT, number: 2, retry: 0 };
         writing.from = 0;
         writing.through = u32::try_from(bytes.len()).unwrap();
         writing.text = bytes.into();
         run.writing =
-            Some(jig_client_protocol_wire::RunText::new(&jig_client_protocol_wire::CEILINGS, writing).unwrap());
+            Some(writing);
     }
     if input.current {
         let mut call = jig_client_test_records::current_call_record().into_parts();
         call.tool = b"see".as_slice().into();
         call.input = b"{\"address\":\"change 3\"}".as_slice().into();
-        run.call = Some(jig_client_protocol_wire::CurrentCall::new(&jig_client_protocol_wire::CEILINGS, call).unwrap());
+        run.call = Some(call);
     }
     let run = jig_client_protocol_link::translate::live::run_state(
-        jig_client_protocol_wire::RunState::new(&jig_client_protocol_wire::CEILINGS, run).unwrap(),
+        run,
         &link(),
     )
     .unwrap();

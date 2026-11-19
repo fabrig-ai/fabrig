@@ -457,13 +457,12 @@ fn wait_delivery(root: &mut d::Domain, watch: Token, wait: Option<jig_client_pro
 }
 fn source(state: jig_client_protocol_wire::TaskSourceState) -> jig_client_protocol_wire::TaskWaitWhy {
     use jig_client_protocol_wire as j;
-    j::TaskWaitWhy::Source(j::TaskWaitSource::new(&j::CEILINGS, j::TaskWaitSourceParts { state }).unwrap())
+    j::TaskWaitWhy::Source(j::TaskWaitSource { state })
 }
 fn account_wait(why: jig_client_protocol_wire::TaskWaitWhy) -> jig_client_protocol_wire::TaskRunWait {
     use jig_client_protocol_wire as j;
     j::TaskRunWait::Account(
-        j::TaskWaitAccount::new(&j::CEILINGS, j::TaskWaitAccountParts { account: Some(1), source: Some(1), why })
-            .unwrap(),
+        j::TaskWaitAccount { account: Some(1), source: Some(1), why },
     )
 }
 #[test]
@@ -490,7 +489,7 @@ fn a_running_trials_wait_stops_the_line_until_it_clears_and_waited_keeps_its_wor
         (source(S::NeedsSignIn), "Needs sign-in"),
         (
             source(S::Limited(
-                j::TaskSourceStateUntil::new(&j::CEILINGS, j::TaskSourceStateUntilParts { until: None }).unwrap(),
+                j::TaskSourceStateUntil { until: None },
             )),
             "Limited. Tasks on it wait.",
         ),
@@ -498,14 +497,10 @@ fn a_running_trials_wait_stops_the_line_until_it_clears_and_waited_keeps_its_wor
         (source(S::Misconfigured), "The provider refused temper's sign-in. Check the configuration's registration."),
         (
             source(S::Unloaded(
-                j::TaskSourceStateUnloaded::new(
-                    &j::CEILINGS,
-                    j::TaskSourceStateUnloadedParts {
+                j::TaskSourceStateUnloaded {
                         at: j::TaskSourcePlace::File,
                         why: j::TaskSourceUnread::Unreadable,
                     },
-                )
-                .unwrap(),
             )),
             "Cannot load File: Unreadable",
         ),
@@ -513,13 +508,13 @@ fn a_running_trials_wait_stops_the_line_until_it_clears_and_waited_keeps_its_wor
         (W::Empty, "No account can run this chat yet."),
         (
             W::Invalid(
-                j::TaskWaitInvalid::new(&j::CEILINGS, j::TaskWaitInvalidParts { why: j::AccountWhy::Uses }).unwrap(),
+                j::TaskWaitInvalid { why: j::AccountWhy::Uses },
             ),
             "The requested account cannot serve this work",
         ),
         (
             source(S::Later(
-                j::TaskSourceStateUntil::new(&j::CEILINGS, j::TaskSourceStateUntilParts { until: None }).unwrap(),
+                j::TaskSourceStateUntil { until: None },
             )),
             "Try later",
         ),
@@ -538,55 +533,31 @@ fn a_running_trials_wait_stops_the_line_until_it_clears_and_waited_keeps_its_wor
         R::Credential,
         R::Host,
         R::Refused(
-            j::TaskRunWaitRefused::new(
-                &j::CEILINGS,
-                j::TaskRunWaitRefusedParts {
+            j::TaskRunWaitRefused {
                     value: j::TaskWaitRefused::Bounds(
-                        j::TaskWaitBounds::new(
-                            &j::CEILINGS,
-                            j::TaskWaitBoundsParts {
+                        j::TaskWaitBounds {
                                 kind: j::HostKind::Worker,
                                 why: Some(j::AgentShortfall::Turns(
-                                    j::AgentShortfallTurns::new(
-                                        &j::CEILINGS,
-                                        j::AgentShortfallTurnsParts { charter: 1 },
-                                    )
-                                    .unwrap(),
+                                    j::AgentShortfallTurns { charter: 1 },
                                 )),
                                 figures: Some(
-                                    j::ShortfallFigures::new(
-                                        &j::CEILINGS,
-                                        j::ShortfallFiguresParts { required: 100_000, offered: 800 },
-                                    )
-                                    .unwrap(),
+                                    j::ShortfallFigures { required: 100_000, offered: 800 },
                                 ),
                             },
-                        )
-                        .unwrap(),
                     ),
                 },
-            )
-            .unwrap(),
         ),
         R::Refused(
-            j::TaskRunWaitRefused::new(
-                &j::CEILINGS,
-                j::TaskRunWaitRefusedParts {
+            j::TaskRunWaitRefused {
                     value: j::TaskWaitRefused::Hello(
-                        j::TaskWaitHello::new(
-                            &j::CEILINGS,
-                            j::TaskWaitHelloParts {
+                        j::TaskWaitHello {
                                 kind: j::HostKind::Worker,
                                 at: 1_791_828_240_000_000_000,
                                 why: j::HelloRefusal::JobKinds,
                                 figures: None,
                             },
-                        )
-                        .unwrap(),
                     ),
                 },
-            )
-            .unwrap(),
         ),
     ] {
         wait_delivery(&mut root, watch, Some(wait.clone()));

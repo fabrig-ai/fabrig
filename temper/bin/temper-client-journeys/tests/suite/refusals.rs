@@ -123,11 +123,8 @@ fn a_shape_prints_no_bytes() {
 fn data(value: &[u8], from: u32) -> Vec<u8> {
     let through = from + u32::try_from(value.len()).expect("fixture length");
     let turn =
-        w::ProvisionalTurnName::new(&w::CEILINGS, w::ProvisionalTurnNameParts { attempt: 1, number: 1, retry: 0 })
-            .expect("turn");
-    let value = w::RunText::new(
-        &w::CEILINGS,
-        w::RunTextParts {
+        w::ProvisionalTurnName { attempt: 1, number: 1, retry: 0 };
+    let value = w::RunText {
             attempt: 1,
             began: None,
             turn,
@@ -137,11 +134,9 @@ fn data(value: &[u8], from: u32) -> Vec<u8> {
             cut: false,
             call: None,
             writing: None,
-        },
-    )
-    .expect("run text");
+        };
     let event = w::StreamEvent::Text(
-        w::StreamText::new(&w::CEILINGS, w::StreamTextParts { watch: 1, value }).expect("stream text"),
+        w::StreamText { watch: 1, value },
     );
     let mut writer = Writer::new(usize::try_from(event.measure()).expect("event length"));
     event.encode(&mut writer).expect("event encoding");

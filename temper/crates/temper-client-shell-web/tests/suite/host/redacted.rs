@@ -140,8 +140,7 @@ fn saved_sign_in_keeps_real_walks_provable_and_typed_keys_intact() {
     let record = skein_ui_web::store::Record {
         key: jig_client::STREAM_KEY.into(),
         value: {
-            let kept = w::Kept::new(&w::CEILINGS, w::KeptParts { store_version: 1, record: vec![8; 16].into() })
-                .expect("bounded stored fixture");
+            let kept = w::Kept { store_version: 1, record: vec![8; 16].into() };
             let mut writer = Writer::new(usize::try_from(kept.measure()).expect("kept length"));
             kept.encode(&mut writer).expect("measured kept");
             writer.finish()
@@ -266,7 +265,7 @@ fn a_reshaped_value_is_stale_never_kept() {
     let mut value = request.value.expect("carried key").expose().to_vec();
     value.insert(value.len() / 2, b'\n');
     request.value = Some(Secret::new(value.into()));
-    let request = w::Keyed::new(&w::CEILINGS, request).expect("reshaped envelope");
+    let request = request;
     let Line::Exchange { body, .. } = &mut records[index] else { panic!("keyed exchange") };
     *body = encode(&request);
     let result = redacted(&written(&records));

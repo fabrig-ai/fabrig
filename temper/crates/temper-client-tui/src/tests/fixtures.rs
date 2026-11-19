@@ -155,13 +155,9 @@ pub fn refused(answer: jig_client_protocol_wire::SignInAnswer) -> Domain {
     root
 }
 pub fn full() -> jig_client_protocol_wire::SignInAnswer {
-    use jig_client_protocol_wire::{SignInAnswer, SignInsFull, SignInsFullParts};
+    use jig_client_protocol_wire::{SignInAnswer, SignInsFull, SignInsFull};
     SignInAnswer::Full(
-        SignInsFull::new(
-            &jig_client_protocol_wire::CEILINGS,
-            SignInsFullParts { sign_ins: u32::MAX, earliest: 0, link_until: 0 },
-        )
-        .expect("full fields"),
+        SignInsFull { sign_ins: u32::MAX, earliest: 0, link_until: 0 },
     )
 }
 pub fn me(names: &[&[u8]]) -> c::Me {

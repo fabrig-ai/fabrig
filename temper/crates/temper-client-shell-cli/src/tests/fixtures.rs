@@ -714,15 +714,11 @@ impl Frame {
                     w::SignInAnswer::Busy
                 } else if let Some((sign_ins, earliest, link_until)) = self.full_link {
                     w::SignInAnswer::Full(
-                        w::SignInsFull::new(
-                            &w::CEILINGS,
-                            w::SignInsFullParts {
+                        w::SignInsFull {
                                 sign_ins,
                                 earliest: earliest.as_nanos(),
                                 link_until: link_until.as_nanos(),
                             },
-                        )
-                        .expect("full answer"),
                     )
                 } else if let Some(answer) = self.link_refusal.take() {
                     answer
@@ -730,15 +726,11 @@ impl Frame {
                     w::SignInAnswer::Refused
                 } else {
                     w::SignInAnswer::SignedIn(
-                        w::SignedIn::new(
-                            &w::CEILINGS,
-                            w::SignedInParts {
+                        w::SignedIn {
                                 token: self.keep_link.is_none().then(|| skein_lib::Secret::new(TOKEN_BYTES.into())),
                                 party: 7,
                                 expires: u64::MAX,
                             },
-                        )
-                        .expect("signed-in answer"),
                     )
                 };
                 let mut writer = skein_lib::Writer::new(usize::try_from(answer.measure()).expect("answer size"));
@@ -763,14 +755,10 @@ impl Frame {
                 self.asked_attempts.push(self.now);
                 let answer = self.asked_answers.pop_front().unwrap_or_else(|| {
                     w::LinkAskAnswer::Asked(
-                        w::LinkAsked::new(
-                            &w::CEILINGS,
-                            w::LinkAskedParts {
+                        w::LinkAsked {
                                 secret: skein_lib::Secret::new(Box::new([255; 32])),
                                 expires: 951_827_696_999_999_999,
                             },
-                        )
-                        .expect("asked link"),
                     )
                 });
                 self.reply(fd, &encode!(answer));
@@ -780,11 +768,7 @@ impl Frame {
                     .expect("watch record");
                 if self.busy_watches {
                     let answer = w::OpenAnswer::Refused(
-                        w::OpenAnswerRefused::new(
-                            &w::CEILINGS,
-                            w::OpenAnswerRefusedParts { why: w::WatchRefusal::Busy },
-                        )
-                        .expect("refusal fits"),
+                        w::OpenAnswerRefused { why: w::WatchRefusal::Busy },
                     );
                     self.reply(fd, &encode!(answer));
                     return;
@@ -860,14 +844,9 @@ impl Frame {
         let value = w::DeliveryValue::Me(me);
         let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("delivery size"));
         value.encode(&mut writer).expect("delivery fits");
-        let document = w::Owned::new(
-            &w::CEILINGS,
-            w::OwnedParts { owner: w::Owner::Jig, version: w::VERSION, record: writer.finish() },
-        )
-        .expect("owned delivery");
+        let document = w::Owned { owner: w::Owner::Jig, version: w::VERSION, record: writer.finish() };
         let event = w::StreamEvent::Delivery(
-            w::Delivery::new(&w::CEILINGS, w::DeliveryParts { watch: self.watch.expect("opened watch"), document })
-                .expect("me delivery"),
+            w::Delivery { watch: self.watch.expect("opened watch"), document },
         );
         self.sockets.get_mut(&self.stream.expect("open stream")).expect("stream socket").reply.extend(sse(&event));
     }

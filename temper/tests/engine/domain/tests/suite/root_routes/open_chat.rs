@@ -217,17 +217,13 @@ pub(crate) fn client_request_with_models(
     settings.models = models;
     let mut out = skein_lib::Writer::new(usize::try_from(ask.measure()).expect("ask size"));
     ask.encode(&mut out).expect("ask bytes");
-    let keyed = w::Keyed::new(
-        &w::CEILINGS,
-        w::KeyedParts {
+    let keyed = w::Keyed {
             key: [1; 16],
             owner: w::Owner::Jig,
             version: jig_client_protocol_wire::VERSION,
             request: out.finish(),
             value: None,
-        },
-    )
-    .expect("keyed request");
+        };
     let mut out = skein_lib::Writer::new(usize::try_from(keyed.measure()).expect("request size"));
     keyed.encode(&mut out).expect("keyed bytes");
     let mut bounds = jig_engine_clients_kit::fixtures::limits();

@@ -277,20 +277,16 @@ fn http_paste_with_policy(
         &w::Requesting::new(&w::CEILINGS, w::RequestingParts { request: connect_request_with_policy(app, read_only) })
             .unwrap(),
     );
-    let family = j::FamilyRequest::new(limits, j::FamilyRequestParts { scope: j::Scope::Deployment, record }).unwrap();
+    let family = j::FamilyRequest { scope: j::Scope::Deployment, record };
     let mut bytes = skein_lib::Writer::new(usize::try_from(family.measure()).unwrap());
     family.encode(&mut bytes).unwrap();
-    let request = j::Keyed::new(
-        limits,
-        j::KeyedParts {
+    let request = j::Keyed {
             key: [key; 16],
-            owner: j::Owner::Family(j::Family::new(limits, j::FamilyParts { number: wire::FORGE }).unwrap()),
+            owner: j::Owner::Family(j::Family { number: wire::FORGE }),
             version: wire::CLIENT_VERSION,
             request: bytes.finish(),
             value: Some(bundle),
-        },
-    )
-    .unwrap();
+        };
     let mut bytes = skein_lib::Writer::new(usize::try_from(request.measure()).unwrap());
     request.encode(&mut bytes).unwrap();
     let mut peer = fixtures::http::Peer::new(engine, b"POST", b"/jig/v1/request", &bytes.finish(), Some(bearer));

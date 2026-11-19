@@ -123,24 +123,16 @@ fn picker_client(service: &mut crate::Service, bearer: &[u8]) -> fixtures::http:
         },
     )
     .unwrap();
-    let family = j::FamilyRequest::new(
-        limits,
-        j::FamilyRequestParts { scope: j::Scope::Deployment, record: wire::requesting(&request) },
-    )
-    .unwrap();
+    let family = j::FamilyRequest { scope: j::Scope::Deployment, record: wire::requesting(&request) };
     let mut bytes = skein_lib::Writer::new(usize::try_from(family.measure()).unwrap());
     family.encode(&mut bytes).unwrap();
-    let request = j::Keyed::new(
-        limits,
-        j::KeyedParts {
+    let request = j::Keyed {
             key: [90; 16],
-            owner: j::Owner::Family(j::Family::new(limits, j::FamilyParts { number: wire::FORGE }).unwrap()),
+            owner: j::Owner::Family(j::Family { number: wire::FORGE }),
             version: wire::CLIENT_VERSION,
             request: bytes.finish(),
             value: None,
-        },
-    )
-    .unwrap();
+        };
     let mut bytes = skein_lib::Writer::new(usize::try_from(request.measure()).unwrap());
     request.encode(&mut bytes).unwrap();
     let mut client = fixtures::http::Peer::new(engine, b"POST", b"/jig/v1/request", &bytes.finish(), Some(bearer));

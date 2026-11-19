@@ -46,15 +46,11 @@ pub(super) fn asked(state: Option<State>) -> Domain {
         let answer = match state {
             State::Asking => None,
             State::Asked { code, expires } => Some(w::ApprovalAskAnswer::Asked(
-                w::ApprovalAsked::new(
-                    &w::CEILINGS,
-                    w::ApprovalAskedParts {
+                w::ApprovalAsked {
                         secret: Secret::new(Box::new([7; 32])),
                         code: *code.letters(),
                         expires: expires.as_nanos(),
                     },
-                )
-                .unwrap(),
             )),
             State::NotAsked(NotAsked::Refused) => Some(w::ApprovalAskAnswer::Refused),
             State::NotAsked(NotAsked::Busy) => Some(w::ApprovalAskAnswer::Busy),
@@ -106,11 +102,7 @@ pub(super) fn outcome(root: &mut Domain, why: Option<NotSignedIn>) {
         NotSignedIn::Approval(Taking::Used) => w::ApprovalSignInAnswer::Used,
         NotSignedIn::Approval(Taking::Unknown) => w::ApprovalSignInAnswer::Unknown,
         NotSignedIn::Full { sign_ins, earliest, link_until } => w::ApprovalSignInAnswer::Full(
-            w::ApprovalFull::new(
-                &w::CEILINGS,
-                w::ApprovalFullParts { sign_ins, earliest: earliest.as_nanos(), until: link_until.as_nanos() },
-            )
-            .unwrap(),
+            w::ApprovalFull { sign_ins, earliest: earliest.as_nanos(), until: link_until.as_nanos() },
         ),
         NotSignedIn::Busy => w::ApprovalSignInAnswer::Busy,
         NotSignedIn::NotReady => w::ApprovalSignInAnswer::NotReady,

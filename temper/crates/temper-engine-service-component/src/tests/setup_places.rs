@@ -155,7 +155,7 @@ fn authorize(service: &mut crate::Service, port: u16) -> jig_client_protocol_wir
     let query = format!(
         "response_type=code&client_id=forgejo&redirect_uri=http%3A%2F%2F127.0.0.1%3A{port}%2Fuser%2Foauth2%2Ftemper%2Fcallback&scope=openid&code_challenge=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA&code_challenge_method=S256"
     );
-    let record = wire::Authorize::new(&limits, wire::AuthorizeParts { query: query.into_bytes().into() }).unwrap();
+    let record = wire::Authorize { query: query.into_bytes().into() };
     let mut bytes = skein_lib::Writer::new(usize::try_from(record.measure()).unwrap());
     record.encode(&mut bytes).unwrap();
     let peer = crate::tests::provider::request(

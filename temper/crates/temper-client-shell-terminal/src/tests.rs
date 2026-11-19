@@ -145,7 +145,7 @@ fn the_native_preset_receives_every_supported_membership() {
         for number in 1..=count {
             let mut row = project.clone().into_parts();
             row.project = number;
-            let row = w::MeProject::new(&w::CEILINGS, row).expect("membership");
+            let row = row;
             let mut bytes = Writer::new(usize::try_from(row.measure()).expect("membership fits"));
             row.encode(&mut bytes).expect("measured membership");
             let bytes = bytes.finish();
@@ -153,7 +153,7 @@ fn the_native_preset_receives_every_supported_membership() {
             projects.extend_from_slice(&bytes);
         }
         parts.projects = projects.into();
-        let frame = w::Me::new(&w::CEILINGS, parts).expect("me frame");
+        let frame = parts;
         let received = link::translate::documents::frame(frame, &fixtures::link_limits());
         assert_eq!(received.is_ok(), accepted, "{count} memberships through native preset: {received:?}");
         if let Ok(frame) = received {

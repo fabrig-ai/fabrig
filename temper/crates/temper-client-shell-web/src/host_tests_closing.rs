@@ -25,17 +25,13 @@ fn the_playground_start_warns_only_until_its_answer_is_carried() {
         wire::v1::Answer::new(&wire::v1::CEILINGS, wire::v1::AnswerParts { outcome: wire::v1::Outcome::Running })
             .expect("playground running");
     let answer = w::KeyedAnswer::FinalAnswer(
-        w::Owned::new(
-            &w::CEILINGS,
-            w::OwnedParts {
+        w::Owned {
                 owner: w::Owner::Family(
-                    w::Family::new(&w::CEILINGS, w::FamilyParts { number: wire::FORGE }).expect("forge"),
+                    w::Family { number: wire::FORGE },
                 ),
                 version: wire::CLIENT_VERSION,
                 record: wire::answer(&answer),
             },
-        )
-        .expect("owned answer"),
     );
     let answered = host.report(Report::Heard(Heard::Answered {
         exchange: *id,

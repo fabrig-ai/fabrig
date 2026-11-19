@@ -17,13 +17,9 @@ fn another_temper_keyed_version_is_not_served_and_admits_nothing() {
         let bearer = peer::bearer(signed.token().as_ref().expect("credential").expose());
         let before = engine.domain.deployment().tasks;
         let owner = w::Owner::Family(
-            w::Family::new(&w::CEILINGS, w::FamilyParts { number: temper_client_protocol_wire::FORGE }).unwrap(),
+            w::Family { number: temper_client_protocol_wire::FORGE },
         );
-        let keyed = w::Keyed::new(
-            &w::CEILINGS,
-            w::KeyedParts { key: [71; 16], owner: owner.clone(), version, request: Box::new([255]), value: None },
-        )
-        .unwrap();
+        let keyed = w::Keyed { key: [71; 16], owner: owner.clone(), version, request: Box::new([255]), value: None };
         let mut bytes = Writer::new(usize::try_from(keyed.measure()).unwrap());
         keyed.encode(&mut bytes).unwrap();
         let mut call = peer::Peer::new(engine, b"POST", b"/jig/v1/request", &bytes.finish(), Some(&bearer));
@@ -758,30 +754,22 @@ fn a_moved_file_at_its_forms_bound_passes_and_one_byte_past_is_refused() {
         // the service decodes under temper's configured, smaller value cap.
         let limits = w::CEILINGS;
         let ask = w::Ask::AccountChange(
-            w::AskAccountChange::new(
-                &limits,
-                w::AskAccountChangeParts {
+            w::AskAccountChange {
                     holder: w::AskAccountHolder::Own,
                     change: w::AccountChange::MoveIn(
-                        w::AccountChangeMoveIn::new(&limits, w::AccountChangeMoveInParts { digest }).unwrap(),
+                        w::AccountChangeMoveIn { digest },
                     ),
                 },
-            )
-            .unwrap(),
         );
         let mut bytes = Writer::new(usize::try_from(ask.measure()).unwrap());
         ask.encode(&mut bytes).unwrap();
-        let keyed = w::Keyed::new(
-            &limits,
-            w::KeyedParts {
+        let keyed = w::Keyed {
                 key: [extra; 16],
                 owner: w::Owner::Jig,
                 version: jig_client_protocol_wire::VERSION,
                 request: bytes.finish(),
                 value: Some(value),
-            },
-        )
-        .unwrap();
+            };
         let mut bytes = Writer::new(usize::try_from(keyed.measure()).unwrap());
         keyed.encode(&mut bytes).unwrap();
         let mut call =

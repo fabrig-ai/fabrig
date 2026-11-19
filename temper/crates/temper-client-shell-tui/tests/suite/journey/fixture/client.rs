@@ -16,32 +16,23 @@ pub(crate) fn hello_bytes() -> Box<[u8]> {
     let mut served = List::with_capacity(u32::try_from(owners.len() + 1).expect("owner count"));
     served
         .push(
-            w::Served::new(
-                limits,
-                w::ServedParts {
+            w::Served {
                     owner: w::Owner::Jig,
                     first: jig_client_protocol_wire::VERSION,
                     last: jig_client_protocol_wire::VERSION,
                 },
-            )
-            .expect("Jig version"),
         )
         .expect("one owner");
     for owner in owners {
-        let family = w::Family::new(limits, w::FamilyParts { number: owner.family }).expect("family");
+        let family = w::Family { number: owner.family };
         served
             .push(
-                w::Served::new(
-                    limits,
-                    w::ServedParts { owner: w::Owner::Family(family), first: owner.version, last: owner.version },
-                )
-                .expect("family version"),
+                w::Served { owner: w::Owner::Family(family), first: owner.version, last: owner.version },
             )
             .expect("family owner");
     }
     let hello = jig_client_test_records::opened(
-        w::Hello::new(limits, w::HelloParts { stream: [7; 16], served, heartbeat: Duration::from_secs(30) })
-            .expect("hello"),
+        w::Hello { stream: [7; 16], served, heartbeat: Duration::from_secs(30) },
         jig_client_test_records::frame_record(),
     );
     stream_bytes(&hello)
@@ -51,21 +42,14 @@ pub(crate) fn me_bytes(_duties: &Duties) -> Box<[u8]> {
     let limits = &w::CEILINGS;
     let watch = 0;
     let text = |bytes: &[u8]| {
-        w::DocumentText::new(limits, w::DocumentTextParts { bytes: bytes.into(), cut: false }).expect("text")
+        w::DocumentText { bytes: bytes.into(), cut: false }
     };
-    let me = w::Me::new(
-        limits,
-        w::MeParts {
-            party: w::MeParty::new(
-                limits,
-                w::MePartyParts { number: 7, kind: w::PartyKind::Person, login: text(b"owner"), name: text(b"Owner") },
-            )
-            .expect("party"),
+    let me = w::Me {
+            party: w::MeParty { number: 7, kind: w::PartyKind::Person, login: text(b"owner"), name: text(b"Owner") },
             projects: Box::new([]),
-            needs: w::Needs::new(limits, w::NeedsParts { questions: 0, proposals: 0, escalations: 0, person_tasks: 0 })
-                .expect("needs"),
+            needs: w::Needs { questions: 0, proposals: 0, escalations: 0, person_tasks: 0 },
             needs_total: 0,
-            updates: w::Count::new(limits, w::CountParts { value: 0, limited: false }).expect("count"),
+            updates: w::Count { value: 0, limited: false },
             results_seen: 0,
             cut: false,
             retention: Duration::from_secs(1000),
@@ -75,32 +59,22 @@ pub(crate) fn me_bytes(_duties: &Duties) -> Box<[u8]> {
             key_bytes: 256,
             redirect_bytes: 256,
             words_bytes: 8192,
-        },
-    )
-    .expect("Me");
+        };
     let value = w::DeliveryValue::Me(me);
     let mut writer = Writer::new(usize::try_from(value.measure()).expect("Me size"));
     value.encode(&mut writer).expect("Me fits");
-    let document = w::Owned::new(
-        limits,
-        w::OwnedParts { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: writer.finish() },
-    )
-    .expect("Me document");
+    let document = w::Owned { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: writer.finish() };
     let delivery =
-        w::StreamEvent::Delivery(w::Delivery::new(limits, w::DeliveryParts { watch, document }).expect("delivery"));
+        w::StreamEvent::Delivery(w::Delivery { watch, document });
     stream_bytes(&delivery)
 }
 
 pub(crate) fn delivery_report(watch: u64, value: &w::DeliveryValue) -> Report {
     let mut writer = Writer::new(usize::try_from(value.measure()).expect("delivery size"));
     value.encode(&mut writer).expect("delivery fits");
-    let document = w::Owned::new(
-        &w::CEILINGS,
-        w::OwnedParts { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: writer.finish() },
-    )
-    .expect("document");
+    let document = w::Owned { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: writer.finish() };
     let event = w::StreamEvent::Delivery(
-        w::Delivery::new(&w::CEILINGS, w::DeliveryParts { watch, document }).expect("delivery"),
+        w::Delivery { watch, document },
     );
     Report::Heard(jig_client::Event::Streamed { message: jig_client::Streamed::Record(stream_bytes(&event)) })
 }
@@ -222,16 +196,11 @@ fn background_single(request: &Request) -> Option<Report> {
                 .expect("stock ways"),
         );
         w::ReadAnswer::Value(
-            w::Owned::new(
-                &w::CEILINGS,
-                w::OwnedParts { owner: owned.owner().clone(), version: wire::CLIENT_VERSION, record },
-            )
-            .expect("ways answer"),
+            w::Owned { owner: owned.owner().clone(), version: wire::CLIENT_VERSION, record },
         )
     } else {
         w::ReadAnswer::None(
-            w::ReadAnswerNone::new(&w::CEILINGS, w::ReadAnswerNoneParts { value: w::ReadNone::Unknown })
-                .expect("background read"),
+            w::ReadAnswerNone { value: w::ReadNone::Unknown },
         )
     };
     let size = match message {
@@ -281,7 +250,7 @@ impl ReplySlot {
     fn report(self, message: Box<[u8]>) -> Report {
         let event = if let Some(member) = self.member {
             let part =
-                w::BatchReply::new(&w::CEILINGS, w::BatchReplyParts { member, reply: Some(message) }).expect("part");
+                w::BatchReply { member, reply: Some(message) };
             let mut writer = Writer::new(usize::try_from(part.measure()).expect("part size"));
             part.encode(&mut writer).expect("part bytes");
             jig_client::Event::Part { exchange: self.exchange, message: writer.finish() }
@@ -294,18 +263,10 @@ impl ReplySlot {
 
 pub(crate) fn terminal_document(login: Option<(u32, bool)>) -> w::DeliveryValue {
     w::DeliveryValue::Terminal(
-        w::Terminal::new(
-            &w::CEILINGS,
-            w::TerminalParts {
+        w::Terminal {
                 login: login.map(|(number, cancelled)| {
-                    w::TerminalLogin::new(
-                        &w::CEILINGS,
-                        w::TerminalLoginParts { number, provider: 17, name: b"work".as_slice().into(), cancelled },
-                    )
-                    .expect("terminal login fixture")
+                    w::TerminalLogin { number, provider: 17, name: b"work".as_slice().into(), cancelled }
                 }),
             },
-        )
-        .expect("terminal login fixture"),
     )
 }

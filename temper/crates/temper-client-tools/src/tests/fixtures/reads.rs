@@ -464,21 +464,17 @@ pub(crate) fn document_at_byte_bound() -> c::Task {
     let link = jig_client_protocol_link::Limits::new(client.domain, client.exchanges).expect("shipped link limits");
     let mut parts = jig_client_test_records::task_record().into_parts();
     parts.instructions = Some(
-        w::DocumentText::new(
-            link.wire(),
-            w::DocumentTextParts { bytes: maximally_escaped_json_text(client.domain.text), cut: false },
-        )
-        .expect("worst-case instructions at text bound"),
+        w::DocumentText { bytes: maximally_escaped_json_text(client.domain.text), cut: false },
     );
     parts.resources = resource_pieces(&link, 0);
-    let empty = w::Task::new(link.wire(), parts).expect("task with empty paths");
+    let empty = parts;
     let payload = u32::try_from(crate::limits::DOCUMENT)
         .expect("document bound fits")
         .checked_sub(empty.measure())
         .expect("room after framing");
     let mut parts = empty.into_parts();
     parts.resources = resource_pieces(&link, payload);
-    let record = w::Task::new(link.wire(), parts).expect("task at document bound");
+    let record = parts;
     assert_eq!(u64::from(record.measure()), crate::limits::DOCUMENT, "whole encoded document at the bound");
     jig_client_protocol_link::translate::documents::task(record, &link).expect("document admitted by shipped limits")
 }
@@ -495,15 +491,10 @@ fn resource_pieces(link: &jig_client_protocol_link::Limits, payload: u32) -> Box
             left = left.checked_sub(bytes).expect("within payload");
         }
         let key = w::PartKey::Path(
-            w::PartKeyPath::new(link.wire(), w::PartKeyPathParts { value: path }).expect("bounded path"),
+            w::PartKeyPath { value: path },
         );
-        let part = w::Part::new(link.wire(), w::PartParts { connector: 4, kind: w::PartKind::Resource, key })
-            .expect("bounded resource");
-        let row = w::ResourceLine::new(
-            link.wire(),
-            w::ResourceLineParts { part, kind: 1, taken: false, holder: None, writer: None, writer_lost: false },
-        )
-        .expect("resource row");
+        let part = w::Part { connector: 4, kind: w::PartKind::Resource, key };
+        let row = w::ResourceLine { part, kind: 1, taken: false, holder: None, writer: None, writer_lost: false };
         size = size.checked_add(4).expect("piece prefix").checked_add(row.measure()).expect("bounded pieces");
         rows.push(row).expect("bounded resources");
     }

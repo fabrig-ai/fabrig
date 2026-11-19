@@ -219,8 +219,7 @@ fn link_sign_in(browser: &mut Browser, temper: SocketAddr, link: &[u8]) -> io::R
     let link = std::str::from_utf8(link).expect("link text").trim();
     let secret = base64::decode(Alphabet::Url, link.split_once("secret=").expect("printed secret").1.as_bytes(), 32)
         .expect("link encoding");
-    let record = wire::LinkSignIn::new(&limits, wire::LinkSignInParts { secret: skein_lib::Secret::new(secret) })
-        .expect("link record");
+    let record = wire::LinkSignIn { secret: skein_lib::Secret::new(secret) };
     let mut out = Writer::new(usize::try_from(record.measure()).expect("record size"));
     record.encode(&mut out).expect("link wire");
     browser.call(&format!("http://{temper}/jig/v1/sign-in/link"), Some(&out.finish()))
@@ -235,11 +234,7 @@ fn repository(browser: &mut Browser, temper: SocketAddr, forge: SocketAddr) -> i
     assert!(authorization.starts_with(&format!("http://{temper}/oauth/authorize?")), "every press passes the issuer");
     assert_eq!(browser.call(&authorization, None)?.status, 200);
     let limits = jig_protocol_config_fixtures::small().clients.wire;
-    let record = wire::Authorize::new(
-        &limits,
-        wire::AuthorizeParts { query: authorization.split_once('?').expect("query").1.as_bytes().into() },
-    )
-    .expect("authorize record");
+    let record = wire::Authorize { query: authorization.split_once('?').expect("query").1.as_bytes().into() };
     let mut out = Writer::new(usize::try_from(record.measure()).expect("record size"));
     record.encode(&mut out).expect("authorize wire");
     let authorized = browser.call(&format!("http://{temper}/jig/v1/authorize"), Some(&out.finish()))?;

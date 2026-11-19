@@ -8,11 +8,7 @@ use skein_lib::{Reader, Writer};
 pub(super) fn owned(read: &w::Read) -> w::Owned {
     let mut writer = Writer::new(usize::try_from(read.measure()).expect("read size"));
     read.encode(&mut writer).expect("read encoding");
-    w::Owned::new(
-        &w::CEILINGS,
-        w::OwnedParts { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: writer.finish() },
-    )
-    .expect("read envelope")
+    w::Owned { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: writer.finish() }
 }
 pub(super) fn read_body(read: &w::Read) -> Box<[u8]> {
     let record = owned(read);
@@ -24,17 +20,13 @@ pub(super) fn keyed(ask: &c::Ask, key: u8) -> Box<[u8]> {
     let ask = jig_client_protocol_link::translate::asks::ask(ask, &w::CEILINGS).expect("fixture ask");
     let mut writer = Writer::new(usize::try_from(ask.measure()).expect("ask size"));
     ask.encode(&mut writer).expect("ask encoding");
-    let record = w::Keyed::new(
-        &w::CEILINGS,
-        w::KeyedParts {
+    let record = w::Keyed {
             owner: w::Owner::Jig,
             version: jig_client_protocol_wire::VERSION,
             request: writer.finish(),
             key: [key; 16],
             value: None,
-        },
-    )
-    .expect("request envelope");
+        };
     let mut writer = Writer::new(usize::try_from(record.measure()).expect("request size"));
     record.encode(&mut writer).expect("request encoding");
     writer.finish()

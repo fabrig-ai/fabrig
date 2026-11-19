@@ -458,17 +458,13 @@ fn a_core_refusal_uses_jigs_refusal_record() {
         (
             "taken",
             people::Refusal::Taken { by: 7 },
-            j::Refusal::Taken(j::RefusalTaken::new(&limits, j::RefusalTakenParts { by: 7 }).unwrap()),
+            j::Refusal::Taken(j::RefusalTaken { by: 7 }),
         ),
         (
             "authority",
             people::Refusal::Authority { lacking: people::Lack::Writer, proposable: Some(people::Accepter::Role(1)) },
             j::Refusal::Authority(
-                j::RefusalAuthority::new(
-                    &limits,
-                    j::RefusalAuthorityParts { lacking: j::Lacking::Writer, proposable: Some(true) },
-                )
-                .unwrap(),
+                j::RefusalAuthority { lacking: j::Lacking::Writer, proposable: Some(true) },
             ),
         ),
     ] {

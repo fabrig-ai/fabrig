@@ -74,7 +74,7 @@ pub fn role_refusal() -> contract::Refusal {
 pub fn core_refusal() -> Box<[u8]> {
     use jig_client_protocol_wire as w;
     let limits = *link_limits().wire();
-    let value = w::Refusal::Role(w::RefusalRole::new(&limits, w::RefusalRoleParts { held: None }).expect("role fits"));
+    let value = w::Refusal::Role(w::RefusalRole { held: None });
     let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("measure fits"));
     value.encode(&mut writer).expect("measured room");
     writer.finish()
@@ -938,17 +938,15 @@ pub fn native() -> crate::client::NativeClient {
 pub fn service_answer() -> Box<[u8]> {
     use jig_client_protocol_wire as w;
     let limits = *link_limits().wire();
-    let service = w::MadeService::new(&limits, w::MadeServiceParts { party: SERVICE, credential: credential() })
-        .expect("service fits");
+    let service = w::MadeService { party: SERVICE, credential: credential() };
     let made =
-        w::OutcomeMade::new(&limits, w::OutcomeMadeParts { what: w::Made::Service(service) }).expect("made fits");
+        w::OutcomeMade { what: w::Made::Service(service) };
     let done =
-        w::Final::Done(w::Done::new(&limits, w::DoneParts { outcome: w::Outcome::Made(made) }).expect("done fits"));
+        w::Final::Done(w::Done { outcome: w::Outcome::Made(made) });
     let mut bytes = skein_lib::Writer::new(usize::try_from(done.measure()).expect("record fits"));
     done.encode(&mut bytes).expect("measured final");
     let owned =
-        w::Owned::new(&limits, w::OwnedParts { owner: w::Owner::Jig, version: w::VERSION, record: bytes.finish() })
-            .expect("owned fits");
+        w::Owned { owner: w::Owner::Jig, version: w::VERSION, record: bytes.finish() };
     let answer = w::KeyedAnswer::FinalAnswer(owned);
     let mut bytes = skein_lib::Writer::new(usize::try_from(answer.measure()).expect("answer fits"));
     answer.encode(&mut bytes).expect("measured answer");

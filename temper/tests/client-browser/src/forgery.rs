@@ -56,17 +56,13 @@ pub(super) fn request() -> Box<[u8]> {
         .expect("forged request fits wire");
     let mut writer = Writer::new(usize::try_from(ask.measure()).expect("request size fits"));
     ask.encode(&mut writer).expect("measured request");
-    let keyed = w::Keyed::new(
-        &w::CEILINGS,
-        w::KeyedParts {
+    let keyed = w::Keyed {
             key: REQUEST_KEY,
             owner: w::Owner::Jig,
             version: jig_client_protocol_wire::VERSION,
             request: writer.finish(),
             value: None,
-        },
-    )
-    .expect("bounded keyed request");
+        };
     let mut writer = Writer::new(usize::try_from(keyed.measure()).expect("keyed size fits"));
     keyed.encode(&mut writer).expect("measured keyed request");
     writer.finish()

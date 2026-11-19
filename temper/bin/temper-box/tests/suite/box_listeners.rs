@@ -46,8 +46,7 @@ fn used(link: &[u8]) -> std::io::Result<bool> {
     let secret = base64::decode(Alphabet::Url, text.split_once("secret=").expect("link secret").1.as_bytes(), 32)
         .expect("fixture encoding");
     let limits = jig_protocol_config_fixtures::small().clients.wire;
-    let record = wire::LinkSignIn::new(&limits, wire::LinkSignInParts { secret: skein_lib::Secret::new(secret) })
-        .expect("link record");
+    let record = wire::LinkSignIn { secret: skein_lib::Secret::new(secret) };
     let mut out = Writer::new(usize::try_from(record.measure()).expect("record length"));
     record.encode(&mut out).expect("measured record");
     let body = out.finish();

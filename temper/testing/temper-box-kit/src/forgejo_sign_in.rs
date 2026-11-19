@@ -375,8 +375,7 @@ fn sign_in(
     let limits = jig_protocol_config_fixtures::small().clients.wire;
     let secret = base64::decode(Alphabet::Url, link.split_once("secret=").expect("link secret").1.as_bytes(), 32)
         .expect("link encoding");
-    let record = wire::LinkSignIn::new(&limits, wire::LinkSignInParts { secret: skein_lib::Secret::new(secret) })
-        .expect("link record");
+    let record = wire::LinkSignIn { secret: skein_lib::Secret::new(secret) };
     let mut out = Writer::new(usize::try_from(record.measure()).expect("record size"));
     record.encode(&mut out).expect("link wire");
     let page = browser.call(&format!("http://{temper}/"), None)?;
@@ -412,8 +411,7 @@ fn through_temper(
     let page = browser.call(&authorization, None)?;
     assert_eq!(page.status, 200);
     let query = authorization.split_once('?').expect("authorization query").1;
-    let record = wire::Authorize::new(&limits, wire::AuthorizeParts { query: query.as_bytes().into() })
-        .expect("authorize record");
+    let record = wire::Authorize { query: query.as_bytes().into() };
     let mut out = Writer::new(usize::try_from(record.measure()).expect("record size"));
     record.encode(&mut out).expect("authorize wire");
     let authorized = browser.call(&format!("http://{temper}/jig/v1/authorize"), Some(&out.finish()))?;

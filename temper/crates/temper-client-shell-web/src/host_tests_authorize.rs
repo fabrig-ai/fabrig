@@ -36,8 +36,7 @@ fn authorization_go_replaces_the_address_once() {
     let exchange = sent(&mut host);
     let location = b"http://localhost:9999/callback?code=test&state=a";
     let answer = w::AuthorizeAnswer::Go(
-        w::AuthorizeGo::new(&w::CEILINGS, w::AuthorizeGoParts { location: location.as_slice().into() })
-            .expect("callback"),
+        w::AuthorizeGo { location: location.as_slice().into() },
     );
     host.heard(Heard::Answered {
         exchange,

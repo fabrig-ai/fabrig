@@ -148,11 +148,7 @@ fn batch_admitted(host: &mut Host, exchange: u32, body: &[u8]) {
                 continue; // These fixtures leave lone reads unanswered too.
             }
         };
-        let part = w::BatchReply::new(
-            &w::CEILINGS,
-            w::BatchReplyParts { member: u16::try_from(place).expect("member"), reply: Some(reply) },
-        )
-        .expect("part");
+        let part = w::BatchReply { member: u16::try_from(place).expect("member"), reply: Some(reply) };
         let bytes = encoded(part.measure(), |w| part.encode(w));
         let frame = [part.measure().to_be_bytes().as_slice(), bytes.as_ref()].concat().into_boxed_slice();
         host.heard(Heard::Part { exchange, bytes: frame });
@@ -379,8 +375,7 @@ fn encoded(size: u32, write: impl FnOnce(&mut skein_lib::Writer) -> Result<(), s
 fn owned(record: Box<[u8]>) -> jig_client_protocol_wire::Owned {
     use jig_client_protocol_wire as w;
     use jig_client_protocol_wire::VERSION;
-    w::Owned::new(&w::CEILINGS, w::OwnedParts { owner: w::Owner::Jig, version: VERSION, record })
-        .expect("fixture envelope")
+    w::Owned { owner: w::Owner::Jig, version: VERSION, record }
 }
 fn streamed(host: &mut Host, event: &jig_client_protocol_wire::StreamEvent) {
     use skein_lib::base64::{self, Alphabet};
@@ -423,15 +418,13 @@ fn the_first_task_activity_answer_survives_transport_sign_in() {
     let mut served = List::with_capacity(1);
     served
         .push(
-            w::Served::new(&w::CEILINGS, w::ServedParts { owner: w::Owner::Jig, first: VERSION, last: VERSION })
-                .expect("served version"),
+            w::Served { owner: w::Owner::Jig, first: VERSION, last: VERSION },
         )
         .expect("one served family");
     streamed(
         &mut host,
         &jig_client_test_records::opened(
-            w::Hello::new(&w::CEILINGS, w::HelloParts { stream: [7; 16], served, heartbeat: Duration::from_secs(30) })
-                .expect("hello"),
+            w::Hello { stream: [7; 16], served, heartbeat: Duration::from_secs(30) },
             jig_client_test_records::frame_record(),
         ),
     );
@@ -452,31 +445,21 @@ fn the_first_task_activity_answer_survives_transport_sign_in() {
     let watch = watch.expect("task watch");
     let mut task = jig_client_test_records::task_record().into_parts();
     task.chip = jig_client_test_records::owner_waiting_chip_record();
-    let document = w::DeliveryValue::Task(Box::new(w::Task::new(&w::CEILINGS, task).expect("agent task")));
+    let document = w::DeliveryValue::Task(Box::new(task));
     streamed(
         &mut host,
         &w::StreamEvent::Delivery(
-            w::Delivery::new(
-                &w::CEILINGS,
-                w::DeliveryParts {
+            w::Delivery {
                     watch,
                     document: owned(encoded(document.measure(), |writer| document.encode(writer))),
                 },
-            )
-            .expect("task delivery"),
         ),
     );
     let event = w::Activity::RunBegan(
-        w::ActivityRunBegan::new(
-            &w::CEILINGS,
-            w::ActivityRunBeganParts { attempt: RUN, why: w::RunWhy::Made, resumed: true },
-        )
-        .expect("run marker"),
+        w::ActivityRunBegan { attempt: RUN, why: w::RunWhy::Made, resumed: true },
     );
-    let source = w::ActivityLine::new(&w::CEILINGS, w::ActivityLineParts { task: 7, position: 1, at: 1, line: event })
-        .expect("source row");
-    let line = w::DecodedActivityLine::new(&w::CEILINGS, w::DecodedActivityLineParts { source, decoded: None })
-        .expect("activity row");
+    let source = w::ActivityLine { task: 7, position: 1, at: 1, line: event };
+    let line = w::DecodedActivityLine { source, decoded: None };
     let page = jig_client_test_records::activity_rows(&[line]);
     let value = w::ReadValue::Activity(page);
     let answer = w::ReadAnswer::Value(owned(encoded(value.measure(), |writer| value.encode(writer))));
@@ -490,14 +473,10 @@ fn the_first_task_activity_answer_survives_transport_sign_in() {
     streamed(
         &mut host,
         &w::StreamEvent::Delivery(
-            w::Delivery::new(
-                &w::CEILINGS,
-                w::DeliveryParts {
+            w::Delivery {
                     watch: me,
                     document: owned(encoded(document.measure(), |writer| document.encode(writer))),
                 },
-            )
-            .expect("me delivery"),
         ),
     );
     build(&mut host);
@@ -725,7 +704,7 @@ fn a_stream_refused_full_reaches_the_client_link() {
         host.start(b"/", Vec::new(), None);
         host.requests();
         host.heard(Heard::StreamRefused { status: 409 });
-        let record = w::StreamsFull::new(&w::CEILINGS, w::StreamsFullParts { bound, size: 2 }).expect("full record");
+        let record = w::StreamsFull { bound, size: 2 };
         let mut writer = skein_lib::Writer::new(usize::try_from(record.measure()).expect("fixed refusal"));
         record.encode(&mut writer).expect("refusal bytes");
         host.heard(Heard::Piece { bytes: writer.finish() });

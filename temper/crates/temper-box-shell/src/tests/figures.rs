@@ -177,7 +177,7 @@ fn corrupt_copy_is_logged_and_atomic_replacement_decodes_whole() {
 }
 #[test]
 fn local_copy_builds_the_next_start_at_its_places_and_bad_bytes_log_once() {
-    use jig_client_protocol_wire::{CEILINGS, WorkerSetting, WorkerSettingParts};
+    use jig_client_protocol_wire::{CEILINGS, WorkerSetting, WorkerSetting};
     let scratch = skein_scratch::Scratch::new("local-copy");
     let (dirs, document) = document(scratch.path());
     let bytes = serde_json::to_vec(&document).expect("JSON");
@@ -185,11 +185,7 @@ fn local_copy_builds_the_next_start_at_its_places_and_bad_bytes_log_once() {
     let path = scratch.path().join("local.setting");
     let program = scratch.path().join("fixture-agent");
     fs::write(&program, b"box startup program fixture\n").expect("fixture program");
-    let local = WorkerSetting::new(
-        &CEILINGS,
-        WorkerSettingParts { number: 1, name: b"local".as_slice().into(), places: 2, digest: None, withdrawn: false },
-    )
-    .expect("local value");
+    let local = WorkerSetting { number: 1, name: b"local".as_slice().into(), places: 2, digest: None, withdrawn: false };
     let mut writer = skein_lib::Writer::new(usize::try_from(local.measure()).expect("bounded codec"));
     local.encode(&mut writer).expect("local bytes");
     let value = writer.finish();

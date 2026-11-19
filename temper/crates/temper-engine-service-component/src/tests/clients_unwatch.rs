@@ -126,16 +126,12 @@ impl Stand {
     fn watch_subject(&mut self, stream: [u8; 16], watched: wire::Subject) -> Token {
         let mut subject = Writer::new(1);
         watched.encode(&mut subject).unwrap();
-        let subject = wire::Owned::new(
-            &self.env.limits.wire,
-            wire::OwnedParts {
+        let subject = wire::Owned {
                 owner: wire::Owner::Jig,
                 version: jig_client_protocol_wire::VERSION,
                 record: subject.finish(),
-            },
-        )
-        .unwrap();
-        let value = wire::Open::new(&self.env.limits.wire, wire::OpenParts { stream, watch: WATCH, subject }).unwrap();
+            };
+        let value = wire::Open { stream, watch: WATCH, subject };
         let mut bytes = Writer::new(usize::try_from(value.measure()).unwrap());
         value.encode(&mut bytes).unwrap();
         self.exchange(OPEN, kit::Message::Watch(bytes.finish()));
@@ -155,7 +151,7 @@ impl Stand {
     }
     fn unwatch(&mut self, stream: [u8; 16]) {
         let value =
-            wire::WatchClose::new(&self.env.limits.wire, wire::WatchCloseParts { stream, watch: WATCH }).unwrap();
+            wire::WatchClose { stream, watch: WATCH };
         let mut bytes = Writer::new(usize::try_from(value.measure()).unwrap());
         value.encode(&mut bytes).unwrap();
         self.exchange(CLOSE, kit::Message::Unwatch(bytes.finish()));

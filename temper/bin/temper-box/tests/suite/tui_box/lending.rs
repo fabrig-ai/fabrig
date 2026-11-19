@@ -148,11 +148,7 @@ impl Peer {
                 w::Member::Open(open) => self.opened(&open),
                 w::Member::Read(_) | w::Member::Close(_) => Box::new([]),
             };
-            let part = w::BatchReply::new(
-                &w::CEILINGS,
-                w::BatchReplyParts { member: u16::try_from(place).expect("at most 64 members"), reply: Some(reply) },
-            )
-            .expect("member reply");
+            let part = w::BatchReply { member: u16::try_from(place).expect("at most 64 members"), reply: Some(reply) };
             let mut writer = Writer::new(usize::try_from(part.measure()).expect("part size"));
             part.encode(&mut writer).expect("part bytes");
             let bytes = writer.finish();
@@ -256,11 +252,7 @@ fn response(body: &[u8]) -> Vec<u8> {
 }
 fn signed_in() -> Vec<u8> {
     let answer = w::SignInAnswer::SignedIn(
-        w::SignedIn::new(
-            &w::CEILINGS,
-            w::SignedInParts { token: Some(skein_lib::Secret::new(Box::new([7; 40]))), party: 17, expires: u64::MAX },
-        )
-        .expect("signed in"),
+        w::SignedIn { token: Some(skein_lib::Secret::new(Box::new([7; 40]))), party: 17, expires: u64::MAX },
     );
     let mut writer = Writer::new(usize::try_from(answer.measure()).expect("size"));
     answer.encode(&mut writer).expect("sign-in answer");
@@ -270,43 +262,28 @@ fn hello() -> Vec<u8> {
     let mut served = skein_lib::List::with_capacity(1);
     served
         .push(
-            w::Served::new(
-                &w::CEILINGS,
-                w::ServedParts {
+            w::Served {
                     owner: w::Owner::Jig,
                     first: jig_client_protocol_wire::VERSION,
                     last: jig_client_protocol_wire::VERSION,
                 },
-            )
-            .expect("served version"),
         )
         .expect("one version");
     let hello =
-        w::Hello::new(&w::CEILINGS, w::HelloParts { stream: [7; 16], served, heartbeat: Duration::from_secs(30) })
-            .expect("hello");
+        w::Hello { stream: [7; 16], served, heartbeat: Duration::from_secs(30) };
     sse(&w::StreamEvent::Opened(
-        w::Opened::new(&w::CEILINGS, w::OpenedParts { hello, me: me() }).expect("opened stream"),
+        w::Opened { hello, me: me() },
     ))
 }
 fn me() -> w::Owned {
     let text =
-        || w::DocumentText::new(&w::CEILINGS, w::DocumentTextParts { bytes: Box::new([]), cut: false }).expect("text");
-    let me = w::Me::new(
-        &w::CEILINGS,
-        w::MeParts {
-            party: w::MeParty::new(
-                &w::CEILINGS,
-                w::MePartyParts { number: 17, kind: w::PartyKind::Person, login: text(), name: text() },
-            )
-            .expect("party"),
+        || w::DocumentText { bytes: Box::new([]), cut: false };
+    let me = w::Me {
+            party: w::MeParty { number: 17, kind: w::PartyKind::Person, login: text(), name: text() },
             projects: Box::new([]),
-            needs: w::Needs::new(
-                &w::CEILINGS,
-                w::NeedsParts { questions: 0, proposals: 0, escalations: 0, person_tasks: 0 },
-            )
-            .expect("needs"),
+            needs: w::Needs { questions: 0, proposals: 0, escalations: 0, person_tasks: 0 },
             needs_total: 0,
-            updates: w::Count::new(&w::CEILINGS, w::CountParts { value: 0, limited: false }).expect("count"),
+            updates: w::Count { value: 0, limited: false },
             results_seen: 0,
             cut: false,
             retention: Duration::from_secs(1000),
@@ -316,33 +293,22 @@ fn me() -> w::Owned {
             key_bytes: 256,
             redirect_bytes: 256,
             words_bytes: 8192,
-        },
-    )
-    .expect("me without projects");
+        };
     let value = w::DeliveryValue::Me(me);
     let mut writer = Writer::new(usize::try_from(value.measure()).expect("size"));
     value.encode(&mut writer).expect("me document");
-    w::Owned::new(&w::CEILINGS, w::OwnedParts { owner: w::Owner::Jig, version: w::VERSION, record: writer.finish() })
-        .expect("envelope")
+    w::Owned { owner: w::Owner::Jig, version: w::VERSION, record: writer.finish() }
 }
 fn terminal(watch: u64) -> Vec<u8> {
-    let login = w::TerminalLogin::new(
-        &w::CEILINGS,
-        w::TerminalLoginParts { number: 1, provider: 7, name: b"work".as_slice().into(), cancelled: false },
-    )
-    .expect("login");
+    let login = w::TerminalLogin { number: 1, provider: 7, name: b"work".as_slice().into(), cancelled: false };
     let value = w::DeliveryValue::Terminal(
-        w::Terminal::new(&w::CEILINGS, w::TerminalParts { login: Some(login) }).expect("terminal"),
+        w::Terminal { login: Some(login) },
     );
     let mut writer = Writer::new(usize::try_from(value.measure()).expect("size"));
     value.encode(&mut writer).expect("terminal document");
-    let document = w::Owned::new(
-        &w::CEILINGS,
-        w::OwnedParts { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: writer.finish() },
-    )
-    .expect("envelope");
+    let document = w::Owned { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: writer.finish() };
     sse(&w::StreamEvent::Delivery(
-        w::Delivery::new(&w::CEILINGS, w::DeliveryParts { watch, document }).expect("delivery"),
+        w::Delivery { watch, document },
     ))
 }
 fn sse(event: &w::StreamEvent) -> Vec<u8> {

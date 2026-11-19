@@ -94,11 +94,7 @@ fn box_deployment(stand: &mut fixtures::system::SystemStand, bearer: &[u8]) -> j
     let read = w::Read::Deployment;
     let mut bytes = Writer::new(usize::try_from(read.measure()).unwrap());
     read.encode(&mut bytes).unwrap();
-    let owned = w::Owned::new(
-        engine.client_wire(),
-        w::OwnedParts { owner: w::Owner::Jig, version: w::VERSION, record: bytes.finish() },
-    )
-    .unwrap();
+    let owned = w::Owned { owner: w::Owner::Jig, version: w::VERSION, record: bytes.finish() };
     let mut bytes = Writer::new(usize::try_from(owned.measure()).unwrap());
     owned.encode(&mut bytes).unwrap();
     let mut peer = fixtures::http::Peer::new(engine, b"POST", b"/jig/v1/read", &bytes.finish(), Some(bearer));
@@ -497,24 +493,16 @@ fn box_setup(
         },
     )
     .unwrap();
-    let family = j::FamilyRequest::new(
-        limits,
-        j::FamilyRequestParts { scope: j::Scope::Deployment, record: wire::requesting(&request) },
-    )
-    .unwrap();
+    let family = j::FamilyRequest { scope: j::Scope::Deployment, record: wire::requesting(&request) };
     let mut bytes = Writer::new(usize::try_from(family.measure()).unwrap());
     family.encode(&mut bytes).unwrap();
-    let request = j::Keyed::new(
-        limits,
-        j::KeyedParts {
+    let request = j::Keyed {
             key: [key; 16],
-            owner: j::Owner::Family(j::Family::new(limits, j::FamilyParts { number: wire::FORGE }).unwrap()),
+            owner: j::Owner::Family(j::Family { number: wire::FORGE }),
             version: wire::CLIENT_VERSION,
             request: bytes.finish(),
             value: None,
-        },
-    )
-    .unwrap();
+        };
     let mut bytes = Writer::new(usize::try_from(request.measure()).unwrap());
     request.encode(&mut bytes).unwrap();
     let mut client = peer::Peer::new(engine, b"POST", b"/jig/v1/request", &bytes.finish(), Some(bearer));
@@ -533,7 +521,7 @@ fn box_setup(
     );
     assert_eq!(
         *answer.owner(),
-        j::Owner::Family(j::Family::new(engine.client_wire(), j::FamilyParts { number: wire::FORGE }).unwrap())
+        j::Owner::Family(j::Family { number: wire::FORGE })
     );
     let mut reader = Reader::new(answer.record());
     let answer = w::Answer::decode(&w::CEILINGS, &mut reader).unwrap();

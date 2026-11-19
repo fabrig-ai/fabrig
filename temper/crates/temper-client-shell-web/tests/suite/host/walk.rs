@@ -100,14 +100,10 @@ impl Walk {
                                     continue; // The fixture leaves lone reads unanswered too.
                                 }
                             };
-                            let part = w::BatchReply::new(
-                                &w::CEILINGS,
-                                w::BatchReplyParts {
+                            let part = w::BatchReply {
                                     member: u16::try_from(place).expect("member"),
                                     reply: Some(reply),
-                                },
-                            )
-                            .expect("part");
+                                };
                             let bytes = encoded(part.measure(), |writer| part.encode(writer));
                             let frame =
                                 [part.measure().to_be_bytes().as_slice(), bytes.as_ref()].concat().into_boxed_slice();
@@ -206,8 +202,7 @@ fn encoded(size: u32, write: impl FnOnce(&mut Writer) -> Result<(), Overflow>) -
     writer.finish()
 }
 fn owned(record: Box<[u8]>) -> w::Owned {
-    w::Owned::new(&w::CEILINGS, w::OwnedParts { owner: w::Owner::Jig, version: VERSION, record })
-        .expect("fixture envelope")
+    w::Owned { owner: w::Owner::Jig, version: VERSION, record }
 }
 fn exchange(asks: Vec<Asked>) -> u32 {
     asks.into_iter()
@@ -223,11 +218,7 @@ pub(super) fn project_frame() -> Box<[u8]> {
     let mut walk = linked();
     let value = w::DeliveryValue::Me(jig_client_test_records::frame_two_projects_record());
     walk.streamed(&w::StreamEvent::Delivery(
-        w::Delivery::new(
-            &w::CEILINGS,
-            w::DeliveryParts { watch: 0, document: owned(encoded(value.measure(), |writer| value.encode(writer))) },
-        )
-        .expect("project frame"),
+        w::Delivery { watch: 0, document: owned(encoded(value.measure(), |writer| value.encode(writer))) },
     ));
     walk.turn(vec![Report::Place { path: b"/projects/3/work".as_slice().into() }]);
     walk.recorder.save(&walk.page)
@@ -281,32 +272,26 @@ fn linked() -> Walk {
         (w::Owner::Jig, VERSION),
         (
             w::Owner::Family(
-                w::Family::new(&w::CEILINGS, w::FamilyParts { number: wire::FORGE }).expect("forge family"),
+                w::Family { number: wire::FORGE },
             ),
             wire::CLIENT_VERSION,
         ),
     ] {
         served
             .push(
-                w::Served::new(&w::CEILINGS, w::ServedParts { owner, first: version, last: version })
-                    .expect("served family"),
+                w::Served { owner, first: version, last: version },
             )
             .expect("two families");
     }
     let asks = walk.streamed(&jig_client_test_records::opened(
-        w::Hello::new(&w::CEILINGS, w::HelloParts { stream: [7; 16], served, heartbeat: Duration::from_secs(30) })
-            .expect("hello"),
+        w::Hello { stream: [7; 16], served, heartbeat: Duration::from_secs(30) },
         jig_client_test_records::frame_record(),
     ));
     let _ = asks;
     let watch = 0;
     let value = me_with_openai();
     walk.streamed(&w::StreamEvent::Delivery(
-        w::Delivery::new(
-            &w::CEILINGS,
-            w::DeliveryParts { watch, document: owned(encoded(value.measure(), |writer| value.encode(writer))) },
-        )
-        .expect("me delivery"),
+        w::Delivery { watch, document: owned(encoded(value.measure(), |writer| value.encode(writer))) },
     ));
     walk
 }
@@ -329,16 +314,12 @@ fn sign_in(no_event: bool, refuse_tab: bool, snapshot: &mut dyn FnMut(&Walk)) ->
     let signing = walk.continue_with_chatgpt();
     snapshot(&walk);
     let started = w::DocumentOutcome::AccountSignInStarted(
-        w::OutcomeAccountSignInStarted::new(
-            &w::CEILINGS,
-            w::OutcomeAccountSignInStartedParts { source: 43, address: ADDRESS.into() },
-        )
-        .expect("sign-in started"),
+        w::OutcomeAccountSignInStarted { source: 43, address: ADDRESS.into() },
     );
     let outcome = w::Outcome::Document(
-        w::OutcomeDocument::new(&w::CEILINGS, w::OutcomeDocumentParts { value: started }).expect("owner outcome"),
+        w::OutcomeDocument { value: started },
     );
-    let answer = w::Final::Done(w::Done::new(&w::CEILINGS, w::DoneParts { outcome }).expect("done"));
+    let answer = w::Final::Done(w::Done { outcome });
     let answer = w::KeyedAnswer::FinalAnswer(owned(encoded(answer.measure(), |writer| answer.encode(writer))));
     walk.answered(signing, &answer);
     snapshot(&walk);
@@ -346,27 +327,19 @@ fn sign_in(no_event: bool, refuse_tab: bool, snapshot: &mut dyn FnMut(&Walk)) ->
     for ended in [false, true] {
         let value = accounts(ended);
         walk.streamed(&w::StreamEvent::Delivery(
-            w::Delivery::new(
-                &w::CEILINGS,
-                w::DeliveryParts { watch, document: owned(encoded(value.measure(), |writer| value.encode(writer))) },
-            )
-            .expect("accounts delivery"),
+            w::Delivery { watch, document: owned(encoded(value.measure(), |writer| value.encode(writer))) },
         ));
     }
     walk.recorder.end(&walk.page)
 }
 fn accounts(ended: bool) -> w::DeliveryValue {
-    let signing = w::AccountSignIn::new(
-        &w::CEILINGS,
-        w::AccountSignInParts {
+    let signing = w::AccountSignIn {
             source: 43,
             provider: 17,
             holder: w::AccountHolder::Party(
-                w::AccountHolderParty::new(&w::CEILINGS, w::AccountHolderPartyParts { party: 23 }).expect("holder"),
+                w::AccountHolderParty { party: 23 },
             ),
-        },
-    )
-    .expect("signing");
+        };
     let signing = if ended {
         Box::default()
     } else {
@@ -376,22 +349,15 @@ fn accounts(ended: bool) -> w::DeliveryValue {
         })
     };
     let last_end = ended.then(|| {
-        w::AccountLastEnd::new(
-            &w::CEILINGS,
-            w::AccountLastEndParts {
+        w::AccountLastEnd {
                 source: 43,
                 end: w::AccountEnd::Made(
-                    w::AccountEndMade::new(&w::CEILINGS, w::AccountEndMadeParts { account: 7, declined: false })
-                        .expect("made"),
+                    w::AccountEndMade { account: 7, declined: false },
                 ),
-            },
-        )
-        .expect("sign-in end")
+            }
     });
     w::DeliveryValue::Accounts(
-        w::Accounts::new(
-            &w::CEILINGS,
-            w::AccountsParts {
+        w::Accounts {
                 lendable: false,
                 usable: false,
                 settled: false,
@@ -405,8 +371,6 @@ fn accounts(ended: bool) -> w::DeliveryValue {
                 last_end,
                 readiness: Box::default(),
             },
-        )
-        .expect("accounts"),
     )
 }
 pub(super) fn departed() -> Box<[u8]> {
@@ -424,11 +388,7 @@ pub(super) fn departed() -> Box<[u8]> {
         })
         .expect("authorization exchange");
     let answer = w::AuthorizeAnswer::Go(
-        w::AuthorizeGo::new(
-            &w::CEILINGS,
-            w::AuthorizeGoParts { location: b"http://127.0.0.1:9/callback?code=test&state=test".as_slice().into() },
-        )
-        .expect("authorization location"),
+        w::AuthorizeGo { location: b"http://127.0.0.1:9/callback?code=test&state=test".as_slice().into() },
     );
     walk.recorder.turn(walk.now, walk.wall);
     let duties = walk.recorder.report(
@@ -454,32 +414,26 @@ fn key_ready() -> Walk {
         (w::Owner::Jig, VERSION),
         (
             w::Owner::Family(
-                w::Family::new(&w::CEILINGS, w::FamilyParts { number: wire::FORGE }).expect("forge family"),
+                w::Family { number: wire::FORGE },
             ),
             wire::CLIENT_VERSION,
         ),
     ] {
         served
             .push(
-                w::Served::new(&w::CEILINGS, w::ServedParts { owner, first: version, last: version })
-                    .expect("served family"),
+                w::Served { owner, first: version, last: version },
             )
             .expect("two families");
     }
     let asks = walk.streamed(&jig_client_test_records::opened(
-        w::Hello::new(&w::CEILINGS, w::HelloParts { stream: [7; 16], served, heartbeat: Duration::from_secs(30) })
-            .expect("hello"),
+        w::Hello { stream: [7; 16], served, heartbeat: Duration::from_secs(30) },
         jig_client_test_records::frame_record(),
     ));
     let _ = asks;
     let watch = 0;
     let value = me_with_openai_key();
     walk.streamed(&w::StreamEvent::Delivery(
-        w::Delivery::new(
-            &w::CEILINGS,
-            w::DeliveryParts { watch, document: owned(encoded(value.measure(), |writer| value.encode(writer))) },
-        )
-        .expect("me delivery"),
+        w::Delivery { watch, document: owned(encoded(value.measure(), |writer| value.encode(writer))) },
     ));
     walk.act_on(Role::Link, b"Add key", Act::Press);
     walk
@@ -498,10 +452,9 @@ pub(super) fn keyed(value: &[u8], byte_at_a_time: bool) -> Box<[u8]> {
     }
     let sent = exchange(walk.act_on(Role::Button, b"Add key", Act::Press));
     let outcome = w::Outcome::Document(
-        w::OutcomeDocument::new(&w::CEILINGS, w::OutcomeDocumentParts { value: w::DocumentOutcome::AccountChanged })
-            .expect("account outcome"),
+        w::OutcomeDocument { value: w::DocumentOutcome::AccountChanged },
     );
-    let answer = w::Final::Done(w::Done::new(&w::CEILINGS, w::DoneParts { outcome }).expect("done"));
+    let answer = w::Final::Done(w::Done { outcome });
     walk.answered(sent, &w::KeyedAnswer::FinalAnswer(owned(encoded(answer.measure(), |writer| answer.encode(writer)))));
     walk.recorder.end(&walk.page)
 }
@@ -539,25 +492,19 @@ fn me_with_openai_key() -> w::DeliveryValue {
     reader.u32().expect("provider's length");
     let mut provider = w::ProviderOffer::decode(&w::CEILINGS, &mut reader).expect("provider").into_parts();
     provider.programs_cut = true;
-    let provider = w::ProviderOffer::new(&w::CEILINGS, provider).expect("key provider");
+    let provider = provider;
     me.providers = encoded(provider.measure() + 4, |writer| {
         writer.put(&provider.measure().to_be_bytes())?;
         provider.encode(writer)
     });
-    w::DeliveryValue::Me(w::Me::new(&w::CEILINGS, me).expect("me"))
+    w::DeliveryValue::Me(me)
 }
 
 fn me_with_openai() -> w::DeliveryValue {
     let mut me = jig_client_test_records::frame_record().into_parts();
-    let provider = w::ProviderOffer::new(
-        &w::CEILINGS,
-        w::ProviderOfferParts {
+    let provider = w::ProviderOffer {
             provider: 17,
-            name: w::DocumentText::new(
-                &w::CEILINGS,
-                w::DocumentTextParts { bytes: b"openai".as_slice().into(), cut: false },
-            )
-            .expect("name"),
+            name: w::DocumentText { bytes: b"openai".as_slice().into(), cut: false },
             sign_in: true,
             key: true,
             programs_cut: false,
@@ -566,12 +513,10 @@ fn me_with_openai() -> w::DeliveryValue {
             programs: List::with_capacity(0),
             manage_usage: None,
             key_bytes: 4096,
-        },
-    )
-    .expect("provider");
+        };
     me.providers = encoded(provider.measure() + 4, |writer| {
         writer.put(&provider.measure().to_be_bytes())?;
         provider.encode(writer)
     });
-    w::DeliveryValue::Me(w::Me::new(&w::CEILINGS, me).expect("me"))
+    w::DeliveryValue::Me(me)
 }

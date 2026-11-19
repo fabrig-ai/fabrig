@@ -104,34 +104,22 @@ fn each_shape_is_found_in_each_place() {
 fn delivery(value: &[u8], from: u32, writing: bool) -> w::StreamEvent {
     let through = from.checked_add(u32::try_from(value.len()).unwrap()).unwrap();
     let writing_call = writing.then(|| {
-        w::WritingCall::new(
-            &w::CEILINGS,
-            w::WritingCallParts {
+        w::WritingCall {
                 id: b"call".as_slice().into(),
                 tool: b"tool".as_slice().into(),
                 from,
                 through,
                 input: value.into(),
                 cut: false,
-            },
-        )
-        .unwrap()
+            }
     });
     w::StreamEvent::Text(
-        w::StreamText::new(
-            &w::CEILINGS,
-            w::StreamTextParts {
+        w::StreamText {
                 watch: 1,
-                value: w::RunText::new(
-                    &w::CEILINGS,
-                    w::RunTextParts {
+                value: w::RunText {
                         attempt: 1,
                         began: None,
-                        turn: w::ProvisionalTurnName::new(
-                            &w::CEILINGS,
-                            w::ProvisionalTurnNameParts { attempt: 1, number: 1, retry: 0 },
-                        )
-                        .unwrap(),
+                        turn: w::ProvisionalTurnName { attempt: 1, number: 1, retry: 0 },
                         from: if writing { 0 } else { from },
                         through: if writing { 0 } else { through },
                         text: if writing { Box::from([]) } else { value.into() },
@@ -139,11 +127,7 @@ fn delivery(value: &[u8], from: u32, writing: bool) -> w::StreamEvent {
                         call: None,
                         writing: writing_call,
                     },
-                )
-                .unwrap(),
             },
-        )
-        .unwrap(),
     )
 }
 fn streamed(event: &w::StreamEvent) -> Line {
@@ -258,7 +242,7 @@ fn each_shape_is_found_in_plain_stream_text() {
     }
     assert_eq!(missing, 0, "plain stream text is scanned after joining pieces");
 }
-fn parts(event: w::StreamEvent) -> w::StreamTextParts {
+fn parts(event: w::StreamEvent) -> w::StreamText {
     match event {
         w::StreamEvent::Text(text) => text.into_parts(),
         w::StreamEvent::Hello(_)
@@ -269,11 +253,11 @@ fn parts(event: w::StreamEvent) -> w::StreamTextParts {
         }
     }
 }
-fn from_parts(parts: w::StreamTextParts) -> Line {
-    streamed(&w::StreamEvent::Text(w::StreamText::new(&w::CEILINGS, parts).unwrap()))
+fn from_parts(parts: w::StreamText) -> Line {
+    streamed(&w::StreamEvent::Text(parts))
 }
-fn with_run(parts: &w::StreamTextParts, run: w::RunTextParts) -> w::StreamTextParts {
-    w::StreamTextParts { watch: parts.watch, value: w::RunText::new(&w::CEILINGS, run).unwrap() }
+fn with_run(parts: &w::StreamText, run: w::RunText) -> w::StreamText {
+    w::StreamText { watch: parts.watch, value: run }
 }
 #[test]
 fn distinct_runs_and_calls_never_join() {
@@ -302,14 +286,14 @@ fn distinct_runs_and_calls_never_join() {
                 [("turn attempt", turn_attempt), ("turn number", turn_number), ("turn retry", turn_retry)]
             {
                 let mut turn_run = run.clone();
-                turn_run.turn = w::ProvisionalTurnName::new(&w::CEILINGS, turn).unwrap();
+                turn_run.turn = turn;
                 changed.push((name, with_run(&second, turn_run)));
             }
             if let Some(call) = &run.writing {
                 let mut call = call.clone().into_parts();
                 call.id = b"other".as_slice().into();
                 let mut call_run = run.clone();
-                call_run.writing = Some(w::WritingCall::new(&w::CEILINGS, call).unwrap());
+                call_run.writing = Some(call);
                 changed.push(("call id", with_run(&second, call_run)));
             }
             for (name, second) in changed {
@@ -363,7 +347,7 @@ fn malformed_offsets_join_nothing() {
                     let mut call = run.writing.take().unwrap().into_parts();
                     call.from = from;
                     call.through = through;
-                    run.writing = Some(w::WritingCall::new(&w::CEILINGS, call).unwrap());
+                    run.writing = Some(call);
                 } else {
                     run.from = from;
                     run.through = through;

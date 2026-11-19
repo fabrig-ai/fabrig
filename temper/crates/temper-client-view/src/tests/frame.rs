@@ -341,11 +341,7 @@ fn signed_out_the_browser_main_says_how_to_sign_in() {
 fn a_full_link_says_the_pool_and_both_moments_in_either_shell() {
     use jig_client_protocol_wire as w;
     let answer = w::SignInAnswer::Full(
-        w::SignInsFull::new(
-            &w::CEILINGS,
-            w::SignInsFullParts { sign_ins: 2, earliest: 3_600_000_000_000, link_until: 300_000_000_000 },
-        )
-        .expect("full answer"),
+        w::SignInsFull { sign_ins: 2, earliest: 3_600_000_000_000, link_until: 300_000_000_000 },
     );
     assert_link_main(answer, b"All 2 sign-ins are in use; the earliest ends Jan 1, 01:00 UTC. This link stays usable until Jan 1, 00:05 UTC; after that, opening it has temper serve print a fresh one.");
 }

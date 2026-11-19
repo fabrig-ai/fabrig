@@ -66,8 +66,7 @@ fn input(value: &[u8]) -> Line {
     }
 }
 fn kept(record: &[u8]) -> Box<[u8]> {
-    let value = w::Kept::new(&w::CEILINGS, w::KeptParts { store_version: 1, record: record.into() })
-        .expect("bounded fake record");
+    let value = w::Kept { store_version: 1, record: record.into() };
     let mut writer = Writer::new(skein_lib::length::usize_of(value.measure()));
     value.encode(&mut writer).expect("measured fake record");
     writer.finish()

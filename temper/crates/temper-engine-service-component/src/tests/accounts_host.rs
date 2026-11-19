@@ -916,25 +916,20 @@ fn moved_answer(engine: &mut crate::engine::Engine, bearer: &[u8], attempt: u8) 
     use skein_lib::{Reader, Writer};
     let limits = engine.clients.env.limits.wire;
     let change = w::AccountChange::MoveOut(
-        w::AccountChangeMoveOut::new(&limits, w::AccountChangeMoveOutParts { account: 19 }).unwrap(),
+        w::AccountChangeMoveOut { account: 19 },
     );
     let ask = w::Ask::AccountChange(
-        w::AskAccountChange::new(&limits, w::AskAccountChangeParts { holder: w::AskAccountHolder::Own, change })
-            .unwrap(),
+        w::AskAccountChange { holder: w::AskAccountHolder::Own, change },
     );
     let mut bytes = Writer::new(usize::try_from(ask.measure()).unwrap());
     ask.encode(&mut bytes).unwrap();
-    let keyed = w::Keyed::new(
-        &limits,
-        w::KeyedParts {
+    let keyed = w::Keyed {
             key: [attempt; 16],
             owner: w::Owner::Jig,
             version: jig_client_protocol_wire::VERSION,
             request: bytes.finish(),
             value: None,
-        },
-    )
-    .unwrap();
+        };
     let mut bytes = Writer::new(usize::try_from(keyed.measure()).unwrap());
     keyed.encode(&mut bytes).unwrap();
     let mut call = peer::Peer::new(engine, b"POST", b"/jig/v1/request", &bytes.finish(), Some(bearer));

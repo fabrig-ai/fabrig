@@ -219,11 +219,7 @@ fn full_installs_nothing_and_hands_both_times_to_the_terminal() {
     let earliest = skein_lib::Wall::from_nanos(3_600_000_000_000);
     let link_until = skein_lib::Wall::from_nanos(300_000_000_000);
     let answer = w::SignInAnswer::Full(
-        w::SignInsFull::new(
-            &w::CEILINGS,
-            w::SignInsFullParts { sign_ins: 2, earliest: earliest.as_nanos(), link_until: link_until.as_nanos() },
-        )
-        .expect("full answer"),
+        w::SignInsFull { sign_ins: 2, earliest: earliest.as_nanos(), link_until: link_until.as_nanos() },
     );
     let mut writer = skein_lib::Writer::new(usize::try_from(answer.measure()).expect("answer size"));
     answer.encode(&mut writer).expect("answer room");

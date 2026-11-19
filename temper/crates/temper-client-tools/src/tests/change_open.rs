@@ -252,30 +252,22 @@ fn core_refusals_use_jigs_words_on_one_prefixed_line() {
     use jig_client_protocol_wire as j;
     for why in [
         j::Refusal::Authority(
-            j::RefusalAuthority::new(
-                &j::CEILINGS,
-                j::RefusalAuthorityParts {
+            j::RefusalAuthority {
                     lacking: j::Lacking::Budget(
-                        j::LackingBudget::new(&j::CEILINGS, j::LackingBudgetParts { needed: 500, left: 0 }).unwrap(),
+                        j::LackingBudget { needed: 500, left: 0 },
                     ),
                     proposable: None,
                 },
-            )
-            .unwrap(),
         ),
         j::Refusal::Authority(
-            j::RefusalAuthority::new(
-                &j::CEILINGS,
-                j::RefusalAuthorityParts {
+            j::RefusalAuthority {
                     lacking: j::Lacking::Tasks(
-                        j::LackingTasks::new(&j::CEILINGS, j::LackingTasksParts { needed: Some(1), left: 0 }).unwrap(),
+                        j::LackingTasks { needed: Some(1), left: 0 },
                     ),
                     proposable: None,
                 },
-            )
-            .unwrap(),
         ),
-        j::Refusal::Role(j::RefusalRole::new(&j::CEILINGS, j::RefusalRoleParts { held: None }).unwrap()),
+        j::Refusal::Role(j::RefusalRole { held: None }),
     ] {
         let expected = if let j::Refusal::Role(_) = &why {
             b"temper ctl: change open: The held role does not permit this action\n".as_slice()

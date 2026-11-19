@@ -158,8 +158,7 @@ pub fn link_body(engine: &Engine, link: &[u8]) -> Box<[u8]> {
     let at = skein_lib::bytes::find(link, b"secret=").unwrap().checked_add(7).unwrap();
     let secret = base64::decode(Alphabet::Url, link.get(at..).unwrap(), 32).unwrap();
     let record =
-        wire::LinkSignIn::new(engine.client_wire(), wire::LinkSignInParts { secret: skein_lib::Secret::new(secret) })
-            .unwrap();
+        wire::LinkSignIn { secret: skein_lib::Secret::new(secret) };
     let mut bytes = Writer::new(usize::try_from(record.measure()).unwrap());
     record.encode(&mut bytes).unwrap();
     bytes.finish()

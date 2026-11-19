@@ -560,11 +560,7 @@ fn starting_root(live: bool) -> Domain {
         &mut root,
         exchange,
         SignInAnswer::SignedIn(
-            j::SignedIn::new(
-                &j::CEILINGS,
-                j::SignedInParts { token: Some(Secret::new(Box::new([7; 40]))), party: 73, expires: 600_000_000_000 },
-            )
-            .unwrap(),
+            j::SignedIn { token: Some(Secret::new(Box::new([7; 40]))), party: 73, expires: 600_000_000_000 },
         ),
     );
     assert!(root.pages().me(root.client()).is_none());

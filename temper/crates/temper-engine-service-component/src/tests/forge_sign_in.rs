@@ -389,7 +389,7 @@ fn a_box_document_starts_and_its_printed_link_supplies_the_persons_verified_clai
     service.engine.as_mut().unwrap().clients = clients;
     fixtures::listening(&mut service);
     let limits = service.engine.as_ref().unwrap().clients.env.limits.wire;
-    let record = wire::LinkSignIn::new(&limits, wire::LinkSignInParts { secret: seeds.link_secret.unwrap() }).unwrap();
+    let record = wire::LinkSignIn { secret: seeds.link_secret.unwrap() };
     let mut out = Writer::new(usize::try_from(record.measure()).unwrap());
     record.encode(&mut out).unwrap();
     let signed = provider::request(

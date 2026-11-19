@@ -82,7 +82,7 @@ pub(super) fn authorize(service: &mut crate::Service, cookie: &[u8]) -> Box<[u8]
         core::str::from_utf8(&challenge).unwrap()
     );
     let limits = service.engine.as_ref().unwrap().clients.env.limits.wire;
-    let record = wire::Authorize::new(&limits, wire::AuthorizeParts { query: query.into_bytes().into() }).unwrap();
+    let record = wire::Authorize { query: query.into_bytes().into() };
     let mut out = Writer::new(usize::try_from(record.measure()).unwrap());
     record.encode(&mut out).unwrap();
     let fields = format!(
@@ -225,7 +225,7 @@ fn refused_authorizations(service: &mut crate::Service, cookie: &[u8]) {
         let query = format!(
             "response_type=code&client_id={client}&redirect_uri=http%3A%2F%2F127.0.0.1%3A9%2Fescape&scope=openid&state=refusal&code_challenge=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA&code_challenge_method=S256"
         );
-        let record = wire::Authorize::new(&limits, wire::AuthorizeParts { query: query.into_bytes().into() }).unwrap();
+        let record = wire::Authorize { query: query.into_bytes().into() };
         let mut out = Writer::new(usize::try_from(record.measure()).unwrap());
         record.encode(&mut out).unwrap();
         let peer = request(service, "POST", "/jig/v1/authorize", &fields, &out.finish());
