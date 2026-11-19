@@ -46,6 +46,11 @@ impl Real {
         Real { backend, kernels: Vec::new(), clock: Clock::new(), scratches: Vec::new(), deadline: None, figures: None }
     }
 
+    /// Names the fixture whose main dispatches the reach helper before doing any work.
+    pub fn set_helper(&mut self, process: usize, executable: Box<[u8]>) {
+        self.kernel(process).kernel.set_helper(executable);
+    }
+
     /// Whether the kernel checks this process's permissions on its files:
     /// not for root, whom no mode stops.
     #[must_use]

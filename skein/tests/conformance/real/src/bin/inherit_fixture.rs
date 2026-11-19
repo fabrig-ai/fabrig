@@ -28,8 +28,15 @@ fn call(real: &mut Real, process: usize, kind: Op) -> Complete {
     }
 }
 
+#[expect(
+    clippy::disallowed_methods,
+    reason = "the non-dispatching helper fixture exits on arguments instead of starting its service"
+)]
 fn main() {
     skein_fail_stop::install();
+    if std::env::args_os().len() > 1 {
+        return;
+    }
     let mut real = Real::new(skein_shell::Backend::Readiness);
     let process = real.open();
     let root = real.root(process, &[]);

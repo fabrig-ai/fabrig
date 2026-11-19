@@ -2,7 +2,7 @@
 
 use skein_io::kernel::{Pipe, Spawn, Way};
 
-#[cfg(target_os = "linux")]
+#[cfg(target_os = "macos")]
 #[test]
 fn reached_spawn_refuses_before_preparing_or_making_a_child() {
     use skein_io::kernel::{Error, Fd, Reach, Unenforced};

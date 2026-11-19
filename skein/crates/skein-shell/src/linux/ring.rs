@@ -79,6 +79,7 @@ use crate::{Config, OpenError, Wait};
 /// io's kernel, on io_uring: opened once, then submitted to and reaped from
 /// once per iteration (programming-model.md, section 2).
 pub(crate) struct Ring {
+    pub(crate) helper: crate::helper::Launcher,
     #[expect(
         clippy::struct_field_names,
         reason = "the ring adapter keeps its io_uring field named for the ring it owns"
@@ -247,7 +248,7 @@ impl Ring {
         if let Err(errno) = process::block_sigpipe() {
             return Err(OpenError::Setup(errno));
         }
-        Ok(Ring { ring, table: Table::new(operations), thread: PhantomData })
+        Ok(Ring { ring, table: Table::new(operations), thread: PhantomData, helper: crate::helper::Launcher::new() })
     }
 
     /// How many operations are in flight, those completed but not yet reaped
@@ -341,7 +342,16 @@ impl Ring {
         assert!(slot.flight.is_none(), "a free slot holds no operation");
         let user_data = user_data(index, slot.generation);
         let flight = slot.flight.insert(Flight::new(op, kind));
-        match prepare(flight, tokens, cancelled, listing) {
+        let prepared = if let Op::Spawn { spawn } = &mut flight.kind {
+            if spawn.reach.is_some() {
+                Prepared::Done(process::spawn_reached(spawn, &mut self.helper))
+            } else {
+                prepare(flight, tokens, cancelled, listing)
+            }
+        } else {
+            prepare(flight, tokens, cancelled, listing)
+        };
+        match prepared {
             Prepared::Entry(entry) => {
                 let entry = entry.user_data(user_data);
                 // SAFETY: every pointer in the entry points into this slot's
