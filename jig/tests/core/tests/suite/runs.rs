@@ -1403,6 +1403,7 @@ fn named_model_failures_retry_and_hold_with_only_the_calls_words() {
                         kind,
                         evidence,
                         status,
+                        refusal: None,
                     }),
                 },
                 0,

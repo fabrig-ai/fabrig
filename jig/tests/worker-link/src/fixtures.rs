@@ -144,7 +144,7 @@ fn prepared_agreement_body() -> &'static [u8] {
                 .expect("wire"),
             )
             .expect("application wire");
-        let record = wire::v17::Agreed::new(&limits, wire::v17::AgreedParts { wires }).expect("agreement");
+        let record = wire::v18::Agreed::new(&limits, wire::v18::AgreedParts { wires }).expect("agreement");
         let mut body = Writer::new(skein_lib::length::usize_of(record.measure()));
         record.encode(&mut body).expect("measured agreement");
         body.finish()
@@ -152,7 +152,7 @@ fn prepared_agreement_body() -> &'static [u8] {
 }
 #[must_use]
 pub fn agreement_frame(wires: List<wire::AgreedWire>) -> skein_channel::Frame {
-    let record = wire::v17::Agreed::new(&codec(), wire::v17::AgreedParts { wires }).expect("agreement");
+    let record = wire::v18::Agreed::new(&codec(), wire::v18::AgreedParts { wires }).expect("agreement");
     let mut body = Writer::new(skein_lib::length::usize_of(record.measure()));
     record.encode(&mut body).expect("measured agreement");
     let mut frame = skein_channel::frame_writer(0x018d, record.measure()).expect("frame");
@@ -206,7 +206,7 @@ pub const TOKEN_TWO: &[u8] = b"app-access";
 pub const RUN_SEVEN: Token = Token::new(7);
 pub const ATTEMPT_TWO: Token = Token::new(2);
 #[must_use]
-pub fn codec() -> wire::v17::Limits {
+pub fn codec() -> wire::v18::Limits {
     wire::sizes::limits(&SIZES).expect("small codec limits")
 }
 #[must_use]

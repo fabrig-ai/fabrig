@@ -781,6 +781,7 @@ mod tests {
             kind,
             evidence,
             status: Some(403),
+            refusal: None,
         }
     }
 
