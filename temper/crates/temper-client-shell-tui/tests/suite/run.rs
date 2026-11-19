@@ -210,9 +210,9 @@ impl World {
                 directory,
                 log: b"/data/box/logs/box.log".as_slice().into(),
             }),
-            engine: skein_io::Addr::Ip(
+            engine: jig_client_shell_native::Engine::Plain(skein_io::Addr::Ip(
                 if front { "127.0.0.1:9000" } else { "127.0.0.1:8367" }.parse().expect("loopback"),
-            ),
+            )),
             directory: b"tui".as_slice().into(),
             address: temper_client_tui::Origin::Http(std::net::SocketAddr::from((
                 [127, 0, 0, 1],

@@ -431,6 +431,53 @@ fn has(tree: &skein_ui::Tree, style: skein_ui::Style, words: &[u8]) -> bool {
 }
 
 #[test]
+fn a_named_handshake_failure_stands_on_the_sign_in_and_launchpads_state_line_until_cleared() {
+    use crate::{Handshake, Origin};
+    let origin = Origin::parse(b"https://dev.fabrig.ai").unwrap();
+    let (mut offline, watch) = f::live(Some(f::me(&[b"Demo"])));
+    f::client(
+        &mut offline,
+        jig_client::Event::Up { up: jig_client::Up::WatchEnded { watch, end: c::WatchEnd::Dropped } },
+    );
+    let signed_out = f::signed_out();
+    let starting = f::starting().0;
+    for (root, restored, style) in [
+        (&signed_out, "● Signed out", look::DOWN),
+        (&starting, "● Connecting", look::WAITING),
+        (&offline, "● Offline", look::DOWN),
+    ] {
+        let mut tui = Tui::new(&origin);
+        let mut view = f::view();
+        for (failed, words) in [
+            (Handshake::Untrusted, "● Offline: dev.fabrig.ai's certificate isn't trusted"),
+            (Handshake::Expired, "● Offline: dev.fabrig.ai's certificate has expired"),
+            (Handshake::NotYetValid, "● Offline: dev.fabrig.ai's certificate isn't valid yet"),
+            (Handshake::OtherName, "● Offline: dev.fabrig.ai's certificate is for another name"),
+            (Handshake::Failed, "● Offline: the secure connection to dev.fabrig.ai failed"),
+        ] {
+            tui.step(Told::Handshake { failed: Some(failed) });
+            f::build(&mut view, &tui, root);
+            assert!(has(view.tree(), look::DOWN, words.as_bytes()), "{restored}, {failed:?}");
+            let mut bottom = None;
+            for node in view.tree().nodes() {
+                if node.region == Some(look::BOTTOM) {
+                    bottom = Some(node);
+                }
+            }
+            assert!(f::text(view.tree(), bottom.unwrap()).starts_with(words.as_bytes()), "state begins the bottom row");
+        }
+        tui.step(Told::Handshake { failed: None });
+        f::build(&mut view, &tui, root);
+        assert!(has(view.tree(), style, restored.as_bytes()), "{restored} restored");
+        // Plain origins never show a TLS failure, even if a host tells one.
+        tui.step(Told::Address { address: f::ADDRESS.clone() });
+        tui.step(Told::Handshake { failed: Some(Handshake::Untrusted) });
+        f::build(&mut view, &tui, root);
+        assert!(has(view.tree(), style, restored.as_bytes()));
+    }
+}
+
+#[test]
 #[expect(clippy::too_many_lines, reason = "one table checks the foot's read states and their bindings")]
 #[expect(clippy::disallowed_methods, reason = "test assertions find and collect the rendered fields and options")]
 #[expect(clippy::disallowed_types, reason = "test assertions collect the rendered options")]

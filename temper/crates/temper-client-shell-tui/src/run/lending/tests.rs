@@ -10,7 +10,7 @@ use temper_client_tui::Scheme;
 
 fn ready(found: bool) -> Run {
     let settings = Settings {
-        engine: io::Addr::Ip("127.0.0.1:8367".parse().expect("loopback")),
+        engine: jig_client_shell_native::Engine::Plain(io::Addr::Ip("127.0.0.1:8367".parse().expect("loopback"))),
         directory: b"tui".as_slice().into(),
         address: temper_client_tui::Origin::Http("127.0.0.1:8367".parse().expect("fixture socket")),
         scheme: Some(Scheme::Dark),

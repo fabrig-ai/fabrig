@@ -102,6 +102,36 @@ fn replay_stale(recording: &[u8]) -> Stale {
 }
 
 #[test]
+fn handshake_reports_record_their_words_and_replay_the_same_frames() {
+    use temper_client_tui::{Handshake, Origin};
+    let mut facts = facts();
+    facts.address = Origin::parse(b"https://dev.fabrig.ai").expect("origin");
+    facts.size = Size { rows: 24, columns: 80 };
+    let mut walk = Walk::with(&facts);
+    for (failed, word) in [
+        (Some(Handshake::Untrusted), "untrusted"),
+        (Some(Handshake::Expired), "expired"),
+        (Some(Handshake::NotYetValid), "not-yet-valid"),
+        (Some(Handshake::OtherName), "other-name"),
+        (Some(Handshake::Failed), "failed"),
+        (None, "none"),
+    ] {
+        walk.reports(vec![Report::Handshake { failed }]);
+        walk.mark();
+        let file = walk.save();
+        assert!(
+            String::from_utf8_lossy(&file).lines().any(|line| line == format!("handshake {word}")),
+            "recorded {word}"
+        );
+        assert!(lines(&file).expect("read records").contains(&Line::Handshake(failed)), "read {word}");
+    }
+    same_frames(walk);
+    for bad in [b"handshake unknown\n".as_slice(), b"handshake\n", b"handshake none extra\n"] {
+        assert!(lines(bad).is_err(), "strict handshake record: {bad:?}");
+    }
+}
+
+#[test]
 fn pasted_reports_replay_to_the_same_frames_and_records() {
     let mut walk = pasted();
     let records = lines(&walk.save()).expect("records");
@@ -318,7 +348,7 @@ fn facts_and_only_kept_turns_have_ordered_lines() {
         let file = recorder.save(&mut host);
         let records = lines(&file).expect("facts");
         let mut expected = vec![
-            Line::Journey { version: 3 },
+            Line::Journey { version: 4 },
             Line::Seed(7),
             Line::Clocks { now: Time::ZERO, wall: Wall::EPOCH },
             Line::Screen { size: Size { rows: 12, columns: 48 }, scheme: Some(Scheme::Light) },

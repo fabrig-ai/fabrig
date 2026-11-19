@@ -77,6 +77,9 @@ pub enum Report {
     Local {
         link: Option<Secret>,
     },
+    Handshake {
+        failed: Option<tui::Handshake>,
+    },
     /// A line of the box's, read.
     Front(temper_client_tui::BoxLine),
     Stage(tui::BoxStage),
@@ -230,6 +233,7 @@ impl Host {
                 | Report::Heard(_)
                 | Report::Kept { .. }
                 | Report::Opened { .. }
+                | Report::Handshake { .. }
                 | Report::Local { .. }
                 | Report::Front(_)
                 | Report::Stage(_)
@@ -242,6 +246,7 @@ impl Host {
         match report {
             Report::Lent { number, exit } => self.lent(number, exit),
             Report::Local { link } => self.found(link),
+            Report::Handshake { failed } => self.tell(Told::Handshake { failed }),
             Report::Front(line) => {
                 if let tui::BoxLine::Started { name } = &line {
                     self.notice(tui::Notice::Started { name: name.clone() });

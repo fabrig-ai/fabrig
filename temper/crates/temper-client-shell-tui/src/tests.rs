@@ -96,6 +96,22 @@ fn start(host: &mut Host, credential: Option<Secret>) -> Duties {
 }
 
 fn start_look(host: &mut Host, credential: Option<Secret>, background: Option<Rgb>, boxed: bool) -> Duties {
+    start_at(
+        host,
+        credential,
+        background,
+        boxed,
+        temper_client_tui::Origin::Http("127.0.0.1:8367".parse().expect("fixture socket")),
+    )
+}
+
+fn start_at(
+    host: &mut Host,
+    credential: Option<Secret>,
+    background: Option<Rgb>,
+    boxed: bool,
+    address: temper_client_tui::Origin,
+) -> Duties {
     host.report(Report::Start(Start {
         set_up: false,
         box_log: Box::default(),
@@ -106,7 +122,7 @@ fn start_look(host: &mut Host, credential: Option<Secret>, background: Option<Rg
         plain: false,
         version: Box::default(),
         boxed,
-        address: temper_client_tui::Origin::Http("127.0.0.1:8367".parse().expect("fixture socket")),
+        address,
         local: false,
         note: None,
         kept: Vec::new(),
@@ -136,6 +152,43 @@ fn empty(duties: &Duties) {
     assert!(duties.stop.is_none());
     assert!(duties.lend.is_none());
     assert!(!duties.unlend);
+}
+
+#[test]
+fn a_handshake_report_changes_the_hosts_bottom_row_and_clearing_restores_it() {
+    use temper_client_tui::{Handshake, Origin};
+    for signed_in in [false, true] {
+        let mut host = host();
+        start_at(
+            &mut host,
+            signed_in.then(|| Secret::new(Box::new([7; 40]))),
+            None,
+            false,
+            Origin::parse(b"https://dev.fabrig.ai").expect("origin"),
+        );
+        if signed_in {
+            let hello = hello_for_me(&host, launchpad_me(true));
+            let duties = host
+                .report(Report::Heard(jig_client::Event::Streamed { message: jig_client::Streamed::Record(hello) }));
+            admit(&mut host, duties);
+            host.report(Report::Heard(jig_client::Event::StreamGone));
+        }
+        let before = text(&mut host);
+        empty(&host.report(Report::Handshake { failed: Some(Handshake::Untrusted) }));
+        assert_eq!(host.state.as_ref().expect("started").handshake(), Some(Handshake::Untrusted));
+        let frame = text(&mut host);
+        assert!(
+            frame
+                .lines()
+                .last()
+                .expect("bottom row")
+                .trim_start()
+                .starts_with("● Offline: dev.fabrig.ai's certificate isn't trusted"),
+            "signed in {signed_in}: {frame}"
+        );
+        empty(&host.report(Report::Handshake { failed: None }));
+        assert_eq!(text(&mut host), before);
+    }
 }
 
 #[test]

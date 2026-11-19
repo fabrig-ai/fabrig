@@ -4,7 +4,7 @@ use jig_client::contract::LoginExit;
 use skein_lib::{Time, Wall};
 use skein_ui_screen::{Rgb, Size};
 use skein_ui_screen_terminal::Key;
-use temper_client_tui::{Note, Scheme};
+use temper_client_tui::{Handshake, Note, Scheme};
 
 #[derive(Clone, PartialEq, Eq)]
 pub enum Line {
@@ -40,6 +40,7 @@ pub enum Line {
     Kept { written: bool },
     Opened { opened: bool },
     Found(Option<Box<[u8]>>),
+    Handshake(Option<Handshake>),
     BoxLine(Box<[u8]>),
     BoxStage(Box<[u8]>),
     Lent { number: u32, exit: LoginExit },
@@ -147,6 +148,14 @@ impl Line {
         out.extend_from_slice(self.kind().as_bytes());
         let mut w = Text { out };
         match self {
+            Self::Handshake(failed) => w.word(match failed {
+                Some(Handshake::Untrusted) => b"untrusted",
+                Some(Handshake::Expired) => b"expired",
+                Some(Handshake::NotYetValid) => b"not-yet-valid",
+                Some(Handshake::OtherName) => b"other-name",
+                Some(Handshake::Failed) => b"failed",
+                None => b"none",
+            }),
             Self::Lent { number, exit } => {
                 w.number(u64::from(*number));
                 w.login_exit(*exit);
@@ -282,6 +291,7 @@ impl Line {
             Self::Version(_) => "version",
             Self::Noted(_) => "noted",
             Self::Found(_) => "found",
+            Self::Handshake(_) => "handshake",
             Self::Note(_) => "note",
             Self::Read => "read",
             Self::Stored { .. } => "stored",
@@ -631,7 +641,7 @@ fn read(line: &[u8]) -> Result<Line, &'static str> {
     let line = match kind {
         b"journey" => {
             let version = r.count()?;
-            if version != 2 && version != 3 {
+            if version != 2 && version != 3 && version != 4 {
                 return Err("unsupported journey version");
             }
             Line::Journey { version }
@@ -668,6 +678,15 @@ fn read(line: &[u8]) -> Result<Line, &'static str> {
         b"box" => Line::Box,
         b"noted" => Line::Noted(r.note()?),
         b"found" => Line::Found(r.optional()?),
+        b"handshake" => Line::Handshake(match r.word()? {
+            b"untrusted" => Some(Handshake::Untrusted),
+            b"expired" => Some(Handshake::Expired),
+            b"not-yet-valid" => Some(Handshake::NotYetValid),
+            b"other-name" => Some(Handshake::OtherName),
+            b"failed" => Some(Handshake::Failed),
+            b"none" => None,
+            _ => return Err("unknown handshake failure"),
+        }),
         b"note" => Line::Note(r.note()?),
         b"read" => Line::Read,
         b"address" => Line::Address(r.bytes()?),

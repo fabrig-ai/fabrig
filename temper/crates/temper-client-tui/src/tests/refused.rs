@@ -78,6 +78,7 @@ fn a_build_refused_replaces_every_page_without_bindings_or_a_tick() {
 #[test]
 fn the_refused_lines_name_the_place_and_omit_an_empty_build() {
     let root = root();
+    let named = crate::Origin::parse(b"https://temper.test").expect("named origin");
     for (address, boxed, version, first, last) in [
         (
             f::ADDRESS,
@@ -87,7 +88,7 @@ fn the_refused_lines_name_the_place_and_omit_an_empty_build() {
             b"Start the build 127.0.0.1:8367 runs, then try again.".as_slice(),
         ),
         (
-            &crate::Origin::Https { name: Box::from(*b"temper.test"), port: 443 },
+            &named,
             false,
             VERSION,
             b"temper.test runs another build of temper.",

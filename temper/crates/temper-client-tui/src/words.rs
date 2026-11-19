@@ -223,12 +223,17 @@ pub enum Word {
     ChangePlaceholder,
     DraftPlaceholder,
     TellPlaceholder,
+    TlsUntrusted,
+    TlsExpired,
+    TlsNotYetValid,
+    TlsOtherName,
+    TlsFailed,
     BuildRefused,
     AnotherBuild,
     ThisBuild,
     StartBuild,
 }
-pub(crate) const ALL: [Word; 217] = [
+pub(crate) const ALL: [Word; 222] = [
     Word::Title,
     Word::State,
     Word::QuitKeys,
@@ -442,6 +447,11 @@ pub(crate) const ALL: [Word; 217] = [
     Word::DraftPlaceholder,
     Word::TellPlaceholder,
     Word::LinkPending,
+    Word::TlsUntrusted,
+    Word::TlsExpired,
+    Word::TlsNotYetValid,
+    Word::TlsOtherName,
+    Word::TlsFailed,
     Word::BuildRefused,
     Word::AnotherBuild,
     Word::ThisBuild,
@@ -504,7 +514,7 @@ impl Slot {
             Self::Span | Self::Label => 32,
             Self::Number => 20,
             Self::Moment | Self::Clock => 13,
-            Self::State => 11, // "Out of date" is the longest state word.
+            Self::State => 320, // A deployment's name and the last TLS failure's words.
         }
     }
 }
@@ -729,6 +739,11 @@ impl Word {
             Self::ApprovalNameType => 217,
             Self::ApprovalNameRefused => 218,
             Self::AskAgain => 219,
+            Self::TlsUntrusted => 220,
+            Self::TlsExpired => 221,
+            Self::TlsNotYetValid => 222,
+            Self::TlsOtherName => 223,
+            Self::TlsFailed => 224,
         }
     }
     const fn id(self) -> PhraseId {
@@ -737,6 +752,11 @@ impl Word {
     #[expect(clippy::too_many_lines, reason = "one exhaustive table holds every TUI phrase and its holes")]
     fn english(self) -> (&'static [&'static [u8]], &'static [Slot]) {
         match self {
+            Self::TlsUntrusted => (&[b"Offline: ", b"'s certificate isn't trusted"], &[Slot::Address]),
+            Self::TlsExpired => (&[b"Offline: ", b"'s certificate has expired"], &[Slot::Address]),
+            Self::TlsNotYetValid => (&[b"Offline: ", b"'s certificate isn't valid yet"], &[Slot::Address]),
+            Self::TlsOtherName => (&[b"Offline: ", b"'s certificate is for another name"], &[Slot::Address]),
+            Self::TlsFailed => (&[b"Offline: the secure connection to ", b" failed"], &[Slot::Address]),
             Self::ChangeTitle => (&[b"New change"], &[]),
             Self::DraftTitle => (&[b"Design session"], &[]),
             Self::TellTitle => (&[b"Tell temper"], &[]),

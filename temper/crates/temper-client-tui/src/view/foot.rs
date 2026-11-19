@@ -220,6 +220,21 @@ pub(crate) fn read(root: &Domain, tui: &Tui, words: &Words, wall: Wall) -> Foot 
             (Some(_), None) | (None, Some(_) | None) => None,
         }
     };
+    let (state, style) = if let crate::Origin::Https { .. } = tui.address()
+        && let Some(failed) = tui.handshake()
+        && (state == Shared::Offline || state == Shared::SignedOut || state == Shared::Connecting)
+    {
+        let word = match failed {
+            crate::Handshake::Untrusted => Word::TlsUntrusted,
+            crate::Handshake::Expired => Word::TlsExpired,
+            crate::Handshake::NotYetValid => Word::TlsNotYetValid,
+            crate::Handshake::OtherName => Word::TlsOtherName,
+            crate::Handshake::Failed => Word::TlsFailed,
+        };
+        (words.say(word, &[Hole::Name(crate::place(tui.address(), false))]), look::DOWN)
+    } else {
+        (words.view().say(state, &[]), style)
+    };
     Foot {
         place: place.is_some(),
         talk_name,
@@ -237,7 +252,7 @@ pub(crate) fn read(root: &Domain, tui: &Tui, words: &Words, wall: Wall) -> Foot 
             None => None,
         },
         rule,
-        state: words.say(Word::State, &[Hole::Name(words.view().say(state, &[]))]),
+        state: words.say(Word::State, &[Hole::Name(state)]),
         style,
         composer: if signing_in {
             None

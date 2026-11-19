@@ -137,6 +137,7 @@ impl Replay {
                 | Line::BoxLine(_)
                 | Line::BoxStage(_)
                 | Line::Lent { .. }
+                | Line::Handshake(_)
                 | Line::Found(_)
                 | Line::Opened { .. }
                 | Line::Send { .. }
@@ -224,6 +225,7 @@ impl Replay {
             Line::Saved => Report::Heard(jig_client::Event::Stored),
             Line::Unsaved => Report::Heard(jig_client::Event::NotStored),
             Line::Kept { written } => Report::Kept { written: *written },
+            Line::Handshake(failed) => Report::Handshake { failed: *failed },
             Line::Found(bytes) => Report::Local { link: bytes.clone().map(Secret::new) },
             Line::BoxLine(bytes) => Report::Front(temper_client_tui::BoxLine::read(bytes).expect("validated box line")),
             Line::BoxStage(bytes) => {
@@ -298,9 +300,9 @@ pub(super) fn checked_facts(lines: &[Line]) -> Result<(Facts, usize), Unreadable
 
 #[expect(clippy::too_many_lines, reason = "one reader checks the recording's ordered start facts and their defaults")]
 pub(super) fn facts(lines: &[Line]) -> Result<(Facts, usize), Unreadable> {
-    let error = |at| Unreadable { line: number(at), why: "expected ordered start facts for journey 2 or 3" };
+    let error = |at| Unreadable { line: number(at), why: "expected ordered start facts for journey 2, 3 or 4" };
     let mut at = 0;
-    if !matches!(lines.get(at), Some(Line::Journey { version: 2 | 3 })) {
+    if !matches!(lines.get(at), Some(Line::Journey { version: 2..=4 })) {
         return Err(error(at));
     }
     at += 1;
@@ -467,6 +469,7 @@ fn envelope(lines: &[Line], at: usize) -> Result<(), Unreadable> {
             | Line::BoxLine(_)
             | Line::BoxStage(_)
             | Line::Lent { .. }
+            | Line::Handshake(_)
             | Line::Found(_)
             | Line::Opened { .. } => {
                 if !in_turn || !started {

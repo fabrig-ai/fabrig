@@ -75,7 +75,7 @@ impl Recorder {
     pub fn new(facts: &Facts) -> Self {
         let mut this = Self { file: Vec::new(), turn: None, kept: false };
         for line in [
-            Line::Journey { version: 3 },
+            Line::Journey { version: 4 },
             Line::Seed(facts.seed),
             Line::Clocks { now: facts.now, wall: facts.wall },
             Line::Screen { size: facts.size, scheme: facts.scheme },
@@ -129,6 +129,7 @@ impl Recorder {
             Report::Lent { number, exit } => Line::Lent { number: *number, exit: *exit },
             Report::Front(line) => Line::BoxLine(line.print()),
             Report::Stage(stage) => Line::BoxStage(stage.print()),
+            Report::Handshake { failed } => Line::Handshake(*failed),
             Report::Local { link } => Line::Found(link.as_ref().map(|link| link.expose().into())),
             Report::Start(_) => Line::Start,
             Report::Due => Line::Due,
@@ -343,6 +344,7 @@ pub(super) fn duty_order(line: &Line) -> Option<u8> {
         | Line::Unsaved
         | Line::Kept { .. }
         | Line::Opened { .. }
+        | Line::Handshake(_)
         | Line::Found(_)
         | Line::Deadline(_)
         | Line::Mark(_)

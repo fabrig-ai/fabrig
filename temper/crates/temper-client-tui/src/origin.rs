@@ -75,7 +75,13 @@ impl Origin {
         let (name, port) = match authority.rsplit_once(':') {
             Some((name, port)) => (name, read_port(port.as_bytes())?),
             None if secure => (authority, 443),
-            None => return Err(Unaddressed::NotAnAddress),
+            None => {
+                return Err(if authority.parse::<IpAddr>().is_err() && valid_name(authority.as_bytes()) {
+                    Unaddressed::HttpName
+                } else {
+                    Unaddressed::NotAnAddress
+                });
+            }
         };
         if name.parse::<IpAddr>().is_ok() && secure {
             return Err(Unaddressed::HttpsAddress);
@@ -149,16 +155,19 @@ fn valid_name(name: &[u8]) -> bool {
     }
     let mut label = 0_u32;
     let mut last = b'.';
+    let mut digits = true;
     for byte in name {
         if *byte == b'.' {
             if label == 0 || last == b'-' {
                 return false;
             }
             label = 0;
+            digits = true;
         } else {
             if (!byte.is_ascii_alphanumeric() && *byte != b'-') || (label == 0 && *byte == b'-') {
                 return false;
             }
+            digits = digits && byte.is_ascii_digit();
             label = label.saturating_add(1);
             if label > 63 {
                 return false;
@@ -166,7 +175,7 @@ fn valid_name(name: &[u8]) -> bool {
         }
         last = *byte;
     }
-    label != 0 && last != b'-'
+    label != 0 && last != b'-' && !digits
 }
 
 /// A page on this engine, never an address supplied by a peer.

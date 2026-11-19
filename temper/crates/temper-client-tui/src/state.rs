@@ -11,6 +11,7 @@ use skein_lib::{List, Queue, Secret, Set, bytes::copy_of};
 )]
 pub struct Tui {
     address: crate::Origin,
+    handshake: Option<Handshake>,
     field: Box<[u8]>,
     command_words: Box<[u8]>,
     signing: Signing,
@@ -130,6 +131,9 @@ pub enum Notice {
 }
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Told {
+    Handshake {
+        failed: Option<Handshake>,
+    },
     /// A chat before its first words, over the root's page (client/tui/pages/README.md, 2).
     Place {
         command: Option<Own>,
@@ -243,11 +247,22 @@ pub enum Told {
         open: bool,
     },
 }
+/// The last TLS failure's words (temper/docs/design/client/tui/README.md, 3).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Handshake {
+    Untrusted,
+    Expired,
+    NotYetValid,
+    OtherName,
+    Failed,
+}
+
 impl Tui {
     #[must_use]
     pub fn new(address: &crate::Origin) -> Tui {
         Tui {
             address: address.clone(),
+            handshake: None,
             field: copy_of(b""),
             command_words: Box::default(),
             signing: Signing::Idle,
@@ -300,6 +315,10 @@ impl Tui {
             talk_list: false,
             proposals_aside: List::uncapped(),
         }
+    }
+    #[must_use]
+    pub const fn handshake(&self) -> Option<Handshake> {
+        self.handshake
     }
     #[must_use]
     pub fn address(&self) -> &crate::Origin {
@@ -695,6 +714,11 @@ impl Tui {
     #[expect(clippy::too_many_lines, reason = "one dispatch updates the TUI's independent surface facts")]
     pub fn step(&mut self, told: Told) {
         let changed = match told {
+            Told::Handshake { failed } => {
+                let changed = self.handshake != failed;
+                self.handshake = failed;
+                changed
+            }
             Told::Place { command } => {
                 if let Some(Own::Talk | Own::Brief | Own::Needs | Own::Open | Own::Theme) = command {
                     return;

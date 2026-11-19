@@ -17,11 +17,45 @@ mod front;
 mod lending;
 
 const TAG: u64 = 1 << 61;
+fn handshake(error: skein_tls::client::Error) -> temper_client_tui::Handshake {
+    use skein_tls::client::{Certificate, Error};
+    use temper_client_tui::Handshake;
+    match error {
+        Error::Certificate(Certificate::Issuer | Certificate::Invalid) => Handshake::Untrusted,
+        Error::Certificate(Certificate::Expired) => Handshake::Expired,
+        Error::Certificate(Certificate::NotYetValid) => Handshake::NotYetValid,
+        Error::Certificate(Certificate::Name) => Handshake::OtherName,
+        Error::Decrypt
+        | Error::Alert(_)
+        | Error::Protocol
+        | Error::TooLong
+        | Error::FlightTooLong
+        | Error::Truncated
+        | Error::Stream(_)
+        | Error::Other => Handshake::Failed,
+    }
+}
+
+fn handshake_report(
+    origin: &Origin,
+    previous: &mut Option<skein_tls::client::Error>,
+    failed: Option<skein_tls::client::Error>,
+) -> Option<host::Report> {
+    if let Origin::Http(_) = origin {
+        return None;
+    }
+    if *previous == failed {
+        return None;
+    }
+    *previous = failed;
+    Some(host::Report::Handshake { failed: failed.map(handshake) })
+}
+
 const ROOM: u32 = 64;
 const OPENER: Token = Token::new(u64::MAX);
 
 pub struct Settings {
-    pub engine: io::Addr,
+    pub engine: jig_client_shell_native::Engine,
     pub directory: Box<[u8]>,
     pub address: Origin,
     pub scheme: Option<Scheme>,
@@ -95,6 +129,7 @@ pub struct Run {
     note: Option<Note>,
     notes: Option<FileSave>,
     address: Origin,
+    handshake: Option<skein_tls::client::Error>,
     size: Option<Size>,
     signed_in: Option<Origin>,
     closing: bool,
@@ -118,7 +153,7 @@ impl Run {
         let host = host::Host::new(&host::Settings { limits: settings.limits.clone() }, seed, Time::ZERO, Wall::EPOCH);
         let terminal_settings = limits::terminal(&settings.limits, settings.depth, settings.scheme.is_some());
         let mut shell = jig_client_shell_native::Shell::new(jig_client_shell_native::Settings {
-            engine: jig_client_shell_native::Engine::Plain(settings.engine),
+            engine: settings.engine,
             directory: settings.directory,
             limits: settings.limits.native.connections,
             io: settings.limits.native.io,
@@ -198,6 +233,7 @@ impl Run {
             note: settings.note,
             notes,
             address: settings.address,
+            handshake: None,
             size: None,
             signed_in: None,
             closing: false,
@@ -577,6 +613,10 @@ impl Run {
             }
             while let Some(event) = self.shell.events().pop() {
                 self.report(host::Report::Heard(event));
+                reported = true;
+            }
+            if let Some(report) = handshake_report(&self.address, &mut self.handshake, self.shell.refused()) {
+                self.report(report);
                 reported = true;
             }
             if !self.closing && self.size != Some(self.terminal.size()) {
@@ -1264,9 +1304,54 @@ impl LocalFile {
 mod tests {
     use super::*;
 
+    #[test]
+    fn tls_errors_have_the_handshakes_words() {
+        use skein_tls::client::{Certificate, Error};
+        use temper_client_tui::Handshake;
+        for (error, expected) in [
+            (Error::Certificate(Certificate::Issuer), Handshake::Untrusted),
+            (Error::Certificate(Certificate::Invalid), Handshake::Untrusted),
+            (Error::Certificate(Certificate::Expired), Handshake::Expired),
+            (Error::Certificate(Certificate::NotYetValid), Handshake::NotYetValid),
+            (Error::Certificate(Certificate::Name), Handshake::OtherName),
+            (Error::Protocol, Handshake::Failed),
+            (Error::Decrypt, Handshake::Failed),
+            (Error::Alert(42), Handshake::Failed),
+            (Error::TooLong, Handshake::Failed),
+            (Error::FlightTooLong, Handshake::Failed),
+            (Error::Truncated, Handshake::Failed),
+            (Error::Stream(skein_lib::stream::Fault::Reset), Handshake::Failed),
+            (Error::Other, Handshake::Failed),
+        ] {
+            assert_eq!(handshake(error), expected, "{error:?}");
+        }
+    }
+
+    #[test]
+    fn handshake_reports_only_changes_and_never_at_http() {
+        use skein_tls::client::{Certificate, Error};
+        let https = Origin::parse(b"https://dev.fabrig.ai").expect("origin");
+        let mut previous = None;
+        assert!(handshake_report(&https, &mut previous, None).is_none());
+        for failed in [
+            Some(Error::Certificate(Certificate::Issuer)),
+            Some(Error::Certificate(Certificate::Invalid)),
+            Some(Error::Certificate(Certificate::Expired)),
+            None,
+        ] {
+            let report = handshake_report(&https, &mut previous, failed).expect("changed failure");
+            let host::Report::Handshake { failed: reported } = report else { panic!("handshake report") };
+            assert_eq!(reported, failed.map(handshake));
+            assert!(handshake_report(&https, &mut previous, failed).is_none(), "unchanged error");
+        }
+        let http = Origin::parse(b"http://127.0.0.1:8367").expect("origin");
+        assert!(handshake_report(&http, &mut previous, Some(Error::Other)).is_none());
+        assert_eq!(previous, None);
+    }
+
     fn settings() -> Settings {
         Settings {
-            engine: io::Addr::Ip("127.0.0.1:8367".parse().expect("loopback")),
+            engine: jig_client_shell_native::Engine::Plain(io::Addr::Ip("127.0.0.1:8367".parse().expect("loopback"))),
             directory: b"tui".as_slice().into(),
             address: temper_client_tui::Origin::Http("127.0.0.1:8367".parse().expect("fixture socket")),
             scheme: Some(Scheme::Dark),

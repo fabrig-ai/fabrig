@@ -6048,6 +6048,7 @@ dependencies = [
  "skein-scratch",
  "skein-shell",
  "skein-sim",
+ "skein-tls",
  "skein-ui",
  "skein-ui-screen",
  "skein-ui-screen-terminal",

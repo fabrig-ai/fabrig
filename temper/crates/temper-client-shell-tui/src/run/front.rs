@@ -474,7 +474,11 @@ fn authority(link: &[u8]) -> Option<(io::Addr, temper_client_tui::Origin)> {
     }
     let url = std::str::from_utf8(link).ok()?.strip_prefix("http://")?;
     let (authority, _) = url.split_once('/')?;
-    let address = crate::start::address(format!("http://{authority}").as_bytes()).ok()?;
+    let temper_client_tui::Origin::Http(address) =
+        crate::start::address(format!("http://{authority}").as_bytes()).ok()?
+    else {
+        return None;
+    };
     if address.port() == 0 {
         return None;
     }

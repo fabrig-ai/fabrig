@@ -1,7 +1,7 @@
 use super::{self as tui, Refused};
 use skein_ui_screen_terminal::Depth;
 use std::{fs, os::unix::fs::PermissionsExt};
-use temper_client_tui::{Note, Scheme};
+use temper_client_tui::{Note, Origin, Scheme};
 
 const LINK: &str = "http://127.0.0.1:8367/jig/v1/sign-in/link?secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
 
@@ -12,16 +12,152 @@ fn environment(entries: &[(&str, &str)]) -> Vec<super::EnvironmentEntry> {
 #[test]
 fn an_address_is_an_engine_on_loopback_and_never_a_link() {
     for (argument, expected) in [
-        ("http://127.0.0.1:8367", Ok("127.0.0.1:8367".parse().expect("IPv4"))),
-        ("http://127.0.0.1:8367/", Ok("127.0.0.1:8367".parse().expect("IPv4"))),
-        ("http://[::1]:9000", Ok("[::1]:9000".parse().expect("IPv6"))),
+        ("http://127.0.0.1:8367", Ok(Origin::Http("127.0.0.1:8367".parse().expect("IPv4")))),
+        ("http://127.0.0.1:8367/", Ok(Origin::Http("127.0.0.1:8367".parse().expect("IPv4")))),
+        ("http://[::1]:9000", Ok(Origin::Http("[::1]:9000".parse().expect("IPv6")))),
         ("http://10.0.0.1:8367", Err(Refused::NotLoopback)),
         (LINK, Err(Refused::Link)),
         ("127.0.0.1:8367", Err(Refused::NotAnAddress(Box::from(b"127.0.0.1:8367".as_slice())))),
-        ("http://localhost:8367", Err(Refused::NotAnAddress(Box::from(b"http://localhost:8367".as_slice())))),
+        ("http://localhost:8367", Err(Refused::HttpName)),
     ] {
         assert_eq!(tui::address(argument.as_bytes()), expected, "{argument}");
     }
+}
+
+#[test]
+fn origins_refuse_with_the_arguments_words() {
+    for (argument, reason) in [
+        (
+            "http://dev.fabrig.ai".to_owned(),
+            "http:// reaches an engine on this machine alone: use https://NAME".to_owned(),
+        ),
+        ("https://127.0.0.1".to_owned(), "https:// needs the deployment's name".to_owned()),
+        ("http://10.0.0.1:8367".to_owned(), "the engine's address must be on loopback".to_owned()),
+    ]
+    .into_iter()
+    .chain(
+        [
+            "https://dev.fabrig.ai/x".to_owned(),
+            "https://box.123".to_owned(),
+            "https://-a.fabrig.ai".to_owned(),
+            format!("https://{}.ai", "a".repeat(64)),
+        ]
+        .into_iter()
+        .map(|argument| {
+            let reason = format!("not an address: {argument}");
+            (argument, reason)
+        }),
+    ) {
+        let refused = tui::address(argument.as_bytes()).expect_err("refused argument");
+        assert_eq!(refused.line("temper"), format!("temper: {reason}\n"));
+    }
+}
+
+#[test]
+fn named_origins_resolve_once_and_use_machine_roots_for_tls() {
+    use jig_client_shell_native::Engine;
+    use skein_lib::{
+        Writer,
+        base64::{self, Alphabet},
+    };
+    use std::cell::Cell;
+    let scratch = skein_scratch::Scratch::new("tui-roots");
+    let root = include_bytes!("../../../../../skein/tests/tls/fixtures/root.der");
+    let mut writer = Writer::new(
+        usize::try_from(
+            base64::encoded_len(Alphabet::Standard, u32::try_from(root.len()).expect("root length"))
+                .expect("base64 length"),
+        )
+        .expect("writer length"),
+    );
+    base64::encode(Alphabet::Standard, root, &mut writer).expect("root base64");
+    let pem = format!(
+        "-----BEGIN CERTIFICATE-----\n{}\n-----END CERTIFICATE-----\n",
+        String::from_utf8_lossy(&writer.finish())
+    );
+    let bundle = scratch.path().join("roots.pem");
+    fs::write(&bundle, pem).expect("fixture roots");
+    let entries = environment(&[("SSL_CERT_FILE", bundle.to_str().expect("fixture path"))]);
+    for (argument, port, host) in
+        [("https://dev.fabrig.ai", 443, "dev.fabrig.ai"), ("https://dev.fabrig.ai:8443", 8443, "dev.fabrig.ai:8443")]
+    {
+        let calls = Cell::new(0_u32);
+        let addresses =
+            vec![std::net::SocketAddr::from(([192, 0, 2, 1], port)), "[2001:db8::1]:443".parse().expect("IPv6")];
+        let resolve = |name: &str, selected_port| {
+            assert_eq!(name, "dev.fabrig.ai");
+            assert_eq!(selected_port, port);
+            calls.set(calls.get().checked_add(1).expect("one resolution"));
+            let mut addresses = addresses.clone();
+            for address in &mut addresses {
+                address.set_port(selected_port);
+            }
+            Ok(addresses)
+        };
+        let origin = tui::address(argument.as_bytes()).expect("named origin");
+        let Engine::Tls(tls) = tui::engine(&origin, &entries, &resolve).expect("TLS settings") else {
+            panic!("TLS engine")
+        };
+        assert_eq!(calls.get(), 1);
+        assert_eq!(tls.name.server(), skein_tls::Server::Dns("dev.fabrig.ai"));
+        assert_eq!(tls.host.as_ref(), host.as_bytes());
+        let mut expected = addresses.clone();
+        for address in &mut expected {
+            address.set_port(port);
+        }
+        assert_eq!(tls.addresses.as_ref(), expected);
+    }
+    let origin = tui::address(b"http://127.0.0.1:8367").expect("plain origin");
+    let Engine::Plain(skein_io::Addr::Ip(socket)) =
+        tui::engine(&origin, &[], &|_, _| panic!("HTTP never resolves")).expect("plain engine")
+    else {
+        panic!("plain IP engine")
+    };
+    assert_eq!(Origin::Http(socket), origin);
+}
+
+#[test]
+fn named_start_refusals_keep_the_resolver_and_roots_words() {
+    let origin = tui::address(b"https://dev.fabrig.ai").expect("origin");
+    for (addresses, why) in
+        [(Ok(Vec::new()), "no address"), (Err(std::io::Error::other("resolver refused")), "resolver refused")]
+    {
+        let result = tui::engine(&origin, &[], &|_, _| match &addresses {
+            Ok(addresses) => Ok(addresses.clone()),
+            Err(why) => Err(std::io::Error::other(why.to_string())),
+        });
+        let refusal = result.expect_err("resolution refused");
+        assert_eq!(refusal.line("temper"), format!("temper: can't find dev.fabrig.ai: {why}\n"));
+    }
+    let scratch = skein_scratch::Scratch::new("tui-missing-roots");
+    let missing = scratch.path().join("missing.pem");
+    let entries = environment(&[("SSL_CERT_FILE", missing.to_str().expect("fixture path"))]);
+    let refusal =
+        tui::engine(&origin, &entries, &|_, port| Ok(vec![std::net::SocketAddr::from(([192, 0, 2, 1], port))]))
+            .expect_err("missing roots");
+    assert_eq!(refusal.line("temper"), format!("temper: the machine's trust roots: {}: Absent\n", missing.display()));
+}
+
+#[test]
+fn an_explicit_name_never_reads_the_local_link_and_a_bare_start_prefers_it_to_a_kept_name() {
+    use std::path::PathBuf;
+    let origin = tui::address(b"https://dev.fabrig.ai").expect("origin");
+    let local = tui::address(b"http://127.0.0.1:8367").expect("local");
+    let file = Some(PathBuf::from("/engine/link"));
+    let (selected, link, boxed) =
+        tui::select(Some(origin.clone()), None, file.clone(), &|_| panic!("a name reads no engine link"));
+    assert_eq!(selected, origin);
+    assert!(link.is_none());
+    assert!(!boxed);
+    let (selected, link, boxed) = tui::select(None, Some(origin.clone()), file.clone(), &|_| None);
+    assert_eq!(selected, origin);
+    assert!(link.is_none());
+    assert!(!boxed);
+    let (selected, link, boxed) =
+        tui::select(None, Some(origin), file.clone(), &|_| Some(skein_lib::Secret::new(LINK.as_bytes().into())));
+    assert_eq!(selected, local);
+    assert_eq!(link, file);
+    assert!(boxed);
 }
 
 #[test]
@@ -131,12 +267,12 @@ fn the_directory_is_the_state_directorys() {
 #[test]
 fn the_kept_address_reads_or_is_none() {
     for (bytes, expected) in [
-        ("http://127.0.0.1:9000", Some("127.0.0.1:9000".parse().expect("address"))),
+        ("http://127.0.0.1:9000", Some(Origin::Http("127.0.0.1:9000".parse().expect("address")))),
         ("", None),
         ("garbage", None),
-        ("https://dev.fabrig.ai", None),
-        ("https://dev.fabrig.ai:8443/", None),
-        ("http://127.0.0.1:9000/", Some("127.0.0.1:9000".parse().expect("address"))),
+        ("https://dev.fabrig.ai", Some(Origin::parse(b"https://dev.fabrig.ai").expect("origin"))),
+        ("https://dev.fabrig.ai:8443/", Some(Origin::parse(b"https://dev.fabrig.ai:8443").expect("origin"))),
+        ("http://127.0.0.1:9000/", Some(Origin::Http("127.0.0.1:9000".parse().expect("address")))),
         ("http://10.0.0.1:9000", None),
         (LINK, None),
         ("http://127.0.0.1:9000\n", None),
@@ -176,28 +312,28 @@ fn the_scheme_and_the_depth_follow_the_environment() {
 
 #[test]
 fn the_address_prefers_given_then_file_then_kept_then_default() {
-    let given = "[::1]:9000".parse().expect("given address");
-    let saved = "127.0.0.1:9001".parse().expect("kept address");
-    let default = "127.0.0.1:8367".parse().expect("default address");
-    let file_engine = "127.0.0.1:9002".parse().expect("file address");
+    let given = Origin::Http("[::1]:9000".parse().expect("given address"));
+    let saved = Origin::Http("127.0.0.1:9001".parse().expect("kept address"));
+    let default = Origin::Http("127.0.0.1:8367".parse().expect("default address"));
+    let file_engine = Origin::Http("127.0.0.1:9002".parse().expect("file address"));
     let link = LINK.replacen(":8367", ":9002", 1);
     let off_loopback = link.replacen("127.0.0.1", "10.0.0.1", 1);
     let mut failures = Vec::new();
     for (row, argument, file, kept, expected) in [
-        ("given", Some(given), Some(link.as_str()), Some(saved), given),
-        ("file", None, Some(link.as_str()), Some(saved), file_engine),
-        ("kept", None, None, Some(saved), saved),
+        ("given", Some(given.clone()), Some(link.as_str()), Some(saved.clone()), given),
+        ("file", None, Some(link.as_str()), Some(saved.clone()), file_engine),
+        ("kept", None, None, Some(saved.clone()), saved.clone()),
         ("default", None, None, None, default),
-        ("file address", None, Some("http://127.0.0.1:9002"), Some(saved), saved),
-        ("off loopback", None, Some(off_loopback.as_str()), Some(saved), saved),
-        ("garbage", None, Some("garbage"), Some(saved), saved),
+        ("file address", None, Some("http://127.0.0.1:9002"), Some(saved.clone()), saved.clone()),
+        ("off loopback", None, Some(off_loopback.as_str()), Some(saved.clone()), saved.clone()),
+        ("garbage", None, Some("garbage"), Some(saved.clone()), saved.clone()),
     ] {
         let engine = tui::selected_address(argument, file.map(str::as_bytes), kept);
         if engine != expected {
             failures.push(row);
         }
         let (_, secret) = LINK.split_once("secret=").expect("fixture secret");
-        assert!(!engine.to_string().contains(secret), "only the engine address leaves selection");
+        assert!(!String::from_utf8_lossy(&engine.print()).contains(secret), "only the engine address leaves selection");
     }
     assert!(failures.is_empty(), "address rows: {failures:?}");
 }
@@ -213,7 +349,7 @@ fn on_a_box_requires_a_link_for_the_selected_engine() {
         (Some(b"not a link".as_slice()), false),
         (Some(b"http://127.0.0.1:8367".as_slice()), false),
     ] {
-        assert_eq!(tui::on_box(link, engine), expected);
+        assert_eq!(tui::on_box(link, &Origin::Http(engine)), expected);
     }
 }
 
@@ -317,7 +453,7 @@ fn the_note_is_private_and_only_for_its_address() {
         } else {
             fs::remove_file(&path).expect("remove fixture note");
         }
-        if tui::read_note(scratch.path(), address, owner) != expected {
+        if tui::read_note(scratch.path(), &Origin::Http(address), owner) != expected {
             failures.push(row);
         }
     }
