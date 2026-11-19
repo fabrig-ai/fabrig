@@ -764,7 +764,6 @@ pub fn turn_document() -> Start {
 }
 
 #[path = "../../../../testing/startup_fixture.rs"]
-#[expect(dead_code, reason = "this world supplies provider defaults through named_with")]
 mod typed;
 pub use typed::{Input, Start};
 

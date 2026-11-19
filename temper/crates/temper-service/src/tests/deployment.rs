@@ -21,7 +21,7 @@ fn the_deployment_command_is_published_only_by_a_standalone_start() {
             &seeds,
             fixtures::forge_runtime(),
             None,
-            &crate::stock::Given::Stock,
+            &fixtures::given(&document, &jig_protocol_config::Directories::working()),
             None,
             &document.jig,
             &document.own,

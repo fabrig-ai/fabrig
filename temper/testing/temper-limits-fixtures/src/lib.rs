@@ -386,6 +386,9 @@ pub fn setup_small() -> skein_forge_setup::limits::Limits {
 
 /// Reference worlds' figures, passed to the start instead of document overrides.
 pub fn reference_over(jig: &mut jig_protocol_config::Limits, own: &mut Limits) {
+    let loaded = 18_431_842_u64
+        .checked_add(u64::try_from(size_of::<engine::Record>()).expect("record size fits u64"))
+        .expect("reference turn and loaded row fit u64");
     for (name, value) in [
         (b"tasks.tree_tasks".as_slice(), 1024_u64),
         (b"core.resume_bytes".as_slice(), 18_431_846_u64),
@@ -404,9 +407,9 @@ pub fn reference_over(jig: &mut jig_protocol_config::Limits, own: &mut Limits) {
         (b"forge.client.op_bytes".as_slice(), 63_738_u64),
         (b"forge_component.body_bytes".as_slice(), 127_497_u64),
         (b"root.journal.transcript_bytes".as_slice(), 18_431_846_u64),
-        (b"root.loads.bytes".as_slice(), 18_432_090_u64),
+        (b"root.loads.bytes".as_slice(), loaded),
         (b"root.loads.read_bytes".as_slice(), 36_863_684_u64),
-        (b"root.loads.reply_bytes".as_slice(), 18_432_090_u64),
+        (b"root.loads.reply_bytes".as_slice(), loaded),
         (b"root.loads.transcript_bytes".as_slice(), 18_431_842_u64),
         (b"forge.client.answer_bytes".as_slice(), 255_570_u64),
         (b"root.journal.run_bytes".as_slice(), 65_536),

@@ -55,7 +55,7 @@ fn scaled_ties_and_caps_pass_todays_start_checks() {
             let found = fixtures::named(&input, &config::Directories::working()).unwrap_err();
             let needed = if goals == 80 { 199_008_107_u32 } else { 993_957_867 };
             let expected = format!(
-                "engine.limits.store: the store's map value, {needed} bytes, past its bound of 100881496 bytes\n"
+                "engine.limits.store: the store's map value, {needed} bytes, past its bound of 103387876 bytes\n"
             );
             assert_eq!(startup::lines(&found).as_ref(), expected.as_bytes());
         } else {

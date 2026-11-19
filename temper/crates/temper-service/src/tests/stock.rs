@@ -13,11 +13,18 @@ pub(super) fn limited(document: &(impl fixtures::Input + ?Sized), name: &[u8], v
     configured
 }
 
+fn named(
+    document: &(impl fixtures::Input + ?Sized),
+    directories: &config::Directories,
+) -> Result<crate::startup::Named, crate::startup::Problems> {
+    fixtures::Input::configured(document).named(directories)
+}
+
 #[test]
 fn the_stock_passes_jigs_one_check() {
     let init = generated();
     for (row, document) in [("init", init)] {
-        fixtures::named(&document, &config::Directories::working()).expect("stock passes startup parsing");
+        named(&document, &config::Directories::working()).expect("stock passes startup parsing");
         let engine = engine(&document);
         let core = config::core(&engine, [1; 16], 7);
         let mut defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
@@ -100,7 +107,7 @@ fn each_floor_refuses_one_below_the_stocks_need() {
         crate::startup::checks::stock(&at, &mut problems);
         assert!(problems.is_empty(), "{name:?}");
         assert_eq!(settings::check(&current, &core.settings, &core.connectors, &at.limits.core), Ok(()));
-        if let Err(why) = fixtures::named(&limited(&document, name, needed), &config::Directories::working()) {
+        if let Err(why) = named(&limited(&document, name, needed), &config::Directories::working()) {
             panic!("{name:?} at its floor: {:?}", crate::startup::lines(&why));
         }
         config::overrides::apply(&mut at.limits, name, needed - 1).unwrap();
@@ -128,7 +135,7 @@ fn each_floor_refuses_one_below_the_stocks_need() {
             .as_bytes()
         );
         let refused =
-            fixtures::named(&limited(&document, name.as_bytes(), needed - 1), &config::Directories::working())
+            named(&limited(&document, name.as_bytes(), needed - 1), &config::Directories::working())
                 .unwrap_err();
         assert_eq!(crate::startup::lines(&refused), crate::startup::lines(&problems));
     }
@@ -145,7 +152,7 @@ fn a_worlds_own_short_runs_do_not_need_the_stocks_run_bytes() {
         needed = needed.max(jig_domain_core::charter_owned_bytes(charter).unwrap());
     }
     let document = limited(&document, b"core.run_bytes", needed);
-    let refused = fixtures::named(&document, &config::Directories::working()).unwrap_err();
+    let refused = named(&document, &config::Directories::working()).unwrap_err();
     assert!(core::str::from_utf8(&crate::startup::lines(&refused)).unwrap().contains("the stock's charter"));
     fixtures::named_with(
         &document,
@@ -160,7 +167,7 @@ fn a_stock_policy_past_its_limit_is_refused_while_naming_files() {
     let document = limited(&without_projects(), b"core.policy_bytes", 100);
     // named only parses the document and lists its files. No file read or
     // listener opening can occur before this refusal.
-    let found = fixtures::named(&document, &config::Directories::working()).unwrap_err();
+    let found = named(&document, &config::Directories::working()).unwrap_err();
     // The ceiling and standing roles include the prepare job.
     assert_eq!(
         crate::startup::lines(&found).as_ref(),
@@ -176,7 +183,7 @@ fn each_member_is_refused_at_startup_naming_temper_ctl_settings() {
         let mut engine = format!("{{\"{member}\":null,").into_bytes();
         engine.extend_from_slice(&original[1..]);
         let document = fixtures::with(&init, b"engine", &engine);
-        let problems = fixtures::named(&document, &config::Directories::working()).unwrap_err();
+        let problems = named(&document, &config::Directories::working()).unwrap_err();
         assert_eq!(problems.problems.len(), 1);
         assert_eq!(
             crate::startup::lines(&problems).as_ref(),
@@ -192,7 +199,7 @@ fn an_inline_seed_policy_is_refused_naming_its_path() {
     let original = fixtures::value(&init, b"engine");
     let engine = [b"{\"projects\":".as_slice(), fixtures::INLINE_PROJECTS, b",", &original[1..]].concat();
     let document = fixtures::with(&init, b"engine", &engine);
-    let problems = fixtures::named(&document, &config::Directories::working()).unwrap_err();
+    let problems = named(&document, &config::Directories::working()).unwrap_err();
     assert_eq!(problems.problems.len(), 1);
     assert_eq!(
         crate::startup::lines(&problems).as_ref(),
@@ -308,7 +315,7 @@ fn a_documents_models_are_refused_at_their_paths() {
         let mut document = init.clone();
         document["engine"]["llm"] = value;
         let problems =
-            fixtures::named(&serde_json::to_vec(&document).unwrap(), &config::Directories::working()).unwrap_err();
+            named(&serde_json::to_vec(&document).unwrap(), &config::Directories::working()).unwrap_err();
         assert_eq!(problems.problems.len(), 1);
         assert_eq!(
             crate::startup::lines(&problems).as_ref(),
@@ -381,7 +388,7 @@ mod brief;
 #[test]
 fn a_fresh_box_admits_the_stock_at_inits_catalogue() {
     let document = generated();
-    fixtures::named(&document, &jig_protocol_config::Directories::working()).expect("fresh box admits stock");
+    named(&document, &jig_protocol_config::Directories::working()).expect("fresh box admits stock");
     let engine = engine(&document);
     let own = crate::limits::stock();
     assert_eq!(own.root.journal.run_bytes, 65_536);

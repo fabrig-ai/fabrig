@@ -1194,7 +1194,7 @@ fn provider_files_proposals_and_reads_keep_the_whole_value_and_number() {
     let read = joined(&[br#"{"setting":"#, SETTING, b"}"]);
     assert_eq!(file::read_setting(&read, &limits).unwrap(), item.setting);
     let page = crate::fields::page(&limits);
-    assert!(skein_lib::bytes::find(&page, b"taken at the engine's next start").is_some());
+    assert!(skein_lib::bytes::find(&page, b"LLM provider/endpoints; next engine start").is_some());
 }
 
 #[test]

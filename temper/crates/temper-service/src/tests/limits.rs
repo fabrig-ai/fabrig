@@ -183,9 +183,9 @@ fn test_id_bytes_past_the_signature_bound_refuses_both_startup_routes() {
         let member = format!(r#"{{"profile":"standard","overrides":{{"forge.tiers.test_id_bytes":{bytes}}}}}"#);
         let document = fixtures::with(&fixtures::document(), b"application.limits", member.as_bytes());
         let directories = jig_protocol_config::Directories::working();
-        let starting = crate::startup::named(&document, &directories).expect_err("startup refuses past the signature");
+        let starting = fixtures::named(&document, &directories).expect_err("startup refuses past the signature");
         let reading =
-            crate::startup::store_limits(&document, &directories, Some(&fixtures::startup_agent().declaration()))
+            fixtures::document_store_limits(&document, &directories, Some(&fixtures::startup_agent().declaration()))
                 .unwrap_err();
         for problems in [starting, reading] {
             assert_eq!(
@@ -233,11 +233,11 @@ fn tier_limits_at_the_signature_bounds_pass_both_startup_routes() {
 
 #[test]
 fn the_stock_without_overrides_passes_both_startup_routes() {
-    let document =
-        fixtures::with(&fixtures::document(), b"application.limits", br#"{"profile":"standard","overrides":{}}"#);
+    let document = fixtures::document();
+    let document = fixtures::Start::stock(&document);
     let directories = jig_protocol_config::Directories::working();
-    crate::startup::named(&document, &directories).expect("the stock passes startup");
-    let reading = crate::startup::store_limits(&document, &directories, Some(&fixtures::startup_agent().declaration()))
+    fixtures::named(&document, &directories).expect("the stock passes startup");
+    let reading = fixtures::document_store_limits(&document, &directories, Some(&fixtures::startup_agent().declaration()))
         .expect("the stock passes its reader");
     assert_eq!(reading.forge.changes, 768);
     assert_eq!(reading.forge.tiers.test_id_bytes, 512);
@@ -737,7 +737,7 @@ fn secrets_schema_fits_the_small_page_ceiling() {
     const KEY_BYTES: u64 = 10;
     let (_, _, profile) = fixtures::store_limits();
     assert_eq!(v1::Stored::encoded_bound(&v1::CEILINGS), Some(APPLICATION_BYTES));
-    assert_eq!(profile.store.page.bytes, 39_714_179);
+    assert_eq!(profile.store.page.bytes, 39_828_995);
     assert!(APPLICATION_BYTES + KEY_BYTES < u64::from(profile.store.page.bytes));
 }
 
@@ -1100,7 +1100,7 @@ fn pending_landings_past_the_store_ceiling_refuse_both_startup_routes() {
     let directories = jig_protocol_config::Directories::working();
     for problems in [
         fixtures::named(&document, &directories).unwrap_err(),
-        crate::startup::store_limits(&document, &directories, Some(&fixtures::startup_agent().declaration()))
+        fixtures::document_store_limits(&document, &directories, Some(&fixtures::startup_agent().declaration()))
             .unwrap_err(),
     ] {
         assert_eq!(crate::startup::lines(&problems).as_ref(), b"application.limits.overrides.forge.landings_pending: 241, past its bound of 240, the most the store's landing log holds beside forge.landings_kept 16 (within 256)\n");
@@ -1117,7 +1117,7 @@ fn pending_landings_and_members_share_the_store_comment_ceiling() {
     let directories = jig_protocol_config::Directories::working();
     for problems in [
         fixtures::named(&document, &directories).unwrap_err(),
-        crate::startup::store_limits(&document, &directories, Some(&fixtures::startup_agent().declaration()))
+        fixtures::document_store_limits(&document, &directories, Some(&fixtures::startup_agent().declaration()))
             .unwrap_err(),
     ] {
         assert_eq!(crate::startup::lines(&problems).as_ref(), b"application.limits.overrides.forge.landings_pending: 112, past its bound of 100, the most the store's tier comments hold ((forge.landings_kept + forge.landings_pending) * forge.landing_members + forge.changes within 8192)\n");
