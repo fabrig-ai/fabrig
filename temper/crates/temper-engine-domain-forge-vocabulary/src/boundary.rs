@@ -1771,6 +1771,7 @@ pub enum Stored {
         what: crate::PersonFact,
     },
     ProjectFacts(crate::ProjectFacts),
+    PersonBrief(crate::PersonBrief),
     Looked(crate::Looked),
     Away(crate::Away),
     Decided(crate::Decided),
@@ -1847,6 +1848,7 @@ pub enum Key {
     ChangeCold(u64),
     ChangeHot(u64),
     Milestone(u64),
+    PersonBrief { party: u64, project: u32 },
     HistoryProject { project: u32 },
     HistoryEvent { project: u32, number: u64 },
     HistoryChange { project: u32, change: u64, number: u64 },
@@ -2043,10 +2045,12 @@ pub enum Event {
     },
     StatusTask {
         project: u32,
+        party: u64,
         task: u64,
     },
     StatusRefused {
         project: u32,
+        party: u64,
     },
     StatusHeard {
         task: u64,
@@ -2713,6 +2717,7 @@ pub enum Request {
     /// Make Home's brief task (temper/docs/design/domain/forge/attention.md, 3).
     StatusRun {
         project: u32,
+        party: u64,
         since: skein_lib::Wall,
         words: Box<[u8]>,
         findings: Box<[u8]>,

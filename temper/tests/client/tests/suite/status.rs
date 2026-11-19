@@ -270,7 +270,12 @@ impl Story {
             .rows
             .iter()
             .filter_map(|(key, record)| {
-                if matches!(key, StoreKey::Forge(forge::Key::ProjectFacts { .. } | forge::Key::Looked { .. })) {
+                if matches!(
+                    key,
+                    StoreKey::Forge(
+                        forge::Key::ProjectFacts { .. } | forge::Key::Looked { .. } | forge::Key::PersonBrief { .. }
+                    )
+                ) {
                     Some((key.clone(), record.clone()))
                 } else {
                     None
@@ -447,7 +452,7 @@ fn a_plans_project_has_its_brief_on_a_return_past_the_sitting() {
         .assignments
         .iter()
         .find(|run| run.charter == 9)
-        .expect("the stock period funds the status worker beyond the owner's open pool")
+        .expect("the owner's pool funds the status worker")
         .clone();
     assert_eq!(story.front.hosted_attempt(run.task), Some(run.attempt), "the worker received its assignment");
     assert!(run.grants.iter().any(|grant| grant.account == source), "the status worker borrows the person's plan");
@@ -533,8 +538,6 @@ impl Story {
                             project,
                             landed: u64::from(project),
                             last_landed: Wall::EPOCH,
-                            brief: None,
-                            running: None,
                         })),
                     },
                     Record::Forge {
@@ -811,7 +814,7 @@ fn a_restart_keeps_the_rows() {
     let document = story.shown();
     let looked = story.looked(fixtures::PARTY).expect("look before restart");
     let rows = story.rows();
-    assert_eq!(rows.len(), 2, "one ProjectFacts and one Looked row");
+    assert_eq!(rows.len(), 3, "one ProjectFacts, one Looked and one PersonBrief row");
     story.front.restart_dismissal_people(OFFLINE);
     assert_eq!(story.rows(), rows, "the committed rows survive the engine restart");
     story.front.reload(CLIENT, story.env.now);
@@ -845,7 +848,7 @@ fn a_restart_keeps_the_rows() {
 }
 
 #[test]
-fn a_refused_status_run_leaves_home_saying_when_the_last_change_landed() {
+fn an_unpaid_status_run_leaves_home_saying_when_the_last_change_landed_and_why_no_brief() {
     use temper_engine_domain_world::{store::Store, walking};
     let mut story = Story::new();
     let mut limits = story.front.engine.env.limits;
@@ -856,6 +859,8 @@ fn a_refused_status_run_leaves_home_saying_when_the_last_change_landed() {
         let policy = &mut config.core.seed_projects[0].policy;
         policy.policy.period_spend = policy.policy.roles[0].period_spend;
         period = policy.policy.period_spend;
+        // No room in the looking person's pool, though the period has room.
+        policy.policy.roles[0].period_spend = 0;
         config.core.defaults.rules.period_spend = period;
         policy.permissions = Box::new([]);
         policy.templates = Box::new([]);
@@ -872,8 +877,6 @@ fn a_refused_status_run_leaves_home_saying_when_the_last_change_landed() {
                 project: PROJECT,
                 landed: 1,
                 last_landed: Wall::EPOCH,
-                brief: None,
-                running: None,
             })),
         }]),
         Box::new([]),
@@ -897,7 +900,7 @@ fn a_refused_status_run_leaves_home_saying_when_the_last_change_landed() {
             .iter()
             .flatten()
             .any(|write| matches!(write, temper_engine_domain::Write::Save(Record::Forge { row })
-            if matches!(row.as_ref(), forge::Stored::ProjectFacts(facts) if facts.running.is_none()))),
+            if matches!(row.as_ref(), forge::Stored::PersonBrief(row) if row.party == fixtures::PARTY && row.running.is_none() && row.unpaid.is_some()))),
         "the new sitting attempted a status run and saved its refusal"
     );
     assert!(story.shown().previous().is_some(), "return advances the sitting");
@@ -908,11 +911,12 @@ fn a_refused_status_run_leaves_home_saying_when_the_last_change_landed() {
         .engine
         .store
         .rows
-        .get(&StoreKey::Forge(forge::Key::ProjectFacts { project: PROJECT }))
-        .expect("facts");
+        .get(&StoreKey::Forge(forge::Key::PersonBrief { party: fixtures::PARTY, project: PROJECT }))
+        .expect("person brief");
     let Record::Forge { row } = record else { panic!("forge record") };
-    let forge::Stored::ProjectFacts(facts) = row.as_ref() else { panic!("facts record") };
+    let forge::Stored::PersonBrief(facts) = row.as_ref() else { panic!("person brief record") };
     assert_eq!(facts.running, None, "the unfunded run was refused");
+    assert!(facts.unpaid.is_some(), "no room in the reader's pool makes the brief unpaid");
     let (_, mut view) = Temper::new(fixtures::SEED);
     let temper_client_world::app::View::Person(person) = &mut view else { panic!("person view") };
     temper_client_view::build(person, story.probes[CLIENT.0].root.person(), story.env.wall, &mut Queue::uncapped());
@@ -922,7 +926,8 @@ fn a_refused_status_run_leaves_home_saying_when_the_last_change_landed() {
     let text: Vec<u8> =
         tree.nodes().iter().flat_map(|node| node.text.iter()).flat_map(|run| run.text.iter().copied()).collect();
     let text = String::from_utf8(text).expect("Home words");
-    for forbidden in ["Written by the status agent", "brief", "refused", "failed", "unfunded"] {
+    assert!(text.contains("No brief: no account pays for your work here."), "Home explains the missing brief: {text}");
+    for forbidden in ["Written by the status agent", "refused", "failed", "unfunded"] {
         assert!(!text.contains(forbidden), "Home names no status-run failure: {text}");
     }
 }

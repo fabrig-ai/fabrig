@@ -1,10 +1,12 @@
-//! Pure people/accounts joins; no run or core-world routing is needed.
+//! People/accounts joins and a pool seed's financial payer (accounts.md, 4.2).
 #![expect(
     clippy::disallowed_types,
     clippy::disallowed_macros,
     clippy::disallowed_methods,
     reason = "unit tests build fixtures and inspect selected child events"
 )]
+mod pool_seed;
+
 use crate::tests::{
     documents::accounts_document::{account, fixture, source},
     *,
@@ -28,7 +30,7 @@ fn prepared(plan: bool, holder: accounts::Holder, uses: Option<Vec<Use>>) -> (Co
 fn serves(core: &Core, payer: Use) -> bool {
     crate::runs::coverage::serves(&core.people, core.accounts.account(ACCOUNT).unwrap(), payer, None)
 }
-fn roster(core: &mut Core, env: &Env<Limits>, members: &[u64]) {
+fn roster(core: &mut Core, env: &Env<Limits>, project: u32, members: &[u64]) {
     let mut limits = env.limits.people;
     // Holder, another person and one service; the shared roster contains all three.
     limits.people = 3;
@@ -56,7 +58,7 @@ fn roster(core: &mut Core, env: &Env<Limits>, members: &[u64]) {
     people::step(
         &mut core.people,
         &people_env,
-        people::Event::Restore { record: people::Stored::Roles { project: PROJECT, holdings } },
+        people::Event::Restore { record: people::Stored::Roles { project, holdings } },
         &mut out,
     );
     finish_people(&mut core.people, &people_env);
@@ -110,6 +112,34 @@ fn a_key_naming_a_project_pays_for_a_persons_work_in_it_and_nowhere_else() {
 }
 
 #[test]
+fn a_pool_seeds_work_is_its_persons_and_their_plan_pays_in_a_shared_project() {
+    use pool_seed::{OTHER_ACCOUNT, POOL, POOL_PROJECT, fixture, repair};
+    let (mut core, env) = fixture(6000, 7000, 2000);
+    let seed = core.pool_seed(POOL_PROJECT, ALICE).expect("a member's pool funds automatic work");
+    let number = seed.number();
+    let mut expected = task_authority(&core.authority.policy(POOL_PROJECT).unwrap().ceiling);
+    expected.budget.spend = 2000;
+    assert_eq!(seed.authority, expected, "only the ceiling's spend is narrowed");
+    drop(step(&mut core, &env, repair(seed)));
+    let row = core.tasks.task(number).expect("procedure made from the pool seed");
+    assert_eq!(row.funder, POOL);
+    assert_eq!(row.requester, tasks::Party::Deployment { project: POOL_PROJECT });
+    assert_eq!(row.flags, tasks::Flags::PLAIN);
+    assert_eq!(row.tracked, None);
+    assert_eq!(core.tasks.payer(number), Some(tasks::Payer::Party(ALICE)));
+    let coverage = core.account_coverage(tasks::Payer::Party(ALICE), Some(POOL_PROJECT));
+    assert_eq!(
+        coverage.as_slice(),
+        &[
+            accounts::Coverage { account: ACCOUNT, serves: true },
+            accounts::Coverage { account: OTHER_ACCOUNT, serves: false },
+        ]
+    );
+    assert!(core.accounts.account(ACCOUNT).unwrap().plan());
+    assert!(core.accounts.account(OTHER_ACCOUNT).unwrap().plan());
+}
+
+#[test]
 fn a_plan_naming_a_project_still_does_not_cover_another_persons_work_in_it() {
     let (mut core, _) = prepared(true, accounts::Holder::Party(ALICE), Some(vec![Use::Project(PROJECT)]));
     with_model(&mut core);
@@ -124,9 +154,9 @@ fn a_plan_naming_a_project_still_does_not_cover_another_persons_work_in_it() {
 fn plan_coverage_rechecks_current_project_membership() {
     use accounts::{Holder, Use};
     let (mut core, env) = prepared(true, Holder::Party(ALICE), Some(vec![Use::Project(PROJECT), Use::Party(SERVICE)]));
-    roster(&mut core, &env, &[ALICE, SERVICE]);
+    roster(&mut core, &env, PROJECT, &[ALICE, SERVICE]);
     assert!(serves(&core, Use::Project(PROJECT)) && serves(&core, Use::Party(SERVICE)));
-    roster(&mut core, &env, &[ALICE, SERVICE, BOB]);
+    roster(&mut core, &env, PROJECT, &[ALICE, SERVICE, BOB]);
     assert!(!serves(&core, Use::Project(PROJECT)));
     assert!(serves(&core, Use::Party(SERVICE)));
 }

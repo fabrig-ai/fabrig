@@ -97,8 +97,8 @@ pub use making::{
 };
 pub use public::{PublicAsk, PublicMade, PublicTask};
 pub use status::{
-    BRIEF_LEDE_BYTES, BRIEF_SENTENCE_BYTES, Brief, Looked, LookedAnswer, ProjectFacts, SITTING, StatusRunning,
-    StatusView, status_paragraphs, status_subject,
+    BRIEF_LEDE_BYTES, BRIEF_SENTENCE_BYTES, Brief, Looked, LookedAnswer, PersonBrief, ProjectFacts, SITTING,
+    StatusRunning, StatusView, status_paragraphs, status_subject,
 };
 pub use workflows::{WORKFLOW_BYTES, WORKFLOWS};
 
@@ -332,6 +332,7 @@ pub fn stored_key(row: &Stored) -> Key {
         Stored::LandingLog(row) => Key::LandingLog { repository: row.repository },
         Stored::Milestone(row) => Key::Milestone(row.task),
         Stored::ProjectFacts(row) => Key::ProjectFacts { project: row.project },
+        Stored::PersonBrief(row) => Key::PersonBrief { party: row.party, project: row.project },
         Stored::Device(row) => Key::Device { party: row.party, number: row.number },
         Stored::LandedDraft(row) => Key::LandedDraft { repository: row.repository, path: row.path.clone() },
         Stored::Away(row) => Key::Away { party: row.party, project: row.project },
@@ -651,7 +652,7 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
             }
             Some(bytes)
         }
-        Stored::ProjectFacts(row) => Some(match &row.brief {
+        Stored::PersonBrief(row) => Some(match &row.brief {
             Some(brief) => {
                 skein_lib::len_u64(brief.sentence.len()).checked_add(skein_lib::len_u64(brief.lede.len()))?
             }
@@ -795,6 +796,7 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
         | Stored::RedNumber { .. }
         | Stored::RefusedSetting(_)
         | Stored::Away(_)
+        | Stored::ProjectFacts(_)
         | Stored::Looked(_)
         | Stored::Dismissed { .. }
         | Stored::ForgeNumber { .. }

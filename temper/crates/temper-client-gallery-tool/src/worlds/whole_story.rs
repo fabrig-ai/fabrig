@@ -139,6 +139,7 @@ fn status(name: &str, project: u32) -> w::ProjectStatus {
             last_landed: (landed > 0).then(|| since(name, landed_age).as_nanos()),
             queued: u32::from(project == 4) * 3,
             branch: b"main".as_slice().into(),
+            unpaid: false,
             red: across(name) && project == 4,
             brief: (!lede.is_empty()).then(|| {
                 w::StatusBrief::new(

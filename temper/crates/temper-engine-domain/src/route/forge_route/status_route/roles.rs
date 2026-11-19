@@ -10,6 +10,7 @@ const NOW_BYTES: usize = 1024;
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub(crate) struct Reading {
     project: u32,
+    party: u64,
     words: List<u8>,
     roles: List<u64>,
     at: u32,
@@ -17,7 +18,7 @@ pub(crate) struct Reading {
     heading: bool,
 }
 
-pub(super) fn start(domain: &mut Domain, env: &Env<Limits>, project: u32, words: List<u8>) {
+pub(super) fn start(domain: &mut Domain, env: &Env<Limits>, project: u32, party: u64, words: List<u8>) {
     let mut candidates = List::uncapped();
     for candidate in domain.core.tasks.view_tasks() {
         let Some(row) = domain.core.tasks.task(candidate.number) else { continue };
@@ -32,24 +33,24 @@ pub(super) fn start(domain: &mut Domain, env: &Env<Limits>, project: u32, words:
         roles.push(number).expect("at most eight roles");
     }
     if roles.is_empty() {
-        super::start_task(domain, env, project, words.as_slice());
+        super::start_task(domain, env, project, party, words.as_slice());
         return;
     }
     let Some(serial) = domain.next_status_owner.checked_add(1) else {
-        super::start_task(domain, env, project, words.as_slice());
+        super::start_task(domain, env, project, party, words.as_slice());
         return;
     };
     domain.next_status_owner = serial;
     // Slot u32::MAX is outside any slab: a root owner cannot take a core note flight.
     let owner = Token::new(u64::MAX.saturating_sub(u64::from(serial)));
-    let read = Reading { project, words, roles, at: 0, name: None, heading: false };
+    let read = Reading { project, party, words, roles, at: 0, name: None, heading: false };
     next(domain, env, owner, read);
 }
 
 fn next(domain: &mut Domain, env: &Env<Limits>, owner: Token, mut read: Reading) {
     read.name = None;
     let Some(role) = read.roles.get(read.at).copied() else {
-        super::start_task(domain, env, read.project, read.words.as_slice());
+        super::start_task(domain, env, read.project, read.party, read.words.as_slice());
         return;
     };
     let mut scopes = List::with_capacity(1);

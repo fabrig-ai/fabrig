@@ -175,12 +175,13 @@ pub(crate) fn row(kind: RecordKind, number: u32) -> Stored {
             effects_settled: true,
             releasing: true,
         }),
+        RecordKind::PersonBrief => {
+            Stored::PersonBrief(PersonBrief { party: n, project: 0, brief: None, running: None, unpaid: None })
+        }
         RecordKind::ProjectFacts => Stored::ProjectFacts(ProjectFacts {
             project: u32::try_from(n).unwrap(),
             landed: 0,
             last_landed: Wall::EPOCH,
-            brief: None,
-            running: None,
         }),
         RecordKind::Looked => {
             Stored::Looked(Looked { party: n, project: 0, previous: None, latest: Wall::EPOCH, seen: 0, next_seen: 0 })

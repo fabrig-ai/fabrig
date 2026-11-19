@@ -33,14 +33,15 @@ impl PersonSeed {
     }
 }
 
-/// Core-authorized task identity and funding for one connector repair.
+/// Core-authorized connector procedure, funded by its project or a person's pool
+/// (jig/docs/design/domain/authority.md, 6 and 6.2).
 #[derive(Hash, Debug)]
 pub struct RepairSeed {
     pub number: u64,
     pub project: u32,
-    pub period: u64,
-    pub period_budget: u64,
-    pub open_period: bool,
+    pub funder: tasks::Funder,
+    /// Period and pool opens, in that order, in the decision that makes the task.
+    pub opens: (Option<tasks::Event>, Option<tasks::Event>),
     pub authority: tasks::Authority,
     pub budget: u64,
 }
