@@ -189,7 +189,10 @@ impl Clone for Defaults {
             templates: self.templates.clone(),
             policies,
             rules: self.rules.clone(),
+            limits: self.limits.clone(),
             models: self.models.clone(),
+            workers: self.workers.clone(),
+            providers: self.providers.clone(),
         }
     }
 }

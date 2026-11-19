@@ -1,7 +1,6 @@
 //! Identical shallow inputs need no plan, not even at a stored current id.
 use super::*;
 use skein_codec::{layout::Plan, schema, value::Value};
-use skein_lib::Buffer;
 
 const STABLE: KeptFamily = KeptFamily {
     name: "fixture-stable",
@@ -54,8 +53,7 @@ fn every_current_shallow_type_opens_without_a_plan_and_reads_its_rows() {
     let mut decoder = super::super::rehearsal::Decoder::load(&mut store).expect("stored registry");
     for (family, key, bytes) in rows {
         let mut value = Box::from(*bytes);
-        let mut out = Buffer::with_capacity(1024);
-        assert_eq!(store.registry.read(key, &mut value, &mut out, &mut store.layout_work.workspace), *bytes);
+        assert_eq!(store.registry.read(key, &mut value, &mut store.layout_work), *bytes);
         decoder.decode(family, 0, &mut Value::with_room(32), Box::from(*bytes)).expect("each stored row still decodes");
         decoder.family();
     }
@@ -78,13 +76,9 @@ fn changing_one_types_layout_derives_only_its_old_plan() {
     assert_eq!(counting::get().plans, 1, "only Growing's held old layout needs a plan");
     store.registry.activate();
     let mut value = [0, 2, 0, 42];
-    let mut out = Buffer::with_capacity(32);
-    assert_eq!(
-        store.registry.read(b"\x02a/0", &mut value, &mut out, &mut store.layout_work.workspace),
-        &[0, 2, 0, 42, 7]
-    );
+    assert_eq!(store.registry.read(b"\x02a/0", &mut value, &mut store.layout_work), &[0, 2, 0, 42, 7]);
     let mut stable = [0, 1, 1];
-    assert_eq!(store.registry.read(b"\x02c/0", &mut stable, &mut out, &mut store.layout_work.workspace), &[0, 1, 1]);
+    assert_eq!(store.registry.read(b"\x02c/0", &mut stable, &mut store.layout_work), &[0, 1, 1]);
 }
 
 #[test]

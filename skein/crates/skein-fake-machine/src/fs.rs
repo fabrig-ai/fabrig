@@ -346,6 +346,7 @@ impl Machine {
             top: self.top,
             owner: self.owner,
             roots: self.roots,
+            landlock: self.landlock,
         }
     }
 
