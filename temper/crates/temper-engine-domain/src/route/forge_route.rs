@@ -1802,7 +1802,7 @@ pub(crate) fn workspace_repository(
         start,
         landing: if push.is_some() { item.landing } else { None },
         delivered: item.delivered,
-        pin: None,
+        pin: if push.is_some() { item.pin } else { None },
         push,
         // The repository's git identity, from configuration (D10).
         identity: item.credential?,
