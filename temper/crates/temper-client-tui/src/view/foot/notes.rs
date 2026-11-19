@@ -140,10 +140,11 @@ pub(crate) fn draw_link_note(b: &mut Builder, notes: &Notes, words: &Words) {
         let authority = link.strip_prefix(b"http://").unwrap_or(link);
         let end = skein_lib::bytes::find(authority, b"/").unwrap_or(authority.len());
         let authority = authority.get(..end).expect("slash is in the link");
+        let origin = crate::Origin::parse(&join(&[b"http://", authority])).expect("front link has a loopback origin");
         text(
             b,
             Role::Paragraph,
-            &words.say(Word::ApprovalTunnel, &[Hole::Name(super::super::port(authority).into())]),
+            &words.say(Word::ApprovalTunnel, &[Hole::Name(super::super::port(&origin))]),
             Some(look::HINT),
         );
     }

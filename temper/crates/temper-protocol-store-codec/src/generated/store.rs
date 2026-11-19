@@ -2801,6 +2801,8 @@ pub enum Path {
     LandingSearchedChanges,
     /// Bytes after `LandingSearched`.
     LandingSearchedTail,
+    /// The `merges` field of `LandingRound`.
+    LandingRoundMerges,
     /// The `branch` field of `LandingRound`.
     LandingRoundBranch,
     /// The `pull` field of `LandingRound`.
@@ -5745,6 +5747,7 @@ impl Path {
             Self::LandingSearchedGreen => "LandingSearched.green",
             Self::LandingSearchedChanges => "LandingSearched.changes",
             Self::LandingSearchedTail => "LandingSearched (tail)",
+            Self::LandingRoundMerges => "LandingRound.merges",
             Self::LandingRoundBranch => "LandingRound.branch",
             Self::LandingRoundPull => "LandingRound.pull",
             Self::LandingRoundUpstream => "LandingRound.upstream",
@@ -41883,6 +41886,8 @@ impl Limits {
 /// Movable fields of `LandingRound`.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct LandingRoundParts {
+    /// The `merges` field.
+    pub merges: u32,
     /// The `branch` field.
     pub branch: Box<[u8]>,
     /// The `pull` field.
@@ -41910,6 +41915,7 @@ pub struct LandingRoundParts {
 /// `LandingRound` in this codec family.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct LandingRound {
+    merges: u32,
     branch: Box<[u8]>,
     pull: Option<u64>,
     upstream: Option<[u8; 32]>,
@@ -41926,11 +41932,15 @@ pub struct LandingRound {
 impl LandingRound {
     /// Makes a value within the given limits.
     pub fn new(limits: &Limits, parts: LandingRoundParts) -> Result<Self, Problem> {
-        let LandingRoundParts { branch, pull, upstream, combined, recorded, told, ending, failure, judging, changed, search } = parts;
-        let value = Self { branch, pull, upstream, combined, recorded, told, ending, failure, judging, changed, search };
+        let LandingRoundParts { merges, branch, pull, upstream, combined, recorded, told, ending, failure, judging, changed, search } = parts;
+        let value = Self { merges, branch, pull, upstream, combined, recorded, told, ending, failure, judging, changed, search };
         value.check(limits)?;
         Ok(value)
     }
+
+    /// Reads the `merges` field.
+    #[must_use]
+    pub fn merges(&self) -> u32 { self.merges }
 
     /// Reads the `branch` field.
     #[must_use]
@@ -41978,7 +41988,7 @@ impl LandingRound {
 
     /// Moves the fields out without copying.
     #[must_use]
-    pub fn into_parts(self) -> LandingRoundParts { LandingRoundParts { branch: self.branch, pull: self.pull, upstream: self.upstream, combined: self.combined, recorded: self.recorded, told: self.told, ending: self.ending, failure: self.failure, judging: self.judging, changed: self.changed, search: self.search } }
+    pub fn into_parts(self) -> LandingRoundParts { LandingRoundParts { merges: self.merges, branch: self.branch, pull: self.pull, upstream: self.upstream, combined: self.combined, recorded: self.recorded, told: self.told, ending: self.ending, failure: self.failure, judging: self.judging, changed: self.changed, search: self.search } }
 
     fn check(&self, limits: &Limits) -> Result<(), Problem> {
         if self.branch.len() > usize::try_from(limits.landing_round_branch.min(CEILINGS.landing_round_branch)).expect("u32 fits usize") { return Err(Problem { path: Path::LandingRoundBranch, reason: skein_codec::Reason::Bound }); }
@@ -41995,6 +42005,7 @@ impl LandingRound {
     #[must_use]
     pub fn measure(&self) -> u32 {
         let mut size = 0_u32;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
         let field_branch = &self.branch;
         size = size.checked_add(4).expect("schema ceilings fit u32");
         size = size.checked_add(u32::try_from(field_branch.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
@@ -42039,6 +42050,8 @@ impl LandingRound {
 
     /// Writes into a writer with room for the measured bytes.
     pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_merges = &self.merges;
+        writer.put(&field_merges.to_be_bytes())?;
         let field_branch = &self.branch;
         writer.put(&u32::try_from(field_branch.len()).expect("field ceiling fits u32").to_be_bytes())?;
         writer.put(field_branch.as_ref())?;
@@ -42110,6 +42123,7 @@ impl LandingRound {
     }
 
     fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_merges = reader.u32().ok_or(Problem { path: Path::LandingRoundMerges, reason: skein_codec::Reason::Short })?;
         let decoded_branch = { let length = match skein_codec::read_len(reader, limits.landing_round_branch.min(CEILINGS.landing_round_branch)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::LandingRoundBranch, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::LandingRoundBranch, reason: skein_codec::Reason::Short })?) };
         let decoded_pull = match reader.u8().ok_or(Problem { path: Path::LandingRoundPull, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u64().ok_or(Problem { path: Path::LandingRoundPull, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::LandingRoundPull, reason: skein_codec::Reason::Tag }) };
         let decoded_upstream = match reader.u8().ok_or(Problem { path: Path::LandingRoundUpstream, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some({ let bytes = reader.bytes(32).ok_or(Problem { path: Path::LandingRoundUpstream, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") }), _ => return Err(Problem { path: Path::LandingRoundUpstream, reason: skein_codec::Reason::Tag }) };
@@ -42121,7 +42135,7 @@ impl LandingRound {
         let decoded_judging = match reader.u8().ok_or(Problem { path: Path::LandingRoundJudging, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::LandingRoundJudging, reason: skein_codec::Reason::Bool }) };
         let decoded_changed = match reader.u8().ok_or(Problem { path: Path::LandingRoundChanged, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u16().ok_or(Problem { path: Path::LandingRoundChanged, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::LandingRoundChanged, reason: skein_codec::Reason::Tag }) };
         let decoded_search = match reader.u8().ok_or(Problem { path: Path::LandingRoundSearch, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(LandingSearch::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::LandingRoundSearch, reason: skein_codec::Reason::Tag }) };
-        Ok(Self { branch: decoded_branch, pull: decoded_pull, upstream: decoded_upstream, combined: decoded_combined, recorded: decoded_recorded, told: decoded_told, ending: decoded_ending, failure: decoded_failure, judging: decoded_judging, changed: decoded_changed, search: decoded_search })
+        Ok(Self { merges: decoded_merges, branch: decoded_branch, pull: decoded_pull, upstream: decoded_upstream, combined: decoded_combined, recorded: decoded_recorded, told: decoded_told, ending: decoded_ending, failure: decoded_failure, judging: decoded_judging, changed: decoded_changed, search: decoded_search })
     }
 }
 
@@ -42135,12 +42149,12 @@ impl LandingRound {
 
     pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut size = 0_u64;
-        size = size.checked_add(4_u64.checked_add(u64::from(limits.landing_round_branch))?)?.checked_add(1_u64.checked_add(8_u64)?)?;
-        size = size.checked_add(1_u64.checked_add(u64::from(32_u32))?)?.checked_add(1_u64.checked_add(LandingCombine::encoded_bound_within(limits)?)?)?;
-        size = size.checked_add(1_u64)?.checked_add(1_u64)?;
-        size = size.checked_add(1_u64.checked_add(LandingRoundEnd::encoded_bound_within(limits)?)?)?.checked_add(4_u64.checked_add(u64::from(limits.landing_round_failure))?)?;
-        size = size.checked_add(1_u64)?.checked_add(1_u64.checked_add(2_u64)?)?;
-        size = size.checked_add(1_u64.checked_add(LandingSearch::encoded_bound_within(limits)?)?)?;
+        size = size.checked_add(4_u64)?.checked_add(4_u64.checked_add(u64::from(limits.landing_round_branch))?)?;
+        size = size.checked_add(1_u64.checked_add(8_u64)?)?.checked_add(1_u64.checked_add(u64::from(32_u32))?)?;
+        size = size.checked_add(1_u64.checked_add(LandingCombine::encoded_bound_within(limits)?)?)?.checked_add(1_u64)?;
+        size = size.checked_add(1_u64)?.checked_add(1_u64.checked_add(LandingRoundEnd::encoded_bound_within(limits)?)?)?;
+        size = size.checked_add(4_u64.checked_add(u64::from(limits.landing_round_failure))?)?.checked_add(1_u64)?;
+        size = size.checked_add(1_u64.checked_add(2_u64)?)?.checked_add(1_u64.checked_add(LandingSearch::encoded_bound_within(limits)?)?)?;
         size.checked_add(0)
     }
 
@@ -42153,12 +42167,12 @@ impl LandingRound {
 
     pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut heap = 0_u64;
-        heap = heap.checked_add(u64::from(limits.landing_round_branch))?.checked_add(0_u64)?;
-        heap = heap.checked_add(0_u64)?.checked_add(LandingCombine::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(0_u64)?.checked_add(u64::from(limits.landing_round_branch))?;
         heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
-        heap = heap.checked_add(LandingRoundEnd::decoded_bound_within(limits)?)?.checked_add(u64::from(limits.landing_round_failure))?;
-        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
-        heap = heap.checked_add(LandingSearch::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(LandingCombine::decoded_bound_within(limits)?)?.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?.checked_add(LandingRoundEnd::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(u64::from(limits.landing_round_failure))?.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?.checked_add(LandingSearch::decoded_bound_within(limits)?)?;
         heap.checked_add(0)
     }
 }

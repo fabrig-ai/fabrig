@@ -310,7 +310,9 @@ The session takes them from its start, whatever line runs or none:
 - **After its document and its bundle's files:** the load's own document,
   and each `GET` under `/bundle/` or of a root file, `/robots.txt`,
   `/sw.js` or `/manifest.webmanifest` (`web/README.md`, 2.2, steps 4 to
-  6), are not listed and count in no wave.
+  6), or of `/favicon.ico`, the tab's icon, which the browser asks for by
+  itself, are not listed and count in no wave. Each still counts toward
+  the page's quiet (below).
 - **A line each, in the order sent:** its method, its path with the
   query and the fragment dropped, since a sign-in link carries its secret
   in its query (2.3), and its wave: `GET /jig/v1/stream, wave 1`.
@@ -345,7 +347,8 @@ The session takes them from its start, whatever line runs or none:
 The two cold opens of Work that a pass by hand counted from Chromium's
 net log on 2026-11-18, on a project with a milestone of two goals and
 three goals outside it, each sent the stream and, after its hello, one
-batch, and nothing more. This line answers such an open:
+batch, and nothing more. This line answers such an open, the
+browser's `GET /favicon.ico` before the stream left out:
 
 ```text
 | GET /jig/v1/stream, wave 1

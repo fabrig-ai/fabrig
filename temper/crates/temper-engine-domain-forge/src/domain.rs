@@ -2411,6 +2411,19 @@ pub(crate) fn child(d: &mut Domain, env: &Env<Limits>, event: skein_forge_client
     outage::refresh(d, env, out);
 }
 
+#[cfg(test)]
+pub(crate) fn scripted_outcome(
+    d: &mut Domain,
+    env: &Env<Limits>,
+    entry: u64,
+    task: u64,
+    outcome: skein_forge_client::Outcome,
+    out: &mut Queue<Request>,
+) {
+    d.client_out.push(skein_forge_client::Request::Outcome { entry, task, outcome });
+    drain(d, env, out);
+}
+
 #[expect(
     clippy::too_many_lines,
     reason = "one client-output cohort updates connector state before routing its outcomes"
@@ -2472,15 +2485,27 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                     }
                     continue;
                 }
-                if outage::outcome(d, env, entry, outcome, out) {
+                // The landing settles every merge outcome by readback (landing.md, 8).
+                // Its terminal entry is retired before the route sees this output.
+                let mut landing_merge = false;
+                if let Some(row) = d.landing.rows.get(&task) {
+                    for item in &row.entries {
+                        landing_merge |= item.entry == entry && item.operation == crate::Operation::Merge;
+                    }
+                }
+                if !landing_merge && outage::outcome(d, env, entry, outcome, out) {
                     continue;
                 }
                 if outcome == skein_forge_client::Outcome::Held && goal_branch::remake_held(d, env, entry, out) {
                     continue;
                 }
-                let account = match settled_account(d, entry, outcome) {
-                    Some(account) => Some(account.words),
-                    None => None,
+                let account = if landing_merge {
+                    None
+                } else {
+                    match settled_account(d, entry, outcome) {
+                        Some(account) => Some(account.words),
+                        None => None,
+                    }
                 };
                 let mut projection = false;
                 for (_, row) in &d.issues {
@@ -2494,7 +2519,7 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                 let retain = crate::landing::outcome(d, env, entry, outcome, out);
                 match outcome {
                     skein_forge_client::Outcome::Uncertain | skein_forge_client::Outcome::Queued => {}
-                    skein_forge_client::Outcome::Held => {
+                    skein_forge_client::Outcome::Held if !landing_merge => {
                         if lost_comment {
                             // domain/forge/issues.md: an unfindable milestone counts
                             // as posted. Retire its entry without sending it again.
@@ -2513,6 +2538,7 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                     skein_forge_client::Outcome::Made { .. }
                     | skein_forge_client::Outcome::Failed(_)
                     | skein_forge_client::Outcome::Raced { .. }
+                    | skein_forge_client::Outcome::Held
                     | skein_forge_client::Outcome::Withdrawn => {
                         if !retain {
                             d.entries.remove(&entry);

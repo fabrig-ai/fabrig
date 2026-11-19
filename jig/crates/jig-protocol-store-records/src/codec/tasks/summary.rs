@@ -22,24 +22,20 @@ pub(super) fn read_stage(stage: w::RetentionStage) -> d::RetentionStage {
         w::RetentionStage::Proposal => d::RetentionStage::Proposal,
     }
 }
-pub(super) fn retention(row: d::RetentionRow, limits: &w::Limits) -> Result<w::RetentionRow, w::Problem> {
-    w::RetentionRow::new(
-        limits,
-        w::RetentionRowParts { stage: stage(row.stage), since: row.since.as_nanos(), number: row.number },
-    )
+pub(super) fn retention(row: d::RetentionRow, _limits: &w::Limits) -> w::RetentionRow {
+    w::RetentionRow { stage: stage(row.stage), since: row.since.as_nanos(), number: row.number }
 }
 pub(super) fn read_retention(row: w::RetentionRow) -> d::RetentionRow {
-    let w::RetentionRowParts { stage, since, number } = row.into_parts();
+    let w::RetentionRow { stage, since, number } = row;
     d::RetentionRow { stage: read_stage(stage), since: Wall::from_nanos(since), number }
 }
 fn ending(ending: d::SummaryEnding, limits: &w::Limits) -> Result<w::SummaryEnding, w::Problem> {
     Ok(match ending {
         d::SummaryEnding::Done => w::SummaryEnding::Done,
         d::SummaryEnding::Failed => w::SummaryEnding::Failed,
-        d::SummaryEnding::Cancelled { by, at } => w::SummaryEnding::Cancelled(w::SummaryCancelled::new(
-            limits,
-            w::SummaryCancelledParts { by: value::party(&by, limits)?, at: at.as_nanos() },
-        )?),
+        d::SummaryEnding::Cancelled { by, at } => {
+            w::SummaryEnding::Cancelled(w::SummaryCancelled { by: value::party(&by, limits)?, at: at.as_nanos() })
+        }
     })
 }
 fn read_ending(ending: w::SummaryEnding) -> d::SummaryEnding {
@@ -47,36 +43,34 @@ fn read_ending(ending: w::SummaryEnding) -> d::SummaryEnding {
         w::SummaryEnding::Done => d::SummaryEnding::Done,
         w::SummaryEnding::Failed => d::SummaryEnding::Failed,
         w::SummaryEnding::Cancelled(row) => {
-            let w::SummaryCancelledParts { by, at } = row.into_parts();
+            let w::SummaryCancelled { by, at } = row;
             d::SummaryEnding::Cancelled { by: value::read_party(by), at: Wall::from_nanos(at) }
         }
     }
 }
-fn result(row: &d::SummaryResult, limits: &w::Limits) -> Result<w::SummaryResult, w::Problem> {
+fn result(row: &d::SummaryResult, _limits: &w::Limits) -> w::SummaryResult {
     let kind = match row.kind {
         d::SummaryResultKind::Job => w::SummaryResultKind::Job,
         d::SummaryResultKind::Approved => w::SummaryResultKind::Approved,
         d::SummaryResultKind::Report => w::SummaryResultKind::Report,
-        d::SummaryResultKind::Verdict { code } => {
-            w::SummaryResultKind::Verdict(w::SummaryVerdict::new(limits, w::SummaryVerdictParts { code })?)
+        d::SummaryResultKind::Verdict { code } => w::SummaryResultKind::Verdict(w::SummaryVerdict { code }),
+        d::SummaryResultKind::Change { connector, kind, resource } => {
+            w::SummaryResultKind::Change(w::SummaryChange { connector, kind, resource })
         }
-        d::SummaryResultKind::Change { connector, kind, resource } => w::SummaryResultKind::Change(
-            w::SummaryChange::new(limits, w::SummaryChangeParts { connector, kind, resource })?,
-        ),
         d::SummaryResultKind::NoChange => w::SummaryResultKind::NoChange,
         d::SummaryResultKind::Failed => w::SummaryResultKind::Failed,
     };
-    w::SummaryResult::new(limits, w::SummaryResultParts { kind, words: row.words.clone() })
+    w::SummaryResult { kind, words: row.words.clone() }
 }
 fn read_result(row: w::SummaryResult, words_cut: bool) -> d::SummaryResult {
-    let w::SummaryResultParts { kind, words } = row.into_parts();
+    let w::SummaryResult { kind, words } = row;
     let kind = match kind {
         w::SummaryResultKind::Job => d::SummaryResultKind::Job,
         w::SummaryResultKind::Approved => d::SummaryResultKind::Approved,
         w::SummaryResultKind::Report => d::SummaryResultKind::Report,
-        w::SummaryResultKind::Verdict(row) => d::SummaryResultKind::Verdict { code: row.into_parts().code },
+        w::SummaryResultKind::Verdict(row) => d::SummaryResultKind::Verdict { code: row.code },
         w::SummaryResultKind::Change(row) => {
-            let w::SummaryChangeParts { connector, kind, resource } = row.into_parts();
+            let w::SummaryChange { connector, kind, resource } = row;
             d::SummaryResultKind::Change { connector, kind, resource }
         }
         w::SummaryResultKind::NoChange => d::SummaryResultKind::NoChange,
@@ -91,46 +85,40 @@ pub(super) fn encode(row: &d::TaskSummary, limits: &w::Limits) -> Result<w::Task
     };
     let cuts = u8::from(row.title_cut) | (u8::from(row.reason_cut) << 1_u8) | (u8::from(words_cut) << 2_u8);
     let result = match &row.result {
-        Some(row) => Some(result(row, limits)?),
+        Some(row) => Some(result(row, limits)),
         None => None,
     };
-    w::TaskSummary::new(
-        limits,
-        w::TaskSummaryParts {
-            number: row.number,
-            root: row.root,
-            depth: row.depth,
-            requester: value::party(&row.requester, limits)?,
-            project: row.project,
-            label: row.label,
-            flags: phase::flags(row.flags, limits)?,
-            tracked: row.tracked,
-            executor: value::executor(row.executor, limits)?,
-            title: row.title.clone(),
-            ending: ending(row.ending, limits)?,
-            reason: row.reason.clone(),
-            result,
-            cuts,
-            created_at: row.created_at.as_nanos(),
-            changed: row.changed.as_nanos(),
-            last_activity: row.last_activity.as_nanos(),
-            ended_at: row.ended_at.as_nanos(),
-            numbers: phase::numbers(&row.numbers, limits)?,
-            deadline: value::wall(row.deadline),
-            funder: value::funder(row.funder, limits)?,
-            ended_delegates: w::SummaryEndings::new(
-                limits,
-                w::SummaryEndingsParts { done: row.ended_delegates.done, failed: row.ended_delegates.failed },
-            )?,
-            attempt: row.attempt,
-            activity: row.activity,
-            result_position: row.result_position,
-            last_reply: row.last_reply,
-        },
-    )
+    Ok(w::TaskSummary {
+        number: row.number,
+        root: row.root,
+        depth: row.depth,
+        requester: value::party(&row.requester, limits)?,
+        project: row.project,
+        label: row.label,
+        flags: phase::flags(row.flags, limits),
+        tracked: row.tracked,
+        executor: value::executor(row.executor, limits)?,
+        title: row.title.clone(),
+        ending: ending(row.ending, limits)?,
+        reason: row.reason.clone(),
+        result,
+        cuts,
+        created_at: row.created_at.as_nanos(),
+        changed: row.changed.as_nanos(),
+        last_activity: row.last_activity.as_nanos(),
+        ended_at: row.ended_at.as_nanos(),
+        numbers: phase::numbers(&row.numbers, limits),
+        deadline: value::wall(row.deadline),
+        funder: value::funder(row.funder, limits),
+        ended_delegates: w::SummaryEndings { done: row.ended_delegates.done, failed: row.ended_delegates.failed },
+        attempt: row.attempt,
+        activity: row.activity,
+        result_position: row.result_position,
+        last_reply: row.last_reply,
+    })
 }
 pub(super) fn decode(row: w::TaskSummary) -> Result<d::TaskSummary, w::Problem> {
-    let w::TaskSummaryParts {
+    let w::TaskSummary {
         number,
         root,
         depth,
@@ -157,11 +145,11 @@ pub(super) fn decode(row: w::TaskSummary) -> Result<d::TaskSummary, w::Problem> 
         activity,
         result_position,
         last_reply,
-    } = row.into_parts();
+    } = row;
     if cuts & !7 != 0 {
-        return Err(w::Problem { path: w::Path::TaskSummaryCuts, reason: skein_codec::Reason::Bound });
+        return Err(w::Problem { path: w::paths::TASK_SUMMARY_CUTS, reason: skein_codec::Reason::Bound });
     }
-    let w::SummaryEndingsParts { done, failed } = ended_delegates.into_parts();
+    let w::SummaryEndings { done, failed } = ended_delegates;
     let result = match result {
         Some(row) => Some(read_result(row, cuts & 4 != 0)),
         None => None,

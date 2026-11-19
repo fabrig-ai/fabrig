@@ -292,8 +292,23 @@ exclude each other.
       each worker drained while the old engine still serves, as a check
       saying no;
     - exit other than 0: the redeploy ends **refused**, exit 1, with
-      nothing stopped, its lines saying that a build without `upgrade
-      --workers` is redeployed with `--together` (6.3).
+      nothing stopped. Where a line of its output holds `no command
+      upgrade --workers`, the refusal a build's table gives a command
+      it lacks (skein's `runtime/shell.md`, 14.4), the staged build is
+      one before C3, and the tool's line says that a build without
+      `upgrade --workers` is redeployed with `--together`; otherwise
+      the staged build ran the command and refused, as a current build
+      does over a checkpoint whose lock is held, a store that does not
+      open or a full `--cache`, and the tool's line points at the
+      verdict's own lines above it, which say why (6.3).
+
+    With exit 0, its line counting the files its rehearsal linked and
+    copied (`protocol/binaries.md`, section 2) is noted again in the
+    tool's words, or, where none is printed, noted as unknown: a staged
+    build from C3 until the stop's links (jig's
+    `protocol/store/opening.md`, 5, *Its reach*) has `upgrade --workers`
+    but copies the checkpoint's maps whole at the stop, and prints no
+    count (6.3). The note refuses nothing.
 
     With `--together`, or after a check that does not say yes, no
     verdict is read before the stop or at it, so `--together` still
@@ -342,7 +357,8 @@ check's checkpoint stays until the store's retention removes it
   secrets (jig's `protocol/store/opening.md`, 5, *Its reach*), so that
   the stop makes links and small copies alone (`draft/checkpoints.md`,
   6, step 3); a link the file system refuses is a copy (2.3). Its
-  lines are printed and kept as the record's `verdict`:
+  lines are printed and kept as the record's `verdict`, its count of
+  files linked and copied noted again as at 4.1, step 10:
   - exit 0, `workers may stay: yes`: the swap (4.3);
   - exit 0, any other verdict, or none: an input changed since the
     check and the verdict before the stop (4.1, step 10), such as a
@@ -428,16 +444,24 @@ opening.
   - **after it:** the new build's `restore BACKUP`, which first takes a
     safety checkpoint of the state it replaces (`protocol/checkpoints.md`,
     2.5), then the previous build swapped back and started. The new
-    build restores, since the safety checkpoint's open refuses a store
-    ahead of the build that opens it (jig's
-    `protocol/store/restoring.md`, 4.3). The generation restored holds
-    the stop's state at the previous build's levels, which the previous
-    build opens as it left it;
-  - **where no level moved,** the previous build opening the store as it
-    stands, `run` with that build is a redeploy as any: with
+    build restores, since the safety checkpoint's open reads the store
+    as the new build left it: no binary moves a level (jig's
+    `protocol/store/records.md`, 3), but the new build registered its
+    layouts and ran its jobs there, and the previous build would have
+    to register its own over that registry, which a checkpoint's open
+    refuses (`Unready::Upgrade`, jig's `protocol/store/checkpoints.md`,
+    5), or meet a layout only the new build registered that it has no
+    plan for (jig's `protocol/store/layouts.md`, 5.3). The generation
+    restored holds the stop's format row and registry, those the
+    previous build left, which it opens in place with nothing to
+    register or run (jig's `protocol/store/restoring.md`, 4.3);
+  - **where the new build registered nothing the previous build
+    lacks,** the previous build opens the store as it stands, and `run` with that build is a redeploy as any: with
     `--together` where that build is before milestone C3, since step 10
     of 4.1 refuses a build without `upgrade --workers` on any other
-    path.
+    path. Elsewhere `run` back is no way back: its check refuses a store
+    holding a value at a layout the previous build cannot plan (4.1,
+    steps 8 and 9), and going back is the restore above.
 - **The referee runs** after a refused or failed redeploy too, judging
   what it left.
 
@@ -574,16 +598,36 @@ check's checkpoint, the check's lines as it printed them and what it
 decided, the verdict's lines before the stop (4.1, step 10) and what
 they decided, as the check's are named with `serving verdict` in place
 of `check` (`serving verdict exit CODE`, `serving verdict workers may
-stay: …`) and, when it fails, the line `serving verdict: a build
-without upgrade --workers is redeployed with --together` before the
-outcome, each stop with its time, each worker told or not at the
-window's stop (`worker NAME told: restart wait SECONDS s`, or `worker
-NAME keeps its grace: not told`), each stop's checkpoint, the verdict's
-lines read again and what they decided, each swap with its builds, each
-start, each opening with its time and agreed versions, each worker's
-logins, and the outcome, `done`, `refused: WHY` or `failed at STEP:
-WHY`, the last naming what is swapped, the backup and the previous
-build.
+stay: …`) and, when it fails, before the outcome, one line by what its
+output shows (4.1, step 10):
+
+```
+serving verdict: a build without upgrade --workers is redeployed with --together
+serving verdict: refused by the staged build; its lines above say why
+```
+
+the first where a line of its output holds `no command upgrade
+--workers`, the second otherwise; then each stop with its time, each
+worker told or not at the window's stop (`worker NAME told: restart
+wait SECONDS s`, or `worker NAME keeps its grace: not told`), each
+stop's checkpoint, the verdict's lines read again and what they
+decided, each swap with its builds, each start, each opening with its
+time and agreed versions, each worker's logins, and the outcome,
+`done`, `refused: WHY` or `failed at STEP: WHY`, the last naming what
+is swapped, the backup and the previous build.
+
+Each verdict that exits 0, before the stop and at it, notes its
+rehearsal's files after its exit's line and before what it decided,
+STEP `serving verdict` or `verdict`, N and M those of the last line of
+its output holding `upgrade: rehearsal linked ` (`protocol/binaries.md`,
+section 2):
+
+```
+STEP rehearsal linked N files, copied M
+STEP rehearsal linked: unknown; the staged build may copy the whole checkpoint at the stop
+```
+
+the second where no line holds it.
 
 ### 6.4 Exits
 
@@ -684,9 +728,14 @@ host: no `ssh`, no service manager, no network.
   check run over it before any stop, the verdict before the stop over
   the same checkpoint, the stop's checkpoint by the installed binary,
   the verdict read again over it, then the swap; the checkpoint's act
-  refused, a check refusing, and a verdict before the stop failing (a
-  staged build with no `upgrade --workers`), each ending refused with
-  nothing stopped or swapped, the last with its `--together` line; a
+  refused, a check refusing, and a verdict before the stop failing,
+  each ending refused with nothing stopped or swapped: a staged build
+  with no `upgrade --workers`, its output the table's `no command
+  upgrade --workers`, with the `--together` line, and one that has it
+  refusing (its checkpoint's lock held), with the line pointing at its
+  own and no `--together` line (6.3); each verdict's count of files
+  linked and copied noted, and noted unknown where its output has
+  none; a
   verdict before the stop saying no after a check's yes, every part
   together with nothing stopped before the drain; `--together`, and a
   check saying no, reading no verdict before the stop; a check saying no and unknown, the

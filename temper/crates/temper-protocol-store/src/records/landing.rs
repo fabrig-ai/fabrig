@@ -273,6 +273,7 @@ fn encode_round(round: &d::Round) -> w::LandingRound {
     w::LandingRound::new(
         &w::CEILINGS,
         w::LandingRoundParts {
+            merges: round.merges,
             search: match &round.search {
                 Some(search) => Some(
                     w::LandingSearch::new(
@@ -313,6 +314,7 @@ fn encode_round(round: &d::Round) -> w::LandingRound {
 }
 fn decode_round(round: w::LandingRound) -> d::Round {
     let w::LandingRoundParts {
+        merges,
         branch,
         pull,
         upstream,
@@ -326,6 +328,7 @@ fn decode_round(round: w::LandingRound) -> d::Round {
         search,
     } = round.into_parts();
     d::Round {
+        merges,
         search: match search {
             Some(search) => Some(d::Search {
                 green: search.green(),

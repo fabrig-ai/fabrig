@@ -219,7 +219,7 @@ fn records_have_their_exact_text_and_round_trip() {
 #[test]
 fn unreadable_rows_name_their_line() {
     let rows: &[(&str, &[u8], &str)] = &[
-        ("another version", b"journey 4\n", "unsupported journey version"),
+        ("another version", b"journey 5\n", "unsupported journey version"),
         ("version overflow", b"journey 4294967296\n", "number overflow"),
         ("unknown kind", b"unknown\n", "unknown record kind"),
         ("unknown scheme", b"screen 24 80 other\n", "unknown scheme"),
@@ -299,5 +299,5 @@ fn unreadable_rows_name_their_line() {
         assert_eq!(error, Unreadable { line: 3, why }, "{name}");
     }
     assert!(lines(b"") == Err(Unreadable { line: 1, why: "empty recording" }));
-    assert!(lines(b"journey 4\n") == Err(Unreadable { line: 1, why: "unsupported journey version" }));
+    assert!(lines(b"journey 5\n") == Err(Unreadable { line: 1, why: "unsupported journey version" }));
 }

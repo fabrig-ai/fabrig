@@ -302,7 +302,7 @@ record LandingByTest { gates: list 64 LandingSelectedGate probed: list 4096 Land
 enum LandingSearchTests { whole, by_test: LandingByTest, whole_again }
 record LandingSearch { green: u16 red: u16 tests: LandingSearchTests = whole }
 record LandingSearched { red: fixed 32 green: option fixed 32 changes: list 64 u64 }
-record LandingRound { branch: bytes 4096 pull: option u64 upstream: option fixed 32 combined: option LandingCombine recorded: bool told: bool ending: option LandingRoundEnd failure: bytes 8192 judging: bool changed: option u16 search: option LandingSearch }
+record LandingRound { merges: u32 = 0 branch: bytes 4096 pull: option u64 upstream: option fixed 32 combined: option LandingCombine recorded: bool told: bool ending: option LandingRoundEnd failure: bytes 8192 judging: bool changed: option u16 search: option LandingSearch }
 record LandingState { searched: option LandingSearched = none last_left: option u16 task: u64 project: u32 phase: LandingPhase members: list 64 LandingMember preparation: u16 stale_proofs: u32 branch: bytes 4096 round: option LandingRound own_hold: option LandingOwnHold }
 record LandingPrepare { head: fixed 32 main: fixed 32 }
 record LandingRepairAsk { gate: u16 candidate: fixed 32 below: option LandingBelow }

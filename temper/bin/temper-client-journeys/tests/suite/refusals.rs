@@ -248,10 +248,10 @@ fn make_stale(lines: &mut [Line]) {
 fn tui_fixture(frame: bool) -> Vec<u8> {
     use skein_ui_screen::Size;
     use temper_client_shell_tui::{host::Report, journey as tj};
-    let address = if frame { "pri\u{200b}vate-frame-marker&".as_bytes() } else { b"127.0.0.1:8367" };
+    let log = if frame { "pri\u{200b}vate-frame-marker&".as_bytes() } else { b"" };
     let facts = tj::Facts {
-        set_up: false,
-        box_log: Box::default(),
+        set_up: frame,
+        box_log: log.into(),
         seed: 7,
         now: Time::ZERO,
         wall: Wall::EPOCH,
@@ -261,9 +261,9 @@ fn tui_fixture(frame: bool) -> Vec<u8> {
         plain: false,
         version: Box::default(),
         boxed: false,
-        address: address.into(),
+        address: temper_client_tui::Origin::Http("127.0.0.1:8367".parse().expect("fixture socket")),
         local: false,
-        front: false,
+        front: frame,
         note: None,
         kept: Vec::new(),
         credential: None,
@@ -271,35 +271,24 @@ fn tui_fixture(frame: bool) -> Vec<u8> {
     let (mut host, start) = facts.start();
     let mut recorder = tj::Recorder::new(&facts);
     recorder.turn(facts.now, facts.wall);
-    let duties = recorder.report(&mut host, start);
+    recorder.report(&mut host, start);
     recorder.deadline(host.deadline());
     if frame {
-        let exchange =
-            duties
-                .asked
-                .iter()
-                .find_map(|request| {
-                    if let jig_client::Request::Exchange { exchange, .. } = request { Some(*exchange) } else { None }
-                })
-                .expect("approval ask");
-        let mut reply = vec![0];
-        reply.extend_from_slice(&32_u32.to_be_bytes());
-        reply.extend_from_slice(&[7; 32]);
-        reply.extend_from_slice(b"WDJBMJHT");
-        reply.extend_from_slice(&300_000_000_000_u64.to_be_bytes());
         for (index, report) in [
-            Report::Heard(jig_client::Event::Reply { exchange, message: reply.into() }),
-            Report::Opened { opened: true },
+            Report::Local {
+                link: Some(skein_lib::Secret::new(
+                    format!("http://127.0.0.1:8367/jig/v1/sign-in/link?secret={}", "A".repeat(43)).into_bytes().into(),
+                )),
+            },
+            Report::Stage(temper_client_tui::BoxStage::Running),
             Report::Resize(Size { rows: 0, columns: 0 }),
         ]
         .into_iter()
         .enumerate()
         {
             let now = u64::try_from(index + 1).expect("turn time");
-            let now_time = Time::from_nanos(now);
-            let wall = Wall::from_nanos(now);
-            host.clocks(now_time, wall);
-            recorder.turn(now_time, wall);
+            host.clocks(Time::from_nanos(now), Wall::from_nanos(now));
+            recorder.turn(Time::from_nanos(now), Wall::from_nanos(now));
             recorder.report(&mut host, report);
             host.frame();
             recorder.deadline(host.deadline());

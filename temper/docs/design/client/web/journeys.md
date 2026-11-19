@@ -5,7 +5,7 @@ browser's client (`README.md`) recorded on a fresh `temper box
 --fake-backends`, or on any deployment with real accounts and redacted (3.5), then replayed
 natively through the shipped host and printed as the client's own pages,
 linked so that the same clicks walk them. The look is tuned on those
-pages, and the committed journeys are kept current by a test. They are not the mockups' journeys
+pages, and main's are kept current by one writer (`../journey-writer.md`). They are not the mockups' journeys
 (`mockups/README.md`, 4), which are worlds walked in the mockups.
 The TUI's journeys are `../tui/journeys.md`'s, sharing this document's
 file (3.2), redaction (`journey-redaction.md`) and last scan (3.7). Section 2 is the host on native, 3 the recording, 4 its replay, 5 the
@@ -36,7 +36,8 @@ journeys, 10 what is open.
   the live page's prints.
 - **Recorded again by a command** while its acts hold: `again NAME`
   walks them on a fresh fake box in headless Chromium, as the browser
-  tier drives it, and adds the result; no person walks it (8.1). A
+  tier drives it, and adds the result; no person walks it (8.1), and on
+  main the journeys' writer alone runs it. A
   journey that starts past the first page says how to reach it in a
   setup file beside its recording (8.2).
 - **Printed as static pages** by `temper-client-journeys`, under
@@ -45,15 +46,15 @@ journeys, 10 what is open.
   linked from the checkout, then an empty `overlay.css`; beside them the
   journey's `../README.md`, its description. No browser, no box, the same
   bytes every time (section 5).
-- **Kept current by a test** that reprints every committed journey and
-  fails while a byte differs, naming the command that reprints, so a
-  landing that changes a recorded page carries its new print. It also
-  fails while `overlay.css` holds anything (section 6).
+- **Kept current by one writer:** after each landing, `pages` walks
+  again each stale journey and reprints them all, offered as a change of
+  its own. No other change commits a recording, a page or a file
+  printed beside them, and no test holds them (`../journey-writer.md`).
 - **The look is tuned on the print:** rules in the overlay, markup in
   place, each request a commit on the person's branch `look-requests`,
   kept on `main` by `scripts/look-refresh.sh` and never landed. A
   landing that carries a request's name moves it into the shell's
-  stylesheets and the view, and reprints (section 7).
+  stylesheets and the view, and compares by a reprint (section 7).
 - **Fake, or real and redacted.** A recording keeps what the page was
   given as it was, but the sign-in, which no saved file holds (3.1). On
   a real deployment `add` first takes out what must not be
@@ -408,9 +409,13 @@ whose crate is `crates/temper-client-journeys-tool`, beside the gallery
   left as it was, and the program exits 1 once the others are printed.
 - `cargo run -p temper-client-journeys -- again NAME` records the
   journey NAME again while its acts hold (8.1).
+- `cargo run -p temper-client-journeys -- pages [--prepared DIR]
+  [--within DURATION]` is the journeys' writer's: `again` for each stale
+  journey, then the reprint; `pages --check` names each journey fresh or
+  stale and writes nothing (`../journey-writer.md`, 3).
 - `add` and the reprint read no configuration, environment, clock or
-  network, and start no server; `again` alone does. Its paths are its
-  manifest's, as the gallery's are.
+  network, and start no server; `again` alone does, and `pages` through
+  it. Its paths are its manifest's, as the gallery's are.
 
 ### 5.2 What it writes
 
@@ -426,11 +431,10 @@ Under `docs/design/client/web/journeys/`:
   `journey.js`, the program's, both written at each print; and
   `overlay.css`, the person's, made empty when missing and never written
   otherwise.
-- **Generated:** the pages, `skein-ui.css` and `journey.js` are
-  generated files, rewritten by the reprint, so that a rebase that
-  conflicts in them is resolved by reprinting. A recording, a README, a
-  setup and the overlay are sources, never regenerated. A stale journey fails the
-  reprint: such a change waits until the journey is recorded again
+- **The writer's:** on main, the recordings, the pages, `skein-ui.css`
+  and `journey.js` are written by the journeys' writer alone; a README,
+  a setup and the overlay are sources (`../journey-writer.md`, 2). A
+  stale journey keeps its pages until the writer walks it again
   (section 8).
 
 ### 5.3 A page
@@ -494,14 +498,15 @@ python3 -m http.server 8766
   event no control gives; a control's recorded name changed, holding;
   an act with no event, kept nowhere; and the proof refusing a mark
   whose html differs.
-- **The print, in `crates/temper-client-journeys-tool`'s own tests:** every
-  committed journey reprinted into a scratch directory equals its directory and
-  the files beside it, byte for byte; one that differs or is stale
-  fails, naming `cargo run -p temper-client-journeys`. A reprint keeps a
-  journey's README.
-- **No request lands as it is:** the same tests fail while
-  `overlay.css` holds any byte, and for a journey whose `../README.md` is
-  missing or empty (section 7).
+- **The print, in `crates/temper-client-journeys-tool`'s own tests,** on
+  walks they record in the host's world: printed, redacted and printed
+  again, the same pages; a reprint keeps a journey's README. No test
+  replays, reprints or compares a recording or a page of main's
+  (`../journey-writer.md`, 7).
+- **No request lands as it is:** the delivery check refuses a nonempty
+  `overlay.css` (`../journey-writer.md`, 5), and the tests fail while it
+  holds a byte, and for a journey whose `../README.md` is missing or
+  empty (section 7).
 - **The links by act,** in the print's unit tests: a press's control,
   a submit's field and a toggle's box, each with its attributes.
 - **`again`'s walk, natively,** in the journey module's tests and the
@@ -516,10 +521,7 @@ python3 -m http.server 8766
   record among them, and another version, a line out of its place, a second `reload`
   and an unknown role each unreadable; `after` joining a named setup's
   steps without its `reload`, and a chain of two, a missing name and a
-  name of its own refused; every committed setup read; and
-  `project-landing`'s first steps, replayed against `welcome-set-up`'s
-  recording, each naming a control of which the view makes that act's
-  event, so that the two starts stay one.
+  name of its own refused; and every committed setup read.
 - **`again`'s browser half has no story of its own,** as the recorder's
   keys have none: its first run, a journey recorded again, proves it,
   and skein's browser tier proves the kit's letter with Alt and its
@@ -537,13 +539,13 @@ python3 -m http.server 8766
   it can appear: a plain field, a piece's base64, split across two pieces
   at every byte, and a URL's query, each failing first. The host's world
   walks a typed key, pressed, through `add`'s steps, so that its digest
-  and its stream's name go and the replay holds. A committed journey
-  redacted replays as it stands. Test data is fake, a token's shape built
+  and its stream's name go and the replay holds. A walk of several
+  marks, redacted, replays as it stands. Test data is fake, a token's shape built
   in the test from pieces. No test reaches a real host or account.
 - **The scan, natively:** each shape in each place, a run's text split
   across deliveries among them; a length prefix of every byte before a
   key; and what must pass: `x`s, `task-` words, `code_challenge=`, and
-  the committed journeys.
+  a walk recorded in the host's world, with its pages.
 - **The binary's table,** in `bin/temper-client-journeys`' suite: help,
   version, the internal commands' pages and argument refusals, with no build
   or child started (`../../testing/tools.md`, 6). Its `arguments` and
@@ -552,8 +554,7 @@ python3 -m http.server 8766
 - **The refusal, as a process:** no original's bytes on stdout or stderr,
   a failed proof's among them, and nothing written on any path; in the
   print's tests, a refused `add` leaves its root as it was.
-- **Their cost:** the journeys' reprint together at most 1 s of the
-  default suite, as the gallery's states (`gallery.md`, 3); no fuzzy
+- **Their cost:** within their layers' budgets as they stand; no fuzzy
   test.
 
 ## 7. Editing the look
@@ -581,10 +582,12 @@ check are `look-requests.md`, sections 1 to 7. The journeys' side:
 - **Kept on `main`:** `scripts/look-refresh.sh`, run by the person in
   their checkout with `look-requests` checked out and clean, fetches
   `main` alone, rebases the branch on `origin/main`, drops each request
-  whose name a commit on `main` carries in that trailer, and pushes it
+  whose name a commit on `main` carries in that trailer once the last
+  `Printed:` there covers that commit (`../journey-writer.md`, 6), and pushes it
   with `--force-with-lease`, its lease the branch as the checkout last
   knew it, so that a branch moved from another checkout is refused,
-  never overwritten. It says, for each request, whether it was kept or
+  never overwritten. It says which commit main's pages were printed at,
+  then, for each request, whether it was kept or
   dropped and by which commit. Nothing is built on the branch, so
   moving it breaks no one, and its one name leaves no copies behind. A
   conflict is a line of a request's that `main` reprinted since: the
@@ -594,12 +597,13 @@ check are `look-requests.md`, sections 1 to 7. The journeys' side:
   progress. It takes the TUI's branch, `tui-requests` (`../tui/journeys.md`,
   10), alike, with that branch's lease, requests and push; any other
   branch is refused.
-- **Never landed:** the journeys' test refuses a request's pages, which
-  differ from the reprint, and its overlay (section 6), so `main`'s
-  overlay stays empty.
+- **Never landed:** the delivery check refuses a request's pages beside
+  any other file, and its overlay (`../journey-writer.md`, 5), so
+  `main`'s overlay stays empty.
 - **The landing** moves the overlay's rules into `temper.css` or
   `task-pages.css` and the markup's changes into the view, for every
-  state, then reprints (`look-requests.md`, 3). Its own commits carry
+  state, then compares by a reprint in its own tree and commits no page
+  (`look-requests.md`, 3). Its own commits carry
   the request's trailer, never the request's commit itself. The account
   and what done means are `look-requests.md`, 5; the render comparison
   follows landing on main (`look-requests.md`, 4).
@@ -611,17 +615,19 @@ changes, or what the client can do on a page (an event no control
 gives); never for a change to the view or the look alone, which a
 reprint carries, since its acts are events, not controls.
 
-- **While its acts hold,** `again NAME` records it again (8.1). No
-  person walks it.
+- **While its acts hold,** `again NAME` records it again (8.1), run on
+  main by the journeys' writer after the landing that staled it
+  (`../journey-writer.md`, 3). No person or goal walks it.
 - **A real journey** (section 9) is never walked by `again`, which starts
   fake boxes alone: its person records it again by hand (3.5).
 - **A setup that no longer walks** (a control renamed before the reload)
-  stops `again`, naming its line; it is edited, and no recording changes
-  for it (8.2).
+  stops `again`, naming its line; it is edited, in the change that
+  renamed it, and no recording changes for it (8.2).
 - **When the walk itself changes** (a step gone, another added), the
   journey is walked anew in a browser on a fresh fake box (3.5), from
   its `../README.md` and the change that moved it, then added (`add NAME
-  FILE`). The README changes with it, and its new pages are read as new.
+  FILE`) by the writer's runner (`../journey-writer.md`, 2). The README
+  changes with the change that moved it, and its new pages are read as new.
 - **`again`'s walks** match but where real processes decide
   (`../journey-clock.md`, 5).
 

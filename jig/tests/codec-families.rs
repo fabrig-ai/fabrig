@@ -1,5 +1,5 @@
 //! Each jig codec's records and pinned constructs (skein's data/codec/README.md, 6).
-use skein_codegen::{generate, parse, unpinned};
+use skein_codegen::{form_of, generate_as, parse, unpinned};
 use std::{
     collections::{BTreeMap, BTreeSet},
     fs,
@@ -165,7 +165,11 @@ pub fn check() {
         }
         let unpinned = unpinned(&source).expect("schema valid");
         assert!(unpinned.is_empty(), "{}: unpinned constructs: {unpinned:?}", family.name);
-        let output = generate(&parse(&source).expect("schema valid"));
+        let schema = parse(&source).expect("schema valid");
+        let schema_path = root.join(family.schemas.first().expect("schema path"));
+        let schema_dir = schema_path.parent().expect("schema directory");
+        let form = form_of(schema_dir, &schema.family).expect("family form readable");
+        let output = generate_as(&schema, form);
         let codec_root = tree.join(family.codec_root);
         let code = codec_root.join(family.generated.first().expect("codec path"));
         inventories

@@ -665,7 +665,9 @@ deployment's lock as a start does (1, step 1).
   last start spoke (`records.md`, 3), and the workers' openings `A` keeps since that start
   (`records.md`, 3, *The workers' openings*), from which the application
   says whether each of its workers may
-  stay; and that what follows the switch (adopting runs, reading the
+  stay; how many files it linked into the scratch and how many it
+  copied, a link the file system refused counted as a copy, with
+  `Rehearsing`; and that what follows the switch (adopting runs, reading the
   systems, settling the outboxes) is not rehearsed. The scratch is
   emptied as it ends.
 - **Its reach,** `Reach`, which the request names. `Whole` is all of the
@@ -743,7 +745,7 @@ deployment's lock as a start does (1, step 1).
 Request::Rehearse { owner: Token, directory: Root, scratch: Root, installation: [u8; 16], reach: Reach } // `directory` never written; `scratch` emptied, never removed
 pub enum Reach { Whole, Openings }                     // `Openings`: `Rehearsing`, then `Closed` unasked
 Adoption::Rehearse { scratch: Fd, reach: Reach }      // the host's adoption (`host.rs`), beside `Back` and `Checkpoint`
-Event::Rehearsing { owner: Token, wires: Option<Box<[KeptWire]>>, openings: Box<[WorkerOpening]> } // before `Opened` or `OpenRefused`
+Event::Rehearsing { owner: Token, wires: Option<Box<[KeptWire]>>, openings: Box<[WorkerOpening]>, linked: u32, copied: u32 } // before `Opened` or `OpenRefused`; files linked into the scratch and copied (`Whole` links none)
 pub struct KeptWire { pub name: Box<str>, pub version: u32 }                               // `None`: A's last start kept none
 pub struct WorkerOpening { pub worker: Box<str>, pub wires: Box<[OpenedWire]>, pub output: u32, pub terms: Box<[OpenedTerm]>, pub at: Wall } // in the workers' names' order
 pub struct OpenedWire { pub name: Box<str>, pub lowest: u16, pub layouts: Box<[[u8; 32]]> }
@@ -769,5 +771,8 @@ itself are the application's. A rehearsal's store refuses
 `Request::Switch`, though its root never asks, and its close
 (`Request::Close`; an engine's store ends with its process and has
 none) empties the scratch, `removed` saying it is empty; a rehearsal
-that crashed leaves entries there, which the next rehearsal removes
-before it copies. Its jobs answer their counts as a start's do.
+that crashed leaves entries there, which the next rehearsal given that
+scratch removes before it copies. An application that makes a new
+scratch for each rehearsal removes those left behind itself, as
+temper's does (temper's `protocol/binaries.md`, section 2). Its jobs
+answer their counts as a start's do.

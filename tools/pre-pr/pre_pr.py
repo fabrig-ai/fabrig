@@ -303,6 +303,62 @@ def figures(base_id, tree_id, root, env, merged):
     return code, errors
 
 
+JOURNEY_ROOTS = tuple(f'temper/docs/design/client/{kind}/journeys' for kind in ('web', 'tui'))
+JOURNEY_WRITTEN = re.compile(
+    r'(?:[^/]+/(?:recording|[0-9]{2,}\.(?:html|txt))|skein-ui\.css|journey\.js|theme\.css|tui-journey\.js)')
+
+
+def delivery_paths(base_id, tree_id, root, env):
+    """Paths changed here, excluding entries brought by a merge (section 4, check 8)."""
+    def against(revision):
+        diff = git(['diff-tree', '-r', '--no-renames', '--name-only', '-z', revision, tree_id], root, env)
+        if diff.returncode:
+            raise RuntimeError(diff.stderr.decode(errors='replace'))
+        return {os.fsdecode(path) for path in diff.stdout.split(b'\0') if path}
+
+    paths = against(base_id or 'HEAD')
+    if base_id and paths:
+        for tip in merged_tips(base_id, root, env):
+            # A diff includes absent entries and mode changes as well as blobs.
+            paths.intersection_update(against(tip))
+    return sorted(paths)
+
+
+def journeys(base_id, tree_id, paths, root, env):
+    """Keep written files separate and overlays empty (section 4, check 8)."""
+    written, other = [], []
+    for path in paths:
+        relative = next((path[len(prefix) + 1:] for prefix in JOURNEY_ROOTS
+                         if path.startswith(prefix + '/')), '')
+        (written if JOURNEY_WRITTEN.fullmatch(relative) else other).append(path)
+    overlays = [prefix + '/overlay.css' for prefix in JOURNEY_ROOTS]
+    entries = git(['ls-tree', '-l', '-z', tree_id, '--'] + overlays, root, env)
+    if entries.returncode:
+        raise RuntimeError(entries.stderr.decode(errors='replace'))
+    nonempty = []
+    for entry in entries.stdout.split(b'\0'):
+        if entry:
+            header, path = entry.split(b'\t', 1)
+            _, kind, _, size = header.split()
+            if kind == b'blob' and int(size) > 0:
+                nonempty.append(os.fsdecode(path))
+    if not (written and other) and not nonempty:
+        return 0, []
+    lines = ['written journey file: ' + path for path in written[:20]]
+    if len(written) > 20:
+        lines.append(f'… {len(written) - 20} more written journey files')
+    if other:
+        lines.append('other path: ' + other[0])
+    lines += ['nonempty overlay: ' + path for path in nonempty]
+    lines.append("a journey's recording, pages and the files beside them are written on main by "
+                 "the journeys' writer alone (AGENTS.md, 4): restore them with git "
+                 f"checkout {base_id or 'HEAD'} -- PATH..., and compare pages by cargo run -p "
+                 "temper-client-journeys in your own tree")
+    log = '\n'.join(lines) + '\n'
+    print(log, end='', flush=True)
+    return 1, [failure('journeys', tail(log))]
+
+
 def outward(root, env):
     """Key a name finding as the Rust test; tool errors are never inherited."""
     code, log = run(['python3', '-I', '-B', 'tools/outward/outward.py'], root, env)
@@ -916,7 +972,17 @@ def main():
     starved = []
     outcomes = {}
 
+    def journeys_check():
+        try:
+            if own_paths_error is not None:
+                raise RuntimeError(own_paths_error)
+            return journeys(base_id, tree_id, own_paths, root, env)
+        except (OSError, ValueError, RuntimeError) as error:
+            return 2, [failure('check journeys', str(error))]
+
     def conclude():
+        _, found = timed('journeys', journeys_check)
+        errors.extend(found)
         refused = any(not settled(e) for e in errors)
         failures_tail = failure_file(tree_id, base_id, refused, False, errors, root, env)
         verdict = summary(base_id, lints, tests, errors, why if base_id else None, failures_tail, starved)
@@ -928,8 +994,15 @@ def main():
         tree_id, private = tree(root, git_dir, Path(directory) / 'index', env)
         ledgers, ledger_digest = main_ledgers(ledger_setting, Path(directory), root)
         cache = git_dir / 'pre-pr-passed'
-        record = f'{tree_id} {base_id or "-"} {digest or "-"} {ledger_digest}'
-        if cache.exists() and cache.read_text().strip() == record:
+        own_paths, own_paths_error = [], None
+        try:
+            own_paths = delivery_paths(base_id, tree_id, root, env)
+        except (OSError, RuntimeError) as error:
+            own_paths_error = str(error)
+        # The same tree can have different own paths after HEAD or a merge changes.
+        own_digest = hashlib.sha256(os.fsencode('\0'.join(own_paths))).hexdigest()
+        record = f'{tree_id} {base_id or "-"} {digest or "-"} {ledger_digest} {own_digest}'
+        if own_paths_error is None and cache.exists() and cache.read_text().strip() == record:
             print(f'pre-pr: passed before (tree {tree_id}, base {base_id or "-"}, '
                   f'reds {digest or "-"}, ledgers {ledger_digest})', flush=True)
             failures_tail = failure_file(tree_id, base_id, False, True, [], root, env)
