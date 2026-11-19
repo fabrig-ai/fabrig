@@ -33,8 +33,8 @@ are milestones C3 and C5 of `temper/docs/design/draft/cli.execution.md`.
 
 - **Not yet:** 14.4: `Table::reach`, `Reached` and `Table::unknown`.
 - **Not yet:** 6: the configured peer names resolved at startup (step 5).
-  6.4: the helper's dispatch, and the service's own cgroup opened at
-  startup.
+  6.4: the helper's dispatch and the startup check, `Kernel::can_restrict`.
+  6.4: the service's own cgroup opened at startup.
   6.6: that macOS answers `ENOPROTOOPT` to `SO_ACCEPTCONN` is
   read from published XNU, whose `main` may lag `macos-26`'s kernel, and
   no recorded run shows it: a Linux test holds `listening`

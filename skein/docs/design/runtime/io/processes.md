@@ -1,8 +1,9 @@
 # Processes
 
 - **Spawn** takes a program, its arguments, its environment, a working
-  directory beneath a root, and which pipes to make. It answers with a
-  child and its pipes. The backend also returns an opaque `kernel::Sender`,
+  directory beneath a root, which pipes to make, and, if it asks for one,
+  its reach: what the child and everything it starts may reach (6). It
+  answers with a child and its pipes. The backend also returns an opaque `kernel::Sender`,
   kept by io beside the child's token until its `Exited` event. It is
   compared only for equality with signal senders (`README.md`, section 4); no numeric PID
   enters io's events or its child entity.
@@ -192,6 +193,7 @@ pub struct Spawn {
     pub cgroup: Option<Token>,          // a cgroup io holds; the service's own if none
     pub ids: Option<Ids>,               // the user and groups the command runs as
     pub contain: Option<Box<Contain>>,  // namespaces, and a view of the file system
+    pub reach: Option<Box<Reach>>,      // what the tree may reach (6)
 }
 pub enum Dir    { Beneath { root: Token, path: Box<[u8]> }, InView(Box<[u8]>) }
 pub struct Ids  { pub user: u32, pub group: u32, pub groups: Box<[u32]> }
@@ -408,3 +410,184 @@ Nothing else reads it.
   in the record it rebuilds and leaves it out of its trace, and a signal
   does the same whatever its reason. The real world records it with each
   kill (../../testing/README.md, 5).
+
+## 6. A spawn's reach
+
+A spawn may carry a *reach*: what the tree it starts may reach, enforced
+by the kernel from the command's first instruction, on every process the
+command starts, and beyond the tree's power to undo
+(`temper/docs/design/draft/confinement.md`, 4 and 6). It is Landlock's,
+at its ABI 6, with `no_new_privs`. Whatever a reach does not grant is
+refused: a path no rule names is unreachable, and nothing is allowed
+because no rule mentions it.
+
+```rust
+// skein_io::kernel, beside Spawn, whose own field is
+//     pub reach: Option<Box<Reach>>,  // none: the child reaches what the service does
+
+/// What a spawned tree may reach (runtime/io/processes.md, 6).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Reach {
+    /// The Landlock ABI the reach is written at: `Reach::ABI`, 6.
+    pub abi: u32,
+    /// What the tree may reach of the file system, and nothing else.
+    pub rules: Box<[Rule]>,
+}
+
+/// A path beneath a root the service holds, and what the tree may do
+/// beneath it.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Rule { pub root: Fd, pub path: Box<[u8]>, pub rights: Rights }
+
+/// Landlock's file-system rights at ABI 6, one bit each, numbered as the
+/// kernel numbers them (`LANDLOCK_ACCESS_FS_*`).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct Rights(pub u16);
+
+impl Rights {
+    pub const EXECUTE: Rights;     // 1 << 0
+    pub const WRITE_FILE: Rights;  // 1 << 1
+    pub const READ_FILE: Rights;   // 1 << 2
+    pub const READ_DIR: Rights;    // 1 << 3
+    pub const REMOVE_DIR: Rights;  // 1 << 4
+    pub const REMOVE_FILE: Rights; // 1 << 5
+    pub const MAKE_CHAR: Rights;   // 1 << 6
+    pub const MAKE_DIR: Rights;    // 1 << 7
+    pub const MAKE_REG: Rights;    // 1 << 8
+    pub const MAKE_SOCK: Rights;   // 1 << 9
+    pub const MAKE_FIFO: Rights;   // 1 << 10
+    pub const MAKE_BLOCK: Rights;  // 1 << 11
+    pub const MAKE_SYM: Rights;    // 1 << 12
+    pub const REFER: Rights;       // 1 << 13, ABI 2
+    pub const TRUNCATE: Rights;    // 1 << 14, ABI 3
+    pub const IOCTL_DEV: Rights;   // 1 << 15, ABI 5
+    // the draft's sets (`temper/docs/design/draft/confinement.md`, 6.2)
+    pub const FULL: Rights;             // every right but IOCTL_DEV
+    pub const FULL_BUT_EXECUTE: Rights; // FULL less EXECUTE
+    pub const READ: Rights;             // READ_FILE | READ_DIR
+    pub const READ_EXECUTE: Rights;     // READ | EXECUTE
+    pub const READ_WRITE_FILE: Rights;  // READ_FILE | WRITE_FILE: a device
+    pub const FILE: Rights;             // what a file can be given: EXECUTE,
+                                        // WRITE_FILE, READ_FILE, TRUNCATE, IOCTL_DEV
+    pub const fn union(self, other: Rights) -> Rights;
+    pub const fn contains(self, other: Rights) -> bool;
+}
+
+/// Why a spawn's reach was not enforced: the spawn made nothing and ran
+/// nothing (runtime/io/processes.md, 6). Its Display says what an
+/// operator can do.
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+pub enum Unenforced {
+    Bounds,                          // past io's bounds: refused at its entrance
+    Unsupported,                     // this system cannot restrict a tree: macOS
+    Absent,                          // the kernel has no Landlock (ENOSYS)
+    Disabled,                        // built in, not enabled at boot (EOPNOTSUPP)
+    Abi { found: u32, needs: u32 },  // the kernel's Landlock ABI is below the reach's
+    Rule { index: u32, errno: i32 }, // a rule's path not opened, or its rule refused
+    Restrict { errno: i32 },         // no_new_privs or the restriction refused, in the helper
+    Helper,                          // the executable never ran the helper's dispatch
+}
+// The kernel's kernel::Error::Reach(Unenforced) and io's own
+// Error::Reach(Unenforced) carry the same value.
+```
+
+- **What every reach holds,** beside its rules:
+  - **Files:** every file-system right of ABI 6 is handled, so an access
+    no rule grants is refused: `Permission`, which the command reads as
+    `EACCES`. Rights hold beneath a rule's directory at every depth, and
+    add up along a path: an access is granted where a rule on the file
+    reached, or on any directory above it, grants it.
+  - **Processes:** signals and abstract Unix sockets are scoped to the
+    tree. A signal to a process outside it, the service among them, is
+    refused, as a connect to an abstract socket made outside it is; and
+    the kernel refuses the tree every ptrace access to a process outside
+    it: attaching, and reading its memory, environment or descriptors.
+  - **Privilege:** `no_new_privs`. Nothing in the tree gains privilege
+    by executing a set-user-id or set-group-id program, or one with file
+    capabilities.
+  - **Descriptors:** the child holds 0, 1 and 2 and the descriptors its
+    table names, and no other. A descriptor opened before the
+    restriction keeps its access whatever the reach says, so the helper
+    closes every one the spawn does not name (../kernel.md, 6.6), not
+    only those the service marked close-on-exec.
+  - **The network** is not a reach's yet (`temper/docs/design/draft/confinement.md`, 5.4): the tree
+    reaches what the service does.
+- **A rule** names a path beneath a root the service holds, resolved as
+  the spawn's directory is: relative, its links followed only while they
+  stay beneath the root (`RESOLVE_BENEATH | RESOLVE_NO_MAGICLINKS`), the
+  empty path the root itself. It names what it finds when the spawn is
+  made: a directory, whose rights hold beneath it; or a file, which takes
+  only the rights of its set that a file can have (`Rights::FILE`), so a
+  rule on a file whose set has none of them adds nothing. A path a rule
+  cannot resolve fails the spawn, `Rule { index, errno }`, its index in
+  `rules` counted from 0, rather than run the tree with less than it was
+  given.
+- **Links lead nowhere new.** The kernel checks the file a path reaches,
+  not the path: a link in a granted directory that leads out of it
+  reaches what it leads to only where a rule grants that.
+- **A tree that narrows** is held by both reaches: a process of a
+  restricted tree that spawns with a reach of its own starts a tree each
+  reach holds, each refusing what it does not grant. A child loses what
+  its parent keeps and gains nothing its parent lacks, as
+  the prefix of `temper/docs/design/draft/confinement.md`, 5.3, relies on.
+- **What it leaves,** at ABI 6 (`temper/docs/design/draft/confinement.md`, 6.5): a file's metadata
+  (its mode, owner, times and attributes, and whether it exists), so the
+  tree may change the mode of a file the service's user owns outside its
+  reach, though not read or write it; connecting to a Unix socket named
+  by a path; another process's command line and status in `/proc`. The
+  full view (3) closes each.
+- **The ABI** a reach is written at says which rights it can name. io
+  admits 6, the floor, alone. A kernel below it fails the spawn,
+  `Abi { found, needs }`; a kernel above it enforces ABI 6's rights and
+  leaves the rest as the service has them.
+- **Bounds,** checked at io's entrance: a reach past one is refused
+  before anything is made, io answering `Failed` with
+  `Error::Reach(Unenforced::Bounds)`, then `Closed`. The kernel record's
+  own validity holds the same bounds.
+
+  | Bound | Admitted | Refused |
+  |---|---|---|
+  | `abi` | 6 (`Reach::ABI`) | any other |
+  | rules | none to 64 (`Reach::RULES`) | 65 |
+  | a rule's path | relative, no NUL, at most 4,095 bytes (`Reach::PATH`) | one starting `/`, one holding a NUL, 4,096 bytes |
+  | a rule's rights | at least one | none |
+  | the command | at most 61,440 bytes (`Reach::COMMAND`) | 61,441 |
+
+  The command's bytes are its program, each argument and each
+  environment entry, each counted as its length and four more, and four
+  for each descriptor its table names: so the helper's spec fits a
+  pipe's 64 KiB whole (../kernel.md, 6.6). A spawn without a reach keeps
+  no such bound.
+- **Who enforces it.** Each backend enforces a reach whole or refuses
+  the spawn, never running it with less: Linux's ring and its readiness
+  backend through the helper (../kernel.md, 6.6); macOS refuses every
+  spawn with a reach, `Unsupported`; the simulator hands it to the
+  machine, which refuses it as the kernel would or plays it
+  (../../testing/simulator.md, 3.4; ../../testing/README.md, 4). io maps
+  a backend's `kernel::Error::Reach(u)` to its own `Error::Reach(u)`,
+  unchanged, then answers `Closed`. A spawn alone (`SpawnAlone`) carries
+  a reach as any spawn does.
+- **Whether a machine can restrict a tree** is the startup check's
+  (../shell.md, 6.4): it spawns a restricted child, and answers the
+  `Unenforced` a reach would meet, or that it can.
+- **Its words.** `Unenforced`'s `Display` says what is missing and what
+  an operator can do about it: run Linux 6.12 or later, built with
+  Landlock; add `landlock` to the boot's `lsm=`; let a container's
+  seccomp profile admit Landlock's calls; have `main` hand its arguments
+  to the helper's dispatch first. An error number is named as well as
+  numbered where the kernel answers it here (`EPERM`, `ENOENT`,
+  `EACCES`, `ENOTDIR`, `EXDEV`, `ELOOP`, `ENAMETOOLONG`, `E2BIG`,
+  `EINVAL`, `ENOMEM`, `ENOSYS`, `EOPNOTSUPP`).
+
+## 7. Later
+
+- **The network** (`temper/docs/design/draft/confinement.md`, 5.4) and **a cgroup per run** (5.5)
+  join a reach as their steps come, each a field of its own, and its ABI
+  rises where Landlock's network rights are asked.
+- **The helper as a command prefix** (`temper/docs/design/draft/confinement.md`, 5.3): a program's
+  commands narrowed by the same helper, started by a program that is not
+  a skein service.
+- **A path beneath no root.** A host names its machine's paths beneath a
+  root it opens on `/`; an absolute link on the way, as
+  `/etc/resolv.conf` often is, fails the rule, and the host names its
+  target instead.

@@ -357,7 +357,7 @@ was metered as its own, which also finds a leak.
   checks, each fault of a disk, and a power loss after each of a link, a
   second name, a mode, an owner and an attribute, kept only past its
   sync.
-- **The conformance suite** (../runtime/kernel.md, 8) is `testing/skein-conformance`,
+- **The conformance suite** (conformance.md, 1) is `testing/skein-conformance`,
   over a small backend interface the simulator implements in
   `tests/conformance/sim` and the real kernel's backends in `tests/conformance/real`. Where
   the simulator draws among outcomes the kernel allows, every one of them

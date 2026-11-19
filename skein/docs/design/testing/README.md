@@ -5,8 +5,10 @@ applies to skein itself: which tiers skein has, what they run, the
 example services and the minimal fake machine they need, where the tests
 live, what skein supplies for a service's own tiers, and where things
 stand. How each part is tested in its own tier is in that part's
-document. The shared LLM, forge and checkout fakes are indexed in
-[`fakes/README.md`](fakes/README.md).
+document. The conformance suite, which holds the simulator and each
+backend to the kernel boundary's contract, is
+[`conformance.md`](conformance.md). The shared LLM, forge and checkout
+fakes are indexed in [`fakes/README.md`](fakes/README.md).
 
 ## 1. In one page
 
@@ -34,7 +36,7 @@ document. The shared LLM, forge and checkout fakes are indexed in
 | io worlds | io over the simulator, with a scripted owner | ../runtime/io/README.md, 5 |
 | simulated worlds | the examples' `iterate`, each a process of the simulator | section 3 |
 | real loop | the examples under the shell, on the real kernel | section 3 |
-| beside them | the conformance suite, against the simulator and the ring | ../runtime/kernel.md, 8 |
+| beside them | the conformance suite, against the simulator and the ring | conformance.md, 1 |
 | beside them | the simulator's own tests; the ring's own tests | simulator.md, 6; ../runtime/shell.md, 8 |
 | durable store | `skein-kv` step tests; `tests/kv` over the crashing fake disk and the real ring | ../data/kv.md, 9 |
 | browser tier | the browser kit against real Chromium; the UI example's bundle in Chromium, through the person's browser face and harness | browser.md, 9; ../ui/web/testing.md, 1 |
@@ -109,7 +111,7 @@ group, mode up to `0o7777`, times and attributes, and hard links, and
 lays FIFOs; it has no devices, no sockets and no btrfs. It answers every
 subvolume call `NotSupported`, and its status a filesystem that is not
 btrfs, as Linux does off btrfs, so skein's btrfs scenarios run on the
-ring alone (../runtime/kernel.md, 8). A service whose fake machine models btrfs,
+ring alone (conformance.md, 1). A service whose fake machine models btrfs,
 such as hearth's, holds that machine to those scenarios itself.
 
 For trees (../runtime/io/processes.md, 2 to 4; simulator.md, 3.4) its programs add: one
@@ -119,7 +121,7 @@ one that writes what it finds of itself, its ids and groups, its
 hostname, its network's interfaces, the processes in its `/proc`, its
 `no_new_privs`, its rlimits, and whether chosen paths can be read and
 written, so that a conformance scenario checks a contained tree from
-inside it (../runtime/kernel.md, 8).
+inside it (conformance.md, 1).
 
 A separate dependency-free kit, `skein-fake-checkout`, supplies generic
 byte-path files, scripted commands and local git mechanics for domain
