@@ -74,7 +74,7 @@ pub mod paths {
     pub const DRAFT_WORDS: Path = Path::new(8, 2);
     pub const DRAFT_TOUCHED: Path = Path::new(8, 3);
     pub const DRAFT_TAIL: Path = Path::new(8, 4);
-    pub const JIG_RECORD_TAG: Path = Path::new(9, 0);
+    pub const VIEW_RECORD_TAG: Path = Path::new(9, 0);
     pub const STORED_RECORD_STORE_VERSION: Path = Path::new(10, 0);
     pub const STORED_RECORD_RECORD: Path = Path::new(10, 1);
     pub const STORED_RECORD_VERSION: Path = Path::new(10, 2);
@@ -122,7 +122,7 @@ const PATH_NAMES: &[&[&str]] = &[
         "Draft (tail)",
     ],
     &[
-        "JigRecord (tag)",
+        "ViewRecord (tag)",
     ],
     &[
         "StoredRecord.store_version",
@@ -572,17 +572,17 @@ impl Record for Draft {
     }
 }
 
-// Type: JigRecord.
+// Type: ViewRecord.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub enum JigRecord {
+pub enum ViewRecord {
     Place(Place),
     Draft(Draft),
 }
 
-// Record: JigRecord.
-impl Record for JigRecord {
+// Record: ViewRecord.
+impl Record for ViewRecord {
     type Limits = Limits;
-    const TAIL: Path = paths::JIG_RECORD_TAG;
+    const TAIL: Path = paths::VIEW_RECORD_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
         Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 37)?.encoded)
@@ -594,17 +594,17 @@ impl Record for JigRecord {
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
         match self {
-            Self::Place(value) => { field::put(out, &[0], paths::JIG_RECORD_TAG)?; value.write(limits, out) },
-            Self::Draft(value) => { field::put(out, &[1], paths::JIG_RECORD_TAG)?; value.write(limits, out) },
+            Self::Place(value) => { field::put(out, &[0], paths::VIEW_RECORD_TAG)?; value.write(limits, out) },
+            Self::Draft(value) => { field::put(out, &[1], paths::VIEW_RECORD_TAG)?; value.write(limits, out) },
         }
     }
 
     fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let tag = reader.u8().ok_or(Problem { path: paths::JIG_RECORD_TAG, reason: skein_codec::Reason::Short })?;
+        let tag = reader.u8().ok_or(Problem { path: paths::VIEW_RECORD_TAG, reason: skein_codec::Reason::Short })?;
         match tag {
             0 => Ok(Self::Place(Place::read(limits, reader)?)),
             1 => Ok(Self::Draft(Draft::read(limits, reader)?)),
-            2..=u8::MAX => Err(Problem { path: paths::JIG_RECORD_TAG, reason: skein_codec::Reason::Tag }),
+            2..=u8::MAX => Err(Problem { path: paths::VIEW_RECORD_TAG, reason: skein_codec::Reason::Tag }),
         }
     }
 }

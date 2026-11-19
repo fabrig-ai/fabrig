@@ -17,7 +17,7 @@ fn largest_roots_stay_within_decoded_bounds() {
             stored_record_record,
         ],
         roots [
-            JigRecord,
+            ViewRecord,
             StoredRecord,
         ]
     );

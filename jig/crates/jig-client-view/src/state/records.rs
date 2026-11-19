@@ -42,13 +42,13 @@ pub fn encode(record: &Record) -> (Box<[u8]>, Box<[u8]>) {
         Record::Place { version, party, address: at } => (
             *version,
             RecordKey::Place,
-            w::JigRecord::Place(w::Place { party: *party, address: address::encode(*at) }),
+            w::ViewRecord::Place(w::Place { party: *party, address: address::encode(*at) }),
             "bounded place",
         ),
         Record::Draft { version, party, task, words, touched } => (
             *version,
             RecordKey::Draft { task: *task },
-            w::JigRecord::Draft(w::Draft {
+            w::ViewRecord::Draft(w::Draft {
                 party: *party,
                 task: *task,
                 words: bytes::copy_of(words.bytes()),
@@ -71,15 +71,15 @@ pub fn decode(key: &[u8], bytes: &[u8]) -> Option<Record> {
         return None;
     }
     let mut payload = Reader::new(&record.record);
-    let page = w::JigRecord::decode(&w::CEILINGS, &mut payload).ok()?;
+    let page = w::ViewRecord::decode(&w::CEILINGS, &mut payload).ok()?;
     if payload.remaining() != 0 {
         return None;
     }
     let (record_key, record) = match page {
-        w::JigRecord::Place(value) => {
+        w::ViewRecord::Place(value) => {
             (RecordKey::Place, Record::Place { version, party: value.party, address: address::decode(&value.address) })
         }
-        w::JigRecord::Draft(value) => (
+        w::ViewRecord::Draft(value) => (
             RecordKey::Draft { task: value.task },
             Record::Draft {
                 version,
