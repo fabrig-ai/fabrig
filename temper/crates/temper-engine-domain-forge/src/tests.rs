@@ -3,6 +3,7 @@ use crate::*;
 use temper_engine_domain_forge_issues as issues;
 mod admission;
 mod adoption;
+mod applications;
 mod away;
 mod binding;
 mod brief_document;

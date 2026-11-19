@@ -74,7 +74,7 @@ Every limit application.limits.overrides takes: its unit, the stock's value and 
 - `forge.facts`: count, 16. Bounds facts awaiting the forge connector's drain.
 - `forge.makings`: count, 32. Bounds repositories being made or failed, from 1 to 64.
 - `forge.adoptions`: count, 2. Bounds repository adoptions in flight.
-- `forge.applications`: count, 32. Bounds keyed adoption answers retained for request retention.
+- `forge.applications`: count, 32. Bounds the forge's kept answers to keyed requests; the oldest answered makes room for a new one.
 - `forge.collaborators`: count, 8. Bounds collaborators retained by the forge connector.
 - `forge.changes_rows`: count, 32. Bounds queued rows across the changes document's queues.
 - `forge.changes_landed`: count, 8. Bounds recent landed changes in the changes document.
