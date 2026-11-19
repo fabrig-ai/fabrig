@@ -14,9 +14,10 @@ use alloc::boxed::Box;
 use core::mem;
 use jig_domain_host as host;
 use jig_domain_link::Hello;
+use jig_protocol_worker_wire::Record;
 use jig_protocol_worker_wire::{self as wire, sizes};
 use skein_channel::{self as channel, Closed, Machine, Role};
-use skein_lib::{Decimal, Duration, List, Queue, Secret, Time, Token, Writer, bytes};
+use skein_lib::{Decimal, Duration, List, Queue, Secret, Time, Token, bytes};
 
 #[derive(Debug)]
 pub struct Credential {
@@ -42,7 +43,8 @@ enum Life {
 #[derive(Debug)]
 pub struct Component {
     limits: Limits,
-    credential: wire::Credential,
+    credential: Secret,
+    opening: wire::Opening,
     schema: channel::Schema,
     wires: List<wire::Spoken>,
     translation: Box<wire::translation::Translation>,
@@ -89,46 +91,37 @@ impl Component {
         }
         let mut wires = List::with_capacity(bodies.credential_wires);
         for spoken in &jig {
-            let wire = wire::Wire::new(
-                &bodies,
-                wire::WireParts {
-                    name: bytes::copy_of(spoken.name.as_bytes()),
-                    lowest: spoken.lowest,
-                    layouts: spoken.layouts.clone(),
-                },
-            )
-            .or(Err(Unusable::Credential))?;
+            let wire = wire::Wire {
+                name: bytes::copy_of(spoken.name.as_bytes()),
+                lowest: spoken.lowest,
+                layouts: spoken.layouts.clone(),
+            };
             wires.push(wire).or(Err(Unusable::Credential))?;
         }
         for spoken in &credential.application.spoken {
-            let wire = wire::Wire::new(
-                &bodies,
-                wire::WireParts {
-                    name: bytes::copy_of(spoken.name.as_bytes()),
-                    lowest: spoken.lowest,
-                    layouts: spoken.layouts.clone(),
-                },
-            )
-            .or(Err(Unusable::Credential))?;
+            let wire = wire::Wire {
+                name: bytes::copy_of(spoken.name.as_bytes()),
+                lowest: spoken.lowest,
+                layouts: spoken.layouts.clone(),
+            };
             wires.push(wire).or(Err(Unusable::Credential))?;
         }
         let translation =
             Box::new(wire::translation::Translation::new(credential.application).or(Err(Unusable::Application))?);
-        let credential = wire::Credential::new(
-            &bodies,
-            wire::CredentialParts {
-                name: credential.name,
-                secret: credential.secret,
-                wires,
-                output: limits.room,
-                opening: credential.opening,
-            },
-        );
-        let Ok(credential) = credential else { return Err(Unusable::Credential) };
+        let credential = wire::Credential {
+            name: credential.name,
+            secret: credential.secret,
+            wires,
+            output: limits.room,
+            opening: credential.opening,
+        };
+        let opening = credential.opening.clone();
+        let credential = Secret::new(credential.encode(&bodies).or(Err(Unusable::Credential))?);
         let backoff = Backoff::new(limits, seed);
         Ok(Self {
             limits: *limits,
             credential,
+            opening,
             schema,
             wires: spoken_wires,
             translation,
@@ -193,14 +186,14 @@ impl Component {
             }
             Event::Gone { connection } => self.gone(now, connection, out),
             Event::Hello { hello } => {
-                if self.life != Life::Active || *self.credential.opening() == wire::Opening::Figures {
+                if self.life != Life::Active || self.opening == wire::Opening::Figures {
                     return;
                 }
                 self.hello(now, hello, out);
                 self.pump(now, out);
             }
             Event::Up { up, parts } => {
-                if self.life != Life::Active || *self.credential.opening() == wire::Opening::Figures {
+                if self.life != Life::Active || self.opening == wire::Opening::Figures {
                     return;
                 }
                 self.up(up, &parts, out);
@@ -330,9 +323,7 @@ impl Component {
             self.pump(now, out);
             return;
         }
-        let mut writer = Writer::new(skein_lib::length::usize_of(self.credential.measure()));
-        self.credential.encode(&mut writer).expect("measured credential fits");
-        self.command(channel::Request::Open { credential: writer.finish() });
+        self.command(channel::Request::Open { credential: bytes::copy_of(self.credential.expose()) });
         self.pump(now, out);
     }
     fn gone(&mut self, now: Time, token: Token, out: &mut Queue<Request>) {
@@ -625,7 +616,7 @@ impl Component {
         }
     }
     fn ready(&mut self, now: Time, version: u16, terms: &List<channel::Term>, out: &mut Queue<Request>) {
-        if *self.credential.opening() == wire::Opening::Link
+        if self.opening == wire::Opening::Link
             && let Some(kind) = wire::terms_gap(&self.schema, version, Role::Initiator, terms)
         {
             self.command(channel::Request::Refuse {
@@ -655,7 +646,7 @@ impl Component {
             if let Some(connection) = self.phase.connection() {
                 connection.live(now, &self.limits);
             }
-            if ready && *self.credential.opening() == wire::Opening::Link {
+            if ready && self.opening == wire::Opening::Link {
                 out.push(Request::Ready);
             }
             self.command(channel::Request::Read);
@@ -682,7 +673,7 @@ impl Component {
         let kind = frame.kind();
         let body = frame.bytes().get(8..).expect("validated frame header");
         if kind == wire::Kind::Wires.number() {
-            let record = wire::v17::Agreed::decode(&limits, &mut skein_lib::Reader::new(body));
+            let record = wire::v18::Agreed::decode(&limits, &mut skein_lib::Reader::new(body));
             let agreed = match record {
                 Ok(record) => crate::wires::statement(&self.wires, &record),
                 Err(_) => None,
@@ -691,7 +682,7 @@ impl Component {
                 self.lose(now, Loss::Fault, out);
                 return;
             };
-            if *self.credential.opening() == wire::Opening::Link && crate::wires::singletons(&self.wires).is_none() {
+            if self.opening == wire::Opening::Link && crate::wires::singletons(&self.wires).is_none() {
                 let incomplete = self.translation.incomplete(agreed.as_slice());
                 if !incomplete.is_empty() {
                     for wire in &incomplete {
@@ -709,7 +700,7 @@ impl Component {
             let ready = connection.wires.is_none();
             connection.wires = Some(agreed);
             connection.stated = true;
-            if ready && *self.credential.opening() == wire::Opening::Link {
+            if ready && self.opening == wire::Opening::Link {
                 out.push(Request::Ready);
             }
             self.command(channel::Request::Read);
@@ -731,7 +722,7 @@ impl Component {
                 && stated
             {
                 out.push(Request::Figures { figures });
-                if *self.credential.opening() == wire::Opening::Figures {
+                if self.opening == wire::Opening::Figures {
                     self.end(now, false, out);
                 } else {
                     self.command(channel::Request::Read);
@@ -744,7 +735,7 @@ impl Component {
         if kind == wire::Kind::Restarting.number() {
             match wire::Restarting::decode(&limits, &mut skein_lib::Reader::new(body)) {
                 Ok(record) => {
-                    let wait = Duration::from_millis(record.wait_ms());
+                    let wait = Duration::from_millis(record.wait_ms);
                     let Some(connection) = self.phase.connection() else { return };
                     connection.restart_wait = Some(wait);
                     self.admitted();
@@ -763,7 +754,7 @@ impl Component {
             match record {
                 Ok(record) => {
                     self.admitted();
-                    if self.busy.add(now, Token::new(record.task()), Token::new(record.attempt()), record.number()) {
+                    if self.busy.add(now, Token::new(record.task), Token::new(record.attempt), record.number) {
                         self.command(channel::Request::Read);
                     } else {
                         self.lose(now, Loss::Busy, out);
@@ -952,7 +943,7 @@ impl Component {
     fn translated(
         &mut self,
         frame: channel::Frame,
-        limits: &wire::v17::Limits,
+        limits: &wire::v18::Limits,
         out: &mut Queue<Request>,
     ) -> Option<channel::Frame> {
         let kind = frame.kind();

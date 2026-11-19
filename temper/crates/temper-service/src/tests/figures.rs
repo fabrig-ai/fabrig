@@ -63,7 +63,7 @@ fn the_box_builds_at_local_places_not_document_slots() {
         )
         .unwrap()
         .unwrap();
-        assert_eq!(part.figures.as_ref().unwrap().places(), places);
+        assert_eq!(part.figures.as_ref().unwrap().places, places);
         assert_eq!(part.worker.jig.slots, places);
         assert_eq!(part.worker.jig.limits.as_ref().unwrap().hub.slots, places);
         assert_eq!(part.limits.checkout.workspaces, places);
@@ -128,9 +128,9 @@ fn a_box_derives_its_composed_carriers_from_its_agent() {
     assert!(problems.is_empty(), "{problems:?}");
     let figures = part.figures.unwrap();
     let mut turn = None;
-    for limit in figures.limits() {
-        if limit.name() == b"hub.turn_bytes" {
-            turn = Some(limit.value());
+    for limit in &figures.limits {
+        if limit.name.as_ref() == b"hub.turn_bytes" {
+            turn = Some(limit.value);
         }
     }
     assert_eq!(turn, Some(u64::from(agent.declaration().turn_body)));
@@ -179,9 +179,9 @@ fn in_process_opening_is_quiet_until_the_engines_figures_change() {
         checked.worker.as_ref().unwrap().0.jig.limits.as_ref().unwrap().hub.source_interval,
         skein_lib::Duration::from_millis(60_000)
     );
-    let mut opening = temper_engine_service::figures::compose(&checked.engine, &agents).into_parts();
+    let mut opening = temper_engine_service::figures::compose(&checked.engine, &agents);
     opening.places = 4;
-    let opening = jig_protocol_worker_wire::Figures::new(&jig_protocol_worker_wire::CEILINGS, opening).unwrap();
+
     assert_eq!(built, opening, "the in-process host sends what the box composed");
     // This worker-notice fixture has no accounts shell.
     for provider in &mut checked.engine.jig.llm.providers {
@@ -202,9 +202,9 @@ fn in_process_opening_is_quiet_until_the_engines_figures_change() {
     let worker = service.worker.as_mut().unwrap();
     worker.link(fixtures::NOW, jig_protocol_worker_link::Request::Figures { figures: opening.clone() });
     assert_eq!(worker.notes().pop(), None);
-    let mut changed = opening.into_parts();
+    let mut changed = opening;
     changed.places = changed.places.checked_add(1).unwrap();
-    let changed = jig_protocol_worker_wire::Figures::new(&jig_protocol_worker_wire::CEILINGS, changed).unwrap();
+
     worker.link(fixtures::NOW, jig_protocol_worker_link::Request::Figures { figures: changed });
     assert_eq!(worker.notes().pop(), Some(crate::worker_alone::Note::FiguresChanged));
     assert_eq!(worker.notes().pop(), None);

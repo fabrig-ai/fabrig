@@ -71,7 +71,7 @@ pub fn splice(old: &[u8], range: LineRange, text: &[u8], bound: u32) -> Result<B
 }
 
 /// The new body's lines and the span left after common end lines are trimmed.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct LineChange {
     /// The new body's lines.
     pub lines: u32,

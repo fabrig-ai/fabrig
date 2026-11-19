@@ -53,10 +53,11 @@ pub(in crate::codec) fn wire_activity(value: &c::Activity, limits: &w::Limits) -
             recipient: wire_requester(recipient, limits)?,
             word: wire_word(word, limits)?,
         }),
-        c::Activity::RunBegan { attempt, why, resumed } => w::Activity::RunBegan(w::ActivityRunBegan {
+        c::Activity::RunBegan { attempt, why, resumed, fresh: cause } => w::Activity::RunBegan(w::ActivityRunBegan {
             attempt: *(attempt),
             why: wire_run_why(why, limits)?,
             resumed: *(resumed),
+            fresh: fresh(*cause),
         }),
         c::Activity::RunEnded { attempt, end, spent } => w::Activity::RunEnded(w::ActivityRunEnded {
             attempt: *(attempt),
@@ -264,5 +265,18 @@ fn wire_invalid_reason(value: c::InvalidReason) -> w::InvalidReason {
         c::InvalidReason::Change => w::InvalidReason::Change,
         c::InvalidReason::Followups => w::InvalidReason::Followups,
         c::InvalidReason::UnreadableResult => w::InvalidReason::UnreadableResult,
+    }
+}
+
+fn fresh(value: Option<c::RunFresh>) -> Option<w::RunFresh> {
+    value.map(run_fresh)
+}
+fn run_fresh(value: c::RunFresh) -> w::RunFresh {
+    match value {
+        c::RunFresh::Moved => w::RunFresh::Moved,
+        c::RunFresh::Closed => w::RunFresh::Closed,
+        c::RunFresh::Cut => w::RunFresh::Cut,
+        c::RunFresh::Limit => w::RunFresh::Limit,
+        c::RunFresh::Session => w::RunFresh::Session,
     }
 }

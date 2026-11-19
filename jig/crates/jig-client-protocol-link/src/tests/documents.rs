@@ -381,6 +381,60 @@ fn task_settings_revisions_cross_into_the_client_document() {
 }
 
 #[test]
+fn unread_words_cross_into_the_client_document_empty_and_full() {
+    use skein_lib::List;
+    let limits = fixtures::limits_for_document(u64::from(w::CEILINGS.owned_record));
+    for count in [0, w::CEILINGS.task_unread] {
+        let mut parts = fixtures::task_record();
+        let mut expected = fixtures::task();
+        parts.unread = List::with_capacity(count);
+        expected.unread = List::with_capacity(count);
+        for message in 0..count {
+            let by = if message % 2 == 0 { c::Requester::Person(42) } else { c::Requester::Task(41) };
+            let sender = match by {
+                c::Requester::Person(value) => w::Requester::Person(w::RequesterPerson { value }),
+                c::Requester::Task(value) => w::Requester::Task(w::RequesterTask { value }),
+                c::Requester::Deployment { .. } => unreachable!(),
+            };
+            let head = Box::<[u8]>::from([b'x'; 256]);
+            parts
+                .unread
+                .push(w::UnreadWords {
+                    message: u64::from(message),
+                    by: sender,
+                    at: 77,
+                    seen: message % 2 == 0,
+                    head: head.clone(),
+                    bytes: 300,
+                })
+                .unwrap();
+            expected
+                .unread
+                .push(c::UnreadWords {
+                    message: u64::from(message),
+                    by,
+                    at: skein_lib::Wall::from_nanos(77),
+                    seen: message % 2 == 0,
+                    head: c::Text::new(head, 256).unwrap(),
+                    bytes: 300,
+                })
+                .unwrap();
+        }
+        let record = parts;
+        let actual = documents::task(record, &limits).unwrap();
+        assert_eq!(actual.unread.len(), expected.unread.len());
+        for (actual, expected) in actual.unread.iter().zip(expected.unread.iter()) {
+            assert_eq!(actual.message, expected.message);
+            assert_eq!(actual.by, expected.by);
+            assert_eq!(actual.at, expected.at);
+            assert_eq!(actual.seen, expected.seen);
+            assert_eq!(actual.head, expected.head);
+            assert_eq!(actual.bytes, expected.bytes);
+        }
+    }
+}
+
+#[test]
 fn chip_phases_refuse_missing_end_time_and_retry_notice() {
     let limits = fixtures::limits();
     let backing_off =

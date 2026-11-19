@@ -9,7 +9,7 @@ use alloc::boxed::Box;
 use skein_lib::{Decimal, Writer};
 use smith_domain::tools::{self, Outcome};
 
-use crate::Error;
+use crate::{Cause, Error, Refusal};
 
 /// Room for a newline, brackets, a u64 byte count and the cut's words.
 /// Derived result bounds always hold this marker (protocol/limits.md, section 6).
@@ -356,7 +356,7 @@ fn render(outcome: &Outcome, namespace: &tools::Namespace, output: &mut Sink) ->
 }
 
 fn read(content: &[u8], first: u32, lines: u32, total: u32, cut: tools::Cut, output: &mut Sink) -> Result<(), Error> {
-    let skipped = first.checked_sub(1).ok_or(Error::Invalid)?;
+    let skipped = first.checked_sub(1).ok_or(Error::Invalid { cause: Cause::Smith(Refusal::ReadLine) })?;
     let mut start = 0_usize;
     let mut index = 0_u64;
     for (position, byte) in content.iter().enumerate() {

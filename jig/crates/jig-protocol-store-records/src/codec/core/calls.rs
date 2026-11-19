@@ -126,7 +126,7 @@ pub(super) fn encode_call_part(value: &domain::CallPart, limits: &View) -> Resul
         domain::CallPart::NoteDeleted { name } => {
             wire::CallPart::NoteDeleted(wire::CallPartNoteDeleted { name: *name })
         }
-        domain::CallPart::NoteWritten { name, revision, lines, added, removed, first } => {
+        domain::CallPart::NoteWritten { name, revision, lines, added, removed, first, recorded, unknown } => {
             wire::CallPart::NoteWritten(wire::CallPartNoteWritten {
                 name: *name,
                 revision: *revision,
@@ -134,6 +134,14 @@ pub(super) fn encode_call_part(value: &domain::CallPart, limits: &View) -> Resul
                 added: *added,
                 removed: *removed,
                 first: *first,
+                recorded: encode_numbers(recorded)?,
+                unknown: encode_numbers(unknown)?,
+            })
+        }
+        domain::CallPart::WordsRecorded { recorded, unknown } => {
+            wire::CallPart::WordsRecorded(wire::CallPartWordsRecorded {
+                recorded: encode_numbers(recorded)?,
+                unknown: encode_numbers(unknown)?,
             })
         }
         domain::CallPart::NoteRecalled { entries, more } => encode_part_note_recalled(entries, *more, limits)?,
@@ -240,8 +248,21 @@ pub(super) fn decode_call_part(value: wire::CallPart, limits: &View) -> Result<d
         }
         wire::CallPart::NoteDeleted(value) => domain::CallPart::NoteDeleted { name: value.name },
         wire::CallPart::NoteWritten(value) => {
-            let wire::CallPartNoteWritten { name, revision, lines, added, removed, first } = value;
-            domain::CallPart::NoteWritten { name, revision, lines, added, removed, first }
+            let wire::CallPartNoteWritten { name, revision, lines, added, removed, first, recorded, unknown } = value;
+            domain::CallPart::NoteWritten {
+                name,
+                revision,
+                lines,
+                added,
+                removed,
+                first,
+                recorded: decode_numbers(recorded),
+                unknown: decode_numbers(unknown),
+            }
+        }
+        wire::CallPart::WordsRecorded(value) => {
+            let wire::CallPartWordsRecorded { recorded, unknown } = value;
+            domain::CallPart::WordsRecorded { recorded: decode_numbers(recorded), unknown: decode_numbers(unknown) }
         }
         wire::CallPart::NoteRecalled(value) => {
             let wire::CallPartNoteRecalled { entries, more } = value;
@@ -639,4 +660,23 @@ fn encode_hold_owner(
 
 fn encode_moved_part(task: u64, now: &jig_domain_people::Moved, limits: &View) -> wire::CallPart {
     wire::CallPart::Moved(wire::CallPartMoved { task, now: moved::encode_moved(now, &limits.core) })
+}
+
+fn encode_numbers(values: &[u64]) -> Result<List<wire::Number>, wire::Problem> {
+    let count = match u32::try_from(values.len()) {
+        Ok(count) => count,
+        Err(error) => return Err(too_large(error)),
+    };
+    let mut result = List::with_capacity(count);
+    for &value in values {
+        result.push(wire::Number { value }).expect("same names count");
+    }
+    Ok(result)
+}
+fn decode_numbers(values: List<wire::Number>) -> Box<[u64]> {
+    let mut result = List::with_capacity(values.len());
+    for value in values.into_boxed() {
+        result.push(value.value).expect("same names count");
+    }
+    result.into_boxed()
 }

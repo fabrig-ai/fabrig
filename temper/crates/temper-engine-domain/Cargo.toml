@@ -9,6 +9,7 @@ publish.workspace = true
 
 [dependencies]
 temper-engine-domain-store.workspace = true
+temper-engine-domain-translate.workspace = true
 temper-engine-domain-room.workspace = true
 temper-engine-domain-forge-closer.workspace = true
 temper-protocol-reaches.workspace = true

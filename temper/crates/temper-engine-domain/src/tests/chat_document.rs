@@ -184,7 +184,20 @@ fn the_document_flight_joins_the_note_result() {
     use jig_domain_notes::Refusal as N;
     let written = O::Written { name: 1, revision: 2, lines: 3, added: 1, removed: 1, first: 3 };
     let rows = [
-        (None, C::NoteWritten { name: 1, revision: 2, lines: 3, added: 1, removed: 1, first: 3 }, written),
+        (
+            None,
+            C::NoteWritten {
+                name: 1,
+                revision: 2,
+                lines: 3,
+                added: 1,
+                removed: 1,
+                first: 3,
+                recorded: Box::new([]),
+                unknown: Box::new([]),
+            },
+            written,
+        ),
         (None, C::NoteRefused(N::Moved { revision: 3 }), O::Refused(R::Moved)),
         (None, C::NoteRefused(N::Missing), O::Refused(R::Moved)),
         (None, C::NoteRefused(N::Busy), O::Refused(R::Busy)),

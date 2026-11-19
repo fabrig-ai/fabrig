@@ -2,9 +2,9 @@ use smith_agent_process_world::{World, bearer, charter, key, program};
 use smith_channel::{InvalidStart, RunResult, StartRefusal};
 
 fn refusal(world: &World) -> Option<InvalidStart> {
-    world.answer().and_then(|answer| match answer.result() {
-        RunResult::Refused(refused) => match refused.reason() {
-            StartRefusal::Invalid(invalid) => Some(invalid.value().clone()),
+    world.answer().and_then(|answer| match &answer.result {
+        RunResult::Refused(refused) => match &refused.reason {
+            StartRefusal::Invalid(invalid) => Some(invalid.value.clone()),
             StartRefusal::Busy => None,
         },
         RunResult::Accepted(_) | RunResult::Parked | RunResult::Failed(_) => None,

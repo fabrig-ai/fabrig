@@ -964,18 +964,23 @@ fn rendered(
             }
             false
         }
+        CallAnswer::WordsRecorded { recorded, unknown } => {
+            recording(&mut text, recorded, unknown, false)?;
+            false
+        }
         CallAnswer::NoteDeleted { name } => {
             text.add(b"Deleted note ")?;
             text.number(*name)?;
             false
         }
-        CallAnswer::NoteWritten { name, revision, lines, added, removed, first } => {
+        CallAnswer::NoteWritten { name, revision, lines, added, removed, first, recorded, unknown } => {
             note_written(
                 &mut text,
                 *name,
                 *revision,
                 jig_domain_notes::LineChange { lines: *lines, added: *added, removed: *removed, first: *first },
             )?;
+            recording(&mut text, recorded, unknown, true)?;
             false
         }
         CallAnswer::NoteRecalled { entries, more } => {
@@ -1037,6 +1042,28 @@ fn rendered(
 }
 
 /// The client's note line reads this acknowledgement (temper/docs/design/domain/agent/agents.md, 3).
+fn recording(text: &mut Text, recorded: &[u64], unknown: &[u64], mut has_line: bool) -> Result<(), Problem> {
+    for (label, numbers) in
+        [(b"recorded: ".as_slice(), recorded), (b"named none of your unrecorded words: ".as_slice(), unknown)]
+    {
+        if numbers.is_empty() {
+            continue;
+        }
+        if has_line {
+            text.add(b"\n")?;
+        }
+        text.add(label)?;
+        for (at, &number) in numbers.iter().enumerate() {
+            if at != 0 {
+                text.add(b", ")?;
+            }
+            text.number(number)?;
+        }
+        has_line = true;
+    }
+    Ok(())
+}
+
 pub(crate) fn note_written(
     text: &mut Text,
     name: u64,
@@ -2319,8 +2346,16 @@ mod tests {
         for (lines, expected) in
             [(0, "Note 12 revision 1 written · 0 lines"), (64, "Note 12 revision 1 written · 64 lines")]
         {
-            let rendered =
-                answer(&CallAnswer::NoteWritten { name: 12, revision: 1, lines, added: lines, removed: 0, first: 1 });
+            let rendered = answer(&CallAnswer::NoteWritten {
+                name: 12,
+                revision: 1,
+                lines,
+                added: lines,
+                removed: 0,
+                first: 1,
+                recorded: Box::new([]),
+                unknown: Box::new([]),
+            });
             assert_eq!(rendered.text(), expected.as_bytes());
             assert!(!rendered.error());
         }
@@ -2332,7 +2367,16 @@ mod tests {
             (18, 6, 31, "Note 12 revision 3 written · +18 −6 · line 31 · 64 lines"),
             (0, 0, 1, "Note 12 revision 3 written · +0 −0 · line 1 · 64 lines"),
         ] {
-            let rendered = answer(&CallAnswer::NoteWritten { name: 12, revision: 3, lines: 64, added, removed, first });
+            let rendered = answer(&CallAnswer::NoteWritten {
+                name: 12,
+                revision: 3,
+                lines: 64,
+                added,
+                removed,
+                first,
+                recorded: Box::new([]),
+                unknown: Box::new([]),
+            });
             assert_eq!(rendered.text(), expected.as_bytes());
             assert!(!rendered.error());
         }

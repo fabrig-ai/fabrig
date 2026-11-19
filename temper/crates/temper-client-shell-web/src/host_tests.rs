@@ -454,7 +454,8 @@ fn the_first_task_activity_answer_survives_transport_sign_in() {
             document: owned(document.encode(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture encoding")),
         }),
     );
-    let event = w::Activity::RunBegan(w::ActivityRunBegan { attempt: RUN, why: w::RunWhy::Made, resumed: true });
+    let event =
+        w::Activity::RunBegan(w::ActivityRunBegan { attempt: RUN, why: w::RunWhy::Made, resumed: true, fresh: None });
     let source = w::ActivityLine { task: 7, position: 1, at: 1, line: event };
     let line = w::DecodedActivityLine { source, decoded: None };
     let page = jig_client_test_records::activity_rows(&[line]);

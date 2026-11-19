@@ -1,6 +1,7 @@
 //! Smith's JSON shapes for jig's scoped note and recall tools.
 //! The root checks bounds and authority before any value becomes durable.
 
+use alloc::boxed::Box;
 use jig_domain_notes as notes;
 use skein_lib::List;
 
@@ -46,8 +47,12 @@ pub(crate) fn new(value: Node<'_>) -> Result<jig_domain_core_vocabulary::NamedAc
         return Err(Problem { field: b"name", why: crate::Why::Range });
     }
     let references = match value.field(b"references")? {
-        Some(value) => numbers(value)?,
+        Some(value) => numbers(value, b"references")?,
         None => List::with_capacity(0),
+    };
+    let records = match value.field(b"records")? {
+        Some(value) => numbers(value, b"records")?.into_boxed(),
+        None => Box::new([]),
     };
     let entry = notes::New {
         name,
@@ -62,8 +67,9 @@ pub(crate) fn new(value: Node<'_>) -> Result<jig_domain_core_vocabulary::NamedAc
             entry,
             recalled: recalled.expect("range names its revision"),
             range,
+            records,
         },
-        None => jig_domain_core_vocabulary::NamedAction::Note { entry, recalled },
+        None => jig_domain_core_vocabulary::NamedAction::Note { entry, recalled, records },
     })
 }
 
@@ -135,7 +141,7 @@ fn scope(value: Node<'_>) -> Result<notes::Scope, Problem> {
     }
 }
 
-fn numbers(value: Node<'_>) -> Result<List<u64>, Problem> {
+pub(crate) fn numbers(value: Node<'_>, field: &'static [u8]) -> Result<List<u64>, Problem> {
     let mut values = value.array()?;
     let Ok(capacity) = u32::try_from(values.len()) else {
         return Err(Problem { field: b"", why: crate::Why::TooLarge });
@@ -145,7 +151,7 @@ fn numbers(value: Node<'_>) -> Result<List<u64>, Problem> {
         let value = values.next().expect("counted array element");
         let number = value.number()?;
         if number == 0 {
-            return Err(Problem { field: b"references", why: crate::Why::Range });
+            return Err(Problem { field, why: crate::Why::Range });
         }
         if out.push(number).is_err() {
             return Err(Problem { field: b"", why: crate::Why::TooLarge });

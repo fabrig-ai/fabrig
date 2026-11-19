@@ -2,88 +2,76 @@
 pub(crate) mod parts;
 use super::pieces::{decode_spec_parameters, encode_spec_parameters, shared_sum, split};
 use super::policy::{decode_authority, decode_wake_policy, encode_authority, encode_wake_policy};
-use super::{Box, List, Reader, Writer, count, domain, problem, wire};
+use super::{Box, List, Reader, count, domain, problem, wire};
+use wire::Record;
 pub(super) fn encode(batch: &[domain::Member], limits: &wire::Limits) -> Result<List<wire::Member>, wire::Problem> {
     let mut members = List::with_capacity(count(batch.len())?);
     for member in batch {
         let mut symbols = List::with_capacity(limits.member_symbols);
         for symbol in &member.symbols {
-            let value =
-                wire::Symbol::new(limits, wire::SymbolParts { connector: symbol.connector, symbol: symbol.symbol })?;
+            let value = wire::Symbol { connector: symbol.connector, symbol: symbol.symbol };
             if symbols.push(value).is_err() {
-                return Err(wire::Problem { path: wire::Path::MemberSymbols, reason: skein_codec::Reason::Bound });
+                return Err(wire::Problem { path: wire::paths::MEMBER_SYMBOLS, reason: skein_codec::Reason::Bound });
             }
         }
         members
-            .push(wire::Member::new(
-                limits,
-                wire::MemberParts {
-                    llm: super::llm::encode_llm(member.llm.as_ref(), limits)?,
-                    executor: parts::encode_executor(member.executor, limits)?,
-                    words: member.words.clone(),
-                    parameters: encode_spec_parameters(
-                        &member.parameters,
-                        limits,
-                        shared_sum(limits),
-                        limits.member_parameters,
-                    )?,
-                    inputs: super::pieces::encode_numbers(
-                        &member.inputs,
-                        limits,
-                        shared_sum(limits),
-                        limits.member_inputs,
-                    )?,
-                    deadline: match member.deadline {
-                        domain::Deadline::Named => wire::Deadline::Named,
-                        domain::Deadline::Span(value) => {
-                            wire::Deadline::Span(wire::DeadlineSpan::new(limits, wire::DeadlineSpanParts { value })?)
+            .push(wire::Member {
+                llm: super::llm::encode_llm(member.llm.as_ref(), limits)?,
+                executor: parts::encode_executor(member.executor, limits),
+                words: member.words.clone(),
+                parameters: encode_spec_parameters(
+                    &member.parameters,
+                    limits,
+                    shared_sum(limits),
+                    limits.member_parameters,
+                )?,
+                inputs: super::pieces::encode_numbers(
+                    &member.inputs,
+                    limits,
+                    shared_sum(limits),
+                    limits.member_inputs,
+                )?,
+                deadline: match member.deadline {
+                    domain::Deadline::Named => wire::Deadline::Named,
+                    domain::Deadline::Span(value) => wire::Deadline::Span(wire::DeadlineSpan { value }),
+                },
+                budget: match member.budget {
+                    domain::Budget::Named => wire::Budget::Named,
+                    domain::Budget::AsAllowed { cap } => wire::Budget::AsAllowed(wire::BudgetAsAllowed { cap }),
+                },
+                named: super::pieces::encode_grant_piece(
+                    &member.named,
+                    limits,
+                    shared_sum(limits),
+                    limits.member_named,
+                )?,
+                symbols,
+                contract: encode_contract(&member.contract, limits)?,
+                authority: encode_authority(&member.authority, limits)?,
+                wake: match &member.wake {
+                    Some(wake) => Some(encode_wake_policy(wake, limits)),
+                    None => None,
+                },
+                dependencies: parts::encode_dependencies(&member.dependencies, limits)?,
+                tracked: member.tracked,
+                label: member.label,
+                flags: wire::Flags {
+                    ended_by: match member.flags.ended_by {
+                        domain::EndedBy::Result => wire::EndedBy::Result,
+                        domain::EndedBy::Requester => wire::EndedBy::Requester,
+                        domain::EndedBy::Standing => wire::EndedBy::Standing,
+                        domain::EndedBy::Closer(closer) => {
+                            wire::EndedBy::Closer(wire::Closer { connector: closer.connector, code: closer.code })
                         }
                     },
-                    budget: match member.budget {
-                        domain::Budget::Named => wire::Budget::Named,
-                        domain::Budget::AsAllowed { cap } => wire::Budget::AsAllowed(wire::BudgetAsAllowed::new(
-                            limits,
-                            wire::BudgetAsAllowedParts { cap },
-                        )?),
+                    conversation: member.flags.conversation,
+                    listed: member.flags.listed,
+                    retention: match member.flags.retention {
+                        domain::Retention::Kept => wire::Retention::Kept,
+                        domain::Retention::ForgottenOnceRead => wire::Retention::ForgottenOnceRead,
                     },
-                    named: super::pieces::encode_grant_piece(
-                        &member.named,
-                        limits,
-                        shared_sum(limits),
-                        limits.member_named,
-                    )?,
-                    symbols,
-                    contract: encode_contract(&member.contract, limits)?,
-                    authority: encode_authority(&member.authority, limits)?,
-                    wake: match &member.wake {
-                        Some(wake) => Some(encode_wake_policy(wake, limits)?),
-                        None => None,
-                    },
-                    dependencies: parts::encode_dependencies(&member.dependencies, limits)?,
-                    tracked: member.tracked,
-                    label: member.label,
-                    flags: wire::Flags::new(
-                        limits,
-                        wire::FlagsParts {
-                            ended_by: match member.flags.ended_by {
-                                domain::EndedBy::Result => wire::EndedBy::Result,
-                                domain::EndedBy::Requester => wire::EndedBy::Requester,
-                                domain::EndedBy::Standing => wire::EndedBy::Standing,
-                                domain::EndedBy::Closer(closer) => wire::EndedBy::Closer(wire::Closer::new(
-                                    limits,
-                                    wire::CloserParts { connector: closer.connector, code: closer.code },
-                                )?),
-                            },
-                            conversation: member.flags.conversation,
-                            listed: member.flags.listed,
-                            retention: match member.flags.retention {
-                                domain::Retention::Kept => wire::Retention::Kept,
-                                domain::Retention::ForgottenOnceRead => wire::Retention::ForgottenOnceRead,
-                            },
-                        },
-                    )?,
                 },
-            )?)
+            })
             .expect("member count");
     }
     Ok(members)
@@ -91,7 +79,7 @@ pub(super) fn encode(batch: &[domain::Member], limits: &wire::Limits) -> Result<
 pub(super) fn decode(batch: List<wire::Member>, limits: &wire::Limits) -> Result<Box<[domain::Member]>, wire::Problem> {
     let mut members = List::with_capacity(batch.len());
     for member in batch.into_boxed() {
-        let wire::MemberParts {
+        let wire::Member {
             executor,
             words,
             parameters,
@@ -108,20 +96,20 @@ pub(super) fn decode(batch: List<wire::Member>, limits: &wire::Limits) -> Result
             label,
             flags,
             llm,
-        } = member.into_parts();
+        } = member;
         let mut decoded_symbols = List::with_capacity(symbols.len());
         for symbol in symbols.into_boxed() {
-            let wire::SymbolParts { connector, symbol } = symbol.into_parts();
+            let wire::Symbol { connector, symbol } = symbol;
             decoded_symbols.push(domain::Symbol { connector, symbol }).expect("decoded symbols bound");
         }
-        let wire::FlagsParts { conversation, listed, retention, ended_by } = flags.into_parts();
+        let wire::Flags { conversation, listed, retention, ended_by } = flags;
         members
             .push(domain::Member {
                 symbols: decoded_symbols.into_boxed(),
                 llm: super::llm::decode_llm(llm),
                 deadline: match deadline {
                     wire::Deadline::Named => domain::Deadline::Named,
-                    wire::Deadline::Span(value) => domain::Deadline::Span(value.value()),
+                    wire::Deadline::Span(value) => domain::Deadline::Span(value.value),
                 },
                 executor: parts::decode_executor(executor),
                 words,
@@ -136,7 +124,7 @@ pub(super) fn decode(batch: List<wire::Member>, limits: &wire::Limits) -> Result
                 inputs: super::pieces::decode_numbers(inputs, limits, shared_sum(limits))?,
                 budget: match budget {
                     wire::Budget::Named => domain::Budget::Named,
-                    wire::Budget::AsAllowed(value) => domain::Budget::AsAllowed { cap: value.into_parts().cap },
+                    wire::Budget::AsAllowed(value) => domain::Budget::AsAllowed { cap: value.cap },
                 },
                 named: super::pieces::decode_grant_piece(named, limits, shared_sum(limits))?,
                 tracked,
@@ -146,10 +134,9 @@ pub(super) fn decode(batch: List<wire::Member>, limits: &wire::Limits) -> Result
                         wire::EndedBy::Result => domain::EndedBy::Result,
                         wire::EndedBy::Requester => domain::EndedBy::Requester,
                         wire::EndedBy::Standing => domain::EndedBy::Standing,
-                        wire::EndedBy::Closer(closer) => domain::EndedBy::Closer(domain::Closer {
-                            connector: closer.connector(),
-                            code: closer.code(),
-                        }),
+                        wire::EndedBy::Closer(closer) => {
+                            domain::EndedBy::Closer(domain::Closer { connector: closer.connector, code: closer.code })
+                        }
                     },
                     conversation,
                     listed,
@@ -165,51 +152,41 @@ pub(super) fn decode(batch: List<wire::Member>, limits: &wire::Limits) -> Result
 }
 fn encode_contract(value: &domain::Contract, limits: &wire::Limits) -> Result<wire::Contract, wire::Problem> {
     Ok(match value {
-        domain::Contract::Change { connector, kind, words } => wire::Contract::Change(wire::ContractChange::new(
-            limits,
-            wire::ContractChangeParts { connector: *connector, kind: *kind, words: *words },
-        )?),
-        domain::Contract::Report { words } => {
-            wire::Contract::Report(wire::ContractReport::new(limits, wire::ContractReportParts { words: *words })?)
+        domain::Contract::Change { connector, kind, words } => {
+            wire::Contract::Change(wire::ContractChange { connector: *connector, kind: *kind, words: *words })
         }
+        domain::Contract::Report { words } => wire::Contract::Report(wire::ContractReport { words: *words }),
         domain::Contract::Verdict { choices } => {
             let mut items = List::with_capacity(count(choices.len())?);
             for choice in choices {
-                let value = wire::Verdict::new(
-                    limits,
-                    wire::VerdictParts {
-                        code: choice.code,
-                        words: choice.words,
-                        followups: choice.followups,
-                        fields: encode_fields(&choice.fields, limits)?,
-                    },
-                )?;
-                let mut writer = Writer::new(skein_lib::length::usize_of(value.measure()));
-                value.encode(&mut writer).expect("measured verdict");
-                items.push(writer.finish()).expect("choice count");
+                let value = wire::Verdict {
+                    code: choice.code,
+                    words: choice.words,
+                    followups: choice.followups,
+                    fields: encode_fields(&choice.fields, limits)?,
+                };
+                let writer = value.encode(limits)?;
+                items.push(writer).expect("choice count");
             }
-            wire::Contract::Verdict(wire::ContractVerdict::new(
-                limits,
-                wire::ContractVerdictParts { choices: joined(items, limits.contract_verdict_choices)? },
-            )?)
+            wire::Contract::Verdict(wire::ContractVerdict { choices: joined(items, limits.contract_verdict_choices)? })
         }
     })
 }
 fn decode_contract(value: wire::Contract, limits: &wire::Limits) -> Result<domain::Contract, wire::Problem> {
     Ok(match value {
         wire::Contract::Change(value) => {
-            let wire::ContractChangeParts { connector, kind, words } = value.into_parts();
+            let wire::ContractChange { connector, kind, words } = value;
             domain::Contract::Change { connector, kind, words }
         }
-        wire::Contract::Report(value) => domain::Contract::Report { words: value.into_parts().words },
+        wire::Contract::Report(value) => domain::Contract::Report { words: value.words },
         wire::Contract::Verdict(value) => {
-            let bytes = value.into_parts().choices;
+            let bytes = value.choices;
             let mut reader = Reader::new(&bytes);
             let mut choices = List::with_capacity(count(bytes.len())?);
             for _ in 0..bytes.len() {
                 let Some(bytes) = split(&mut reader)? else { break };
-                let wire::VerdictParts { code, words, followups, fields } =
-                    wire::Verdict::decode(limits, &mut Reader::new(&bytes))?.into_parts();
+                let wire::Verdict { code, words, followups, fields } =
+                    wire::Verdict::decode(limits, &mut Reader::new(&bytes))?;
                 choices
                     .push(domain::Verdict { code, words, followups, fields: decode_fields(fields, limits)? })
                     .expect("framed choice count");
@@ -221,10 +198,9 @@ fn decode_contract(value: wire::Contract, limits: &wire::Limits) -> Result<domai
 fn encode_fields(fields: &[domain::FieldRule], limits: &wire::Limits) -> Result<Box<[u8]>, wire::Problem> {
     let mut items = List::with_capacity(count(fields.len())?);
     for field in fields {
-        let value = wire::FieldRule::new(limits, wire::FieldRuleParts { name: field.name.clone(), max: field.max })?;
-        let mut writer = Writer::new(skein_lib::length::usize_of(value.measure()));
-        value.encode(&mut writer).expect("measured field");
-        items.push(writer.finish()).expect("field count");
+        let value = wire::FieldRule { name: field.name.clone(), max: field.max };
+        let writer = value.encode(limits)?;
+        items.push(writer).expect("field count");
     }
     joined(items, limits.verdict_fields)
 }
@@ -233,8 +209,7 @@ fn decode_fields(bytes: Box<[u8]>, limits: &wire::Limits) -> Result<Box<[domain:
     let mut fields = List::with_capacity(count(bytes.len())?);
     for _ in 0..bytes.len() {
         let Some(bytes) = split(&mut reader)? else { break };
-        let wire::FieldRuleParts { name, max } =
-            wire::FieldRule::decode(limits, &mut Reader::new(&bytes))?.into_parts();
+        let wire::FieldRule { name, max } = wire::FieldRule::decode(limits, &mut Reader::new(&bytes))?;
         fields.push(domain::FieldRule { name, max }).expect("framed field count");
     }
     Ok(fields.into_boxed())

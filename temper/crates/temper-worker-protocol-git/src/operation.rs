@@ -23,6 +23,8 @@ pub(crate) struct Operation {
     pub(crate) command: Command,
     /// The invocation or file task asked of io (temper/docs/design/protocol/git.md, section 6).
     pub(crate) word: Option<&'static [u8]>,
+    pub(crate) admission: Token,
+    pub(crate) store_lock: Option<crate::store_lock::Access>,
     pub(crate) after_version: Option<Box<Command>>,
     pub(crate) stop: Option<git::Fault>,
     pub(crate) aborted: bool,
@@ -35,6 +37,7 @@ pub(crate) struct Operation {
 }
 #[derive(Debug)]
 enum Phase {
+    Waiting,
     Spawning { failed: bool },
     Active(Child),
     Settled,
@@ -77,6 +80,8 @@ impl Operation {
             identity,
             command,
             word: None,
+            admission: io_owner,
+            store_lock: None,
             after_version: None,
             stop: None,
             aborted: false,
@@ -87,6 +92,22 @@ impl Operation {
             scan_index: None,
             phase: Phase::Spawning { failed: false },
         }
+    }
+    pub fn waiting(&self) -> bool {
+        match self.phase {
+            Phase::Waiting => true,
+            Phase::Spawning { .. } | Phase::Active(_) | Phase::Settled => false,
+        }
+    }
+    pub fn wait(&mut self, command: Command) {
+        self.phase = Phase::Waiting;
+        self.command = command;
+        self.word = None;
+    }
+    pub fn resume(&mut self) -> Command {
+        assert!(self.waiting(), "only a store waiter resumes");
+        self.phase = Phase::Settled;
+        core::mem::replace(&mut self.command, Command::Version)
     }
     pub fn spawn(&mut self, io_owner: Token, command: Command, settings: &Settings, out: &mut Outputs) {
         self.io_owner = io_owner;
@@ -191,6 +212,8 @@ impl Operation {
             | Command::SnapshotReset { .. }
             | Command::Version
             | Command::Origin { .. }
+            | Command::CountObjects { .. }
+            | Command::Repack { .. }
             | Command::Format
             | Command::Clone { .. }
             | Command::Store { .. }
@@ -224,6 +247,8 @@ impl Operation {
             | Command::SnapshotReset { .. }
             | Command::Origin { .. }
             | Command::Version
+            | Command::CountObjects { .. }
+            | Command::Repack { .. }
             | Command::Format
             | Command::Clone { .. }
             | Command::Store { .. }
@@ -256,6 +281,8 @@ impl Operation {
             | Command::SnapshotReset { .. }
             | Command::Origin { .. }
             | Command::Version
+            | Command::CountObjects { .. }
+            | Command::Repack { .. }
             | Command::Format
             | Command::Clone { .. }
             | Command::Store { .. }
@@ -283,6 +310,7 @@ impl Operation {
                     | git::Op::Clone { .. }
                     | git::Op::Reds { .. }
                     | git::Op::Reset { .. }
+                    | git::Op::Pack { .. }
                     | git::Op::Point { .. }
                     | git::Op::Fetch { .. }
                     | git::Op::Create { .. }
@@ -305,7 +333,7 @@ impl Operation {
         }
         match &self.phase {
             Phase::Active(child) => child.token == owner || child.pipes.contains(&Some(owner)),
-            Phase::Spawning { .. } | Phase::Settled => false,
+            Phase::Waiting | Phase::Spawning { .. } | Phase::Settled => false,
         }
     }
     pub fn cancel(&mut self, fault: git::Fault, checkout: &checkout::Limits, out: &mut Outputs) {
@@ -343,7 +371,7 @@ impl Operation {
         }
         match &mut self.phase {
             Phase::Active(child) if !child.closing => child.close(self.aborted, stop_reason(self.stop), out),
-            Phase::Active(_) | Phase::Spawning { .. } | Phase::Settled => {}
+            Phase::Active(_) | Phase::Waiting | Phase::Spawning { .. } | Phase::Settled => {}
         }
     }
     pub fn ready(&self, checkout: &checkout::Limits) -> Option<Next> {
@@ -351,7 +379,7 @@ impl Operation {
             Phase::Active(child) if child.exited.is_some() && child.outputs_ended() => {
                 Some(self.result(child, checkout))
             }
-            Phase::Active(_) | Phase::Spawning { .. } | Phase::Settled => None,
+            Phase::Active(_) | Phase::Waiting | Phase::Spawning { .. } | Phase::Settled => None,
         }
     }
     fn result(&self, child: &Child, checkout: &checkout::Limits) -> Next {
@@ -378,6 +406,7 @@ impl Operation {
                     | git::Op::Clone { .. }
                     | git::Op::Reds { .. }
                     | git::Op::Reset { .. }
+                    | git::Op::Pack { .. }
                     | git::Op::Point { .. }
                     | git::Op::Fetch { .. }
                     | git::Op::Create { .. }
@@ -399,6 +428,8 @@ impl Operation {
             | Command::SnapshotReset { .. }
             | Command::Version
             | Command::Origin { .. }
+            | Command::CountObjects { .. }
+            | Command::Repack { .. }
             | Command::Format
             | Command::Clone { .. }
             | Command::Store { .. }
@@ -459,6 +490,8 @@ impl Operation {
             | Command::SnapshotReset { .. }
             | Command::Origin { .. }
             | Command::Version
+            | Command::CountObjects { .. }
+            | Command::Repack { .. }
             | Command::Format
             | Command::Clone { .. }
             | Command::Store { .. }
@@ -492,6 +525,10 @@ impl Operation {
         match phase {
             Phase::Spawning { failed } => self.spawning(event, failed, settings, limits, out),
             Phase::Active(child) => self.active(event, child, settings, checkout, out),
+            Phase::Waiting => {
+                self.phase = Phase::Waiting;
+                None
+            }
             Phase::Settled => None,
         }
     }
@@ -678,7 +715,7 @@ impl Operation {
             {
                 output::version(child.stdout.as_bytes())
             }
-            Phase::Active(_) | Phase::Spawning { .. } | Phase::Settled => None,
+            Phase::Active(_) | Phase::Waiting | Phase::Spawning { .. } | Phase::Settled => None,
         }
     }
 }

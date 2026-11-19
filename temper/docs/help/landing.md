@@ -92,7 +92,20 @@ makes the change ready again, and the landing prepares again.
 
 - `landing show` reads a landing: each member's change, its candidate on
   its base, each gate's key with its receipt or run, and the turn.
-  `landing list` lists a project's landings, the turn's holder first.
+  A live landing says `waits for:` what its step needs: for example,
+  `the round's pull request to close`, or `nothing; it steps next`.
+  Ended landings show no wait. JSON adds `waits`, null once ended,
+  otherwise its `for` word and the `change`, `gate`, `run` and `landing`
+  it names (null where unused).
+  `landing list` lists live landings first, then newest first. Its
+  heading gives the turn holder and how long it has held the turn,
+  or `turn: free`. Each live line gives its step and last event's age,
+  or `last event unknown` for an older row. Ended lines stay unchanged.
+  Ages use the engine's document time, not ctl's clock: `2d 3h`,
+  `4h 31m`, `37m 12s`, `12s`; a future time reads `0s`.
+  List JSON adds `now`, `turn_since`, and each landing's `step` and
+  `last_event`; times are nanoseconds or null where unknown, and an
+  ended landing's step is null.
 - `change show` reads the change's own way: its pull request and gates.
 - A held landing is released or cancelled by the project's
   maintainers, as any held task is.

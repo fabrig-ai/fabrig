@@ -62,6 +62,7 @@ fn assignment(decoded: bool, writable: bool) -> Event {
             landing: None,
             expected: None,
             delivered: None,
+            pin: None,
         };
     }
     let job = host::JobAssignment {
@@ -112,6 +113,7 @@ fn git(h: &mut Harness, initial: Box<[Request]>, stale: bool) -> Box<[Request]> 
                 Op::Look { .. } | Op::IsAncestor { .. } => Done::IsAncestor { contains: true },
                 Op::Reds { .. }
                 | Op::Reset { .. }
+                | Op::Pack { .. }
                 | Op::Point { .. }
                 | Op::Store { .. }
                 | Op::Make { .. }
@@ -385,8 +387,13 @@ fn a_delivering_job_with_several_writable_repositories_pushes_nothing() {
     let mut h = harness(true);
     let mut event = assignment(true, true);
     let Event::AssignJob { items: Ok(items), .. } = &mut event else { panic!("decoded items") };
-    items.repositories[0].access =
-        wire::Access::Writable { push: Box::from(b"topic".as_slice()), landing: None, expected: None, delivered: None };
+    items.repositories[0].access = wire::Access::Writable {
+        push: Box::from(b"topic".as_slice()),
+        landing: None,
+        expected: None,
+        delivered: None,
+        pin: None,
+    };
     let owner = running_assignment(&mut h, event);
     assert!(result(&mut h, owner).is_empty(), "no commit or push");
     let rows = job(&mut h, owner, tooling::Event::Gone { owner });

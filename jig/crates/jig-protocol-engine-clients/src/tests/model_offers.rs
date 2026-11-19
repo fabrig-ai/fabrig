@@ -37,7 +37,6 @@ fn me_with_offer(model: w::MeModel, defaults: List<w::MeDefault>) -> w::Me {
 }
 
 #[test]
-#[expect(clippy::too_many_lines, reason = "the table keeps complete model and template facts at both boundaries")]
 fn model_offers_and_template_previews_cross_engine_wire_and_link_whole() {
     use crate as engine;
     let limits = fixtures::client_limits();

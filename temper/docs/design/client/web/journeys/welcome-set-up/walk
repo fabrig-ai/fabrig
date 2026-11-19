@@ -1,0 +1,20 @@
+walk 2
+web see "Welcome to temper"
+web see "Set up temper"
+web mark
+web press link "Set up temper"
+web see "Connect a forge"
+web mark
+web press link "Run on this machine"
+web see "Forgejo on this machine"
+web mark
+web press button "Run on this machine"
+web see "Fetching Forgejo \xc2\xb7 25%"
+web mark
+web see "Setting up: preparing"
+web mark
+web see "Setting up: starting"
+web mark
+web see "connected as temper"
+web see "work/hello made"
+web mark

@@ -151,6 +151,7 @@ pub fn task_with_hold() -> d::Task {
         talk: None,
         session: None,
         dependency_facts: List::with_capacity(0),
+        unread: List::with_capacity(0),
         kept_account: None,
         run_wait: None,
         settings: Some(d::TaskSettings { task: 1, run: None, newest: 1 }),

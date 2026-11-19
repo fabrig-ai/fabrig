@@ -198,6 +198,25 @@ pub(crate) fn workspace_prepared(
             resume = false;
         }
     }
+    // Keep the verdict before replacing the proof and consuming its window (domain/engine/executors.md, 2).
+    let earlier_window = transcript.window.is_some()
+        || match core.proofs.get(&task) {
+            Some(proof) => proof.window.is_some(),
+            None => false,
+        };
+    let fresh = if resume || !charter.policy.resume || !earlier_window {
+        None
+    } else if moved {
+        Some(tasks::Fresh::Moved)
+    } else if transcript.closed {
+        Some(tasks::Fresh::Closed)
+    } else if transcript.cut {
+        Some(tasks::Fresh::Cut)
+    } else if transcript.bytes > u64::from(core.settings.resume_bytes) {
+        Some(tasks::Fresh::Limit)
+    } else {
+        Some(tasks::Fresh::Session)
+    };
     let conversation = if resume && transcript.last.is_some() { transcript.from } else { attempt };
     let instructions = super::parts::run_instructions(charter, own, reasons, standing);
     let offered = super::parts::offered_kinds(charter, own.is_some(), reasons, standing);
@@ -259,7 +278,10 @@ pub(crate) fn workspace_prepared(
         authority: context.authority,
         budget: allowance.spend,
     };
-    assert!(core.claiming.insert(task, (attempt, offered, session_end)) == Ok(None), "one pending claim per task");
+    assert!(
+        core.claiming.insert(task, (attempt, offered, session_end, fresh)) == Ok(None),
+        "one pending claim per task"
+    );
     out.push(Request::Now(Box::new(Now::RunPrepared {
         live: crate::LiveAsk {
             text: core.tasks.task(task).expect("live task").flags.conversation,
@@ -812,7 +834,7 @@ pub(crate) fn route_claim_prepared(
     budget: u64,
     writes: Box<[tasks::Name]>,
 ) -> Queue<Request> {
-    if let Some(&(prepared, offered, session_end)) = core.claiming.get(&task)
+    if let Some(&(prepared, offered, session_end, fresh)) = core.claiming.get(&task)
         && prepared == attempt
     {
         let mut reasons = tasks::Reasons::FIRST;
@@ -831,7 +853,8 @@ pub(crate) fn route_claim_prepared(
                 None => false,
             };
             if !valid {
-                let _: Option<(u64, tasks::Reasons, Option<tasks::SessionEnd>)> = core.claiming.remove(&task);
+                let _: Option<(u64, tasks::Reasons, Option<tasks::SessionEnd>, Option<tasks::Fresh>)> =
+                    core.claiming.remove(&task);
                 core.restore_replaced_proof(task);
                 work.push(Work::Event(Event::Tasks(tasks::Event::PreparationWaiting { task })));
                 let mut out = Queue::uncapped();
@@ -864,6 +887,7 @@ pub(crate) fn route_claim_prepared(
             task,
             attempt,
             resumed,
+            fresh,
             budget,
             writes,
         })));

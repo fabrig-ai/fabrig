@@ -9,7 +9,7 @@ use skein_lib::{Decimal, List, Token, Writer, bytes};
 use skein_llm::Credential;
 use smith_domain::{Event, llm};
 
-use crate::{EndpointOptions, Error};
+use crate::{Cause, EndpointOptions, Error, Refusal};
 
 /// Measure the body added after `from`, restoring every moved message.
 pub(crate) fn measure(
@@ -19,7 +19,7 @@ pub(crate) fn measure(
     from: usize,
 ) -> Result<u64, Error> {
     if from > request.messages.len() {
-        return Err(Error::Invalid);
+        return Err(Error::Invalid { cause: Cause::Smith(Refusal::Guard) });
     }
     let whole = match skein_llm::client::measure(request, credential, &options.endpoint, &options.client) {
         Ok(measured) => measured,
@@ -49,7 +49,7 @@ pub(crate) fn measure(
         Ok(measured) => measured,
         Err(error) => return Err(Error::from_client(error)),
     };
-    Ok(u64::from(whole.body.checked_sub(cut.body).ok_or(Error::Invalid)?))
+    Ok(u64::from(whole.body.checked_sub(cut.body).ok_or(Error::Invalid { cause: Cause::Smith(Refusal::Guard) })?))
 }
 
 /// Return an unsent terminal only when the guard or its measurement refuses.

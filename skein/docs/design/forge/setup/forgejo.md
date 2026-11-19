@@ -28,8 +28,9 @@ failures.
 
   The first owner's are temper's: the word its own name, the tokens
   `<word>-api` and `<word>-git`, the admin's name `<word>-admin`, and 8
-  orgs, 120 s, 100 ms and 5 s; for `Create` (1.9) and `Copy` (1.10), 2
-  files of at most 4 KiB each; for `Copy`, 30 minutes.
+  orgs, 120 s, 100 ms and 5 s; for `Create` (1.9) and `Copy` (1.10), 3
+  files of at most 4 KiB each, its sample repository's three beside the
+  README Forgejo makes; for `Copy`, 30 minutes.
 - **Asked of its host, as needs,** when a step reaches them: the admin's
   token, the API and git tokens, the bot's id as last kept, and the
   webhooks' secret. These are the items (`README.md`, 4.4). Each is named by what it

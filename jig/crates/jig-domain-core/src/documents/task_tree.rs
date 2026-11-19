@@ -427,6 +427,7 @@ fn task_with_lineage(
         inputs: links(core, limits, party, &row.spec.inputs)?,
         dependencies: links(core, limits, party, &row.dependencies)?,
         dependency_facts: dependency_facts(core, limits, row),
+        unread: unread(limits, row),
         references: links(core, limits, party, &row.references)?,
         subscriptions,
         wake: row.wake,
@@ -438,6 +439,36 @@ fn task_with_lineage(
         proposals,
         cut,
     })
+}
+
+fn unread(limits: &Limits, row: &tasks::TaskRecord) -> List<UnreadWords> {
+    let mut words = alloc::collections::BTreeMap::new();
+    let mut result = List::with_capacity(limits.tasks.inbox_messages);
+    match row.phase {
+        tasks::Phase::Ended(_) => return result,
+        tasks::Phase::Waiting | tasks::Phase::Active(_) | tasks::Phase::Closing(_) | tasks::Phase::Held { .. } => {}
+    }
+    for word in &row.inbox {
+        if tasks::directing_words(row, word) {
+            words.insert(word.number, (word, false));
+        }
+    }
+    for word in &row.unrecorded {
+        words.insert(word.number, (word, true));
+    }
+    for (message, (word, seen)) in words {
+        result
+            .push(UnreadWords {
+                message,
+                by: word.from,
+                at: word.at,
+                seen,
+                head: super::small::text(&word.words, UNREAD_HEAD_BYTES),
+                bytes: u32::try_from(word.words.len()).expect("admitted words fit u32"),
+            })
+            .expect("directing words share the inbox bound");
+    }
+    result
 }
 
 fn folding_parent(core: &Core, rows: &List<TreeRow>, root: u64, number: u64, depth: u32) -> u64 {

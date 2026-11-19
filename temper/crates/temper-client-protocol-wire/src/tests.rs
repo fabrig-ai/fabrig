@@ -370,6 +370,7 @@ fn requesting_round_trips_and_refuses_trailing_and_version_three_adopt_bytes() {
                             &v1::CEILINGS,
                             v1::FirstEmptyParts {
                                 playground: true,
+                                sample: false,
                                 org: b"work".as_slice().into(),
                                 repository: b"hello".as_slice().into(),
                             },
@@ -1028,6 +1029,7 @@ fn first_with_label(label: Box<[u8]>) -> Result<v1::FirstRepository, v1::Problem
         &v1::CEILINGS,
         v1::FirstRepositoryParts {
             playground: true,
+            sample: false,
             org: b"work".as_slice().into(),
             repository: b"hello".as_slice().into(),
             state: v1::FirstState::Making,
@@ -1046,17 +1048,34 @@ fn first_label_accepts_64_bytes_and_refuses_one_more() {
 
 #[test]
 fn landing_panels_round_trip_smallest_and_full_goldens() {
-    for bytes in [golden("record_landing_panel_smallest.bin"), golden("record_landing_panel_full.bin")] {
+    for (bytes, full) in
+        [(golden("record_landing_panel_smallest.bin"), false), (golden("record_landing_panel_full.bin"), true)]
+    {
         let panel = crate::decode_landing_panel(bytes, &v1::CEILINGS).expect("landing golden");
         assert_eq!(crate::landing_panel(&panel).as_ref(), bytes);
+        assert_eq!(panel.waits().is_some(), full);
+        if let Some(wait) = panel.waits() {
+            assert!(
+                wait.change().is_some() && wait.gate().is_some() && wait.run().is_some() && wait.landing().is_some()
+            );
+        }
         assert_eq!(crate::decode_landing_panel(&fixtures::trailing(bytes), &v1::CEILINGS), None);
     }
 }
 #[test]
 fn landings_panels_round_trip_smallest_and_full_goldens() {
-    for bytes in [golden("record_landings_panel_smallest.bin"), golden("record_landings_panel_full.bin")] {
+    for (bytes, full) in
+        [(golden("record_landings_panel_smallest.bin"), false), (golden("record_landings_panel_full.bin"), true)]
+    {
         let panel = crate::decode_landings_panel(bytes, &v1::CEILINGS).expect("landings golden");
         assert_eq!(crate::landings_panel(&panel).as_ref(), bytes);
+        assert_eq!(panel.now() != 0, full);
+        assert_eq!(panel.turn_since().is_some(), full);
+        if !panel.landings().is_empty() {
+            assert!(panel.turn_since().is_some());
+            let line = panel.landings().get(0).unwrap();
+            assert!(line.step().is_some() && line.last_event().is_some());
+        }
         assert_eq!(crate::decode_landings_panel(&fixtures::trailing(bytes), &v1::CEILINGS), None);
     }
 }
@@ -1276,6 +1295,7 @@ fn making_requests(forge: v1::Making) -> [v1::Request; 2] {
                                 org: b"work".as_slice().into(),
                                 repository: b"hello".as_slice().into(),
                                 playground: false,
+                                sample: false,
                             },
                         )
                         .expect("setup names fit wire ceilings"),
@@ -1756,6 +1776,7 @@ fn setup_first_choices_round_trip_in_requests_and_rows() {
                     org: b"work".as_slice().into(),
                     repository: b"hello".as_slice().into(),
                     playground: true,
+                    sample: true,
                 },
             )
             .unwrap(),
@@ -1792,7 +1813,23 @@ fn setup_first_choices_round_trip_in_requests_and_rows() {
         assert_eq!(crate::decode_requesting(&crate::requesting(&request), &limits), Some(request));
         let mut row = installation_row(0, 0);
         row.starts_with = match first {
-            v1::SetUpFirst::Empty(_) => v1::StartsWith::Repository,
+            v1::SetUpFirst::Empty(first) => {
+                row.first = Some(
+                    v1::FirstRepository::new(
+                        &limits,
+                        v1::FirstRepositoryParts {
+                            org: first.org().into(),
+                            repository: first.repository().into(),
+                            playground: first.playground(),
+                            sample: first.sample(),
+                            state: v1::FirstState::Making,
+                            label: b"temper-host".as_slice().into(),
+                        },
+                    )
+                    .unwrap(),
+                );
+                v1::StartsWith::Repository
+            }
             v1::SetUpFirst::Copies(copies) => v1::StartsWith::Copies(copies),
             v1::SetUpFirst::Nothing => v1::StartsWith::Nothing,
         };

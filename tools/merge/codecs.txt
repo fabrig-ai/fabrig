@@ -1,5 +1,5 @@
 # Module path, then schema texts in command order. Repository-relative paths.
-jig/crates/jig-client-protocol-wire/src/generated/client.rs jig/crates/jig-client-protocol-wire/schema/client-v37.schema jig/crates/jig-client-protocol-wire/schema/client-v37-part1.schema
+jig/crates/jig-client-protocol-wire/src/generated/client.rs jig/crates/jig-client-protocol-wire/schema/client-v38.schema jig/crates/jig-client-protocol-wire/schema/client-v38-part1.schema
 jig/crates/jig-client-protocol-wire/src/generated/public.rs jig/crates/jig-client-protocol-wire/schema/public-v1.schema
 jig/crates/jig-client-view-codec/src/generated/records.rs jig/crates/jig-client-view/schema/records-v1.schema
 jig/crates/jig-protocol-accounts-codec/src/generated/moved.rs jig/crates/jig-protocol-accounts/schema/moved-v1.schema
@@ -14,7 +14,7 @@ jig/crates/jig-protocol-store-families/src/generated/secrets.rs jig/crates/jig-p
 jig/crates/jig-protocol-store-people/src/generated/people.rs jig/crates/jig-protocol-store/schema/people-v17.schema
 jig/crates/jig-protocol-store-settings/src/generated/settings.rs jig/crates/jig-protocol-store/schema/settings-v3.schema
 jig/crates/jig-protocol-store-tasks/src/generated/tasks.rs jig/crates/jig-protocol-store/schema/tasks-v13.schema
-jig/crates/jig-protocol-worker-wire/src/generated/worker_wire.rs jig/crates/jig-protocol-worker-wire/schema/worker-wire-v17.schema
+jig/crates/jig-protocol-worker-wire/src/generated/worker_wire.rs jig/crates/jig-protocol-worker-wire/schema/worker-wire-v18.schema
 jig/examples/ops/client-protocol-wire/src/generated/ops_client.rs jig/examples/ops/client-protocol-wire/schema/ops-client-v1.schema
 jig/testing/jig-client-test-protocol-wire-codec/src/generated/test_client.rs jig/testing/jig-client-test-protocol-wire/schema/test-client-v2.schema
 jig/testing/jig-test-store-codec/src/generated/test_connector.rs jig/testing/jig-test-store/schema/test-connector-v2.schema

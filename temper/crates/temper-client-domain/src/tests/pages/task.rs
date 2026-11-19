@@ -386,6 +386,7 @@ fn activity_page(position: u64) -> jig_client::Readout {
             attempt: ATTEMPT,
             why: jig_client::contract::RunWhy::Made,
             resumed: false,
+            fresh: None,
         },
     ))
     .expect("activity");

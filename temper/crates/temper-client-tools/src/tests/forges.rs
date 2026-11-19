@@ -454,6 +454,7 @@ fn first_record(state: w::FirstState) -> w::FirstRepository {
         &w::CEILINGS,
         w::FirstRepositoryParts {
             playground: false,
+            sample: false,
             org: b"work".as_slice().into(),
             repository: b"hello".as_slice().into(),
             state,
@@ -646,6 +647,7 @@ fn made_wait_requires_the_named_forges_first_repository_to_be_made() {
     let mut row = row(C::Connecting);
     row.first = Some(forge::forges::First {
         playground: false,
+        sample: false,
         org: b"work".as_slice().into(),
         repository: b"hello".as_slice().into(),
         state: forge::forges::FirstState::Made { id: 42 },
@@ -683,6 +685,7 @@ fn first_repository_text_and_json_name_every_state_and_creation_step() {
         let mut row = row(C::Connecting);
         row.first = Some(First {
             playground: false,
+            sample: false,
             org: b"work".as_slice().into(),
             repository: b"hello".as_slice().into(),
             state,

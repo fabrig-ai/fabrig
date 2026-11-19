@@ -790,7 +790,10 @@ fn the_chat_draws_each_entry() {
             "two calls then text and time",
             Input {
                 rows: Box::new([
-                    line(1, c::Activity::RunBegan { attempt: ATTEMPT, why: c::RunWhy::Made, resumed: false }),
+                    line(
+                        1,
+                        c::Activity::RunBegan { attempt: ATTEMPT, why: c::RunWhy::Made, resumed: false, fresh: None },
+                    ),
                     {
                         let mut t = turn(&[
                             call(1, b"settings", b"{}", false),

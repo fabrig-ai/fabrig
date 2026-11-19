@@ -473,12 +473,12 @@
   `.temper-way-line` at its left, 15 px in `--gf-ink-2`, its acts
   `.temper-way-acts` at its right, each outlined, 34 px high, 13.5 px
   at 500, "Use this" and "Keep it" filled in ink, at their left on a
-  phone; "Stock ways" `.temper-way-pick`, its button outlined with its
-  words in `--gf-ink-2` and a chevron in `--gf-muted`, its menu
+  phone; the drop-down `.temper-way-pick`, its button outlined with its
+  words in ink (`ways-shown`) and a chevron in `--gf-muted`, its menu
   `.temper-way-menu` the composer's model menu's panel and rows
   (`.temper-model-menu`; `../pages/chat/composer.md`, 1, *The work's
   account and model*), 6 px under its button at its right,
-  the way the project runs ticked at 500 with a "✓" in the good marks'
+  the way shown ticked at 500 with a "✓" in the good marks'
   green; and the last line `.temper-way-ask` under a `--gf-line` rule,
   14 px in `--gf-ink-2`, its mark `.temper-way-ask-mark` in ink. Where
   skein draws the menu otherwise than the request's page (its button
@@ -487,6 +487,32 @@
   keeps the request's declarations. The rules for "Keep it" and "Use
   this" in the foot of Ask temper's page go: the foot holds "How does
   temper work?" alone, at the same height in every state.
+  Both pages take `ways-shown`'s rules (2026-11-19), under the
+  `/* ways-shown */` comment after `ways-current`'s, each selector
+  naming both `#app > .temper-session` and `#app > .temper-settings`
+  but where one page alone is said. The drop-down's button keeps its
+  look, its words in ink. In its menu the way the project runs says
+  "current" in the item's description, `[role=menuitem] >
+  [id^="skein-ui-description-"]`, at the row's right
+  (`margin-left: auto`), `--gf-faint`, 12.5 px; a ticked row holding it
+  takes its "✓" 10 px after it. The acts leave the line's row: on Ask
+  temper's page, the starter holding the ways is their frame
+  (`.temper-starter:has(> .temper-ways)`, `position: relative`), its
+  lede `.temper-ways-lede` leaves them `padding-right: 260px`, and
+  `.temper-starter > .temper-ways .temper-way-acts` sits at the lede's
+  right, `position: absolute; top: -3px; right: 0; margin: 0`. On How
+  work runs, the path's section holding the head is their frame
+  (`.temper-settings-section:has(> .temper-way-head)`), its head
+  `.temper-settings-section-head` leaves them `padding-right: 260px`,
+  and `.temper-settings-section > .temper-way-head > .temper-way-acts`
+  sits at that row's right, `position: absolute; top: -6px; right: 0;
+  margin: 0`, clear of the row's rule. At 760 px and under, each lede or
+  section head takes `padding-right: 0` and the acts `position:
+  static`, so the head wraps as before. Where skein draws the menu
+  otherwise than the request's page (the "current" a description's
+  `<span>` with an id where the page has a class, `.temper-way-current`;
+  a row's name its own text where the page wraps it in a `<span>`), the
+  selector names what is drawn and keeps the request's declarations.
   Ask temper's lede reads "How a change is produced and lands in
   PROJECT.". "How does temper work?" has no style token of its own,
   taking `.temper-ways-acts > button`'s outlined look. Its hint names the

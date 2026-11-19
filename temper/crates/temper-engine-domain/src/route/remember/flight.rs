@@ -81,6 +81,7 @@ impl RememberFlight {
             | CallAnswer::ControlRefused(_)
             | CallAnswer::EffectRefused(_)
             | CallAnswer::ControlDenied { .. }
+            | CallAnswer::WordsRecorded { .. }
             | CallAnswer::Sent { .. }
             | CallAnswer::Introduced
             | CallAnswer::MessageRefused(_)

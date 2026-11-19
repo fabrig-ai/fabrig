@@ -322,6 +322,7 @@ pub struct World<B: Backend = Typed> {
     boundaries: Vec<(Time, Boundary)>,
     admitted: Option<Token>,
     answer: Option<run::Answer>,
+    answer_detail: Box<[u8]>,
     answered: Option<Time>,
     checked: Vec<bool>,
     check_notices: Vec<(Time, bool)>,
@@ -539,6 +540,7 @@ impl<B: Backend> World<B> {
             boundaries: Vec::new(),
             admitted: None,
             answer: None,
+            answer_detail: Box::new([]),
             answered: None,
             checked: Vec::new(),
             check_notices: Vec::new(),
@@ -990,7 +992,7 @@ impl<B: Backend> World<B> {
                 assert!(self.admitted.replace(run).is_none(), "a start is admitted at most once");
                 self.messages_seen.push((self.now, crate::messages_referee::Seen::Admitted));
             }
-            Request::Answer { to, answer, read, detail: _ } => {
+            Request::Answer { to, answer, read, detail } => {
                 if matches!(&answer, run::Answer::Failed { .. }) {
                     self.host_history.shutdown(self.now);
                 }
@@ -1011,6 +1013,7 @@ impl<B: Backend> World<B> {
                     | run::Answer::Failed { spent, .. } => *spent,
                 };
                 assert!(self.answer.replace(answer).is_none(), "one answer per host start");
+                self.answer_detail = detail;
                 self.messages_seen
                     .push((self.now, crate::messages_referee::Seen::Answer { turns, parked, spent, read }));
                 self.answered = Some(self.now);
@@ -1753,6 +1756,12 @@ impl<B: Backend> World<B> {
     #[must_use]
     pub fn answer(&self) -> &run::Answer {
         self.answer.as_ref().expect("the world has settled")
+    }
+
+    /// The last completion failure's operator detail, kept with the final answer.
+    #[must_use]
+    pub fn answer_detail(&self) -> &[u8] {
+        &self.answer_detail
     }
 
     /// Check outcomes delivered to the agent, in request order.

@@ -98,6 +98,7 @@ impl Frame {
                 &f::CEILINGS,
                 f::FirstRepositoryParts {
                     playground: false,
+                    sample: false,
                     label: b"cold".as_slice().into(),
                     org: b"work".as_slice().into(),
                     repository: b"hello".as_slice().into(),

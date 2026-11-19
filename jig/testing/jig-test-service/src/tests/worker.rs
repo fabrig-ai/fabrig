@@ -4,6 +4,7 @@ use jig_domain_link::PROGRAM_ENDPOINTS;
 use jig_test_worker as root;
 use skein_io as io;
 use skein_lib::{Time, Token, Wall};
+use smith_channel::Record;
 
 fn worker(service: &mut Service) -> &mut Worker {
     service.workers.get_mut(0).expect("worker layer")
@@ -128,16 +129,16 @@ fn a_grant_s_value_reaches_smith_s_host_half_in_its_envelope() {
         let agent = fixtures::agent();
         let start =
             smith_channel::Start::decode(&agent.limits.bodies, &mut skein_lib::Reader::new(&body)).expect(label);
-        let grant = start.grants().get(0).expect(label);
-        assert_eq!(grant.account(), 1, "{label}");
-        assert_eq!(grant.generation(), 1, "{label}");
+        let grant = start.grants.get(0).expect(label);
+        assert_eq!(grant.account, 1, "{label}");
+        assert_eq!(grant.generation, 1, "{label}");
         let token = Secret::new(token.into());
-        match (&scheme, grant.value()) {
+        match (&scheme, (&grant.value)) {
             (Scheme::Bearer, smith_channel::GrantValue::Credential(value)) => {
-                assert_eq!((value.scheme(), value.bytes()), (&smith_channel::Scheme::Bearer, &token), "{label}");
+                assert_eq!(((&value.scheme), (&value.bytes)), (&smith_channel::Scheme::Bearer, &token), "{label}");
             }
             (Scheme::Key, smith_channel::GrantValue::Credential(value)) => {
-                assert_eq!((value.scheme(), value.bytes()), (&smith_channel::Scheme::Key, &token), "{label}");
+                assert_eq!(((&value.scheme), (&value.bytes)), (&smith_channel::Scheme::Key, &token), "{label}");
             }
             _ => panic!("{label}: the grant's own arm"),
         }

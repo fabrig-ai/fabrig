@@ -164,6 +164,7 @@ fn stocks_and_away_follow_the_way() {
         own(Kind::Dependency, Class::Ask),
         own(Kind::Departure, Class::Ask),
         own(Kind::Findings, Class::Ask),
+        item(Subject::Kind(Kind::Findings), b"a repair goal for a routine red after landing", Class::Decide),
     ];
     for (name, way, items, away) in [
         ("you approve", Way::YouApprove, &[][..], false),
@@ -197,6 +198,26 @@ fn stocks_and_away_follow_the_way() {
     }
     assert_eq!(Kind::named(b"unknown"), None);
     assert_eq!([Class::Decide, Class::Ask, Class::AskAway, Class::Wait].map(Class::strictness), [0, 1, 2, 3]);
+}
+
+#[test]
+fn routine_repairs_decide_only_under_the_stock_item() {
+    for way in [Way::AgentsReview, Way::DraftFirst] {
+        let classes = Classes::stock(way);
+        let repair = judge(&classes, &Ask { kind: Kind::Findings, under: 8, ..ask(&[]) });
+        let wording = judge(&classes, &ask(&[]));
+        assert_eq!(repair.class, wording.class);
+        assert!(repair.decided());
+        assert_eq!(repair.under, 8);
+        let other = judge(&classes, &Ask { kind: Kind::Findings, ..ask(&[]) });
+        assert_eq!(other.class, Class::Ask);
+        assert!(!other.decided());
+        assert_eq!(other.under, 0);
+    }
+    let approve = judge(&Classes::stock(Way::YouApprove), &Ask { kind: Kind::Findings, under: 8, ..ask(&[]) });
+    assert_eq!(approve.class, Class::AskAway);
+    assert!(!approve.decided());
+    assert_eq!(approve.under, 0);
 }
 
 #[test]
@@ -411,7 +432,13 @@ fn stop_asking_makes_the_narrowest_table() {
                         assert_eq!(narrowed.items.first(), classes.items.first(), "own item retained");
                     }
                     if name == "findings stock" || name == "findings missing" {
-                        assert_eq!(narrowed.items.last(), Some(&own(Kind::Findings, Class::Decide)));
+                        assert_eq!(
+                            narrowed
+                                .items
+                                .iter()
+                                .find(|item| item.subject == Subject::Kind(Kind::Findings) && item.words.is_empty()),
+                            Some(&own(Kind::Findings, Class::Decide))
+                        );
                     }
                     if name == "missing kind" || name == "findings missing" {
                         assert_eq!(narrowed.items.len(), 1, "appended");

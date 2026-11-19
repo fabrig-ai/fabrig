@@ -1,5 +1,4 @@
 use jig_client::{Ask, Asker, Handle, Key, Readable, Readout, Watchable, contract as c};
-use jig_client_protocol_wire::Record as _;
 use jig_client_protocol_world::{
     client::Story,
     fixtures::{self, PROJECT},

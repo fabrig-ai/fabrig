@@ -15,6 +15,7 @@ pub(crate) fn enabled(op: &git::Op) -> bool {
         | git::Op::Clone { .. }
         | git::Op::Reds { .. }
         | git::Op::Reset { .. }
+        | git::Op::Pack { .. }
         | git::Op::Point { .. }
         | git::Op::Fetch { .. }
         | git::Op::Create { .. }
@@ -102,6 +103,8 @@ pub(crate) fn after(op: &git::Op, command: &Command, code: u8, stdout: &[u8]) ->
         | Command::SnapshotReset { .. }
         | Command::Version
         | Command::Origin { .. }
+        | Command::CountObjects { .. }
+        | Command::Repack { .. }
         | Command::Format
         | Command::Clone { .. }
         | Command::Remote { .. }
@@ -136,6 +139,7 @@ fn parameters(op: &git::Op) -> (&git::Commit, &Option<git::Commit>, &git::Snapsh
         | git::Op::Clone { .. }
         | git::Op::Reds { .. }
         | git::Op::Reset { .. }
+        | git::Op::Pack { .. }
         | git::Op::Point { .. }
         | git::Op::Fetch { .. }
         | git::Op::Create { .. }

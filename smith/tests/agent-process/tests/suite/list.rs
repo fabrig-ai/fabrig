@@ -1,8 +1,9 @@
 //! One list child, whose only effects are a request and a bounded wire answer (smith/docs/design/protocol/agent.md, 6.1).
 use skein_fake_peers::llm::Observation;
-use skein_lib::{Reader, Secret, Writer};
+use skein_lib::{Reader, Secret};
 use skein_llm::Provider;
 use smith_agent_process_world::{fake, list_world};
+use smith_channel::Record;
 use smith_channel::{self as wire, CEILINGS};
 
 const ENDPOINT: u32 = 17;
@@ -82,14 +83,10 @@ fn configuration(row: &Row) -> Vec<u8> {
 }
 
 fn ask(row: &Row) -> Vec<u8> {
-    let credential = row.scheme.clone().map(|scheme| {
-        wire::CredentialValue::new(&CEILINGS, wire::CredentialValueParts { scheme, bytes: Secret::new(SECRET.into()) })
-            .expect("fixture credential")
-    });
-    let value = wire::ListAsk::new(&CEILINGS, wire::ListAskParts { endpoint: row.endpoint, credential }).expect("ask");
-    let mut writer = Writer::new(usize::try_from(value.measure()).expect("ask size"));
-    value.encode(&mut writer).expect("ask encoding");
-    let bytes = writer.finish().into_vec();
+    let credential =
+        row.scheme.clone().map(|scheme| wire::CredentialValue { scheme, bytes: Secret::new(SECRET.into()) });
+    let value = wire::ListAsk { endpoint: row.endpoint, credential };
+    let bytes = value.encode(&CEILINGS).expect("bounded ask").into_vec();
     match row.input {
         Input::Ask => bytes,
         Input::Malformed => vec![0xff],
@@ -114,9 +111,7 @@ fn rows() -> Vec<Row> {
         Row {
             name: "refused",
             status: Some(403),
-            expected: Expected::Failed(wire::ListFailed::Refused(
-                wire::ListRefused::new(&CEILINGS, wire::ListRefusedParts { status: 403 }).expect("status"),
-            )),
+            expected: Expected::Failed(wire::ListFailed::Refused(wire::ListRefused { status: 403 })),
             ..Row::ordinary("")
         },
         Row {
@@ -266,18 +261,18 @@ fn assert_answer(row: &Row, run: &list_world::Run) {
                 wire::ListAnswer::decode(&CEILINGS, &mut Reader::new(&run.output)).expect("one complete answer");
             let value = match answer {
                 wire::ListAnswer::Listed(rows) => {
-                    assert_eq!(rows.rows().len(), 1, "{} row count", row.name);
-                    let model = rows.rows().get(0).expect("model row");
-                    assert_eq!(model.name(), b"model-a", "{} name", row.name);
+                    assert_eq!(rows.rows.len(), 1, "{} row count", row.name);
+                    let model = rows.rows.get(0).expect("model row");
+                    assert_eq!(model.name.as_ref(), b"model-a", "{} name", row.name);
                     assert_eq!(
-                        model.shown().as_deref(),
+                        model.shown.as_deref(),
                         if row.anthropic() { Some(b"Model A".as_slice()) } else { None },
                         "{} shown",
                         row.name
                     );
-                    assert_eq!(*model.window(), row.anthropic().then_some(200_000), "{} window", row.name);
-                    assert_eq!(*model.output(), row.anthropic().then_some(8192), "{} output", row.name);
-                    let efforts: Vec<_> = model.efforts().iter().map(AsRef::as_ref).collect();
+                    assert_eq!(model.window, row.anthropic().then_some(200_000), "{} window", row.name);
+                    assert_eq!(model.output, row.anthropic().then_some(8192), "{} output", row.name);
+                    let efforts: Vec<_> = model.efforts.iter().map(AsRef::as_ref).collect();
                     assert_eq!(
                         efforts,
                         if row.anthropic() { vec![b"low".as_slice(), b"high".as_slice()] } else { vec![] },
@@ -286,7 +281,7 @@ fn assert_answer(row: &Row, run: &list_world::Run) {
                     );
                     Expected::Listed
                 }
-                wire::ListAnswer::Failed(value) => Expected::Failed(value.into_parts().failure),
+                wire::ListAnswer::Failed(value) => Expected::Failed(value.failure),
             };
             assert_eq!(&value, expected, "{} answer", row.name);
         }

@@ -54,6 +54,35 @@ fn workspace_items_are_refused_naming_the_item_or_carry_their_program_to_checkou
 }
 
 #[test]
+fn workspace_items_refuse_a_pin_beside_a_landing_branch() {
+    for (pin, landing, why) in [
+        (Some([8; 32]), Some(b"main".as_slice()), Some(b"repository pin and landing".as_slice())),
+        (Some([8; 32]), None, None),
+        (None, Some(b"main".as_slice()), None),
+    ] {
+        let mut h = Harness::new();
+        let mut workspace = items(&[b"app"]);
+        workspace.repositories.first_mut().expect("one repository").access = crate::wire::Access::Writable {
+            push: b"change/7".as_slice().into(),
+            expected: None,
+            delivered: None,
+            landing: match landing {
+                Some(branch) => Some(Box::from(branch)),
+                None => None,
+            },
+            pin,
+        };
+        if let Some(why) = why {
+            let assign = Event::Assign { assignment: assignment(true, Box::new([])), items: Ok(workspace) };
+            assert_eq!(&*h.step(assign), [refused(why)]);
+            assert_eq!(h.domain.host().hosted(), 0);
+        } else {
+            assert_eq!(crate::assignment::check(&workspace, &h.env.limits), Ok(()));
+        }
+    }
+}
+
+#[test]
 fn workspace_items_without_a_workstream_are_refused_as_an_invalid_start() {
     let mut h = Harness::new();
     let assign = Event::Assign { assignment: assignment(false, Box::new([])), items: Ok(items(&[b"app"])) };
@@ -256,6 +285,7 @@ fn landing_branch_is_bounded_and_translated_to_checkout() {
             expected: Some([1; 32]),
             landing: Some(skein_lib::bytes::zeroed(length)),
             delivered: None,
+            pin: None,
         };
         if length == 32 {
             assert_eq!(crate::assignment::check(&workspace, &h.env.limits), Ok(()));

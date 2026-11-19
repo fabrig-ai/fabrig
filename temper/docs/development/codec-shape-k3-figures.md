@@ -355,3 +355,174 @@ were discarded too. B's intermediate Result-return change is discarded
 with C. **No helper, generator or generated file changes are delivered**;
 the entire retained change is this measurement record and the draft's
 3.3 status clause. No suite test or budget is added or changed.
+
+## 7. Dev/test optimization
+
+### 7.1 Route and environment
+
+2026-11-19. The source base is `c5a2db9f08a8c1adeb065cebb80149d2ff0b7aa8`
+(the measurement checkout's two empty save commits have the same tree).
+The head is that source plus the profile overrides and concrete root entries
+below. These are this change's base and head, not the other family conversions
+being built concurrently. In particular, jig's client/worker wires, most of
+its store families, and smith's families are still sealed in this base.
+
+**First route: package optimization, with concrete debug-only root entries.**
+All 25 packages in the following table have dev overrides. Test inherits dev.
+No release, web or playground profile changes; no schema, lean mark, sealed
+emitter, encoded byte, bound, refusal, golden or format version changes.
+
+| Level | Packages |
+|---|---|
+| 1 | `jig-protocol-store-tasks` |
+| 2 | `skein-codec`, `skein-codec-tests`, `skein-oauth-codec`, `skein-ui-example-view-codec` |
+| 2 | `jig-client-protocol-wire`, `jig-client-view-codec`, `jig-protocol-accounts-codec`, `jig-protocol-engine-clients-codec` |
+| 2 | `jig-protocol-store-core`, `jig-protocol-store-families`, `jig-protocol-store-people`, `jig-protocol-store-settings`, `jig-protocol-worker-wire` |
+| 2 | `jig-ops-client-protocol-wire`, `jig-client-test-protocol-wire-codec`, `jig-test-store-codec` |
+| 2 | `smith-channel`, `smith-charter`, `smith-local-protocol-codec`, `smith-transcript` |
+| 2 | `temper-client-protocol-wire`, `temper-protocol-records`, `temper-protocol-store-codec`, `temper-protocol-worker-wire` |
+
+The initial all-level-2 candidate exceeded the isolated tasks compile bound
+(section 7.3), so tasks uses level 1. Generic field helpers compile in their
+family's crate, but the default generic `Record::decode` can still compile in
+an unoptimized caller. For example, jig's store translators call tasks records'
+`decode` downstream of the family. The lean emitter now overrides that trait
+method with a concrete entry for each schema root (as `skein_codegen::roots`
+defines it). Its body is the default read/tail check, unchanged. Nested `read`
+entries still omit the outer tail check. `#[cfg(debug_assertions)]` limits
+these overrides to debug builds; release uses the unchanged trait default.
+This avoids optimizing entire consumer crates merely to place that entry.
+Every family's drift test regenerated its output; only lean output changed,
+including the helper, every-v3 and growth fixtures. No production helper body
+changed, so no new decode-only ratios or release decode timings were needed.
+The second route was not needed to meet the compile bound: the first route
+improves the layers, leaving smith's proxy slightly above its budget.
+
+All commands used cargo on PATH, one at a time, with
+`TEMPER_INTERNAL_BUNDLE=none` and `TEMPER_BUNDLE=none`. **Builder: unknown;
+affinity: unverified.** Cargo's wrapper provides neither a builder identity
+nor affinity nor builder-side user+system accounting. Other builder work and
+exclusive use are unknown. These are the nearest available alternating
+measurements in one session, not a controlled same-machine CPU experiment.
+Logs are under `target/lean-test-measurement/`. No timing harness or accounting
+code is retained in any suite. The one new generator unit test checks that
+only roots get the debug-only concrete entry; it measures nothing.
+
+### 7.2 Layer measurements
+
+Each selection is exactly its layer's binary IDs in
+`tools/tiers/layers.toml`, passed as package/test targets and an OR of
+`(package(=PACKAGE) & binary(=TARGET))` filters:
+
+| Layer | Binary IDs |
+|---|---|
+| jig protocol | `jig-client-world::b_shared`, `jig-client-world::joint`, `jig-conformance-world::settings_proposals_wire`, `jig-ops-world::suite`, `jig-worker-link-world::suite` |
+| jig simulated | `jig-channel-world::suite`, `jig-client-protocol-world::suite`, `jig-client-shell-native::suite`, `jig-core-world::disk`, `jig-one-process-world::suite`, `jig-protocol-accounts-world::suite`, `jig-store-world::suite` |
+| smith simulated | `smith-agent-process-world::live_input`, `smith-agent-process-world::live_text`, `smith-agent-process-world::suite`, `smith-hosts-world::suite`, `smith-local-process-world::suite`, `smith-local-shell::suite` |
+
+Before each measured invocation, the same selection was built with
+`cargo nextest run --profile fuzzy --no-run`; then it ran with
+`cargo nextest run --profile fuzzy`. The profile's default fuzzy filter stays
+in effect, including for binaries with no fuzzy tests. The figure is the sum
+of individual nextest **PASS durations**, not nextest's summary wall, wrapper
+time or build time. Each fuzzy test has one thread and one loop, so this sum
+is a **CPU proxy**, not measured CPU: scheduling and contention can inflate it.
+It cannot prove the gate's CPU budget holds.
+
+Final samples alternated base/head three times, in the same session; controlling
+invocation starts range from 19:17 through 19:25 UTC. Logs are
+`base-final-r{7,8,9}-LAYER.log` and `head-r{7,8,9}-LAYER.log`.
+Every selected test passed. No sample was discarded.
+
+| Layer | Tests in each round, base/head | Base samples, s | Base median [spread], s | Head samples, s | Head median [spread], s | Budget, CPU s |
+|---|---|---|---|---|---|---:|
+| jig protocol | 35/35, 35/35, 35/35 | 30.969, 29.922, 34.066 | 30.969 [29.922–34.066] | 27.235, 32.362, 28.165 | 28.165 [27.235–32.362] | 55 |
+| jig simulated | 28/28, 28/28, 28/28 | 64.478, 66.724, 73.086 | 66.724 [64.478–73.086] | 55.405, 62.291, 58.263 | 58.263 [55.405–62.291] | 72 |
+| smith simulated | 12/12, 12/12, 12/12 | 13.013, 14.598, 17.477 | 14.598 [13.013–17.477] | 13.151, 12.799, 13.546 | 13.151 [12.799–13.546] | 13 |
+
+The medians fall by 9.1%, 12.7% and 9.9% respectively. The jig simulated
+ranges are disjoint; the other two overlap. Both jig head proxy medians are
+below their CPU ceilings; smith's is **0.151 s (1.2%) over**. Its families
+are still sealed here, so this is not a measurement of their lean conversion.
+
+The task's base delivery warnings reported actual CPU of **71.2/55 s** for
+jig protocol, **114.7/72 s** for jig simulated, and **14.9/13 s** for smith
+simulated. Those are separate gate-accounting figures, not comparable as
+paired samples with the proxy above. Head CPU figures, where the delivery
+check reports them, are in this change's delivery report; the gate has not
+been run while writing this section. Budgets, references, reasons and layer
+assignments are untouched.
+
+### 7.3 Compile measurements
+
+The commands and rebuild stimulus are section 3's A-store and A-tasks:
+`cargo build -p jig-protocol-store --timings` and
+`cargo build -p jig-protocol-store-tasks --timings`. They use dev, the profile
+test inherits, exactly as section 3 did. Dependencies and store were warmed
+before each side. For each sample a temporary trailing comment,
+`// K3 compile measurement SCENARIO ITERATION.`, was appended to the tasks
+generated module, then the exact original bytes were restored. Iterations
+7, 8 and 9 were new stimuli, identical on both sides of each pair. Every
+sample reported `Compiling jig-protocol-store-tasks`; A-store also rebuilt
+records and store. Samples alternated base/head, with layer runs between
+pairs, in the session above.
+
+**Seconds are Cargo's builder-side Finished elapsed time, not CPU.** Unit
+reports are written only on the builder and cannot be fetched through the
+wrapper. By the coordinator's answer to question 214273, section 3.2's
+UNIT_DATA timings are unmeasured here; no per-unit comparison is claimed.
+
+| Scenario | Base samples, s | Base median [spread], s | Head samples, s | Head median [spread], s | K3 lean median [spread], s |
+|---|---|---|---|---|---|
+| A-store | 6.41, 6.26, 12.23 | 6.41 [6.26–12.23] | 6.54, 11.24, 8.12 | 8.12 [6.54–11.24] | 7.41 [6.60–8.81] |
+| A-tasks | 3.18, 2.96, 6.50 | 3.18 [2.96–6.50] | 3.49, 4.98, 3.48 | 3.49 [3.48–4.98] | 3.26 [3.21–3.56] |
+
+Both head medians are within their paired base's spread and K3's lean
+spread. The requested non-regression criterion holds on that basis, not as
+proof of an improvement. Spreads are wide, and neither builder affinity nor
+contention is controlled.
+
+### 7.4 Earlier candidates and checks
+
+These candidates were measured in the same session before the final choice.
+Each table cell lists all three samples in round order; layer counts were
+35, 28 and 12 in every round on both sides, all passed. They are diagnostics,
+not substitutes for the final paired samples.
+
+| Candidate | jig protocol proxy, s | jig simulated proxy, s | smith simulated proxy, s |
+|---|---|---|---|
+| Initial base | 29.235, 30.354, 30.891 | 67.047, 71.405, 66.134 | 15.070, 13.902, 13.928 |
+| All 25 at level 2 | 26.472, 27.796, 28.910 | 56.709, 57.216, 55.835 | 13.774, 13.220, 13.580 |
+| Base paired with level 1 | 29.858, 29.789, 31.405 | 64.914, 66.425, 62.603 | 13.805, 14.305, 14.216 |
+| All 25 at level 1 | 28.098, 28.054, 29.278 | 61.731, 61.401, 62.825 | 13.504, 13.357, 13.485 |
+| Base paired with consumers | 29.853, 41.892, 29.543 | 71.890, 84.078, 65.149 | 13.486, 15.063, 13.962 |
+| Level 2 except tasks 1, plus four smith consumers at 2 | 31.393, 29.487, 28.304 | 64.535, 58.482, 58.079 | 15.214, 13.969, 12.919 |
+
+The four consumers were `smith-host-protocol`, `smith-local-protocol`,
+`smith-protocol-channel`, `smith-protocol-translate`: their decode call sites
+were inspected for generic instantiation. Their overrides are not retained:
+there was no demonstrated additional layer gain, and their families are
+sealed on this base. The final choice instead locates lean roots' concrete
+entries in their optimized family, without broadening consumer optimization.
+
+| Candidate pair | Base A-store / A-tasks samples, s | Head A-store / A-tasks samples, s |
+|---|---|---|
+| All level 2 | 8.73, 7.23, 6.72 / 3.43, 3.47, 3.29 | 7.34, 6.90, 7.40 / 4.01, 3.57, 3.77 |
+| All level 1 | 1.43, 1.54, 1.53 / 0.78, 0.82, 0.79 | 6.69, 7.04, 6.85 / 3.32, 3.52, 3.32 |
+| Mixed levels plus consumers | 6.56, 43.80, 6.66 / 3.03, 11.75, 3.26 | 6.63, 10.17, 6.32 / 3.61, 4.33, 3.25 |
+
+All-level-2's isolated median 3.77 s exceeds its base's maximum 3.47 s.
+All-level-1's isolated median is 3.32 s, but its base comments repeated the
+initial trial's stimuli and its much shorter rebuild times do not give a
+fresh-stimulus comparison. They are retained above, not used to establish
+the bound. The final trial uses new comment stimuli on both sides. The
+mixed-consumer trial also has a large base spread; none of its samples is
+removed. Unknown contention and affinity limit all of these comparisons.
+
+The 72 layer invocations across the four candidates' base/head rounds selected
+1,800 tests in total, all passed. Regeneration
+ran 23 existing drift/fixture tests, including the goldens where families
+retain them; no golden changed. The new root-entry generator test passed,
+was made to fail by inverting the root check (a nested declaration gained
+an entry), then passed after restoration. Delivery checks the existing
+focused codec tests and drift again. No measurement test is retained.

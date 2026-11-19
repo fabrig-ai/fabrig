@@ -9,7 +9,7 @@ use skein_lib::List;
 use smith_domain::run;
 use smith_domain::{llm, tools};
 
-use crate::{Error, ToolKind, ToolSchema};
+use crate::{Cause, Error, Refusal, ToolKind, ToolSchema};
 
 /// The bounded Smith inventory derived from the prompt and admitted charter rules.
 pub fn schemas_for_contract(
@@ -40,9 +40,10 @@ pub fn schemas_for_contract(
             llm::Served::Save => saving(),
             llm::Served::Wait => waiting(),
             llm::Served::SubAgent => sub_agent(stated.host_part),
-            llm::Served::Deliver => {
-                delivering(crate::contract::deliver_schema(deliver.ok_or(Error::Invalid)?, maximum)?)
-            }
+            llm::Served::Deliver => delivering(crate::contract::deliver_schema(
+                deliver.ok_or(Error::Invalid { cause: Cause::Smith(Refusal::DeliverContract) })?,
+                maximum,
+            )?),
             llm::Served::Finish => {
                 finishing(crate::outcome_schema(&crate::contract::finish_schema(outcome, maximum)?, maximum)?)
             }

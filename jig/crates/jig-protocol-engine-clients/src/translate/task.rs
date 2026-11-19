@@ -332,6 +332,7 @@ pub fn document(value: &d::Task, models: &[crate::Model], limits: &w::Limits) ->
         },
         settings: settings(value.settings, limits)?,
         dependency_facts: chips::dependencies(&value.dependency_facts, limits)?,
+        unread: unread(&value.unread, limits)?,
         llm: super::llm::choice(value.llm.as_ref(), models, limits)?,
         kept_account: value.kept_account,
         run_wait: super::task_wait::waiting(value.run_wait, limits)?,
@@ -384,6 +385,23 @@ pub fn document(value: &d::Task, models: &[crate::Model], limits: &w::Limits) ->
         delegates: delegates(&value.delegates, limits)?,
         context: None,
     })
+}
+
+fn unread(value: &List<d::UnreadWords>, limits: &w::Limits) -> Result<List<w::UnreadWords>, w::Problem> {
+    let mut result = List::with_capacity(value.capacity());
+    for word in value {
+        result
+            .push(w::UnreadWords {
+                message: word.message,
+                by: owner::requester(word.by, limits)?,
+                at: word.at.as_nanos(),
+                seen: word.seen,
+                head: word.head.bytes.clone(),
+                bytes: word.bytes,
+            })
+            .expect("supplied unread words");
+    }
+    Ok(result)
 }
 
 fn link_list(

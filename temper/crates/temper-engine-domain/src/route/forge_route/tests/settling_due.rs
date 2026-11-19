@@ -14,6 +14,11 @@ fn restore(domain: &mut Domain, env: &Env<Limits>, row: forge::ChangeRow) {
 }
 
 fn restore_task(domain: &mut Domain, env: &Env<Limits>, changed: tasks::TaskRecord) {
+    let period = *domain
+        .core
+        .tasks
+        .funding(tasks::Funder::Period { project: 1, period: domain.core.period(1) })
+        .expect("the fixture's open period");
     let mut rows = skein_lib::List::with_capacity(env.limits.tasks.tasks);
     for view in domain.core.tasks.view_tasks() {
         let row = if view.number == changed.number {
@@ -31,6 +36,12 @@ fn restore_task(domain: &mut Domain, env: &Env<Limits>, changed: tasks::TaskReco
         Box::new([]),
         Box::new([]),
     );
+    tasks::step(
+        &mut domain.core.tasks,
+        &env.with(env.limits.tasks),
+        tasks::Event::Restore { record: tasks::Stored::Ledger(period) },
+        &mut Queue::uncapped(),
+    );
     for row in rows.into_boxed() {
         tasks::step(
             &mut domain.core.tasks,
@@ -38,6 +49,9 @@ fn restore_task(domain: &mut Domain, env: &Env<Limits>, changed: tasks::TaskReco
             tasks::Event::Restore { record: tasks::Stored::Live(Box::new(row)) },
             &mut Queue::uncapped(),
         );
+    }
+    for event in [tasks::Event::Check, tasks::Event::Restored] {
+        tasks::step(&mut domain.core.tasks, &env.with(env.limits.tasks), event, &mut Queue::uncapped());
     }
 }
 

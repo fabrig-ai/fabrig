@@ -755,7 +755,7 @@ fn add_sheet(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings,
     text(b, Role::Heading { level: 3 }, &legend, Some(look::WELCOME_LEGEND));
     for (start, title, detail) in [
         (Start::Empty, Word::WelcomeForgejoEmpty, Word::WelcomeForgejoEmptyDetail),
-        (Start::Copies, Word::WelcomeForgejoCopies, Word::WelcomeForgejoCopiesDetail),
+        (Start::Copies, Word::WelcomeForgejoCopies, Word::HomeAddCopiesDetail),
     ] {
         b.open(Role::Slot);
         b.style(look::WELCOME_OPTION);
@@ -834,7 +834,7 @@ fn add_fields(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings
             }
             b.close();
         }
-        Start::Nothing => {}
+        Start::Sample | Start::Nothing => {}
     }
     b.close();
 }

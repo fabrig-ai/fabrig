@@ -8,7 +8,7 @@ use alloc::boxed::Box;
 use skein_lib::List;
 use skein_llm::client;
 
-use crate::Error;
+use crate::{Cause, Error, Refusal};
 
 /// Measure fixed provider framing, including the largest supported optional routing fields.
 /// Observed endpoint option text are counted separately in its own part.
@@ -34,7 +34,9 @@ pub fn prompt_allowance(provider: skein_llm::Provider, client: &client::Limits, 
         affinity: Some(skein_llm::Affinity { key: [0; 16], thread: u32::MAX }),
         max_output_tokens: None,
     };
-    prompt.output_ceiling(provider, client.declared_output_tokens).or(Err(Error::Invalid))?;
+    prompt
+        .output_ceiling(provider, client.declared_output_tokens)
+        .or(Err(Error::Invalid { cause: Cause::Invalid(skein_llm::Invalid::Output) }))?;
     let credential = match provider {
         skein_llm::Provider::OpenAi => skein_llm::Credential::bearer(Box::from(b"a".as_slice())),
         skein_llm::Provider::Anthropic => skein_llm::Credential::key(Box::from(b"a".as_slice())),
@@ -59,7 +61,7 @@ pub fn prompt_allowance(provider: skein_llm::Provider, client: &client::Limits, 
 pub(super) fn offered_tools(tools: u32) -> Result<Box<[skein_llm::Tool]>, Error> {
     let schema =
         skein_llm::Json::from_bytes(b"{}", &skein_llm::DocumentLimits { bytes: 2, strings: 1, tokens: 2, depth: 2 })
-            .or(Err(Error::Invalid))?;
+            .or(Err(Error::Invalid { cause: Cause::Smith(Refusal::FixedSchema) }))?;
     let mut offered = List::with_capacity(tools);
     for _ in 0..tools {
         offered

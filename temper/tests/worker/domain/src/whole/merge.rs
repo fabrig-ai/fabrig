@@ -103,6 +103,7 @@ fn assign(world: &mut World, head: u64, base: u64) {
                     landing: None,
                     expected: Some(translate::commit(head).raw()),
                     delivered: None,
+                    pin: None,
                 },
                 identity: 7,
                 account: None,

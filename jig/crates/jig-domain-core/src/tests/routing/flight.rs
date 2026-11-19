@@ -284,7 +284,7 @@ fn person_and_task_escalations_choose_their_own_terminal() {
 fn internal_repair_and_delegate_refusals_notify_each_connector_in_order() {
     for repair in [false, true] {
         let (mut core, limits) = core();
-        let token = core.internal(if repair { Internal::Repair } else { Internal::Delegate });
+        let token = core.internal(if repair { Internal::Repair { number: 91 } } else { Internal::Delegate });
         let mut out = outputs(
             &mut core,
             &limits,
@@ -297,8 +297,10 @@ fn internal_repair_and_delegate_refusals_notify_each_connector_in_order() {
             let Some(Request::Ask { connector: named, ask }) = out.pop() else { panic!("connector refusal") };
             assert_eq!(named, *connector);
             if repair {
-                let Ask::RepairRefused { repair } = ask else { panic!("repair refused") };
+                let Ask::RepairRefused { repair, number, why } = ask else { panic!("repair refused") };
                 assert_eq!(repair, Some(4));
+                assert_eq!(number, 91);
+                assert_eq!(why, tasks::Refusal::Unknown);
             } else {
                 let Ask::DelegateRefused { task } = ask else { panic!("delegate refused") };
                 assert_eq!(task, Some(4));

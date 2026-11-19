@@ -147,7 +147,7 @@ pub(super) fn continued(store: &referee::Store) -> Result<(), String> {
         if new <= header.tasks {
             return Err(String::from("new task above every kept task"));
         }
-        if start.activation() <= header.runs {
+        if start.activation <= header.runs {
             return Err(String::from("new attempt above every kept attempt"));
         }
         let resumed = store

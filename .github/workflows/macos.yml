@@ -61,6 +61,8 @@ jobs:
       process_ids: ${{ steps.plan.outputs.process_ids }}
       browser: ${{ steps.plan.outputs.browser }}
       browser_ids: ${{ steps.plan.outputs.browser_ids }}
+      browser-temper: ${{ steps.plan.outputs.browser-temper }}
+      browser-temper_ids: ${{ steps.plan.outputs.browser-temper_ids }}
       skein: ${{ steps.plan.outputs.skein }}
       skein_ids: ${{ steps.plan.outputs.skein_ids }}
       smith: ${{ steps.plan.outputs.smith }}
@@ -159,7 +161,7 @@ jobs:
         run: python3 -I -B ../_macos/tools/macos/macos.py setup-runner
       - &rust
         name: The workspace toolchain and checked cargo-nextest
-        run: python3 -I -B "$MACOS_HELPER" install
+        run: exec python3 -I -B "$MACOS_HELPER" install
       - &registry-restore
         name: Restore the registry
         id: registry
@@ -178,18 +180,20 @@ jobs:
         with:
           path: tested/target
           key: target-macos-26-${{ env.PART }}-rust-${{ hashFiles('tested/rust-toolchain.toml') }}-${{ hashFiles('tested/Cargo.lock') }}
-          restore-keys: target-macos-26-${{ env.PART }}-rust-${{ hashFiles('tested/rust-toolchain.toml') }}-
+          restore-keys: |
+            target-macos-26-${{ env.PART }}-rust-${{ hashFiles('tested/rust-toolchain.toml') }}-${{ hashFiles('tested/Cargo.lock') }}-partial-
+            target-macos-26-${{ env.PART }}-rust-${{ hashFiles('tested/rust-toolchain.toml') }}-
       - &build
         name: Build the whole part, or make its compiler red
         id: build
-        run: python3 -I -B "$MACOS_HELPER" build "$PART" "$PART.xml"
+        run: exec python3 -I -B "$MACOS_HELPER" build "$PART" "$PART.xml"
       - name: The pinned forge binaries
         if: ${{ steps.build.outputs.run_tests == 'true' }}
         run: python3 -I -B "$MACOS_HELPER" fetch-forge
       - &run-part
         name: Run selections and refuse cut-short runs, then make the part's file
         if: ${{ success() && steps.build.outputs.build_red == 'false' }}
-        run: python3 -I -B "$MACOS_HELPER" run "$PART" "$PART.xml"
+        run: exec python3 -I -B "$MACOS_HELPER" run "$PART" "$PART.xml"
       - &upload-part
         name: Upload the part's file, never a partial result
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -212,7 +216,7 @@ jobs:
         continue-on-error: true
         with:
           path: tested/target
-          key: target-macos-26-${{ env.PART }}-rust-${{ hashFiles('tested/rust-toolchain.toml') }}-${{ hashFiles('tested/Cargo.lock') }}
+          key: ${{ env.MACOS_BUILT == 'true' && steps.target.outputs.cache-primary-key || format('{0}-partial-{1}-{2}', steps.target.outputs.cache-primary-key, github.run_id, github.run_attempt) }}
       - &registry-save
         name: Save the registry once per key
         if: ${{ always() && steps.registry.outcome == 'success' && steps.registry.outputs.cache-hit != 'true' }}
@@ -258,14 +262,16 @@ jobs:
       - *rust
       - *registry-restore
       - *target-restore
-      - name: The browser's wasm target, checked installed
+      - &wasm-target
+        name: The browser's wasm target, checked installed
         run: |
           $RUN wasm-target rustup target add wasm32-unknown-unknown
           $RUN wasm-installed bash -c 'rustup target list --installed | grep -Fx wasm32-unknown-unknown'
       - name: The C compiler for wasm, checked to target it
-        run: python3 -I -B "$MACOS_HELPER" wasm-compiler
+        run: exec python3 -I -B "$MACOS_HELPER" wasm-compiler
       - *build
-      - name: Chrome for Testing, checked before unpacking
+      - &chrome
+        name: Chrome for Testing, checked before unpacking
         if: ${{ steps.build.outputs.run_tests == 'true' }}
         run: |
           archive="$RUNNER_TEMP/chrome-mac-arm64.zip"
@@ -278,6 +284,44 @@ jobs:
           $RUN chrome-file test -f "$chrome"
           $RUN chrome-version "$chrome" --version
           echo "SKEIN_TEST_CHROMIUM=$chrome" >>"$GITHUB_ENV"
+      - *run-part
+      - *upload-part
+      - *prune
+      - *target-save
+      - *registry-save
+      - *verdict
+      - *disk
+
+  # macos.md, 6.3: the playground has its own bound, cache and lighter profiles.
+  browser-temper:
+    needs: plan
+    if: ${{ needs.plan.outputs.browser-temper == 'true' }}
+    runs-on: macos-26
+    timeout-minutes: 150
+    defaults:
+      run:
+        working-directory: tested
+    env:
+      PART: browser-temper
+      IDS: ${{ needs.plan.outputs.browser-temper_ids }}
+      GIVEN: ${{ needs.plan.outputs.given }}
+      CARGO_PROFILE_WEB_LTO: "off"
+      CARGO_PROFILE_PLAYGROUND_LTO: "off"
+      CARGO_PROFILE_WEB_CODEGEN_UNITS: "16"
+      CARGO_PROFILE_PLAYGROUND_CODEGEN_UNITS: "16"
+    steps:
+      - *clock
+      - *checkout-tested
+      - *checkout-helper
+      - *runner
+      - *rust
+      - *registry-restore
+      - *target-restore
+      - *wasm-target
+      - name: The C compiler for wasm, checked to target it
+        run: exec python3 -I -B "$MACOS_HELPER" wasm-compiler
+      - *build
+      - *chrome
       - *run-part
       - *upload-part
       - *prune
@@ -481,7 +525,7 @@ jobs:
 
   # macos.md, 1, 5.3–5.4: a missing part is a fault, never a partial report.
   report:
-    needs: [plan, process, browser, skein, smith, jig, temper, live]
+    needs: [plan, process, browser, browser-temper, skein, smith, jig, temper, live]
     if: ${{ !cancelled() && needs.plan.result == 'success' }}
     runs-on: ubuntu-24.04
     permissions:

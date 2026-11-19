@@ -69,6 +69,7 @@ fn set_first(d: &mut Domain, forge: u16, first: Option<&FirstIntent>) {
                 forge,
                 First {
                     playground: intent.playground,
+                    sample: intent.sample,
                     org: intent.org.clone(),
                     repository: intent.repository.clone(),
                     label: intent.label.clone(),
@@ -185,7 +186,7 @@ fn finish(
 
 fn intent(first: &SetUpFirst, name_bytes: u32) -> Result<FirstIntent, SetUpRefusal> {
     match first {
-        SetUpFirst::Empty { org, repository, playground } => {
+        SetUpFirst::Empty { org, repository, playground, sample } => {
             if !setup_login(org)
                 || !setup_repository(repository)
                 || org.len() > skein_lib::usize_of(name_bytes)
@@ -196,6 +197,7 @@ fn intent(first: &SetUpFirst, name_bytes: u32) -> Result<FirstIntent, SetUpRefus
             }
             Ok(FirstIntent::Empty(EmptyIntent {
                 playground: *playground,
+                sample: *sample,
                 org: org.clone(),
                 repository: repository.clone(),
                 label: Box::from(b"temper-host".as_slice()),

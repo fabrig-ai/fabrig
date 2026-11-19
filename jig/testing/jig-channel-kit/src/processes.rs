@@ -1,5 +1,6 @@
 //! Host adapters expose only service ports to the scenario (service.md, 4).
 use crate::{fixtures, relay::Relay, world::Capture};
+use jig_protocol_worker_wire::Record;
 use jig_test_service::{Prepared, Service, prepare};
 use skein_io::kernel;
 use skein_lib::{Queue, Time, Wall};
@@ -403,9 +404,9 @@ pub(crate) struct Wire {
 /// Every secret a grant carries joins those no record may hold.
 fn secrets(grants: &mut Vec<Box<[u8]>>, grant: &jig_protocol_worker_wire::Grant) {
     use jig_protocol_worker_wire::GrantValue;
-    match grant.value() {
-        GrantValue::Credential(value) => grants.push(value.bytes().expose().into()),
-        GrantValue::Application(value) => grants.push(value.secret().expose().into()),
+    match &grant.value {
+        GrantValue::Credential(value) => grants.push(value.bytes.expose().into()),
+        GrantValue::Application(value) => grants.push(value.secret.expose().into()),
         GrantValue::Program(_) => {}
     }
 }
@@ -479,7 +480,7 @@ impl Wire {
                     &mut skein_lib::Reader::new(&stream[8..end]),
                 )
                 .expect("whole read list");
-                secrets(&mut self.grants, read.grant());
+                secrets(&mut self.grants, &read.grant);
             }
             if header.kind == 0x0188 {
                 // The fleet sends sources after admitting a hello (domain/engine/fleet.md).
@@ -492,7 +493,7 @@ impl Wire {
                 )
                 .expect("whole sources");
                 self.sources
-                    .insert(fd.raw(), sources.sources().iter().map(|source| Box::from(source.name())).collect());
+                    .insert(fd.raw(), sources.sources.iter().map(|source| Box::from(source.name.as_ref())).collect());
             }
             if header.kind == 0x0108 {
                 let rows = jig_protocol_worker_wire::Logins::decode(
@@ -503,7 +504,7 @@ impl Wire {
                 // Read and write completions can be delivered in either order.
                 // Retain the received evidence even if Sources' send completion
                 // has not reached the observer yet.
-                self.inventory.insert(fd.raw(), rows.logins().iter().map(|row| Box::from(row.name())).collect());
+                self.inventory.insert(fd.raw(), rows.logins.iter().map(|row| Box::from(row.name.as_ref())).collect());
             }
             if header.kind == 0x0180 {
                 if !worker {
@@ -521,9 +522,9 @@ impl Wire {
                     &mut skein_lib::Reader::new(&stream[8..end]),
                 )
                 .expect("assignment");
-                self.placements.insert((assignment.task(), assignment.attempt()), fd.raw());
-                self.start_messages += assignment.messages().len();
-                for grant in assignment.grants() {
+                self.placements.insert((assignment.task, assignment.attempt), fd.raw());
+                self.start_messages += assignment.messages.len();
+                for grant in &assignment.grants {
                     secrets(&mut self.grants, grant);
                 }
             }
@@ -533,7 +534,7 @@ impl Wire {
                     &mut skein_lib::Reader::new(&stream[8..end]),
                 )
                 .expect("granted credential");
-                secrets(&mut self.grants, granted.grant());
+                secrets(&mut self.grants, &granted.grant);
                 self.granted.push((fd.raw(), granted));
             }
             if header.kind == 0x0104 {
@@ -542,8 +543,8 @@ impl Wire {
                     &mut skein_lib::Reader::new(&stream[8..end]),
                 )
                 .expect("activity fact");
-                if let jig_protocol_worker_wire::FactValue::Phase(value) = fact.value() {
-                    self.waited |= matches!(value.value(), jig_protocol_worker_wire::Phase::Waiting);
+                if let jig_protocol_worker_wire::FactValue::Phase(value) = &fact.value {
+                    self.waited |= matches!(&value.value, jig_protocol_worker_wire::Phase::Waiting);
                 }
             }
             if header.kind == 0x0100 {
@@ -553,8 +554,8 @@ impl Wire {
                 )
                 .expect("hello");
                 self.hellos += 1;
-                self.stop_bounds.insert(fd.raw(), hello.stop_bound());
-                if !hello.hosting().is_empty() {
+                self.stop_bounds.insert(fd.raw(), hello.stop_bound);
+                if !hello.hosting.is_empty() {
                     self.adopting_hellos += 1;
                 }
             }
@@ -564,7 +565,7 @@ impl Wire {
                     &mut skein_lib::Reader::new(&stream[8..end]),
                 )
                 .expect("channel acknowledgement");
-                self.acknowledgements.push((ack.task(), ack.attempt()));
+                self.acknowledgements.push((ack.task, ack.attempt));
             } else if header.kind == 0x0182 {
                 self.calls_answered += 1;
             }

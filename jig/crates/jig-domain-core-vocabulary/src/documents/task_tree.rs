@@ -219,6 +219,21 @@ pub struct TaskSettings {
     pub newest: u32,
 }
 
+/// Maximum UTF-8 prefix of directing words in a task document
+/// (client/domain/contract/documents.md, 1).
+pub const UNREAD_HEAD_BYTES: u32 = 256;
+
+/// Directing words no run has recorded (client/domain/contract/documents.md, 1).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct UnreadWords {
+    pub message: u64,
+    pub by: tasks::Party,
+    pub at: Wall,
+    pub seen: bool,
+    pub head: Text,
+    pub bytes: u32,
+}
+
 /// A task page's header, overview, funding, authority and current held decision.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Task {
@@ -266,6 +281,7 @@ pub struct Task {
     pub inputs: List<TaskLink>,
     pub dependencies: List<TaskLink>,
     pub dependency_facts: List<Dependency>,
+    pub unread: List<UnreadWords>,
     pub references: List<TaskLink>,
     pub subscriptions: List<tasks::Subscription>,
     pub wake: tasks::WakePolicy,

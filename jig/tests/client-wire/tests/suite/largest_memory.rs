@@ -12,7 +12,7 @@ fn largest_roots_stay_within_decoded_bounds() {
     family!(
         CAP,
         jig_client_protocol_wire::CLIENT_SCHEMA,
-        jig_client_protocol_wire::v37, lean,
+        jig_client_protocol_wire::v38, lean,
         limits [
             keyed_request,
             keyed_value_some,
@@ -193,6 +193,7 @@ fn largest_roots_stay_within_decoded_bounds() {
             task_context_spend,
             task_context_writer_slots,
             subscriptions_entries,
+            unread_words_head,
             task_lineage_chips,
             task_inputs,
             task_lineage,
@@ -203,6 +204,7 @@ fn largest_roots_stay_within_decoded_bounds() {
             task_acts,
             task_delegates,
             task_dependency_facts,
+            task_unread,
             tasks_rows,
             ended_rows_rows,
             task_page_live,
@@ -474,7 +476,7 @@ fn largest_roots_stay_within_decoded_bounds() {
             EntranceRefusal,
             Ask,
             ReadValue => (1_281_503_763, 1_281_583_916),
-            DeliveryValue => (376_523_797, 376_531_400),
+            DeliveryValue => (376_560_921, 376_571_368),
             ReviewItem => (2_508_771_921, 2_508_892_028),
         ]
     );

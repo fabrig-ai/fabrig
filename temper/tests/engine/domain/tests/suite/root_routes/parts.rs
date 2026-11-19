@@ -76,6 +76,7 @@ pub(super) fn note(driver: &mut Driver, run: &engine::Assignment, call: u64, nam
                 author: notes::Author::Task { task: 0, attempt: 0 },
             },
             recalled,
+            records: Box::new([]),
         },
     );
     let Some(engine::CallAnswer::NoteWritten { name, .. }) = driver.answered(call) else {

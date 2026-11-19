@@ -243,7 +243,7 @@ fn proposal_for(front: &mut Scripted, proposer: u64, holders: &[u64], words: &[u
                         task: 1,
                         position: 2,
                         at: Wall::EPOCH,
-                        line: Activity::RunBegan { attempt: 1, why: RunWhy::Made, resumed: false },
+                        line: Activity::RunBegan { attempt: 1, why: RunWhy::Made, resumed: false, fresh: None },
                     }),
                     decoded: None,
                 },

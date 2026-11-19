@@ -119,10 +119,10 @@ mod tests {
             .seen()
             .pieces
             .iter()
-            .map(|(told, piece)| (*told, piece.turn(), piece.retry(), piece.offset(), piece.bytes()))
+            .map(|(told, piece)| (*told, piece.turn, piece.retry, piece.offset, piece.bytes.as_ref()))
             .collect();
         assert_eq!(pieces, [(0, 1, 0, 0, FIRST), (0, 1, 0, FIRST_BYTES, LAST)]);
-        let joined: Vec<_> = world.seen().pieces.iter().flat_map(|(_, piece)| piece.bytes().iter().copied()).collect();
+        let joined: Vec<_> = world.seen().pieces.iter().flat_map(|(_, piece)| piece.bytes.iter().copied()).collect();
         assert_eq!(joined, b"Hello");
     }
 }

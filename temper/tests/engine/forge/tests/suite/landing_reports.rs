@@ -97,6 +97,12 @@ fn gate_receipts_read_reports_only_for_failed_workflow_steps() {
             assert!(receipt.is_none(), "a runner fault makes no receipt");
             assert!(artifacts.is_empty(), "a runner fault reads no report");
             assert_eq!(world.change(CHANGE).change.repairs, 0);
+        } else if !reports {
+            assert!(matches!(terminal, Some(landing::Decision::Hold(landing::Hold::Faults { .. }))));
+            assert!(receipt.is_none(), "a gate without its report has no verdict");
+            assert_eq!(artifacts.len(), 3, "the first attempt and both runner-fault retries read the report");
+            assert_eq!(world.change(CHANGE).change.repairs, 0);
+            assert!(world.landing(LANDING).landing.members[0].left.is_none());
         } else if contents.is_empty() {
             assert_eq!(terminal, Some(landing::Decision::Finish));
             assert!(receipt.expect("passed receipt").passed);
@@ -109,7 +115,7 @@ fn gate_receipts_read_reports_only_for_failed_workflow_steps() {
                 terminal,
                 Some(landing::Decision::Leave { why: landing::Leave::Failed { gate: 0, .. }, .. })
             ));
-            assert_eq!(artifacts.len(), 1, "even an absent artifact is read once");
+            assert_eq!(artifacts.len(), 1, "an uploaded artifact is read once");
             let job = reads
                 .iter()
                 .position(|op| matches!(op, api::Op::Read(api::Read::Job { .. })))

@@ -450,6 +450,7 @@ fn first_rows(
                             &w::CEILINGS,
                             w::FirstRepositoryParts {
                                 playground: number == 1,
+                                sample: false,
                                 org: b"work".as_slice().into(),
                                 repository: b"hello".as_slice().into(),
                                 state: state.clone(),

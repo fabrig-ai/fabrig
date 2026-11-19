@@ -199,8 +199,8 @@ pub(super) fn at_restart(stopped: &mut Stopped, store: &Store) -> Result<(), Str
 /// Read the prepared checkout before the restarted agent can change its tree.
 pub(super) fn checkout(stopped: &mut Stopped, disk: &mut skein_fake_machine::Machine) -> Result<(), String> {
     let Some(workspace) = &stopped.workspace else { return Ok(()) };
-    let directory = workspace.directories().as_slice().first().ok_or_else(|| String::from("prepared repository"))?;
-    let at = directory.path().strip_prefix(b"/worker/").ok_or_else(|| String::from("checkout below worker root"))?;
+    let directory = workspace.directories.as_slice().first().ok_or_else(|| String::from("prepared repository"))?;
+    let at = directory.path.strip_prefix(b"/worker/").ok_or_else(|| String::from("checkout below worker root"))?;
     let root = disk.reopen_root(1);
     let metadata =
         [b"gitdirs/".as_slice(), at.strip_prefix(b"workspaces/").ok_or_else(|| String::from("workspace path"))?]

@@ -141,7 +141,7 @@ fn a_chat_s_activity_holds_the_person_s_words_its_turns_and_its_delegate_s_resul
     assert_eq!(
         semantic,
         vec![
-            &tasks::Line::RunBegan { attempt: parent.1, why: tasks::Why::Made, resumed: false },
+            &tasks::Line::RunBegan { attempt: parent.1, why: tasks::Why::Made, resumed: false, fresh: None },
             &tasks::Line::Turn { reply: 1, attempt: parent.1, turn: 1, read: None },
             &tasks::Line::Words {
                 message,

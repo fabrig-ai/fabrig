@@ -265,9 +265,9 @@ fn changed(engine: &mut Engine, agents: &s::AgentFigures, against: u32) {
 fn expected(agents: &s::AgentFigures) -> wire::Figures {
     let settings = fixtures::start_settings(fixtures::engine(), &[(1, 100)]);
     let figures = temper_engine_service_vocabulary::figures::compose(&settings, agents);
-    let mut parts = figures.into_parts();
+    let mut parts = figures;
     parts.places = 1;
-    wire::Figures::new(&wire::CEILINGS, parts).unwrap()
+    parts
 }
 fn notes(engine: &mut Engine) -> List<(u32, u32, u32)> {
     let mut values = List::with_capacity(2);
@@ -306,10 +306,7 @@ fn restored_agents_reach_a_figures_opening_and_owner_changes_reach_a_link() {
     assert!(!figures.hello);
     assert!(figures.ended);
     Peer::engine_up(engine, io::Event::Closed { owner: figures.owner.unwrap() });
-    assert_eq!(
-        notes(engine).as_slice(),
-        &[(expected_first.limits().len(), expected_first.agents().endpoints().len(), 2)]
-    );
+    assert_eq!(notes(engine).as_slice(), &[(expected_first.limits.len(), expected_first.agents.endpoints.len(), 2)]);
     let mut linked = Peer::open(engine, Opening::Link);
     assert_eq!(linked.figures.as_slice(), &[expected_first]);
     assert!(linked.hello);
@@ -328,10 +325,7 @@ fn restored_agents_reach_a_figures_opening_and_owner_changes_reach_a_link() {
     let expected_second = expected(&second);
     assert_eq!(linked.figures.len(), 2);
     assert_eq!(linked.figures.as_slice()[1], expected_second);
-    assert_eq!(
-        notes(engine).as_slice(),
-        &[(expected_second.limits().len(), expected_second.agents().endpoints().len(), 3)]
-    );
+    assert_eq!(notes(engine).as_slice(), &[(expected_second.limits.len(), expected_second.agents.endpoints.len(), 3)]);
 }
 
 #[test]

@@ -725,6 +725,15 @@ impl Record for PublicProjects {
         Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 67)?.decoded)
     }
 
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
         field::write(field::Sequence { limit: limits.public_projects_projects.min(CEILINGS.public_projects_projects), minimum: 12, item: field::Nested }, &self.projects, limits, out, paths::PUBLIC_PROJECTS_PROJECTS)?;
         field::write(field::U32, &self.max_age, limits, out, paths::PUBLIC_PROJECTS_MAX_AGE)?;
@@ -799,6 +808,15 @@ impl Record for PublicBoard {
         Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 76)?.decoded)
     }
 
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
         field::write(field::U64, &self.project, limits, out, paths::PUBLIC_BOARD_PROJECT)?;
         field::write(field::Text { limit: limits.public_board_name.min(CEILINGS.public_board_name) }, &self.name, limits, out, paths::PUBLIC_BOARD_NAME)?;
@@ -841,6 +859,15 @@ impl Record for PublicCard {
         Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 81)?.decoded)
     }
 
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
         field::write(field::Nested, &self.line, limits, out, paths::PUBLIC_CARD_LINE)?;
         field::write(field::Sequence { limit: limits.public_card_lineage.min(CEILINGS.public_card_lineage), minimum: 8, item: field::U64 }, &self.lineage, limits, out, paths::PUBLIC_CARD_LINEAGE)?;
@@ -877,6 +904,15 @@ impl Record for PublicApplication {
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
         Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 85)?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {

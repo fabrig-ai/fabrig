@@ -139,8 +139,8 @@ impl Workers {
         }
         let figures = self.figures.compose(agents);
         self.notes.push(crate::Note::WorkerFigures {
-            limits: figures.limits().len(),
-            endpoints: figures.agents().endpoints().len(),
+            limits: figures.limits.len(),
+            endpoints: figures.agents.endpoints.len(),
             revision,
         });
         self.down(now, kit::Event::Figures { figures }, events);

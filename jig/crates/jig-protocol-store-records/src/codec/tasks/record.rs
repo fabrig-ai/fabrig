@@ -219,6 +219,7 @@ fn read_subscriptions(source: List<wire::Subscription>) -> Result<Box<[domain::S
 // Answer credits and waiting words share the same admitted inbox slots.
 fn inbox(
     source: &[domain::Word],
+    unrecorded: &[domain::Word],
     credits: &[domain::QuestionCredit],
     limits: &wire::Limits,
 ) -> Result<List<wire::InboxItem>, wire::Problem> {
@@ -233,27 +234,37 @@ fn inbox(
             return Err(problem(wire::paths::TASK_INTERESTS_INBOX));
         }
     }
+    for word in unrecorded {
+        if members.push(wire::InboxItem::Unrecorded(activity::word(word, limits)?)).is_err() {
+            return Err(problem(wire::paths::TASK_INTERESTS_INBOX));
+        }
+    }
     Ok(members)
 }
 struct Inbox {
     words: Box<[domain::Word]>,
+    unrecorded: Box<[domain::Word]>,
     credits: Box<[domain::QuestionCredit]>,
 }
 
 fn read_inbox(source: List<wire::InboxItem>, limits: &wire::Limits) -> Result<Inbox, wire::Problem> {
     let mut words = List::with_capacity(source.len());
     let mut credits = List::with_capacity(source.len());
+    let mut unrecorded = List::with_capacity(source.len());
     for member in source.into_boxed() {
         match member {
             wire::InboxItem::Word(word) => {
                 words.push(activity::read_word(word, limits)?).expect("same number of items");
+            }
+            wire::InboxItem::Unrecorded(word) => {
+                unrecorded.push(activity::read_word(word, limits)?).expect("same number of items");
             }
             wire::InboxItem::Credit(credit) => {
                 credits.push(state::read_question_credit(credit)?).expect("same number of items");
             }
         }
     }
-    Ok(Inbox { words: words.into_boxed(), credits: credits.into_boxed() })
+    Ok(Inbox { words: words.into_boxed(), unrecorded: unrecorded.into_boxed(), credits: credits.into_boxed() })
 }
 fn saved(source: &[domain::SavedResource], limits: &wire::Limits) -> Result<List<wire::SavedResource>, wire::Problem> {
     let mut members = List::with_capacity(limits.task_interests_saved);
@@ -294,6 +305,7 @@ fn before_talk(
         closer: source.closer,
         asked_requester: source.asked_requester,
         question_woken: source.question_woken,
+        words_woken: source.words_woken,
         history: task_history(source, limits)?,
         run: task_run(source, limits, moved)?,
         definition: task_definition(source, limits, moved)?,
@@ -402,7 +414,7 @@ fn task_interests(source: &domain::TaskRecord, limits: &wire::Limits) -> Result<
         wake: phase::wake(&source.wake, limits)?,
         turn: source.turn,
         last_message: source.last_message,
-        inbox: inbox(&source.inbox, &source.questions, limits)?,
+        inbox: inbox(&source.inbox, &source.unrecorded, &source.questions, limits)?,
         saved: saved(&source.saved, limits)?,
         ever_turned: wire::TranscriptState { ever_turned: source.ever_turned },
         made: source.made,
@@ -435,6 +447,7 @@ pub fn read_before_talk(source: wire::BeforeTalk, limits: &wire::Limits) -> Resu
         outcome,
         asked_requester,
         question_woken,
+        words_woken,
     } = source;
 
     let reasons = domain::Reasons(run.reasons);
@@ -446,7 +459,7 @@ pub fn read_before_talk(source: wire::BeforeTalk, limits: &wire::Limits) -> Resu
         return Err(problem(wire::paths::TASK_RUN_OFFERED));
     }
 
-    let Inbox { words: inbox, credits: questions } = read_inbox(interests.inbox, limits)?;
+    let Inbox { words: inbox, unrecorded, credits: questions } = read_inbox(interests.inbox, limits)?;
     Ok(domain::TaskRecord {
         concluded: None,
         talk: None,
@@ -467,6 +480,8 @@ pub fn read_before_talk(source: wire::BeforeTalk, limits: &wire::Limits) -> Resu
         reasons,
         asked_requester,
         question_woken,
+        words_woken,
+        unrecorded,
         label: definition.label,
         flags: phase::read_flags(definition.flags),
         last_activity: Wall::from_nanos(history.last_activity),
@@ -753,6 +768,7 @@ pub fn live_hot(
         turn,
         last_message,
         inbox,
+        unrecorded,
         saved,
         ever_turned,
         made,
@@ -765,6 +781,7 @@ pub fn live_hot(
         room_wait,
         asked_requester,
         question_woken,
+        words_woken,
     } = source;
     let history = wire::HotHistory {
         last_activity: last_activity.as_nanos(),
@@ -848,7 +865,7 @@ pub fn live_hot(
         wake: phase::wake(wake, limits)?,
         turn: *turn,
         last_message: *last_message,
-        inbox: self::inbox(inbox, questions, limits)?,
+        inbox: self::inbox(inbox, unrecorded, questions, limits)?,
         saved: self::saved(saved, limits)?,
         ever_turned: wire::TranscriptState { ever_turned: *ever_turned },
         made: *made,
@@ -880,6 +897,7 @@ pub fn live_hot(
         closer: *closer,
         asked_requester: *asked_requester,
         question_woken: *question_woken,
+        words_woken: *words_woken,
         history,
         run,
         definition,
@@ -951,6 +969,7 @@ pub fn join(
         outcome,
         asked_requester,
         question_woken,
+        words_woken,
         talk,
     } = hot;
     let wire::LiveCold { spec, contract, authority, instructions } = cold;
@@ -1048,6 +1067,7 @@ pub fn join(
         outcome,
         asked_requester,
         question_woken,
+        words_woken,
     };
     Ok(wire::TaskRecord { record, talk, concluded })
 }

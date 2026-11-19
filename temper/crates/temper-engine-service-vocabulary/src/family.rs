@@ -1017,6 +1017,7 @@ fn panel_hold(value: Option<change::Hold>) -> Option<w::Hold> {
         change::Hold::Retargeted => w::Hold::Retargeted,
         change::Hold::Failed => w::Hold::Failed,
         change::Hold::Flake => w::Hold::Flake,
+        change::Hold::NoTest => w::Hold::NoTest,
         change::Hold::Rejected => w::Hold::Rejected,
         change::Hold::Authority(cause) => w::Hold::Authority(
             w::AuthorityHold::new(&w::CEILINGS, w::AuthorityHoldParts { reason: change::authority_words(cause) })
@@ -1664,6 +1665,7 @@ fn first_repository(first: forge::First, limits: &w::Limits) -> Option<w::FirstR
         limits,
         w::FirstRepositoryParts {
             playground: first.playground,
+            sample: first.sample,
             org: first.org,
             repository: first.repository,
             state,
@@ -1953,6 +1955,10 @@ pub fn document(value: forge::Document, forges: &crate::forges::Forges, limits: 
             let panel = w::LandingPanel::new(
                 limits,
                 w::LandingPanelParts {
+                    waits: match value.waits {
+                        Some(wait) => Some(landing_views::wait(wait, limits)?),
+                        None => None,
+                    },
                     task: value.task,
                     project: value.project,
                     phase: landing_phase(&value.phase),
@@ -1995,6 +2001,14 @@ pub fn document(value: forge::Document, forges: &crate::forges::Forges, limits: 
                         w::LandingLine::new(
                             limits,
                             w::LandingLineParts {
+                                step: match line.step {
+                                    Some(step) => Some(landing_views::step(step)),
+                                    None => None,
+                                },
+                                last_event: match line.last_event {
+                                    Some(at) => Some(at.as_nanos()),
+                                    None => None,
+                                },
                                 train: match line.train {
                                     Some(train) => Some(landing_views::train(train, limits)?),
                                     None => None,
@@ -2012,7 +2026,16 @@ pub fn document(value: forge::Document, forges: &crate::forges::Forges, limits: 
             }
             let panel = w::LandingsPanel::new(
                 limits,
-                w::LandingsPanelParts { project: value.project, turn: value.turn, landings },
+                w::LandingsPanelParts {
+                    now: value.now.as_nanos(),
+                    turn_since: match value.turn_since {
+                        Some(at) => Some(at.as_nanos()),
+                        None => None,
+                    },
+                    project: value.project,
+                    turn: value.turn,
+                    landings,
+                },
             )
             .ok()?;
             Some(wire::landings_panel(&panel))
@@ -2552,8 +2575,8 @@ fn forge_settings_query(read: w::Read) -> Option<root::ForgeRead> {
 fn setup_first(first: w::SetUpFirst) -> forge::SetUpFirst {
     match first {
         w::SetUpFirst::Empty(first) => {
-            let w::FirstEmptyParts { org, repository, playground } = first.into_parts();
-            forge::SetUpFirst::Empty { org, repository, playground }
+            let w::FirstEmptyParts { org, repository, playground, sample } = first.into_parts();
+            forge::SetUpFirst::Empty { org, repository, playground, sample }
         }
         w::SetUpFirst::Copies(copies) => {
             let mut addresses = List::with_capacity(copies.addresses().len());

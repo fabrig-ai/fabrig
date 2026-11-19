@@ -9,11 +9,14 @@ pub fn line(value: &t::ActivityLine, limits: &w::Limits) -> Result<w::ActivityLi
         t::Line::Words { .. } | t::Line::Heard(_) | t::Line::Notified { .. } => {
             return question_answer::answer(value, limits);
         }
-        t::Line::RunBegan { attempt, why: value, resumed } => w::Activity::RunBegan(w::ActivityRunBegan {
-            attempt: *attempt,
-            why: why(*value, limits)?,
-            resumed: *resumed,
-        }),
+        t::Line::RunBegan { attempt, why: value, resumed, fresh: cause } => {
+            w::Activity::RunBegan(w::ActivityRunBegan {
+                attempt: *attempt,
+                why: why(*value, limits)?,
+                resumed: *resumed,
+                fresh: fresh(*cause),
+            })
+        }
         t::Line::RunEnded { attempt, end: value, spent } => {
             w::Activity::RunEnded(w::ActivityRunEnded { attempt: *attempt, end: end(*value, limits)?, spent: *spent })
         }
@@ -206,4 +209,17 @@ pub fn archive(
         at: record.at.as_nanos(),
         turn: w::TurnBytes::Carried(w::TurnCarried { bytes }),
     })
+}
+
+fn fresh(value: Option<t::Fresh>) -> Option<w::RunFresh> {
+    match value {
+        None => None,
+        Some(value) => Some(match value {
+            t::Fresh::Moved => w::RunFresh::Moved,
+            t::Fresh::Closed => w::RunFresh::Closed,
+            t::Fresh::Cut => w::RunFresh::Cut,
+            t::Fresh::Limit => w::RunFresh::Limit,
+            t::Fresh::Session => w::RunFresh::Session,
+        }),
+    }
 }

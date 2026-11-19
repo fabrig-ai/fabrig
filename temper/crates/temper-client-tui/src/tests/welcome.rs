@@ -120,6 +120,7 @@ fn the_welcome_says_each_state() {
                 state: w::FirstState::Making,
                 label: Box::new([]),
                 playground: false,
+                sample: false,
             },
         )
         .unwrap(),
@@ -180,6 +181,7 @@ fn the_welcome_says_each_state() {
                         ),
                         label: Box::new([]),
                         playground: false,
+                        sample: false,
                     },
                 )
                 .unwrap(),

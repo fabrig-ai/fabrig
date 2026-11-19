@@ -113,7 +113,8 @@ pub(super) fn activity_reads(host: &mut NativeClient) -> Vec<(skein_lib::Token, 
 }
 
 pub(super) fn activity_answer(nonempty: bool) -> Box<[u8]> {
-    let event = w::Activity::RunBegan(w::ActivityRunBegan { attempt: RUN, why: w::RunWhy::Made, resumed: true });
+    let event =
+        w::Activity::RunBegan(w::ActivityRunBegan { attempt: RUN, why: w::RunWhy::Made, resumed: true, fresh: None });
     let source = w::ActivityLine { task: 9, position: 1, at: 1, line: event };
     let row = w::DecodedActivityLine { source, decoded: None };
     let row_bytes = if nonempty {
