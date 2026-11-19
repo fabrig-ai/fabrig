@@ -177,7 +177,7 @@ pub fn run(case: Case) -> Run {
         Case::Read | Case::Missing | Case::Spent | Case::Ordered => {
             smith_fake_claude::UsageReply::Result(serde_json::json!({
                 "type":"result", "is_error":false,
-                "result":"Current session\n34.5% used\nCurrent week (all models)\n100% used\n",
+                "result":"Current session: 34.5% used · resets Nov 19, 4:30am (UTC)\nCurrent week (all models): 100% used · resets Nov 23, 5am (UTC)\n",
                 "usage":{"input_tokens": u32::from(case == Case::Spent), "output_tokens":0},
                 "total_cost_usd":0,
             }))
@@ -204,7 +204,11 @@ pub fn run(case: Case) -> Run {
         phase: Phase::New,
         observed: 0,
     };
-    let config = skein_sim::Config::calm();
+    let mut config = skein_sim::Config::calm();
+    let midnight = (skein_lib::Civil { year: 2026, month: 11, day: 19 }).wall().expect("fixture date");
+    config.wall = skein_lib::Wall::from_nanos(
+        midnight.as_nanos().checked_add(Duration::from_secs(14_400).as_nanos()).expect("fixture wall time"),
+    );
     let mut world =
         skein_world::World::new(914, config, judge, skein_world::Memory::Unchecked).with_machine(Files { files, base });
     let factory = smith_fake_claude::hosted(b"claude");

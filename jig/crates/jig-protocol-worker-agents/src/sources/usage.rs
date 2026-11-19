@@ -5,7 +5,7 @@ use alloc::boxed::Box;
 use jig_domain_host::sources;
 use jig_domain_link::{FactWindow, SourceFailure, SourceName, UsageOutcome, UsageWindow};
 use skein_io::{self as io, file, kernel::Fd};
-use skein_lib::{List, Queue, Time, Token};
+use skein_lib::{List, Queue, Time, Token, Wall};
 use smith_host_domain::{self as smith, ProgramUsage};
 use smith_host_protocol::{SourceInspection, UsageRead};
 
@@ -16,17 +16,20 @@ pub(super) struct Reading {
     source: smith::SourceName,
     root: Fd,
     deadline: Time,
+    asked: Wall,
     inspection: Option<SourceInspection>,
     child: Option<UsageRead>,
     cancelled: bool,
 }
 impl Reading {
+    #[expect(clippy::too_many_arguments, reason = "the source binding, ask time and inspection queue cross together")]
     pub(super) fn new(
         read: u64,
         io_owner: Token,
         source: SourceName,
         root: Fd,
         deadline: Time,
+        asked: Wall,
         resources: Option<&Resources>,
         files: &mut Queue<file::Request>,
     ) -> Result<Self, UsageOutcome> {
@@ -47,7 +50,17 @@ impl Reading {
             deadline,
             files,
         );
-        Ok(Self { read, io_owner, source, root, deadline, inspection: Some(inspection), child: None, cancelled: false })
+        Ok(Self {
+            read,
+            io_owner,
+            source,
+            root,
+            deadline,
+            asked,
+            inspection: Some(inspection),
+            child: None,
+            cancelled: false,
+        })
     }
     pub(super) fn owns(&self, owner: Token) -> bool {
         match &self.child {
@@ -126,6 +139,7 @@ impl Reading {
                 self.root,
                 Box::from(b".".as_slice()),
                 self.deadline,
+                self.asked,
                 detail,
                 below,
             ) {
@@ -198,7 +212,7 @@ mod tests {
     }
     #[test]
     fn a_warned_usage_window_keeps_its_reset_and_missing_observations() {
-        let reset = Some(skein_lib::Wall::from_nanos(123));
+        let reset = Some(Wall::from_nanos(123));
         assert_eq!(
             translate(
                 ProgramUsage::Read(Box::new([smith::UsageWindow {

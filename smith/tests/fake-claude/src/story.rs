@@ -49,7 +49,7 @@ pub enum UsageReply {
 impl Default for UsageReply {
     fn default() -> Self {
         Self::Result(serde_json::json!({
-            "type": "result", "is_error": false, "result": "Current session\n0% used\n",
+            "type": "result", "is_error": false, "result": "Current session: 0% used · resets Nov 19, 4:30am (UTC)\n",
             "usage": {"input_tokens": 0, "output_tokens": 0}, "total_cost_usd": 0,
         }))
     }

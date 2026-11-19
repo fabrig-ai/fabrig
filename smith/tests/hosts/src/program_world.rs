@@ -4,7 +4,7 @@
 
 use skein_fake_machine::{How, Item, Machine as Files, Opened};
 use skein_io::{self as io, file, file_layer, kernel};
-use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
+use skein_lib::{Civil, Duration, Env, Queue, Time, Token, Wall};
 use skein_shell::{Delegate, Host};
 use skein_world::{HostedProgram, Inherited, Machine, Referee};
 use smith_fake_claude::{Fake, Story};
@@ -55,6 +55,7 @@ struct Parent {
     root_closing: bool,
     launches: u32,
     deadline: Time,
+    asked: Wall,
     root_closed: bool,
     events: Queue<io::Event>,
     requests: Queue<io::Request>,
@@ -88,6 +89,7 @@ impl Parent {
             root_closing: false,
             launches: 0,
             deadline: Time::ZERO,
+            asked: Wall::EPOCH,
             root_closed: false,
             events: Queue::with_capacity(32),
             requests: Queue::with_capacity(32),
@@ -107,6 +109,7 @@ impl Parent {
                     self.root,
                     b".".as_slice().into(),
                     self.deadline,
+                    self.asked,
                     32,
                     &mut self.requests,
                 )
@@ -170,6 +173,7 @@ impl Parent {
         if self.source.is_none() && self.usage.is_none() && self.inspection.is_none() && !self.root_closing {
             if let Some(ask) = self.asks.pop() {
                 self.deadline = now.saturating_add(DEADLINE);
+                self.asked = self.env.wall;
                 match ask {
                     SourceAsk::Check => {
                         self.inspection = Some(SourceInspection::new(
@@ -410,6 +414,13 @@ fn make_fake(spawn: &kernel::Spawn, inherited: &Inherited) -> Process {
         [b"ANTHROPIC_CONFIG_DIR=/programs/alice/anthropic".as_slice()],
         "source commands use only the source's Anthropic profiles"
     );
+    if spawn.args.iter().any(|argument| argument.as_ref() == b"/usage") {
+        assert_eq!(
+            spawn.env.iter().filter(|entry| entry.starts_with(b"TZ=")).map(AsRef::as_ref).collect::<Vec<_>>(),
+            [b"TZ=UTC".as_slice()],
+            "the usage fake receives UTC, replacing the caller's time zone"
+        );
+    }
     Process::Fake(Box::new((smith_fake_claude::hosted(b"claude").make)(spawn, inherited)))
 }
 
@@ -478,9 +489,16 @@ fn run_mode(
     let root = machine.open_root(b".").expect("parent root");
     let mut environment = vec![Box::from(b"HOME=/home".as_slice())];
     environment.extend_from_slice(extra_environment);
+    let mut config = skein_sim::Config::calm();
+    if read_usage {
+        let midnight = (Civil { year: 2026, month: 11, day: 19 }).wall().expect("fixture date");
+        config.wall = Wall::from_nanos(
+            midnight.as_nanos().checked_add(Duration::from_secs(14_400).as_nanos()).expect("fixture wall time"),
+        );
+    }
     let mut world = skein_world::World::new(
         seed,
-        skein_sim::Config::calm(),
+        config,
         Judge { expected: asks.len(), met: false },
         skein_world::Memory::Within(SOURCE_PARENT_CEILING),
     )

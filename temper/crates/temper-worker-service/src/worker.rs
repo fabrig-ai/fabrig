@@ -862,6 +862,7 @@ impl Worker {
             source,
             self.directory.expect("worker root"),
             deadline,
+            self.env.wall,
             &mut self.io,
             self.source_files.requests(),
         );

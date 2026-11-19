@@ -5,7 +5,7 @@ use alloc::boxed::Box;
 use jig_domain_host::sources;
 use jig_domain_link::{LoginMethod, LoginState, SignOutResult, SourceFailure, SourceName};
 use skein_io::{self as io, file, kernel::Fd};
-use skein_lib::{Queue, Time, Token};
+use skein_lib::{Queue, Time, Token, Wall};
 use smith_host_domain as smith;
 use smith_host_protocol::{ListLaunch, ListRead, ProgramSource, SourceAnswer, SourceAsk, SourceInspection};
 use smith_protocol_program::Programs;
@@ -313,7 +313,7 @@ impl Component {
         }
         self.read_answer()
     }
-    /// Inspect and read a source's usage without a run or a credential grant.
+    /// Inspect and read usage without a run or credential grant, placing reset years by the host's ask time.
     #[expect(clippy::too_many_arguments, reason = "the source binding and lower queues cross together")]
     pub fn read_usage(
         &mut self,
@@ -322,11 +322,12 @@ impl Component {
         source: SourceName,
         root: Fd,
         deadline: Time,
+        asked: Wall,
         below: &mut Queue<io::Request>,
         files: &mut Queue<file::Request>,
     ) -> Option<(Token, sources::Answer)> {
         assert!(self.settled(), "host serializes usage reads and source commands");
-        match usage::Reading::new(read, io_owner, source, root, deadline, self.resources.as_ref(), files) {
+        match usage::Reading::new(read, io_owner, source, root, deadline, asked, self.resources.as_ref(), files) {
             Ok(reading) => self.usage = Some(reading),
             Err(outcome) => return Some((Token::new(read), sources::Answer::Usage(bound_usage(outcome, self.detail)))),
         }

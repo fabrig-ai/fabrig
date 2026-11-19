@@ -8,7 +8,7 @@ mod words;
 use alloc::boxed::Box;
 use skein_io::{self as io, kernel};
 use skein_json::{Document, Kind};
-use skein_lib::{List, Queue, Time, Token};
+use skein_lib::{List, Queue, Time, Token, Wall};
 use smith_host_domain::{FailureReason, ProgramFailure, ProgramUsage, SourceName};
 use smith_protocol_program::{self as program, Command, Ended, Programs, USAGE_BYTES};
 
@@ -17,11 +17,12 @@ use smith_protocol_program::{self as program, Command, Ended, Programs, USAGE_BY
 pub struct UsageRead {
     command: Command,
     detail_bytes: u32,
+    asked: Wall,
     answered: bool,
 }
 
 impl UsageRead {
-    /// Start the local command after `SourceInspection` has found both levels private.
+    /// Start after `SourceInspection` finds both levels private, placing reset years by the host's ask time.
     #[expect(clippy::too_many_arguments, reason = "a host's inspected source binding and deadline cross together")]
     pub fn new(
         io_owner: Token,
@@ -31,11 +32,12 @@ impl UsageRead {
         root: kernel::Fd,
         directory: Box<[u8]>,
         deadline: Time,
+        asked: Wall,
         detail_bytes: u32,
         below: &mut Queue<io::Request>,
     ) -> Result<Self, program::Error> {
         let configuration = program::configuration_directory(programs, source.as_bytes())?;
-        let environment = program::environment(base, &configuration)?;
+        let environment = environment(base, &configuration)?;
         let mut arguments = List::with_capacity(8);
         for argument in program::USAGE {
             arguments.push(Box::from(argument)).expect("usage argument slot");
@@ -50,6 +52,7 @@ impl UsageRead {
         Ok(Self {
             command: Command::with_output(io_owner, launch, USAGE_BYTES, deadline, detail_bytes, below),
             detail_bytes,
+            asked,
             answered: false,
         })
     }
@@ -87,19 +90,37 @@ impl UsageRead {
             return None;
         }
         let ended = self.command.ended()?;
-        let answer = translate(ended, self.detail_bytes);
+        let answer = translate(ended, self.detail_bytes, self.asked);
         self.answered = true;
         Some(answer)
     }
 }
 
-fn translate(ended: Ended<'_>, detail_bytes: u32) -> ProgramUsage {
+fn environment(base: &[Box<[u8]>], configuration: &[u8]) -> Result<Box<[Box<[u8]>]>, program::Error> {
+    let mut entries = List::with_capacity(program::ENVIRONMENT_ENTRIES);
+    for entry in base {
+        let equal = skein_lib::bytes::find(entry, b"=").ok_or(program::Error::Environment)?;
+        let name = entry.get(..equal).expect("entry name");
+        if entry.contains(&0) {
+            return Err(program::Error::Environment);
+        }
+        if name != b"TZ" && program::keeps(name) && entries.push(entry.clone()).is_err() {
+            return Err(program::Error::Environment);
+        }
+    }
+    if entries.push(Box::from(b"TZ=UTC".as_slice())).is_err() {
+        return Err(program::Error::Environment);
+    }
+    program::environment(entries.as_slice(), configuration)
+}
+
+fn translate(ended: Ended<'_>, detail_bytes: u32, asked: Wall) -> ProgramUsage {
     match ended {
         Ended::Unspawned { detail } => failed(FailureReason::Missing, detail),
         Ended::Deadline { detail } => failed(FailureReason::Deadline, detail),
         Ended::Exited { exit, stdout, detail } => match exit {
             kernel::Exit::Code(0) => match stdout {
-                Some(stdout) => match result(stdout, detail_bytes) {
+                Some(stdout) => match result(stdout, detail_bytes, asked) {
                     Some(answer) => answer,
                     None => failed(FailureReason::Unreadable, detail),
                 },
@@ -114,7 +135,7 @@ fn failed(reason: FailureReason, detail: &[u8]) -> ProgramUsage {
     ProgramUsage::Failed(ProgramFailure { reason, detail: Box::from(detail) })
 }
 
-fn result(bytes: &[u8], detail_bytes: u32) -> Option<ProgramUsage> {
+fn result(bytes: &[u8], detail_bytes: u32, asked: Wall) -> Option<ProgramUsage> {
     let document = program::usage_result(bytes)?;
     if spent(&document) {
         return Some(ProgramUsage::Spent);
@@ -127,7 +148,7 @@ fn result(bytes: &[u8], detail_bytes: u32) -> Option<ProgramUsage> {
             Some(failed(FailureReason::Exited, words.get(..length)?))
         }
         Kind::False => {
-            let windows = words::read(words);
+            let windows = words::read(words, asked);
             if windows.is_empty() { None } else { Some(ProgramUsage::Read(windows)) }
         }
         Kind::ObjectStart

@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use skein_lib::Duration;
+    use skein_lib::{Civil, Duration, Wall};
     use smith_fake_claude::{Story, UsageReply};
     use smith_host_domain::{FailureReason, ProgramUsage, UsageState, UsageWindow};
     use smith_hosts_world::program_world::{Run, usage};
@@ -30,7 +30,7 @@ mod tests {
     #[test]
     fn local_usage_reads_windows_in_the_sources_environment() {
         let story = reply(
-            "Current session\n██████\n12% used\nResets 3pm (Europe/Rome)\n\nCurrent week (all models)\n34.5% used\n\nCurrent week (Sonnet only)\n3% used\n",
+            "Current session: 16% used · resets Nov 19, 4:30am (UTC)\nCurrent week (all models): 60% used · resets Nov 23, 5am (UTC)\nCurrent week (Fable): 8% used · resets Nov 23, 4:59am (UTC)\n",
         );
         let environment: Vec<Box<[u8]>> = [
             "ANTHROPIC_API_KEY=x",
@@ -39,21 +39,38 @@ mod tests {
             "ANTHROPIC_PROFILE=x",
             "CLAUDE_CODE_USE_VERTEX=x",
             "AWS_BEARER_TOKEN_BEDROCK=x",
+            "TZ=Europe/Rome",
+            "SOURCE_VARIABLE=kept",
         ]
         .iter()
         .map(|entry| entry.as_bytes().into())
         .collect();
         let run = usage(7, story.clone(), false, &environment, [Some(0o700); 2]);
         let expected = [
-            (b"five_hour".as_slice(), 18_000, 1200),
-            (b"seven_day".as_slice(), 604_800, 3450),
-            (b"seven_day_sonnet".as_slice(), 604_800, 300),
+            (b"five_hour".as_slice(), 18_000, 1600, 19, 4_u64, 30_u64),
+            (b"seven_day".as_slice(), 604_800, 6000, 23, 5, 0),
+            (b"seven_day_fable".as_slice(), 604_800, 800, 23, 4, 59),
         ]
-        .map(|(label, seconds, used)| UsageWindow {
+        .map(|(label, seconds, used, day, hour, minute)| UsageWindow {
             label: label.into(),
             length: Some(Duration::from_secs(seconds)),
             used: Some(used),
-            resets: None,
+            resets: Some(Wall::from_nanos(
+                (Civil { year: 2026, month: 11, day })
+                    .wall()
+                    .expect("fixture date")
+                    .as_nanos()
+                    .checked_add(
+                        Duration::from_secs(
+                            hour.checked_mul(3600)
+                                .expect("fixture hour")
+                                .checked_add(minute.checked_mul(60).expect("fixture minute"))
+                                .expect("fixture clock"),
+                        )
+                        .as_nanos(),
+                    )
+                    .expect("fixture wall time"),
+            )),
             state: UsageState::Open,
         });
         assert_eq!(run.usage_answers, [ProgramUsage::Read(expected.into())]);
@@ -65,8 +82,11 @@ mod tests {
             observation.arguments,
             ["-p", "/usage", "--output-format", "json", "--setting-sources", "user", "--tools", ""]
         );
-        assert_eq!(observation.environment, ["HOME", "CLAUDE_CONFIG_DIR", "ANTHROPIC_CONFIG_DIR"]);
-        let limited = read(reply("Current session\n100% used\n"));
+        assert_eq!(
+            observation.environment,
+            ["HOME", "SOURCE_VARIABLE", "TZ", "CLAUDE_CONFIG_DIR", "ANTHROPIC_CONFIG_DIR"]
+        );
+        let limited = read(reply("Current session: 100% used\n"));
         let ProgramUsage::Read(windows) = limited.usage_answers.first().expect("limited answer") else {
             unreachable!("windows");
         };
