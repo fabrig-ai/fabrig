@@ -4,31 +4,26 @@ use jig_client_protocol_wire as w;
 use jig_domain_core_vocabulary as core;
 use skein_lib::{List, Reader, ReplyTo, Secret, Token, Writer};
 fn read() -> w::Owned {
-    w::Owned::new(
-        &f::wire(),
-        w::OwnedParts {
+    w::Owned {
             owner: w::Owner::Jig,
             version: jig_client_protocol_wire::VERSION,
             record: f::encoded_read(&w::Read::Me),
-        },
-    )
-    .expect("read")
+        }
 }
 fn opening(stream: [u8; 16], watch: u64) -> w::Member {
     w::Member::Open(
-        w::Open::new(&f::wire(), w::OpenParts { stream, watch, subject: f::owned_subject(&w::Subject::Me) })
-            .expect("opening"),
+        w::Open { stream, watch, subject: f::owned_subject(&w::Subject::Me) },
     )
 }
 fn closing(stream: [u8; 16], watch: u64) -> w::Member {
-    w::Member::Close(w::WatchClose::new(&f::wire(), w::WatchCloseParts { stream, watch }).expect("closing"))
+    w::Member::Close(w::WatchClose { stream, watch })
 }
 fn encoded(members: &[w::Member]) -> Box<[u8]> {
     let mut list = List::with_capacity(u32::try_from(members.len()).expect("members"));
     for member in members {
         list.push(member.clone()).expect("member");
     }
-    let value = w::Batch::new(&f::wire(), w::BatchParts { members: list }).expect("batch");
+    let value = w::Batch { members: list };
     let mut bytes = Writer::new(skein_lib::length::usize_of(value.measure()));
     value.encode(&mut bytes).expect("batch bytes");
     bytes.finish()
@@ -67,7 +62,7 @@ fn open_answer(bytes: Option<Box<[u8]>>) -> w::OpenAnswer {
 }
 fn busy_open() -> w::OpenAnswer {
     w::OpenAnswer::Refused(
-        w::OpenAnswerRefused::new(&f::wire(), w::OpenAnswerRefusedParts { why: w::WatchRefusal::Busy }).expect("busy"),
+        w::OpenAnswerRefused { why: w::WatchRefusal::Busy },
     )
 }
 #[test]
@@ -173,9 +168,8 @@ fn malformed_members_and_conflicting_closings_have_no_record() {
     world.component.down(&world.env, Event::Admitted { watcher }, &mut world.out);
     pump(&mut world);
     world.out.clear();
-    let family = w::Owner::Family(w::Family::new(&f::wire(), w::FamilyParts { number: 9 }).expect("family"));
-    let bad = w::Owned::new(&f::wire(), w::OwnedParts { owner: family, version: 2, record: Box::new([255]) })
-        .expect("bad family member");
+    let family = w::Owner::Family(w::Family { number: 9 });
+    let bad = w::Owned { owner: family, version: 2, record: Box::new([255]) };
     let owner = send(&mut world, &[closing(stream, 1), closing(stream, 1), w::Member::Read(bad)]);
     world.out.pop().expect("unwatch");
     assert_eq!(part(&mut world, owner, 1), None);
@@ -239,8 +233,7 @@ fn an_empty_or_signed_out_batch_is_still_an_exchange_with_parts_and_done() {
     assert!(world.component.up(&world.env, &mut world.out));
     assert_eq!(read_answer(part(&mut world, owner, 0)), f::read_none(w::ReadNone::SignedOut));
     let signed_out = w::OpenAnswer::Refused(
-        w::OpenAnswerRefused::new(&f::wire(), w::OpenAnswerRefusedParts { why: w::WatchRefusal::SignedOut })
-            .expect("signed out"),
+        w::OpenAnswerRefused { why: w::WatchRefusal::SignedOut },
     );
     assert_eq!(open_answer(part(&mut world, owner, 1)), signed_out);
     let bytes = part(&mut world, owner, 2).expect("signed out closing");

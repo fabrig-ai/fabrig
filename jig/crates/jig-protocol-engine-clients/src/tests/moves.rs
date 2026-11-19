@@ -8,13 +8,12 @@ use skein_lib::{ReplyTo, Secret, Token, Writer};
 
 fn change(change: w::AccountChange) -> w::Ask {
     w::Ask::AccountChange(
-        w::AskAccountChange::new(&f::wire(), w::AskAccountChangeParts { holder: w::AskAccountHolder::Own, change })
-            .unwrap(),
+        w::AskAccountChange { holder: w::AskAccountHolder::Own, change },
     )
 }
 fn outgoing(exchange: &mut Exchange) -> (Token, ReplyTo) {
     let ask = change(w::AccountChange::MoveOut(
-        w::AccountChangeMoveOut::new(&f::wire(), w::AccountChangeMoveOutParts { account: 19 }).unwrap(),
+        w::AccountChangeMoveOut { account: 19 },
     ));
     let owner = exchange.send(Message::Request(f::keyed(
         w::Owner::Jig,
@@ -95,27 +94,22 @@ fn carried(exchange: &mut Exchange, kind: u8, value: &[u8], digest: [u8; 32]) ->
     let limits = f::wire();
     let ask = change(match kind {
         0 => w::AccountChange::AddKey(
-            w::AccountChangeAddKey::new(&limits, w::AccountChangeAddKeyParts { provider: 3, join: None, digest })
-                .unwrap(),
+            w::AccountChangeAddKey { provider: 3, join: None, digest },
         ),
         1 => w::AccountChange::ReplaceKey(
-            w::AccountChangeReplaceKey::new(&limits, w::AccountChangeReplaceKeyParts { source: 29, digest }).unwrap(),
+            w::AccountChangeReplaceKey { source: 29, digest },
         ),
         _ => w::AccountChange::MoveIn(
-            w::AccountChangeMoveIn::new(&limits, w::AccountChangeMoveInParts { digest }).unwrap(),
+            w::AccountChangeMoveIn { digest },
         ),
     });
-    let keyed = w::Keyed::new(
-        &limits,
-        w::KeyedParts {
+    let keyed = w::Keyed {
             key: [5; 16],
             owner: w::Owner::Jig,
             version: jig_client_protocol_wire::VERSION,
             request: f::encode_ask(&ask),
             value: Some(Secret::new(Box::from(value))),
-        },
-    )
-    .unwrap();
+        };
     let mut bytes = Writer::new(usize::try_from(keyed.measure()).unwrap());
     keyed.encode(&mut bytes).unwrap();
     let owner = exchange.send(Message::Request(bytes.finish()));
@@ -203,7 +197,7 @@ fn a_move_in_digest_must_match_before_the_value_is_kept() {
 #[test]
 fn written_decodes_its_move_number() {
     let ask = change(w::AccountChange::Written(
-        w::AccountChangeWritten::new(&f::wire(), w::AccountChangeWrittenParts { number: 23 }).unwrap(),
+        w::AccountChangeWritten { number: 23 },
     ));
     assert_eq!(
         crate::translate::asks::ask(ask, &f::models(), &f::wire()),

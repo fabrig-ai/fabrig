@@ -16,9 +16,7 @@ pub fn line(models: &[crate::Model], value: &d::HistoryLine, limits: &w::Limits)
         t::Change::ProposalRejected => w::HistoryChange::ProposalRejected,
         t::Change::ProposalWithdrawn => w::HistoryChange::ProposalWithdrawn,
     };
-    w::HistoryLine::new(
-        limits,
-        w::HistoryLineParts {
+    Ok(w::HistoryLine {
             task: value.task,
             revision: value.revision,
             by: owner::requester(value.by, limits)?,
@@ -29,19 +27,15 @@ pub fn line(models: &[crate::Model], value: &d::HistoryLine, limits: &w::Limits)
                 None => None,
             },
             amendment: match &value.amendment {
-                Some((before, after)) => Some(w::HistoryAmendment::new(
-                    limits,
-                    w::HistoryAmendmentParts {
+                Some((before, after)) => Some(w::HistoryAmendment {
                         before: objects::proposals::amendment(models, before, limits)?,
                         after: objects::proposals::amendment(models, after, limits)?,
-                    },
-                )?),
+                    }),
                 None => None,
             },
             at: match value.at {
                 Some(item) => Some(item.as_nanos()),
                 None => None,
             },
-        },
-    )
+        })
 }

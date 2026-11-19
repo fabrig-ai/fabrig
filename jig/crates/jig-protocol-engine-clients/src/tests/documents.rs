@@ -119,8 +119,8 @@ fn me_overflow_reports_the_wire_bound_it_exceeds() {
     let frame = fixtures::frame_two_projects();
     let limits = fixtures::wire_limits();
     let rows = [
-        (w::Limits { me_projects: 1, ..limits }, w::Path::MeProjects),
-        (w::Limits { document_text_bytes: 1, ..limits }, w::Path::DocumentTextBytes),
+        (w::Limits { me_projects: 1, ..limits }, w::paths::ME_PROJECTS),
+        (w::Limits { document_text_bytes: 1, ..limits }, w::paths::DOCUMENT_TEXT_BYTES),
     ];
     for (limits, path) in rows {
         assert_eq!(
@@ -137,7 +137,7 @@ fn a_non_utf8_document_text_fails_translation() {
         let value = jig_domain_core_vocabulary::documents::Text { bytes: bytes.into(), cut: true };
         assert_eq!(
             translate::owner::text(&value, &limits),
-            Err(w::Problem { path: w::Path::DocumentTextBytes, reason: skein_codec::Reason::Utf8 })
+            Err(w::Problem { path: w::paths::DOCUMENT_TEXT_BYTES, reason: skein_codec::Reason::Utf8 })
         );
     }
 }
@@ -208,12 +208,12 @@ fn live_nested_pieces_past_the_wire_bounds_are_refused_naming_them() {
     let source = fixtures::deployment_document();
     let limits = fixtures::wire_limits();
     let rows = [
-        ("host runs", w::Limits { host_runs: 0, ..limits }, w::Path::HostRuns),
-        ("deployment hosts", w::Limits { deployment_hosts: 0, ..limits }, w::Path::DeploymentHosts),
-        ("deployment attempts", w::Limits { deployment_attempts: 0, ..limits }, w::Path::DeploymentAttempts),
-        ("account runs", w::Limits { account_runs: 0, ..limits }, w::Path::AccountRuns),
-        ("account waiting", w::Limits { account_waiting: 0, ..limits }, w::Path::AccountWaiting),
-        ("deployment accounts", w::Limits { deployment_accounts: 0, ..limits }, w::Path::DeploymentAccounts),
+        ("host runs", w::Limits { host_runs: 0, ..limits }, w::paths::HOST_RUNS),
+        ("deployment hosts", w::Limits { deployment_hosts: 0, ..limits }, w::paths::DEPLOYMENT_HOSTS),
+        ("deployment attempts", w::Limits { deployment_attempts: 0, ..limits }, w::paths::DEPLOYMENT_ATTEMPTS),
+        ("account runs", w::Limits { account_runs: 0, ..limits }, w::paths::ACCOUNT_RUNS),
+        ("account waiting", w::Limits { account_waiting: 0, ..limits }, w::paths::ACCOUNT_WAITING),
+        ("deployment accounts", w::Limits { deployment_accounts: 0, ..limits }, w::paths::DEPLOYMENT_ACCOUNTS),
     ];
     for (label, limits, path) in rows {
         assert_eq!(
@@ -315,7 +315,7 @@ fn a_project_document_carries_its_policy_s_template_overrides() {
     assert_eq!(
         entry.budget(),
         &Some(w::TemplateBudget::Amount(
-            w::TemplateAmount::new(&w::CEILINGS, w::TemplateAmountParts { value: 42 }).unwrap()
+            w::TemplateAmount { value: 42 }
         ))
     );
 }

@@ -11,10 +11,9 @@ fn compound(project: u32, stop_project: u32) -> w::Ask {
     let limits = f::wire();
     let values = [
         w::Operation::Message(
-            w::Message::new(&limits, w::MessageParts { project, task: TASK, words: b"words".as_slice().into() })
-                .unwrap(),
+            w::Message { project, task: TASK, words: b"words".as_slice().into() },
         ),
-        w::Operation::Stop(w::Stop::new(&limits, w::StopParts { project: stop_project, task: TASK }).unwrap()),
+        w::Operation::Stop(w::Stop { project: stop_project, task: TASK }),
     ];
     f::compound(project, &values)
 }
@@ -37,8 +36,7 @@ fn a_compound_operation_naming_another_project_is_refused_at_its_place() {
     assert_eq!(
         value.refusal(),
         &w::Refusal::Malformed(
-            w::RefusalMalformed::new(&limits, w::RefusalMalformedParts { at: 1, why: w::Malformed::ProjectMismatch })
-                .unwrap()
+            w::RefusalMalformed { at: 1, why: w::Malformed::ProjectMismatch }
         )
     );
 }
@@ -61,17 +59,13 @@ fn a_compound_answer_keeps_its_message_and_operation_count() {
         &limits,
     );
     let expected = w::DocumentOutcome::Compound(
-        w::OutcomeCompound::new(
-            &limits,
-            w::OutcomeCompoundParts { project: PROJECT, operations: 2, first_message: FIRST_MESSAGE },
-        )
-        .unwrap(),
+        w::OutcomeCompound { project: PROJECT, operations: 2, first_message: FIRST_MESSAGE },
     );
     let w::Final::Done(value) = value else {
         panic!("done");
     };
     assert_eq!(
         value.outcome(),
-        &w::Outcome::Document(w::OutcomeDocument::new(&limits, w::OutcomeDocumentParts { value: expected }).unwrap())
+        &w::Outcome::Document(w::OutcomeDocument { value: expected })
     );
 }

@@ -9,22 +9,18 @@ fn pending_amendments_answer_their_value_over_the_exchange() {
     for proposer in [d::Proposer::Party(11), d::Proposer::Task(17)] {
         let mut proposal = f::pending_amendment();
         proposal.proposer = proposer;
-        let key = w::ProposalKey::new(
-            &limits,
-            w::ProposalKeyParts {
+        let key = w::ProposalKey {
                 proposer: match proposer {
                     d::Proposer::Party(value) => {
-                        w::Proposer::Party(w::ProposerParty::new(&limits, w::ProposerPartyParts { value }).unwrap())
+                        w::Proposer::Party(w::ProposerParty { value })
                     }
                     d::Proposer::Task(value) => {
-                        w::Proposer::Task(w::ProposerTask::new(&limits, w::ProposerTaskParts { value }).unwrap())
+                        w::Proposer::Task(w::ProposerTask { value })
                     }
                 },
                 number: 13,
-            },
-        )
-        .unwrap();
-        let read = w::Read::Proposal(w::ReadProposal::new(&limits, w::ReadProposalParts { proposal: key }).unwrap());
+            };
+        let read = w::Read::Proposal(w::ReadProposal { proposal: key });
         let mut exchange = f::read_exchange();
         let (owner, reply, requested) = exchange.read(&read);
         assert_eq!(requested, reads::Read::Proposal { proposer, proposal: 13 });
@@ -97,9 +93,9 @@ fn a_cursor_that_does_not_decode_is_answered_unknown() {
         ("truncated scope", &[0, 2, 0, 1, 10][..]),
     ] {
         let mut exchange = f::read_exchange();
-        let after = w::Cursor::new(&limits, w::CursorParts { value: bytes.into() }).expect(label);
+        let after = w::Cursor { value: bytes.into() };
         let value = w::Read::Spend(
-            w::ReadSpend::new(&limits, w::ReadSpendParts { project: 3, after: Some(after) }).expect(label),
+            w::ReadSpend { project: 3, after: Some(after) },
         );
         let owner = exchange.send(crate::Message::Read(f::owned_read(
             w::Owner::Jig,
@@ -123,9 +119,9 @@ fn a_cursor_from_another_version_is_answered_unknown() {
     reader.u16().unwrap();
     bytes.put(reader.bytes(reader.remaining()).unwrap()).unwrap();
     let limits = f::wire();
-    let after = w::Cursor::new(&limits, w::CursorParts { value: bytes.finish() }).unwrap();
+    let after = w::Cursor { value: bytes.finish() };
     let read =
-        w::Read::Spend(w::ReadSpend::new(&limits, w::ReadSpendParts { project: 3, after: Some(after) }).unwrap());
+        w::Read::Spend(w::ReadSpend { project: 3, after: Some(after) });
     let mut exchange = f::read_exchange();
     let owner = exchange.send(crate::Message::Read(f::owned_read(w::Owner::Jig, w::VERSION, f::encoded_read(&read))));
     exchange.authenticate();
@@ -182,13 +178,9 @@ fn an_application_read_is_routed_and_answered_under_its_family() {
         let record = if label == "document" { Some(Box::from([255, 0, 2])) } else { None };
         exchange.release_application_read(ReplyTo::new(name), 9, record);
         let expected = if label == "document" {
-            let family = w::Family::new(&f::wire(), w::FamilyParts { number: 9 }).expect(label);
+            let family = w::Family { number: 9 };
             w::ReadAnswer::Value(
-                w::Owned::new(
-                    &f::wire(),
-                    w::OwnedParts { owner: w::Owner::Family(family), version: 2, record: Box::from([255, 0, 2]) },
-                )
-                .expect(label),
+                w::Owned { owner: w::Owner::Family(family), version: 2, record: Box::from([255, 0, 2]) },
             )
         } else {
             f::read_none(w::ReadNone::Unknown)
@@ -271,7 +263,7 @@ fn turn_failure_terminals_keep_their_reason_after_release() {
         (
             reads::Why::TooLarge { bytes: 8192 },
             w::ReadNone::TooLarge(
-                w::TurnTooLarge::new(&f::wire(), w::TurnTooLargeParts { bytes: 8192 }).expect("size"),
+                w::TurnTooLarge { bytes: 8192 },
             ),
         ),
     ] {
@@ -293,11 +285,7 @@ fn a_single_turn_read_carries_the_same_archive_as_activity() {
         };
         let limits = f::wire();
         let value = w::Read::Turn(
-            w::ReadTurn::new(
-                &limits,
-                w::ReadTurnParts { task: record.task, attempt: record.attempt, turn: record.turn },
-            )
-            .unwrap(),
+            w::ReadTurn { task: record.task, attempt: record.attempt, turn: record.turn },
         );
         let mut settings = f::settings();
         settings.private = f::private();
@@ -339,7 +327,7 @@ fn a_single_turn_read_carries_the_same_archive_as_activity() {
 fn a_client_reading_a_too_linked_task_is_told_its_join_bound() {
     let mut exchange = f::read_exchange();
     let limits = f::wire();
-    let task = w::Read::Task(w::ReadTask::new(&limits, w::ReadTaskParts { task: 1 }).expect("task"));
+    let task = w::Read::Task(w::ReadTask { task: 1 });
     let (owner, reply, _) = exchange.read(&task);
     exchange.release_read(reply, reads::Answer::None(reads::Why::TooLinked { joins: 4 }));
     // read_answer decodes the real engine response bytes with the client codec.
@@ -394,17 +382,13 @@ fn cursor_boundaries_refuse_unrepresentable_scopes_oversized_values_and_other_fo
 fn tasks_read(description: Option<Box<[u8]>>, after: Option<w::Cursor>) -> w::Read {
     let limits = f::wire();
     w::Read::Notes(
-        w::ReadNotes::new(
-            &limits,
-            w::ReadNotesParts {
+        w::ReadNotes {
                 scope: w::NoteScope::Tasks(
-                    w::NoteScopeTasks::new(&limits, w::NoteScopeTasksParts { project: 13 }).unwrap(),
+                    w::NoteScopeTasks { project: 13 },
                 ),
                 description,
                 after,
             },
-        )
-        .unwrap(),
     )
 }
 
@@ -413,7 +397,7 @@ fn tasks_translates_onto_the_project_read() {
     let cursor = reads::Cursor::Store { scope: reads::Scope::Notes { project: 13 }, after: None };
     let encoded = crate::translate::cursor::encode(&cursor, 1024).unwrap();
     for (after, from) in
-        [(None, None), (Some(w::Cursor::new(&f::wire(), w::CursorParts { value: encoded }).unwrap()), Some(cursor))]
+        [(None, None), (Some(w::Cursor { value: encoded }), Some(cursor))]
     {
         let mut exchange = f::read_exchange();
         let (owner, reply, read) = exchange.read(&tasks_read(None, after));
@@ -496,7 +480,7 @@ fn an_answer_it_cannot_encode_is_malformed_not_closed() {
     let mut exchange = f::read_exchange();
     exchange.env.limits.wire.activity_words_words = PAST_BOUND;
     let query = w::Read::Activity(
-        w::ReadActivity::new(&f::wire(), w::ReadActivityParts { task: 7, before: None }).expect("activity"),
+        w::ReadActivity { task: 7, before: None },
     );
     let (owner, reply, _) = exchange.read(&query);
     let page = f::page(skein_lib::List::from_boxed(Box::new([reads::PageRow::Activity {

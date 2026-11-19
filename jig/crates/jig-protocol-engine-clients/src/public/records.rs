@@ -23,18 +23,15 @@ pub(super) fn encode(
             for item in &value.projects {
                 projects
                     .push(
-                        w::PublicProject::new(
-                            limits,
-                            w::PublicProjectParts {
+                        Ok(w::PublicProject {
                                 project: names.project(item.project),
                                 name: skein_lib::bytes::copy_of(item.name.as_bytes()),
-                            },
-                        )
+                            })
                         .ok()?,
                     )
                     .ok()?;
             }
-            let record = w::PublicProjects::new(limits, w::PublicProjectsParts { projects, max_age }).ok()?;
+            let record = Ok(w::PublicProjects { projects, max_age }).ok()?;
             let mut out = writer(record.measure(), bound)?;
             record.encode(&mut out).ok()?;
             Some(out.finish())
@@ -43,16 +40,13 @@ pub(super) fn encode(
             if kind.owner != 0 || kind.kind != wire::PUBLIC_BOARD {
                 return None;
             }
-            let record = w::PublicBoard::new(
-                limits,
-                w::PublicBoardParts {
+            let record = Ok(w::PublicBoard {
                     project: names.project(value.project),
                     name: skein_lib::bytes::copy_of(value.name.as_bytes()),
                     live: goals(&value.live, names, limits, limits.public_board_live)?,
                     live_folded: value.live_folded,
                     ended: goals(&value.ended, names, limits, limits.public_board_ended)?,
-                },
-            )
+                })
             .ok()?;
             let mut out = writer(record.measure(), bound)?;
             record.encode(&mut out).ok()?;
@@ -66,15 +60,12 @@ pub(super) fn encode(
             for item in &value.lineage {
                 lineage.push(names.task(*item)).ok()?;
             }
-            let record = w::PublicCard::new(
-                limits,
-                w::PublicCardParts {
+            let record = Ok(w::PublicCard {
                     line: line(&value.line, names, limits)?,
                     lineage,
                     delegates: lines(&value.delegates, names, limits, limits.public_card_delegates)?,
                     folded: value.folded,
-                },
-            )
+                })
             .ok()?;
             let mut out = writer(record.measure(), bound)?;
             record.encode(&mut out).ok()?;
@@ -93,7 +84,7 @@ pub(super) fn encode(
                 tasks.push(names.task(*item)).ok()?;
             }
             let record =
-                w::PublicApplication::new(limits, w::PublicApplicationParts { tasks, record: value.record.clone() })
+                Ok(w::PublicApplication { tasks, record: value.record.clone() })
                     .ok()?;
             let mut out = writer(record.measure(), bound)?;
             record.encode(&mut out).ok()?;
@@ -113,14 +104,11 @@ fn goals(values: &[c::PublicGoal], names: &Names, limits: &w::Limits, bound: u32
     for value in values {
         goals
             .push(
-                w::PublicGoal::new(
-                    limits,
-                    w::PublicGoalParts {
+                Ok(w::PublicGoal {
                         line: line(&value.line, names, limits)?,
                         tree: lines(&value.tree, names, limits, limits.public_goal_tree)?,
                         folded: value.folded,
-                    },
-                )
+                    })
                 .ok()?,
             )
             .ok()?;
@@ -142,9 +130,7 @@ fn line(value: &c::PublicLine, names: &Names, limits: &w::Limits) -> Option<w::P
         skein_lib::bytes::utf8_prefix(&value.title.bytes, skein_lib::length::usize_of(limits.public_line_title));
     let title_cut = value.title.cut || title.len() < value.title.bytes.len();
     let title = skein_lib::bytes::copy_of(title);
-    w::PublicLine::new(
-        limits,
-        w::PublicLineParts {
+    Ok(w::PublicLine {
             task: names.task(value.task),
             title,
             title_cut,
@@ -165,19 +151,15 @@ fn line(value: &c::PublicLine, names: &Names, limits: &w::Limits) -> Option<w::P
             active: value.active,
             ended: value.ended,
             spent: value.spent,
-            delegates: w::PublicCounts::new(
-                limits,
-                w::PublicCountsParts {
+            delegates: Ok(w::PublicCounts {
                     working: value.delegates.working,
                     waiting: value.delegates.waiting,
                     held: value.delegates.held,
                     closing: value.delegates.closing,
                     ended: value.delegates.ended,
-                },
-            )
+                })
             .ok()?,
-        },
-    )
+        })
     .ok()
 }
 fn executor(value: c::PublicExecutor) -> w::PublicExecutor {

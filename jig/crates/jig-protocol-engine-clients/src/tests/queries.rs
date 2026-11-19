@@ -13,13 +13,11 @@ const QUERY_SIGN_IN: u64 = 41;
 #[test]
 fn a_task_query_subject_reaches_the_core_with_its_keys() {
     let limits = fixtures::wire();
-    let query = w::TaskQuery::new(
-        &limits,
-        w::TaskQueryParts {
+    let query = w::TaskQuery {
             parts: skein_lib::List::with_capacity(0),
             project: Some(QUERY_PROJECT),
             requester: Some(w::Requester::Person(
-                w::RequesterPerson::new(&limits, w::RequesterPersonParts { value: QUERY_REQUESTER }).unwrap(),
+                w::RequesterPerson { value: QUERY_REQUESTER },
             )),
             root: Some(QUERY_ROOT),
             parent: Some(QUERY_PARENT),
@@ -28,10 +26,8 @@ fn a_task_query_subject_reaches_the_core_with_its_keys() {
             executor: Some(w::ExecutorKind::Person),
             tracked: Some(true),
             order: w::QueryOrder::Priority,
-        },
-    )
-    .unwrap();
-    let subject = w::Subject::Tasks(w::SubjectTasks::new(&limits, w::SubjectTasksParts { query, window: 2 }).unwrap());
+        };
+    let subject = w::Subject::Tasks(w::SubjectTasks { query, window: 2 });
     let Some(Event::Watch { watcher, sign_in, subject, window }) =
         watches::watch(QUERY_WATCHER, QUERY_SIGN_IN, subject, 32)
     else {
@@ -65,21 +61,15 @@ fn task_parts_keep_their_places_across_pages_deliveries_and_continuations() {
     for ask in &asks {
         wire_asks
             .push(
-                w::PartAsk::new(
-                    &limits,
-                    w::PartAskParts {
-                        owner: w::Family::new(&limits, w::FamilyParts { number: ask.owner }).unwrap(),
+                w::PartAsk {
+                        owner: w::Family { number: ask.owner },
                         kind: ask.kind,
                         version: ask.version,
                     },
-                )
-                .unwrap(),
             )
             .unwrap();
     }
-    let query = w::TaskQuery::new(
-        &limits,
-        w::TaskQueryParts {
+    let query = w::TaskQuery {
             parts: wire_asks,
             project: expected_query.project,
             requester: None,
@@ -90,26 +80,20 @@ fn task_parts_keep_their_places_across_pages_deliveries_and_continuations() {
             executor: None,
             tracked: expected_query.tracked,
             order: w::QueryOrder::Number,
-        },
-    )
-    .unwrap();
+        };
     let value = w::Read::Tasks(
-        w::ReadTasks::new(&limits, w::ReadTasksParts { query: query.clone(), live: None, ended: None }).unwrap(),
+        w::ReadTasks { query: query.clone(), live: None, ended: None },
     );
     for (core_parts, expected_parts) in [
         (
             [d::RowPart::Made(Box::from([255, 0, 1])), d::RowPart::Unknown],
             [
                 w::RowPart::Value(
-                    w::Owned::new(
-                        &limits,
-                        w::OwnedParts {
-                            owner: w::Owner::Family(w::Family::new(&limits, w::FamilyParts { number: 9 }).unwrap()),
+                    w::Owned {
+                            owner: w::Owner::Family(w::Family { number: 9 }),
                             version: 2,
                             record: Box::from([255, 0, 1]),
                         },
-                    )
-                    .unwrap(),
                 ),
                 w::RowPart::Unknown,
             ],
@@ -118,10 +102,10 @@ fn task_parts_keep_their_places_across_pages_deliveries_and_continuations() {
             [d::RowPart::Failed(d::PartFailure::Busy), d::RowPart::Failed(d::PartFailure::TooLarge)],
             [
                 w::RowPart::Failed(
-                    w::PartFailed::new(&limits, w::PartFailedParts { why: w::PartFailure::Busy }).unwrap(),
+                    w::PartFailed { why: w::PartFailure::Busy },
                 ),
                 w::RowPart::Failed(
-                    w::PartFailed::new(&limits, w::PartFailedParts { why: w::PartFailure::TooLarge }).unwrap(),
+                    w::PartFailed { why: w::PartFailure::TooLarge },
                 ),
             ],
         ),
@@ -129,7 +113,7 @@ fn task_parts_keep_their_places_across_pages_deliveries_and_continuations() {
             [d::RowPart::Failed(d::PartFailure::Unreadable), d::RowPart::Unknown],
             [
                 w::RowPart::Failed(
-                    w::PartFailed::new(&limits, w::PartFailedParts { why: w::PartFailure::Unreadable }).unwrap(),
+                    w::PartFailed { why: w::PartFailure::Unreadable },
                 ),
                 w::RowPart::Unknown,
             ],
@@ -184,9 +168,9 @@ fn task_parts_keep_their_places_across_pages_deliveries_and_continuations() {
             assert_eq!([a, b], [&expected_parts[0], &expected_parts[1]]);
             assert_eq!(
                 first.owner(),
-                &w::Owner::Family(w::Family::new(&limits, w::FamilyParts { number: 99 }).unwrap())
+                &w::Owner::Family(w::Family { number: 99 })
             );
-            assert_eq!(last.owner(), &w::Owner::Family(w::Family::new(&limits, w::FamilyParts { number: 9 }).unwrap()));
+            assert_eq!(last.owner(), &w::Owner::Family(w::Family { number: 9 }));
             let ranges = first.served();
             assert_eq!(ranges, last.served());
             assert_eq!(ranges.len(), 2);
@@ -201,11 +185,7 @@ fn task_parts_keep_their_places_across_pages_deliveries_and_continuations() {
         };
         assert_eq!(held.parts, asks);
         let next = w::Read::Tasks(
-            w::ReadTasks::new(
-                &limits,
-                w::ReadTasksParts { query: query.clone(), live: Some(continuation), ended: None },
-            )
-            .unwrap(),
+            w::ReadTasks { query: query.clone(), live: Some(continuation), ended: None },
         );
         let (_, _, read) = exchange.read(&next);
         let reads::Read::Tasks {

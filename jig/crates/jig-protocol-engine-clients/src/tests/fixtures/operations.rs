@@ -1,15 +1,13 @@
 use super::*;
 
 pub fn answer(on: w::AnswerOn) -> w::Ask {
-    w::Ask::Answer(w::Answer::new(&wire(), w::AnswerParts { project: 3, on }).expect("answer envelope"))
+    w::Ask::Answer(w::Answer { project: 3, on })
 }
 pub fn decide(on: w::DecideOn) -> w::Ask {
-    w::Ask::Decide(w::Decide::new(&wire(), w::DecideParts { project: 3, on }).expect("decision envelope"))
+    w::Ask::Decide(w::Decide { project: 3, on })
 }
 pub fn empty_amendment(tracked: Option<w::Tracking>) -> w::Amendment {
-    w::Amendment::new(
-        &wire(),
-        w::AmendmentParts {
+    w::Amendment {
             llm: None,
             addressed: None,
             spec: None,
@@ -18,47 +16,37 @@ pub fn empty_amendment(tracked: Option<w::Tracking>) -> w::Amendment {
             authority: None,
             instructions: None,
             tracked,
-        },
-    )
-    .expect("empty amendment")
+        }
 }
 pub fn priority_amend() -> w::Ask {
     let tracked = w::Tracking::Tracked(
-        w::TrackingTracked::new(&wire(), w::TrackingTrackedParts { priority: u32::MAX }).expect("priority"),
+        w::TrackingTracked { priority: u32::MAX },
     );
     w::Ask::Amend(Box::new(
-        w::Amend::new(
-            &wire(),
-            w::AmendParts {
+        w::Amend {
                 project: 3,
                 task: 8,
                 revision: None,
                 change: empty_amendment(Some(tracked)),
                 reason: Box::new([]),
             },
-        )
-        .expect("priority amendment"),
     ))
 }
 pub fn template_change() -> w::Ask {
-    let value = w::TemplateOverride::new(
-        &wire(),
-        w::TemplateOverrideParts {
+    let value = w::TemplateOverride {
             template: 2,
             executor: Some(w::TemplateExecutor::Chosen),
             budget: Some(w::TemplateBudget::Given),
             deadline: Some(w::TemplateDeadline::None),
             priority: Some(u32::MAX),
-        },
-    )
-    .expect("override");
+        };
     let mut overrides = List::with_capacity(1);
     overrides.push(value).expect("one override");
     let edit = w::PolicyEdit::Templates(
-        w::PolicyEditTemplates::new(&wire(), w::PolicyEditTemplatesParts { overrides }).expect("templates"),
+        w::PolicyEditTemplates { overrides },
     );
     w::Ask::ChangePolicy(
-        w::ChangePolicy::new(&wire(), w::ChangePolicyParts { project: 3, edit }).expect("change policy"),
+        w::ChangePolicy { project: 3, edit },
     )
 }
 
@@ -86,7 +74,7 @@ pub fn compound(project: u32, values: &[w::Operation]) -> w::Ask {
         encoded.push(out.finish()).unwrap();
     }
     w::Ask::Compound(
-        w::Compound::new(&wire(), w::CompoundParts { project, operations: pieces(encoded.as_slice()) }).unwrap(),
+        w::Compound { project, operations: pieces(encoded.as_slice()) },
     )
 }
 
@@ -101,7 +89,7 @@ pub fn keyed(owner: w::Owner, version: u32, request: Box<[u8]>) -> Box<[u8]> {
         w::Owner::Family(_) => family_request(request),
     };
     let value =
-        w::Keyed::new(&wire(), w::KeyedParts { key: [5; 16], owner, version, request, value: None }).expect("keyed");
+        w::Keyed { key: [5; 16], owner, version, request, value: None };
     let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
     value.encode(&mut out).expect("bounded keyed");
     out.finish()

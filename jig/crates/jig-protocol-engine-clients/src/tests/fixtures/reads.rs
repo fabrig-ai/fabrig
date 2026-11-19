@@ -20,7 +20,7 @@ pub fn owned_read(owner: w::Owner, version: u32, record: Box<[u8]>) -> Box<[u8]>
         w::Owner::Jig => record,
         w::Owner::Family(_) => family_record(record),
     };
-    let value = w::Owned::new(&env().limits.wire, w::OwnedParts { owner, version, record }).expect("read envelope");
+    let value = w::Owned { owner, version, record };
     let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
     value.encode(&mut out).expect("envelope bytes");
     out.finish()
@@ -30,15 +30,11 @@ pub fn value_answer(value: &w::ReadValue) -> w::ReadAnswer {
     value.encode(&mut out).expect("value bytes");
     let limits = w::Limits { owned_record: 4096, ..wire() };
     w::ReadAnswer::Value(
-        w::Owned::new(
-            &limits,
-            w::OwnedParts { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: out.finish() },
-        )
-        .expect("value envelope"),
+        w::Owned { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: out.finish() },
     )
 }
 pub fn read_none(value: w::ReadNone) -> w::ReadAnswer {
-    w::ReadAnswer::None(w::ReadAnswerNone::new(&wire(), w::ReadAnswerNoneParts { value }).expect("none"))
+    w::ReadAnswer::None(w::ReadAnswerNone { value })
 }
 pub fn held_reads() -> [(&'static str, w::Read, reads::Read, reads::Answer, w::ReadAnswer); 5] {
     let limits = wire();
@@ -54,7 +50,7 @@ pub fn held_reads() -> [(&'static str, w::Read, reads::Read, reads::Answer, w::R
         (
             "page",
             w::Read::Activity(
-                w::ReadActivity::new(&limits, w::ReadActivityParts { task: 7, before: None }).expect("activity"),
+                w::ReadActivity { task: 7, before: None },
             ),
             reads::Read::Activity { task: 7, before: None },
             reads::Answer::Page(Box::new(activity_page())),
@@ -62,7 +58,7 @@ pub fn held_reads() -> [(&'static str, w::Read, reads::Read, reads::Answer, w::R
         ),
         (
             "ended",
-            w::Read::Task(w::ReadTask::new(&limits, w::ReadTaskParts { task: 7 }).expect("task")),
+            w::Read::Task(w::ReadTask { task: 7 }),
             reads::Read::Task { task: 7 },
             reads::Answer::Ended(Box::new(ended_task())),
             value_answer(&w::ReadValue::Ended(Box::new(records::ended_task_record()))),
@@ -104,7 +100,7 @@ impl Exchange {
         w::ReadAnswer::decode(&self.env.limits.wire, &mut Reader::new(body)).expect("read answer")
     }
     pub fn application_read(&mut self) -> (Token, ReplyTo) {
-        let owner = w::Owner::Family(w::Family::new(&wire(), w::FamilyParts { number: 9 }).expect("family"));
+        let owner = w::Owner::Family(w::Family { number: 9 });
         let socket = self.send(crate::Message::Read(owned_read(owner, 2, Box::from([255, 0, 1]))));
         self.authenticate();
         let Some(Request::Application(crate::ToApplication::Read { reply, sign_in, family, version, record, .. })) =
@@ -278,8 +274,7 @@ fn task_text_read() -> (&'static str, w::Read, reads::Read, reads::Answer, w::Re
     (
         "task text",
         w::Read::TaskText(
-            w::ReadTaskText::new(&limits, w::ReadTaskTextParts { task: 7, field: w::TaskTextField::Result, from })
-                .unwrap(),
+            w::ReadTaskText { task: 7, field: w::TaskTextField::Result, from },
         ),
         reads::Read::TaskText { task: 7, field: reads::TaskTextField::Result, from },
         reads::Answer::TaskText(Box::new(reads::TaskText {
@@ -291,9 +286,7 @@ fn task_text_read() -> (&'static str, w::Read, reads::Read, reads::Answer, w::Re
             bytes: Box::from(bytes),
         })),
         value_answer(&w::ReadValue::TaskText(
-            w::TaskText::new(
-                &limits,
-                w::TaskTextParts {
+            w::TaskText {
                     task: 7,
                     field: w::TaskTextField::Result,
                     from,
@@ -301,8 +294,6 @@ fn task_text_read() -> (&'static str, w::Read, reads::Read, reads::Answer, w::Re
                     next: None,
                     words: Box::from(bytes),
                 },
-            )
-            .unwrap(),
         )),
     )
 }

@@ -130,8 +130,7 @@ impl Component {
                 Reply::StreamsFull { .. } => unreachable!("a batch has no stream opening"),
             };
             let limits = w::Limits { batch_reply_reply_some: batch.reply_bytes, ..w::CEILINGS };
-            let part = w::BatchReply::new(&limits, w::BatchReplyParts { member: member.index, reply })
-                .expect("member reply fits batch reply bound");
+            let part = w::BatchReply { member: member.index, reply };
             let mut bytes = Writer::new(skein_lib::length::usize_of(part.measure()));
             part.encode(&mut bytes).expect("measured part");
             batch.parts.push(bytes.finish());

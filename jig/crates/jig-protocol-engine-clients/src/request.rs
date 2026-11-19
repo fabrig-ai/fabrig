@@ -98,7 +98,7 @@ impl Component {
         exchange: Token,
         sign_in: u64,
         owner: Token,
-        keyed: w::KeyedParts,
+        keyed: w::Keyed,
         out: &mut Queue<Request>,
     ) {
         let mut kind = None;

@@ -104,10 +104,10 @@ fn note_scope(value: w::NoteScope) -> Option<notes::Scope> {
 pub(crate) fn none(why: reads::Why, limits: &w::Limits) -> w::ReadAnswer {
     let value = match why {
         reads::Why::TooLarge { bytes } => w::ReadNone::TooLarge(
-            w::TurnTooLarge::new(limits, w::TurnTooLargeParts { bytes }).expect("no bounded field"),
+            w::TurnTooLarge { bytes },
         ),
         reads::Why::TooLinked { joins } => w::ReadNone::TooLinked(
-            w::ReadTooLinked::new(limits, w::ReadTooLinkedParts { joins }).expect("no bounded field"),
+            w::ReadTooLinked { joins },
         ),
         reads::Why::Malformed => w::ReadNone::Malformed,
         reads::Why::Unknown => w::ReadNone::Unknown,
@@ -115,7 +115,7 @@ pub(crate) fn none(why: reads::Why, limits: &w::Limits) -> w::ReadAnswer {
         reads::Why::Gone => w::ReadNone::Gone,
         reads::Why::SignedOut => w::ReadNone::SignedOut,
     };
-    w::ReadAnswer::None(w::ReadAnswerNone::new(limits, w::ReadAnswerNoneParts { value }).expect("no bounded field"))
+    w::ReadAnswer::None(w::ReadAnswerNone { value })
 }
 pub(crate) fn answer(
     read: &reads::Read,
@@ -130,10 +130,7 @@ pub(crate) fn answer(
         reads::Answer::Setting(value) => {
             w::ReadValue::Setting(super::settings::setting_document(value, models, limits)?)
         }
-        reads::Answer::Revision(value) => w::ReadValue::Revision(w::ReadRevisionAnswer::new(
-            limits,
-            w::ReadRevisionAnswerParts { value: super::settings::revision(value, models, limits)? },
-        )?),
+        reads::Answer::Revision(value) => w::ReadValue::Revision(w::ReadRevisionAnswer { value: super::settings::revision(value, models, limits)? }),
         reads::Answer::Revisions(value) => w::ReadValue::Revisions(super::settings::revisions(value, limits)?),
         reads::Answer::TaskText(value) => w::ReadValue::TaskText(task_text(value, limits)?),
         reads::Answer::Tasks(page) => {
@@ -156,7 +153,7 @@ pub(crate) fn owned(
     record: Box<[u8]>,
     limits: &w::Limits,
 ) -> Result<w::ReadAnswer, w::Problem> {
-    Ok(w::ReadAnswer::Value(w::Owned::new(limits, w::OwnedParts { owner, version, record })?))
+    Ok(w::ReadAnswer::Value(w::Owned { owner, version, record }))
 }
 pub(crate) fn decode(bytes: &[u8], limits: &w::Limits) -> Option<reads::Read> {
     let mut reader = Reader::new(bytes);
@@ -176,9 +173,7 @@ fn decode_cursor(value: Option<w::Cursor>) -> Option<Option<reads::Cursor>> {
 }
 
 fn task_text(value: &reads::TaskText, limits: &w::Limits) -> Result<w::TaskText, w::Problem> {
-    w::TaskText::new(
-        limits,
-        w::TaskTextParts {
+    Ok(w::TaskText {
             task: value.task,
             field: match value.field {
                 reads::TaskTextField::Specification => w::TaskTextField::Specification,
@@ -189,8 +184,7 @@ fn task_text(value: &reads::TaskText, limits: &w::Limits) -> Result<w::TaskText,
             total: value.total,
             next: value.next,
             words: skein_lib::bytes::copy_of(&value.bytes),
-        },
-    )
+        })
 }
 
 fn read_setting(value: w::ReadSetting) -> reads::Read {

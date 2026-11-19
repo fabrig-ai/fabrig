@@ -140,10 +140,10 @@ fn each_accounts_piece_ceiling_is_refused_at_its_own_path() {
     let source = document(None);
     let limits = jig_client_test_records::limits();
     let rows = [
-        (w::Limits { accounts_accounts: 0, ..limits }, w::Path::AccountsAccounts),
-        (w::Limits { accounts_signing: 0, ..limits }, w::Path::AccountsSigning),
-        (w::Limits { account_line_sources: 0, ..limits }, w::Path::AccountLineSources),
-        (w::Limits { account_line_uses_some: 0, ..limits }, w::Path::AccountLineUses),
+        (w::Limits { accounts_accounts: 0, ..limits }, w::paths::ACCOUNTS_ACCOUNTS),
+        (w::Limits { accounts_signing: 0, ..limits }, w::paths::ACCOUNTS_SIGNING),
+        (w::Limits { account_line_sources: 0, ..limits }, w::paths::ACCOUNT_LINE_SOURCES),
+        (w::Limits { account_line_uses_some: 0, ..limits }, w::paths::ACCOUNT_LINE_USES),
     ];
     for (limits, path) in rows {
         assert_eq!(accounts::document(&source, &limits), Err(w::Problem { path, reason: skein_codec::Reason::Bound }));
@@ -172,7 +172,7 @@ fn deployment_accounts_keep_identity_uses_and_ordered_sources() {
     let bound = w::Limits { account_sources: 0, ..limits };
     assert_eq!(
         crate::translate::deployment::account(account, &bound),
-        Err(w::Problem { path: w::Path::AccountSources, reason: skein_codec::Reason::Bound })
+        Err(w::Problem { path: w::paths::ACCOUNT_SOURCES, reason: skein_codec::Reason::Bound })
     );
 }
 
@@ -321,7 +321,7 @@ fn accounts_documents_preserve_lending_facts() {
 #[test]
 fn terminal_watches_are_served() {
     let subject = w::Subject::Terminal(
-        w::SubjectTerminal::new(&fixtures::wire(), w::SubjectTerminalParts { terminal: 23 }).unwrap(),
+        w::SubjectTerminal { terminal: 23 },
     );
     let Some(jig_domain_core_vocabulary::Event::Watch { subject: d::Watched::Terminal { terminal: 23 }, .. }) =
         watches::watch(skein_lib::Token::new(17), 23, subject, 2)

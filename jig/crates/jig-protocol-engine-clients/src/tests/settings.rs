@@ -37,20 +37,16 @@ fn settings_reads_enter_the_core_in_its_vocabulary() {
         (w::Read::Settings, reads::Read::Settings),
         (
             w::Read::Setting(
-                w::ReadSetting::new(
-                    &wire,
-                    w::ReadSettingParts { setting: w::Setting::Rules, revision: 6, proposal: None },
-                )
-                .unwrap(),
+                w::ReadSetting { setting: w::Setting::Rules, revision: 6, proposal: None },
             ),
             reads::Read::Setting { setting: s::Setting::Rules, revision: 6, proposal: None },
         ),
         (
-            w::Read::Revision(w::ReadRevision::new(&wire, w::ReadRevisionParts { number: 5 }).unwrap()),
+            w::Read::Revision(w::ReadRevision { number: 5 }),
             reads::Read::Revision { number: 5 },
         ),
         (
-            w::Read::Revisions(w::ReadRevisions::new(&wire, w::ReadRevisionsParts { before: Some(5) }).unwrap()),
+            w::Read::Revisions(w::ReadRevisions { before: Some(5) }),
             reads::Read::Revisions { before: Some(5) },
         ),
     ] {
@@ -96,7 +92,7 @@ fn forgotten_and_unknown_revision_answers_keep_their_distinction() {
         (
             reads::RevisionAnswer::Forgotten { oldest: 4 },
             w::RevisionAnswer::Forgotten(
-                w::RevisionForgotten::new(&f::wire(), w::RevisionForgottenParts { oldest: 4 }).unwrap(),
+                w::RevisionForgotten { oldest: 4 },
             ),
         ),
     ] {
@@ -297,16 +293,12 @@ fn whole_setting_kinds_reach_the_clients_as_their_values() {
         let client_value = restored.value.as_ref().unwrap();
         let wire_value =
             jig_client_protocol_link::translate::settings::wire_setting_value(client_value, &w::CEILINGS).unwrap();
-        let row = w::SettingItem::new(
-            &w::CEILINGS,
-            w::SettingItemParts {
+        let row = w::SettingItem {
                 setting: translate::name(name, &w::CEILINGS).unwrap(),
                 edit: w::SettingEdit::Set(
-                    w::SettingSet::new(&w::CEILINGS, w::SettingSetParts { value: wire_value }).unwrap(),
+                    w::SettingSet { value: wire_value },
                 ),
-            },
-        )
-        .unwrap();
+            };
         let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(row.measure()));
         row.encode(&mut writer).unwrap();
         let items = translate::items(f::pieces(&[writer.finish()]), &f::models(), &w::CEILINGS).unwrap();
@@ -450,13 +442,13 @@ fn settings_decisions_translate_the_revision_and_stale_newest_without_changing_r
         (
             t::SettingsOutcome::Accepted { revision: 7 },
             w::SettingsOutcome::Accepted(
-                w::SettingsAccepted::new(&limits, w::SettingsAcceptedParts { revision: 7 }).unwrap(),
+                w::SettingsAccepted { revision: 7 },
             ),
         ),
         (t::SettingsOutcome::Rejected, w::SettingsOutcome::Rejected),
         (
             t::SettingsOutcome::Stale { newest: 9 },
-            w::SettingsOutcome::Stale(w::SettingsStale::new(&limits, w::SettingsStaleParts { newest: 9 }).unwrap()),
+            w::SettingsOutcome::Stale(w::SettingsStale { newest: 9 }),
         ),
     ] {
         let word = t::Word {
@@ -493,16 +485,12 @@ fn a_clients_charter_change_keeps_its_wake_policy() {
     let client =
         jig_client_protocol_link::translate::settings::restore_setting_value(&value, &f::client_limits()).unwrap();
     let value = jig_client_protocol_link::translate::settings::wire_setting_value(&client, &w::CEILINGS).unwrap();
-    let wire = w::SettingItem::new(
-        &w::CEILINGS,
-        w::SettingItemParts {
+    let wire = w::SettingItem {
             setting: w::Setting::Charter(
-                w::SettingNumber::new(&w::CEILINGS, w::SettingNumberParts { number: 1 }).unwrap(),
+                w::SettingNumber { number: 1 },
             ),
-            edit: w::SettingEdit::Set(w::SettingSet::new(&w::CEILINGS, w::SettingSetParts { value }).unwrap()),
-        },
-    )
-    .unwrap();
+            edit: w::SettingEdit::Set(w::SettingSet { value }),
+        };
     let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(wire.measure()));
     wire.encode(&mut writer).unwrap();
     let items = translate::items(f::pieces(&[writer.finish()]), &f::models(), &w::CEILINGS).unwrap();
@@ -515,14 +503,10 @@ fn a_clients_charter_change_keeps_its_wake_policy() {
 fn charter_documents_round_trip_from_core_through_wire() {
     let source = s::Value::Charter(Box::new(charter()));
     let wire = translate::value(&source, &f::models(), &w::CEILINGS).unwrap();
-    let row = w::SettingItem::new(
-        &w::CEILINGS,
-        w::SettingItemParts {
+    let row = w::SettingItem {
             setting: translate::name(s::Setting::Charter(1), &w::CEILINGS).unwrap(),
-            edit: w::SettingEdit::Set(w::SettingSet::new(&w::CEILINGS, w::SettingSetParts { value: wire }).unwrap()),
-        },
-    )
-    .unwrap();
+            edit: w::SettingEdit::Set(w::SettingSet { value: wire }),
+        };
     let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(row.measure()));
     row.encode(&mut writer).unwrap();
     let items = translate::items(f::pieces(&[writer.finish()]), &f::models(), &w::CEILINGS).unwrap();
@@ -665,14 +649,10 @@ fn a_charters_tools_round_trip_from_core_through_wire() {
     let jig_client_domain::contract::SettingValue::Charter(value) = &client else { panic!("charter") };
     assert_eq!(value.tools, 1536);
     let wire = jig_client_protocol_link::translate::settings::wire_setting_value(&client, &w::CEILINGS).unwrap();
-    let row = w::SettingItem::new(
-        &w::CEILINGS,
-        w::SettingItemParts {
+    let row = w::SettingItem {
             setting: translate::name(s::Setting::Charter(1), &w::CEILINGS).unwrap(),
-            edit: w::SettingEdit::Set(w::SettingSet::new(&w::CEILINGS, w::SettingSetParts { value: wire }).unwrap()),
-        },
-    )
-    .unwrap();
+            edit: w::SettingEdit::Set(w::SettingSet { value: wire }),
+        };
     let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(row.measure()));
     row.encode(&mut writer).unwrap();
     let items = translate::items(f::pieces(&[writer.finish()]), &f::models(), &w::CEILINGS).unwrap();
@@ -700,16 +680,12 @@ fn a_model_setting_round_trips_whole_in_both_directions() {
     let client =
         jig_client_protocol_link::translate::settings::restore_setting_value(&wire, &f::client_limits()).unwrap();
     let wire = jig_client_protocol_link::translate::settings::wire_setting_value(&client, &w::CEILINGS).unwrap();
-    let item = w::SettingItem::new(
-        &w::CEILINGS,
-        w::SettingItemParts {
+    let item = w::SettingItem {
             setting: w::Setting::Model(
-                w::SettingNumber::new(&w::CEILINGS, w::SettingNumberParts { number: 9 }).unwrap(),
+                w::SettingNumber { number: 9 },
             ),
-            edit: w::SettingEdit::Set(w::SettingSet::new(&w::CEILINGS, w::SettingSetParts { value: wire }).unwrap()),
-        },
-    )
-    .unwrap();
+            edit: w::SettingEdit::Set(w::SettingSet { value: wire }),
+        };
     let mut encoded = skein_lib::Writer::new(usize::try_from(item.measure()).unwrap());
     item.encode(&mut encoded).unwrap();
     let items = translate::items(f::pieces(&[encoded.finish()]), &f::models(), &w::CEILINGS).unwrap();
@@ -805,14 +781,10 @@ fn worker_settings_and_linked_facts_cross_client_wire() {
         let wire = w::SettingValue::decode(&w::CEILINGS, &mut Reader::new(&bytes.finish())).unwrap();
         let restored = client::restore_setting_value(&wire, &f::client_limits()).unwrap();
         let value = client::wire_setting_value(&restored, &w::CEILINGS).unwrap();
-        let item = w::SettingItem::new(
-            &w::CEILINGS,
-            w::SettingItemParts {
+        let item = w::SettingItem {
                 setting: translate::name(s::Setting::Worker(2), &w::CEILINGS).unwrap(),
-                edit: w::SettingEdit::Set(w::SettingSet::new(&w::CEILINGS, w::SettingSetParts { value }).unwrap()),
-            },
-        )
-        .unwrap();
+                edit: w::SettingEdit::Set(w::SettingSet { value }),
+            };
         let mut bytes = skein_lib::Writer::new(usize::try_from(item.measure()).unwrap());
         item.encode(&mut bytes).unwrap();
         assert_eq!(

@@ -29,31 +29,19 @@ fn attempt(value: fleet::AttemptState) -> w::AttemptState {
 }
 pub(super) fn shortfall(value: fleet::AgentShortfall, limits: &w::Limits) -> Result<w::AgentShortfall, w::Problem> {
     Ok(match value {
-        fleet::AgentShortfall::Model { charter, model } => w::AgentShortfall::Model(w::AgentShortfallModel::new(
-            limits,
-            w::AgentShortfallModelParts { charter, model },
-        )?),
-        fleet::AgentShortfall::Window { charter, model } => w::AgentShortfall::Window(w::AgentShortfallWindow::new(
-            limits,
-            w::AgentShortfallWindowParts { charter, model },
-        )?),
-        fleet::AgentShortfall::Output { charter, model } => w::AgentShortfall::Output(w::AgentShortfallOutput::new(
-            limits,
-            w::AgentShortfallOutputParts { charter, model },
-        )?),
+        fleet::AgentShortfall::Model { charter, model } => w::AgentShortfall::Model(w::AgentShortfallModel { charter, model }),
+        fleet::AgentShortfall::Window { charter, model } => w::AgentShortfall::Window(w::AgentShortfallWindow { charter, model }),
+        fleet::AgentShortfall::Output { charter, model } => w::AgentShortfall::Output(w::AgentShortfallOutput { charter, model }),
         fleet::AgentShortfall::Turns { charter } => {
-            w::AgentShortfall::Turns(w::AgentShortfallTurns::new(limits, w::AgentShortfallTurnsParts { charter })?)
+            w::AgentShortfall::Turns(w::AgentShortfallTurns { charter })
         }
         fleet::AgentShortfall::Spend => w::AgentShortfall::Spend,
         fleet::AgentShortfall::Time { charter } => {
-            w::AgentShortfall::Time(w::AgentShortfallTime::new(limits, w::AgentShortfallTimeParts { charter })?)
+            w::AgentShortfall::Time(w::AgentShortfallTime { charter })
         }
-        fleet::AgentShortfall::Waiting { charter } => w::AgentShortfall::Waiting(w::AgentShortfallWaiting::new(
-            limits,
-            w::AgentShortfallWaitingParts { charter },
-        )?),
+        fleet::AgentShortfall::Waiting { charter } => w::AgentShortfall::Waiting(w::AgentShortfallWaiting { charter }),
         fleet::AgentShortfall::Checks { charter } => {
-            w::AgentShortfall::Checks(w::AgentShortfallChecks::new(limits, w::AgentShortfallChecksParts { charter })?)
+            w::AgentShortfall::Checks(w::AgentShortfallChecks { charter })
         }
         fleet::AgentShortfall::Message => w::AgentShortfall::Message,
         fleet::AgentShortfall::Inbox => w::AgentShortfall::Inbox,
@@ -62,20 +50,17 @@ pub(super) fn shortfall(value: fleet::AgentShortfall, limits: &w::Limits) -> Res
 }
 pub(super) fn hello(value: fleet::HelloRefusal, limits: &w::Limits) -> Result<w::HelloRefusal, w::Problem> {
     Ok(match value {
-        fleet::HelloRefusal::Agent { why } => w::HelloRefusal::Agent(w::HelloRefusalAgent::new(
-            limits,
-            w::HelloRefusalAgentParts { why: shortfall(why, limits)? },
-        )?),
+        fleet::HelloRefusal::Agent { why } => w::HelloRefusal::Agent(w::HelloRefusalAgent { why: shortfall(why, limits)? }),
         fleet::HelloRefusal::JobKinds => w::HelloRefusal::JobKinds,
         fleet::HelloRefusal::ReservedChannel => w::HelloRefusal::ReservedChannel,
         fleet::HelloRefusal::Workers { limit } => {
-            w::HelloRefusal::Workers(w::HelloRefusalWorkers::new(limits, w::HelloRefusalWorkersParts { limit })?)
+            w::HelloRefusal::Workers(w::HelloRefusalWorkers { limit })
         }
         fleet::HelloRefusal::Position { worker } => {
-            w::HelloRefusal::Position(w::HelloRefusalPosition::new(limits, w::HelloRefusalPositionParts { worker })?)
+            w::HelloRefusal::Position(w::HelloRefusalPosition { worker })
         }
         fleet::HelloRefusal::StopBound { grace } => {
-            w::HelloRefusal::StopBound(w::HelloRefusalStopBound::new(limits, w::HelloRefusalStopBoundParts { grace })?)
+            w::HelloRefusal::StopBound(w::HelloRefusalStopBound { grace })
         }
     })
 }
@@ -103,19 +88,13 @@ pub(crate) fn account_state(value: d::AccountState, limits: &w::Limits) -> Resul
         d::AccountState::Cancelled => w::AccountState::Cancelled,
         d::AccountState::Moving => w::AccountState::Moving,
         d::AccountState::Closing => w::AccountState::Closing,
-        d::AccountState::Later { until } => w::AccountState::Later(w::AccountStateLater::new(
-            limits,
-            w::AccountStateLaterParts {
+        d::AccountState::Later { until } => w::AccountState::Later(w::AccountStateLater {
                 until: match until {
                     Some(item) => Some(item.as_nanos()),
                     None => None,
                 },
-            },
-        )?),
-        d::AccountState::Unloaded { at, why } => w::AccountState::Unloaded(w::AccountStateUnloaded::new(
-            limits,
-            w::AccountStateUnloadedParts { at: account_place(at), why: account_unread(why) },
-        )?),
+            }),
+        d::AccountState::Unloaded { at, why } => w::AccountState::Unloaded(w::AccountStateUnloaded { at: account_place(at), why: account_unread(why) }),
     })
 }
 fn person_action(value: people::CapacityAction, limits: &w::Limits) -> Result<w::PersonCapacityAction, w::Problem> {
@@ -130,234 +109,169 @@ fn person_action(value: people::CapacityAction, limits: &w::Limits) -> Result<w:
         people::CapacityAction::Roles => w::PersonCapacityAction::Roles,
         people::CapacityAction::Policy => w::PersonCapacityAction::Policy,
         people::CapacityAction::Application { connector } => w::PersonCapacityAction::Application(
-            w::PersonCapacityActionApplication::new(limits, w::PersonCapacityActionApplicationParts { connector })?,
+            w::PersonCapacityActionApplication { connector },
         ),
-        people::CapacityAction::Note { name } => w::PersonCapacityAction::Note(w::PersonCapacityActionNote::new(
-            limits,
-            w::PersonCapacityActionNoteParts { name },
-        )?),
-        people::CapacityAction::Pool { person } => w::PersonCapacityAction::Pool(w::PersonCapacityActionPool::new(
-            limits,
-            w::PersonCapacityActionPoolParts { person },
-        )?),
+        people::CapacityAction::Note { name } => w::PersonCapacityAction::Note(w::PersonCapacityActionNote { name }),
+        people::CapacityAction::Pool { person } => w::PersonCapacityAction::Pool(w::PersonCapacityActionPool { person }),
         people::CapacityAction::Escalation { task } => w::PersonCapacityAction::Escalation(
-            w::PersonCapacityActionEscalation::new(limits, w::PersonCapacityActionEscalationParts { task })?,
+            w::PersonCapacityActionEscalation { task },
         ),
-        people::CapacityAction::Words { task } => w::PersonCapacityAction::Words(w::PersonCapacityActionWords::new(
-            limits,
-            w::PersonCapacityActionWordsParts { task },
-        )?),
+        people::CapacityAction::Words { task } => w::PersonCapacityAction::Words(w::PersonCapacityActionWords { task }),
         people::CapacityAction::Question { task, question } => w::PersonCapacityAction::Question(
-            w::PersonCapacityActionQuestion::new(limits, w::PersonCapacityActionQuestionParts { task, question })?,
+            w::PersonCapacityActionQuestion { task, question },
         ),
-        people::CapacityAction::Amend { task } => w::PersonCapacityAction::Amend(w::PersonCapacityActionAmend::new(
-            limits,
-            w::PersonCapacityActionAmendParts { task },
-        )?),
-        people::CapacityAction::Move { task } => w::PersonCapacityAction::MoveTask(w::PersonCapacityActionMove::new(
-            limits,
-            w::PersonCapacityActionMoveParts { task },
-        )?),
+        people::CapacityAction::Amend { task } => w::PersonCapacityAction::Amend(w::PersonCapacityActionAmend { task }),
+        people::CapacityAction::Move { task } => w::PersonCapacityAction::MoveTask(w::PersonCapacityActionMove { task }),
         people::CapacityAction::TakePerson { task } => w::PersonCapacityAction::TakePerson(
-            w::PersonCapacityActionTakePerson::new(limits, w::PersonCapacityActionTakePersonParts { task })?,
+            w::PersonCapacityActionTakePerson { task },
         ),
         people::CapacityAction::HandBackPerson { task } => w::PersonCapacityAction::HandBackPerson(
-            w::PersonCapacityActionHandBackPerson::new(limits, w::PersonCapacityActionHandBackPersonParts { task })?,
+            w::PersonCapacityActionHandBackPerson { task },
         ),
         people::CapacityAction::AnswerPerson { task } => w::PersonCapacityAction::AnswerPerson(
-            w::PersonCapacityActionAnswerPerson::new(limits, w::PersonCapacityActionAnswerPersonParts { task })?,
+            w::PersonCapacityActionAnswerPerson { task },
         ),
-        people::CapacityAction::Stop { task } => w::PersonCapacityAction::Stop(w::PersonCapacityActionStop::new(
-            limits,
-            w::PersonCapacityActionStopParts { task },
-        )?),
+        people::CapacityAction::Stop { task } => w::PersonCapacityAction::Stop(w::PersonCapacityActionStop { task }),
         people::CapacityAction::Conclude { task } => w::PersonCapacityAction::Conclude(
-            w::PersonCapacityActionConclude::new(limits, w::PersonCapacityActionConcludeParts { task })?,
+            w::PersonCapacityActionConclude { task },
         ),
-        people::CapacityAction::Cancel { task } => w::PersonCapacityAction::Cancel(w::PersonCapacityActionCancel::new(
-            limits,
-            w::PersonCapacityActionCancelParts { task },
-        )?),
-        people::CapacityAction::Lift { hold } => w::PersonCapacityAction::Lift(w::PersonCapacityActionLift::new(
-            limits,
-            w::PersonCapacityActionLiftParts { hold },
-        )?),
+        people::CapacityAction::Cancel { task } => w::PersonCapacityAction::Cancel(w::PersonCapacityActionCancel { task }),
+        people::CapacityAction::Lift { hold } => w::PersonCapacityAction::Lift(w::PersonCapacityActionLift { hold }),
         people::CapacityAction::Release { task } => w::PersonCapacityAction::Release(
-            w::PersonCapacityActionRelease::new(limits, w::PersonCapacityActionReleaseParts { task })?,
+            w::PersonCapacityActionRelease { task },
         ),
         people::CapacityAction::Proposal { proposer, number } => {
-            w::PersonCapacityAction::Proposal(w::PersonCapacityActionProposal::new(
-                limits,
-                w::PersonCapacityActionProposalParts {
+            w::PersonCapacityAction::Proposal(w::PersonCapacityActionProposal {
                     proposer: task::proposal(&d::ProposalRef { proposer, number }, limits)?.proposer().clone(),
                     number,
-                },
-            )?)
+                })
         }
         people::CapacityAction::MarkSeen { seen } => {
-            w::PersonCapacityAction::MarkSeen(w::PersonCapacityActionMarkSeen::new(
-                limits,
-                w::PersonCapacityActionMarkSeenParts { seen: seen_record(seen, limits)? },
-            )?)
+            w::PersonCapacityAction::MarkSeen(w::PersonCapacityActionMarkSeen { seen: seen_record(seen, limits)? })
         }
     })
 }
 fn seen_record(value: people::Seen, limits: &w::Limits) -> Result<w::SeenThrough, w::Problem> {
     Ok(match value {
         people::Seen::Results { through } => {
-            w::SeenThrough::Results(w::SeenResults::new(limits, w::SeenResultsParts { through })?)
+            w::SeenThrough::Results(w::SeenResults { through })
         }
         people::Seen::Conversation { task, through } => {
-            w::SeenThrough::Conversation(w::SeenConversation::new(limits, w::SeenConversationParts { task, through })?)
+            w::SeenThrough::Conversation(w::SeenConversation { task, through })
         }
     })
 }
 fn person_cause(value: people::CapacityCause, limits: &w::Limits) -> Result<w::PersonCapacityCause, w::Problem> {
     Ok(match value {
         people::CapacityCause::Requests { limit } => w::PersonCapacityCause::Requests(
-            w::PersonCapacityCauseRequests::new(limits, w::PersonCapacityCauseRequestsParts { limit })?,
+            w::PersonCapacityCauseRequests { limit },
         ),
         people::CapacityCause::Pending { limit } => w::PersonCapacityCause::Pending(
-            w::PersonCapacityCausePending::new(limits, w::PersonCapacityCausePendingParts { limit })?,
+            w::PersonCapacityCausePending { limit },
         ),
         people::CapacityCause::Waiters { limit } => w::PersonCapacityCause::Waiters(
-            w::PersonCapacityCauseWaiters::new(limits, w::PersonCapacityCauseWaitersParts { limit })?,
+            w::PersonCapacityCauseWaiters { limit },
         ),
-        people::CapacityCause::Limit { which } => w::PersonCapacityCause::Limit(w::PersonCapacityCauseLimit::new(
-            limits,
-            w::PersonCapacityCauseLimitParts { which: refusals::limit(which) },
-        )?),
+        people::CapacityCause::Limit { which } => w::PersonCapacityCause::Limit(w::PersonCapacityCauseLimit { which: refusals::limit(which) }),
     })
 }
 fn task_action(value: tasks::CapacityAction, limits: &w::Limits) -> Result<w::TaskCapacityAction, w::Problem> {
     Ok(match value {
-        tasks::CapacityAction::Place { hold } => w::TaskCapacityAction::Place(w::TaskCapacityActionPlace::new(
-            limits,
-            w::TaskCapacityActionPlaceParts { hold },
-        )?),
+        tasks::CapacityAction::Place { hold } => w::TaskCapacityAction::Place(w::TaskCapacityActionPlace { hold }),
         tasks::CapacityAction::Release => w::TaskCapacityAction::Release,
         tasks::CapacityAction::Move => w::TaskCapacityAction::MoveTask,
         tasks::CapacityAction::Batch { first, members } => w::TaskCapacityAction::Batch(
-            w::TaskCapacityActionBatch::new(limits, w::TaskCapacityActionBatchParts { first, members })?,
+            w::TaskCapacityActionBatch { first, members },
         ),
         tasks::CapacityAction::Proposal { number } => w::TaskCapacityAction::Proposal(
-            w::TaskCapacityActionProposal::new(limits, w::TaskCapacityActionProposalParts { number })?,
+            w::TaskCapacityActionProposal { number },
         ),
         tasks::CapacityAction::PersonProposal { number } => w::TaskCapacityAction::PersonProposal(
-            w::TaskCapacityActionPersonProposal::new(limits, w::TaskCapacityActionPersonProposalParts { number })?,
+            w::TaskCapacityActionPersonProposal { number },
         ),
         tasks::CapacityAction::Message { task, number } => w::TaskCapacityAction::Message(
-            w::TaskCapacityActionMessage::new(limits, w::TaskCapacityActionMessageParts { task, number })?,
+            w::TaskCapacityActionMessage { task, number },
         ),
         tasks::CapacityAction::Introduce { left, right } => w::TaskCapacityAction::Introduce(
-            w::TaskCapacityActionIntroduce::new(limits, w::TaskCapacityActionIntroduceParts { left, right })?,
+            w::TaskCapacityActionIntroduce { left, right },
         ),
         tasks::CapacityAction::Subscription { number } => w::TaskCapacityAction::Subscription(
-            w::TaskCapacityActionSubscription::new(limits, w::TaskCapacityActionSubscriptionParts { number })?,
+            w::TaskCapacityActionSubscription { number },
         ),
-        tasks::CapacityAction::Effect { entry } => w::TaskCapacityAction::Effect(w::TaskCapacityActionEffect::new(
-            limits,
-            w::TaskCapacityActionEffectParts { entry },
-        )?),
-        tasks::CapacityAction::Claim { attempt } => w::TaskCapacityAction::Claim(w::TaskCapacityActionClaim::new(
-            limits,
-            w::TaskCapacityActionClaimParts { attempt },
-        )?),
-        tasks::CapacityAction::Source { funder } => w::TaskCapacityAction::Source(w::TaskCapacityActionSource::new(
-            limits,
-            w::TaskCapacityActionSourceParts { funder: owner::funder(funder, limits)? },
-        )?),
+        tasks::CapacityAction::Effect { entry } => w::TaskCapacityAction::Effect(w::TaskCapacityActionEffect { entry }),
+        tasks::CapacityAction::Claim { attempt } => w::TaskCapacityAction::Claim(w::TaskCapacityActionClaim { attempt }),
+        tasks::CapacityAction::Source { funder } => w::TaskCapacityAction::Source(w::TaskCapacityActionSource { funder: owner::funder(funder, limits)? }),
     })
 }
 fn task_cause(value: tasks::CapacityCause, limits: &w::Limits) -> Result<w::TaskCapacityCause, w::Problem> {
     Ok(match value {
         tasks::CapacityCause::PlacedHolds { limit } => w::TaskCapacityCause::PlacedHolds(
-            w::TaskCapacityCausePlacedHolds::new(limits, w::TaskCapacityCausePlacedHoldsParts { limit })?,
+            w::TaskCapacityCausePlacedHolds { limit },
         ),
         tasks::CapacityCause::ProjectPlacedHolds { limit } => w::TaskCapacityCause::ProjectPlacedHolds(
-            w::TaskCapacityCauseProjectPlacedHolds::new(limits, w::TaskCapacityCauseProjectPlacedHoldsParts { limit })?,
+            w::TaskCapacityCauseProjectPlacedHolds { limit },
         ),
         tasks::CapacityCause::PartyPlacedHolds { limit } => w::TaskCapacityCause::PartyPlacedHolds(
-            w::TaskCapacityCausePartyPlacedHolds::new(limits, w::TaskCapacityCausePartyPlacedHoldsParts { limit })?,
+            w::TaskCapacityCausePartyPlacedHolds { limit },
         ),
         tasks::CapacityCause::Exemptions { limit } => w::TaskCapacityCause::Exemptions(
-            w::TaskCapacityCauseExemptions::new(limits, w::TaskCapacityCauseExemptionsParts { limit })?,
+            w::TaskCapacityCauseExemptions { limit },
         ),
-        tasks::CapacityCause::Tasks { limit } => w::TaskCapacityCause::Tasks(w::TaskCapacityCauseTasks::new(
-            limits,
-            w::TaskCapacityCauseTasksParts { limit },
-        )?),
+        tasks::CapacityCause::Tasks { limit } => w::TaskCapacityCause::Tasks(w::TaskCapacityCauseTasks { limit }),
         tasks::CapacityCause::CreationFlights { limit } => w::TaskCapacityCause::CreationFlights(
-            w::TaskCapacityCauseCreationFlights::new(limits, w::TaskCapacityCauseCreationFlightsParts { limit })?,
+            w::TaskCapacityCauseCreationFlights { limit },
         ),
         tasks::CapacityCause::ResourceReports { limit } => w::TaskCapacityCause::ResourceReports(
-            w::TaskCapacityCauseResourceReports::new(limits, w::TaskCapacityCauseResourceReportsParts { limit })?,
+            w::TaskCapacityCauseResourceReports { limit },
         ),
         tasks::CapacityCause::ProjectTasks { limit } => w::TaskCapacityCause::ProjectTasks(
-            w::TaskCapacityCauseProjectTasks::new(limits, w::TaskCapacityCauseProjectTasksParts { limit })?,
+            w::TaskCapacityCauseProjectTasks { limit },
         ),
         tasks::CapacityCause::Tree { limit } => {
-            w::TaskCapacityCause::Tree(w::TaskCapacityCauseTree::new(limits, w::TaskCapacityCauseTreeParts { limit })?)
+            w::TaskCapacityCause::Tree(w::TaskCapacityCauseTree { limit })
         }
         tasks::CapacityCause::Delegates { limit } => w::TaskCapacityCause::Delegates(
-            w::TaskCapacityCauseDelegates::new(limits, w::TaskCapacityCauseDelegatesParts { limit })?,
+            w::TaskCapacityCauseDelegates { limit },
         ),
-        tasks::CapacityCause::Holdings { limit } => w::TaskCapacityCause::Holdings(w::TaskCapacityCauseHoldings::new(
-            limits,
-            w::TaskCapacityCauseHoldingsParts { limit },
-        )?),
+        tasks::CapacityCause::Holdings { limit } => w::TaskCapacityCause::Holdings(w::TaskCapacityCauseHoldings { limit }),
         tasks::CapacityCause::HoldWaiters { limit } => w::TaskCapacityCause::HoldWaiters(
-            w::TaskCapacityCauseHoldWaiters::new(limits, w::TaskCapacityCauseHoldWaitersParts { limit })?,
+            w::TaskCapacityCauseHoldWaiters { limit },
         ),
         tasks::CapacityCause::Proposals { limit } => w::TaskCapacityCause::Proposals(
-            w::TaskCapacityCauseProposals::new(limits, w::TaskCapacityCauseProposalsParts { limit })?,
+            w::TaskCapacityCauseProposals { limit },
         ),
         tasks::CapacityCause::References { limit } => w::TaskCapacityCause::References(
-            w::TaskCapacityCauseReferences::new(limits, w::TaskCapacityCauseReferencesParts { limit })?,
+            w::TaskCapacityCauseReferences { limit },
         ),
         tasks::CapacityCause::Subscriptions { limit } => w::TaskCapacityCause::Subscriptions(
-            w::TaskCapacityCauseSubscriptions::new(limits, w::TaskCapacityCauseSubscriptionsParts { limit })?,
+            w::TaskCapacityCauseSubscriptions { limit },
         ),
-        tasks::CapacityCause::Funders { limit } => w::TaskCapacityCause::Funders(w::TaskCapacityCauseFunders::new(
-            limits,
-            w::TaskCapacityCauseFundersParts { limit },
-        )?),
-        tasks::CapacityCause::Writers { limit } => w::TaskCapacityCause::Writers(w::TaskCapacityCauseWriters::new(
-            limits,
-            w::TaskCapacityCauseWritersParts { limit },
-        )?),
+        tasks::CapacityCause::Funders { limit } => w::TaskCapacityCause::Funders(w::TaskCapacityCauseFunders { limit }),
+        tasks::CapacityCause::Writers { limit } => w::TaskCapacityCause::Writers(w::TaskCapacityCauseWriters { limit }),
         tasks::CapacityCause::Inbox { task, messages, bytes } => w::TaskCapacityCause::Inbox(
-            w::TaskCapacityCauseInbox::new(limits, w::TaskCapacityCauseInboxParts { task, messages, bytes })?,
+            w::TaskCapacityCauseInbox { task, messages, bytes },
         ),
     })
 }
 pub fn capacity(value: d::Capacity, limits: &w::Limits) -> Result<w::Capacity, w::Problem> {
-    w::Capacity::new(limits, w::CapacityParts { used: value.used, limit: value.limit })
+    Ok(w::Capacity { used: value.used, limit: value.limit })
 }
 fn location(value: d::RunLocation, limits: &w::Limits) -> Result<w::RunLocation, w::Problem> {
     Ok(match value {
         d::RunLocation::None => w::RunLocation::None,
-        d::RunLocation::Connected { channel, kind } => w::RunLocation::Connected(w::RunLocationConnected::new(
-            limits,
-            w::RunLocationConnectedParts { channel, kind: host_kind(kind) },
-        )?),
-        d::RunLocation::Adrift { channel, until, remaining } => w::RunLocation::Adrift(w::RunLocationAdrift::new(
-            limits,
-            w::RunLocationAdriftParts {
+        d::RunLocation::Connected { channel, kind } => w::RunLocation::Connected(w::RunLocationConnected { channel, kind: host_kind(kind) }),
+        d::RunLocation::Adrift { channel, until, remaining } => w::RunLocation::Adrift(w::RunLocationAdrift {
                 channel,
                 until: match until {
                     Some(item) => Some(item.as_nanos()),
                     None => None,
                 },
                 remaining,
-            },
-        )?),
+            }),
     })
 }
 pub fn run(value: &d::HostRun, limits: &w::Limits) -> Result<w::HostRun, w::Problem> {
-    w::HostRun::new(
-        limits,
-        w::HostRunParts {
+    Ok(w::HostRun {
             task: task::link(&value.task, limits)?,
             attempt: value.attempt,
             kept: value.kept,
@@ -368,14 +282,13 @@ pub fn run(value: &d::HostRun, limits: &w::Limits) -> Result<w::HostRun, w::Prob
                 Some(item) => Some(item.as_nanos()),
                 None => None,
             },
-        },
-    )
+        })
 }
 fn host_rule(value: jig_domain_core_vocabulary::HostRule, limits: &w::Limits) -> Result<w::HostRule, w::Problem> {
     use jig_domain_core_vocabulary::HostRule;
     Ok(match value {
         HostRule::Open => w::HostRule::Open,
-        HostRule::Person(party) => w::HostRule::Person(w::HostPerson::new(limits, w::HostPersonParts { party })?),
+        HostRule::Person(party) => w::HostRule::Person(w::HostPerson { party }),
         HostRule::Several => w::HostRule::Several,
         HostRule::Unknown => w::HostRule::Unknown,
     })
@@ -385,18 +298,16 @@ pub fn host(value: &d::Host, limits: &w::Limits) -> Result<w::Host, w::Problem> 
     for row in &value.runs {
         runs.push(run(row, limits)?).expect("supplied rows fit");
     }
-    let runs = run_pieces(&runs, limits.host_runs, w::Path::HostRuns)?;
+    let runs = run_pieces(&runs, limits.host_runs, w::paths::HOST_RUNS)?;
 
-    w::Host::new(
-        limits,
-        w::HostParts {
+    Ok(w::Host {
             awaiting_logins: value.awaiting_logins,
             draining: value.draining,
             connected: value.connected,
             cut: value.cut,
             name: value.name.clone(),
             rule: host_rule(value.rule, limits)?,
-            programs: super::programs::logins(&value.programs, limits, limits.host_programs, w::Path::HostPrograms)?,
+            programs: super::programs::logins(&value.programs, limits, limits.host_programs, w::paths::HOST_PROGRAMS)?,
             channel: value.channel,
             kind: host_kind(value.kind),
             slots: value.slots,
@@ -408,24 +319,21 @@ pub fn host(value: &d::Host, limits: &w::Limits) -> Result<w::Host, w::Problem> 
             },
             grace_remaining: value.grace_remaining,
             runs,
-        },
-    )
+        })
 }
 pub fn account(value: &d::Account, limits: &w::Limits) -> Result<w::Account, w::Problem> {
     let mut runs = List::with_capacity(value.runs.len());
     for row in &value.runs {
         runs.push(chips::chip(row, limits)?).expect("supplied rows fit");
     }
-    let runs = chip_pieces(&runs, limits.account_runs, w::Path::AccountRuns)?;
+    let runs = chip_pieces(&runs, limits.account_runs, w::paths::ACCOUNT_RUNS)?;
     let mut waiting = List::with_capacity(value.waiting.len());
     for row in &value.waiting {
         waiting.push(chips::chip(row, limits)?).expect("supplied rows fit");
     }
-    let waiting = chip_pieces(&waiting, limits.account_waiting, w::Path::AccountWaiting)?;
+    let waiting = chip_pieces(&waiting, limits.account_waiting, w::paths::ACCOUNT_WAITING)?;
 
-    w::Account::new(
-        limits,
-        w::AccountParts {
+    Ok(w::Account {
             list: super::accounts::list(value.list.as_ref(), limits)?,
             facts: super::accounts::facts(&value.facts, limits)?,
             number: value.number,
@@ -443,7 +351,7 @@ pub fn account(value: &d::Account, limits: &w::Limits) -> Result<w::Account, w::
                 &value.sources,
                 limits,
                 limits.account_sources,
-                w::Path::AccountSources,
+                w::paths::ACCOUNT_SOURCES,
             )?,
             generation: value.generation,
             state: account_state(value.state, limits)?,
@@ -458,40 +366,30 @@ pub fn account(value: &d::Account, limits: &w::Limits) -> Result<w::Account, w::
             expiring: value.expiring,
             attention: value.attention,
             cut: value.cut,
-        },
-    )
+        })
 }
 pub fn person_refusal(
     value: &people::CapacityRefusal,
     limits: &w::Limits,
 ) -> Result<w::PersonCapacityRefusal, w::Problem> {
-    w::PersonCapacityRefusal::new(
-        limits,
-        w::PersonCapacityRefusalParts {
-            key: w::RequestKey::new(limits, w::RequestKeyParts { person: value.key.person, key: value.key.key })?,
+    Ok(w::PersonCapacityRefusal {
+            key: w::RequestKey { person: value.key.person, key: value.key.key },
             project: value.project,
             action: person_action(value.action, limits)?,
             at: value.at.as_nanos(),
             cause: person_cause(value.cause, limits)?,
-        },
-    )
+        })
 }
 pub fn task_refusal(value: &tasks::CapacityRefusal, limits: &w::Limits) -> Result<w::TaskCapacityRefusal, w::Problem> {
-    w::TaskCapacityRefusal::new(
-        limits,
-        w::TaskCapacityRefusalParts {
-            request: w::TaskCapacityRequest::new(
-                limits,
-                w::TaskCapacityRequestParts {
+    Ok(w::TaskCapacityRefusal {
+            request: w::TaskCapacityRequest {
                     project: value.request.project,
                     by: owner::requester(value.request.by, limits)?,
                     action: task_action(value.request.action, limits)?,
                     cause: task_cause(value.request.cause, limits)?,
                 },
-            )?,
             at: value.at.as_nanos(),
-        },
-    )
+        })
 }
 #[expect(clippy::too_many_lines, reason = "one deployment carries bounded host, account, capacity and worker facts")]
 pub fn document(value: &d::Deployment, limits: &w::Limits) -> Result<w::Deployment, w::Problem> {
@@ -499,43 +397,37 @@ pub fn document(value: &d::Deployment, limits: &w::Limits) -> Result<w::Deployme
     for row in &value.hosts {
         hosts.push(host(row, limits)?).expect("supplied rows fit");
     }
-    let hosts = host_pieces(&hosts, limits.deployment_hosts, w::Path::DeploymentHosts)?;
+    let hosts = host_pieces(&hosts, limits.deployment_hosts, w::paths::DEPLOYMENT_HOSTS)?;
     let mut attempts = List::with_capacity(value.attempts.len());
     for row in &value.attempts {
         attempts.push(run(row, limits)?).expect("supplied rows fit");
     }
-    let attempts = run_pieces(&attempts, limits.deployment_attempts, w::Path::DeploymentAttempts)?;
+    let attempts = run_pieces(&attempts, limits.deployment_attempts, w::paths::DEPLOYMENT_ATTEMPTS)?;
     let mut accounts = List::with_capacity(value.accounts.len());
     for row in &value.accounts {
         accounts.push(account(row, limits)?).expect("supplied rows fit");
     }
-    let accounts = account_pieces(&accounts, limits.deployment_accounts, w::Path::DeploymentAccounts)?;
+    let accounts = account_pieces(&accounts, limits.deployment_accounts, w::paths::DEPLOYMENT_ACCOUNTS)?;
     let mut projects = List::with_capacity(value.projects.len());
     for row in &value.projects {
         projects
-            .push(w::ProjectCapacity::new(
-                limits,
-                w::ProjectCapacityParts {
+            .push(w::ProjectCapacity {
                     project: row.project,
                     tasks: capacity(row.tasks, limits)?,
                     proposals: row.proposals,
-                },
-            )?)
+                })
             .expect("supplied rows fit");
     }
     let mut hello_refusals = List::with_capacity(value.hello_refusals.len());
     for row in &value.hello_refusals {
         hello_refusals
-            .push(w::HelloRefusalLine::new(
-                limits,
-                w::HelloRefusalLineParts {
+            .push(w::HelloRefusalLine {
                     channel: row.channel,
                     at: row.at.as_nanos(),
                     slots: row.slots,
                     stop_bound: row.stop_bound,
                     why: hello(row.why, limits)?,
-                },
-            )?)
+                })
             .expect("supplied rows fit");
     }
     let mut person_room_refusals = List::with_capacity(value.person_room_refusals.len());
@@ -554,9 +446,7 @@ pub fn document(value: &d::Deployment, limits: &w::Limits) -> Result<w::Deployme
     let mut worker_settings = List::with_capacity(value.worker_settings.len());
     for row in &value.worker_settings {
         worker_settings
-            .push(w::WorkerState::new(
-                limits,
-                w::WorkerStateParts {
+            .push(w::WorkerState {
                     number: row.number,
                     name: row.name.clone(),
                     places: row.places,
@@ -567,13 +457,10 @@ pub fn document(value: &d::Deployment, limits: &w::Limits) -> Result<w::Deployme
                         Some(at) => Some(at.as_nanos()),
                         None => None,
                     },
-                },
-            )?)
+                })
             .expect("worker row count");
     }
-    w::Deployment::new(
-        limits,
-        w::DeploymentParts {
+    Ok(w::Deployment {
             worker_settings,
             cut: value.cut,
             connectors_cut: value.connectors_cut,
@@ -582,7 +469,7 @@ pub fn document(value: &d::Deployment, limits: &w::Limits) -> Result<w::Deployme
             providers: super::catalogue::offers(&value.providers, limits.deployment_providers, limits)?,
             key_bytes: value.key_bytes,
             readiness: super::catalogue::readiness(&value.readiness, limits.deployment_readiness, limits)?,
-            store: w::StoreFill::new(limits, w::StoreFillParts { bytes: value.store.bytes, mark: value.store.mark })?,
+            store: w::StoreFill { bytes: value.store.bytes, mark: value.store.mark },
             census: match &value.census {
                 Some(value) => Some(store_census(value, limits)?),
                 None => None,
@@ -606,8 +493,7 @@ pub fn document(value: &d::Deployment, limits: &w::Limits) -> Result<w::Deployme
             task_room_refusals,
             task_room_refusals_forgotten: value.task_room_refusals_forgotten,
             connectors,
-        },
-    )
+        })
 }
 fn store_census(value: &d::StoreCensus, limits: &w::Limits) -> Result<w::StoreCensus, w::Problem> {
     let mut keyspaces = List::with_capacity(value.keyspaces.len());
@@ -615,13 +501,11 @@ fn store_census(value: &d::StoreCensus, limits: &w::Limits) -> Result<w::StoreCe
         let mut heads = List::with_capacity(row.heads.len());
         for head in &row.heads {
             heads
-                .push(w::CensusHead::new(limits, w::CensusHeadParts { head: head.head, rows: head.rows })?)
+                .push(w::CensusHead { head: head.head, rows: head.rows })
                 .expect("supplied heads fit");
         }
         keyspaces
-            .push(w::CensusKeyspace::new(
-                limits,
-                w::CensusKeyspaceParts {
+            .push(w::CensusKeyspace {
                     prefix: row.prefix.clone(),
                     name: row.name.as_bytes().into(),
                     rows: row.rows,
@@ -631,11 +515,10 @@ fn store_census(value: &d::StoreCensus, limits: &w::Limits) -> Result<w::StoreCe
                     puts: row.puts,
                     erases: row.erases,
                     written: row.written,
-                },
-            )?)
+                })
             .expect("supplied keyspaces fit");
     }
-    w::StoreCensus::new(limits, w::StoreCensusParts { commit: value.commit, since: value.since, keyspaces })
+    Ok(w::StoreCensus { commit: value.commit, since: value.since, keyspaces })
 }
 fn chip_pieces(rows: &List<w::Chip>, bound: u32, path: w::Path) -> Result<Box<[u8]>, w::Problem> {
     let mut encoded = List::with_capacity(rows.len());

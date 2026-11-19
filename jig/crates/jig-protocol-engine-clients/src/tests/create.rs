@@ -48,7 +48,7 @@ fn a_new_tasks_symbols_are_refused_above_the_receiving_bound() {
     asks::ask(create_with_symbols(&symbols[..1]), &f::models(), &limits).unwrap();
     assert_eq!(
         asks::ask(create_with_symbols(&symbols), &f::models(), &limits),
-        Err(crate::translate::Untranslatable { path: w::Path::NewTaskSymbols })
+        Err(crate::translate::Untranslatable { path: w::paths::NEW_TASK_SYMBOLS })
     );
 }
 
@@ -61,15 +61,15 @@ fn create_with_symbols(symbols: &[p::Symbol]) -> w::Ask {
     for symbol in symbols {
         task.symbols
             .push(
-                w::Symbol::new(&limits, w::SymbolParts { connector: symbol.connector, symbol: symbol.symbol }).unwrap(),
+                w::Symbol { connector: symbol.connector, symbol: symbol.symbol },
             )
             .unwrap();
     }
-    let task = w::NewTask::new(&limits, task).unwrap();
+    let task = task;
     let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(task.measure()));
     task.encode(&mut writer).unwrap();
     w::Ask::Create(
-        w::Create::new(&limits, w::CreateParts { project: f::PROJECT, tasks: f::pieces(&[writer.finish()]) }).unwrap(),
+        w::Create { project: f::PROJECT, tasks: f::pieces(&[writer.finish()]) },
     )
 }
 
@@ -82,15 +82,14 @@ fn a_new_tasks_closer_crosses_the_wire_both_ways() {
     let mut task = w::NewTask::decode(&limits, &mut Reader::new(&bytes)).unwrap().into_parts();
     let mut flags = task.flags.into_parts();
     flags.conversation = false;
-    flags.ended_by = w::EndedBy::Closer(w::Closer::new(&limits, w::CloserParts { connector: 1, code: 6 }).unwrap());
-    task.flags = w::TaskFlags::new(&limits, flags).unwrap();
-    let task = w::NewTask::new(&limits, task).unwrap();
+    flags.ended_by = w::EndedBy::Closer(w::Closer { connector: 1, code: 6 });
+    task.flags = flags;
+    let task = task;
     let mut bytes = Writer::new(skein_lib::length::usize_of(task.measure()));
     task.encode(&mut bytes).unwrap();
     let rows = List::from_boxed(Box::new([bytes.finish()]));
     let ask = w::Ask::Create(
-        w::Create::new(&limits, w::CreateParts { project: create.project(), tasks: f::pieces(rows.as_slice()) })
-            .unwrap(),
+        w::Create { project: create.project(), tasks: f::pieces(rows.as_slice()) },
     );
     let p::Ask::Create { batch, .. } = asks::ask(ask, &f::models(), &limits).unwrap() else { panic!("create") };
     assert_eq!(batch[0].flags.ended_by, p::EndedBy::Closer(p::Closer { connector: 1, code: 6 }));

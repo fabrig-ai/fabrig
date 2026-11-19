@@ -16,59 +16,59 @@ pub fn lacks() -> [(p::Lack, w::Lacking); 21] {
         (
             p::Lack::Budget { needs: 11, left: 7 },
             w::Lacking::Budget(
-                w::LackingBudget::new(&limits, w::LackingBudgetParts { needed: 11, left: 7 }).expect("lack"),
+                w::LackingBudget { needed: 11, left: 7 },
             ),
         ),
         (
             p::Lack::Grant { kind: 9 },
             w::Lacking::GrantKind(
-                w::LackingGrantKind::new(&limits, w::LackingGrantKindParts { kind: 9 }).expect("lack"),
+                w::LackingGrantKind { kind: 9 },
             ),
         ),
         (
             p::Lack::TaskKind { executor: None },
             w::Lacking::TaskKind(
-                w::LackingTaskKind::new(&limits, w::LackingTaskKindParts { executor: None }).expect("lack"),
+                w::LackingTaskKind { executor: None },
             ),
         ),
         (
             p::Lack::Depth { most: 3 },
             w::Lacking::Depth(
-                w::LackingDepth::new(&limits, w::LackingDepthParts { needed: None, allowed: 3 }).expect("lack"),
+                w::LackingDepth { needed: None, allowed: 3 },
             ),
         ),
         (
             p::Lack::Deadline,
             w::Lacking::Deadline(
-                w::LackingDeadline::new(&limits, w::LackingDeadlineParts { asked: None, latest: None }).expect("lack"),
+                w::LackingDeadline { asked: None, latest: None },
             ),
         ),
         (
             p::Lack::Tasks { left: 4 },
             w::Lacking::Tasks(
-                w::LackingTasks::new(&limits, w::LackingTasksParts { needed: None, left: 4 }).expect("lack"),
+                w::LackingTasks { needed: None, left: 4 },
             ),
         ),
         (
             p::Lack::Again { required: true },
-            w::Lacking::Again(w::LackingAgain::new(&limits, w::LackingAgainParts { required: true }).expect("lack")),
+            w::Lacking::Again(w::LackingAgain { required: true }),
         ),
         (
             p::Lack::Required { connector: 9, kind: 10 },
             w::Lacking::Required(
-                w::LackingRequired::new(&limits, w::LackingRequiredParts { connector: 9, kind: 10 }).expect("lack"),
+                w::LackingRequired { connector: 9, kind: 10 },
             ),
         ),
         (
             p::Lack::Failed { connector: 9, kind: 10 },
             w::Lacking::Failed(
-                w::LackingFailed::new(&limits, w::LackingFailedParts { connector: 9, kind: 10 }).expect("lack"),
+                w::LackingFailed { connector: 9, kind: 10 },
             ),
         ),
         (
             p::Lack::Unguarded { connector: 9, kind: 10 },
             w::Lacking::Unguarded(
-                w::LackingUnguarded::new(&limits, w::LackingUnguardedParts { connector: 9, kind: 10 }).expect("lack"),
+                w::LackingUnguarded { connector: 9, kind: 10 },
             ),
         ),
     ]
@@ -95,7 +95,7 @@ pub fn ceiling_lacks() -> [(p::Lack, w::Lacking); 10] {
             &limits,
             (
                 p::CeilingHolder::Role(0),
-                w::CeilingHolder::Role(w::CeilingRole::new(&limits, w::CeilingRoleParts { role: 0 }).expect("role")),
+                w::CeilingHolder::Role(w::CeilingRole { role: 0 }),
             ),
             (p::CeilingDimension::PeriodSpend, w::CeilingDimension::PeriodSpend),
             Some(500),
@@ -162,11 +162,7 @@ fn ceiling_case(
     (
         p::Lack::Ceiling { holder: holder.0, dimension: dimension.0, value, asked },
         w::Lacking::Ceiling(
-            w::LackingCeiling::new(
-                limits,
-                w::LackingCeilingParts { holder: holder.1, dimension: dimension.1, value, asked },
-            )
-            .expect("ceiling"),
+            w::LackingCeiling { holder: holder.1, dimension: dimension.1, value, asked },
         ),
     )
 }

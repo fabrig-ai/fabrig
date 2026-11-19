@@ -66,7 +66,7 @@ fn a_late_application_document_after_stream_loss_is_acknowledged() {
 #[test]
 fn a_late_run_text_after_stream_loss_is_acknowledged() {
     let subject = w::Subject::Run(
-        w::SubjectRun::new(&fixtures::wire(), w::SubjectRunParts { task: 7, turn: None, offset: 0 }).expect("run"),
+        w::SubjectRun { task: 7, turn: None, offset: 0 },
     );
     let (mut world, watcher) = gone_watch(fixtures::owned_subject(&subject));
     let writing = fixtures::writing();
@@ -185,8 +185,7 @@ fn a_watch_admission_or_refusal_cannot_answer_another_exchange() {
     assert!(world.stream().watches.get(&watcher).expect("watch").opening.is_some());
     world.component.down(&world.env, Event::WatchRefused { watcher, why: core::WatchRefusal::Busy }, &mut world.out);
     let expected = w::OpenAnswer::Refused(
-        w::OpenAnswerRefused::new(&fixtures::wire(), w::OpenAnswerRefusedParts { why: w::WatchRefusal::Busy })
-            .expect("busy"),
+        w::OpenAnswerRefused { why: w::WatchRefusal::Busy },
     );
     assert_eq!(w::OpenAnswer::decode(&fixtures::wire(), &mut Reader::new(world.response(first).1)), Ok(expected));
     let (second, other) = request_task(&mut world, stream, 18);
@@ -337,18 +336,14 @@ fn a_run_watch_keeps_the_complete_provisional_position() {
         (
             "Full",
             Some(
-                w::ProvisionalTurnName::new(
-                    &limits,
-                    w::ProvisionalTurnNameParts { attempt: u64::MAX, number: u32::MAX, retry: u32::MAX },
-                )
-                .expect("turn"),
+                w::ProvisionalTurnName { attempt: u64::MAX, number: u32::MAX, retry: u32::MAX },
             ),
             Some(jig_domain_views::TurnName { attempt: u64::MAX, turn: u32::MAX, retry: u32::MAX }),
         ),
     ];
     for (label, turn, expected) in rows {
         let source = w::Subject::Run(
-            w::SubjectRun::new(&limits, w::SubjectRunParts { task: u64::MAX, turn, offset: u32::MAX }).expect("run"),
+            w::SubjectRun { task: u64::MAX, turn, offset: u32::MAX },
         );
         let Some(core::Event::WatchRun { watcher, sign_in, task, turn, offset }) =
             watches::watch(Token::new(11), 41, source, 32)
@@ -401,9 +396,7 @@ fn an_accounts_document_is_watched_but_never_read() {
     assert_eq!(
         watches::delivery(&document, 0, 1, &[], &List::with_capacity(0), &limits),
         Ok(w::DeliveryValue::Accounts(
-            w::Accounts::new(
-                &limits,
-                w::AccountsParts {
+            w::Accounts {
                     lendable: false,
                     usable: false,
                     settled: true,
@@ -417,8 +410,6 @@ fn an_accounts_document_is_watched_but_never_read() {
                     last_end: None,
                     program_hosts: Box::new([]),
                 }
-            )
-            .unwrap()
         ))
     );
     assert_eq!(
@@ -428,7 +419,7 @@ fn an_accounts_document_is_watched_but_never_read() {
             &crate::Private::none(),
             &limits
         ),
-        Err(w::Problem { path: w::Path::ReadValueTag, reason: skein_codec::Reason::Tag })
+        Err(w::Problem { path: w::paths::READ_VALUE_TAG, reason: skein_codec::Reason::Tag })
     );
 }
 
@@ -512,7 +503,7 @@ fn an_untranslatable_document_names_its_path_and_closes_only_once() {
     assert_eq!(
         why,
         crate::StreamFailure::Translation(w::Problem {
-            path: w::Path::OwnedRecord,
+            path: w::paths::OWNED_RECORD,
             reason: skein_codec::Reason::Bound
         })
     );
@@ -538,7 +529,7 @@ fn an_untranslatable_me_document_also_names_its_sign_in() {
     assert_eq!(
         why,
         crate::StreamFailure::Translation(w::Problem {
-            path: w::Path::OwnedRecord,
+            path: w::paths::OWNED_RECORD,
             reason: skein_codec::Reason::Bound
         })
     );

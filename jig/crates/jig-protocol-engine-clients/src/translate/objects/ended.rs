@@ -20,17 +20,12 @@ pub fn retained_amendment(
         }
         None => None,
     };
-    w::RetainedAmendment::new(
-        limits,
-        w::RetainedAmendmentParts {
+    Ok(w::RetainedAmendment {
             addressed: match value.addressed {
-                Some(item) => Some(w::AddressChange::new(
-                    limits,
-                    w::AddressChangeParts {
-                        revision: w::Revision::new(limits, w::RevisionParts { value: item.revision })?,
+                Some(item) => Some(w::AddressChange {
+                        revision: w::Revision { value: item.revision },
                         address: chips::address(item.address, limits)?,
-                    },
-                )?),
+                    }),
                 None => None,
             },
             instructions: match &value.instructions {
@@ -53,8 +48,7 @@ pub fn retained_amendment(
             dependencies,
             reason: owner::text(&value.reason, limits)?,
             cut: value.cut,
-        },
-    )
+        })
 }
 pub fn retained_action(
     models: &[crate::Model],
@@ -63,15 +57,12 @@ pub fn retained_action(
 ) -> Result<w::RetainedAction, w::Problem> {
     Ok(match value {
         d::RetainedAction::Settings { against, items, made, projects } => {
-            w::RetainedAction::Settings(w::RetainedActionSettings::new(
-                limits,
-                w::RetainedActionSettingsParts {
+            w::RetainedAction::Settings(w::RetainedActionSettings {
                     projects: projects.clone(),
                     against: *against,
                     items: super::super::settings::item_heads(items, limits)?,
                     made: *made,
-                },
-            )?)
+                })
         }
         d::RetainedAction::Batch(rows) => {
             let mut copied = List::with_capacity(rows.len());
@@ -81,49 +72,31 @@ pub fn retained_action(
             let copied = super::proposals::proposed_task_pieces(
                 &copied,
                 limits.retained_action_batch_value,
-                w::Path::RetainedActionBatchValue,
+                w::paths::RETAINED_ACTION_BATCH_VALUE,
             )?;
-            w::RetainedAction::Batch(w::RetainedActionBatch::new(
-                limits,
-                w::RetainedActionBatchParts { value: copied },
-            )?)
+            w::RetainedAction::Batch(w::RetainedActionBatch { value: copied })
         }
         d::RetainedAction::Effect { part, authority, attempt, completion, position, purpose } => {
-            w::RetainedAction::Effect(w::RetainedActionEffect::new(
-                limits,
-                w::RetainedActionEffectParts {
+            w::RetainedAction::Effect(w::RetainedActionEffect {
                     part: owner::part(part, limits)?,
                     authority: owner::authority(models, authority, limits)?,
                     attempt: *attempt,
                     completion: *completion,
                     position: *position,
                     purpose: *purpose,
-                },
-            )?)
+                })
         }
         d::RetainedAction::ProcedureEffect { part, authority, step, purpose } => {
-            w::RetainedAction::ProcedureEffect(w::RetainedActionProcedureEffect::new(
-                limits,
-                w::RetainedActionProcedureEffectParts {
+            w::RetainedAction::ProcedureEffect(w::RetainedActionProcedureEffect {
                     part: owner::part(part, limits)?,
                     authority: owner::authority(models, authority, limits)?,
                     step: *step,
                     purpose: *purpose,
-                },
-            )?)
+                })
         }
-        d::RetainedAction::Amend { task, change } => w::RetainedAction::Amend(Box::new(w::RetainedActionAmend::new(
-            limits,
-            w::RetainedActionAmendParts { task: *task, change: retained_amendment(models, change, limits)? },
-        )?)),
-        d::RetainedAction::Widen { task, authority } => w::RetainedAction::Widen(w::RetainedActionWiden::new(
-            limits,
-            w::RetainedActionWidenParts { task: *task, authority: owner::authority(models, authority, limits)? },
-        )?),
-        d::RetainedAction::Release { task } => w::RetainedAction::Release(w::RetainedActionRelease::new(
-            limits,
-            w::RetainedActionReleaseParts { task: *task },
-        )?),
+        d::RetainedAction::Amend { task, change } => w::RetainedAction::Amend(Box::new(w::RetainedActionAmend { task: *task, change: retained_amendment(models, change, limits)? })),
+        d::RetainedAction::Widen { task, authority } => w::RetainedAction::Widen(w::RetainedActionWiden { task: *task, authority: owner::authority(models, authority, limits)? }),
+        d::RetainedAction::Release { task } => w::RetainedAction::Release(w::RetainedActionRelease { task: *task }),
     })
 }
 pub fn proposal_history(
@@ -131,9 +104,7 @@ pub fn proposal_history(
     value: &d::ProposalHistory,
     limits: &w::Limits,
 ) -> Result<w::ProposalHistory, w::Problem> {
-    w::ProposalHistory::new(
-        limits,
-        w::ProposalHistoryParts {
+    Ok(w::ProposalHistory {
             reason: owner::text(&value.reason, limits)?,
             action: retained_action(models, &value.action, limits)?,
             number: value.number,
@@ -141,39 +112,27 @@ pub fn proposal_history(
             as_holder: value.as_holder,
             state: match &value.state {
                 d::ProposalHistoryState::Pending(value) => {
-                    w::ProposalHistoryState::Pending(w::ProposalHistoryStatePending::new(
-                        limits,
-                        w::ProposalHistoryStatePendingParts {
+                    w::ProposalHistoryState::Pending(w::ProposalHistoryStatePending {
                             holder: super::proposals::holder(value.holder, limits)?,
                             since: value.since.as_nanos(),
-                        },
-                    )?)
+                        })
                 }
                 d::ProposalHistoryState::Accepted { by } => {
-                    w::ProposalHistoryState::Accepted(w::ProposalHistoryStateAccepted::new(
-                        limits,
-                        w::ProposalHistoryStateAcceptedParts { by: owner::requester(*by, limits)? },
-                    )?)
+                    w::ProposalHistoryState::Accepted(w::ProposalHistoryStateAccepted { by: owner::requester(*by, limits)? })
                 }
                 d::ProposalHistoryState::Rejected { by, reason } => {
-                    w::ProposalHistoryState::Rejected(w::ProposalHistoryStateRejected::new(
-                        limits,
-                        w::ProposalHistoryStateRejectedParts {
+                    w::ProposalHistoryState::Rejected(w::ProposalHistoryStateRejected {
                             by: owner::requester(*by, limits)?,
                             reason: owner::text(reason, limits)?,
-                        },
-                    )?)
+                        })
                 }
                 d::ProposalHistoryState::Withdrawn => w::ProposalHistoryState::Withdrawn,
             },
-        },
-    )
+        })
 }
 /// Retained lifecycle facts (client/domain/contract/README.md, 4).
 pub fn attempt(value: &d::AttemptLine, limits: &w::Limits) -> Result<w::AttemptLine, w::Problem> {
-    w::AttemptLine::new(
-        limits,
-        w::AttemptLineParts {
+    Ok(w::AttemptLine {
             task: value.task,
             attempt: value.attempt,
             claimed: match value.claimed {
@@ -193,13 +152,10 @@ pub fn attempt(value: &d::AttemptLine, limits: &w::Limits) -> Result<w::AttemptL
                 None => None,
             },
             phases: value.phases,
-        },
-    )
+        })
 }
 pub fn hold(value: &d::HoldLine, limits: &w::Limits) -> Result<w::HoldLine, w::Problem> {
-    w::HoldLine::new(
-        limits,
-        w::HoldLineParts {
+    Ok(w::HoldLine {
             task: value.task,
             position: value.position,
             at: value.at.as_nanos(),
@@ -213,16 +169,13 @@ pub fn hold(value: &d::HoldLine, limits: &w::Limits) -> Result<w::HoldLine, w::P
                 Some(item) => Some(chips::ending(item, limits)?),
                 None => None,
             },
-        },
-    )
+        })
 }
 pub fn escalation_decision(
     value: &jig_domain_core_vocabulary::EscalationDecisionRecord,
     limits: &w::Limits,
 ) -> Result<w::EscalationDecisionRecord, w::Problem> {
-    w::EscalationDecisionRecord::new(
-        limits,
-        w::EscalationDecisionRecordParts {
+    Ok(w::EscalationDecisionRecord {
             project: value.project,
             requester: value.requester,
             task: value.task,
@@ -233,22 +186,16 @@ pub fn escalation_decision(
                 p::EscalationDecision::Release => w::EscalationDecision::Release,
                 p::EscalationDecision::Pass => w::EscalationDecision::Pass,
                 p::EscalationDecision::Reject { reason } => {
-                    w::EscalationDecision::Reject(w::EscalationDecisionReject::new(
-                        limits,
-                        w::EscalationDecisionRejectParts { reason: bytes::copy_of(reason) },
-                    )?)
+                    w::EscalationDecision::Reject(w::EscalationDecisionReject { reason: bytes::copy_of(reason) })
                 }
             },
-        },
-    )
+        })
 }
 pub fn proposal_decision(
     value: jig_domain_core_vocabulary::ProposalDecisionRecord,
     limits: &w::Limits,
 ) -> Result<w::ProposalDecision, w::Problem> {
-    w::ProposalDecision::new(
-        limits,
-        w::ProposalDecisionParts {
+    Ok(w::ProposalDecision {
             project: value.project,
             proposer: task::proposal(&d::ProposalRef { proposer: value.proposer, number: value.proposal }, limits)?
                 .proposer()
@@ -265,14 +212,10 @@ pub fn proposal_decision(
                 p::ProposalChoice::Stale => w::ProposalChoice::Stale,
             },
             created: match value.created {
-                Some(item) => Some(w::ProposalDecisionCreated::new(
-                    limits,
-                    w::ProposalDecisionCreatedParts { first: item.0, last: item.1 },
-                )?),
+                Some(item) => Some(w::ProposalDecisionCreated { first: item.0, last: item.1 }),
                 None => None,
             },
-        },
-    )
+        })
 }
 pub fn person_proposal(
     models: &[crate::Model],
@@ -280,9 +223,7 @@ pub fn person_proposal(
     limits: &w::Limits,
 ) -> Result<w::PersonProposal, w::Problem> {
     let [goal] = value.batch() else { return Err(super::super::problem(skein_codec::Reason::Malformed)) };
-    w::PersonProposal::new(
-        limits,
-        w::PersonProposalParts {
+    Ok(w::PersonProposal {
             number: value.number,
             proposer: value.proposer,
             project: value.project,
@@ -292,31 +233,21 @@ pub fn person_proposal(
                     return Err(super::super::problem(skein_codec::Reason::Malformed));
                 }
                 t::PersonProposalState::Pending { since } => {
-                    w::PersonProposalState::Pending(w::PersonProposalStatePending::new(
-                        limits,
-                        w::PersonProposalStatePendingParts { since: since.as_nanos() },
-                    )?)
+                    w::PersonProposalState::Pending(w::PersonProposalStatePending { since: since.as_nanos() })
                 }
                 t::PersonProposalState::Accepted { by } | t::PersonProposalState::SettingsAccepted { by, .. } => {
-                    w::PersonProposalState::Accepted(w::PersonProposalStateAccepted::new(
-                        limits,
-                        w::PersonProposalStateAcceptedParts { by: owner::requester(*by, limits)? },
-                    )?)
+                    w::PersonProposalState::Accepted(w::PersonProposalStateAccepted { by: owner::requester(*by, limits)? })
                 }
                 t::PersonProposalState::Rejected { by, reason, message, at } => {
-                    w::PersonProposalState::Rejected(w::PersonProposalStateRejected::new(
-                        limits,
-                        w::PersonProposalStateRejectedParts {
+                    w::PersonProposalState::Rejected(w::PersonProposalStateRejected {
                             by: owner::requester(*by, limits)?,
                             reason: bytes::copy_of(reason),
                             message: *message,
                             at: at.as_nanos(),
-                        },
-                    )?)
+                        })
                 }
             },
-        },
-    )
+        })
 }
 
 pub(crate) fn settings_history(

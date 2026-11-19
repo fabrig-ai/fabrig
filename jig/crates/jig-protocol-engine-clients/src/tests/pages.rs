@@ -21,7 +21,7 @@ fn a_heard_job_result_does_not_refuse_the_activity_read() {
         let mut exchange = fixtures::read_exchange();
         let limits = exchange.env.limits.wire;
         let read =
-            w::Read::Activity(w::ReadActivity::new(&limits, w::ReadActivityParts { task: 7, before: None }).unwrap());
+            w::Read::Activity(w::ReadActivity { task: 7, before: None });
         let (owner, reply, _) = exchange.read(&read);
         let word = t::Word {
             number: 19,
@@ -194,9 +194,9 @@ fn an_activity_page_carries_each_turn_s_bytes() {
         );
     }
     for (label, limits, path) in [
-        ("turn bytes", w::Limits { turn_carried_bytes: 2, ..limits }, w::Path::TurnCarriedBytes),
-        ("page pieces", w::Limits { activity_page_rows: 0, ..limits }, w::Path::ActivityPageRows),
-        ("opaque cursor", w::Limits { cursor_value: 1, ..limits }, w::Path::CursorValue),
+        ("turn bytes", w::Limits { turn_carried_bytes: 2, ..limits }, w::paths::TURN_CARRIED_BYTES),
+        ("page pieces", w::Limits { activity_page_rows: 0, ..limits }, w::paths::ACTIVITY_PAGE_ROWS),
+        ("opaque cursor", w::Limits { cursor_value: 1, ..limits }, w::paths::CURSOR_VALUE),
     ] {
         assert_eq!(activity(&source, &limits), Err(w::Problem { path, reason: skein_codec::Reason::Bound }), "{label}");
     }
@@ -491,7 +491,7 @@ fn standing_activity_crosses_both_client_translations_at_its_words_bound() {
         at: Wall::EPOCH,
         line: t::Line::Stood { attempt: 3, words: Box::from([b'w'; 513]) },
     };
-    assert_eq!(crate::translate::activity::line(&line, &limits).unwrap_err().path, w::Path::ActivityStoodWords);
+    assert_eq!(crate::translate::activity::line(&line, &limits).unwrap_err().path, w::paths::ACTIVITY_STOOD_WORDS);
     let line = t::ActivityLine {
         task: 7,
         position: 13,
@@ -504,7 +504,7 @@ fn standing_activity_crosses_both_client_translations_at_its_words_bound() {
     record.encode(&mut out).unwrap();
     assert_eq!(
         w::ActivityLine::decode(&narrower, &mut Reader::new(&out.finish())).unwrap_err().path,
-        w::Path::ActivityStoodWords
+        w::paths::ACTIVITY_STOOD_WORDS
     );
 }
 
@@ -588,8 +588,8 @@ fn now_written_crosses_the_client_wire_at_its_line_bound() {
     let narrower = w::Limits { activity_now_written_line: t::NOW_LINE - 1, ..limits };
     assert_eq!(
         w::ActivityLine::decode(&narrower, &mut Reader::new(&bytes.finish())).unwrap_err().path,
-        w::Path::ActivityNowWrittenLine
+        w::paths::ACTIVITY_NOW_WRITTEN_LINE
     );
     let line = t::ActivityLine { line: t::Line::NowWritten { attempt: 3, line: Box::from([b'n'; 513]) }, ..line };
-    assert_eq!(crate::translate::activity::line(&line, &limits).unwrap_err().path, w::Path::ActivityNowWrittenLine);
+    assert_eq!(crate::translate::activity::line(&line, &limits).unwrap_err().path, w::paths::ACTIVITY_NOW_WRITTEN_LINE);
 }

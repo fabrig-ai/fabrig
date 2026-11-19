@@ -19,27 +19,19 @@ pub fn class(value: t::Class) -> Result<w::HoldFailure, w::Problem> {
 pub fn retry(value: &t::RetryNotice, limits: &w::Limits) -> Result<w::RetryNotice, w::Problem> {
     Ok(match value {
         t::RetryNotice::Failed { class: value, count, allowance, reason } => {
-            w::RetryNotice::OwnerFailed(w::RetryNoticeOwnerFailed::new(
-                limits,
-                w::RetryNoticeOwnerFailedParts {
+            w::RetryNotice::OwnerFailed(w::RetryNoticeOwnerFailed {
                     class: class(*value)?,
                     count: *count,
                     allowance: *allowance,
                     reason: reason.clone(),
-                },
-            )?)
+                })
         }
-        t::RetryNotice::Refused { count, reason } => w::RetryNotice::Refused(w::RetryNoticeRefused::new(
-            limits,
-            w::RetryNoticeRefusedParts { count: *count, reason: reason.clone() },
-        )?),
+        t::RetryNotice::Refused { count, reason } => w::RetryNotice::Refused(w::RetryNoticeRefused { count: *count, reason: reason.clone() }),
     })
 }
 pub fn hold(value: t::Hold, limits: &w::Limits) -> Result<w::HoldCategory, w::Problem> {
     Ok(match value {
-        t::Hold::Exceeded(value) => w::HoldCategory::Exceeded(w::Exceeded::new(
-            limits,
-            w::ExceededParts {
+        t::Hold::Exceeded(value) => w::HoldCategory::Exceeded(w::Exceeded {
                 bound: match value.bound {
                     t::Bound::Reasoning => w::Bound::Reasoning,
                     t::Bound::Metadata => w::Bound::Metadata,
@@ -52,24 +44,17 @@ pub fn hold(value: t::Hold, limits: &w::Limits) -> Result<w::HoldCategory, w::Pr
                     t::Bound::Output => w::Bound::Output,
                 },
                 value: value.value,
-            },
-        )?),
-        t::Hold::Failures(value) => w::HoldCategory::Failures(w::HoldCategoryFailures::new(
-            limits,
-            w::HoldCategoryFailuresParts { class: class(value)? },
-        )?),
-        t::Hold::Dependency(task) => w::HoldCategory::Dependency(w::HoldCategoryDependency::new(
-            limits,
-            w::HoldCategoryDependencyParts { task },
-        )?),
+            }),
+        t::Hold::Failures(value) => w::HoldCategory::Failures(w::HoldCategoryFailures { class: class(value)? }),
+        t::Hold::Dependency(task) => w::HoldCategory::Dependency(w::HoldCategoryDependency { task }),
         t::Hold::Placed { hold } => {
-            w::HoldCategory::Placed(w::HoldCategoryPlaced::new(limits, w::HoldCategoryPlacedParts { hold })?)
+            w::HoldCategory::Placed(w::HoldCategoryPlaced { hold })
         }
         t::Hold::Uncertain { entry } => {
-            w::HoldCategory::Uncertain(w::HoldCategoryUncertain::new(limits, w::HoldCategoryUncertainParts { entry })?)
+            w::HoldCategory::Uncertain(w::HoldCategoryUncertain { entry })
         }
         t::Hold::PoolLost { pool } => {
-            w::HoldCategory::PoolLost(w::HoldCategoryPoolLost::new(limits, w::HoldCategoryPoolLostParts { pool })?)
+            w::HoldCategory::PoolLost(w::HoldCategoryPoolLost { pool })
         }
         t::Hold::Stalled => w::HoldCategory::Stalled,
         t::Hold::Stopped => w::HoldCategory::Stopped,
@@ -91,21 +76,18 @@ pub fn active(value: t::Active, limits: &w::Limits) -> Result<w::RunStage, w::Pr
         t::Active::Due => w::RunStage::Due,
         t::Active::Preparing => w::RunStage::Preparing,
         t::Active::Claimed { attempt } => {
-            w::RunStage::Claimed(w::RunStageClaimed::new(limits, w::RunStageClaimedParts { attempt })?)
+            w::RunStage::Claimed(w::RunStageClaimed { attempt })
         }
         t::Active::Running { attempt } => {
-            w::RunStage::Running(w::RunStageRunning::new(limits, w::RunStageRunningParts { attempt })?)
+            w::RunStage::Running(w::RunStageRunning { attempt })
         }
-        t::Active::BackingOff { until } => w::RunStage::BackingOff(w::RunStageBackingOff::new(
-            limits,
-            w::RunStageBackingOffParts { until: until.as_nanos() },
-        )?),
+        t::Active::BackingOff { until } => w::RunStage::BackingOff(w::RunStageBackingOff { until: until.as_nanos() }),
     })
 }
 pub fn stage(value: t::Stage, limits: &w::Limits) -> Result<w::ClosingStage, w::Problem> {
     Ok(match value {
         t::Stage::Run { attempt } => {
-            w::ClosingStage::Run(w::ClosingStageRun::new(limits, w::ClosingStageRunParts { attempt })?)
+            w::ClosingStage::Run(w::ClosingStageRun { attempt })
         }
         t::Stage::Delegates => w::ClosingStage::Delegates,
         t::Stage::Effects => w::ClosingStage::Effects,
@@ -116,72 +98,42 @@ pub fn stage(value: t::Stage, limits: &w::Limits) -> Result<w::ClosingStage, w::
 pub fn address(value: t::PersonAddress, limits: &w::Limits) -> Result<w::PersonAddress, w::Problem> {
     Ok(match value {
         t::PersonAddress::Person(number) => {
-            w::PersonAddress::Party(w::PersonAddressParty::new(limits, w::PersonAddressPartyParts { value: number })?)
+            w::PersonAddress::Party(w::PersonAddressParty { value: number })
         }
         t::PersonAddress::Role(number) => {
-            w::PersonAddress::Role(w::PersonAddressRole::new(limits, w::PersonAddressRoleParts { value: number })?)
+            w::PersonAddress::Role(w::PersonAddressRole { value: number })
         }
     })
 }
 pub fn phase(value: &d::PhaseLine, limits: &w::Limits) -> Result<w::ChipPhase, w::Problem> {
     Ok(match value {
-        d::PhaseLine::Waiting { dependencies, more, holds } => w::ChipPhase::Waiting(w::ChipPhaseWaiting::new(
-            limits,
-            w::ChipPhaseWaitingParts { dependencies: dependencies.clone(), more: *more, holds: *holds },
-        )?),
-        d::PhaseLine::Active(value) => w::ChipPhase::Active(w::ChipPhaseActive::new(
-            limits,
-            w::ChipPhaseActiveParts { value: active(*value, limits)? },
-        )?),
-        d::PhaseLine::Person { address: value, taken_by, since } => w::ChipPhase::Person(w::ChipPhasePerson::new(
-            limits,
-            w::ChipPhasePersonParts {
+        d::PhaseLine::Waiting { dependencies, more, holds } => w::ChipPhase::Waiting(w::ChipPhaseWaiting { dependencies: dependencies.clone(), more: *more, holds: *holds }),
+        d::PhaseLine::Active(value) => w::ChipPhase::Active(w::ChipPhaseActive { value: active(*value, limits)? }),
+        d::PhaseLine::Person { address: value, taken_by, since } => w::ChipPhase::Person(w::ChipPhasePerson {
                 address: address(*value, limits)?,
                 taken_by: *taken_by,
                 since: match *since {
                     Some(item) => Some(item.as_nanos()),
                     None => None,
                 },
-            },
-        )?),
-        d::PhaseLine::Closing(value) => w::ChipPhase::Closing(w::ChipPhaseClosing::new(
-            limits,
-            w::ChipPhaseClosingParts { value: stage(*value, limits)? },
-        )?),
-        d::PhaseLine::Held { reason, revision } => w::ChipPhase::Held(w::ChipPhaseHeld::new(
-            limits,
-            w::ChipPhaseHeldParts { reason: hold(*reason, limits)?, revision: *revision },
-        )?),
+            }),
+        d::PhaseLine::Closing(value) => w::ChipPhase::Closing(w::ChipPhaseClosing { value: stage(*value, limits)? }),
+        d::PhaseLine::Held { reason, revision } => w::ChipPhase::Held(w::ChipPhaseHeld { reason: hold(*reason, limits)?, revision: *revision }),
         d::PhaseLine::Ended => w::ChipPhase::Ended,
     })
 }
 pub fn prior(value: d::PriorPhase, limits: &w::Limits) -> Result<w::PriorPhase, w::Problem> {
     Ok(match value {
         d::PriorPhase::Waiting => w::PriorPhase::Waiting,
-        d::PriorPhase::Active(value) => w::PriorPhase::Active(w::PriorPhaseActive::new(
-            limits,
-            w::PriorPhaseActiveParts { value: active(value, limits)? },
-        )?),
-        d::PriorPhase::Closing(value) => w::PriorPhase::Closing(w::PriorPhaseClosing::new(
-            limits,
-            w::PriorPhaseClosingParts { value: stage(value, limits)? },
-        )?),
+        d::PriorPhase::Active(value) => w::PriorPhase::Active(w::PriorPhaseActive { value: active(value, limits)? }),
+        d::PriorPhase::Closing(value) => w::PriorPhase::Closing(w::PriorPhaseClosing { value: stage(value, limits)? }),
     })
 }
 pub fn holder(value: t::EscalationHolder, limits: &w::Limits) -> Result<w::EscalationHolder, w::Problem> {
     Ok(match value {
-        t::EscalationHolder::Task(number) => w::EscalationHolder::Task(w::EscalationHolderTask::new(
-            limits,
-            w::EscalationHolderTaskParts { value: number },
-        )?),
-        t::EscalationHolder::Person(number) => w::EscalationHolder::Person(w::EscalationHolderPerson::new(
-            limits,
-            w::EscalationHolderPersonParts { value: number },
-        )?),
-        t::EscalationHolder::Role { project, role } => w::EscalationHolder::Role(w::EscalationHolderRole::new(
-            limits,
-            w::EscalationHolderRoleParts { project, role },
-        )?),
+        t::EscalationHolder::Task(number) => w::EscalationHolder::Task(w::EscalationHolderTask { value: number }),
+        t::EscalationHolder::Person(number) => w::EscalationHolder::Person(w::EscalationHolderPerson { value: number }),
+        t::EscalationHolder::Role { project, role } => w::EscalationHolder::Role(w::EscalationHolderRole { project, role }),
     })
 }
 #[expect(clippy::match_same_arms, reason = "the interim wire projects each decider kind to its number")]
@@ -189,19 +141,16 @@ pub fn escalation(value: &d::EscalationState, limits: &w::Limits) -> Result<w::H
     Ok(match value {
         d::EscalationState::Routing => w::HoldEscalation::Routing,
         d::EscalationState::Waiting { holder: value, entry, since } => {
-            w::HoldEscalation::Waiting(w::HoldEscalationWaiting::new(
-                limits,
-                w::HoldEscalationWaitingParts {
+            w::HoldEscalation::Waiting(w::HoldEscalationWaiting {
                     holder: holder(*value, limits)?,
                     entry: *entry,
                     since: since.as_nanos(),
-                },
-            )?)
+                })
         }
         d::EscalationState::Rejected { by, reason } => w::HoldEscalation::Rejected(w::HoldEscalationRejected::new(
             limits,
             // client/domain/contract/documents.md, 1: the next wire carries the decider's kind.
-            w::HoldEscalationRejectedParts {
+            w::HoldEscalationRejected {
                 by: match by {
                     t::EscalationDecider::Task(number) => *number,
                     t::EscalationDecider::Person(number) => *number,
@@ -212,9 +161,7 @@ pub fn escalation(value: &d::EscalationState, limits: &w::Limits) -> Result<w::H
     })
 }
 pub fn tries(value: t::Tries, limits: &w::Limits) -> Result<w::FailureTries, w::Problem> {
-    w::FailureTries::new(
-        limits,
-        w::FailureTriesParts {
+    Ok(w::FailureTries {
             transient: value.transient,
             permanent: value.permanent,
             run: value.run,
@@ -222,13 +169,10 @@ pub fn tries(value: t::Tries, limits: &w::Limits) -> Result<w::FailureTries, w::
             lost: value.lost,
             invalid: value.invalid,
             infrastructure: value.infrastructure,
-        },
-    )
+        })
 }
 pub fn held(value: &d::HoldPhaseLine, limits: &w::Limits) -> Result<w::ChipHold, w::Problem> {
-    w::ChipHold::new(
-        limits,
-        w::ChipHoldParts {
+    Ok(w::ChipHold {
             words: match &value.words {
                 Some(text) => Some(owner::text(text, limits)?),
                 None => None,
@@ -258,13 +202,10 @@ pub fn held(value: &d::HoldPhaseLine, limits: &w::Limits) -> Result<w::ChipHold,
                 Some(item) => Some(item.as_nanos()),
                 None => None,
             },
-        },
-    )
+        })
 }
 fn placed(value: &d::PlacedLine, limits: &w::Limits) -> Result<w::PlacedLine, w::Problem> {
-    w::PlacedLine::new(
-        limits,
-        w::PlacedLineParts {
+    Ok(w::PlacedLine {
             number: value.number,
             owner: super::refusals::hold_owner(value.owner, limits)?,
             mode: match value.mode {
@@ -273,7 +214,7 @@ fn placed(value: &d::PlacedLine, limits: &w::Limits) -> Result<w::PlacedLine, w:
             },
             scope: match value.scope {
                 t::Scope::Subtree { task } => {
-                    w::HoldScope::Subtree(w::HoldScopeSubtree::new(limits, w::HoldScopeSubtreeParts { task })?)
+                    w::HoldScope::Subtree(w::HoldScopeSubtree { task })
                 }
                 t::Scope::Project => w::HoldScope::Project,
             },
@@ -282,23 +223,20 @@ fn placed(value: &d::PlacedLine, limits: &w::Limits) -> Result<w::PlacedLine, w:
             revision: value.revision,
             lifted: value.lifted,
             may_lift: value.may_lift,
-        },
-    )
+        })
 }
 pub fn writer(value: t::Writer, limits: &w::Limits) -> Result<w::ResourceWriter, w::Problem> {
     Ok(match value {
         t::Writer::Run { task, attempt } => {
-            w::ResourceWriter::Run(w::ResourceWriterRun::new(limits, w::ResourceWriterRunParts { task, attempt })?)
+            w::ResourceWriter::Run(w::ResourceWriterRun { task, attempt })
         }
         t::Writer::Effect { entry } => {
-            w::ResourceWriter::Effect(w::ResourceWriterEffect::new(limits, w::ResourceWriterEffectParts { entry })?)
+            w::ResourceWriter::Effect(w::ResourceWriterEffect { entry })
         }
     })
 }
 pub fn resource(value: &d::ResourceLine, limits: &w::Limits) -> Result<w::ResourceLine, w::Problem> {
-    w::ResourceLine::new(
-        limits,
-        w::ResourceLineParts {
+    Ok(w::ResourceLine {
             part: owner::part(&value.part, limits)?,
             kind: value.kind,
             taken: value.taken,
@@ -308,8 +246,7 @@ pub fn resource(value: &d::ResourceLine, limits: &w::Limits) -> Result<w::Resour
                 None => None,
             },
             writer_lost: value.writer_lost,
-        },
-    )
+        })
 }
 pub fn resources_pieces(rows: &List<w::ResourceLine>, bound: u32, path: w::Path) -> Result<Box<[u8]>, w::Problem> {
     let mut encoded = List::with_capacity(rows.len());
@@ -331,16 +268,11 @@ pub fn work(value: &d::ChipWork, limits: &w::Limits) -> Result<w::ChipWork, w::P
         d::ChipWork::Writing => w::ChipWork::Writing,
         d::ChipWork::Waiting => w::ChipWork::Waiting,
         d::ChipWork::Ending => w::ChipWork::Ending,
-        d::ChipWork::Tool { call, tool } => w::ChipWork::Tool(w::ChipWorkTool::new(
-            limits,
-            w::ChipWorkToolParts { call: bytes::copy_of(call), tool: bytes::copy_of(tool) },
-        )?),
+        d::ChipWork::Tool { call, tool } => w::ChipWork::Tool(w::ChipWorkTool { call: bytes::copy_of(call), tool: bytes::copy_of(tool) }),
     })
 }
 pub fn observation(value: &d::ChipObservation, limits: &w::Limits) -> Result<w::ChipObservation, w::Problem> {
-    w::ChipObservation::new(
-        limits,
-        w::ChipObservationParts {
+    Ok(w::ChipObservation {
             channel: value.channel.raw(),
             work: work(&value.work, limits)?,
             since: value.since.as_nanos(),
@@ -349,19 +281,13 @@ pub fn observation(value: &d::ChipObservation, limits: &w::Limits) -> Result<w::
                 Some(item) => Some(item.as_nanos()),
                 None => None,
             },
-        },
-    )
+        })
 }
 pub fn person_notice(value: t::PersonStallNotice, limits: &w::Limits) -> Result<w::PersonStallNotice, w::Problem> {
-    w::PersonStallNotice::new(
-        limits,
-        w::PersonStallNoticeParts { message: value.message, at: value.at.as_nanos(), activity: value.activity },
-    )
+    Ok(w::PersonStallNotice { message: value.message, at: value.at.as_nanos(), activity: value.activity })
 }
 pub fn person_wait(value: t::PersonWait, limits: &w::Limits) -> Result<w::PersonWait, w::Problem> {
-    w::PersonWait::new(
-        limits,
-        w::PersonWaitParts {
+    Ok(w::PersonWait {
             since: value.since.as_nanos(),
             stall: value.stall,
             deadline: value.deadline.as_nanos(),
@@ -369,8 +295,7 @@ pub fn person_wait(value: t::PersonWait, limits: &w::Limits) -> Result<w::Person
                 Some(item) => Some(person_notice(item, limits)?),
                 None => None,
             },
-        },
-    )
+        })
 }
 fn compact(value: &d::PhaseLine) -> w::Phase {
     match value {
@@ -395,22 +320,19 @@ fn chip_executor(value: &d::Chip, limits: &w::Limits) -> Result<w::ChipExecutor,
             if value.executor != d::ExecutorKind::Job {
                 return Err(problem(skein_codec::Reason::Malformed));
             }
-            w::ChipExecutor::Job(w::ChipExecutorJob::new(limits, w::ChipExecutorJobParts { kind })?)
+            w::ChipExecutor::Job(w::ChipExecutorJob { kind })
         }
         t::Executor::Agent { charter } => {
             if value.executor != d::ExecutorKind::Agent {
                 return Err(problem(skein_codec::Reason::Malformed));
             }
-            w::ChipExecutor::Agent(w::ChipExecutorAgent::new(limits, w::ChipExecutorAgentParts { charter })?)
+            w::ChipExecutor::Agent(w::ChipExecutorAgent { charter })
         }
         t::Executor::Procedure { connector, code } => {
             if value.executor != d::ExecutorKind::Procedure {
                 return Err(problem(skein_codec::Reason::Malformed));
             }
-            w::ChipExecutor::Procedure(w::ChipExecutorProcedure::new(
-                limits,
-                w::ChipExecutorProcedureParts { connector, kind: code },
-            )?)
+            w::ChipExecutor::Procedure(w::ChipExecutorProcedure { connector, kind: code })
         }
         t::Executor::Person(address) => {
             if value.executor != d::ExecutorKind::Person {
@@ -418,12 +340,9 @@ fn chip_executor(value: &d::Chip, limits: &w::Limits) -> Result<w::ChipExecutor,
             }
             match address {
                 t::PersonAddress::Person(party) => {
-                    w::ChipExecutor::Party(w::ExecutorParty::new(limits, w::ExecutorPartyParts { party })?)
+                    w::ChipExecutor::Party(w::ExecutorParty { party })
                 }
-                t::PersonAddress::Role(role) => w::ChipExecutor::Role(w::ExecutorRole::new(
-                    limits,
-                    w::ExecutorRoleParts { project: value.details.project, role },
-                )?),
+                t::PersonAddress::Role(role) => w::ChipExecutor::Role(w::ExecutorRole { project: value.details.project, role }),
             }
         }
     })
@@ -431,52 +350,34 @@ fn chip_executor(value: &d::Chip, limits: &w::Limits) -> Result<w::ChipExecutor,
 pub fn chip(value: &d::Chip, limits: &w::Limits) -> Result<w::Chip, w::Problem> {
     let mut facts = List::with_capacity(5);
     facts
-        .push(w::Fact::Chip(w::ChipRow::new(
-            limits,
-            w::ChipRowParts {
+        .push(w::Fact::Chip(w::ChipRow {
                 parent: None,
-                value: w::ChipFields::new(
-                    limits,
-                    w::ChipFieldsParts {
+                value: w::ChipFields {
                         task: value.number,
                         title: owner::text(&value.title, limits)?,
                         executor: chip_executor(value, limits)?,
                         phase: compact(&value.phase),
                         details: 1,
                     },
-                )?,
-            },
-        )?))
+            }))
         .expect("chip root");
     facts
-        .push(w::Fact::ChipPhase(w::ChipPhaseRow::new(
-            limits,
-            w::ChipPhaseRowParts {
+        .push(w::Fact::ChipPhase(w::ChipPhaseRow {
                 parent: Some(0),
-                value: w::ChipPhaseOwnerFields::new(
-                    limits,
-                    w::ChipPhaseOwnerFieldsParts { phase: phase(&value.phase, limits)?, details: 2 },
-                )?,
-            },
-        )?))
+                value: w::ChipPhaseOwnerFields { phase: phase(&value.phase, limits)?, details: 2 },
+            }))
         .expect("chip phase");
     let ending = match &value.details.ending {
         Some(_) => Some(3),
         None => None,
     };
     facts
-        .push(w::Fact::ChipDetails(Box::new(w::ChipDetailsRow::new(
-            limits,
-            w::ChipDetailsRowParts { parent: Some(1), value: details_fields(&value.details, ending, limits)? },
-        )?)))
+        .push(w::Fact::ChipDetails(Box::new(w::ChipDetailsRow { parent: Some(1), value: details_fields(&value.details, ending, limits)? })))
         .expect("chip details");
     if let Some(ending) = &value.details.ending {
         append_ending(ending, Some(2), &mut facts, limits)?;
     }
-    w::Chip::new(
-        limits,
-        w::ChipParts { rows: fact_pieces(&facts, limits.chip_rows.min(w::CEILINGS.chip_rows), w::Path::ChipRows)? },
-    )
+    Ok(w::Chip { rows: fact_pieces(&facts, limits.chip_rows.min(w::CEILINGS.chip_rows), w::paths::CHIP_ROWS)? })
 }
 fn details_fields(
     value: &d::ChipDetails,
@@ -487,9 +388,7 @@ fn details_fields(
     for item in &value.resources {
         resources.push(resource(item, limits)?).expect("supplied resource rows");
     }
-    w::ChipDetailsFields::new(
-        limits,
-        w::ChipDetailsFieldsParts {
+    Ok(w::ChipDetailsFields {
             dependencies: dependencies(&value.dependencies, limits)?,
             project: value.project,
             executor: owner::executor(value.executor, limits)?,
@@ -517,7 +416,7 @@ fn details_fields(
             resources: resources_pieces(
                 &resources,
                 limits.chip_details_fields_resources.min(w::CEILINGS.chip_details_fields_resources),
-                w::Path::ChipDetailsFieldsResources,
+                w::paths::CHIP_DETAILS_FIELDS_RESOURCES,
             )?,
             resources_cut: value.resources_cut,
             resources_observed: value.resources_observed,
@@ -536,23 +435,19 @@ fn details_fields(
                 Some(item) => Some(observation(item, limits)?),
                 None => None,
             },
-        },
-    )
+        })
 }
 
 pub fn ending(value: &d::Ending, limits: &w::Limits) -> Result<w::ChipEnding, w::Problem> {
     let mut facts = List::with_capacity(2);
     append_ending(value, None, &mut facts, limits)?;
-    w::ChipEnding::new(
-        limits,
-        w::ChipEndingParts {
+    Ok(w::ChipEnding {
             rows: fact_pieces(
                 &facts,
                 limits.chip_ending_rows.min(w::CEILINGS.chip_ending_rows),
-                w::Path::ChipEndingRows,
+                w::paths::CHIP_ENDING_ROWS,
             )?,
-        },
-    )
+        })
 }
 pub(super) fn append_ending(
     value: &d::Ending,
@@ -563,18 +458,10 @@ pub(super) fn append_ending(
     let index = facts.len();
     let child = index.checked_add(1).ok_or(problem(skein_codec::Reason::Bound))?;
     let fields = match value {
-        d::Ending::Done(_) => w::ChipEndingFields::Done(w::ChipEndingDoneFields::new(
-            limits,
-            w::ChipEndingDoneFieldsParts { value: child },
-        )?),
-        d::Ending::Failed(value) => w::ChipEndingFields::Failed(w::ChipEndingFailedFields::new(
-            limits,
-            w::ChipEndingFailedFieldsParts { value: owner::text(value, limits)? },
-        )?),
+        d::Ending::Done(_) => w::ChipEndingFields::Done(w::ChipEndingDoneFields { value: child }),
+        d::Ending::Failed(value) => w::ChipEndingFields::Failed(w::ChipEndingFailedFields { value: owner::text(value, limits)? }),
         d::Ending::Cancelled { reason, result, by, at } => {
-            w::ChipEndingFields::Cancelled(w::ChipEndingCancelledFields::new(
-                limits,
-                w::ChipEndingCancelledFieldsParts {
+            w::ChipEndingFields::Cancelled(w::ChipEndingCancelledFields {
                     reason: owner::text(reason, limits)?,
                     result: match result {
                         Some(_) => Some(child),
@@ -582,12 +469,11 @@ pub(super) fn append_ending(
                     },
                     by: owner::requester(*by, limits)?,
                     at: at.as_nanos(),
-                },
-            )?)
+                })
         }
     };
     facts
-        .push(w::Fact::ChipEnding(w::ChipEndingRow::new(limits, w::ChipEndingRowParts { parent, value: fields })?))
+        .push(w::Fact::ChipEnding(w::ChipEndingRow { parent, value: fields }))
         .expect("bounded ending facts");
     let result = match value {
         d::Ending::Done(value) => Some(value),
@@ -596,60 +482,39 @@ pub(super) fn append_ending(
     };
     if let Some(value) = result {
         facts
-            .push(w::Fact::ResultValue(w::ResultValueRow::new(
-                limits,
-                w::ResultValueRowParts { parent: Some(index), value: result_fields(value, limits)? },
-            )?))
+            .push(w::Fact::ResultValue(w::ResultValueRow { parent: Some(index), value: result_fields(value, limits)? }))
             .expect("bounded result facts");
     }
     Ok(())
 }
 pub(super) fn result_fields(value: &d::ResultValue, limits: &w::Limits) -> Result<w::ResultValueFields, w::Problem> {
     Ok(match value {
-        d::ResultValue::Approved { state, words } => w::ResultValueFields::Approved(w::ResultValueApprovedFields::new(
-            limits,
-            w::ResultValueApprovedFieldsParts {
+        d::ResultValue::Approved { state, words } => w::ResultValueFields::Approved(w::ResultValueApprovedFields {
                 state: bytes::copy_of(state),
                 words: match words {
                     Some(item) => Some(owner::text(item, limits)?),
                     None => None,
                 },
-            },
-        )?),
-        d::ResultValue::Report(value) => w::ResultValueFields::Report(w::ResultValueReportFields::new(
-            limits,
-            w::ResultValueReportFieldsParts { value: owner::text(value, limits)? },
-        )?),
-        d::ResultValue::Failure(value) => w::ResultValueFields::Failure(w::ResultValueFailureFields::new(
-            limits,
-            w::ResultValueFailureFieldsParts { value: owner::text(value, limits)? },
-        )?),
-        d::ResultValue::Change { kind, part, words } => w::ResultValueFields::Change(w::ResultValueChangeFields::new(
-            limits,
-            w::ResultValueChangeFieldsParts {
+            }),
+        d::ResultValue::Report(value) => w::ResultValueFields::Report(w::ResultValueReportFields { value: owner::text(value, limits)? }),
+        d::ResultValue::Failure(value) => w::ResultValueFields::Failure(w::ResultValueFailureFields { value: owner::text(value, limits)? }),
+        d::ResultValue::Change { kind, part, words } => w::ResultValueFields::Change(w::ResultValueChangeFields {
                 kind: *kind,
                 part: owner::part(part, limits)?,
                 words: owner::text(words, limits)?,
-            },
-        )?),
+            }),
         d::ResultValue::Verdict { code, fields, words } => {
             let mut copied = List::with_capacity(super::count(fields.len())?);
             for item in fields {
                 copied
-                    .push(w::ResultField::new(
-                        limits,
-                        w::ResultFieldParts { name: bytes::copy_of(&item.name), value: bytes::copy_of(&item.value) },
-                    )?)
+                    .push(w::ResultField { name: bytes::copy_of(&item.name), value: bytes::copy_of(&item.value) })
                     .expect("supplied result fields");
             }
-            w::ResultValueFields::OwnerVerdict(w::ResultValueOwnerVerdictFields::new(
-                limits,
-                w::ResultValueOwnerVerdictFieldsParts {
+            w::ResultValueFields::OwnerVerdict(w::ResultValueOwnerVerdictFields {
                     verdict: *code,
                     words: owner::text(words, limits)?,
                     fields: copied,
-                },
-            )?)
+                })
         }
     })
 }
@@ -673,7 +538,7 @@ fn circle(value: Option<&t::Circle>, limits: &w::Limits) -> Result<Option<w::Cir
     for task in &value.tasks {
         tasks.push(*task).expect("same circle");
     }
-    Ok(Some(w::Circle::new(limits, w::CircleParts { tasks, cut: value.cut })?))
+    Ok(Some(w::Circle { tasks, cut: value.cut }))
 }
 fn status(value: t::Status) -> w::TaskStatus {
     match value {
@@ -689,15 +554,10 @@ pub(crate) fn dependencies(
     let mut rows = List::with_capacity(values.len());
     for value in values {
         let added = match &value.added {
-            Some(added) => Some(w::DependencyAdded::new(
-                limits,
-                w::DependencyAddedParts { at: added.at.as_nanos(), by: owner::requester(added.by, limits)? },
-            )?),
+            Some(added) => Some(w::DependencyAdded { at: added.at.as_nanos(), by: owner::requester(added.by, limits)? }),
             None => None,
         };
-        rows.push(w::Dependency::new(
-            limits,
-            w::DependencyParts {
+        rows.push(w::Dependency {
                 number: value.number,
                 pending: value.pending,
                 added,
@@ -706,8 +566,7 @@ pub(crate) fn dependencies(
                     Some(value) => Some(status(value)),
                     None => None,
                 },
-            },
-        )?)
+            })
         .expect("same dependency count");
     }
     Ok(rows)

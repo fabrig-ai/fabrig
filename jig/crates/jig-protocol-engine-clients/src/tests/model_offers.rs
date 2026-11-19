@@ -17,7 +17,7 @@ fn me_with_offer(model: w::MeModel, defaults: List<w::MeDefault>) -> w::Me {
     let mut project = w::MeProject::decode(limits.wire(), &mut Reader::new(&first)).unwrap().into_parts();
     project.defaults = defaults;
     project.models = list([model]);
-    let project = w::MeProject::new(limits.wire(), project).unwrap();
+    let project = project;
     let mut encoded = skein_lib::Writer::new(usize::try_from(project.measure()).unwrap());
     project.encode(&mut encoded).unwrap();
     let encoded = encoded.finish();
@@ -25,7 +25,7 @@ fn me_with_offer(model: w::MeModel, defaults: List<w::MeDefault>) -> w::Me {
     skein_codec::piece::write(&mut pieces, &encoded).unwrap();
     let mut me = frame.into_parts();
     me.projects = pieces.finish();
-    let me = w::Me::new(limits.wire(), me).unwrap();
+    let me = me;
     let mut encoded = skein_lib::Writer::new(usize::try_from(me.measure()).unwrap());
     me.encode(&mut encoded).unwrap();
     w::Me::decode(limits.wire(), &mut Reader::new(&encoded.finish())).unwrap()
@@ -84,9 +84,9 @@ fn model_offers_and_template_previews_cross_engine_wire_and_link_whole() {
         let choice = engine::translate::llm::choice(Some(&preview), core::slice::from_ref(&model), limits.wire())
             .unwrap()
             .unwrap();
-        defaults.push(w::MeDefault::new(limits.wire(), w::MeDefaultParts { template: 9, choice }).unwrap()).unwrap();
+        defaults.push(w::MeDefault { template: 9, choice }).unwrap();
         let decoded = jig_client_protocol_link::translate::documents::frame(
-            me_with_offer(w::MeModel::new(limits.wire(), wire).unwrap(), defaults),
+            me_with_offer(wire, defaults),
             &limits,
         )
         .unwrap();
@@ -165,17 +165,13 @@ fn model_acts_cross_link_and_wire_with_their_keyed_digest() {
         };
         assert_eq!(restored, ask);
         let digest: [u8; 32] = crate::sign_in::digest(&encoded).expose().try_into().unwrap();
-        let keyed = w::Keyed::new(
-            limits.wire(),
-            w::KeyedParts {
+        let keyed = w::Keyed {
                 key: [5; 16],
                 owner: w::Owner::Jig,
                 version: jig_client_protocol_wire::VERSION,
                 request: encoded.clone(),
                 value: None,
-            },
-        )
-        .unwrap();
+            };
         let mut bytes = skein_lib::Writer::new(usize::try_from(keyed.measure()).unwrap());
         keyed.encode(&mut bytes).unwrap();
         let mut exchange = fixtures::Exchange::new();

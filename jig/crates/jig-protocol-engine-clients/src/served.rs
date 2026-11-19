@@ -19,14 +19,14 @@ pub(crate) fn not_served(settings: &Settings, owner: w::Owner, limits: &w::Limit
         let owner = match family {
             None => w::Owner::Jig,
             Some(number) => {
-                w::Owner::Family(w::Family::new(limits, w::FamilyParts { number: *number }).expect("family"))
+                w::Owner::Family(w::Family { number: *number })
             }
         };
         served
-            .push(w::Served::new(limits, w::ServedParts { owner, first: *first, last: *last }).expect("range"))
+            .push(w::Served { owner, first: *first, last: *last })
             .expect("served bound");
     }
-    w::NotServed::new(limits, w::NotServedParts { owner, served }).expect("settings served bound")
+    w::NotServed { owner, served }
 }
 pub(crate) fn scope(scope: &w::Scope) -> ApplicationScope {
     match scope {
@@ -50,7 +50,7 @@ pub(crate) struct Opening {
     pub parts: List<translate::parts::Slot>,
 }
 pub(crate) fn watch(
-    subject: w::OwnedParts,
+    subject: w::Owned,
     watcher: skein_lib::Token,
     sign_in: u64,
     rows: u32,

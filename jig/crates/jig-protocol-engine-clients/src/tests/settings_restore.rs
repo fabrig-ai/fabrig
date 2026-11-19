@@ -123,43 +123,27 @@ fn a_project_policy_item_enters_the_core_from_a_change_and_a_proposal() {
     let limits = f::wire();
     let policy = values().into_iter().nth(2).unwrap();
     let expected = s::Item { setting: s::Setting::ProjectPolicy { project: 7 }, edit: s::Edit::Set(policy.clone()) };
-    let row = w::SettingItem::new(
-        &limits,
-        w::SettingItemParts {
+    let row = w::SettingItem {
             setting: settings::name(expected.setting, &limits).unwrap(),
             edit: w::SettingEdit::Set(
-                w::SettingSet::new(
-                    &limits,
-                    w::SettingSetParts { value: settings::value(&policy, &f::models(), &limits).unwrap() },
-                )
-                .unwrap(),
+                w::SettingSet { value: settings::value(&policy, &f::models(), &limits).unwrap() },
             ),
-        },
-    )
-    .unwrap();
+        };
     let mut bytes = Writer::new(usize::try_from(row.measure()).unwrap());
     row.encode(&mut bytes).unwrap();
     let items = f::pieces(&[bytes.finish()]);
-    let change = w::ChangeSettings::new(
-        &limits,
-        w::ChangeSettingsParts { against: 5, items: items.clone(), running: w::Running::Stays },
-    )
-    .unwrap();
+    let change = w::ChangeSettings { against: 5, items: items.clone(), running: w::Running::Stays };
     assert_eq!(
         settings::change(change, &f::models(), &limits).unwrap().items.as_ref(),
         ::core::slice::from_ref(&expected)
     );
-    let proposal = w::Propose::new(
-        &limits,
-        w::ProposeParts {
+    let proposal = w::Propose {
             project: 0,
             action: w::ProposeAction::Settings(
-                w::ProposeSettings::new(&limits, w::ProposeSettingsParts { against: 5, items }).unwrap(),
+                w::ProposeSettings { against: 5, items },
             ),
             reason: Box::from(b"review".as_slice()),
-        },
-    )
-    .unwrap();
+        };
     assert_eq!(settings::proposed(proposal, &f::models(), &limits).unwrap().items.as_ref(), &[expected]);
 }
 #[test]
@@ -269,7 +253,7 @@ fn revision_items_carry_what_each_replaced() {
 fn a_restore_ask_enters_the_people_vocabulary() {
     let limits = f::wire();
     let ask = w::Ask::Restore(
-        w::Restore::new(&limits, w::RestoreParts { revision: 3, reason: Box::from("restore λ".as_bytes()) }).unwrap(),
+        w::Restore { revision: 3, reason: Box::from("restore λ".as_bytes()) },
     );
     let bytes = f::encode_ask(&ask);
     let ask = w::Ask::decode(&limits, &mut Reader::new(&bytes)).unwrap();

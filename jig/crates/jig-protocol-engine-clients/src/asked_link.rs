@@ -112,11 +112,7 @@ impl Component {
                                 self.remember_digest(LinkKind::Asked, old.digest, Past::Expired);
                             }
                             w::LinkAskAnswer::Asked(
-                                w::LinkAsked::new(
-                                    &env.limits.wire,
-                                    w::LinkAskedParts { secret, expires: expires.as_nanos() },
-                                )
-                                .expect("32-byte secret admitted"),
+                                w::LinkAsked { secret, expires: expires.as_nanos() },
                             )
                         }
                     }

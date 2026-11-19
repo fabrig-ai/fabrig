@@ -74,14 +74,14 @@ fn me_lists_the_cores_offer_with_its_accounts_in_order() {
     assert!(!careful.picker());
     assert_eq!(
         careful.prices().clone().into_parts(),
-        w::MePricesParts { input: 3, cached: 1, cache_write: Some(5), output: 15, unit: 1_000_000 }
+        w::MePrices { input: 3, cached: 1, cache_write: Some(5), output: 15, unit: 1_000_000 }
     );
     assert_eq!(careful.description().as_deref(), Some(b"For careful work".as_slice()));
     let quick = all.models().get(1).unwrap();
     assert_eq!((quick.name(), quick.provider(), quick.efforts().len()), (b"quick".as_slice(), &None, 0));
     assert_eq!(
         quick.prices().clone().into_parts(),
-        w::MePricesParts { input: 1, cached: 1, cache_write: None, output: 2, unit: 1000 }
+        w::MePrices { input: 1, cached: 1, cache_write: None, output: 2, unit: 1000 }
     );
     assert_eq!(quick.description(), &None);
 }
@@ -181,25 +181,25 @@ fn create(choice: w::LlmChoice) -> w::Ask {
     let bytes = skein_codec::piece::split(&mut Reader::new(create.tasks())).unwrap().unwrap();
     let mut parts = w::NewTask::decode(&limits, &mut Reader::new(&bytes)).unwrap().into_parts();
     parts.llm = Some(choice);
-    let task = w::NewTask::new(&limits, parts).unwrap();
+    let task = parts;
     let mut out = Writer::new(usize::try_from(task.measure()).unwrap());
     task.encode(&mut out).unwrap();
     let tasks = fixtures::pieces(&[out.finish()]);
-    w::Ask::Create(w::Create::new(&limits, w::CreateParts { project: fixtures::PROJECT, tasks }).unwrap())
+    w::Ask::Create(w::Create { project: fixtures::PROJECT, tasks })
 }
 /// An amendment changing only the task's choice.
 fn amend(choice: w::LlmChoice) -> Box<w::Amend> {
     let limits = fixtures::wire();
     let mut change = fixtures::empty_amendment(None).into_parts();
     change.llm = Some(choice);
-    let parts = w::AmendParts {
+    let parts = w::Amend {
         project: fixtures::PROJECT,
         task: 8,
         revision: None,
-        change: w::Amendment::new(&limits, change).unwrap(),
+        change: change,
         reason: Box::new([]),
     };
-    Box::new(w::Amend::new(&limits, parts).unwrap())
+    Box::new(parts)
 }
 /// The place and refusal the engine answers an ask with before the core sees it.
 fn refused(ask: &w::Ask) -> (Option<u32>, w::Refusal) {
@@ -209,7 +209,7 @@ fn refused(ask: &w::Ask) -> (Option<u32>, w::Refusal) {
     (*value.at(), value.refusal().clone())
 }
 fn named(model: &[u8], why: w::LlmWhy) -> w::Refusal {
-    w::Refusal::Llm(w::RefusalLlm::new(&fixtures::wire(), w::RefusalLlmParts { model: model.into(), why }).unwrap())
+    w::Refusal::Llm(w::RefusalLlm { model: model.into(), why })
 }
 
 #[test]
@@ -220,9 +220,9 @@ fn a_choice_naming_a_model_or_an_effort_configuration_lacks_is_refused_by_its_na
     assert_eq!(refused(&unknown), (None, named(b"careless", w::LlmWhy::Unconfigured)));
     let effort = w::Ask::Amend(amend(fixtures::llm_choice(&l, b"careful", Some(b"medium"), b"quick")));
     assert_eq!(refused(&effort), (None, named(b"careful", w::LlmWhy::Effort)));
-    let message = w::MessageParts { project: fixtures::PROJECT, task: 8, words: b"words".as_slice().into() };
+    let message = w::Message { project: fixtures::PROJECT, task: 8, words: b"words".as_slice().into() };
     let operations = [
-        w::Operation::Message(w::Message::new(&l, message).unwrap()),
+        w::Operation::Message(message),
         w::Operation::Amend(amend(fixtures::llm_choice(&l, b"careful", Some(b"high"), b"hasty"))),
     ];
     let compound = fixtures::compound(fixtures::PROJECT, &operations);
@@ -264,18 +264,13 @@ fn settings_requests(items: Box<[c::SettingItem]>) -> [w::Ask; 2] {
     let change =
         c::ChangeSettings { against: 5, items: skein_lib::List::from_boxed(items), running: c::Running::Stays };
     let change = jig_client_protocol_link::translate::settings::wire_change_settings(&change, &limits).unwrap();
-    let proposal = w::Propose::new(
-        &limits,
-        w::ProposeParts {
+    let proposal = w::Propose {
             project: 0,
             action: w::ProposeAction::Settings(
-                w::ProposeSettings::new(&limits, w::ProposeSettingsParts { against: 5, items: change.items().into() })
-                    .unwrap(),
+                w::ProposeSettings { against: 5, items: change.items().into() },
             ),
             reason: b"review settings".as_slice().into(),
-        },
-    )
-    .unwrap();
+        };
     [w::Ask::ChangeSettings(change), w::Ask::Propose(proposal)]
 }
 
@@ -364,7 +359,7 @@ fn a_model_the_core_refuses_is_named_by_configuration() {
     let past = p::Reply::Outcome(p::Outcome::Refused(p::Refusal::Llm { model: 2, why: p::LlmWhy::Authority }));
     assert_eq!(
         translate::answers::answer(&past, &fixtures::models(), &l),
-        Err(w::Problem { path: w::Path::RefusalLlmModel, reason: skein_codec::Reason::Bound })
+        Err(w::Problem { path: w::paths::REFUSAL_LLM_MODEL, reason: skein_codec::Reason::Bound })
     );
 }
 
@@ -381,11 +376,11 @@ fn selector_ask(names: &[&[u8]]) -> w::Ask {
         rows.push(Box::from(*name)).unwrap();
     }
     authority.models =
-        Some(w::ModelSet::Names(w::ModelSetNames::new(&limits, w::ModelSetNamesParts { names: rows }).unwrap()));
-    value.authority = w::Authority::new(&limits, authority).unwrap();
-    role.value = w::PolicyEditRole::new(&limits, value).unwrap();
-    ask.edit = w::PolicyEdit::Role(w::PolicyEditRoleValue::new(&limits, role).unwrap());
-    w::Ask::ChangePolicy(w::ChangePolicy::new(&limits, ask).unwrap())
+        Some(w::ModelSet::Names(w::ModelSetNames { names: rows }));
+    value.authority = authority;
+    role.value = value;
+    ask.edit = w::PolicyEdit::Role(role);
+    w::Ask::ChangePolicy(ask)
 }
 #[test]
 fn original_selector_names_are_canonical_and_unknowns_reach_retained_key_lookup() {
@@ -406,7 +401,7 @@ fn an_explicit_account_reaches_the_people_child() {
     let l = fixtures::wire();
     let mut choice = fixtures::careful_and_quick(&l).into_parts();
     choice.account = Some(42);
-    let ask = w::Ask::Amend(amend(w::LlmChoice::new(&l, choice).unwrap()));
+    let ask = w::Ask::Amend(amend(choice));
     let Ok(p::Ask::Amend { amendment, .. }) = translate::asks::ask(ask, &fixtures::models(), &l) else {
         panic!("amendment")
     };

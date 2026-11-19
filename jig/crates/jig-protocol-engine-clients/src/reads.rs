@@ -152,7 +152,7 @@ impl Component {
         match waiting {
             Waiting::ApplicationRead { family: number, version, .. } if number == family => {
                 let answer = match record {
-                    Some(record) => match w::Family::new(&env.limits.wire, w::FamilyParts { number }) {
+                    Some(record) => match Ok(w::Family { number }) {
                         Ok(family) => {
                             crate::translate::reads::owned(w::Owner::Family(family), version, record, &env.limits.wire)
                         }

@@ -213,9 +213,8 @@ pub fn frame_two_projects_record() -> jig_client_protocol_wire::Me {
         let project = w::MeProject::decode(&limits, &mut skein_lib::Reader::new(&bytes)).expect("fixture project");
         let mut project = project.into_parts();
         project.name =
-            w::DocumentText::new(&limits, w::DocumentTextParts { bytes: Box::from(&b"Tally"[..]), cut: false })
-                .expect("literal name");
-        let project = w::MeProject::new(&limits, project).expect("named project");
+            w::DocumentText { bytes: Box::from(&b"Tally"[..]), cut: false };
+        let project = project;
         size = size
             .checked_add(skein_lib::length::usize_of(project.measure()))
             .expect("fixture size")
@@ -230,5 +229,5 @@ pub fn frame_two_projects_record() -> jig_client_protocol_wire::Me {
         skein_codec::piece::write(&mut writer, &encoded.finish()).expect("measured piece");
     }
     parts.projects = writer.finish();
-    w::Me::new(&limits, parts).expect("named frame fixture")
+    parts
 }

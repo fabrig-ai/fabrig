@@ -18,27 +18,18 @@ fn roomy() -> Exchange {
 fn finish(exchange: &mut Exchange, bytes: &[u8]) -> Token {
     let limits = f::wire();
     let change = w::AccountChange::FinishSignIn(
-        w::AccountChangeFinishSignIn::new(
-            &limits,
-            w::AccountChangeFinishSignInParts { source: SOURCE, digest: skein_lib::sha256::digest(bytes) },
-        )
-        .unwrap(),
+        w::AccountChangeFinishSignIn { source: SOURCE, digest: skein_lib::sha256::digest(bytes) },
     );
     let ask = w::Ask::AccountChange(
-        w::AskAccountChange::new(&limits, w::AskAccountChangeParts { holder: w::AskAccountHolder::Own, change })
-            .unwrap(),
+        w::AskAccountChange { holder: w::AskAccountHolder::Own, change },
     );
-    let keyed = w::Keyed::new(
-        &limits,
-        w::KeyedParts {
+    let keyed = w::Keyed {
             key: [5; 16],
             owner: w::Owner::Jig,
             version: jig_client_protocol_wire::VERSION,
             request: f::encode_ask(&ask),
             value: Some(Secret::new(Box::from(bytes))),
-        },
-    )
-    .unwrap();
+        };
     let mut writer = Writer::new(usize::try_from(keyed.measure()).unwrap());
     keyed.encode(&mut writer).unwrap();
     let owner = exchange.send(Message::Request(writer.finish()));

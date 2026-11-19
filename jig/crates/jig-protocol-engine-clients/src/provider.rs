@@ -316,13 +316,12 @@ fn query_refused(limits: &Limits, why: Refusal) -> w::AuthorizeAnswer {
 }
 fn refused(limits: &Limits, why: w::AuthorizeWhy) -> w::AuthorizeAnswer {
     w::AuthorizeAnswer::Refused(
-        w::AuthorizeRefused::new(&limits.wire, w::AuthorizeRefusedParts { why }).expect("fixed refusal"),
+        w::AuthorizeRefused { why },
     )
 }
 fn go(limits: &Limits, location: Box<[u8]>) -> w::AuthorizeAnswer {
     w::AuthorizeAnswer::Go(
-        w::AuthorizeGo::new(&limits.wire, w::AuthorizeGoParts { location })
-            .expect("provider location bound checked at startup"),
+        w::AuthorizeGo { location },
     )
 }
 fn draw(rng: &mut skein_lib::CryptoRng) -> Secret {

@@ -18,17 +18,13 @@ fn carrying(owner: w::Owner, value: &[u8]) -> Box<[u8]> {
     keyed_value(owner, version, request, value)
 }
 fn keyed_value(owner: w::Owner, version: u32, request: Box<[u8]>, value: &[u8]) -> Box<[u8]> {
-    let record = w::Keyed::new(
-        &f::wire(),
-        w::KeyedParts { key: [5; 16], owner, version, request, value: Some(Secret::new(Box::from(value))) },
-    )
-    .expect("carrying keyed");
+    let record = w::Keyed { key: [5; 16], owner, version, request, value: Some(Secret::new(Box::from(value))) };
     let mut out = Writer::new(skein_lib::length::usize_of(record.measure()));
     record.encode(&mut out).expect("bounded keyed");
     out.finish()
 }
 fn family() -> w::Owner {
-    w::Owner::Family(w::Family::new(&f::wire(), w::FamilyParts { number: 9 }).expect("family"))
+    w::Owner::Family(w::Family { number: 9 })
 }
 /// Sends a carrying family request; returns its connection and exchange
 /// once the store has been asked to keep its value.
@@ -162,21 +158,19 @@ fn every_carrying_request_names_its_values_kind() {
     let changes = [
         (
             w::AccountChange::AddKey(
-                w::AccountChangeAddKey::new(&limits, w::AccountChangeAddKeyParts { provider: 3, join: None, digest })
-                    .expect("add key"),
+                w::AccountChangeAddKey { provider: 3, join: None, digest },
             ),
             crate::CarriedKind::Key,
         ),
         (
             w::AccountChange::ReplaceKey(
-                w::AccountChangeReplaceKey::new(&limits, w::AccountChangeReplaceKeyParts { source: 29, digest })
-                    .expect("replace key"),
+                w::AccountChangeReplaceKey { source: 29, digest },
             ),
             crate::CarriedKind::Key,
         ),
         (
             w::AccountChange::MoveIn(
-                w::AccountChangeMoveIn::new(&limits, w::AccountChangeMoveInParts { digest }).expect("move in"),
+                w::AccountChangeMoveIn { digest },
             ),
             crate::CarriedKind::Moved,
         ),
@@ -185,8 +179,7 @@ fn every_carrying_request_names_its_values_kind() {
     rows.push((carrying(family(), value), crate::CarriedKind::Value)).expect("application row");
     for (change, kind) in changes {
         let ask = w::Ask::AccountChange(
-            w::AskAccountChange::new(&limits, w::AskAccountChangeParts { holder: w::AskAccountHolder::Own, change })
-                .expect("account change"),
+            w::AskAccountChange { holder: w::AskAccountHolder::Own, change },
         );
         rows.push((keyed_value(w::Owner::Jig, jig_client_protocol_wire::VERSION, f::encode_ask(&ask), value), kind))
             .expect("account row");

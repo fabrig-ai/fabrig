@@ -59,15 +59,13 @@ pub(super) fn query(value: w::TaskQuery) -> Option<d::TaskQuery> {
 }
 pub(super) fn waits(value: WaitsOn, limits: &w::Limits) -> Result<w::WaitsOn, w::Problem> {
     Ok(match value {
-        WaitsOn::Party { whom, entries, task, kind } => w::WaitsOn::Party(w::WaitsOnParty::new(
-            limits,
-            w::WaitsOnPartyParts {
+        WaitsOn::Party { whom, entries, task, kind } => w::WaitsOn::Party(w::WaitsOnParty {
                 whom: match whom {
                     p::Whom::Person(value) => {
-                        w::Whom::Person(w::WhomPerson::new(limits, w::WhomPersonParts { value })?)
+                        w::Whom::Person(w::WhomPerson { value })
                     }
                     p::Whom::Role { project, role } => {
-                        w::Whom::Role(w::WhomRole::new(limits, w::WhomRoleParts { project, role })?)
+                        w::Whom::Role(w::WhomRole { project, role })
                     }
                 },
                 entries,
@@ -81,15 +79,11 @@ pub(super) fn waits(value: WaitsOn, limits: &w::Limits) -> Result<w::WaitsOn, w:
                         return Err(super::problem(skein_codec::Reason::Tag));
                     }
                 },
-            },
-        )?),
-        WaitsOn::Dependencies { pending, count } => w::WaitsOn::Dependencies(w::WaitsOnDependencies::new(
-            limits,
-            w::WaitsOnDependenciesParts { pending, count },
-        )?),
+            }),
+        WaitsOn::Dependencies { pending, count } => w::WaitsOn::Dependencies(w::WaitsOnDependencies { pending, count }),
         WaitsOn::Delegates => w::WaitsOn::Delegates,
         WaitsOn::Question { number } => {
-            w::WaitsOn::Question(w::WaitsOnQuestion::new(limits, w::WaitsOnQuestionParts { number })?)
+            w::WaitsOn::Question(w::WaitsOnQuestion { number })
         }
         WaitsOn::News => w::WaitsOn::News,
         WaitsOn::Nothing => w::WaitsOn::Nothing,
@@ -103,9 +97,7 @@ pub(super) fn line_parts(
     slots: &List<super::parts::Slot>,
     limits: &w::Limits,
 ) -> Result<w::TaskLine, w::Problem> {
-    w::TaskLine::new(
-        limits,
-        w::TaskLineParts {
+    Ok(w::TaskLine {
             parts: super::parts::row(&value.parts, slots, limits)?,
             chip: chips::chip(&value.chip, limits)?,
             project: value.project,
@@ -127,13 +119,9 @@ pub(super) fn line_parts(
             held_below: value.held_below,
             conversation: match value.conversation {
                 None => None,
-                Some(v) => Some(w::ConversationRead::new(
-                    limits,
-                    w::ConversationReadParts { seen: v.seen, unread: live::count(v.unread, limits)? },
-                )?),
+                Some(v) => Some(w::ConversationRead { seen: v.seen, unread: live::count(v.unread, limits)? }),
             },
-        },
-    )
+        })
 }
 pub(crate) fn lines(
     value: &d::Lines,
@@ -147,6 +135,6 @@ pub(crate) fn lines(
         row.encode(&mut writer).expect("measured task line");
         rows.push(writer.finish()).expect("same line count");
     }
-    let rows = super::pieces(&rows, limits.tasks_rows, w::Path::TasksRows)?;
-    w::Tasks::new(limits, w::TasksParts { ended_mark: value.ended_mark, rows, more: value.next.is_some() })
+    let rows = super::pieces(&rows, limits.tasks_rows, w::paths::TASKS_ROWS)?;
+    Ok(w::Tasks { ended_mark: value.ended_mark, rows, more: value.next.is_some() })
 }

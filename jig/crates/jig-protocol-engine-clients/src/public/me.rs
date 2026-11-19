@@ -129,5 +129,5 @@ fn delivery(
 ) -> Result<w::StreamEvent, w::Problem> {
     let value = w::DeliveryValue::Me(translate::owner::frame_named(frame, models, names, limits)?);
     let document = translate::watches::owned(value, version, limits)?;
-    Ok(w::StreamEvent::Delivery(w::Delivery::new(limits, w::DeliveryParts { watch, document })?))
+    Ok(w::StreamEvent::Delivery(w::Delivery { watch, document }))
 }

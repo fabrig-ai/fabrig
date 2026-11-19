@@ -83,20 +83,15 @@ pub(super) fn note_pieces(rows: &List<w::Note>, bound: u32, path: w::Path) -> Re
     pieces(&encoded, bound, path)
 }
 pub(super) fn funding(value: &t::FundingRecord, limits: &w::Limits) -> Result<w::FundingRecord, w::Problem> {
-    w::FundingRecord::new(
-        limits,
-        w::FundingRecordParts {
+    Ok(w::FundingRecord {
             period: match value.period {
-                Some(value) => Some(w::PeriodTimes::new(
-                    limits,
-                    w::PeriodTimesParts {
+                Some(value) => Some(w::PeriodTimes {
                         began: value.began.as_nanos(),
                         next: match value.next {
                             Some(value) => Some(value.as_nanos()),
                             None => None,
                         },
-                    },
-                )?),
+                    }),
                 None => None,
             },
             funder: owner::funder(value.funder, limits)?,
@@ -107,50 +102,44 @@ pub(super) fn funding(value: &t::FundingRecord, limits: &w::Limits) -> Result<w:
             numbers: owner::numbers(value.numbers, limits)?,
             made: value.made,
             closed: value.closed,
-        },
-    )
+        })
 }
 pub(super) fn note(models: &[crate::Model], value: &d::Note, limits: &w::Limits) -> Result<w::Note, w::Problem> {
     let scope = match &value.scope {
         d::NoteLocation::Party { party } => {
-            w::NoteScope::Party(w::NoteScopeParty::new(limits, w::NoteScopePartyParts { party: *party })?)
+            w::NoteScope::Party(w::NoteScopeParty { party: *party })
         }
         d::NoteLocation::Deployment => w::NoteScope::Deployment,
         d::NoteLocation::Project(value) => {
-            w::NoteScope::Project(w::NoteScopeProject::new(limits, w::NoteScopeProjectParts { value: *value })?)
+            w::NoteScope::Project(w::NoteScopeProject { value: *value })
         }
         d::NoteLocation::Goal { project, task } => {
-            w::NoteScope::Task(w::NoteScopeTask::new(limits, w::NoteScopeTaskParts { project: *project, task: *task })?)
+            w::NoteScope::Task(w::NoteScopeTask { project: *project, task: *task })
         }
-        d::NoteLocation::Resources { project, scope } => w::NoteScope::Resource(w::NoteScopeResource::new(
-            limits,
-            w::NoteScopeResourceParts {
+        d::NoteLocation::Resources { project, scope } => w::NoteScope::Resource(w::NoteScopeResource {
                 project: *project,
                 connector: scope.connector,
                 pattern: owner::pattern(&scope.segments, &scope.last, limits)?,
-            },
-        )?),
+            }),
     };
     let writer = match value.writer {
         jig_domain_notes::Author::Party { party } => {
-            w::NoteAuthor::Party(w::NoteAuthorParty::new(limits, w::NoteAuthorPartyParts { party })?)
+            w::NoteAuthor::Party(w::NoteAuthorParty { party })
         }
         jig_domain_notes::Author::Task { task, attempt } => {
-            w::NoteAuthor::Task(w::NoteAuthorTask::new(limits, w::NoteAuthorTaskParts { task, attempt })?)
+            w::NoteAuthor::Task(w::NoteAuthorTask { task, attempt })
         }
     };
     if value.tasks.capacity() > limits.note_tasks.min(w::CEILINGS.note_tasks) {
-        return Err(w::Problem { path: w::Path::NoteTasks, reason: skein_codec::Reason::Bound });
+        return Err(w::Problem { path: w::paths::NOTE_TASKS, reason: skein_codec::Reason::Bound });
     }
     let mut tasks = List::with_capacity(value.tasks.capacity());
     for value in &value.tasks {
         tasks.push(*value).expect("selected references fit");
     }
-    w::Note::new(
-        limits,
-        w::NoteParts {
+    Ok(w::Note {
             number: value.number,
-            revision: w::Revision::new(limits, w::RevisionParts { value: u64::from(value.revision) })?,
+            revision: w::Revision { value: u64::from(value.revision) },
             scope,
             description: owner::text(&value.description, limits)?,
             body: owner::text(&value.body, limits)?,
@@ -160,8 +149,7 @@ pub(super) fn note(models: &[crate::Model], value: &d::Note, limits: &w::Limits)
                 Some(value) => Some(value.as_nanos()),
                 None => None,
             },
-            acts: task::offered(models, &value.acts, limits, limits.note_acts, w::Path::NoteActs)?,
+            acts: task::offered(models, &value.acts, limits, limits.note_acts, w::paths::NOTE_ACTS)?,
             cut: value.cut,
-        },
-    )
+        })
 }

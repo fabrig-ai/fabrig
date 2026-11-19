@@ -175,17 +175,13 @@ impl Component {
             let subject = w::Subject::Me;
             let mut record = skein_lib::Writer::new(skein_lib::length::usize_of(subject.measure()));
             subject.encode(&mut record).expect("measured subject");
-            let subject = w::Owned::new(
-                &env.limits.wire,
-                w::OwnedParts {
+            let subject = w::Owned {
                     owner: w::Owner::Jig,
                     version: version.expect("served opening"),
                     record: record.finish(),
-                },
-            )
-            .expect("me subject");
+                };
             let open =
-                w::Open::new(&env.limits.wire, w::OpenParts { stream: name, watch: 0, subject }).expect("stream watch");
+                w::Open { stream: name, watch: 0, subject };
             self.open_watch(env, None, sign_in, open, out);
         }
     }
@@ -385,10 +381,7 @@ impl Component {
         let value = if stream.me == Some(watcher) {
             match value {
                 Ok(w::StreamEvent::Delivery(delivery)) => match stream.hello.take() {
-                    Some(hello) => match w::Opened::new(
-                        &env.limits.wire,
-                        w::OpenedParts { hello, me: delivery.into_parts().document },
-                    ) {
+                    Some(hello) => match Ok(w::Opened { hello, me: delivery.document }) {
                         Ok(opened) => Ok(w::StreamEvent::Opened(opened)),
                         Err(problem) => Err(problem),
                     },

@@ -15,7 +15,7 @@ pub(crate) fn plan(asks: &List<d::PartAsk>, settings: &crate::Settings, limits: 
         let slot = if crate::served::serves(settings, Some(ask.owner), ask.version) {
             Slot::Served(*ask)
         } else {
-            let owner = w::Owner::Family(w::Family::new(limits, w::FamilyParts { number: ask.owner }).expect("family"));
+            let owner = w::Owner::Family(w::Family { number: ask.owner });
             Slot::NotServed(crate::served::not_served(settings, owner, limits))
         };
         slots.push(slot).expect("one slot per ask");
@@ -67,25 +67,19 @@ pub(crate) fn row(
         let part = match slot {
             Slot::NotServed(why) => w::RowPart::NotServed(why.clone()),
             Slot::Served(ask) => match supplied.next().ok_or(invalid)? {
-                d::RowPart::Made(bytes) => w::RowPart::Value(w::Owned::new(
-                    limits,
-                    w::OwnedParts {
-                        owner: w::Owner::Family(w::Family::new(limits, w::FamilyParts { number: ask.owner })?),
+                d::RowPart::Made(bytes) => w::RowPart::Value(w::Owned {
+                        owner: w::Owner::Family(w::Family { number: ask.owner }),
                         version: ask.version,
                         record: skein_lib::bytes::copy_of(bytes),
-                    },
-                )?),
+                    }),
                 d::RowPart::Unknown => w::RowPart::Unknown,
-                d::RowPart::Failed(why) => w::RowPart::Failed(w::PartFailed::new(
-                    limits,
-                    w::PartFailedParts {
+                d::RowPart::Failed(why) => w::RowPart::Failed(w::PartFailed {
                         why: match why {
                             d::PartFailure::Busy => w::PartFailure::Busy,
                             d::PartFailure::TooLarge => w::PartFailure::TooLarge,
                             d::PartFailure::Unreadable => w::PartFailure::Unreadable,
                         },
-                    },
-                )?),
+                    }),
             },
         };
         parts.push(part).expect("one part per slot");

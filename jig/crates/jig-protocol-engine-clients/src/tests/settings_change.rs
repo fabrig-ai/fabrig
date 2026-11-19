@@ -32,17 +32,13 @@ fn all_four_whole_values_translate_and_the_component_passes_the_exact_asks_diges
     let expected_digest = crate::sign_in::digest(&encoded).expose().try_into().expect("settings fixture");
     let expected = p::Ask::ChangeSettings { against: 5, digest: expected_digest, projects: Box::default() };
     assert_eq!(translate::asks::ask(wire, &exchange.component.settings.models, &f::wire()), Ok(expected));
-    let keyed = w::Keyed::new(
-        &exchange.env.limits.wire,
-        w::KeyedParts {
+    let keyed = w::Keyed {
             key: [5; 16],
             owner: w::Owner::Jig,
             version: jig_client_protocol_wire::VERSION,
             request: encoded,
             value: None,
-        },
-    )
-    .expect("settings envelope");
+        };
     let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(keyed.measure()));
     keyed.encode(&mut writer).expect("settings envelope");
     exchange.send(crate::Message::Request(writer.finish()));
@@ -82,17 +78,12 @@ fn resets_and_removals_translate_and_bad_pieces_reach_no_core() {
     let limits = f::wire();
     let mut rows = List::with_capacity(2);
     for edit in [w::SettingEdit::Reset, w::SettingEdit::Removed] {
-        let item = w::SettingItem::new(&limits, w::SettingItemParts { setting: w::Setting::Rules, edit })
-            .expect("settings fixture");
+        let item = w::SettingItem { setting: w::Setting::Rules, edit };
         let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(item.measure()));
         item.encode(&mut writer).expect("settings fixture");
         rows.push(writer.finish()).expect("settings fixture");
     }
-    let request = w::ChangeSettings::new(
-        &limits,
-        w::ChangeSettingsParts { against: 3, items: f::pieces(rows.as_slice()), running: w::Running::Stays },
-    )
-    .expect("settings fixture");
+    let request = w::ChangeSettings { against: 3, items: f::pieces(rows.as_slice()), running: w::Running::Stays };
     let change = translate::settings::change(request, &f::models(), &limits).expect("settings fixture");
     assert_eq!(
         change.items.as_ref(),
@@ -103,8 +94,7 @@ fn resets_and_removals_translate_and_bad_pieces_reach_no_core() {
     );
     for items in [Box::<[u8]>::from([0]), f::pieces(&[Box::new([255])])] {
         let wire = w::Ask::ChangeSettings(
-            w::ChangeSettings::new(&limits, w::ChangeSettingsParts { against: 1, items, running: w::Running::Stays })
-                .expect("settings fixture"),
+            w::ChangeSettings { against: 1, items, running: w::Running::Stays },
         );
         let mut exchange = Exchange::new();
         let owner = exchange.send(crate::Message::Request(f::keyed(
@@ -168,32 +158,30 @@ fn settings_answers_and_each_fault_keep_their_facts() {
                 facts.setting(),
                 &match setting {
                     jig_domain_people::Setting::ProjectPolicy { project } => w::Setting::ProjectPolicy(
-                        w::ProjectPolicySetting::new(&limits, w::ProjectPolicySettingParts { project })
-                            .expect("project policy")
+                        w::ProjectPolicySetting { project }
                     ),
                     p::Setting::Charter(number) => w::Setting::Charter(
-                        w::SettingNumber::new(&limits, w::SettingNumberParts { number }).expect("number")
+                        w::SettingNumber { number }
                     ),
                     p::Setting::Template(number) => w::Setting::Template(
-                        w::SettingNumber::new(&limits, w::SettingNumberParts { number }).expect("number")
+                        w::SettingNumber { number }
                     ),
                     p::Setting::Policy(number) => w::Setting::Policy(
-                        w::SettingNumber::new(&limits, w::SettingNumberParts { number }).expect("number")
+                        w::SettingNumber { number }
                     ),
                     p::Setting::Model(number) => w::Setting::Model(
-                        w::SettingNumber::new(&limits, w::SettingNumberParts { number }).expect("number")
+                        w::SettingNumber { number }
                     ),
                     p::Setting::Worker(number) => w::Setting::Worker(
-                        w::SettingNumber::new(&limits, w::SettingNumberParts { number }).expect("number")
+                        w::SettingNumber { number }
                     ),
                     p::Setting::Provider(number) => w::Setting::Provider(
-                        w::SettingNumber::new(&limits, w::SettingNumberParts { number }).expect("number")
+                        w::SettingNumber { number }
                     ),
                     p::Setting::Rules => w::Setting::Rules,
                     p::Setting::Limits => w::Setting::Limits,
                     p::Setting::Application { kind, scope, number } => w::Setting::Application(
-                        w::ApplicationSetting::new(&limits, w::ApplicationSettingParts { kind, scope, number })
-                            .expect("application setting")
+                        w::ApplicationSetting { kind, scope, number }
                     ),
                 }
             );
@@ -209,21 +197,13 @@ fn proposed_settings(value: w::ChangeSettings) -> w::Ask {
     let value = value.into_parts();
     let limits = f::wire();
     w::Ask::Propose(
-        w::Propose::new(
-            &limits,
-            w::ProposeParts {
+        w::Propose {
                 project: 0,
                 action: w::ProposeAction::Settings(
-                    w::ProposeSettings::new(
-                        &limits,
-                        w::ProposeSettingsParts { against: value.against, items: value.items },
-                    )
-                    .expect("proposed set"),
+                    w::ProposeSettings { against: value.against, items: value.items },
                 ),
                 reason: b"review this set".as_slice().into(),
             },
-        )
-        .expect("proposal ask"),
     )
 }
 fn template_choice(model: &[u8], effort: &[u8]) -> jig_client_domain::contract::ModelEffort {
@@ -346,34 +326,21 @@ fn accepting_settings_translates_both_running_choices() {
     let limits = f::wire();
     for (wire, expected) in [(w::Running::Stays, p::Running::Stays), (w::Running::Moves, p::Running::Moves)] {
         let value = w::Ask::Decide(
-            w::Decide::new(
-                &limits,
-                w::DecideParts {
+            w::Decide {
                     project: 0,
                     on: w::DecideOn::Proposal(
-                        w::DecideProposal::new(
-                            &limits,
-                            w::DecideProposalParts {
-                                proposal: w::ProposalKey::new(
-                                    &limits,
-                                    w::ProposalKeyParts {
+                        w::DecideProposal {
+                                proposal: w::ProposalKey {
                                         proposer: w::Proposer::Party(
-                                            w::ProposerParty::new(&limits, w::ProposerPartyParts { value: 9 })
-                                                .expect("proposer"),
+                                            w::ProposerParty { value: 9 },
                                         ),
                                         number: 7,
                                     },
-                                )
-                                .expect("proposal key"),
                                 decision: w::Decision::Accepted,
                                 running: Some(wire),
                             },
-                        )
-                        .expect("decision"),
                     ),
                 },
-            )
-            .expect("ask"),
         );
         assert_eq!(
             translate::asks::ask(value, &f::models(), &limits),
@@ -404,17 +371,13 @@ fn unknown_models_in_settings_proposals_are_named_before_decoding_the_set() {
 }
 
 fn proposal_envelope(request: Box<[u8]>, limits: &w::Limits) -> Box<[u8]> {
-    let keyed = w::Keyed::new(
-        limits,
-        w::KeyedParts {
+    let keyed = w::Keyed {
             key: [5; 16],
             owner: w::Owner::Jig,
             version: jig_client_protocol_wire::VERSION,
             request,
             value: None,
-        },
-    )
-    .expect("whole proposal envelope");
+        };
     let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(keyed.measure()));
     keyed.encode(&mut writer).expect("measured envelope");
     writer.finish()
@@ -423,7 +386,7 @@ fn proposal_envelope(request: Box<[u8]>, limits: &w::Limits) -> Box<[u8]> {
 #[test]
 fn move_to_newest_translates_the_revision_and_both_counts() {
     let limits = f::wire();
-    let ask = w::Ask::MoveToNewest(w::MoveToNewest::new(&limits, w::MoveToNewestParts { revision: 7 }).expect("move"));
+    let ask = w::Ask::MoveToNewest(w::MoveToNewest { revision: 7 });
     assert_eq!(translate::asks::ask(ask, &[], &limits), Ok(p::Ask::MoveToNewest { revision: 7 }));
     let answer = translate::answers::answer(
         &p::Reply::Outcome(p::Outcome::MovedToNewest { newest: 9, moved: 3, stayed: 1 }),
@@ -454,9 +417,9 @@ fn public_settings_items_share_model_resolution_and_name_invalid_fields() {
     let s::Edit::Set(s::Value::Template(template)) = &decoded[1].edit else { panic!("template") };
     assert_eq!(template.llm.as_ref().expect("model selection").main.model, 1);
     let bad = translate::settings::items(Box::new([0]), &models, &limits).expect_err("truncated item length");
-    assert_eq!(bad.field, w::Path::ChangeSettingsItems);
+    assert_eq!(bad.field, w::paths::CHANGE_SETTINGS_ITEMS);
     let bad = translate::settings::items(request.items().into(), &[], &limits).expect_err("unconfigured model");
-    assert_eq!(bad.field, w::Path::TemplateLlm);
+    assert_eq!(bad.field, w::paths::TEMPLATE_LLM);
 }
 
 #[test]
@@ -506,18 +469,13 @@ fn application_edits_round_trip_from_client_bytes_into_changes_and_proposals() {
         let expected = s::Item { setting: s::Setting::Application { kind: 17, scope: 4, number: 9 }, edit: expected };
         assert_eq!(change.items.as_ref(), ::core::slice::from_ref(&expected));
         let parts = wire.into_parts();
-        let proposed = w::Propose::new(
-            &limits,
-            w::ProposeParts {
+        let proposed = w::Propose {
                 project: 0,
                 action: w::ProposeAction::Settings(
-                    w::ProposeSettings::new(&limits, w::ProposeSettingsParts { against: 5, items: parts.items })
-                        .unwrap(),
+                    w::ProposeSettings { against: 5, items: parts.items },
                 ),
                 reason: Box::from(b"review".as_slice()),
-            },
-        )
-        .unwrap();
+            };
         let proposed = translate::settings::proposed(proposed, &f::models(), &limits).unwrap();
         assert_eq!(proposed.items.as_ref(), &[expected]);
         assert_eq!(proposed.reason.as_ref(), b"review");

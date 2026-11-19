@@ -7,9 +7,7 @@ use skein_lib::{List, Writer};
 pub(super) fn offers(values: &List<d::ProviderOffer>, bound: u32, limits: &w::Limits) -> Result<Box<[u8]>, w::Problem> {
     let mut rows = List::with_capacity(values.len());
     for value in values {
-        let row = w::ProviderOffer::new(
-            limits,
-            w::ProviderOfferParts {
+        let row = w::ProviderOffer {
                 sign_in: value.sign_in,
                 key: value.key,
                 programs_cut: value.programs_cut,
@@ -20,13 +18,12 @@ pub(super) fn offers(values: &List<d::ProviderOffer>, bound: u32, limits: &w::Li
                 name: owner::text(&value.name, limits)?,
                 programs: value.programs.clone(),
                 manage_usage: value.manage_usage.clone(),
-            },
-        )?;
+            };
         let mut out = Writer::new(usize::try_from(row.measure()).or(Err(super::problem(skein_codec::Reason::Bound)))?);
         row.encode(&mut out).or(Err(super::problem(skein_codec::Reason::Bound)))?;
         rows.push(out.finish()).or(Err(super::problem(skein_codec::Reason::Bound)))?;
     }
-    pieces(&rows, bound, w::Path::MeProviders)
+    pieces(&rows, bound, w::paths::ME_PROVIDERS)
 }
 pub(super) fn readiness(
     values: &List<d::PayerReadiness>,
@@ -35,9 +32,7 @@ pub(super) fn readiness(
 ) -> Result<Box<[u8]>, w::Problem> {
     let mut rows = List::with_capacity(values.len());
     for value in values {
-        let row = w::PayerReadiness::new(
-            limits,
-            w::PayerReadinessParts {
+        let row = w::PayerReadiness {
                 provider: value.provider,
                 payer: accounts::payer(value.payer, limits)?,
                 readiness: match value.readiness {
@@ -46,11 +41,10 @@ pub(super) fn readiness(
                     d::Readiness::Unknown => w::Readiness::Unknown,
                 },
                 settled: value.settled,
-            },
-        )?;
+            };
         let mut out = Writer::new(usize::try_from(row.measure()).or(Err(super::problem(skein_codec::Reason::Bound)))?);
         row.encode(&mut out).or(Err(super::problem(skein_codec::Reason::Bound)))?;
         rows.push(out.finish()).or(Err(super::problem(skein_codec::Reason::Bound)))?;
     }
-    pieces(&rows, bound, w::Path::AccountsReadiness)
+    pieces(&rows, bound, w::paths::ACCOUNTS_READINESS)
 }

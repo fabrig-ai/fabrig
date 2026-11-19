@@ -47,7 +47,7 @@ fn program_details_past_the_wire_bound_are_refused() {
     };
     assert_eq!(
         programs::login(&row, &w::CEILINGS).err(),
-        Some(w::Problem { path: w::Path::ProgramFailedDetail, reason: skein_codec::Reason::Bound })
+        Some(w::Problem { path: w::paths::PROGRAM_FAILED_DETAIL, reason: skein_codec::Reason::Bound })
     );
 }
 #[test]
@@ -55,7 +55,7 @@ fn program_names_past_the_wire_bound_are_refused() {
     let row = d::ProgramLogin { name: Box::from([b'a'; 33]), state: None, sign_out: None, cleanup: false, cut: false };
     assert_eq!(
         programs::login(&row, &w::CEILINGS).err(),
-        Some(w::Problem { path: w::Path::ProgramLoginName, reason: skein_codec::Reason::Bound })
+        Some(w::Problem { path: w::paths::PROGRAM_LOGIN_NAME, reason: skein_codec::Reason::Bound })
     );
 }
 
@@ -77,7 +77,7 @@ fn a_host_rule_reaches_the_wire() {
         (HostRule::Open, w::HostRule::Open),
         (
             HostRule::Person(7),
-            w::HostRule::Person(w::HostPerson::new(&w::CEILINGS, w::HostPersonParts { party: 7 }).expect("person")),
+            w::HostRule::Person(w::HostPerson { party: 7 }),
         ),
         (HostRule::Several, w::HostRule::Several),
         (HostRule::Unknown, w::HostRule::Unknown),

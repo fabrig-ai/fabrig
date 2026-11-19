@@ -279,28 +279,22 @@ fn not_served(kind: PublicKind, limits: &w::Limits) -> Option<Box<[u8]>> {
     let family = kind.owner.checked_sub(1);
     let owner = match family {
         None => w::Owner::Jig,
-        Some(number) => w::Owner::Family(w::Family::new(limits, w::FamilyParts { number }).ok()?),
+        Some(number) => w::Owner::Family(Ok(w::Family { number }).ok()?),
     };
     // The refusal is the ordinary served envelope, narrowed to this public kind's versions.
-    let value = w::NotServed::new(
-        limits,
-        w::NotServedParts {
+    let value = Ok(w::NotServed {
             owner: owner.clone(),
             served: {
                 let mut ranges = List::with_capacity(1);
                 ranges
                     .push(
-                        w::Served::new(
-                            limits,
-                            w::ServedParts { owner, first: u32::from(kind.first), last: u32::from(kind.last) },
-                        )
+                        Ok(w::Served { owner, first: u32::from(kind.first), last: u32::from(kind.last) })
                         .ok()?,
                     )
                     .expect("one range");
                 ranges
             },
-        },
-    )
+        })
     .ok()?;
     let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
     value.encode(&mut out).expect("measured not served");

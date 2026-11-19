@@ -19,14 +19,8 @@ fn state(value: &LoginState, limits: &w::Limits) -> Result<w::ProgramState, w::P
     Ok(match value {
         LoginState::Usable => w::ProgramState::Usable,
         LoginState::NotSignedIn => w::ProgramState::NotSignedIn,
-        LoginState::SignedInOtherwise(method) => w::ProgramState::SignedInOtherwise(w::ProgramOtherwise::new(
-            limits,
-            w::ProgramOtherwiseParts { method: skein_lib::bytes::copy_of(method.as_bytes()) },
-        )?),
-        LoginState::Failed { reason, detail } => w::ProgramState::Failed(w::ProgramFailed::new(
-            limits,
-            w::ProgramFailedParts { reason: failure(*reason), detail: detail.clone() },
-        )?),
+        LoginState::SignedInOtherwise(method) => w::ProgramState::SignedInOtherwise(w::ProgramOtherwise { method: skein_lib::bytes::copy_of(method.as_bytes()) }),
+        LoginState::Failed { reason, detail } => w::ProgramState::Failed(w::ProgramFailed { reason: failure(*reason), detail: detail.clone() }),
     })
 }
 pub fn login(value: &d::ProgramLogin, limits: &w::Limits) -> Result<w::ProgramLogin, w::Problem> {
@@ -36,16 +30,10 @@ pub fn login(value: &d::ProgramLogin, limits: &w::Limits) -> Result<w::ProgramLo
     };
     let sign_out = match &value.sign_out {
         Some(SignOutResult::SignedOut) => Some(w::ProgramSignOut::SignedOut),
-        Some(SignOutResult::Failed { reason, detail }) => Some(w::ProgramSignOut::Failed(w::ProgramFailed::new(
-            limits,
-            w::ProgramFailedParts { reason: failure(*reason), detail: detail.clone() },
-        )?)),
+        Some(SignOutResult::Failed { reason, detail }) => Some(w::ProgramSignOut::Failed(w::ProgramFailed { reason: failure(*reason), detail: detail.clone() })),
         None => None,
     };
-    w::ProgramLogin::new(
-        limits,
-        w::ProgramLoginParts { name: value.name.clone(), state, sign_out, cleanup: value.cleanup, cut: value.cut },
-    )
+    Ok(w::ProgramLogin { name: value.name.clone(), state, sign_out, cleanup: value.cleanup, cut: value.cut })
 }
 pub fn logins(
     value: &List<d::ProgramLogin>,
@@ -63,17 +51,14 @@ pub fn logins(
     pieces(&rows, bound, path)
 }
 pub fn host(value: &d::ProgramHost, limits: &w::Limits) -> Result<w::ProgramHost, w::Problem> {
-    w::ProgramHost::new(
-        limits,
-        w::ProgramHostParts {
+    Ok(w::ProgramHost {
             name: value.name.clone(),
             channel: value.channel,
             connected: value.connected,
             awaiting_logins: value.awaiting_logins,
-            programs: logins(&value.programs, limits, limits.program_host_programs, w::Path::ProgramHostPrograms)?,
+            programs: logins(&value.programs, limits, limits.program_host_programs, w::paths::PROGRAM_HOST_PROGRAMS)?,
             cut: value.cut,
-        },
-    )
+        })
 }
 pub fn hosts(value: &List<d::ProgramHost>, limits: &w::Limits) -> Result<Box<[u8]>, w::Problem> {
     let mut rows = List::with_capacity(value.len());
@@ -83,5 +68,5 @@ pub fn hosts(value: &List<d::ProgramHost>, limits: &w::Limits) -> Result<Box<[u8
         row.encode(&mut out).expect("measured program host");
         rows.push(out.finish()).expect("one piece per supplied row");
     }
-    pieces(&rows, limits.accounts_program_hosts, w::Path::AccountsProgramHosts)
+    pieces(&rows, limits.accounts_program_hosts, w::paths::ACCOUNTS_PROGRAM_HOSTS)
 }

@@ -11,26 +11,25 @@ fn new() -> Exchange {
     Exchange::configured(f::env(), Settings { approval: true, ..f::settings() })
 }
 fn ask_message() -> Message {
-    let value = w::ApprovalAsk::new(&f::wire(), w::ApprovalAskParts {}).expect("ask");
+    let value = w::ApprovalAsk {};
     let mut bytes = Writer::new(usize_of(value.measure()));
     value.encode(&mut bytes).expect("ask bytes");
     Message::ApprovalAsk(bytes.finish())
 }
 fn read_message(code: [u8; 8]) -> Message {
-    let value = w::ApprovalRead::new(&f::wire(), w::ApprovalReadParts { code }).expect("read");
+    let value = w::ApprovalRead { code };
     let mut bytes = Writer::new(usize_of(value.measure()));
     value.encode(&mut bytes).expect("read bytes");
     Message::ApprovalRead(bytes.finish())
 }
 fn decide_message(code: [u8; 8], approve: bool) -> Message {
-    let value = w::ApprovalDecide::new(&f::wire(), w::ApprovalDecideParts { code, approve }).expect("decide");
+    let value = w::ApprovalDecide { code, approve };
     let mut bytes = Writer::new(usize_of(value.measure()));
     value.encode(&mut bytes).expect("decision bytes");
     Message::ApprovalDecide(bytes.finish())
 }
 fn take_message(secret: &[u8]) -> Message {
-    let value = w::ApprovalSignIn::new(&f::wire(), w::ApprovalSignInParts { secret: Secret::new(secret.into()) })
-        .expect("take");
+    let value = w::ApprovalSignIn { secret: Secret::new(secret.into()) };
     let mut bytes = Writer::new(usize_of(value.measure()));
     value.encode(&mut bytes).expect("take bytes");
     Message::SignInApproval(bytes.finish())
@@ -209,7 +208,7 @@ fn a_read_says_what_the_approval_is() {
         let code = *a.code();
         let expected = match case {
             "waiting" => w::ApprovalState::Waiting(
-                w::ApprovalWaiting::new(&f::wire(), w::ApprovalWaitingParts { asked: 123 }).expect("waiting"),
+                w::ApprovalWaiting { asked: 123 },
             ),
             "approved" => {
                 decide(&mut e, code, true);
@@ -366,11 +365,7 @@ fn busy_not_ready_and_full_spend_nothing() {
             people::Reply::Again(people::Again::Busy) => w::ApprovalSignInAnswer::Busy,
             people::Reply::Again(people::Again::NotReady) => w::ApprovalSignInAnswer::NotReady,
             people::Reply::Full { .. } => w::ApprovalSignInAnswer::Full(
-                w::ApprovalFull::new(
-                    &f::wire(),
-                    w::ApprovalFullParts { sign_ins: 4, earliest: 700, until: a.expires() },
-                )
-                .expect("full"),
+                w::ApprovalFull { sign_ins: 4, earliest: 700, until: a.expires() },
             ),
             people::Reply::Signer(_)
             | people::Reply::SignedIn { .. }
@@ -398,7 +393,7 @@ fn an_approved_take_signs_in_the_approvers_party_once() {
     assert_eq!(
         read(&mut e, *a.code()),
         w::ApprovalState::Waiting(
-            w::ApprovalWaiting::new(&f::wire(), w::ApprovalWaitingParts { asked: 0 }).expect("waiting")
+            w::ApprovalWaiting { asked: 0 }
         )
     );
     assert_eq!(decide(&mut e, *a.code(), true), w::ApprovalDecided::Approved);
@@ -641,11 +636,7 @@ fn a_take_drains_on_stop_close_or_abort() {
                     answer,
                     if action == "stop" && stage == "core" {
                         w::ApprovalSignInAnswer::Full(
-                            w::ApprovalFull::new(
-                                &f::wire(),
-                                w::ApprovalFullParts { sign_ins: 4, earliest: 700, until: a.expires() },
-                            )
-                            .expect("full"),
+                            w::ApprovalFull { sign_ins: 4, earliest: 700, until: a.expires() },
                         )
                     } else {
                         w::ApprovalSignInAnswer::NotReady

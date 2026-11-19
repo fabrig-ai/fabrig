@@ -830,7 +830,7 @@ impl Component {
         };
         match waiting {
             Waiting::Ask { family: Some(number), version, .. } if number == family => {
-                let answer = match w::Family::new(&env.limits.wire, w::FamilyParts { number }) {
+                let answer = match Ok(w::Family { number }) {
                     Ok(value) => {
                         crate::translate::answers::owned(w::Owner::Family(value), version, record, &env.limits.wire)
                     }

@@ -19,16 +19,16 @@ fn create_naming_a_job_is_refused_as_not_offered() {
         let bytes = skein_codec::piece::split(&mut reader).unwrap().unwrap();
         let mut task = w::NewTask::decode(&limits, &mut Reader::new(&bytes)).unwrap().into_parts();
         if job {
-            task.executor = w::Executor::Job(w::ExecutorJob::new(&limits, w::ExecutorJobParts { kind: 7 }).unwrap());
+            task.executor = w::Executor::Job(w::ExecutorJob { kind: 7 });
         }
-        let task = w::NewTask::new(&limits, task).unwrap();
+        let task = task;
         let mut writer = Writer::new(usize::try_from(task.measure()).unwrap());
         task.encode(&mut writer).unwrap();
         tasks.push(writer.finish()).unwrap();
     }
     let bytes = f::pieces(tasks.as_slice());
     let ask =
-        w::Ask::Create(w::Create::new(&limits, w::CreateParts { project: create.project(), tasks: bytes }).unwrap());
+        w::Ask::Create(w::Create { project: create.project(), tasks: bytes });
     let answer = operations::refused(&ask, &limits).unwrap().unwrap();
     let w::Final::Refused(value) = f::final_record(answer, &limits) else {
         panic!("refusal");
@@ -37,6 +37,6 @@ fn create_naming_a_job_is_refused_as_not_offered() {
     assert_eq!(*value.at(), None);
     assert_eq!(
         asks::ask(ask, &f::models(), &limits),
-        Err(crate::translate::Untranslatable { path: w::Path::NewTaskExecutor })
+        Err(crate::translate::Untranslatable { path: w::paths::NEW_TASK_EXECUTOR })
     );
 }

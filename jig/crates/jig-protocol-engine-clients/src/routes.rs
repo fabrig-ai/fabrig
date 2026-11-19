@@ -105,11 +105,7 @@ pub(crate) fn read_none(why: jig_domain_core_vocabulary::reads::Why, limits: &w:
 pub(crate) fn open_answer(why: Option<jig_domain_core_vocabulary::WatchRefusal>, limits: &w::Limits) -> Box<[u8]> {
     let answer = match why {
         Some(why) => w::OpenAnswer::Refused(
-            w::OpenAnswerRefused::new(
-                limits,
-                w::OpenAnswerRefusedParts { why: crate::translate::watches::refused(why) },
-            )
-            .expect("refusal fits"),
+            w::OpenAnswerRefused { why: crate::translate::watches::refused(why) },
         ),
         None => w::OpenAnswer::Admitted,
     };
@@ -167,8 +163,7 @@ pub(crate) fn sign_in_busy() -> Box<[u8]> {
 }
 pub(crate) fn sign_in_full(limits: &w::Limits, sign_ins: u32, earliest: u64, link_until: u64) -> Box<[u8]> {
     sign_in_answer(w::SignInAnswer::Full(
-        w::SignInsFull::new(limits, w::SignInsFullParts { sign_ins, earliest, link_until })
-            .expect("fixed sign-in capacity fits"),
+        w::SignInsFull { sign_ins, earliest, link_until },
     ))
 }
 fn sign_in_answer(answer: w::SignInAnswer) -> Box<[u8]> {

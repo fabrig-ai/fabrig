@@ -5,7 +5,7 @@ use jig_domain_core_vocabulary::documents as d;
 use jig_domain_tasks as t;
 use skein_lib::{List, bytes};
 pub fn text(value: &d::Text, limits: &w::Limits) -> Result<w::DocumentText, w::Problem> {
-    w::DocumentText::new(limits, w::DocumentTextParts { bytes: bytes::copy_of(&value.bytes), cut: value.cut })
+    Ok(w::DocumentText { bytes: bytes::copy_of(&value.bytes), cut: value.cut })
 }
 pub fn held_role(value: jig_domain_people::Role, limits: &w::Limits) -> Result<w::HeldRole, w::Problem> {
     Ok(match value {
@@ -14,39 +14,34 @@ pub fn held_role(value: jig_domain_people::Role, limits: &w::Limits) -> Result<w
         jig_domain_people::Role::Member => w::HeldRole::Member,
         jig_domain_people::Role::Observer => w::HeldRole::Observer,
         jig_domain_people::Role::Policy { role } => {
-            w::HeldRole::Policy(w::HeldRolePolicy::new(limits, w::HeldRolePolicyParts { role })?)
+            w::HeldRole::Policy(w::HeldRolePolicy { role })
         }
     })
 }
 pub fn funder(value: t::Funder, limits: &w::Limits) -> Result<w::Funder, w::Problem> {
     Ok(match value {
-        t::Funder::Task(number) => w::Funder::Task(w::FunderTask::new(limits, w::FunderTaskParts { value: number })?),
+        t::Funder::Task(number) => w::Funder::Task(w::FunderTask { value: number }),
         t::Funder::Pool { project, person, period } => {
-            w::Funder::Pool(w::FunderPool::new(limits, w::FunderPoolParts { project, person, period })?)
+            w::Funder::Pool(w::FunderPool { project, person, period })
         }
         t::Funder::Recurring { project, task, period } => {
-            w::Funder::Recurring(w::FunderRecurring::new(limits, w::FunderRecurringParts { project, task, period })?)
+            w::Funder::Recurring(w::FunderRecurring { project, task, period })
         }
         t::Funder::Period { project, period } => {
-            w::Funder::Period(w::FunderPeriod::new(limits, w::FunderPeriodParts { project, period })?)
+            w::Funder::Period(w::FunderPeriod { project, period })
         }
     })
 }
 pub fn numbers(value: t::Numbers, limits: &w::Limits) -> Result<w::Numbers, w::Problem> {
-    w::Numbers::new(
-        limits,
-        w::NumbersParts {
+    Ok(w::Numbers {
             budget: value.budget,
             spent: value.spent,
             spent_below: value.spent_below,
             reserved: value.reserved,
-        },
-    )
+        })
 }
 pub fn budget(value: &d::BudgetLine, limits: &w::Limits) -> Result<w::Budget, w::Problem> {
-    w::Budget::new(
-        limits,
-        w::BudgetParts {
+    Ok(w::Budget {
             numbers: numbers(value.numbers, limits)?,
             left: value.left,
             funder: funder(value.funder, limits)?,
@@ -54,13 +49,10 @@ pub fn budget(value: &d::BudgetLine, limits: &w::Limits) -> Result<w::Budget, w:
                 Some(item) => Some(item.as_nanos()),
                 None => None,
             },
-        },
-    )
+        })
 }
 pub fn ledger(value: &d::Ledger, limits: &w::Limits) -> Result<w::PoolLedger, w::Problem> {
-    w::PoolLedger::new(
-        limits,
-        w::PoolLedgerParts {
+    Ok(w::PoolLedger {
             source: funder(value.source, limits)?,
             parent: match value.parent {
                 Some(item) => Some(funder(item, limits)?),
@@ -77,34 +69,30 @@ pub fn ledger(value: &d::Ledger, limits: &w::Limits) -> Result<w::PoolLedger, w:
                 Some(item) => Some(item.as_nanos()),
                 None => None,
             },
-        },
-    )
+        })
 }
 pub fn executor(value: t::Executor, limits: &w::Limits) -> Result<w::Executor, w::Problem> {
     Ok(match value {
-        t::Executor::Job { kind } => w::Executor::Job(w::ExecutorJob::new(limits, w::ExecutorJobParts { kind })?),
+        t::Executor::Job { kind } => w::Executor::Job(w::ExecutorJob { kind }),
         t::Executor::Agent { charter } => {
-            w::Executor::Agent(w::ExecutorAgent::new(limits, w::ExecutorAgentParts { charter })?)
+            w::Executor::Agent(w::ExecutorAgent { charter })
         }
         t::Executor::Procedure { connector, code } => {
-            w::Executor::Procedure(w::ExecutorProcedure::new(limits, w::ExecutorProcedureParts { connector, code })?)
+            w::Executor::Procedure(w::ExecutorProcedure { connector, code })
         }
-        t::Executor::Person(address) => w::Executor::Person(w::ExecutorPerson::new(
-            limits,
-            w::ExecutorPersonParts { value: super::chips::address(address, limits)? },
-        )?),
+        t::Executor::Person(address) => w::Executor::Person(w::ExecutorPerson { value: super::chips::address(address, limits)? }),
     })
 }
 pub fn requester(value: t::Party, limits: &w::Limits) -> Result<w::Requester, w::Problem> {
     Ok(match value {
         t::Party::Task(number) => {
-            w::Requester::Task(w::RequesterTask::new(limits, w::RequesterTaskParts { value: number })?)
+            w::Requester::Task(w::RequesterTask { value: number })
         }
         t::Party::Person(number) => {
-            w::Requester::Person(w::RequesterPerson::new(limits, w::RequesterPersonParts { value: number })?)
+            w::Requester::Person(w::RequesterPerson { value: number })
         }
         t::Party::Deployment { project } => {
-            w::Requester::Deployment(w::RequesterDeployment::new(limits, w::RequesterDeploymentParts { project })?)
+            w::Requester::Deployment(w::RequesterDeployment { project })
         }
     })
 }
@@ -113,17 +101,15 @@ pub fn wake_rule(value: t::WakeRule, limits: &w::Limits) -> Result<w::WakeRule, 
         t::WakeRule::Never => w::WakeRule::Never,
         t::WakeRule::Immediate => w::WakeRule::Immediate,
         t::WakeRule::Batch { count, age } => {
-            w::WakeRule::Batch(w::WakeRuleBatch::new(limits, w::WakeRuleBatchParts { count, age })?)
+            w::WakeRule::Batch(w::WakeRuleBatch { count, age })
         }
         t::WakeRule::Paced { span } => {
-            w::WakeRule::Paced(w::WakeRulePaced::new(limits, w::WakeRulePacedParts { span })?)
+            w::WakeRule::Paced(w::WakeRulePaced { span })
         }
     })
 }
 pub fn wake(value: t::WakePolicy, limits: &w::Limits) -> Result<w::WakePolicy, w::Problem> {
-    w::WakePolicy::new(
-        limits,
-        w::WakePolicyParts {
+    Ok(w::WakePolicy {
             words: wake_rule(value.words, limits)?,
             notices: wake_rule(value.notices, limits)?,
             news: wake_rule(value.news, limits)?,
@@ -135,8 +121,7 @@ pub fn wake(value: t::WakePolicy, limits: &w::Limits) -> Result<w::WakePolicy, w
             questions: value.questions,
             answers: value.answers,
             timers: value.timers,
-        },
-    )
+        })
 }
 fn project(
     value: &d::FrameProjectRole,
@@ -148,12 +133,10 @@ fn project(
     for (template, choice) in &value.defaults {
         let choice = super::llm::choice(Some(choice), models, limits)?.expect("present preview");
         defaults
-            .push(w::MeDefault::new(limits, w::MeDefaultParts { template: *template, choice })?)
+            .push(w::MeDefault { template: *template, choice })
             .expect("same preview count");
     }
-    w::MeProject::new(
-        limits,
-        w::MeProjectParts {
+    Ok(w::MeProject {
             left_out: value.left_out,
             public: match names {
                 Some(names) if value.public => Some(names.project(value.project)),
@@ -173,8 +156,7 @@ fn project(
             },
             models: super::llm::models(value.offer.as_slice(), models, limits)?,
             defaults,
-        },
-    )
+        })
 }
 pub fn frame(value: &d::Frame, models: &[crate::Model], limits: &w::Limits) -> Result<w::Me, w::Problem> {
     frame_named(value, models, None, limits)
@@ -191,20 +173,16 @@ pub(crate) fn frame_named(
         projects.push(project(item, models, names, limits)?).expect("supplied projects");
     }
     let updates = match value.updates {
-        d::Count::Known(value) => w::Count::new(limits, w::CountParts { value, limited: false })?,
-        d::Count::AtLeast(value) => w::Count::new(limits, w::CountParts { value, limited: true })?,
+        d::Count::Known(value) => w::Count { value, limited: false },
+        d::Count::AtLeast(value) => w::Count { value, limited: true },
     };
-    w::Me::new(
-        limits,
-        w::MeParts {
+    Ok(w::Me {
             providers: super::catalogue::offers(&value.providers, limits.me_providers, limits)?,
             providers_cut: value.providers_cut,
             key_bytes: value.key_bytes,
             redirect_bytes: value.redirect_bytes,
             words_bytes: value.words_bytes,
-            party: w::MeParty::new(
-                limits,
-                w::MePartyParts {
+            party: w::MeParty {
                     number: value.party,
                     kind: match value.kind {
                         jig_domain_people::Kind::Person => w::PartyKind::Person,
@@ -213,17 +191,13 @@ pub(crate) fn frame_named(
                     login: text(&value.login, limits)?,
                     name: text(&value.name, limits)?,
                 },
-            )?,
-            projects: me_projects_pieces(&projects, limits.me_projects, w::Path::MeProjects)?,
-            needs: w::Needs::new(
-                limits,
-                w::NeedsParts {
+            projects: me_projects_pieces(&projects, limits.me_projects, w::paths::ME_PROJECTS)?,
+            needs: w::Needs {
                     questions: value.need_counts.questions,
                     proposals: value.need_counts.proposals,
                     escalations: value.need_counts.escalations,
                     person_tasks: value.need_counts.person_tasks,
                 },
-            )?,
             needs_total: value.needs,
             updates,
             results_seen: value.results_seen,
@@ -233,8 +207,7 @@ pub(crate) fn frame_named(
                 Some(item) => Some(held_role(item, limits)?),
                 None => None,
             },
-        },
-    )
+        })
 }
 
 pub fn part_kind(value: t::PartKind) -> Result<w::PartKind, w::Problem> {
@@ -251,36 +224,27 @@ pub fn part_kind(value: t::PartKind) -> Result<w::PartKind, w::Problem> {
 pub fn part(value: &t::Part, limits: &w::Limits) -> Result<w::Part, w::Problem> {
     let key = match &value.key {
         t::PartKey::Number(number) => {
-            w::PartKey::Number(w::PartKeyNumber::new(limits, w::PartKeyNumberParts { value: *number })?)
+            w::PartKey::Number(w::PartKeyNumber { value: *number })
         }
         t::PartKey::Path(value) => {
-            w::PartKey::Path(w::PartKeyPath::new(limits, w::PartKeyPathParts { value: value.clone() })?)
+            w::PartKey::Path(w::PartKeyPath { value: value.clone() })
         }
     };
-    w::Part::new(limits, w::PartParts { connector: value.connector, kind: part_kind(value.kind)?, key })
+    Ok(w::Part { connector: value.connector, kind: part_kind(value.kind)?, key })
 }
 pub fn pattern(segments: &List<Box<[u8]>>, last: &d::PatternEnd, limits: &w::Limits) -> Result<w::Pattern, w::Problem> {
     let last = match last {
-        d::PatternEnd::Exact(value) => w::PatternEnd::Exact(w::PatternEndExact::new(
-            limits,
-            w::PatternEndExactParts { value: bytes::copy_of(value) },
-        )?),
-        d::PatternEnd::Open(value) => w::PatternEnd::Open(w::PatternEndOpen::new(
-            limits,
-            w::PatternEndOpenParts { value: bytes::copy_of(value) },
-        )?),
+        d::PatternEnd::Exact(value) => w::PatternEnd::Exact(w::PatternEndExact { value: bytes::copy_of(value) }),
+        d::PatternEnd::Open(value) => w::PatternEnd::Open(w::PatternEndOpen { value: bytes::copy_of(value) }),
     };
-    w::Pattern::new(limits, w::PatternParts { segments: segments.clone(), last })
+    Ok(w::Pattern { segments: segments.clone(), last })
 }
 pub fn grant(value: &d::GrantLine, limits: &w::Limits) -> Result<w::Grant, w::Problem> {
-    w::Grant::new(
-        limits,
-        w::GrantParts {
+    Ok(w::Grant {
             connector: value.connector,
             kind: value.kind,
             pattern: pattern(&value.segments, &value.last, limits)?,
-        },
-    )
+        })
 }
 pub fn authority(
     models: &[crate::Model],
@@ -292,35 +256,28 @@ pub fn authority(
         grants.push(grant(item, limits)?).expect("supplied grants");
     }
     let grants =
-        grants_pieces(&grants, limits.authority_grants.min(w::CEILINGS.authority_grants), w::Path::AuthorityGrants)?;
+        grants_pieces(&grants, limits.authority_grants.min(w::CEILINGS.authority_grants), w::paths::AUTHORITY_GRANTS)?;
     let mut scopes = List::with_capacity(value.note_resources.len());
     for item in &value.note_resources {
         scopes
-            .push(w::ResourceScope::new(
-                limits,
-                w::ResourceScopeParts {
+            .push(w::ResourceScope {
                     connector: item.connector,
                     pattern: pattern(&item.segments, &item.last, limits)?,
-                },
-            )?)
+                })
             .expect("supplied scopes");
     }
     let note_resources = scopes_pieces(
         &scopes,
         limits.authority_note_resources.min(w::CEILINGS.authority_note_resources),
-        w::Path::AuthorityNoteResources,
+        w::paths::AUTHORITY_NOTE_RESOURCES,
     )?;
     let mut kinds = List::with_capacity(value.executors.len());
     for item in &value.executors {
         kinds.push(authority_executor(*item, limits)?).expect("supplied executors");
     }
-    w::AuthorityDocument::new(
-        limits,
-        w::AuthorityDocumentParts {
+    Ok(w::AuthorityDocument {
             cut: false,
-            authority: w::Authority::new(
-                limits,
-                w::AuthorityParts {
+            authority: w::Authority {
                     models: super::llm::authority(
                         jig_domain_authority::Models::from_parts(value.models.bits(), value.models.is_all()),
                         models,
@@ -328,10 +285,7 @@ pub fn authority(
                     )?,
                     tools: value.tools.0,
                     grants,
-                    delegation: w::Delegation::new(
-                        limits,
-                        w::DelegationParts { kinds, tasks: value.tasks, depth: value.depth },
-                    )?,
+                    delegation: w::Delegation { kinds, tasks: value.tasks, depth: value.depth },
                     spend: value.ceiling.spend,
                     deadline: match value.ceiling.deadline {
                         Some(item) => Some(item.as_nanos()),
@@ -340,28 +294,17 @@ pub fn authority(
                     notes: value.notes.0,
                     note_resources,
                 },
-            )?,
-        },
-    )
+        })
 }
 
 pub fn authority_executor(value: t::AuthorityExecutor, limits: &w::Limits) -> Result<w::AuthorityExecutor, w::Problem> {
     Ok(match value {
         t::AuthorityExecutor::Job(value) => {
-            w::AuthorityExecutor::Job(w::AuthorityExecutorJob::new(limits, w::AuthorityExecutorJobParts { value })?)
+            w::AuthorityExecutor::Job(w::AuthorityExecutorJob { value })
         }
-        t::AuthorityExecutor::Charter(number) => w::AuthorityExecutor::Charter(w::AuthorityExecutorCharter::new(
-            limits,
-            w::AuthorityExecutorCharterParts { value: number },
-        )?),
-        t::AuthorityExecutor::Procedure(number) => w::AuthorityExecutor::Procedure(w::AuthorityExecutorProcedure::new(
-            limits,
-            w::AuthorityExecutorProcedureParts { value: number },
-        )?),
-        t::AuthorityExecutor::Role(number) => w::AuthorityExecutor::Role(w::AuthorityExecutorRole::new(
-            limits,
-            w::AuthorityExecutorRoleParts { value: number },
-        )?),
+        t::AuthorityExecutor::Charter(number) => w::AuthorityExecutor::Charter(w::AuthorityExecutorCharter { value: number }),
+        t::AuthorityExecutor::Procedure(number) => w::AuthorityExecutor::Procedure(w::AuthorityExecutorProcedure { value: number }),
+        t::AuthorityExecutor::Role(number) => w::AuthorityExecutor::Role(w::AuthorityExecutorRole { value: number }),
     })
 }
 pub fn grants_pieces(rows: &List<w::Grant>, bound: u32, path: w::Path) -> Result<Box<[u8]>, w::Problem> {
@@ -393,32 +336,20 @@ pub fn specification(value: &d::SpecLine, limits: &w::Limits) -> Result<w::Speci
     for item in &value.parameters {
         parameters.push(parameter(item, limits)?).expect("supplied parameters");
     }
-    w::SpecificationDocument::new(
-        limits,
-        w::SpecificationDocumentParts {
-            specification: w::DocumentSpecification::new(
-                limits,
-                w::DocumentSpecificationParts {
+    Ok(w::SpecificationDocument {
+            specification: w::DocumentSpecification {
                     asks: value.asks,
                     words: text(&value.words, limits)?,
                     parameters,
                     inputs: value.inputs.clone(),
                 },
-            )?,
             cut: value.cut,
-        },
-    )
+        })
 }
 fn parameter(value: &d::Parameter, limits: &w::Limits) -> Result<w::ParameterDocument, w::Problem> {
     Ok(match value {
-        d::Parameter::Number { name, value } => w::ParameterDocument::Number(w::ParameterDocumentNumber::new(
-            limits,
-            w::ParameterDocumentNumberParts { name: *name, value: *value },
-        )?),
-        d::Parameter::Bytes { name, value } => w::ParameterDocument::Bytes(w::ParameterDocumentBytes::new(
-            limits,
-            w::ParameterDocumentBytesParts { name: *name, value: text(value, limits)? },
-        )?),
+        d::Parameter::Number { name, value } => w::ParameterDocument::Number(w::ParameterDocumentNumber { name: *name, value: *value }),
+        d::Parameter::Bytes { name, value } => w::ParameterDocument::Bytes(w::ParameterDocumentBytes { name: *name, value: text(value, limits)? }),
         d::Parameter::Resource { name, part } => {
             if part.kind != t::PartKind::Resource {
                 return Err(problem(skein_codec::Reason::Malformed));
@@ -427,10 +358,7 @@ fn parameter(value: &d::Parameter, limits: &w::Limits) -> Result<w::ParameterDoc
                 t::PartKey::Number(number) => number,
                 t::PartKey::Path(_) => return Err(problem(skein_codec::Reason::Malformed)),
             };
-            w::ParameterDocument::Resource(w::ParameterDocumentResource::new(
-                limits,
-                w::ParameterDocumentResourceParts { name: *name, connector: part.connector, resource },
-            )?)
+            w::ParameterDocument::Resource(w::ParameterDocumentResource { name: *name, connector: part.connector, resource })
         }
     })
 }
@@ -439,52 +367,28 @@ pub fn subscriptions(value: &List<t::Subscription>, limits: &w::Limits) -> Resul
     for item in value {
         entries.push(subscription(*item, limits)?).expect("supplied subscriptions");
     }
-    w::Subscriptions::new(limits, w::SubscriptionsParts { entries })
+    Ok(w::Subscriptions { entries })
 }
 
 pub fn subscription_kind(value: t::SubscriptionKind, limits: &w::Limits) -> Result<w::SubscriptionKind, w::Problem> {
     Ok(match value {
-        t::SubscriptionKind::Task { target, held, result } => w::SubscriptionKind::Task(w::SubscriptionKindTask::new(
-            limits,
-            w::SubscriptionKindTaskParts { target, held, result },
-        )?),
-        t::SubscriptionKind::Timer { at, period } => w::SubscriptionKind::Timer(w::SubscriptionKindTimer::new(
-            limits,
-            w::SubscriptionKindTimerParts { at: at.as_nanos(), period },
-        )?),
-        t::SubscriptionKind::Topic { connector, topic } => w::SubscriptionKind::Topic(w::SubscriptionKindTopic::new(
-            limits,
-            w::SubscriptionKindTopicParts { connector, topic },
-        )?),
+        t::SubscriptionKind::Task { target, held, result } => w::SubscriptionKind::Task(w::SubscriptionKindTask { target, held, result }),
+        t::SubscriptionKind::Timer { at, period } => w::SubscriptionKind::Timer(w::SubscriptionKindTimer { at: at.as_nanos(), period }),
+        t::SubscriptionKind::Topic { connector, topic } => w::SubscriptionKind::Topic(w::SubscriptionKindTopic { connector, topic }),
     })
 }
 pub fn subscription(value: t::Subscription, limits: &w::Limits) -> Result<w::Subscription, w::Problem> {
-    w::Subscription::new(
-        limits,
-        w::SubscriptionParts { number: value.number, kind: subscription_kind(value.kind, limits)? },
-    )
+    Ok(w::Subscription { number: value.number, kind: subscription_kind(value.kind, limits)? })
 }
 pub fn contract(value: &d::ContractLine, limits: &w::Limits) -> Result<w::TaskContractDocument, w::Problem> {
     Ok(match value {
-        d::ContractLine::Job { bytes } => w::TaskContractDocument::Job(w::TaskContractDocumentJob::new(
-            limits,
-            w::TaskContractDocumentJobParts { bytes: *bytes },
-        )?),
+        d::ContractLine::Job { bytes } => w::TaskContractDocument::Job(w::TaskContractDocumentJob { bytes: *bytes }),
         d::ContractLine::Approval { state, part: value } => {
-            w::TaskContractDocument::Approval(w::TaskContractDocumentApproval::new(
-                limits,
-                w::TaskContractDocumentApprovalParts { state: bytes::copy_of(state), part: part(value, limits)? },
-            )?)
+            w::TaskContractDocument::Approval(w::TaskContractDocumentApproval { state: bytes::copy_of(state), part: part(value, limits)? })
         }
-        d::ContractLine::Report { words } => w::TaskContractDocument::Report(w::TaskContractDocumentReport::new(
-            limits,
-            w::TaskContractDocumentReportParts { words: *words },
-        )?),
+        d::ContractLine::Report { words } => w::TaskContractDocument::Report(w::TaskContractDocumentReport { words: *words }),
         d::ContractLine::Change { connector, kind, words } => {
-            w::TaskContractDocument::Change(w::TaskContractDocumentChange::new(
-                limits,
-                w::TaskContractDocumentChangeParts { connector: *connector, kind: *kind, words: *words },
-            )?)
+            w::TaskContractDocument::Change(w::TaskContractDocumentChange { connector: *connector, kind: *kind, words: *words })
         }
         d::ContractLine::Verdict { choices, cut } => {
             let mut rows = List::with_capacity(choices.len());
@@ -492,31 +396,22 @@ pub fn contract(value: &d::ContractLine, limits: &w::Limits) -> Result<w::TaskCo
                 let mut fields = List::with_capacity(super::count(item.fields.len())?);
                 for field in &item.fields {
                     fields
-                        .push(w::FieldRule::new(
-                            limits,
-                            w::FieldRuleParts { name: bytes::copy_of(&field.name), max: field.max },
-                        )?)
+                        .push(w::FieldRule { name: bytes::copy_of(&field.name), max: field.max })
                         .expect("supplied field rules");
                 }
-                rows.push(w::VerdictChoice::new(
-                    limits,
-                    w::VerdictChoiceParts { code: item.code, words: item.words, followups: item.followups, fields },
-                )?)
+                rows.push(w::VerdictChoice { code: item.code, words: item.words, followups: item.followups, fields })
                 .expect("supplied choices");
             }
-            w::TaskContractDocument::Verdict(w::TaskContractDocumentVerdict::new(
-                limits,
-                w::TaskContractDocumentVerdictParts {
+            w::TaskContractDocument::Verdict(w::TaskContractDocumentVerdict {
                     choices: choices_pieces(
                         &rows,
                         limits
                             .task_contract_document_verdict_choices
                             .min(w::CEILINGS.task_contract_document_verdict_choices),
-                        w::Path::TaskContractDocumentVerdictChoices,
+                        w::paths::TASK_CONTRACT_DOCUMENT_VERDICT_CHOICES,
                     )?,
                     cut: *cut,
-                },
-            )?)
+                })
         }
     })
 }

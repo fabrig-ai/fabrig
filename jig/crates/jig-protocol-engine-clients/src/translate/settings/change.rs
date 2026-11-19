@@ -7,7 +7,7 @@ use jig_domain_people as p;
 use jig_domain_tasks as t;
 use skein_lib::{List, Reader};
 fn bad() -> Untranslatable {
-    Untranslatable { path: w::Path::ChangeSettingsItems }
+    Untranslatable { path: w::paths::CHANGE_SETTINGS_ITEMS }
 }
 pub(crate) fn change(
     value: w::ChangeSettings,
@@ -15,11 +15,11 @@ pub(crate) fn change(
     limits: &w::Limits,
 ) -> Result<s::Change, Untranslatable> {
     let v = value.into_parts();
-    let count = asks::count(&v.items, w::Path::ChangeSettingsItems)?;
+    let count = asks::count(&v.items, w::paths::CHANGE_SETTINGS_ITEMS)?;
     let mut items = List::with_capacity(count);
     let mut reader = Reader::new(&v.items);
     for _ in 0..count {
-        let bytes = asks::item(&mut reader, w::Path::ChangeSettingsItems)?;
+        let bytes = asks::item(&mut reader, w::paths::CHANGE_SETTINGS_ITEMS)?;
         let mut piece = Reader::new(&bytes);
         let item = match w::SettingItem::decode(limits, &mut piece) {
             Ok(value) => value,
@@ -305,7 +305,7 @@ fn template(value: w::Template, models: &[crate::Model], limits: &w::Limits) -> 
         return Err(bad());
     }
     let flags = v.flags.into_parts();
-    let llm = match super::super::llm::people(v.llm, models, w::Path::TemplateLlm)? {
+    let llm = match super::super::llm::people(v.llm, models, w::paths::TEMPLATE_LLM)? {
         Some(value) => {
             let mut subagents = List::with_capacity(u32::try_from(value.subagents.len()).expect("bounded models"));
             for value in value.subagents {
@@ -381,7 +381,7 @@ fn contract(value: w::TaskContractDocument, limits: &w::Limits) -> Result<t::Con
             if value.cut() {
                 return Err(bad());
             }
-            let path = w::Path::TaskContractDocumentVerdictChoices;
+            let path = w::paths::TASK_CONTRACT_DOCUMENT_VERDICT_CHOICES;
             let count = asks::count(value.choices(), path)?;
             let mut choices = List::with_capacity(count);
             let mut reader = Reader::new(value.choices());
@@ -441,16 +441,13 @@ pub(crate) fn proposed(
 ) -> Result<s::Proposed, Untranslatable> {
     let value = value.into_parts();
     if value.project != 0 {
-        return Err(Untranslatable { path: w::Path::ProposeProject });
+        return Err(Untranslatable { path: w::paths::PROPOSE_PROJECT });
     }
     let value_set = match value.action {
         w::ProposeAction::Settings(v) => v.into_parts(),
         w::ProposeAction::Batch(_) | w::ProposeAction::Amendment(_) => return Err(bad()),
     };
-    let envelope = match w::ChangeSettings::new(
-        limits,
-        w::ChangeSettingsParts { against: value_set.against, items: value_set.items, running: w::Running::Stays },
-    ) {
+    let envelope = match Ok(w::ChangeSettings { against: value_set.against, items: value_set.items, running: w::Running::Stays }) {
         Ok(value) => value,
         Err(problem) => return Err(map_problem(problem)),
     };

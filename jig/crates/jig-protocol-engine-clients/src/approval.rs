@@ -202,11 +202,7 @@ impl Component {
                 )
                 .expect("room for approval");
             w::ApprovalAskAnswer::Asked(
-                w::ApprovalAsked::new(
-                    &env.limits.wire,
-                    w::ApprovalAskedParts { secret, code: *code.letters(), expires: expires.as_nanos() },
-                )
-                .expect("fixed approval fits"),
+                w::ApprovalAsked { secret, code: *code.letters(), expires: expires.as_nanos() },
             )
         };
         connection.respond(Reply::Record(routes::approval_ask_answer(answer)));
@@ -263,11 +259,7 @@ impl Component {
             let approval = self.approval.live.get(&digest).expect("live approval");
             return match approval.decision {
                 Decision::Waiting => w::ApprovalState::Waiting(
-                    w::ApprovalWaiting::new(
-                        &env.limits.wire,
-                        w::ApprovalWaitingParts { asked: approval.asked.as_nanos() },
-                    )
-                    .expect("fixed waiting fits"),
+                    w::ApprovalWaiting { asked: approval.asked.as_nanos() },
                 ),
                 Decision::Approved { .. } | Decision::Taking { .. } => w::ApprovalState::Approved,
             };
@@ -426,11 +418,7 @@ impl Component {
             people::Reply::Full { sign_ins, earliest } => {
                 let expires = self.approval.live.get(&digest).expect("reserved approval").expires;
                 w::ApprovalSignInAnswer::Full(
-                    w::ApprovalFull::new(
-                        &env.limits.wire,
-                        w::ApprovalFullParts { sign_ins, earliest: earliest.as_nanos(), until: expires.as_nanos() },
-                    )
-                    .expect("fixed full fits"),
+                    w::ApprovalFull { sign_ins, earliest: earliest.as_nanos(), until: expires.as_nanos() },
                 )
             }
             people::Reply::Signer(_)

@@ -164,11 +164,7 @@ fn a_decided_escalation_keeps_its_decider_and_wall() {
             "rejected",
             p::EscalationDecision::Reject { reason: Box::from(b"reason".as_slice()) },
             w::EscalationDecision::Reject(
-                w::EscalationDecisionReject::new(
-                    &limits,
-                    w::EscalationDecisionRejectParts { reason: Box::from(b"reason".as_slice()) },
-                )
-                .expect("literal reject"),
+                w::EscalationDecisionReject { reason: Box::from(b"reason".as_slice()) },
             ),
         ),
     ];
@@ -228,7 +224,7 @@ fn an_escalations_hold_keeps_its_lifecycle_facts() {
     let w::PriorPhase::Active(active) = hold.before() else { panic!("running before hold") };
     assert_eq!(
         active.value(),
-        &w::RunStage::Running(w::RunStageRunning::new(&limits, w::RunStageRunningParts { attempt: 3 }).unwrap())
+        &w::RunStage::Running(w::RunStageRunning { attempt: 3 })
     );
 }
 
@@ -247,9 +243,9 @@ fn record_with_decision(source: &w::Ended, decision: w::EscalationDecision) -> w
     let mut value = value.into_parts();
     let mut kept = value.decision.into_parts();
     kept.decision = decision;
-    value.decision = w::EscalationDecisionRecord::new(&limits, kept).expect("literal decision");
-    parts.value = w::EndedValue::Escalation(w::EndedValueEscalation::new(&limits, value).expect("literal escalation"));
-    w::ReadValue::Ended(Box::new(w::Ended::new(&limits, parts).expect("literal ended")))
+    value.decision = kept;
+    parts.value = w::EndedValue::Escalation(value);
+    w::ReadValue::Ended(Box::new(parts))
 }
 
 #[test]
@@ -259,7 +255,7 @@ fn a_person_answer_notice_encodes_its_question_number() {
         let value = jig_domain_tasks::MessageKind::QuestionAnswered { question };
         let encoded = translate::objects::question_answer::message_kind(&value, &limits).expect("notice");
         let expected = w::MessageKind::QuestionAnswered(
-            w::MessageKindAnswer::new(&limits, w::MessageKindAnswerParts { question }).expect("number"),
+            w::MessageKindAnswer { question },
         );
         assert_eq!(encoded, expected);
     }

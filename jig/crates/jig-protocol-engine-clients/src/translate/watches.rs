@@ -64,13 +64,13 @@ pub(crate) fn hello(name: [u8; 16], settings: &crate::Settings, limits: &w::Limi
     for range in &settings.served {
         let owner = match range.family {
             None => w::Owner::Jig,
-            Some(number) => w::Owner::Family(w::Family::new(limits, w::FamilyParts { number })?),
+            Some(number) => w::Owner::Family(w::Family { number }),
         };
         served
-            .push(w::Served::new(limits, w::ServedParts { owner, first: range.first, last: range.last })?)
+            .push(w::Served { owner, first: range.first, last: range.last })
             .expect("served ranges fit");
     }
-    w::Hello::new(limits, w::HelloParts { stream: name, served, heartbeat: settings.heartbeat })
+    Ok(w::Hello { stream: name, served, heartbeat: settings.heartbeat })
 }
 pub(crate) fn delivery(
     value: &d::Document,
@@ -88,13 +88,10 @@ pub(crate) fn delivery(
         d::Document::Task(value) => w::DeliveryValue::Task(Box::new(task::document(value, models, limits)?)),
         d::Document::Tree(value) => {
             let next = match &value.next {
-                Some(next) => Some(w::Cursor::new(
-                    limits,
-                    w::CursorParts {
+                Some(next) => Some(w::Cursor {
                         value: cursor::encode_tree(next, value.root.number, rows, limits.cursor_value)
                             .ok_or(super::problem(skein_codec::Reason::Bound))?,
-                    },
-                )?),
+                    }),
                 None => None,
             };
             w::DeliveryValue::Tree(live::tree(value, next, limits)?)
@@ -110,8 +107,8 @@ pub(crate) fn delivery(
                 row.encode(&mut bytes).expect("measured chip");
                 pieces.push(bytes.finish()).expect("chip pieces fit");
             }
-            let rows = super::pieces(&pieces, limits.chips_rows, w::Path::ChipsRows)?;
-            w::DeliveryValue::Chips(w::Chips::new(limits, w::ChipsParts { rows })?)
+            let rows = super::pieces(&pieces, limits.chips_rows, w::paths::CHIPS_ROWS)?;
+            w::DeliveryValue::Chips(w::Chips { rows })
         }
         d::Document::Inbox(value) => w::DeliveryValue::Inbox(inbox::document(value, limits)?),
         d::Document::Lines(value) => w::DeliveryValue::Tasks(super::queries::lines(value, slots, limits)?),
@@ -131,7 +128,7 @@ pub(crate) fn delivery(
 pub(crate) fn owned(value: w::DeliveryValue, version: u32, limits: &w::Limits) -> Result<w::Owned, w::Problem> {
     let mut record = Writer::new(skein_lib::length::usize_of(value.measure()));
     value.encode(&mut record).expect("measured delivery");
-    w::Owned::new(limits, w::OwnedParts { owner: w::Owner::Jig, version, record: record.finish() })
+    Ok(w::Owned { owner: w::Owner::Jig, version, record: record.finish() })
 }
 pub(crate) fn packet(value: &w::StreamEvent) -> Box<[u8]> {
     let mut record = Writer::new(skein_lib::length::usize_of(value.measure()));
@@ -152,7 +149,7 @@ pub(crate) fn document_packet(
 ) -> Result<w::StreamEvent, w::Problem> {
     let value = delivery(document, project, rows, models, slots, limits)?;
     let document = owned(value, version, limits)?;
-    Ok(w::StreamEvent::Delivery(w::Delivery::new(limits, w::DeliveryParts { watch, document })?))
+    Ok(w::StreamEvent::Delivery(w::Delivery { watch, document }))
 }
 pub(crate) fn application_packet(
     family: u16,
@@ -161,9 +158,9 @@ pub(crate) fn application_packet(
     watch: u64,
     limits: &w::Limits,
 ) -> Result<w::StreamEvent, w::Problem> {
-    let family = w::Family::new(limits, w::FamilyParts { number: family })?;
-    let document = w::Owned::new(limits, w::OwnedParts { owner: w::Owner::Family(family), version, record })?;
-    Ok(w::StreamEvent::Delivery(w::Delivery::new(limits, w::DeliveryParts { watch, document })?))
+    let family = w::Family { number: family };
+    let document = w::Owned { owner: w::Owner::Family(family), version, record };
+    Ok(w::StreamEvent::Delivery(w::Delivery { watch, document }))
 }
 pub(crate) fn text_packet(
     writing: &views::Writing,
@@ -171,8 +168,8 @@ pub(crate) fn text_packet(
     limits: &w::Limits,
 ) -> Result<w::StreamEvent, w::Problem> {
     let value = live::writing(writing, limits)?;
-    Ok(w::StreamEvent::Text(w::StreamText::new(limits, w::StreamTextParts { watch, value })?))
+    Ok(w::StreamEvent::Text(w::StreamText { watch, value }))
 }
 pub(crate) fn end_packet(why: views::End, watch: u64, limits: &w::Limits) -> Result<w::StreamEvent, w::Problem> {
-    Ok(w::StreamEvent::Ended(w::WatchEnded::new(limits, w::WatchEndedParts { watch, why: ended(why) })?))
+    Ok(w::StreamEvent::Ended(w::WatchEnded { watch, why: ended(why) }))
 }

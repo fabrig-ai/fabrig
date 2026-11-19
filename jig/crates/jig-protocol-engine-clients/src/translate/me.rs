@@ -7,7 +7,7 @@ use skein_lib::{List, bytes};
 fn executor(value: p::TemplateExecutor, limits: &w::Limits) -> Result<w::TemplateExecutor, w::Problem> {
     Ok(match value {
         p::TemplateExecutor::Charter(value) => {
-            w::TemplateExecutor::Charter(w::TemplateCharter::new(limits, w::TemplateCharterParts { value })?)
+            w::TemplateExecutor::Charter(w::TemplateCharter { value })
         }
         p::TemplateExecutor::Chosen => w::TemplateExecutor::Chosen,
     })
@@ -15,10 +15,10 @@ fn executor(value: p::TemplateExecutor, limits: &w::Limits) -> Result<w::Templat
 fn budget(value: p::TemplateBudget, limits: &w::Limits) -> Result<w::TemplateBudget, w::Problem> {
     Ok(match value {
         p::TemplateBudget::Amount(value) => {
-            w::TemplateBudget::Amount(w::TemplateAmount::new(limits, w::TemplateAmountParts { value })?)
+            w::TemplateBudget::Amount(w::TemplateAmount { value })
         }
         p::TemplateBudget::AsAllowed { cap } => {
-            w::TemplateBudget::AsAllowed(w::TemplateAsAllowed::new(limits, w::TemplateAsAllowedParts { cap })?)
+            w::TemplateBudget::AsAllowed(w::TemplateAsAllowed { cap })
         }
         p::TemplateBudget::Given => w::TemplateBudget::Given,
     })
@@ -27,7 +27,7 @@ fn deadline(value: p::TemplateDeadline, limits: &w::Limits) -> Result<w::Templat
     Ok(match value {
         p::TemplateDeadline::None => w::TemplateDeadline::None,
         p::TemplateDeadline::Span(value) => {
-            w::TemplateDeadline::Span(w::TemplateSpan::new(limits, w::TemplateSpanParts { value })?)
+            w::TemplateDeadline::Span(w::TemplateSpan { value })
         }
         p::TemplateDeadline::Given => w::TemplateDeadline::Given,
     })
@@ -50,21 +50,16 @@ pub fn templates(
         }
         encoded.push(out.finish()).expect("same row count");
     }
-    pieces(&encoded, limits.me_project_templates, w::Path::MeProjectTemplates)
+    pieces(&encoded, limits.me_project_templates, w::paths::ME_PROJECT_TEMPLATES)
 }
 
 pub(super) fn flags(value: jig_domain_tasks::Flags, limits: &w::Limits) -> Result<w::TaskFlags, w::Problem> {
-    w::TaskFlags::new(
-        limits,
-        w::TaskFlagsParts {
+    Ok(w::TaskFlags {
             ended_by: match value.ended_by {
                 jig_domain_tasks::EndedBy::Result => w::EndedBy::Result,
                 jig_domain_tasks::EndedBy::Requester => w::EndedBy::Requester,
                 jig_domain_tasks::EndedBy::Standing => w::EndedBy::Standing,
-                jig_domain_tasks::EndedBy::Closer(closer) => w::EndedBy::Closer(w::Closer::new(
-                    limits,
-                    w::CloserParts { connector: closer.connector, code: closer.code },
-                )?),
+                jig_domain_tasks::EndedBy::Closer(closer) => w::EndedBy::Closer(w::Closer { connector: closer.connector, code: closer.code }),
             },
             conversation: value.conversation,
             listed: value.listed,
@@ -72,8 +67,7 @@ pub(super) fn flags(value: jig_domain_tasks::Flags, limits: &w::Limits) -> Resul
                 jig_domain_tasks::Retention::Kept => w::Retention::Kept,
                 jig_domain_tasks::Retention::ForgottenOnceRead => w::Retention::ForgottenOnceRead,
             },
-        },
-    )
+        })
 }
 pub fn creating(
     models: &[crate::Model],
@@ -85,16 +79,10 @@ pub fn creating(
         w::Bounds::Amend(_) => unreachable!("creating has creating bounds"),
     };
     let beyond = match &value.beyond {
-        acts::Beyond::Proposed { to } => w::Beyond::Proposed(w::BeyondProposed::new(
-            limits,
-            w::BeyondProposedParts { to: task::recipient(to, limits)? },
-        )?),
-        acts::Beyond::Refused(why) => w::Beyond::Refused(w::BeyondRefused::new(
-            limits,
-            w::BeyondRefusedParts { value: super::refusals::refusal(why.clone(), limits)? },
-        )?),
+        acts::Beyond::Proposed { to } => w::Beyond::Proposed(w::BeyondProposed { to: task::recipient(to, limits)? }),
+        acts::Beyond::Refused(why) => w::Beyond::Refused(w::BeyondRefused { value: super::refusals::refusal(why.clone(), limits)? }),
     };
-    w::CreatingBounds::new(limits, w::CreatingBoundsParts { within, beyond })
+    Ok(w::CreatingBounds { within, beyond })
 }
 pub fn overrides(
     values: &List<p::TemplateOverride>,
@@ -102,9 +90,7 @@ pub fn overrides(
 ) -> Result<List<w::TemplateOverride>, w::Problem> {
     let mut rows = List::with_capacity(values.len());
     for value in values {
-        rows.push(w::TemplateOverride::new(
-            limits,
-            w::TemplateOverrideParts {
+        rows.push(w::TemplateOverride {
                 template: value.template,
                 executor: match value.executor {
                     Some(v) => Some(executor(v, limits)?),
@@ -119,8 +105,7 @@ pub fn overrides(
                     None => None,
                 },
                 priority: value.priority,
-            },
-        )?)
+            })
         .expect("same capacity");
     }
     Ok(rows)
@@ -134,18 +119,13 @@ pub(super) fn template(
     let mut resources = List::with_capacity(super::count(value.resources.len())?);
     for item in &value.resources {
         resources
-            .push(w::Symbol::new(limits, w::SymbolParts { connector: item.connector, symbol: item.symbol })?)
+            .push(w::Symbol { connector: item.connector, symbol: item.symbol })
             .expect("one row per symbol");
     }
-    w::Template::new(
-        limits,
-        w::TemplateParts {
+    Ok(w::Template {
             resources,
             number: value.number,
-            name: w::DocumentText::new(
-                limits,
-                w::DocumentTextParts { bytes: bytes::copy_of(&value.name), cut: false },
-            )?,
+            name: w::DocumentText { bytes: bytes::copy_of(&value.name), cut: false },
             executor: executor(value.executor, limits)?,
             contract: objects::goal::contract(&value.contract, limits)?,
             shallower: value.shallower,
@@ -156,6 +136,5 @@ pub(super) fn template(
             label: value.label,
             grace: value.grace,
             llm: super::llm::choice(value.llm.as_ref(), models, limits)?,
-        },
-    )
+        })
 }

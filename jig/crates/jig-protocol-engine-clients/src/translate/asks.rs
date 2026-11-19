@@ -54,7 +54,7 @@ fn decode(
             p::Ask::Restore { revision: value.revision, reason: value.reason }
         }
         w::Ask::MoveToNewest(value) => p::Ask::MoveToNewest { revision: value.revision() },
-        w::Ask::ChangeModel(_) => return Err(Untranslatable { path: w::Path::ChangeModelAct }),
+        w::Ask::ChangeModel(_) => return Err(Untranslatable { path: w::paths::CHANGE_MODEL_ACT }),
         w::Ask::ChangeSettings(value) => {
             let against = value.against();
             let record = w::Ask::ChangeSettings(value);
@@ -151,11 +151,11 @@ fn decode(
         w::Ask::RemoveProject(value) => p::Ask::RemoveProject { project: value.project(), grace: *value.grace() },
         w::Ask::Rename(value) => {
             let v = value.into_parts();
-            p::Ask::Rename { project: v.project, name: project_name(&v.name, w::Path::RenameName)? }
+            p::Ask::Rename { project: v.project, name: project_name(&v.name, w::paths::RENAME_NAME)? }
         }
         w::Ask::MakeProject(value) => {
             let v = value.into_parts();
-            p::Ask::MakeProject { name: project_name(&v.name, w::Path::MakeProjectName)?, policy: v.policy }
+            p::Ask::MakeProject { name: project_name(&v.name, w::paths::MAKE_PROJECT_NAME)?, policy: v.policy }
         }
         w::Ask::SetPool(value) => {
             let v = value.into_parts();
@@ -166,12 +166,12 @@ fn decode(
             p::Ask::EditNote {
                 project: v.project,
                 name: v.note,
-                scope: Box::new(note_scope(v.scope, v.project, w::Path::EditNoteScope)?),
+                scope: Box::new(note_scope(v.scope, v.project, w::paths::EDIT_NOTE_SCOPE)?),
                 change: Box::new(p::NoteChange::Correct {
                     description: v.description,
                     body: v.body,
                     references: v.references.into_boxed(),
-                    recalled: recalled(v.revision, w::Path::EditNoteRevision)?,
+                    recalled: recalled(v.revision, w::paths::EDIT_NOTE_REVISION)?,
                 }),
             }
         }
@@ -180,9 +180,9 @@ fn decode(
             p::Ask::EditNote {
                 project: v.project,
                 name: v.note,
-                scope: Box::new(note_scope(v.scope, v.project, w::Path::DeleteNoteScope)?),
+                scope: Box::new(note_scope(v.scope, v.project, w::paths::DELETE_NOTE_SCOPE)?),
                 change: Box::new(p::NoteChange::Delete {
-                    recalled: recalled(v.revision, w::Path::DeleteNoteRevision)?,
+                    recalled: recalled(v.revision, w::paths::DELETE_NOTE_REVISION)?,
                 }),
             }
         }
@@ -222,7 +222,7 @@ pub(super) fn proposal_decision(value: w::Decision) -> Result<p::ProposalDecisio
         w::Decision::Rejected(v) => Ok(p::ProposalDecision::Reject { reason: v.into_parts().reason }),
         w::Decision::PassedUp => Ok(p::ProposalDecision::Pass),
         w::Decision::Released(_) | w::Decision::LeftHeld(_) => {
-            Err(Untranslatable { path: w::Path::DecideProposalDecision })
+            Err(Untranslatable { path: w::paths::DECIDE_PROPOSAL_DECISION })
         }
     }
 }
@@ -230,12 +230,12 @@ pub(super) fn escalation_decision(value: w::Decision) -> Result<p::EscalationDec
     match value {
         w::Decision::Released(v) => match v.again() {
             None => Ok(p::EscalationDecision::Release),
-            Some(_) => Err(Untranslatable { path: w::Path::DecideEscalationDecision }),
+            Some(_) => Err(Untranslatable { path: w::paths::DECIDE_ESCALATION_DECISION }),
         },
         w::Decision::Rejected(v) => Ok(p::EscalationDecision::Reject { reason: v.into_parts().reason }),
         w::Decision::LeftHeld(v) => Ok(p::EscalationDecision::Reject { reason: v.into_parts().reason }),
         w::Decision::PassedUp => Ok(p::EscalationDecision::Pass),
-        w::Decision::Accepted => Err(Untranslatable { path: w::Path::DecideEscalationDecision }),
+        w::Decision::Accepted => Err(Untranslatable { path: w::paths::DECIDE_ESCALATION_DECISION }),
     }
 }
 pub(super) fn person_answer(value: w::PersonAnswer) -> p::PersonResult {
@@ -390,7 +390,7 @@ pub(super) fn amendment(
             None => None,
         },
         authority,
-        llm: super::llm::people(v.llm, models, w::Path::AmendmentLlm)?,
+        llm: super::llm::people(v.llm, models, w::paths::AMENDMENT_LLM)?,
         reason,
     })
 }
@@ -456,7 +456,7 @@ pub(super) fn authority(
             })
             .expect("same capacity");
     }
-    let path = w::Path::AuthorityNoteResources;
+    let path = w::paths::AUTHORITY_NOTE_RESOURCES;
     let count = count(&v.note_resources, path)?;
     let mut resources = List::with_capacity(count);
     let mut reader = Reader::new(&v.note_resources);
@@ -475,7 +475,7 @@ pub(super) fn authority(
     Ok(p::Authority {
         tools: v.tools,
         models: super::llm::requested(v.models, names)?,
-        grants: grants(&v.grants, limits.authority_grants, w::Path::AuthorityGrants, limits)?,
+        grants: grants(&v.grants, limits.authority_grants, w::paths::AUTHORITY_GRANTS, limits)?,
         delegation: p::Delegation { kinds: kinds.into_boxed(), tasks: delegation.tasks, depth: delegation.depth },
         spend: v.spend,
         deadline: match v.deadline {
@@ -524,7 +524,7 @@ fn policy(
             })
         }
         w::PolicyEdit::Requirements(v) => {
-            let path = w::Path::PolicyEditRequirementsRequirements;
+            let path = w::paths::POLICY_EDIT_REQUIREMENTS_REQUIREMENTS;
             let count = count(v.requirements(), path)?;
             let mut values = List::with_capacity(count);
             let mut reader = Reader::new(v.requirements());
@@ -549,7 +549,7 @@ fn policy(
             grants: grants(
                 v.grants(),
                 limits.policy_edit_projections_grants,
-                w::Path::PolicyEditProjectionsGrants,
+                w::paths::POLICY_EDIT_PROJECTIONS_GRANTS,
                 limits,
             )?,
         },
@@ -606,7 +606,7 @@ fn account_change(value: &w::AccountChange) -> Result<p::AccountChange, Untransl
         },
         w::AccountChange::DeclareProgram(row) => {
             if jig_domain_link::SourceName::new(row.name()).is_none() {
-                return Err(Untranslatable { path: w::Path::AccountChangeDeclareProgramName });
+                return Err(Untranslatable { path: w::paths::ACCOUNT_CHANGE_DECLARE_PROGRAM_NAME });
             }
             p::AccountChange::DeclareProgram {
                 provider: row.provider(),

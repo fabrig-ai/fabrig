@@ -112,7 +112,7 @@ pub(super) fn compound(
     limits: &w::Limits,
     names: &mut List<Box<[u8]>>,
 ) -> Result<p::Ask, Untranslatable> {
-    let path = w::Path::CompoundOperations;
+    let path = w::paths::COMPOUND_OPERATIONS;
     let mut reader = skein_lib::Reader::new(value.operations());
     let mut decoded = List::with_capacity(asks::count(value.operations(), path)?);
     for _ in 0..decoded.capacity() {
@@ -138,7 +138,7 @@ fn operation_to_people(
     names: &mut List<Box<[u8]>>,
 ) -> Result<p::Operation, Untranslatable> {
     if operation_project(&value) != project {
-        return Err(Untranslatable { path: w::Path::CompoundOperations });
+        return Err(Untranslatable { path: w::paths::COMPOUND_OPERATIONS });
     }
     Ok(match value {
         w::Operation::Message(v) => {
@@ -232,10 +232,7 @@ pub(crate) fn refused(record: &w::Ask, limits: &w::Limits) -> Result<Option<w::K
             let task = w::NewTask::decode(limits, &mut skein_lib::Reader::new(&bytes))?;
             match task.executor() {
                 w::Executor::Job(_) => {
-                    let answer = w::Final::Refused(w::Refused::new(
-                        limits,
-                        w::RefusedParts { refusal: w::Refusal::NotOffered, at: None },
-                    )?);
+                    let answer = w::Final::Refused(w::Refused { refusal: w::Refusal::NotOffered, at: None });
                     let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(answer.measure()));
                     answer.encode(&mut out).expect("measured answer");
                     return match super::answers::owned(
@@ -262,11 +259,8 @@ pub(crate) fn refused(record: &w::Ask, limits: &w::Limits) -> Result<Option<w::K
         let operation = w::Operation::decode(limits, &mut skein_lib::Reader::new(&bytes))?;
         let project = operation_project(&operation);
         if project != value.project() {
-            let refusal = w::Refusal::Malformed(w::RefusalMalformed::new(
-                limits,
-                w::RefusalMalformedParts { at, why: w::Malformed::ProjectMismatch },
-            )?);
-            let answer = w::Final::Refused(w::Refused::new(limits, w::RefusedParts { refusal, at: Some(at) })?);
+            let refusal = w::Refusal::Malformed(w::RefusalMalformed { at, why: w::Malformed::ProjectMismatch });
+            let answer = w::Final::Refused(w::Refused { refusal, at: Some(at) });
             let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(answer.measure()));
             answer.encode(&mut out).expect("measured answer");
             return match super::answers::owned(w::Owner::Jig, jig_client_protocol_wire::VERSION, out.finish(), limits) {
@@ -295,7 +289,7 @@ pub(super) fn create(
 ) -> Result<p::Ask, Untranslatable> {
     Ok(p::Ask::Create {
         project: value.project(),
-        batch: batch(value.tasks(), w::Path::CreateTasks, models, limits, names)?,
+        batch: batch(value.tasks(), w::paths::CREATE_TASKS, models, limits, names)?,
     })
 }
 pub(super) fn delegate(
@@ -307,7 +301,7 @@ pub(super) fn delegate(
     Ok(p::Ask::Delegate {
         project: value.project(),
         task: value.task(),
-        batch: batch(value.tasks(), w::Path::DelegateTasks, models, limits, names)?,
+        batch: batch(value.tasks(), w::paths::DELEGATE_TASKS, models, limits, names)?,
     })
 }
 fn batch(
@@ -347,7 +341,7 @@ fn member(
             .expect("same capacity");
     }
     if v.symbols.len() > limits.new_task_symbols {
-        return Err(Untranslatable { path: w::Path::NewTaskSymbols });
+        return Err(Untranslatable { path: w::paths::NEW_TASK_SYMBOLS });
     }
     let mut symbols = List::with_capacity(v.symbols.len());
     for symbol in v.symbols.into_boxed() {
@@ -361,7 +355,7 @@ fn member(
             w::NewDeadline::Span(value) => p::Deadline::Span(value.value()),
         },
         executor: match v.executor {
-            w::Executor::Job(_) => return Err(Untranslatable { path: w::Path::NewTaskExecutor }),
+            w::Executor::Job(_) => return Err(Untranslatable { path: w::paths::NEW_TASK_EXECUTOR }),
             w::Executor::Agent(v) => p::TaskExecutor::Agent { charter: v.charter() },
             w::Executor::Procedure(v) => p::TaskExecutor::Procedure { connector: v.connector(), code: v.code() },
             w::Executor::Person(v) => p::TaskExecutor::Person(match v.value() {
@@ -383,7 +377,7 @@ fn member(
             None => None,
         },
         dependencies: dependencies.into_boxed(),
-        named: asks::grants(&v.named, limits.new_task_named, w::Path::NewTaskNamed, limits)?,
+        named: asks::grants(&v.named, limits.new_task_named, w::paths::NEW_TASK_NAMED, limits)?,
         tracked: v.tracked,
         label: v.label,
         flags: p::Flags {
@@ -402,7 +396,7 @@ fn member(
                 w::Retention::ForgottenOnceRead => p::Retention::ForgottenOnceRead,
             },
         },
-        llm: super::llm::people(v.llm, models, w::Path::NewTaskLlm)?,
+        llm: super::llm::people(v.llm, models, w::paths::NEW_TASK_LLM)?,
     })
 }
 fn new_contract(value: w::NewContract) -> p::Contract {
@@ -451,7 +445,7 @@ pub(super) fn propose(
     let action = match v.action {
         w::ProposeAction::Settings(value) => p::Action::Settings { against: value.against(), digest },
         w::ProposeAction::Batch(value) => {
-            p::Action::Batch(batch(value.tasks(), w::Path::ProposeBatchTasks, models, limits, names)?)
+            p::Action::Batch(batch(value.tasks(), w::paths::PROPOSE_BATCH_TASKS, models, limits, names)?)
         }
         w::ProposeAction::Amendment(value) => {
             let value = value.into_parts();

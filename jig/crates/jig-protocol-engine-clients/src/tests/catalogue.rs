@@ -59,22 +59,18 @@ fn create() -> w::Ask {
     let bytes = skein_codec::piece::split(&mut Reader::new(create.tasks())).unwrap().unwrap();
     let mut task = w::NewTask::decode(&limits, &mut Reader::new(&bytes)).unwrap().into_parts();
     task.llm = Some(
-        w::LlmChoice::new(
-            &limits,
-            w::LlmChoiceParts {
+        w::LlmChoice {
                 later: None,
                 account: None,
-                main: w::ModelEffort::new(&limits, w::ModelEffortParts { model: NEW.into(), effort: None }).unwrap(),
+                main: w::ModelEffort { model: NEW.into(), effort: None },
                 subagents: List::with_capacity(0),
             },
-        )
-        .unwrap(),
     );
-    let task = w::NewTask::new(&limits, task).unwrap();
+    let task = task;
     let mut writer = Writer::new(usize::try_from(task.measure()).unwrap());
     task.encode(&mut writer).unwrap();
     w::Ask::Create(
-        w::Create::new(&limits, w::CreateParts { project: f::PROJECT, tasks: f::pieces(&[writer.finish()]) }).unwrap(),
+        w::Create { project: f::PROJECT, tasks: f::pieces(&[writer.finish()]) },
     )
 }
 
@@ -89,17 +85,13 @@ fn a_catalogue_replaces_the_models_a_request_names() {
         env.limits.message_bytes = w::CEILINGS.keyed_request;
         let mut exchange = f::Exchange::with_env(env);
         let message = || {
-            let keyed = w::Keyed::new(
-                &w::CEILINGS,
-                w::KeyedParts {
+            let keyed = w::Keyed {
                     key: [5; 16],
                     owner: w::Owner::Jig,
                     version: jig_client_protocol_wire::VERSION,
                     request: f::encode_ask(&create()),
                     value: None,
-                },
-            )
-            .unwrap();
+                };
             let mut writer = Writer::new(usize::try_from(keyed.measure()).unwrap());
             keyed.encode(&mut writer).unwrap();
             Message::Request(writer.finish())
@@ -182,7 +174,7 @@ fn a_hole_is_no_model() {
     assert_eq!(shown.get(0).unwrap().accounts().as_slice(), &[7]);
     assert_eq!(
         translate::llm::refusal(1, p::LlmWhy::Charter, &models, &f::wire()),
-        Err(w::Problem { path: w::Path::RefusalLlmModel, reason: skein_codec::Reason::Bound })
+        Err(w::Problem { path: w::paths::REFUSAL_LLM_MODEL, reason: skein_codec::Reason::Bound })
     );
     let w::Refusal::Llm(refusal) = translate::llm::refusal(2, p::LlmWhy::Charter, &models, &f::wire()).unwrap() else {
         panic!("named refusal")

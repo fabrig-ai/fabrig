@@ -95,7 +95,7 @@ pub fn authority(value: Models, models: &[Model], limits: &w::Limits) -> Result<
     for name in names {
         rows.push(name).expect("same model count");
     }
-    Ok(Some(w::ModelSet::Names(w::ModelSetNames::new(limits, w::ModelSetNamesParts { names: rows })?)))
+    Ok(Some(w::ModelSet::Names(w::ModelSetNames { names: rows })))
 }
 
 /// Collect only names the ask uses; admission of unknown names follows people's replay lookup.
@@ -103,7 +103,7 @@ pub(super) fn requested(
     value: Option<w::ModelSet>,
     names: &mut List<Box<[u8]>>,
 ) -> Result<Option<p::Models>, super::Untranslatable> {
-    let bad = super::Untranslatable { path: w::Path::ModelSetNamesNames };
+    let bad = super::Untranslatable { path: w::paths::MODEL_SET_NAMES_NAMES };
     Ok(match value {
         None => None,
         Some(w::ModelSet::All) => Some(p::Models::All),
@@ -228,7 +228,7 @@ pub fn models(
     for offered in offer {
         let model = models
             .get(usize::from(offered.model))
-            .ok_or(w::Problem { path: w::Path::MeModelName, reason: skein_codec::Reason::Bound })?;
+            .ok_or(w::Problem { path: w::paths::ME_MODEL_NAME, reason: skein_codec::Reason::Bound })?;
         if model.name.is_empty() {
             continue;
         }
@@ -236,9 +236,7 @@ pub fn models(
         for effort in &model.efforts {
             efforts.push(bytes::copy_of(effort)).expect("same capacity");
         }
-        rows.push(w::MeModel::new(
-            limits,
-            w::MeModelParts {
+        rows.push(w::MeModel {
                 new_until: match model.new_until {
                     Some(at) => Some(at.as_nanos()),
                     None => None,
@@ -259,19 +257,15 @@ pub fn models(
                 shown: model.shown.clone(),
                 accounts: offered.accounts.clone(),
                 picker: model.picker,
-                prices: w::MePrices::new(
-                    limits,
-                    w::MePricesParts {
+                prices: w::MePrices {
                         input: model.prices.input,
                         cached: model.prices.cached,
                         cache_write: model.prices.cache_write,
                         output: model.prices.output,
                         unit: model.prices.unit,
                     },
-                )?,
                 description: model.description.clone(),
-            },
-        )?)
+            })
         .expect("same capacity");
     }
     Ok(rows)
@@ -291,9 +285,7 @@ pub fn choice(
     for item in &value.subagents {
         subagents.push(model_effort(*item, models, limits)?).expect("same capacity");
     }
-    Ok(Some(w::LlmChoice::new(
-        limits,
-        w::LlmChoiceParts {
+    Ok(Some(w::LlmChoice {
             account: value.account,
             main: model_effort(value.main, models, limits)?,
             subagents,
@@ -301,18 +293,17 @@ pub fn choice(
                 Some(later) => Some(later_choice(later, models, limits)?),
                 None => None,
             },
-        },
-    )?))
+        }))
 }
 fn later_choice(value: &t::LlmLater, models: &[Model], limits: &w::Limits) -> Result<w::LlmLater, w::Problem> {
     let mut subagents = List::with_capacity(u32::try_from(value.subagents.len()).expect("bounded sub-agents"));
     for item in &value.subagents {
         subagents.push(model_effort(*item, models, limits)?).expect("same capacity");
     }
-    w::LlmLater::new(limits, w::LlmLaterParts { main: model_effort(value.main, models, limits)?, subagents })
+    Ok(w::LlmLater { main: model_effort(value.main, models, limits)?, subagents })
 }
 fn model_effort(value: t::ModelEffort, models: &[Model], limits: &w::Limits) -> Result<w::ModelEffort, w::Problem> {
-    let unknown = w::Problem { path: w::Path::ModelEffortModel, reason: skein_codec::Reason::Bound };
+    let unknown = w::Problem { path: w::paths::MODEL_EFFORT_MODEL, reason: skein_codec::Reason::Bound };
     let Some(model) = models.get(usize::from(value.model)) else {
         return Err(unknown);
     };
@@ -326,7 +317,7 @@ fn model_effort(value: t::ModelEffort, models: &[Model], limits: &w::Limits) -> 
         },
         None => None,
     };
-    w::ModelEffort::new(limits, w::ModelEffortParts { model: bytes::copy_of(&model.name), effort })
+    Ok(w::ModelEffort { model: bytes::copy_of(&model.name), effort })
 }
 
 /// A choice naming a model or an effort configuration lacks is refused before the core sees the
@@ -384,8 +375,8 @@ pub(crate) fn refused(
     let Some(Lacking { model, why }) = found else {
         return Ok(None);
     };
-    let refusal = w::Refusal::Llm(w::RefusalLlm::new(limits, w::RefusalLlmParts { model, why })?);
-    let answer = w::Final::Refused(w::Refused::new(limits, w::RefusedParts { refusal, at })?);
+    let refusal = w::Refusal::Llm(w::RefusalLlm { model, why });
+    let answer = w::Final::Refused(w::Refused { refusal, at });
     let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(answer.measure()));
     answer.encode(&mut out).expect("measured answer");
     match super::answers::owned(w::Owner::Jig, jig_client_protocol_wire::VERSION, out.finish(), limits) {
@@ -537,10 +528,10 @@ pub(crate) fn refusal(
     limits: &w::Limits,
 ) -> Result<w::Refusal, w::Problem> {
     let Some(model) = models.get(usize::from(model)) else {
-        return Err(w::Problem { path: w::Path::RefusalLlmModel, reason: skein_codec::Reason::Bound });
+        return Err(w::Problem { path: w::paths::REFUSAL_LLM_MODEL, reason: skein_codec::Reason::Bound });
     };
     if model.name.is_empty() {
-        return Err(w::Problem { path: w::Path::RefusalLlmModel, reason: skein_codec::Reason::Bound });
+        return Err(w::Problem { path: w::paths::REFUSAL_LLM_MODEL, reason: skein_codec::Reason::Bound });
     }
     let why = match why {
         p::LlmWhy::Unconfigured => w::LlmWhy::Unconfigured,
@@ -550,7 +541,7 @@ pub(crate) fn refusal(
         p::LlmWhy::Procedure => w::LlmWhy::Procedure,
         p::LlmWhy::Repeated => w::LlmWhy::Repeated,
     };
-    Ok(w::Refusal::Llm(w::RefusalLlm::new(limits, w::RefusalLlmParts { model: bytes::copy_of(&model.name), why })?))
+    Ok(w::Refusal::Llm(w::RefusalLlm { model: bytes::copy_of(&model.name), why }))
 }
 
 fn settings_items(bytes: &[u8], models: &[Model], limits: &w::Limits) -> Result<Option<Lacking>, w::Problem> {
