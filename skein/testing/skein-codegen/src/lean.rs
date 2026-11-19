@@ -1,4 +1,4 @@
-//! Lean modules (data/codec/README.md, 4; contracts.md, 3).
+//! Lean modules (skein/docs/design/data/codec/README.md, 4).
 
 use crate::{
     Declaration, Output, Schema, Type,
