@@ -71,9 +71,10 @@ of domain/host.md, section 2.
   of kinds, and the records of that version's schema. Each half speaks
   one version, its build's, and offers only that one: this channel is
   per-build (README.md, section 8).
-  The current version is 11 (`channel-v11.schema`), which adds a
-  program that started without smith's tools to a run's failures
-  (section 4); version 8 added a model failure's status to its report.
+  The current version is 12 (`channel-v12.schema`), which adds a
+  program's usage window (section 4); version 11 added a program that
+  started without smith's tools to a run's failures, and version 8 a
+  model failure's status to its report.
   From 2026-11-12 the version
   moves with every change to its layout (the owner, 2026-11-12), as a new
   kind always moved it. Its `schema/` holds the current text alone, and
