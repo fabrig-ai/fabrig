@@ -32,11 +32,9 @@ fn start(room: u64, part: Option<usize>) -> Result<crate::Service, startup::Prob
     // Rendered framing reaches its boundary while the fixed owned and encoded parts still leave the brief's floor.
     agent.run_limits.schema_costs.finish = agent.run_limits.schema_costs.finish.checked_add(13_560).unwrap();
     // The long instructions need the charter carriers, independently of the host-part bound.
-    let document = super::stock::limited(&fixtures::document(), b"core.run_bytes", 65_536);
-    let mut document: serde_json::Value = serde_json::from_slice(&document).expect("room fixture");
-    document["application"]["limits"]["overrides"]["root.journal.run_bytes"] = 65_536_u32.into();
-    let document = serde_json::to_vec(&document).expect("room fixture JSON");
-    let engine = fixtures::parse_engine(&fixtures::value(&document, b"engine"));
+    let mut document = super::stock::limited(&fixtures::document(), b"core.run_bytes", 65_536);
+    document.own.root.journal.run_bytes = 65_536;
+    let engine = fixtures::parse_engine_over(&fixtures::value(&document, b"engine"), &document.jig);
     let host = temper_engine_smith::room::host_part(
         Some(&agent.run_limits),
         65_536,
@@ -75,16 +73,31 @@ fn start(room: u64, part: Option<usize>) -> Result<crate::Service, startup::Prob
             }
         }
     }
-    startup::startup_with(
+    let files = fixtures::files();
+    let seeds = fixtures::seeds();
+    let checked = startup::checked_start_with_limits(
         &document,
         &config::Directories::working(),
-        &fixtures::files(),
-        &agent,
-        &fixtures::seeds(),
-        None,
-        fixtures::worker_runtime(),
+        &files,
+        Some(&agent),
+        &seeds,
         fixtures::forge_runtime(),
+        None,
         &stock::Given::Own { jig: defaults, forge: Box::default(), ways: stock::ways() },
+        None,
+        &document.jig,
+        &document.own,
+    )?;
+    startup::from_checked(
+        checked,
+        &files,
+        Some(&agent),
+        &seeds,
+        None,
+        Some(fixtures::worker_runtime()),
+        None,
+        None,
+        Box::new([]),
     )
 }
 
@@ -208,10 +221,10 @@ fn stock_charters_pass_the_fixed_check_on_every_wake() {
 }
 
 fn alone_start(
-    document: &[u8],
+    document: &fixtures::Start,
     defaults: jig_domain_core::settings::Defaults,
 ) -> Result<startup::CheckedStart, startup::Problems> {
-    startup::checked_start_with(
+    startup::checked_start_with_limits(
         document,
         &config::Directories::working(),
         &fixtures::files(),
@@ -221,6 +234,8 @@ fn alone_start(
         None,
         &stock::Given::Own { jig: defaults, forge: Box::new([]), ways: stock::ways() },
         Some(b"/usr/bin/git"),
+        &document.jig,
+        &document.own,
     )
 }
 
@@ -229,7 +244,7 @@ fn a_start_without_an_agent_measures_and_refuses_an_unfit_default() {
     let document = fixtures::engine_alone_document();
     let document = super::stock::limited(&document, b"core.run_bytes", 65_536);
     let document = fixtures::with(&document, b"application.limits.overrides", br#"{"root.journal.run_bytes":65536}"#);
-    let engine = fixtures::parse_engine(&fixtures::value(&document, b"engine"));
+    let engine = fixtures::parse_engine_over(&fixtures::value(&document, b"engine"), &document.jig);
     let defaults = stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     let start =
         alone_start(&document, stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes))
@@ -261,7 +276,7 @@ fn a_start_without_an_agent_measures_and_refuses_an_unfit_default() {
 #[test]
 fn a_configured_hub_allowance_below_a_default_stops_startup() {
     let document = fixtures::engine_alone_document();
-    let engine = fixtures::parse_engine(&fixtures::value(&document, b"engine"));
+    let engine = fixtures::parse_engine_over(&fixtures::value(&document, b"engine"), &document.jig);
     let defaults = stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     let host = temper_engine_smith::room::host_part(
         None,

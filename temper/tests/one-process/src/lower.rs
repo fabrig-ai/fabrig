@@ -1,9 +1,9 @@
 //! Lower owners of service composition behaviors (temper/docs/design/testing/real-loop.md).
 pub mod github;
-use serde_json::{Value, json};
+use serde_json::json;
 use std::cell::Cell;
 thread_local! { static ACTIVE: Cell<bool> = const { Cell::new(false) }; }
-pub(crate) fn configure(value: &mut Value) {
+pub(crate) fn configure(value: &mut temper_playground::documents::Configuration) {
     if !ACTIVE.with(Cell::get) {
         return;
     }
@@ -19,7 +19,7 @@ pub(crate) fn configure(value: &mut Value) {
         ("documents.rows", 2),
         ("documents.lines", 3),
     ] {
-        value["engine"]["limits"]["overrides"][name] = count.into();
+        value.jig_over(name, count);
     }
     let policy = &mut value["world_settings"]["policies"][0]["policy"];
     policy["ceiling"]["budget"]["spend"] = 500.into();

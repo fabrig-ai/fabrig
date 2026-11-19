@@ -60,7 +60,7 @@ fn definition(check: &settings::FollowCheck) -> Box<[u8]> {
     out.finish()
 }
 /// The extra gate is selected from the change's provenance, not a landing rule.
-pub(crate) fn select(d: &Domain, row: &mut ChangeRow, limits: &Limits) -> bool {
+pub(crate) fn select(d: &Domain, row: &mut ChangeRow, limits: &Limits) -> Result<(), u64> {
     let config = configured(d, row);
     let selected = config.is_some();
     if let Some(check) = &row.follow_check {
@@ -83,7 +83,7 @@ pub(crate) fn select(d: &Domain, row: &mut ChangeRow, limits: &Limits) -> bool {
     let mut gates = List::with_capacity(limits.change_policy.gates);
     for gate in &row.change.gates {
         if gate.kind != c::GateKind::Follow && gates.push(*gate).is_err() {
-            return false;
+            return Err(u64::from(gates.len()).saturating_add(1));
         }
     }
     if selected
@@ -97,13 +97,13 @@ pub(crate) fn select(d: &Domain, row: &mut ChangeRow, limits: &Limits) -> bool {
             })
             .is_err()
     {
-        return false;
+        return Err(u64::from(gates.len()).saturating_add(1));
     }
     row.change.gates = gates.into_boxed();
     if !selected {
         row.follow_check = None;
     }
-    true
+    Ok(())
 }
 fn receipt_key(d: &Domain, row: &ChangeRow) -> ReceiptKey {
     let check = row.follow_check.as_ref().expect("active follow check");

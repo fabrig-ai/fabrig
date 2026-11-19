@@ -76,6 +76,7 @@ pub(crate) fn apply(current: &mut Current, items: &[Item], revision: u32) -> Lis
                 | Setting::Template(_)
                 | Setting::Policy(_)
                 | Setting::Rules
+                | Setting::Limits
                 | Setting::Application { .. }
                 | Setting::ProjectPolicy { .. } => current.defaults.get(&item.setting).is_none(),
             },
@@ -128,6 +129,7 @@ pub(crate) fn apply(current: &mut Current, items: &[Item], revision: u32) -> Lis
                         | super::Value::Template(_)
                         | super::Value::Policy(_)
                         | super::Value::Rules(_)
+                        | super::Value::Limits(_)
                         | super::Value::Application(_),
                     )
                     | None => None,
@@ -136,6 +138,7 @@ pub(crate) fn apply(current: &mut Current, items: &[Item], revision: u32) -> Lis
                 | Setting::Template(_)
                 | Setting::Policy(_)
                 | Setting::Rules
+                | Setting::Limits
                 | Setting::Application { .. }
                 | Setting::ProjectPolicy { .. } => {
                     if current.defaults.get(&item.setting).is_some() {

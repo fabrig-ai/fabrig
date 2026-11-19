@@ -121,6 +121,8 @@ pub struct World {
     pub forge_reads: Option<Vec<(Token, skein_forge::api::Read)>>,
     pub scripted_forge_reads: Vec<(skein_forge::api::Read, Result<skein_forge::api::Answer, skein_forge::api::Error>)>,
     pub adopted: Vec<forge_top::ApplicationOutcome>,
+    /// Durable limit-setting words at the service face.
+    pub limit_settings: Vec<engine::Request>,
     pub follow_answers: Vec<Option<Box<[u8]>>>,
     pub signed_in: Option<u64>,
     pub web_replies: Vec<people::Reply>,
@@ -179,6 +181,12 @@ pub struct World {
     pub held_ancestry_answers: Vec<engine::Event>,
     /// Timeouts before dispatch: the caller cannot know the write was never made.
     pub lose_writes: u32,
+    /// Lose only merges in transit while other trains and projections continue.
+    pub lose_merges: u32,
+    /// Pause a merge before it reaches the forge, to race a goal's delivery.
+    pub held_merge_calls: Option<Vec<engine::Request>>,
+    /// Forgejo answers divergent fast-forward-only merges 500, a lost answer.
+    pub forgejo_merge_divergence: bool,
     pub fail_issue_writes: bool,
     pub fail_open_writes: bool,
     pub issue_write_times: Vec<Wall>,
@@ -1489,6 +1497,7 @@ impl World {
             forge_reads: None,
             scripted_forge_reads: Vec::new(),
             adopted: Vec::new(),
+            limit_settings: Vec::new(),
             follow_answers: Vec::new(),
             signed_in: None,
             web_replies: Vec::new(),
@@ -1529,6 +1538,9 @@ impl World {
             hold_ancestry_answers: false,
             held_ancestry_answers: Vec::new(),
             lose_writes: 0,
+            lose_merges: 0,
+            held_merge_calls: None,
+            forgejo_merge_divergence: false,
             fail_issue_writes: false,
             fail_open_writes: false,
             issue_write_times: Vec::new(),
@@ -2338,6 +2350,12 @@ impl World {
                         reads.push(engine::Request::Forge { call, repository, op });
                         continue;
                     }
+                    if let Some(calls) = &mut self.held_merge_calls
+                        && matches!(op, skein_forge::api::Op::Write(skein_forge::api::Write::Merge { .. }))
+                    {
+                        calls.push(engine::Request::Forge { call, repository, op });
+                        continue;
+                    }
                     if matches!(op, skein_forge::api::Op::Write(skein_forge::api::Write::Merge { .. })) {
                         self.merges += 1;
                     }
@@ -2398,8 +2416,20 @@ impl World {
                         continue;
                     }
 
-                    if self.lose_writes > 0 && matches!(op, skein_forge::api::Op::Write(_)) {
-                        self.lose_writes -= 1;
+                    let lose_merge = self.lose_merges > 0
+                        && matches!(
+                            op,
+                            skein_forge::api::Op::Write(skein_forge::api::Write::Merge {
+                                how: skein_forge::api::MergeHow::FastForwardOnly,
+                                ..
+                            })
+                        );
+                    if lose_merge || (self.lose_writes > 0 && matches!(op, skein_forge::api::Op::Write(_))) {
+                        if lose_merge {
+                            self.lose_merges -= 1;
+                        } else {
+                            self.lose_writes -= 1;
+                        }
                         self.events.push_back(engine::Event::Forge(Box::new(forge_top::Event::Client(
                             skein_forge_client::Event::Answered {
                                 free: 0,
@@ -2630,6 +2660,7 @@ impl World {
                         answer: Ok(()),
                     })));
                 }
+                request @ engine::Request::LimitSettingsCommitted { .. } => self.limit_settings.push(request),
                 engine::Request::Worker(engine::WorkerRequest::Settings(_))
                 | engine::Request::Account(_)
                 | engine::Request::ForgeKept(_)
@@ -2672,6 +2703,13 @@ impl World {
     }
 
     /// Release the terminals this world held; the provider operation is not repeated.
+    pub fn release_merge_calls(&mut self) {
+        for request in self.held_merge_calls.take().expect("merge calls paused") {
+            self.out.push(request);
+        }
+        self.collect();
+    }
+
     pub fn release_write_answers(&mut self) {
         self.hold_write_answers = None;
         self.events.extend(self.held_write_answers.drain(..));
@@ -3086,7 +3124,22 @@ impl World {
                             answer
                         }
                         Err(error) => {
-                            Err(translate::error(error, fake::time(&self.fake_env.limits, self.fake_env.now)))
+                            if self.forgejo_merge_divergence
+                                && error == raw::Error::Conflict
+                                && matches!(
+                                    op,
+                                    skein_forge::api::Op::Write(skein_forge::api::Write::Merge {
+                                        how: skein_forge::api::MergeHow::FastForwardOnly,
+                                        ..
+                                    })
+                                )
+                            {
+                                // The provider-neutral fake reports divergence; Forgejo's
+                                // dialect keeps its 500 as Timeout (forge/forgejo.md, 1.2).
+                                Err(skein_forge::api::Error::Timeout)
+                            } else {
+                                Err(translate::error(error, fake::time(&self.fake_env.limits, self.fake_env.now)))
+                            }
                         }
                     };
                     if let Ok(skein_forge::api::Answer::Located { repository }) = &result
@@ -3912,21 +3965,21 @@ pub fn failed_ci_with_delayed_brief() -> (World, u64, u64) {
     (world, chat.task, producer.task)
 }
 
-/// Effective box limits, read through the shipped init template.
+/// The stock box limits, with the worlds' typed gather allowance.
 #[must_use]
 pub fn box_limits() -> engine::Limits {
     let (jig, temper) = box_profiles();
     temper_engine_service_vocabulary::limits::engine(&jig, &temper).expect("coherent box limits")
 }
 
-/// The store join allowance from the same init template projection as `box_limits`.
+/// The store join allowance from the same stock resolution as `box_limits`.
 #[must_use]
 pub fn box_joins() -> u32 {
     box_profiles().0.store.joins
 }
 
 fn box_profiles() -> (jig_protocol_config::Limits, temper_engine_service_vocabulary::limits::Limits) {
-    // A story reads the same template for its defaults, root limits and store joins.
+    // A story shares the stock resolution for its defaults, root limits and store joins.
     static PROFILES: std::sync::OnceLock<(
         jig_protocol_config::Limits,
         temper_engine_service_vocabulary::limits::Limits,
@@ -3935,37 +3988,16 @@ fn box_profiles() -> (jig_protocol_config::Limits, temper_engine_service_vocabul
 }
 
 fn read_box_profiles() -> (jig_protocol_config::Limits, temper_engine_service_vocabulary::limits::Limits) {
-    use jig_protocol_config as config;
-    let document = config::document(
-        include_bytes!("../../../../crates/temper-init/template/temper.json"),
-        &config::DocumentLimits { bytes: 1_048_576, tokens: 16_384, depth: 32 },
+    let stock = temper_engine_service_vocabulary::limits::stock();
+    let (jig, mut own) = temper_engine_service_vocabulary::limits::base(
+        stock.live_goals,
+        stock.tool_payload,
+        temper_service_core::derived::STOCK,
     )
-    .expect("init template JSON");
-    let mut root = config::read::Object::new(&document, 0).expect("template object");
-    let engine = root.member(&document, b"engine").expect("engine member");
-    let mut engine = config::read::Object::new(&document, engine).expect("engine object");
-    let at = engine.member(&document, b"limits").expect("engine limits");
-    let parsed = config::overrides::parse(&document, at, &config::Path::root().member(b"engine").member(b"limits"));
-    assert!(parsed.problems.is_empty(), "init limits: {:?}", parsed.problems);
-    let application = root.member(&document, b"application").expect("application member");
-    let mut application = config::read::Object::new(&document, application).expect("application object");
-    let at = application.member(&document, b"limits").expect("application limits");
-    let mut limits = config::read::Object::new(&document, at).expect("application limits object");
-    let at = limits.member(&document, b"overrides").expect("application overrides");
-    let mut overrides = config::read::Object::new(&document, at).expect("application overrides object");
-    let end = config::read::after(&document, at).expect("application overrides end");
-    let mut temper = temper_engine_service_vocabulary::limits::stock();
-    // The deadline stories use a thirty-second gather and advance their clock by it.
-    temper.root.brief.gather = Duration::from_secs(30);
-    for index in at..end {
-        let token = document.token(index).expect("application override token");
-        let Some(name) = document.text(token) else { continue };
-        let Some(value_at) = overrides.member(&document, name) else { continue };
-        let value = config::read::integer(&document, value_at, u64::MAX).expect("numeric application override");
-        temper_engine_service_vocabulary::limits::apply(&mut temper, name, value)
-            .unwrap_or_else(|what| panic!("init application override {}: {what:?}", String::from_utf8_lossy(name)));
-    }
-    (parsed.limits, temper)
+    .expect("derived stock box limits");
+    // The deadline stories advance their clock by this typed gather allowance.
+    own.root.brief.gather = Duration::from_secs(30);
+    (jig, own)
 }
 
 #[cfg(test)]

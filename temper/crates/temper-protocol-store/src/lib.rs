@@ -4,6 +4,7 @@
 #![expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 extern crate alloc;
 
+mod lowering;
 mod patch_set;
 pub use patch_set::OWNER_SET;
 
@@ -63,6 +64,7 @@ pub fn application(
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Undecodable {
     Malformed,
+    Lowered(jig_protocol_store::codec::Lowered),
     /// The setting's identity survives refusal of a retired stored value.
     Setting(temper_engine_domain_forge_vocabulary::settings::SettingKey),
 }
@@ -73,8 +75,36 @@ pub struct Bounds {
     // Keep schema limits out of the store's by-value construction frames.
     limits: Box<v25::Limits>,
     forge: temper_engine_domain_forge_vocabulary::Limits,
+    change_words: u32,
+    stock: Option<Box<lowering::Stock>>,
 }
 impl Bounds {
+    /// Raise the runtime codec bounds, retaining the opening stock and format.
+    pub fn raise(&mut self, forge: &temper_engine_domain_forge_vocabulary::Limits) {
+        let mut raised = self.forge;
+        assert!(
+            forge.tasks >= raised.tasks
+                && forge.holds >= raised.holds
+                && forge.entries >= raised.entries
+                && forge.client.entries >= raised.client.entries,
+            "runtime codec bounds only rise"
+        );
+        raised.tasks = forge.tasks;
+        raised.holds = forge.holds;
+        raised.entries = forge.entries;
+        raised.client.entries = forge.client.entries;
+        assert_eq!(raised, *forge, "other codec bounds wait for the next start");
+        let next = bounds(forge, self.change_words).expect("accepted limits fit compile-time codec ceilings");
+        self.limits = next.limits;
+        self.forge = *forge;
+    }
+    /// Retain the opening stock to classify a refused runtime row, without
+    /// changing either the configured decoder or the durable format.
+    #[must_use]
+    pub fn with_stock(mut self, stock: &Self) -> Self {
+        self.stock = Some(Box::new(lowering::Stock { forge: stock.forge, change_words: stock.change_words }));
+        self
+    }
     /// The generated decoder's limits.
     #[must_use]
     pub const fn limits(&self) -> &v25::Limits {
@@ -166,7 +196,7 @@ pub fn bounds(forge: &temper_engine_domain_forge_vocabulary::Limits, change_word
         ..records::limits(forge)?
     };
     v25::check_limits(&limits).ok()?;
-    Some(Bounds { limits: Box::new(limits), forge: *forge })
+    Some(Bounds { limits: Box::new(limits), forge: *forge, change_words, stock: None })
 }
 
 /// Restart families below byte 128, relative to jig's application tag.

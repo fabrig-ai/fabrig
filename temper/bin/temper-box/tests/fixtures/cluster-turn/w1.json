@@ -6,8 +6,8 @@
       }},
       "name": "w1",
       "secret": "secrets/w1.secret",
-      "slots": 2,
-      "memory_bytes": 4503599627370496
+      "slots": 2
+
     }}
   ],
   "application": {{}}

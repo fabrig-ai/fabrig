@@ -92,6 +92,16 @@ impl Domain {
             lost: 0,
         }
     }
+    /// Raise the outbox and its entry alarms in place. Other limits stay at construction's figures.
+    pub fn raise(&mut self, limits: &Limits) {
+        assert!(crate::valid(limits), "raised client limits are checked by the owner");
+        self.outbox.raise(limits.entries);
+        let alarms = limits.pending.checked_add(limits.entries).expect("validated alarm capacity");
+        let alarms = alarms.checked_add(limits.resources).expect("validated alarm capacity");
+        let alarms = alarms.checked_add(limits.repositories).expect("validated alarm capacity");
+        let alarms = alarms.checked_add(2).expect("validated alarm capacity");
+        self.alarms.raise(alarms);
+    }
     /// The owner's next poll, stretched while the repository hears
     /// (forge/client.md, 4.1). Reads state and changes none.
     #[must_use]

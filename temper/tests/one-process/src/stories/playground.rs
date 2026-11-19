@@ -23,8 +23,7 @@ fn scripts() -> &'static serde_json::Value {
 pub(crate) fn codec() -> jig_protocol_store::codec::View {
     static CODEC: std::sync::OnceLock<jig_protocol_store::codec::View> = std::sync::OnceLock::new();
     *CODEC.get_or_init(|| {
-        let deployment =
-            serde_json::from_slice(temper_playground::stories::A.deployment).expect("story A's deployment");
+        let deployment = temper_playground::stories::A.configuration();
         let engine = temper_playground::documents::settings::configuration(&deployment);
         jig_protocol_store::codec::limits(&engine.limits.core).expect("story A's stored records")
     })

@@ -88,12 +88,9 @@ fn the_turn_landing_documents_check_as_their_shapes() {
     value["programs"] = serde_json::json!({});
     let agent = smith_agent_shell::config::from_value(value.clone()).expect("generated agent configuration");
     let turn = temper_playground::documents::turn_bounds::turn_body(&value);
-    for name in ["engine.json", "worker.json"] {
-        let document = json(&rendered(name));
-        let mut derived = document.clone();
-        temper_playground::documents::turn_bounds::apply(&mut derived, turn);
-        assert_eq!(document, derived, "{name} carries the agent's turn bounds");
-    }
+    let figures = figures();
+    let hub = figures.limits().iter().find(|limit| limit.name() == b"hub.turn_bytes").expect("engine turn figure");
+    assert!(hub.value() >= u64::from(turn), "engine figures carry the generated agent's turn");
     assert!(agent.service.limits.channel.bodies.turn_body > 0);
 
     let bytes = rendered("forgejo.json");
@@ -225,6 +222,7 @@ fn the_turn_landing_settings_select_turn_two_and_its_blocking_gate() {
             | settings::Value::Questions(_)
             | settings::Value::Ways(_)
             | settings::Value::Classes(_)
+            | settings::Value::Limits(_)
             | settings::Value::CharterWords(_)
             | settings::Value::ProjectWords(_)
             | settings::Value::Goal(_)

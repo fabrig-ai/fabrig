@@ -48,6 +48,12 @@ pub struct Limits {
 /// resumed by the root and never passed to the protocol as child events.
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum Delivery {
+    /// Both lists are captured in the settings decision and released after its commit.
+    LimitSettingsCommitted {
+        revision: u32,
+        jig: Box<[jig_domain_core::settings::Override]>,
+        temper: Box<[jig_domain_core::settings::Override]>,
+    },
     /// Current providers kept by the shell after the settings decision commits.
     Providers(Box<[jig_domain_core::settings::ProviderSetting]>),
     /// The stored agents setting, released only after its decision commits
@@ -575,7 +581,8 @@ impl Decision {
             }
             Delivery::Assigned { assignment, .. } => assignment_within(assignment, limits),
             Delivery::Host(host) => host_within(host, limits),
-            Delivery::Providers(..)
+            Delivery::LimitSettingsCommitted { .. }
+            | Delivery::Providers(..)
             | Delivery::WorkerFigures { .. }
             | Delivery::SourceSignedOut { .. }
             | Delivery::Ways { .. }
@@ -739,6 +746,7 @@ pub fn resume(journal: &mut Journal, out: &mut Queue<Output>) {
             | crate::Output::Account(_)
             | crate::Output::Busy(_)
             | crate::Output::Restarting { .. }
+            | crate::Output::LimitSettingsCommitted { .. }
             | crate::Output::Drained
             | crate::Output::Connect { .. }
             | crate::Output::Replace { .. }

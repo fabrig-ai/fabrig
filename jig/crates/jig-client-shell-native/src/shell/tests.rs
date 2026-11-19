@@ -7,15 +7,14 @@ use skein_world::stream::Wire;
 fn pointing_before_requests_changes_the_engine_and_http_host() {
     let mut shell = Shell::new(Settings {
         mapping: jig_client_protocol_http::Mapping::new(b"/jig").expect("default mapping"),
-        engine: io::Addr::Ip("127.0.0.1:8080".parse().expect("initial address")),
+        engine: Engine::Plain(io::Addr::Ip("127.0.0.1:8080".parse().expect("initial address"))),
         directory: b"client".as_slice().into(),
         limits: crate::tests::limits(),
         io: crate::tests::file_io_limits(),
     });
     let address = io::Addr::Ip("[::1]:9400".parse().expect("selected address"));
     shell.point(address);
-    assert_eq!(shell.engine, address);
-    assert_eq!(shell.transport.engine, address);
+    assert!(matches!(shell.transport.engine, Engine::Plain(addr) if addr == address));
     assert_eq!(shell.transport.connections.host(), "[::1]:9400");
 }
 
@@ -23,7 +22,7 @@ fn pointing_before_requests_changes_the_engine_and_http_host() {
 fn an_activity_read_waits_for_the_http_slot_its_old_watch_still_owns() {
     let mut shell = Shell::new(Settings {
         mapping: jig_client_protocol_http::Mapping::new(b"/jig").expect("default mapping"),
-        engine: io::Addr::Ip("127.0.0.1:8080".parse().expect("engine address")),
+        engine: Engine::Plain(io::Addr::Ip("127.0.0.1:8080".parse().expect("engine address"))),
         directory: b"client".as_slice().into(),
         limits: crate::tests::limits(),
         io: crate::tests::file_io_limits(),

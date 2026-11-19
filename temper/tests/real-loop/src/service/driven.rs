@@ -38,6 +38,12 @@ impl Driven {
             Service::Worker(_) => None,
         }
     }
+    pub(crate) fn log_descriptors(&mut self) -> &[Fd] {
+        match &mut self.service {
+            Service::Joined(service) => service.engine_component().store().log_descriptors(),
+            Service::Worker(_) => &[],
+        }
+    }
     pub(crate) fn worker_domain(&self) -> Option<&temper_worker_domain::Domain> {
         match &self.service {
             Service::Joined(service) => service.worker_domain(),

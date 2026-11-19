@@ -143,7 +143,10 @@ findings, kept in the store and never read back. What is open is `findings.md`, 
   bytes: `check`, a tier's or a gate's name), the ids (1 to 64, each at
   most 512 bytes, in byte order) and the first line (at most 512 bytes,
   empty for a check's); and `seen`, the times a flake was seen, from 1. A
-  finding filed otherwise has neither.
+  finding filed otherwise has neither. The ids' two bounds are the
+  signature's own, and a start holds `forge.tiers.failing_tests` and
+  `forge.tiers.test_id_bytes` within them, so that a tier's ids always
+  fit a signature whole (`../protocol/configuration/limits.md`).
 - **Purposes,** tag 9 in `forge/README.md`'s table: a finding's filing, by its
   source (a verdict's repository, tier and run; a QA pass and its
   case's number; a task's call) and, where it has one, its signature's

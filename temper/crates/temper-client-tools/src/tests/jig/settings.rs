@@ -218,6 +218,7 @@ fn settings_show_charter_renders_its_documents() {
                 c::Setting::Template(_) => vec!["settings", "show", "template", "4"],
                 c::Setting::Policy(_)
                 | c::Setting::Rules
+                | c::Setting::Limits
                 | c::Setting::Provider(_)
                 | c::Setting::Worker(_)
                 | c::Setting::Model(_)
@@ -569,8 +570,11 @@ fn read(argv: &[&str], value: c::ReadValue) -> jig::Printed {
     }
     serve_review(&mut root, call, value);
     while let Some((_, c::Read::Setting(request))) = root.reads.get(&call).cloned() {
-        let (_, value) =
-            values().into_iter().find(|(setting, _)| *setting == request.setting).expect("fixture setting");
+        let value = if request.setting == c::Setting::Limits {
+            c::SettingValue::Limits(Box::new([]))
+        } else {
+            values().into_iter().find(|(setting, _)| *setting == request.setting).expect("fixture setting").1
+        };
         root.serve(
             call,
             c::ReadResult::Value(c::ReadValue::Setting(Box::new(c::SettingDocument {
@@ -587,6 +591,11 @@ fn read(argv: &[&str], value: c::ReadValue) -> jig::Printed {
         root.serve(call, c::ReadResult::Value(c::ReadValue::Revision(Box::new(c::RevisionAnswer::Unknown))));
     }
     while root.family_reads.contains_key(&call) {
+        if let temper_client_protocol_wire::v1::Read::Setting(query) = forge_query(&root, call) {
+            assert_eq!(query.kind(), 21, "inventory limit read");
+            root.serve_readout(call, forge_setting_page(None));
+            continue;
+        }
         let temper_client_protocol_wire::v1::Read::RevisionSetting(query) = forge_query(&root, call) else {
             panic!("revision value")
         };
@@ -1075,7 +1084,10 @@ fn setting_text_and_revisions_include_whole_set_values_and_last_page_facts() {
             c::Setting::Charter(_) => vec!["settings", "show", "charter", "3"],
             c::Setting::Template(_) => vec!["settings", "show", "template", "4"],
             c::Setting::Policy(_) => vec!["settings", "show", "policy", "5"],
-            c::Setting::Provider(_) | c::Setting::Application { .. } | c::Setting::ProjectPolicy { .. } => continue,
+            c::Setting::Limits
+            | c::Setting::Provider(_)
+            | c::Setting::Application { .. }
+            | c::Setting::ProjectPolicy { .. } => continue,
             c::Setting::Model(_) => vec!["settings", "show", "model", "9"],
             c::Setting::Worker(_) => vec!["settings", "show", "worker", "9"],
             c::Setting::Rules => vec!["settings", "show", "rules"],

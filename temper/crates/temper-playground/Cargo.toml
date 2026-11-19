@@ -24,6 +24,7 @@ skein-sim-world.workspace = true
 skein-sim.workspace = true
 skein-fake-machine.workspace = true
 serde_json.workspace = true
+serde.workspace = true
 jig-domain-authority.workspace = true
 jig-domain-core.workspace = true
 jig-domain-fleet.workspace = true
@@ -60,6 +61,7 @@ temper-engine-domain.workspace = true
 temper-engine-domain-forge.workspace = true
 temper-engine-smith.workspace = true
 temper-service.workspace = true
+temper-service-core.workspace = true
 temper-forge-setup.workspace = true
 temper-worker-protocol-git.workspace = true
 

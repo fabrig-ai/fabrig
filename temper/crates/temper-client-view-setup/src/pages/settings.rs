@@ -68,6 +68,7 @@ pub fn how_work_runs(
         super::how::follows(b, root, w, project);
         super::how::roles(b, root, w, bindings, project);
         super::how::budgets(b, root, w, project);
+        link(b, w, bindings, Word::LimitsTab, Address::Limits);
         shows(b, root, w, forge, project, stored.is_none(), shown);
         if shown.goals {
             working(b, root, w, forge, project, shown);

@@ -18,6 +18,7 @@ fn held_pull() -> (Domain, Name) {
                 name: branch.clone(),
                 task: fixtures::CHANGE,
                 writer: None,
+                beside: None,
                 design_writers: Box::new([]),
                 drift: Some(Drift { at: env().wall, change: DriftChange::PullClosed { number: 1 } }),
             }),

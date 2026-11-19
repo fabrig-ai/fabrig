@@ -56,7 +56,7 @@ fn a_stored_run_proof_without_an_endpoint_reads_with_none() {
 
 #[test]
 fn a_stored_run_beginning_without_fresh_reads_with_none() {
-    use jig_protocol_store::tasks_v13 as tasks;
+    use jig_protocol_store::tasks_v13::{self as tasks, Record as _};
     let text = super::values::TASKS;
     let (before, fresh) = text.split_once(" fresh: option Fresh").expect("fresh field");
     let (_, after) = fresh.split_once(" }").expect("end of BeganLine");
@@ -82,8 +82,8 @@ fn a_stored_run_beginning_without_fresh_reads_with_none() {
     assert!(work.fit(&plan));
     plan.convert(&bytes, &mut out, &mut work).expect("stored beginning converted");
     let read = tasks::BeganLine::decode(&limits.tasks, &mut Reader::new(out.as_slice())).expect("current beginning");
-    assert_eq!(read.attempt(), 3);
-    assert_eq!(read.why(), &tasks::Why::Ready);
-    assert!(!read.resumed());
-    assert_eq!(*read.fresh(), None);
+    assert_eq!(read.attempt, 3);
+    assert_eq!(read.why, tasks::Why::Ready);
+    assert!(!read.resumed);
+    assert_eq!(read.fresh, None);
 }

@@ -27,6 +27,7 @@ fn held_goal() -> Domain {
         &mut d,
         Event::Restore {
             record: Stored::Hold(Hold {
+                beside: None,
                 design_writers: Box::new([]),
                 name: name(G),
                 task: GOAL,

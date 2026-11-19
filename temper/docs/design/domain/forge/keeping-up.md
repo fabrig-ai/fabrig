@@ -84,7 +84,10 @@ Held by skein's `forge/client.md`, section 3. temper's part:
   (`owned`), a `BranchHead` row per branch (`../../protocol/store.md`,
   2). A drift's baseline, a landing's `before`, a change's and a goal's
   start, and the making a later adoption checks (`adoption.md`, 1) are
-  read from them.
+  read from them. A head follows temper's writes in the order the forge
+  took them: the record of a write never moves it back to an ancestor of
+  a head temper recorded beside that write (`branches.md`, 3, *In the
+  order the forge took them*).
   - *Their bound* is `forge.client.resources`, the working set's own,
     since a head is kept for what live work names. A head replaced
     always fits; a new branch's head takes a free row.
