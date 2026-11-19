@@ -993,11 +993,9 @@ fn choosing_owned_sends_set_up_new_owned() {
     );
 }
 #[test]
-fn the_sheets_run_sets_up_owned_with_an_empty_repository_as_written() {
+fn the_sheets_run_sets_up_owned_with_the_sample_by_default() {
     let (mut root, _, _) = opened(true);
-    assert_eq!(root.forge().setup_form().start, forges::Start::Empty);
-    write_setup(&mut root, forges::SetupField::Organization, b"mine");
-    write_setup(&mut root, forges::SetupField::Repository, b"first");
+    assert_eq!(root.forge().setup_form().start, forges::Start::Sample);
     let (_, _, request) = sent(f::form_act(&mut root, forge::Act::Forges(forges::Act::RunOwned)));
     let w::Request::SetUp(request) = request else { panic!("set up") };
     let w::Making::New(new) = request.forge() else { panic!("new") };
@@ -1006,9 +1004,10 @@ fn the_sheets_run_sets_up_owned_with_an_empty_repository_as_written() {
         (
             empty_setup(request.first()).org(),
             empty_setup(request.first()).repository(),
-            empty_setup(request.first()).playground()
+            empty_setup(request.first()).playground(),
+            empty_setup(request.first()).sample()
         ),
-        (b"mine".as_slice(), b"first".as_slice(), false)
+        (b"work".as_slice(), b"hello".as_slice(), false, true)
     );
     assert!(root.forge().setup_form().copies_refused.is_none());
 }
@@ -1046,7 +1045,7 @@ fn the_sheets_copies_and_nothing_send_their_intent_and_move_on_after_acceptance(
                 );
             }
             forges::Start::Nothing => assert_eq!(request.first(), &w::SetUpFirst::Nothing),
-            forges::Start::Empty => unreachable!(),
+            forges::Start::Empty | forges::Start::Sample => unreachable!(),
         }
         let mut out = reply(&mut root, attempt, w::Outcome::SettingUp);
         assert_eq!(
@@ -1057,17 +1056,8 @@ fn the_sheets_copies_and_nothing_send_their_intent_and_move_on_after_acceptance(
 }
 
 #[test]
-fn the_sheet_refuses_blank_names_and_bad_copies_before_sending() {
+fn the_sheet_refuses_bad_copies_before_sending() {
     use forge::making::CopiesRefused as R;
-    for field in [forges::SetupField::Organization, forges::SetupField::Repository] {
-        let (mut root, _, _) = opened(true);
-        write_setup(&mut root, field, b"   ");
-        assert!(f::form_act(&mut root, forge::Act::Forges(forges::Act::RunOwned)).is_empty());
-        assert!(root.forge().setup_form().blank);
-        assert!(root.forge().set_up().is_none());
-        write_setup(&mut root, field, b"filled");
-        assert!(!root.forge().setup_form().blank);
-    }
     let seventeen = skein_lib::bytes::concat(&[b"a/b\n".as_slice(); 17]);
     for (text, refused) in [
         (b" \n ".as_slice(), R::NoAddress),

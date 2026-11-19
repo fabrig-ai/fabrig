@@ -834,7 +834,7 @@ fn add_fields(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings
             }
             b.close();
         }
-        Start::Nothing => {}
+        Start::Sample | Start::Nothing => {}
     }
     b.close();
 }

@@ -2053,6 +2053,8 @@ pub enum Word {
     WelcomeForgeDoneRepository,
     WelcomeForgejoLead,
     WelcomeForgejoStartWith,
+    WelcomeForgejoSample,
+    WelcomeForgejoSampleDetail,
     WelcomeForgejoEmpty,
     WelcomeForgejoEmptyDetail,
     WelcomeForgejoCopies,
@@ -2278,7 +2280,7 @@ pub const SCRIPTED_MODEL: &[u8] = b"demo";
 // The composer picker replaces fourteen phrases with thirteen (client/pages/README.md).
 // Repository making rows use eight phrases and eighteen segments (client/pages/README.md).
 // Landing searches show the probe, both bounds and blamed prefixes (domain/landing-search.md, 8).
-const PHRASES: u32 = 2837;
+const PHRASES: u32 = 2839;
 // Settings and Needs you include their literal phrases (client/pages/README.md, client/pages/settings.md, 2).
 // Overturn adds its button and three toast phrases (client/pages/README.md).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -2305,10 +2307,10 @@ const PHRASES: u32 = 2837;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/pages/README.md).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 5269;
+const SEGMENTS: u32 = 5271;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 66786;
-const ALL: [Word; 2104] = [
+const ENGLISH_BYTES: u32 = 66880;
+const ALL: [Word; 2106] = [
     Word::WorkMilestoneLede,
     Word::MsGoals,
     Word::MsWhole,
@@ -4265,6 +4267,8 @@ const ALL: [Word; 2104] = [
     Word::WelcomeForgeDoneRepository,
     Word::WelcomeForgejoLead,
     Word::WelcomeForgejoStartWith,
+    Word::WelcomeForgejoSample,
+    Word::WelcomeForgejoSampleDetail,
     Word::WelcomeForgejoEmpty,
     Word::WelcomeForgejoEmptyDetail,
     Word::WelcomeForgejoCopies,
@@ -6456,6 +6460,8 @@ impl Word {
             Self::WelcomeForgeDoneRepository => 3049,
             Self::WelcomeForgejoLead => 3032,
             Self::WelcomeForgejoStartWith => 3033,
+            Self::WelcomeForgejoSample => 9962,
+            Self::WelcomeForgejoSampleDetail => 9963,
             Self::WelcomeForgejoEmpty => 3034,
             Self::WelcomeForgejoEmptyDetail => 3035,
             Self::WelcomeForgejoCopies => 3036,
@@ -7964,6 +7970,8 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::WelcomeForgejoRun => (&[b"Run on this machine"], &[]),
         Word::WelcomeForgejoLead => (&[b"temper starts Forgejo here and connects to it; you connect your model meanwhile."], &[]),
         Word::WelcomeForgejoStartWith => (&[b"Start it with"], &[]),
+        Word::WelcomeForgejoSample => (&[b"A sample project"], &[]),
+        Word::WelcomeForgejoSampleDetail => (&[b"A short shell script with tests and CI. Use it to explore temper\xe2\x80\x99s features."], &[]),
         Word::WelcomeForgejoEmpty => (&[b"An empty repository"], &[]),
         Word::WelcomeForgejoEmptyDetail => (&[b"A README and a starter CI check."], &[]),
         Word::WelcomeForgejoCopies => (&[b"Copies of public repositories"], &[]),

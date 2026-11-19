@@ -248,11 +248,12 @@ pub enum State {
     Rows(Box<[Row]>),
     Ended,
 }
-/// What Forgejo on this machine starts with, chosen in the welcome's sheet
-/// (client/pages/README.md): only an empty repository is made yet.
+/// What a repository sheet starts with (client/pages/welcome.md, 1; client/pages/home.md, 1).
+/// The welcome offers the sample, copies or nothing; Home offers empty or copies.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Start {
     Empty,
+    Sample,
     Copies,
     Nothing,
 }
@@ -281,7 +282,6 @@ pub struct Draft {
     pub start: Start,
     pub copies: Box<[u8]>,
     pub copies_written: u64,
-    pub blank: bool,
     pub copies_refused: Option<super::making::CopiesRefused>,
 }
 impl Draft {
@@ -292,10 +292,9 @@ impl Draft {
             fields: [Box::from(b"work".as_slice()), Box::from(b"hello".as_slice())],
             written: [0; 2],
             checked: false,
-            start: Start::Empty,
+            start: Start::Sample,
             copies: Box::from(b"".as_slice()),
             copies_written: 0,
-            blank: false,
             copies_refused: None,
         }
     }
@@ -322,7 +321,6 @@ pub(crate) fn write(side: &mut super::Side, limits: super::Limits, field: SetupF
     let written = draft.written.get_mut(index).expect("two setup fields");
     *written = written.checked_add(1).expect("written count fits");
     draft.checked = false;
-    draft.blank = false;
     if let Some(last) = &mut side.set_up {
         last.answer = None;
     }
@@ -411,7 +409,6 @@ fn run_owned(side: &mut super::Side, limits: super::Limits, out: &mut skein_lib:
     }
     let Some(bounds) = wire_limits(&limits) else { return };
     let draft = &mut side.setup_form;
-    draft.blank = false;
     draft.copies_refused = None;
     let first = match draft.start {
         Start::Empty => {
@@ -419,11 +416,18 @@ fn run_owned(side: &mut super::Side, limits: super::Limits, out: &mut skein_lib:
             let repository = draft.text(SetupField::Repository).trim_ascii();
             if org.is_empty() || repository.is_empty() {
                 draft.checked = true;
-                draft.blank = true;
                 side.changed();
                 return;
             }
             let Some(first) = empty(Box::from(org), Box::from(repository), false, false, &bounds) else { return };
+            first
+        }
+        Start::Sample => {
+            let Some(first) =
+                empty(Box::from(b"work".as_slice()), Box::from(b"hello".as_slice()), false, true, &bounds)
+            else {
+                return;
+            };
             first
         }
         Start::Copies => {
@@ -456,7 +460,6 @@ pub(crate) fn act(side: &mut super::Side, limits: super::Limits, act: Act, out: 
         }
         Act::Start(start) => {
             side.setup_form.start = start;
-            side.setup_form.blank = false;
             side.setup_form.copies_refused = None;
             side.changed();
         }

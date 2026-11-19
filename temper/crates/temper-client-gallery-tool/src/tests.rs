@@ -328,7 +328,7 @@ fn connection_samples_assign_priority_and_progress_to_the_bundled_nodes() {
                     .iter()
                     .filter(|node| node.styles.as_slice().contains(&look::WELCOME_OPTION_MORE))
                     .count(),
-                1
+                0
             );
         }
     }

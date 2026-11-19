@@ -167,7 +167,7 @@ fn the_sheet_opens_over_the_forge_choices() {
             named(nodes, Role::Paragraph),
             [
                 b"temper starts Forgejo here and connects to it; you connect your model meanwhile.".as_slice(),
-                b"A README and a starter CI check.",
+                "A short shell script with tests and CI. Use it to explore temper’s features.".as_bytes(),
                 b"Copied into your local forge from GitHub or another git host, to play around with. Nothing is sent back.",
                 "Your first project opens with no repository. Make or copy one later from temper’s UI, or adopt one you push yourself."
                     .as_bytes(),
@@ -175,21 +175,23 @@ fn the_sheet_opens_over_the_forge_choices() {
         );
         assert_eq!(
             named(nodes, Role::Choice),
-            [b"An empty repository".as_slice(), b"Copies of public repositories", b"Nothing for now"]
+            [b"A sample project".as_slice(), b"Copies of public repositories", b"Nothing for now"]
         );
         let chosen: Vec<_> = nodes
             .iter()
             .filter(|n| n.role == Role::Choice && n.states.as_slice().contains(&State::Selected))
             .map(|n| n.name.as_deref().unwrap())
             .collect();
-        assert_eq!(chosen, [b"An empty repository".as_slice()]);
-        assert_eq!(named(nodes, Role::TextField), [b"Organization".as_slice(), b"Name"]);
-        let values: Vec<_> = nodes
-            .iter()
-            .filter(|n| n.role == Role::TextField)
-            .map(|n| n.value.as_ref().unwrap().text.as_ref())
-            .collect();
-        assert_eq!(values, [b"work".as_slice(), b"hello"]);
+        assert_eq!(chosen, [b"A sample project".as_slice()]);
+        assert_eq!(named(nodes, Role::TextField).len(), 0);
+        assert!(
+            !nodes.iter().any(|n| n.name.as_deref() == Some(b"Organization") || n.name.as_deref() == Some(b"Name"))
+        );
+        assert!(
+            !nodes
+                .iter()
+                .any(|n| n.value.as_ref().is_some_and(|v| v.text.as_ref() == b"work" || v.text.as_ref() == b"hello"))
+        );
         assert_eq!(named(nodes, Role::TextArea).len(), 0);
         assert_eq!(named(nodes, Role::Alert).len(), 0);
         assert_eq!(named(nodes, Role::Button), [b"Cancel".as_slice(), b"Run on this machine"]);
@@ -2875,34 +2877,21 @@ fn ready_setup_note_follows_the_form_only_while_underway() {
 fn welcome_sheet_alerts_are_above_the_foot_in_both_shells() {
     use d::forge::{
         Act as A,
-        forges::{Act as F, SetupField, Start},
+        forges::{Act as F, Start},
     };
     let seventeen = b"a/b\n".repeat(17);
     let long = b"?".repeat(256);
-    for (choice, action, message) in [
+    for (action, message) in [
         (
-            Start::Empty,
-            A::SetupWrite { field: SetupField::Organization, text: b"".as_slice().into() },
-            "Both an organization and a name.".to_owned(),
-        ),
-        (
-            Start::Empty,
-            A::SetupWrite { field: SetupField::Repository, text: b"".as_slice().into() },
-            "Both an organization and a name.".to_owned(),
-        ),
-        (
-            Start::Copies,
             A::CopiesWrite { text: b" \n".as_slice().into() },
             "At least one address, as github.com/owner/name.".to_owned(),
         ),
         (
-            Start::Copies,
             A::CopiesWrite { text: b" bad/address/extra/part ".as_slice().into() },
             "Not an address: bad/address/extra/part. Write it as github.com/owner/name.".to_owned(),
         ),
-        (Start::Copies, A::CopiesWrite { text: seventeen.into() }, "At most 16 addresses.".to_owned()),
+        (A::CopiesWrite { text: seventeen.into() }, "At most 16 addresses.".to_owned()),
         (
-            Start::Copies,
             A::CopiesWrite { text: long.into() },
             [
                 "Not an address: ",
@@ -2913,7 +2902,7 @@ fn welcome_sheet_alerts_are_above_the_foot_in_both_shells() {
         ),
     ] {
         let mut root = sheet_root();
-        start(&mut root, choice);
+        start(&mut root, Start::Copies);
         for action in [action, A::Forges(F::RunOwned)] {
             f::root_event(&mut root, d::Event::Act { action: d::Action::Forge(action) });
         }

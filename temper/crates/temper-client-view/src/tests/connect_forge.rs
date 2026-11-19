@@ -192,7 +192,7 @@ fn settings_opens_the_welcome_sheet_and_cancel_returns_to_choose() {
         let tree = view.tree();
         node(tree, Role::Dialog, b"Local forge");
         node(tree, Role::Link, b"Run Forgejo here");
-        node(tree, Role::Choice, b"An empty repository");
+        node(tree, Role::Choice, b"A sample project");
         node(tree, Role::Button, b"Run on this machine");
         assert!(f::find(tree, Role::List, b"Steps").is_none());
     }

@@ -2,7 +2,7 @@
 
 On a fresh `temper box --fake-backends`: the box's printed sign-in link
 opened, "Set up temper" pressed, then Forgejo's "Run on this machine"
-and its sheet's own "Run on this machine", with the offered empty
+and its sheet's own "Run on this machine", with the offered sample
 `work/hello`. On Model, "Continue with ChatGPT" opens the fake issuer's
 sign-in in a new tab; the welcome stays and advances to Ready by itself. Ready offers "Hello"; "Create your
 project" creates it and adopts `work/hello`.
