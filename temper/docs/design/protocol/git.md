@@ -1,6 +1,6 @@
 # The checkout's io: git
 
-Provisional, 2026-10-14, revised 2026-10-20. How the worker's protocol
+Provisional, 2026-10-14, revised 2026-11-19. How the worker's protocol
 layer runs the checkout's operations (`../domain/worker/checkouts.md`):
 the git component, `temper-worker-protocol-git`. For each operation of
 `temper-worker-domain-checkout`'s `git::Op`, the fixed sequence of git
@@ -73,6 +73,9 @@ credentials.md's (`credentials.md`, section 4). What is open is listed in `git.m
   checkout or merge with `origin` as a promisor remote, so git fetches the
   contents it lacks into the checkout, within the operation and under its
   remote deadline (4.5, 4.6).
+- **Kept packed.** Each such fetch leaves a pack, and git repacks nothing
+  itself here (section 3), so a prepare's `Pack` repacks a store or a
+  repository past 50 packs, keeping every object (4.13).
 - **A deadline or a cancel kills the invocation's process group,** and
   the operation ends only once its process has closed, so nothing of it
   touches the workspace afterwards.
@@ -168,7 +171,9 @@ pipes      stdin (written, then closed), stdout, stderr
 `CheckOut`'s `git checkout` and `Merge`'s `git merge` add one more, after
 these: `-c remote.origin.promisor=true`, which makes `origin` a promisor
 remote for that invocation alone, so git fetches from it the file contents
-the blob-less store lacks (4.5). No other invocation names it: one that
+the blob-less store lacks (4.5). `Pack`'s `git repack` names it too, so
+that git repacks the forge's packs apart and keeps their objects (4.13). No
+other invocation names it: one that
 finds an object missing fails, and a push's thin pack skips a delta base it
 lacks rather than fetching it.
 
@@ -239,6 +244,7 @@ lacks rather than fetching it.
 | `IsAncestor` | 1 | `IsAncestor { contains }` |
 | `Store` | 1, a clone, and two or three file operations | `Succeeded` |
 | `Point` | 1 | `Succeeded` |
+| `Pack` | 1 to 4 | `Succeeded` |
 
 Each may also end failed, with the fault of section 6. Below, `<url>` is
 the operation's `remote`, `<dir>` its repository's name, and ids are as
@@ -752,9 +758,9 @@ two `Store`s of one store at once, which the cache never starts
   on the command line (section 3). Its `refs/heads/<default>` stays where
   the clone put it. Nothing of a workspace's reaches it but objects the
   forge sent and references under the workspace's token.
-- **Never maintained:** `gc.auto=0` and `maintenance.auto=false` hold for
-  it as for every repository, so nothing prunes an object a checkout may
-  borrow (`../domain/worker/checkouts.md`, section 2).
+- **Repacked, never pruned:** `gc.auto=0` and `maintenance.auto=false`
+  hold for it as for every repository, so nothing prunes an object a
+  checkout may borrow; `Pack` repacks it, keeping every object (4.13).
 
 ### 4.12 Point
 
@@ -767,6 +773,50 @@ git update-ref refs/temper/<name> <commit>
 ```
 
 `<name>` as in 4.3. Exit 0: `Succeeded`; any other is `Broken`.
+
+### 4.13 Pack
+
+`Pack { at, store }`: the store `stores/<store>`, where `store` names one,
+then the repository, each repacked once it holds more than 50 packs, the
+bound git's own `gc.autoPackLimit` keeps. Local; it names no identity.
+git keeps each fetch from a promisor remote as a pack of its own, a store's
+fetch (4.3) and a check out's or merge's fetch of contents (4.5, 4.6)
+alike, and section 3's settings leave no git to repack them, so a prepare
+asks one `Pack` for each repository (`../domain/worker/checkouts.md`). In
+each place's directory:
+
+1. The count:
+   ```
+   git count-objects -v
+   ```
+   whose stdout's one `packs: <n>` line, in decimal, counts its packs; a
+   stdout without exactly one is `Broken`.
+2. Only where `<n>` is above 50:
+   ```
+   git -c remote.origin.promisor=true repack -A -d -l -q --no-write-bitmap-index
+   ```
+
+- **Exit 0 from each it ran:** `Succeeded`; any other exit is `Broken`.
+  git puts the new pack in place before it deletes the old ones, so a
+  repack killed or failed at any point leaves every object where some pack
+  holds it.
+- **Every object kept.** With the promisor setting, git repacks the packs
+  fetched from the forge apart, into one pack that keeps every object they
+  held, reachable or not, so whatever a checkout borrows stays; `-A` turns
+  any other unreachable object loose rather than dropping it, and nothing
+  prunes. `-l` keeps a repository's pack to its own objects, not its
+  store's. On git 2.47.3 (2026-11-19), a store's 9 packs became 1 and a
+  checkout's 11 lazily fetched packs 2, with no object lost and nothing
+  fetched.
+- **Not geometric.** git 2.47's `repack --geometric` refuses a repository
+  with a promisor remote, which every blob-less store and checkout is
+  (`fatal: cannot use internal rev list with --stdin-packs`).
+- **One repack of a store at a time.** A `Pack` whose store another `Pack`
+  in flight names leaves the store to that one and goes on with its
+  repository. A fetch meanwhile is safe: git repacks only the packs there
+  when it starts, and skips one a fetch still marks `.keep`.
+- **Under the local deadline** (section 7): a repack it kills leaves its
+  temporary files in `objects/pack` (section 10).
 
 ## 5. Credentials and environment
 
@@ -956,8 +1006,10 @@ checks this document's contract:
     `making` among them, the store's clone and fetch blob-less, and a
     checkout's and a merge's promisor setting and header; that no value of
     an identity appears in an argument; the
-    message's bytes; the alternates file's bytes;
-  - **the parsers:** fetch's porcelain line, push's status lines, NUL
+    message's bytes; the alternates file's bytes; a `Pack`'s count and
+    repack in the store and then the repository, each repack only past 50
+    packs, and no store repacked while another `Pack` holds it;
+  - **the parsers:** count-objects' `packs:` line, fetch's porcelain line, push's status lines, NUL
     lists, ids of 40 and 64 digits and malformed ones, the conversions
     both ways, and the classifier of section 6, each against transcripts
     and against their mutations;
@@ -1032,6 +1084,14 @@ checks this document's contract:
   settles more files than `conflicts` cannot deliver. Default: as it
   stands; scanning the listing in pages, staging each page found clean
   before listing the next, would close it.
+- **A repack cut short** (4.13): one killed at its deadline leaves git's
+  temporary files in `objects/pack`, which `count-objects` counts as
+  garbage and no pack lookup reads; and a store whose repack outgrows the
+  local deadline is cut short at every prepare that finds it past 50
+  packs. Default: as it stands, since a blob-less store holds no file
+  contents (50 MB on one deployment's forge, 4.11); a repack's own
+  deadline, or a store's upkeep left off once it timed out, if a deployment
+  shows one.
 - **HEAD after saving unfinished work.** Default: a commit without a delivery snapshot
   does not move HEAD (section 4.7). Preparation follows each clean producer
   merge or merged head's commit with `CheckOut`, moving HEAD and clearing

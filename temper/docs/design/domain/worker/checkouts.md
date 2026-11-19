@@ -4,7 +4,7 @@ The checkout child domain is the worker's workspace capability (jig's
 `domain/hosts/README.md`, section 6): it owns the workspaces on the worker's
 disk. Its vocabulary is typed git and file operations (make a workspace,
 make a store, clone, fetch, point a reference, check out, merge, commit,
-push), which the protocol layer
+push, pack), which the protocol layer
 runs as contained processes and whose output it parses.
 
 - **A cache, keyed by workstream.** The runs of one piece of work (a
@@ -59,6 +59,21 @@ runs as contained processes and whose output it parses.
   made again. A checkout's own `.git`, which its run may write, is still
   never another workstream's, and no fetch of history runs in it: only a
   check out's or a merge's fetch of file contents.
+- **Kept packed.** Each fetch into a store, and each check out's or
+  merge's fetch of contents into a checkout, leaves a pack, and the
+  worker's git runs no maintenance of its own (`../../protocol/git.md`,
+  section 3). So every prepare, a run's or a job's, asks as its last step
+  before it ends ready one `Pack` for each repository it names, in the
+  spec's order (`../../protocol/git.md`, 4.13), which repacks a place
+  holding more than 50 packs. Its repository is its own workspace's, which
+  no job uses while it prepares. Its store is named only where no other
+  held workspace borrows it, so that no repack runs while a job in any
+  workspace reads the store; a store another hold borrows waits for a
+  later prepare that finds it free. Nothing else asks a `Pack`: a push, a
+  save, a catch-up and a verifying fetch run while the hold's job uses its
+  checkout. A `Pack`'s fault fails nothing and spoils nothing, since git
+  replaces packs whole: the prepare ends ready as it would have without
+  it. An abort or a release cancels it as any operation.
 - **Repositories side by side.** A workspace holds one directory per
   repository, so code that refers to a sibling by path works, and the
   agent's write authority is the list of writable ones.
@@ -580,14 +595,16 @@ wire carries, keeps its first 4,096, where the fields are.
 - **A workspace's repositories in parallel:** a checkout runs one
   operation at a time, so its repositories are cloned, fetched and pushed
   one after another.
-- **A store's upkeep.** Each fetch leaves what it received in the store as
-  git wrote it, a pack or loose objects, and nothing repacks or prunes
-  them, so a store grows across the worker's starts, since stores outlive a
-  restart; and a store whose remote no prepare names since the start stays
-  on disk, since the cache sets aside only the stores it knows. Default:
-  none, and an operator who wants the space removes `stores` with the
-  worker stopped; a repack that keeps every object a checkout may borrow,
-  reachable or not, if a deployment shows a store's size or lookups.
+- **A store's upkeep.** Nothing prunes a store, and one whose remote no
+  prepare names since the start stays on disk, since the cache sets aside
+  only the stores it knows. Default: none, and an operator who wants the
+  space removes `stores` with the worker stopped.
+- **A store borrowed under load.** A store another held workspace borrows
+  is not repacked (*Kept packed*), and on a busy worker one usually is, so
+  its packs pass 50 for as long as that lasts. Default: as it stands;
+  repacking it from a prepare while other holds' jobs read it, which git's
+  repack allows, since a reader that misses a pack looks again and finds
+  the new one, awaits the user (2026-11-19).
 - **A store damaged past its references.** A corrupt pack would break
   every prepare of its repository until its store is removed by hand,
   with the worker stopped, since stores outlive a restart: nothing seen

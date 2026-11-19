@@ -1,6 +1,6 @@
 # git: status
 
-2026-11-17. Where temper's code lags or departs from [git.md](git.md).
+2026-11-19. Where temper's code lags or departs from [git.md](git.md).
 
 - **Not yet:** 4.7: an empty listing still refuses with its words rather
   than ending `ParentUnreachable { head, merging, parent }` [in flight:
@@ -45,6 +45,7 @@ commit's listing among them, stays `Broken`
 the checkout world's fake follows it for a merge
 (`temper/tests/worker/checkout/src/translate.rs`, `perform_within`).
 
+- **Not yet:** 9: no transcript holds `Pack`'s `count-objects` or `repack` (4.13): its step tests script git 2.47.3's output as 4.13 gives it, and the fake git answers both with no capture to check it against. What 4.13 says of them rests on one run by hand, git 2.47.3, 2026-11-19.
 - **Not yet:** 4.3: `refs/temper/landing` is written by a landing branch's fetch alone; no pin fetch writes the head a writable item naming no landing branch replaces.
 - **Not yet:** 4.7: the checkout world's fake bounds a merge's listing alone: `perform_within` keeps `perform`'s commit, which takes every unmerged path whatever their count (`skein-fake-checkout`'s `git::commit_merging`), so that world's `PastTheBound` case (`temper/tests/worker/checkout/src/merges.rs`) delivers a merge whose `conflicts + 1` files were settled and never staged, where this layer's commit lists them past `conflicts` and ends `Broken` (section 10). The case holds the prepare past the bound and a push after it, not a delivery past it. 4.10: `Rewrite`, the lease-guarded move of a prepare job's candidate: neither `temper-worker-domain-checkout`'s `git::Op` nor `temper-worker-protocol-git` has it. 4.5: no test runs real git on a dirty workspace: `temper/tests/worker/checkout/tests/fakes/reuse.rs` proves the worker's operations and, on the fake git, the two commands' state, where the fake's checkout replaces the whole tree whether or not `clean` ran, and `temper/crates/temper-git-transcripts-tool/src/cases.rs`, `locals`, records `checkout --force --detach` over no staged file or merge in progress. What 4.5 says of those rests on one run by hand, git 2.47.3, 2026-11-05 (section 10).
 - **Design departs:** 4.7, from the request `parallel-faults` of 2026-11-06, item 3, decided by its plan's cut: a commit leaves a file out by its name alone, `.*.log`, where the request has a snapshot carry no file a change has no business with, so a stray of another name still lands unless the repository ignores it (section 10). A new file can't be told from a run's new work, which `a_saved_retry_delivers_the_file_written_before_its_run_ended` holds, and `*.log` would leave out a new fixture of a kind this repository tracks.
