@@ -32,7 +32,7 @@ events stay `landing-history.md`'s.
 
 The policy's wait (`landing.md`, 2, the decision `wait`) names one of
 these, the first that holds in the step's order; the top names the
-last row itself. C is the member's change task, NAME the gate's name,
+last two rows itself. C is the member's change task, NAME the gate's name,
 RUN the run's number where the top knows it, L a landing's task.
 
 | Wait | When | Woken by | `landing show` says |
@@ -52,6 +52,7 @@ RUN the run's number where the top knows it, L a landing's task.
 | `merge` | the turn's merge and its readback (`landing.md`, 8) | its result; the readback at a deadline | `the turn's merge` |
 | `record` | a squashed member's pull request recorded merged (`landing.md`, 8) | its result | `the record of change C's pull request as merged` |
 | `ancestry` | a single landing's read of whether the branch holds its member's head | a deadline | `whether the branch holds change C's head` |
+| `read` | the top's read of the landing's facts (`landing.md`, 2) failed or found one not there yet: a member's pull request, a branch, a pull request, commits, a tree, the cleanup's reads; the top's | a deadline: its facts read again | `a fresh read of its facts from the forge` |
 | room | a write waiting in the outbox's line (`landing.md`, 11), the top's | room (`forge/room.md`, 3) | `room in the forge's outbox` |
 
 `run` names RUN where the landing knows it, and drops `RUN ` where it
