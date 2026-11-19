@@ -80,6 +80,532 @@ fn team_hand_opens_the_sheet_with_the_first_area_and_role() {
     }
 }
 #[test]
+<<<<<<< HEAD
+=======
+#[expect(clippy::too_many_lines, reason = "the gallery table walk checks each kind of named part")]
+fn each_state_holds_what_its_name_says() {
+    assert_eq!(HOLDS.len(), samples::N, "every promised row has a sample");
+    let inputs = ViewInputs::new();
+    for sample in samples::samples() {
+        let mut row = None;
+        for holds in &HOLDS {
+            if holds.name == sample.name {
+                assert!(row.is_none(), "{}: duplicate holds row", sample.name);
+                row = Some(holds);
+            }
+        }
+        let row = row.unwrap_or_else(|| panic!("{}: every sample has a HOLDS row", sample.name));
+        let root = samples::domain(&sample);
+        let (mut view, bounds, _) = built_root(&sample, inputs.clone(), &root);
+        let tree = view.tree();
+        let mut main = TreeFace::new(tree);
+        let level = if matches!(
+            root.pages().address(),
+            temper_client_domain::Address::Goals { .. } | temper_client_domain::Address::Changes { .. }
+        ) {
+            2
+        } else {
+            1
+        };
+        let h1 = in_main(Role::Heading { level }, row.heading);
+        if row.heading.is_empty() {
+            assert_eq!(main.find(&h1), Found::Absent, "{} has no main heading", sample.name);
+        } else {
+            assert!(matches!(main.find(&h1), Found::Node(_)), "{}: heading {}", sample.name, row.heading);
+        }
+        // Count-only names may repeat; described parts follow conversation order.
+        let mut described = tree.nodes().iter();
+        let mut destinations = Vec::new();
+        for part in row.parts {
+            match part {
+                Part::WelcomeFrame { box_note } => {
+                    let banner = descendants(tree, Role::Banner, "", sample.name);
+                    let mut children = Vec::new();
+                    let mut rest = &banner[1..];
+                    while let Some(node) = rest.first() {
+                        children.push(node);
+                        rest = &rest[usize::try_from(node.size).expect("banner child span")..];
+                    }
+                    assert_eq!(children.len(), 4, "{}: brand, steps, end, night switch", sample.name);
+                    assert_eq!(
+                        (children[0].role, children[0].name.as_deref()),
+                        (Role::Link, Some(b"temper".as_slice()))
+                    );
+                    assert_eq!(
+                        (children[1].role, children[1].name.as_deref()),
+                        (Role::List, Some(b"Steps".as_slice()))
+                    );
+                    assert!(children[2].styles.as_slice().contains(&temper_client_view::look::TOP_END));
+                    assert_eq!(
+                        (children[3].role, children[3].name.as_deref(), children[3].styles.as_slice()),
+                        (
+                            Role::Button,
+                            Some(b"Night mode".as_slice()),
+                            [temper_client_view::look::NIGHT_SWITCH].as_slice()
+                        )
+                    );
+                    let end_at = banner.len() - usize::try_from(children[3].size).expect("switch span");
+                    let end = &banner[end_at - usize::try_from(children[2].size).expect("end span")..end_at];
+                    assert_eq!(
+                        end[1].region,
+                        Some(skein_ui::Region { owner: temper_client_view::look::NAMES.owner, number: 0 })
+                    );
+                    assert_eq!(
+                        usize::try_from(end[1].size).expect("region span") + 1,
+                        end.len(),
+                        "{}: link alone",
+                        sample.name
+                    );
+                    let notes: Vec<_> = tree
+                        .nodes()
+                        .iter()
+                        .filter(|n| n.styles.as_slice().contains(&temper_client_view::look::WELCOME_BOX_NOTE))
+                        .collect();
+                    assert_eq!(notes.len(), usize::from(*box_note), "{}: box paragraph on Welcome alone", sample.name);
+                    if *box_note {
+                        assert_eq!(notes[0].role, Role::Paragraph);
+                        assert!(descendants(tree, Role::Main, "", sample.name).iter().any(|n| n.id == notes[0].id));
+                    }
+                }
+                Part::Projects { rows } => {
+                    let region = descendants(tree, Role::Region, "Projects", sample.name);
+                    let actual: Vec<_> = region
+                        .iter()
+                        .enumerate()
+                        .filter(|(_, node)| node.role == Role::Item)
+                        .map(|(start, node)| {
+                            let end = start + usize::try_from(node.size).expect("project span");
+                            let row = &region[start..end];
+                            let link = row.iter().find(|node| node.role == Role::Link).expect("project link");
+                            let health = row
+                                .iter()
+                                .position(|node| node.styles.as_slice().contains(&temper_client_view::look::CHIP))
+                                .expect("project health");
+                            let end = health + usize::try_from(row[health].size).expect("health span");
+                            let words: Vec<_> = row[health..end]
+                                .iter()
+                                .flat_map(|node| node.text.iter())
+                                .flat_map(|run| run.text.iter().copied())
+                                .collect();
+                            (
+                                String::from_utf8(link.name.as_deref().expect("project name").to_vec()).expect("UTF-8"),
+                                String::from_utf8(words).expect("UTF-8"),
+                            )
+                        })
+                        .collect();
+                    let expected: Vec<_> =
+                        rows.iter().map(|(name, health)| ((*name).to_owned(), (*health).to_owned())).collect();
+                    assert_eq!(actual, expected, "{}: projects and their health", sample.name);
+                }
+                Part::StyleCount { style, count } => {
+                    let actual = tree.nodes().iter().filter(|node| node.styles.as_slice().contains(style)).count();
+                    assert_eq!(actual, *count, "{}: {style:?} rows", sample.name);
+                }
+                Part::HomeCards { primary, projects } => {
+                    let nodes = tree.nodes();
+                    let cards: Vec<_> = nodes
+                        .iter()
+                        .enumerate()
+                        .filter(|(_, node)| node.styles.as_slice().contains(&temper_client_view::look::NEED_CARD))
+                        .collect();
+                    assert_eq!(cards.len(), primary.len(), "{}: Home cards", sample.name);
+                    for (index, ((start, card), primary)) in cards.iter().zip(*primary).enumerate() {
+                        let end = start + usize::try_from(card.size).expect("card size");
+                        let card = &nodes[*start..end];
+                        if !projects.is_empty() {
+                            assert!(
+                                card.iter().any(|node| node
+                                    .text
+                                    .iter()
+                                    .any(|run| run.text.as_ref() == projects[index].as_bytes())),
+                                "{}: card {index} project",
+                                sample.name
+                            );
+                        }
+                        let acts = card
+                            .iter()
+                            .position(|node| node.styles.as_slice().contains(&temper_client_view::look::NEED_ACTS))
+                            .expect("card acts");
+                        let end = acts + usize::try_from(card[acts].size).expect("acts size");
+                        let first = card[acts..end]
+                            .iter()
+                            .find(|node| matches!(node.role, Role::Button | Role::Link))
+                            .expect("primary act");
+                        assert_eq!(
+                            first.name.as_deref(),
+                            Some(primary.as_bytes()),
+                            "{}: card {index} primary act",
+                            sample.name
+                        );
+                    }
+                }
+                Part::Current { name } => {
+                    let id = find(tree, Role::Link, name, sample.name);
+                    assert!(
+                        tree.find(id).expect("current link").states.as_slice().contains(&skein_ui::State::Current),
+                        "{}: {name} current",
+                        sample.name
+                    );
+                }
+                Part::Destination { name, href } => {
+                    let Found::Node(node) = main.find(&Find::exactly_named(Role::Link, name.as_bytes())) else {
+                        panic!("{}: missing link {name}", sample.name)
+                    };
+                    destinations.push((node, href));
+                }
+                Part::FirstButton { disclosure, name } => {
+                    let nodes = descendants(tree, Role::Disclosure, disclosure, sample.name);
+                    let first = nodes.iter().find(|node| node.role == Role::Button).expect("switcher's first row");
+                    assert_eq!(first.name.as_deref(), Some(name.as_bytes()), "{}: first project row", sample.name);
+                }
+                Part::CardChanges { title, changes } => {
+                    let link = find(tree, Role::Link, title, sample.name);
+                    let nodes = tree.nodes();
+                    let at = nodes.iter().position(|node| node.id == link).expect("card's link");
+                    let (start, card) = nodes
+                        .iter()
+                        .enumerate()
+                        .take(at)
+                        .rev()
+                        .find(|(start, node)| {
+                            node.styles.as_slice().contains(&temper_client_view::look::WORK_CARD)
+                                && at < start + usize::try_from(node.size).expect("card size")
+                        })
+                        .expect("link's card");
+                    let end = start + usize::try_from(card.size).expect("card size");
+                    let links: Vec<_> = nodes[start..end]
+                        .iter()
+                        .filter(|node| node.role == Role::Link && node.id != link)
+                        .map(|node| std::str::from_utf8(node.name.as_deref().expect("change name")).expect("English"))
+                        .collect();
+                    assert_eq!(links, *changes, "{}: {title} changes", sample.name);
+                }
+                Part::Cards { section, from } => {
+                    let nodes = descendants(tree, Role::Region, section, sample.name);
+                    let cards: Vec<_> = nodes
+                        .iter()
+                        .enumerate()
+                        .filter(|(_, node)| node.styles.as_slice().contains(&temper_client_view::look::WORK_CARD))
+                        .collect();
+                    assert_eq!(cards.len(), from.len(), "{}: {section} card count", sample.name);
+                    for ((start, card), expected) in cards.iter().zip(*from) {
+                        let end = start + usize::try_from(card.size).expect("card subtree");
+                        let card = &nodes[*start..end];
+                        let start = card
+                            .iter()
+                            .position(|node| {
+                                node.role == Role::Paragraph
+                                    && node.styles.as_slice().contains(&temper_client_view::look::WORK_FROM)
+                            })
+                            .expect("card's from line");
+                        let end = start + usize::try_from(card[start].size).expect("from subtree");
+                        let text: Vec<_> = card[start..end]
+                            .iter()
+                            .flat_map(|node| node.text.iter().flat_map(|run| run.text.iter().copied()))
+                            .collect();
+                        assert_eq!(String::from_utf8_lossy(&text), *expected, "{}: {section} from line", sample.name);
+                    }
+                }
+                Part::GroupLines { name, lines } => {
+                    let group = descendants(tree, Role::Group, name, sample.name);
+                    let drawn: Vec<_> = group
+                        .iter()
+                        .filter(|node| node.role == Role::Item)
+                        .map(|node| std::str::from_utf8(node.name.as_deref().expect("line name")).expect("English"))
+                        .collect();
+                    assert_eq!(drawn, *lines, "{}: {name} lines in order", sample.name);
+                }
+                Part::StyledText { style, text } => {
+                    let nodes = tree.nodes();
+                    let start = nodes
+                        .iter()
+                        .position(|node| node.styles.as_slice().contains(style))
+                        .unwrap_or_else(|| panic!("{}: missing row {style:?}", sample.name));
+                    let end = start + usize::try_from(nodes[start].size).expect("row span");
+                    let actual: Vec<_> = nodes[start..end]
+                        .iter()
+                        .flat_map(|node| node.text.iter())
+                        .map(|run| std::str::from_utf8(&run.text).expect("row words"))
+                        .collect();
+                    assert_eq!(actual, *text, "{}: row text", sample.name);
+                }
+                Part::StockWays { current } => {
+                    let menu = descendants(tree, Role::Menu, "Stock ways", sample.name);
+                    let items: Vec<_> = menu.iter().filter(|node| node.role == Role::MenuItem).collect();
+                    assert_eq!(items.len(), 3, "{}: stock ways alone", sample.name);
+                    for (index, (item, name)) in
+                        items.into_iter().zip(["You approve", "Agents review", "Draft first"]).enumerate()
+                    {
+                        assert_eq!(item.name.as_deref(), Some(name.as_bytes()), "{}: read order", sample.name);
+                        assert_eq!(
+                            item.states.as_slice().contains(&skein_ui::State::Selected),
+                            *current == Some(index),
+                            "{}: running way ticked",
+                            sample.name
+                        );
+                    }
+                    assert!(!tree.nodes().iter().any(|node| node.role == Role::Tabs), "{}: no tabs", sample.name);
+                    let how =
+                        sample.name == "how" || sample.name.starts_with("how-") || sample.name.starts_with("night-how");
+                    let foot = tree
+                        .nodes()
+                        .iter()
+                        .position(|n| n.styles.as_slice().contains(&temper_client_view::look::WAYS_FOOT))
+                        .unwrap();
+                    let end = foot + usize::try_from(tree.nodes()[foot].size).unwrap();
+                    let buttons: Vec<_> = tree.nodes()[foot..end]
+                        .iter()
+                        .filter(|n| n.role == Role::Button)
+                        .map(|n| n.name.as_deref())
+                        .collect();
+                    assert_eq!(buttons, if how { vec![] } else { vec![Some(b"How does temper work?".as_slice())] });
+                    if how {
+                        assert!(
+                            !tree
+                                .nodes()
+                                .iter()
+                                .any(|n| n.styles.as_slice().contains(&temper_client_view::look::WAY_ASK))
+                        );
+                    }
+                    if matches!(sample.name, "ask-ways-menu" | "ask-ways-yours-menu" | "how-menu") {
+                        assert_eq!(sample.open_menu(), Some(b"Stock ways".as_slice()));
+                        let html = page(&sample, &skein_ui_bundle::Digest(*b"0123456789abcdef"));
+                        assert!(html.contains("aria-expanded=\"true\">Stock ways"), "{}: menu open", sample.name);
+                        assert!(
+                            !html.contains(&format!("id=\"skein-ui-menu-{}\" hidden", menu[0].id.0)),
+                            "{}: menu visible",
+                            sample.name
+                        );
+                    }
+                }
+                Part::Path { stops } => {
+                    let path = descendants(tree, Role::List, "The way a change goes", sample.name);
+                    let actual: Vec<_> = path
+                        .iter()
+                        .filter(|node| node.role == Role::Item)
+                        .map(|node| std::str::from_utf8(node.name.as_deref().expect("stop words")).expect("UTF-8 stop"))
+                        .collect();
+                    assert_eq!(actual, *stops, "{}: path stops and actors", sample.name);
+                }
+                Part::Drawing { style, count } => {
+                    let drawing = tree
+                        .nodes()
+                        .iter()
+                        .find_map(|node| {
+                            node.drawing.as_ref().filter(|drawing| drawing.kind == temper_client_view::paths::KIND)
+                        })
+                        .expect("way drawing");
+                    let mut scene = Scene::new(&bounds.tree);
+                    assert!(draw(drawing.kind, &drawing.data, 1000, 0, &mut scene), "{}: way scene", sample.name);
+                    assert!(!scene.refused(), "{}: scene fits", sample.name);
+                    let actual = (0..u32::try_from(scene.marks().len()).expect("scene marks"))
+                        .filter(|index| scene.styles(*index).contains(style))
+                        .count();
+                    assert_eq!(actual, *count, "{}: drawing {style:?}", sample.name);
+                }
+                Part::Expanded { name } => {
+                    let id = find(tree, Role::Button, name, sample.name);
+                    assert!(
+                        tree.find(id).expect("stop").states.as_slice().contains(&skein_ui::State::Expanded),
+                        "{}: open stop",
+                        sample.name
+                    );
+                }
+                Part::Folded { name } => {
+                    let id = find(tree, Role::Disclosure, name, sample.name);
+                    assert!(
+                        !tree.find(id).expect("disclosure").states.as_slice().contains(&skein_ui::State::Expanded),
+                        "{}: {name} folded",
+                        sample.name
+                    );
+                }
+                Part::Configured { value } => {
+                    let facts = temper_client_domain::pages::home::facts(
+                        &root,
+                        1,
+                        worlds::sample_now(sample.world, sample.name),
+                    );
+                    assert_eq!(facts.configured, *value, "{}: To begin's first step", sample.name);
+                }
+                Part::Reader { role } => {
+                    let me = root.pages().me(root.client()).expect("signed-in reader");
+                    let member = me.projects.iter().find(|member| member.project == 1).expect("ways project");
+                    assert_eq!(&member.role, role, "{}: reader's role", sample.name);
+                }
+                Part::After { first, then } => {
+                    let nodes = tree.nodes();
+                    let start = nodes.iter().position(|node| node.role == Role::Main).expect("main");
+                    let end = start + usize::try_from(nodes[start].size).expect("main span");
+                    let at = |style| {
+                        nodes[start..end]
+                            .iter()
+                            .position(|node| node.styles.as_slice().contains(style))
+                            .expect("ordered part")
+                    };
+                    assert!(at(first) < at(then), "{}: part order", sample.name);
+                }
+                Part::Links { style, names } => {
+                    let nodes = tree.nodes();
+                    let start =
+                        nodes.iter().position(|node| node.styles.as_slice().contains(style)).expect("navigation style");
+                    let end = start + usize::try_from(nodes[start].size).expect("navigation size");
+                    let links: Vec<_> = nodes[start..end]
+                        .iter()
+                        .filter(|node| node.role == Role::Link)
+                        .map(|node| std::str::from_utf8(node.name.as_deref().expect("link name")).expect("English"))
+                        .collect();
+                    assert_eq!(links, *names, "{}: navigation", sample.name);
+                }
+                Part::NoStyle { style } => assert!(
+                    !tree.nodes().iter().any(|node| node.styles.as_slice().contains(style)),
+                    "{}: absent style",
+                    sample.name
+                ),
+                Part::Selected { name } => {
+                    let id = find(tree, Role::Choice, name, sample.name);
+                    assert!(
+                        tree.find(id).expect("source choice").states.as_slice().contains(&skein_ui::State::Selected),
+                        "{}: {name} selected",
+                        sample.name
+                    );
+                }
+                Part::NotPressed { name } => {
+                    let id = find(tree, Role::Button, name, sample.name);
+                    assert!(
+                        !tree.find(id).expect("mode button").states.as_slice().contains(&skein_ui::State::Pressed),
+                        "{}: {name} not pressed",
+                        sample.name
+                    );
+                }
+                Part::Pressed { name } => {
+                    let id = find(tree, Role::Button, name, sample.name);
+                    assert!(
+                        tree.find(id).expect("mode button").states.as_slice().contains(&skein_ui::State::Pressed),
+                        "{}: {name} pressed",
+                        sample.name
+                    );
+                }
+                Part::Text { text } => {
+                    assert!(has_text(tree, text), "{}: missing text {text:?}", sample.name);
+                }
+                Part::Buttons { style, names } => {
+                    let nodes = tree.nodes();
+                    let start =
+                        nodes.iter().position(|node| node.styles.as_slice().contains(style)).expect("button row");
+                    let end = start + usize::try_from(nodes[start].size).expect("row span");
+                    let actual: Vec<_> = nodes[start..end]
+                        .iter()
+                        .filter(|node| node.role == Role::Button)
+                        .map(|node| std::str::from_utf8(node.name.as_deref().expect("button name")).expect("English"))
+                        .collect();
+                    assert_eq!(actual, *names, "{}: buttons in order", sample.name);
+                }
+                Part::Named { role, name } => {
+                    find(tree, *role, name, sample.name);
+                }
+                Part::Ordered { role, name } => {
+                    assert!(
+                        described.any(|node| node.role == *role && node.name.as_deref() == Some(name.as_bytes())),
+                        "{}: missing or out of order {role:?} {name:?}",
+                        sample.name
+                    );
+                }
+                Part::Absent { role, name } => {
+                    let query =
+                        if *role == Role::Menu { Find::named(*role, name.as_bytes()) } else { in_main(*role, name) };
+                    assert_eq!(main.find(&query), Found::Absent, "{}: absent {role:?} {name:?}", sample.name);
+                }
+                Part::NoRole { role } => {
+                    assert!(!tree.nodes().iter().any(|node| node.role == *role), "{}: absent {role:?}", sample.name);
+                }
+                Part::Value { role, name, value } => {
+                    let node = find(tree, *role, name, sample.name);
+                    let value = value.as_bytes();
+                    assert_eq!(
+                        tree.find(node).expect("field").value.as_ref().expect("field value").text.as_ref(),
+                        value,
+                        "{}",
+                        sample.name
+                    );
+                }
+                Part::Described { role, name, description } => {
+                    let node = described
+                        .find(|node| node.role == *role && node.name.as_deref() == Some(name.as_bytes()))
+                        .unwrap_or_else(|| panic!("{}: missing {role:?} {name:?}", sample.name));
+                    assert_eq!(node.description.as_deref(), Some(description.as_bytes()), "{}", sample.name);
+                }
+                Part::Goals { rows } => {
+                    let actual: Vec<_> = tree
+                        .nodes()
+                        .iter()
+                        .filter(|node| node.styles.as_slice().contains(&temper_client_view::look::GOALS_ROW))
+                        .map(|node| String::from_utf8_lossy(node.name.as_deref().expect("goal link name")))
+                        .collect();
+                    assert_eq!(actual.len(), rows.len(), "{}: goal rows", sample.name);
+                    for (actual, expected) in actual.iter().zip(*rows) {
+                        assert!(actual.starts_with(expected), "{}: expected {expected:?}, got {actual:?}", sample.name);
+                    }
+                }
+                Part::Chats { live, closed } => {
+                    let available = (*live).min(driver::limits().client.domain.rows)
+                        + (*closed).min(driver::limits().client.domain.rows);
+                    if available == 0 {
+                        assert_eq!(main.find(&in_main(Role::List, "Your chats")), Found::Absent, "{}", sample.name);
+                        continue;
+                    }
+                    let list = find(tree, Role::List, "Your chats", sample.name);
+                    let nodes = tree.nodes();
+                    let start = nodes.iter().position(|node| node.id == list).expect("chats list");
+                    let end = start + usize::try_from(nodes[start].size).expect("chats subtree");
+                    let mut count = 0;
+                    for node in &nodes[start..end] {
+                        if node.role == Role::Link
+                            && let Some(name) = &node.name
+                            && name
+                                .strip_prefix(b"T")
+                                .is_some_and(|number| !number.is_empty() && number.iter().all(u8::is_ascii_digit))
+                        {
+                            count += 1;
+                        }
+                    }
+                    assert_eq!(count, available, "{}: windowed chat rows", sample.name);
+                }
+                Part::Plan { live, title } => {
+                    let plan = find(tree, Role::Tree, "Plan", sample.name);
+                    let row = Find::named(Role::Paragraph, title.as_bytes()).within(Box::new([
+                        skein_fake_person::Target::Role { role: Role::Tree, name: Box::from(b"Plan".as_slice()) },
+                    ]));
+                    assert!(matches!(main.find(&row), Found::Node(_)), "{}: delegate title", sample.name);
+                    let nodes = tree.nodes();
+                    let start = nodes.iter().position(|node| node.id == plan).expect("plan node");
+                    let end = start + usize::try_from(nodes[start].size).expect("plan subtree");
+                    let count = nodes[start..end].iter().filter(|node| node.role == Role::TreeItem).count();
+                    let window = driver::limits().client.domain.rows;
+                    assert_eq!(
+                        count,
+                        usize::try_from((*live).min(window)).expect("row count"),
+                        "{}: plan window",
+                        sample.name
+                    );
+                }
+            }
+        }
+        for (node, expected) in destinations {
+            assert_eq!(
+                temper_client_view::href(&mut view, node).as_deref(),
+                Some(expected.as_bytes()),
+                "{}: destination",
+                sample.name
+            );
+        }
+        each_chat_reads_its_allotment(&sample, &view);
+        no_state_reads_of_zero(&sample, &view);
+        no_named_control_draws_a_text_child_in_any_state(&sample, &view);
+        navigation_links_have_addresses_and_install_action_links_keep_their_binding(&sample, &mut view);
+    }
+}
+#[test]
+>>>>>>> refs/manual/8669
 fn goal_pages_hold_reports_counts_and_only_their_needs() {
     use temper_client_domain::pages::goals::State;
     for (name, number, done, total, state, report) in [
