@@ -1284,3 +1284,65 @@ fn in_flight_waits_for_needs_and_accepts_their_refusal_or_failure() {
         assert!(work.drafts.is_empty());
     }
 }
+
+#[test]
+fn busy_live_goals_use_the_same_milestone_as_goals_groups() {
+    let (mut root, limits, goals, milestones) = super::milestones::opened_project();
+    let mut out = Queue::uncapped();
+    let mut child = super::goals::line(200, wall(10));
+    let mut milestone = super::goals::line(100, wall(10));
+    milestone.parts = list(&[temper_fixtures::milestones::part(
+        None,
+        w::MilestoneTotals::new(
+            &w::CEILINGS,
+            w::MilestoneTotalsParts {
+                task: 100,
+                done: 0,
+                failed: 0,
+                closed: 0,
+                live: 1,
+                ended: None,
+                last_landing: None,
+                spent: 0,
+            },
+        )
+        .unwrap(),
+        &[(child.clone(), None)],
+        0,
+    )]);
+    let mut deliver = |watch, row: &c::TaskLine| {
+        crate::step(
+            &mut root,
+            &f::env(&limits),
+            Event::Client {
+                event: jig_client::Event::Up {
+                    up: Up::Watched {
+                        watch,
+                        event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks {
+                            ended_mark: 0,
+                            rows: list(core::slice::from_ref(row)),
+                            more: false,
+                        }))),
+                    },
+                },
+            },
+            &mut out,
+        );
+    };
+    deliver(milestones, &milestone);
+    child.parts = list(&[c::RowPart::Failed(c::PartFailure::Busy)]);
+    deliver(goals, &child);
+    let mut facts = work::facts(&root, f::PROJECT).unwrap();
+    assert_eq!(facts.goals.as_slice(), [Goal { milestone: Some(100), ..goal(200, true, 10) }]);
+    // The other lists gate drawing, not the gathered membership.
+    facts.known = answered();
+    let placed = work::place(&facts, wall(NOW));
+    assert_eq!(placed.in_flight.len(), 1);
+    assert_eq!(placed.in_flight.get(0).unwrap().item, Item::Milestone(100));
+    assert_eq!(placed.in_flight.get(0).unwrap().goals.len(), 1);
+    let held = root.pages().goals().unwrap();
+    assert_eq!(
+        crate::pages::goals::groups(&[child], root.pages().milestones(), held).as_slice(),
+        [crate::pages::goals::GroupRow::Milestone(100)]
+    );
+}

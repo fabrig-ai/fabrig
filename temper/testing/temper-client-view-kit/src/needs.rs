@@ -225,29 +225,10 @@ fn fixture_with_task(
         if let d::Request::Unlinked {
             request:
                 jig_client::UnlinkedRequest::Down {
-                    down:
-                        jig_client::Down::Read {
-                            read,
-                            what: jig_client::Readable::Jig(c::Read::Inbox { group, after, .. }),
-                        },
+                    down: jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Inbox { group, .. }) },
                 },
         } = &request
         {
-            if after.is_some() {
-                event(
-                    &mut root,
-                    Event::Client {
-                        event: jig_client::Event::Up {
-                            up: jig_client::Up::ReadDone {
-                                read: *read,
-                                result: jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Busy)),
-                            },
-                        },
-                    },
-                    &mut out,
-                );
-                continue;
-            }
             let rows = if *group == c::InboxReadGroup::Needs { entries.clone() } else { List::with_capacity(0) };
             event(
                 &mut root,
@@ -256,17 +237,7 @@ fn fixture_with_task(
                         up: jig_client::Up::ReadDone {
                             read: *read,
                             result: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Inbox(Box::new(
-                                c::InboxPage {
-                                    selection: None,
-                                    before: None,
-                                    rows,
-                                    after: if more && *group == c::InboxReadGroup::Needs {
-                                        Some(c::Cursor::new(b"next".as_slice().into(), 4).unwrap())
-                                    } else {
-                                        None
-                                    },
-                                    cut: more,
-                                },
+                                c::InboxPage { selection: None, before: None, rows, after: None, cut: more },
                             )))),
                         },
                     },
