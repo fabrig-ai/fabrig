@@ -733,6 +733,33 @@ def one_process_summary(directory, limits, pair, run, gate=False, ledger=None, b
                 unobserved=unobserved, warnings=warnings, over_budget=over, verdict=verdict)
 
 
+def reference_values(profile, tree, layer, binary, name):
+    """A test's reference and reason's line (tools/tiers/references.md, 6)."""
+    reference = (profile.get(tree, {}).get(layer, {}).get(
+        'reference_s', profile.get('references', {}).get(layer)) if layer is not None else None)
+    line = next((line['cpu_s'] for line in profile.get('reasons', [])
+                 if (line['binary'], line['test']) == (binary, name)), None)
+    return reference, line
+
+
+def reference_limit(profile, tree, layer, binary, name, why, main_cpu, running=False):
+    """One rule for running and judging a test (tools/tiers/references.md, 4)."""
+    reference, line = reference_values(profile, tree, layer, binary, name)
+    limit = line if line is not None else reference
+    if limit is None:
+        return None
+    if why == 'new':
+        return limit
+    if main_cpu is not None:
+        return max(limit, 1.5 * main_cpu)
+    return limit if running else line
+
+
+def reference_runs(entry):
+    """Read a run alone, including the older single-run form (references.md, 4)."""
+    return entry.get('runs', [entry])
+
+
 def reference_rows(data, profile, ledger, base, warnings, over):
     """Each test's reference and figure at main (tools/tiers/references.md, 6)."""
     at_base = {}
@@ -740,7 +767,7 @@ def reference_rows(data, profile, ledger, base, warnings, over):
         base_data = json.loads((Path(base) / 'results.json').read_text())
         if 'references' not in base_data:
             raise ValueError('base results require references')
-        at_base = {(entry['binary_id'], entry['test_name']): entry['cpu_s']
+        at_base = {(entry['binary_id'], entry['test_name']): entry
                    for entry in base_data['references']}
     placements = {entry['binary_id']: (entry.get('tree'), entry.get('layer'))
                   for entry in data.get('workspace', [])}
@@ -748,7 +775,6 @@ def reference_rows(data, profile, ledger, base, warnings, over):
         if process['kind'] in ('tests', 'fresh', 'alone'):
             placements[process['binary_id']] = process.get('tree'), process.get('layer')
     walls = {(entry['binary_id'], entry['test_name']): entry['wall_s'] for entry in data['tests']}
-    lines = {(line['binary'], line['test']): line['cpu_s'] for line in profile.get('reasons', [])}
     rows = []
     for entry in data.get('references', []):
         why = entry['why']
@@ -756,26 +782,25 @@ def reference_rows(data, profile, ledger, base, warnings, over):
             continue
         binary, name = key = entry['binary_id'], entry['test_name']
         tree, layer = placements.get(binary, (None, None))
-        reference = (profile.get(tree, {}).get(layer, {}).get(
-            'reference_s', profile.get('references', {}).get(layer)) if layer is not None else None)
-        line = lines.get(key)
-        reference_limit = line if line is not None else reference
-        if reference_limit is None:
+        reference, line = reference_values(profile, tree, layer, binary, name)
+        if reference is None and line is None:
             continue
         old = (ledger or {}).get('binaries', {}).get(binary, {})
         main_cpu, main_from, main_wall = None, None, None
+        main_alone = []
         if why == 'flagged':
             history = old.get('tests', {}).get(name, [])
             main_wall = statistics.median(history) if history else None
-            main_cpu = at_base.get(key)
+            base_entry = at_base.get(key, {})
+            main_cpu = base_entry.get('cpu_s')
             if main_cpu is not None:
                 main_from = 'base'
+                main_alone = [run['cpu_s'] for run in reference_runs(base_entry)]
             else:
                 history = old.get('alone', {}).get(name, [])
                 if history:
                     main_cpu, main_from = statistics.median(history), 'ledger'
-        limit = (reference_limit if why == 'new' else
-                 max(reference_limit, 1.5 * main_cpu) if main_cpu is not None else line)
+        limit = reference_limit(profile, tree, layer, binary, name, why, main_cpu)
         cpu = entry['cpu_s']
         is_over = cpu is not None and limit is not None and cpu > limit
         label = f'{binary} {name}'
@@ -786,10 +811,23 @@ def reference_rows(data, profile, ledger, base, warnings, over):
         elif why == 'flagged' and line is None and main_cpu is None and cpu > reference:
             warnings.append(f'test flagged without its figure at main: {label}: '
                             f'{cpu:.3f} CPU s alone, reference {reference:.3f} s')
+        runs = reference_runs(entry)
+        alone = [run['cpu_s'] for run in runs]
+        if cpu is not None:
+            for run in runs:
+                if run['cpu_s'] is None:
+                    warnings.append(f"test not measured alone: {label}: {run['outcome']}")
+        milliseconds = [round(value * 1000) for value in alone if value is not None]
+        swinging = (len(alone) == len(milliseconds) == 3
+                    and max(milliseconds) * 2 > min(milliseconds) * 3)
+        if swinging:
+            figures = ', '.join(f'{value:.3f}' for value in alone)
+            warnings.append(f'test swings alone at the head: {label}: {figures} CPU s alone')
         rows.append(dict(binary_id=binary, test_name=name, tree=tree, layer=layer, why=why,
                          wall_s=walls.get(key), main_wall_s=main_wall, cpu_s=cpu,
                          main_cpu_s=main_cpu, main_from=main_from, reference_s=reference,
-                         line_s=line, limit_s=limit, over=is_over))
+                         line_s=line, limit_s=limit, over=is_over,
+                         alone=alone, main_alone=main_alone, swinging=swinging))
     return rows
 
 

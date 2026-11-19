@@ -111,6 +111,12 @@ fn b() {
         "hang" => loop {
             std::thread::sleep(Duration::from_secs(60));
         },
+        "cpu" => {
+            for value in 0_u64..4_000_000 {
+                std::hint::black_box(value.wrapping_mul(value));
+            }
+            std::thread::sleep(Duration::from_millis(80));
+        }
         "slow" => std::thread::sleep(Duration::from_millis(80)),
         _ => (),
     }
