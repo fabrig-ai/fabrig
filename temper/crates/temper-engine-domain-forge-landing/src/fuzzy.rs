@@ -7,24 +7,42 @@ use skein_lib::{Duration, List, Rng, Wall};
 fn seeded_stacks_keep_their_prefix_and_turn_invariants() {
     let mut whole_cut = false;
     let mut selected_cut = false;
+<<<<<<< HEAD
     let mut stale_after_cut = false;
+=======
+    let mut unkept = false;
+    let mut held = false;
+>>>>>>> refs/hand5/9644
     for seed in 0..256 {
         prefix_search(seed);
         let played = run(seed);
-        let [whole, selected] = played.2;
+        let [whole, selected, absent] = played.2;
         whole_cut |= whole;
         selected_cut |= selected;
+<<<<<<< HEAD
         stale_after_cut |= played.3;
         assert_eq!(played, run(seed), "replay seed {seed}");
     }
     assert!(whole_cut && selected_cut, "the sweep reaches both kinds of cut");
     assert!(stale_after_cut, "the sweep moves main after a cut, before the next open is answered");
+=======
+        unkept |= absent;
+        held |= played.0.phase == Phase::Held { was: Box::new(Phase::Preparing), why: crate::Hold::Prepare };
+        assert_eq!(played, run(seed), "replay seed {seed}");
+    }
+    assert!(whole_cut && selected_cut, "the sweep reaches both kinds of cut");
+    assert!(unkept && held, "the sweep reaches a prepare with no kept answer and its hold");
+>>>>>>> refs/hand5/9644
 }
 
 // Each effect takes 1–3 steps, separately from its result becoming readable.
 // The settling bound is 32 + 20 per member + 24 per drawn disturbance:
 // member steps, round cleanup, and another proof after each disturbance.
+<<<<<<< HEAD
 fn run(seed: u64) -> (Landing, Box<[Decision]>, [bool; 2], bool) {
+=======
+fn run(seed: u64) -> (Landing, Box<[Decision]>, [bool; 3]) {
+>>>>>>> refs/hand5/9644
     let mut rng = Rng::new(seed);
     let count = usize::try_from(rng.below(6).checked_add(1).unwrap()).unwrap();
     let units = usize::try_from(rng.below(4).checked_add(1).unwrap()).unwrap().min(count);
@@ -34,6 +52,8 @@ fn run(seed: u64) -> (Landing, Box<[Decision]>, [bool; 2], bool) {
         .checked_add(usize::from(world.cancel))
         .unwrap()
         .checked_add(usize::from(world.red.is_some()))
+        .unwrap()
+        .checked_add(usize::try_from(world.unkept).unwrap())
         .unwrap();
     for (index, member) in landing.members.iter_mut().enumerate() {
         member.unit = u16::try_from(index.checked_mul(units).unwrap().checked_div(count).unwrap()).unwrap();
@@ -63,6 +83,7 @@ fn run(seed: u64) -> (Landing, Box<[Decision]>, [bool; 2], bool) {
     let mut probe_bound = 0_u32;
     let mut waiting = false;
     let mut due = None;
+    let mut asked = Asked { prepare: None, asks: 0, deadline: false };
     for tick in 0..bound {
         let answered = world.answer(&mut landing, tick);
         let disturbed = world.disturb(&landing, tick);
@@ -75,6 +96,7 @@ fn run(seed: u64) -> (Landing, Box<[Decision]>, [bool; 2], bool) {
         }
         let next = crate::step(&landing, &world.facts, &crate::Project::DEFAULT, &LIMITS, now);
         invariants(seed, &landing, &world.facts, &next, &mut probes, &mut probe_bound);
+        asked.decided(seed, &next);
         if let Decision::Wait { until, on } = next.decision {
             world.wait(seed, tick, &next.landing, until, on);
             due = until;
@@ -94,12 +116,19 @@ fn run(seed: u64) -> (Landing, Box<[Decision]>, [bool; 2], bool) {
                     assert!(member.landed.is_some() || member.left.is_some(), "terminal seed {seed}");
                 }
                 if world.pending.is_empty() {
+<<<<<<< HEAD
                     return (next.landing, trace.into_boxed(), world.cuts, world.stale_after_cut);
                 }
             }
             Decision::Hold(_) | Decision::Cancel => {
                 return (next.landing, trace.into_boxed(), world.cuts, world.stale_after_cut);
             }
+=======
+                    return (next.landing, trace.into_boxed(), world.reached());
+                }
+            }
+            Decision::Hold(_) | Decision::Cancel => return (next.landing, trace.into_boxed(), world.reached()),
+>>>>>>> refs/hand5/9644
             Decision::None
             | Decision::Wait { .. }
             | Decision::Prepare { .. }
@@ -123,6 +152,60 @@ fn run(seed: u64) -> (Landing, Box<[Decision]>, [bool; 2], bool) {
         landing = next.landing;
     }
     panic!("did not settle seed {seed} in {bound} steps: {trace:?}, {:?}", world.pending);
+}
+
+// The same prepare, its suffix included, is asked again only after a wait with a
+// deadline, and never a third time in a row without a release (landing-preparing.md, 5).
+struct Asked {
+    prepare: Option<(Decision, Box<[u16]>)>,
+    asks: u32,
+    deadline: bool,
+}
+impl Asked {
+    fn decided(&mut self, seed: u64, next: &crate::Stepped) {
+        match next.decision {
+            Decision::Prepare { .. } => {
+                let mut suffix = List::with_capacity(6);
+                for (index, member) in next.landing.members.iter().enumerate() {
+                    if member.left.is_none() && member.landed.is_none() && member.candidate.is_none() {
+                        suffix.push(u16::try_from(index).unwrap()).unwrap();
+                    }
+                }
+                let prepare = Some((next.decision, suffix.into_boxed()));
+                if prepare == self.prepare {
+                    assert!(self.deadline, "the same prepare without a deadline wait seed {seed}");
+                    self.asks = self.asks.checked_add(1).unwrap();
+                    assert!(self.asks <= 2, "a third same prepare seed {seed}");
+                } else {
+                    self.prepare = prepare;
+                    self.asks = 1;
+                }
+                self.deadline = false;
+            }
+            Decision::Wait { until: Some(_), .. } => self.deadline = true,
+            Decision::None
+            | Decision::Wait { until: None, .. }
+            | Decision::Key { .. }
+            | Decision::Dispatch { .. }
+            | Decision::Retry { .. }
+            | Decision::Post { .. }
+            | Decision::Repair { .. }
+            | Decision::Proved
+            | Decision::Merge { .. }
+            | Decision::Stale
+            | Decision::Finish
+            | Decision::Cancel
+            | Decision::Hold(_)
+            | Decision::Open
+            | Decision::Record { .. }
+            | Decision::Landed { .. }
+            | Decision::Close
+            | Decision::Delete { .. }
+            | Decision::Resolve { .. }
+            | Decision::Leave { .. }
+            | Decision::Judge { .. } => {}
+        }
+    }
 }
 
 const LIMITS: crate::Limits =
@@ -237,7 +320,13 @@ struct Top {
     stale: Option<StaleAt>,
     cancel: bool,
     cuts: [bool; 2],
+<<<<<<< HEAD
     stale_after_cut: bool,
+=======
+    /// Prepares still to end with no answer their round keeps, read as absent.
+    unkept: u32,
+    absent: bool,
+>>>>>>> refs/hand5/9644
 }
 
 impl Top {
@@ -273,6 +362,11 @@ impl Top {
             _ => None,
         };
         let cancel = rng.below(32) == 0;
+        let unkept = match rng.below(8) {
+            0 => 1,
+            1 => 2,
+            _ => 0,
+        };
         let mut facts = stack_facts(count);
         facts.turn_free = true;
         facts.preparation = Preparation::Absent;
@@ -287,8 +381,18 @@ impl Top {
             stale,
             cancel,
             cuts: [false; 2],
+<<<<<<< HEAD
             stale_after_cut: false,
+=======
+            unkept,
+            absent: false,
+>>>>>>> refs/hand5/9644
         }
+    }
+
+    fn reached(&self) -> [bool; 3] {
+        let [whole, selected] = self.cuts;
+        [whole, selected, self.absent]
     }
 
     fn merge_pending(&self) -> bool {
@@ -366,6 +470,12 @@ impl Top {
             answered = true;
             let index = usize::from(p.member);
             match p.effect {
+                Effect::Prepare if self.unkept > 0 => {
+                    // It ended with no answer the round keeps (landing-preparing.md, 2).
+                    self.unkept = self.unkept.checked_sub(1).unwrap();
+                    self.facts.preparation = Preparation::Absent;
+                    self.absent = true;
+                }
                 Effect::Prepare => {
                     self.facts.preparation = Preparation::Idle;
                     self.later(tick, p.round, p.member, Effect::Prefixes);

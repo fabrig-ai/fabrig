@@ -168,6 +168,7 @@ pub struct Limits {
     pub landing_searched_changes: u32,
     pub landing_round_branch: u32,
     pub landing_round_failure: u32,
+    pub landing_last_prepare_suffix: u32,
     pub landing_state_members: u32,
     pub landing_state_branch: u32,
     pub history_job_record_members: u32,
@@ -523,6 +524,7 @@ pub const CEILINGS: Limits = Limits {
     landing_searched_changes: 64,
     landing_round_branch: 4_096,
     landing_round_failure: 8_192,
+    landing_last_prepare_suffix: 64,
     landing_state_members: 64,
     landing_state_branch: 4_096,
     history_job_record_members: 64,
@@ -878,6 +880,7 @@ pub const LIMIT_NAMES: &[&str] = &[
     "landing_searched_changes",
     "landing_round_branch",
     "landing_round_failure",
+    "landing_last_prepare_suffix",
     "landing_state_members",
     "landing_state_branch",
     "history_job_record_members",
@@ -1081,6 +1084,6344 @@ impl Limits {
     #[must_use]
     pub fn values(&self) -> List<u32> {
         let mut values = List::with_capacity(u32::try_from(LIMIT_NAMES.len()).expect("schema limits fit u32"));
+<<<<<<< HEAD
+=======
+        self.values_for_segment_record(&mut values);
+        values
+    }
+}
+
+/// A field or tag that caused a codec problem.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum Path {
+    /// The `forge` field of `Repository`.
+    RepositoryForge,
+    /// The `repository` field of `Repository`.
+    RepositoryRepository,
+    /// Bytes after `Repository`.
+    RepositoryTail,
+    /// The `number` field of `Number`.
+    NumberNumber,
+    /// Bytes after `Number`.
+    NumberTail,
+    /// The `commit` field of `Commit`.
+    CommitCommit,
+    /// Bytes after `Commit`.
+    CommitTail,
+    /// The `name` field of `Segment`.
+    SegmentName,
+    /// Bytes after `Segment`.
+    SegmentTail,
+    /// The `name` field of `AnswerName`.
+    AnswerNameName,
+    /// Bytes after `AnswerName`.
+    AnswerNameTail,
+    /// The `segments` field of `Segments`.
+    SegmentsSegments,
+    /// Bytes after `Segments`.
+    SegmentsTail,
+    /// The tag of `What`.
+    WhatTag,
+    /// The `forge` field of `Name`.
+    NameForge,
+    /// The `repository` field of `Name`.
+    NameRepository,
+    /// The `what` field of `Name`.
+    NameWhat,
+    /// Bytes after `Name`.
+    NameTail,
+    /// The tag of `ItemState`.
+    ItemStateTag,
+    /// The tag of `Ci`.
+    CiTag,
+    /// The tag of `Bypass`.
+    BypassTag,
+    /// The `branch` field of `Protection`.
+    ProtectionBranch,
+    /// The `contexts` field of `Protection`.
+    ProtectionContexts,
+    /// The `approvals` field of `Protection`.
+    ProtectionApprovals,
+    /// The `dismiss_stale` field of `Protection`.
+    ProtectionDismissStale,
+    /// The `queue` field of `Protection`.
+    ProtectionQueue,
+    /// The `signatures` field of `Protection`.
+    ProtectionSignatures,
+    /// The `linear` field of `Protection`.
+    ProtectionLinear,
+    /// The `code_owners` field of `Protection`.
+    ProtectionCodeOwners,
+    /// The `bypass` field of `Protection`.
+    ProtectionBypass,
+    /// Bytes after `Protection`.
+    ProtectionTail,
+    /// The `default_branch` field of `Settings`.
+    SettingsDefaultBranch,
+    /// The `merge` field of `Settings`.
+    SettingsMerge,
+    /// The `squash` field of `Settings`.
+    SettingsSquash,
+    /// The `rebase` field of `Settings`.
+    SettingsRebase,
+    /// Bytes after `Settings`.
+    SettingsTail,
+    /// The tag of `Role`.
+    RoleTag,
+    /// The `read` field of `Kinds`.
+    KindsRead,
+    /// The `push` field of `Kinds`.
+    KindsPush,
+    /// The `open` field of `Kinds`.
+    KindsOpen,
+    /// The `land` field of `Kinds`.
+    KindsLand,
+    /// The `review` field of `Kinds`.
+    KindsReview,
+    /// The `status` field of `Kinds`.
+    KindsStatus,
+    /// The `comment` field of `Kinds`.
+    KindsComment,
+    /// The `issue` field of `Kinds`.
+    KindsIssue,
+    /// The `branch` field of `Kinds`.
+    KindsBranch,
+    /// Bytes after `Kinds`.
+    KindsTail,
+    /// The tag of `RepositoryProtection`.
+    RepositoryProtectionTag,
+    /// The `project` field of `Adopted`.
+    AdoptedProject,
+    /// The `contexts` field of `Adopted`.
+    AdoptedContexts,
+    /// The `home` field of `Adopted`.
+    AdoptedHome,
+    /// The `provider` field of `Adopted`.
+    AdoptedProvider,
+    /// The `host` field of `Adopted`.
+    AdoptedHost,
+    /// The `owner` field of `Adopted`.
+    AdoptedOwner,
+    /// The `name` field of `Adopted`.
+    AdoptedName,
+    /// The `prefix` field of `Adopted`.
+    AdoptedPrefix,
+    /// The `role` field of `Adopted`.
+    AdoptedRole,
+    /// The `ci` field of `Adopted`.
+    AdoptedCi,
+    /// The `checks` field of `Adopted`.
+    AdoptedChecks,
+    /// The `kinds` field of `Adopted`.
+    AdoptedKinds,
+    /// The `protection` field of `Adopted`.
+    AdoptedProtection,
+    /// The `settings` field of `Adopted`.
+    AdoptedSettings,
+    /// The `workflows` field of `Adopted`.
+    AdoptedWorkflows,
+    /// The `landing` field of `Adopted`.
+    AdoptedLanding,
+    /// Bytes after `Adopted`.
+    AdoptedTail,
+    /// The `task` field of `RunWriter`.
+    RunWriterTask,
+    /// The `attempt` field of `RunWriter`.
+    RunWriterAttempt,
+    /// Bytes after `RunWriter`.
+    RunWriterTail,
+    /// The tag of `Writer`.
+    WriterTag,
+    /// The `expected` field of `BranchDrift`.
+    BranchDriftExpected,
+    /// The `observed` field of `BranchDrift`.
+    BranchDriftObserved,
+    /// Bytes after `BranchDrift`.
+    BranchDriftTail,
+    /// The `number` field of `Retargeted`.
+    RetargetedNumber,
+    /// The `before` field of `Retargeted`.
+    RetargetedBefore,
+    /// The `after` field of `Retargeted`.
+    RetargetedAfter,
+    /// Bytes after `Retargeted`.
+    RetargetedTail,
+    /// The tag of `DriftChange`.
+    DriftChangeTag,
+    /// The `at` field of `Drift`.
+    DriftAt,
+    /// The `change` field of `Drift`.
+    DriftChange,
+    /// Bytes after `Drift`.
+    DriftTail,
+    /// The `task` field of `DesignWriter`.
+    DesignWriterTask,
+    /// The `attempt` field of `DesignWriter`.
+    DesignWriterAttempt,
+    /// The `rereading` field of `DesignWriter`.
+    DesignWriterRereading,
+    /// Bytes after `DesignWriter`.
+    DesignWriterTail,
+    /// The `head` field of `HeadBeside`.
+    HeadBesideHead,
+    /// The `waiting` field of `HeadBeside`.
+    HeadBesideWaiting,
+    /// Bytes after `HeadBeside`.
+    HeadBesideTail,
+    /// The `beside` field of `Hold`.
+    HoldBeside,
+    /// The `name` field of `Hold`.
+    HoldName,
+    /// The `task` field of `Hold`.
+    HoldTask,
+    /// The `writer` field of `Hold`.
+    HoldWriter,
+    /// The `design_writers` field of `Hold`.
+    HoldDesignWriters,
+    /// The `drift` field of `Hold`.
+    HoldDrift,
+    /// Bytes after `Hold`.
+    HoldTail,
+    /// The `task` field of `Names`.
+    NamesTask,
+    /// The `resources` field of `Names`.
+    NamesResources,
+    /// Bytes after `Names`.
+    NamesTail,
+    /// The tag of `LimitSet`.
+    LimitSetTag,
+    /// The `task` field of `LimitHold`.
+    LimitHoldTask,
+    /// The `member` field of `LimitHold`.
+    LimitHoldMember,
+    /// The `configured` field of `LimitHold`.
+    LimitHoldConfigured,
+    /// The `needed` field of `LimitHold`.
+    LimitHoldNeeded,
+    /// The `revision` field of `LimitHold`.
+    LimitHoldRevision,
+    /// The `at` field of `LimitHold`.
+    LimitHoldAt,
+    /// The `room` field of `LimitHold`.
+    LimitHoldRoom,
+    /// The `set` field of `LimitHold`.
+    LimitHoldSet,
+    /// The `order` field of `LimitHold`.
+    LimitHoldOrder,
+    /// Bytes after `LimitHold`.
+    LimitHoldTail,
+    /// The `repository` field of `LandingsTopic`.
+    LandingsTopicRepository,
+    /// The `branch` field of `LandingsTopic`.
+    LandingsTopicBranch,
+    /// Bytes after `LandingsTopic`.
+    LandingsTopicTail,
+    /// The `repository` field of `CiTopic`.
+    CiTopicRepository,
+    /// The `head` field of `CiTopic`.
+    CiTopicHead,
+    /// Bytes after `CiTopic`.
+    CiTopicTail,
+    /// The `repository` field of `NumberTopic`.
+    NumberTopicRepository,
+    /// The `number` field of `NumberTopic`.
+    NumberTopicNumber,
+    /// Bytes after `NumberTopic`.
+    NumberTopicTail,
+    /// The `name` field of `BranchHead`.
+    BranchHeadName,
+    /// The `commit` field of `BranchHead`.
+    BranchHeadCommit,
+    /// The `owned` field of `BranchHead`.
+    BranchHeadOwned,
+    /// Bytes after `BranchHead`.
+    BranchHeadTail,
+    /// The `name` field of `PullState`.
+    PullStateName,
+    /// The `head` field of `PullState`.
+    PullStateHead,
+    /// The `ci` field of `PullState`.
+    PullStateCi,
+    /// The `state` field of `PullState`.
+    PullStateState,
+    /// Bytes after `PullState`.
+    PullStateTail,
+    /// The `repository` field of `CiState`.
+    CiStateRepository,
+    /// The `head` field of `CiState`.
+    CiStateHead,
+    /// The `status` field of `CiState`.
+    CiStateStatus,
+    /// Bytes after `CiState`.
+    CiStateTail,
+    /// The `commit` field of `Landed`.
+    LandedCommit,
+    /// The `task` field of `Landed`.
+    LandedTask,
+    /// Bytes after `Landed`.
+    LandedTail,
+    /// The tag of `ReleaseEnding`.
+    ReleaseEndingTag,
+    /// The `entry` field of `PendingRelease`.
+    PendingReleaseEntry,
+    /// The `name` field of `PendingRelease`.
+    PendingReleaseName,
+    /// Bytes after `PendingRelease`.
+    PendingReleaseTail,
+    /// The `task` field of `ReleaseRow`.
+    ReleaseRowTask,
+    /// The `root` field of `ReleaseRow`.
+    ReleaseRowRoot,
+    /// The `ending` field of `ReleaseRow`.
+    ReleaseRowEnding,
+    /// The `close_pull` field of `ReleaseRow`.
+    ReleaseRowClosePull,
+    /// The `comment` field of `ReleaseRow`.
+    ReleaseRowComment,
+    /// The `pending_release` field of `ReleaseRow`.
+    ReleaseRowPendingRelease,
+    /// The `failed` field of `ReleaseRow`.
+    ReleaseRowFailed,
+    /// The `effects_settled` field of `ReleaseRow`.
+    ReleaseRowEffectsSettled,
+    /// The `releasing` field of `ReleaseRow`.
+    ReleaseRowReleasing,
+    /// The `room` field of `ReleaseRow`.
+    ReleaseRowRoom,
+    /// Bytes after `ReleaseRow`.
+    ReleaseRowTail,
+    /// The tag of `Verdict`.
+    VerdictTag,
+    /// The tag of `Check`.
+    CheckTag,
+    /// The `key` field of `CreateIssue`.
+    CreateIssueKey,
+    /// The `title` field of `CreateIssue`.
+    CreateIssueTitle,
+    /// The `body` field of `CreateIssue`.
+    CreateIssueBody,
+    /// Bytes after `CreateIssue`.
+    CreateIssueTail,
+    /// The `title` field of `OpenPull`.
+    OpenPullTitle,
+    /// The `body` field of `OpenPull`.
+    OpenPullBody,
+    /// The `head` field of `OpenPull`.
+    OpenPullHead,
+    /// The `base` field of `OpenPull`.
+    OpenPullBase,
+    /// Bytes after `OpenPull`.
+    OpenPullTail,
+    /// The `number` field of `Post`.
+    PostNumber,
+    /// The `key` field of `Post`.
+    PostKey,
+    /// The `body` field of `Post`.
+    PostBody,
+    /// Bytes after `Post`.
+    PostTail,
+    /// The `number` field of `PostReview`.
+    PostReviewNumber,
+    /// The `key` field of `PostReview`.
+    PostReviewKey,
+    /// The `verdict` field of `PostReview`.
+    PostReviewVerdict,
+    /// The `body` field of `PostReview`.
+    PostReviewBody,
+    /// Bytes after `PostReview`.
+    PostReviewTail,
+    /// The `number` field of `Edit`.
+    EditNumber,
+    /// The `title` field of `Edit`.
+    EditTitle,
+    /// The `body` field of `Edit`.
+    EditBody,
+    /// Bytes after `Edit`.
+    EditTail,
+    /// The `number` field of `SetReviewers`.
+    SetReviewersNumber,
+    /// The `reviewers` field of `SetReviewers`.
+    SetReviewersReviewers,
+    /// Bytes after `SetReviewers`.
+    SetReviewersTail,
+    /// The `head` field of `JobAttempt`.
+    JobAttemptHead,
+    /// The `run` field of `JobAttempt`.
+    JobAttemptRun,
+    /// The `job` field of `JobAttempt`.
+    JobAttemptJob,
+    /// The `attempt` field of `JobAttempt`.
+    JobAttemptAttempt,
+    /// Bytes after `JobAttempt`.
+    JobAttemptTail,
+    /// The `commit` field of `RecordedMerge`.
+    RecordedMergeCommit,
+    /// Bytes after `RecordedMerge`.
+    RecordedMergeTail,
+    /// The tag of `MergeHow`.
+    MergeHowTag,
+    /// The tag of `UpdateStyle`.
+    UpdateStyleTag,
+    /// The `number` field of `MergeWrite`.
+    MergeWriteNumber,
+    /// The `head` field of `MergeWrite`.
+    MergeWriteHead,
+    /// The `how` field of `MergeWrite`.
+    MergeWriteHow,
+    /// Bytes after `MergeWrite`.
+    MergeWriteTail,
+    /// The `number` field of `UpdateWrite`.
+    UpdateWriteNumber,
+    /// The `style` field of `UpdateWrite`.
+    UpdateWriteStyle,
+    /// Bytes after `UpdateWrite`.
+    UpdateWriteTail,
+    /// The `name` field of `DispatchInput`.
+    DispatchInputName,
+    /// The `value` field of `DispatchInput`.
+    DispatchInputValue,
+    /// Bytes after `DispatchInput`.
+    DispatchInputTail,
+    /// The `workflow` field of `DispatchWrite`.
+    DispatchWriteWorkflow,
+    /// The `branch` field of `DispatchWrite`.
+    DispatchWriteBranch,
+    /// The `inputs` field of `DispatchWrite`.
+    DispatchWriteInputs,
+    /// Bytes after `DispatchWrite`.
+    DispatchWriteTail,
+    /// The `commit` field of `SetStatus`.
+    SetStatusCommit,
+    /// The `context` field of `SetStatus`.
+    SetStatusContext,
+    /// The `status` field of `SetStatus`.
+    SetStatusStatus,
+    /// The `description` field of `SetStatus`.
+    SetStatusDescription,
+    /// The `link` field of `SetStatus`.
+    SetStatusLink,
+    /// Bytes after `SetStatus`.
+    SetStatusTail,
+    /// The `branch` field of `CreateBranch`.
+    CreateBranchBranch,
+    /// The `commit` field of `CreateBranch`.
+    CreateBranchCommit,
+    /// Bytes after `CreateBranch`.
+    CreateBranchTail,
+    /// The `branch` field of `DeleteBranch`.
+    DeleteBranchBranch,
+    /// Bytes after `DeleteBranch`.
+    DeleteBranchTail,
+    /// The tag of `Write`.
+    WriteTag,
+    /// The `base` field of `MergeCondition`.
+    MergeConditionBase,
+    /// Bytes after `MergeCondition`.
+    MergeConditionTail,
+    /// The `head` field of `UpdateCondition`.
+    UpdateConditionHead,
+    /// The `base` field of `UpdateCondition`.
+    UpdateConditionBase,
+    /// Bytes after `UpdateCondition`.
+    UpdateConditionTail,
+    /// The tag of `Condition`.
+    ConditionTag,
+    /// The `write` field of `Effect`.
+    EffectWrite,
+    /// The `condition` field of `Effect`.
+    EffectCondition,
+    /// Bytes after `Effect`.
+    EffectTail,
+    /// The `at` field of `Position`.
+    PositionAt,
+    /// The `comment` field of `Position`.
+    PositionComment,
+    /// The `review` field of `Position`.
+    PositionReview,
+    /// The `review_page` field of `Position`.
+    PositionReviewPage,
+    /// Bytes after `Position`.
+    PositionTail,
+    /// The `sent` field of `Attempt`.
+    AttemptSent,
+    /// The `deadline` field of `Attempt`.
+    AttemptDeadline,
+    /// The `wall` field of `Attempt`.
+    AttemptWall,
+    /// The `expires` field of `Attempt`.
+    AttemptExpires,
+    /// Bytes after `Attempt`.
+    AttemptTail,
+    /// The `number` field of `Entry`.
+    EntryNumber,
+    /// The `task` field of `Entry`.
+    EntryTask,
+    /// The `repository` field of `Entry`.
+    EntryRepository,
+    /// The `effect` field of `Entry`.
+    EntryEffect,
+    /// The `start` field of `Entry`.
+    EntryStart,
+    /// The `attempt` field of `Entry`.
+    EntryAttempt,
+    /// The `failures` field of `Entry`.
+    EntryFailures,
+    /// The `queued` field of `Entry`.
+    EntryQueued,
+    /// Bytes after `Entry`.
+    EntryTail,
+    /// The `entry` field of `EntryRow`.
+    EntryRowEntry,
+    /// The `held` field of `EntryRow`.
+    EntryRowHeld,
+    /// Bytes after `EntryRow`.
+    EntryRowTail,
+    /// The `number` field of `ProposedEffect`.
+    ProposedEffectNumber,
+    /// The `resource` field of `ProposedEffect`.
+    ProposedEffectResource,
+    /// The `entry` field of `ProposedEffect`.
+    ProposedEffectEntry,
+    /// Bytes after `ProposedEffect`.
+    ProposedEffectTail,
+    /// The `after` field of `RateLimited`.
+    RateLimitedAfter,
+    /// Bytes after `RateLimited`.
+    RateLimitedTail,
+    /// The `base` field of `BaseMoved`.
+    BaseMovedBase,
+    /// Bytes after `BaseMoved`.
+    BaseMovedTail,
+    /// The tag of `Bound`.
+    BoundTag,
+    /// The `bound` field of `Excess`.
+    ExcessBound,
+    /// The `limit` field of `Excess`.
+    ExcessLimit,
+    /// The `size` field of `Excess`.
+    ExcessSize,
+    /// The `exact` field of `Excess`.
+    ExcessExact,
+    /// Bytes after `Excess`.
+    ExcessTail,
+    /// The tag of `Error`.
+    ErrorTag,
+    /// The `error` field of `ErrorValue`.
+    ErrorValueError,
+    /// Bytes after `ErrorValue`.
+    ErrorValueTail,
+    /// The tag of `Made`.
+    MadeTag,
+    /// The `made` field of `OutcomeMade`.
+    OutcomeMadeMade,
+    /// The `found` field of `OutcomeMade`.
+    OutcomeMadeFound,
+    /// Bytes after `OutcomeMade`.
+    OutcomeMadeTail,
+    /// The `made` field of `OutcomeRaced`.
+    OutcomeRacedMade,
+    /// The `why` field of `OutcomeRaced`.
+    OutcomeRacedWhy,
+    /// Bytes after `OutcomeRaced`.
+    OutcomeRacedTail,
+    /// The tag of `Outcome`.
+    OutcomeTag,
+    /// The tag of `Permission`.
+    PermissionTag,
+    /// The tag of `BranchCreation`.
+    BranchCreationTag,
+    /// The `reviewers` field of `Pull`.
+    PullReviewers,
+    /// The `number` field of `Pull`.
+    PullNumber,
+    /// The `state` field of `Pull`.
+    PullState,
+    /// The `head` field of `Pull`.
+    PullHead,
+    /// The `base` field of `Pull`.
+    PullBase,
+    /// The `commit` field of `Pull`.
+    PullCommit,
+    /// The `base_commit` field of `Pull`.
+    PullBaseCommit,
+    /// The `merged` field of `Pull`.
+    PullMerged,
+    /// The `mergeable` field of `Pull`.
+    PullMergeable,
+    /// The `ci` field of `Pull`.
+    PullCi,
+    /// Bytes after `Pull`.
+    PullTail,
+    /// The `number` field of `Step`.
+    StepNumber,
+    /// The `name` field of `Step`.
+    StepName,
+    /// Bytes after `Step`.
+    StepTail,
+    /// The `attempt` field of `JobAnswer`.
+    JobAnswerAttempt,
+    /// The `step` field of `JobAnswer`.
+    JobAnswerStep,
+    /// The `log` field of `JobAnswer`.
+    JobAnswerLog,
+    /// The `truncated` field of `JobAnswer`.
+    JobAnswerTruncated,
+    /// Bytes after `JobAnswer`.
+    JobAnswerTail,
+    /// The `head` field of `FileAnswer`.
+    FileAnswerHead,
+    /// The `path` field of `FileAnswer`.
+    FileAnswerPath,
+    /// The `bytes` field of `FileAnswer`.
+    FileAnswerBytes,
+    /// The `truncated` field of `FileAnswer`.
+    FileAnswerTruncated,
+    /// Bytes after `FileAnswer`.
+    FileAnswerTail,
+    /// The tag of `DirectoryKind`.
+    DirectoryKindTag,
+    /// The `name` field of `DirectoryEntry`.
+    DirectoryEntryName,
+    /// The `kind` field of `DirectoryEntry`.
+    DirectoryEntryKind,
+    /// Bytes after `DirectoryEntry`.
+    DirectoryEntryTail,
+    /// The `head` field of `DirectoryAnswer`.
+    DirectoryAnswerHead,
+    /// The `path` field of `DirectoryAnswer`.
+    DirectoryAnswerPath,
+    /// The `entries` field of `DirectoryAnswer`.
+    DirectoryAnswerEntries,
+    /// The `truncated` field of `DirectoryAnswer`.
+    DirectoryAnswerTruncated,
+    /// Bytes after `DirectoryAnswer`.
+    DirectoryAnswerTail,
+    /// The `branches` field of `BranchesAnswer`.
+    BranchesAnswerBranches,
+    /// Bytes after `BranchesAnswer`.
+    BranchesAnswerTail,
+    /// The `protection` field of `ProtectionAnswer`.
+    ProtectionAnswerProtection,
+    /// Bytes after `ProtectionAnswer`.
+    ProtectionAnswerTail,
+    /// The `permission` field of `PermissionValue`.
+    PermissionValuePermission,
+    /// The `user` field of `PermissionValue`.
+    PermissionValueUser,
+    /// The `login` field of `PermissionValue`.
+    PermissionValueLogin,
+    /// Bytes after `PermissionValue`.
+    PermissionValueTail,
+    /// The `creation` field of `BranchCreationValue`.
+    BranchCreationValueCreation,
+    /// Bytes after `BranchCreationValue`.
+    BranchCreationValueTail,
+    /// The tag of `Kind`.
+    KindTag,
+    /// The tag of `Provenance`.
+    ProvenanceTag,
+    /// The `labels` field of `Summary`.
+    SummaryLabels,
+    /// The `number` field of `Summary`.
+    SummaryNumber,
+    /// The `kind` field of `Summary`.
+    SummaryKind,
+    /// The `state` field of `Summary`.
+    SummaryState,
+    /// The `author` field of `Summary`.
+    SummaryAuthor,
+    /// The `key` field of `Summary`.
+    SummaryKey,
+    /// The `title` field of `Summary`.
+    SummaryTitle,
+    /// The `body` field of `Summary`.
+    SummaryBody,
+    /// The `updated` field of `Summary`.
+    SummaryUpdated,
+    /// Bytes after `Summary`.
+    SummaryTail,
+    /// The `id` field of `Comment`.
+    CommentId,
+    /// The `provenance` field of `Comment`.
+    CommentProvenance,
+    /// The `author` field of `Comment`.
+    CommentAuthor,
+    /// The `created` field of `Comment`.
+    CommentCreated,
+    /// The `revision` field of `Comment`.
+    CommentRevision,
+    /// The `key` field of `Comment`.
+    CommentKey,
+    /// The `body` field of `Comment`.
+    CommentBody,
+    /// Bytes after `Comment`.
+    CommentTail,
+    /// The `id` field of `Review`.
+    ReviewId,
+    /// The `provenance` field of `Review`.
+    ReviewProvenance,
+    /// The `revision` field of `Review`.
+    ReviewRevision,
+    /// The `author` field of `Review`.
+    ReviewAuthor,
+    /// The `verdict` field of `Review`.
+    ReviewVerdict,
+    /// The `commit` field of `Review`.
+    ReviewCommit,
+    /// The `key` field of `Review`.
+    ReviewKey,
+    /// The `body` field of `Review`.
+    ReviewBody,
+    /// The `at` field of `Review`.
+    ReviewAt,
+    /// The `official` field of `Review`.
+    ReviewOfficial,
+    /// Bytes after `Review`.
+    ReviewTail,
+    /// The `items` field of `ItemsAnswer`.
+    ItemsAnswerItems,
+    /// The `more` field of `ItemsAnswer`.
+    ItemsAnswerMore,
+    /// The `now` field of `ItemsAnswer`.
+    ItemsAnswerNow,
+    /// The `cut` field of `ItemsAnswer`.
+    ItemsAnswerCut,
+    /// Bytes after `ItemsAnswer`.
+    ItemsAnswerTail,
+    /// The `item` field of `ItemAnswer`.
+    ItemAnswerItem,
+    /// The `comments` field of `ItemAnswer`.
+    ItemAnswerComments,
+    /// The `more` field of `ItemAnswer`.
+    ItemAnswerMore,
+    /// Bytes after `ItemAnswer`.
+    ItemAnswerTail,
+    /// The `reviews` field of `ReviewsAnswer`.
+    ReviewsAnswerReviews,
+    /// The `more` field of `ReviewsAnswer`.
+    ReviewsAnswerMore,
+    /// The `cut` field of `ReviewsAnswer`.
+    ReviewsAnswerCut,
+    /// Bytes after `ReviewsAnswer`.
+    ReviewsAnswerTail,
+    /// The `at` field of `Status`.
+    StatusAt,
+    /// The `context` field of `Status`.
+    StatusContext,
+    /// The `verdict` field of `Status`.
+    StatusVerdict,
+    /// The `description` field of `Status`.
+    StatusDescription,
+    /// The `url` field of `Status`.
+    StatusUrl,
+    /// The `job` field of `Status`.
+    StatusJob,
+    /// Bytes after `Status`.
+    StatusTail,
+    /// The `id` field of `Remark`.
+    RemarkId,
+    /// The `author` field of `Remark`.
+    RemarkAuthor,
+    /// The `path` field of `Remark`.
+    RemarkPath,
+    /// The `line` field of `Remark`.
+    RemarkLine,
+    /// The `body` field of `Remark`.
+    RemarkBody,
+    /// Bytes after `Remark`.
+    RemarkTail,
+    /// The `path` field of `File`.
+    FilePath,
+    /// The `before` field of `File`.
+    FileBefore,
+    /// The `after` field of `File`.
+    FileAfter,
+    /// Bytes after `File`.
+    FileTail,
+    /// The `user` field of `Collaborator`.
+    CollaboratorUser,
+    /// The `permission` field of `Collaborator`.
+    CollaboratorPermission,
+    /// Bytes after `Collaborator`.
+    CollaboratorTail,
+    /// The `ci` field of `StatusesAnswer`.
+    StatusesAnswerCi,
+    /// The `statuses` field of `StatusesAnswer`.
+    StatusesAnswerStatuses,
+    /// The `more` field of `StatusesAnswer`.
+    StatusesAnswerMore,
+    /// Bytes after `StatusesAnswer`.
+    StatusesAnswerTail,
+    /// The `remarks` field of `RemarksAnswer`.
+    RemarksAnswerRemarks,
+    /// The `more` field of `RemarksAnswer`.
+    RemarksAnswerMore,
+    /// The `cut` field of `RemarksAnswer`.
+    RemarksAnswerCut,
+    /// Bytes after `RemarksAnswer`.
+    RemarksAnswerTail,
+    /// The `head` field of `PullFilesAnswer`.
+    PullFilesAnswerHead,
+    /// The `files` field of `PullFilesAnswer`.
+    PullFilesAnswerFiles,
+    /// The `more` field of `PullFilesAnswer`.
+    PullFilesAnswerMore,
+    /// The `cut` field of `PullFilesAnswer`.
+    PullFilesAnswerCut,
+    /// Bytes after `PullFilesAnswer`.
+    PullFilesAnswerTail,
+    /// The `before` field of `CompareAnswer`.
+    CompareAnswerBefore,
+    /// The `after` field of `CompareAnswer`.
+    CompareAnswerAfter,
+    /// The `ahead` field of `CompareAnswer`.
+    CompareAnswerAhead,
+    /// The `behind` field of `CompareAnswer`.
+    CompareAnswerBehind,
+    /// The `files` field of `CompareAnswer`.
+    CompareAnswerFiles,
+    /// The `changed` field of `CompareAnswer`.
+    CompareAnswerChanged,
+    /// Bytes after `CompareAnswer`.
+    CompareAnswerTail,
+    /// The `statuses` field of `ChecksAnswer`.
+    ChecksAnswerStatuses,
+    /// Bytes after `ChecksAnswer`.
+    ChecksAnswerTail,
+    /// The `collaborators` field of `CollaboratorsAnswer`.
+    CollaboratorsAnswerCollaborators,
+    /// The `more` field of `CollaboratorsAnswer`.
+    CollaboratorsAnswerMore,
+    /// Bytes after `CollaboratorsAnswer`.
+    CollaboratorsAnswerTail,
+    /// The `repository` field of `Located`.
+    LocatedRepository,
+    /// Bytes after `Located`.
+    LocatedTail,
+    /// The tag of `Answer`.
+    AnswerTag,
+    /// The `answer` field of `AnswerValue`.
+    AnswerValueAnswer,
+    /// Bytes after `AnswerValue`.
+    AnswerValueTail,
+    /// The tag of `ReadResult`.
+    ReadResultTag,
+    /// The `result` field of `CallRead`.
+    CallReadResult,
+    /// Bytes after `CallRead`.
+    CallReadTail,
+    /// The `entry` field of `CallEffect`.
+    CallEffectEntry,
+    /// The `deadline` field of `CallEffect`.
+    CallEffectDeadline,
+    /// The `outcome` field of `CallEffect`.
+    CallEffectOutcome,
+    /// Bytes after `CallEffect`.
+    CallEffectTail,
+    /// The tag of `ReachKind`.
+    ReachKindTag,
+    /// The tag of `ReachClass`.
+    ReachClassTag,
+    /// The `number` field of `ReachSet`.
+    ReachSetNumber,
+    /// Bytes after `ReachSet`.
+    ReachSetTail,
+    /// The tag of `ReachReason`.
+    ReachReasonTag,
+    /// The `kind` field of `Reach`.
+    ReachKind,
+    /// The `class` field of `Reach`.
+    ReachClass,
+    /// The `reason` field of `Reach`.
+    ReachReason,
+    /// The `under` field of `Reach`.
+    ReachUnder,
+    /// The `sets` field of `Reach`.
+    ReachSets,
+    /// The `matched` field of `Reach`.
+    ReachMatched,
+    /// The `away` field of `Reach`.
+    ReachAway,
+    /// Bytes after `Reach`.
+    ReachTail,
+    /// The `took` field of `CallDecided`.
+    CallDecidedTook,
+    /// The `reach` field of `CallDecided`.
+    CallDecidedReach,
+    /// Bytes after `CallDecided`.
+    CallDecidedTail,
+    /// The `task` field of `NamedCall`.
+    NamedCallTask,
+    /// The `attempt` field of `NamedCall`.
+    NamedCallAttempt,
+    /// The `completion` field of `NamedCall`.
+    NamedCallCompletion,
+    /// The `position` field of `NamedCall`.
+    NamedCallPosition,
+    /// Bytes after `NamedCall`.
+    NamedCallTail,
+    /// The `branch` field of `LiveBranch`.
+    LiveBranchBranch,
+    /// Bytes after `LiveBranch`.
+    LiveBranchTail,
+    /// The tag of `LiveWhat`.
+    LiveWhatTag,
+    /// The `repository` field of `LiveResource`.
+    LiveResourceRepository,
+    /// The `what` field of `LiveResource`.
+    LiveResourceWhat,
+    /// Bytes after `LiveResource`.
+    LiveResourceTail,
+    /// The `resource` field of `Watch`.
+    WatchResource,
+    /// The `participating` field of `Watch`.
+    WatchParticipating,
+    /// Bytes after `Watch`.
+    WatchTail,
+    /// The `id` field of `Delivery`.
+    DeliveryId,
+    /// The `revision` field of `Delivery`.
+    DeliveryRevision,
+    /// Bytes after `Delivery`.
+    DeliveryTail,
+    /// The tag of `Echo`.
+    EchoTag,
+    /// The `item` field of `Cached`.
+    CachedItem,
+    /// The `pull` field of `Cached`.
+    CachedPull,
+    /// The `tip` field of `Cached`.
+    CachedTip,
+    /// Bytes after `Cached`.
+    CachedTail,
+    /// The `watch` field of `LiveRecord`.
+    LiveRecordWatch,
+    /// The `position` field of `LiveRecord`.
+    LiveRecordPosition,
+    /// The `listed` field of `LiveRecord`.
+    LiveRecordListed,
+    /// The `comment_after` field of `LiveRecord`.
+    LiveRecordCommentAfter,
+    /// The `comment_page` field of `LiveRecord`.
+    LiveRecordCommentPage,
+    /// The `comment_scanning` field of `LiveRecord`.
+    LiveRecordCommentScanning,
+    /// The `comment_repair` field of `LiveRecord`.
+    LiveRecordCommentRepair,
+    /// The `review_page` field of `LiveRecord`.
+    LiveRecordReviewPage,
+    /// The `comments` field of `LiveRecord`.
+    LiveRecordComments,
+    /// The `reviews` field of `LiveRecord`.
+    LiveRecordReviews,
+    /// The `cached` field of `LiveRecord`.
+    LiveRecordCached,
+    /// The `pushed` field of `LiveRecord`.
+    LiveRecordPushed,
+    /// The `echoes` field of `LiveRecord`.
+    LiveRecordEchoes,
+    /// Bytes after `LiveRecord`.
+    LiveRecordTail,
+    /// The `repository` field of `RepositoryRecord`.
+    RepositoryRecordRepository,
+    /// The `mark` field of `RepositoryRecord`.
+    RepositoryRecordMark,
+    /// The `clock` field of `RepositoryRecord`.
+    RepositoryRecordClock,
+    /// Bytes after `RepositoryRecord`.
+    RepositoryRecordTail,
+    /// The tag of `ClientValue`.
+    ClientValueTag,
+    /// The `value` field of `ClientRow`.
+    ClientRowValue,
+    /// Bytes after `ClientRow`.
+    ClientRowTail,
+    /// The tag of `ChangeStatus`.
+    ChangeStatusTag,
+    /// The tag of `Freshness`.
+    FreshnessTag,
+    /// The tag of `GateKind`.
+    GateKindTag,
+    /// The tag of `AuthorityLack`.
+    AuthorityLackTag,
+    /// The `lack` field of `AuthorityHold`.
+    AuthorityHoldLack,
+    /// The `had` field of `AuthorityHold`.
+    AuthorityHoldHad,
+    /// The `released` field of `AuthorityHold`.
+    AuthorityHoldReleased,
+    /// The `task` field of `AuthorityHold`.
+    AuthorityHoldTask,
+    /// The `spec` field of `AuthorityHold`.
+    AuthorityHoldSpec,
+    /// The `hold` field of `AuthorityHold`.
+    AuthorityHoldHold,
+    /// The `tasks` field of `AuthorityHold`.
+    AuthorityHoldTasks,
+    /// Bytes after `AuthorityHold`.
+    AuthorityHoldTail,
+    /// The tag of `ChangeHold`.
+    ChangeHoldTag,
+    /// The tag of `EffectResult`.
+    EffectResultTag,
+    /// The `gate` field of `LandingRepair`.
+    LandingRepairGate,
+    /// Bytes after `LandingRepair`.
+    LandingRepairTail,
+    /// The `change` field of `LandedBelow`.
+    LandedBelowChange,
+    /// The `pull` field of `LandedBelow`.
+    LandedBelowPull,
+    /// Bytes after `LandedBelow`.
+    LandedBelowTail,
+    /// The `green` field of `LandingBelow`.
+    LandingBelowGreen,
+    /// The `changes` field of `LandingBelow`.
+    LandingBelowChanges,
+    /// The `by_test` field of `LandingBelow`.
+    LandingBelowByTest,
+    /// The `top` field of `LandingBelow`.
+    LandingBelowTop,
+    /// Bytes after `LandingBelow`.
+    LandingBelowTail,
+    /// The `gate` field of `LandingRepairAt`.
+    LandingRepairAtGate,
+    /// The `candidate` field of `LandingRepairAt`.
+    LandingRepairAtCandidate,
+    /// The `below` field of `LandingRepairAt`.
+    LandingRepairAtBelow,
+    /// Bytes after `LandingRepairAt`.
+    LandingRepairAtTail,
+    /// The tag of `Repair`.
+    RepairTag,
+    /// The `why` field of `RepairValue`.
+    RepairValueWhy,
+    /// Bytes after `RepairValue`.
+    RepairValueTail,
+    /// The `number` field of `DelegateGate`.
+    DelegateGateNumber,
+    /// The `head` field of `DelegateGate`.
+    DelegateGateHead,
+    /// Bytes after `DelegateGate`.
+    DelegateGateTail,
+    /// The `base` field of `MergeDelegate`.
+    MergeDelegateBase,
+    /// The `from` field of `MergeDelegate`.
+    MergeDelegateFrom,
+    /// Bytes after `MergeDelegate`.
+    MergeDelegateTail,
+    /// The tag of `Delegate`.
+    DelegateTag,
+    /// The `task` field of `DelegateRef`.
+    DelegateRefTask,
+    /// The `request` field of `DelegateRef`.
+    DelegateRefRequest,
+    /// Bytes after `DelegateRef`.
+    DelegateRefTail,
+    /// The `requested` field of `Producing`.
+    ProducingRequested,
+    /// Bytes after `Producing`.
+    ProducingTail,
+    /// The `head` field of `ChangeHead`.
+    ChangeHeadHead,
+    /// Bytes after `ChangeHead`.
+    ChangeHeadTail,
+    /// The `requested` field of `Reopening`.
+    ReopeningRequested,
+    /// The `retarget` field of `Reopening`.
+    ReopeningRetarget,
+    /// Bytes after `Reopening`.
+    ReopeningTail,
+    /// The `head` field of `Gating`.
+    GatingHead,
+    /// The `asked` field of `Gating`.
+    GatingAsked,
+    /// Bytes after `Gating`.
+    GatingTail,
+    /// The `head` field of `ReadyHead`.
+    ReadyHeadHead,
+    /// The `ready_since` field of `ReadyHead`.
+    ReadyHeadReadySince,
+    /// Bytes after `ReadyHead`.
+    ReadyHeadTail,
+    /// The `from` field of `Updating`.
+    UpdatingFrom,
+    /// The `base` field of `Updating`.
+    UpdatingBase,
+    /// The `ready_since` field of `Updating`.
+    UpdatingReadySince,
+    /// Bytes after `Updating`.
+    UpdatingTail,
+    /// The `requested` field of `Resolving`.
+    ResolvingRequested,
+    /// The `base` field of `Resolving`.
+    ResolvingBase,
+    /// Bytes after `Resolving`.
+    ResolvingTail,
+    /// The `base` field of `WaitingProducer`.
+    WaitingProducerBase,
+    /// Bytes after `WaitingProducer`.
+    WaitingProducerTail,
+    /// The `requested` field of `Repairing`.
+    RepairingRequested,
+    /// The `why` field of `Repairing`.
+    RepairingWhy,
+    /// Bytes after `Repairing`.
+    RepairingTail,
+    /// The `merge` field of `MergeChange`.
+    MergeChangeMerge,
+    /// Bytes after `MergeChange`.
+    MergeChangeTail,
+    /// The `merge` field of `LandedChange`.
+    LandedChangeMerge,
+    /// The `since` field of `LandedChange`.
+    LandedChangeSince,
+    /// Bytes after `LandedChange`.
+    LandedChangeTail,
+    /// The `words` field of `NoChange`.
+    NoChangeWords,
+    /// Bytes after `NoChange`.
+    NoChangeTail,
+    /// The `from` field of `Preparing`.
+    PreparingFrom,
+    /// The `main` field of `Preparing`.
+    PreparingMain,
+    /// The `ready_since` field of `Preparing`.
+    PreparingReadySince,
+    /// Bytes after `Preparing`.
+    PreparingTail,
+    /// The `landing` field of `Judgement`.
+    JudgementLanding,
+    /// The `round` field of `Judgement`.
+    JudgementRound,
+    /// The `pull` field of `Judgement`.
+    JudgementPull,
+    /// The `branch` field of `Judgement`.
+    JudgementBranch,
+    /// The `base` field of `Judgement`.
+    JudgementBase,
+    /// The `prefix` field of `Judgement`.
+    JudgementPrefix,
+    /// Bytes after `Judgement`.
+    JudgementTail,
+    /// The `head` field of `Judging`.
+    JudgingHead,
+    /// The `ready_since` field of `Judging`.
+    JudgingReadySince,
+    /// The `target` field of `Judging`.
+    JudgingTarget,
+    /// The `asked` field of `Judging`.
+    JudgingAsked,
+    /// Bytes after `Judging`.
+    JudgingTail,
+    /// The tag of `ChangeLive`.
+    ChangeLiveTag,
+    /// The `live` field of `ChangeState`.
+    ChangeStateLive,
+    /// The `holds` field of `ChangeState`.
+    ChangeStateHolds,
+    /// Bytes after `ChangeState`.
+    ChangeStateTail,
+    /// The `number` field of `Gate`.
+    GateNumber,
+    /// The `kind` field of `Gate`.
+    GateKind,
+    /// The `blocking` field of `Gate`.
+    GateBlocking,
+    /// The `freshness` field of `Gate`.
+    GateFreshness,
+    /// The `eager` field of `Gate`.
+    GateEager,
+    /// Bytes after `Gate`.
+    GateTail,
+    /// The `number` field of `GateReport`.
+    GateReportNumber,
+    /// The `head` field of `GateReport`.
+    GateReportHead,
+    /// The `status` field of `GateReport`.
+    GateReportStatus,
+    /// Bytes after `GateReport`.
+    GateReportTail,
+    /// The `number` field of `GateFailure`.
+    GateFailureNumber,
+    /// The `count` field of `GateFailure`.
+    GateFailureCount,
+    /// Bytes after `GateFailure`.
+    GateFailureTail,
+    /// The `number` field of `GateRemark`.
+    GateRemarkNumber,
+    /// The `head` field of `GateRemark`.
+    GateRemarkHead,
+    /// The `words` field of `GateRemark`.
+    GateRemarkWords,
+    /// Bytes after `GateRemark`.
+    GateRemarkTail,
+    /// The tag of `Way`.
+    WayTag,
+    /// The `task` field of `StartedFrom`.
+    StartedFromTask,
+    /// The `head` field of `StartedFrom`.
+    StartedFromHead,
+    /// Bytes after `StartedFrom`.
+    StartedFromTail,
+    /// The `heads` field of `EarlyHeads`.
+    EarlyHeadsHeads,
+    /// Bytes after `EarlyHeads`.
+    EarlyHeadsTail,
+    /// The tag of `Early`.
+    EarlyTag,
+    /// The tag of `Execution`.
+    ExecutionTag,
+    /// The `since` field of `ExecutionClock`.
+    ExecutionClockSince,
+    /// The `head` field of `ExecutionClock`.
+    ExecutionClockHead,
+    /// The `run` field of `ExecutionClock`.
+    ExecutionClockRun,
+    /// The `attempt` field of `ExecutionClock`.
+    ExecutionClockAttempt,
+    /// The `ran` field of `ExecutionClock`.
+    ExecutionClockRan,
+    /// The `waited` field of `ExecutionClock`.
+    ExecutionClockWaited,
+    /// The `unknown` field of `ExecutionClock`.
+    ExecutionClockUnknown,
+    /// The `at` field of `ExecutionClock`.
+    ExecutionClockAt,
+    /// The `seen` field of `ExecutionClock`.
+    ExecutionClockSeen,
+    /// Bytes after `ExecutionClock`.
+    ExecutionClockTail,
+    /// The `head` field of `LandingPrepare`.
+    LandingPrepareHead,
+    /// The `main` field of `LandingPrepare`.
+    LandingPrepareMain,
+    /// Bytes after `LandingPrepare`.
+    LandingPrepareTail,
+    /// The `gate` field of `LandingRepairAsk`.
+    LandingRepairAskGate,
+    /// The `candidate` field of `LandingRepairAsk`.
+    LandingRepairAskCandidate,
+    /// The `below` field of `LandingRepairAsk`.
+    LandingRepairAskBelow,
+    /// Bytes after `LandingRepairAsk`.
+    LandingRepairAskTail,
+    /// The `prefix` field of `LandingPrefix`.
+    LandingPrefixPrefix,
+    /// Bytes after `LandingPrefix`.
+    LandingPrefixTail,
+    /// The `base` field of `LandingResolve`.
+    LandingResolveBase,
+    /// Bytes after `LandingResolve`.
+    LandingResolveTail,
+    /// The tag of `LandingAsk`.
+    LandingAskTag,
+    /// The `early` field of `Change`.
+    ChangeEarly,
+    /// The `task` field of `Change`.
+    ChangeTask,
+    /// The `state` field of `Change`.
+    ChangeState,
+    /// The `gates` field of `Change`.
+    ChangeGates,
+    /// The `clean` field of `Change`.
+    ChangeClean,
+    /// The `repairs` field of `Change`.
+    ChangeRepairs,
+    /// The `resolutions` field of `Change`.
+    ChangeResolutions,
+    /// The `updates` field of `Change`.
+    ChangeUpdates,
+    /// The `stale` field of `Change`.
+    ChangeStale,
+    /// The `since` field of `Change`.
+    ChangeSince,
+    /// The `clock` field of `Change`.
+    ChangeClock,
+    /// The `ready_since` field of `Change`.
+    ChangeReadySince,
+    /// The `owns_turn` field of `Change`.
+    ChangeOwnsTurn,
+    /// The `last_head` field of `Change`.
+    ChangeLastHead,
+    /// The `last_checked` field of `Change`.
+    ChangeLastChecked,
+    /// The `last_checked_by` field of `Change`.
+    ChangeLastCheckedBy,
+    /// The `gate_failures` field of `Change`.
+    ChangeGateFailures,
+    /// The `released` field of `Change`.
+    ChangeReleased,
+    /// The `released_resolution` field of `Change`.
+    ChangeReleasedResolution,
+    /// The `way` field of `Change`.
+    ChangeWay,
+    /// The `landing` field of `Change`.
+    ChangeLanding,
+    /// The `landing_ask` field of `Change`.
+    ChangeLandingAsk,
+    /// Bytes after `Change`.
+    ChangeTail,
+    /// The `head` field of `ChangeCi`.
+    ChangeCiHead,
+    /// The `status` field of `ChangeCi`.
+    ChangeCiStatus,
+    /// Bytes after `ChangeCi`.
+    ChangeCiTail,
+    /// The `entry` field of `EffectAccount`.
+    EffectAccountEntry,
+    /// The `words` field of `EffectAccount`.
+    EffectAccountWords,
+    /// Bytes after `EffectAccount`.
+    EffectAccountTail,
+    /// The `bytes` field of `ResultText`.
+    ResultTextBytes,
+    /// The `cut` field of `ResultText`.
+    ResultTextCut,
+    /// Bytes after `ResultText`.
+    ResultTextTail,
+    /// The `head` field of `ChangeResult`.
+    ChangeResultHead,
+    /// The `checks` field of `ChangeResult`.
+    ChangeResultChecks,
+    /// The `failed` field of `ChangeResult`.
+    ChangeResultFailed,
+    /// The `repairs` field of `ChangeResult`.
+    ChangeResultRepairs,
+    /// The `repair_count` field of `ChangeResult`.
+    ChangeResultRepairCount,
+    /// The `reviews` field of `ChangeResult`.
+    ChangeResultReviews,
+    /// Bytes after `ChangeResult`.
+    ChangeResultTail,
+    /// The `model` field of `ModelEffort`.
+    ModelEffortModel,
+    /// The `effort` field of `ModelEffort`.
+    ModelEffortEffort,
+    /// Bytes after `ModelEffort`.
+    ModelEffortTail,
+    /// The `main` field of `LlmChoice`.
+    LlmChoiceMain,
+    /// The `subagents` field of `LlmChoice`.
+    LlmChoiceSubagents,
+    /// The `account` field of `LlmChoice`.
+    LlmChoiceAccount,
+    /// Bytes after `LlmChoice`.
+    LlmChoiceTail,
+    /// The tag of `Route`.
+    RouteTag,
+    /// The `answer` field of `Held`.
+    HeldAnswer,
+    /// Bytes after `Held`.
+    HeldTail,
+    /// The tag of `Stands`.
+    StandsTag,
+    /// The `asker` field of `Open`.
+    OpenAsker,
+    /// The `number` field of `Open`.
+    OpenNumber,
+    /// The `line` field of `Open`.
+    OpenLine,
+    /// The `words` field of `Open`.
+    OpenWords,
+    /// The `stands` field of `Open`.
+    OpenStands,
+    /// Bytes after `Open`.
+    OpenTail,
+    /// The `from` field of `Waiting`.
+    WaitingFrom,
+    /// The `number` field of `Waiting`.
+    WaitingNumber,
+    /// The `words` field of `Waiting`.
+    WaitingWords,
+    /// The `passed` field of `Waiting`.
+    WaitingPassed,
+    /// Bytes after `Waiting`.
+    WaitingTail,
+    /// The `asker` field of `Answered`.
+    AnsweredAsker,
+    /// The `number` field of `Answered`.
+    AnsweredNumber,
+    /// The `line` field of `Answered`.
+    AnsweredLine,
+    /// The `answer` field of `Answered`.
+    AnsweredAnswer,
+    /// Bytes after `Answered`.
+    AnsweredTail,
+    /// The `route` field of `Questions`.
+    QuestionsRoute,
+    /// The `taken` field of `Questions`.
+    QuestionsTaken,
+    /// The `open` field of `Questions`.
+    QuestionsOpen,
+    /// The `waiting` field of `Questions`.
+    QuestionsWaiting,
+    /// The `answered` field of `Questions`.
+    QuestionsAnswered,
+    /// Bytes after `Questions`.
+    QuestionsTail,
+    /// The `line` field of `ChangeFailure`.
+    ChangeFailureLine,
+    /// Bytes after `ChangeFailure`.
+    ChangeFailureTail,
+    /// The tag of `ChangeEnding`.
+    ChangeEndingTag,
+    /// The `person` field of `SignOff`.
+    SignOffPerson,
+    /// The `head` field of `SignOff`.
+    SignOffHead,
+    /// The `at` field of `SignOff`.
+    SignOffAt,
+    /// Bytes after `SignOff`.
+    SignOffTail,
+    /// The `follow` field of `ChangeFollows`.
+    ChangeFollowsFollow,
+    /// The `commits` field of `ChangeFollows`.
+    ChangeFollowsCommits,
+    /// Bytes after `ChangeFollows`.
+    ChangeFollowsTail,
+    /// The tag of `Phase`.
+    PhaseTag,
+    /// The `text` field of `PlanItem`.
+    PlanItemText,
+    /// The `phase` field of `PlanItem`.
+    PlanItemPhase,
+    /// Bytes after `PlanItem`.
+    PlanItemTail,
+    /// The `task` field of `Lifecycle`.
+    LifecycleTask,
+    /// The `position` field of `Lifecycle`.
+    LifecyclePosition,
+    /// Bytes after `Lifecycle`.
+    LifecycleTail,
+    /// The `task` field of `TaskRevision`.
+    TaskRevisionTask,
+    /// The `revision` field of `TaskRevision`.
+    TaskRevisionRevision,
+    /// Bytes after `TaskRevision`.
+    TaskRevisionTail,
+    /// The tag of `MilestoneKey`.
+    MilestoneKeyTag,
+    /// The `key` field of `Milestone`.
+    MilestoneKey,
+    /// The `text` field of `Milestone`.
+    MilestoneText,
+    /// Bytes after `Milestone`.
+    MilestoneTail,
+    /// The `phase` field of `GoalView`.
+    GoalViewPhase,
+    /// The `goal` field of `GoalView`.
+    GoalViewGoal,
+    /// The `repository` field of `GoalView`.
+    GoalViewRepository,
+    /// The `title` field of `GoalView`.
+    GoalViewTitle,
+    /// The `goal_text` field of `GoalView`.
+    GoalViewGoalText,
+    /// The `plan` field of `GoalView`.
+    GoalViewPlan,
+    /// The `milestones` field of `GoalView`.
+    GoalViewMilestones,
+    /// The `finished` field of `GoalView`.
+    GoalViewFinished,
+    /// Bytes after `GoalView`.
+    GoalViewTail,
+    /// The `opened` field of `Projected`.
+    ProjectedOpened,
+    /// The `digest` field of `Projected`.
+    ProjectedDigest,
+    /// The `last_body` field of `Projected`.
+    ProjectedLastBody,
+    /// The `body_revision` field of `Projected`.
+    ProjectedBodyRevision,
+    /// The `milestones` field of `Projected`.
+    ProjectedMilestones,
+    /// The `closed` field of `Projected`.
+    ProjectedClosed,
+    /// Bytes after `Projected`.
+    ProjectedTail,
+    /// The `goal` field of `IssueRow`.
+    IssueRowGoal,
+    /// The `repository` field of `IssueRow`.
+    IssueRowRepository,
+    /// The `state` field of `IssueRow`.
+    IssueRowState,
+    /// The `number` field of `IssueRow`.
+    IssueRowNumber,
+    /// The `pending` field of `IssueRow`.
+    IssueRowPending,
+    /// The `before` field of `IssueRow`.
+    IssueRowBefore,
+    /// The `failed` field of `IssueRow`.
+    IssueRowFailed,
+    /// The `desired` field of `IssueRow`.
+    IssueRowDesired,
+    /// Bytes after `IssueRow`.
+    IssueRowTail,
+    /// The `repository` field of `ApplicationAdopted`.
+    ApplicationAdoptedRepository,
+    /// The `owner` field of `ApplicationAdopted`.
+    ApplicationAdoptedOwner,
+    /// The `name` field of `ApplicationAdopted`.
+    ApplicationAdoptedName,
+    /// The `role` field of `ApplicationAdopted`.
+    ApplicationAdoptedRole,
+    /// The `home` field of `ApplicationAdopted`.
+    ApplicationAdoptedHome,
+    /// The `kinds` field of `ApplicationAdopted`.
+    ApplicationAdoptedKinds,
+    /// The `protection` field of `ApplicationAdopted`.
+    ApplicationAdoptedProtection,
+    /// The `landing` field of `ApplicationAdopted`.
+    ApplicationAdoptedLanding,
+    /// Bytes after `ApplicationAdopted`.
+    ApplicationAdoptedTail,
+    /// The `refusal` field of `CoreRefused`.
+    CoreRefusedRefusal,
+    /// Bytes after `CoreRefused`.
+    CoreRefusedTail,
+    /// The tag of `ForgeReason`.
+    ForgeReasonTag,
+    /// The `reason` field of `ForgeRefused`.
+    ForgeRefusedReason,
+    /// Bytes after `ForgeRefused`.
+    ForgeRefusedTail,
+    /// The `forge` field of `MakingKey`.
+    MakingKeyForge,
+    /// The `org` field of `MakingKey`.
+    MakingKeyOrg,
+    /// The `name` field of `MakingKey`.
+    MakingKeyName,
+    /// Bytes after `MakingKey`.
+    MakingKeyTail,
+    /// The `address` field of `CopyFrom`.
+    CopyFromAddress,
+    /// Bytes after `CopyFrom`.
+    CopyFromTail,
+    /// The tag of `MakeFrom`.
+    MakeFromTag,
+    /// The `project` field of `MakeInto`.
+    MakeIntoProject,
+    /// The `home` field of `MakeInto`.
+    MakeIntoHome,
+    /// The `host` field of `MakeInto`.
+    MakeIntoHost,
+    /// Bytes after `MakeInto`.
+    MakeIntoTail,
+    /// The tag of `MakeStep`.
+    MakeStepTag,
+    /// The `status` field of `MakeStatus`.
+    MakeStatusStatus,
+    /// Bytes after `MakeStatus`.
+    MakeStatusTail,
+    /// The tag of `MakeFailure`.
+    MakeFailureTag,
+    /// The `step` field of `MakingFailed`.
+    MakingFailedStep,
+    /// The `reason` field of `MakingFailed`.
+    MakingFailedReason,
+    /// The `words` field of `MakingFailed`.
+    MakingFailedWords,
+    /// Bytes after `MakingFailed`.
+    MakingFailedTail,
+    /// The `id` field of `MakingMade`.
+    MakingMadeId,
+    /// The `branch` field of `MakingMade`.
+    MakingMadeBranch,
+    /// Bytes after `MakingMade`.
+    MakingMadeTail,
+    /// The tag of `MakingState`.
+    MakingStateTag,
+    /// The `key` field of `RepositoryMaking`.
+    RepositoryMakingKey,
+    /// The `from` field of `RepositoryMaking`.
+    RepositoryMakingFrom,
+    /// The `into` field of `RepositoryMaking`.
+    RepositoryMakingInto,
+    /// The `asked` field of `RepositoryMaking`.
+    RepositoryMakingAsked,
+    /// The `copying` field of `RepositoryMaking`.
+    RepositoryMakingCopying,
+    /// The `state` field of `RepositoryMaking`.
+    RepositoryMakingState,
+    /// Bytes after `RepositoryMaking`.
+    RepositoryMakingTail,
+    /// The tag of `MakeRefusal`.
+    MakeRefusalTag,
+    /// The `reason` field of `MakeRefused`.
+    MakeRefusedReason,
+    /// Bytes after `MakeRefused`.
+    MakeRefusedTail,
+    /// The `after` field of `FollowAt`.
+    FollowAtAfter,
+    /// Bytes after `FollowAt`.
+    FollowAtTail,
+    /// The `after` field of `FollowReasonAct`.
+    FollowReasonActAfter,
+    /// The `reason` field of `FollowReasonAct`.
+    FollowReasonActReason,
+    /// Bytes after `FollowReasonAct`.
+    FollowReasonActTail,
+    /// The `afters` field of `FollowMergeAct`.
+    FollowMergeActAfters,
+    /// Bytes after `FollowMergeAct`.
+    FollowMergeActTail,
+    /// The tag of `FollowAct`.
+    FollowActTag,
+    /// The `refusal` field of `FollowOutcome`.
+    FollowOutcomeRefusal,
+    /// Bytes after `FollowOutcome`.
+    FollowOutcomeTail,
+    /// The `task` field of `Opened`.
+    OpenedTask,
+    /// Bytes after `Opened`.
+    OpenedTail,
+    /// The `owner` field of `OpenRepository`.
+    OpenRepositoryOwner,
+    /// The `name` field of `OpenRepository`.
+    OpenRepositoryName,
+    /// Bytes after `OpenRepository`.
+    OpenRepositoryTail,
+    /// The `repositories` field of `SeveralRepositories`.
+    SeveralRepositoriesRepositories,
+    /// Bytes after `SeveralRepositories`.
+    SeveralRepositoriesTail,
+    /// The `owner` field of `UnderPrefix`.
+    UnderPrefixOwner,
+    /// The `name` field of `UnderPrefix`.
+    UnderPrefixName,
+    /// The `prefix` field of `UnderPrefix`.
+    UnderPrefixPrefix,
+    /// Bytes after `UnderPrefix`.
+    UnderPrefixTail,
+    /// The `bound` field of `NamePast`.
+    NamePastBound,
+    /// Bytes after `NamePast`.
+    NamePastTail,
+    /// The tag of `OpenRefusal`.
+    OpenRefusalTag,
+    /// The `reason` field of `OpenRefused`.
+    OpenRefusedReason,
+    /// Bytes after `OpenRefused`.
+    OpenRefusedTail,
+    /// The tag of `ApplicationOutcome`.
+    ApplicationOutcomeTag,
+    /// The `token` field of `Application`.
+    ApplicationToken,
+    /// The `until` field of `Application`.
+    ApplicationUntil,
+    /// The `outcome` field of `Application`.
+    ApplicationOutcome,
+    /// Bytes after `Application`.
+    ApplicationTail,
+    /// The `forge` field of `ForgeWriter`.
+    ForgeWriterForge,
+    /// The `author` field of `ForgeWriter`.
+    ForgeWriterAuthor,
+    /// Bytes after `ForgeWriter`.
+    ForgeWriterTail,
+    /// The `address` field of `Binding`.
+    BindingAddress,
+    /// The `subject` field of `Binding`.
+    BindingSubject,
+    /// Bytes after `Binding`.
+    BindingTail,
+    /// The `task` field of `Flight`.
+    FlightTask,
+    /// The `entry` field of `Flight`.
+    FlightEntry,
+    /// Bytes after `Flight`.
+    FlightTail,
+    /// The `at` field of `LandingAt`.
+    LandingAtAt,
+    /// Bytes after `LandingAt`.
+    LandingAtTail,
+    /// The tag of `LandingPlace`.
+    LandingPlaceTag,
+    /// The `member` field of `LandingFaults`.
+    LandingFaultsMember,
+    /// The `gate` field of `LandingFaults`.
+    LandingFaultsGate,
+    /// Bytes after `LandingFaults`.
+    LandingFaultsTail,
+    /// The `place` field of `LandingPhase`.
+    LandingPhasePlace,
+    /// The `held` field of `LandingPhase`.
+    LandingPhaseHeld,
+    /// Bytes after `LandingPhase`.
+    LandingPhaseTail,
+    /// The `key` field of `GateKey`.
+    GateKeyKey,
+    /// Bytes after `GateKey`.
+    GateKeyTail,
+    /// The `key` field of `DispatchedKey`.
+    DispatchedKeyKey,
+    /// The `try_` field of `DispatchedKey`.
+    DispatchedKeyTry,
+    /// Bytes after `DispatchedKey`.
+    DispatchedKeyTail,
+    /// The tag of `GateProofState`.
+    GateProofStateTag,
+    /// The tag of `GatePosted`.
+    GatePostedTag,
+    /// The `proof` field of `GateProof`.
+    GateProofProof,
+    /// The `posted` field of `GateProof`.
+    GateProofPosted,
+    /// The `faults` field of `GateProof`.
+    GateProofFaults,
+    /// Bytes after `GateProof`.
+    GateProofTail,
+    /// The `member` field of `LandingTimeout`.
+    LandingTimeoutMember,
+    /// The `gate` field of `LandingTimeout`.
+    LandingTimeoutGate,
+    /// The `run` field of `LandingTimeout`.
+    LandingTimeoutRun,
+    /// Bytes after `LandingTimeout`.
+    LandingTimeoutTail,
+    /// The `gate` field of `LandingGateRefused`.
+    LandingGateRefusedGate,
+    /// Bytes after `LandingGateRefused`.
+    LandingGateRefusedTail,
+    /// The `gate` field of `LandingGateFailed`.
+    LandingGateFailedGate,
+    /// The `run` field of `LandingGateFailed`.
+    LandingGateFailedRun,
+    /// Bytes after `LandingGateFailed`.
+    LandingGateFailedTail,
+    /// The `change` field of `LandingLeftChange`.
+    LandingLeftChangeChange,
+    /// Bytes after `LandingLeftChange`.
+    LandingLeftChangeTail,
+    /// The `units` field of `LandingFallback`.
+    LandingFallbackUnits,
+    /// The `top` field of `LandingFallback`.
+    LandingFallbackTop,
+    /// Bytes after `LandingFallback`.
+    LandingFallbackTail,
+    /// The `gate` field of `LandingBlamed`.
+    LandingBlamedGate,
+    /// The `run` field of `LandingBlamed`.
+    LandingBlamedRun,
+    /// The `red` field of `LandingBlamed`.
+    LandingBlamedRed,
+    /// The `green` field of `LandingBlamed`.
+    LandingBlamedGreen,
+    /// Bytes after `LandingBlamed`.
+    LandingBlamedTail,
+    /// The tag of `LandingLeave`.
+    LandingLeaveTag,
+    /// The tag of `LandingCombine`.
+    LandingCombineTag,
+    /// The `round` field of `LandingMember`.
+    LandingMemberRound,
+    /// The `change` field of `LandingMember`.
+    LandingMemberChange,
+    /// The `repository` field of `LandingMember`.
+    LandingMemberRepository,
+    /// The `pull` field of `LandingMember`.
+    LandingMemberPull,
+    /// The `head` field of `LandingMember`.
+    LandingMemberHead,
+    /// The `base` field of `LandingMember`.
+    LandingMemberBase,
+    /// The `candidate` field of `LandingMember`.
+    LandingMemberCandidate,
+    /// The `gates` field of `LandingMember`.
+    LandingMemberGates,
+    /// The `asked` field of `LandingMember`.
+    LandingMemberAsked,
+    /// The `landed` field of `LandingMember`.
+    LandingMemberLanded,
+    /// The `left` field of `LandingMember`.
+    LandingMemberLeft,
+    /// The `unit` field of `LandingMember`.
+    LandingMemberUnit,
+    /// The `branch` field of `LandingMember`.
+    LandingMemberBranch,
+    /// The `combined` field of `LandingMember`.
+    LandingMemberCombined,
+    /// The `recorded` field of `LandingMember`.
+    LandingMemberRecorded,
+    /// The `told` field of `LandingMember`.
+    LandingMemberTold,
+    /// The `judging` field of `LandingMember`.
+    LandingMemberJudging,
+    /// The `leave_told` field of `LandingMember`.
+    LandingMemberLeaveTold,
+    /// Bytes after `LandingMember`.
+    LandingMemberTail,
+    /// The tag of `LandingRoundEnd`.
+    LandingRoundEndTag,
+    /// The `member` field of `LandingRecordHold`.
+    LandingRecordHoldMember,
+    /// Bytes after `LandingRecordHold`.
+    LandingRecordHoldTail,
+    /// The tag of `LandingOwnHold`.
+    LandingOwnHoldTag,
+    /// The `test_id` field of `FailingTest`.
+    FailingTestTestId,
+    /// Bytes after `FailingTest`.
+    FailingTestTail,
+    /// The `test_id` field of `ShownTest`.
+    ShownTestTestId,
+    /// Bytes after `ShownTest`.
+    ShownTestTail,
+    /// The `tests` field of `ManyTests`.
+    ManyTestsTests,
+    /// The `more` field of `ManyTests`.
+    ManyTestsMore,
+    /// The `cut` field of `ManyTests`.
+    ManyTestsCut,
+    /// Bytes after `ManyTests`.
+    ManyTestsTail,
+    /// The `tests` field of `LandingSelection`.
+    LandingSelectionTests,
+    /// Bytes after `LandingSelection`.
+    LandingSelectionTail,
+    /// The `selection` field of `LandingSelectedGate`.
+    LandingSelectedGateSelection,
+    /// Bytes after `LandingSelectedGate`.
+    LandingSelectedGateTail,
+    /// The `member` field of `LandingProbed`.
+    LandingProbedMember,
+    /// The `gate` field of `LandingProbed`.
+    LandingProbedGate,
+    /// The `run` field of `LandingProbed`.
+    LandingProbedRun,
+    /// The `passed` field of `LandingProbed`.
+    LandingProbedPassed,
+    /// Bytes after `LandingProbed`.
+    LandingProbedTail,
+    /// The `gates` field of `LandingByTest`.
+    LandingByTestGates,
+    /// The `probed` field of `LandingByTest`.
+    LandingByTestProbed,
+    /// Bytes after `LandingByTest`.
+    LandingByTestTail,
+    /// The tag of `LandingSearchTests`.
+    LandingSearchTestsTag,
+    /// The `green` field of `LandingSearch`.
+    LandingSearchGreen,
+    /// The `red` field of `LandingSearch`.
+    LandingSearchRed,
+    /// The `tests` field of `LandingSearch`.
+    LandingSearchTests,
+    /// Bytes after `LandingSearch`.
+    LandingSearchTail,
+    /// The `red` field of `LandingSearched`.
+    LandingSearchedRed,
+    /// The `green` field of `LandingSearched`.
+    LandingSearchedGreen,
+    /// The `changes` field of `LandingSearched`.
+    LandingSearchedChanges,
+    /// Bytes after `LandingSearched`.
+    LandingSearchedTail,
+    /// The `merges` field of `LandingRound`.
+    LandingRoundMerges,
+    /// The `branch` field of `LandingRound`.
+    LandingRoundBranch,
+    /// The `pull` field of `LandingRound`.
+    LandingRoundPull,
+    /// The `upstream` field of `LandingRound`.
+    LandingRoundUpstream,
+    /// The `combined` field of `LandingRound`.
+    LandingRoundCombined,
+    /// The `recorded` field of `LandingRound`.
+    LandingRoundRecorded,
+    /// The `told` field of `LandingRound`.
+    LandingRoundTold,
+    /// The `ending` field of `LandingRound`.
+    LandingRoundEnding,
+    /// The `failure` field of `LandingRound`.
+    LandingRoundFailure,
+    /// The `judging` field of `LandingRound`.
+    LandingRoundJudging,
+    /// The `changed` field of `LandingRound`.
+    LandingRoundChanged,
+    /// The `search` field of `LandingRound`.
+    LandingRoundSearch,
+    /// Bytes after `LandingRound`.
+    LandingRoundTail,
+    /// The `member` field of `LandingLastPrepare`.
+    LandingLastPrepareMember,
+    /// The `head` field of `LandingLastPrepare`.
+    LandingLastPrepareHead,
+    /// The `main` field of `LandingLastPrepare`.
+    LandingLastPrepareMain,
+    /// The `suffix` field of `LandingLastPrepare`.
+    LandingLastPrepareSuffix,
+    /// The `asks` field of `LandingLastPrepare`.
+    LandingLastPrepareAsks,
+    /// The `again` field of `LandingLastPrepare`.
+    LandingLastPrepareAgain,
+    /// Bytes after `LandingLastPrepare`.
+    LandingLastPrepareTail,
+    /// The `searched` field of `LandingState`.
+    LandingStateSearched,
+    /// The `last_prepare` field of `LandingState`.
+    LandingStateLastPrepare,
+    /// The `last_left` field of `LandingState`.
+    LandingStateLastLeft,
+    /// The `task` field of `LandingState`.
+    LandingStateTask,
+    /// The `project` field of `LandingState`.
+    LandingStateProject,
+    /// The `phase` field of `LandingState`.
+    LandingStatePhase,
+    /// The `members` field of `LandingState`.
+    LandingStateMembers,
+    /// The `preparation` field of `LandingState`.
+    LandingStatePreparation,
+    /// The `stale_proofs` field of `LandingState`.
+    LandingStateStaleProofs,
+    /// The `branch` field of `LandingState`.
+    LandingStateBranch,
+    /// The `round` field of `LandingState`.
+    LandingStateRound,
+    /// The `own_hold` field of `LandingState`.
+    LandingStateOwnHold,
+    /// Bytes after `LandingState`.
+    LandingStateTail,
+    /// The `ask` field of `LandingAskSlot`.
+    LandingAskSlotAsk,
+    /// Bytes after `LandingAskSlot`.
+    LandingAskSlotTail,
+    /// The tag of `LandingOperation`.
+    LandingOperationTag,
+    /// The `id` field of `LandingRun`.
+    LandingRunId,
+    /// The `attempt` field of `LandingRun`.
+    LandingRunAttempt,
+    /// The `ended` field of `LandingRun`.
+    LandingRunEnded,
+    /// The `clock` field of `LandingRun`.
+    LandingRunClock,
+    /// Bytes after `LandingRun`.
+    LandingRunTail,
+    /// The `entry` field of `LandingEntry`.
+    LandingEntryEntry,
+    /// The `member` field of `LandingEntry`.
+    LandingEntryMember,
+    /// The `gate` field of `LandingEntry`.
+    LandingEntryGate,
+    /// The `operation` field of `LandingEntry`.
+    LandingEntryOperation,
+    /// The `preparation` field of `LandingEntry`.
+    LandingEntryPreparation,
+    /// The `base` field of `LandingEntry`.
+    LandingEntryBase,
+    /// The `run` field of `LandingEntry`.
+    LandingEntryRun,
+    /// Bytes after `LandingEntry`.
+    LandingEntryTail,
+    /// The tag of `HistoryJob`.
+    HistoryJobTag,
+    /// The tag of `HistoryJobFailure`.
+    HistoryJobFailureTag,
+    /// The `class` field of `HistoryJobFailed`.
+    HistoryJobFailedClass,
+    /// Bytes after `HistoryJobFailed`.
+    HistoryJobFailedTail,
+    /// The tag of `HistoryJobOutcome`.
+    HistoryJobOutcomeTag,
+    /// The `task` field of `HistoryJobRecord`.
+    HistoryJobRecordTask,
+    /// The `attempt` field of `HistoryJobRecord`.
+    HistoryJobRecordAttempt,
+    /// The `job` field of `HistoryJobRecord`.
+    HistoryJobRecordJob,
+    /// The `outcome` field of `HistoryJobRecord`.
+    HistoryJobRecordOutcome,
+    /// The `round` field of `HistoryJobRecord`.
+    HistoryJobRecordRound,
+    /// The `members` field of `HistoryJobRecord`.
+    HistoryJobRecordMembers,
+    /// The `head` field of `HistoryJobRecord`.
+    HistoryJobRecordHead,
+    /// The `written` field of `HistoryJobRecord`.
+    HistoryJobRecordWritten,
+    /// Bytes after `HistoryJobRecord`.
+    HistoryJobRecordTail,
+    /// The `name` field of `ReceiptName`.
+    ReceiptNameName,
+    /// Bytes after `ReceiptName`.
+    ReceiptNameTail,
+    /// The tag of `ReceiptCheck`.
+    ReceiptCheckTag,
+    /// The `project` field of `ReceiptKey`.
+    ReceiptKeyProject,
+    /// The `repository` field of `ReceiptKey`.
+    ReceiptKeyRepository,
+    /// The `check_name` field of `ReceiptKey`.
+    ReceiptKeyCheckName,
+    /// The `key` field of `ReceiptKey`.
+    ReceiptKeyKey,
+    /// Bytes after `ReceiptKey`.
+    ReceiptKeyTail,
+    /// The `key` field of `LandingFlakeRerun`.
+    LandingFlakeRerunKey,
+    /// The `run` field of `LandingFlakeRerun`.
+    LandingFlakeRerunRun,
+    /// The `findings` field of `LandingFlakeRerun`.
+    LandingFlakeRerunFindings,
+    /// The `pending` field of `LandingFlakeRerun`.
+    LandingFlakeRerunPending,
+    /// The `redispatch` field of `LandingFlakeRerun`.
+    LandingFlakeRerunRedispatch,
+    /// The `ended` field of `LandingFlakeRerun`.
+    LandingFlakeRerunEnded,
+    /// Bytes after `LandingFlakeRerun`.
+    LandingFlakeRerunTail,
+    /// The `member` field of `LandingWaitMember`.
+    LandingWaitMemberMember,
+    /// Bytes after `LandingWaitMember`.
+    LandingWaitMemberTail,
+    /// The `member` field of `LandingWaitGate`.
+    LandingWaitGateMember,
+    /// The `gate` field of `LandingWaitGate`.
+    LandingWaitGateGate,
+    /// Bytes after `LandingWaitGate`.
+    LandingWaitGateTail,
+    /// The tag of `LandingAwaited`.
+    LandingAwaitedTag,
+    /// The `last_event` field of `LandingRow`.
+    LandingRowLastEvent,
+    /// The `turn_since` field of `LandingRow`.
+    LandingRowTurnSince,
+    /// The `waiting` field of `LandingRow`.
+    LandingRowWaiting,
+    /// The `room` field of `LandingRow`.
+    LandingRowRoom,
+    /// The `job` field of `LandingRow`.
+    LandingRowJob,
+    /// The `landing` field of `LandingRow`.
+    LandingRowLanding,
+    /// The `asks` field of `LandingRow`.
+    LandingRowAsks,
+    /// The `entries` field of `LandingRow`.
+    LandingRowEntries,
+    /// The `flake_reruns` field of `LandingRow`.
+    LandingRowFlakeReruns,
+    /// Bytes after `LandingRow`.
+    LandingRowTail,
+    /// The `id` field of `ReceiptRun`.
+    ReceiptRunId,
+    /// The `number` field of `ReceiptRun`.
+    ReceiptRunNumber,
+    /// The `url` field of `ReceiptRun`.
+    ReceiptRunUrl,
+    /// Bytes after `ReceiptRun`.
+    ReceiptRunTail,
+    /// The `tests` field of `FailedTests`.
+    FailedTestsTests,
+    /// Bytes after `FailedTests`.
+    FailedTestsTail,
+    /// The tag of `Failures`.
+    FailuresTag,
+    /// The `failures` field of `BlamedFailures`.
+    BlamedFailuresFailures,
+    /// Bytes after `BlamedFailures`.
+    BlamedFailuresTail,
+    /// The tag of `Blame`.
+    BlameTag,
+    /// The `run` field of `TierVerdict`.
+    TierVerdictRun,
+    /// The `blame` field of `TierVerdict`.
+    TierVerdictBlame,
+    /// Bytes after `TierVerdict`.
+    TierVerdictTail,
+    /// The `run` field of `TierRepair`.
+    TierRepairRun,
+    /// The `tip` field of `TierRepair`.
+    TierRepairTip,
+    /// The `by` field of `TierRepair`.
+    TierRepairBy,
+    /// Bytes after `TierRepair`.
+    TierRepairTail,
+    /// The `tier` field of `TierVerification`.
+    TierVerificationTier,
+    /// The `verdict` field of `TierVerification`.
+    TierVerificationVerdict,
+    /// The `repaired` field of `TierVerification`.
+    TierVerificationRepaired,
+    /// Bytes after `TierVerification`.
+    TierVerificationTail,
+    /// The `repository` field of `Verification`.
+    VerificationRepository,
+    /// The `commit` field of `Verification`.
+    VerificationCommit,
+    /// The `changes` field of `Verification`.
+    VerificationChanges,
+    /// The `tiers` field of `Verification`.
+    VerificationTiers,
+    /// Bytes after `Verification`.
+    VerificationTail,
+    /// The `tip` field of `TierJudged`.
+    TierJudgedTip,
+    /// The `key` field of `TierJudged`.
+    TierJudgedKey,
+    /// Bytes after `TierJudged`.
+    TierJudgedTail,
+    /// The `test` field of `TierFlake`.
+    TierFlakeTest,
+    /// The `count` field of `TierFlake`.
+    TierFlakeCount,
+    /// Bytes after `TierFlake`.
+    TierFlakeTail,
+    /// The `commit` field of `TierLanding`.
+    TierLandingCommit,
+    /// The `key` field of `TierLanding`.
+    TierLandingKey,
+    /// Bytes after `TierLanding`.
+    TierLandingTail,
+    /// The `tests` field of `TierTests`.
+    TierTestsTests,
+    /// Bytes after `TierTests`.
+    TierTestsTail,
+    /// The tag of `TierSelection`.
+    TierSelectionTag,
+    /// The `failing` field of `TierFinding`.
+    TierFindingFailing,
+    /// The `flakes` field of `TierFinding`.
+    TierFindingFlakes,
+    /// The `blamed` field of `TierFinding`.
+    TierFindingBlamed,
+    /// Bytes after `TierFinding`.
+    TierFindingTail,
+    /// The `low` field of `TierGroup`.
+    TierGroupLow,
+    /// The `high` field of `TierGroup`.
+    TierGroupHigh,
+    /// The `tests` field of `TierGroup`.
+    TierGroupTests,
+    /// Bytes after `TierGroup`.
+    TierGroupTail,
+    /// The `landing` field of `TierProbe`.
+    TierProbeLanding,
+    /// The `low` field of `TierProbe`.
+    TierProbeLow,
+    /// The `high` field of `TierProbe`.
+    TierProbeHigh,
+    /// The `tests` field of `TierProbe`.
+    TierProbeTests,
+    /// The `waiting` field of `TierProbe`.
+    TierProbeWaiting,
+    /// The `finding` field of `TierProbe`.
+    TierProbeFinding,
+    /// Bytes after `TierProbe`.
+    TierProbeTail,
+    /// The tag of `TierPart`.
+    TierPartTag,
+    /// The `number` field of `TierRun`.
+    TierRunNumber,
+    /// The `tip` field of `TierRun`.
+    TierRunTip,
+    /// The `key` field of `TierRun`.
+    TierRunKey,
+    /// The `landings` field of `TierRun`.
+    TierRunLandings,
+    /// The `part` field of `TierRun`.
+    TierRunPart,
+    /// The `faults` field of `TierRun`.
+    TierRunFaults,
+    /// Bytes after `TierRun`.
+    TierRunTail,
+    /// The `sequence` field of `TierRecord`.
+    TierRecordSequence,
+    /// The `judged` field of `TierRecord`.
+    TierRecordJudged,
+    /// The `failing` field of `TierRecord`.
+    TierRecordFailing,
+    /// The `flakes` field of `TierRecord`.
+    TierRecordFlakes,
+    /// The `run` field of `TierRecord`.
+    TierRecordRun,
+    /// Bytes after `TierRecord`.
+    TierRecordTail,
+    /// The `commit` field of `TierPending`.
+    TierPendingCommit,
+    /// The `key` field of `TierPending`.
+    TierPendingKey,
+    /// Bytes after `TierPending`.
+    TierPendingTail,
+    /// The `entry` field of `TierBranchEntry`.
+    TierBranchEntryEntry,
+    /// Bytes after `TierBranchEntry`.
+    TierBranchEntryTail,
+    /// The tag of `TierBranch`.
+    TierBranchTag,
+    /// The tag of `TierFault`.
+    TierFaultTag,
+    /// The `landing` field of `TierProbeBranch`.
+    TierProbeBranchLanding,
+    /// The `branch` field of `TierProbeBranch`.
+    TierProbeBranchBranch,
+    /// Bytes after `TierProbeBranch`.
+    TierProbeBranchTail,
+    /// The `entry` field of `TierFlight`.
+    TierFlightEntry,
+    /// The `start` field of `TierFlight`.
+    TierFlightStart,
+    /// The `since` field of `TierFlight`.
+    TierFlightSince,
+    /// The `waiting` field of `TierFlight`.
+    TierFlightWaiting,
+    /// The `next` field of `TierFlight`.
+    TierFlightNext,
+    /// The `run` field of `TierFlight`.
+    TierFlightRun,
+    /// The `pending` field of `TierFlight`.
+    TierFlightPending,
+    /// The `fault` field of `TierFlight`.
+    TierFlightFault,
+    /// The `report` field of `TierFlight`.
+    TierFlightReport,
+    /// Bytes after `TierFlight`.
+    TierFlightTail,
+    /// The `job` field of `ReceiptJob`.
+    ReceiptJobJob,
+    /// The `attempt` field of `ReceiptJob`.
+    ReceiptJobAttempt,
+    /// The `name` field of `ReceiptJob`.
+    ReceiptJobName,
+    /// Bytes after `ReceiptJob`.
+    ReceiptJobTail,
+    /// The `key` field of `ReceiptTest`.
+    ReceiptTestKey,
+    /// The `fuzzy` field of `ReceiptTest`.
+    ReceiptTestFuzzy,
+    /// Bytes after `ReceiptTest`.
+    ReceiptTestTail,
+    /// The `tests` field of `ReceiptTests`.
+    ReceiptTestsTests,
+    /// Bytes after `ReceiptTests`.
+    ReceiptTestsTail,
+    /// The `bound` field of `ReceiptMany`.
+    ReceiptManyBound,
+    /// Bytes after `ReceiptMany`.
+    ReceiptManyTail,
+    /// The tag of `ReceiptReport`.
+    ReceiptReportTag,
+    /// The `base` field of `Receipt`.
+    ReceiptBase,
+    /// The `jobs` field of `Receipt`.
+    ReceiptJobs,
+    /// The `failures` field of `Receipt`.
+    ReceiptFailures,
+    /// The `passed` field of `Receipt`.
+    ReceiptPassed,
+    /// The `run` field of `Receipt`.
+    ReceiptRun,
+    /// The `candidate` field of `Receipt`.
+    ReceiptCandidate,
+    /// The `ended` field of `Receipt`.
+    ReceiptEnded,
+    /// The `logs` field of `Receipt`.
+    ReceiptLogs,
+    /// Bytes after `Receipt`.
+    ReceiptTail,
+    /// The `goal` field of `TierGoal`.
+    TierGoalGoal,
+    /// The `branch` field of `TierGoal`.
+    TierGoalBranch,
+    /// The `tip` field of `TierGoal`.
+    TierGoalTip,
+    /// The `ran` field of `TierGoal`.
+    TierGoalRan,
+    /// The `failing` field of `TierGoal`.
+    TierGoalFailing,
+    /// The `started` field of `TierGoal`.
+    TierGoalStarted,
+    /// Bytes after `TierGoal`.
+    TierGoalTail,
+    /// The `party` field of `TierHold`.
+    TierHoldParty,
+    /// The `at` field of `TierHold`.
+    TierHoldAt,
+    /// The `reason` field of `TierHold`.
+    TierHoldReason,
+    /// Bytes after `TierHold`.
+    TierHoldTail,
+    /// The `tests` field of `TierPostedTests`.
+    TierPostedTestsTests,
+    /// Bytes after `TierPostedTests`.
+    TierPostedTestsTail,
+    /// The tag of `TierPostedBlame`.
+    TierPostedBlameTag,
+    /// The `commit` field of `TierPostedLanding`.
+    TierPostedLandingCommit,
+    /// The `blame` field of `TierPostedLanding`.
+    TierPostedLandingBlame,
+    /// The `change` field of `TierPostedLanding`.
+    TierPostedLandingChange,
+    /// Bytes after `TierPostedLanding`.
+    TierPostedLandingTail,
+    /// The `at` field of `TierCommentVerdict`.
+    TierCommentVerdictAt,
+    /// Bytes after `TierCommentVerdict`.
+    TierCommentVerdictTail,
+    /// The `by` field of `TierCommentRepair`.
+    TierCommentRepairBy,
+    /// Bytes after `TierCommentRepair`.
+    TierCommentRepairTail,
+    /// The tag of `TierCommentKind`.
+    TierCommentKindTag,
+    /// The `pull` field of `TierComment`.
+    TierCommentPull,
+    /// The `landing` field of `TierComment`.
+    TierCommentLanding,
+    /// The `kind` field of `TierComment`.
+    TierCommentKind,
+    /// Bytes after `TierComment`.
+    TierCommentTail,
+    /// The `number` field of `TierPosting`.
+    TierPostingNumber,
+    /// The `tip` field of `TierPosting`.
+    TierPostingTip,
+    /// The `link` field of `TierPosting`.
+    TierPostingLink,
+    /// The `status` field of `TierPosting`.
+    TierPostingStatus,
+    /// The `description` field of `TierPosting`.
+    TierPostingDescription,
+    /// The `landings` field of `TierPosting`.
+    TierPostingLandings,
+    /// The `comments` field of `TierPosting`.
+    TierPostingComments,
+    /// The `next` field of `TierPosting`.
+    TierPostingNext,
+    /// The `entry` field of `TierPosting`.
+    TierPostingEntry,
+    /// The `part` field of `TierPosting`.
+    TierPostingPart,
+    /// The `op_bytes` field of `TierPosting`.
+    TierPostingOpBytes,
+    /// Bytes after `TierPosting`.
+    TierPostingTail,
+    /// The `many` field of `TierRow`.
+    TierRowMany,
+    /// The `observations` field of `TierRow`.
+    TierRowObservations,
+    /// The `repository` field of `TierRow`.
+    TierRowRepository,
+    /// The `tier` field of `TierRow`.
+    TierRowTier,
+    /// The `record` field of `TierRow`.
+    TierRowRecord,
+    /// The `task` field of `TierRow`.
+    TierRowTask,
+    /// The `requested` field of `TierRow`.
+    TierRowRequested,
+    /// The `cancelled` field of `TierRow`.
+    TierRowCancelled,
+    /// The `purpose` field of `TierRow`.
+    TierRowPurpose,
+    /// The `pending` field of `TierRow`.
+    TierRowPending,
+    /// The `baseline` field of `TierRow`.
+    TierRowBaseline,
+    /// The `branch` field of `TierRow`.
+    TierRowBranch,
+    /// The `probe` field of `TierRow`.
+    TierRowProbe,
+    /// The `flight` field of `TierRow`.
+    TierRowFlight,
+    /// The `held` field of `TierRow`.
+    TierRowHeld,
+    /// The `hold` field of `TierRow`.
+    TierRowHold,
+    /// The `result` field of `TierRow`.
+    TierRowResult,
+    /// The `posting` field of `TierRow`.
+    TierRowPosting,
+    /// The `received` field of `TierRow`.
+    TierRowReceived,
+    /// The `goals` field of `TierRow`.
+    TierRowGoals,
+    /// The `goal` field of `TierRow`.
+    TierRowGoal,
+    /// The `started` field of `TierRow`.
+    TierRowStarted,
+    /// Bytes after `TierRow`.
+    TierRowTail,
+    /// The `report` field of `ReceiptRow`.
+    ReceiptRowReport,
+    /// The `key` field of `ReceiptRow`.
+    ReceiptRowKey,
+    /// The `receipt` field of `ReceiptRow`.
+    ReceiptRowReceipt,
+    /// Bytes after `ReceiptRow`.
+    ReceiptRowTail,
+    /// The tag of `ForgeKind`.
+    ForgeKindTag,
+    /// The tag of `ForgeMode`.
+    ForgeModeTag,
+    /// The `host` field of `Address`.
+    AddressHost,
+    /// The `port` field of `Address`.
+    AddressPort,
+    /// The `tls` field of `Address`.
+    AddressTls,
+    /// Bytes after `Address`.
+    AddressTail,
+    /// The `api` field of `Place`.
+    PlaceApi,
+    /// The `git` field of `Place`.
+    PlaceGit,
+    /// The `web` field of `Place`.
+    PlaceWeb,
+    /// Bytes after `Place`.
+    PlaceTail,
+    /// The `login` field of `Bot`.
+    BotLogin,
+    /// The `name` field of `Bot`.
+    BotName,
+    /// The `email` field of `Bot`.
+    BotEmail,
+    /// Bytes after `Bot`.
+    BotTail,
+    /// The `playground` field of `EmptyIntent`.
+    EmptyIntentPlayground,
+    /// The `org` field of `EmptyIntent`.
+    EmptyIntentOrg,
+    /// The `repository` field of `EmptyIntent`.
+    EmptyIntentRepository,
+    /// The `label` field of `EmptyIntent`.
+    EmptyIntentLabel,
+    /// Bytes after `EmptyIntent`.
+    EmptyIntentTail,
+    /// The `addresses` field of `CopyIntent`.
+    CopyIntentAddresses,
+    /// Bytes after `CopyIntent`.
+    CopyIntentTail,
+    /// The tag of `FirstIntent`.
+    FirstIntentTag,
+    /// The `secrets_erased` field of `EndedForge`.
+    EndedForgeSecretsErased,
+    /// The `box_removed` field of `EndedForge`.
+    EndedForgeBoxRemoved,
+    /// Bytes after `EndedForge`.
+    EndedForgeTail,
+    /// The tag of `ForgeState`.
+    ForgeStateTag,
+    /// The `user` field of `ForgeLink`.
+    ForgeLinkUser,
+    /// The `person` field of `ForgeLink`.
+    ForgeLinkPerson,
+    /// Bytes after `ForgeLink`.
+    ForgeLinkTail,
+    /// The `number` field of `Forge`.
+    ForgeNumber,
+    /// The `kind` field of `Forge`.
+    ForgeKind,
+    /// The `mode` field of `Forge`.
+    ForgeMode,
+    /// The `state` field of `Forge`.
+    ForgeState,
+    /// The `place` field of `Forge`.
+    ForgePlace,
+    /// The `git_program` field of `Forge`.
+    ForgeGitProgram,
+    /// The `read_only` field of `Forge`.
+    ForgeReadOnly,
+    /// The `bot` field of `Forge`.
+    ForgeBot,
+    /// The `asked` field of `Forge`.
+    ForgeAsked,
+    /// The `first` field of `Forge`.
+    ForgeFirst,
+    /// The `person` field of `Forge`.
+    ForgePerson,
+    /// Bytes after `Forge`.
+    ForgeTail,
+    /// The `last` field of `ForgeNumber`.
+    ForgeNumberLast,
+    /// Bytes after `ForgeNumber`.
+    ForgeNumberTail,
+    /// The tag of `ResetStep`.
+    ResetStepTag,
+    /// The `step` field of `Resetting`.
+    ResettingStep,
+    /// Bytes after `Resetting`.
+    ResettingTail,
+    /// The tag of `PlaygroundState`.
+    PlaygroundStateTag,
+    /// The `state` field of `Playground`.
+    PlaygroundState,
+    /// The `forge` field of `Playground`.
+    PlaygroundForge,
+    /// The `project` field of `Playground`.
+    PlaygroundProject,
+    /// The `account` field of `Playground`.
+    PlaygroundAccount,
+    /// Bytes after `Playground`.
+    PlaygroundTail,
+    /// The tag of `PatternLast`.
+    PatternLastTag,
+    /// The `segments` field of `RulePattern`.
+    RulePatternSegments,
+    /// The `last` field of `RulePattern`.
+    RulePatternLast,
+    /// Bytes after `RulePattern`.
+    RulePatternTail,
+    /// The `number` field of `RuleGate`.
+    RuleGateNumber,
+    /// The `blocking` field of `RuleGate`.
+    RuleGateBlocking,
+    /// The `freshness` field of `RuleGate`.
+    RuleGateFreshness,
+    /// Bytes after `RuleGate`.
+    RuleGateTail,
+    /// The `role` field of `RuleApproval`.
+    RuleApprovalRole,
+    /// The `people` field of `RuleApproval`.
+    RuleApprovalPeople,
+    /// The `freshness` field of `RuleApproval`.
+    RuleApprovalFreshness,
+    /// Bytes after `RuleApproval`.
+    RuleApprovalTail,
+    /// The `pattern` field of `LandingRule`.
+    LandingRulePattern,
+    /// The `enforce` field of `LandingRule`.
+    LandingRuleEnforce,
+    /// The `ci` field of `LandingRule`.
+    LandingRuleCi,
+    /// The `up_to_date` field of `LandingRule`.
+    LandingRuleUpToDate,
+    /// The `gates` field of `LandingRule`.
+    LandingRuleGates,
+    /// The `approvals` field of `LandingRule`.
+    LandingRuleApprovals,
+    /// The `sets` field of `LandingRule`.
+    LandingRuleSets,
+    /// Bytes after `LandingRule`.
+    LandingRuleTail,
+    /// The `number` field of `CharterValue`.
+    CharterValueNumber,
+    /// Bytes after `CharterValue`.
+    CharterValueTail,
+    /// The `design` field of `TemplateGoal`.
+    TemplateGoalDesign,
+    /// The `close_out` field of `TemplateGoal`.
+    TemplateGoalCloseOut,
+    /// Bytes after `TemplateGoal`.
+    TemplateGoalTail,
+    /// The `route` field of `ProjectQuestions`.
+    ProjectQuestionsRoute,
+    /// Bytes after `ProjectQuestions`.
+    ProjectQuestionsTail,
+    /// The tag of `SettingsLandingWay`.
+    SettingsLandingWayTag,
+    /// The tag of `SettingsLandingWait`.
+    SettingsLandingWaitTag,
+    /// The tag of `SettingsCombine`.
+    SettingsCombineTag,
+    /// The `by` field of `ProjectLanding`.
+    ProjectLandingBy,
+    /// The `batch` field of `ProjectLanding`.
+    ProjectLandingBatch,
+    /// The `combine_main` field of `ProjectLanding`.
+    ProjectLandingCombineMain,
+    /// The `combine_other` field of `ProjectLanding`.
+    ProjectLandingCombineOther,
+    /// The `merge_job` field of `ProjectLanding`.
+    ProjectLandingMergeJob,
+    /// The `close_job` field of `ProjectLanding`.
+    ProjectLandingCloseJob,
+    /// The `landing_attempts` field of `ProjectLanding`.
+    ProjectLandingLandingAttempts,
+    /// The `check_timeout_ms` field of `ProjectLanding`.
+    ProjectLandingCheckTimeoutMs,
+    /// The `gate_retries` field of `ProjectLanding`.
+    ProjectLandingGateRetries,
+    /// The `gate_timeout_ms` field of `ProjectLanding`.
+    ProjectLandingGateTimeoutMs,
+    /// The `tier_retries` field of `ProjectLanding`.
+    ProjectLandingTierRetries,
+    /// The `verification_bound_ms` field of `ProjectLanding`.
+    ProjectLandingVerificationBoundMs,
+    /// The `wait` field of `ProjectLanding`.
+    ProjectLandingWait,
+    /// Bytes after `ProjectLanding`.
+    ProjectLandingTail,
+    /// The tag of `SettingsReportFormat`.
+    SettingsReportFormatTag,
+    /// The `artifact` field of `SettingsGateReport`.
+    SettingsGateReportArtifact,
+    /// The `format` field of `SettingsGateReport`.
+    SettingsGateReportFormat,
+    /// The `fuzzy` field of `SettingsGateReport`.
+    SettingsGateReportFuzzy,
+    /// Bytes after `SettingsGateReport`.
+    SettingsGateReportTail,
+    /// The `name` field of `SettingsGate`.
+    SettingsGateName,
+    /// The `workflow` field of `SettingsGate`.
+    SettingsGateWorkflow,
+    /// The `ignored` field of `SettingsGate`.
+    SettingsGateIgnored,
+    /// The `blocking` field of `SettingsGate`.
+    SettingsGateBlocking,
+    /// The `base` field of `SettingsGate`.
+    SettingsGateBase,
+    /// The `report` field of `SettingsGate`.
+    SettingsGateReport,
+    /// Bytes after `SettingsGate`.
+    SettingsGateTail,
+    /// The `name` field of `SettingsBranch`.
+    SettingsBranchName,
+    /// Bytes after `SettingsBranch`.
+    SettingsBranchTail,
+    /// The tag of `SettingsFollows`.
+    SettingsFollowsTag,
+    /// The `name` field of `SettingsTier`.
+    SettingsTierName,
+    /// The `workflow` field of `SettingsTier`.
+    SettingsTierWorkflow,
+    /// The `ignored` field of `SettingsTier`.
+    SettingsTierIgnored,
+    /// The `artifact` field of `SettingsTier`.
+    SettingsTierArtifact,
+    /// The `format` field of `SettingsTier`.
+    SettingsTierFormat,
+    /// The `follows` field of `SettingsTier`.
+    SettingsTierFollows,
+    /// The `span_ms` field of `SettingsTier`.
+    SettingsTierSpanMs,
+    /// The `description` field of `SettingsTier`.
+    SettingsTierDescription,
+    /// Bytes after `SettingsTier`.
+    SettingsTierTail,
+    /// The `forge` field of `RepositoryGates`.
+    RepositoryGatesForge,
+    /// The `repository` field of `RepositoryGates`.
+    RepositoryGatesRepository,
+    /// The `gates` field of `RepositoryGates`.
+    RepositoryGatesGates,
+    /// The `tiers` field of `RepositoryGates`.
+    RepositoryGatesTiers,
+    /// Bytes after `RepositoryGates`.
+    RepositoryGatesTail,
+    /// The `repositories` field of `ProjectGates`.
+    ProjectGatesRepositories,
+    /// Bytes after `ProjectGates`.
+    ProjectGatesTail,
+    /// The `drafts` field of `ProjectWays`.
+    ProjectWaysDrafts,
+    /// The `goals` field of `ProjectWays`.
+    ProjectWaysGoals,
+    /// The `changes` field of `ProjectWays`.
+    ProjectWaysChanges,
+    /// The `way` field of `ProjectWays`.
+    ProjectWaysWay,
+    /// Bytes after `ProjectWays`.
+    ProjectWaysTail,
+    /// The `kind` field of `ReachKindOf`.
+    ReachKindOfKind,
+    /// Bytes after `ReachKindOf`.
+    ReachKindOfTail,
+    /// The tag of `ClassSubject`.
+    ClassSubjectTag,
+    /// The `subject` field of `ClassItem`.
+    ClassItemSubject,
+    /// The `words` field of `ClassItem`.
+    ClassItemWords,
+    /// The `class` field of `ClassItem`.
+    ClassItemClass,
+    /// Bytes after `ClassItem`.
+    ClassItemTail,
+    /// The `number` field of `PathSet`.
+    PathSetNumber,
+    /// The `name` field of `PathSet`.
+    PathSetName,
+    /// The `patterns` field of `PathSet`.
+    PathSetPatterns,
+    /// Bytes after `PathSet`.
+    PathSetTail,
+    /// The `items` field of `ProjectClasses`.
+    ProjectClassesItems,
+    /// The `sets` field of `ProjectClasses`.
+    ProjectClassesSets,
+    /// Bytes after `ProjectClasses`.
+    ProjectClassesTail,
+    /// The `line` field of `CharterWords`.
+    CharterWordsLine,
+    /// Bytes after `CharterWords`.
+    CharterWordsTail,
+    /// The `headline` field of `ProjectWords`.
+    ProjectWordsHeadline,
+    /// The `lede` field of `ProjectWords`.
+    ProjectWordsLede,
+    /// Bytes after `ProjectWords`.
+    ProjectWordsTail,
+    /// The `project` field of `Dependency`.
+    DependencyProject,
+    /// Bytes after `Dependency`.
+    DependencyTail,
+    /// The `forge` field of `FollowRepository`.
+    FollowRepositoryForge,
+    /// The `repository` field of `FollowRepository`.
+    FollowRepositoryRepository,
+    /// Bytes after `FollowRepository`.
+    FollowRepositoryTail,
+    /// The `repository` field of `FollowSource`.
+    FollowSourceRepository,
+    /// The `branch` field of `FollowSource`.
+    FollowSourceBranch,
+    /// The `paths` field of `FollowSource`.
+    FollowSourcePaths,
+    /// Bytes after `FollowSource`.
+    FollowSourceTail,
+    /// The `repository` field of `FollowTarget`.
+    FollowTargetRepository,
+    /// The `branch` field of `FollowTarget`.
+    FollowTargetBranch,
+    /// Bytes after `FollowTarget`.
+    FollowTargetTail,
+    /// The `person` field of `FollowPerson`.
+    FollowPersonPerson,
+    /// Bytes after `FollowPerson`.
+    FollowPersonTail,
+    /// The `task` field of `FollowOwnerTask`.
+    FollowOwnerTaskTask,
+    /// Bytes after `FollowOwnerTask`.
+    FollowOwnerTaskTail,
+    /// The tag of `FollowOwner`.
+    FollowOwnerTag,
+    /// The tag of `FollowStart`.
+    FollowStartTag,
+    /// The tag of `FollowFormat`.
+    FollowFormatTag,
+    /// The `workflow` field of `FollowCheck`.
+    FollowCheckWorkflow,
+    /// The `artifact` field of `FollowCheck`.
+    FollowCheckArtifact,
+    /// The `format` field of `FollowCheck`.
+    FollowCheckFormat,
+    /// Bytes after `FollowCheck`.
+    FollowCheckTail,
+    /// The `source` field of `Follow`.
+    FollowSource,
+    /// The `target` field of `Follow`.
+    FollowTarget,
+    /// The `owner` field of `Follow`.
+    FollowOwner,
+    /// The `start` field of `Follow`.
+    FollowStart,
+    /// The `producer` field of `Follow`.
+    FollowProducer,
+    /// The `verification` field of `Follow`.
+    FollowVerification,
+    /// Bytes after `Follow`.
+    FollowTail,
+    /// The tag of `SettingSlot`.
+    SettingSlotTag,
+    /// The `project` field of `ToBegin`.
+    ToBeginProject,
+    /// Bytes after `ToBegin`.
+    ToBeginTail,
+    /// The `project` field of `GoalFrom`.
+    GoalFromProject,
+    /// The `chat` field of `GoalFrom`.
+    GoalFromChat,
+    /// The `goal` field of `GoalFrom`.
+    GoalFromGoal,
+    /// The `at` field of `GoalFrom`.
+    GoalFromAt,
+    /// Bytes after `GoalFrom`.
+    GoalFromTail,
+    /// The `project` field of `KeepAsking`.
+    KeepAskingProject,
+    /// The `subject` field of `KeepAsking`.
+    KeepAskingSubject,
+    /// The `at` field of `KeepAsking`.
+    KeepAskingAt,
+    /// Bytes after `KeepAsking`.
+    KeepAskingTail,
+    /// The tag of `PersonFact`.
+    PersonFactTag,
+    /// The `party` field of `Dismissed`.
+    DismissedParty,
+    /// The `what` field of `Dismissed`.
+    DismissedWhat,
+    /// Bytes after `Dismissed`.
+    DismissedTail,
+    /// The `signed` field of `LoggedChange`.
+    LoggedChangeSigned,
+    /// The `task` field of `LoggedChange`.
+    LoggedChangeTask,
+    /// The `pull` field of `LoggedChange`.
+    LoggedChangePull,
+    /// The `title` field of `LoggedChange`.
+    LoggedChangeTitle,
+    /// The `goal` field of `LoggedChange`.
+    LoggedChangeGoal,
+    /// The `milestone` field of `LoggedChange`.
+    LoggedChangeMilestone,
+    /// Bytes after `LoggedChange`.
+    LoggedChangeTail,
+    /// The `run` field of `LoggedCleared`.
+    LoggedClearedRun,
+    /// Bytes after `LoggedCleared`.
+    LoggedClearedTail,
+    /// The `more` field of `LoggedMany`.
+    LoggedManyMore,
+    /// The `cut` field of `LoggedMany`.
+    LoggedManyCut,
+    /// Bytes after `LoggedMany`.
+    LoggedManyTail,
+    /// The `run` field of `LoggedRed`.
+    LoggedRedRun,
+    /// The `failing` field of `LoggedRed`.
+    LoggedRedFailing,
+    /// The `tests` field of `LoggedRed`.
+    LoggedRedTests,
+    /// The `many` field of `LoggedRed`.
+    LoggedRedMany,
+    /// Bytes after `LoggedRed`.
+    LoggedRedTail,
+    /// The tag of `LoggedVerdict`.
+    LoggedVerdictTag,
+    /// The `tier` field of `LoggedTier`.
+    LoggedTierTier,
+    /// The `verdict` field of `LoggedTier`.
+    LoggedTierVerdict,
+    /// Bytes after `LoggedTier`.
+    LoggedTierTail,
+    /// The `commit` field of `LoggedLanding`.
+    LoggedLandingCommit,
+    /// The `branch` field of `LoggedLanding`.
+    LoggedLandingBranch,
+    /// The `at` field of `LoggedLanding`.
+    LoggedLandingAt,
+    /// The `changes` field of `LoggedLanding`.
+    LoggedLandingChanges,
+    /// The `tiers` field of `LoggedLanding`.
+    LoggedLandingTiers,
+    /// Bytes after `LoggedLanding`.
+    LoggedLandingTail,
+    /// The `at` field of `MilestoneLanding`.
+    MilestoneLandingAt,
+    /// The `goal` field of `MilestoneLanding`.
+    MilestoneLandingGoal,
+    /// The `change` field of `MilestoneLanding`.
+    MilestoneLandingChange,
+    /// Bytes after `MilestoneLanding`.
+    MilestoneLandingTail,
+    /// The tag of `MilestoneOutcome`.
+    MilestoneOutcomeTag,
+    /// The `at` field of `MilestoneEnd`.
+    MilestoneEndAt,
+    /// The `outcome` field of `MilestoneEnd`.
+    MilestoneEndOutcome,
+    /// The `done` field of `MilestoneEnd`.
+    MilestoneEndDone,
+    /// The `failed` field of `MilestoneEnd`.
+    MilestoneEndFailed,
+    /// The `closed` field of `MilestoneEnd`.
+    MilestoneEndClosed,
+    /// The `spent` field of `MilestoneEnd`.
+    MilestoneEndSpent,
+    /// Bytes after `MilestoneEnd`.
+    MilestoneEndTail,
+    /// The `project` field of `MilestoneRow`.
+    MilestoneRowProject,
+    /// The `task` field of `MilestoneRow`.
+    MilestoneRowTask,
+    /// The `name` field of `MilestoneRow`.
+    MilestoneRowName,
+    /// The `last_landing` field of `MilestoneRow`.
+    MilestoneRowLastLanding,
+    /// The `ended` field of `MilestoneRow`.
+    MilestoneRowEnded,
+    /// Bytes after `MilestoneRow`.
+    MilestoneRowTail,
+    /// The `repository` field of `LandingLog`.
+    LandingLogRepository,
+    /// The `landings` field of `LandingLog`.
+    LandingLogLandings,
+    /// Bytes after `LandingLog`.
+    LandingLogTail,
+    /// The `sentence` field of `StatusBrief`.
+    StatusBriefSentence,
+    /// The `lede` field of `StatusBrief`.
+    StatusBriefLede,
+    /// The `at` field of `StatusBrief`.
+    StatusBriefAt,
+    /// The `landed` field of `StatusBrief`.
+    StatusBriefLanded,
+    /// The `findings` field of `StatusBrief`.
+    StatusBriefFindings,
+    /// Bytes after `StatusBrief`.
+    StatusBriefTail,
+    /// The `task` field of `StatusRunning`.
+    StatusRunningTask,
+    /// The `landed` field of `StatusRunning`.
+    StatusRunningLanded,
+    /// The `since` field of `StatusRunning`.
+    StatusRunningSince,
+    /// The `findings` field of `StatusRunning`.
+    StatusRunningFindings,
+    /// Bytes after `StatusRunning`.
+    StatusRunningTail,
+    /// The `project` field of `ProjectFacts`.
+    ProjectFactsProject,
+    /// The `landed` field of `ProjectFacts`.
+    ProjectFactsLanded,
+    /// The `last_landed` field of `ProjectFacts`.
+    ProjectFactsLastLanded,
+    /// Bytes after `ProjectFacts`.
+    ProjectFactsTail,
+    /// The `party` field of `PersonBrief`.
+    PersonBriefParty,
+    /// The `project` field of `PersonBrief`.
+    PersonBriefProject,
+    /// The `brief` field of `PersonBrief`.
+    PersonBriefBrief,
+    /// The `running` field of `PersonBrief`.
+    PersonBriefRunning,
+    /// The `unpaid` field of `PersonBrief`.
+    PersonBriefUnpaid,
+    /// Bytes after `PersonBrief`.
+    PersonBriefTail,
+    /// The `party` field of `Looked`.
+    LookedParty,
+    /// The `project` field of `Looked`.
+    LookedProject,
+    /// The `previous` field of `Looked`.
+    LookedPrevious,
+    /// The `latest` field of `Looked`.
+    LookedLatest,
+    /// The `seen` field of `Looked`.
+    LookedSeen,
+    /// The `next_seen` field of `Looked`.
+    LookedNextSeen,
+    /// Bytes after `Looked`.
+    LookedTail,
+    /// The `party` field of `Away`.
+    AwayParty,
+    /// The `project` field of `Away`.
+    AwayProject,
+    /// The `since` field of `Away`.
+    AwaySince,
+    /// The `until` field of `Away`.
+    AwayUntil,
+    /// The `landed` field of `Away`.
+    AwayLanded,
+    /// The `off` field of `Away`.
+    AwayOff,
+    /// Bytes after `Away`.
+    AwayTail,
+    /// The `project` field of `Decided`.
+    DecidedProject,
+    /// The `number` field of `Decided`.
+    DecidedNumber,
+    /// The `party` field of `Decided`.
+    DecidedParty,
+    /// The `task` field of `Decided`.
+    DecidedTask,
+    /// The `at` field of `Decided`.
+    DecidedAt,
+    /// The `question` field of `Decided`.
+    DecidedQuestion,
+    /// The `options` field of `Decided`.
+    DecidedOptions,
+    /// The `took` field of `Decided`.
+    DecidedTook,
+    /// The `why` field of `Decided`.
+    DecidedWhy,
+    /// The `overturned` field of `Decided`.
+    DecidedOverturned,
+    /// The `reach` field of `Decided`.
+    DecidedReach,
+    /// Bytes after `Decided`.
+    DecidedTail,
+    /// The tag of `ClosingStep`.
+    ClosingStepTag,
+    /// The `step` field of `ClosingRun`.
+    ClosingRunStep,
+    /// The `change` field of `ClosingRun`.
+    ClosingRunChange,
+    /// Bytes after `ClosingRun`.
+    ClosingRunTail,
+    /// The `tasks` field of `ClosingTasks`.
+    ClosingTasksTasks,
+    /// Bytes after `ClosingTasks`.
+    ClosingTasksTail,
+    /// The `attempts` field of `ClosingJobs`.
+    ClosingJobsAttempts,
+    /// The `next` field of `ClosingJobs`.
+    ClosingJobsNext,
+    /// Bytes after `ClosingJobs`.
+    ClosingJobsTail,
+    /// The `line` field of `ClosingLine`.
+    ClosingLineLine,
+    /// Bytes after `ClosingLine`.
+    ClosingLineTail,
+    /// The tag of `ClosingSelectionProgress`.
+    ClosingSelectionProgressTag,
+    /// The `pull` field of `ClosingSelection`.
+    ClosingSelectionPull,
+    /// The `head` field of `ClosingSelection`.
+    ClosingSelectionHead,
+    /// The `progress` field of `ClosingSelection`.
+    ClosingSelectionProgress,
+    /// Bytes after `ClosingSelection`.
+    ClosingSelectionTail,
+    /// The `question` field of `ClosingAsked`.
+    ClosingAskedQuestion,
+    /// The `answer` field of `ClosingAsked`.
+    ClosingAskedAnswer,
+    /// Bytes after `ClosingAsked`.
+    ClosingAskedTail,
+    /// The tag of `ClosingStands`.
+    ClosingStandsTag,
+    /// The `asker` field of `ClosingQuestion`.
+    ClosingQuestionAsker,
+    /// The `number` field of `ClosingQuestion`.
+    ClosingQuestionNumber,
+    /// The `step` field of `ClosingQuestion`.
+    ClosingQuestionStep,
+    /// The `words` field of `ClosingQuestion`.
+    ClosingQuestionWords,
+    /// The `stands` field of `ClosingQuestion`.
+    ClosingQuestionStands,
+    /// Bytes after `ClosingQuestion`.
+    ClosingQuestionTail,
+    /// The tag of `ClosingForm`.
+    ClosingFormTag,
+    /// The `target` field of `ClosingMessage`.
+    ClosingMessageTarget,
+    /// The `form` field of `ClosingMessage`.
+    ClosingMessageForm,
+    /// The `words` field of `ClosingMessage`.
+    ClosingMessageWords,
+    /// Bytes after `ClosingMessage`.
+    ClosingMessageTail,
+    /// The `open` field of `ClosingRelay`.
+    ClosingRelayOpen,
+    /// The `replies` field of `ClosingRelay`.
+    ClosingRelayReplies,
+    /// Bytes after `ClosingRelay`.
+    ClosingRelayTail,
+    /// The `task` field of `Closer`.
+    CloserTask,
+    /// The `goal` field of `Closer`.
+    CloserGoal,
+    /// The `closed` field of `Closer`.
+    CloserClosed,
+    /// The `running` field of `Closer`.
+    CloserRunning,
+    /// The `landing` field of `Closer`.
+    CloserLanding,
+    /// The `hold` field of `Closer`.
+    CloserHold,
+    /// The `retry` field of `Closer`.
+    CloserRetry,
+    /// The `making` field of `Closer`.
+    CloserMaking,
+    /// The `close_changes` field of `Closer`.
+    CloserCloseChanges,
+    /// The `landing_changes` field of `Closer`.
+    CloserLandingChanges,
+    /// The `selections` field of `Closer`.
+    CloserSelections,
+    /// The `done` field of `Closer`.
+    CloserDone,
+    /// The `relay` field of `Closer`.
+    CloserRelay,
+    /// Bytes after `Closer`.
+    CloserTail,
+    /// The `repository` field of `LandedDraft`.
+    LandedDraftRepository,
+    /// The `path` field of `LandedDraft`.
+    LandedDraftPath,
+    /// The `project` field of `LandedDraft`.
+    LandedDraftProject,
+    /// The `branch` field of `LandedDraft`.
+    LandedDraftBranch,
+    /// The `commit` field of `LandedDraft`.
+    LandedDraftCommit,
+    /// The `title` field of `LandedDraft`.
+    LandedDraftTitle,
+    /// The `writer` field of `LandedDraft`.
+    LandedDraftWriter,
+    /// The `at` field of `LandedDraft`.
+    LandedDraftAt,
+    /// The `chat` field of `LandedDraft`.
+    LandedDraftChat,
+    /// The `goal` field of `LandedDraft`.
+    LandedDraftGoal,
+    /// The `ready` field of `LandedDraft`.
+    LandedDraftReady,
+    /// Bytes after `LandedDraft`.
+    LandedDraftTail,
+    /// The `id` field of `FollowCommit`.
+    FollowCommitId,
+    /// The `message` field of `FollowCommit`.
+    FollowCommitMessage,
+    /// Bytes after `FollowCommit`.
+    FollowCommitTail,
+    /// The `reason` field of `FollowReason`.
+    FollowReasonReason,
+    /// Bytes after `FollowReason`.
+    FollowReasonTail,
+    /// The tag of `FollowState`.
+    FollowStateTag,
+    /// The `files` field of `FollowFiles`.
+    FollowFilesFiles,
+    /// Bytes after `FollowFiles`.
+    FollowFilesTail,
+    /// The `before` field of `FollowEntry`.
+    FollowEntryBefore,
+    /// The `after` field of `FollowEntry`.
+    FollowEntryAfter,
+    /// The `pull` field of `FollowEntry`.
+    FollowEntryPull,
+    /// The `commits` field of `FollowEntry`.
+    FollowEntryCommits,
+    /// The `more_commits` field of `FollowEntry`.
+    FollowEntryMoreCommits,
+    /// The `files` field of `FollowEntry`.
+    FollowEntryFiles,
+    /// The `more_files` field of `FollowEntry`.
+    FollowEntryMoreFiles,
+    /// The `change` field of `FollowEntry`.
+    FollowEntryChange,
+    /// The `state` field of `FollowEntry`.
+    FollowEntryState,
+    /// The `word` field of `FollowEntry`.
+    FollowEntryWord,
+    /// The `remake` field of `FollowEntry`.
+    FollowEntryRemake,
+    /// Bytes after `FollowEntry`.
+    FollowEntryTail,
+    /// The `after` field of `FollowSkip`.
+    FollowSkipAfter,
+    /// The `reason` field of `FollowSkip`.
+    FollowSkipReason,
+    /// Bytes after `FollowSkip`.
+    FollowSkipTail,
+    /// The `count` field of `FollowFailing`.
+    FollowFailingCount,
+    /// Bytes after `FollowFailing`.
+    FollowFailingTail,
+    /// The tag of `FollowVerdict`.
+    FollowVerdictTag,
+    /// The `source` field of `FollowParity`.
+    FollowParitySource,
+    /// The `head` field of `FollowParity`.
+    FollowParityHead,
+    /// The `verdict` field of `FollowParity`.
+    FollowParityVerdict,
+    /// The `run` field of `FollowParity`.
+    FollowParityRun,
+    /// Bytes after `FollowParity`.
+    FollowParityTail,
+    /// The `change` field of `FollowQuestion`.
+    FollowQuestionChange,
+    /// The `number` field of `FollowQuestion`.
+    FollowQuestionNumber,
+    /// The `words` field of `FollowQuestion`.
+    FollowQuestionWords,
+    /// The `person` field of `FollowQuestion`.
+    FollowQuestionPerson,
+    /// The `answer` field of `FollowQuestion`.
+    FollowQuestionAnswer,
+    /// The `relayed` field of `FollowQuestion`.
+    FollowQuestionRelayed,
+    /// Bytes after `FollowQuestion`.
+    FollowQuestionTail,
+    /// The `project` field of `FollowRow`.
+    FollowRowProject,
+    /// The `follow` field of `FollowRow`.
+    FollowRowFollow,
+    /// The `source` field of `FollowRow`.
+    FollowRowSource,
+    /// The `branch` field of `FollowRow`.
+    FollowRowBranch,
+    /// The `heard` field of `FollowRow`.
+    FollowRowHeard,
+    /// The `task` field of `FollowRow`.
+    FollowRowTask,
+    /// The `stopped` field of `FollowRow`.
+    FollowRowStopped,
+    /// The `queue` field of `FollowRow`.
+    FollowRowQueue,
+    /// The `skips` field of `FollowRow`.
+    FollowRowSkips,
+    /// The `parity` field of `FollowRow`.
+    FollowRowParity,
+    /// The `questions` field of `FollowRow`.
+    FollowRowQuestions,
+    /// The `pending` field of `FollowRow`.
+    FollowRowPending,
+    /// Bytes after `FollowRow`.
+    FollowRowTail,
+    /// The `follow` field of `FollowCheckProgress`.
+    FollowCheckProgressFollow,
+    /// The `source` field of `FollowCheckProgress`.
+    FollowCheckProgressSource,
+    /// The `head` field of `FollowCheckProgress`.
+    FollowCheckProgressHead,
+    /// The `definition` field of `FollowCheckProgress`.
+    FollowCheckProgressDefinition,
+    /// The `key` field of `FollowCheckProgress`.
+    FollowCheckProgressKey,
+    /// The `flight` field of `FollowCheckProgress`.
+    FollowCheckProgressFlight,
+    /// The `page` field of `FollowCheckProgress`.
+    FollowCheckProgressPage,
+    /// The `faults` field of `FollowCheckProgress`.
+    FollowCheckProgressFaults,
+    /// The `held` field of `FollowCheckProgress`.
+    FollowCheckProgressHeld,
+    /// Bytes after `FollowCheckProgress`.
+    FollowCheckProgressTail,
+    /// The `last` field of `ChangeHistory`.
+    ChangeHistoryLast,
+    /// The `ready` field of `ChangeHistory`.
+    ChangeHistoryReady,
+    /// The `queued` field of `ChangeHistory`.
+    ChangeHistoryQueued,
+    /// The `paused` field of `ChangeHistory`.
+    ChangeHistoryPaused,
+    /// The `held` field of `ChangeHistory`.
+    ChangeHistoryHeld,
+    /// The `landing_held` field of `ChangeHistory`.
+    ChangeHistoryLandingHeld,
+    /// The `delivered` field of `ChangeHistory`.
+    ChangeHistoryDelivered,
+    /// Bytes after `ChangeHistory`.
+    ChangeHistoryTail,
+    /// The `hour` field of `HistoryMark`.
+    HistoryMarkHour,
+    /// The `first` field of `HistoryMark`.
+    HistoryMarkFirst,
+    /// Bytes after `HistoryMark`.
+    HistoryMarkTail,
+    /// The `project` field of `HistoryProject`.
+    HistoryProjectProject,
+    /// The `next` field of `HistoryProject`.
+    HistoryProjectNext,
+    /// The `kept` field of `HistoryProject`.
+    HistoryProjectKept,
+    /// The `whole_since` field of `HistoryProject`.
+    HistoryProjectWholeSince,
+    /// The `marks` field of `HistoryProject`.
+    HistoryProjectMarks,
+    /// The `sweeping` field of `HistoryProject`.
+    HistoryProjectSweeping,
+    /// The `removing` field of `HistoryProject`.
+    HistoryProjectRemoving,
+    /// Bytes after `HistoryProject`.
+    HistoryProjectTail,
+    /// The `task` field of `HistoryInLanding`.
+    HistoryInLandingTask,
+    /// The `round` field of `HistoryInLanding`.
+    HistoryInLandingRound,
+    /// The `unit` field of `HistoryInLanding`.
+    HistoryInLandingUnit,
+    /// Bytes after `HistoryInLanding`.
+    HistoryInLandingTail,
+    /// The tag of `HistoryUnready`.
+    HistoryUnreadyTag,
+    /// The tag of `HistoryLine`.
+    HistoryLineTag,
+    /// The `line` field of `HistoryJoined`.
+    HistoryJoinedLine,
+    /// The `place` field of `HistoryJoined`.
+    HistoryJoinedPlace,
+    /// The `priority` field of `HistoryJoined`.
+    HistoryJoinedPriority,
+    /// Bytes after `HistoryJoined`.
+    HistoryJoinedTail,
+    /// The `cause` field of `HistoryLandingDeparture`.
+    HistoryLandingDepartureCause,
+    /// Bytes after `HistoryLandingDeparture`.
+    HistoryLandingDepartureTail,
+    /// The tag of `HistoryDeparture`.
+    HistoryDepartureTag,
+    /// The `line` field of `HistoryDeparted`.
+    HistoryDepartedLine,
+    /// The `cause` field of `HistoryDeparted`.
+    HistoryDepartedCause,
+    /// Bytes after `HistoryDeparted`.
+    HistoryDepartedTail,
+    /// The `style` field of `HistoryUpdate`.
+    HistoryUpdateStyle,
+    /// The `forge_base` field of `HistoryUpdate`.
+    HistoryUpdateForgeBase,
+    /// Bytes after `HistoryUpdate`.
+    HistoryUpdateTail,
+    /// The tag of `HistoryUpdateOutcome`.
+    HistoryUpdateOutcomeTag,
+    /// The `outcome` field of `HistoryUpdated`.
+    HistoryUpdatedOutcome,
+    /// The `forge_base` field of `HistoryUpdated`.
+    HistoryUpdatedForgeBase,
+    /// Bytes after `HistoryUpdated`.
+    HistoryUpdatedTail,
+    /// The `job` field of `HistoryJobStarted`.
+    HistoryJobStartedJob,
+    /// The `task` field of `HistoryJobStarted`.
+    HistoryJobStartedTask,
+    /// Bytes after `HistoryJobStarted`.
+    HistoryJobStartedTail,
+    /// The `job` field of `HistoryJobEnded`.
+    HistoryJobEndedJob,
+    /// The `outcome` field of `HistoryJobEnded`.
+    HistoryJobEndedOutcome,
+    /// Bytes after `HistoryJobEnded`.
+    HistoryJobEndedTail,
+    /// The tag of `HistoryWith`.
+    HistoryWithTag,
+    /// The `with` field of `HistoryConflict`.
+    HistoryConflictWith,
+    /// The `files` field of `HistoryConflict`.
+    HistoryConflictFiles,
+    /// Bytes after `HistoryConflict`.
+    HistoryConflictTail,
+    /// The tag of `HistoryAsk`.
+    HistoryAskTag,
+    /// The `ask` field of `HistoryAsked`.
+    HistoryAskedAsk,
+    /// The `task` field of `HistoryAsked`.
+    HistoryAskedTask,
+    /// The `gate` field of `HistoryAsked`.
+    HistoryAskedGate,
+    /// Bytes after `HistoryAsked`.
+    HistoryAskedTail,
+    /// The tag of `HistoryAnswer`.
+    HistoryAnswerTag,
+    /// The `ask` field of `HistoryAnswered`.
+    HistoryAnsweredAsk,
+    /// The `outcome` field of `HistoryAnswered`.
+    HistoryAnsweredOutcome,
+    /// Bytes after `HistoryAnswered`.
+    HistoryAnsweredTail,
+    /// The `checked` field of `HistoryDelivered`.
+    HistoryDeliveredChecked,
+    /// Bytes after `HistoryDelivered`.
+    HistoryDeliveredTail,
+    /// The tag of `HistoryPause`.
+    HistoryPauseTag,
+    /// The `why` field of `HistoryPaused`.
+    HistoryPausedWhy,
+    /// Bytes after `HistoryPaused`.
+    HistoryPausedTail,
+    /// The `change` field of `HistoryMember`.
+    HistoryMemberChange,
+    /// The `unit` field of `HistoryMember`.
+    HistoryMemberUnit,
+    /// The `head` field of `HistoryMember`.
+    HistoryMemberHead,
+    /// Bytes after `HistoryMember`.
+    HistoryMemberTail,
+    /// The `members` field of `HistoryFormed`.
+    HistoryFormedMembers,
+    /// The `place` field of `HistoryFormed`.
+    HistoryFormedPlace,
+    /// Bytes after `HistoryFormed`.
+    HistoryFormedTail,
+    /// The tag of `HistoryRoundCause`.
+    HistoryRoundCauseTag,
+    /// The `cause` field of `HistoryRoundEnded`.
+    HistoryRoundEndedCause,
+    /// Bytes after `HistoryRoundEnded`.
+    HistoryRoundEndedTail,
+    /// The `gate` field of `HistoryGate`.
+    HistoryGateGate,
+    /// The `key` field of `HistoryGate`.
+    HistoryGateKey,
+    /// Bytes after `HistoryGate`.
+    HistoryGateTail,
+    /// The tag of `HistoryGateVerdict`.
+    HistoryGateVerdictTag,
+    /// The `gate` field of `HistoryGateEnded`.
+    HistoryGateEndedGate,
+    /// The `key` field of `HistoryGateEnded`.
+    HistoryGateEndedKey,
+    /// The `verdict` field of `HistoryGateEnded`.
+    HistoryGateEndedVerdict,
+    /// Bytes after `HistoryGateEnded`.
+    HistoryGateEndedTail,
+    /// The `gate` field of `HistoryProof`.
+    HistoryProofGate,
+    /// The `run` field of `HistoryProof`.
+    HistoryProofRun,
+    /// Bytes after `HistoryProof`.
+    HistoryProofTail,
+    /// The `proofs` field of `HistoryProved`.
+    HistoryProvedProofs,
+    /// Bytes after `HistoryProved`.
+    HistoryProvedTail,
+    /// The `green` field of `HistorySearched`.
+    HistorySearchedGreen,
+    /// The `red` field of `HistorySearched`.
+    HistorySearchedRed,
+    /// The `blamed` field of `HistorySearched`.
+    HistorySearchedBlamed,
+    /// Bytes after `HistorySearched`.
+    HistorySearchedTail,
+    /// The `green` field of `HistoryProbeEnded`.
+    HistoryProbeEndedGreen,
+    /// Bytes after `HistoryProbeEnded`.
+    HistoryProbeEndedTail,
+    /// The `members` field of `HistoryTurn`.
+    HistoryTurnMembers,
+    /// Bytes after `HistoryTurn`.
+    HistoryTurnTail,
+    /// The tag of `HistoryRecordedState`.
+    HistoryRecordedStateTag,
+    /// The `state` field of `HistoryRecorded`.
+    HistoryRecordedState,
+    /// Bytes after `HistoryRecorded`.
+    HistoryRecordedTail,
+    /// The tag of `HistoryEnding`.
+    HistoryEndingTag,
+    /// The `ending` field of `HistoryEnded`.
+    HistoryEndedEnding,
+    /// Bytes after `HistoryEnded`.
+    HistoryEndedTail,
+    /// The tag of `HistoryLandingOutcome`.
+    HistoryLandingOutcomeTag,
+    /// The `outcome` field of `HistoryLandingEnded`.
+    HistoryLandingEndedOutcome,
+    /// Bytes after `HistoryLandingEnded`.
+    HistoryLandingEndedTail,
+    /// The tag of `HistoryOn`.
+    HistoryOnTag,
+    /// The tag of `HistoryBy`.
+    HistoryByTag,
+    /// The `on` field of `HistoryHold`.
+    HistoryHoldOn,
+    /// The `reason` field of `HistoryHold`.
+    HistoryHoldReason,
+    /// The `by` field of `HistoryHold`.
+    HistoryHoldBy,
+    /// Bytes after `HistoryHold`.
+    HistoryHoldTail,
+    /// The tag of `HistoryAfterVerdict`.
+    HistoryAfterVerdictTag,
+    /// The `verdict` field of `HistoryAfter`.
+    HistoryAfterVerdict,
+    /// Bytes after `HistoryAfter`.
+    HistoryAfterTail,
+    /// The `why` field of `HistoryUnreadyStep`.
+    HistoryUnreadyStepWhy,
+    /// Bytes after `HistoryUnreadyStep`.
+    HistoryUnreadyStepTail,
+    /// The tag of `HistoryWhat`.
+    HistoryWhatTag,
+    /// The `project` field of `HistoryEvent`.
+    HistoryEventProject,
+    /// The `number` field of `HistoryEvent`.
+    HistoryEventNumber,
+    /// The `at` field of `HistoryEvent`.
+    HistoryEventAt,
+    /// The `source_at` field of `HistoryEvent`.
+    HistoryEventSourceAt,
+    /// The `change` field of `HistoryEvent`.
+    HistoryEventChange,
+    /// The `repository` field of `HistoryEvent`.
+    HistoryEventRepository,
+    /// The `landing` field of `HistoryEvent`.
+    HistoryEventLanding,
+    /// The `head` field of `HistoryEvent`.
+    HistoryEventHead,
+    /// The `base` field of `HistoryEvent`.
+    HistoryEventBase,
+    /// The `operation` field of `HistoryEvent`.
+    HistoryEventOperation,
+    /// The `attempt` field of `HistoryEvent`.
+    HistoryEventAttempt,
+    /// The `what` field of `HistoryEvent`.
+    HistoryEventWhat,
+    /// Bytes after `HistoryEvent`.
+    HistoryEventTail,
+    /// The `project` field of `HistoryChange`.
+    HistoryChangeProject,
+    /// The `change` field of `HistoryChange`.
+    HistoryChangeChange,
+    /// The `number` field of `HistoryChange`.
+    HistoryChangeNumber,
+    /// The `landing` field of `HistoryChange`.
+    HistoryChangeLanding,
+    /// Bytes after `HistoryChange`.
+    HistoryChangeTail,
+    /// The `project` field of `HistoryLanding`.
+    HistoryLandingProject,
+    /// The `landing` field of `HistoryLanding`.
+    HistoryLandingLanding,
+    /// The `number` field of `HistoryLanding`.
+    HistoryLandingNumber,
+    /// The `change` field of `HistoryLanding`.
+    HistoryLandingChange,
+    /// Bytes after `HistoryLanding`.
+    HistoryLandingTail,
+    /// The `project` field of `HistoryLast`.
+    HistoryLastProject,
+    /// The `number` field of `HistoryLast`.
+    HistoryLastNumber,
+    /// The `change` field of `HistoryLast`.
+    HistoryLastChange,
+    /// The `at` field of `HistoryLast`.
+    HistoryLastAt,
+    /// Bytes after `HistoryLast`.
+    HistoryLastTail,
+    /// The `revision` field of `TaskRelease`.
+    TaskReleaseRevision,
+    /// The `at` field of `TaskRelease`.
+    TaskReleaseAt,
+    /// Bytes after `TaskRelease`.
+    TaskReleaseTail,
+    /// The `project` field of `FindingsTopic`.
+    FindingsTopicProject,
+    /// Bytes after `FindingsTopic`.
+    FindingsTopicTail,
+    /// The tag of `Topic`.
+    TopicTag,
+    /// The `branch` field of `ChangeSource`.
+    ChangeSourceBranch,
+    /// The `at` field of `ChangeSource`.
+    ChangeSourceAt,
+    /// Bytes after `ChangeSource`.
+    ChangeSourceTail,
+    /// The `milestone` field of `ChangeCold`.
+    ChangeColdMilestone,
+    /// The `source` field of `ChangeCold`.
+    ChangeColdSource,
+    /// The `goal` field of `ChangeCold`.
+    ChangeColdGoal,
+    /// The `task` field of `ChangeCold`.
+    ChangeColdTask,
+    /// The `repository` field of `ChangeCold`.
+    ChangeColdRepository,
+    /// The `branch` field of `ChangeCold`.
+    ChangeColdBranch,
+    /// The `base` field of `ChangeCold`.
+    ChangeColdBase,
+    /// The `title` field of `ChangeCold`.
+    ChangeColdTitle,
+    /// The `body` field of `ChangeCold`.
+    ChangeColdBody,
+    /// The `base_repair` field of `ChangeCold`.
+    ChangeColdBaseRepair,
+    /// The `producing_charter` field of `ChangeCold`.
+    ChangeColdProducingCharter,
+    /// The `review_charter` field of `ChangeCold`.
+    ChangeColdReviewCharter,
+    /// The `producing_llm` field of `ChangeCold`.
+    ChangeColdProducingLlm,
+    /// The `review_llm` field of `ChangeCold`.
+    ChangeColdReviewLlm,
+    /// The `report` field of `ChangeCold`.
+    ChangeColdReport,
+    /// The `repairs` field of `ChangeCold`.
+    ChangeColdRepairs,
+    /// The `follows` field of `ChangeCold`.
+    ChangeColdFollows,
+    /// The `catch_up` field of `ChangeCold`.
+    ChangeColdCatchUp,
+    /// The `close` field of `ChangeCold`.
+    ChangeColdClose,
+    /// Bytes after `ChangeCold`.
+    ChangeColdTail,
+    /// The `receipt` field of `Regate`.
+    RegateReceipt,
+    /// The `run` field of `Regate`.
+    RegateRun,
+    /// Bytes after `Regate`.
+    RegateTail,
+    /// The `room` field of `ChangeHot`.
+    ChangeHotRoom,
+    /// The `delegate_head` field of `ChangeHot`.
+    ChangeHotDelegateHead,
+    /// The `delegate_flake` field of `ChangeHot`.
+    ChangeHotDelegateFlake,
+    /// The `regate` field of `ChangeHot`.
+    ChangeHotRegate,
+    /// The `kept` field of `ChangeHot`.
+    ChangeHotKept,
+    /// The `task_release` field of `ChangeHot`.
+    ChangeHotTaskRelease,
+    /// The `job` field of `ChangeHot`.
+    ChangeHotJob,
+    /// The `signed` field of `ChangeHot`.
+    ChangeHotSigned,
+    /// The `ending` field of `ChangeHot`.
+    ChangeHotEnding,
+    /// The `repair_tasks` field of `ChangeHot`.
+    ChangeHotRepairTasks,
+    /// The `resolution_tasks` field of `ChangeHot`.
+    ChangeHotResolutionTasks,
+    /// The `result` field of `ChangeHot`.
+    ChangeHotResult,
+    /// The `task` field of `ChangeHot`.
+    ChangeHotTask,
+    /// The `priority` field of `ChangeHot`.
+    ChangeHotPriority,
+    /// The `change` field of `ChangeHot`.
+    ChangeHotChange,
+    /// The `ci` field of `ChangeHot`.
+    ChangeHotCi,
+    /// The `pull` field of `ChangeHot`.
+    ChangeHotPull,
+    /// The `pending` field of `ChangeHot`.
+    ChangeHotPending,
+    /// The `effect` field of `ChangeHot`.
+    ChangeHotEffect,
+    /// The `delegate` field of `ChangeHot`.
+    ChangeHotDelegate,
+    /// The `delegate_status` field of `ChangeHot`.
+    ChangeHotDelegateStatus,
+    /// The `verdicts` field of `ChangeHot`.
+    ChangeHotVerdicts,
+    /// The `gate_remarks` field of `ChangeHot`.
+    ChangeHotGateRemarks,
+    /// The `drift` field of `ChangeHot`.
+    ChangeHotDrift,
+    /// The `queue_repair` field of `ChangeHot`.
+    ChangeHotQueueRepair,
+    /// The `queue_repairs` field of `ChangeHot`.
+    ChangeHotQueueRepairs,
+    /// The `effect_account` field of `ChangeHot`.
+    ChangeHotEffectAccount,
+    /// The `producer_failure` field of `ChangeHot`.
+    ChangeHotProducerFailure,
+    /// The `questions` field of `ChangeHot`.
+    ChangeHotQuestions,
+    /// The `follow_check` field of `ChangeHot`.
+    ChangeHotFollowCheck,
+    /// The `merge_result` field of `ChangeHot`.
+    ChangeHotMergeResult,
+    /// The `history` field of `ChangeHot`.
+    ChangeHotHistory,
+    /// Bytes after `ChangeHot`.
+    ChangeHotTail,
+    /// The `task` field of `Subscriber`.
+    SubscriberTask,
+    /// The `number` field of `Subscriber`.
+    SubscriberNumber,
+    /// The `topic` field of `Subscriber`.
+    SubscriberTopic,
+    /// The `own_change` field of `Subscriber`.
+    SubscriberOwnChange,
+    /// The `goal_tasks` field of `Subscriber`.
+    SubscriberGoalTasks,
+    /// The `paths` field of `Subscriber`.
+    SubscriberPaths,
+    /// Bytes after `Subscriber`.
+    SubscriberTail,
+    /// The `number` field of `FindingCount`.
+    FindingCountNumber,
+    /// Bytes after `FindingCount`.
+    FindingCountTail,
+    /// The tag of `FindingHolder`.
+    FindingHolderTag,
+    /// The `holder` field of `FindingHeld`.
+    FindingHeldHolder,
+    /// Bytes after `FindingHeld`.
+    FindingHeldTail,
+    /// The `names` field of `FindingAreas`.
+    FindingAreasNames,
+    /// Bytes after `FindingAreas`.
+    FindingAreasTail,
+    /// The `words` field of `FindingWords`.
+    FindingWordsWords,
+    /// Bytes after `FindingWords`.
+    FindingWordsTail,
+    /// The tag of `FindingRefusal`.
+    FindingRefusalTag,
+    /// The `why` field of `FindingRefused`.
+    FindingRefusedWhy,
+    /// Bytes after `FindingRefused`.
+    FindingRefusedTail,
+    /// The tag of `FindingResult`.
+    FindingResultTag,
+    /// The `project` field of `FindingReply`.
+    FindingReplyProject,
+    /// The `number` field of `FindingReply`.
+    FindingReplyNumber,
+    /// The `area` field of `FindingReply`.
+    FindingReplyArea,
+    /// The `result` field of `FindingReply`.
+    FindingReplyResult,
+    /// Bytes after `FindingReply`.
+    FindingReplyTail,
+    /// The `follow` field of `CallFollow`.
+    CallFollowFollow,
+    /// The `refusal` field of `CallFollow`.
+    CallFollowRefusal,
+    /// Bytes after `CallFollow`.
+    CallFollowTail,
+    /// The tag of `Recorder`.
+    RecorderTag,
+    /// The `goal` field of `Red`.
+    RedGoal,
+    /// The `key` field of `Red`.
+    RedKey,
+    /// The `head` field of `Red`.
+    RedHead,
+    /// The `why` field of `Red`.
+    RedWhy,
+    /// The `by` field of `Red`.
+    RedBy,
+    /// The `at` field of `Red`.
+    RedAt,
+    /// The `generation` field of `Red`.
+    RedGeneration,
+    /// Bytes after `Red`.
+    RedTail,
+    /// The `last` field of `RedNumber`.
+    RedNumberLast,
+    /// Bytes after `RedNumber`.
+    RedNumberTail,
+    /// The `change` field of `RedPass`.
+    RedPassChange,
+    /// The `key` field of `RedPass`.
+    RedPassKey,
+    /// The `generation` field of `RedPass`.
+    RedPassGeneration,
+    /// Bytes after `RedPass`.
+    RedPassTail,
+    /// The `head` field of `RedRecorded`.
+    RedRecordedHead,
+    /// The `generation` field of `RedRecorded`.
+    RedRecordedGeneration,
+    /// The `replaced` field of `RedRecorded`.
+    RedRecordedReplaced,
+    /// Bytes after `RedRecorded`.
+    RedRecordedTail,
+    /// The `bound` field of `RedFull`.
+    RedFullBound,
+    /// Bytes after `RedFull`.
+    RedFullTail,
+    /// The tag of `RedRefusal`.
+    RedRefusalTag,
+    /// The `why` field of `RedRefused`.
+    RedRefusedWhy,
+    /// Bytes after `RedRefused`.
+    RedRefusedTail,
+    /// The tag of `RedResult`.
+    RedResultTag,
+    /// The `goal` field of `RedReply`.
+    RedReplyGoal,
+    /// The `key` field of `RedReply`.
+    RedReplyKey,
+    /// The `result` field of `RedReply`.
+    RedReplyResult,
+    /// Bytes after `RedReply`.
+    RedReplyTail,
+    /// The tag of `CallPayload`.
+    CallPayloadTag,
+    /// The `key` field of `Call`.
+    CallKey,
+    /// The `answer` field of `Call`.
+    CallAnswer,
+    /// Bytes after `Call`.
+    CallTail,
+    /// The `number` field of `AreaTask`.
+    AreaTaskNumber,
+    /// Bytes after `AreaTask`.
+    AreaTaskTail,
+    /// The `number` field of `AreaParty`.
+    AreaPartyNumber,
+    /// Bytes after `AreaParty`.
+    AreaPartyTail,
+    /// The `number` field of `AreaRole`.
+    AreaRoleNumber,
+    /// Bytes after `AreaRole`.
+    AreaRoleTail,
+    /// The `number` field of `AreaCharter`.
+    AreaCharterNumber,
+    /// Bytes after `AreaCharter`.
+    AreaCharterTail,
+    /// The tag of `AreaOwner`.
+    AreaOwnerTag,
+    /// The `name` field of `Area`.
+    AreaName,
+    /// The `words` field of `Area`.
+    AreaWords,
+    /// The `owner` field of `Area`.
+    AreaOwner,
+    /// Bytes after `Area`.
+    AreaTail,
+    /// The `areas` field of `ProjectAreas`.
+    ProjectAreasAreas,
+    /// Bytes after `ProjectAreas`.
+    ProjectAreasTail,
+    /// The `owner` field of `ProjectTriager`.
+    ProjectTriagerOwner,
+    /// Bytes after `ProjectTriager`.
+    ProjectTriagerTail,
+    /// The `shown` field of `Welcome`.
+    WelcomeShown,
+    /// Bytes after `Welcome`.
+    WelcomeTail,
+    /// The `name` field of `LimitOverride`.
+    LimitOverrideName,
+    /// The `value` field of `LimitOverride`.
+    LimitOverrideValue,
+    /// The `reason` field of `LimitOverride`.
+    LimitOverrideReason,
+    /// Bytes after `LimitOverride`.
+    LimitOverrideTail,
+    /// The `overrides` field of `TemperLimits`.
+    TemperLimitsOverrides,
+    /// Bytes after `TemperLimits`.
+    TemperLimitsTail,
+    /// The `name` field of `AgentFigure`.
+    AgentFigureName,
+    /// The `value` field of `AgentFigure`.
+    AgentFigureValue,
+    /// Bytes after `AgentFigure`.
+    AgentFigureTail,
+    /// The tag of `Oversized`.
+    OversizedTag,
+    /// The `window` field of `AgentLimits`.
+    AgentLimitsWindow,
+    /// The `output` field of `AgentLimits`.
+    AgentLimitsOutput,
+    /// The `reasoning_item` field of `AgentLimits`.
+    AgentLimitsReasoningItem,
+    /// The `head_ms` field of `AgentLimits`.
+    AgentLimitsHeadMs,
+    /// The `idle_ms` field of `AgentLimits`.
+    AgentLimitsIdleMs,
+    /// The `oversized` field of `AgentLimits`.
+    AgentLimitsOversized,
+    /// Bytes after `AgentLimits`.
+    AgentLimitsTail,
+    /// The `endpoint` field of `AgentEndpointLimits`.
+    AgentEndpointLimitsEndpoint,
+    /// The `limits` field of `AgentEndpointLimits`.
+    AgentEndpointLimitsLimits,
+    /// Bytes after `AgentEndpointLimits`.
+    AgentEndpointLimitsTail,
+    /// The `profile` field of `AgentFigures`.
+    AgentFiguresProfile,
+    /// The `endpoints` field of `AgentFigures`.
+    AgentFiguresEndpoints,
+    /// The `fallback` field of `AgentFigures`.
+    AgentFiguresFallback,
+    /// Bytes after `AgentFigures`.
+    AgentFiguresTail,
+    /// The tag of `SettingValue`.
+    SettingValueTag,
+    /// The `value` field of `SizedValue`.
+    SizedValueValue,
+    /// The `size` field of `SizedValue`.
+    SizedValueSize,
+    /// Bytes after `SizedValue`.
+    SizedValueTail,
+    /// The tag of `SettingEdit`.
+    SettingEditTag,
+    /// The `kind` field of `SettingRow`.
+    SettingRowKind,
+    /// The `scope` field of `SettingRow`.
+    SettingRowScope,
+    /// The `number` field of `SettingRow`.
+    SettingRowNumber,
+    /// The `slot` field of `SettingRow`.
+    SettingRowSlot,
+    /// The `edit` field of `SettingRow`.
+    SettingRowEdit,
+    /// Bytes after `SettingRow`.
+    SettingRowTail,
+    /// The tag of `FindingKind`.
+    FindingKindTag,
+    /// The tag of `Severity`.
+    SeverityTag,
+    /// The tag of `FindingState`.
+    FindingStateTag,
+    /// The tag of `Filer`.
+    FilerTag,
+    /// The `repository` field of `FindingSignature`.
+    FindingSignatureRepository,
+    /// The `source` field of `FindingSignature`.
+    FindingSignatureSource,
+    /// The `ids` field of `FindingSignature`.
+    FindingSignatureIds,
+    /// The `first` field of `FindingSignature`.
+    FindingSignatureFirst,
+    /// Bytes after `FindingSignature`.
+    FindingSignatureTail,
+    /// The `project` field of `Finding`.
+    FindingProject,
+    /// The `number` field of `Finding`.
+    FindingNumber,
+    /// The `kind` field of `Finding`.
+    FindingKind,
+    /// The `severity` field of `Finding`.
+    FindingSeverity,
+    /// The `area` field of `Finding`.
+    FindingArea,
+    /// The `state` field of `Finding`.
+    FindingState,
+    /// The `title` field of `Finding`.
+    FindingTitle,
+    /// The `body` field of `Finding`.
+    FindingBody,
+    /// The `filer` field of `Finding`.
+    FindingFiler,
+    /// The `at` field of `Finding`.
+    FindingAt,
+    /// The `why` field of `Finding`.
+    FindingWhy,
+    /// The `hander` field of `Finding`.
+    FindingHander,
+    /// The `goal` field of `Finding`.
+    FindingGoal,
+    /// The `reason` field of `Finding`.
+    FindingReason,
+    /// The `signature` field of `Finding`.
+    FindingSignature,
+    /// The `seen` field of `Finding`.
+    FindingSeen,
+    /// Bytes after `Finding`.
+    FindingTail,
+    /// The `party` field of `Device`.
+    DeviceParty,
+    /// The `number` field of `Device`.
+    DeviceNumber,
+    /// The `endpoint` field of `Device`.
+    DeviceEndpoint,
+    /// The `p256dh` field of `Device`.
+    DeviceP256dh,
+    /// The `auth` field of `Device`.
+    DeviceAuth,
+    /// The `label` field of `Device`.
+    DeviceLabel,
+    /// The `at` field of `Device`.
+    DeviceAt,
+    /// Bytes after `Device`.
+    DeviceTail,
+    /// The tag of `Value`.
+    ValueTag,
+    /// The `value` field of `Row`.
+    RowValue,
+    /// The version of `Row`.
+    RowVersion,
+    /// Bytes after `Row`.
+    RowTail,
+}
+
+impl Path {
+    /// The path as the schema spells it (skein/docs/design/data/codec/README.md, 4).
+    #[must_use]
+    #[expect(clippy::too_many_lines, reason = "each schema path has one exhaustive naming arm")]
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::RepositoryForge => "Repository.forge",
+            Self::RepositoryRepository => "Repository.repository",
+            Self::RepositoryTail => "Repository (tail)",
+            Self::NumberNumber => "Number.number",
+            Self::NumberTail => "Number (tail)",
+            Self::CommitCommit => "Commit.commit",
+            Self::CommitTail => "Commit (tail)",
+            Self::SegmentName => "Segment.name",
+            Self::SegmentTail => "Segment (tail)",
+            Self::AnswerNameName => "AnswerName.name",
+            Self::AnswerNameTail => "AnswerName (tail)",
+            Self::SegmentsSegments => "Segments.segments",
+            Self::SegmentsTail => "Segments (tail)",
+            Self::WhatTag => "What (tag)",
+            Self::NameForge => "Name.forge",
+            Self::NameRepository => "Name.repository",
+            Self::NameWhat => "Name.what",
+            Self::NameTail => "Name (tail)",
+            Self::ItemStateTag => "ItemState (tag)",
+            Self::CiTag => "Ci (tag)",
+            Self::BypassTag => "Bypass (tag)",
+            Self::ProtectionBranch => "Protection.branch",
+            Self::ProtectionContexts => "Protection.contexts",
+            Self::ProtectionApprovals => "Protection.approvals",
+            Self::ProtectionDismissStale => "Protection.dismiss_stale",
+            Self::ProtectionQueue => "Protection.queue",
+            Self::ProtectionSignatures => "Protection.signatures",
+            Self::ProtectionLinear => "Protection.linear",
+            Self::ProtectionCodeOwners => "Protection.code_owners",
+            Self::ProtectionBypass => "Protection.bypass",
+            Self::ProtectionTail => "Protection (tail)",
+            Self::SettingsDefaultBranch => "Settings.default_branch",
+            Self::SettingsMerge => "Settings.merge",
+            Self::SettingsSquash => "Settings.squash",
+            Self::SettingsRebase => "Settings.rebase",
+            Self::SettingsTail => "Settings (tail)",
+            Self::RoleTag => "Role (tag)",
+            Self::KindsRead => "Kinds.read",
+            Self::KindsPush => "Kinds.push",
+            Self::KindsOpen => "Kinds.open",
+            Self::KindsLand => "Kinds.land",
+            Self::KindsReview => "Kinds.review",
+            Self::KindsStatus => "Kinds.status",
+            Self::KindsComment => "Kinds.comment",
+            Self::KindsIssue => "Kinds.issue",
+            Self::KindsBranch => "Kinds.branch",
+            Self::KindsTail => "Kinds (tail)",
+            Self::RepositoryProtectionTag => "RepositoryProtection (tag)",
+            Self::AdoptedProject => "Adopted.project",
+            Self::AdoptedContexts => "Adopted.contexts",
+            Self::AdoptedHome => "Adopted.home",
+            Self::AdoptedProvider => "Adopted.provider",
+            Self::AdoptedHost => "Adopted.host",
+            Self::AdoptedOwner => "Adopted.owner",
+            Self::AdoptedName => "Adopted.name",
+            Self::AdoptedPrefix => "Adopted.prefix",
+            Self::AdoptedRole => "Adopted.role",
+            Self::AdoptedCi => "Adopted.ci",
+            Self::AdoptedChecks => "Adopted.checks",
+            Self::AdoptedKinds => "Adopted.kinds",
+            Self::AdoptedProtection => "Adopted.protection",
+            Self::AdoptedSettings => "Adopted.settings",
+            Self::AdoptedWorkflows => "Adopted.workflows",
+            Self::AdoptedLanding => "Adopted.landing",
+            Self::AdoptedTail => "Adopted (tail)",
+            Self::RunWriterTask => "RunWriter.task",
+            Self::RunWriterAttempt => "RunWriter.attempt",
+            Self::RunWriterTail => "RunWriter (tail)",
+            Self::WriterTag => "Writer (tag)",
+            Self::BranchDriftExpected => "BranchDrift.expected",
+            Self::BranchDriftObserved => "BranchDrift.observed",
+            Self::BranchDriftTail => "BranchDrift (tail)",
+            Self::RetargetedNumber => "Retargeted.number",
+            Self::RetargetedBefore => "Retargeted.before",
+            Self::RetargetedAfter => "Retargeted.after",
+            Self::RetargetedTail => "Retargeted (tail)",
+            Self::DriftChangeTag => "DriftChange (tag)",
+            Self::DriftAt => "Drift.at",
+            Self::DriftChange => "Drift.change",
+            Self::DriftTail => "Drift (tail)",
+            Self::DesignWriterTask => "DesignWriter.task",
+            Self::DesignWriterAttempt => "DesignWriter.attempt",
+            Self::DesignWriterRereading => "DesignWriter.rereading",
+            Self::DesignWriterTail => "DesignWriter (tail)",
+            Self::HeadBesideHead => "HeadBeside.head",
+            Self::HeadBesideWaiting => "HeadBeside.waiting",
+            Self::HeadBesideTail => "HeadBeside (tail)",
+            Self::HoldBeside => "Hold.beside",
+            Self::HoldName => "Hold.name",
+            Self::HoldTask => "Hold.task",
+            Self::HoldWriter => "Hold.writer",
+            Self::HoldDesignWriters => "Hold.design_writers",
+            Self::HoldDrift => "Hold.drift",
+            Self::HoldTail => "Hold (tail)",
+            Self::NamesTask => "Names.task",
+            Self::NamesResources => "Names.resources",
+            Self::NamesTail => "Names (tail)",
+            Self::LimitSetTag => "LimitSet (tag)",
+            Self::LimitHoldTask => "LimitHold.task",
+            Self::LimitHoldMember => "LimitHold.member",
+            Self::LimitHoldConfigured => "LimitHold.configured",
+            Self::LimitHoldNeeded => "LimitHold.needed",
+            Self::LimitHoldRevision => "LimitHold.revision",
+            Self::LimitHoldAt => "LimitHold.at",
+            Self::LimitHoldRoom => "LimitHold.room",
+            Self::LimitHoldSet => "LimitHold.set",
+            Self::LimitHoldOrder => "LimitHold.order",
+            Self::LimitHoldTail => "LimitHold (tail)",
+            Self::LandingsTopicRepository => "LandingsTopic.repository",
+            Self::LandingsTopicBranch => "LandingsTopic.branch",
+            Self::LandingsTopicTail => "LandingsTopic (tail)",
+            Self::CiTopicRepository => "CiTopic.repository",
+            Self::CiTopicHead => "CiTopic.head",
+            Self::CiTopicTail => "CiTopic (tail)",
+            Self::NumberTopicRepository => "NumberTopic.repository",
+            Self::NumberTopicNumber => "NumberTopic.number",
+            Self::NumberTopicTail => "NumberTopic (tail)",
+            Self::BranchHeadName => "BranchHead.name",
+            Self::BranchHeadCommit => "BranchHead.commit",
+            Self::BranchHeadOwned => "BranchHead.owned",
+            Self::BranchHeadTail => "BranchHead (tail)",
+            Self::PullStateName => "PullState.name",
+            Self::PullStateHead => "PullState.head",
+            Self::PullStateCi => "PullState.ci",
+            Self::PullStateState => "PullState.state",
+            Self::PullStateTail => "PullState (tail)",
+            Self::CiStateRepository => "CiState.repository",
+            Self::CiStateHead => "CiState.head",
+            Self::CiStateStatus => "CiState.status",
+            Self::CiStateTail => "CiState (tail)",
+            Self::LandedCommit => "Landed.commit",
+            Self::LandedTask => "Landed.task",
+            Self::LandedTail => "Landed (tail)",
+            Self::ReleaseEndingTag => "ReleaseEnding (tag)",
+            Self::PendingReleaseEntry => "PendingRelease.entry",
+            Self::PendingReleaseName => "PendingRelease.name",
+            Self::PendingReleaseTail => "PendingRelease (tail)",
+            Self::ReleaseRowTask => "ReleaseRow.task",
+            Self::ReleaseRowRoot => "ReleaseRow.root",
+            Self::ReleaseRowEnding => "ReleaseRow.ending",
+            Self::ReleaseRowClosePull => "ReleaseRow.close_pull",
+            Self::ReleaseRowComment => "ReleaseRow.comment",
+            Self::ReleaseRowPendingRelease => "ReleaseRow.pending_release",
+            Self::ReleaseRowFailed => "ReleaseRow.failed",
+            Self::ReleaseRowEffectsSettled => "ReleaseRow.effects_settled",
+            Self::ReleaseRowReleasing => "ReleaseRow.releasing",
+            Self::ReleaseRowRoom => "ReleaseRow.room",
+            Self::ReleaseRowTail => "ReleaseRow (tail)",
+            Self::VerdictTag => "Verdict (tag)",
+            Self::CheckTag => "Check (tag)",
+            Self::CreateIssueKey => "CreateIssue.key",
+            Self::CreateIssueTitle => "CreateIssue.title",
+            Self::CreateIssueBody => "CreateIssue.body",
+            Self::CreateIssueTail => "CreateIssue (tail)",
+            Self::OpenPullTitle => "OpenPull.title",
+            Self::OpenPullBody => "OpenPull.body",
+            Self::OpenPullHead => "OpenPull.head",
+            Self::OpenPullBase => "OpenPull.base",
+            Self::OpenPullTail => "OpenPull (tail)",
+            Self::PostNumber => "Post.number",
+            Self::PostKey => "Post.key",
+            Self::PostBody => "Post.body",
+            Self::PostTail => "Post (tail)",
+            Self::PostReviewNumber => "PostReview.number",
+            Self::PostReviewKey => "PostReview.key",
+            Self::PostReviewVerdict => "PostReview.verdict",
+            Self::PostReviewBody => "PostReview.body",
+            Self::PostReviewTail => "PostReview (tail)",
+            Self::EditNumber => "Edit.number",
+            Self::EditTitle => "Edit.title",
+            Self::EditBody => "Edit.body",
+            Self::EditTail => "Edit (tail)",
+            Self::SetReviewersNumber => "SetReviewers.number",
+            Self::SetReviewersReviewers => "SetReviewers.reviewers",
+            Self::SetReviewersTail => "SetReviewers (tail)",
+            Self::JobAttemptHead => "JobAttempt.head",
+            Self::JobAttemptRun => "JobAttempt.run",
+            Self::JobAttemptJob => "JobAttempt.job",
+            Self::JobAttemptAttempt => "JobAttempt.attempt",
+            Self::JobAttemptTail => "JobAttempt (tail)",
+            Self::RecordedMergeCommit => "RecordedMerge.commit",
+            Self::RecordedMergeTail => "RecordedMerge (tail)",
+            Self::MergeHowTag => "MergeHow (tag)",
+            Self::UpdateStyleTag => "UpdateStyle (tag)",
+            Self::MergeWriteNumber => "MergeWrite.number",
+            Self::MergeWriteHead => "MergeWrite.head",
+            Self::MergeWriteHow => "MergeWrite.how",
+            Self::MergeWriteTail => "MergeWrite (tail)",
+            Self::UpdateWriteNumber => "UpdateWrite.number",
+            Self::UpdateWriteStyle => "UpdateWrite.style",
+            Self::UpdateWriteTail => "UpdateWrite (tail)",
+            Self::DispatchInputName => "DispatchInput.name",
+            Self::DispatchInputValue => "DispatchInput.value",
+            Self::DispatchInputTail => "DispatchInput (tail)",
+            Self::DispatchWriteWorkflow => "DispatchWrite.workflow",
+            Self::DispatchWriteBranch => "DispatchWrite.branch",
+            Self::DispatchWriteInputs => "DispatchWrite.inputs",
+            Self::DispatchWriteTail => "DispatchWrite (tail)",
+            Self::SetStatusCommit => "SetStatus.commit",
+            Self::SetStatusContext => "SetStatus.context",
+            Self::SetStatusStatus => "SetStatus.status",
+            Self::SetStatusDescription => "SetStatus.description",
+            Self::SetStatusLink => "SetStatus.link",
+            Self::SetStatusTail => "SetStatus (tail)",
+            Self::CreateBranchBranch => "CreateBranch.branch",
+            Self::CreateBranchCommit => "CreateBranch.commit",
+            Self::CreateBranchTail => "CreateBranch (tail)",
+            Self::DeleteBranchBranch => "DeleteBranch.branch",
+            Self::DeleteBranchTail => "DeleteBranch (tail)",
+            Self::WriteTag => "Write (tag)",
+            Self::MergeConditionBase => "MergeCondition.base",
+            Self::MergeConditionTail => "MergeCondition (tail)",
+            Self::UpdateConditionHead => "UpdateCondition.head",
+            Self::UpdateConditionBase => "UpdateCondition.base",
+            Self::UpdateConditionTail => "UpdateCondition (tail)",
+            Self::ConditionTag => "Condition (tag)",
+            Self::EffectWrite => "Effect.write",
+            Self::EffectCondition => "Effect.condition",
+            Self::EffectTail => "Effect (tail)",
+            Self::PositionAt => "Position.at",
+            Self::PositionComment => "Position.comment",
+            Self::PositionReview => "Position.review",
+            Self::PositionReviewPage => "Position.review_page",
+            Self::PositionTail => "Position (tail)",
+            Self::AttemptSent => "Attempt.sent",
+            Self::AttemptDeadline => "Attempt.deadline",
+            Self::AttemptWall => "Attempt.wall",
+            Self::AttemptExpires => "Attempt.expires",
+            Self::AttemptTail => "Attempt (tail)",
+            Self::EntryNumber => "Entry.number",
+            Self::EntryTask => "Entry.task",
+            Self::EntryRepository => "Entry.repository",
+            Self::EntryEffect => "Entry.effect",
+            Self::EntryStart => "Entry.start",
+            Self::EntryAttempt => "Entry.attempt",
+            Self::EntryFailures => "Entry.failures",
+            Self::EntryQueued => "Entry.queued",
+            Self::EntryTail => "Entry (tail)",
+            Self::EntryRowEntry => "EntryRow.entry",
+            Self::EntryRowHeld => "EntryRow.held",
+            Self::EntryRowTail => "EntryRow (tail)",
+            Self::ProposedEffectNumber => "ProposedEffect.number",
+            Self::ProposedEffectResource => "ProposedEffect.resource",
+            Self::ProposedEffectEntry => "ProposedEffect.entry",
+            Self::ProposedEffectTail => "ProposedEffect (tail)",
+            Self::RateLimitedAfter => "RateLimited.after",
+            Self::RateLimitedTail => "RateLimited (tail)",
+            Self::BaseMovedBase => "BaseMoved.base",
+            Self::BaseMovedTail => "BaseMoved (tail)",
+            Self::BoundTag => "Bound (tag)",
+            Self::ExcessBound => "Excess.bound",
+            Self::ExcessLimit => "Excess.limit",
+            Self::ExcessSize => "Excess.size",
+            Self::ExcessExact => "Excess.exact",
+            Self::ExcessTail => "Excess (tail)",
+            Self::ErrorTag => "Error (tag)",
+            Self::ErrorValueError => "ErrorValue.error",
+            Self::ErrorValueTail => "ErrorValue (tail)",
+            Self::MadeTag => "Made (tag)",
+            Self::OutcomeMadeMade => "OutcomeMade.made",
+            Self::OutcomeMadeFound => "OutcomeMade.found",
+            Self::OutcomeMadeTail => "OutcomeMade (tail)",
+            Self::OutcomeRacedMade => "OutcomeRaced.made",
+            Self::OutcomeRacedWhy => "OutcomeRaced.why",
+            Self::OutcomeRacedTail => "OutcomeRaced (tail)",
+            Self::OutcomeTag => "Outcome (tag)",
+            Self::PermissionTag => "Permission (tag)",
+            Self::BranchCreationTag => "BranchCreation (tag)",
+            Self::PullReviewers => "Pull.reviewers",
+            Self::PullNumber => "Pull.number",
+            Self::PullState => "Pull.state",
+            Self::PullHead => "Pull.head",
+            Self::PullBase => "Pull.base",
+            Self::PullCommit => "Pull.commit",
+            Self::PullBaseCommit => "Pull.base_commit",
+            Self::PullMerged => "Pull.merged",
+            Self::PullMergeable => "Pull.mergeable",
+            Self::PullCi => "Pull.ci",
+            Self::PullTail => "Pull (tail)",
+            Self::StepNumber => "Step.number",
+            Self::StepName => "Step.name",
+            Self::StepTail => "Step (tail)",
+            Self::JobAnswerAttempt => "JobAnswer.attempt",
+            Self::JobAnswerStep => "JobAnswer.step",
+            Self::JobAnswerLog => "JobAnswer.log",
+            Self::JobAnswerTruncated => "JobAnswer.truncated",
+            Self::JobAnswerTail => "JobAnswer (tail)",
+            Self::FileAnswerHead => "FileAnswer.head",
+            Self::FileAnswerPath => "FileAnswer.path",
+            Self::FileAnswerBytes => "FileAnswer.bytes",
+            Self::FileAnswerTruncated => "FileAnswer.truncated",
+            Self::FileAnswerTail => "FileAnswer (tail)",
+            Self::DirectoryKindTag => "DirectoryKind (tag)",
+            Self::DirectoryEntryName => "DirectoryEntry.name",
+            Self::DirectoryEntryKind => "DirectoryEntry.kind",
+            Self::DirectoryEntryTail => "DirectoryEntry (tail)",
+            Self::DirectoryAnswerHead => "DirectoryAnswer.head",
+            Self::DirectoryAnswerPath => "DirectoryAnswer.path",
+            Self::DirectoryAnswerEntries => "DirectoryAnswer.entries",
+            Self::DirectoryAnswerTruncated => "DirectoryAnswer.truncated",
+            Self::DirectoryAnswerTail => "DirectoryAnswer (tail)",
+            Self::BranchesAnswerBranches => "BranchesAnswer.branches",
+            Self::BranchesAnswerTail => "BranchesAnswer (tail)",
+            Self::ProtectionAnswerProtection => "ProtectionAnswer.protection",
+            Self::ProtectionAnswerTail => "ProtectionAnswer (tail)",
+            Self::PermissionValuePermission => "PermissionValue.permission",
+            Self::PermissionValueUser => "PermissionValue.user",
+            Self::PermissionValueLogin => "PermissionValue.login",
+            Self::PermissionValueTail => "PermissionValue (tail)",
+            Self::BranchCreationValueCreation => "BranchCreationValue.creation",
+            Self::BranchCreationValueTail => "BranchCreationValue (tail)",
+            Self::KindTag => "Kind (tag)",
+            Self::ProvenanceTag => "Provenance (tag)",
+            Self::SummaryLabels => "Summary.labels",
+            Self::SummaryNumber => "Summary.number",
+            Self::SummaryKind => "Summary.kind",
+            Self::SummaryState => "Summary.state",
+            Self::SummaryAuthor => "Summary.author",
+            Self::SummaryKey => "Summary.key",
+            Self::SummaryTitle => "Summary.title",
+            Self::SummaryBody => "Summary.body",
+            Self::SummaryUpdated => "Summary.updated",
+            Self::SummaryTail => "Summary (tail)",
+            Self::CommentId => "Comment.id",
+            Self::CommentProvenance => "Comment.provenance",
+            Self::CommentAuthor => "Comment.author",
+            Self::CommentCreated => "Comment.created",
+            Self::CommentRevision => "Comment.revision",
+            Self::CommentKey => "Comment.key",
+            Self::CommentBody => "Comment.body",
+            Self::CommentTail => "Comment (tail)",
+            Self::ReviewId => "Review.id",
+            Self::ReviewProvenance => "Review.provenance",
+            Self::ReviewRevision => "Review.revision",
+            Self::ReviewAuthor => "Review.author",
+            Self::ReviewVerdict => "Review.verdict",
+            Self::ReviewCommit => "Review.commit",
+            Self::ReviewKey => "Review.key",
+            Self::ReviewBody => "Review.body",
+            Self::ReviewAt => "Review.at",
+            Self::ReviewOfficial => "Review.official",
+            Self::ReviewTail => "Review (tail)",
+            Self::ItemsAnswerItems => "ItemsAnswer.items",
+            Self::ItemsAnswerMore => "ItemsAnswer.more",
+            Self::ItemsAnswerNow => "ItemsAnswer.now",
+            Self::ItemsAnswerCut => "ItemsAnswer.cut",
+            Self::ItemsAnswerTail => "ItemsAnswer (tail)",
+            Self::ItemAnswerItem => "ItemAnswer.item",
+            Self::ItemAnswerComments => "ItemAnswer.comments",
+            Self::ItemAnswerMore => "ItemAnswer.more",
+            Self::ItemAnswerTail => "ItemAnswer (tail)",
+            Self::ReviewsAnswerReviews => "ReviewsAnswer.reviews",
+            Self::ReviewsAnswerMore => "ReviewsAnswer.more",
+            Self::ReviewsAnswerCut => "ReviewsAnswer.cut",
+            Self::ReviewsAnswerTail => "ReviewsAnswer (tail)",
+            Self::StatusAt => "Status.at",
+            Self::StatusContext => "Status.context",
+            Self::StatusVerdict => "Status.verdict",
+            Self::StatusDescription => "Status.description",
+            Self::StatusUrl => "Status.url",
+            Self::StatusJob => "Status.job",
+            Self::StatusTail => "Status (tail)",
+            Self::RemarkId => "Remark.id",
+            Self::RemarkAuthor => "Remark.author",
+            Self::RemarkPath => "Remark.path",
+            Self::RemarkLine => "Remark.line",
+            Self::RemarkBody => "Remark.body",
+            Self::RemarkTail => "Remark (tail)",
+            Self::FilePath => "File.path",
+            Self::FileBefore => "File.before",
+            Self::FileAfter => "File.after",
+            Self::FileTail => "File (tail)",
+            Self::CollaboratorUser => "Collaborator.user",
+            Self::CollaboratorPermission => "Collaborator.permission",
+            Self::CollaboratorTail => "Collaborator (tail)",
+            Self::StatusesAnswerCi => "StatusesAnswer.ci",
+            Self::StatusesAnswerStatuses => "StatusesAnswer.statuses",
+            Self::StatusesAnswerMore => "StatusesAnswer.more",
+            Self::StatusesAnswerTail => "StatusesAnswer (tail)",
+            Self::RemarksAnswerRemarks => "RemarksAnswer.remarks",
+            Self::RemarksAnswerMore => "RemarksAnswer.more",
+            Self::RemarksAnswerCut => "RemarksAnswer.cut",
+            Self::RemarksAnswerTail => "RemarksAnswer (tail)",
+            Self::PullFilesAnswerHead => "PullFilesAnswer.head",
+            Self::PullFilesAnswerFiles => "PullFilesAnswer.files",
+            Self::PullFilesAnswerMore => "PullFilesAnswer.more",
+            Self::PullFilesAnswerCut => "PullFilesAnswer.cut",
+            Self::PullFilesAnswerTail => "PullFilesAnswer (tail)",
+            Self::CompareAnswerBefore => "CompareAnswer.before",
+            Self::CompareAnswerAfter => "CompareAnswer.after",
+            Self::CompareAnswerAhead => "CompareAnswer.ahead",
+            Self::CompareAnswerBehind => "CompareAnswer.behind",
+            Self::CompareAnswerFiles => "CompareAnswer.files",
+            Self::CompareAnswerChanged => "CompareAnswer.changed",
+            Self::CompareAnswerTail => "CompareAnswer (tail)",
+            Self::ChecksAnswerStatuses => "ChecksAnswer.statuses",
+            Self::ChecksAnswerTail => "ChecksAnswer (tail)",
+            Self::CollaboratorsAnswerCollaborators => "CollaboratorsAnswer.collaborators",
+            Self::CollaboratorsAnswerMore => "CollaboratorsAnswer.more",
+            Self::CollaboratorsAnswerTail => "CollaboratorsAnswer (tail)",
+            Self::LocatedRepository => "Located.repository",
+            Self::LocatedTail => "Located (tail)",
+            Self::AnswerTag => "Answer (tag)",
+            Self::AnswerValueAnswer => "AnswerValue.answer",
+            Self::AnswerValueTail => "AnswerValue (tail)",
+            Self::ReadResultTag => "ReadResult (tag)",
+            Self::CallReadResult => "CallRead.result",
+            Self::CallReadTail => "CallRead (tail)",
+            Self::CallEffectEntry => "CallEffect.entry",
+            Self::CallEffectDeadline => "CallEffect.deadline",
+            Self::CallEffectOutcome => "CallEffect.outcome",
+            Self::CallEffectTail => "CallEffect (tail)",
+            Self::ReachKindTag => "ReachKind (tag)",
+            Self::ReachClassTag => "ReachClass (tag)",
+            Self::ReachSetNumber => "ReachSet.number",
+            Self::ReachSetTail => "ReachSet (tail)",
+            Self::ReachReasonTag => "ReachReason (tag)",
+            Self::ReachKind => "Reach.kind",
+            Self::ReachClass => "Reach.class",
+            Self::ReachReason => "Reach.reason",
+            Self::ReachUnder => "Reach.under",
+            Self::ReachSets => "Reach.sets",
+            Self::ReachMatched => "Reach.matched",
+            Self::ReachAway => "Reach.away",
+            Self::ReachTail => "Reach (tail)",
+            Self::CallDecidedTook => "CallDecided.took",
+            Self::CallDecidedReach => "CallDecided.reach",
+            Self::CallDecidedTail => "CallDecided (tail)",
+            Self::NamedCallTask => "NamedCall.task",
+            Self::NamedCallAttempt => "NamedCall.attempt",
+            Self::NamedCallCompletion => "NamedCall.completion",
+            Self::NamedCallPosition => "NamedCall.position",
+            Self::NamedCallTail => "NamedCall (tail)",
+            Self::LiveBranchBranch => "LiveBranch.branch",
+            Self::LiveBranchTail => "LiveBranch (tail)",
+            Self::LiveWhatTag => "LiveWhat (tag)",
+            Self::LiveResourceRepository => "LiveResource.repository",
+            Self::LiveResourceWhat => "LiveResource.what",
+            Self::LiveResourceTail => "LiveResource (tail)",
+            Self::WatchResource => "Watch.resource",
+            Self::WatchParticipating => "Watch.participating",
+            Self::WatchTail => "Watch (tail)",
+            Self::DeliveryId => "Delivery.id",
+            Self::DeliveryRevision => "Delivery.revision",
+            Self::DeliveryTail => "Delivery (tail)",
+            Self::EchoTag => "Echo (tag)",
+            Self::CachedItem => "Cached.item",
+            Self::CachedPull => "Cached.pull",
+            Self::CachedTip => "Cached.tip",
+            Self::CachedTail => "Cached (tail)",
+            Self::LiveRecordWatch => "LiveRecord.watch",
+            Self::LiveRecordPosition => "LiveRecord.position",
+            Self::LiveRecordListed => "LiveRecord.listed",
+            Self::LiveRecordCommentAfter => "LiveRecord.comment_after",
+            Self::LiveRecordCommentPage => "LiveRecord.comment_page",
+            Self::LiveRecordCommentScanning => "LiveRecord.comment_scanning",
+            Self::LiveRecordCommentRepair => "LiveRecord.comment_repair",
+            Self::LiveRecordReviewPage => "LiveRecord.review_page",
+            Self::LiveRecordComments => "LiveRecord.comments",
+            Self::LiveRecordReviews => "LiveRecord.reviews",
+            Self::LiveRecordCached => "LiveRecord.cached",
+            Self::LiveRecordPushed => "LiveRecord.pushed",
+            Self::LiveRecordEchoes => "LiveRecord.echoes",
+            Self::LiveRecordTail => "LiveRecord (tail)",
+            Self::RepositoryRecordRepository => "RepositoryRecord.repository",
+            Self::RepositoryRecordMark => "RepositoryRecord.mark",
+            Self::RepositoryRecordClock => "RepositoryRecord.clock",
+            Self::RepositoryRecordTail => "RepositoryRecord (tail)",
+            Self::ClientValueTag => "ClientValue (tag)",
+            Self::ClientRowValue => "ClientRow.value",
+            Self::ClientRowTail => "ClientRow (tail)",
+            Self::ChangeStatusTag => "ChangeStatus (tag)",
+            Self::FreshnessTag => "Freshness (tag)",
+            Self::GateKindTag => "GateKind (tag)",
+            Self::AuthorityLackTag => "AuthorityLack (tag)",
+            Self::AuthorityHoldLack => "AuthorityHold.lack",
+            Self::AuthorityHoldHad => "AuthorityHold.had",
+            Self::AuthorityHoldReleased => "AuthorityHold.released",
+            Self::AuthorityHoldTask => "AuthorityHold.task",
+            Self::AuthorityHoldSpec => "AuthorityHold.spec",
+            Self::AuthorityHoldHold => "AuthorityHold.hold",
+            Self::AuthorityHoldTasks => "AuthorityHold.tasks",
+            Self::AuthorityHoldTail => "AuthorityHold (tail)",
+            Self::ChangeHoldTag => "ChangeHold (tag)",
+            Self::EffectResultTag => "EffectResult (tag)",
+            Self::LandingRepairGate => "LandingRepair.gate",
+            Self::LandingRepairTail => "LandingRepair (tail)",
+            Self::LandedBelowChange => "LandedBelow.change",
+            Self::LandedBelowPull => "LandedBelow.pull",
+            Self::LandedBelowTail => "LandedBelow (tail)",
+            Self::LandingBelowGreen => "LandingBelow.green",
+            Self::LandingBelowChanges => "LandingBelow.changes",
+            Self::LandingBelowByTest => "LandingBelow.by_test",
+            Self::LandingBelowTop => "LandingBelow.top",
+            Self::LandingBelowTail => "LandingBelow (tail)",
+            Self::LandingRepairAtGate => "LandingRepairAt.gate",
+            Self::LandingRepairAtCandidate => "LandingRepairAt.candidate",
+            Self::LandingRepairAtBelow => "LandingRepairAt.below",
+            Self::LandingRepairAtTail => "LandingRepairAt (tail)",
+            Self::RepairTag => "Repair (tag)",
+            Self::RepairValueWhy => "RepairValue.why",
+            Self::RepairValueTail => "RepairValue (tail)",
+            Self::DelegateGateNumber => "DelegateGate.number",
+            Self::DelegateGateHead => "DelegateGate.head",
+            Self::DelegateGateTail => "DelegateGate (tail)",
+            Self::MergeDelegateBase => "MergeDelegate.base",
+            Self::MergeDelegateFrom => "MergeDelegate.from",
+            Self::MergeDelegateTail => "MergeDelegate (tail)",
+            Self::DelegateTag => "Delegate (tag)",
+            Self::DelegateRefTask => "DelegateRef.task",
+            Self::DelegateRefRequest => "DelegateRef.request",
+            Self::DelegateRefTail => "DelegateRef (tail)",
+            Self::ProducingRequested => "Producing.requested",
+            Self::ProducingTail => "Producing (tail)",
+            Self::ChangeHeadHead => "ChangeHead.head",
+            Self::ChangeHeadTail => "ChangeHead (tail)",
+            Self::ReopeningRequested => "Reopening.requested",
+            Self::ReopeningRetarget => "Reopening.retarget",
+            Self::ReopeningTail => "Reopening (tail)",
+            Self::GatingHead => "Gating.head",
+            Self::GatingAsked => "Gating.asked",
+            Self::GatingTail => "Gating (tail)",
+            Self::ReadyHeadHead => "ReadyHead.head",
+            Self::ReadyHeadReadySince => "ReadyHead.ready_since",
+            Self::ReadyHeadTail => "ReadyHead (tail)",
+            Self::UpdatingFrom => "Updating.from",
+            Self::UpdatingBase => "Updating.base",
+            Self::UpdatingReadySince => "Updating.ready_since",
+            Self::UpdatingTail => "Updating (tail)",
+            Self::ResolvingRequested => "Resolving.requested",
+            Self::ResolvingBase => "Resolving.base",
+            Self::ResolvingTail => "Resolving (tail)",
+            Self::WaitingProducerBase => "WaitingProducer.base",
+            Self::WaitingProducerTail => "WaitingProducer (tail)",
+            Self::RepairingRequested => "Repairing.requested",
+            Self::RepairingWhy => "Repairing.why",
+            Self::RepairingTail => "Repairing (tail)",
+            Self::MergeChangeMerge => "MergeChange.merge",
+            Self::MergeChangeTail => "MergeChange (tail)",
+            Self::LandedChangeMerge => "LandedChange.merge",
+            Self::LandedChangeSince => "LandedChange.since",
+            Self::LandedChangeTail => "LandedChange (tail)",
+            Self::NoChangeWords => "NoChange.words",
+            Self::NoChangeTail => "NoChange (tail)",
+            Self::PreparingFrom => "Preparing.from",
+            Self::PreparingMain => "Preparing.main",
+            Self::PreparingReadySince => "Preparing.ready_since",
+            Self::PreparingTail => "Preparing (tail)",
+            Self::JudgementLanding => "Judgement.landing",
+            Self::JudgementRound => "Judgement.round",
+            Self::JudgementPull => "Judgement.pull",
+            Self::JudgementBranch => "Judgement.branch",
+            Self::JudgementBase => "Judgement.base",
+            Self::JudgementPrefix => "Judgement.prefix",
+            Self::JudgementTail => "Judgement (tail)",
+            Self::JudgingHead => "Judging.head",
+            Self::JudgingReadySince => "Judging.ready_since",
+            Self::JudgingTarget => "Judging.target",
+            Self::JudgingAsked => "Judging.asked",
+            Self::JudgingTail => "Judging (tail)",
+            Self::ChangeLiveTag => "ChangeLive (tag)",
+            Self::ChangeStateLive => "ChangeState.live",
+            Self::ChangeStateHolds => "ChangeState.holds",
+            Self::ChangeStateTail => "ChangeState (tail)",
+            Self::GateNumber => "Gate.number",
+            Self::GateKind => "Gate.kind",
+            Self::GateBlocking => "Gate.blocking",
+            Self::GateFreshness => "Gate.freshness",
+            Self::GateEager => "Gate.eager",
+            Self::GateTail => "Gate (tail)",
+            Self::GateReportNumber => "GateReport.number",
+            Self::GateReportHead => "GateReport.head",
+            Self::GateReportStatus => "GateReport.status",
+            Self::GateReportTail => "GateReport (tail)",
+            Self::GateFailureNumber => "GateFailure.number",
+            Self::GateFailureCount => "GateFailure.count",
+            Self::GateFailureTail => "GateFailure (tail)",
+            Self::GateRemarkNumber => "GateRemark.number",
+            Self::GateRemarkHead => "GateRemark.head",
+            Self::GateRemarkWords => "GateRemark.words",
+            Self::GateRemarkTail => "GateRemark (tail)",
+            Self::WayTag => "Way (tag)",
+            Self::StartedFromTask => "StartedFrom.task",
+            Self::StartedFromHead => "StartedFrom.head",
+            Self::StartedFromTail => "StartedFrom (tail)",
+            Self::EarlyHeadsHeads => "EarlyHeads.heads",
+            Self::EarlyHeadsTail => "EarlyHeads (tail)",
+            Self::EarlyTag => "Early (tag)",
+            Self::ExecutionTag => "Execution (tag)",
+            Self::ExecutionClockSince => "ExecutionClock.since",
+            Self::ExecutionClockHead => "ExecutionClock.head",
+            Self::ExecutionClockRun => "ExecutionClock.run",
+            Self::ExecutionClockAttempt => "ExecutionClock.attempt",
+            Self::ExecutionClockRan => "ExecutionClock.ran",
+            Self::ExecutionClockWaited => "ExecutionClock.waited",
+            Self::ExecutionClockUnknown => "ExecutionClock.unknown",
+            Self::ExecutionClockAt => "ExecutionClock.at",
+            Self::ExecutionClockSeen => "ExecutionClock.seen",
+            Self::ExecutionClockTail => "ExecutionClock (tail)",
+            Self::LandingPrepareHead => "LandingPrepare.head",
+            Self::LandingPrepareMain => "LandingPrepare.main",
+            Self::LandingPrepareTail => "LandingPrepare (tail)",
+            Self::LandingRepairAskGate => "LandingRepairAsk.gate",
+            Self::LandingRepairAskCandidate => "LandingRepairAsk.candidate",
+            Self::LandingRepairAskBelow => "LandingRepairAsk.below",
+            Self::LandingRepairAskTail => "LandingRepairAsk (tail)",
+            Self::LandingPrefixPrefix => "LandingPrefix.prefix",
+            Self::LandingPrefixTail => "LandingPrefix (tail)",
+            Self::LandingResolveBase => "LandingResolve.base",
+            Self::LandingResolveTail => "LandingResolve (tail)",
+            Self::LandingAskTag => "LandingAsk (tag)",
+            Self::ChangeEarly => "Change.early",
+            Self::ChangeTask => "Change.task",
+            Self::ChangeState => "Change.state",
+            Self::ChangeGates => "Change.gates",
+            Self::ChangeClean => "Change.clean",
+            Self::ChangeRepairs => "Change.repairs",
+            Self::ChangeResolutions => "Change.resolutions",
+            Self::ChangeUpdates => "Change.updates",
+            Self::ChangeStale => "Change.stale",
+            Self::ChangeSince => "Change.since",
+            Self::ChangeClock => "Change.clock",
+            Self::ChangeReadySince => "Change.ready_since",
+            Self::ChangeOwnsTurn => "Change.owns_turn",
+            Self::ChangeLastHead => "Change.last_head",
+            Self::ChangeLastChecked => "Change.last_checked",
+            Self::ChangeLastCheckedBy => "Change.last_checked_by",
+            Self::ChangeGateFailures => "Change.gate_failures",
+            Self::ChangeReleased => "Change.released",
+            Self::ChangeReleasedResolution => "Change.released_resolution",
+            Self::ChangeWay => "Change.way",
+            Self::ChangeLanding => "Change.landing",
+            Self::ChangeLandingAsk => "Change.landing_ask",
+            Self::ChangeTail => "Change (tail)",
+            Self::ChangeCiHead => "ChangeCi.head",
+            Self::ChangeCiStatus => "ChangeCi.status",
+            Self::ChangeCiTail => "ChangeCi (tail)",
+            Self::EffectAccountEntry => "EffectAccount.entry",
+            Self::EffectAccountWords => "EffectAccount.words",
+            Self::EffectAccountTail => "EffectAccount (tail)",
+            Self::ResultTextBytes => "ResultText.bytes",
+            Self::ResultTextCut => "ResultText.cut",
+            Self::ResultTextTail => "ResultText (tail)",
+            Self::ChangeResultHead => "ChangeResult.head",
+            Self::ChangeResultChecks => "ChangeResult.checks",
+            Self::ChangeResultFailed => "ChangeResult.failed",
+            Self::ChangeResultRepairs => "ChangeResult.repairs",
+            Self::ChangeResultRepairCount => "ChangeResult.repair_count",
+            Self::ChangeResultReviews => "ChangeResult.reviews",
+            Self::ChangeResultTail => "ChangeResult (tail)",
+            Self::ModelEffortModel => "ModelEffort.model",
+            Self::ModelEffortEffort => "ModelEffort.effort",
+            Self::ModelEffortTail => "ModelEffort (tail)",
+            Self::LlmChoiceMain => "LlmChoice.main",
+            Self::LlmChoiceSubagents => "LlmChoice.subagents",
+            Self::LlmChoiceAccount => "LlmChoice.account",
+            Self::LlmChoiceTail => "LlmChoice (tail)",
+            Self::RouteTag => "Route (tag)",
+            Self::HeldAnswer => "Held.answer",
+            Self::HeldTail => "Held (tail)",
+            Self::StandsTag => "Stands (tag)",
+            Self::OpenAsker => "Open.asker",
+            Self::OpenNumber => "Open.number",
+            Self::OpenLine => "Open.line",
+            Self::OpenWords => "Open.words",
+            Self::OpenStands => "Open.stands",
+            Self::OpenTail => "Open (tail)",
+            Self::WaitingFrom => "Waiting.from",
+            Self::WaitingNumber => "Waiting.number",
+            Self::WaitingWords => "Waiting.words",
+            Self::WaitingPassed => "Waiting.passed",
+            Self::WaitingTail => "Waiting (tail)",
+            Self::AnsweredAsker => "Answered.asker",
+            Self::AnsweredNumber => "Answered.number",
+            Self::AnsweredLine => "Answered.line",
+            Self::AnsweredAnswer => "Answered.answer",
+            Self::AnsweredTail => "Answered (tail)",
+            Self::QuestionsRoute => "Questions.route",
+            Self::QuestionsTaken => "Questions.taken",
+            Self::QuestionsOpen => "Questions.open",
+            Self::QuestionsWaiting => "Questions.waiting",
+            Self::QuestionsAnswered => "Questions.answered",
+            Self::QuestionsTail => "Questions (tail)",
+            Self::ChangeFailureLine => "ChangeFailure.line",
+            Self::ChangeFailureTail => "ChangeFailure (tail)",
+            Self::ChangeEndingTag => "ChangeEnding (tag)",
+            Self::SignOffPerson => "SignOff.person",
+            Self::SignOffHead => "SignOff.head",
+            Self::SignOffAt => "SignOff.at",
+            Self::SignOffTail => "SignOff (tail)",
+            Self::ChangeFollowsFollow => "ChangeFollows.follow",
+            Self::ChangeFollowsCommits => "ChangeFollows.commits",
+            Self::ChangeFollowsTail => "ChangeFollows (tail)",
+            Self::PhaseTag => "Phase (tag)",
+            Self::PlanItemText => "PlanItem.text",
+            Self::PlanItemPhase => "PlanItem.phase",
+            Self::PlanItemTail => "PlanItem (tail)",
+            Self::LifecycleTask => "Lifecycle.task",
+            Self::LifecyclePosition => "Lifecycle.position",
+            Self::LifecycleTail => "Lifecycle (tail)",
+            Self::TaskRevisionTask => "TaskRevision.task",
+            Self::TaskRevisionRevision => "TaskRevision.revision",
+            Self::TaskRevisionTail => "TaskRevision (tail)",
+            Self::MilestoneKeyTag => "MilestoneKey (tag)",
+            Self::MilestoneKey => "Milestone.key",
+            Self::MilestoneText => "Milestone.text",
+            Self::MilestoneTail => "Milestone (tail)",
+            Self::GoalViewPhase => "GoalView.phase",
+            Self::GoalViewGoal => "GoalView.goal",
+            Self::GoalViewRepository => "GoalView.repository",
+            Self::GoalViewTitle => "GoalView.title",
+            Self::GoalViewGoalText => "GoalView.goal_text",
+            Self::GoalViewPlan => "GoalView.plan",
+            Self::GoalViewMilestones => "GoalView.milestones",
+            Self::GoalViewFinished => "GoalView.finished",
+            Self::GoalViewTail => "GoalView (tail)",
+            Self::ProjectedOpened => "Projected.opened",
+            Self::ProjectedDigest => "Projected.digest",
+            Self::ProjectedLastBody => "Projected.last_body",
+            Self::ProjectedBodyRevision => "Projected.body_revision",
+            Self::ProjectedMilestones => "Projected.milestones",
+            Self::ProjectedClosed => "Projected.closed",
+            Self::ProjectedTail => "Projected (tail)",
+            Self::IssueRowGoal => "IssueRow.goal",
+            Self::IssueRowRepository => "IssueRow.repository",
+            Self::IssueRowState => "IssueRow.state",
+            Self::IssueRowNumber => "IssueRow.number",
+            Self::IssueRowPending => "IssueRow.pending",
+            Self::IssueRowBefore => "IssueRow.before",
+            Self::IssueRowFailed => "IssueRow.failed",
+            Self::IssueRowDesired => "IssueRow.desired",
+            Self::IssueRowTail => "IssueRow (tail)",
+            Self::ApplicationAdoptedRepository => "ApplicationAdopted.repository",
+            Self::ApplicationAdoptedOwner => "ApplicationAdopted.owner",
+            Self::ApplicationAdoptedName => "ApplicationAdopted.name",
+            Self::ApplicationAdoptedRole => "ApplicationAdopted.role",
+            Self::ApplicationAdoptedHome => "ApplicationAdopted.home",
+            Self::ApplicationAdoptedKinds => "ApplicationAdopted.kinds",
+            Self::ApplicationAdoptedProtection => "ApplicationAdopted.protection",
+            Self::ApplicationAdoptedLanding => "ApplicationAdopted.landing",
+            Self::ApplicationAdoptedTail => "ApplicationAdopted (tail)",
+            Self::CoreRefusedRefusal => "CoreRefused.refusal",
+            Self::CoreRefusedTail => "CoreRefused (tail)",
+            Self::ForgeReasonTag => "ForgeReason (tag)",
+            Self::ForgeRefusedReason => "ForgeRefused.reason",
+            Self::ForgeRefusedTail => "ForgeRefused (tail)",
+            Self::MakingKeyForge => "MakingKey.forge",
+            Self::MakingKeyOrg => "MakingKey.org",
+            Self::MakingKeyName => "MakingKey.name",
+            Self::MakingKeyTail => "MakingKey (tail)",
+            Self::CopyFromAddress => "CopyFrom.address",
+            Self::CopyFromTail => "CopyFrom (tail)",
+            Self::MakeFromTag => "MakeFrom (tag)",
+            Self::MakeIntoProject => "MakeInto.project",
+            Self::MakeIntoHome => "MakeInto.home",
+            Self::MakeIntoHost => "MakeInto.host",
+            Self::MakeIntoTail => "MakeInto (tail)",
+            Self::MakeStepTag => "MakeStep (tag)",
+            Self::MakeStatusStatus => "MakeStatus.status",
+            Self::MakeStatusTail => "MakeStatus (tail)",
+            Self::MakeFailureTag => "MakeFailure (tag)",
+            Self::MakingFailedStep => "MakingFailed.step",
+            Self::MakingFailedReason => "MakingFailed.reason",
+            Self::MakingFailedWords => "MakingFailed.words",
+            Self::MakingFailedTail => "MakingFailed (tail)",
+            Self::MakingMadeId => "MakingMade.id",
+            Self::MakingMadeBranch => "MakingMade.branch",
+            Self::MakingMadeTail => "MakingMade (tail)",
+            Self::MakingStateTag => "MakingState (tag)",
+            Self::RepositoryMakingKey => "RepositoryMaking.key",
+            Self::RepositoryMakingFrom => "RepositoryMaking.from",
+            Self::RepositoryMakingInto => "RepositoryMaking.into",
+            Self::RepositoryMakingAsked => "RepositoryMaking.asked",
+            Self::RepositoryMakingCopying => "RepositoryMaking.copying",
+            Self::RepositoryMakingState => "RepositoryMaking.state",
+            Self::RepositoryMakingTail => "RepositoryMaking (tail)",
+            Self::MakeRefusalTag => "MakeRefusal (tag)",
+            Self::MakeRefusedReason => "MakeRefused.reason",
+            Self::MakeRefusedTail => "MakeRefused (tail)",
+            Self::FollowAtAfter => "FollowAt.after",
+            Self::FollowAtTail => "FollowAt (tail)",
+            Self::FollowReasonActAfter => "FollowReasonAct.after",
+            Self::FollowReasonActReason => "FollowReasonAct.reason",
+            Self::FollowReasonActTail => "FollowReasonAct (tail)",
+            Self::FollowMergeActAfters => "FollowMergeAct.afters",
+            Self::FollowMergeActTail => "FollowMergeAct (tail)",
+            Self::FollowActTag => "FollowAct (tag)",
+            Self::FollowOutcomeRefusal => "FollowOutcome.refusal",
+            Self::FollowOutcomeTail => "FollowOutcome (tail)",
+            Self::OpenedTask => "Opened.task",
+            Self::OpenedTail => "Opened (tail)",
+            Self::OpenRepositoryOwner => "OpenRepository.owner",
+            Self::OpenRepositoryName => "OpenRepository.name",
+            Self::OpenRepositoryTail => "OpenRepository (tail)",
+            Self::SeveralRepositoriesRepositories => "SeveralRepositories.repositories",
+            Self::SeveralRepositoriesTail => "SeveralRepositories (tail)",
+            Self::UnderPrefixOwner => "UnderPrefix.owner",
+            Self::UnderPrefixName => "UnderPrefix.name",
+            Self::UnderPrefixPrefix => "UnderPrefix.prefix",
+            Self::UnderPrefixTail => "UnderPrefix (tail)",
+            Self::NamePastBound => "NamePast.bound",
+            Self::NamePastTail => "NamePast (tail)",
+            Self::OpenRefusalTag => "OpenRefusal (tag)",
+            Self::OpenRefusedReason => "OpenRefused.reason",
+            Self::OpenRefusedTail => "OpenRefused (tail)",
+            Self::ApplicationOutcomeTag => "ApplicationOutcome (tag)",
+            Self::ApplicationToken => "Application.token",
+            Self::ApplicationUntil => "Application.until",
+            Self::ApplicationOutcome => "Application.outcome",
+            Self::ApplicationTail => "Application (tail)",
+            Self::ForgeWriterForge => "ForgeWriter.forge",
+            Self::ForgeWriterAuthor => "ForgeWriter.author",
+            Self::ForgeWriterTail => "ForgeWriter (tail)",
+            Self::BindingAddress => "Binding.address",
+            Self::BindingSubject => "Binding.subject",
+            Self::BindingTail => "Binding (tail)",
+            Self::FlightTask => "Flight.task",
+            Self::FlightEntry => "Flight.entry",
+            Self::FlightTail => "Flight (tail)",
+            Self::LandingAtAt => "LandingAt.at",
+            Self::LandingAtTail => "LandingAt (tail)",
+            Self::LandingPlaceTag => "LandingPlace (tag)",
+            Self::LandingFaultsMember => "LandingFaults.member",
+            Self::LandingFaultsGate => "LandingFaults.gate",
+            Self::LandingFaultsTail => "LandingFaults (tail)",
+            Self::LandingPhasePlace => "LandingPhase.place",
+            Self::LandingPhaseHeld => "LandingPhase.held",
+            Self::LandingPhaseTail => "LandingPhase (tail)",
+            Self::GateKeyKey => "GateKey.key",
+            Self::GateKeyTail => "GateKey (tail)",
+            Self::DispatchedKeyKey => "DispatchedKey.key",
+            Self::DispatchedKeyTry => "DispatchedKey.try_",
+            Self::DispatchedKeyTail => "DispatchedKey (tail)",
+            Self::GateProofStateTag => "GateProofState (tag)",
+            Self::GatePostedTag => "GatePosted (tag)",
+            Self::GateProofProof => "GateProof.proof",
+            Self::GateProofPosted => "GateProof.posted",
+            Self::GateProofFaults => "GateProof.faults",
+            Self::GateProofTail => "GateProof (tail)",
+            Self::LandingTimeoutMember => "LandingTimeout.member",
+            Self::LandingTimeoutGate => "LandingTimeout.gate",
+            Self::LandingTimeoutRun => "LandingTimeout.run",
+            Self::LandingTimeoutTail => "LandingTimeout (tail)",
+            Self::LandingGateRefusedGate => "LandingGateRefused.gate",
+            Self::LandingGateRefusedTail => "LandingGateRefused (tail)",
+            Self::LandingGateFailedGate => "LandingGateFailed.gate",
+            Self::LandingGateFailedRun => "LandingGateFailed.run",
+            Self::LandingGateFailedTail => "LandingGateFailed (tail)",
+            Self::LandingLeftChangeChange => "LandingLeftChange.change",
+            Self::LandingLeftChangeTail => "LandingLeftChange (tail)",
+            Self::LandingFallbackUnits => "LandingFallback.units",
+            Self::LandingFallbackTop => "LandingFallback.top",
+            Self::LandingFallbackTail => "LandingFallback (tail)",
+            Self::LandingBlamedGate => "LandingBlamed.gate",
+            Self::LandingBlamedRun => "LandingBlamed.run",
+            Self::LandingBlamedRed => "LandingBlamed.red",
+            Self::LandingBlamedGreen => "LandingBlamed.green",
+            Self::LandingBlamedTail => "LandingBlamed (tail)",
+            Self::LandingLeaveTag => "LandingLeave (tag)",
+            Self::LandingCombineTag => "LandingCombine (tag)",
+            Self::LandingMemberRound => "LandingMember.round",
+            Self::LandingMemberChange => "LandingMember.change",
+            Self::LandingMemberRepository => "LandingMember.repository",
+            Self::LandingMemberPull => "LandingMember.pull",
+            Self::LandingMemberHead => "LandingMember.head",
+            Self::LandingMemberBase => "LandingMember.base",
+            Self::LandingMemberCandidate => "LandingMember.candidate",
+            Self::LandingMemberGates => "LandingMember.gates",
+            Self::LandingMemberAsked => "LandingMember.asked",
+            Self::LandingMemberLanded => "LandingMember.landed",
+            Self::LandingMemberLeft => "LandingMember.left",
+            Self::LandingMemberUnit => "LandingMember.unit",
+            Self::LandingMemberBranch => "LandingMember.branch",
+            Self::LandingMemberCombined => "LandingMember.combined",
+            Self::LandingMemberRecorded => "LandingMember.recorded",
+            Self::LandingMemberTold => "LandingMember.told",
+            Self::LandingMemberJudging => "LandingMember.judging",
+            Self::LandingMemberLeaveTold => "LandingMember.leave_told",
+            Self::LandingMemberTail => "LandingMember (tail)",
+            Self::LandingRoundEndTag => "LandingRoundEnd (tag)",
+            Self::LandingRecordHoldMember => "LandingRecordHold.member",
+            Self::LandingRecordHoldTail => "LandingRecordHold (tail)",
+            Self::LandingOwnHoldTag => "LandingOwnHold (tag)",
+            Self::FailingTestTestId => "FailingTest.test_id",
+            Self::FailingTestTail => "FailingTest (tail)",
+            Self::ShownTestTestId => "ShownTest.test_id",
+            Self::ShownTestTail => "ShownTest (tail)",
+            Self::ManyTestsTests => "ManyTests.tests",
+            Self::ManyTestsMore => "ManyTests.more",
+            Self::ManyTestsCut => "ManyTests.cut",
+            Self::ManyTestsTail => "ManyTests (tail)",
+            Self::LandingSelectionTests => "LandingSelection.tests",
+            Self::LandingSelectionTail => "LandingSelection (tail)",
+            Self::LandingSelectedGateSelection => "LandingSelectedGate.selection",
+            Self::LandingSelectedGateTail => "LandingSelectedGate (tail)",
+            Self::LandingProbedMember => "LandingProbed.member",
+            Self::LandingProbedGate => "LandingProbed.gate",
+            Self::LandingProbedRun => "LandingProbed.run",
+            Self::LandingProbedPassed => "LandingProbed.passed",
+            Self::LandingProbedTail => "LandingProbed (tail)",
+            Self::LandingByTestGates => "LandingByTest.gates",
+            Self::LandingByTestProbed => "LandingByTest.probed",
+            Self::LandingByTestTail => "LandingByTest (tail)",
+            Self::LandingSearchTestsTag => "LandingSearchTests (tag)",
+            Self::LandingSearchGreen => "LandingSearch.green",
+            Self::LandingSearchRed => "LandingSearch.red",
+            Self::LandingSearchTests => "LandingSearch.tests",
+            Self::LandingSearchTail => "LandingSearch (tail)",
+            Self::LandingSearchedRed => "LandingSearched.red",
+            Self::LandingSearchedGreen => "LandingSearched.green",
+            Self::LandingSearchedChanges => "LandingSearched.changes",
+            Self::LandingSearchedTail => "LandingSearched (tail)",
+            Self::LandingRoundMerges => "LandingRound.merges",
+            Self::LandingRoundBranch => "LandingRound.branch",
+            Self::LandingRoundPull => "LandingRound.pull",
+            Self::LandingRoundUpstream => "LandingRound.upstream",
+            Self::LandingRoundCombined => "LandingRound.combined",
+            Self::LandingRoundRecorded => "LandingRound.recorded",
+            Self::LandingRoundTold => "LandingRound.told",
+            Self::LandingRoundEnding => "LandingRound.ending",
+            Self::LandingRoundFailure => "LandingRound.failure",
+            Self::LandingRoundJudging => "LandingRound.judging",
+            Self::LandingRoundChanged => "LandingRound.changed",
+            Self::LandingRoundSearch => "LandingRound.search",
+            Self::LandingRoundTail => "LandingRound (tail)",
+            Self::LandingLastPrepareMember => "LandingLastPrepare.member",
+            Self::LandingLastPrepareHead => "LandingLastPrepare.head",
+            Self::LandingLastPrepareMain => "LandingLastPrepare.main",
+            Self::LandingLastPrepareSuffix => "LandingLastPrepare.suffix",
+            Self::LandingLastPrepareAsks => "LandingLastPrepare.asks",
+            Self::LandingLastPrepareAgain => "LandingLastPrepare.again",
+            Self::LandingLastPrepareTail => "LandingLastPrepare (tail)",
+            Self::LandingStateSearched => "LandingState.searched",
+            Self::LandingStateLastPrepare => "LandingState.last_prepare",
+            Self::LandingStateLastLeft => "LandingState.last_left",
+            Self::LandingStateTask => "LandingState.task",
+            Self::LandingStateProject => "LandingState.project",
+            Self::LandingStatePhase => "LandingState.phase",
+            Self::LandingStateMembers => "LandingState.members",
+            Self::LandingStatePreparation => "LandingState.preparation",
+            Self::LandingStateStaleProofs => "LandingState.stale_proofs",
+            Self::LandingStateBranch => "LandingState.branch",
+            Self::LandingStateRound => "LandingState.round",
+            Self::LandingStateOwnHold => "LandingState.own_hold",
+            Self::LandingStateTail => "LandingState (tail)",
+            Self::LandingAskSlotAsk => "LandingAskSlot.ask",
+            Self::LandingAskSlotTail => "LandingAskSlot (tail)",
+            Self::LandingOperationTag => "LandingOperation (tag)",
+            Self::LandingRunId => "LandingRun.id",
+            Self::LandingRunAttempt => "LandingRun.attempt",
+            Self::LandingRunEnded => "LandingRun.ended",
+            Self::LandingRunClock => "LandingRun.clock",
+            Self::LandingRunTail => "LandingRun (tail)",
+            Self::LandingEntryEntry => "LandingEntry.entry",
+            Self::LandingEntryMember => "LandingEntry.member",
+            Self::LandingEntryGate => "LandingEntry.gate",
+            Self::LandingEntryOperation => "LandingEntry.operation",
+            Self::LandingEntryPreparation => "LandingEntry.preparation",
+            Self::LandingEntryBase => "LandingEntry.base",
+            Self::LandingEntryRun => "LandingEntry.run",
+            Self::LandingEntryTail => "LandingEntry (tail)",
+            Self::HistoryJobTag => "HistoryJob (tag)",
+            Self::HistoryJobFailureTag => "HistoryJobFailure (tag)",
+            Self::HistoryJobFailedClass => "HistoryJobFailed.class",
+            Self::HistoryJobFailedTail => "HistoryJobFailed (tail)",
+            Self::HistoryJobOutcomeTag => "HistoryJobOutcome (tag)",
+            Self::HistoryJobRecordTask => "HistoryJobRecord.task",
+            Self::HistoryJobRecordAttempt => "HistoryJobRecord.attempt",
+            Self::HistoryJobRecordJob => "HistoryJobRecord.job",
+            Self::HistoryJobRecordOutcome => "HistoryJobRecord.outcome",
+            Self::HistoryJobRecordRound => "HistoryJobRecord.round",
+            Self::HistoryJobRecordMembers => "HistoryJobRecord.members",
+            Self::HistoryJobRecordHead => "HistoryJobRecord.head",
+            Self::HistoryJobRecordWritten => "HistoryJobRecord.written",
+            Self::HistoryJobRecordTail => "HistoryJobRecord (tail)",
+            Self::ReceiptNameName => "ReceiptName.name",
+            Self::ReceiptNameTail => "ReceiptName (tail)",
+            Self::ReceiptCheckTag => "ReceiptCheck (tag)",
+            Self::ReceiptKeyProject => "ReceiptKey.project",
+            Self::ReceiptKeyRepository => "ReceiptKey.repository",
+            Self::ReceiptKeyCheckName => "ReceiptKey.check_name",
+            Self::ReceiptKeyKey => "ReceiptKey.key",
+            Self::ReceiptKeyTail => "ReceiptKey (tail)",
+            Self::LandingFlakeRerunKey => "LandingFlakeRerun.key",
+            Self::LandingFlakeRerunRun => "LandingFlakeRerun.run",
+            Self::LandingFlakeRerunFindings => "LandingFlakeRerun.findings",
+            Self::LandingFlakeRerunPending => "LandingFlakeRerun.pending",
+            Self::LandingFlakeRerunRedispatch => "LandingFlakeRerun.redispatch",
+            Self::LandingFlakeRerunEnded => "LandingFlakeRerun.ended",
+            Self::LandingFlakeRerunTail => "LandingFlakeRerun (tail)",
+            Self::LandingWaitMemberMember => "LandingWaitMember.member",
+            Self::LandingWaitMemberTail => "LandingWaitMember (tail)",
+            Self::LandingWaitGateMember => "LandingWaitGate.member",
+            Self::LandingWaitGateGate => "LandingWaitGate.gate",
+            Self::LandingWaitGateTail => "LandingWaitGate (tail)",
+            Self::LandingAwaitedTag => "LandingAwaited (tag)",
+            Self::LandingRowLastEvent => "LandingRow.last_event",
+            Self::LandingRowTurnSince => "LandingRow.turn_since",
+            Self::LandingRowWaiting => "LandingRow.waiting",
+            Self::LandingRowRoom => "LandingRow.room",
+            Self::LandingRowJob => "LandingRow.job",
+            Self::LandingRowLanding => "LandingRow.landing",
+            Self::LandingRowAsks => "LandingRow.asks",
+            Self::LandingRowEntries => "LandingRow.entries",
+            Self::LandingRowFlakeReruns => "LandingRow.flake_reruns",
+            Self::LandingRowTail => "LandingRow (tail)",
+            Self::ReceiptRunId => "ReceiptRun.id",
+            Self::ReceiptRunNumber => "ReceiptRun.number",
+            Self::ReceiptRunUrl => "ReceiptRun.url",
+            Self::ReceiptRunTail => "ReceiptRun (tail)",
+            Self::FailedTestsTests => "FailedTests.tests",
+            Self::FailedTestsTail => "FailedTests (tail)",
+            Self::FailuresTag => "Failures (tag)",
+            Self::BlamedFailuresFailures => "BlamedFailures.failures",
+            Self::BlamedFailuresTail => "BlamedFailures (tail)",
+            Self::BlameTag => "Blame (tag)",
+            Self::TierVerdictRun => "TierVerdict.run",
+            Self::TierVerdictBlame => "TierVerdict.blame",
+            Self::TierVerdictTail => "TierVerdict (tail)",
+            Self::TierRepairRun => "TierRepair.run",
+            Self::TierRepairTip => "TierRepair.tip",
+            Self::TierRepairBy => "TierRepair.by",
+            Self::TierRepairTail => "TierRepair (tail)",
+            Self::TierVerificationTier => "TierVerification.tier",
+            Self::TierVerificationVerdict => "TierVerification.verdict",
+            Self::TierVerificationRepaired => "TierVerification.repaired",
+            Self::TierVerificationTail => "TierVerification (tail)",
+            Self::VerificationRepository => "Verification.repository",
+            Self::VerificationCommit => "Verification.commit",
+            Self::VerificationChanges => "Verification.changes",
+            Self::VerificationTiers => "Verification.tiers",
+            Self::VerificationTail => "Verification (tail)",
+            Self::TierJudgedTip => "TierJudged.tip",
+            Self::TierJudgedKey => "TierJudged.key",
+            Self::TierJudgedTail => "TierJudged (tail)",
+            Self::TierFlakeTest => "TierFlake.test",
+            Self::TierFlakeCount => "TierFlake.count",
+            Self::TierFlakeTail => "TierFlake (tail)",
+            Self::TierLandingCommit => "TierLanding.commit",
+            Self::TierLandingKey => "TierLanding.key",
+            Self::TierLandingTail => "TierLanding (tail)",
+            Self::TierTestsTests => "TierTests.tests",
+            Self::TierTestsTail => "TierTests (tail)",
+            Self::TierSelectionTag => "TierSelection (tag)",
+            Self::TierFindingFailing => "TierFinding.failing",
+            Self::TierFindingFlakes => "TierFinding.flakes",
+            Self::TierFindingBlamed => "TierFinding.blamed",
+            Self::TierFindingTail => "TierFinding (tail)",
+            Self::TierGroupLow => "TierGroup.low",
+            Self::TierGroupHigh => "TierGroup.high",
+            Self::TierGroupTests => "TierGroup.tests",
+            Self::TierGroupTail => "TierGroup (tail)",
+            Self::TierProbeLanding => "TierProbe.landing",
+            Self::TierProbeLow => "TierProbe.low",
+            Self::TierProbeHigh => "TierProbe.high",
+            Self::TierProbeTests => "TierProbe.tests",
+            Self::TierProbeWaiting => "TierProbe.waiting",
+            Self::TierProbeFinding => "TierProbe.finding",
+            Self::TierProbeTail => "TierProbe (tail)",
+            Self::TierPartTag => "TierPart (tag)",
+            Self::TierRunNumber => "TierRun.number",
+            Self::TierRunTip => "TierRun.tip",
+            Self::TierRunKey => "TierRun.key",
+            Self::TierRunLandings => "TierRun.landings",
+            Self::TierRunPart => "TierRun.part",
+            Self::TierRunFaults => "TierRun.faults",
+            Self::TierRunTail => "TierRun (tail)",
+            Self::TierRecordSequence => "TierRecord.sequence",
+            Self::TierRecordJudged => "TierRecord.judged",
+            Self::TierRecordFailing => "TierRecord.failing",
+            Self::TierRecordFlakes => "TierRecord.flakes",
+            Self::TierRecordRun => "TierRecord.run",
+            Self::TierRecordTail => "TierRecord (tail)",
+            Self::TierPendingCommit => "TierPending.commit",
+            Self::TierPendingKey => "TierPending.key",
+            Self::TierPendingTail => "TierPending (tail)",
+            Self::TierBranchEntryEntry => "TierBranchEntry.entry",
+            Self::TierBranchEntryTail => "TierBranchEntry (tail)",
+            Self::TierBranchTag => "TierBranch (tag)",
+            Self::TierFaultTag => "TierFault (tag)",
+            Self::TierProbeBranchLanding => "TierProbeBranch.landing",
+            Self::TierProbeBranchBranch => "TierProbeBranch.branch",
+            Self::TierProbeBranchTail => "TierProbeBranch (tail)",
+            Self::TierFlightEntry => "TierFlight.entry",
+            Self::TierFlightStart => "TierFlight.start",
+            Self::TierFlightSince => "TierFlight.since",
+            Self::TierFlightWaiting => "TierFlight.waiting",
+            Self::TierFlightNext => "TierFlight.next",
+            Self::TierFlightRun => "TierFlight.run",
+            Self::TierFlightPending => "TierFlight.pending",
+            Self::TierFlightFault => "TierFlight.fault",
+            Self::TierFlightReport => "TierFlight.report",
+            Self::TierFlightTail => "TierFlight (tail)",
+            Self::ReceiptJobJob => "ReceiptJob.job",
+            Self::ReceiptJobAttempt => "ReceiptJob.attempt",
+            Self::ReceiptJobName => "ReceiptJob.name",
+            Self::ReceiptJobTail => "ReceiptJob (tail)",
+            Self::ReceiptTestKey => "ReceiptTest.key",
+            Self::ReceiptTestFuzzy => "ReceiptTest.fuzzy",
+            Self::ReceiptTestTail => "ReceiptTest (tail)",
+            Self::ReceiptTestsTests => "ReceiptTests.tests",
+            Self::ReceiptTestsTail => "ReceiptTests (tail)",
+            Self::ReceiptManyBound => "ReceiptMany.bound",
+            Self::ReceiptManyTail => "ReceiptMany (tail)",
+            Self::ReceiptReportTag => "ReceiptReport (tag)",
+            Self::ReceiptBase => "Receipt.base",
+            Self::ReceiptJobs => "Receipt.jobs",
+            Self::ReceiptFailures => "Receipt.failures",
+            Self::ReceiptPassed => "Receipt.passed",
+            Self::ReceiptRun => "Receipt.run",
+            Self::ReceiptCandidate => "Receipt.candidate",
+            Self::ReceiptEnded => "Receipt.ended",
+            Self::ReceiptLogs => "Receipt.logs",
+            Self::ReceiptTail => "Receipt (tail)",
+            Self::TierGoalGoal => "TierGoal.goal",
+            Self::TierGoalBranch => "TierGoal.branch",
+            Self::TierGoalTip => "TierGoal.tip",
+            Self::TierGoalRan => "TierGoal.ran",
+            Self::TierGoalFailing => "TierGoal.failing",
+            Self::TierGoalStarted => "TierGoal.started",
+            Self::TierGoalTail => "TierGoal (tail)",
+            Self::TierHoldParty => "TierHold.party",
+            Self::TierHoldAt => "TierHold.at",
+            Self::TierHoldReason => "TierHold.reason",
+            Self::TierHoldTail => "TierHold (tail)",
+            Self::TierPostedTestsTests => "TierPostedTests.tests",
+            Self::TierPostedTestsTail => "TierPostedTests (tail)",
+            Self::TierPostedBlameTag => "TierPostedBlame (tag)",
+            Self::TierPostedLandingCommit => "TierPostedLanding.commit",
+            Self::TierPostedLandingBlame => "TierPostedLanding.blame",
+            Self::TierPostedLandingChange => "TierPostedLanding.change",
+            Self::TierPostedLandingTail => "TierPostedLanding (tail)",
+            Self::TierCommentVerdictAt => "TierCommentVerdict.at",
+            Self::TierCommentVerdictTail => "TierCommentVerdict (tail)",
+            Self::TierCommentRepairBy => "TierCommentRepair.by",
+            Self::TierCommentRepairTail => "TierCommentRepair (tail)",
+            Self::TierCommentKindTag => "TierCommentKind (tag)",
+            Self::TierCommentPull => "TierComment.pull",
+            Self::TierCommentLanding => "TierComment.landing",
+            Self::TierCommentKind => "TierComment.kind",
+            Self::TierCommentTail => "TierComment (tail)",
+            Self::TierPostingNumber => "TierPosting.number",
+            Self::TierPostingTip => "TierPosting.tip",
+            Self::TierPostingLink => "TierPosting.link",
+            Self::TierPostingStatus => "TierPosting.status",
+            Self::TierPostingDescription => "TierPosting.description",
+            Self::TierPostingLandings => "TierPosting.landings",
+            Self::TierPostingComments => "TierPosting.comments",
+            Self::TierPostingNext => "TierPosting.next",
+            Self::TierPostingEntry => "TierPosting.entry",
+            Self::TierPostingPart => "TierPosting.part",
+            Self::TierPostingOpBytes => "TierPosting.op_bytes",
+            Self::TierPostingTail => "TierPosting (tail)",
+            Self::TierRowMany => "TierRow.many",
+            Self::TierRowObservations => "TierRow.observations",
+            Self::TierRowRepository => "TierRow.repository",
+            Self::TierRowTier => "TierRow.tier",
+            Self::TierRowRecord => "TierRow.record",
+            Self::TierRowTask => "TierRow.task",
+            Self::TierRowRequested => "TierRow.requested",
+            Self::TierRowCancelled => "TierRow.cancelled",
+            Self::TierRowPurpose => "TierRow.purpose",
+            Self::TierRowPending => "TierRow.pending",
+            Self::TierRowBaseline => "TierRow.baseline",
+            Self::TierRowBranch => "TierRow.branch",
+            Self::TierRowProbe => "TierRow.probe",
+            Self::TierRowFlight => "TierRow.flight",
+            Self::TierRowHeld => "TierRow.held",
+            Self::TierRowHold => "TierRow.hold",
+            Self::TierRowResult => "TierRow.result",
+            Self::TierRowPosting => "TierRow.posting",
+            Self::TierRowReceived => "TierRow.received",
+            Self::TierRowGoals => "TierRow.goals",
+            Self::TierRowGoal => "TierRow.goal",
+            Self::TierRowStarted => "TierRow.started",
+            Self::TierRowTail => "TierRow (tail)",
+            Self::ReceiptRowReport => "ReceiptRow.report",
+            Self::ReceiptRowKey => "ReceiptRow.key",
+            Self::ReceiptRowReceipt => "ReceiptRow.receipt",
+            Self::ReceiptRowTail => "ReceiptRow (tail)",
+            Self::ForgeKindTag => "ForgeKind (tag)",
+            Self::ForgeModeTag => "ForgeMode (tag)",
+            Self::AddressHost => "Address.host",
+            Self::AddressPort => "Address.port",
+            Self::AddressTls => "Address.tls",
+            Self::AddressTail => "Address (tail)",
+            Self::PlaceApi => "Place.api",
+            Self::PlaceGit => "Place.git",
+            Self::PlaceWeb => "Place.web",
+            Self::PlaceTail => "Place (tail)",
+            Self::BotLogin => "Bot.login",
+            Self::BotName => "Bot.name",
+            Self::BotEmail => "Bot.email",
+            Self::BotTail => "Bot (tail)",
+            Self::EmptyIntentPlayground => "EmptyIntent.playground",
+            Self::EmptyIntentOrg => "EmptyIntent.org",
+            Self::EmptyIntentRepository => "EmptyIntent.repository",
+            Self::EmptyIntentLabel => "EmptyIntent.label",
+            Self::EmptyIntentTail => "EmptyIntent (tail)",
+            Self::CopyIntentAddresses => "CopyIntent.addresses",
+            Self::CopyIntentTail => "CopyIntent (tail)",
+            Self::FirstIntentTag => "FirstIntent (tag)",
+            Self::EndedForgeSecretsErased => "EndedForge.secrets_erased",
+            Self::EndedForgeBoxRemoved => "EndedForge.box_removed",
+            Self::EndedForgeTail => "EndedForge (tail)",
+            Self::ForgeStateTag => "ForgeState (tag)",
+            Self::ForgeLinkUser => "ForgeLink.user",
+            Self::ForgeLinkPerson => "ForgeLink.person",
+            Self::ForgeLinkTail => "ForgeLink (tail)",
+            Self::ForgeNumber => "Forge.number",
+            Self::ForgeKind => "Forge.kind",
+            Self::ForgeMode => "Forge.mode",
+            Self::ForgeState => "Forge.state",
+            Self::ForgePlace => "Forge.place",
+            Self::ForgeGitProgram => "Forge.git_program",
+            Self::ForgeReadOnly => "Forge.read_only",
+            Self::ForgeBot => "Forge.bot",
+            Self::ForgeAsked => "Forge.asked",
+            Self::ForgeFirst => "Forge.first",
+            Self::ForgePerson => "Forge.person",
+            Self::ForgeTail => "Forge (tail)",
+            Self::ForgeNumberLast => "ForgeNumber.last",
+            Self::ForgeNumberTail => "ForgeNumber (tail)",
+            Self::ResetStepTag => "ResetStep (tag)",
+            Self::ResettingStep => "Resetting.step",
+            Self::ResettingTail => "Resetting (tail)",
+            Self::PlaygroundStateTag => "PlaygroundState (tag)",
+            Self::PlaygroundState => "Playground.state",
+            Self::PlaygroundForge => "Playground.forge",
+            Self::PlaygroundProject => "Playground.project",
+            Self::PlaygroundAccount => "Playground.account",
+            Self::PlaygroundTail => "Playground (tail)",
+            Self::PatternLastTag => "PatternLast (tag)",
+            Self::RulePatternSegments => "RulePattern.segments",
+            Self::RulePatternLast => "RulePattern.last",
+            Self::RulePatternTail => "RulePattern (tail)",
+            Self::RuleGateNumber => "RuleGate.number",
+            Self::RuleGateBlocking => "RuleGate.blocking",
+            Self::RuleGateFreshness => "RuleGate.freshness",
+            Self::RuleGateTail => "RuleGate (tail)",
+            Self::RuleApprovalRole => "RuleApproval.role",
+            Self::RuleApprovalPeople => "RuleApproval.people",
+            Self::RuleApprovalFreshness => "RuleApproval.freshness",
+            Self::RuleApprovalTail => "RuleApproval (tail)",
+            Self::LandingRulePattern => "LandingRule.pattern",
+            Self::LandingRuleEnforce => "LandingRule.enforce",
+            Self::LandingRuleCi => "LandingRule.ci",
+            Self::LandingRuleUpToDate => "LandingRule.up_to_date",
+            Self::LandingRuleGates => "LandingRule.gates",
+            Self::LandingRuleApprovals => "LandingRule.approvals",
+            Self::LandingRuleSets => "LandingRule.sets",
+            Self::LandingRuleTail => "LandingRule (tail)",
+            Self::CharterValueNumber => "CharterValue.number",
+            Self::CharterValueTail => "CharterValue (tail)",
+            Self::TemplateGoalDesign => "TemplateGoal.design",
+            Self::TemplateGoalCloseOut => "TemplateGoal.close_out",
+            Self::TemplateGoalTail => "TemplateGoal (tail)",
+            Self::ProjectQuestionsRoute => "ProjectQuestions.route",
+            Self::ProjectQuestionsTail => "ProjectQuestions (tail)",
+            Self::SettingsLandingWayTag => "SettingsLandingWay (tag)",
+            Self::SettingsLandingWaitTag => "SettingsLandingWait (tag)",
+            Self::SettingsCombineTag => "SettingsCombine (tag)",
+            Self::ProjectLandingBy => "ProjectLanding.by",
+            Self::ProjectLandingBatch => "ProjectLanding.batch",
+            Self::ProjectLandingCombineMain => "ProjectLanding.combine_main",
+            Self::ProjectLandingCombineOther => "ProjectLanding.combine_other",
+            Self::ProjectLandingMergeJob => "ProjectLanding.merge_job",
+            Self::ProjectLandingCloseJob => "ProjectLanding.close_job",
+            Self::ProjectLandingLandingAttempts => "ProjectLanding.landing_attempts",
+            Self::ProjectLandingCheckTimeoutMs => "ProjectLanding.check_timeout_ms",
+            Self::ProjectLandingGateRetries => "ProjectLanding.gate_retries",
+            Self::ProjectLandingGateTimeoutMs => "ProjectLanding.gate_timeout_ms",
+            Self::ProjectLandingTierRetries => "ProjectLanding.tier_retries",
+            Self::ProjectLandingVerificationBoundMs => "ProjectLanding.verification_bound_ms",
+            Self::ProjectLandingWait => "ProjectLanding.wait",
+            Self::ProjectLandingTail => "ProjectLanding (tail)",
+            Self::SettingsReportFormatTag => "SettingsReportFormat (tag)",
+            Self::SettingsGateReportArtifact => "SettingsGateReport.artifact",
+            Self::SettingsGateReportFormat => "SettingsGateReport.format",
+            Self::SettingsGateReportFuzzy => "SettingsGateReport.fuzzy",
+            Self::SettingsGateReportTail => "SettingsGateReport (tail)",
+            Self::SettingsGateName => "SettingsGate.name",
+            Self::SettingsGateWorkflow => "SettingsGate.workflow",
+            Self::SettingsGateIgnored => "SettingsGate.ignored",
+            Self::SettingsGateBlocking => "SettingsGate.blocking",
+            Self::SettingsGateBase => "SettingsGate.base",
+            Self::SettingsGateReport => "SettingsGate.report",
+            Self::SettingsGateTail => "SettingsGate (tail)",
+            Self::SettingsBranchName => "SettingsBranch.name",
+            Self::SettingsBranchTail => "SettingsBranch (tail)",
+            Self::SettingsFollowsTag => "SettingsFollows (tag)",
+            Self::SettingsTierName => "SettingsTier.name",
+            Self::SettingsTierWorkflow => "SettingsTier.workflow",
+            Self::SettingsTierIgnored => "SettingsTier.ignored",
+            Self::SettingsTierArtifact => "SettingsTier.artifact",
+            Self::SettingsTierFormat => "SettingsTier.format",
+            Self::SettingsTierFollows => "SettingsTier.follows",
+            Self::SettingsTierSpanMs => "SettingsTier.span_ms",
+            Self::SettingsTierDescription => "SettingsTier.description",
+            Self::SettingsTierTail => "SettingsTier (tail)",
+            Self::RepositoryGatesForge => "RepositoryGates.forge",
+            Self::RepositoryGatesRepository => "RepositoryGates.repository",
+            Self::RepositoryGatesGates => "RepositoryGates.gates",
+            Self::RepositoryGatesTiers => "RepositoryGates.tiers",
+            Self::RepositoryGatesTail => "RepositoryGates (tail)",
+            Self::ProjectGatesRepositories => "ProjectGates.repositories",
+            Self::ProjectGatesTail => "ProjectGates (tail)",
+            Self::ProjectWaysDrafts => "ProjectWays.drafts",
+            Self::ProjectWaysGoals => "ProjectWays.goals",
+            Self::ProjectWaysChanges => "ProjectWays.changes",
+            Self::ProjectWaysWay => "ProjectWays.way",
+            Self::ProjectWaysTail => "ProjectWays (tail)",
+            Self::ReachKindOfKind => "ReachKindOf.kind",
+            Self::ReachKindOfTail => "ReachKindOf (tail)",
+            Self::ClassSubjectTag => "ClassSubject (tag)",
+            Self::ClassItemSubject => "ClassItem.subject",
+            Self::ClassItemWords => "ClassItem.words",
+            Self::ClassItemClass => "ClassItem.class",
+            Self::ClassItemTail => "ClassItem (tail)",
+            Self::PathSetNumber => "PathSet.number",
+            Self::PathSetName => "PathSet.name",
+            Self::PathSetPatterns => "PathSet.patterns",
+            Self::PathSetTail => "PathSet (tail)",
+            Self::ProjectClassesItems => "ProjectClasses.items",
+            Self::ProjectClassesSets => "ProjectClasses.sets",
+            Self::ProjectClassesTail => "ProjectClasses (tail)",
+            Self::CharterWordsLine => "CharterWords.line",
+            Self::CharterWordsTail => "CharterWords (tail)",
+            Self::ProjectWordsHeadline => "ProjectWords.headline",
+            Self::ProjectWordsLede => "ProjectWords.lede",
+            Self::ProjectWordsTail => "ProjectWords (tail)",
+            Self::DependencyProject => "Dependency.project",
+            Self::DependencyTail => "Dependency (tail)",
+            Self::FollowRepositoryForge => "FollowRepository.forge",
+            Self::FollowRepositoryRepository => "FollowRepository.repository",
+            Self::FollowRepositoryTail => "FollowRepository (tail)",
+            Self::FollowSourceRepository => "FollowSource.repository",
+            Self::FollowSourceBranch => "FollowSource.branch",
+            Self::FollowSourcePaths => "FollowSource.paths",
+            Self::FollowSourceTail => "FollowSource (tail)",
+            Self::FollowTargetRepository => "FollowTarget.repository",
+            Self::FollowTargetBranch => "FollowTarget.branch",
+            Self::FollowTargetTail => "FollowTarget (tail)",
+            Self::FollowPersonPerson => "FollowPerson.person",
+            Self::FollowPersonTail => "FollowPerson (tail)",
+            Self::FollowOwnerTaskTask => "FollowOwnerTask.task",
+            Self::FollowOwnerTaskTail => "FollowOwnerTask (tail)",
+            Self::FollowOwnerTag => "FollowOwner (tag)",
+            Self::FollowStartTag => "FollowStart (tag)",
+            Self::FollowFormatTag => "FollowFormat (tag)",
+            Self::FollowCheckWorkflow => "FollowCheck.workflow",
+            Self::FollowCheckArtifact => "FollowCheck.artifact",
+            Self::FollowCheckFormat => "FollowCheck.format",
+            Self::FollowCheckTail => "FollowCheck (tail)",
+            Self::FollowSource => "Follow.source",
+            Self::FollowTarget => "Follow.target",
+            Self::FollowOwner => "Follow.owner",
+            Self::FollowStart => "Follow.start",
+            Self::FollowProducer => "Follow.producer",
+            Self::FollowVerification => "Follow.verification",
+            Self::FollowTail => "Follow (tail)",
+            Self::SettingSlotTag => "SettingSlot (tag)",
+            Self::ToBeginProject => "ToBegin.project",
+            Self::ToBeginTail => "ToBegin (tail)",
+            Self::GoalFromProject => "GoalFrom.project",
+            Self::GoalFromChat => "GoalFrom.chat",
+            Self::GoalFromGoal => "GoalFrom.goal",
+            Self::GoalFromAt => "GoalFrom.at",
+            Self::GoalFromTail => "GoalFrom (tail)",
+            Self::KeepAskingProject => "KeepAsking.project",
+            Self::KeepAskingSubject => "KeepAsking.subject",
+            Self::KeepAskingAt => "KeepAsking.at",
+            Self::KeepAskingTail => "KeepAsking (tail)",
+            Self::PersonFactTag => "PersonFact (tag)",
+            Self::DismissedParty => "Dismissed.party",
+            Self::DismissedWhat => "Dismissed.what",
+            Self::DismissedTail => "Dismissed (tail)",
+            Self::LoggedChangeSigned => "LoggedChange.signed",
+            Self::LoggedChangeTask => "LoggedChange.task",
+            Self::LoggedChangePull => "LoggedChange.pull",
+            Self::LoggedChangeTitle => "LoggedChange.title",
+            Self::LoggedChangeGoal => "LoggedChange.goal",
+            Self::LoggedChangeMilestone => "LoggedChange.milestone",
+            Self::LoggedChangeTail => "LoggedChange (tail)",
+            Self::LoggedClearedRun => "LoggedCleared.run",
+            Self::LoggedClearedTail => "LoggedCleared (tail)",
+            Self::LoggedManyMore => "LoggedMany.more",
+            Self::LoggedManyCut => "LoggedMany.cut",
+            Self::LoggedManyTail => "LoggedMany (tail)",
+            Self::LoggedRedRun => "LoggedRed.run",
+            Self::LoggedRedFailing => "LoggedRed.failing",
+            Self::LoggedRedTests => "LoggedRed.tests",
+            Self::LoggedRedMany => "LoggedRed.many",
+            Self::LoggedRedTail => "LoggedRed (tail)",
+            Self::LoggedVerdictTag => "LoggedVerdict (tag)",
+            Self::LoggedTierTier => "LoggedTier.tier",
+            Self::LoggedTierVerdict => "LoggedTier.verdict",
+            Self::LoggedTierTail => "LoggedTier (tail)",
+            Self::LoggedLandingCommit => "LoggedLanding.commit",
+            Self::LoggedLandingBranch => "LoggedLanding.branch",
+            Self::LoggedLandingAt => "LoggedLanding.at",
+            Self::LoggedLandingChanges => "LoggedLanding.changes",
+            Self::LoggedLandingTiers => "LoggedLanding.tiers",
+            Self::LoggedLandingTail => "LoggedLanding (tail)",
+            Self::MilestoneLandingAt => "MilestoneLanding.at",
+            Self::MilestoneLandingGoal => "MilestoneLanding.goal",
+            Self::MilestoneLandingChange => "MilestoneLanding.change",
+            Self::MilestoneLandingTail => "MilestoneLanding (tail)",
+            Self::MilestoneOutcomeTag => "MilestoneOutcome (tag)",
+            Self::MilestoneEndAt => "MilestoneEnd.at",
+            Self::MilestoneEndOutcome => "MilestoneEnd.outcome",
+            Self::MilestoneEndDone => "MilestoneEnd.done",
+            Self::MilestoneEndFailed => "MilestoneEnd.failed",
+            Self::MilestoneEndClosed => "MilestoneEnd.closed",
+            Self::MilestoneEndSpent => "MilestoneEnd.spent",
+            Self::MilestoneEndTail => "MilestoneEnd (tail)",
+            Self::MilestoneRowProject => "MilestoneRow.project",
+            Self::MilestoneRowTask => "MilestoneRow.task",
+            Self::MilestoneRowName => "MilestoneRow.name",
+            Self::MilestoneRowLastLanding => "MilestoneRow.last_landing",
+            Self::MilestoneRowEnded => "MilestoneRow.ended",
+            Self::MilestoneRowTail => "MilestoneRow (tail)",
+            Self::LandingLogRepository => "LandingLog.repository",
+            Self::LandingLogLandings => "LandingLog.landings",
+            Self::LandingLogTail => "LandingLog (tail)",
+            Self::StatusBriefSentence => "StatusBrief.sentence",
+            Self::StatusBriefLede => "StatusBrief.lede",
+            Self::StatusBriefAt => "StatusBrief.at",
+            Self::StatusBriefLanded => "StatusBrief.landed",
+            Self::StatusBriefFindings => "StatusBrief.findings",
+            Self::StatusBriefTail => "StatusBrief (tail)",
+            Self::StatusRunningTask => "StatusRunning.task",
+            Self::StatusRunningLanded => "StatusRunning.landed",
+            Self::StatusRunningSince => "StatusRunning.since",
+            Self::StatusRunningFindings => "StatusRunning.findings",
+            Self::StatusRunningTail => "StatusRunning (tail)",
+            Self::ProjectFactsProject => "ProjectFacts.project",
+            Self::ProjectFactsLanded => "ProjectFacts.landed",
+            Self::ProjectFactsLastLanded => "ProjectFacts.last_landed",
+            Self::ProjectFactsTail => "ProjectFacts (tail)",
+            Self::PersonBriefParty => "PersonBrief.party",
+            Self::PersonBriefProject => "PersonBrief.project",
+            Self::PersonBriefBrief => "PersonBrief.brief",
+            Self::PersonBriefRunning => "PersonBrief.running",
+            Self::PersonBriefUnpaid => "PersonBrief.unpaid",
+            Self::PersonBriefTail => "PersonBrief (tail)",
+            Self::LookedParty => "Looked.party",
+            Self::LookedProject => "Looked.project",
+            Self::LookedPrevious => "Looked.previous",
+            Self::LookedLatest => "Looked.latest",
+            Self::LookedSeen => "Looked.seen",
+            Self::LookedNextSeen => "Looked.next_seen",
+            Self::LookedTail => "Looked (tail)",
+            Self::AwayParty => "Away.party",
+            Self::AwayProject => "Away.project",
+            Self::AwaySince => "Away.since",
+            Self::AwayUntil => "Away.until",
+            Self::AwayLanded => "Away.landed",
+            Self::AwayOff => "Away.off",
+            Self::AwayTail => "Away (tail)",
+            Self::DecidedProject => "Decided.project",
+            Self::DecidedNumber => "Decided.number",
+            Self::DecidedParty => "Decided.party",
+            Self::DecidedTask => "Decided.task",
+            Self::DecidedAt => "Decided.at",
+            Self::DecidedQuestion => "Decided.question",
+            Self::DecidedOptions => "Decided.options",
+            Self::DecidedTook => "Decided.took",
+            Self::DecidedWhy => "Decided.why",
+            Self::DecidedOverturned => "Decided.overturned",
+            Self::DecidedReach => "Decided.reach",
+            Self::DecidedTail => "Decided (tail)",
+            Self::ClosingStepTag => "ClosingStep (tag)",
+            Self::ClosingRunStep => "ClosingRun.step",
+            Self::ClosingRunChange => "ClosingRun.change",
+            Self::ClosingRunTail => "ClosingRun (tail)",
+            Self::ClosingTasksTasks => "ClosingTasks.tasks",
+            Self::ClosingTasksTail => "ClosingTasks (tail)",
+            Self::ClosingJobsAttempts => "ClosingJobs.attempts",
+            Self::ClosingJobsNext => "ClosingJobs.next",
+            Self::ClosingJobsTail => "ClosingJobs (tail)",
+            Self::ClosingLineLine => "ClosingLine.line",
+            Self::ClosingLineTail => "ClosingLine (tail)",
+            Self::ClosingSelectionProgressTag => "ClosingSelectionProgress (tag)",
+            Self::ClosingSelectionPull => "ClosingSelection.pull",
+            Self::ClosingSelectionHead => "ClosingSelection.head",
+            Self::ClosingSelectionProgress => "ClosingSelection.progress",
+            Self::ClosingSelectionTail => "ClosingSelection (tail)",
+            Self::ClosingAskedQuestion => "ClosingAsked.question",
+            Self::ClosingAskedAnswer => "ClosingAsked.answer",
+            Self::ClosingAskedTail => "ClosingAsked (tail)",
+            Self::ClosingStandsTag => "ClosingStands (tag)",
+            Self::ClosingQuestionAsker => "ClosingQuestion.asker",
+            Self::ClosingQuestionNumber => "ClosingQuestion.number",
+            Self::ClosingQuestionStep => "ClosingQuestion.step",
+            Self::ClosingQuestionWords => "ClosingQuestion.words",
+            Self::ClosingQuestionStands => "ClosingQuestion.stands",
+            Self::ClosingQuestionTail => "ClosingQuestion (tail)",
+            Self::ClosingFormTag => "ClosingForm (tag)",
+            Self::ClosingMessageTarget => "ClosingMessage.target",
+            Self::ClosingMessageForm => "ClosingMessage.form",
+            Self::ClosingMessageWords => "ClosingMessage.words",
+            Self::ClosingMessageTail => "ClosingMessage (tail)",
+            Self::ClosingRelayOpen => "ClosingRelay.open",
+            Self::ClosingRelayReplies => "ClosingRelay.replies",
+            Self::ClosingRelayTail => "ClosingRelay (tail)",
+            Self::CloserTask => "Closer.task",
+            Self::CloserGoal => "Closer.goal",
+            Self::CloserClosed => "Closer.closed",
+            Self::CloserRunning => "Closer.running",
+            Self::CloserLanding => "Closer.landing",
+            Self::CloserHold => "Closer.hold",
+            Self::CloserRetry => "Closer.retry",
+            Self::CloserMaking => "Closer.making",
+            Self::CloserCloseChanges => "Closer.close_changes",
+            Self::CloserLandingChanges => "Closer.landing_changes",
+            Self::CloserSelections => "Closer.selections",
+            Self::CloserDone => "Closer.done",
+            Self::CloserRelay => "Closer.relay",
+            Self::CloserTail => "Closer (tail)",
+            Self::LandedDraftRepository => "LandedDraft.repository",
+            Self::LandedDraftPath => "LandedDraft.path",
+            Self::LandedDraftProject => "LandedDraft.project",
+            Self::LandedDraftBranch => "LandedDraft.branch",
+            Self::LandedDraftCommit => "LandedDraft.commit",
+            Self::LandedDraftTitle => "LandedDraft.title",
+            Self::LandedDraftWriter => "LandedDraft.writer",
+            Self::LandedDraftAt => "LandedDraft.at",
+            Self::LandedDraftChat => "LandedDraft.chat",
+            Self::LandedDraftGoal => "LandedDraft.goal",
+            Self::LandedDraftReady => "LandedDraft.ready",
+            Self::LandedDraftTail => "LandedDraft (tail)",
+            Self::FollowCommitId => "FollowCommit.id",
+            Self::FollowCommitMessage => "FollowCommit.message",
+            Self::FollowCommitTail => "FollowCommit (tail)",
+            Self::FollowReasonReason => "FollowReason.reason",
+            Self::FollowReasonTail => "FollowReason (tail)",
+            Self::FollowStateTag => "FollowState (tag)",
+            Self::FollowFilesFiles => "FollowFiles.files",
+            Self::FollowFilesTail => "FollowFiles (tail)",
+            Self::FollowEntryBefore => "FollowEntry.before",
+            Self::FollowEntryAfter => "FollowEntry.after",
+            Self::FollowEntryPull => "FollowEntry.pull",
+            Self::FollowEntryCommits => "FollowEntry.commits",
+            Self::FollowEntryMoreCommits => "FollowEntry.more_commits",
+            Self::FollowEntryFiles => "FollowEntry.files",
+            Self::FollowEntryMoreFiles => "FollowEntry.more_files",
+            Self::FollowEntryChange => "FollowEntry.change",
+            Self::FollowEntryState => "FollowEntry.state",
+            Self::FollowEntryWord => "FollowEntry.word",
+            Self::FollowEntryRemake => "FollowEntry.remake",
+            Self::FollowEntryTail => "FollowEntry (tail)",
+            Self::FollowSkipAfter => "FollowSkip.after",
+            Self::FollowSkipReason => "FollowSkip.reason",
+            Self::FollowSkipTail => "FollowSkip (tail)",
+            Self::FollowFailingCount => "FollowFailing.count",
+            Self::FollowFailingTail => "FollowFailing (tail)",
+            Self::FollowVerdictTag => "FollowVerdict (tag)",
+            Self::FollowParitySource => "FollowParity.source",
+            Self::FollowParityHead => "FollowParity.head",
+            Self::FollowParityVerdict => "FollowParity.verdict",
+            Self::FollowParityRun => "FollowParity.run",
+            Self::FollowParityTail => "FollowParity (tail)",
+            Self::FollowQuestionChange => "FollowQuestion.change",
+            Self::FollowQuestionNumber => "FollowQuestion.number",
+            Self::FollowQuestionWords => "FollowQuestion.words",
+            Self::FollowQuestionPerson => "FollowQuestion.person",
+            Self::FollowQuestionAnswer => "FollowQuestion.answer",
+            Self::FollowQuestionRelayed => "FollowQuestion.relayed",
+            Self::FollowQuestionTail => "FollowQuestion (tail)",
+            Self::FollowRowProject => "FollowRow.project",
+            Self::FollowRowFollow => "FollowRow.follow",
+            Self::FollowRowSource => "FollowRow.source",
+            Self::FollowRowBranch => "FollowRow.branch",
+            Self::FollowRowHeard => "FollowRow.heard",
+            Self::FollowRowTask => "FollowRow.task",
+            Self::FollowRowStopped => "FollowRow.stopped",
+            Self::FollowRowQueue => "FollowRow.queue",
+            Self::FollowRowSkips => "FollowRow.skips",
+            Self::FollowRowParity => "FollowRow.parity",
+            Self::FollowRowQuestions => "FollowRow.questions",
+            Self::FollowRowPending => "FollowRow.pending",
+            Self::FollowRowTail => "FollowRow (tail)",
+            Self::FollowCheckProgressFollow => "FollowCheckProgress.follow",
+            Self::FollowCheckProgressSource => "FollowCheckProgress.source",
+            Self::FollowCheckProgressHead => "FollowCheckProgress.head",
+            Self::FollowCheckProgressDefinition => "FollowCheckProgress.definition",
+            Self::FollowCheckProgressKey => "FollowCheckProgress.key",
+            Self::FollowCheckProgressFlight => "FollowCheckProgress.flight",
+            Self::FollowCheckProgressPage => "FollowCheckProgress.page",
+            Self::FollowCheckProgressFaults => "FollowCheckProgress.faults",
+            Self::FollowCheckProgressHeld => "FollowCheckProgress.held",
+            Self::FollowCheckProgressTail => "FollowCheckProgress (tail)",
+            Self::ChangeHistoryLast => "ChangeHistory.last",
+            Self::ChangeHistoryReady => "ChangeHistory.ready",
+            Self::ChangeHistoryQueued => "ChangeHistory.queued",
+            Self::ChangeHistoryPaused => "ChangeHistory.paused",
+            Self::ChangeHistoryHeld => "ChangeHistory.held",
+            Self::ChangeHistoryLandingHeld => "ChangeHistory.landing_held",
+            Self::ChangeHistoryDelivered => "ChangeHistory.delivered",
+            Self::ChangeHistoryTail => "ChangeHistory (tail)",
+            Self::HistoryMarkHour => "HistoryMark.hour",
+            Self::HistoryMarkFirst => "HistoryMark.first",
+            Self::HistoryMarkTail => "HistoryMark (tail)",
+            Self::HistoryProjectProject => "HistoryProject.project",
+            Self::HistoryProjectNext => "HistoryProject.next",
+            Self::HistoryProjectKept => "HistoryProject.kept",
+            Self::HistoryProjectWholeSince => "HistoryProject.whole_since",
+            Self::HistoryProjectMarks => "HistoryProject.marks",
+            Self::HistoryProjectSweeping => "HistoryProject.sweeping",
+            Self::HistoryProjectRemoving => "HistoryProject.removing",
+            Self::HistoryProjectTail => "HistoryProject (tail)",
+            Self::HistoryInLandingTask => "HistoryInLanding.task",
+            Self::HistoryInLandingRound => "HistoryInLanding.round",
+            Self::HistoryInLandingUnit => "HistoryInLanding.unit",
+            Self::HistoryInLandingTail => "HistoryInLanding (tail)",
+            Self::HistoryUnreadyTag => "HistoryUnready (tag)",
+            Self::HistoryLineTag => "HistoryLine (tag)",
+            Self::HistoryJoinedLine => "HistoryJoined.line",
+            Self::HistoryJoinedPlace => "HistoryJoined.place",
+            Self::HistoryJoinedPriority => "HistoryJoined.priority",
+            Self::HistoryJoinedTail => "HistoryJoined (tail)",
+            Self::HistoryLandingDepartureCause => "HistoryLandingDeparture.cause",
+            Self::HistoryLandingDepartureTail => "HistoryLandingDeparture (tail)",
+            Self::HistoryDepartureTag => "HistoryDeparture (tag)",
+            Self::HistoryDepartedLine => "HistoryDeparted.line",
+            Self::HistoryDepartedCause => "HistoryDeparted.cause",
+            Self::HistoryDepartedTail => "HistoryDeparted (tail)",
+            Self::HistoryUpdateStyle => "HistoryUpdate.style",
+            Self::HistoryUpdateForgeBase => "HistoryUpdate.forge_base",
+            Self::HistoryUpdateTail => "HistoryUpdate (tail)",
+            Self::HistoryUpdateOutcomeTag => "HistoryUpdateOutcome (tag)",
+            Self::HistoryUpdatedOutcome => "HistoryUpdated.outcome",
+            Self::HistoryUpdatedForgeBase => "HistoryUpdated.forge_base",
+            Self::HistoryUpdatedTail => "HistoryUpdated (tail)",
+            Self::HistoryJobStartedJob => "HistoryJobStarted.job",
+            Self::HistoryJobStartedTask => "HistoryJobStarted.task",
+            Self::HistoryJobStartedTail => "HistoryJobStarted (tail)",
+            Self::HistoryJobEndedJob => "HistoryJobEnded.job",
+            Self::HistoryJobEndedOutcome => "HistoryJobEnded.outcome",
+            Self::HistoryJobEndedTail => "HistoryJobEnded (tail)",
+            Self::HistoryWithTag => "HistoryWith (tag)",
+            Self::HistoryConflictWith => "HistoryConflict.with",
+            Self::HistoryConflictFiles => "HistoryConflict.files",
+            Self::HistoryConflictTail => "HistoryConflict (tail)",
+            Self::HistoryAskTag => "HistoryAsk (tag)",
+            Self::HistoryAskedAsk => "HistoryAsked.ask",
+            Self::HistoryAskedTask => "HistoryAsked.task",
+            Self::HistoryAskedGate => "HistoryAsked.gate",
+            Self::HistoryAskedTail => "HistoryAsked (tail)",
+            Self::HistoryAnswerTag => "HistoryAnswer (tag)",
+            Self::HistoryAnsweredAsk => "HistoryAnswered.ask",
+            Self::HistoryAnsweredOutcome => "HistoryAnswered.outcome",
+            Self::HistoryAnsweredTail => "HistoryAnswered (tail)",
+            Self::HistoryDeliveredChecked => "HistoryDelivered.checked",
+            Self::HistoryDeliveredTail => "HistoryDelivered (tail)",
+            Self::HistoryPauseTag => "HistoryPause (tag)",
+            Self::HistoryPausedWhy => "HistoryPaused.why",
+            Self::HistoryPausedTail => "HistoryPaused (tail)",
+            Self::HistoryMemberChange => "HistoryMember.change",
+            Self::HistoryMemberUnit => "HistoryMember.unit",
+            Self::HistoryMemberHead => "HistoryMember.head",
+            Self::HistoryMemberTail => "HistoryMember (tail)",
+            Self::HistoryFormedMembers => "HistoryFormed.members",
+            Self::HistoryFormedPlace => "HistoryFormed.place",
+            Self::HistoryFormedTail => "HistoryFormed (tail)",
+            Self::HistoryRoundCauseTag => "HistoryRoundCause (tag)",
+            Self::HistoryRoundEndedCause => "HistoryRoundEnded.cause",
+            Self::HistoryRoundEndedTail => "HistoryRoundEnded (tail)",
+            Self::HistoryGateGate => "HistoryGate.gate",
+            Self::HistoryGateKey => "HistoryGate.key",
+            Self::HistoryGateTail => "HistoryGate (tail)",
+            Self::HistoryGateVerdictTag => "HistoryGateVerdict (tag)",
+            Self::HistoryGateEndedGate => "HistoryGateEnded.gate",
+            Self::HistoryGateEndedKey => "HistoryGateEnded.key",
+            Self::HistoryGateEndedVerdict => "HistoryGateEnded.verdict",
+            Self::HistoryGateEndedTail => "HistoryGateEnded (tail)",
+            Self::HistoryProofGate => "HistoryProof.gate",
+            Self::HistoryProofRun => "HistoryProof.run",
+            Self::HistoryProofTail => "HistoryProof (tail)",
+            Self::HistoryProvedProofs => "HistoryProved.proofs",
+            Self::HistoryProvedTail => "HistoryProved (tail)",
+            Self::HistorySearchedGreen => "HistorySearched.green",
+            Self::HistorySearchedRed => "HistorySearched.red",
+            Self::HistorySearchedBlamed => "HistorySearched.blamed",
+            Self::HistorySearchedTail => "HistorySearched (tail)",
+            Self::HistoryProbeEndedGreen => "HistoryProbeEnded.green",
+            Self::HistoryProbeEndedTail => "HistoryProbeEnded (tail)",
+            Self::HistoryTurnMembers => "HistoryTurn.members",
+            Self::HistoryTurnTail => "HistoryTurn (tail)",
+            Self::HistoryRecordedStateTag => "HistoryRecordedState (tag)",
+            Self::HistoryRecordedState => "HistoryRecorded.state",
+            Self::HistoryRecordedTail => "HistoryRecorded (tail)",
+            Self::HistoryEndingTag => "HistoryEnding (tag)",
+            Self::HistoryEndedEnding => "HistoryEnded.ending",
+            Self::HistoryEndedTail => "HistoryEnded (tail)",
+            Self::HistoryLandingOutcomeTag => "HistoryLandingOutcome (tag)",
+            Self::HistoryLandingEndedOutcome => "HistoryLandingEnded.outcome",
+            Self::HistoryLandingEndedTail => "HistoryLandingEnded (tail)",
+            Self::HistoryOnTag => "HistoryOn (tag)",
+            Self::HistoryByTag => "HistoryBy (tag)",
+            Self::HistoryHoldOn => "HistoryHold.on",
+            Self::HistoryHoldReason => "HistoryHold.reason",
+            Self::HistoryHoldBy => "HistoryHold.by",
+            Self::HistoryHoldTail => "HistoryHold (tail)",
+            Self::HistoryAfterVerdictTag => "HistoryAfterVerdict (tag)",
+            Self::HistoryAfterVerdict => "HistoryAfter.verdict",
+            Self::HistoryAfterTail => "HistoryAfter (tail)",
+            Self::HistoryUnreadyStepWhy => "HistoryUnreadyStep.why",
+            Self::HistoryUnreadyStepTail => "HistoryUnreadyStep (tail)",
+            Self::HistoryWhatTag => "HistoryWhat (tag)",
+            Self::HistoryEventProject => "HistoryEvent.project",
+            Self::HistoryEventNumber => "HistoryEvent.number",
+            Self::HistoryEventAt => "HistoryEvent.at",
+            Self::HistoryEventSourceAt => "HistoryEvent.source_at",
+            Self::HistoryEventChange => "HistoryEvent.change",
+            Self::HistoryEventRepository => "HistoryEvent.repository",
+            Self::HistoryEventLanding => "HistoryEvent.landing",
+            Self::HistoryEventHead => "HistoryEvent.head",
+            Self::HistoryEventBase => "HistoryEvent.base",
+            Self::HistoryEventOperation => "HistoryEvent.operation",
+            Self::HistoryEventAttempt => "HistoryEvent.attempt",
+            Self::HistoryEventWhat => "HistoryEvent.what",
+            Self::HistoryEventTail => "HistoryEvent (tail)",
+            Self::HistoryChangeProject => "HistoryChange.project",
+            Self::HistoryChangeChange => "HistoryChange.change",
+            Self::HistoryChangeNumber => "HistoryChange.number",
+            Self::HistoryChangeLanding => "HistoryChange.landing",
+            Self::HistoryChangeTail => "HistoryChange (tail)",
+            Self::HistoryLandingProject => "HistoryLanding.project",
+            Self::HistoryLandingLanding => "HistoryLanding.landing",
+            Self::HistoryLandingNumber => "HistoryLanding.number",
+            Self::HistoryLandingChange => "HistoryLanding.change",
+            Self::HistoryLandingTail => "HistoryLanding (tail)",
+            Self::HistoryLastProject => "HistoryLast.project",
+            Self::HistoryLastNumber => "HistoryLast.number",
+            Self::HistoryLastChange => "HistoryLast.change",
+            Self::HistoryLastAt => "HistoryLast.at",
+            Self::HistoryLastTail => "HistoryLast (tail)",
+            Self::TaskReleaseRevision => "TaskRelease.revision",
+            Self::TaskReleaseAt => "TaskRelease.at",
+            Self::TaskReleaseTail => "TaskRelease (tail)",
+            Self::FindingsTopicProject => "FindingsTopic.project",
+            Self::FindingsTopicTail => "FindingsTopic (tail)",
+            Self::TopicTag => "Topic (tag)",
+            Self::ChangeSourceBranch => "ChangeSource.branch",
+            Self::ChangeSourceAt => "ChangeSource.at",
+            Self::ChangeSourceTail => "ChangeSource (tail)",
+            Self::ChangeColdMilestone => "ChangeCold.milestone",
+            Self::ChangeColdSource => "ChangeCold.source",
+            Self::ChangeColdGoal => "ChangeCold.goal",
+            Self::ChangeColdTask => "ChangeCold.task",
+            Self::ChangeColdRepository => "ChangeCold.repository",
+            Self::ChangeColdBranch => "ChangeCold.branch",
+            Self::ChangeColdBase => "ChangeCold.base",
+            Self::ChangeColdTitle => "ChangeCold.title",
+            Self::ChangeColdBody => "ChangeCold.body",
+            Self::ChangeColdBaseRepair => "ChangeCold.base_repair",
+            Self::ChangeColdProducingCharter => "ChangeCold.producing_charter",
+            Self::ChangeColdReviewCharter => "ChangeCold.review_charter",
+            Self::ChangeColdProducingLlm => "ChangeCold.producing_llm",
+            Self::ChangeColdReviewLlm => "ChangeCold.review_llm",
+            Self::ChangeColdReport => "ChangeCold.report",
+            Self::ChangeColdRepairs => "ChangeCold.repairs",
+            Self::ChangeColdFollows => "ChangeCold.follows",
+            Self::ChangeColdCatchUp => "ChangeCold.catch_up",
+            Self::ChangeColdClose => "ChangeCold.close",
+            Self::ChangeColdTail => "ChangeCold (tail)",
+            Self::RegateReceipt => "Regate.receipt",
+            Self::RegateRun => "Regate.run",
+            Self::RegateTail => "Regate (tail)",
+            Self::ChangeHotRoom => "ChangeHot.room",
+            Self::ChangeHotDelegateHead => "ChangeHot.delegate_head",
+            Self::ChangeHotDelegateFlake => "ChangeHot.delegate_flake",
+            Self::ChangeHotRegate => "ChangeHot.regate",
+            Self::ChangeHotKept => "ChangeHot.kept",
+            Self::ChangeHotTaskRelease => "ChangeHot.task_release",
+            Self::ChangeHotJob => "ChangeHot.job",
+            Self::ChangeHotSigned => "ChangeHot.signed",
+            Self::ChangeHotEnding => "ChangeHot.ending",
+            Self::ChangeHotRepairTasks => "ChangeHot.repair_tasks",
+            Self::ChangeHotResolutionTasks => "ChangeHot.resolution_tasks",
+            Self::ChangeHotResult => "ChangeHot.result",
+            Self::ChangeHotTask => "ChangeHot.task",
+            Self::ChangeHotPriority => "ChangeHot.priority",
+            Self::ChangeHotChange => "ChangeHot.change",
+            Self::ChangeHotCi => "ChangeHot.ci",
+            Self::ChangeHotPull => "ChangeHot.pull",
+            Self::ChangeHotPending => "ChangeHot.pending",
+            Self::ChangeHotEffect => "ChangeHot.effect",
+            Self::ChangeHotDelegate => "ChangeHot.delegate",
+            Self::ChangeHotDelegateStatus => "ChangeHot.delegate_status",
+            Self::ChangeHotVerdicts => "ChangeHot.verdicts",
+            Self::ChangeHotGateRemarks => "ChangeHot.gate_remarks",
+            Self::ChangeHotDrift => "ChangeHot.drift",
+            Self::ChangeHotQueueRepair => "ChangeHot.queue_repair",
+            Self::ChangeHotQueueRepairs => "ChangeHot.queue_repairs",
+            Self::ChangeHotEffectAccount => "ChangeHot.effect_account",
+            Self::ChangeHotProducerFailure => "ChangeHot.producer_failure",
+            Self::ChangeHotQuestions => "ChangeHot.questions",
+            Self::ChangeHotFollowCheck => "ChangeHot.follow_check",
+            Self::ChangeHotMergeResult => "ChangeHot.merge_result",
+            Self::ChangeHotHistory => "ChangeHot.history",
+            Self::ChangeHotTail => "ChangeHot (tail)",
+            Self::SubscriberTask => "Subscriber.task",
+            Self::SubscriberNumber => "Subscriber.number",
+            Self::SubscriberTopic => "Subscriber.topic",
+            Self::SubscriberOwnChange => "Subscriber.own_change",
+            Self::SubscriberGoalTasks => "Subscriber.goal_tasks",
+            Self::SubscriberPaths => "Subscriber.paths",
+            Self::SubscriberTail => "Subscriber (tail)",
+            Self::FindingCountNumber => "FindingCount.number",
+            Self::FindingCountTail => "FindingCount (tail)",
+            Self::FindingHolderTag => "FindingHolder (tag)",
+            Self::FindingHeldHolder => "FindingHeld.holder",
+            Self::FindingHeldTail => "FindingHeld (tail)",
+            Self::FindingAreasNames => "FindingAreas.names",
+            Self::FindingAreasTail => "FindingAreas (tail)",
+            Self::FindingWordsWords => "FindingWords.words",
+            Self::FindingWordsTail => "FindingWords (tail)",
+            Self::FindingRefusalTag => "FindingRefusal (tag)",
+            Self::FindingRefusedWhy => "FindingRefused.why",
+            Self::FindingRefusedTail => "FindingRefused (tail)",
+            Self::FindingResultTag => "FindingResult (tag)",
+            Self::FindingReplyProject => "FindingReply.project",
+            Self::FindingReplyNumber => "FindingReply.number",
+            Self::FindingReplyArea => "FindingReply.area",
+            Self::FindingReplyResult => "FindingReply.result",
+            Self::FindingReplyTail => "FindingReply (tail)",
+            Self::CallFollowFollow => "CallFollow.follow",
+            Self::CallFollowRefusal => "CallFollow.refusal",
+            Self::CallFollowTail => "CallFollow (tail)",
+            Self::RecorderTag => "Recorder (tag)",
+            Self::RedGoal => "Red.goal",
+            Self::RedKey => "Red.key",
+            Self::RedHead => "Red.head",
+            Self::RedWhy => "Red.why",
+            Self::RedBy => "Red.by",
+            Self::RedAt => "Red.at",
+            Self::RedGeneration => "Red.generation",
+            Self::RedTail => "Red (tail)",
+            Self::RedNumberLast => "RedNumber.last",
+            Self::RedNumberTail => "RedNumber (tail)",
+            Self::RedPassChange => "RedPass.change",
+            Self::RedPassKey => "RedPass.key",
+            Self::RedPassGeneration => "RedPass.generation",
+            Self::RedPassTail => "RedPass (tail)",
+            Self::RedRecordedHead => "RedRecorded.head",
+            Self::RedRecordedGeneration => "RedRecorded.generation",
+            Self::RedRecordedReplaced => "RedRecorded.replaced",
+            Self::RedRecordedTail => "RedRecorded (tail)",
+            Self::RedFullBound => "RedFull.bound",
+            Self::RedFullTail => "RedFull (tail)",
+            Self::RedRefusalTag => "RedRefusal (tag)",
+            Self::RedRefusedWhy => "RedRefused.why",
+            Self::RedRefusedTail => "RedRefused (tail)",
+            Self::RedResultTag => "RedResult (tag)",
+            Self::RedReplyGoal => "RedReply.goal",
+            Self::RedReplyKey => "RedReply.key",
+            Self::RedReplyResult => "RedReply.result",
+            Self::RedReplyTail => "RedReply (tail)",
+            Self::CallPayloadTag => "CallPayload (tag)",
+            Self::CallKey => "Call.key",
+            Self::CallAnswer => "Call.answer",
+            Self::CallTail => "Call (tail)",
+            Self::AreaTaskNumber => "AreaTask.number",
+            Self::AreaTaskTail => "AreaTask (tail)",
+            Self::AreaPartyNumber => "AreaParty.number",
+            Self::AreaPartyTail => "AreaParty (tail)",
+            Self::AreaRoleNumber => "AreaRole.number",
+            Self::AreaRoleTail => "AreaRole (tail)",
+            Self::AreaCharterNumber => "AreaCharter.number",
+            Self::AreaCharterTail => "AreaCharter (tail)",
+            Self::AreaOwnerTag => "AreaOwner (tag)",
+            Self::AreaName => "Area.name",
+            Self::AreaWords => "Area.words",
+            Self::AreaOwner => "Area.owner",
+            Self::AreaTail => "Area (tail)",
+            Self::ProjectAreasAreas => "ProjectAreas.areas",
+            Self::ProjectAreasTail => "ProjectAreas (tail)",
+            Self::ProjectTriagerOwner => "ProjectTriager.owner",
+            Self::ProjectTriagerTail => "ProjectTriager (tail)",
+            Self::WelcomeShown => "Welcome.shown",
+            Self::WelcomeTail => "Welcome (tail)",
+            Self::LimitOverrideName => "LimitOverride.name",
+            Self::LimitOverrideValue => "LimitOverride.value",
+            Self::LimitOverrideReason => "LimitOverride.reason",
+            Self::LimitOverrideTail => "LimitOverride (tail)",
+            Self::TemperLimitsOverrides => "TemperLimits.overrides",
+            Self::TemperLimitsTail => "TemperLimits (tail)",
+            Self::AgentFigureName => "AgentFigure.name",
+            Self::AgentFigureValue => "AgentFigure.value",
+            Self::AgentFigureTail => "AgentFigure (tail)",
+            Self::OversizedTag => "Oversized (tag)",
+            Self::AgentLimitsWindow => "AgentLimits.window",
+            Self::AgentLimitsOutput => "AgentLimits.output",
+            Self::AgentLimitsReasoningItem => "AgentLimits.reasoning_item",
+            Self::AgentLimitsHeadMs => "AgentLimits.head_ms",
+            Self::AgentLimitsIdleMs => "AgentLimits.idle_ms",
+            Self::AgentLimitsOversized => "AgentLimits.oversized",
+            Self::AgentLimitsTail => "AgentLimits (tail)",
+            Self::AgentEndpointLimitsEndpoint => "AgentEndpointLimits.endpoint",
+            Self::AgentEndpointLimitsLimits => "AgentEndpointLimits.limits",
+            Self::AgentEndpointLimitsTail => "AgentEndpointLimits (tail)",
+            Self::AgentFiguresProfile => "AgentFigures.profile",
+            Self::AgentFiguresEndpoints => "AgentFigures.endpoints",
+            Self::AgentFiguresFallback => "AgentFigures.fallback",
+            Self::AgentFiguresTail => "AgentFigures (tail)",
+            Self::SettingValueTag => "SettingValue (tag)",
+            Self::SizedValueValue => "SizedValue.value",
+            Self::SizedValueSize => "SizedValue.size",
+            Self::SizedValueTail => "SizedValue (tail)",
+            Self::SettingEditTag => "SettingEdit (tag)",
+            Self::SettingRowKind => "SettingRow.kind",
+            Self::SettingRowScope => "SettingRow.scope",
+            Self::SettingRowNumber => "SettingRow.number",
+            Self::SettingRowSlot => "SettingRow.slot",
+            Self::SettingRowEdit => "SettingRow.edit",
+            Self::SettingRowTail => "SettingRow (tail)",
+            Self::FindingKindTag => "FindingKind (tag)",
+            Self::SeverityTag => "Severity (tag)",
+            Self::FindingStateTag => "FindingState (tag)",
+            Self::FilerTag => "Filer (tag)",
+            Self::FindingSignatureRepository => "FindingSignature.repository",
+            Self::FindingSignatureSource => "FindingSignature.source",
+            Self::FindingSignatureIds => "FindingSignature.ids",
+            Self::FindingSignatureFirst => "FindingSignature.first",
+            Self::FindingSignatureTail => "FindingSignature (tail)",
+            Self::FindingProject => "Finding.project",
+            Self::FindingNumber => "Finding.number",
+            Self::FindingKind => "Finding.kind",
+            Self::FindingSeverity => "Finding.severity",
+            Self::FindingArea => "Finding.area",
+            Self::FindingState => "Finding.state",
+            Self::FindingTitle => "Finding.title",
+            Self::FindingBody => "Finding.body",
+            Self::FindingFiler => "Finding.filer",
+            Self::FindingAt => "Finding.at",
+            Self::FindingWhy => "Finding.why",
+            Self::FindingHander => "Finding.hander",
+            Self::FindingGoal => "Finding.goal",
+            Self::FindingReason => "Finding.reason",
+            Self::FindingSignature => "Finding.signature",
+            Self::FindingSeen => "Finding.seen",
+            Self::FindingTail => "Finding (tail)",
+            Self::DeviceParty => "Device.party",
+            Self::DeviceNumber => "Device.number",
+            Self::DeviceEndpoint => "Device.endpoint",
+            Self::DeviceP256dh => "Device.p256dh",
+            Self::DeviceAuth => "Device.auth",
+            Self::DeviceLabel => "Device.label",
+            Self::DeviceAt => "Device.at",
+            Self::DeviceTail => "Device (tail)",
+            Self::ValueTag => "Value (tag)",
+            Self::RowValue => "Row.value",
+            Self::RowVersion => "Row (version)",
+            Self::RowTail => "Row (tail)",
+        }
+    }
+}
+
+/// A decoding or bound failure at a schema path.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct Problem {
+    pub path: Path,
+    pub reason: skein_codec::Reason,
+}
+
+/// Checks the family limits, naming the first limit past its ceiling.
+pub fn check_limits(limits: &Limits) -> Result<(), Problem> {
+    check_segment_record_limits(limits)
+}
+
+/// Maximum wire bytes among this family's top-level types.
+#[must_use]
+pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+    if check_limits(limits).is_err() { return None; }
+    repository_encoded_bound_family(limits, 0)
+}
+
+/// Maximum heap held by one decoded top-level value.
+#[must_use]
+pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+    if check_limits(limits).is_err() { return None; }
+    repository_decoded_bound_family(limits, 0)
+}
+
+/// Movable fields of `Repository`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct RepositoryParts {
+    /// The `forge` field.
+    pub forge: u16,
+    /// The `repository` field.
+    pub repository: u32,
+}
+
+/// `Repository` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct Repository {
+    forge: u16,
+    repository: u32,
+}
+
+impl Repository {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: RepositoryParts) -> Result<Self, Problem> {
+        let RepositoryParts { forge, repository } = parts;
+        let value = Self { forge, repository };
+        Ok(value)
+    }
+
+    /// Reads the `forge` field.
+    #[must_use]
+    pub fn forge(&self) -> u16 { self.forge }
+
+    /// Reads the `repository` field.
+    #[must_use]
+    pub fn repository(&self) -> u32 { self.repository }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> RepositoryParts { RepositoryParts { forge: self.forge, repository: self.repository } }
+
+}
+
+impl Repository {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(2).expect("schema ceilings fit u32");
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_forge = &self.forge;
+        writer.put(&field_forge.to_be_bytes())?;
+        let field_repository = &self.repository;
+        writer.put(&field_repository.to_be_bytes())?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::RepositoryTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_forge = reader.u16().ok_or(Problem { path: Path::RepositoryForge, reason: skein_codec::Reason::Short })?;
+        let decoded_repository = reader.u32().ok_or(Problem { path: Path::RepositoryRepository, reason: skein_codec::Reason::Short })?;
+        Ok(Self { forge: decoded_forge, repository: decoded_repository })
+    }
+}
+
+impl Repository {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(2_u64)?.checked_add(4_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
+fn repository_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(Repository::encoded_bound_within(limits)?);
+    number_encoded_bound_family(limits, biggest)
+}
+
+fn repository_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(Repository::decoded_bound_within(limits)?);
+    number_decoded_bound_family(limits, biggest)
+}
+
+/// Movable fields of `Number`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct NumberParts {
+    /// The `number` field.
+    pub number: u64,
+}
+
+/// `Number` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct Number {
+    number: u64,
+}
+
+impl Number {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: NumberParts) -> Result<Self, Problem> {
+        let NumberParts { number } = parts;
+        let value = Self { number };
+        Ok(value)
+    }
+
+    /// Reads the `number` field.
+    #[must_use]
+    pub fn number(&self) -> u64 { self.number }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> NumberParts { NumberParts { number: self.number } }
+
+}
+
+impl Number {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_number = &self.number;
+        writer.put(&field_number.to_be_bytes())?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::NumberTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_number = reader.u64().ok_or(Problem { path: Path::NumberNumber, reason: skein_codec::Reason::Short })?;
+        Ok(Self { number: decoded_number })
+    }
+}
+
+impl Number {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(8_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
+fn number_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(Number::encoded_bound_within(limits)?);
+    commit_encoded_bound_family(limits, biggest)
+}
+
+fn number_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(Number::decoded_bound_within(limits)?);
+    commit_decoded_bound_family(limits, biggest)
+}
+
+/// Movable fields of `Commit`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct CommitParts {
+    /// The `commit` field.
+    pub commit: [u8; 32],
+}
+
+/// `Commit` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct Commit {
+    commit: [u8; 32],
+}
+
+impl Commit {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: CommitParts) -> Result<Self, Problem> {
+        let CommitParts { commit } = parts;
+        let value = Self { commit };
+        Ok(value)
+    }
+
+    /// Reads the `commit` field.
+    #[must_use]
+    pub fn commit(&self) -> &[u8; 32] { &self.commit }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> CommitParts { CommitParts { commit: self.commit } }
+
+}
+
+impl Commit {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(32).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_commit = &self.commit;
+        writer.put(field_commit)?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::CommitTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_commit = { let bytes = reader.bytes(32).ok_or(Problem { path: Path::CommitCommit, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") };
+        Ok(Self { commit: decoded_commit })
+    }
+}
+
+impl Commit {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(u64::from(32_u32))?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
+fn commit_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(Commit::encoded_bound_within(limits)?);
+    segment_encoded_bound_family(limits, biggest)
+}
+
+fn commit_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(Commit::decoded_bound_within(limits)?);
+    segment_decoded_bound_family(limits, biggest)
+}
+
+/// Movable fields of `Segment`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct SegmentParts {
+    /// The `name` field.
+    pub name: Box<[u8]>,
+}
+
+/// `Segment` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct Segment {
+    name: Box<[u8]>,
+}
+
+impl Segment {
+    /// Makes a value within the given limits.
+    pub fn new(limits: &Limits, parts: SegmentParts) -> Result<Self, Problem> {
+        let SegmentParts { name } = parts;
+        let value = Self { name };
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    /// Reads the `name` field.
+    #[must_use]
+    pub fn name(&self) -> &[u8] { &self.name }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> SegmentParts { SegmentParts { name: self.name } }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        if self.name.len() > usize::try_from(limits.segment_name.min(CEILINGS.segment_name)).expect("u32 fits usize") { return Err(Problem { path: Path::SegmentName, reason: skein_codec::Reason::Bound }); }
+        Ok(())
+    }
+}
+
+impl Segment {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        let field_name = &self.name;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(u32::try_from(field_name.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_name = &self.name;
+        writer.put(&u32::try_from(field_name.len()).expect("field ceiling fits u32").to_be_bytes())?;
+        writer.put(field_name.as_ref())?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::SegmentTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_name = { let length = match skein_codec::read_len(reader, limits.segment_name.min(CEILINGS.segment_name)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::SegmentName, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::SegmentName, reason: skein_codec::Reason::Short })?) };
+        Ok(Self { name: decoded_name })
+    }
+}
+
+impl Segment {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(4_u64.checked_add(u64::from(limits.segment_name))?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(u64::from(limits.segment_name))?;
+        heap.checked_add(0)
+    }
+}
+
+fn segment_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(Segment::encoded_bound_within(limits)?);
+    answer_name_encoded_bound_family(limits, biggest)
+}
+
+fn segment_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(Segment::decoded_bound_within(limits)?);
+    answer_name_decoded_bound_family(limits, biggest)
+}
+
+fn check_segment_record_limits(limits: &Limits) -> Result<(), Problem> {
+    if limits.segment_name > CEILINGS.segment_name { return Err(Problem { path: Path::SegmentName, reason: skein_codec::Reason::Bound }); }
+    check_answer_name_record_limits(limits)
+}
+
+impl Limits {
+    fn values_for_segment_record(&self, values: &mut List<u32>) {
+>>>>>>> refs/hand5/9644
         values.push(self.segment_name).expect("room for every named limit");
         values.push(self.answer_name_name).expect("room for every named limit");
         values.push(self.segments_segments).expect("room for every named limit");
@@ -1235,8 +7576,838 @@ impl Limits {
         values.push(self.landing_by_test_gates).expect("room for every named limit");
         values.push(self.landing_by_test_probed).expect("room for every named limit");
         values.push(self.landing_searched_changes).expect("room for every named limit");
+<<<<<<< HEAD
         values.push(self.landing_round_branch).expect("room for every named limit");
         values.push(self.landing_round_failure).expect("room for every named limit");
+=======
+        self.values_for_landing_round_record(values);
+    }
+}
+
+/// Movable fields of `LandingRound`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct LandingRoundParts {
+    /// The `merges` field.
+    pub merges: u32,
+    /// The `branch` field.
+    pub branch: Box<[u8]>,
+    /// The `pull` field.
+    pub pull: Option<u64>,
+    /// The `upstream` field.
+    pub upstream: Option<[u8; 32]>,
+    /// The `combined` field.
+    pub combined: Option<LandingCombine>,
+    /// The `recorded` field.
+    pub recorded: bool,
+    /// The `told` field.
+    pub told: bool,
+    /// The `ending` field.
+    pub ending: Option<LandingRoundEnd>,
+    /// The `failure` field.
+    pub failure: Box<[u8]>,
+    /// The `judging` field.
+    pub judging: bool,
+    /// The `changed` field.
+    pub changed: Option<u16>,
+    /// The `search` field.
+    pub search: Option<LandingSearch>,
+}
+
+/// `LandingRound` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct LandingRound {
+    merges: u32,
+    branch: Box<[u8]>,
+    pull: Option<u64>,
+    upstream: Option<[u8; 32]>,
+    combined: Option<LandingCombine>,
+    recorded: bool,
+    told: bool,
+    ending: Option<LandingRoundEnd>,
+    failure: Box<[u8]>,
+    judging: bool,
+    changed: Option<u16>,
+    search: Option<LandingSearch>,
+}
+
+impl LandingRound {
+    /// Makes a value within the given limits.
+    pub fn new(limits: &Limits, parts: LandingRoundParts) -> Result<Self, Problem> {
+        let LandingRoundParts { merges, branch, pull, upstream, combined, recorded, told, ending, failure, judging, changed, search } = parts;
+        let value = Self { merges, branch, pull, upstream, combined, recorded, told, ending, failure, judging, changed, search };
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    /// Reads the `merges` field.
+    #[must_use]
+    pub fn merges(&self) -> u32 { self.merges }
+
+    /// Reads the `branch` field.
+    #[must_use]
+    pub fn branch(&self) -> &[u8] { &self.branch }
+
+    /// Reads the `pull` field.
+    #[must_use]
+    pub fn pull(&self) -> &Option<u64> { &self.pull }
+
+    /// Reads the `upstream` field.
+    #[must_use]
+    pub fn upstream(&self) -> &Option<[u8; 32]> { &self.upstream }
+
+    /// Reads the `combined` field.
+    #[must_use]
+    pub fn combined(&self) -> &Option<LandingCombine> { &self.combined }
+
+    /// Reads the `recorded` field.
+    #[must_use]
+    pub fn recorded(&self) -> bool { self.recorded }
+
+    /// Reads the `told` field.
+    #[must_use]
+    pub fn told(&self) -> bool { self.told }
+
+    /// Reads the `ending` field.
+    #[must_use]
+    pub fn ending(&self) -> &Option<LandingRoundEnd> { &self.ending }
+
+    /// Reads the `failure` field.
+    #[must_use]
+    pub fn failure(&self) -> &[u8] { &self.failure }
+
+    /// Reads the `judging` field.
+    #[must_use]
+    pub fn judging(&self) -> bool { self.judging }
+
+    /// Reads the `changed` field.
+    #[must_use]
+    pub fn changed(&self) -> &Option<u16> { &self.changed }
+
+    /// Reads the `search` field.
+    #[must_use]
+    pub fn search(&self) -> &Option<LandingSearch> { &self.search }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> LandingRoundParts { LandingRoundParts { merges: self.merges, branch: self.branch, pull: self.pull, upstream: self.upstream, combined: self.combined, recorded: self.recorded, told: self.told, ending: self.ending, failure: self.failure, judging: self.judging, changed: self.changed, search: self.search } }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        if self.branch.len() > usize::try_from(limits.landing_round_branch.min(CEILINGS.landing_round_branch)).expect("u32 fits usize") { return Err(Problem { path: Path::LandingRoundBranch, reason: skein_codec::Reason::Bound }); }
+        if self.failure.len() > usize::try_from(limits.landing_round_failure.min(CEILINGS.landing_round_failure)).expect("u32 fits usize") { return Err(Problem { path: Path::LandingRoundFailure, reason: skein_codec::Reason::Bound }); }
+        if let Some(some_0) = self.search.as_ref() {
+        some_0.check(limits)?;
+        }
+        Ok(())
+    }
+}
+
+impl LandingRound {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        let field_branch = &self.branch;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(u32::try_from(field_branch.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
+        let field_pull = &self.pull;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if field_pull.is_some() {
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        }
+        let field_upstream = &self.upstream;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if field_upstream.is_some() {
+        size = size.checked_add(32).expect("schema ceilings fit u32");
+        }
+        let field_combined = &self.combined;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if field_combined.is_some() {
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        }
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        let field_ending = &self.ending;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if field_ending.is_some() {
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        }
+        let field_failure = &self.failure;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(u32::try_from(field_failure.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        let field_changed = &self.changed;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if field_changed.is_some() {
+        size = size.checked_add(2).expect("schema ceilings fit u32");
+        }
+        let field_search = &self.search;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if let Some(some_0) = field_search {
+        size = size.checked_add(some_0.measure()).expect("schema ceilings fit u32");
+        }
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_merges = &self.merges;
+        writer.put(&field_merges.to_be_bytes())?;
+        let field_branch = &self.branch;
+        writer.put(&u32::try_from(field_branch.len()).expect("field ceiling fits u32").to_be_bytes())?;
+        writer.put(field_branch.as_ref())?;
+        let field_pull = &self.pull;
+        match field_pull {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        writer.put(&some_0.to_be_bytes())?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
+        let field_upstream = &self.upstream;
+        match field_upstream {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        writer.put(some_0)?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
+        let field_combined = &self.combined;
+        match field_combined {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        some_0.encode(writer)?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
+        let field_recorded = &self.recorded;
+        writer.put(&[u8::from(*field_recorded)])?;
+        let field_told = &self.told;
+        writer.put(&[u8::from(*field_told)])?;
+        let field_ending = &self.ending;
+        match field_ending {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        some_0.encode(writer)?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
+        let field_failure = &self.failure;
+        writer.put(&u32::try_from(field_failure.len()).expect("field ceiling fits u32").to_be_bytes())?;
+        writer.put(field_failure.as_ref())?;
+        let field_judging = &self.judging;
+        writer.put(&[u8::from(*field_judging)])?;
+        let field_changed = &self.changed;
+        match field_changed {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        writer.put(&some_0.to_be_bytes())?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
+        let field_search = &self.search;
+        match field_search {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        some_0.encode(writer)?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::LandingRoundTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_merges = reader.u32().ok_or(Problem { path: Path::LandingRoundMerges, reason: skein_codec::Reason::Short })?;
+        let decoded_branch = { let length = match skein_codec::read_len(reader, limits.landing_round_branch.min(CEILINGS.landing_round_branch)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::LandingRoundBranch, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::LandingRoundBranch, reason: skein_codec::Reason::Short })?) };
+        let decoded_pull = match reader.u8().ok_or(Problem { path: Path::LandingRoundPull, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u64().ok_or(Problem { path: Path::LandingRoundPull, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::LandingRoundPull, reason: skein_codec::Reason::Tag }) };
+        let decoded_upstream = match reader.u8().ok_or(Problem { path: Path::LandingRoundUpstream, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some({ let bytes = reader.bytes(32).ok_or(Problem { path: Path::LandingRoundUpstream, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") }), _ => return Err(Problem { path: Path::LandingRoundUpstream, reason: skein_codec::Reason::Tag }) };
+        let decoded_combined = match reader.u8().ok_or(Problem { path: Path::LandingRoundCombined, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(LandingCombine::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::LandingRoundCombined, reason: skein_codec::Reason::Tag }) };
+        let decoded_recorded = match reader.u8().ok_or(Problem { path: Path::LandingRoundRecorded, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::LandingRoundRecorded, reason: skein_codec::Reason::Bool }) };
+        let decoded_told = match reader.u8().ok_or(Problem { path: Path::LandingRoundTold, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::LandingRoundTold, reason: skein_codec::Reason::Bool }) };
+        let decoded_ending = match reader.u8().ok_or(Problem { path: Path::LandingRoundEnding, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(LandingRoundEnd::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::LandingRoundEnding, reason: skein_codec::Reason::Tag }) };
+        let decoded_failure = { let length = match skein_codec::read_len(reader, limits.landing_round_failure.min(CEILINGS.landing_round_failure)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::LandingRoundFailure, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::LandingRoundFailure, reason: skein_codec::Reason::Short })?) };
+        let decoded_judging = match reader.u8().ok_or(Problem { path: Path::LandingRoundJudging, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::LandingRoundJudging, reason: skein_codec::Reason::Bool }) };
+        let decoded_changed = match reader.u8().ok_or(Problem { path: Path::LandingRoundChanged, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u16().ok_or(Problem { path: Path::LandingRoundChanged, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::LandingRoundChanged, reason: skein_codec::Reason::Tag }) };
+        let decoded_search = match reader.u8().ok_or(Problem { path: Path::LandingRoundSearch, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(LandingSearch::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::LandingRoundSearch, reason: skein_codec::Reason::Tag }) };
+        Ok(Self { merges: decoded_merges, branch: decoded_branch, pull: decoded_pull, upstream: decoded_upstream, combined: decoded_combined, recorded: decoded_recorded, told: decoded_told, ending: decoded_ending, failure: decoded_failure, judging: decoded_judging, changed: decoded_changed, search: decoded_search })
+    }
+}
+
+impl LandingRound {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(4_u64)?.checked_add(4_u64.checked_add(u64::from(limits.landing_round_branch))?)?;
+        size = size.checked_add(1_u64.checked_add(8_u64)?)?.checked_add(1_u64.checked_add(u64::from(32_u32))?)?;
+        size = size.checked_add(1_u64.checked_add(LandingCombine::encoded_bound_within(limits)?)?)?.checked_add(1_u64)?;
+        size = size.checked_add(1_u64)?.checked_add(1_u64.checked_add(LandingRoundEnd::encoded_bound_within(limits)?)?)?;
+        size = size.checked_add(4_u64.checked_add(u64::from(limits.landing_round_failure))?)?.checked_add(1_u64)?;
+        size = size.checked_add(1_u64.checked_add(2_u64)?)?.checked_add(1_u64.checked_add(LandingSearch::encoded_bound_within(limits)?)?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?.checked_add(u64::from(limits.landing_round_branch))?;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap = heap.checked_add(LandingCombine::decoded_bound_within(limits)?)?.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?.checked_add(LandingRoundEnd::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(u64::from(limits.landing_round_failure))?.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?.checked_add(LandingSearch::decoded_bound_within(limits)?)?;
+        heap.checked_add(0)
+    }
+}
+
+fn landing_round_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(LandingRound::encoded_bound_within(limits)?);
+    landing_last_prepare_encoded_bound_family(limits, biggest)
+}
+
+fn landing_round_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(LandingRound::decoded_bound_within(limits)?);
+    landing_last_prepare_decoded_bound_family(limits, biggest)
+}
+
+fn check_landing_round_record_limits(limits: &Limits) -> Result<(), Problem> {
+    if limits.landing_round_branch > CEILINGS.landing_round_branch { return Err(Problem { path: Path::LandingRoundBranch, reason: skein_codec::Reason::Bound }); }
+    if limits.landing_round_failure > CEILINGS.landing_round_failure { return Err(Problem { path: Path::LandingRoundFailure, reason: skein_codec::Reason::Bound }); }
+    check_landing_last_prepare_record_limits(limits)
+}
+
+impl Limits {
+    fn values_for_landing_round_record(&self, values: &mut List<u32>) {
+        values.push(self.landing_round_branch).expect("room for every named limit");
+        values.push(self.landing_round_failure).expect("room for every named limit");
+        self.values_for_landing_last_prepare_record(values);
+    }
+}
+
+/// Movable fields of `LandingLastPrepare`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct LandingLastPrepareParts {
+    /// The `member` field.
+    pub member: u16,
+    /// The `head` field.
+    pub head: [u8; 32],
+    /// The `main` field.
+    pub main: [u8; 32],
+    /// The `suffix` field.
+    pub suffix: List<u16>,
+    /// The `asks` field.
+    pub asks: u16,
+    /// The `again` field.
+    pub again: Option<u64>,
+}
+
+/// `LandingLastPrepare` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct LandingLastPrepare {
+    member: u16,
+    head: [u8; 32],
+    main: [u8; 32],
+    suffix: List<u16>,
+    asks: u16,
+    again: Option<u64>,
+}
+
+impl LandingLastPrepare {
+    /// Makes a value within the given limits.
+    pub fn new(limits: &Limits, parts: LandingLastPrepareParts) -> Result<Self, Problem> {
+        let LandingLastPrepareParts { member, head, main, suffix, asks, again } = parts;
+        let value = Self { member, head, main, suffix, asks, again };
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    /// Reads the `member` field.
+    #[must_use]
+    pub fn member(&self) -> u16 { self.member }
+
+    /// Reads the `head` field.
+    #[must_use]
+    pub fn head(&self) -> &[u8; 32] { &self.head }
+
+    /// Reads the `main` field.
+    #[must_use]
+    pub fn main(&self) -> &[u8; 32] { &self.main }
+
+    /// Reads the `suffix` field.
+    #[must_use]
+    pub fn suffix(&self) -> &List<u16> { &self.suffix }
+
+    /// Reads the `asks` field.
+    #[must_use]
+    pub fn asks(&self) -> u16 { self.asks }
+
+    /// Reads the `again` field.
+    #[must_use]
+    pub fn again(&self) -> &Option<u64> { &self.again }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> LandingLastPrepareParts { LandingLastPrepareParts { member: self.member, head: self.head, main: self.main, suffix: self.suffix, asks: self.asks, again: self.again } }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        if self.suffix.capacity() > limits.landing_last_prepare_suffix.min(CEILINGS.landing_last_prepare_suffix) { return Err(Problem { path: Path::LandingLastPrepareSuffix, reason: skein_codec::Reason::Bound }); }
+        Ok(())
+    }
+}
+
+impl LandingLastPrepare {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(2).expect("schema ceilings fit u32");
+        size = size.checked_add(32).expect("schema ceilings fit u32");
+        size = size.checked_add(32).expect("schema ceilings fit u32");
+        let field_suffix = &self.suffix;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(field_suffix.len().checked_mul(2).expect("schema ceilings fit u32")).expect("schema ceilings fit u32");
+        size = size.checked_add(2).expect("schema ceilings fit u32");
+        let field_again = &self.again;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if field_again.is_some() {
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        }
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_member = &self.member;
+        writer.put(&field_member.to_be_bytes())?;
+        let field_head = &self.head;
+        writer.put(field_head)?;
+        let field_main = &self.main;
+        writer.put(field_main)?;
+        let field_suffix = &self.suffix;
+        writer.put(&field_suffix.len().to_be_bytes())?;
+        for item_0 in field_suffix.as_slice() {
+        writer.put(&item_0.to_be_bytes())?;
+        }
+        let field_asks = &self.asks;
+        writer.put(&field_asks.to_be_bytes())?;
+        let field_again = &self.again;
+        match field_again {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        writer.put(&some_0.to_be_bytes())?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::LandingLastPrepareTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_member = reader.u16().ok_or(Problem { path: Path::LandingLastPrepareMember, reason: skein_codec::Reason::Short })?;
+        let decoded_head = { let bytes = reader.bytes(32).ok_or(Problem { path: Path::LandingLastPrepareHead, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") };
+        let decoded_main = { let bytes = reader.bytes(32).ok_or(Problem { path: Path::LandingLastPrepareMain, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") };
+        let decoded_suffix = { let count = match skein_codec::read_count(reader, limits.landing_last_prepare_suffix.min(CEILINGS.landing_last_prepare_suffix)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::LandingLastPrepareSuffix, reason }), }; if count > reader.remaining() / 2 { return Err(Problem { path: Path::LandingLastPrepareSuffix, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = reader.u16().ok_or(Problem { path: Path::LandingLastPrepareSuffix, reason: skein_codec::Reason::Short })?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_asks = reader.u16().ok_or(Problem { path: Path::LandingLastPrepareAsks, reason: skein_codec::Reason::Short })?;
+        let decoded_again = match reader.u8().ok_or(Problem { path: Path::LandingLastPrepareAgain, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u64().ok_or(Problem { path: Path::LandingLastPrepareAgain, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::LandingLastPrepareAgain, reason: skein_codec::Reason::Tag }) };
+        Ok(Self { member: decoded_member, head: decoded_head, main: decoded_main, suffix: decoded_suffix, asks: decoded_asks, again: decoded_again })
+    }
+}
+
+impl LandingLastPrepare {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(2_u64)?.checked_add(u64::from(32_u32))?;
+        size = size.checked_add(u64::from(32_u32))?.checked_add(4_u64.checked_add(u64::from(limits.landing_last_prepare_suffix).checked_mul(2_u64)?)?)?;
+        size = size.checked_add(2_u64)?.checked_add(1_u64.checked_add(8_u64)?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?.checked_add(List::<u16>::price(limits.landing_last_prepare_suffix)?.checked_add(u64::from(limits.landing_last_prepare_suffix).checked_mul(0_u64)?)?)?;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
+fn landing_last_prepare_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(LandingLastPrepare::encoded_bound_within(limits)?);
+    landing_state_encoded_bound_family(limits, biggest)
+}
+
+fn landing_last_prepare_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(LandingLastPrepare::decoded_bound_within(limits)?);
+    landing_state_decoded_bound_family(limits, biggest)
+}
+
+fn check_landing_last_prepare_record_limits(limits: &Limits) -> Result<(), Problem> {
+    if limits.landing_last_prepare_suffix > CEILINGS.landing_last_prepare_suffix { return Err(Problem { path: Path::LandingLastPrepareSuffix, reason: skein_codec::Reason::Bound }); }
+    check_landing_state_record_limits(limits)
+}
+
+impl Limits {
+    fn values_for_landing_last_prepare_record(&self, values: &mut List<u32>) {
+        values.push(self.landing_last_prepare_suffix).expect("room for every named limit");
+        self.values_for_landing_state_record(values);
+    }
+}
+
+/// Movable fields of `LandingState`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct LandingStateParts {
+    /// The `searched` field.
+    pub searched: Option<LandingSearched>,
+    /// The `last_prepare` field.
+    pub last_prepare: Option<LandingLastPrepare>,
+    /// The `last_left` field.
+    pub last_left: Option<u16>,
+    /// The `task` field.
+    pub task: u64,
+    /// The `project` field.
+    pub project: u32,
+    /// The `phase` field.
+    pub phase: LandingPhase,
+    /// The `members` field.
+    pub members: List<LandingMember>,
+    /// The `preparation` field.
+    pub preparation: u16,
+    /// The `stale_proofs` field.
+    pub stale_proofs: u32,
+    /// The `branch` field.
+    pub branch: Box<[u8]>,
+    /// The `round` field.
+    pub round: Option<LandingRound>,
+    /// The `own_hold` field.
+    pub own_hold: Option<LandingOwnHold>,
+}
+
+/// `LandingState` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct LandingState {
+    searched: Option<LandingSearched>,
+    last_prepare: Option<LandingLastPrepare>,
+    last_left: Option<u16>,
+    task: u64,
+    project: u32,
+    phase: LandingPhase,
+    members: List<LandingMember>,
+    preparation: u16,
+    stale_proofs: u32,
+    branch: Box<[u8]>,
+    round: Option<LandingRound>,
+    own_hold: Option<LandingOwnHold>,
+}
+
+impl LandingState {
+    /// Makes a value within the given limits.
+    pub fn new(limits: &Limits, parts: LandingStateParts) -> Result<Self, Problem> {
+        let LandingStateParts { searched, last_prepare, last_left, task, project, phase, members, preparation, stale_proofs, branch, round, own_hold } = parts;
+        let value = Self { searched, last_prepare, last_left, task, project, phase, members, preparation, stale_proofs, branch, round, own_hold };
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    /// Reads the `searched` field.
+    #[must_use]
+    pub fn searched(&self) -> &Option<LandingSearched> { &self.searched }
+
+    /// Reads the `last_prepare` field.
+    #[must_use]
+    pub fn last_prepare(&self) -> &Option<LandingLastPrepare> { &self.last_prepare }
+
+    /// Reads the `last_left` field.
+    #[must_use]
+    pub fn last_left(&self) -> &Option<u16> { &self.last_left }
+
+    /// Reads the `task` field.
+    #[must_use]
+    pub fn task(&self) -> u64 { self.task }
+
+    /// Reads the `project` field.
+    #[must_use]
+    pub fn project(&self) -> u32 { self.project }
+
+    /// Reads the `phase` field.
+    #[must_use]
+    pub fn phase(&self) -> &LandingPhase { &self.phase }
+
+    /// Reads the `members` field.
+    #[must_use]
+    pub fn members(&self) -> &List<LandingMember> { &self.members }
+
+    /// Reads the `preparation` field.
+    #[must_use]
+    pub fn preparation(&self) -> u16 { self.preparation }
+
+    /// Reads the `stale_proofs` field.
+    #[must_use]
+    pub fn stale_proofs(&self) -> u32 { self.stale_proofs }
+
+    /// Reads the `branch` field.
+    #[must_use]
+    pub fn branch(&self) -> &[u8] { &self.branch }
+
+    /// Reads the `round` field.
+    #[must_use]
+    pub fn round(&self) -> &Option<LandingRound> { &self.round }
+
+    /// Reads the `own_hold` field.
+    #[must_use]
+    pub fn own_hold(&self) -> &Option<LandingOwnHold> { &self.own_hold }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> LandingStateParts { LandingStateParts { searched: self.searched, last_prepare: self.last_prepare, last_left: self.last_left, task: self.task, project: self.project, phase: self.phase, members: self.members, preparation: self.preparation, stale_proofs: self.stale_proofs, branch: self.branch, round: self.round, own_hold: self.own_hold } }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        if let Some(some_0) = self.searched.as_ref() {
+        some_0.check(limits)?;
+        }
+        if let Some(some_0) = self.last_prepare.as_ref() {
+        some_0.check(limits)?;
+        }
+        if self.members.capacity() > limits.landing_state_members.min(CEILINGS.landing_state_members) { return Err(Problem { path: Path::LandingStateMembers, reason: skein_codec::Reason::Bound }); }
+        for item_0 in self.members.as_slice() {
+        item_0.check(limits)?;
+        }
+        if self.branch.len() > usize::try_from(limits.landing_state_branch.min(CEILINGS.landing_state_branch)).expect("u32 fits usize") { return Err(Problem { path: Path::LandingStateBranch, reason: skein_codec::Reason::Bound }); }
+        if let Some(some_0) = self.round.as_ref() {
+        some_0.check(limits)?;
+        }
+        Ok(())
+    }
+}
+
+impl LandingState {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        let field_searched = &self.searched;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if let Some(some_0) = field_searched {
+        size = size.checked_add(some_0.measure()).expect("schema ceilings fit u32");
+        }
+        let field_last_prepare = &self.last_prepare;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if let Some(some_0) = field_last_prepare {
+        size = size.checked_add(some_0.measure()).expect("schema ceilings fit u32");
+        }
+        let field_last_left = &self.last_left;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if field_last_left.is_some() {
+        size = size.checked_add(2).expect("schema ceilings fit u32");
+        }
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        let field_phase = &self.phase;
+        size = size.checked_add(field_phase.measure()).expect("schema ceilings fit u32");
+        let field_members = &self.members;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        for item_0 in field_members.as_slice() {
+        size = size.checked_add(item_0.measure()).expect("schema ceilings fit u32");
+        }
+        size = size.checked_add(2).expect("schema ceilings fit u32");
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        let field_branch = &self.branch;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(u32::try_from(field_branch.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
+        let field_round = &self.round;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if let Some(some_0) = field_round {
+        size = size.checked_add(some_0.measure()).expect("schema ceilings fit u32");
+        }
+        let field_own_hold = &self.own_hold;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if let Some(some_0) = field_own_hold {
+        size = size.checked_add(some_0.measure()).expect("schema ceilings fit u32");
+        }
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_searched = &self.searched;
+        match field_searched {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        some_0.encode(writer)?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
+        let field_last_prepare = &self.last_prepare;
+        match field_last_prepare {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        some_0.encode(writer)?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
+        let field_last_left = &self.last_left;
+        match field_last_left {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        writer.put(&some_0.to_be_bytes())?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
+        let field_task = &self.task;
+        writer.put(&field_task.to_be_bytes())?;
+        let field_project = &self.project;
+        writer.put(&field_project.to_be_bytes())?;
+        let field_phase = &self.phase;
+        field_phase.encode(writer)?;
+        let field_members = &self.members;
+        writer.put(&field_members.len().to_be_bytes())?;
+        for item_0 in field_members.as_slice() {
+        item_0.encode(writer)?;
+        }
+        let field_preparation = &self.preparation;
+        writer.put(&field_preparation.to_be_bytes())?;
+        let field_stale_proofs = &self.stale_proofs;
+        writer.put(&field_stale_proofs.to_be_bytes())?;
+        let field_branch = &self.branch;
+        writer.put(&u32::try_from(field_branch.len()).expect("field ceiling fits u32").to_be_bytes())?;
+        writer.put(field_branch.as_ref())?;
+        let field_round = &self.round;
+        match field_round {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        some_0.encode(writer)?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
+        let field_own_hold = &self.own_hold;
+        match field_own_hold {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        some_0.encode(writer)?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::LandingStateTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_searched = match reader.u8().ok_or(Problem { path: Path::LandingStateSearched, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(LandingSearched::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::LandingStateSearched, reason: skein_codec::Reason::Tag }) };
+        let decoded_last_prepare = match reader.u8().ok_or(Problem { path: Path::LandingStateLastPrepare, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(LandingLastPrepare::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::LandingStateLastPrepare, reason: skein_codec::Reason::Tag }) };
+        let decoded_last_left = match reader.u8().ok_or(Problem { path: Path::LandingStateLastLeft, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u16().ok_or(Problem { path: Path::LandingStateLastLeft, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::LandingStateLastLeft, reason: skein_codec::Reason::Tag }) };
+        let decoded_task = reader.u64().ok_or(Problem { path: Path::LandingStateTask, reason: skein_codec::Reason::Short })?;
+        let decoded_project = reader.u32().ok_or(Problem { path: Path::LandingStateProject, reason: skein_codec::Reason::Short })?;
+        let decoded_phase = LandingPhase::decode_from(limits, reader)?;
+        let decoded_members = { let count = match skein_codec::read_count(reader, limits.landing_state_members.min(CEILINGS.landing_state_members)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::LandingStateMembers, reason }), }; if count > reader.remaining() / 44 { return Err(Problem { path: Path::LandingStateMembers, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = LandingMember::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_preparation = reader.u16().ok_or(Problem { path: Path::LandingStatePreparation, reason: skein_codec::Reason::Short })?;
+        let decoded_stale_proofs = reader.u32().ok_or(Problem { path: Path::LandingStateStaleProofs, reason: skein_codec::Reason::Short })?;
+        let decoded_branch = { let length = match skein_codec::read_len(reader, limits.landing_state_branch.min(CEILINGS.landing_state_branch)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::LandingStateBranch, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::LandingStateBranch, reason: skein_codec::Reason::Short })?) };
+        let decoded_round = match reader.u8().ok_or(Problem { path: Path::LandingStateRound, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(LandingRound::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::LandingStateRound, reason: skein_codec::Reason::Tag }) };
+        let decoded_own_hold = match reader.u8().ok_or(Problem { path: Path::LandingStateOwnHold, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(LandingOwnHold::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::LandingStateOwnHold, reason: skein_codec::Reason::Tag }) };
+        Ok(Self { searched: decoded_searched, last_prepare: decoded_last_prepare, last_left: decoded_last_left, task: decoded_task, project: decoded_project, phase: decoded_phase, members: decoded_members, preparation: decoded_preparation, stale_proofs: decoded_stale_proofs, branch: decoded_branch, round: decoded_round, own_hold: decoded_own_hold })
+    }
+}
+
+impl LandingState {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(1_u64.checked_add(LandingSearched::encoded_bound_within(limits)?)?)?.checked_add(1_u64.checked_add(LandingLastPrepare::encoded_bound_within(limits)?)?)?;
+        size = size.checked_add(1_u64.checked_add(2_u64)?)?.checked_add(8_u64)?;
+        size = size.checked_add(4_u64)?.checked_add(LandingPhase::encoded_bound_within(limits)?)?;
+        size = size.checked_add(4_u64.checked_add(u64::from(limits.landing_state_members).checked_mul(LandingMember::encoded_bound_within(limits)?)?)?)?.checked_add(2_u64)?;
+        size = size.checked_add(4_u64)?.checked_add(4_u64.checked_add(u64::from(limits.landing_state_branch))?)?;
+        size = size.checked_add(1_u64.checked_add(LandingRound::encoded_bound_within(limits)?)?)?.checked_add(1_u64.checked_add(LandingOwnHold::encoded_bound_within(limits)?)?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(LandingSearched::decoded_bound_within(limits)?)?.checked_add(LandingLastPrepare::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?.checked_add(LandingPhase::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(List::<LandingMember>::price(limits.landing_state_members)?.checked_add(u64::from(limits.landing_state_members).checked_mul(LandingMember::decoded_bound_within(limits)?)?)?)?.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?.checked_add(u64::from(limits.landing_state_branch))?;
+        heap = heap.checked_add(LandingRound::decoded_bound_within(limits)?)?.checked_add(LandingOwnHold::decoded_bound_within(limits)?)?;
+        heap.checked_add(0)
+    }
+}
+
+fn landing_state_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(LandingState::encoded_bound_within(limits)?);
+    landing_ask_slot_encoded_bound_family(limits, biggest)
+}
+
+fn landing_state_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(LandingState::decoded_bound_within(limits)?);
+    landing_ask_slot_decoded_bound_family(limits, biggest)
+}
+
+fn check_landing_state_record_limits(limits: &Limits) -> Result<(), Problem> {
+    if limits.landing_state_members > CEILINGS.landing_state_members { return Err(Problem { path: Path::LandingStateMembers, reason: skein_codec::Reason::Bound }); }
+    if limits.landing_state_branch > CEILINGS.landing_state_branch { return Err(Problem { path: Path::LandingStateBranch, reason: skein_codec::Reason::Bound }); }
+    check_history_job_record_record_limits(limits)
+}
+
+impl Limits {
+    fn values_for_landing_state_record(&self, values: &mut List<u32>) {
+>>>>>>> refs/hand5/9644
         values.push(self.landing_state_members).expect("room for every named limit");
         values.push(self.landing_state_branch).expect("room for every named limit");
         values.push(self.history_job_record_members).expect("room for every named limit");

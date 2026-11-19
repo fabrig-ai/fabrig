@@ -1308,6 +1308,7 @@ fn kept_landing_failure(d: &mut Domain) {
             phase: policy::Phase::Cancelled,
             preparation: 1,
             stale_proofs: 0,
+            last_prepare: None,
             branch: b"main".as_slice().into(),
             members: Box::new([policy::Member {
                 round: None,

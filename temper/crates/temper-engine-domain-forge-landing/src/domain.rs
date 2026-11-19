@@ -291,6 +291,8 @@ fn decide(landing: &Landing, facts: &Facts, project: &Project, limits: &Limits, 
                 next.phase = Phase::Preparing;
                 next.round.ending = Some(crate::RoundEnd::Stale);
             }
+            // A person's release asks again from a fresh count (landing-preparing.md, 5).
+            next.last_prepare = None;
             for member in &mut next.members {
                 for gate in &mut member.gates {
                     gate.faults = 0;
@@ -495,6 +497,9 @@ fn preparing(mut landing: Landing, facts: &Facts, limits: &Limits, now: Wall) ->
             }
             crate::Preparation::Absent | crate::Preparation::Idle | crate::Preparation::Failed => {}
         }
+        if let Some(decision) = asked_again(&mut landing, position(index), head, main, limits, now) {
+            return done(landing, decision);
+        }
         for member in &mut landing.members {
             if active(member) && member.candidate.is_none() {
                 member.asked = Some(landing.preparation);
@@ -510,6 +515,50 @@ fn preparing(mut landing: Landing, facts: &Facts, limits: &Limits, now: Wall) ->
         }
     }
     prepared(landing, facts)
+}
+
+// The same prepare, its member, head, main and suffix unchanged, is asked at most
+// twice in a row: again no sooner than one poll after the step that read its
+// absence, and a third time only after a person's release (landing-preparing.md, 5).
+fn asked_again(
+    landing: &mut Landing,
+    member: u16,
+    head: crate::Commit,
+    main: crate::Commit,
+    limits: &Limits,
+    now: Wall,
+) -> Option<Decision> {
+    let mut suffix = List::with_capacity(u32::try_from(landing.members.len()).expect("members admitted"));
+    for (index, prior) in landing.members.iter().enumerate() {
+        if active(prior) && prior.candidate.is_none() {
+            suffix.push(position(index)).expect("suffix room");
+        }
+    }
+    let suffix = suffix.into_boxed();
+    if let Some(last) = &mut landing.last_prepare
+        && last.member == member
+        && last.head == head
+        && last.main == main
+        && last.suffix == suffix
+    {
+        if last.asks >= 2 {
+            landing.phase = Phase::Held { was: Box::new(landing.phase.clone()), why: Hold::Prepare };
+            return Some(Decision::Hold(Hold::Prepare));
+        }
+        let at = match last.again {
+            Some(at) if now >= at => {
+                last.asks = 2;
+                last.again = None;
+                return None;
+            }
+            Some(at) => at,
+            None => poll_at(limits, now),
+        };
+        last.again = Some(at);
+        return Some(Decision::Wait { until: Some(at), on: Awaited::Prefixes });
+    }
+    landing.last_prepare = Some(crate::LastPrepare { member, head, main, suffix, asks: 1, again: None });
+    None
 }
 
 fn prepared(mut landing: Landing, facts: &Facts) -> Stepped {

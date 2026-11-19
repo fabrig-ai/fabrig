@@ -178,6 +178,22 @@ pub struct Landing {
     /// The train's landing branch (domain/landing.md, 9, 12).
     pub branch: Box<[u8]>,
     pub round: Round,
+    /// Kept across rounds, which a stale end re-forms (domain/landing-preparing.md, 5).
+    pub last_prepare: Option<LastPrepare>,
+}
+
+/// The round's prepare last asked, and how often in a row (domain/landing-preparing.md, 5).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct LastPrepare {
+    pub member: u16,
+    pub head: Commit,
+    pub main: Commit,
+    /// Positions of the members it prepares, upstream first.
+    pub suffix: Box<[u16]>,
+    /// 1, or 2 once asked again.
+    pub asks: u16,
+    /// Kept by the step that read its absence: no second ask before it.
+    pub again: Option<Wall>,
 }
 
 /// A round's own branch, preparation and pull request (domain/landing.md, 5.1).

@@ -5325,6 +5325,37 @@ fn an_ended_prepares_record_needs_an_answer_kept_for_its_suffix() {
     assert_eq!(read_preparation(&mut domain, &env, &row, &context), Preparation::Absent);
 }
 
+#[test]
+fn each_refusal_of_a_kept_prepare_reads_absent() {
+    use super::forge::{LandingRow, history::Job};
+    use temper_engine_domain_forge_landing::{Leave, Preparation};
+    type Case = (&'static str, fn(&mut LandingRow), Preparation);
+    let (mut domain, env, mut row) = unprepared_round();
+    let context = domain.core.tasks.run_context(row.landing.task).expect("landing context");
+    row.landing.round.failure = br#"{"combined":[{"member":1,"by":"merge"}]}"#.as_slice().into();
+    let cases: [Case; 6] = [
+        ("kept", |_| {}, Preparation::Idle),
+        ("an earlier round", |row| row.job.as_mut().unwrap().round = 0, Preparation::Absent),
+        ("a merge job", |row| row.job.as_mut().unwrap().step.job = Job::Merge, Preparation::Absent),
+        ("a member since left", |row| row.landing.members[1].left = Some(Leave::Cancelled), Preparation::Absent),
+        ("a member since landed", |row| row.landing.members[0].landed = Some(SHA1), Preparation::Absent),
+        (
+            "a report for no job member",
+            |row| {
+                row.landing.members[1].candidate = Some(SHA1);
+                row.job.as_mut().unwrap().members = Box::new([0]);
+                row.landing.round.failure = br#"{"combined":[{"member":2,"by":"merge"}]}"#.as_slice().into();
+            },
+            Preparation::Absent,
+        ),
+    ];
+    for (case, change, expected) in cases {
+        let mut row = row.clone();
+        change(&mut row);
+        assert_eq!(read_preparation(&mut domain, &env, &row, &context), expected, "{case}");
+    }
+}
+
 fn prepare_child(
     domain: &mut super::Domain,
     env: &skein_lib::Env<super::Limits>,

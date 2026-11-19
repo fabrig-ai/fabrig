@@ -321,6 +321,7 @@ fn landing_row(task: u64, phase: policy::Phase) -> LandingRow {
             members: Box::new([]),
             preparation: 0,
             stale_proofs: 0,
+            last_prepare: None,
             branch: Box::from(b"main".as_slice()),
         },
         asks: Box::new([]),
@@ -2744,6 +2745,31 @@ fn a_start_leaves_a_real_steps_entry_and_absent_preparation_to_decide() {
         Some((61, None, policy::Decision::Prepare { member: 0, head: fixtures::HEAD, main: fixtures::BASE })),
         "the real step decides with its hearing and no outbox effect"
     );
+}
+
+#[test]
+fn a_prepare_asked_twice_before_a_restart_holds_at_its_next_absence() {
+    let mut d = preparing_landing();
+    let mut row = d.landing.rows.get(&61).expect("round").clone();
+    row.landing.last_prepare = Some(policy::LastPrepare {
+        member: 0,
+        head: fixtures::HEAD,
+        main: fixtures::BASE,
+        suffix: Box::new([0]),
+        asks: 2,
+        again: None,
+    });
+    outputs(&mut d, Event::Restore { record: Stored::Landing(row) });
+    let heard = preparing_heard(Some(policy::Preparation::Absent));
+    outputs(&mut d, Event::StepLanding { task: 61, entry: 91, heard });
+    read_preparing_member(&mut d);
+    let mut decision = None;
+    for request in read_absent_prefix(&mut d) {
+        if let Request::LandingDecision { task: 61, decision: found, .. } = request {
+            decision = Some(found);
+        }
+    }
+    assert_eq!(decision, Some(policy::Decision::Hold(policy::Hold::Prepare)));
 }
 
 #[test]

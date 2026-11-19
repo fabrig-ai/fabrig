@@ -101,6 +101,7 @@ pub fn landing_row(change: &top::ChangeRow) -> top::LandingRow {
             }]),
             preparation: 0,
             stale_proofs: 0,
+            last_prepare: None,
             branch: change.base.clone(),
         },
         asks: Box::new([None]),

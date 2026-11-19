@@ -25,6 +25,7 @@ fn landing_of_one() -> Landing {
         phase: Phase::Waiting,
         preparation: 0,
         stale_proofs: 0,
+        last_prepare: None,
         branch: Box::from(b"main".as_slice()),
         members: Box::new([Member {
             round: None,
@@ -1136,7 +1137,8 @@ fn a_prepare_intent_waits_only_once_its_job_is_admitted() {
     let mut f = stack_facts(3);
     f.preparation = crate::Preparation::Absent;
     let asked = decide(&stack(3), &f);
-    let reoffered = decide(&asked.landing, &f);
+    // A second absence asks again once its poll has passed (landing-preparing.md, 5).
+    let reoffered = step(&decide(&asked.landing, &f).landing, &f, &PROJECT, &LIMITS, at(15));
     assert_eq!(reoffered.decision, asked.decision);
     assert_eq!(reoffered.landing.preparation, asked.landing.preparation);
     f.preparation = crate::Preparation::Running;
@@ -1145,6 +1147,51 @@ fn a_prepare_intent_waits_only_once_its_job_is_admitted() {
     assert_eq!(decide(&reoffered.landing, &f).decision, Decision::Wait { until: Some(at(15)), on: Awaited::Prefixes });
     found(&mut f);
     assert_eq!(decide(&reoffered.landing, &f).decision, Decision::Open);
+}
+
+#[test]
+fn the_same_absent_prepare_is_asked_again_once_after_a_poll_then_held() {
+    let mut f = stack_facts(3);
+    f.preparation = crate::Preparation::Absent;
+    let prepare = Decision::Prepare { member: 0, head: head(0), main: MAIN };
+    let asked = decide(&stack(3), &f);
+    assert_eq!(asked.decision, prepare);
+    let backoff = decide(&asked.landing, &f);
+    let poll = Decision::Wait { until: Some(at(15)), on: Awaited::Prefixes };
+    assert_eq!(backoff.decision, poll);
+    assert_eq!(step(&backoff.landing, &f, &PROJECT, &LIMITS, at(14)).decision, poll);
+    let again = step(&backoff.landing, &f, &PROJECT, &LIMITS, at(15));
+    assert_eq!(again.decision, prepare);
+    let held = step(&again.landing, &f, &PROJECT, &LIMITS, at(40));
+    assert_eq!(held.decision, Decision::Hold(Hold::Prepare));
+    assert_eq!(held.landing.phase, Phase::Held { was: Box::new(Phase::Preparing), why: Hold::Prepare });
+    // A person's release asks again at once, in a new round.
+    f.released = true;
+    let released = decide(&held.landing, &f);
+    f.released = false;
+    let stale = decide(&released.landing, &f);
+    assert_eq!(stale.decision, Decision::Stale);
+    assert_eq!(decide(&stale.landing, &f).decision, prepare);
+    // A head move, or a new main in a stale round, is another prepare, asked at once.
+    let mut moved = f.clone();
+    moved.members[0].head = NEW;
+    let left = decide(&backoff.landing, &moved);
+    assert_eq!(left.decision, Decision::Leave { member: 0, why: crate::Leave::HeadMoved { head: NEW } });
+    assert_eq!(decide(&left.landing, &moved).decision, Decision::Prepare { member: 1, head: head(1), main: MAIN });
+    let mut fresh = f.clone();
+    found(&mut fresh);
+    for member in &mut fresh.members {
+        member.main = NEW;
+        member.deleted = Status::Passed;
+    }
+    let ending = decide(&backoff.landing, &fresh);
+    assert_eq!(ending.landing.round.ending, Some(crate::RoundEnd::Stale));
+    let stale = decide(&ending.landing, &fresh);
+    assert_eq!(stale.decision, Decision::Stale);
+    for member in &mut fresh.members {
+        member.candidate = None;
+    }
+    assert_eq!(decide(&stale.landing, &fresh).decision, Decision::Prepare { member: 0, head: head(0), main: NEW });
 }
 
 #[test]
