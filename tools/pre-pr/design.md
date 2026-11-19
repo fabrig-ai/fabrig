@@ -150,11 +150,14 @@ boundary (smith's run.md, 8.1).
   by a landing's gate names a pin, the base that landing's round used
   (`temper/docs/design/domain/worker/checkouts.md`, *A named pin*), and is
   judged as the landing judged its change: the base is that commit once
-  the repair has merged it, whichever parent of the merge it is, so the
-  changed paths, check 7's figures and the selected tests are what the
-  change and the repair bring onto it, never what the base gained since
-  the change's source; a repair that leaves it unmerged is judged from
-  where its branch meets it, the change's edits with its own. Every other
+  the repair has merged it, whichever parent of the merge it is. The
+  whole diff against that base holds what the change and the repair bring
+  onto it, never what the base gained since the change's source. Selection
+  then sets aside merged tips' entries (section 3, *Changed paths*): an
+  unchanged path from the change's head is excluded when that head is a
+  merged tip. Check 7 starts from the whole diff and sets aside figures
+  itself (section 4). A repair that leaves the pin unmerged is judged from
+  where its branch meets it, with the same selection rule. Every other
   repair keeps the head it repairs.
 - **An unchecked save is stepped past.** Where the base is temper's
   unchecked save, a commit whose subject is `Unchecked: work in progress,

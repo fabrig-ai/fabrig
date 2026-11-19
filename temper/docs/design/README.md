@@ -168,6 +168,11 @@ forge, temper adds:
 
 ## 6. Documents
 
+- `status-areas.md`: areas and routing status.
+- `domain/forge/change/repairs-later.md`: repairs, resolutions and releases: open questions.
+- `domain/landing-forge.md`: what the forge shows of landings and their open questions.
+- `protocol/git-later.md`: the checkout’s git: open questions.
+
 - **`domain/`:** temper's domain layer on jig's: its root, the forge
   connector, landings by turn (`landing.md`), what follows a landing
   (`after-landing.md`) and findings (`findings.md`, its reds after

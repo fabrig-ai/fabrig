@@ -510,6 +510,10 @@ the service with no terminal and the box's part played by a peer of
 the world's (`client/journey-walks.md`).
 
 Design documents:
+- [Areas](status-areas.status.md)
+- [Repair questions](domain/forge/change/repairs-later.status.md)
+- [Landings at the forge](domain/landing-forge.status.md)
+- [Git questions](protocol/git-later.status.md)
 - [`README.md`](README.status.md)
 - [`cli/README.md`](cli/README.status.md)
 - [`client/README.md`](client/README.status.md)
@@ -824,8 +828,4 @@ Archived drafts:
 - [`draft/archive/reference-landing.md`](draft/archive/reference-landing.status.md)
 - [`draft/archive/worker-reply-bound.md`](draft/archive/worker-reply-bound.status.md)
 
-Goal 684 carries R2: areas in words and their owners, the project triager
-(kinds 14 and 15), findings held by those owners with news or Needs you,
-ctl filing, handing and triage, outside service parties, and stock
-triager, prover and porter charters (`domain/areas.status.md`,
-`domain/findings.status.md`, `draft/standing-roles.status.md`).
+[Areas and routing](status-areas.md).

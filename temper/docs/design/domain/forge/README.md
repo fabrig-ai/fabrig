@@ -839,7 +839,7 @@ whole.
   review in the live tier (`../../testing/README.md`, section 7). Default: lower
   setup, link and review checks establish those separate pieces alone.
 - Saved branches outside the task's saved set: `branches.md`, section 4.
-- A clean update's other words: `change/repairs.md`, section 1.
+- A clean update's other words: `change/repairs-later.md`.
 - "The brief on Home" in Settings: `attention.md`, section 7.
 - A status run's kept row: `attention.md`, section 7.
 - A stock project's room, shared: `attention.md`, section 7.
@@ -864,13 +864,13 @@ whole.
   the forge's protection requires it independently, needs a forge
   credential of the person's (jig's `domain/people/README.md`, section 11).
 - A gate's live run past the stall: `change/stalls.md`, section 6.
-- A green head no wake reaches: `change/repairs.md`, section 1.
-- A retry before the read: `change/repairs.md`, section 1.
-- A hold at gating at a green head: `change/repairs.md`, section 1.
+- A green head no wake reaches: `change/repairs-later.md`.
+- A retry before the read: `change/repairs-later.md`.
+- A hold at gating at a green head: `change/repairs-later.md`.
 - A repair of the branch's own CI at a tip since passed: `queues.md`, section 2.
-- A repair held for its brief: `change/repairs.md`, section 1.
-- A forge out of reach or not connected: `change/repairs.md`, section 1.
-- A failing check's repair brief: `change/repairs.md`, section 1.
+- A repair held for its brief: `change/repairs-later.md`.
+- A forge out of reach or not connected: `change/repairs-later.md`.
+- A failing check's repair brief: `change/repairs-later.md`.
 - **A failure that is the runner's, not the change's:** a job whose
   set-up step failed, or whose runner was lost, is a repair like any
   other under the queue, where landing by turn retries it, never
@@ -889,7 +889,7 @@ whole.
 - `Forbidden` and `Missing` taken as access lacking: `adoption.md`, section 10.
 - Several changes in a forge's merge queue: `queues.md`, section 2.
 - The update before entering a forge's merge queue: `queues.md`, section 2.
-- What failed on a queue's group: `change/repairs.md`, section 1.
+- What failed on a queue's group: `change/repairs-later.md`.
 - Taking a change out of a forge's merge queue: `queues.md`, section 2.
 - Signed commits required: `adoption.md`, section 10.
 - Connecting a forge as another user: `adoption.md`, section 10.

@@ -108,5 +108,5 @@ saved start overtaken by a repair remains deferred (`../forge/README.md`, sectio
   `../../draft/dogfood-hacks.md`, 2.1 name its hooks, which `../../protocol/git.md`,
   section 3's settings hold off, as they hold off whatever the run's own `.git`
   says; what a command writes in the worker's directory, a filter driver or a URL
-  rewrite, they do not (`../../protocol/git.md`, 10). That is acceptable only for one
+  rewrite, they do not (`../../protocol/git-later.md`, 1). That is acceptable only for one
   trusted person.

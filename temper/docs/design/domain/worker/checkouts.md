@@ -704,7 +704,7 @@ wire carries, keeps its first 4,096, where the fields are.
   build, though its history is the store's. Keyed by repository, it could
   keep a working tree across workstreams and a
   restart once confinement keeps a run's commands out of the worker's git
-  directory (`../../protocol/git.md`, section 10), perhaps with no switch. With that goes
+  directory (`../../protocol/git-later.md`, section 1), perhaps with no switch. With that goes
   which workspace a workstream takes: the departure in `checkouts.status.md`
   considers only the least recently used, and after a restart only the one a
   first hold takes, since nothing says which workstream held which. So a

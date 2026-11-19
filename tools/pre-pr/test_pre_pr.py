@@ -2127,12 +2127,17 @@ raise SystemExit({code})
         self.assertEqual(calls[-1], (['python3', '-I', '-B', 'tools/tiers/figures.py', *argv], self.root))
 
     def test_figures_landing_repair_base_and_parent_order(self):
-        """A landing's repair uses its base (tools/pre-pr/design.md, 2, 4)."""
+        """A repair keeps its base, selects its own paths and checks figures (design.md, 2–4)."""
         budgets = 'tools/tiers/budgets.toml'
         reasons = ('landed_first', 'landed_second')
-        rows = (('B', 'first', 'skipped'), ('B', 'second', 'skipped'),
-                ('H', 'second', 'passed'), ('H', 'first', 'failed'))
-        for pin, base_parent, verdict in rows:
+        repair = ['api/src/repair.rs']
+        change = ['api/src/lib.rs', *repair]
+        landed = [*repair, 'client/src/landed.rs', budgets]
+        rows = (('B', 'first', 'skipped', repair, 'api'),
+                ('B', 'second', 'skipped', change, 'api'),
+                ('H', 'second', 'passed', repair, 'api'),
+                ('H', 'first', 'failed', landed, 'api client'))
+        for pin, base_parent, verdict, own_paths, packages in rows:
             with self.subTest(pin=pin, base_parent=base_parent):
                 self.setUp()
                 self.command('git', 'branch', '-M', 'main')
@@ -2178,12 +2183,13 @@ raise SystemExit({code})
                 delivery_verdict = 'refused' if verdict == 'failed' else 'passed'
                 self.assertIn(f'pre-pr: {delivery_verdict} (base {expected_base}, '
                               'merge base of refs/temper/landing and HEAD)\n', log)
-                paths = (['api/src/lib.rs', 'api/src/repair.rs'] if pin == 'B' else
-                         ['api/src/repair.rs', 'client/src/landed.rs', budgets])
+                paths = change if pin == 'B' else landed
+                raw_paths = self.command('git', 'diff-tree', '-r', '--no-renames', '--name-only',
+                                         expected_base, record['tree']).splitlines()
+                self.assertEqual(raw_paths, paths)
                 self.assertTrue(inputs.called)
                 for call in inputs.call_args_list:
-                    self.assertEqual(call.args[0], paths)
-                packages = 'api' if pin == 'B' else 'api client'
+                    self.assertEqual(call.args[0], own_paths)
                 self.assertIn(f'\nlints: {packages}\ntests: {packages}\n', log)
                 figure_calls = [args for args, _ in calls if 'tools/tiers/figures.py' in args]
                 if verdict == 'skipped':
