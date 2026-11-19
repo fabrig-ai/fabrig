@@ -1,3 +1,4 @@
+use jig_client_protocol_wire::Record as _;
 use super::fixtures;
 use crate::Stream;
 use alloc::boxed::Box;
@@ -101,13 +102,9 @@ fn valid_refuses_each_unrepresentable_limit() {
 #[test]
 fn a_409_with_a_bound_record_is_full_at_every_cut() {
     for bound in [jig_client_protocol_wire::StreamBound::Component, jig_client_protocol_wire::StreamBound::Transport] {
-        let record = jig_client_protocol_wire::StreamsFull::new(
-            &jig_client_protocol_wire::CEILINGS,
-            jig_client_protocol_wire::StreamsFullParts { bound: bound.clone(), size: 2 },
-        )
-        .unwrap();
-        let mut writer = skein_lib::Writer::new(usize::try_from(record.measure()).unwrap());
-        record.encode(&mut writer).unwrap();
+        let record = jig_client_protocol_wire::StreamsFull { bound: bound.clone(), size: 2 };
+        let mut writer = skein_lib::Writer::new(usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+        record.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
         let body = writer.finish();
         for cut in 0..=body.len() {
             let mut stream = Stream::new(&fixtures::stream_limits());

@@ -41,7 +41,7 @@ fn a_watch_asked_before_signing_in_opens_once_signed_in() {
     assert_eq!(records.as_slice().first().unwrap().key.as_ref(), STREAM_KEY);
     let (credential, bytes) = opening.expect("one held task opening, me is implicit");
     let open = w::Open::decode(&w::CEILINGS, &mut skein_lib::Reader::new(bytes)).unwrap();
-    assert_ne!(open.watch(), 0);
+    assert_ne!(open.watch, 0);
     assert_eq!(credential, &Some(fixtures::credential(&CREDENTIAL)));
     assert_eq!(c.machine.link().state, Link::Live);
 }
@@ -410,22 +410,13 @@ fn the_link_s_service_credential_leaves_once_as_a_host_duty() {
     assert_eq!((c.requests()).len(), 0);
 }
 fn service_answer() -> Box<[u8]> {
-    let limits = w::CEILINGS;
-    let service = w::MadeService::new(
-        &limits,
-        w::MadeServiceParts { party: MADE_PARTY, credential: fixtures::credential(&SERVICE_CREDENTIAL) },
-    )
-    .unwrap();
-    let made = w::OutcomeMade::new(&limits, w::OutcomeMadeParts { what: w::Made::Service(service) }).unwrap();
-    let done = w::Done::new(&limits, w::DoneParts { outcome: w::Outcome::Made(made) }).unwrap();
+    let service = w::MadeService { party: MADE_PARTY, credential: fixtures::credential(&SERVICE_CREDENTIAL) };
+    let made = w::OutcomeMade { what: w::Made::Service(service) };
+    let done = w::Done { outcome: w::Outcome::Made(made) };
     let value = w::Final::Done(done);
-    let mut bytes = skein_lib::Writer::new(usize::try_from(value.measure()).unwrap());
-    value.encode(&mut bytes).unwrap();
-    let owned = w::Owned::new(
-        &limits,
-        w::OwnedParts { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: bytes.finish() },
-    )
-    .unwrap();
+    let mut bytes = skein_lib::Writer::new(usize::try_from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    value.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
+    let owned = w::Owned { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: bytes.finish() };
     fixtures::answer(&w::KeyedAnswer::FinalAnswer(owned))
 }
 
@@ -613,7 +604,7 @@ fn link_attempt() -> With {
 }
 fn full_sign_in_answer() -> w::SignInAnswer {
     w::SignInAnswer::Full(
-        w::SignInsFull::new(&w::CEILINGS, w::SignInsFullParts { sign_ins: 2, earliest: 400, link_until: 300 }).unwrap(),
+        w::SignInsFull { sign_ins: 2, earliest: 400, link_until: 300 },
     )
 }
 fn assert_link_told(c: &Client) {
@@ -708,11 +699,7 @@ fn a_waiting_take_is_sent_again_each_second_until_it_ends() {
     for (answer, why) in [
         (
             w::ApprovalSignInAnswer::SignedIn(
-                w::SignedIn::new(
-                    &w::CEILINGS,
-                    w::SignedInParts { token: Some(fixtures::credential(&NEW_CREDENTIAL)), party: PARTY, expires: 300 },
-                )
-                .unwrap(),
+                w::SignedIn { token: Some(fixtures::credential(&NEW_CREDENTIAL)), party: PARTY, expires: 300 },
             ),
             None,
         ),
@@ -722,8 +709,7 @@ fn a_waiting_take_is_sent_again_each_second_until_it_ends() {
         (w::ApprovalSignInAnswer::Unknown, Some(NotSignedIn::Approval(Taking::Unknown))),
         (
             w::ApprovalSignInAnswer::Full(
-                w::ApprovalFull::new(&w::CEILINGS, w::ApprovalFullParts { sign_ins: 2, earliest: 400, until: 300 })
-                    .unwrap(),
+                w::ApprovalFull { sign_ins: 2, earliest: 400, until: 300 },
             ),
             Some(NotSignedIn::Full {
                 sign_ins: 2,
@@ -779,15 +765,11 @@ fn another_sign_in_or_sign_out_stops_a_take_and_its_late_answer() {
             for late in [
                 w::ApprovalSignInAnswer::Waiting,
                 w::ApprovalSignInAnswer::SignedIn(
-                    w::SignedIn::new(
-                        &w::CEILINGS,
-                        w::SignedInParts {
+                    w::SignedIn {
                             token: Some(fixtures::credential(&NEW_CREDENTIAL)),
                             party: PARTY,
                             expires: 300,
                         },
-                    )
-                    .unwrap(),
                 ),
             ] {
                 let mut c = Client::new();

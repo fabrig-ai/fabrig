@@ -1,16 +1,17 @@
 //! Join a compound's independently decoded target and answered message position.
+use jig_client_protocol_wire::Record as _;
 use super::{Reader, Token, w};
 use jig_client_kit::harness::Receipt;
 pub(super) fn message(bytes: &[u8]) -> Option<(u64, u32)> {
     let keyed = w::Keyed::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("keyed request");
-    if keyed.owner() != &w::Owner::Jig {
+    if keyed.owner != w::Owner::Jig {
         return None;
     }
-    let w::Ask::Compound(value) = w::Ask::decode(&w::CEILINGS, &mut Reader::new(keyed.request())).expect("jig request")
+    let w::Ask::Compound(value) = w::Ask::decode(&w::CEILINGS, &mut Reader::new(keyed.request.as_ref())).expect("jig request")
     else {
         return None;
     };
-    let mut reader = Reader::new(value.operations());
+    let mut reader = Reader::new(value.operations.as_ref());
     let mut at = 0;
     while !reader.is_empty() {
         let length = reader.u32().expect("piece length");
@@ -18,7 +19,7 @@ pub(super) fn message(bytes: &[u8]) -> Option<(u64, u32)> {
         if let w::Operation::Message(value) =
             w::Operation::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("operation")
         {
-            return Some((value.task(), at));
+            return Some((value.task, at));
         }
         at += 1;
     }
@@ -31,13 +32,13 @@ pub(super) fn receipt(attempt: Token, message: Option<(u64, u32)>, bytes: &[u8])
     let w::Final::Done(done) = w::Final::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("final answer") else {
         return Vec::new();
     };
-    let w::Outcome::Document(owner) = done.outcome() else {
+    let w::Outcome::Document(owner) = &done.outcome else {
         return Vec::new();
     };
-    let w::DocumentOutcome::Compound(value) = owner.value() else {
+    let w::DocumentOutcome::Compound(value) = &owner.value else {
         return Vec::new();
     };
-    let message = value.first_message().checked_add(u64::from(at)).expect("bounded message positions");
+    let message = value.first_message.checked_add(u64::from(at)).expect("bounded message positions");
     vec![Receipt::Answer {
         attempt,
         final_answer: true,

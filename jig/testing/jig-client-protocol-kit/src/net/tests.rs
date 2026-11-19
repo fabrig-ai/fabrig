@@ -1,3 +1,4 @@
+use jig_client_protocol_wire::Record as _;
 use super::*;
 use skein_lib::{Writer, stream::Read};
 
@@ -22,8 +23,8 @@ fn exchange(probe_quiet: bool) -> Net {
     // Enough attempts for this seeded exchange's fragments and delayed room.
     const ATTEMPTS: usize = 512;
     let answer = jig_client_protocol_wire::SignOutAnswer::SignedOut;
-    let mut writer = Writer::new(skein_lib::length::usize_of(answer.measure()));
-    answer.encode(&mut writer).expect("measured answer");
+    let mut writer = Writer::new(skein_lib::length::usize_of(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+    answer.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("measured answer");
     let body = writer.finish();
     let mut response = format!("HTTP/1.1 200 OK\r\nContent-Length: {}\r\n\r\n", body.len()).into_bytes();
     response.extend_from_slice(&body);

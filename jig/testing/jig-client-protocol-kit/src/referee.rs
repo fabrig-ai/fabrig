@@ -1,6 +1,7 @@
 //! Independent observations of records, authentication and stream isolation (client/domain/client/README.md, 11).
+use jig_client_protocol_wire::Record as _;
 use jig_client_protocol_wire as wire;
-use skein_lib::{Reader, Writer};
+use skein_lib::Reader;
 use std::fmt::Write;
 
 macro_rules! same {
@@ -12,9 +13,8 @@ macro_rules! same {
         if source.remaining() != 0 || received.remaining() != 0 || actual != wanted {
             return Err(Broken::Record);
         }
-        let mut writer = Writer::new(skein_lib::length::usize_of(actual.measure()));
-        actual.encode(&mut writer).map_err(|_| Broken::Record)?;
-        if writer.finish().as_ref() != $crossed {
+        let encoded = actual.encode(&wire::CEILINGS).map_err(|_| Broken::Record)?;
+        if encoded.as_ref() != $crossed {
             return Err(Broken::Record);
         }
     }};

@@ -350,9 +350,6 @@ pub fn link_page() -> skein_http::Header {
 }
 
 fn streams_full(bound: jig_client_protocol_wire::StreamBound, size: u32) -> Box<[u8]> {
-    use jig_client_protocol_wire::{CEILINGS, StreamsFull, StreamsFullParts};
-    let record = StreamsFull::new(&CEILINGS, StreamsFullParts { bound, size }).expect("fixed refusal");
-    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(record.measure()));
-    record.encode(&mut writer).expect("measured refusal");
-    writer.finish()
+    use jig_client_protocol_wire::{CEILINGS, Record as _, StreamsFull};
+    StreamsFull { bound, size }.encode(&CEILINGS).expect("fixed refusal")
 }

@@ -1,5 +1,6 @@
 //! Native HTTP to the reference service: one iteration, one batch, and kept stream replacement.
 //! jig/docs/design/protocol/client/README.md, 11.
+use jig_client_protocol_wire::Record as _;
 use super::{Machine, Service, config, files, settings};
 use jig_client::{self as c, Event, Handle, Message, Request, Told};
 use jig_client_shell_native::Shell;
@@ -94,7 +95,7 @@ impl Host for Client {
                         &mut skein_lib::Reader::new(bytes),
                     )
                     .expect("batch record");
-                    self.batches.push(batch.members().len());
+                    self.batches.push(batch.members.len());
                 }
                 Request::Exchange { message: Message::Read(_), .. } => self.singles += 1,
                 Request::Exchange { message: Message::StreamGone(_), .. } => self.gone_calls += 1,
@@ -255,7 +256,7 @@ pub fn run(seed: u64, replacement: bool) {
             &mut skein_lib::Reader::new(&record.bytes),
         )
         .expect("kept stream record");
-        assert_eq!(second.replaces[0].as_ref().map(<[u8; 16]>::as_slice), Some(kept.record()));
+        assert_eq!(second.replaces[0].as_ref().map(<[u8; 16]>::as_slice), Some(kept.record.as_ref()));
         assert!(first.gone_events > 0, "the predecessor was ended");
     } else {
         assert_eq!(first.batches, [4], "one /v1/batch for this iteration");

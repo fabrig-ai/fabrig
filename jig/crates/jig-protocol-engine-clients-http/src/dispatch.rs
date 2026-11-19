@@ -1,4 +1,5 @@
 //! Method and route dispatch (protocol/client/default-http.md, 1).
+use jig_client_protocol_wire::Record as _;
 use alloc::boxed::Box;
 use jig_client_protocol_wire as w;
 use jig_protocol_engine_clients::Message;
@@ -198,21 +199,17 @@ pub(crate) fn reply(
     if reader.remaining() != 0 {
         return (body, None);
     }
-    let mut parts = value.into_parts();
+    let mut parts = value;
     let Some(credential) = parts.token.take() else { return (body, None) };
     let life = skein_lib::Duration::from_nanos(parts.expires.saturating_sub(wall.as_nanos()));
     let cookie = crate::cookie(settings, call.via, &credential, life);
-    let signed_in = w::SignedIn::new(&w::CEILINGS, parts).expect("token removed");
+    let signed_in = parts;
     let body = if call.route == Route::SignInApproval {
         let answer = w::ApprovalSignInAnswer::SignedIn(signed_in);
-        let mut bytes = skein_lib::Writer::new(skein_lib::length::usize_of(answer.measure()));
-        answer.encode(&mut bytes).expect("measured answer");
-        bytes.finish()
+        answer.encode(&w::CEILINGS).expect("decoded sign-in answer")
     } else {
         let answer = w::SignInAnswer::SignedIn(signed_in);
-        let mut bytes = skein_lib::Writer::new(skein_lib::length::usize_of(answer.measure()));
-        answer.encode(&mut bytes).expect("measured answer");
-        bytes.finish()
+        answer.encode(&w::CEILINGS).expect("decoded sign-in answer")
     };
     (body, Some(cookie))
 }

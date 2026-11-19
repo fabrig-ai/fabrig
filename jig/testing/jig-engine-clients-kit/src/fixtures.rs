@@ -1,3 +1,4 @@
+use jig_client_protocol_wire::Record as _;
 pub use crate::Peer;
 mod receiving;
 use jig_domain_people::{Identity, IdentityKey};
@@ -134,7 +135,7 @@ pub fn signed_in_until(peer: &mut Peer, expires: skein_lib::Wall) -> Box<[u8]> {
     out.put(b"Bearer ").expect("prefix");
     skein_lib::base64::encode(
         skein_lib::base64::Alphabet::Url,
-        answer.token().as_ref().expect("native token").expose(),
+        answer.token.as_ref().expect("native token").expose(),
         &mut out,
     )
     .expect("bearer");
@@ -143,20 +144,19 @@ pub fn signed_in_until(peer: &mut Peer, expires: skein_lib::Wall) -> Box<[u8]> {
 #[must_use]
 pub fn window(rows: u32) -> jig_client_protocol_wire::Window {
     use jig_client_protocol_wire as w;
-    w::Window::new(&limits().wire, w::WindowParts { rows, after: None }).expect("bounded window")
+    w::Window { rows, after: None }
 }
 #[must_use]
 pub fn family_read(scope: jig_client_protocol_wire::Scope, window: jig_client_protocol_wire::Window) -> Box<[u8]> {
     use jig_client_protocol_wire as w;
-    let record = w::FamilyRecord::new(&limits().wire, w::FamilyRecordParts { scope, window, record: Box::new([255]) })
-        .expect("family record");
-    let mut bytes = skein_lib::Writer::new(skein_lib::length::usize_of(record.measure()));
-    record.encode(&mut bytes).expect("measured record");
-    let owner = w::Owner::Family(w::Family::new(&limits().wire, w::FamilyParts { number: 1 }).expect("family"));
+    let record = w::FamilyRecord { scope, window, record: Box::new([255]) };
+    let mut bytes = skein_lib::Writer::new(skein_lib::length::usize_of(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+    record.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("measured record");
+    let owner = w::Owner::Family(w::Family { number: 1 });
     let record =
-        w::Owned::new(&limits().wire, w::OwnedParts { owner, version: 1, record: bytes.finish() }).expect("owned");
-    let mut bytes = skein_lib::Writer::new(skein_lib::length::usize_of(record.measure()));
-    record.encode(&mut bytes).expect("measured record");
+        w::Owned { owner, version: 1, record: bytes.finish() };
+    let mut bytes = skein_lib::Writer::new(skein_lib::length::usize_of(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+    record.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("measured record");
     bytes.finish()
 }
 
