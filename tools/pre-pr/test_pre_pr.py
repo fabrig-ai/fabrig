@@ -233,6 +233,82 @@ sys.exit(int(count > 0))
                 if row == 'unknown reader':
                     self.assertIn('pre-pr: path reader missing: not a workspace member, skipped', log)
 
+    def test_selection_excludes_merged_inputs(self):
+        for pending in (True, False):
+            with self.subTest(pending=pending):
+                self.setUp()
+                self.write('beta/Cargo.toml', '[package]\nname = "beta"\n')
+                self.write('beta/src/lib.rs', 'pub fn base() {}\n')
+                self.write('.config/gate/always.txt', 'reader beta/\n')
+                self.pin()
+                start = self.command('git', 'rev-parse', 'HEAD').strip()
+                self.write('beta/src/lib.rs', 'pub fn merged() {}\n')
+                self.write('guide.md', '# Merged guide\n')
+                self.command('git', 'commit', '-qam', 'merged inputs')
+                merged = self.command('git', 'rev-parse', 'HEAD').strip()
+                self.command('git', 'checkout', '-q', '--detach', start)
+                self.command('git', 'commit', '--allow-empty', '-qm', 'branch')
+                self.command('git', 'update-ref', 'refs/temper/landing', 'HEAD')
+                self.command('git', 'merge', '--no-ff', '--no-commit', merged)
+                if not pending:
+                    self.command('git', 'commit', '-qm', 'merge inputs')
+                result, log, calls, code = self.deliver(
+                    ('beta', 'dependent', 'reader', 'fabrig-boundary'),
+                    dependencies={'dependent': [{'name': 'beta', 'kind': None}]})
+                self.assertEqual(result, 0, log)
+                self.assertEqual(self.clippy_mock.call_args.args[0] if self.clippy_mock.called else [], [], log)
+                self.assertEqual(self.one_process_mock.call_args.args[0] if self.one_process_mock.called else [], [], log)
+                self.assertEqual(code, (False, False, False), log)
+                self.assertFalse(calls, log)
+                line = f"pre-pr: merged tips: {merged}: what they hold is not the delivery's\n"
+                selection = 'pre-pr: no code or docs inputs changed\n'
+                self.assertEqual(log.count(line), 1, log)
+                self.assertIn(selection, log)
+                self.assertLess(log.index(line), log.index(selection))
+
+    def test_selection_keeps_merge_resolutions_and_later_edits(self):
+        for row in ('resolution', 'later edit'):
+            with self.subTest(row=row):
+                self.setUp()
+                self.write('beta/Cargo.toml', '[package]\nname = "beta"\n')
+                self.write('beta/src/lib.rs', 'pub fn base() {}\n')
+                self.pin()
+                start = self.command('git', 'rev-parse', 'HEAD').strip()
+                self.write('beta/src/lib.rs', 'pub fn merged() {}\n')
+                self.command('git', 'commit', '-qam', 'merged source')
+                merged = self.command('git', 'rev-parse', 'HEAD').strip()
+                self.command('git', 'checkout', '-q', '--detach', start)
+                if row == 'resolution':
+                    self.write('beta/src/lib.rs', 'pub fn branch() {}\n')
+                self.command('git', 'commit', '--allow-empty', '-qam', 'branch')
+                self.command('git', 'update-ref', 'refs/temper/landing', 'HEAD')
+                if row == 'resolution':
+                    with self.assertRaises(subprocess.CalledProcessError) as conflict:
+                        self.command('git', 'merge', '--no-ff', '--no-commit', merged)
+                    self.assertIn('CONFLICT (content)', conflict.exception.stdout)
+                    self.write('beta/src/lib.rs', 'pub fn resolution() {}\n')
+                    self.command('git', 'add', 'beta/src/lib.rs')
+                else:
+                    self.command('git', 'merge', '--no-ff', '--no-commit', merged)
+                self.command('git', 'commit', '-qm', 'merge source')
+                if row == 'later edit':
+                    self.write('beta/src/lib.rs', 'pub fn edited() {}\n')
+                result, log, _, _ = self.deliver(('beta',))
+                self.assertEqual(result, 0, log)
+                self.assertEqual(self.clippy_mock.call_args.args[0] if self.clippy_mock.called else [], ['beta'], log)
+                self.assertEqual(self.one_process_mock.call_args.args[0] if self.one_process_mock.called else [], ['beta'], log)
+                line = f"pre-pr: merged tips: {merged}: what they hold is not the delivery's\n"
+                self.assertEqual(log.count(line), 1, log)
+                self.assertLess(log.index(line), log.index('pre-pr: code only:'))
+
+    def test_selection_path_failure_is_not_empty_change(self):
+        with mock.patch.object(PRE_PR, 'delivery_paths', side_effect=RuntimeError('cannot read paths')):
+            result, log, _, _ = self.deliver()
+        self.assertEqual(result, 1, log)
+        record = json.loads((self.root / 'target/temper/pre-pr-failures.json').read_text())
+        self.assertIn(dict(name='check selection', key=None, **{'class': 'new'}), record['failures'])
+        self.assertIn('cannot read paths', log)
+
     def test_nested_package_ownership(self):
         data = self.metadata(('A', 'B'), directories={'A': 'a', 'B': 'a/b'})
         for path, package in (('a/b/c.rs', 'B'), ('a/bc/d.rs', 'A'), ('a/x.rs', 'A'),
