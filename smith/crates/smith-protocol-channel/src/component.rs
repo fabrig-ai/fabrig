@@ -2,6 +2,7 @@
 use alloc::boxed::Box;
 use skein_channel::{Closed, Event, Frame, Lower, LowerEvent, Machine, Request, Role, Schema, StreamMode};
 use skein_lib::{Duration, Map, Queue, Time, Token};
+use smith_channel::Record;
 
 use crate::calls;
 use crate::credentials::Credentials;
@@ -37,7 +38,7 @@ impl CallKey {
     }
 
     fn from_wire(name: &smith_channel::CallName) -> CallKey {
-        CallKey { activation: name.activation(), completion: name.completion(), position: name.position() }
+        CallKey { activation: name.activation, completion: name.completion, position: name.position }
     }
 
     fn domain(self) -> run::CallName {
@@ -173,10 +174,11 @@ impl Component {
         if !self.state.started() {
             return Err(Error::Order);
         }
-        let record = match smith_channel::Admitted::new(&self.bodies, smith_channel::AdmittedParts {}) {
-            Ok(value) => value,
+        let record = smith_channel::Admitted {};
+        match record.measure(&self.bodies) {
+            Ok(_) => (),
             Err(problem) => return Err(Error::ChannelBody(problem)),
-        };
+        }
         let frame = match smith_channel::frame(smith_channel::Body::Admitted(record)) {
             Ok(value) => value,
             Err(problem) => return Err(Error::Frame(problem)),
@@ -207,13 +209,11 @@ impl Component {
             run::MessageRefusal::NameInUse => smith_channel::MessageRefusal::NameInUse,
             run::MessageRefusal::Ending => smith_channel::MessageRefusal::Ending,
         };
-        let record = match smith_channel::MessageRefused::new(
-            &self.bodies,
-            smith_channel::MessageRefusedParts { name: name.raw(), reason },
-        ) {
-            Ok(value) => value,
+        let record = smith_channel::MessageRefused { name: name.raw(), reason };
+        match record.measure(&self.bodies) {
+            Ok(_) => (),
             Err(problem) => return Err(Error::ChannelBody(problem)),
-        };
+        }
         let frame = match smith_channel::frame(smith_channel::Body::MessageRefused(record)) {
             Ok(value) => value,
             Err(problem) => return Err(Error::Frame(problem)),
@@ -244,6 +244,10 @@ impl Component {
             return Err(Error::Order);
         }
         let record = answer_record(now, answer, read, &self.bodies, &self.charter)?;
+        match record.measure(&self.bodies) {
+            Ok(_) => (),
+            Err(problem) => return Err(Error::ChannelBody(problem)),
+        }
         let frame = match smith_channel::frame(smith_channel::Body::Answer(record)) {
             Ok(value) => value,
             Err(problem) => return Err(Error::Frame(problem)),
@@ -272,10 +276,11 @@ impl Component {
             Some(name) => Some(name.raw()),
             None => None,
         };
-        let record = match smith_channel::Waiting::new(&self.bodies, smith_channel::WaitingParts { last_read }) {
-            Ok(value) => value,
+        let record = smith_channel::Waiting { last_read };
+        match record.measure(&self.bodies) {
+            Ok(_) => (),
             Err(problem) => return Err(Error::ChannelBody(problem)),
-        };
+        }
         let frame = match smith_channel::frame(smith_channel::Body::Waiting(record)) {
             Ok(value) => value,
             Err(problem) => return Err(Error::Frame(problem)),
@@ -305,10 +310,11 @@ impl Component {
             smith_domain::Operation::Command => smith_channel::Operation::Command,
             smith_domain::Operation::Grant => smith_channel::Operation::Grant,
         };
-        let record = match smith_channel::Long::new(&self.bodies, smith_channel::LongParts { operation, span }) {
-            Ok(value) => value,
+        let record = smith_channel::Long { operation, span };
+        match record.measure(&self.bodies) {
+            Ok(_) => (),
             Err(problem) => return Err(Error::ChannelBody(problem)),
-        };
+        }
         let frame = match smith_channel::frame(smith_channel::Body::Long(record)) {
             Ok(value) => value,
             Err(problem) => return Err(Error::Frame(problem)),
@@ -330,10 +336,11 @@ impl Component {
         if !self.state.admitted() || self.state.active()?.long_open == 0 {
             return Err(Error::Order);
         }
-        let record = match smith_channel::LongDone::new(&self.bodies, smith_channel::LongDoneParts {}) {
-            Ok(value) => value,
+        let record = smith_channel::LongDone {};
+        match record.measure(&self.bodies) {
+            Ok(_) => (),
             Err(problem) => return Err(Error::ChannelBody(problem)),
-        };
+        }
         let frame = match smith_channel::frame(smith_channel::Body::LongDone(record)) {
             Ok(value) => value,
             Err(problem) => return Err(Error::Frame(problem)),
@@ -369,13 +376,11 @@ impl Component {
             Some(name) => Some(name.raw()),
             None => None,
         };
-        let record = match smith_channel::Turn::new(
-            &self.bodies,
-            smith_channel::TurnParts { number, spent: spent.units, last_read, opens_window, body },
-        ) {
-            Ok(value) => value,
+        let record = smith_channel::Turn { number, spent: spent.units, last_read, opens_window, body };
+        match record.measure(&self.bodies) {
+            Ok(_) => (),
             Err(problem) => return Err(Error::ChannelBody(problem)),
-        };
+        }
         let frame = match smith_channel::frame(smith_channel::Body::Turn(record)) {
             Ok(value) => value,
             Err(problem) => return Err(Error::Frame(problem)),
@@ -440,8 +445,8 @@ impl Component {
             return false;
         };
         let asked = match kind {
-            crate::PieceKind::Text => ask.text(),
-            crate::PieceKind::Input { .. } => ask.input(),
+            crate::PieceKind::Text => ask.text,
+            crate::PieceKind::Input { .. } => ask.input,
         };
         if !asked {
             return false;
@@ -527,10 +532,11 @@ impl Component {
             self.lost_facts = self.lost_facts.saturating_add(1);
             return Ok(false);
         }
-        let record = match smith_channel::Fact::new(&self.bodies, smith_channel::FactParts { kind, elapsed, count }) {
-            Ok(value) => value,
+        let record = smith_channel::Fact { kind, elapsed, count };
+        match record.measure(&self.bodies) {
+            Ok(_) => (),
             Err(problem) => return Err(Error::ChannelBody(problem)),
-        };
+        }
         let frame = match smith_channel::frame(smith_channel::Body::Fact(record)) {
             Ok(value) => value,
             Err(problem) => return Err(Error::Frame(problem)),
@@ -688,31 +694,23 @@ impl Component {
     }
 
     fn stash_initial_grants(&mut self, start: &smith_channel::Start) -> Result<(), Error> {
-        for grant in start.grants() {
-            self.credentials.keep(grant.account(), grant.generation(), crate::GrantValue::from_wire(grant.value())?)?;
+        for grant in &start.grants {
+            self.credentials.keep(grant.account, grant.generation, crate::GrantValue::from_wire(&grant.value)?)?;
         }
         Ok(())
     }
 }
 
 fn invalid_answer(limits: &smith_channel::Limits, invalid: smith_channel::InvalidStart) -> Option<Frame> {
-    let reason =
-        smith_channel::InvalidStartValue::new(limits, smith_channel::InvalidStartValueParts { value: invalid }).ok()?;
-    let refused = smith_channel::Refused::new(
-        limits,
-        smith_channel::RefusedParts { reason: smith_channel::StartRefusal::Invalid(reason) },
-    )
-    .ok()?;
-    let record = smith_channel::Answer::new(
-        limits,
-        smith_channel::AnswerParts {
-            turns: 0,
-            spent: 0,
-            last_read: None,
-            result: smith_channel::RunResult::Refused(refused),
-        },
-    )
-    .ok()?;
+    let reason = smith_channel::InvalidStartValue { value: invalid };
+    let refused = smith_channel::Refused { reason: smith_channel::StartRefusal::Invalid(reason) };
+    let record = smith_channel::Answer {
+        turns: 0,
+        spent: 0,
+        last_read: None,
+        result: smith_channel::RunResult::Refused(refused),
+    };
+    record.measure(limits).ok()?;
     let frame = smith_channel::frame(smith_channel::Body::Answer(record)).ok()?;
     Some(frame)
 }

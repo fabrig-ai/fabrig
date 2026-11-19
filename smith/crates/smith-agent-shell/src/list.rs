@@ -3,6 +3,7 @@
 //! `Process::new` adopts the supplied faces; `run_decoded` supplies the native kernel.
 
 #[cfg(unix)]
+use smith_channel::Record;
 use std::{io::Write, path::Path};
 
 use skein_io::{
@@ -10,7 +11,7 @@ use skein_io::{
     kernel::{Complete, Exit, Fd, Submit},
 };
 use skein_lib::{
-    Duration, Env, List, Queue, Reader, Time, Token, Wall, Writer,
+    Duration, Env, List, Queue, Reader, Time, Token, Wall,
     stream::{Down, Read, Up},
 };
 use skein_llm_connection::{
@@ -128,18 +129,17 @@ impl Process {
     }
 
     fn answer(&mut self, answer: Answer) {
-        let answer = to_wire(answer).unwrap_or_else(|()| failed(wire::ListFailed::Unreadable));
-        let mut writer = Writer::new(usize::try_from(answer.measure()).expect("bounded answer"));
-        answer.encode(&mut writer).expect("measured answer");
-        self.answer = Some(writer.finish());
+        let bytes = to_wire(answer)
+            .and_then(|answer| answer.encode(&CEILINGS).map_err(|_| ()))
+            .unwrap_or_else(|()| failed(wire::ListFailed::Unreadable).encode(&CEILINGS).expect("fixed failure"));
+        let length = u32::try_from(bytes.len()).expect("bounded answer");
+        self.answer = Some(bytes);
         self.ask.clear();
         self.answered = true;
         self.requests.push(Request::Abort { entity: self.input });
         self.requests.push(Request::Abort { entity: self.signal });
-        self.requests.push(Request::Stream {
-            stream: self.output,
-            down: Down::Demand { read: Read::Nothing, room: answer.measure() },
-        });
+        self.requests
+            .push(Request::Stream { stream: self.output, down: Down::Demand { read: Read::Nothing, room: length } });
     }
 
     fn start(&mut self, now: Time, wall: Wall) {
@@ -149,14 +149,13 @@ impl Process {
             self.answer(Answer::Unreadable);
             return;
         };
-        let ask = ask.into_parts();
+
         let Some(options) = self.endpoints.resolve(smith_domain::llm::Endpoint(ask.endpoint)) else {
             self.answer(Answer::Unreadable);
             return;
         };
         let endpoint = self.endpoints.destinations().get(options.index).expect("resolved destination");
         let credential = ask.credential.map(|value| {
-            let value = value.into_parts();
             let bytes = value.bytes.into_exposed();
             match value.scheme {
                 wire::Scheme::Bearer => skein_llm::Credential::bearer(bytes),
@@ -236,9 +235,7 @@ impl Process {
 }
 
 fn failed(failure: wire::ListFailed) -> wire::ListAnswer {
-    wire::ListAnswer::Failed(
-        wire::ListFailure::new(&CEILINGS, wire::ListFailureParts { failure }).expect("fixed failure"),
-    )
+    wire::ListAnswer::Failed(wire::ListFailure { failure })
 }
 
 fn to_wire(answer: Answer) -> Result<wire::ListAnswer, ()> {
@@ -251,28 +248,18 @@ fn to_wire(answer: Answer) -> Result<wire::ListAnswer, ()> {
                     efforts.push(effort).map_err(|_| ())?;
                 }
                 values
-                    .push(
-                        wire::ListRow::new(
-                            &CEILINGS,
-                            wire::ListRowParts {
-                                name: row.name,
-                                shown: row.shown,
-                                window: row.window,
-                                output: row.output,
-                                efforts,
-                            },
-                        )
-                        .map_err(|_| ())?,
-                    )
+                    .push(wire::ListRow {
+                        name: row.name,
+                        shown: row.shown,
+                        window: row.window,
+                        output: row.output,
+                        efforts,
+                    })
                     .map_err(|_| ())?;
             }
-            return Ok(wire::ListAnswer::Listed(
-                wire::ListRows::new(&CEILINGS, wire::ListRowsParts { rows: values }).map_err(|_| ())?,
-            ));
+            return Ok(wire::ListAnswer::Listed(wire::ListRows { rows: values }));
         }
-        Answer::Refused { status } => wire::ListFailed::Refused(
-            wire::ListRefused::new(&CEILINGS, wire::ListRefusedParts { status }).expect("fixed status"),
-        ),
+        Answer::Refused { status } => wire::ListFailed::Refused(wire::ListRefused { status }),
         Answer::Unreachable => wire::ListFailed::Unreachable,
         Answer::Unreadable => wire::ListFailed::Unreadable,
         Answer::Deadline => wire::ListFailed::Deadline,

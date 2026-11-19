@@ -2,6 +2,7 @@
 //! domain/hosts/charters.md). The routing maps these into domain values.
 use alloc::boxed::Box;
 use skein_lib::{List, Reader};
+use smith_charter::Record;
 use smith_charter::{CEILINGS, Form};
 
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -31,34 +32,38 @@ pub fn result(bytes: &[u8]) -> Result<RunResult, Unreadable> {
     if !reader.is_empty() {
         return Err(Unreadable::Malformed);
     }
-    match value.form() {
+    match &value.form {
         Form::Change => Err(Unreadable::Form),
         Form::Report => {
-            if value.label().is_some() || !value.items().is_empty() {
+            if value.label.is_some() || !value.items.is_empty() {
                 return Err(Unreadable::Form);
             }
-            Ok(RunResult::Report { words: Box::from(value.text()) })
+            Ok(RunResult::Report { words: Box::from(value.text.as_ref()) })
         }
         Form::Failure => {
-            if value.label().is_some() || !value.items().is_empty() {
+            if value.label.is_some() || !value.items.is_empty() {
                 return Err(Unreadable::Form);
             }
-            Ok(RunResult::Failure { reason: Box::from(value.text()) })
+            Ok(RunResult::Failure { reason: Box::from(value.text.as_ref()) })
         }
         Form::Verdict => {
-            if !value.items().is_empty() {
+            if !value.items.is_empty() {
                 return Err(Unreadable::Form);
             }
-            let Some(label) = value.label() else {
+            let Some(label) = &value.label else {
                 return Err(Unreadable::Form);
             };
-            let mut fields = List::with_capacity(value.fields().len());
-            for field in value.fields() {
+            let mut fields = List::with_capacity(value.fields.len());
+            for field in &value.fields {
                 fields
-                    .push(Field { name: Box::from(field.name()), value: Box::from(field.text()) })
+                    .push(Field { name: Box::from(field.name.as_ref()), value: Box::from(field.text.as_ref()) })
                     .expect("capacity for every decoded field");
             }
-            Ok(RunResult::Verdict { label: label.clone(), fields: fields.into_boxed(), words: Box::from(value.text()) })
+            Ok(RunResult::Verdict {
+                label: label.clone(),
+                fields: fields.into_boxed(),
+                words: Box::from(value.text.as_ref()),
+            })
         }
     }
 }

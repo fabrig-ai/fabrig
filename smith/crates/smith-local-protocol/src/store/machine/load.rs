@@ -5,6 +5,7 @@ use super::{
     Action, Box, ChatState, DeliveryRecord, Fresh, List, Queue, RecordName, Resume, State, Store, StoreFault,
     decode_state, decode_turns_bounded, digest, file, local, turn_opens_window_bounded,
 };
+use crate::local_store_v1::Record;
 
 #[derive(Debug)]
 pub(super) enum Loading {

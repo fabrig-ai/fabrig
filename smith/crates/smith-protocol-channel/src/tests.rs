@@ -707,32 +707,15 @@ fn grant_charter() -> smith_domain::run::Charter {
 fn grant_forms_keep_their_policy_at_start_and_refresh() {
     use skein_lib::{Duration, List, Secret};
     use smith_channel as wire;
-    let limits = wire::CEILINGS;
     let credential = |scheme| {
-        wire::GrantValue::Credential(
-            wire::CredentialValue::new(
-                &limits,
-                wire::CredentialValueParts { scheme, bytes: Secret::new(b"fixture".as_slice().into()) },
-            )
-            .expect("bounded credential"),
-        )
+        wire::GrantValue::Credential(wire::CredentialValue { scheme, bytes: Secret::new(b"fixture".as_slice().into()) })
     };
     for (value, renewable) in [
         (credential(wire::Scheme::Key), false),
         (credential(wire::Scheme::Bearer), true),
-        (
-            wire::GrantValue::Program(
-                wire::ProgramValue::new(&limits, wire::ProgramValueParts { name: b"claude-code".as_slice().into() })
-                    .expect("bounded program form"),
-            ),
-            true,
-        ),
+        (wire::GrantValue::Program(wire::ProgramValue { name: b"claude-code".as_slice().into() }), true),
     ] {
-        let grant = wire::Grant::new(
-            &limits,
-            wire::GrantParts { account: 7, generation: 2, valid: Duration::from_secs(3600), value },
-        )
-        .expect("bounded wire grant");
+        let grant = wire::Grant { account: 7, generation: 2, valid: Duration::from_secs(3600), value };
         let refresh = smith_protocol_translate::refreshed_grant(&grant);
         assert_eq!(
             refresh,
@@ -745,22 +728,18 @@ fn grant_forms_keep_their_policy_at_start_and_refresh() {
         );
         let mut grants = List::with_capacity(1);
         grants.push(grant).expect("one grant");
-        let start = wire::Start::new(
-            &limits,
-            wire::StartParts {
-                identity: None,
-                activation: 1,
-                charter: Box::default(),
-                workspace: None,
-                transcript: Box::default(),
-                answered: List::with_capacity(0),
-                grants,
-                window: wire::Window::new(&limits, wire::WindowParts { turns: 8, bytes: 65_536 }).expect("window"),
-                messages: List::with_capacity(0),
-                live: None,
-            },
-        )
-        .expect("bounded start envelope");
+        let start = wire::Start {
+            identity: None,
+            activation: 1,
+            charter: Box::default(),
+            workspace: None,
+            transcript: Box::default(),
+            answered: List::with_capacity(0),
+            grants,
+            window: wire::Window { turns: 8, bytes: 65_536 },
+            messages: List::with_capacity(0),
+            live: None,
+        };
         let decoded = crate::start_context(start, grant_charter(), None).expect("observed start conversion");
         assert_eq!(decoded.grants.len(), 1);
         let kept = &decoded.grants[0];

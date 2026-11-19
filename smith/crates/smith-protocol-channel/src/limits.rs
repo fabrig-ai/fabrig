@@ -29,6 +29,7 @@ pub struct Limits {
     pub grants: u32,
 }
 
+use smith_charter::Record;
 pub use smith_protocol_translate::Error;
 
 /// Room a caller keeps at the host-channel edge for one entrance.

@@ -3,6 +3,7 @@
 
 use skein_heap::Meter;
 use skein_lib::{List, Reader, Writer};
+use smith_charter::Record;
 
 use smith_charter::v5 as charter;
 use smith_transcript::v7 as transcript;
@@ -101,7 +102,7 @@ fn charter_at_its_largest_instruction_payload_stays_within_the_configured_heap_b
     let measured = meter.end();
     assert!(measured.peak() <= bound, "charter decoder peak within generated bound");
     assert!(measured.held() <= bound, "charter decoder retained heap within bound");
-    assert_eq!(decoded.instructions().len(), usize::try_from(size).expect("ceiling fits"));
+    assert_eq!(decoded.instructions.as_ref().len(), usize::try_from(size).expect("ceiling fits"));
     drop(decoded);
     assert_eq!(meter.held(), 0, "charter allocations released");
 }

@@ -1,18 +1,13 @@
 use crate::route;
 use jig_domain_host as host;
 use skein_lib::Writer;
+use smith_channel::Record;
 use smith_host_domain as agent;
 
 #[test]
 fn delivery_evidence_disagreeing_with_its_outcome_is_invalid() {
-    let record = smith_channel::DeliveryReply::new(
-        &smith_channel::CEILINGS,
-        smith_channel::DeliveryReplyParts { value: smith_channel::Delivery::Nothing },
-    )
-    .unwrap();
-    let mut writer = Writer::new(usize::try_from(record.measure()).unwrap());
-    record.encode(&mut writer).unwrap();
-    let bytes = writer.finish();
+    let record = smith_channel::DeliveryReply { value: smith_channel::Delivery::Nothing };
+    let bytes = record.encode(&smith_channel::CEILINGS).expect("bounded delivery");
     // DeliveryReply is unversioned and unchanged by smith's RunResult 3 -> 4.
     assert_eq!(bytes.as_ref(), &[1], "delivery evidence golden");
     for (row, outcome, evidence, expected) in [

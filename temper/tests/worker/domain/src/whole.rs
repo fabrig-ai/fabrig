@@ -3,10 +3,11 @@
 //! forge. The world plays jig's worker link as jig's worker worlds do: a
 //! channel ready or lost, the grace passed. The referee reads remote trees
 //! and records crossing boundaries.
+use smith_channel::Record;
 use std::collections::VecDeque;
 use std::fmt::Write;
 
-use skein_lib::{Duration, Env, Queue, Reader, Time, Token, Wall, Writer};
+use skein_lib::{Duration, Env, Queue, Reader, Time, Token, Wall};
 use temper_fake_checkout::{
     Checkout,
     git::{Remote, Tree},
@@ -702,9 +703,9 @@ fn channel_limits() -> smith_channel::Limits {
 fn host_reply(reply: agent::Reply) -> Option<smith_channel::Reply> {
     let limits = channel_limits();
     let reply = match reply {
-        agent::Reply::Host { error, body } => smith_channel::Reply::Host(
-            smith_channel::HostReply::new(&limits, smith_channel::HostReplyParts { error, text: body }).ok()?,
-        ),
+        agent::Reply::Host { error, body } => {
+            smith_channel::Reply::Host(smith_channel::HostReply { error, text: body })
+        }
         agent::Reply::TooLarge => smith_channel::Reply::TooLarge,
         other @ (agent::Reply::Busy
         | agent::Reply::Unavailable
@@ -714,20 +715,13 @@ fn host_reply(reply: agent::Reply) -> Option<smith_channel::Reply> {
             panic!("unscripted reply: {other:?}")
         }
     };
-    let name = smith_channel::CallName::new(
-        &limits,
-        smith_channel::CallNameParts { activation: ATTEMPT.raw(), completion: 1, position: 0 },
-    )
-    .expect("call name");
-    let record = smith_channel::HostAnswer::new(&limits, smith_channel::HostAnswerParts { name, reply })
-        .expect("bounded answer");
-    let mut writer = Writer::new(usize::try_from(record.measure()).expect("answer size"));
-    record.encode(&mut writer).expect("measured answer");
-    let bytes = writer.finish();
+    let name = smith_channel::CallName { activation: ATTEMPT.raw(), completion: 1, position: 0 };
+    let record = smith_channel::HostAnswer { name, reply };
+    let bytes = record.encode(&limits).ok()?;
     let mut reader = Reader::new(&bytes);
     let decoded = smith_channel::HostAnswer::decode(&limits, &mut reader).expect("agent decodes");
     assert!(reader.is_empty());
-    Some(decoded.reply().clone())
+    Some(decoded.reply.clone())
 }
 
 fn assignment(first: u64, run: Token, workstream: u64, start: wire::Start) -> Event {

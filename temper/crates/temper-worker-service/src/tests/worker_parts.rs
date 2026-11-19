@@ -1,5 +1,6 @@
 use crate::worker_route;
 use jig_domain_host as host;
+use smith_channel::Record;
 use smith_host_domain as agent;
 
 #[test]
@@ -9,7 +10,7 @@ fn a_call_name_is_encoded_as_smiths_channel_record() {
     let encoded = worker_route::encode(temper_worker_domain::Encodable::CallName(name), &config);
     let temper_worker_domain::Encoded::CallName(bytes) = encoded else { panic!("call name encoded") };
     let record = smith_channel::CallName::decode(&config.limits.bodies, &mut Reader::new(&bytes)).unwrap();
-    assert_eq!((record.activation(), record.completion(), record.position()), (7, 2, 3));
+    assert_eq!((record.activation, record.completion, record.position), (7, 2, 3));
 }
 
 #[test]
@@ -34,11 +35,7 @@ const RETRY: u32 = 3;
 const OFFSET: u64 = 1_u64 << 32;
 
 fn call() -> smith_channel::LiveCall {
-    smith_channel::LiveCall::new(
-        &smith_channel::CEILINGS,
-        smith_channel::LiveCallParts { id: b"provider-call".as_slice().into(), tool: b"tool".as_slice().into() },
-    )
-    .expect("bounded call")
+    smith_channel::LiveCall { id: b"provider-call".as_slice().into(), tool: b"tool".as_slice().into() }
 }
 
 fn live(kind: smith_channel::LiveKind, call: Option<smith_channel::LiveCall>) -> ProcessEvent {

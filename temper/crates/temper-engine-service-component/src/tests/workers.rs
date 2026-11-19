@@ -6,6 +6,7 @@ use jig_domain_tasks as tasks;
 use jig_protocol_engine_workers::GrantValue;
 use skein_lib::Time;
 use skein_lib::Token;
+use smith_charter::Record;
 use temper_engine_domain as root;
 #[test]
 fn each_repositorys_grant_carries_its_identitys_value() {
@@ -164,7 +165,7 @@ fn an_assignment_carries_its_items_encoded_charter_and_identity_value() {
             .unwrap();
     assert_eq!(items.repositories().get(0).unwrap().remote(), b"https://forge.example/acme/shop.git");
     let charter = decoded_charter(&assignment.assignment.charter);
-    assert!(charter.resume());
+    assert!(charter.resume);
     let Some(GrantValue::Application { secret }) = &values[0] else { panic!("an application value") };
     let value = fixtures::decoded_identity(secret);
     let temper_protocol_worker_wire::v1::Kind::Forgejo(token) = value.kind() else { panic!("Forgejo identity") };
@@ -202,7 +203,7 @@ fn a_fresh_start_whose_tail_reaches_the_turns_headers_still_encodes() {
         panic!("assignment event")
     };
     let charter = &assignment.assignment.charter;
-    assert!(!decoded_charter(charter).resume());
+    assert!(!decoded_charter(charter).resume);
     assert!(skein_lib::bytes::find(charter, b"[earlier bytes not text, cut]\nThe README's last line is in.").is_some());
 }
 #[test]
@@ -228,9 +229,9 @@ fn an_assignments_brief_and_messages_replace_non_utf8_bytes() {
         panic!("assignment event")
     };
     let charter = decoded_charter(&assignment.assignment.charter);
-    let section = charter.brief().get(0).unwrap();
-    assert_eq!(section.title(), b"Pull request");
-    assert_eq!(section.body(), b"head??tail");
+    let section = charter.brief.get(0).unwrap();
+    assert_eq!(section.title.as_ref(), b"Pull request");
+    assert_eq!(section.body.as_ref(), b"head??tail");
     assert_eq!(assignment.messages[0].words.as_ref(), b"words?");
 }
 
@@ -256,9 +257,9 @@ fn an_assignments_section_titles_replace_non_utf8_bytes() {
         panic!("assignment event")
     };
     let charter = decoded_charter(&assignment.assignment.charter);
-    let section = charter.brief().get(0).unwrap();
-    assert_eq!(section.title(), b"Document doc?");
-    assert_eq!(section.body(), b"text");
+    let section = charter.brief.get(0).unwrap();
+    assert_eq!(section.title.as_ref(), b"Document doc?");
+    assert_eq!(section.body.as_ref(), b"text");
 }
 
 #[test]
@@ -810,8 +811,8 @@ fn a_program_grants_charter_keeps_its_source_account() {
     let [Some(GrantValue::Program { name })] = values.as_ref() else { panic!("one name without a table entry") };
     assert_eq!(name.as_bytes(), b"alice");
     let charter = decoded_charter(&sent.assignment.charter);
-    assert_eq!(charter.main().account(), &Some(17));
-    assert_eq!(charter.main().endpoint(), b"fake");
+    assert_eq!((&charter.main.account), &Some(17));
+    assert_eq!(charter.main.endpoint.as_ref(), b"fake");
 }
 
 #[test]
@@ -842,7 +843,7 @@ fn a_first_attempt_requests_saves_from_its_charters_resume_policy() {
         .unwrap();
         assert_eq!(assignment.assignment.save, resume);
         assert_eq!(items.repositories().get(0).unwrap().save().is_some(), resume);
-        assert!(!decoded_charter(&assignment.assignment.charter).resume(), "the first attempt has no transcript yet");
+        assert!(!decoded_charter(&assignment.assignment.charter).resume, "the first attempt has no transcript yet");
     }
 }
 

@@ -30,6 +30,7 @@
 //! stays live, the unread messages wake it again according to their policy.
 use jig_conformance::{Clock, Input};
 use jig_domain_link::{Bounds, CountKind, EndpointBound, Operation};
+use smith_charter::Record;
 
 use jig_client_test_domain::DIALECT;
 use jig_domain_host as host;
@@ -438,14 +439,8 @@ impl Agent {
 
 /// A relayed call's name in smith's channel record.
 fn name(activation: u64, completion: u32) -> Box<[u8]> {
-    let name = smith_channel::CallName::new(
-        &smith_channel::CEILINGS,
-        smith_channel::CallNameParts { activation, completion, position: 0 },
-    )
-    .expect("script call name");
-    let mut encoded = skein_lib::Writer::new(skein_lib::length::usize_of(name.measure()));
-    name.encode(&mut encoded).expect("measured call name");
-    encoded.finish()
+    let name = smith_channel::CallName { activation, completion, position: 0 };
+    name.encode(&smith_channel::CEILINGS).expect("fixed call name")
 }
 
 /// What a completion streams: its start, then its text or its call.
@@ -544,32 +539,19 @@ pub(super) fn result(
     text: &[u8],
     fields: &[(&str, &str)],
 ) -> Box<[u8]> {
-    let limits = smith_charter::v5::CEILINGS;
     let mut list = List::with_capacity(u32::try_from(fields.len()).expect("few fields"));
     for (name, value) in fields {
-        list.push(
-            smith_charter::Field::new(
-                &limits,
-                smith_charter::FieldParts { name: name.as_bytes().into(), text: value.as_bytes().into() },
-            )
-            .expect("bounded field"),
-        )
-        .expect("counted fields");
+        list.push(smith_charter::Field { name: name.as_bytes().into(), text: value.as_bytes().into() })
+            .expect("counted fields");
     }
-    let value = smith_charter::RunResult::new(
-        &limits,
-        smith_charter::RunResultParts {
-            form,
-            label: label.map(Box::from),
-            text: text.into(),
-            fields: list,
-            items: List::with_capacity(0),
-        },
-    )
-    .expect("bounded result");
-    let mut writer = Writer::new(skein_lib::length::usize_of(value.measure()));
-    value.encode(&mut writer).expect("measured result");
-    writer.finish()
+    let value = smith_charter::RunResult {
+        form,
+        label: label.map(Box::from),
+        text: text.into(),
+        fields: list,
+        items: List::with_capacity(0),
+    };
+    value.encode(&smith_charter::CEILINGS).expect("bounded result")
 }
 
 const NOISE_CODE: &str = "1";

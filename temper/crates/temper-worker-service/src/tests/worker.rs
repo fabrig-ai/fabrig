@@ -1,6 +1,7 @@
 use super::fixtures;
 use crate::worker_settings;
 use fixtures::worker_peers::*;
+use smith_channel::Record;
 
 #[test]
 fn the_link_s_credential_names_temper_s_wire() {
@@ -608,13 +609,10 @@ fn a_program_grant_lends_only_its_validated_name_without_a_table_entry() {
         let encoded = encode_grants(*start, values, &agent).unwrap();
         let body = &encoded.bytes()[encoded.bytes().len() - usize::try_from(encoded.body_len()).unwrap()..];
         let decoded = smith_channel::Start::decode(&agent.limits.bodies, &mut Reader::new(body)).unwrap();
-        let value = decoded.grants().get(0).unwrap();
-        assert_eq!(
-            (value.account(), value.generation(), value.valid()),
-            (grant.account, grant.generation, grant.valid)
-        );
-        let smith_channel::GrantValue::Program(value) = value.value() else { panic!("only a program name") };
-        assert_eq!(value.name(), bytes.as_ref());
+        let value = decoded.grants.get(0).unwrap();
+        assert_eq!((value.account, value.generation, value.valid), (grant.account, grant.generation, grant.valid));
+        let smith_channel::GrantValue::Program(value) = &value.value else { panic!("only a program name") };
+        assert_eq!(value.name.as_ref(), bytes.as_ref());
         let mut mismatched = decoded_chat_start(&agent);
         mismatched.grants = Box::new([grant]);
         let wrong = smith_host_protocol::Values {
@@ -817,11 +815,11 @@ fn key_values_reach_smith_at_their_bound_and_fit_the_workers_memory() {
         let offset = encoded.bytes().len() - usize::try_from(encoded.body_len()).unwrap();
         let decoded =
             smith_channel::Start::decode(&agent.limits.bodies, &mut Reader::new(&encoded.bytes()[offset..])).unwrap();
-        let smith_channel::GrantValue::Credential(value) = decoded.grants().get(0).unwrap().value() else {
+        let smith_channel::GrantValue::Credential(value) = &decoded.grants.get(0).unwrap().value else {
             panic!("credential")
         };
-        assert_eq!(value.scheme(), &smith_channel::Scheme::Key);
-        assert_eq!(value.bytes().expose().len(), usize::try_from(size).unwrap());
+        assert_eq!((&value.scheme), &smith_channel::Scheme::Key);
+        assert_eq!(value.bytes.expose().len(), usize::try_from(size).unwrap());
     }
 }
 

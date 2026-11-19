@@ -359,11 +359,7 @@ impl HostService {
             }),
 
             Received::Live { turn, retry, kind, offset, bytes, call } => {
-                let piece = smith_channel::Live::new(
-                    &smith_channel::CEILINGS,
-                    smith_channel::LiveParts { turn, retry, kind, offset, bytes, call },
-                )
-                .expect("process already validated the live record");
+                let piece = smith_channel::Live { turn, retry, kind, offset, bytes, call };
                 self.seen.pieces.push((self.seen.turns, piece));
                 host::Input::Process(host::process::Event::Progress { owner: agent })
             }

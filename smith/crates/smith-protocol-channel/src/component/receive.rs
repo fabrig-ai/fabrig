@@ -8,6 +8,7 @@ use alloc::boxed::Box;
 use core::mem;
 use skein_channel::{Closed, Event, Lower, Request, Role};
 use skein_lib::{Queue, Reader, Time, Token};
+use smith_channel::Record;
 use smith_channel::kind;
 use smith_domain::run;
 use smith_domain_session::record;
@@ -141,7 +142,7 @@ impl Component {
 
     fn start(&mut self, body: &[u8], to_service: &mut Queue<Heard>, below: &mut Queue<Lower>) -> Result<State, Broken> {
         let start = smith_channel::Start::decode(&self.bodies, &mut Reader::new(body)).or(Err(Broken))?;
-        let charter = match decode_charter(start.charter(), &self.charter, &self.endpoints) {
+        let charter = match decode_charter(start.charter.as_ref(), &self.charter, &self.endpoints) {
             Ok(charter) => charter,
             Err(invalid) => {
                 let reason = invalid_start(invalid, &self.bodies).or(Err(Broken))?;
@@ -152,7 +153,7 @@ impl Component {
             }
         };
         let transcript = match decode_transcript(
-            start.transcript(),
+            start.transcript.as_ref(),
             self.resume_turns,
             self.search_hits,
             &self.transcript,
@@ -179,32 +180,32 @@ impl Component {
 
     fn renewals(&self, body: &[u8], to_service: &mut Queue<Heard>) -> Result<(), Broken> {
         let record = smith_channel::Renewals::decode(&self.bodies, &mut Reader::new(body)).or(Err(Broken))?;
-        to_service.push(Heard::Event { event: Box::new(smith_domain::Event::Renewals { held: record.held() }) });
+        to_service.push(Heard::Event { event: Box::new(smith_domain::Event::Renewals { held: record.held }) });
         Ok(())
     }
 
     fn message(&self, body: &[u8], to_service: &mut Queue<Heard>) -> Result<(), Broken> {
         let message = smith_channel::Message::decode(&self.bodies, &mut Reader::new(body)).or(Err(Broken))?;
         to_service.push(Heard::Message {
-            finish_requested: message.finish_requested(),
-            name: Token::new(message.name()),
-            label: Box::from(message.label()),
-            text: Box::from(message.text()),
+            finish_requested: message.finish_requested,
+            name: Token::new(message.name),
+            label: Box::from(message.label.as_ref()),
+            text: Box::from(message.text.as_ref()),
         });
         Ok(())
     }
 
     fn host_answer(&mut self, body: &[u8], to_service: &mut Queue<Heard>) -> Result<(), Broken> {
         let answer = smith_channel::HostAnswer::decode(&self.bodies, &mut Reader::new(body)).or(Err(Broken))?;
-        let key = CallKey::from_wire(answer.name());
+        let key = CallKey::from_wire(&answer.name);
         match self.calls.remove(&key).ok_or(Broken)? {
             CallRoute::Host { relay, send: _ } => {
-                let reply = calls::host_reply(answer.reply()).ok_or(Broken)?;
+                let reply = calls::host_reply(&answer.reply).ok_or(Broken)?;
                 to_service.push(Heard::Event { event: Box::new(smith_domain::Event::HostReturned { relay, reply }) });
             }
-            CallRoute::Delivery { owner, send: _ } => match answer.reply() {
+            CallRoute::Delivery { owner, send: _ } => match &answer.reply {
                 smith_channel::Reply::Delivery(delivery) => {
-                    let delivery = saved_delivery(delivery.value()).or(Err(Broken))?;
+                    let delivery = saved_delivery(&delivery.value).or(Err(Broken))?;
                     to_service
                         .push(Heard::Event { event: Box::new(smith_domain::Event::Delivered { owner, delivery }) });
                 }
@@ -221,15 +222,15 @@ impl Component {
 
     fn refresh(&mut self, body: &[u8], to_service: &mut Queue<Heard>) -> Result<(), Broken> {
         let refresh = smith_channel::GrantRefresh::decode(&self.bodies, &mut Reader::new(body)).or(Err(Broken))?;
-        let grant = refresh.grant();
-        if self.credentials.value(grant.account(), grant.generation()).is_some() {
+        let grant = &refresh.grant;
+        if self.credentials.value(grant.account, grant.generation).is_some() {
             to_service.push(Heard::Event {
                 event: Box::new(smith_domain::Event::Grant { grant: smith_protocol_translate::refreshed_grant(grant) }),
             });
             return Ok(());
         }
-        let value = crate::GrantValue::from_wire(grant.value()).or(Err(Broken))?;
-        self.credentials.keep(grant.account(), grant.generation(), value).or(Err(Broken))?;
+        let value = crate::GrantValue::from_wire(&grant.value).or(Err(Broken))?;
+        self.credentials.keep(grant.account, grant.generation, value).or(Err(Broken))?;
         to_service.push(Heard::Grant { grant: smith_protocol_translate::refreshed_grant(grant) });
         Ok(())
     }
@@ -275,10 +276,7 @@ impl Component {
             record::Refusal::Unresolved => run::TranscriptRefusal::Unresolved,
             record::Refusal::TooLarge => run::TranscriptRefusal::TooLarge,
         };
-        let admitted = match smith_channel::Admitted::new(&self.bodies, smith_channel::AdmittedParts {}) {
-            Ok(value) => value,
-            Err(problem) => return Err(Error::ChannelBody(problem)),
-        };
+        let admitted = smith_channel::Admitted {};
         let admitted = match smith_channel::frame(smith_channel::Body::Admitted(admitted)) {
             Ok(value) => value,
             Err(problem) => return Err(Error::Frame(problem)),
@@ -332,8 +330,8 @@ fn acknowledge(
     to_service: &mut Queue<Heard>,
 ) -> Result<(), Broken> {
     let acknowledge = smith_channel::Acknowledge::decode(limits, &mut Reader::new(body)).or(Err(Broken))?;
-    turns.acknowledge(acknowledge.number()).or(Err(Broken))?;
-    to_service.push(Heard::Acknowledged { turn: acknowledge.number() });
+    turns.acknowledge(acknowledge.number).or(Err(Broken))?;
+    to_service.push(Heard::Acknowledged { turn: acknowledge.number });
     Ok(())
 }
 

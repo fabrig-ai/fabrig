@@ -10,6 +10,7 @@
 use alloc::boxed::Box;
 use skein_channel::{Closed, Event, Lower, LowerEvent, Machine, Request, Role, Schema, StreamMode};
 use skein_lib::{Map, Queue, Time, Token};
+use smith_channel::Record;
 use smith_host_domain::channel;
 
 use crate::limits::{Error, Limits};
@@ -40,7 +41,7 @@ pub(crate) struct CallKey {
 
 impl CallKey {
     fn from_wire(name: &smith_channel::CallName) -> CallKey {
-        CallKey { activation: name.activation(), completion: name.completion(), position: name.position() }
+        CallKey { activation: name.activation, completion: name.completion, position: name.position }
     }
 
     fn domain(self) -> channel::CallName {
@@ -217,6 +218,7 @@ impl Component {
             return Err(Error::Order);
         }
         let record = crate::translate::encode_message(message, &self.bodies)?;
+        record.measure(&self.bodies)?;
         let frame = smith_channel::frame(smith_channel::Body::Message(record))?;
         self.send_frame(token, frame, to_service, below);
         Ok(())
@@ -253,7 +255,8 @@ impl Component {
         if self.state != State::Admitted {
             return Err(Error::Order);
         }
-        let record = smith_channel::Acknowledge::new(&self.bodies, smith_channel::AcknowledgeParts { number: turn })?;
+        let record = smith_channel::Acknowledge { number: turn };
+        record.measure(&self.bodies)?;
         let frame = smith_channel::frame(smith_channel::Body::Acknowledge(record))?;
         self.send_frame(token, frame, to_service, below);
         Ok(())
@@ -275,16 +278,10 @@ impl Component {
             return Err(Error::Grants);
         }
         let value = crate::translate::grant_value(credential, &self.bodies)?;
-        let grant = smith_channel::Grant::new(
-            &self.bodies,
-            smith_channel::GrantParts {
-                account: grant.account,
-                generation: grant.generation,
-                valid: grant.valid,
-                value,
-            },
-        )?;
-        let record = smith_channel::GrantRefresh::new(&self.bodies, smith_channel::GrantRefreshParts { grant })?;
+        let grant =
+            smith_channel::Grant { account: grant.account, generation: grant.generation, valid: grant.valid, value };
+        let record = smith_channel::GrantRefresh { grant };
+        record.measure(&self.bodies)?;
         let frame = smith_channel::frame(smith_channel::Body::GrantRefresh(record))?;
         self.send_frame(token, frame, to_service, below);
         Ok(())
@@ -301,7 +298,8 @@ impl Component {
         if self.state != State::Started && self.state != State::Admitted {
             return Err(Error::Order);
         }
-        let record = smith_channel::Renewals::new(&self.bodies, smith_channel::RenewalsParts { held })?;
+        let record = smith_channel::Renewals { held };
+        record.measure(&self.bodies)?;
         let frame = smith_channel::frame(smith_channel::Body::Renewals(record))?;
         self.send_frame(token, frame, to_service, below);
         Ok(())
@@ -317,7 +315,8 @@ impl Component {
         if self.state != State::Started && self.state != State::Admitted || self.stopping == Stopping::Cancelled {
             return Err(Error::Order);
         }
-        let record = smith_channel::Cancel::new(&self.bodies, smith_channel::CancelParts {})?;
+        let record = smith_channel::Cancel {};
+        record.measure(&self.bodies)?;
         let frame = smith_channel::frame(smith_channel::Body::Cancel(record))?;
         self.stopping = Stopping::Cancelled;
         self.send_frame(token, frame, to_service, below);
@@ -334,7 +333,8 @@ impl Component {
         if self.state != State::Started && self.state != State::Admitted || self.stopping != Stopping::Waiting {
             return Err(Error::Order);
         }
-        let record = smith_channel::Drain::new(&self.bodies, smith_channel::DrainParts {})?;
+        let record = smith_channel::Drain {};
+        record.measure(&self.bodies)?;
         let frame = smith_channel::frame(smith_channel::Body::Drain(record))?;
         self.stopping = Stopping::Draining;
         self.send_frame(token, frame, to_service, below);
@@ -458,7 +458,8 @@ mod tests {
     use super::{Component, Event, Received};
     use alloc::boxed::Box;
     use skein_channel::{Lower, LowerEvent};
-    use skein_lib::{Queue, Writer, stream};
+    use skein_lib::{Queue, stream};
+    use smith_channel::Record;
 
     fn component() -> Component {
         let (component, _above, _below) = super::grant_tests::admitted_channel();
@@ -466,31 +467,15 @@ mod tests {
     }
 
     fn turn_body(payload: Box<[u8]>) -> Box<[u8]> {
-        let record = smith_channel::Turn::new(
-            &smith_channel::CEILINGS,
-            smith_channel::TurnParts { number: 1, spent: 2, last_read: None, opens_window: true, body: payload },
-        )
-        .expect("envelope");
-        let mut writer = Writer::new(usize::try_from(record.measure()).expect("measure"));
-        record.encode(&mut writer).expect("encode");
-        writer.finish()
+        let record = smith_channel::Turn { number: 1, spent: 2, last_read: None, opens_window: true, body: payload };
+        record.encode(&smith_channel::CEILINGS).expect("bounded body")
     }
 
     fn accepted_body(payload: Box<[u8]>) -> Box<[u8]> {
-        let result =
-            smith_channel::Accepted::new(&smith_channel::CEILINGS, smith_channel::AcceptedParts { result: payload })
-                .expect("accepted");
-        let result =
-            smith_channel::RunResult::new(&smith_channel::CEILINGS, smith_channel::RunResult::Accepted(result))
-                .expect("result");
-        let record = smith_channel::Answer::new(
-            &smith_channel::CEILINGS,
-            smith_channel::AnswerParts { turns: 0, spent: 0, last_read: None, result },
-        )
-        .expect("answer");
-        let mut writer = Writer::new(usize::try_from(record.measure()).expect("measure"));
-        record.encode(&mut writer).expect("encode");
-        writer.finish()
+        let result = smith_channel::Accepted { result: payload };
+        let result = smith_channel::RunResult::Accepted(result);
+        let record = smith_channel::Answer { turns: 0, spent: 0, last_read: None, result };
+        record.encode(&smith_channel::CEILINGS).expect("bounded body")
     }
 
     #[test]

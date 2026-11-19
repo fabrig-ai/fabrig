@@ -5,6 +5,7 @@
 //! that plays one.
 
 use smith_channel as wire;
+use smith_channel::Record;
 use temper_worker_domain::{agent, host};
 
 /// The delivery the evidence records, if it decodes and agrees with
@@ -35,47 +36,45 @@ pub fn encode(delivery: &agent::Delivery) -> Option<Box<[u8]>> {
         agent::Delivery::Delivered(delivered) => {
             let mut receipts = skein_lib::List::with_capacity(limits.delivered_receipts);
             for receipt in delivered.receipts() {
-                let parts = wire::ReceiptParts { directory: receipt.directory(), text: Box::from(receipt.text()) };
-                receipts.push(wire::Receipt::new(limits, parts).ok()?).ok()?;
+                let parts = wire::Receipt { directory: receipt.directory(), text: Box::from(receipt.text()) };
+                receipts.push(parts).ok()?;
             }
-            wire::Delivery::Delivered(wire::Delivered::new(limits, wire::DeliveredParts { receipts }).ok()?)
+            wire::Delivery::Delivered(wire::Delivered { receipts })
         }
         agent::Delivery::Nothing => wire::Delivery::Nothing,
         agent::Delivery::Stale => wire::Delivery::Stale,
         agent::Delivery::Refused(refusal) => {
             let marker = match refusal.marker() {
                 Some(marker) => {
-                    let parts = wire::MarkerParts { directory: marker.directory(), path: Box::from(marker.path()) };
-                    Some(wire::Marker::new(limits, parts).ok()?)
+                    let parts = wire::Marker { directory: marker.directory(), path: Box::from(marker.path()) };
+                    Some(parts)
                 }
                 None => None,
             };
-            let parts = wire::DeliveryRefusalParts { marker, explanation: Box::from(refusal.explanation()) };
-            wire::Delivery::Refused(wire::DeliveryRefusal::new(limits, parts).ok()?)
+            let parts = wire::DeliveryRefusal { marker, explanation: Box::from(refusal.explanation()) };
+            wire::Delivery::Refused(parts)
         }
         agent::Delivery::Failed(failure) => {
-            let parts = wire::DeliveryFailureParts {
+            let parts = wire::DeliveryFailure {
                 directory: failure.directory,
                 reason: encoded_reason(failure.reason),
                 diagnostic: Box::from(failure.diagnostic.output()),
                 dropped: failure.diagnostic.cut(),
             };
-            wire::Delivery::Failed(wire::DeliveryFailure::new(limits, parts).ok()?)
+            wire::Delivery::Failed(parts)
         }
     };
-    let record = wire::DeliveryReply::new(limits, wire::DeliveryReplyParts { value }).ok()?;
-    let mut writer = skein_lib::Writer::new(usize::try_from(record.measure()).ok()?);
-    record.encode(&mut writer).ok()?;
-    Some(writer.finish())
+    let record = wire::DeliveryReply { value };
+    record.encode(limits).ok()
 }
 
 fn delivery(evidence: &[u8]) -> Option<agent::Delivery> {
     let record = wire::DeliveryReply::decode(&wire::CEILINGS, &mut skein_lib::Reader::new(evidence)).ok()?;
-    Some(match record.into_parts().value {
+    Some(match record.value {
         wire::Delivery::Delivered(delivered) => {
             let mut receipts = Vec::new();
-            for row in delivered.into_parts().receipts.into_boxed() {
-                let parts = row.into_parts();
+            for row in delivered.receipts.into_boxed() {
+                let parts = row;
                 receipts.push(agent::Receipt::new(parts.directory, parts.text)?);
             }
             agent::Delivery::Delivered(agent::Delivered::new(receipts.into_boxed_slice())?)
@@ -83,10 +82,10 @@ fn delivery(evidence: &[u8]) -> Option<agent::Delivery> {
         wire::Delivery::Nothing => agent::Delivery::Nothing,
         wire::Delivery::Stale => agent::Delivery::Stale,
         wire::Delivery::Refused(refusal) => {
-            let parts = refusal.into_parts();
+            let parts = refusal;
             let marker = match parts.marker {
                 Some(marker) => {
-                    let fields = marker.into_parts();
+                    let fields = marker;
                     Some(agent::Marker::new(fields.directory, fields.path)?)
                 }
                 None => None,
@@ -94,7 +93,7 @@ fn delivery(evidence: &[u8]) -> Option<agent::Delivery> {
             agent::Delivery::Refused(agent::DeliveryRefusal::new(marker, parts.explanation)?)
         }
         wire::Delivery::Failed(failure) => {
-            let parts = failure.into_parts();
+            let parts = failure;
             agent::Delivery::Failed(agent::DeliveryFailure {
                 directory: parts.directory,
                 reason: reason(&parts.reason),
