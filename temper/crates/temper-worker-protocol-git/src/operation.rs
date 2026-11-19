@@ -281,6 +281,8 @@ impl Operation {
             | Command::SnapshotReset { .. }
             | Command::Origin { .. }
             | Command::Version
+            | Command::CountObjects { .. }
+            | Command::Repack { .. }
             | Command::Format
             | Command::Clone { .. }
             | Command::Store { .. }
@@ -308,6 +310,7 @@ impl Operation {
                     | git::Op::Clone { .. }
                     | git::Op::Reds { .. }
                     | git::Op::Reset { .. }
+                    | git::Op::Pack { .. }
                     | git::Op::Point { .. }
                     | git::Op::Fetch { .. }
                     | git::Op::Create { .. }
@@ -367,13 +370,8 @@ impl Operation {
             self.stop = Some(fault);
         }
         match &mut self.phase {
-<<<<<<< HEAD
             Phase::Active(child) if !child.closing => child.close(self.aborted, stop_reason(self.stop), out),
-            Phase::Active(_) | Phase::Spawning { .. } | Phase::Settled => {}
-=======
-            Phase::Active(child) => child.close(self.aborted, stop_reason(self.stop), out),
-            Phase::Waiting | Phase::Spawning { .. } | Phase::Settled => {}
->>>>>>> refs/hand5/c9623
+            Phase::Active(_) | Phase::Waiting | Phase::Spawning { .. } | Phase::Settled => {}
         }
     }
     pub fn ready(&self, checkout: &checkout::Limits) -> Option<Next> {
@@ -546,33 +544,7 @@ impl Operation {
         let commit = self.has_input();
         self.phase = match event {
             io::Event::Spawned { owner, child, pipes } if owner == self.io_owner => {
-<<<<<<< HEAD
                 let message = self.input();
-=======
-                let message = match &self.op {
-                    Some(git::Op::Commit { title, body, .. }) if commit => invocation::message(title, body),
-                    Some(
-                        git::Op::Store { .. }
-                        | git::Op::Make { .. }
-                        | git::Op::Clone { .. }
-                        | git::Op::Reds { .. }
-                        | git::Op::Reset { .. }
-                        | git::Op::Pack { .. }
-                        | git::Op::Point { .. }
-                        | git::Op::Fetch { .. }
-                        | git::Op::Create { .. }
-                        | git::Op::CheckOut { .. }
-                        | git::Op::Look { .. }
-                        | git::Op::DiffPaths { .. }
-                        | git::Op::Brings { .. }
-                        | git::Op::IsAncestor { .. }
-                        | git::Op::Merge { .. }
-                        | git::Op::Commit { .. }
-                        | git::Op::Push { .. },
-                    )
-                    | None => Box::from(&b""[..]),
-                };
->>>>>>> refs/hand5/c9623
                 assert_eq!(pipes.len(), if commit { 3 } else { 2 }, "requested standard pipes");
                 let mut child = Child {
                     token: child,
@@ -829,42 +801,6 @@ fn stop_reason(fault: Option<git::Fault>) -> kernel::Reason {
     }
 }
 
-<<<<<<< HEAD
 fn directory(_op: &git::Op, _command: &Command) -> Box<[u8]> {
     Box::new([])
-=======
-fn directory(op: &git::Op, command: &Command) -> Box<[u8]> {
-    if let Some(access) = crate::store_lock::Access::for_command(op, command) {
-        return invocation::joined(&[b"stores/", skein_lib::Decimal::of(access.store.raw()).as_bytes()]);
-    }
-    if let Command::Store { .. } = command {
-        return Box::from(&b"making"[..]);
-    }
-    match op {
-        git::Op::Clone { at, store, .. } => {
-            if let Command::Format = command {
-                return invocation::joined(&[b"stores/", skein_lib::Decimal::of(store.raw()).as_bytes()]);
-            }
-            if let Command::Clone { .. } = command {
-                invocation::joined(&[b"workspaces/", skein_lib::Decimal::of(at.workspace.raw()).as_bytes()])
-            } else {
-                invocation::place(at)
-            }
-        }
-        git::Op::Store { .. } | git::Op::Look { .. } | git::Op::Make { .. } => Box::new([]),
-        git::Op::Fetch { at, .. }
-        | git::Op::Reds { at, .. }
-        | git::Op::Reset { at, .. }
-        | git::Op::Pack { at, .. }
-        | git::Op::Point { at, .. }
-        | git::Op::Create { at, .. }
-        | git::Op::CheckOut { at, .. }
-        | git::Op::DiffPaths { at, .. }
-        | git::Op::Brings { at, .. }
-        | git::Op::IsAncestor { at, .. }
-        | git::Op::Merge { at, .. }
-        | git::Op::Commit { at, .. }
-        | git::Op::Push { at, .. } => invocation::place(at),
-    }
->>>>>>> refs/hand5/c9623
 }

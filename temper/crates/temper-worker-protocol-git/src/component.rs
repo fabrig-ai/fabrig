@@ -418,7 +418,6 @@ impl Component {
         };
         match next {
             Next::Run(command) => {
-<<<<<<< HEAD
                 if command == Command::Add {
                     let operation = self.slots.get_mut(id).expect("live scan");
                     if let Some(directory) = operation.scan_index.take() {
@@ -426,11 +425,10 @@ impl Component {
                         self.file_start(id, task, out);
                         return;
                     }
-=======
+                }
                 if !self.store_step(id, &command) {
                     self.slots.get_mut(id).expect("live waiter").wait(command);
                     return;
->>>>>>> refs/hand5/c9623
                 }
                 let operation = self.slots.get(id).expect("live index");
                 if let Command::Store { .. } = &command

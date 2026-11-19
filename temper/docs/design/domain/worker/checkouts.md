@@ -56,7 +56,6 @@ runs as contained processes and whose output it parses.
   made again for a fault: git writes each object whole, under its name, so
   a git killed in a store leaves at most the references it was writing,
   which are its workspace's alone and set aside when that workspace is
-<<<<<<< HEAD
   made again. A checkout's git directories are never another
   workstream's, and no fetch of history runs in either: only a check
   out's or a merge's fetch of file contents, into the worker's.
@@ -94,19 +93,16 @@ runs as contained processes and whose output it parses.
   - **What it does not close:** a run's command can still write the
     worker's directory or a store itself, as the worker's user, until
     confinement's fence keeps it out (`../../draft/confinement.md`, 5.2).
-=======
-  made again. A checkout's own `.git`, which its run may write, is still
-  never another workstream's, and no fetch of history runs in it: only a
-  check out's or a merge's fetch of file contents.
 - **Kept packed.** Each fetch into a store, and each check out's or
-  merge's fetch of contents into a checkout, leaves a pack, and the
-  worker's git runs no maintenance of its own (`../../protocol/git.md`,
+  merge's fetch of contents into the worker's git directory of a checkout,
+  leaves a pack, and the worker's git runs no maintenance of its own
+  (`../../protocol/git.md`,
   section 3). So the cache counts, for each store, the fetches asked into
   it, and for each workspace's repository, the check outs and merges asked
   in it, each since the last `Pack` that named it, from 0 when it is made
   and at the worker's start. A store is due at 25, and so is a
   repository: half the 50 packs past which a `Pack` repacks
-  (`../../protocol/git.md`, 4.13), so a place holds about 75 packs at
+  (`../../protocol/git.md`, 4.14), so a place holds about 75 packs at
   most between two counts. A prepare, a run's or a job's, that would end
   ready asks first, in the spec's order, one `Pack` for each repository
   whose store or itself is due, naming the store only where it is due.
@@ -115,7 +111,7 @@ runs as contained processes and whose output it parses.
   allows: a repack puts its new pack in place before it deletes the old
   ones, and a reader that misses a pack looks again and finds the new one
   (the user, 2026-11-19); the git component keeps any other repack or
-  fetch out of the store meanwhile (`../../protocol/git.md`, 4.13). A
+  fetch out of the store meanwhile (`../../protocol/git.md`, 4.14). A
   `Pack`'s end, whatever it is, sets the counts of the places it named
   back to 0.
   Nothing else asks a `Pack`: a push, a save, a catch-up and a verifying
@@ -124,7 +120,6 @@ runs as contained processes and whose output it parses.
   nothing, since git replaces packs whole: the prepare ends ready as it
   would have without it. An abort or a release cancels it as any
   operation.
->>>>>>> refs/hand5/c9623
 - **Repositories side by side.** A workspace holds one directory per
   repository, so code that refers to a sibling by path works, and the
   agent's write authority is the list of writable ones.

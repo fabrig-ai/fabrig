@@ -167,10 +167,10 @@ fn a_window_resumes_only_on_its_claimed_endpoint() {
         assert_eq!(jig_core_world::fixtures::live_row(&world, task).refusals, refusals);
         assert_eq!(world.domain.take_brief_failure(), None);
         assert!(
-            matches!(f::activity(&world).last(), Some(tasks::Line::RunBegan { resumed, .. }) if *resumed == resume)
+            matches!(f::activity(&world).last(), Some(tasks::Line::RunBegan { resumed, fresh, .. }) if *resumed == resume && *fresh == if resume { None } else { Some(tasks::Fresh::Moved) })
         );
         if !resume {
-            f::fresh(&world);
+            f::fresh_because(&world, Some(tasks::Fresh::Moved));
         }
         world.close();
     }

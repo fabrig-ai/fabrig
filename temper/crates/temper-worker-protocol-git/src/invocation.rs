@@ -56,7 +56,6 @@ pub enum Command {
         commit: git::Commit,
     },
     Version,
-<<<<<<< HEAD
     Origin { directory: Box<[u8]> },
     Clone { directory: Box<[u8]>, format: Format, bare: bool },
     Remote { remote: Box<[u8]>, format: Format },
@@ -65,40 +64,6 @@ pub enum Command {
     Fetch { remote: Box<[u8]>, source: Source, into: git::Into, workspace: Token },
     Create { remote: Box<[u8]>, branch: Box<[u8]>, commit: git::Commit },
     CheckOut { commit: git::Commit },
-=======
-    Origin {
-        directory: Box<[u8]>,
-    },
-    Clone {
-        directory: Box<[u8]>,
-        format: Format,
-    },
-    Remote {
-        remote: Box<[u8]>,
-    },
-    Store {
-        directory: Box<[u8]>,
-        remote: Box<[u8]>,
-    },
-    UpdateRef {
-        into: git::Into,
-        commit: git::Commit,
-    },
-    Fetch {
-        remote: Box<[u8]>,
-        source: Source,
-        into: git::Into,
-        workspace: Token,
-    },
-    Create {
-        remote: Box<[u8]>,
-        branch: Box<[u8]>,
-        commit: git::Commit,
-    },
-    CheckOut {
-        commit: git::Commit,
-    },
->>>>>>> refs/hand5/c9623
     Clean,
     Merge {
         theirs: git::Commit,
@@ -308,6 +273,10 @@ pub fn arguments_for(op: &git::Op, command: &Command) -> Box<[Box<[u8]>]> {
     if let Command::Store { .. } | Command::Version | Command::Clone { .. } | Command::Origin { .. } = command {
         return arguments(command);
     }
+    if let Command::CountObjects { store: Some(store) } | Command::Repack { store: Some(store) } = command {
+        let store = joined(&[b"stores/", Decimal::of(store.raw()).as_bytes()]);
+        return arguments_at(command, Some(&store), None);
+    }
     let at = match op {
         git::Op::Clone { at, store, .. } | git::Op::Look { at, store, .. } => {
             if let Command::Format = command {
@@ -326,6 +295,7 @@ pub fn arguments_for(op: &git::Op, command: &Command) -> Box<[Box<[u8]>]> {
         git::Op::Store { .. } | git::Op::Make { .. } => return arguments(command),
         git::Op::Reds { at, .. }
         | git::Op::Reset { at, .. }
+        | git::Op::Pack { at, .. }
         | git::Op::Point { at, .. }
         | git::Op::Create { at, .. }
         | git::Op::CheckOut { at, .. }
