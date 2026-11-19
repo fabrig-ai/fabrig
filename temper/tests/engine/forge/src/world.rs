@@ -58,6 +58,7 @@ pub const LIMITS: top::Limits = top::Limits {
     landings: 8,
     landing_members: 3,
     landings_kept: 16,
+    landings_pending: 64,
     changes_rows: 32,
     changes_landed: 8,
     gates: 2,
@@ -310,6 +311,7 @@ impl World {
             gates.clone(),
             self.landing_policy,
             top::AfterLanding {
+                wait: temper_engine_domain_forge_change::Wait::Cleared,
                 verdict: temper_engine_domain_forge_tiers::Settings {
                     retries: 2,
                     suspects: temper_engine_domain_forge_tiers::Suspects::Bisect,
@@ -1339,6 +1341,7 @@ impl World {
                 gates.clone(),
                 self.landing_policy,
                 top::AfterLanding {
+                    wait: temper_engine_domain_forge_change::Wait::Cleared,
                     verdict: temper_engine_domain_forge_tiers::Settings {
                         retries: 2,
                         suspects: temper_engine_domain_forge_tiers::Suspects::Bisect,
@@ -2084,6 +2087,7 @@ fn key(row: &top::Stored) -> top::Key {
         top::Stored::Playground(_) => top::Key::Playground,
         top::Stored::Follow(row) => top::Key::Follow { project: row.project, follow: row.follow },
         top::Stored::Tier(row) => top::Key::Tier { repository: row.repository, tier: row.tier.clone() },
+        top::Stored::PersonBrief(row) => top::Key::PersonBrief { party: row.party, project: row.project },
         top::Stored::ProjectFacts(row) => top::Key::ProjectFacts { project: row.project },
         top::Stored::Device(row) => top::Key::Device { party: row.party, number: row.number },
         top::Stored::LandedDraft(row) => top::Key::LandedDraft { repository: row.repository, path: row.path.clone() },

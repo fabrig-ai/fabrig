@@ -1128,6 +1128,7 @@ impl Task {
         self.next = self.next.checked_add(1).expect("task handles fit");
         self.cards
             .push(Card {
+                withdraw_unread: false,
                 whole: None,
                 task: None,
                 object,

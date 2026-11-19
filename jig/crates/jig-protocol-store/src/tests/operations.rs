@@ -208,6 +208,7 @@ fn a_copy_links_only_snapshot_and_sealed_fixed_width_segments() {
                 Some(from.as_ref())
             }
             Seen::Create { .. }
+            | Seen::ReadOpen { .. }
             | Seen::Read { .. }
             | Seen::Write { .. }
             | Seen::SyncFile
@@ -320,7 +321,7 @@ fn a_copy_reads_and_writes_in_chunks_of_at_most_its_bound() {
     let requests = disk.requests();
     let start = requests
         .iter()
-        .position(|(_, r)| if let Seen::Create { name } = r { name.as_ref() == b"chunks" } else { false })
+        .position(|(_, r)| if let Seen::Create { name, .. } = r { name.as_ref() == b"chunks" } else { false })
         .expect("chunks created");
     let reads: Vec<_> = requests
         .iter()
@@ -340,6 +341,7 @@ fn a_copy_reads_and_writes_in_chunks_of_at_most_its_bound() {
         Seen::Read { max } => *max <= BOUND,
         Seen::Write { bytes } => *bytes <= BOUND,
         Seen::Create { .. }
+        | Seen::ReadOpen { .. }
         | Seen::SyncFile
         | Seen::Rename { .. }
         | Seen::Link { .. }
@@ -475,7 +477,13 @@ fn changes_disk(seen: &Seen) -> bool {
         | Seen::Link { .. }
         | Seen::Remove { .. }
         | Seen::Store { .. } => true,
-        Seen::Read { .. } | Seen::Lock | Seen::Load | Seen::Open | Seen::Close | Seen::Other => false,
+        Seen::ReadOpen { .. }
+        | Seen::Read { .. }
+        | Seen::Lock
+        | Seen::Load
+        | Seen::Open
+        | Seen::Close
+        | Seen::Other => false,
     }
 }
 #[test]

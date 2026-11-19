@@ -1,5 +1,6 @@
 //! A project's whole queues and retained titles (temper/docs/design/domain/forge/queues.md;
 //! temper/docs/design/client/forge/records.md; temper/docs/design/client/forge/README.md, 3).
+//! Landing targets use the adoption (temper/docs/design/domain/forge/adoption.md, 8).
 use crate::{ChangeRow, Domain, LandingRed, Limits};
 use alloc::boxed::Box;
 use core::cmp::Reverse;
@@ -136,7 +137,10 @@ impl Domain {
     }
     fn changes_history(&self, view: &mut ChangesView, limits: &Limits) -> Option<()> {
         let mut recent = Map::with_capacity(
-            limits.repositories.checked_mul(limits.landings_kept)?.checked_mul(limits.landing_members)?,
+            limits
+                .repositories
+                .checked_mul(limits.landings_kept.checked_add(limits.landings_pending)?)?
+                .checked_mul(limits.landing_members)?,
         );
         let mut newest = None;
         let mut landing: Box<[u8]> = Box::default();
@@ -168,7 +172,7 @@ impl Domain {
                                 title: change.title.clone(),
                                 at: logged.at,
                                 commit: logged.commit,
-                                default_branch: logged.branch == adopted.settings.default_branch,
+                                default_branch: logged.branch == adopted.landing,
                             },
                         )
                         .ok()?;
@@ -178,7 +182,7 @@ impl Domain {
         if newest.is_none() {
             for (_, repository) in &self.repositories {
                 if repository.project == view.project && (landing.is_empty() || repository.home) {
-                    landing.clone_from(&repository.settings.default_branch);
+                    landing.clone_from(&repository.landing);
                     if repository.home {
                         break;
                     }

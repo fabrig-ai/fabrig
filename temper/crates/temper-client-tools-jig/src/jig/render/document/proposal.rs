@@ -47,6 +47,10 @@ pub(super) fn text(value: &c::ReadValue, reading: &Reading, limits: &Limits, out
     out.put(b" \xc2\xb7 ");
     out.put(action);
     release_text(value, out);
+    if let c::ProposalAction::Amend { task, .. } = &selected(value).action {
+        out.put(b" task ");
+        out.number(task_number(task));
+    }
     if let c::ReadValue::Proposal(p) = value
         && let c::ProposalAction::Settings(s) = &p.action
     {
@@ -78,6 +82,15 @@ pub(super) fn text(value: &c::ReadValue, reading: &Reading, limits: &Limits, out
             out.put(b"cut: more not shown\n");
         }
     }
+    let proposal = selected(value);
+    if let c::ProposalAction::Amend { before, after, .. } = &proposal.action {
+        out.put(b"before: ");
+        super::acts::authority(&before.authority, out);
+        out.put(b"\nafter: ");
+        super::acts::authority(&after.authority, out);
+        out.put(b"\n");
+    }
+    super::acts::proposal_offers(proposal, limits, out);
 }
 fn review_items_text(review: &c::SettingsReview, reading: &Reading, limits: &Limits, out: &mut Text) {
     for (index, item) in review.items.iter().enumerate() {
@@ -94,6 +107,7 @@ fn review_items_text(review: &c::SettingsReview, reading: &Reading, limits: &Lim
             c::Setting::Charter(_)
             | c::Setting::Template(_)
             | c::Setting::Policy(_)
+            | c::Setting::Provider(_)
             | c::Setting::Worker(_)
             | c::Setting::Model(_)
             | c::Setting::Rules
@@ -265,10 +279,22 @@ pub(super) fn encode(value: &c::ReadValue, reading: &Reading, out: &mut Encoder,
             out.object_end();
             out.object_end();
         }
+        c::ProposalAction::Amend { task, before, after, .. } => {
+            out.object_start();
+            out.key(b"amend");
+            out.object_start();
+            out.key(b"task");
+            out.unsigned(task_number(task));
+            out.key(b"before");
+            super::encode_owner_authority_document(&before.authority, out, budget);
+            out.key(b"after");
+            super::encode_owner_authority_document(&after.authority, out, budget);
+            out.object_end();
+            out.object_end();
+        }
         action @ (c::ProposalAction::Batch(_)
         | c::ProposalAction::Effect { .. }
         | c::ProposalAction::ProcedureEffect { .. }
-        | c::ProposalAction::Amend { .. }
         | c::ProposalAction::Widen { .. }) => out.string(owner_action(action)),
     }
     out.key(b"as_holder");
@@ -452,6 +478,7 @@ fn encode_value_result(
                 c::SettingValue::Charter(_) => b"charter",
                 c::SettingValue::Model(_) => b"model",
                 c::SettingValue::Worker(_) => b"worker",
+                c::SettingValue::Provider(_) => b"provider",
                 c::SettingValue::Template(_) => b"template",
                 c::SettingValue::Policy(_) => b"policy",
                 c::SettingValue::Application(_) => b"application",
@@ -510,6 +537,16 @@ pub(super) fn history_text(value: &c::Ended, out: &mut Text) {
             out.put(b" \xc2\xb7 ");
             out.put(history_state(&history.state));
             out.put(b"\n");
+            if let c::RetainedAction::Amend { task, change } = &history.action {
+                out.put(b"task ");
+                out.number(*task);
+                out.put(b"\n");
+                if let Some(authority) = &change.authority {
+                    out.put(b"replacement: ");
+                    super::acts::authority(authority, out);
+                    out.put(b"\n");
+                }
+            }
             if let c::RetainedAction::Settings(settings) = &history.action {
                 out.put(b"against revision ");
                 out.number(u64::from(settings.against));
@@ -543,10 +580,23 @@ pub(super) fn encode_history(value: &c::Ended, out: &mut Encoder, budget: &mut C
                 c::RetainedAction::Settings(s) => {
                     encode_settings_fields(s.against, &s.items, None, s.made, None, out);
                 }
+                c::RetainedAction::Amend { task, change } => {
+                    out.object_start();
+                    out.key(b"amend");
+                    out.object_start();
+                    out.key(b"task");
+                    out.unsigned(*task);
+                    out.key(b"authority");
+                    match &change.authority {
+                        Some(authority) => super::encode_owner_authority_document(authority, out, budget),
+                        None => out.null(),
+                    }
+                    out.object_end();
+                    out.object_end();
+                }
                 other @ (c::RetainedAction::Batch(_)
                 | c::RetainedAction::Effect { .. }
                 | c::RetainedAction::ProcedureEffect { .. }
-                | c::RetainedAction::Amend { .. }
                 | c::RetainedAction::Widen { .. }
                 | c::RetainedAction::Release { .. }) => out.string(retained_kind(other)),
             }
@@ -722,6 +772,7 @@ fn in_group(item: &c::ReviewItem, index: usize, reading: &Reading, follows: bool
         c::Setting::Charter(_) => {}
         c::Setting::Template(_)
         | c::Setting::Policy(_)
+        | c::Setting::Provider(_)
         | c::Setting::Worker(_)
         | c::Setting::Model(_)
         | c::Setting::Rules
@@ -751,6 +802,7 @@ fn group_fields(setting: c::Setting, follows: bool) -> &'static [u8] {
             c::Setting::Charter(_) => b"execution settings",
             c::Setting::Template(_)
             | c::Setting::Policy(_)
+            | c::Setting::Provider(_)
             | c::Setting::Worker(_)
             | c::Setting::Model(_)
             | c::Setting::Rules

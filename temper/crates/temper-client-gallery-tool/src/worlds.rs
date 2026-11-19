@@ -5304,6 +5304,7 @@ pub(super) fn home_status(name: &str) -> Option<temper_client_protocol_wire::v1:
                 }),
                 brief: None,
                 branch: b"main".as_slice().into(),
+                unpaid: false,
             },
         )
         .expect("Home status fits"),
@@ -5921,6 +5922,7 @@ pub(super) fn home_away_status() -> temper_client_protocol_wire::v1::ProjectStat
             previous: None,
             last_landed: Some(now - 6 * 60_000_000_000),
             branch: b"main".as_slice().into(),
+            unpaid: false,
             brief: Some(
                 w::StatusBrief::new(
                     &w::CEILINGS,

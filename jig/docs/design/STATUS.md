@@ -63,7 +63,12 @@ application's own kinds of setting, a project's policy in a change of
 settings, a charter's overlay kept over its default
 (`domain/engine/overlays.md`) and a settings revision's `Restore` are built, but the settings-holder gap remains `domain/engine/settings.status.md`, 6, and ignored restore stories remain `domain/engine/settings.status.md`, 10; a setting reset to a default
 its connector neither reports nor names as dropped keeps its state at the
-next start (`domain/engine/README.md`, `domain/connectors.md`). A run's fresh settings proposal replaces its own
+next start (`domain/engine/README.md`, `domain/connectors.md`). A charter's, template's, policy's
+and model's number is 1 to 64, the defaults' 1 to 32 and a deployment's
+own 33 to 64: the one check refuses the rest as *range*, at a set, a
+proposal's entrance and decision, and a start, which names every one at
+once; an added model takes the highest free number from 64 down to 33
+(`domain/engine/settings.md`, 1, 7 and 11). A run's fresh settings proposal replaces its own
 pending one atomically, preserving it on refusal; at the deployment
 proposal bound, refusal remains the default (`domain/tasks/proposals.md`;
 `domain/engine/settings.md`, 6). Derived run-wait refusals carry admitted hosts'
@@ -116,6 +121,9 @@ The omitted-count mark gap remains `domain/engine/settings.status.md`, 12.
 Workers are settings of the kind `worker`: each admitted at its opening
 against its setting's digest and at its places, a linked one never
 removed, and the engine's document lists none (`domain/engine/workers.md`).
+LLM providers are settings of the kind `provider`, each with its endpoints,
+checked as a document's were and applied at the next start; the core asks
+the application to keep the current ones for it (`domain/engine/llm-providers.md`).
 A person's task can carry an LLM choice, and `Core::account_llm` builds
 one held to a named account, at its model's default effort
 (`domain/authority.md`, 6.1; `domain/accounts.md`, 4.3).
@@ -213,6 +221,7 @@ Design documents:
 - [`domain/connectors.md`](domain/connectors.status.md)
 - [`domain/engine/README.md`](domain/engine/README.status.md)
 - [`domain/engine/workers.md`](domain/engine/workers.status.md)
+- [`domain/engine/llm-providers.md`](domain/engine/llm-providers.status.md)
 - [`domain/root.md`](domain/root.status.md)
 - [`domain/people/README.md`](domain/people/README.status.md)
 - [`domain/hosts/README.md`](domain/hosts/README.status.md)

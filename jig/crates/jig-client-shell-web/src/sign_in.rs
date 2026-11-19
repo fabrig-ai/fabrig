@@ -3,6 +3,7 @@ use skein_lib::base64::{self, Alphabet};
 #[derive(Debug)]
 pub struct Route<'a> {
     pub path: &'a [u8],
+    pub page: Option<&'a [u8]>,
     pub home: &'a [u8],
 }
 #[derive(PartialEq, Eq)]
@@ -16,12 +17,12 @@ impl core::fmt::Debug for Taken {
         f.debug_struct("Taken").field("secret_len", &self.secret.len()).field("address", &self.address).finish()
     }
 }
-/// Read the mapping's base64url secret only at the configured link route.
+/// Read the mapping's base64url secret only at the configured link route or page.
 #[must_use]
 pub fn take(route: &Route<'_>, path_and_query: &[u8]) -> Option<Taken> {
     let text = std::str::from_utf8(path_and_query).ok()?;
     let (path, query) = text.split_once('?')?;
-    if path.as_bytes() != route.path {
+    if path.as_bytes() != route.path && Some(path.as_bytes()) != route.page {
         return None;
     }
     let value = query.split('&').find_map(|part| part.strip_prefix("secret="))?;

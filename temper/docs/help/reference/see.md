@@ -86,7 +86,7 @@ Next: settings rules · settings landing · settings project-ways · settings pr
 
 Newest revision; settings and their last revisions, held revisions, waiting proposals; project repositories, people, forge accounts and offer.
 
-Next: settings charter N · settings template N · settings policy N · settings model N · settings worker N · settings forge-charter N · settings rules · settings landing-rule N · settings landing-rule N project · settings landing · settings gates OWNER/NAME · settings project-ways · settings project-questions · settings project-classes · settings limits · settings temper-limits · revisions · help settings
+Next: settings charter N · settings template N · settings policy N · settings model N · settings worker N · settings provider N · settings forge-charter N · settings rules · settings landing-rule N · settings landing-rule N project · settings landing · settings gates OWNER/NAME · settings project-ways · settings project-questions · settings project-classes · revisions · help settings
 
 ## settings charter N
 
@@ -118,6 +118,12 @@ The worker whole, at the newest revision.
 
 Next: settings · revisions · help settings-fields
 
+## settings provider N
+
+The provider and endpoints whole, at the newest revision; taken at the engine's next start.
+
+Next: settings · revisions · help settings-fields
+
 ## settings forge-charter N
 
 The forge charter whole, at the newest revision.
@@ -141,18 +147,6 @@ Next: settings · revisions · help settings-fields
 Template work: whether its coordinator designs first and makes a close-out; with none stored, stock planning and no close-out, marked so.
 
 Next: settings template N · ways · help settings-fields
-
-## settings limits
-
-Deployment overrides of core limits: name, value and reason, one line per override.
-
-Next: settings temper-limits · help settings-fields
-
-## settings temper-limits
-
-Deployment overrides of application limits: name, value and reason, one line per override.
-
-Next: settings limits · help settings-fields
 
 ## settings rules
 

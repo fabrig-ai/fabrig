@@ -92,7 +92,7 @@ pub struct Limits {
     pub saved_resources: u32,
     /// Maximum distinct-code choices in a nonempty verdict contract.
     pub contract_choices: u32,
-    /// Maximum retained configured agent-charter numbers.
+    /// Maximum number of configured agent charters.
     pub charters: u32,
     /// Maximum documents per charter (domain/engine/settings.md, 9).
     pub charter_documents: u32,
@@ -185,13 +185,17 @@ pub fn valid(limits: &Limits, kept: crate::Kept) -> bool {
         }
     }
     stub_capacity(limits).is_some()
-        && limits.tasks.checked_mul(limits.subscriptions).is_some()
+        && timer_capacity(limits).is_some()
         && limits.tasks.checked_mul(limits.holdings).is_some()
         && kept.revisions.checked_add(1).is_some()
         && crate::activity::line_bytes_limit(limits).is_some()
         && crate::waits::valid(limits)
         && limits.tasks.checked_mul(4).is_some()
         && charter_capacity(limits, kept).is_some()
+}
+
+pub(crate) fn timer_capacity(limits: &Limits) -> Option<u32> {
+    limits.tasks.checked_mul(crate::subscriptions::kept_capacity(limits)?)
 }
 
 pub(crate) fn charter_capacity(limits: &Limits, kept: crate::Kept) -> Option<u32> {

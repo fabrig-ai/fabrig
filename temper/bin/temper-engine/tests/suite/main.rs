@@ -8,8 +8,7 @@ fn upgrade_refuses_an_empty_deployment_directory() {
     upgrade::empty_directory("temper-engine");
 }
 
-#[path = "../../../../crates/temper-engine-shell/src/upgrade/tests/deployment.rs"]
-mod deployment;
+use temper_deployment_fixtures as deployment;
 
 #[test]
 fn upgrade_check_names_the_record_a_start_refuses_without_switching_generation() {
@@ -57,6 +56,50 @@ fn upgrade_check_names_the_record_a_start_refuses_without_switching_generation()
         } else {
             assert_eq!(Some(line), check_refusal, "a start refuses the same record in the same words");
         }
+    }
+}
+
+#[path = "../support/settings.rs"]
+mod settings;
+
+#[test]
+fn upgrade_check_names_settings_out_of_their_numbers_without_switching_generation() {
+    let (scratch, directories) = deployment::deployment();
+    let config = scratch.path().join("config");
+    let data = scratch.path().join("data");
+    let cache = scratch.path().join("cache");
+    let active_path = data.join("state/active");
+    for moved in [false, true] {
+        settings::seed_numbered_settings(&directories, moved);
+        let active = std::fs::read(&active_path).expect("active generation");
+        let before = deployment::tree(&data);
+        let output = Command::new(skein_scratch::paths::binary("temper-engine"))
+            .args(["upgrade", "--check"])
+            .arg(data.join("state"))
+            .env_clear()
+            .env("TEMPER_CONFIG", &config)
+            .env("TEMPER_DATA", &data)
+            .env("TEMPER_CACHE", &cache)
+            .stdin(Stdio::null())
+            .output()
+            .expect("run upgrade check");
+        let out = String::from_utf8_lossy(&output.stdout);
+        let err = String::from_utf8_lossy(&output.stderr);
+        assert_eq!(output.status.code(), Some(i32::from(!moved)), "{out}\n{err}");
+        assert!(err.lines().all(engine_long_pass), "{err}");
+        if moved {
+            assert!(out.contains("registry commit, jobs and restores pass"), "{out}");
+            assert!(!out.contains("settings out of their numbers"), "{out}");
+        } else {
+            let refusal = out.lines().find(|line| line.contains("settings out of their numbers")).expect(&out);
+            for words in
+                ["changed template 9", "changed charter 17", "the stock's 1 to 32", "a deployment's own 33 to 64"]
+            {
+                assert!(refusal.contains(words), "{refusal}");
+            }
+        }
+        assert_eq!(std::fs::read(&active_path).expect("active after check"), active);
+        assert_eq!(deployment::tree(&data), before, "the check leaves the data directory unchanged");
     }
 }
 

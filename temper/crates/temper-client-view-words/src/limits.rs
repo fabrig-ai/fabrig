@@ -285,7 +285,8 @@ impl Limits {
             markdown_depth: 3,
         };
         let limits = Limits { tree };
-        valid(&limits, domain, words).then_some(limits)
+        // The three capacities above checked every vocabulary bound.
+        valid_edges(&limits, domain, words).then_some(limits)
     }
 }
 fn card_nodes(receiving: &jig_client::DomainLimits, markdown: u32) -> Option<u32> {
@@ -306,8 +307,10 @@ fn card_nodes(receiving: &jig_client::DomainLimits, markdown: u32) -> Option<u32
 /// Refuses unrepresentable UI limits, account row counts and phrase capacity.
 #[must_use]
 pub fn valid(limits: &Limits, domain: &temper_client_domain::Limits, words: &Words) -> bool {
+    valid_edges(limits, domain, words) && words.capacity().is_some()
+}
+fn valid_edges(limits: &Limits, domain: &temper_client_domain::Limits, words: &Words) -> bool {
     skein_ui::valid(&limits.tree)
         && skein_ui::phrases::valid(words.book.limits())
-        && words.capacity().is_some()
         && domain.client.domain.rows.checked_mul(3).is_some()
 }

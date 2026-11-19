@@ -5,7 +5,7 @@ use skein_json::writer::{Encoder, Limits as JsonLimits};
 use skein_lib::List;
 
 // T1 names every decoder shape, including the alternative-only objects.
-const SHAPES: [Shape; 92] = [
+const SHAPES: [Shape; 97] = [
     Shape::File,
     Shape::Item,
     Shape::Setting,
@@ -15,6 +15,12 @@ const SHAPES: [Shape; 92] = [
     Shape::Document,
     Shape::Model,
     Shape::Catalogue,
+    Shape::Provider,
+    Shape::ProviderSources,
+    Shape::ProviderRegistration,
+    Shape::ProviderEndpoint,
+    Shape::ProviderAddress,
+    Shape::ProviderHeader,
     Shape::Worker,
     Shape::Wake,
     Shape::WakeRule,
@@ -383,6 +389,18 @@ fn emit(kind: &[u8], edit: Edit, route: &[bool; SHAPES.len()], changed: &mut boo
                     {
                         continue;
                     }
+                    if shape == Shape::ProviderAddress && field.name == b"socket" {
+                        continue;
+                    }
+                    if (shape == Shape::ProviderEndpoint || shape == Shape::ProviderRegistration)
+                        && [b"server_name".as_slice(), b"trust"].contains(&field.name)
+                        && let Edit::Word(chosen, at) = edit
+                        && chosen.shape == shape
+                        && chosen.name == b"transport"
+                        && at == 1
+                    {
+                        continue;
+                    }
                     if shape == Shape::ClassItem && field.name == b"set" {
                         continue;
                     }
@@ -486,6 +504,15 @@ fn matches_base(edit: Edit) -> bool {
     }
 }
 
+fn optional_provider(field: &Field) -> bool {
+    (field.shape == Shape::Provider
+        && [b"endpoint".as_slice(), b"direct", b"manage_usage", b"keep", b"drop", b"withdrawn"].contains(&field.name))
+        || field.shape == Shape::ProviderSources
+        || (field.shape == Shape::ProviderRegistration
+            && [b"name_hint".as_slice(), b"revocation", b"resource", b"redirect_port", b"trust"].contains(&field.name))
+        || (field.shape == Shape::ProviderEndpoint && [b"program".as_slice(), b"trust"].contains(&field.name))
+        || field.shape == Shape::ProviderAddress
+}
 fn optional_worker(field: &Field) -> bool {
     field.shape == Shape::Worker && [b"number".as_slice(), b"digest", b"withdrawn"].contains(&field.name)
 }
@@ -560,6 +587,7 @@ fn a_member_left_out_is_refused_naming_it() {
             || (field.shape == Shape::Document && field.name == b"heading")
             || (field.shape == Shape::ClassItem && [b"set".as_slice(), b"words"].contains(&field.name))
             || optional_worker(field)
+            || optional_provider(field)
             || optional_follow(field)
             || optional_landing(field)
         {
@@ -712,21 +740,21 @@ fn the_page_writes_each_type_as_the_table_says() {
     let page = super::render::page_of(&PAGE_FORMS, &PAGE_FIELDS, &Limits::standard());
     for expected in [
         b"# Settings fields\n\nKind: reference".as_slice(),
-        b"- `number`: u8.",
-        b"- `connector`: u16.",
-        b"- `turns`: u32.",
-        b"- `spend`: u64. LINE",
-        b"- `waiting`: nanoseconds.",
-        b"- `deadline`: nanoseconds since 1970 UTC|null.",
-        b"- `cut`: bool.",
-        b"- `instructions`: text[32768].",
-        b"- `state`: hex[1000000].",
-        b"- `kind`: `a`, `b` or `c`. LINE `a`: LINE `c`: LINE",
-        b"- `edit`: `removed` or `reset`.",
-        b"- `hosts`: `workers`.",
-        b"- `alternatives`: [32] model.",
-        b"- `chosen`: LINE",
-        b"- `set`: [32] the value for `setting.kind`|null.",
+        b"- number:u8",
+        b"- connector:u16",
+        b"- turns:u32",
+        b"- spend:u64;LINE",
+        b"- waiting:ns",
+        b"- deadline:ns since 1970 UTC|null",
+        b"- cut:bool",
+        b"- instructions:t[32768]",
+        b"- state:h[1000000]",
+        b"- kind:`a|b|c`;LINE `a`: LINE `c`: LINE",
+        b"- edit:`removed|reset`",
+        b"- hosts:`workers`",
+        b"- alternatives:[32] model",
+        b"- `chosen`:LINE",
+        b"- set:[32] the value for `setting.kind`|null",
     ] {
         assert!(skein_lib::bytes::find(&page, expected).is_some(), "missing {expected:?}");
     }
@@ -837,7 +865,7 @@ fn template_resource_fields_use_the_wire_bound_and_describe_the_goal_branch() {
     assert_eq!(super::most(resources.list.expect("list"), &limits), 2);
     let page = super::page(&limits);
     for needle in [
-        b"`resources`: [2] symbol".as_slice(),
+        b"resources:[2] symbol".as_slice(),
         b"Optional, default []",
         b"Forge connector 1, symbol 1: its own goal branch",
     ] {

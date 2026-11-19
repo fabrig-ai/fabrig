@@ -7,6 +7,34 @@ use std::{
 };
 
 #[test]
+fn a_stock_policy_past_its_limit_refuses_before_listening() {
+    let scratch = support::Scratch::startup("stock-policy-floor");
+    let output = std::process::Command::new(skein_scratch::paths::binary("temper-box"))
+        .arg("init")
+        .args(support::configuration::flags(scratch.path()))
+        .output()
+        .expect("init");
+    assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+    fs::write(scratch.path().join("limits-held"), "core.policy_bytes 100
+").expect("held limit");
+    let output = std::process::Command::new(skein_scratch::paths::binary("temper-box"))
+        .arg("serve")
+        .args(support::configuration::flags(scratch.path()))
+        .output()
+        .expect("serve");
+    assert_eq!(output.status.code(), Some(1));
+    // Each executor place in four policy authorities adds 32 bytes.
+    assert_eq!(
+        String::from_utf8_lossy(&output.stderr),
+        "temper serve: engine.limits.overrides.core.policy_bytes: core.policy_bytes is 100; the stock's policy 1 needs 6455 bytes; raise it in engine.limits.overrides\n",
+        "stdout: {}",
+        String::from_utf8_lossy(&output.stdout)
+    );
+    assert!(output.stdout.is_empty(), "no sign-in link: {}", String::from_utf8_lossy(&output.stdout));
+    scratch.remove();
+}
+
+#[test]
 fn a_rung_reads_created_chats_waited_changes_and_both_child_sets_in_ctls_forms() {
     use serde_json::json;
     use support::forge_land::rung::{child_rows, created_chat, plan_question, task_digest, waited};
@@ -691,6 +719,7 @@ fn serve_checks_the_owned_agents_admission_at_each_bound() {
     figures.jig_over("tasks.result_bytes", 10660);
     figures.jig_over("tasks.inbox_bytes", 874_120);
     figures.limits.tool_payload = 10662;
+    temper_agent_fixtures::providers::remember(scratch.path(), &temper_service::stock::providers());
     let original = temper_agent_fixtures::read(scratch.path());
     for (member, value, expected) in [
         (
@@ -1458,7 +1487,7 @@ fn init_prints_written_files_account_guidance_and_explicit_start_flags_on_stderr
         let lines = String::from_utf8(output.stderr).expect("init lines");
         let mut expected = String::new();
         let names = if boxed {
-            vec!["worker.secret", "demo/llm.key", "demo/bin/git", "temper.json"]
+            vec!["worker.secret", "demo/bin/git", "temper.json"]
         } else {
             vec!["worker.secret", "temper.json"]
         };
@@ -1528,7 +1557,7 @@ fn box_initializes_only_absent_or_empty_configuration_directories() {
             assert!(!cache.exists());
         } else {
             let (first, held, _) = result.expect("initialization");
-            assert_eq!(held.len(), 3, "init retains its three deployment listeners");
+            assert_eq!(held.len(), 2, "init retains clients and webhooks");
             assert!(data.join("worker.secret").exists());
             assert!(cache.is_dir());
             let (second, reopened, _) = temper_box_shell::box_command::configuration(&dirs, &[]).expect("second read");

@@ -99,6 +99,8 @@ at most 120 bytes:
 | `engine.memory_bytes` (engine and standalone) | `moved: the root's budget is transcript_memory, in the setting temper-limits` |
 | `application.limits` (engine and standalone) | `moved: temper's limits are the setting temper-limits; ask temper, or use temper ctl settings apply` |
 | `workers[i].memory_bytes`, a worker alone's `memory_bytes` | `moved: nothing read a worker's memory_bytes; remove it` |
+| `engine.llm` | `moved: LLM providers are settings; see them with temper ctl settings show provider` (`providers.md`, 5) |
+| `application.demo` | `moved: the playground's scripted model is the box's own` (`providers.md`, 5) |
 
 The reference pages give the same words in each member's row, so a
 person who meets a refusal finds where the member went.

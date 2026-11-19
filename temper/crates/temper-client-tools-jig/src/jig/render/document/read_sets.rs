@@ -20,6 +20,10 @@ pub(super) fn text(
         super::person_text(person, reading.person_answerer, me, book, out);
     }
     let call = &reading.called.call;
+    if crate::jig::runner::providers::all(call) {
+        super::settings::providers_text(reading, limits, vocabulary, out);
+        return;
+    }
     if call.tool == 1 {
         super::super::lists::inboxes(reading, limits, book, out);
         return;
@@ -56,6 +60,7 @@ pub(super) fn text(
                 if call.tool == crate::jig::rows::SETTINGS_AT {
                     super::settings::inventory_limits(reading, vocabulary, out);
                 }
+                super::settings::provider_marks(value, reading, out);
             }
 
             Readout::Jig(c::ReadResult::Value(value @ c::ReadValue::Proposal(_))) => {
@@ -142,6 +147,10 @@ fn ended_text(
 #[expect(clippy::too_many_lines, reason = "read-set dispatch keeps each selected document's encoding together")]
 pub(super) fn encode(reading: &Reading, me: Option<&c::Me>, limits: &Limits, out: &mut Encoder, budget: &mut Cut) {
     let call = &reading.called.call;
+    if crate::jig::runner::providers::all(call) {
+        super::settings::providers_encode(reading, out);
+        return;
+    }
     if call.tool == 1 && super::subjects::inbox_eligible(call) {
         super::subjects::encode_inbox_read(reading, limits, out);
         return;

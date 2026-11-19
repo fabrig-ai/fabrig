@@ -99,6 +99,7 @@ fn from_store(
                 EndedValue::Task { document, .. } => document,
                 EndedValue::PersonProposal { .. }
                 | EndedValue::Proposal(_)
+                | EndedValue::PartyProposal(_)
                 | EndedValue::Escalation { .. }
                 | EndedValue::Question { .. }
                 | EndedValue::PersonTask { .. }

@@ -52,6 +52,7 @@ pub const KEYSPACES: jig_protocol_store::Keyspaces = jig_protocol_store::Keyspac
         (43, "temper.devices"),
         (CHANGE_COLD, "temper.changes-cold"),
         (CHANGE_HOT, "temper.changes-hot"),
+        (PERSON_BRIEF, "temper.person-briefs"),
         (MILESTONE, "temper.milestones"),
         (LIMIT_HOLD, "temper.limit-holds"),
         (127, "temper.history-project"),
@@ -113,6 +114,7 @@ pub const HISTORY_PROJECT: u8 = 127;
 pub const CHANGE_COLD: u8 = 47;
 pub const CHANGE_HOT: u8 = 48;
 /// The forge's milestone row (domain/milestones.md, 8).
+pub const PERSON_BRIEF: u8 = 50;
 pub const MILESTONE: u8 = 49;
 /// A task held on a named limit (protocol/configuration/limit-settings.md, 6).
 pub const LIMIT_HOLD: u8 = 50;
@@ -362,6 +364,9 @@ pub fn encode(key: &forge::Key, limit: u32) -> Option<Box<[u8]>> {
         forge::Key::Making(key) => {
             writer.tag(MAKING).u64(u64::from(key.forge)).bytes(&key.org).bytes(&key.name);
         }
+        forge::Key::PersonBrief { party, project } => {
+            writer.tag(PERSON_BRIEF).u64(*party).u64(u64::from(*project));
+        }
         forge::Key::ProjectFacts { project } => {
             writer.tag(PROJECT_FACTS).u64(u64::from(*project));
         }
@@ -505,6 +510,7 @@ pub fn decode(bytes: &[u8], limits: &forge::Limits) -> Option<forge::Key> {
             org: read_branch(&mut reader, limits)?,
             name: read_branch(&mut reader, limits)?,
         }),
+        PERSON_BRIEF => forge::Key::PersonBrief { party: reader.u64()?, project: u32::try_from(reader.u64()?).ok()? },
         PROJECT_FACTS => forge::Key::ProjectFacts { project: u32::try_from(reader.u64()?).ok()? },
         HISTORY_PROJECT => forge::Key::HistoryProject { project: u32::try_from(reader.u64()?).ok()? },
         HISTORY_EVENT => {

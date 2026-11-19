@@ -19,13 +19,11 @@ pub(super) fn generated() -> Box<[u8]> {
             login: Some(b"ada"),
             ports: temper_init::Ports {
                 clients: NonZeroU16::new(8367).unwrap(),
-                llm: NonZeroU16::new(8370).unwrap(),
                 webhooks: NonZeroU16::new(8371).unwrap(),
             },
         },
         &temper_init::Directories { config: b"/config", data: b"/data" },
         &[0; 32],
-        &[1; 32],
     )
     .unwrap();
     for file in answer.files {
@@ -36,32 +34,38 @@ pub(super) fn generated() -> Box<[u8]> {
     }
     panic!("init writes temper.json")
 }
-fn single_model() -> Box<[u8]> {
-    let bytes = generated();
-    let document = fixtures::Json::new(&bytes);
-    let providers = [b"[".as_slice(), document.value(b"engine.llm.providers[0]"), b"]"].concat();
-    let endpoints = [b"[".as_slice(), document.value(b"engine.llm.endpoints[0]"), b"]"].concat();
-    document.with(&[
-        (b"engine.llm.providers", &providers),
-        (b"engine.llm.endpoints", &endpoints),
-        (b"application.demo", b"null"),
-    ])
-}
 pub(super) fn engine(document: &[u8]) -> config::Engine {
     let mut base = config::stock();
     temper_service_core::derived::engine(&mut base, temper_service_core::derived::STOCK).unwrap();
     fixtures::parse_engine_over(&fixtures::value(document, b"engine"), &base)
 }
 fn single_engine() -> config::Engine {
-    let mut engine = engine(&single_model());
+    let mut engine = engine(&generated());
     let sol = engine.llm.models.iter().find(|entry| entry.model.name.as_ref() == b"gpt-6.1-sol").unwrap().clone();
     let defaults = crate::stock::checked_with(Box::new([sol]), engine.limits.core.tasks.result_bytes).unwrap();
     config::pass(&mut engine, defaults).unwrap();
     engine
 }
 fn without_projects() -> Box<[u8]> {
-    let document = generated();
-    fixtures::Json::new(&document).with(&[(b"application.demo", b"null")])
+    generated()
+}
+
+#[test]
+fn stock_items_stay_within_the_stock_numbers() {
+    let engine = engine(&generated());
+    let defaults = crate::stock::Given::Stock.defaults(&engine.llm, engine.limits.core.tasks.result_bytes).unwrap();
+    for template in &defaults.templates {
+        assert!(template.number <= jig_domain_people::STOCK_NUMBERS, "template {}", template.number);
+    }
+    for charter in &defaults.charters {
+        assert!(charter.number <= jig_domain_people::STOCK_NUMBERS, "charter {}", charter.number);
+    }
+    for (number, _) in &defaults.policies {
+        assert!(*number <= jig_domain_people::STOCK_NUMBERS, "policy {number}");
+    }
+    for model in &defaults.models {
+        assert!(model.number <= jig_domain_people::STOCK_NUMBERS, "model {}", model.number);
+    }
 }
 
 #[test]
@@ -404,6 +408,7 @@ fn ask_temper_is_charter_11_and_template_5() {
     }
     let (_, configuring) = words.split_once("## Configuring\n\n").expect("Configuring part");
     let (configuring, _) = configuring.split_once("## Showing").expect("Showing follows Configuring");
+    assert!(configuring.contains("A new template, charter or policy takes the lowest number from 33 that the settings don't hold; a model you add takes the highest free number."));
     assert!(configuring.contains("With it, write in their terms what the pages show: charter-words for each charter, what it does; project-words for the project's own way, a headline and a short lede."));
     assert!(configuring.contains("Draw in it what it describes, as Showing says: the project's path from its view, never as a list of steps, and a proposal that waits from its own view until it is decided."));
     let (_, remembering) = words.split_once("## Remembering\n\n").expect("Remembering part");
@@ -534,7 +539,7 @@ fn the_milestone_is_a_tracked_requester_ended_gathering_template() {
     use jig_domain_people::{TemplateBudget, TemplateDeadline, TemplateExecutor};
     use jig_domain_tasks::{Contract, EndedBy, Flags, Retention};
     let engine = single_engine();
-    let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
+    let mut defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     let template = defaults.templates.iter().find(|template| template.number == 8).expect("milestone template");
     assert_eq!(
         *template,
@@ -564,6 +569,7 @@ fn the_milestone_is_a_tracked_requester_ended_gathering_template() {
             assert!(role.authority.delegation.kinds.contains(&jig_domain_authority::Executor::Procedure(2)));
         }
     }
+    defaults.providers = config::llm::provider_values(&engine.llm);
     let current = jig_domain_core::settings::Current::new(defaults, &engine.limits.core, &[]);
     let core = config::core(&engine, [1; 16], 7);
     assert_eq!(
@@ -704,7 +710,7 @@ fn the_standing_role_talks_keeps_a_session_line_and_sets_its_weekly_report() {
 
 #[test]
 fn stock_models_keep_a_five_minute_cache_except_the_scripted_one() {
-    let models = crate::stock::models(&engine(&generated()).llm);
+    let models = crate::stock::models(&with_scripted(engine(&generated()).llm));
     assert_eq!(models.len(), 8);
     for model in models {
         assert_eq!(model.model.cache_life_ms, if model.model.name.as_ref() == b"demo" { 0 } else { 300_000 });
@@ -820,8 +826,7 @@ fn the_goals_charter_asks_for_one_report_revised_in_place() {
     for phrase in [
         "If your brief says [Requested by person N], your requester is that person, who has no task to message: wherever you would ask them with message, call delegate instead with one task: executor {kind: person, person: N}, N from that line and no one else; spec words your question; contract {kind: report, words: 4096}; authority {tools: 0, grants: [], delegation: {kinds: [], tasks: 0, depth: 0}, budget: {spend: 0}, notes: 0}. Then call wait: its result is their answer.",
         "After planning",
-        "report: ` then a one-line headline for the person saying where the goal stands, naming no task, change or pull request by number",
-        "5 of its 7 changes landed; the other 2 are building.",
+        "report: ` then a one-line headline for the person saying, in the work's own terms, what the goal has done and what's left, naming no task, change or pull request by number, no draft code or branch, and none of the words of how goals run, as \"Most of it is in; the last two parts are being built.\"",
         "Left: ",
         "Risk: ",
         "Decided: ",
@@ -832,6 +837,7 @@ fn the_goals_charter_asks_for_one_report_revised_in_place() {
     ] {
         assert!(goal.contains(phrase), "{phrase}");
     }
+    assert!(!goal.contains("5 of its 7 changes"));
 }
 
 fn chat_and_goal_use_asking() {
@@ -850,8 +856,9 @@ fn goals_changes_and_roles_open_with_titles_for_a_person() {
         .split("\n\n")
         .find(|paragraph| paragraph.starts_with("Titles, for a goal and the person's chat:"))
         .expect("titles paragraph");
-    let sentence = "Open the words of each goal and change you start with a title line: at most 60 characters naming the work for a person, as Store shape S7 · history in task logs; the rest follows on the lines below.";
+    let sentence = "Open the words of each goal and change you start with a title line: at most 60 characters naming the work in plain words, with no draft codes or internal names, as Store shape · history in task logs; the rest follows on the lines below.";
     assert!(titles.contains(sentence));
+    assert!(!words.contains("Store shape S7"));
     for words in [
         include_str!("../stock/role.md"),
         include_str!("../stock/triager.md"),
@@ -860,6 +867,7 @@ fn goals_changes_and_roles_open_with_titles_for_a_person() {
     ] {
         let shared = words.strip_prefix("## shared\n").unwrap().split_once("## part, on:").unwrap().0;
         assert!(shared.contains(sentence));
+        assert!(!words.contains("Store shape S7"));
     }
 }
 
@@ -1104,7 +1112,6 @@ fn every_stock_charter_names_its_first_choices_and_the_rest() {
                 "gpt-6-astra",
                 "gpt-6.1-terra",
                 "gpt-6-luna",
-                "demo",
             ],
             vec![
                 "claude-opus-5-5",
@@ -1114,7 +1121,6 @@ fn every_stock_charter_names_its_first_choices_and_the_rest() {
                 "claude-fable-5-1",
                 "gpt-6.1-terra",
                 "gpt-6-luna",
-                "demo",
             ],
         ),
         (
@@ -1140,8 +1146,8 @@ fn every_stock_charter_names_its_first_choices_and_the_rest() {
         ),
         (
             unnamed.llm,
-            vec!["claude-sonnet-5-5", "claude-fable-5-1", "gpt-6.1-terra", "gpt-6-luna", "demo"],
-            vec!["claude-sonnet-5-5", "claude-fable-5-1", "gpt-6.1-terra", "gpt-6-luna", "demo"],
+            vec!["claude-sonnet-5-5", "claude-fable-5-1", "gpt-6.1-terra", "gpt-6-luna"],
+            vec!["claude-sonnet-5-5", "claude-fable-5-1", "gpt-6.1-terra", "gpt-6-luna"],
         ),
     ] {
         let defaults = crate::stock::checked_with(llm.models.clone(), 10_660).expect("representable stock");
@@ -2236,7 +2242,7 @@ fn the_status_charters_words_are_the_requests() {
     let words = include_str!("../stock/status.txt");
     assert_eq!(
         words,
-        "You write the few lines at the top of a project's home page, from the facts in your task. Write one sentence on what landed, starting with the count, or, where nothing landed, on what changed among the open findings. Then a blank line, then at most three plain sentences on what stands out: what finished, what is stuck and why, and what the open findings are about. Name findings by what they are about, grouped, as: \"Seven of the 11 findings are about tests: four fail only beside other tests, and three CI runs failed with no fault in the change they checked.\" Name a goal by its milestone where it has one, and say when a milestone completed and when its last goal landed. Say only what the facts say. No greetings, no lists, no advice."
+        "You write the few lines at the top of a project's home page, for a person, from the facts in your task. Write one sentence of at most 25 words on what landed, starting with the count, or, where nothing landed, on what changed among the open findings. Then a blank line and at most two plain sentences, 70 words in all, on what stands out: what finished, what is stuck and why, what the open findings are about. Name findings by what they are about, grouped, as: \"Seven of the 11 findings are about tests: four fail only beside other tests, and three CI runs failed with no fault in the change they checked.\" Name a goal by its milestone where it has one and by what it does, with no codes (K3), wire or protocol versions or words of how goals run (delegates, cut, wave, spec), and say when a milestone completed and its last goal landed. Say a person is waited on only where a line counts questions open to a person, never from a Now alone. Say only what the facts say. No greetings, no lists, no advice."
     );
     let engine = single_engine();
     let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
@@ -2305,7 +2311,7 @@ fn no_policy_delegates_to_the_trial_charter() {
 
 #[test]
 fn stock_numbers_each_model_for_good() {
-    let mut llm = engine(&generated()).llm;
+    let mut llm = with_scripted(engine(&generated()).llm);
     // A typed caller's leftover table cannot replace the binary's catalogue.
     llm.models = Box::new([fixtures::small_model()]);
     let models = crate::stock::models(&llm);
@@ -2338,15 +2344,15 @@ fn stock_numbers_each_model_for_good() {
 }
 
 #[test]
-fn a_row_whose_provider_isnt_configured_isnt_a_default() {
+fn all_deployments_keep_seven_models_and_the_boxs_default_is_scripted() {
     let bare = engine(include_bytes!("../../../temper-init/template/bare.json"));
     let models = crate::stock::models(&bare.llm);
     assert_eq!(models.iter().map(|entry| entry.number).collect::<Box<[_]>>().as_ref(), [1, 2, 3, 4, 5, 6, 7]);
-    let mut llm = engine(&generated()).llm;
+    let mut llm = with_scripted(engine(&generated()).llm);
     llm.providers = llm.providers.into_vec().into_iter().filter(|provider| provider.number == 3).collect();
     let models = crate::stock::models(&llm);
-    assert_eq!(models.len(), 1);
-    assert_eq!((models[0].number, models[0].model.provider, models[0].model.name.as_ref()), (8, 3, b"demo".as_slice()));
+    assert_eq!(models.len(), 8);
+    assert_eq!((models[7].number, models[7].model.provider, models[7].model.name.as_ref()), (8, 3, b"demo".as_slice()));
     let defaults = crate::stock::checked(&llm, 10_660).unwrap();
     for charter in &defaults.charters {
         assert_eq!(charter.policy.model.name.as_ref(), b"demo");
@@ -2409,4 +2415,15 @@ fn agents_default_is_declared() {
     assert_eq!(kind.value_bytes, 8 + 128 * (4 + 64 + 8) + 64 * (4 + 64 + 29) + 29);
     assert!(crate::stock::forge(&limits).iter().any(|row| (row.kind, row.scope, row.number) == (21, 0, 1)
         && row.value.value == temper_engine_domain_forge::settings::Value::AgentFigures(stock.clone())));
+}
+
+fn with_scripted(mut llm: config::Llm) -> config::Llm {
+    let scripted = crate::stock::scripted(([127, 0, 0, 1], 8370).into());
+    let mut providers = llm.providers.into_vec();
+    providers.push(scripted.provider);
+    let mut endpoints = llm.endpoints.into_vec();
+    endpoints.extend(scripted.endpoints);
+    llm.providers = providers.into_boxed_slice();
+    llm.endpoints = endpoints.into_boxed_slice();
+    llm
 }

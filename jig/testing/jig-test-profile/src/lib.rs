@@ -169,7 +169,7 @@ fn profile() -> root::Limits {
                 text_bytes: 256,
                 chips: 32,
                 lines: 32,
-                versions: core::documents::Versions { minimum: 35, maximum: 35 },
+                versions: core::documents::Versions { minimum: 37, maximum: 37 },
             },
             connectors: 2,
             resume_bytes: 256,
@@ -344,6 +344,7 @@ pub fn config(seed: u64) -> root::Config {
         first,
         second,
         core: core::Config {
+            fixed_providers: Box::new([]),
             parts: Box::new([]),
             jobs: Box::new([]),
             kept_starts: Box::new([]),
@@ -401,6 +402,7 @@ pub fn config(seed: u64) -> root::Config {
             kinds: Box::default(),
             defaults: core::settings::Defaults {
                 limits: Box::default(),
+                providers: Box::new([crate::fixtures::provider_setting(1, b"Fake", 1)]),
                 workers: Box::new([
                     jig_domain_core::settings::WorkerSetting {
                         number: 1,

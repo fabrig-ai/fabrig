@@ -49,11 +49,15 @@ pub fn figures_with_limits(
         &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 1_048_576, depth: 32 },
     )
     .expect("engine document");
+    let providers = document
+        .get("world_providers")
+        .map_or_else(temper_service::stock::providers, temper_agent_fixtures::providers::values);
+    let given = temper_service::stock::Given::Stock.with_providers(providers, Box::new([]));
     let engine = temper_service::startup::engine_over(
         &parsed,
         0,
         &jig_protocol_config::Directories::working(),
-        &temper_service::stock::Given::Stock,
+        &given,
         &mut document.jig.clone(),
     )
     .expect("fixture engine");
@@ -380,6 +384,12 @@ impl Cluster {
             private_directory(target.parent().expect("file parent"));
             let bytes = self.render(&fs::read_to_string(&source).expect("cluster template"));
             super::write_private(&target, bytes.as_bytes());
+            if file["path"] == "data/providers.setting" {
+                temper_agent_fixtures::providers::remember(
+                    target.parent().expect("provider data directory"),
+                    &temper_agent_fixtures::providers::parse(bytes.as_bytes()),
+                );
+            }
         }
         if process == "engine" {
             let config = self.dir(process).join("config");

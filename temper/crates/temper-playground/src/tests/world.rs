@@ -154,7 +154,7 @@ fn handover_reads_its_path_and_bounds_the_file_before_reading() {
     crate::machine::setup(&mut disk);
     let at = b"demo/custom/llm.key";
     lay_handover(&mut disk, at, b"scripted-key\n\n");
-    let read = HandoverRead { forge: 0, run: Token::new(1), path: at.as_slice().into(), max: 14 };
+    let read = HandoverRead { forge: 1, run: Token::new(1), path: at.as_slice().into(), max: 14 };
     let before = disk.open_handles();
     let bytes = read_handover(&mut disk, &read).expect("read path").expect("file present");
     assert_eq!(bytes.expose(), b"scripted-key\n", "one final LF removed");

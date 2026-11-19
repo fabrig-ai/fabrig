@@ -23,6 +23,7 @@ pub(super) fn review(
             s::Setting::Charter(_)
             | s::Setting::Template(_)
             | s::Setting::Policy(_)
+            | s::Setting::Provider(_)
             | s::Setting::Worker(_)
             | s::Setting::Model(_)
             | s::Setting::Rules

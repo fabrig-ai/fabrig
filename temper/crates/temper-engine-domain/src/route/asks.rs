@@ -159,6 +159,10 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
             );
             None
         }
+        core::Ask::Providers(providers) => {
+            emit(decision, &env.limits, Delivery::Providers(providers));
+            None
+        }
         core::Ask::DropDocument { .. } => None,
         core::Ask::DropApplication { owner } => {
             super::applications::drop(domain, owner);
@@ -379,6 +383,10 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
                 None
             };
             domain.work.push(Work::Core(core::Event::ProcedureHoldings { refused, task, step, connector, holdings }));
+            if domain.forge.status_owner(task).is_some() {
+                // The holdings answer drains the status delegate's make before its account is read.
+                domain.work.push(Work::StatusAccount { procedure: task });
+            }
             None
         }
         core::Ask::ProjectGoal { feed } => {
@@ -510,9 +518,9 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
         core::Ask::RepairRefused { repair } => {
             if connector == domain.config.forge_connector
                 && let Some(task) = repair
-                && let Some(project) = domain.forge.status_project(task)
+                && let Some((party, project)) = domain.forge.status_owner(task)
             {
-                domain.work.push(Work::Forge(forge::Event::StatusRefused { project }));
+                domain.work.push(Work::Forge(forge::Event::StatusRefused { project, party }));
             }
             if connector == domain.config.forge_connector
                 && let Some(repair) = repair

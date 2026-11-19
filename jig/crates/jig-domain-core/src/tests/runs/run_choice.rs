@@ -1981,9 +1981,9 @@ fn chat_stopped_for_its_next_choice() -> (Core, Env<Limits>) {
         tasks::Event::Amend {
             reply_to: ReplyTo::new(FIRST),
             by: tasks::Party::Person(1),
-            funder: None,
             places: Box::new([]),
             operation: tasks::Amend {
+                funder: None,
                 task: OPEN_TASK,
                 message: 1,
                 stop_run: false,

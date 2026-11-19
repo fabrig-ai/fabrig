@@ -119,6 +119,7 @@ pub struct Pages {
     overturns: away::Overturns,
     away_focus: u64,
     address: Address,
+    root_pending: bool,
     project: Option<u32>,
     watching: bool,
     accounts_watching: bool,
@@ -389,6 +390,7 @@ pub enum Act {
 pub enum Event {
     Push(told::Report),
     Started,
+    Root,
     Left,
     AccountKey { value: skein_lib::Secret },
     SignInAddress { value: skein_lib::Secret },
@@ -447,6 +449,7 @@ impl Pages {
             overturns: away::Overturns::new(),
             away_focus: 0,
             address: Address::Inbox { filter: crate::address::Filter::ALL },
+            root_pending: false,
             project: None,
             watching: false,
             accounts_watching: false,
@@ -734,6 +737,10 @@ impl Pages {
         self.project
     }
     #[must_use]
+    pub const fn root_pending(&self) -> bool {
+        self.root_pending
+    }
+    #[must_use]
     pub const fn address(&self) -> &Address {
         &self.address
     }
@@ -771,6 +778,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
         Event::Returned { .. } => true,
         Event::Push(_)
         | Event::Started
+        | Event::Root
         | Event::Left
         | Event::AccountKey { .. }
         | Event::SignInAddress { .. }
@@ -816,6 +824,10 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
         }
         Event::Push(report) => pages.told.report(report, &mut pages.serial, env.limits.forge, out),
         Event::Started => started(pages, out),
+        Event::Root => {
+            went(pages, env, client, Address::AllHome, false, out);
+            pages.root_pending = true;
+        }
         Event::Went { address } | Event::Returned { address } => {
             team::hand::leave(pages, out);
             if (returning || pages.address != address)
@@ -903,6 +915,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             }
         }
         Event::Left => {
+            pages.root_pending = false;
             if let Some(reads) = pages.milestones.take() {
                 reads.leave(out);
             }
@@ -1340,6 +1353,12 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             }
         }
     }
+    if pages.root_pending
+        && let Some(me) = accounts::current_me(client)
+    {
+        pages.root_pending = false;
+        out.push(Request::Replace { address: rail::root_home(Some(me)) });
+    }
     if pages.watching && !pages.accounts_watching && link == Link::Live {
         pages.accounts_watching = true;
         out.push(Request::Client(jig_client::Event::Watch {
@@ -1691,6 +1710,9 @@ fn told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, out: 
         || pages.choice.told(&told)
         || crate::acts::told(pages, &told)
     {
+        if let Some(inbox) = &mut pages.inbox {
+            inbox.discard_withdrawn(out);
+        }
         pages.shown = pages.shown.checked_add(1).expect("pages shown fits");
         return false;
     }
@@ -1698,6 +1720,7 @@ fn told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, out: 
 }
 
 fn started(pages: &mut Pages, out: &mut Queue<Request>) {
+    pages.root_pending = false;
     if let Some(page) = pages.how.take() {
         page.leave(out);
     }
@@ -1736,6 +1759,9 @@ pub fn fire(pages: &mut Pages, env: &Env<Limits>, client: &Client, out: &mut Que
         limit_settings::configure(pages, client, env.now, &env.limits, out);
     }
     pages.team.fire(env.now, out);
+    if let Some(inbox) = &mut pages.inbox {
+        inbox.fire(env.now, out);
+    }
     if needs::fire(pages, env, out) {
         pages.shown = pages.shown.checked_add(1).expect("pages shown fits");
     }
@@ -1761,13 +1787,17 @@ pub fn next_deadline(pages: &Pages) -> Option<Time> {
         Some(chat) => chat.next_deadline(),
         None => None,
     };
+    let inbox = match &pages.inbox {
+        Some(inbox) => inbox.next_deadline(),
+        None => None,
+    };
     let remembered = match &pages.remembered {
         Some(page) => page.next_deadline(),
         None => None,
     };
     activity::earliest(
         activity::earliest(
-            activity::earliest(remembered, pages.team.next_deadline()),
+            activity::earliest(activity::earliest(remembered, inbox), pages.team.next_deadline()),
             pages.limit_settings.next_deadline(),
         ),
         activity::earliest(activity::earliest(task, chat), pages.needs.next_deadline()),
@@ -1887,6 +1917,7 @@ fn went(
     returned: bool,
     out: &mut Queue<Request>,
 ) {
+    pages.root_pending = false;
     if (returned
         || milestones_project(&address).is_none()
         || milestones_project(&address) != milestones_project(&pages.address))
@@ -2411,7 +2442,7 @@ fn page_told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, 
             return match &mut pages.inbox {
                 Some(inbox) => {
                     inbox.next = inbox.next.max(chat.next);
-                    let handled = inbox.told(client, told, &env.limits, out);
+                    let handled = inbox.told(client, env.now, told, &env.limits, out);
                     chat.next = chat.next.max(inbox.next);
                     handled
                 }
@@ -2445,12 +2476,12 @@ fn page_told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, 
     if let Some(chats) = &mut pages.chats {
         if !chats.told(told.clone(), client, &pages.address, out) {
             return match &mut pages.inbox {
-                Some(inbox) => inbox.told(client, told, &env.limits, out),
+                Some(inbox) => inbox.told(client, env.now, told, &env.limits, out),
                 None => false,
             };
         }
     } else if !match &mut pages.inbox {
-        Some(inbox) => inbox.told(client, told, &env.limits, out),
+        Some(inbox) => inbox.told(client, env.now, told, &env.limits, out),
         None => false,
     } {
         return false;
@@ -2540,7 +2571,7 @@ fn task_told(
         }
         let inbox = inbox.as_mut().expect("tracked page inbox");
         inbox.next = inbox.next.max(task.next);
-        let handled_inbox = if handled { false } else { inbox.told(client, told, &env.limits, out) };
+        let handled_inbox = if handled { false } else { inbox.told(client, env.now, told, &env.limits, out) };
         task.next = task.next.max(inbox.next);
         return handled || handled_inbox;
     }

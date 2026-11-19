@@ -12,6 +12,7 @@ pub mod application;
 pub(crate) mod milestone;
 mod moves;
 pub(crate) mod proposal;
+pub(crate) mod providers;
 pub mod reads;
 mod recovery;
 mod role;
@@ -222,6 +223,7 @@ fn run(runner: &mut Runner, client: &Client, env: &Env<crate::jig::Limits>, call
         | rows::CHAT_CREATE_AT..=rows::CANCEL_AT
         | rows::LIFT_AT
         | rows::TASK_DECIDE_AT
+        | rows::WITHDRAW_AT
         | rows::AMEND_AT
         | rows::CHANGE_SETTINGS_AT
         | rows::PROPOSE_SETTINGS_AT

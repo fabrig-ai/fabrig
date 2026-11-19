@@ -1,10 +1,137 @@
 use crate::{
     Core, CoreRecord, Limits, Restored,
     settings::*,
-    tests::{RESTORE_POLICY_BYTES, RESTORE_PROJECT, config, limits, restoring_sized_policy},
+    tests::{RESTORE_POLICY_BYTES, config, limits, restoring_sized_policy},
 };
 use jig_domain_tasks as tasks;
 use skein_lib::{Duration, Env, Time};
+
+fn numbered_value(current: &Current, kind: Setting, number: u32) -> (Setting, Value) {
+    let mut value = current.value(kind).unwrap().clone();
+    let setting = match &mut value {
+        Value::Charter(v) => {
+            v.number = number;
+            Setting::Charter(number)
+        }
+        Value::Template(v) => {
+            v.number = number;
+            Setting::Template(number)
+        }
+        Value::Policy(_) => Setting::Policy(number),
+        Value::Model(v) => {
+            v.number = number;
+            Setting::Model(number)
+        }
+        Value::Overlay(_) | Value::Rules(_) | Value::Provider(_) | Value::Worker(_) | Value::Application(_) => {
+            unreachable!("numbered value")
+        }
+    };
+    (setting, value)
+}
+
+fn numbered_defaults() -> (Current, crate::Settings, Limits, Box<[u16]>) {
+    let mut configured = config(1);
+    let (_, settings, mut limits, mut model) = catalogue_fixture();
+    limits.tasks.charters = 2;
+    limits.authority.projects = 2;
+    model.number = 1;
+    model.source = ModelSource::Stock;
+    let mut t = template();
+    t.number = 2;
+    configured.defaults.templates = Box::new([t]);
+    configured.defaults.models = Box::new([model]);
+    configured.defaults.policies = Map::with_capacity(1);
+    let mut policy = configured.seed_projects[0].policy.clone();
+    policy.permissions = Box::new([]);
+    configured.defaults.policies.insert(1, policy).unwrap();
+    (Current::new(configured.defaults, &limits, &[]), settings, limits, configured.connectors)
+}
+
+#[test]
+fn settings_numbers_reserve_stock_holes_and_bound_own_items() {
+    let (current, settings, limits, connectors) = numbered_defaults();
+    for kind in [Setting::Charter(1), Setting::Template(2), Setting::Policy(1), Setting::Model(1)] {
+        for number in [0, 32, 33, 65] {
+            let (setting, mut value) = numbered_value(&current, kind, number);
+            if let Value::Model(v) = &mut value {
+                v.model.name = b"own".as_slice().into();
+            }
+            let expected =
+                if number == 33 { Ok(()) } else { Err(Failure { setting, fault: Fault::Range, detail: None }) };
+            assert_eq!(
+                check_change(&current, &[Item { setting, edit: Edit::Set(value) }], &settings, &connectors, &limits),
+                expected,
+                "{setting:?}"
+            );
+        }
+        let mut value = current.value(kind).unwrap().clone();
+        match &mut value {
+            Value::Template(v) => v.grace = Some(Duration::from_secs(1)),
+            Value::Model(v) => v.picker = false,
+            Value::Charter(_) | Value::Policy(_) => {}
+            Value::Overlay(_) | Value::Rules(_) | Value::Provider(_) | Value::Worker(_) | Value::Application(_) => {
+                unreachable!("numbered value")
+            }
+        }
+        assert_eq!(
+            check_change(&current, &[Item { setting: kind, edit: Edit::Set(value) }], &settings, &connectors, &limits),
+            Ok(())
+        );
+    }
+}
+
+#[test]
+fn a_template_set_names_the_stock_hole_and_past_the_last_number_as_range() {
+    let (current, settings, limits, connectors) = numbered_defaults();
+    for number in [9, 65] {
+        let (setting, value) = numbered_value(&current, Setting::Template(2), number);
+        assert_eq!(
+            check_change(&current, &[Item { setting, edit: Edit::Set(value) }], &settings, &connectors, &limits),
+            Err(Failure { setting: Setting::Template(number), fault: Fault::Range, detail: None })
+        );
+    }
+}
+
+#[test]
+fn old_stock_hole_changes_can_be_cleared_and_withdrawn_models_stay() {
+    let (mut current, settings, limits, connectors) = numbered_defaults();
+    for kind in [Setting::Charter(1), Setting::Template(2), Setting::Policy(1), Setting::Model(1)] {
+        let (setting, mut value) = numbered_value(&current, kind, 9);
+        if let Value::Model(v) = &mut value {
+            v.model.name = b"old".as_slice().into();
+        }
+        current.changes.insert(setting, Changed { value: Some(value), revision: 2 }).unwrap();
+        let items = [Item { setting, edit: Edit::Removed }];
+        assert_eq!(check_change(&current, &items, &settings, &connectors, &limits), Ok(()));
+        apply(&mut current, &items, 3);
+        if kind == Setting::Model(1) {
+            assert!(current.value(setting).unwrap().as_model().unwrap().withdrawn);
+            assert_eq!(check_change(&current, &[], &settings, &connectors, &limits), Ok(()));
+        } else {
+            assert!(!current.changed(setting));
+            assert!(current.value(setting).is_none());
+        }
+    }
+}
+
+#[test]
+fn numbers_precede_references_and_defaults_have_the_stock_bound() {
+    let (mut current, settings, limits, connectors) = numbered_defaults();
+    let (setting, mut value) = numbered_value(&current, Setting::Template(2), 9);
+    if let Value::Template(v) = &mut value {
+        v.executor = people::TemplateExecutor::Charter(31);
+    }
+    assert_eq!(
+        check_change(&current, &[Item { setting, edit: Edit::Set(value) }], &settings, &connectors, &limits),
+        Err(Failure { setting, fault: Fault::Range, detail: None })
+    );
+    let (setting, value) = numbered_value(&current, Setting::Template(2), 40);
+    current.defaults.insert(setting, Default { value, revision: 1 }).unwrap();
+    assert_eq!(
+        check(&current, &settings, &connectors, &limits),
+        Err(Failure { setting, fault: Fault::Range, detail: None })
+    );
+}
 
 fn template() -> Template {
     Template {
@@ -27,7 +154,7 @@ fn charter(current: &mut Current) -> &mut Charter {
     match &mut current.defaults.get_mut(&Setting::Charter(1)).unwrap().value {
         Value::Charter(value) => value,
         Value::Template(_) | Value::Policy(_) | Value::Rules(_) | Value::Limits(_) => unreachable!(),
-        Value::Overlay(_) | Value::Worker(_) | Value::Model(_) | Value::Application(_) => {
+        Value::Overlay(_) | Value::Provider(_) | Value::Worker(_) | Value::Model(_) | Value::Application(_) => {
             unreachable!("an application's setting: apps-core")
         }
     }
@@ -63,13 +190,18 @@ fn lookups_apply_sets_removals_additions_and_resets_without_a_third_set() {
             Setting::Worker(1),
             Setting::Worker(2),
             Setting::Limits
+            Setting::Provider(1)
         ]
     );
 }
+#[expect(clippy::too_many_lines, reason = "one whole-set fixture case for each settings fault")]
 fn fault_case(fault: Fault) {
     let mut config = config(1);
-    let limits = limits();
+    let mut limits = limits();
     let mut policy = config.seed_projects[0].policy.clone();
+    policy.permissions = Box::new([]);
+    config.defaults.policies = Map::with_capacity(1);
+    config.defaults.policies.insert(1, policy.clone()).unwrap();
     config.defaults.templates = Box::new([template()]);
     let mut current = Current::new(config.defaults, &limits, &[]);
     let setting = match fault {
@@ -83,6 +215,7 @@ fn fault_case(fault: Fault) {
             Setting::Charter(1)
         }
         Fault::Count => {
+            limits.tasks.charters = 2;
             let original = current.charter(1).unwrap().clone();
             let extra = limits.tasks.charters.checked_add(1).expect("one past the charter bound");
             for number in 2..=extra {
@@ -135,7 +268,16 @@ fn fault_case(fault: Fault) {
                 .unwrap();
             Setting::Policy(1)
         }
-        Fault::Linked | Fault::Judged => unreachable!("an application's setting: apps-core"),
+        Fault::Range => {
+            let mut value = template();
+            value.number = 9;
+            current
+                .changes
+                .insert(Setting::Template(9), Changed { value: Some(Value::Template(Box::new(value))), revision: 2 })
+                .unwrap();
+            Setting::Template(9)
+        }
+        Fault::Accounts | Fault::Linked | Fault::Judged => unreachable!("an application's setting: apps-core"),
     };
     let detail = if fault == Fault::Shape {
         let charter = current.charter(1).unwrap();
@@ -166,6 +308,10 @@ fn fault_case(fault: Fault) {
 #[test]
 fn the_whole_check_names_shape_and_its_setting() {
     fault_case(Fault::Shape);
+}
+#[test]
+fn the_whole_check_names_range_and_its_setting() {
+    fault_case(Fault::Range);
 }
 #[test]
 fn the_whole_check_names_count_and_its_setting() {
@@ -231,14 +377,15 @@ fn the_whole_check_refuses_unconfigured_contract_connectors() {
     let config = config(1);
     let mut current = Current::new(config.defaults, &limits(), &[]);
     let mut value = template();
+    value.number = 33;
     value.contract = tasks::Contract::Change { connector: u16::MAX, kind: 1, words: 1, choices: Box::new([]) };
     current
         .changes
-        .insert(Setting::Template(1), Changed { value: Some(Value::Template(Box::new(value))), revision: 2 })
+        .insert(Setting::Template(33), Changed { value: Some(Value::Template(Box::new(value))), revision: 2 })
         .unwrap();
     assert_eq!(
         check(&current, &config.settings, &config.connectors, &limits()),
-        Err(Failure { setting: Setting::Template(1), fault: Fault::Reference, detail: None })
+        Err(Failure { setting: Setting::Template(33), fault: Fault::Reference, detail: None })
     );
 }
 
@@ -332,16 +479,16 @@ fn decision_edits_apply_each_kind_over_defaults_and_additions() {
         }
         let added = match original {
             Value::Charter(mut value) => {
-                value.number = 2;
-                Some((Setting::Charter(2), Value::Charter(value)))
+                value.number = 33;
+                Some((Setting::Charter(33), Value::Charter(value)))
             }
             Value::Template(mut value) => {
-                value.number = 2;
-                Some((Setting::Template(2), Value::Template(value)))
+                value.number = 33;
+                Some((Setting::Template(33), Value::Template(value)))
             }
-            Value::Policy(value) => Some((Setting::Policy(2), Value::Policy(value))),
+            Value::Policy(value) => Some((Setting::Policy(33), Value::Policy(value))),
             Value::Rules(_) | Value::Limits(_) => None,
-            Value::Overlay(_) | Value::Worker(_) | Value::Model(_) | Value::Application(_) => {
+            Value::Overlay(_) | Value::Provider(_) | Value::Worker(_) | Value::Model(_) | Value::Application(_) => {
                 unreachable!("an application's setting: apps-core")
             }
         };
@@ -415,7 +562,7 @@ fn stored_policy_change(bytes: u64) -> (Core, Limits, Record) {
         let _restored = core.restore_core(CoreRecord::Settings(record), &limits);
     }
     let changed = Record::Changed {
-        setting: Setting::Policy(RESTORE_PROJECT),
+        setting: Setting::Policy(33),
         changed: Changed { revision: 1, value: Some(Value::Policy(Box::new(configured))) },
     };
     (core, limits, changed)
@@ -427,12 +574,12 @@ fn oversized_settings_policy_restore_keeps_its_named_failure() {
     let (mut core, limits, record) = stored_policy_change(oversized);
     assert_eq!(core.restore_core(CoreRecord::Settings(record), &limits), Restored::Rejected);
     let failure = crate::start::Failure::Settings {
-        failure: Failure { setting: Setting::Policy(RESTORE_PROJECT), fault: Fault::Shape, detail: None },
+        failure: Failure { setting: Setting::Policy(33), fault: Fault::Shape, detail: None },
         changed: true,
     };
     assert_eq!(core.start_failure(), Some(failure.clone()));
     assert_eq!(core.start_failure(), Some(failure.clone()));
-    assert!(!core.current.changed(Setting::Policy(RESTORE_PROJECT)));
+    assert!(!core.current.changed(Setting::Policy(33)));
     assert!(!core.start_opened());
 }
 
@@ -443,7 +590,7 @@ fn settings_policy_restore_admits_the_policy_byte_budget() {
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
     assert!(core.settings_restored(&env));
     assert_eq!(core.start_failure(), None);
-    assert!(core.current.policy(RESTORE_PROJECT).is_some());
+    assert!(core.current.policy(33).is_some());
 }
 
 fn version_head(core: &Core, revision: u32) -> Head {
@@ -976,7 +1123,7 @@ fn catalogue_fixture() -> (Current, crate::Settings, Limits, CatalogueModel) {
     }]);
     let value = CatalogueModel {
         first_read: None,
-        number: 9,
+        number: 33,
         model: settings.models[0].clone(),
         shown: Some(b"Shown".as_slice().into()),
         description: Some(b"Description".as_slice().into()),
@@ -995,8 +1142,6 @@ fn a_model_setting_is_checked_whole() {
     let (current, settings, limits, value) = catalogue_fixture();
     assert_eq!(check_change(&current, &[catalogue_item(value.clone())], &settings, &[1, 2], &limits), Ok(()));
     for (member, fault) in [
-        ("zero", Fault::Shape),
-        ("past", Fault::Shape),
         ("name", Fault::Shape),
         ("provider", Fault::Reference),
         ("endpoint", Fault::Reference),
@@ -1007,8 +1152,6 @@ fn a_model_setting_is_checked_whole() {
     ] {
         let mut value = value.clone();
         match member {
-            "zero" => value.number = 0,
-            "past" => value.number = 65,
             "name" => value.model.name = b"bad/name".as_slice().into(),
             "provider" => value.model.provider = 99,
             "endpoint" => value.model.endpoint = 99,
@@ -1030,10 +1173,13 @@ fn a_model_setting_is_checked_whole() {
 fn a_number_keeps_its_name() {
     let (mut current, settings, limits, value) = catalogue_fixture();
     for default in [true, false] {
+        let mut value = value.clone();
+        value.number = if default { 9 } else { 33 };
+        let setting = Setting::Model(value.number);
         if default {
             current
                 .defaults
-                .insert(Setting::Model(9), Default { value: Value::Model(Box::new(value.clone())), revision: 1 })
+                .insert(setting, Default { value: Value::Model(Box::new(value.clone())), revision: 1 })
                 .unwrap();
         } else {
             current.defaults.remove(&Setting::Model(9));
@@ -1043,7 +1189,7 @@ fn a_number_keeps_its_name() {
         renamed.model.name = b"different".as_slice().into();
         assert_eq!(
             check_change(&current, &[catalogue_item(renamed)], &settings, &[1, 2], &limits),
-            Err(Failure { setting: Setting::Model(9), fault: Fault::Shape, detail: None })
+            Err(Failure { setting, fault: Fault::Shape, detail: None })
         );
     }
 }
@@ -1056,22 +1202,30 @@ fn removing_a_model_withdraws_it_and_keeps_its_number() {
     remaining.number = 1;
     remaining.model.name = b"remaining".as_slice().into();
     charter(&mut current).policy.alternatives = Box::new([remaining.model.clone()]);
+    current
+        .defaults
+        .insert(Setting::Model(1), Default { value: Value::Model(Box::new(remaining.clone())), revision: 1 })
+        .unwrap();
     apply(&mut current, &[catalogue_item(value.clone()), catalogue_item(remaining)], 2);
-    let items = [Item { setting: Setting::Model(9), edit: Edit::Removed }];
+    let items = [Item { setting: Setting::Model(33), edit: Edit::Removed }];
     assert_eq!(check_change(&current, &items, &settings, &[1, 2], &limits), Ok(()));
     assert!(changes_current(&current, &items));
     let writes = apply(&mut current, &items, 3);
     value.withdrawn = true;
-    assert_eq!(current.value(Setting::Model(9)), Some(&Value::Model(Box::new(value.clone()))));
-    assert!(current.offered().as_slice().contains(&Setting::Model(9)));
-    assert_eq!(current.changes.get(&Setting::Model(9)).unwrap().revision, 3);
+    assert_eq!(current.value(Setting::Model(33)), Some(&Value::Model(Box::new(value.clone()))));
+    assert!(current.offered().as_slice().contains(&Setting::Model(33)));
+    assert_eq!(current.changes.get(&Setting::Model(33)).unwrap().revision, 3);
     assert!(!changes_current(&current, &items));
     assert_eq!(writes.len(), 1);
 }
 #[test]
 fn resetting_a_model_with_no_default_is_out_of_shape() {
-    let (mut current, settings, limits, value) = catalogue_fixture();
-    apply(&mut current, &[catalogue_item(value.clone())], 2);
+    let (mut current, settings, limits, mut value) = catalogue_fixture();
+    value.number = 9;
+    current
+        .changes
+        .insert(Setting::Model(9), Changed { value: Some(Value::Model(Box::new(value.clone()))), revision: 2 })
+        .unwrap();
     let items = [Item { setting: Setting::Model(9), edit: Edit::Reset }];
     assert_eq!(
         check_change(&current, &items, &settings, &[1, 2], &limits),
@@ -1132,7 +1286,7 @@ fn overlay_requires_a_default_and_keeps_its_stored_identity() {
     limits.tasks.charters = 2;
     let mut current = Current::new(configured.defaults, &limits, &[]);
     let value = Value::Overlay(Box::new(Overlay::empty()));
-    let mut item = Item { setting: Setting::Charter(2), edit: Edit::Set(value.clone()) };
+    let mut item = Item { setting: Setting::Charter(33), edit: Edit::Set(value.clone()) };
     let failure =
         check_change(&current, &[item.clone()], &configured.settings, &configured.connectors, &limits).unwrap_err();
     assert_eq!((failure.setting, failure.fault), (item.setting, Fault::Reference));
@@ -1369,4 +1523,160 @@ fn workers_restore_replace_and_refuse_removing_a_linked_channel() {
     let (result, out) = decide_worker(&mut core, &env, Box::new([worker_item(changed.clone())]));
     result.expect("worker decision accepted");
     assert_eq!(workers_told(&out).expect("digest replaces admission").first(), Some(&changed));
+}
+
+fn provider_item(value: ProviderSetting) -> Item {
+    Item { setting: Setting::Provider(value.provider.number), edit: Edit::Set(Value::Provider(Box::new(value))) }
+}
+fn providers_told(out: &skein_lib::Queue<crate::Request>) -> Option<&[ProviderSetting]> {
+    for request in out {
+        if let crate::Request::Ask { ask: crate::Ask::Providers(values), .. } = request {
+            return Some(values);
+        }
+    }
+    None
+}
+#[test]
+fn providers_check_current_models_and_keep_running_facts_until_start() {
+    let limits = limits();
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
+    let mut core = Core::new(config(1), &limits).unwrap();
+    let local = crate::tests::provider_setting(4, b"local", 5);
+    let mut model = core.current.value(Setting::Model(1)).unwrap().as_model().unwrap().clone();
+    model.number = 33;
+    model.model.name = b"local-model".as_slice().into();
+    model.model.provider = 4;
+    model.model.endpoint = 5;
+    let mut header = local.clone();
+    header.endpoints.first_mut().unwrap().headers =
+        Box::new([Header { name: b"AUTHORIZATION".as_slice().into(), value: b"not-a-credential".as_slice().into() }]);
+    for (value, fault) in [
+        (header, Fault::Shape),
+        (crate::tests::provider_setting(1, b"other", 5), Fault::Shape),
+        (crate::tests::provider_setting(17, b"local", 5), Fault::Count),
+        (crate::tests::provider_setting(4, b"local", 1), Fault::Shape),
+    ] {
+        let number = value.provider.number;
+        let (result, _) = decide_worker(
+            &mut core,
+            &env,
+            Box::new([Item { setting: Setting::Template(1), edit: Edit::Reset }, provider_item(value)]),
+        );
+        assert_eq!(
+            result,
+            Err(people::Refusal::NotWellFormed {
+                at: 1,
+                why: people::Malformed::Settings { setting: Setting::Provider(number), fault, detail: None }
+            })
+        );
+    }
+    let (result, out) = decide_worker(
+        &mut core,
+        &env,
+        Box::new([
+            provider_item(local.clone()),
+            Item { setting: Setting::Model(33), edit: Edit::Set(Value::Model(Box::new(model.clone()))) },
+        ]),
+    );
+    result.unwrap();
+    assert_eq!(providers_told(&out).unwrap().last(), Some(&local));
+    assert_eq!(core.current.value(Setting::Provider(4)).unwrap().as_provider(), Some(&local));
+    assert!(core.settings.llm_providers.get(4).is_none());
+    assert_eq!(core.settings.endpoints.len(), 1);
+    assert!(core.offer(jig_domain_tasks::Payer::Project(1), 1, jig_domain_tasks::Models::ALL).is_empty());
+    let (result, _) =
+        decide_worker(&mut core, &env, Box::new([Item { setting: Setting::Provider(4), edit: Edit::Removed }]));
+    assert_eq!(
+        result,
+        Err(people::Refusal::NotWellFormed {
+            at: 0,
+            why: people::Malformed::Settings { setting: Setting::Model(33), fault: Fault::Reference, detail: None }
+        })
+    );
+    let (result, out) = decide_worker(
+        &mut core,
+        &env,
+        Box::new([
+            Item { setting: Setting::Provider(4), edit: Edit::Removed },
+            Item { setting: Setting::Model(33), edit: Edit::Removed },
+        ]),
+    );
+    result.unwrap();
+    assert!(core.current.value(Setting::Provider(4)).unwrap().as_provider().unwrap().withdrawn);
+    assert_eq!(providers_told(&out).unwrap().len(), 1);
+    let (result, out) = decide_worker(
+        &mut core,
+        &env,
+        Box::new([Item {
+            setting: Setting::Model(33),
+            edit: Edit::Set(Value::Model(Box::new(CatalogueModel { withdrawn: true, picker: false, ..model }))),
+        }]),
+    );
+    result.unwrap();
+    assert!(providers_told(&out).is_none());
+    let mut restarted = Core::new(config(1), &limits).unwrap();
+    assert!(restarted.restore_setting(
+        Record::Changed {
+            setting: Setting::Provider(4),
+            changed: Changed { revision: 2, value: Some(Value::Provider(Box::new(local.clone()))) }
+        },
+        &limits
+    ));
+    let mut out = skein_lib::Queue::uncapped();
+    assert!(restarted.finish_restored_settings(&env, &mut out));
+    assert_eq!(providers_told(&out).unwrap().last(), Some(&local));
+    assert!(restarted.settings.llm_providers.get(4).is_none());
+}
+#[test]
+fn providers_with_accounts_are_not_removed_and_fixed_providers_are_references_only() {
+    let limits = limits();
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
+    let mut configured = config(1);
+    configured.fixed_providers = Box::new([crate::tests::provider_setting(3, b"fixed", 3)]);
+    let mut core = Core::new(configured, &limits).unwrap();
+    let local = crate::tests::provider_setting(4, b"local", 5);
+    decide_worker(&mut core, &env, Box::new([provider_item(local)])).0.unwrap();
+    crate::tests::restore_key_account(&mut core, &limits, 1, 1, 4);
+    let (result, _) = decide_worker(
+        &mut core,
+        &env,
+        Box::new([
+            Item { setting: Setting::Template(1), edit: Edit::Reset },
+            Item { setting: Setting::Provider(4), edit: Edit::Removed },
+        ]),
+    );
+    assert_eq!(
+        result,
+        Err(people::Refusal::NotWellFormed {
+            at: 1,
+            why: people::Malformed::Settings { setting: Setting::Provider(4), fault: Fault::Accounts, detail: None }
+        })
+    );
+    let (result, _) =
+        decide_worker(&mut core, &env, Box::new([Item { setting: Setting::Provider(3), edit: Edit::Reset }]));
+    assert_eq!(
+        result,
+        Err(people::Refusal::NotWellFormed {
+            at: 0,
+            why: people::Malformed::Settings { setting: Setting::Provider(3), fault: Fault::Shape, detail: None }
+        })
+    );
+    let mut model = core.current.value(Setting::Model(1)).unwrap().as_model().unwrap().clone();
+    model.number = 33;
+    model.model.name = b"fixed-model".as_slice().into();
+    model.model.provider = 3;
+    model.model.endpoint = 3;
+    let (result, out) = decide_worker(
+        &mut core,
+        &env,
+        Box::new([Item { setting: Setting::Model(33), edit: Edit::Set(Value::Model(Box::new(model))) }]),
+    );
+    result.unwrap();
+    assert!(providers_told(&out).is_none());
+    let mut out = skein_lib::Queue::uncapped();
+    core.tell_providers(&mut out);
+    assert_eq!(providers_told(&out).unwrap().len(), 2);
+    for value in providers_told(&out).unwrap() {
+        assert_ne!(value.provider.number, 3);
+    }
 }

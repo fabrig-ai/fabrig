@@ -225,6 +225,7 @@ pub struct Domain {
     pub(crate) making_acts: Set<crate::MakingKey>,
     pub(crate) repository_makings: Map<crate::MakingKey, crate::RepositoryMaking>,
     pub(crate) milestones: Map<u64, crate::MilestoneRow>,
+    pub(crate) person_briefs: Map<(u64, u32), crate::PersonBrief>,
     pub(crate) project_facts: Map<u32, crate::ProjectFacts>,
     pub(crate) history_reads: crate::history::read::State,
     pub(crate) history_sweep: crate::history::sweep::State,
@@ -926,6 +927,7 @@ impl Domain {
             repository_makings: Map::with_capacity(l.makings),
             making_acts: Set::with_capacity(l.makings),
             milestones: Map::uncapped(),
+            person_briefs: Map::with_capacity(l.bindings.saturating_mul(l.judge_projects)),
             project_facts: Map::with_capacity(l.judge_projects),
             history_reads: crate::history::read::State::new(l.judge_projects),
             history_sweep: crate::history::sweep::State::new(l.history_events),
@@ -1710,8 +1712,8 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
             }
         }
         Event::TierWords { task, words } => crate::tiers::words::projected(d, task, &words, out),
-        Event::StatusTask { project, task } => crate::status::task(d, project, Some(task), out),
-        Event::StatusRefused { project } => crate::status::task(d, project, None, out),
+        Event::StatusTask { project, party, task } => crate::status::task(d, env.wall, party, project, Some(task), out),
+        Event::StatusRefused { project, party } => crate::status::task(d, env.wall, party, project, None, out),
         Event::StatusHeard { task, report } => crate::status::heard(d, env.wall, task, report, out),
         Event::Follow { row } => crate::follows::register(d, row, out),
         Event::TierTask { repository, tier, number, task } => {
@@ -6310,12 +6312,13 @@ fn change_facts(
     pending: &PendingStep,
     base_tip: skein_forge::api::Commit,
 ) -> change::Facts {
-    let verification_bound = match d.repositories.get(&row.repository) {
-        Some(repository) => match d.after_landing(repository.project) {
-            Some(after) => after.bound,
-            None => Duration::from_secs(7200),
-        },
-        None => Duration::from_secs(7200),
+    let after = match d.repositories.get(&row.repository) {
+        Some(repository) => d.after_landing(repository.project),
+        None => None,
+    };
+    let (verification_bound, wait) = match after {
+        Some(after) => (after.bound, after.wait),
+        None => (Duration::from_secs(7200), change::Wait::Cleared),
     };
     let pull = match &pending.pull {
         Some(pull) if pull.merged.is_some() => change::Pull::Merged { commit: pull.merged.expect("checked merged") },
@@ -6384,6 +6387,7 @@ fn change_facts(
         pending: pending.pending.clone(),
         verification: d.change_verification(row.task),
         verification_bound,
+        wait,
         ask: crate::landing::ask_for(d, row),
         branch: pending.branch,
         titled: !row.title.is_empty() || row.pull.is_some(),
@@ -9533,6 +9537,9 @@ fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
         Stored::Setting(row) => {
             d.setting_rows.insert(row.key, row.edit).expect("restored setting within limits");
         }
+        Stored::PersonBrief(row) => {
+            d.person_briefs.insert((row.party, row.project), row).expect("restored person brief room checked");
+        }
         Stored::ProjectFacts(row) => {
             d.project_facts.insert(row.project, row).expect("restored project facts room checked");
         }
@@ -9649,6 +9656,7 @@ fn restored(d: &mut Domain, env: &Env<Limits>, clock: skein_forge_client::Recove
     }
     d.rebuild_settings();
     d.restore_landing_settings();
+    crate::landing_log::restored(d, out);
     d.restore_phase = RestorePhase::Restoring;
     child(d, env, skein_forge_client::Event::Restored { clock }, out);
     retire_ended(d, env, out);
@@ -10370,6 +10378,7 @@ impl Domain {
             | RecordKind::Making
             | RecordKind::Milestone
             | RecordKind::HistoryProject
+            | RecordKind::PersonBrief
             | RecordKind::ProjectFacts
             | RecordKind::Device
             | RecordKind::LandedDraft

@@ -272,6 +272,9 @@ impl Core {
                 assert!(self.settings_restore.pending.insert(setting, true).is_ok(), "bounded added default");
             }
         }
+        if self.refuse_numbers() {
+            return false;
+        }
         if let Err(failure) = super::workers::check_defaults(&self.current, self.workers_in_process) {
             let _request = self.refuse_settings(failure);
             return false;
@@ -305,6 +308,16 @@ impl Core {
         self.tell_settings(env, out);
         true
     }
+    fn refuse_numbers(&mut self) -> bool {
+        let settings = super::check::numbers(&self.current);
+        if settings.is_empty() {
+            return false;
+        }
+        self.start_input();
+        self.refuse_restore(crate::start::Failure::Numbers { settings });
+        true
+    }
+
     /// The typed refusal is retained even when a later completion repeats it.
     pub fn refuse_settings(&mut self, failure: Failure) -> crate::start::Failure {
         self.start_input();
@@ -342,6 +355,18 @@ impl Core {
         }
     }
 
+    pub(crate) fn tell_providers(&self, out: &mut Queue<Request>) {
+        let mut providers = List::with_capacity(super::PROVIDERS);
+        for number in 1..=super::PROVIDERS {
+            if let Some(value) = self.current.value(Setting::Provider(number))
+                && let Some(value) = value.as_provider()
+                && !value.withdrawn
+            {
+                providers.push(value.clone()).expect("provider number bound");
+            }
+        }
+        out.push(Request::Ask { connector: 0, ask: crate::Ask::Providers(providers.into_boxed()) });
+    }
     pub(crate) fn tell_workers(&mut self, limits: &Limits, out: &mut Queue<Request>) {
         let mut workers = List::with_capacity(limits.fleet.configured_workers);
         let mut admitted = List::with_capacity(limits.fleet.configured_workers);
@@ -360,6 +385,7 @@ impl Core {
 
     pub(crate) fn tell_settings(&mut self, env: &Env<Limits>, out: &mut Queue<Request>) {
         self.tell_workers(&env.limits, out);
+        self.tell_providers(out);
         self.tell_replaced_settings(env, true, true);
     }
     pub(crate) fn tell_replaced_settings(&mut self, env: &Env<Limits>, rules: bool, charters: bool) {
@@ -508,9 +534,11 @@ impl Core {
         let reserve = if release { super::withdrawal_writes(&env.limits).expect("withdrawal room") } else { 0 };
         let items = self.restored_items();
         let mut workers_changed = false;
+        let mut providers_changed = false;
         for item in &items {
             match item.setting {
                 Setting::Worker(_) => workers_changed = true,
+                Setting::Provider(_) => providers_changed = true,
                 Setting::Charter(_)
                 | Setting::Template(_)
                 | Setting::Policy(_)
@@ -634,6 +662,9 @@ impl Core {
         }
         // Archive-only starts still save their changed history extent.
         self.finish_extent(oldest_before, &mut out);
+        if providers_changed {
+            self.tell_providers(&mut out);
+        }
         if workers_changed {
             self.tell_workers(&env.limits, &mut out);
         }
@@ -716,6 +747,9 @@ pub(crate) fn revision_writes_with_hold(
 }
 
 pub(crate) fn first_start(core: &mut Core, env: &Env<Limits>, out: &mut Queue<Request>) -> bool {
+    if core.refuse_numbers() {
+        return false;
+    }
     if let Err(failure) = super::check(&core.current, &core.settings, &core.connectors, &env.limits) {
         let _request = core.refuse_settings(failure);
         return false;

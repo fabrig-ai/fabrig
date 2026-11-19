@@ -26,6 +26,10 @@
   `none` (`theme.md`, *The scheme*): Auto draws dark for both
   and no journey opens `/theme`'s list, so their frames are the same.
   They say `none` once a journey's change records them again.
+- **Not yet:** 8.4 and 9's `design-session`, `launchpad-chat` and
+  `launchpad-drawn`: no recording or frames on R4's pages, since `again`
+  stalls at each walk's first `see` after its message is sent [in
+  flight: change 8219].
 
 - **Not yet:** 8.3 and 9's `box-welcome`: `again` drives `temper` in its
   pseudo-terminal and starts the box apart on pipes, reading the printed

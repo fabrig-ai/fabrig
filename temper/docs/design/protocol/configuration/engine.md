@@ -110,7 +110,10 @@ field. The landing rules were settings already, temper's kinds 1 and 2
   reserve: a check is cut at its run's end. One past its bounds refuses the
   start at its member, `application.landing.projects[i].check_timeout_ms`.
 - **The tiers' project settings,** beside `by`, by either way:
-  `tier_retries`, a u8, 2 when absent; `verification_bound_ms`, the
+  `wait`, `"cleared"` or `"landed"`, `"cleared"` when absent, another
+  word refused at its member, `wait`: whether a change into a branch a
+  tier follows lives to cleared or ends at landed; `tier_retries`, a
+  u8, 2 when absent; `verification_bound_ms`, the
   project's verification bound, a u64, 7,200,000 (two hours) when absent
   (`../../domain/after-landing.md`, sections 3 and 6).
 - **Prepare under `turn`:** a document that selects `by: turn` needs job
@@ -288,8 +291,9 @@ answer not found.
   delivery log, which the forge component reads, with no address GitHub
   must reach (../forge/README.md, section 4).
 
-**`demo`:** the playground's scripted model, or `null` for none, never
-missing (`README.md`, section 8): its `llm`, the fake LLM the box runs, with its
+**`demo`:** refused since 2026-11-17, the playground's scripted model
+being the box's constant (`providers.md`, 4; `moved.md`, 3); what
+follows is the member as it was, which the constant keeps: its `llm`, the fake LLM the box runs, with its
 port (`listen`), its LLM provider of `engine.llm` (`provider`), its
 key's file (`key`) and its scripts (`asked`). Its members, their bounds
 and their checks against the document's LLM providers are ../setup/playground.md
@@ -342,7 +346,7 @@ any member it doesn't know.
 | `forge.namespace` | not configured: the root derives it from the deployment's id |
 | `identities` | not configured: each kept forge's `GitIdentity { forge, credential }`, its credential the forge's number, comes with its record (../forge/engine.md, 1) |
 | `machine` | the test's GitHub place, `application.test.github`, or github.com's; an owned or fake forge's place is chosen at its set-up (../setup/place.md) |
-| `playground` | `application.demo`'s provider, with `setup.deadline_ms`; none for `null` (../setup/playground.md) |
+| `playground` | the box's scripted provider, 3, with `setup.deadline_ms`; none outside a box (`providers.md`, 4; ../setup/playground.md) |
 | `under_box` | whether `temper-box internal serve` was given `--box` (../setup/box.md, 1) |
 | `forge.push` | `application.push`'s `services`, none for absent or `null`, which `AddDevice` judges an endpoint by (`../../domain/forge/attention.md`, 7.1) |
 

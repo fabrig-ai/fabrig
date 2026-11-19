@@ -71,6 +71,30 @@ fn each_family_of_names_holds_and_topics_round_trips_unchanged() {
     }
 }
 #[test]
+fn a_landing_other_than_the_default_branch_round_trips() {
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
+    let forge::Stored::Repository(mut row) = fixtures::adopted(forge::Protection::Absent) else {
+        panic!("adopted repository")
+    };
+    row.landing = b"staging".as_slice().into();
+    assert_eq!(row.settings.default_branch.as_ref(), b"main");
+    let stored = forge::Stored::Repository(row);
+    assert_eq!(records::decode(&records::encode(&stored), &bounds), Ok(stored));
+}
+
+#[test]
+fn a_landing_past_name_bytes_fails_to_decode() {
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
+    let forge::Stored::Repository(mut row) = fixtures::adopted(forge::Protection::Absent) else {
+        panic!("adopted repository")
+    };
+    let length = usize::try_from(fixtures::LIMITS.name_bytes).unwrap().checked_add(1).unwrap();
+    row.landing = skein_lib::bytes::zeroed(length);
+    let bytes = records::encode(&forge::Stored::Repository(row));
+    assert_eq!(records::decode(&bytes, &bounds), Err(crate::Undecodable::Malformed));
+}
+
+#[test]
 fn a_holds_design_writers_and_their_fresh_read_progress_round_trip() {
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
     for rereading in [false, true] {
@@ -1077,6 +1101,7 @@ fn application_outcomes() -> Box<[forge::ApplicationOutcome]> {
         let forge::Stored::Repository(row) = fixtures::adopted(protection) else { panic!("repository fixture") };
         outcomes
             .push(forge::ApplicationOutcome::Adopted(forge::AdoptedRepository {
+                landing: b"staging".as_slice().into(),
                 repository: row.provider,
                 owner: row.owner,
                 name: row.name,
@@ -1166,6 +1191,7 @@ fn an_application_adopted_name_past_its_bound_fails_to_decode() {
         panic!("repository fixture")
     };
     let outcome = forge::ApplicationOutcome::Adopted(forge::AdoptedRepository {
+        landing: b"main".as_slice().into(),
         repository: row.provider,
         owner: Box::new([0; 129]),
         name: row.name,
@@ -2390,11 +2416,14 @@ fn landing_log(landings: u32, members: u32, branch_bytes: u32) -> forge::Stored 
         repository: skein_forge::api::Repository { forge: 1, repository: 2 },
         landings: vec![
             forge::LoggedLanding {
+                tiers: Box::new([]),
                 commit: [7; 32],
                 branch: vec![b'x'; usize::try_from(branch_bytes).unwrap()].into(),
                 at: skein_lib::Wall::from_nanos(123),
                 changes: vec![
                     forge::LoggedChange {
+                        goal: None,
+                        milestone: None,
                         signed: Box::new([]),
                         task: 51,
                         pull: Some(2),
@@ -2413,11 +2442,15 @@ fn landing_log(landings: u32, members: u32, branch_bytes: u32) -> forge::Stored 
 #[test]
 fn landing_logs_round_trip_and_refuse_each_configured_bound() {
     let limits = fixtures::LIMITS;
-    assert_eq!(records::encode(&landing_log(16, 2, 64)).len(), 10_797);
+    assert_eq!(records::encode(&landing_log(16, 2, 64)).len(), 10_925);
     let bounds = crate::bounds(&limits, limits.client.op_bytes).unwrap();
     for extra in [0, 1] {
         for row in [
-            landing_log(limits.landings_kept + extra, limits.landing_members, limits.name_bytes),
+            landing_log(
+                limits.landings_kept + limits.landings_pending + extra,
+                limits.landing_members,
+                limits.name_bytes,
+            ),
             landing_log(limits.landings_kept, limits.landing_members + extra, limits.name_bytes),
             landing_log(limits.landings_kept, limits.landing_members, limits.name_bytes + extra),
         ] {
@@ -2434,6 +2467,20 @@ fn landing_logs_round_trip_and_refuse_each_configured_bound() {
         row.landings[0].changes[0].pull = None;
     }
     assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
+    for verdict in [
+        forge::LoggedVerdict::Verifying,
+        forge::LoggedVerdict::Cleared { run: u64::MAX },
+        forge::LoggedVerdict::Red { run: 7, failing: Some(u32::MAX) },
+        forge::LoggedVerdict::Red { run: 9, failing: None },
+    ] {
+        let mut row = landing_log(1, 1, 1);
+        if let forge::Stored::LandingLog(row) = &mut row {
+            row.landings[0].changes[0].goal = Some(u64::MAX);
+            row.landings[0].changes[0].milestone = Some(31);
+            row.landings[0].tiers = Box::new([forge::LoggedTier { tier: Box::new([b't'; 32]), verdict }]);
+        }
+        assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
+    }
 }
 
 #[test]
@@ -2468,8 +2515,6 @@ fn status_rows_round_trip_all_options_and_field_bounds() {
                     project,
                     landed: count,
                     last_landed: Wall::from_nanos(count),
-                    brief: brief.clone(),
-                    running,
                 });
                 let looked = forge::Stored::Looked(forge::Looked {
                     party,
@@ -2479,7 +2524,14 @@ fn status_rows_round_trip_all_options_and_field_bounds() {
                     seen: count,
                     next_seen: count,
                 });
-                for row in [facts, looked] {
+                let person = forge::Stored::PersonBrief(forge::PersonBrief {
+                    party,
+                    project,
+                    brief: brief.clone(),
+                    running,
+                    unpaid: present.then_some(Wall::from_nanos(count)),
+                });
+                for row in [facts, looked, person] {
                     let bytes = records::encode(&row);
                     let key = crate::keys::encode(&forge::stored_key(&row), u32::MAX).unwrap();
                     assert_eq!(records::row(&key, &bytes, &bounds), Ok(row));
@@ -2490,10 +2542,10 @@ fn status_rows_round_trip_all_options_and_field_bounds() {
 }
 
 fn status_findings_row(brief: Option<[u8; 32]>, running: Option<[u8; 32]>) -> forge::Stored {
-    forge::Stored::ProjectFacts(forge::ProjectFacts {
+    forge::Stored::PersonBrief(forge::PersonBrief {
+        party: 7,
         project: 1,
-        landed: 0,
-        last_landed: skein_lib::Wall::EPOCH,
+        unpaid: None,
         brief: Some(forge::Brief {
             sentence: b"Findings remain".as_slice().into(),
             lede: Box::new([]),
@@ -3504,4 +3556,67 @@ fn a_changes_regate_round_trips_in_its_hot_part_and_joins_unchanged() {
         assert_eq!(forge::ChangeRow::join(cold, *decoded), row);
         assert_eq!(hot.regate, row.regate);
     }
+}
+
+/// A project's former brief and run are dropped by the layout's derived plan (store.md, 2).
+#[test]
+fn project_facts_written_with_a_brief_and_run_decode_with_both_dropped() {
+    let mut family = None;
+    for candidate in crate::OWNER_SET.families {
+        if candidate.name == "temper-store" {
+            family = Some(candidate);
+        }
+    }
+    let family = family.unwrap();
+    let before = family.current.replace(
+        "record ProjectFacts { project: u32 landed: u64 last_landed: u64 }",
+        "record ProjectFacts { project: u32 landed: u64 last_landed: u64 brief: option StatusBrief running: option StatusRunning }",
+    );
+    assert_ne!(before, family.current);
+    let old = skein_codec::schema::parse(before.as_bytes()).unwrap();
+    let new = skein_codec::schema::parse(family.current.as_bytes()).unwrap();
+    let facts = forge::Stored::ProjectFacts(forge::ProjectFacts {
+        project: u32::MAX,
+        landed: u64::MAX,
+        last_landed: skein_lib::Wall::from_nanos(u64::MAX),
+    });
+    let brief = v25::StatusBrief::new(
+        &v25::CEILINGS,
+        v25::StatusBriefParts {
+            sentence: b"Project's old brief".as_slice().into(),
+            lede: b"Not any person's".as_slice().into(),
+            at: 11,
+            landed: 7,
+            findings: Some([3; 32]),
+        },
+    )
+    .unwrap();
+    let run = v25::StatusRunning::new(
+        &v25::CEILINGS,
+        v25::StatusRunningParts { task: Some(19), landed: 9, since: 13, findings: Some([5; 32]) },
+    )
+    .unwrap();
+    let facts_bytes = records::encode(&facts);
+    let mut bytes =
+        skein_lib::Writer::new(facts_bytes.len() + usize::try_from(brief.measure() + run.measure()).unwrap() + 2);
+    bytes.put(&facts_bytes).unwrap();
+    bytes.put(&[1]).unwrap();
+    brief.encode(&mut bytes).unwrap();
+    bytes.put(&[1]).unwrap();
+    run.encode(&mut bytes).unwrap();
+    let plan = skein_codec::layout::Plan::derive(
+        &old,
+        old.root(b"Row", None).unwrap(),
+        &[],
+        &new,
+        new.root(b"Row", None).unwrap(),
+        &[],
+    )
+    .expect("dropped fields derive with no job");
+    let mut work = skein_codec::layout::Workspace::new();
+    assert!(work.fit(&plan));
+    let mut out = skein_lib::Buffer::with_capacity(131_072);
+    plan.convert(&bytes.finish(), &mut out, &mut work).unwrap();
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    assert_eq!(records::decode(out.as_slice(), &bounds), Ok(facts));
 }

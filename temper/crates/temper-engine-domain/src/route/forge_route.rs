@@ -1,5 +1,6 @@
 //! Root translation for the forge connector. Its store rows and released API
 //! calls cross one root decision; the connector never owns the store.
+//! Landing targets use the adoption (temper/docs/design/domain/forge/adoption.md, 8).
 use super::{
     CallAnswer, CallKey, Decision, Delivery, Domain, Env, Family, ForgeRepository, ForgeStart, ForgeWorkspace, Id, Key,
     Limits, List, ProcedureStep, Queue, Record, ReplyTo, Request, StepEnd, Token, Work, Write, authority,
@@ -800,34 +801,7 @@ fn tree_branch(
     Some(branch)
 }
 
-/// The hub sees an opaque, bounded name for a forge branch. Forge path syntax
-/// stays here; the task child only compares these literal bytes.
-pub(crate) fn hub_name(connector: u16, name: &forge::Name, limits: &tasks::Limits) -> Option<tasks::Name> {
-    let forge::What::Branch(parts) = &name.what else { return None };
-    if limits.hold_segments < 3 {
-        return None;
-    }
-    let mut branch = List::with_capacity(limits.hold_bytes);
-    for (at, part) in parts.iter().enumerate() {
-        if at != 0 {
-            branch.push(b'/').ok()?;
-        }
-        for byte in part.iter().copied() {
-            branch.push(byte).ok()?;
-        }
-    }
-    if branch.len().checked_add(6)? > limits.hold_bytes {
-        return None;
-    }
-    Some(tasks::Name {
-        connector,
-        path: Box::new([
-            Box::from(name.forge.to_be_bytes()),
-            Box::from(name.repository.to_be_bytes()),
-            branch.into_boxed(),
-        ]),
-    })
-}
+pub(crate) use forge::resources::hub_name;
 
 /// Decode only this connector's branch names when projecting a hub hold.
 pub(crate) fn forge_name(connector: u16, resource: &tasks::Name, limit: u32) -> Option<forge::Name> {
@@ -1290,7 +1264,7 @@ fn change_topic(domain: &Domain, task: &tasks::TaskRecord) -> Option<forge::Topi
     }
     let repository = provider?;
     let adopted = domain.forge.repository(repository)?;
-    Some(forge::Topic::Landings { repository, branch: branch.unwrap_or(adopted.settings.default_branch.clone()) })
+    Some(forge::Topic::Landings { repository, branch: branch.unwrap_or(adopted.landing.clone()) })
 }
 
 pub(crate) fn subscribe_goal(domain: &mut Domain, env: &Env<Limits>, goal: u64, topic: forge::Topic) {
@@ -1299,7 +1273,7 @@ pub(crate) fn subscribe_goal(domain: &mut Domain, env: &Env<Limits>, goal: u64, 
         tasks::EndedBy::Closer(_) => match &topic {
             forge::Topic::Landings { repository, branch } => {
                 let Some(repository) = domain.forge.repository(*repository) else { return };
-                if *branch == repository.settings.default_branch {
+                if *branch == repository.landing {
                     return;
                 }
             }
@@ -1320,6 +1294,7 @@ pub(crate) fn subscribe_goal(domain: &mut Domain, env: &Env<Limits>, goal: u64, 
             | Work::ForgeRestored
             | Work::ForgeLimitHold { .. }
             | Work::ForgeLimitRelease { .. }
+            | Work::StatusAccount { .. }
             | Work::StartDone(_)
             | Work::Start(_)
             | Work::CheckResults { .. }
@@ -2450,7 +2425,7 @@ pub(super) fn start_recovered_change(
     }
     let base = match base {
         Some(base) => base,
-        None => adopted.settings.default_branch.clone(),
+        None => adopted.landing.clone(),
     };
     let branch = match branch {
         Some(branch) => branch,
@@ -3212,7 +3187,7 @@ fn change_destination(
     change: &crate::ChangeCall,
 ) -> Result<Box<[u8]>, ChangeRefused> {
     if change.branch == Some(crate::ChangeBranch::Mine) && change.landing.is_none() {
-        return Ok(repository.settings.default_branch.clone());
+        return Ok(repository.landing.clone());
     }
     let base = change_landing(domain, env, task, repository, change.landing.as_ref())?;
     if change.branch != Some(crate::ChangeBranch::Mine)
@@ -3236,7 +3211,7 @@ fn change_landing(
     match landing {
         None => Ok(match change_goal_branch(domain, env, task, repository)? {
             Some(branch) => branch,
-            None => repository.settings.default_branch.clone(),
+            None => repository.landing.clone(),
         }),
         Some(crate::ChangeLanding::Branch(branch)) => {
             branch_parts(branch, env.limits.forge.name_bytes).ok_or(ChangeRefused::Refusal(tasks::Refusal::Spec))?;
@@ -3998,50 +3973,16 @@ fn change_landing_identity(
     out
 }
 
-/// Name each landing's retained clearing run before its verification row is released
-/// (temper/docs/design/domain/after-landing.md, 6).
 fn change_verification_words(domain: &Domain, task: u64, merge: &skein_forge::api::Commit, bound: u32) -> Box<[u8]> {
     let row = domain.forge.change(task).expect("landed change");
-    let mut words = List::with_capacity(bound);
-    if let forge_change::State::Uncleared { .. } = row.change.state {
-        append(
-            &mut words,
-            if change_cancelled(domain, task) {
-                b"Not cleared: cancelled while verifying.".as_slice()
-            } else {
-                b"Not cleared: no verdict within the verification bound.".as_slice()
-            },
-        );
-    }
-    if let forge_change::State::Cleared { .. } = row.change.state {
-        let Some(verification) = domain.forge.landing_verification(row.repository, merge) else {
-            return words.into_boxed();
-        };
-        for tier in &verification.tiers {
-            let run = match (&tier.repaired, &tier.verdict) {
-                (Some(repaired), _) => repaired.run,
-                (None, Some(verdict)) => verdict.run,
-                (None, None) => continue,
-            };
-            if !words.is_empty() {
-                append(&mut words, b"\n");
-            }
-            append(&mut words, b"Cleared by ");
-            append(&mut words, &tier.tier);
-            append(&mut words, b" run ");
-            append(&mut words, skein_lib::Decimal::of(run).as_bytes());
-            if let Some(repaired) = &tier.repaired {
-                append(&mut words, b", which passed the failures blamed on it");
-                if let Some(by) = &repaired.by {
-                    append(&mut words, b"; repaired by ");
-                    let digits = commit_text(by);
-                    append(&mut words, digits.get(..12).expect("a commit has at least 40 hexadecimal digits"));
-                }
-            }
-            append(&mut words, b".");
-        }
-    }
-    words.into_boxed()
+    forge::change_words::verification_words(
+        &row.change.state,
+        domain.forge.landing_verification(row.repository, merge),
+        domain.forge.change_ends_at_landing(task),
+        domain.forge.change_waits_landed(task),
+        change_cancelled(domain, task),
+        bound,
+    )
 }
 
 fn change_cancelled(domain: &Domain, task: u64) -> bool {
@@ -5341,8 +5282,8 @@ pub(crate) fn outputs(
                     holds::drift(domain, task, &resource);
                 }
             }
-            forge::Request::StatusRun { project, since, words, findings, signers } => {
-                status_route::start_status_run(domain, env, project, since, words, &findings, &signers);
+            forge::Request::StatusRun { project, party, since, words, findings, signers } => {
+                status_route::start_status_run(domain, env, project, party, since, words, &findings, &signers);
             }
             forge::Request::FollowRun { project, follow } => follow_route::start(domain, env, project, follow),
             forge::Request::CancelFollow { project, task, reason } => {

@@ -216,6 +216,13 @@ fn every_new_record_translates_in_both_directions() {
         assert_eq!(e::wire_setting_fault(&client), Ok(wire));
     }
     {
+        let bytes = client_values::value("enum_setting_fault_range_smallest.bin");
+        let wire = w::SettingFault::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
+        let client = t::restore_setting_fault(&wire).unwrap();
+        assert_eq!(client, c::SettingFault::Range);
+        assert_eq!(e::wire_setting_fault(&client), Ok(wire));
+    }
+    {
         let bytes = client_values::value("record_malformed_settings_smallest.bin");
         let wire = w::MalformedSettings::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
         let client = t::restore_malformed_settings(&wire).unwrap();

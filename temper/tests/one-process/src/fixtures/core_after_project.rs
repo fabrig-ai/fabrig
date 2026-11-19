@@ -65,10 +65,11 @@ impl Harness for Incident {
         ] {
             value.jig_over(name, count);
         }
+        value.jig_over("hub.charter_bytes", 65_536);
         value.temper_over("root.journal.run_bytes", 45_000);
         value.temper_over("forge.judge_projects", 3);
-        value["engine"]["llm"]["providers"][0]["sources"]["programs"] = json!(["claude_code"]);
-        value["engine"]["llm"]["providers"][0]["manage_usage"] = "https://provider.example/usage".into();
+        value["world_settings"]["llm"]["providers"][0]["sources"]["programs"] = json!(["claude_code"]);
+        value["world_settings"]["llm"]["providers"][0]["manage_usage"] = "https://provider.example/usage".into();
         value["world_settings"]["adopt_only"] = true.into();
         let grant = |kind| json!({"connector":1,"kind":kind,"pattern":{"segments":["forge","127.0.0.1:3000"],"last":"open","value":"acme"}});
         let tools = 3 | if crate::across_versions::active() { core::ToolFamilies::JIG.read.0 } else { 0 };

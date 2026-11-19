@@ -22,7 +22,7 @@ record Settings { default_branch: bytes 1048576 merge: bool squash: bool rebase:
 enum Role { owned, adopted, fork, context }
 record Kinds { read: bool push: bool open: bool land: bool review: bool status: bool comment: bool issue: bool branch: bool }
 enum RepositoryProtection { unknown, absent, rule: Protection }
-record Adopted { project: u32 contexts: list 65536 u32 home: bool provider: Repository host: bytes 4096 owner: bytes 4096 name: bytes 4096 prefix: bytes 4096 role: Role ci: bool checks: list 1024 u32 kinds: Kinds protection: RepositoryProtection settings: Settings workflows: list 16 bytes 255 }
+record Adopted { project: u32 contexts: list 65536 u32 home: bool provider: Repository host: bytes 4096 owner: bytes 4096 name: bytes 4096 prefix: bytes 4096 role: Role ci: bool checks: list 1024 u32 kinds: Kinds protection: RepositoryProtection settings: Settings workflows: list 16 bytes 255 landing: bytes 4096 = 0x }
 # 04.2: family 3, Hold.
 record RunWriter { task: u64 attempt: u64 }
 enum Writer { run: RunWriter, lost: RunWriter, entry: Number }
@@ -231,7 +231,7 @@ record GoalView { phase: Phase goal: u64 repository: u64 title: text 65536 goal_
 record Projected { opened: bool digest: option fixed 32 last_body: option u64 body_revision: u64 milestones: list 1024 MilestoneKey closed: bool }
 record IssueRow { goal: u64 repository: Repository state: Projected number: option u64 pending: option u64 before: option Projected failed: bool desired: option GoalView }
 # 02.4: family 15, the retained application outcome.
-record ApplicationAdopted { repository: Repository owner: bytes 4096 name: bytes 4096 role: Role home: bool kinds: Kinds protection: RepositoryProtection }
+record ApplicationAdopted { repository: Repository owner: bytes 4096 name: bytes 4096 role: Role home: bool kinds: Kinds protection: RepositoryProtection landing: bytes 4096 = 0x }
 # Ceiling: jig-protocol-store people_v14::Refusal::worst_case_bytes(&people_v14::CEILINGS).
 record CoreRefused { refusal: bytes 517 holds jig-store-people Refusal }
 enum ForgeReason { no_such_forge, not_found, no_access, refused, in_flight, too_large, unreachable, invalid_answer, not_installed, another_project, home_held, prefix_occupied }
@@ -399,8 +399,9 @@ record TemplateGoal { design: bool close_out: bool }
 record ProjectQuestions { route: Route }
 # Landing settings, taken at the next start (domain/landing-settings.md, 1.1).
 enum SettingsLandingWay { queue, turn }
+enum SettingsLandingWait { cleared, landed }
 enum SettingsCombine { merge, squash }
-record ProjectLanding { by: SettingsLandingWay batch: u16 combine_main: SettingsCombine combine_other: SettingsCombine merge_job: option bytes 4096 close_job: option bytes 4096 landing_attempts: u8 check_timeout_ms: option u64 gate_retries: u8 gate_timeout_ms: u64 tier_retries: u8 verification_bound_ms: u64 }
+record ProjectLanding { by: SettingsLandingWay batch: u16 combine_main: SettingsCombine combine_other: SettingsCombine merge_job: option bytes 4096 close_job: option bytes 4096 landing_attempts: u8 check_timeout_ms: option u64 gate_retries: u8 gate_timeout_ms: u64 tier_retries: u8 verification_bound_ms: u64 wait: SettingsLandingWait = cleared }
 enum SettingsReportFormat { junit, lines }
 record SettingsGateReport { artifact: bytes 32 format: SettingsReportFormat fuzzy: option bytes 64 }
 record SettingsGate { name: bytes 32 workflow: bytes 255 ignored: list 1114240 bytes 1024 blocking: bool base: bool report: option SettingsGateReport }
@@ -441,8 +442,12 @@ record GoalFrom { project: u32 chat: u64 goal: u64 at: u64 }
 record KeepAsking { project: u32 subject: ClassSubject at: u64 }
 enum PersonFact { to_begin: ToBegin goal_from: GoalFrom keep_asking: KeepAsking }
 record Dismissed { party: u64 what: PersonFact }
-record LoggedChange { signed: list 8 SignOff task: u64 pull: option u64 title: bytes 256 }
-record LoggedLanding { commit: fixed 32 branch: bytes 4096 at: u64 changes: list 64 LoggedChange }
+record LoggedChange { signed: list 8 SignOff task: u64 pull: option u64 title: bytes 256 goal: option u64 = none milestone: option u64 = none }
+record LoggedCleared { run: u64 }
+record LoggedRed { run: u64 failing: option u32 }
+enum LoggedVerdict { verifying, cleared: LoggedCleared, red: LoggedRed }
+record LoggedTier { tier: bytes 32 verdict: LoggedVerdict }
+record LoggedLanding { commit: fixed 32 branch: bytes 4096 at: u64 changes: list 64 LoggedChange tiers: list 32 LoggedTier = [] }
 record MilestoneLanding { at: u64 goal: u64 change: u64 }
 enum MilestoneOutcome { complete, ended, closed }
 record MilestoneEnd { at: u64 outcome: MilestoneOutcome done: u32 failed: u32 closed: u32 spent: u64 }
@@ -451,7 +456,8 @@ record LandingLog { repository: Repository landings: list 256 LoggedLanding }
 
 record StatusBrief { sentence: bytes 200 lede: bytes 600 at: u64 landed: u64 findings: option fixed 32 = none }
 record StatusRunning { task: option u64 landed: u64 since: u64 findings: option fixed 32 = none }
-record ProjectFacts { project: u32 landed: u64 last_landed: u64 brief: option StatusBrief running: option StatusRunning }
+record ProjectFacts { project: u32 landed: u64 last_landed: u64 }
+record PersonBrief { party: u64 project: u32 brief: option StatusBrief running: option StatusRunning unpaid: option u64 }
 record Looked { party: u64 project: u32 previous: option u64 latest: u64 seen: u64 next_seen: u64 }
 
 record Away { party: u64 project: u32 since: u64 until: option u64 landed: u64 off: option u64 }
@@ -625,7 +631,7 @@ enum Filer { task: Number, party: Number }
 record FindingSignature { repository: Repository source: bytes 64 ids: list 64 bytes 512 first: bytes 512 }
 record Finding { project: u32 number: u32 kind: FindingKind severity: Severity area: option bytes 32 state: FindingState title: bytes 200 body: bytes 4096 filer: Filer at: u64 why: option bytes 200 hander: option Filer goal: option u64 reason: option bytes 400 signature: option FindingSignature seen: option u32 }
 record Device { party: u64 number: u32 endpoint: bytes 1024 p256dh: fixed 65 auth: fixed 16 label: bytes 60 at: u64 }
-enum Value { call: Call, proposed_effect: ProposedEffect, repository: Adopted, hold: Hold, names: Names, subscription: Subscriber, branch_head: BranchHead, pull_state: PullState, ci: CiState, landed: Landed, entry: EntryRow, client: ClientRow, issue: boxed IssueRow, release: ReleaseRow, application: Application, writer: ForgeWriter, binding: Binding, flight: Flight, landing: boxed LandingRow, receipt: ReceiptRow, forge: Forge, forge_number: ForgeNumber, playground: Playground, tier: boxed TierRow, verification: Verification, setting: SettingRow, dismissed: Dismissed, making: RepositoryMaking, landing_log: LandingLog, project_facts: ProjectFacts, looked: Looked, away: Away, decided: Decided, closer: Closer, landed_draft: LandedDraft, follow: boxed FollowRow, device: Device, finding: Finding, history_project: HistoryProject, history_event: HistoryEvent, history_change: HistoryChange, history_landing: HistoryLanding, history_last: HistoryLast, red: Red, red_number: RedNumber, red_pass: RedPass, change_cold: boxed ChangeCold, change_hot: boxed ChangeHot, milestone: MilestoneRow, limit_hold: LimitHold }
+enum Value { call: Call, proposed_effect: ProposedEffect, repository: Adopted, hold: Hold, names: Names, subscription: Subscriber, branch_head: BranchHead, pull_state: PullState, ci: CiState, landed: Landed, entry: EntryRow, client: ClientRow, issue: boxed IssueRow, release: ReleaseRow, application: Application, writer: ForgeWriter, binding: Binding, flight: Flight, landing: boxed LandingRow, receipt: ReceiptRow, forge: Forge, forge_number: ForgeNumber, playground: Playground, tier: boxed TierRow, verification: Verification, setting: SettingRow, dismissed: Dismissed, making: RepositoryMaking, landing_log: LandingLog, project_facts: ProjectFacts, looked: Looked, away: Away, decided: Decided, closer: Closer, landed_draft: LandedDraft, follow: boxed FollowRow, device: Device, finding: Finding, history_project: HistoryProject, history_event: HistoryEvent, history_change: HistoryChange, history_landing: HistoryLanding, history_last: HistoryLast, red: Red, red_number: RedNumber, red_pass: RedPass, change_cold: boxed ChangeCold, change_hot: boxed ChangeHot, milestone: MilestoneRow, person_brief: PersonBrief, limit_hold: LimitHold }
 
 versioned record Row { value: Value }
 

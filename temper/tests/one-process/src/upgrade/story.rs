@@ -79,7 +79,6 @@ struct State {
     issue: bool,
     armed: bool,
     faulted: bool,
-    write_at: Option<u32>,
     disk: Option<Rc<RefCell<skein_fake_machine::Machine>>>,
     task: u64,
     attempt: u64,

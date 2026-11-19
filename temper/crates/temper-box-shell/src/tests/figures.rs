@@ -32,16 +32,17 @@ fn document(root: &std::path::Path) -> (crate::Directories, serde_json::Value) {
             fs::set_permissions(path, fs::Permissions::from_mode(0o600)).expect("private");
         }
     }
-    let mut document = document.expect("init document");
-    for provider in document["engine"]["llm"]["providers"].as_array_mut().expect("providers") {
-        provider["signed_in_plan"] = false.into();
-        provider["sources"].as_object_mut().expect("sources").remove("sign_in");
+    let document = document.expect("init document");
+    let mut providers = temper_service::stock::providers();
+    for value in &mut providers {
+        value.provider.signed_in_plan = false;
+        value.provider.sign_in = None;
+        for endpoint in &mut value.endpoints {
+            endpoint.address = jig_protocol_config::EndpointAddress::Socket(([127, 0, 0, 1], 9).into());
+            endpoint.transport = jig_protocol_config::Transport::Plaintext;
+        }
     }
-    for endpoint in document["engine"]["llm"]["endpoints"].as_array_mut().expect("endpoints") {
-        endpoint["address"] = serde_json::json!({"socket":"127.0.0.1:9"});
-        endpoint["transport"] = "plaintext".into();
-        endpoint.as_object_mut().expect("endpoint").remove("server_name");
-    }
+    temper_service_shell::providers::write(&root.join("providers.setting"), &providers).expect("world providers");
     (dirs, document)
 }
 fn agents(turns: u64) -> w::AgentFigures {
@@ -62,55 +63,105 @@ fn encoded(value: &w::AgentFigures) -> Box<[u8]> {
     value.encode(&mut writer).expect("measured value");
     writer.finish()
 }
+fn stock_defaults(bytes: &[u8], dirs: &crate::Directories) -> temper_service::stock::Given {
+    use jig_protocol_config::{DocumentLimits, read::Object};
+    use temper_service::{limits, startup, stock};
+    let document = jig_protocol_config::document(
+        bytes,
+        &DocumentLimits { bytes: crate::CONFIG_BYTES, tokens: crate::CONFIG_BYTES, depth: 32 },
+    )
+    .expect("fixture document");
+    let at = Object::new(&document, 0).expect("document object").member(&document, b"engine").expect("engine");
+    let engine = startup::engine(&document, at, &temper_service_shell::jig_directories(dirs)).expect("stock engine");
+    let root = limits::engine(&engine.limits, &limits::stock()).expect("stock limits");
+    stock::Given::Own {
+        jig: stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes),
+        forge: stock::forge(&root),
+        ways: stock::ways(),
+    }
+}
 #[test]
 fn startup_pins_composed_default_file_and_fallback_figures() {
-    for case in ["absent", "file", "corrupt"] {
-        let scratch = skein_scratch::Scratch::new(case);
-        let root = scratch.path();
-        let (dirs, document) = document(root);
-        let mut part = temper_service::startup::box_worker(
-            &serde_json::to_vec(&document).expect("JSON"),
-            &temper_service_shell::jig_directories(&dirs),
-            &temper_service::stock::Given::Stock,
-            &temper_service::stock::agents(),
-            &[],
-        )
-        .expect("box part")
-        .expect("worker");
-        serve::box_inputs_worker(&mut part, &dirs).expect("derived program");
-        assert_eq!(part.named.program.as_ref(), std::env::current_exe().expect("exe").as_os_str().as_bytes());
-        assert_eq!(
-            part.named.arguments.as_ref(),
-            [Box::from(b"internal".as_slice()), Box::from(b"agent".as_slice()), part.named.agent.clone()]
-        );
-        let copy = root.join("agents.setting");
-        match case {
-            "file" => served::write_agents(&copy, &encoded(&agents(900))).expect("atomic copy"),
-            "corrupt" => fs::write(&copy, b"not a setting").expect("bad copy"),
-            _ => {}
+    const PROGRAM: &[u8] = b"box startup agent program fixture\n";
+    let scratch = skein_scratch::Scratch::new("startup-figures");
+    let root = scratch.path();
+    let (dirs, document) = document(root);
+    let bytes = serde_json::to_vec(&document).expect("JSON");
+    // All three settings copies use the same stock catalogue, charters and limits.
+    let given = stock_defaults(&bytes, &dirs);
+    let mut part = temper_service::startup::box_worker(
+        &bytes,
+        &temper_service_shell::jig_directories(&dirs),
+        &given,
+        &temper_service::stock::agents(),
+        &[],
+    )
+    .expect("box part")
+    .expect("worker");
+    serve::box_inputs_worker(&mut part, &dirs).expect("derived program");
+    assert_eq!(part.named.program.as_ref(), std::env::current_exe().expect("exe").as_os_str().as_bytes());
+    assert_eq!(
+        part.named.arguments.as_ref(),
+        [Box::from(b"internal".as_slice()), Box::from(b"agent".as_slice()), part.named.agent.clone()]
+    );
+    // Preparation pins a copy, but never runs it: its size is not part of the figures contract.
+    let program = root.join("fixture-agent");
+    fs::write(&program, PROGRAM).expect("fixture program");
+    let setting = encoded(&agents(900));
+    let mut default = temper_agent_fixtures::at(&document, root);
+    default["programs"]["claude_code"]["directory"] = serde_json::json!(root.join("programs"));
+    let mut custom = default.clone();
+    custom["profile"]["policy"]["max_turns"] = 900.into();
+    let copy = root.join("agents.setting");
+    for (case, contents, expected) in [
+        ("absent", None, &default),
+        ("file", Some(setting.as_ref()), &custom),
+        ("corrupt", Some(b"not a setting".as_slice()), &default),
+    ] {
+        if let Some(contents) = contents {
+            served::write_agents(&copy, contents).expect("settings copy");
         }
         let mut owned = Vec::new();
-        let checked = crate::prepare(&[], b"/", &dirs, &serde_json::to_vec(&document).expect("JSON"), &mut owned)
-            .map(|service| service.operations());
+        let checked = serve::prepare_with_limits(
+            "temper-box",
+            &[],
+            b"/",
+            &dirs,
+            &bytes,
+            &mut owned,
+            false,
+            false,
+            None,
+            None,
+            &given,
+            Some(&program),
+            false,
+            &[],
+            None,
+        )
+        .map(|(service, _, _)| service.operations());
         crate::close(owned);
         let operations = checked.unwrap_or_else(|why| panic!("{case}: {why}"));
         assert!(operations > 0);
         let pinned = root.join("workspaces/agent/agent.json");
-        let actual: serde_json::Value =
+        let configuration: serde_json::Value =
             serde_json::from_slice(&fs::read(&pinned).expect("pinned agent")).expect("agent JSON");
-        let mut expected = temper_agent_fixtures::configuration(&document);
-        expected["programs"]["claude_code"]["directory"] = serde_json::json!(root.join("programs"));
-        if case == "file" {
-            expected["profile"]["policy"]["max_turns"] = 900.into();
-        }
-        assert_eq!(actual, expected, "{case}");
-        assert!(
-            fs::metadata(
-                root.join("workspaces/agent").join(std::env::current_exe().expect("exe").file_name().expect("name"))
-            )
-            .expect("derived program pinned")
-            .is_file()
-        );
+        let mut expected = expected.clone();
+        // The selected port is pinned against the retained listener in the box-start test below.
+        expected["endpoints"]
+            .as_array_mut()
+            .expect("expected endpoints")
+            .iter_mut()
+            .find(|endpoint| endpoint["name"] == "demo")
+            .expect("scripted endpoint")["address"] = configuration["endpoints"]
+            .as_array()
+            .expect("actual endpoints")
+            .iter()
+            .find(|endpoint| endpoint["name"] == "demo")
+            .expect("scripted endpoint")["address"]
+            .clone();
+        assert_eq!(configuration, expected, "{case}");
+        assert_eq!(fs::read(root.join("workspaces/agent/fixture-agent")).expect("pinned program"), PROGRAM, "{case}");
         assert!(!root.join("agent.json").exists());
     }
 }
@@ -162,28 +213,73 @@ fn box_refuses_moved_worker_members_and_agent_file_by_name() {
 #[test]
 fn box_refuses_sixty_five_endpoints_before_composing() {
     let scratch = skein_scratch::Scratch::new("box-endpoints");
-    let (dirs, mut document) = document(scratch.path());
-    let first = document["engine"]["llm"]["endpoints"][0].clone();
-    document["engine"]["llm"]["endpoints"] = (1..=65)
+    let (dirs, document) = document(scratch.path());
+    let mut providers = temper_service::stock::providers().into_vec();
+    providers.truncate(1);
+    let first = providers[0].endpoints[0].clone();
+    providers[0].endpoints = (1..=65)
         .map(|number| {
             let mut endpoint = first.clone();
-            endpoint["number"] = number.into();
-            endpoint["name"] = if number == 1 { "openai".into() } else { format!("endpoint-{number}").into() };
+            endpoint.number = number;
+            endpoint.name = if number == 1 {
+                b"openai".as_slice().into()
+            } else {
+                format!("endpoint-{number}").into_bytes().into_boxed_slice()
+            };
             endpoint
         })
         .collect();
-    // Keep the program provider's named endpoints: the count check comes before composition.
-    document["engine"]["llm"]["providers"].as_array_mut().expect("providers").truncate(1);
+    let given = temper_service::stock::Given::Stock.with_providers(providers.into_boxed_slice(), Box::new([]));
     let why = temper_service::startup::box_worker(
         &serde_json::to_vec(&document).expect("JSON"),
         &temper_service_shell::jig_directories(&dirs),
-        &temper_service::stock::Given::Stock,
+        &given,
         &temper_service::stock::agents(),
         &[],
     )
     .expect_err("endpoint bound");
     assert!(
         String::from_utf8_lossy(&temper_service::startup::lines(&why))
-            .contains("engine.llm: 65 endpoints, at most 64, the workers' figures carry no more")
+            .contains("providers.setting: 65 endpoints, at most 64, the workers' figures carry no more")
     );
+}
+
+#[test]
+fn every_box_pins_the_chosen_scripted_listener_in_its_fixed_provider_and_worker() {
+    let preferred = std::net::TcpListener::bind(crate::scripted::PREFERRED).ok();
+    let listener = crate::scripted::choose().unwrap();
+    let address = listener.local_addr().unwrap();
+    assert!(address.ip().is_loopback());
+    assert_ne!(address.port(), 0);
+    if preferred.is_some() {
+        assert_ne!(address.port(), 8370);
+    }
+    let scratch = skein_scratch::Scratch::new("scripted-start");
+    let (dirs, document) = document(scratch.path());
+    let given = crate::scripted::given(&dirs, &temper_service::stock::Given::Stock, address);
+    let bytes = serde_json::to_vec(&document).unwrap();
+    let jig = temper_engine_shell::serve::settings(&bytes, &dirs, &given);
+    let core = jig_protocol_config::core(&jig, [1; 16], 1);
+    assert_eq!(core.fixed_providers.as_ref(), &[temper_service::stock::scripted(address)]);
+    assert!(jig.llm.providers.iter().any(|provider| provider.number == 3));
+    let demo =
+        crate::setup::check_with(&bytes, &temper_service_shell::jig_directories(&dirs), &given).unwrap().demo.unwrap();
+    assert_eq!(demo.llm().listen(), address);
+    let environment = [(Box::from(crate::scripted::ADDRESS), address.to_string().into_bytes().into_boxed_slice())];
+    let mut owned = Vec::new();
+    let prepared = crate::prepare(&environment, b"/", &dirs, &bytes, &mut owned).unwrap();
+    drop(prepared);
+    crate::close(owned);
+    let actual: serde_json::Value =
+        serde_json::from_slice(&fs::read(scratch.path().join("workspaces/agent/agent.json")).unwrap()).unwrap();
+    let endpoint = actual["endpoints"].as_array().unwrap().iter().find(|endpoint| endpoint["name"] == "demo").unwrap();
+    assert_eq!(endpoint["number"], 3);
+    assert_eq!(endpoint["dialect"], 3);
+    assert_eq!(endpoint["address"], address.to_string());
+    assert_eq!(endpoint["transport"], "plaintext");
+    assert_eq!(endpoint["connect"], 10000);
+    assert_eq!(endpoint["handshake"], 10000);
+    let copy =
+        temper_service_shell::providers::read(&scratch.path().join("providers.setting"), Box::new([]), &mut Vec::new());
+    assert!(copy.iter().all(|provider| provider.provider.number != 3));
 }

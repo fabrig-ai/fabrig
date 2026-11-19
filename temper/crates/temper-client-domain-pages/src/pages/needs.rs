@@ -302,7 +302,9 @@ impl Session {
         }
         Count {
             count: count.checked_add(self.findings.count(Some(project))).expect("needs fit"),
-            cut: inbox.next.is_some() || approvals.more() > 0 || self.findings.cut(Some(project)),
+            cut: (inbox.next.is_some() && inbox.updates.is_empty())
+                || approvals.more() > 0
+                || self.findings.cut(Some(project)),
         }
     }
     /// The rail's count across projects, each need once, with all approvals.
@@ -324,7 +326,7 @@ impl Session {
         }
         Count {
             count: count.checked_add(self.findings.count(None)).expect("needs fit"),
-            cut: inbox.next.is_some() || approvals.more() > 0 || self.findings.cut(None),
+            cut: (inbox.next.is_some() && inbox.updates.is_empty()) || approvals.more() > 0 || self.findings.cut(None),
         }
     }
     #[must_use]

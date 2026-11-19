@@ -454,6 +454,7 @@ impl World {
                 queued: 0,
                 red: false,
                 branch: b"main".as_slice().into(),
+                unpaid: self.rng.below(2) == 0,
             },
         )
         .expect("bounded density fixture");
@@ -828,6 +829,31 @@ fn check_cards(world: &World, open: &[c::ObjectKey], count: u32) {
     }
 }
 
+fn check_unpaid_line(world: &mut World, view: &mut temper_client_view::View) {
+    let expected = match *world.root.pages().address() {
+        Address::Home { project } => {
+            let page = home::facts(&world.root, project, world.env.wall);
+            let unpaid = match &page.status {
+                home::Status::Shown(document) => document.unpaid(),
+                home::Status::Unknown => false,
+            };
+            !page.to_begin() && !fresh(&page.status) && unpaid
+        }
+        Address::AllHome | Address::Inbox { .. } => false,
+        _ => unreachable!("density pages"),
+    };
+    temper_client_view::build(view, &world.root, world.env.wall, &mut Queue::uncapped());
+    let count = view
+        .tree()
+        .nodes()
+        .iter()
+        .flat_map(|node| node.text.iter())
+        .filter(|run| run.text.as_ref() == b"No brief: no account pays for your work here.")
+        .count();
+    assert_eq!(count, usize::from(expected), "only an unpaid project without a new brief explains it");
+    world.observed.insert(if expected { "unpaid line" } else { "no unpaid line" });
+}
+
 fn check_approval_sizes(world: &mut World, view: &mut temper_client_view::View) {
     use temper_client_view::look;
     let inbox = world.root.pages().inbox().expect("density inbox");
@@ -1056,6 +1082,7 @@ fn sweep(seed: u64, words: &temper_client_view::words::Words) -> BTreeSet<&'stat
             _ => unreachable!("seventeen generator moves"),
         }
         world.drain();
+        check_unpaid_line(&mut world, &mut view);
         check_approval_sizes(&mut world, &mut view);
     }
     world.observed
@@ -1091,6 +1118,8 @@ fn random_facts_and_settings_keep_each_part_and_card() {
             "no decisions",
             "new brief",
             "no new brief",
+            "unpaid line",
+            "no unpaid line",
             "relations showing",
             "no relations",
             "held answer",

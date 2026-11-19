@@ -1056,6 +1056,12 @@ hand-written impls of std traits for its own types, `Vec`, `BTreeMap` and
 container's capacity. It is written once and tested hard. Application code
 does not hand-roll data structures: what is missing goes into lib.
 
+`skein-codec` takes lib's exception for its codecs alone: the `Record`
+trait and the generic helpers that check, measure, encode, decode and
+bound each kind of field. Generated codec code implements `Record` and
+calls them; no hand-written code implements it (skein's
+../design/data/codec/README.md, sections 1 and 4).
+
 The shell, the simulator and tests are ordinary Rust, with `unsafe`
 confined to the ring adapter in code a service runs, and in tests to the
 counting allocator's `unsafe impl GlobalAlloc` and the fork kit's one

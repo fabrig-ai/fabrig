@@ -140,15 +140,14 @@ pub(super) fn stock_figures() -> w::Figures {
     let mut input: serde_json::Value =
         serde_json::from_slice(include_bytes!("../../../temper-init/template/temper.json")).unwrap();
     input["engine"]["clients"]["provider"] = serde_json::Value::Null;
-    for endpoint in input["engine"]["llm"]["endpoints"].as_array_mut().unwrap() {
-        if endpoint["address"]["socket"] == "$llm" {
-            endpoint["address"]["socket"] = "127.0.0.1:8370".into();
-        }
-    }
     let input = serde_json::to_vec(&input["engine"]).unwrap();
     let document =
         config::document(&input, &config::DocumentLimits { bytes: 1_048_576, tokens: 65_536, depth: 32 }).unwrap();
-    let engine = temper_engine_service_startup::startup::engine(&document, 0, &config::Directories::working()).unwrap();
+    let given = stock::Given::Stock
+        .with_providers(stock::providers(), Box::new([stock::scripted(([127, 0, 0, 1], 8370).into())]));
+    let engine =
+        temper_engine_service_startup::startup::engine_with(&document, 0, &config::Directories::working(), &given)
+            .unwrap();
     let mut own = limits::stock();
     limits::derive(&mut own, temper_service_core::derived::STOCK).unwrap();
     let mut figures =

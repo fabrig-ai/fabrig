@@ -406,6 +406,7 @@ fn review_values_hold_at_the_document_bound_and_give_the_size_one_past_it() {
             s::Value::Template(value) => s::Setting::Template(value.number),
             s::Value::Policy(_) => s::Setting::Policy(1),
             s::Value::Worker(value) => s::Setting::Worker(value.number),
+            s::Value::Provider(value) => s::Setting::Provider(value.provider.number),
             s::Value::Model(value) => s::Setting::Model(value.number),
             s::Value::Limits(_) => s::Setting::Limits,
             s::Value::Rules(_) => s::Setting::Rules,
@@ -786,10 +787,10 @@ fn overlays_cross_engine_changes_and_setting_reads_without_losing_presence() {
 }
 
 #[test]
-fn worker_settings_and_linked_facts_cross_client_wire_27() {
+fn worker_settings_and_linked_facts_cross_client_wire() {
     use jig_client_domain::contract as c;
     use jig_client_protocol_link::translate::settings as client;
-    assert_eq!(jig_client_protocol_wire::VERSION, 35);
+    assert_eq!(jig_client_protocol_wire::VERSION, 37);
     for digest in [None, Some([9; 32])] {
         let source = s::Value::Worker(Box::new(s::WorkerSetting {
             number: 2,

@@ -1209,6 +1209,12 @@ pub fn answer(
                     w::AdoptedParts {
                         forge: a.repository.forge,
                         repository: a.repository.repository,
+                        // A made repository can name a plan branch past the client's adoption bound.
+                        landing: if a.landing.len() <= skein_lib::usize_of(limits.adopted_landing) {
+                            a.landing
+                        } else {
+                            Box::new([])
+                        },
                         owner: a.owner,
                         name: a.name,
                         role: encoded_role(a.role),
@@ -1750,6 +1756,7 @@ fn project_status(value: forge::StatusView, limits: &w::Limits) -> Option<Box<[u
             queued: value.queued,
             red: value.red,
             branch: value.branch,
+            unpaid: value.unpaid,
         },
     )
     .ok()?;

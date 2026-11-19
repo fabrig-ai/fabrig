@@ -1,6 +1,6 @@
 # configuration: status
 
-2026-11-17. Where jig's code lags or departs from [configuration.md](configuration.md).
+2026-11-18. Where jig's code lags or departs from [configuration.md](configuration.md).
 
 
 - **Not yet:** 3: a provider's `direct` endpoint, its checks, and a list read on it [in flight: change 927].

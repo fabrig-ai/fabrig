@@ -177,11 +177,31 @@ fn standard_changes_at_the_tier_bound_fit_the_stock_store() {
 }
 
 #[test]
-fn test_id_bytes_past_the_store_ceiling_refuses_both_startup_routes() {
+#[expect(clippy::disallowed_macros, reason = "the test formats override documents and their expected diagnostics")]
+fn test_id_bytes_past_the_signature_bound_refuses_both_startup_routes() {
+    for bytes in [513_u32, 1025] {
+        let member = format!(r#"{{"profile":"standard","overrides":{{"forge.tiers.test_id_bytes":{bytes}}}}}"#);
+        let document = fixtures::with(&fixtures::document(), b"application.limits", member.as_bytes());
+        let directories = jig_protocol_config::Directories::working();
+        let starting = crate::startup::named(&document, &directories).expect_err("startup refuses past the signature");
+        let reading =
+            crate::startup::store_limits(&document, &directories, Some(&fixtures::startup_agent().declaration()))
+                .unwrap_err();
+        for problems in [starting, reading] {
+            assert_eq!(
+                crate::startup::lines(&problems).as_ref(),
+                format!("application.limits.overrides.forge.tiers.test_id_bytes: {bytes}, past its bound of 512, the most a finding's signature holds of a test's id\n").as_bytes(),
+            );
+        }
+    }
+}
+
+#[test]
+fn tier_failing_tests_past_the_signature_bound_refuses_both_startup_routes() {
     let document = fixtures::with(
         &fixtures::document(),
         b"application.limits",
-        br#"{"profile":"standard","overrides":{"forge.tiers.test_id_bytes":1025}}"#,
+        br#"{"profile":"standard","overrides":{"forge.tiers.failing_tests":65}}"#,
     );
     let directories = jig_protocol_config::Directories::working();
     let starting = fixtures::named(&document, &directories).unwrap_err();
@@ -191,24 +211,24 @@ fn test_id_bytes_past_the_store_ceiling_refuses_both_startup_routes() {
     for problems in [starting, reading] {
         assert_eq!(
             crate::startup::lines(&problems).as_ref(),
-            b"application.limits.overrides.forge.tiers.test_id_bytes: 1025, past its bound of 1024, the most the store holds of a failing test's id\n",
+            b"application.limits.overrides.forge.tiers.failing_tests: 65, past its bound of 64, the most a finding's signature holds of a tier's failing tests\n",
         );
     }
 }
 
 #[test]
-fn test_id_bytes_at_the_store_ceiling_passes_both_startup_routes() {
+fn tier_limits_at_the_signature_bounds_pass_both_startup_routes() {
     let document = fixtures::with(
         &fixtures::document(),
         b"application.limits",
-        br#"{"profile":"standard","overrides":{"forge.tiers.test_id_bytes":1024}}"#,
+        br#"{"profile":"standard","overrides":{"forge.tiers.failing_tests":64,"forge.tiers.test_id_bytes":512}}"#,
     );
     let directories = jig_protocol_config::Directories::working();
-    fixtures::named(&document, &directories).expect("the store's test id ceiling passes startup");
-    let reading =
-        fixtures::document_store_limits(&document, &directories, Some(&fixtures::startup_agent().declaration()))
-            .expect("the store's test id ceiling passes its reader");
-    assert_eq!(reading.forge.tiers.test_id_bytes, 1024);
+    fixtures::named(&document, &directories).expect("the signature's tier bounds pass startup");
+    let reading = fixtures::document_store_limits(&document, &directories, Some(&fixtures::startup_agent().declaration()))
+        .expect("the signature's tier bounds pass its reader");
+    assert_eq!(reading.forge.tiers.failing_tests, 64);
+    assert_eq!(reading.forge.tiers.test_id_bytes, 512);
 }
 
 #[test]
@@ -717,7 +737,7 @@ fn secrets_schema_fits_the_small_page_ceiling() {
     const KEY_BYTES: u64 = 10;
     let (_, _, profile) = fixtures::store_limits();
     assert_eq!(v1::Stored::encoded_bound(&v1::CEILINGS), Some(APPLICATION_BYTES));
-    assert_eq!(profile.store.page.bytes, 4_582_931);
+    assert_eq!(profile.store.page.bytes, 39_714_179);
     assert!(APPLICATION_BYTES + KEY_BYTES < u64::from(profile.store.page.bytes));
 }
 
@@ -1067,5 +1087,39 @@ fn the_engine_declares_prepare_only_with_its_tasks_child_room() {
         jig.core.tasks.spec_bytes = spec;
         jig.core.tasks.result_bytes = result;
         assert_eq!(limits::jobs(&jig).contains(&bound), admitted);
+    }
+}
+
+#[test]
+fn pending_landings_past_the_store_ceiling_refuse_both_startup_routes() {
+    let document = fixtures::with(
+        &fixtures::document(),
+        b"application.limits",
+        br#"{"profile":"standard","overrides":{"forge.landings_pending":241}}"#,
+    );
+    let directories = jig_protocol_config::Directories::working();
+    for problems in [
+        fixtures::named(&document, &directories).unwrap_err(),
+        crate::startup::store_limits(&document, &directories, Some(&fixtures::startup_agent().declaration()))
+            .unwrap_err(),
+    ] {
+        assert_eq!(crate::startup::lines(&problems).as_ref(), b"application.limits.overrides.forge.landings_pending: 241, past its bound of 240, the most the store's landing log holds beside forge.landings_kept 16 (within 256)\n");
+    }
+}
+
+#[test]
+fn pending_landings_and_members_share_the_store_comment_ceiling() {
+    let document = fixtures::with(
+        &fixtures::document(),
+        b"application.limits",
+        br#"{"profile":"standard","overrides":{"forge.landings_pending":112,"forge.landing_members":64}}"#,
+    );
+    let directories = jig_protocol_config::Directories::working();
+    for problems in [
+        fixtures::named(&document, &directories).unwrap_err(),
+        crate::startup::store_limits(&document, &directories, Some(&fixtures::startup_agent().declaration()))
+            .unwrap_err(),
+    ] {
+        assert_eq!(crate::startup::lines(&problems).as_ref(), b"application.limits.overrides.forge.landings_pending: 112, past its bound of 100, the most the store's tier comments hold ((forge.landings_kept + forge.landings_pending) * forge.landing_members + forge.changes within 8192)\n");
     }
 }

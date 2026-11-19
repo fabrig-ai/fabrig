@@ -24,11 +24,10 @@ fn generated_files() -> temper_init::Answer {
             git: Some(b"/bin/git"),
             claude: None,
             login: Some(b"ada"),
-            ports: temper_init::Ports { clients: port(8367), llm: port(8370), webhooks: port(8371) },
+            ports: temper_init::Ports { clients: port(8367), webhooks: port(8371) },
         },
         &temper_init::Directories { config: b"/config", data: b"/data" },
         &[0; 32],
-        &[1; 32],
     )
     .expect("actual init producer")
 }

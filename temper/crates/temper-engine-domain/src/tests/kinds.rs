@@ -1034,6 +1034,7 @@ fn a_proposals_items_say_whether_an_approval_covers_an_owned_forgejo() {
         config.forges.first_mut().unwrap().mode = mode;
         let repository = forge::Repository {
             contexts: Box::new([]),
+            landing: b"main".as_slice().into(),
             workflows: Box::default(),
             project: PROJECT,
             home: true,
@@ -1419,6 +1420,7 @@ fn follow_repository(number: u32, role: forge::Role, push: bool) -> forge::Repos
             squash: false,
             rebase: false,
         },
+        landing: if role == forge::Role::Context { b"main".as_slice().into() } else { b"stable".as_slice().into() },
         workflows: Box::new([]),
     }
 }

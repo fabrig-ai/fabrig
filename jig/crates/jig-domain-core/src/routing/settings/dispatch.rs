@@ -43,7 +43,7 @@ fn start_at(
         .saturating_sub(1)
         .saturating_sub(people::outputs_bound(&env.limits.people));
     core.settings_input = Some((
-        match s::change_shape(&change.items, &env.limits) {
+        match s::check::check_edits(&core.current, &change.items, &env.limits) {
             Ok(()) => Ok(change),
             Err(failure) => Err(malformed_refusal(&change.items, failure)),
         },
@@ -213,16 +213,44 @@ fn preflight(
     if change.against != core.current.newest() {
         return Err(people::Refusal::Stale { newest: core.current.newest() });
     }
-    if let Err(failure) = s::change_shape(&change.items, &env.limits) {
+    if let Err(failure) = s::check::check_edits(&core.current, &change.items, &env.limits) {
         return Err(malformed_refusal(&change.items, failure));
     }
     if let Err(failure) = s::application::check(core, &change.items) {
         return Err(malformed_refusal(&change.items, failure));
     }
     for item in &change.items {
+        let removed = match item.edit {
+            s::Edit::Removed => true,
+            s::Edit::Set(_) | s::Edit::Reset => false,
+        };
+        match item.setting {
+            s::Setting::Provider(number) if s::providers::fixed(&core.current, number) => {
+                return Err(malformed_refusal(
+                    &change.items,
+                    s::Failure { setting: item.setting, fault: s::Fault::Shape, detail: None },
+                ));
+            }
+            s::Setting::Provider(number) if removed && core.accounts.holds_provider(number) => {
+                return Err(malformed_refusal(
+                    &change.items,
+                    s::Failure { setting: item.setting, fault: s::Fault::Accounts, detail: None },
+                ));
+            }
+            s::Setting::Provider(_)
+            | s::Setting::Worker(_)
+            | s::Setting::Charter(_)
+            | s::Setting::Template(_)
+            | s::Setting::Policy(_)
+            | s::Setting::Rules
+            | s::Setting::Model(_)
+            | s::Setting::Application { .. }
+            | s::Setting::ProjectPolicy { .. } => {}
+        }
         let number = match item.setting {
             s::Setting::Worker(number) => number,
-            s::Setting::Rules
+            s::Setting::Provider(_)
+            | s::Setting::Rules
             | s::Setting::Limits
             | s::Setting::Policy(_)
             | s::Setting::Charter(_)
@@ -295,10 +323,10 @@ fn decide_with(
     if change.against != previous {
         return Err(people::Refusal::Stale { newest: previous });
     }
+    preflight(core, env, &change, proposal)?;
     if kept.is_empty() && !project_policy::changes(core, &change.items) {
         return Err(people::Refusal::NotWellFormed { at: 0, why: people::Malformed::SettingsUnchanged });
     }
-    preflight(core, env, &change, proposal)?;
     match by {
         s::Decider::Party(person) => {
             for item in &change.items {
@@ -353,6 +381,7 @@ fn decide_with(
     let mut charters = version_items.len() > change.items.len();
     let mut models = false;
     let mut workers = false;
+    let mut providers = false;
     for item in &change.items {
         if s::changes_current(&core.current, core::slice::from_ref(item)) {
             match item.setting {
@@ -361,6 +390,7 @@ fn decide_with(
                 s::Setting::Rules => rules = true,
                 s::Setting::Model(_) => models = true,
                 s::Setting::Worker(_) => workers = true,
+                s::Setting::Provider(_) => providers = true,
                 s::Setting::Limits | s::Setting::Application { .. } | s::Setting::ProjectPolicy { .. } => {}
             }
         }
@@ -382,6 +412,7 @@ fn decide_with(
             s::Setting::Charter(_)
             | s::Setting::Template(_)
             | s::Setting::Policy(_)
+            | s::Setting::Provider(_)
             | s::Setting::Worker(_)
             | s::Setting::Model(_)
             | s::Setting::Rules
@@ -438,6 +469,9 @@ fn decide_with(
         routed.out.push(Request::Write(write));
     }
     withdraw_stale(core, env, &mut routed.out, proposal);
+    if providers {
+        core.tell_providers(&mut routed.out);
+    }
     if workers {
         core.tell_workers(&env.limits, &mut routed.out);
     }
@@ -817,7 +851,7 @@ pub(super) fn prepare_proposal(core: &mut Core, env: &Env<Limits>, against: u32,
             detail: None,
         })
     } else {
-        match s::change_shape(&items, &env.limits) {
+        match s::check::check_edits(&core.current, &items, &env.limits) {
             Ok(()) => Ok(Box::new(s::Proposal { key: None, applications: Box::default(), against, items })),
             Err(failure) => Err(people::Malformed::Settings {
                 setting: failure.setting,

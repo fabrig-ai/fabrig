@@ -84,8 +84,8 @@ fn walking_and_effect_scripts_check_the_counted_heap_at_every_iteration() {
     effects.restart(191, false);
 }
 
-// Peak 14,080 bytes measured 10-29; testing-strategy.md 6.
-const SCENARIO_FAMILY_HEAP_CEILING: u64 = 18_000;
+// Peak 20,334 bytes with provider defaults and their startup snapshot; measured plus a quarter, rounded up.
+const SCENARIO_FAMILY_HEAP_CEILING: u64 = 26_000;
 
 // Each named scenario preserves its own fixture and original assertions.
 #[test]

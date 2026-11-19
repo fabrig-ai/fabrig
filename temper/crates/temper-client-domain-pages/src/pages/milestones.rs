@@ -158,7 +158,6 @@ impl MilestoneRead {
                 out.push(Request::Client(jig_client::Event::Read { handle: self.totals_read, read }));
             } else {
                 self.totals_at = self.reading_totals.take();
-                self.totals = None;
             }
         }
         self.merge(client);
@@ -200,45 +199,47 @@ impl MilestoneRead {
             }
             Told::Page { handle, page } if *handle == self.task_read => {
                 self.document_at = self.reading_document.take();
-                self.document = document(page, self.task);
-                self.facts = match &self.document {
-                    Some(task) => Some(facts::facts(task)),
-                    None => None,
-                };
+                if let Some(task) = document(page, self.task) {
+                    self.facts = Some(facts::facts(&task));
+                    self.document = Some(task);
+                }
                 true
             }
             Told::Page { handle, page } if *handle == self.totals_read => {
                 self.totals_at = self.reading_totals.take();
-                self.totals = match forge::milestones::answer(page, &limits.forge) {
-                    Some(w::MilestoneResult::Totals(totals)) if totals.task() == self.task => Some(totals),
-                    Some(w::MilestoneResult::Totals(_) | w::MilestoneResult::NotMilestone) | None => None,
-                };
+                match forge::milestones::answer(page, &limits.forge) {
+                    Some(w::MilestoneResult::Totals(totals)) if totals.task() == self.task => {
+                        self.totals = Some(totals);
+                    }
+                    Some(w::MilestoneResult::NotMilestone) => self.totals = None,
+                    Some(w::MilestoneResult::Totals(_)) | None => {}
+                }
                 true
             }
             Told::Page { handle, page } if *handle == self.ended => {
                 let mut following = None;
-                if self.pages == 0 {
-                    self.ended_rows = Map::uncapped();
-                    self.ended_more = false;
-                    self.ended_mark = None;
-                }
-                self.pages = self.pages.checked_add(1).expect("bounded ended pages");
-                if let Readout::Jig(c::ReadResult::Value(c::ReadValue::Tasks(page))) = page
-                    && let c::EndedGroup::Rows { rows, after, cut } = &page.ended
-                {
+                if let Readout::Jig(c::ReadResult::Value(c::ReadValue::Tasks(page))) = page {
+                    if self.pages == 0 {
+                        self.ended_rows = Map::uncapped();
+                        self.ended_more = false;
+                        self.ended_mark = None;
+                    }
+                    self.pages = self.pages.checked_add(1).expect("bounded ended pages");
                     self.ended_answered = true;
                     if self.pages == 1 {
                         self.ended_mark = Some(page.ended_mark);
                     }
-                    for row in rows {
-                        self.ended_rows.insert(row.chip.task, row.clone()).expect("bounded delivered rows");
-                    }
-                    self.ended_more |= *cut;
-                    if let Some(after) = after {
-                        if self.pages < PAGES {
-                            following = Some(after.clone());
-                        } else {
-                            self.ended_more = true;
+                    if let c::EndedGroup::Rows { rows, after, cut } = &page.ended {
+                        for row in rows {
+                            self.ended_rows.insert(row.chip.task, row.clone()).expect("bounded delivered rows");
+                        }
+                        self.ended_more |= *cut;
+                        if let Some(after) = after {
+                            if self.pages < PAGES {
+                                following = Some(after.clone());
+                            } else {
+                                self.ended_more = true;
+                            }
                         }
                     }
                 }
@@ -280,9 +281,18 @@ impl MilestoneRead {
                 rows.insert(row.chip.task, row.clone()).expect("bounded delivered rows");
             }
         }
-        self.goals.clear();
+        let previous = core::mem::replace(&mut self.goals, List::uncapped());
         for (_, row) in &rows {
-            self.goals.push(row.clone()).expect("bounded delivered rows");
+            let mut row = row.clone();
+            if parts::goal(&row).is_none() {
+                for prior in &previous {
+                    if prior.chip.task == row.chip.task {
+                        row.parts.clone_from(&prior.parts);
+                        break;
+                    }
+                }
+            }
+            self.goals.push(row).expect("bounded delivered rows");
         }
     }
     /// Both groups of goals and the totals have answered, including a known empty list.
@@ -367,6 +377,8 @@ pub struct Milestones {
     ended_read: super::ended::EndedRead,
     lines: List<c::TaskLine>,
     drawn: List<Milestone>,
+    // Together with drawn, one kept projection per listed task, including old ended rows.
+    undrawn: Map<u64, Milestone>,
 }
 impl Milestones {
     #[must_use]
@@ -380,6 +392,7 @@ impl Milestones {
             ended_read: super::ended::EndedRead::new(),
             lines: List::uncapped(),
             drawn: List::with_capacity(DRAWN),
+            undrawn: Map::uncapped(),
         }
     }
     pub fn configure(
@@ -403,6 +416,7 @@ impl Milestones {
             self.ended_rows.clear();
             self.ended_read = super::ended::EndedRead::new();
             self.drawn.clear();
+            self.undrawn = Map::uncapped();
             if let Some(query) = query {
                 out.push(Request::Client(jig_client::Event::Watch {
                     handle: self.live,
@@ -444,14 +458,28 @@ impl Milestones {
         let mut drawn = List::with_capacity(DRAWN);
         let link = jig_client_protocol_link::Limits::new(limits.client.domain, limits.client.exchanges)
             .expect("validated client limits");
+        let previous = core::mem::replace(&mut self.drawn, List::with_capacity(DRAWN));
+        for milestone in previous.into_boxed() {
+            self.undrawn.insert(milestone.task, milestone).expect("held milestones fit");
+        }
+        let mut held = Map::uncapped();
+        for line in &self.lines {
+            let fresh = Milestone::from_line(line, &link);
+            let milestone =
+                if fresh.totals.is_some() { fresh } else { self.undrawn.remove(&line.chip.task).unwrap_or(fresh) };
+            held.insert(line.chip.task, milestone).expect("one part per listed milestone");
+        }
         for ordered in [&live, &ended] {
             for (_, line) in ordered {
                 if drawn.room() == 0 {
                     break;
                 }
-                drawn.push(Milestone::from_line(line, &link)).expect("drawn bound checked");
+                if let Some(milestone) = held.remove(&line.chip.task) {
+                    drawn.push(milestone).expect("drawn bound checked");
+                }
             }
         }
+        self.undrawn = held;
         self.drawn = drawn;
     }
     fn read_ended(&mut self, out: &mut Queue<Request>) {
@@ -559,8 +587,21 @@ impl Milestones {
         None
     }
     #[must_use]
-    pub fn of(&self, line: &c::TaskLine) -> Option<u64> {
-        facts::of(line)
+    pub fn of(&self, line: &c::TaskLine, goals: &super::goals::Goals) -> Option<u64> {
+        if let Some(milestone) = goals.membership(line.chip.task) {
+            return milestone;
+        }
+        if let Some(part) = parts::goal(line) {
+            return part.into_parts().milestone;
+        }
+        for milestone in &self.drawn {
+            for goal in &milestone.goals {
+                if goal.chip.task == line.chip.task {
+                    return Some(milestone.task);
+                }
+            }
+        }
+        None
     }
 }
 

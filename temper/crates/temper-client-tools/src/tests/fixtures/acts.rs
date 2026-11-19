@@ -94,6 +94,8 @@ const RESTORED: u32 = 1;
 /// Common explicit name for optional-key acts, independent of each process.
 pub(crate) const DECIDE_TASK_CALL: &[&str] = &["proposal", "decide", "t41/17", "accept", "--key", "act-name"];
 pub(crate) const DECIDE_PARTY_CALL: &[&str] = &["proposal", "decide", "p73/17", "accept", "--key", "act-name"];
+/// Withdrawal needs its printed project, not a proposal read.
+pub(crate) const WITHDRAW_CALL: &[&str] = &["proposal", "withdraw", "p73/17", "--project", "1", "--key", "withdraw"];
 pub(crate) const DECIDE_ESCALATION_CALL: &[&str] =
     &["task", "decide", "41", "release", "--hold", "2", "--key", "act-name"];
 /// A move needs a sibling delegate left to cancel; one would miss that distinction.

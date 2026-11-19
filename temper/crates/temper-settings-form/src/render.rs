@@ -12,6 +12,7 @@ pub fn setting_text(setting: c::Setting, out: &mut Text) {
         c::Setting::Policy(n) => (b"policy".as_slice(), Some(n.number)),
         c::Setting::Model(n) => (b"model".as_slice(), Some(n.number)),
         c::Setting::Worker(n) => (b"worker".as_slice(), Some(n.number)),
+        c::Setting::Provider(n) => (b"provider".as_slice(), Some(n.number)),
         c::Setting::Application { kind: 1 | 2, scope, number } => {
             out.put(b"landing-rule ");
             out.number(u64::from(number));
@@ -112,6 +113,7 @@ pub fn encode_setting(setting: c::Setting, out: &mut Encoder) {
         c::Setting::Policy(n) => (b"policy".as_slice(), Some(n.number)),
         c::Setting::Model(n) => (b"model".as_slice(), Some(n.number)),
         c::Setting::Worker(n) => (b"worker".as_slice(), Some(n.number)),
+        c::Setting::Provider(n) => (b"provider".as_slice(), Some(n.number)),
         c::Setting::Application { kind, scope, number } => {
             out.object_start();
             out.key(b"kind");
@@ -235,6 +237,7 @@ fn named_value_text(
 }
 pub fn encode_value(value: &c::SettingValue, out: &mut Encoder) {
     match value {
+        c::SettingValue::Provider(value) => crate::providers::encode(value, out),
         c::SettingValue::Overlay(v) => values::encode_overlay(v, out),
         c::SettingValue::Worker(v) => values::encode_worker(v, out),
         c::SettingValue::Model(v) => values::encode_catalogue(v, out),
@@ -324,6 +327,7 @@ fn value_details_text(value: &c::SettingValue, overlay: Option<&c::Overlay>, out
             }
         }
         c::SettingValue::Overlay(_)
+        | c::SettingValue::Provider(_)
         | c::SettingValue::Worker(_)
         | c::SettingValue::Model(_)
         | c::SettingValue::Policy(_)
@@ -436,6 +440,7 @@ pub fn text(value: &c::ReadValue, requested: Option<u64>, limits: &Limits, out: 
                     c::Setting::Charter(_)
                     | c::Setting::Template(_)
                     | c::Setting::Policy(_)
+                    | c::Setting::Provider(_)
                     | c::Setting::Worker(_)
                     | c::Setting::Model(_)
                     | c::Setting::ProjectPolicy { .. }
@@ -552,6 +557,39 @@ pub fn encode(value: &c::ReadValue, out: &mut Encoder) {
     }
     out.object_end();
 }
+/// Word a fault with the setting's kind and number (jig/docs/design/domain/engine/settings.md, 1).
+pub fn setting_fault(setting: c::Setting, fault: c::SettingFault, out: &mut Text) {
+    if fault != c::SettingFault::Range {
+        out.put(fault_word(fault));
+        return;
+    }
+    let (number, kinds) = match setting {
+        c::Setting::Charter(n) => (n.number, b"charters".as_slice()),
+        c::Setting::Template(n) => (n.number, b"templates".as_slice()),
+        c::Setting::Policy(n) => (n.number, b"policies".as_slice()),
+        c::Setting::Model(n) => (n.number, b"models".as_slice()),
+        c::Setting::Worker(n) | c::Setting::Provider(n) => (n.number, b"items".as_slice()),
+        c::Setting::Application { number, .. } => (number, b"items".as_slice()),
+        c::Setting::ProjectPolicy { project } => (project, b"items".as_slice()),
+        c::Setting::Rules => (0, b"items".as_slice()),
+    };
+    if number <= c::STOCK_NUMBERS {
+        out.put(b"is among the stock's numbers, 1 to ");
+        out.number(u64::from(c::STOCK_NUMBERS));
+        out.put(b"; your own ");
+        out.put(kinds);
+        out.put(b" take ");
+    } else {
+        out.put(b"is past the ");
+        out.put(kinds);
+        out.put(b"' numbers: the stock's take 1 to ");
+        out.number(u64::from(c::STOCK_NUMBERS));
+        out.put(b", your own ");
+    }
+    out.number(u64::from(c::STOCK_NUMBERS.checked_add(1).expect("deployment range starts after stock")));
+    out.put(b" to ");
+    out.number(u64::from(c::NUMBERS));
+}
 #[must_use]
 pub const fn fault_word(fault: c::SettingFault) -> &'static [u8] {
     match fault {
@@ -564,6 +602,8 @@ pub const fn fault_word(fault: c::SettingFault) -> &'static [u8] {
         c::SettingFault::Judged => b"refused by its owner",
         c::SettingFault::Owner => b"owner",
         c::SettingFault::Linked => b"linked: stop it first",
+        c::SettingFault::Accounts => b"provider still has accounts: remove its accounts first",
+        c::SettingFault::Range => b"range",
     }
 }
 
@@ -659,7 +699,8 @@ fn revision_text(answer: &c::RevisionAnswer, requested: u64, limits: &Limits, ou
 fn historical_setting(setting: c::Setting) -> bool {
     match setting {
         c::Setting::Charter(_) | c::Setting::Application { .. } => true,
-        c::Setting::Worker(_)
+        c::Setting::Provider(_)
+        | c::Setting::Worker(_)
         | c::Setting::Model(_)
         | c::Setting::Template(_)
         | c::Setting::Policy(_)

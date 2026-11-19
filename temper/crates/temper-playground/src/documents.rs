@@ -138,8 +138,8 @@ pub const WORKER_DOCUMENT: &[u8] = channel::WORKER_DOCUMENT;
 #[must_use]
 pub fn document() -> Vec<u8> {
     let mut value = world_document();
-    value.as_object_mut().expect("deployment").remove("world_settings");
     settings::strip_models(&mut value);
+    value.as_object_mut().expect("deployment").remove("world_settings");
     serde_json::to_vec(&value).expect("deployment JSON")
 }
 /// The deployment value before harness edits: the chat stories' policy.
@@ -177,7 +177,7 @@ pub fn world_document_with(edit: impl FnOnce(&mut Configuration)) -> Configurati
     value["application"] = serde_json::json!({
         "webhooks":{"listener":{"socket":"127.0.0.1:0"}},
 "clients":{"listener":{"socket":CLIENTS.to_string()},"public":null,"bundle":null},
-        "demo":null,"sign_in":null});
+        "sign_in":null});
     for (name, figure) in [
         ("forge.client.answer_bytes", 65_536_u64),
         ("forge.client.op_bytes", 512),
@@ -193,6 +193,7 @@ pub fn world_document_with(edit: impl FnOnce(&mut Configuration)) -> Configurati
         value.temper_over(name, figure);
     }
     settings::stage_policies(&mut value);
+    value["world_settings"]["llm"] = serde_json::from_slice(channel::CATALOGUE).expect("world catalogue");
     for member in ["charters", "templates", "policies", "rules"] {
         value["engine"].as_object_mut().expect("engine").remove(member);
     }
@@ -218,6 +219,7 @@ pub fn world_document_with(edit: impl FnOnce(&mut Configuration)) -> Configurati
     value.jig_over("authority.projects", 2);
     value.jig_over("tasks.funders", 4);
     turn_bounds::apply(&mut value, agent().limits.bodies.turn_body);
+    settings::strip_models(&mut value);
     value
 }
 /// The chat stories' policy: seed projects on the world's policy 2, delegation depth 4, and the
@@ -460,6 +462,22 @@ pub fn settings_file() -> Vec<u8> {
     charter["waiting"] = (u64::from(CHAT_WAIT_MS) * 1_000_000 / 2).into();
     serde_json::to_vec(&serde_json::json!({"items":[settings::item("charter", 1, charter)]})).expect("settings FILE")
 }
+/// The story composition's playground is typed configuration, not a document member.
+#[must_use]
+pub fn playground(document: &serde_json::Value) -> Option<temper_service::settings::Demo> {
+    if document["world_settings"]["playground"] != true {
+        return None;
+    }
+    let scripts = temper_fake::demo::scripts().expect("binary scripts");
+    Some(temper_service::settings::Demo {
+        provider: 1,
+        key_file: b"/setup/demo/llm.key".as_slice().into(),
+        owner: b"playground".as_slice().into(),
+        name: b"widget".as_slice().into(),
+        landing: b"main".as_slice().into(),
+        cues: scripts.asked.into_vec().into_iter().map(|script| script.cue).collect(),
+    })
+}
 /// Typed defaults from the stock settings and composition policy.
 #[must_use]
 pub fn given(document: &Configuration) -> temper_service::stock::Given {
@@ -470,14 +488,22 @@ pub fn given(document: &Configuration) -> temper_service::stock::Given {
 pub fn given_with(document: &Configuration, stock: bool, read_wait: bool) -> temper_service::stock::Given {
     let mut document = document.clone();
     if document["world_settings"].is_null() {
-        document["world_settings"] = world_document()["world_settings"].clone();
+        document["world_settings"] = serde_json::json!({});
+    }
+    for (name, value) in world_document()["world_settings"].as_object().expect("world defaults") {
+        document["world_settings"]
+            .as_object_mut()
+            .expect("world settings")
+            .entry(name)
+            .or_insert_with(|| value.clone());
     }
     let engine = settings::configuration(&document);
     let mut defaults =
         temper_service::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
+    defaults.providers = jig_protocol_config::llm::provider_values(&engine.llm);
     if read_wait {
         defaults.charters[0].policy.waiting = skein_lib::Duration::from_millis(u64::from(CHAT_WAIT_MS));
-    } else if document["application"]["demo"].is_null() {
+    } else if document["world_settings"]["playground"] != true {
         defaults.templates[0].flags.ended_by = jig_domain_tasks::EndedBy::Result;
     }
     let seed = engine.projects.first().expect("world policy");
@@ -518,12 +544,12 @@ pub fn given_with(document: &Configuration, stock: bool, read_wait: bool) -> tem
         charter.policy.turns = CHARTER_TURNS;
         charter.spend = PRODUCER_SPEND;
     }
-    let forge = if document["application"]["demo"].is_null() {
-        settings::forge(&document)
-    } else {
+    let forge = if document["world_settings"]["playground"] == true {
         let limits = temper_service::limits::engine(&engine.limits, &temper_service::limits::stock())
             .expect("playground engine limits");
         temper_service::stock::forge(&limits)
+    } else {
+        settings::forge(&document)
     };
     temper_service::stock::Given::Own { jig: defaults, forge, ways: temper_service::stock::ways() }
 }

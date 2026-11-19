@@ -219,6 +219,7 @@ fn settings_show_charter_renders_its_documents() {
                 c::Setting::Policy(_)
                 | c::Setting::Rules
                 | c::Setting::Limits
+                | c::Setting::Provider(_)
                 | c::Setting::Worker(_)
                 | c::Setting::Model(_)
                 | c::Setting::Application { .. }
@@ -896,6 +897,16 @@ fn settings_change_outcomes_name_the_revision_and_refusal_facts() {
             },
             "out of shape; item 1; charter 5: shape; stored policy: supplied 70112; maximum root.journal.run_bytes 65536",
         ),
+        (
+            c::Refusal::Malformed {
+                at: 0,
+                why: super::malformed_setting(
+                    c::Setting::Template(c::SettingNumber { number: 9 }),
+                    c::SettingFault::Range,
+                ),
+            },
+            "out of shape; item 0; template 9: is among the stock's numbers, 1 to 32; your own templates take 33 to 64",
+        ),
         (c::Refusal::Role { held: None }, "role"),
     ] {
         for json in [false, true] {
@@ -909,6 +920,13 @@ fn settings_change_outcomes_name_the_revision_and_refusal_facts() {
             {
                 let text = core::str::from_utf8(&answer.stderr).expect("JSON refusal");
                 assert!(text.contains(r#""detail":{"member":"stored_policy","rule":"maximum","document":0,"segment":0,"supplied":70112,"bound":65536}"#), "{text}");
+            }
+            if json
+                && let c::Refusal::Malformed { why: c::Malformed::Settings(value), .. } = &refusal
+                && value.fault == c::SettingFault::Range
+            {
+                let text = core::str::from_utf8(&answer.stderr).expect("JSON refusal");
+                assert!(text.contains(r#""setting":{"kind":"template","number":9},"fault":"range""#), "{text}");
             }
             if !json && expected != "role" {
                 let text = core::str::from_utf8(&answer.stderr).expect("text");
@@ -1066,7 +1084,7 @@ fn setting_text_and_revisions_include_whole_set_values_and_last_page_facts() {
             c::Setting::Charter(_) => vec!["settings", "show", "charter", "3"],
             c::Setting::Template(_) => vec!["settings", "show", "template", "4"],
             c::Setting::Policy(_) => vec!["settings", "show", "policy", "5"],
-            c::Setting::Application { .. } | c::Setting::ProjectPolicy { .. } | c::Setting::Limits => continue,
+            c::Setting::Limits | c::Setting::Provider(_) | c::Setting::Application { .. } | c::Setting::ProjectPolicy { .. } => continue,
             c::Setting::Model(_) => vec!["settings", "show", "model", "9"],
             c::Setting::Worker(_) => vec!["settings", "show", "worker", "9"],
             c::Setting::Rules => vec!["settings", "show", "rules"],
@@ -3849,6 +3867,8 @@ fn ctl_reads_lists_and_writes_a_model_as_a_settings_file() {
 
 #[path = "settings_overlays.rs"]
 mod overlays;
+#[path = "settings_providers.rs"]
+mod providers;
 
 #[test]
 fn ctl_applies_proposes_and_shows_a_worker_setting() {

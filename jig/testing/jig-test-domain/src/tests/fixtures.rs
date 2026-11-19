@@ -116,6 +116,7 @@ pub fn domain() -> Domain {
             first: jig_test_connector_kit::config(1),
             second: jig_test_connector_kit::config(2),
             core: core::Config {
+                fixed_providers: Box::new([]),
                 parts: Box::new([]),
                 jobs: Box::new([]),
                 kept_starts: Box::new([]),
@@ -158,6 +159,7 @@ pub fn domain() -> Domain {
                 kinds: Box::default(),
                 defaults: core::settings::Defaults {
                     limits: Box::default(),
+                    providers: Box::new([provider_setting(1, b"Fake", 1)]),
                     workers: Box::new([
                         jig_domain_core::settings::WorkerSetting {
                             number: 1,
@@ -397,4 +399,35 @@ pub fn fill_to_watermark(domain: &mut Domain, env: &Env<Limits>) -> u32 {
         let _commit = domain.journal.commit().expect("commit in flight");
     }
     panic!("admission returns a pressure probe within watermark + 1 attempts");
+}
+
+fn provider_setting(number: u32, name: &[u8], endpoint: u32) -> jig_domain_core::settings::ProviderSetting {
+    use jig_domain_core::settings::{Endpoint, EndpointAddress, Provider, ProviderSetting, Transport};
+    ProviderSetting {
+        provider: Provider {
+            number,
+            name: name.into(),
+            endpoint: Some(name.into()),
+            direct: None,
+            list: None,
+            signed_in_plan: false,
+            manage_usage: None,
+            sign_in: None,
+            keys: false,
+            programs: Box::new([]),
+        },
+        endpoints: Box::new([Endpoint {
+            number: endpoint,
+            name: name.into(),
+            provider: name.into(),
+            dialect: 3,
+            program: None,
+            address: EndpointAddress::Socket(::core::net::SocketAddr::from(([127, 0, 0, 1], 8080))),
+            transport: Transport::Plaintext,
+            headers: Box::new([]),
+            connect: Duration::from_millis(10000),
+            handshake: Duration::from_millis(10000),
+        }]),
+        withdrawn: false,
+    }
 }

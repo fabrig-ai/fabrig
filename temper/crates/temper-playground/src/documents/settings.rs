@@ -42,19 +42,30 @@ pub fn item(kind: &str, number: u32, value: Value) -> Value {
 
 /// Parse only startup configuration; the caller supplies typed defaults afterwards.
 #[must_use]
+#[expect(
+    clippy::too_many_lines,
+    reason = "world-only inputs build a typed catalogue independently of the deployment document"
+)]
 pub fn configuration(deployment: &super::Configuration) -> jig_protocol_config::Engine {
     let mut value = deployment["engine"].clone();
     strip_engine(&mut value);
     for member in ["charters", "templates", "policies", "rules"] {
         value.as_object_mut().expect("engine").remove(member);
     }
-    if value["llm"].get("models").is_none() {
-        let original = if deployment["world_settings"]["llm"].is_object() {
+    if value.get("llm").is_none() {
+        value["llm"] = if deployment["world_settings"]["llm"].is_object() {
             deployment["world_settings"]["llm"].clone()
-        } else if deployment["application"]["demo"].is_object() {
+        } else {
+            super::world_document()["world_settings"]["llm"].clone()
+        };
+    }
+    if value["llm"].get("models").is_none() {
+        let original = if deployment["world_settings"]["llm"]["models"].is_array() {
+            deployment["world_settings"]["llm"].clone()
+        } else if deployment["world_settings"]["playground"] == true {
             serde_json::from_slice(include_bytes!("../../stories/a/catalogue.json")).expect("story catalogue")
         } else {
-            super::world_document()["engine"]["llm"].clone()
+            super::world_document()["world_settings"]["llm"].clone()
         };
         value["llm"]["models"] = original["models"].clone();
         for provider in value["llm"]["providers"].as_array_mut().expect("providers") {
@@ -65,6 +76,17 @@ pub fn configuration(deployment: &super::Configuration) -> jig_protocol_config::
                 .find(|source| source["number"] == provider["number"])
                 .expect("world provider");
             provider["models"] = source["models"].clone();
+        }
+    }
+    let configured = value["llm"]["models"].as_array().expect("world models").clone();
+    for provider in value["llm"]["providers"].as_array_mut().expect("world providers") {
+        if provider.get("models").is_none() {
+            provider["models"] = configured
+                .iter()
+                .filter(|model| model["endpoint"] == provider["endpoint"])
+                .map(|model| model["name"].clone())
+                .collect::<Vec<_>>()
+                .into();
         }
     }
     let mut inline = value.clone();
@@ -79,7 +101,7 @@ pub fn configuration(deployment: &super::Configuration) -> jig_protocol_config::
         for candidate in &own.llm.providers {
             if provider["number"].as_u64() == Some(u64::from(candidate.number)) {
                 for model in &own.llm.models {
-                    if candidate.models.contains(&model.model.name) {
+                    if candidate.number == model.model.provider {
                         endpoint = own
                             .llm
                             .endpoints
@@ -267,21 +289,10 @@ fn landing_rules(values: &Value) -> Box<[temper_engine_domain::LandingRule]> {
 pub fn strip_models(deployment: &mut Value) {
     strip_fixed(deployment);
 
-    let llm = deployment["engine"]["llm"].clone();
-    if deployment["world_settings"].is_object() && llm["models"].is_array() {
-        deployment["world_settings"]["llm"] = llm.clone();
+    let Some(llm) = deployment["engine"].as_object_mut().expect("engine").remove("llm") else { return };
+    if deployment["world_settings"].is_object() {
+        deployment["world_settings"]["llm"] = llm;
     }
-    for provider in deployment["engine"]["llm"]["providers"].as_array_mut().expect("providers") {
-        if provider.get("endpoint").is_none()
-            && let Some(name) = provider["models"].as_array().and_then(|names| names.first())
-            && let Some(models) = llm["models"].as_array()
-            && let Some(model) = models.iter().find(|model| model["name"] == *name)
-        {
-            provider["endpoint"] = model["endpoint"].clone();
-        }
-        provider.as_object_mut().expect("provider").remove("models");
-    }
-    deployment["engine"]["llm"].as_object_mut().expect("llm").remove("models");
 }
 
 /// Typed application defaults for a world's settings file, including landing kinds 4 and 5.
@@ -318,6 +329,7 @@ pub fn strip_fixed(deployment: &mut Value) {
         application.remove("workers");
         application.remove("machine");
         application.remove("welcome");
+        application.remove("demo");
     }
     strip_engine(&mut deployment["engine"]);
 }
@@ -341,7 +353,7 @@ pub fn seed_configuration(engine: &mut jig_protocol_config::Engine, document: &s
             may: Box::new([jig_domain_people::ActKind::Adopt]),
         }]);
     }
-    if document["world_settings"]["empty_projects"] == true || !document["application"]["demo"].is_null() {
+    if document["world_settings"]["empty_projects"] == true || document["world_settings"]["playground"] == true {
         return;
     }
     let mut document = document.clone();

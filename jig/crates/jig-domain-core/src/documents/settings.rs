@@ -107,6 +107,7 @@ mod tests {
     }
     fn line(current: &Current) -> SettingLine {
         let mut copied = Current {
+            fixed_providers: current.fixed_providers.clone(),
             resolved: Map::with_capacity(0),
             keys: current.keys,
             applications: Map::with_capacity(0),
@@ -204,6 +205,7 @@ mod tests {
             Setting::Worker(1),
             Setting::Worker(2),
             Setting::Limits,
+            Setting::Provider(1),
         ];
         assert_eq!(settings.len(), wanted.len());
         for (line, setting) in settings.iter().zip(wanted) {

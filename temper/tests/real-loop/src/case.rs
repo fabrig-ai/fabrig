@@ -272,11 +272,11 @@ pub fn fixture() -> forge::Fixture {
             value.jig_over("authority.projects", 2);
             value.jig_over("tasks.funders", 4);
             // A runs on the director's explicit choice, distinct from the default.
-            let mut model = value["engine"]["llm"]["models"][0].clone();
+            let mut model = value["world_settings"]["llm"]["models"][0].clone();
             model["name"] = OWNER_MODEL.into();
             model["efforts"] = json!([OWNER_EFFORT]);
-            value["engine"]["llm"]["models"].as_array_mut().expect("models").push(model);
-            value["engine"]["llm"]["providers"][0]["models"] = json!(["fake", OWNER_MODEL]);
+            value["world_settings"]["llm"]["models"].as_array_mut().expect("models").push(model);
+            value["world_settings"]["llm"]["providers"][0]["models"] = json!(["fake", OWNER_MODEL]);
             // The director delegates, messages, amends and keeps project notes.
             // The extra owner adds one delegation level before the change procedure.
             for project in value["world_settings"]["policies"].as_array_mut().expect("projects") {
@@ -331,7 +331,7 @@ pub fn fixture_placed() -> forge::Fixture {
 // final A = 1,320,403 and F(A) = 1,320,467, within Small's 1,590,110-byte
 // page ceiling; the old 1,048,576-token window required a 1,792,326-byte frame.
 fn small_two_call_window(value: &mut Value, agent: &mut Value) {
-    for model in value["engine"]["llm"]["models"].as_array_mut().expect("engine models") {
+    for model in value["world_settings"]["llm"]["models"].as_array_mut().expect("engine models") {
         model["window"] = 262_144.into();
     }
     agent["endpoints"][0]["limits"]["window"] = 262_144.into();
@@ -784,7 +784,7 @@ pub fn fixture_6_5() -> forge::Fixture {
     forge::Fixture {
         configure: |value, agent, forge| {
             (fixture().configure)(value, agent, forge);
-            value["engine"]["llm"]["models"][0]["efforts"] = json!([BUDGET_MEDIUM, BUDGET_HIGH]);
+            value["world_settings"]["llm"]["models"][0]["efforts"] = json!([BUDGET_MEDIUM, BUDGET_HIGH]);
             // Small profile; default engine/agent model efforts [medium, high].
             // Singleton delegations, five tasks, parked owners and investigator.
             // Two calls carry a tool and wait in one completion; three fleet
@@ -942,8 +942,8 @@ pub fn fixture_6_7() -> forge::Fixture {
             (fixture().configure)(value, agent, forge);
             // Small profile, four tasks in singleton batches (base allowance 8).
             // Two calls admit tool + parked wait, three fleet calls admit the
-            // cluster's workers. Budget 64 admits the widening: 1 director completion + A's
-            // 33 reserved + director run reserve 10 + A1's 20 unspent
+            // cluster's workers. Budget 65 admits the widening: 1 director completion + A's
+            // 33 reserved + director run reserve 10 + A1's 21 unspent
             // funded anew by the director. A needs 33 = its delegation's
             // 1 spent + A1's 22 + run reserve 10. A1 needs 22 = a5's 10
             // + one opening completion + next run reserve 10, with one spare. No landing projects are used.
@@ -951,9 +951,9 @@ pub fn fixture_6_7() -> forge::Fixture {
             small_two_call_window(value, agent);
             value.jig_over("hub.run_calls", 2);
             value.jig_over("fleet.calls", PAUSE_WORKERS.len());
-            value["world_settings"]["cap"] = 64.into();
+            value["world_settings"]["cap"] = 65.into();
             for project in value["world_settings"]["policies"].as_array_mut().expect("projects") {
-                project["policy"]["roles"][0]["authority"]["budget"]["spend"] = 64.into();
+                project["policy"]["roles"][0]["authority"]["budget"]["spend"] = 65.into();
             }
             // Base 391 lacks decide (8) and subscribe (32).
             for project in value["world_settings"]["policies"].as_array_mut().expect("projects") {

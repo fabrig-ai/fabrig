@@ -3,6 +3,8 @@
 #![expect(clippy::disallowed_macros, reason = "ordinary tests format explicit scalar overrides")]
 use super::*;
 use crate::tests::fixtures;
+use core::fmt::Write;
+use fixtures::{check, checked_start, startup};
 
 fn document(engine: Option<u32>) -> fixtures::Start {
     let mut input = fixtures::document();

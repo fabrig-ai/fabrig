@@ -44,10 +44,10 @@ pub fn remap(value: &mut Value, moved: &[u64; 64], kept: &[ModelName], names: &[
         }
         Value::Overlay(_)
         | Value::Charter(_)
+        | Value::Provider(_)
         | Value::Worker(_)
         | Value::Model(_)
-        | Value::Application(_)
-        | Value::Limits(_) => {}
+        | Value::Application(_) | Value::Limits(_) => {}
     }
 }
 

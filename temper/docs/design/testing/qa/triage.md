@@ -164,6 +164,17 @@ this order:
   rule in one line: quoted bytes take
   printable ASCII alone, other bytes as `\xHH`, with `\"` and `\\` for
   quote and backslash (`../../client/drive.md`, 3.1).
+  Where `web` is configured, the case form lets a page whose draft
+  promises a request budget, so many requests in so many waves on
+  opening it (`../../draft/page-round-trips.md`, 2), take a step whose
+  do is `web requests`, after a step that opens the page cold, its see
+  that line's last line (`../../client/drive.md`, 3.2), in these words:
+  "For a web page whose draft promises a request budget, a step's do may
+  be `web requests`, after a step that opens the page cold, such as a
+  reload of its path; its see is that line's last line as the budget
+  counts it, `N requests in W waves`: `2 requests in 2 waves` for two
+  waves of two requests." Where `web` is not configured, the brief has
+  no such words.
 
 After the commands the brief says: "A landing a person would meet
 that no case can judge yet, because ctl offers no way to do or see it,
@@ -185,7 +196,9 @@ kept build holding the closing landing's (`ledger.md`, 4.18).
   `surface` is one of the configured surfaces, `ctl`, `web` or `tui`;
   another refuses, naming the surfaces triage takes. For `ctl`, `page` is a group of
   ctl's tools (`landing`), each step's `do` a ctl act or wait as the
-  person types it, and `see` words ctl prints:
+  person types it, and `see` words ctl prints. For `web`, a step's `do`
+  may be `web requests`, its `see` that line's last line, for a page
+  whose draft promises a request budget (section 3):
 
   ```json
   {

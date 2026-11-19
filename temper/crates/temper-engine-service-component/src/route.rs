@@ -145,6 +145,10 @@ pub(crate) fn request(engine: &mut Engine, request: root::Request) {
                     }
                     None
                 }
+                root::PartyRequest::Deliver(root::Delivery::Providers(providers)) => {
+                    engine.providers.push(providers);
+                    None
+                }
                 root::PartyRequest::Deliver(root::Delivery::WorkerFigures { agents, revision }) => {
                     engine.workers.figures(engine.env.now, &agents, revision, &mut engine.events);
                     None
@@ -381,6 +385,7 @@ fn worker_delivery(engine: &mut Engine, delivery: root::Delivery) {
         }
         root::Delivery::Host(delivery) => host_delivery(engine, *delivery),
         root::Delivery::Push(_)
+        | root::Delivery::Providers(..)
         | root::Delivery::WorkerFigures { .. }
         | root::Delivery::LimitSettingsCommitted { .. }
         | root::Delivery::PlaygroundNote { .. }

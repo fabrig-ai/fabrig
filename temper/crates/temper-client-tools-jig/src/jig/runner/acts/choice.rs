@@ -257,6 +257,7 @@ pub(crate) fn settings_effort(items: &[c::SettingItem], me: &c::Me) -> Option<Bo
             c::SettingValue::Policy(_)
             | c::SettingValue::Rules(_)
             | c::SettingValue::Limits(_)
+            | c::SettingValue::Provider(_)
             | c::SettingValue::Worker(_)
             | c::SettingValue::Model(_)
             | c::SettingValue::Application(_) => {}

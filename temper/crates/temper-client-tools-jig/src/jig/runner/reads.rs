@@ -5,7 +5,10 @@ use crate::jig::{
     call::{Call, Project, Value, cursor, number, value},
     render, rows,
 };
-use alloc::{boxed::Box, collections::BTreeMap};
+use alloc::{
+    boxed::Box,
+    collections::{BTreeMap, BTreeSet},
+};
 use jig_client::{
     Client, Event, Handle, Latest, Readable, Readout, Watchable, Why, contract as c,
     thread::{self, Thread},
@@ -32,6 +35,7 @@ pub struct Reading {
     pub met_inbox: Option<Printed>,
     pub parts: &'static dyn render::Parts,
     pub application: super::application::Reading,
+    pub provider_defaults: BTreeSet<u32>,
 }
 pub(super) fn handle(runner: &Runner, prefix: u32, local: u32) -> Handle {
     Handle { asker: runner.asker, number: (u64::from(prefix) << 32u32) | u64::from(local) }
@@ -118,6 +122,7 @@ fn start_reading(
         proposal: None,
         met_inbox,
         application: super::application::Reading::new(),
+        provider_defaults: BTreeSet::new(),
         parts: runner.parts.expect("host vocabulary"),
     };
     if reading.called.call.tool <= 3 {
@@ -322,7 +327,7 @@ fn thread_start(runner: &Runner, env: &Env<Limits>, reading: &mut Reading, task:
 pub fn project(call: &Call, me: &c::Me) -> Option<u32> {
     selected_project(value(call, 0), me)
 }
-fn selected_project(selected: Option<&Value>, me: &c::Me) -> Option<u32> {
+pub(super) fn selected_project(selected: Option<&Value>, me: &c::Me) -> Option<u32> {
     match selected {
         Some(Value::Project(Project::Number(number))) => Some(*number),
         Some(Value::Project(Project::Name(name))) => {
@@ -401,6 +406,12 @@ fn accept_page(
     {
         read(runner, &mut reading, 8, c::Read::PersonTask { task: task.chip.task }, out);
     }
+    if reading.called.call.tool == rows::SETTINGS_AT
+        && super::providers::all(&reading.called.call)
+        && let Readout::Jig(c::ReadResult::Value(c::ReadValue::Settings(inventory))) = &page
+    {
+        super::providers::defaults(&mut reading, inventory);
+    }
     if setting_page(runner, &mut reading, local, &page, out) {
         complete(runner, client, env, reading, out);
         return;
@@ -467,6 +478,9 @@ fn setting_page(runner: &Runner, reading: &mut Reading, local: u32, page: &Reado
             super::application::inventory(reading, settings, setting);
             super::application::read(runner, reading, super::application::Query::Setting(setting), out);
             return true;
+        }
+        if let c::Setting::Provider(_) = setting {
+            super::providers::defaults(reading, settings);
         }
         let what = c::Read::Setting(c::ReadSetting { setting, revision: settings.newest, proposal: None });
         read(runner, reading, 1, what, out);
@@ -584,6 +598,11 @@ fn complete(runner: &mut Runner, client: &Client, env: &Env<Limits>, mut reading
     }
 
     if reading.pending != 0 {
+        runner.active.insert(reading.called.call_number, reading);
+        return;
+    }
+    if let Some((local, what)) = super::providers::next(&reading) {
+        read(runner, &mut reading, local, what, out);
         runner.active.insert(reading.called.call_number, reading);
         return;
     }

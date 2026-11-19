@@ -60,13 +60,14 @@ pub fn two_charters(seed: u64) -> (root::Config, root::Limits) {
         config.core.settings.llm_providers.providers[0].clone(),
         accounts::Provider {
             list: None,
-            name: b"Fake".as_slice().into(),
+            name: b"Research".as_slice().into(),
             signed_in_plan: true,
             manage_usage: Some(b"https://usage.example/".as_slice().into()),
             number: 2,
             offers: accounts::Offers { sign_in: true, key: false, programs: Box::new([]) },
         },
     ]);
+    config.core.defaults.providers = crate::fixtures::provider_references(&config.core.settings);
     let room = limits.core.routes;
     let connectors = jig_test_connector::OUTPUTS_BOUND * 2;
     limits.journal.writes = limits.journal.writes.max(room + connectors);

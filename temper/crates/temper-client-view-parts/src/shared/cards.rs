@@ -15,6 +15,11 @@ pub struct DelegationLine {
 pub fn delegation_line(task: &c::Task, w: &Words) -> DelegationLine {
     crate::cards::delegation::line(task, w)
 }
+/// The whole title for a TUI chat card (temper/docs/design/client/tui/pages/chat.md, 1, a card).
+#[must_use]
+pub fn proposal_title(card: &Card) -> Option<Box<[u8]>> {
+    crate::cards::proposal::title(card)
+}
 /// The title after Proposal, absent on other cards (temper/docs/design/client/pages/README.md, A proposal or an Accept card).
 #[must_use]
 pub fn proposal_line(card: &Card, w: &Words) -> Option<Box<[u8]>> {

@@ -56,6 +56,7 @@ fn items(items: &[Item]) -> Option<u64> {
 }
 fn value(value: &Value) -> Option<u64> {
     match value {
+        Value::Provider(value) => jig_domain_core::settings::providers::owned_bytes(value),
         Value::Worker(value) => u64::try_from(size_of::<jig_domain_core::settings::WorkerSetting>())
             .ok()?
             .checked_add(skein_lib::len_u64(value.name.len())),

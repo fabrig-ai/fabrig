@@ -17,10 +17,19 @@ fn an_address_is_an_engine_on_loopback_and_never_a_link() {
         ("http://[::1]:9000", Ok("[::1]:9000".parse().expect("IPv6"))),
         ("http://10.0.0.1:8367", Err(Refused::NotLoopback)),
         (LINK, Err(Refused::Link)),
+        ("http://127.0.0.1:8367/sign-in?secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", Err(Refused::Link)),
+        ("http://127.0.0.1:8367/sign-in?secret=S", Err(Refused::Link)),
+        ("http://127.0.0.1:8367/jig/v1/sign-in/link?secret=S", Err(Refused::Link)),
         ("127.0.0.1:8367", Err(Refused::NotAnAddress(Box::from(b"127.0.0.1:8367".as_slice())))),
         ("http://localhost:8367", Err(Refused::NotAnAddress(Box::from(b"http://localhost:8367".as_slice())))),
     ] {
         assert_eq!(tui::address(argument.as_bytes()), expected, "{argument}");
+        if expected == Err(Refused::Link) {
+            assert_eq!(
+                expected.expect_err("link refused").line("temper"),
+                "temper: a sign-in link is never an argument: run temper http://HOST:PORT and paste it\n"
+            );
+        }
     }
 }
 
@@ -77,11 +86,39 @@ fn fixed_start_is_a_nonempty_captured_variable_on_loopback_only() {
 }
 
 #[test]
-fn a_fixed_runs_seed_and_first_reading_are_the_starts() {
+fn a_fixed_run_draws_its_seed_on_the_tuis_stream_and_keeps_the_starts_first_reading() {
     let start = skein_shell::FixedStart::read(b"1767690000,7").expect("fixed start");
     let (seed, clock) = super::fixed_run(&start);
-    assert_eq!(seed, 7, "the seed given to local_run");
+    let mut bytes = [0u8; 8];
+    start.draw(4, &mut bytes);
+    assert_eq!(seed, u64::from_le_bytes(bytes), "the seed given to local_run");
+    assert_ne!(seed, start.seed);
     assert_eq!(clock.now(), skein_shell::Now { now: skein_shell::FixedStart::NOW, wall: start.wall });
+}
+
+#[test]
+fn the_fixed_tui_and_page_share_no_request_keys() {
+    fn keys(limits: &jig_client::DomainLimits, seed: u64) -> Vec<skein_lib::RequestKey> {
+        // Domain::new gives this seed to RequestTable::new (jig-client-domain/src/domain.rs).
+        let mut table = skein_lib::RequestTable::new(&limits.requests, seed);
+        let mut keys = Vec::new();
+        for _ in 0..64 {
+            let admitted = table.ask((), 1, limits.ask_bytes, ()).expect("request fits the client's table");
+            keys.push(admitted.key);
+            table.not_kept(admitted.key, admitted.number).expect("retire the request to release its capacity");
+            let mut outputs = table.take(skein_lib::Time::ZERO, skein_lib::Wall::EPOCH);
+            while outputs.next_out().is_some() {}
+            table.reclaim();
+        }
+        keys
+    }
+
+    let start = skein_shell::FixedStart::read(b"1767690000,7").expect("fixed start");
+    let (seed, _) = super::fixed_run(&start);
+    let tui = keys(&crate::limits::tui().native.client.client.domain, seed);
+    let page = keys(&temper_client_shell_web::limits::client().client.domain, start.seed);
+    let shared = tui.iter().filter(|key| page.contains(key)).count();
+    assert_eq!(shared, 0, "shared request keys among each client's first 64");
 }
 
 #[test]

@@ -277,6 +277,7 @@ fn setting_value(core: &Core, setting: settings::Setting, revision: u32) -> Answ
         settings::Setting::Charter(_)
         | settings::Setting::Template(_)
         | settings::Setting::Policy(_)
+        | settings::Setting::Provider(_)
         | settings::Setting::Worker(_)
         | settings::Setting::Model(_)
         | settings::Setting::Rules

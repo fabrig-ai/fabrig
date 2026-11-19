@@ -54,6 +54,8 @@ pub enum Delivery {
         jig: Box<[jig_domain_core::settings::Override]>,
         temper: Box<[jig_domain_core::settings::Override]>,
     },
+    /// Current providers kept by the shell after the settings decision commits.
+    Providers(Box<[jig_domain_core::settings::ProviderSetting]>),
     /// The stored agents setting, released only after its decision commits
     /// (temper/docs/design/protocol/configuration/figures.md, 2).
     WorkerFigures {
@@ -580,6 +582,7 @@ impl Decision {
             Delivery::Assigned { assignment, .. } => assignment_within(assignment, limits),
             Delivery::Host(host) => host_within(host, limits),
             Delivery::LimitSettingsCommitted { .. }
+            | Delivery::Providers(..)
             | Delivery::WorkerFigures { .. }
             | Delivery::SourceSignedOut { .. }
             | Delivery::Ways { .. }

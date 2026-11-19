@@ -16,7 +16,6 @@ pub(crate) struct Patience {
     figures: Option<String>,
     report: Option<String>,
     deferred: bool,
-    #[cfg(test)]
     forced: bool,
 }
 
@@ -43,7 +42,6 @@ impl Patience {
             figures: None,
             report: None,
             deferred: false,
-            #[cfg(test)]
             forced: false,
         }
     }
@@ -52,7 +50,6 @@ impl Patience {
         if self.deferred {
             return false;
         }
-        #[cfg(test)]
         if self.forced {
             return self.handle(Verdict::Failed("forced failed deadline figures".into()));
         }
@@ -65,7 +62,6 @@ impl Patience {
         }
         self.handle(verdict(deadline.expired()))
     }
-    #[cfg(test)]
     pub(crate) fn force_failed(&mut self) {
         self.forced = true;
     }

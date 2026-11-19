@@ -420,7 +420,10 @@ pub(crate) fn rail(
     b.style(crate::look::RAIL);
     let name = crate::pages::project_name(root.pages().me(root.client()), project).expect("open project has a name");
     b.name(&name);
-    let (home, _) = targets(root, project);
+    let home = match w.shell {
+        Shell::Browser => rail::root_home(root.pages().me(root.client())),
+        Shell::Terminal => targets(root, project).0,
+    };
     crate::link(b, &w.say(Word::BrandHome, &[]), bindings.insert(PageAct::Go { address: home }));
     b.style(crate::look::BRAND);
     w.text(b, Word::Brand, &[]);
@@ -479,6 +482,13 @@ pub(crate) fn rail(
         text(b, Role::Alert, &w.say(Word::SignOutLost, &[]), None);
     }
     b.close();
+    night_switch(b, root, w, bindings);
+    b.close();
+}
+
+/// The browser's shared rail and top-bar switch (temper/docs/design/client/view.md, 3).
+pub(crate) fn night_switch(b: &mut Builder, root: &Domain, w: &crate::words::Words, bindings: &mut Bindings) {
+    use crate::words::{Shell, Word};
     if w.shell == Shell::Browser {
         b.open(Role::Button);
         b.style(crate::look::NIGHT_SWITCH);
@@ -489,7 +499,6 @@ pub(crate) fn rail(
         b.bind(bindings.insert(PageAct::Terminal(temper_client_domain::pages::terminal::Act::Night)));
         b.close();
     }
-    b.close();
 }
 
 /// The rail's person: a line in the terminal, a menu in a browser

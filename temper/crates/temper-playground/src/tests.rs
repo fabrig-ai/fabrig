@@ -122,6 +122,7 @@ fn the_owned_values_equal_the_test_kits_values() {
     source["engine"].as_object_mut().unwrap().remove("limits");
     source["engine"].as_object_mut().unwrap().remove("memory_bytes");
     documents::settings::strip_fixed(&mut source);
+    source["engine"].as_object_mut().expect("channel engine").remove("llm");
     assert_eq!(owned, source);
     let worker: serde_json::Value = serde_json::from_slice(documents::WORKER_DOCUMENT).expect("worker JSON");
     let source: serde_json::Value = serde_json::from_slice(channel::WORKER_DOCUMENT).expect("kit worker JSON");

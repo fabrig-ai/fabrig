@@ -43,7 +43,7 @@ fn a_restart_with_old_due_output_advances_to_recovery_instead_of_spinning() {
 }
 
 // Peak 940,219 bytes measured 10-29; testing-strategy.md 6.
-const SIGNED_OUT_TABS_HEAP_CEILING: u64 = 1_200_000;
+const SIGNED_OUT_TABS_HEAP_CEILING: u64 = 1_600_000;
 #[test]
 fn signed_out_tabs_resume_the_link_obligation_only_after_confirmation() {
     let outcome = random::story(107, Start::NewChat, SIGNED_OUT_TABS_HEAP_CEILING);

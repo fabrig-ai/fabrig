@@ -63,6 +63,7 @@ fn setting(value: w::Setting) -> s::Setting {
         w::Setting::Limits => s::Setting::Limits,
         w::Setting::Model(value) => s::Setting::Model(value.number()),
         w::Setting::Worker(value) => s::Setting::Worker(value.number()),
+        w::Setting::Provider(value) => s::Setting::Provider(value.number()),
         w::Setting::ProjectPolicy(v) => s::Setting::ProjectPolicy { project: v.project() },
         w::Setting::Application(v) => s::Setting::Application { kind: v.kind(), scope: v.scope(), number: v.number() },
     }
@@ -81,6 +82,10 @@ fn setting_value(
             digest: *value.digest(),
             withdrawn: value.withdrawn(),
         })),
+        w::SettingValue::Provider(value) => {
+            let value = super::providers::decode(&value);
+            s::Value::Provider(Box::new(value))
+        }
         w::SettingValue::Model(value) => s::Value::Model(Box::new(catalogue(*value))),
         w::SettingValue::Application(value) => s::Value::Application(value.into_parts().bytes),
         w::SettingValue::Overlay(value) => s::Value::Overlay(Box::new(overlay(*value))),

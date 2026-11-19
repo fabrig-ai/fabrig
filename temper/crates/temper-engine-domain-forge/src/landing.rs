@@ -1,4 +1,5 @@
 //! Top-owned landing rows, coherent reads, receipts and effects (domain/landing.md, 2–15).
+//! Landing targets use the adoption (temper/docs/design/domain/forge/adoption.md, 8).
 use crate::domain::{child, emit, keep_entry};
 use crate::{
     Check, Domain, Key, LandingEntry, LandingHeard, LandingRow, Limits, Operation, Receipt, ReceiptJob, ReceiptKey,
@@ -300,6 +301,7 @@ impl Domain {
                         gate_timeout: skein_lib::Duration::from_millis(settings.gate_timeout_ms)
                     },
                     crate::AfterLanding {
+                        wait: settings.wait,
                         verdict: temper_engine_domain_forge_tiers::Settings {
                             retries: u32::from(settings.tier_retries),
                             suspects: temper_engine_domain_forge_tiers::Suspects::Bisect
@@ -432,7 +434,7 @@ impl Domain {
     #[must_use]
     pub fn train_batch(&self, repository: api::Repository, branch: &[u8]) -> u16 {
         let Some(repo) = self.repository(repository) else { return 1 };
-        if repo.settings.default_branch.as_ref() != branch {
+        if repo.landing.as_ref() != branch {
             return 1;
         }
         match self.landing.projects.get(&repo.project) {
@@ -935,7 +937,7 @@ pub(crate) fn register(d: &mut Domain, env: &Env<Limits>, row: LandingRow, out: 
 impl Domain {
     fn train_gates(&self, row: &LandingRow, repo: api::Repository) -> &[policy::Gate] {
         if let Some(repository) = self.repository(repo)
-            && repository.settings.default_branch != row.landing.branch
+            && repository.landing != row.landing.branch
         {
             return &[];
         }
@@ -2374,7 +2376,7 @@ fn upstream_branch(d: &Domain, row: &LandingRow) -> Option<Box<[u8]>> {
     if !d.holds.contains_key(&name) || crate::items::goal_branch(&name, &adopted.prefix).is_none() {
         return None;
     }
-    Some(adopted.settings.default_branch.clone())
+    Some(adopted.landing.clone())
 }
 
 fn squash_head(message: &[u8], head: api::Commit) -> bool {

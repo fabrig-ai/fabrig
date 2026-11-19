@@ -48,6 +48,7 @@ impl UnreadableRow {
             33 => "QaPass",
             keys::DISMISSED => "Dismissed",
             keys::MAKING => "Making",
+            keys::PERSON_BRIEF => "PersonBrief",
             keys::PROJECT_FACTS => "ProjectFacts",
             keys::LOOKED => "Looked",
             keys::AWAY => "Away",

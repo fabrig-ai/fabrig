@@ -44,7 +44,6 @@ pub fn check_over(
     {
         listeners.push(socket);
     }
-    let application = member(&document, 0, b"application");
     let setup_overrides: Vec<_> = match limits {
         Some((_jig, own)) => temper_service::limits::NAMES
             .iter()
@@ -62,8 +61,7 @@ pub fn check_over(
         Checked { limits: setup_limits, fetch_bytes, setup: temper_forge_setup::Setup { entries: Box::new([]) } };
     let mut problems = temper_service::startup::Problems::empty();
     let facts = temper_fake::demo::Facts { llm: &named.llm, listeners: &listeners, directories };
-    let demo = temper_fake::demo::read(&document, member(&document, application, b"demo"), &facts)
-        .map_err(|why| String::from_utf8_lossy(&why.line()).into_owned())?;
+    let demo = temper_fake::demo::read(&facts).map_err(|why| String::from_utf8_lossy(&why.line()).into_owned())?;
     if let Some(demo) = &demo {
         temper_service::startup::redirect_ports(
             &named.redirects,
@@ -78,8 +76,24 @@ pub fn check_over(
     let limits = box_limits(&named.overrides)?;
     Ok(Deployment { named, checked, limits, demo })
 }
+/// The box's playground facts, never read from a document member.
+pub(crate) fn playground(demo: &temper_fake::demo::Demo) -> temper_service::settings::Demo {
+    let scripts = temper_fake::demo::scripts().expect("the embedded scripts were checked");
+    temper_service::settings::Demo {
+        provider: demo.provider(),
+        key_file: demo.llm().key().into(),
+        owner: b"playground".as_slice().into(),
+        name: b"widget".as_slice().into(),
+        landing: b"main".as_slice().into(),
+        cues: scripts.asked.into_vec().into_iter().map(|script| script.cue).collect(),
+    }
+}
 pub fn check(bytes: &[u8], directories: &config::Directories) -> Result<Deployment, String> {
-    check_with(bytes, directories, &temper_service::stock::Given::Stock)
+    let given = temper_service::stock::Given::Stock.with_providers(
+        temper_service::stock::providers(),
+        Box::new([temper_service::stock::scripted(crate::scripted::PREFERRED)]),
+    );
+    check_with(bytes, directories, &given)
 }
 
 fn box_limits(overrides: &[(Box<[u8]>, u64)]) -> Result<temper_box_machine::limits::Limits, String> {
@@ -106,13 +120,6 @@ fn box_limits(overrides: &[(Box<[u8]>, u64)]) -> Result<temper_box_machine::limi
         problems.push(format!("{prefix}{name}: {reason}"));
     }
     if problems.is_empty() { Ok(limits) } else { Err(problems.join("\n")) }
-}
-
-fn member(document: &skein_json::Document, at: u32, name: &[u8]) -> u32 {
-    jig_protocol_config::read::Object::new(document, at)
-        .expect("checked object")
-        .member(document, name)
-        .expect("checked member")
 }
 
 /// Give the shared forge commands the engine member of this shell's checked document.

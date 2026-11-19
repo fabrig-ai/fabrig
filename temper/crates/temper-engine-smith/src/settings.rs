@@ -60,6 +60,7 @@ pub(crate) fn read(value: &Value, bytes: &[u8]) -> Result<engine::Tool, Problem>
             b"policy",
             b"model",
             b"worker",
+            b"provider",
             b"landing-rule",
             b"forge-charter",
             b"charter-words",
@@ -138,6 +139,7 @@ fn core_setting(setting: c::Setting) -> s::Setting {
         c::Setting::Policy(value) => s::Setting::Policy(value.number),
         c::Setting::Model(value) => s::Setting::Model(value.number),
         c::Setting::Worker(value) => s::Setting::Worker(value.number),
+        c::Setting::Provider(value) => s::Setting::Provider(value.number),
         c::Setting::Rules => s::Setting::Rules,
         c::Setting::Limits => s::Setting::Limits,
         c::Setting::Application { kind, scope, number } => s::Setting::Application { kind, scope, number },
@@ -478,6 +480,8 @@ fn repository_rows(
         out.put(&repository.owner);
         out.put(b"/");
         out.put(&repository.name);
+        out.put(b" landing ");
+        out.put(&repository.landing);
         out.put(b"\n");
     }
     if !people.is_empty() {
@@ -668,6 +672,7 @@ fn malformed_setting(
         s::Setting::Policy(number) => c::Setting::Policy(c::SettingNumber { number: *number }),
         s::Setting::Model(number) => c::Setting::Model(c::SettingNumber { number: *number }),
         s::Setting::Worker(number) => c::Setting::Worker(c::SettingNumber { number: *number }),
+        s::Setting::Provider(number) => c::Setting::Provider(c::SettingNumber { number: *number }),
         s::Setting::Rules => c::Setting::Rules,
         s::Setting::Limits => c::Setting::Limits,
         s::Setting::Application { kind, scope, number } => {
@@ -684,6 +689,8 @@ fn malformed_setting(
         jig_domain_people::SettingFault::Owner => c::SettingFault::Owner,
         jig_domain_people::SettingFault::Judged => c::SettingFault::Judged,
         jig_domain_people::SettingFault::Linked => c::SettingFault::Linked,
+        jig_domain_people::SettingFault::Accounts => c::SettingFault::Accounts,
+        jig_domain_people::SettingFault::Range => c::SettingFault::Range,
     };
     settings_form::Refusal::Malformed {
         at,
@@ -728,6 +735,7 @@ pub(crate) fn parts(text: &mut crate::answers::Text, parts: &engine::PartsAnswer
                 s::Setting::Policy(number) => c::Setting::Policy(c::SettingNumber { number: *number }),
                 s::Setting::Model(number) => c::Setting::Model(c::SettingNumber { number: *number }),
                 s::Setting::Worker(number) => c::Setting::Worker(c::SettingNumber { number: *number }),
+                s::Setting::Provider(number) => c::Setting::Provider(c::SettingNumber { number: *number }),
                 s::Setting::ProjectPolicy { project } => c::Setting::ProjectPolicy { project: *project },
                 s::Setting::Rules => c::Setting::Rules,
                 s::Setting::Limits => c::Setting::Limits,

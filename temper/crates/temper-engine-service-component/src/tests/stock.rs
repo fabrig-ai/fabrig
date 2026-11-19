@@ -35,13 +35,11 @@ pub(super) fn generated() -> Box<[u8]> {
             login: Some(b"ada"),
             ports: temper_init::Ports {
                 clients: NonZeroU16::new(8367).unwrap(),
-                llm: NonZeroU16::new(8370).unwrap(),
                 webhooks: NonZeroU16::new(8371).unwrap(),
             },
         },
         &temper_init::Directories { config: b"/config", data: b"/data" },
         &[0; 32],
-        &[1; 32],
     )
     .unwrap();
     for file in answer.files {
@@ -53,5 +51,8 @@ pub(super) fn generated() -> Box<[u8]> {
     panic!("init writes temper.json")
 }
 pub(super) fn engine(document: &[u8]) -> config::Engine {
-    fixtures::parse_engine(&fixtures::value(document, b"engine"))
+    let bytes = fixtures::value(document, b"engine");
+    let document =
+        config::document(&bytes, &config::DocumentLimits { bytes: 1_048_576, tokens: 16_384, depth: 32 }).unwrap();
+    crate::startup::engine(&document, 0, &config::Directories::working()).unwrap()
 }

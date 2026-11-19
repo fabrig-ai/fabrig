@@ -233,9 +233,13 @@ fn a_box_refuses_an_unfulfillable_person_approval_rule() {
     clippy::fn_params_excessive_bools,
     reason = "the table varies the link, box and forge identities independently"
 )]
-fn approval_identity_world(link: bool, under_box: bool, second_forge: bool, fake_forge: bool) -> World {
-    let identity = if link { box_owner() } else { forge_top::user_key(1, 7) };
-    let mut world = world_with_owner(identity);
+fn approval_identity_world(
+    mut world: World,
+    link: bool,
+    under_box: bool,
+    second_forge: bool,
+    fake_forge: bool,
+) -> World {
     let person = world
         .store
         .rows
@@ -307,6 +311,15 @@ fn approval_rules_count_known_forge_people_with_the_required_role() {
     const OTHER_FORGE: &str =
         "project 1 role 0 on forge other.example requires 1 distinct known forge people; currently 0 eligible.";
     const FAKE: &str = "project 1: the playground's forge has no accounts, so no one can approve there. Name a branch pattern or a project that leaves its repository out, or remove the approval requirement.";
+    // Each identity's stock start, sign-in and adoption are identical across its rows.
+    // Fork before editing any forge or rule; every row still restarts and closes cold.
+    let mut fixtures = Vec::new();
+    for identity in [forge_top::user_key(1, 7), box_owner()] {
+        let world = world_with_owner(identity);
+        let snapshot = world.store.fork();
+        let env = world.env.with(world.env.limits);
+        fixtures.push((Some(Box::new(world)), snapshot, env));
+    }
     for (kind, scope, role, required, link, under_box, second_forge, fake_forge, host, refusal) in [
         (1, 0, 0, 1, false, false, false, false, None, None),
         (2, 1, 0, 1, false, false, false, false, None, None),
@@ -325,7 +338,13 @@ fn approval_rules_count_known_forge_people_with_the_required_role() {
         (1, 0, 0, 1, false, false, false, true, None, Some(FAKE)),
         (2, 1, 0, 2, false, false, false, true, None, Some(FAKE)),
     ] {
-        let mut world = approval_identity_world(link, under_box, second_forge, fake_forge);
+        let (slot, snapshot, env) = &mut fixtures[usize::from(link)];
+        let mut world = *slot.take().expect("one world per identity");
+        world.store = snapshot.fork();
+        world.env = env.with(env.limits);
+        world.web_replies.clear();
+        forge_with_only_temper(&mut world);
+        let mut world = approval_identity_world(world, link, under_box, second_forge, fake_forge);
         let mut rule = approval_rule(role, required);
         if let Some(host) = host {
             let settings::Value::Rule(rule) = &mut rule else { panic!("approval rule") };
@@ -358,6 +377,7 @@ fn approval_rules_count_known_forge_people_with_the_required_role() {
             assert!(why.starts_with(expected.as_bytes()), "{}", String::from_utf8_lossy(why));
         }
         world.close();
+        *slot = Some(Box::new(world));
     }
 }
 
@@ -1179,7 +1199,6 @@ fn collaborator_roles(world: &World) -> std::collections::BTreeMap<u64, people::
 
 #[test]
 fn stock_adoption_seeds_safe_human_approval_roles() {
-    writer_identity_is_ineligible();
     assert_stock_roles();
     let mut world = box_world();
     let before = kinds::revision(&world.store.rows);
@@ -1227,7 +1246,6 @@ fn stock_adoption_seeds_safe_human_approval_roles() {
     );
     stock_approval_lands(&mut world);
     world.close();
-    duplicate_approvals_count_once();
 }
 
 fn stock_waiting_change(world: &mut World) -> u64 {
@@ -1266,6 +1284,7 @@ fn stock_approval_lands(world: &mut World) {
     assert_eq!(world.merges, 1, "the known member's approval at the head permits landing");
 }
 
+#[test]
 fn writer_identity_is_ineligible() {
     let mut world = world_with_owner(temper_engine_domain_forge::user_key(1, 1_u64));
     let before = kinds::revision(&world.store.rows);
@@ -1390,6 +1409,7 @@ fn stock_produce(world: &mut World, producer: &engine::Assignment, branch: &[u8]
     world.send(event);
 }
 
+#[test]
 fn duplicate_approvals_count_once() {
     let mut world = box_world();
     for user in [4, 7] {

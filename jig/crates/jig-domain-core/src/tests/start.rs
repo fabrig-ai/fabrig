@@ -29,6 +29,7 @@ fn proof() -> crate::RunProof {
         task: 1,
         attempt: 1,
         conversation: 1,
+        endpoint: None,
         credentials: Box::new([]),
         accounts: Box::new([]),
         placement: None,
@@ -49,6 +50,7 @@ fn transcript() -> crate::Transcript {
         cut: false,
         window: None,
         closed: false,
+        moved: false,
         loaded: false,
         previous_attempt: 1,
         last: None,
@@ -627,9 +629,9 @@ fn first_failure_is_sticky() {
 
 pub(super) fn worker_table(request: &Request) {
     match request {
-        Request::Ask { ask: crate::Ask::Workers(_), .. } => {}
+        Request::Ask { ask: crate::Ask::Workers(_) | crate::Ask::Providers(_), .. } => {}
         Request::Write(_) | Request::Now(_) | Request::Held(_) | Request::Ask { .. } | Request::ProjectMade { .. } => {
-            panic!("only a worker table precedes the startup commit: {request:?}")
+            panic!("only startup settings tables precede the startup commit: {request:?}")
         }
     }
 }
@@ -640,9 +642,12 @@ fn finish_core_load(core: &mut Core, env: &Env<crate::Limits>, out: &mut Queue<R
             while let Some(request) = out.pop() {
                 match request {
                     Request::Write(_)
-                    | Request::Ask { ask: crate::Ask::Catalogue { .. } | crate::Ask::Workers(_), .. } => {}
+                    | Request::Ask {
+                        ask: crate::Ask::Catalogue { .. } | crate::Ask::Workers(_) | crate::Ask::Providers(_),
+                        ..
+                    } => {}
                     Request::Now(_) | Request::Ask { .. } | Request::Held(_) | Request::ProjectMade { .. } => {
-                        panic!("seed commit contains only writes")
+                        panic!("seed commit contains only writes and startup snapshots")
                     }
                 }
             }

@@ -1,6 +1,8 @@
 # branches: status
 
-2026-11-15. Where the tree's code lags or departs from [branches.md](branches.md).
+2026-11-18. Where the tree's code lags or departs from [branches.md](branches.md).
+
+- **Not yet:** 2, *Land*: under `wait: landed` the land step's change still lives to cleared, so the goal waits for its landing's verification [in flight: change 8593].
 
 
 

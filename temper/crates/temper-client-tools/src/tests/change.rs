@@ -150,6 +150,22 @@ fn no_change_panel(step: w::Step) -> w::ChangePanel {
     w::ChangePanel::new(&w::CEILINGS, parts).unwrap()
 }
 #[test]
+fn until_landed_is_met_for_a_change_ended_at_landing() {
+    let mut root = f::signed_in(f::PARTY);
+    let call = root.submit(&["change", "show", "2", "--until", "landed"]);
+    let mut task = task(true, true);
+    let Some(c::TaskResult::Document(result)) = &mut task.result else { panic!("ended result") };
+    let Some(c::ResultValue::Change { words, .. }) = &mut result.value else { panic!("landed result") };
+    *words =
+        f::document_text(b"2222222222222222222222222222222222222222\nEnded at landing; after landing judges it later.");
+    root.serve(call, f::task_result(task));
+    deliver_panel(&mut root, panel(landed()));
+    let answer = root.answer(call).expect("landed wait met at the result");
+    assert_eq!(answer.status, 0);
+    contains(&answer.stdout, b"\nmet\n");
+}
+
+#[test]
 fn a_no_change_completion_names_its_result_and_report() {
     for initial in [false, true] {
         let mut root = f::signed_in(f::PARTY);

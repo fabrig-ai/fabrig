@@ -417,6 +417,21 @@ pub const DECIDE: Tool = Tool {
     area: 1,
     notes: b"A decision asked again under its key prints its first answer.\nA retained decision, by your party or another, answers `decided first:`\nwith exit 0 and changes nothing. An unknown proposal answers exit 2:\nthis proposal isn't waiting; it may have been decided or replaced.\n",
 };
+/// Appended to the host's table so existing tool positions keep their meanings.
+pub const WITHDRAW_AT: u8 = 113;
+pub const WITHDRAW: Tool = Tool {
+    name: b"proposal withdraw",
+    line: b"Withdraw your own pending proposal",
+    prints: b"`done: withdraw`, or `decided first:`, by whom, how and when, if its decision is retained",
+    result: b"withdraw",
+    forms: &[&[
+        positional(b"proposal", b"PROPOSAL", Kind::Proposal, Required, b"Your party's proposal, pN/K"),
+        flag(b"project", b"PROJECT", Kind::Project { empty: false }, Required, b"The project printed with the proposal"),
+    ]],
+    keyed: Keyed::Optional,
+    area: 2,
+    notes: b"Sends without reading the proposal. Only the signed-in party's pN/K\nmay be withdrawn; a task's or another party's key is usage, exit 1,\nnothing sent. A withdrawal asked again under its key prints its first\nanswer. A retained decision, including withdrawal, answers `decided first:`\nwith exit 0 and changes nothing. An unknown proposal or one of another\nproject answers exit 2: this proposal isn't waiting; it may have been\ndecided or replaced. A proposal's acts offer withdrawal to its maker alone.\n",
+};
 pub const RELEASE: Tool = Tool {
     name: b"task release",
     line: b"Lift a task's hold",
@@ -762,7 +777,7 @@ pub const SETTINGS: Tool = Tool {
     line: b"Read the settings, the revisions running work holds, and pending proposals",
     prints: b"`newest revision R`, each setting and its last revision, the held revisions and their live tasks, and the pending proposals",
     result: b"settings",
-    forms: &[&[]],
+    forms: &[&[], &[positional(b"kind", b"provider", Kind::Word { set: &[b"provider"] }, Required, b"Every provider, including withdrawn ones; taken at the engine's next start")]],
     keyed: Keyed::Never,
     area: 1,
     notes: b"settings show KIND NUMBER --json prints one value to edit.\nsettings apply and settings propose take the newest revision this\nprints as `--against`.\n",
@@ -776,8 +791,8 @@ pub const SETTING: Tool = Tool {
         &[
             positional(
                 b"kind",
-                b"charter|template|policy|model|worker",
-                Kind::Word { set: &[b"charter", b"template", b"policy", b"model", b"worker"] },
+                b"charter|template|policy|model|worker|provider",
+                Kind::Word { set: &[b"charter", b"template", b"policy", b"model", b"worker", b"provider"] },
                 Required,
                 b"The setting's kind",
             ),
@@ -1212,7 +1227,7 @@ pub const GOAL_START: Tool = Tool {
     notes: b"Template sets charter, contract, tracking, label, flags, models
 and symbolic resources. TEXT's first line is the goal's title, as Home
 and Work show it: at most 60 characters naming the work for a person,
-as \"Store shape S7: history in task logs\"; the rest of TEXT follows
+as \"Store shape: history in task logs\"; the rest of TEXT follows
 on the lines below.
 Given budget: --budget or --as-allowed; given deadline: --deadline
 or --no-deadline. Defaults otherwise.

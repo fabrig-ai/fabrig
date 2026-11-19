@@ -2,6 +2,10 @@
 
 2026-11-18. Where the tree's code lags or departs from [work.md](work.md).
 
+- **Not yet:** 1, *Work*: a landing is marked the main one by the forge's
+  default branch rather than the repository's landing branch [in flight:
+  change 8087].
+
 - **Not yet:** 1, *Its budget*: no constant or focused test holds a cold
   open to its budget, and it takes more: Team's `Project` read leaves
   beside the stream before the hello, and the chats' chips watch and an
@@ -18,3 +22,11 @@
   kicker and the lede alone, with no heading and no filters, where the section
   says "No goals yet."; a project with no tracked template has a lede that
   stops at "landed work.", which the section has no words for.
+- **Not yet:** 1, *In flight*, *One stable list*: a delivery whose rows'
+  parts aren't made drops goals' headlines and bylines, empties a
+  milestone's card and draws its goals as cards of their own, so In
+  flight's N and the heading's "in flight" move [in flight: change 8572].
+- **Not yet:** 1, *In flight*, *One stable list*: no focused test draws
+  Work whose reads answer in turns, with nothing changed in the store, and
+  checks it draws the same text each time [in flight: change 8592].
+- **Not yet:** 1, *Goals*, its reads: the goals' needs read answering without its value clears its `selection`, so a goal's "waiting on you" goes until the next [in flight: change 8572].

@@ -6,9 +6,11 @@ use skein_lib::{List, Writer};
 const ETAG: Fields = &[(b"If-None-Match", b"\"0011223344556677\"")];
 type Fields = &'static [(&'static [u8], &'static [u8])];
 type Row = (bool, Method, &'static [u8], Fields, Answer);
-const ROUTES: [Row; 17] = [
+const ROUTES: [Row; 22] = [
     (false, Method::Get, b"/", &[], Answer::NoBundle),
     (false, Method::Get, b"/jig/v1/sign-in/link?secret=AAAA", &[], Answer::NoBundle),
+    (false, Method::Get, b"/sign-in?secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", &[], Answer::NoBundle),
+    (false, Method::Get, b"/sign-in", &[], Answer::NoBundle),
     (false, Method::Get, b"/bundle/x", &[], Answer::NotFound),
     (false, Method::Get, b"/robots.txt", &[], Answer::NotFound),
     (false, Method::Post, b"/", &[], Answer::NotFound),
@@ -22,6 +24,9 @@ const ROUTES: [Row; 17] = [
     (true, Method::Get, b"/bundle/0123456789abcdef/missing.js", &[], Answer::NotFound),
     (true, Method::Get, b"/robots.txt", &[], Answer::Root),
     (true, Method::Get, b"/jig/v1/sign-in/link?secret=AAAA", &[], Answer::Page),
+    (true, Method::Get, b"/sign-in?secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", &[], Answer::Page),
+    (true, Method::Get, b"/sign-in", &[], Answer::Page),
+    (true, Method::Post, b"/sign-in", &[], Answer::NotAllowed),
     (true, Method::Get, b"/chats/7", &[], Answer::Page),
     (true, Method::Get, b"/chats/7", ETAG, Answer::NotModified),
 ];
@@ -32,6 +37,9 @@ fn each_head_is_routed_in_the_designs_order() {
         let head = fixtures::bundle::head(method, target, headers);
         assert_eq!(route(bundled.then_some(&bundle), &head), answer, "{method:?} {target:?}");
     }
+    // Google's route is claimed before page routing, even without Google configured.
+    let (_, _, status, _) = get(b"/sign-in/google", b"");
+    assert_eq!(status, 404);
 }
 #[test]
 fn if_none_match_is_a_star_or_a_list_of_tags_compared_weakly() {
@@ -115,6 +123,24 @@ fn push_root_files_are_fixed_revalidated_and_allowed_by_the_page_policy() {
     }
 }
 #[test]
+fn the_served_service_worker_opens_needs_for_notification_presses() {
+    let (_, peer, status, _) = get(b"/sw.js", b"");
+    assert_eq!(status, 200);
+    let body = fixtures::bundle::body(&peer);
+    assert_eq!(body, crate::clients::bundle::SERVICE_WORKER);
+    for (path, expected) in [
+        (b"`/needs?project=${project}`".as_slice(), true),
+        (b"\"/needs\"".as_slice(), true),
+        (b"/?project=".as_slice(), false),
+    ] {
+        let mut found = false;
+        for part in body.windows(path.len()) {
+            found |= part == path;
+        }
+        assert_eq!(found, expected, "{path:?}");
+    }
+}
+#[test]
 fn a_matching_etag_is_answered_not_modified() {
     let (_, peer, status, headers) = get(b"/chats/7", b"If-None-Match: \"0011223344556677\"\r\n");
     assert_eq!(status, 304);
@@ -138,40 +164,63 @@ fn the_printed_links_route_serves_the_page() {
 }
 
 #[test]
+fn the_printed_links_page_serves_the_page_with_the_page_policy() {
+    let (service, peer, status, headers) = get(b"/sign-in?secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", b"");
+    assert_eq!(status, 200);
+    assert_eq!(fixtures::bundle::body(&peer), b"<!doctype html><title>t</title>");
+    assert_eq!(fixtures::header(&headers, b"content-type"), Some(b"text/html; charset=utf-8".as_slice()));
+    assert_eq!(fixtures::header(&headers, b"cache-control"), Some(b"no-cache".as_slice()));
+    assert_eq!(fixtures::header(&headers, b"etag"), Some(b"\"0011223344556677\"".as_slice()));
+    for (name, value) in fixtures::bundle::POLICY {
+        assert_eq!(fixtures::header(&headers, name), Some(value));
+    }
+    assert_eq!(service.engine.as_ref().expect("engine").clients.early.len(), 0, "nothing reached the root");
+}
+
+#[test]
+fn without_a_bundle_the_root_and_printed_link_serve_temper_with_the_page_policy() {
+    for target in ["/", "/jig/v1/sign-in/link?secret=AAAA"] {
+        no_bundle_page(target);
+    }
+}
+
+#[test]
+fn without_a_bundle_the_printed_links_page_serves_temper_with_the_page_policy() {
+    no_bundle_page("/sign-in?secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
+}
+
 #[expect(
     clippy::disallowed_methods,
     clippy::disallowed_macros,
     reason = "ordinary tests format requests and inspect the fixed HTML answer as UTF-8 text"
 )]
-fn without_a_bundle_the_root_and_printed_link_serve_temper_with_the_page_policy() {
-    for target in ["/", "/jig/v1/sign-in/link?secret=AAAA"] {
-        let mut service = fixtures::started();
-        let request = format!("GET {target} HTTP/1.1\r\nHost: 127.0.0.1:7100\r\nConnection: close\r\n\r\n");
-        let mut peer = fixtures::request(&mut service, request.as_bytes());
-        let (status, headers) = fixtures::answered(&mut service, &mut peer);
-        assert_eq!(status, 200);
-        assert_eq!(fixtures::header(&headers, b"content-type"), Some(b"text/html; charset=utf-8".as_slice()));
-        for (name, value) in fixtures::bundle::POLICY {
-            assert_eq!(fixtures::header(&headers, name), Some(value));
-        }
-        let body = core::str::from_utf8(fixtures::bundle::body(&peer)).unwrap();
-        assert!(body.starts_with("<!doctype html>"));
-        assert!(body.contains("lang=\"en\""));
-        assert!(body.contains("<title>temper</title>"));
-        assert!(body.contains("<h1>temper</h1>"));
-        for paragraph in [
-            "This temper was built without its browser client.",
-            "Open the link in a terminal with temper open DIRECTORY LINK.",
-            "To serve the browser, build temper with the wasm32-unknown-unknown target, or name a bundle's directory in application.clients.bundle, and restart temper.",
-        ] {
-            assert!(body.contains(&format!("<p>{paragraph}</p>")));
-        }
-        assert_eq!(body.matches("<p>").count(), 3);
-        for tag in ["<script", "<style", "<img"] {
-            assert!(!body.contains(tag));
-        }
-        assert_eq!(service.engine.as_ref().unwrap().clients.early.len(), 0);
+fn no_bundle_page(target: &str) {
+    let mut service = fixtures::started();
+    let request = format!("GET {target} HTTP/1.1\r\nHost: 127.0.0.1:7100\r\nConnection: close\r\n\r\n");
+    let mut peer = fixtures::request(&mut service, request.as_bytes());
+    let (status, headers) = fixtures::answered(&mut service, &mut peer);
+    assert_eq!(status, 200);
+    assert_eq!(fixtures::header(&headers, b"content-type"), Some(b"text/html; charset=utf-8".as_slice()));
+    for (name, value) in fixtures::bundle::POLICY {
+        assert_eq!(fixtures::header(&headers, name), Some(value));
     }
+    let body = core::str::from_utf8(fixtures::bundle::body(&peer)).unwrap();
+    assert!(body.starts_with("<!doctype html>"));
+    assert!(body.contains("lang=\"en\""));
+    assert!(body.contains("<title>temper</title>"));
+    assert!(body.contains("<h1>temper</h1>"));
+    for paragraph in [
+        "This temper was built without its browser client.",
+        "Open the link in a terminal with temper open DIRECTORY LINK.",
+        "To serve the browser, build temper with the wasm32-unknown-unknown target, or name a bundle's directory in application.clients.bundle, and restart temper.",
+    ] {
+        assert!(body.contains(&format!("<p>{paragraph}</p>")));
+    }
+    assert_eq!(body.matches("<p>").count(), 3);
+    for tag in ["<script", "<style", "<img"] {
+        assert!(!body.contains(tag));
+    }
+    assert_eq!(service.engine.as_ref().unwrap().clients.early.len(), 0, "nothing reached the root");
 }
 
 #[test]

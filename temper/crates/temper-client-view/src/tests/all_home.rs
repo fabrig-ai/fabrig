@@ -56,6 +56,7 @@ fn status(
                 queued: 0,
                 red,
                 branch: b"main".as_slice().into(),
+                unpaid: false,
                 brief,
             },
         )

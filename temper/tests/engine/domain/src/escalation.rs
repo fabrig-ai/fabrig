@@ -823,7 +823,9 @@ impl World {
                 assert_eq!((run.raw(), attempt.raw()), (assignment.task, assignment.attempt));
                 assert_eq!(self.worker_answer, WorkerAnswer::Retained, "the worker keeps its terminal until ACK");
             }
-            Delivery::WorkerFigures { .. } | Delivery::Link { down: host::LinkDown::Grant { .. }, .. } => {}
+            Delivery::Providers(..)
+            | Delivery::WorkerFigures { .. }
+            | Delivery::Link { down: host::LinkDown::Grant { .. }, .. } => {}
             Delivery::PlaygroundNote { .. }
             | Delivery::Application { .. }
             | Delivery::Forges { .. }

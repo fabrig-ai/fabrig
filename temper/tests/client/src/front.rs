@@ -199,6 +199,21 @@ pub fn engine_limits() -> engine::Limits {
     limits.watermark = engine::default_watermark(&limits.journal);
     limits
 }
+pub(crate) fn reading_engine_limits() -> engine::Limits {
+    turn_engine_limits(1_048_576, 2_097_152, Some(2))
+}
+fn turn_engine_limits(bytes: u32, read_bytes: u64, rows: Option<u32>) -> engine::Limits {
+    let mut limits = engine_limits();
+    limits.journal.transcript_bytes = bytes;
+    limits.loads.bytes = bytes;
+    limits.loads.reply_bytes = bytes;
+    limits.loads.transcript_bytes = bytes;
+    limits.loads.read_bytes = read_bytes;
+    if let Some(rows) = rows {
+        limits.documents.rows = rows;
+    }
+    limits
+}
 // First-run client worlds cover the seeded project, a new project and its owner.
 const FIRST_RUN_WRITES: u32 = 2120;
 
@@ -1061,18 +1076,18 @@ impl Joint {
     /// A whole-turn engine with two activity rows per page.
     #[must_use]
     pub fn with_reading_pages(seed: u64, limits: &client::Limits) -> Self {
-        Self::with_turn_bytes(seed, limits, 1_048_576, 2_097_152, Some(2))
+        let engine_limits = reading_engine_limits();
+        Self::with_engine(
+            seed,
+            limits,
+            Store::with_limits(&engine_limits),
+            [walking::config(seed), walking::config(seed)],
+            &engine_limits,
+            1,
+        )
     }
     fn with_turn_bytes(seed: u64, limits: &client::Limits, bytes: u32, read_bytes: u64, rows: Option<u32>) -> Self {
-        let mut engine_limits = engine_limits();
-        engine_limits.journal.transcript_bytes = bytes;
-        engine_limits.loads.bytes = bytes;
-        engine_limits.loads.reply_bytes = bytes;
-        engine_limits.loads.transcript_bytes = bytes;
-        engine_limits.loads.read_bytes = read_bytes;
-        if let Some(rows) = rows {
-            engine_limits.documents.rows = rows;
-        }
+        let engine_limits = turn_engine_limits(bytes, read_bytes, rows);
         Self::with_engine(
             seed,
             limits,

@@ -30,3 +30,5 @@ mod seed_policy;
 mod public;
 
 mod fixed;
+
+mod provider_settings;

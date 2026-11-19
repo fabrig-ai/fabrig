@@ -113,11 +113,21 @@ pub fn facts(root: &dyn Root, project: u32, wall: Wall) -> Facts {
         ),
         None => (0, false),
     };
-    let needs = if across(root) {
+    let mut needs = if across(root) {
         root.pages().needs().count_across(root.client(), root.forge().approvals())
     } else {
         root.pages().needs().count(root.client(), root.forge().approvals(), project)
     };
+    if let Some(inbox) = root.pages().inbox()
+        && inbox.filter.project == Some(project)
+        && inbox.filter.kind.is_none()
+        && inbox.filter.goal.is_none()
+        && inbox.known()
+        && let super::home::Needs::Count { count, cut, .. } =
+            root.pages().needs().counted(inbox, root.forge().approvals())
+    {
+        needs = super::needs::Count { count, cut };
+    }
     Facts {
         projects,
         needs: needs.count,
@@ -136,4 +146,17 @@ pub fn facts(root: &dyn Root, project: u32, wall: Wall) -> Facts {
 pub fn across(root: &dyn Root) -> bool {
     root.pages().address() == &Address::AllHome
         || if let Address::Inbox { filter } = root.pages().address() { filter.project.is_none() } else { false }
+}
+
+/// Home reached from the browser's root and marks (client/web/README.md, 2.3).
+#[must_use]
+pub fn root_home(me: Option<&jig_client::contract::Me>) -> Address {
+    if let Some(me) = me
+        && me.projects.len() == 1
+        && let Some(project) = me.projects.as_slice().first()
+    {
+        Address::Home { project: project.project }
+    } else {
+        Address::AllHome
+    }
 }

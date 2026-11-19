@@ -2,11 +2,10 @@
 //! (temper/docs/design/testing/real-loop.md, temper/docs/design/testing/process-tier.md; temper/docs/design/domain/agent/agents.md, 3).
 use serde_json::{Value, json};
 use skein_fake_llm_domain::api;
-use std::net::SocketAddr;
 use temper_real_loop_world::{
     self as world, argv,
     calls::{self, D1},
-    fixtures, forge,
+    fixtures, llm,
 };
 
 fn configure_notes(document: &mut temper_playground::documents::Configuration) {
@@ -136,7 +135,7 @@ These choices remain for the person to settle.
     })
 }
 
-fn document_scripts(_: SocketAddr) -> Box<[api::Script]> {
+fn document_scripts() -> Box<[api::Script]> {
     Box::new([api::Script {
         cue: DOCUMENT_CUE.as_bytes().into(),
         turns: Box::new([
@@ -166,8 +165,11 @@ fn document_steps() -> Vec<calls::Step> {
 
 #[test]
 fn a_chats_document_is_revised_whole_after_a_follow_up() {
-    let fixture = forge::Fixture { configure: |document, _, _| configure_notes(document), ..forge::fixture() };
-    let ran = world::run_forge(fixture, document_scripts, document_steps);
+    let ran = world::run_configured(
+        || llm::scripted(document_scripts()),
+        |document, _| configure_notes(document),
+        document_steps,
+    );
     calls_succeed(&ran);
     let seen = ran.calls();
     let project: Value = serde_json::from_slice(&seen[1].stdout).expect("project JSON");

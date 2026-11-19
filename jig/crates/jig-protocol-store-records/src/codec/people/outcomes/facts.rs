@@ -874,6 +874,9 @@ pub(super) fn encode_setting(value: domain::Setting, limits: &wire::Limits) -> R
         domain::Setting::Worker(number) => {
             wire::Setting::Worker(wire::SettingNumber::new(limits, wire::SettingNumberParts { number })?)
         }
+        domain::Setting::Provider(number) => {
+            wire::Setting::Provider(wire::SettingNumber::new(limits, wire::SettingNumberParts { number })?)
+        }
         domain::Setting::Rules => wire::Setting::Rules,
         domain::Setting::Limits => wire::Setting::Limits,
         domain::Setting::Application { kind, scope, number } => wire::Setting::Application(
@@ -892,6 +895,8 @@ fn encode_setting_fault(value: domain::SettingFault) -> wire::SettingFault {
         domain::SettingFault::Owner => wire::SettingFault::Owner,
         domain::SettingFault::Judged => wire::SettingFault::Judged,
         domain::SettingFault::Linked => wire::SettingFault::Linked,
+        domain::SettingFault::Accounts => wire::SettingFault::Accounts,
+        domain::SettingFault::Range => wire::SettingFault::Range,
     }
 }
 
@@ -903,6 +908,7 @@ pub(super) fn decode_setting(value: &wire::Setting) -> domain::Setting {
         wire::Setting::ProjectPolicy(value) => domain::Setting::ProjectPolicy { project: value.project() },
         wire::Setting::Model(value) => domain::Setting::Model(value.number()),
         wire::Setting::Worker(value) => domain::Setting::Worker(value.number()),
+        wire::Setting::Provider(value) => domain::Setting::Provider(value.number()),
         wire::Setting::Rules => domain::Setting::Rules,
         wire::Setting::Limits => domain::Setting::Limits,
         wire::Setting::Application(value) => {
@@ -921,6 +927,8 @@ fn decode_setting_fault(value: &wire::SettingFault) -> domain::SettingFault {
         wire::SettingFault::Owner => domain::SettingFault::Owner,
         wire::SettingFault::Judged => domain::SettingFault::Judged,
         wire::SettingFault::Linked => domain::SettingFault::Linked,
+        wire::SettingFault::Accounts => domain::SettingFault::Accounts,
+        wire::SettingFault::Range => domain::SettingFault::Range,
     }
 }
 

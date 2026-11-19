@@ -138,13 +138,29 @@ fn encoded(records: Records) -> Result<Vec<Vec<u8>>, String> {
         })
         .collect()
 }
+// A fixed 64 KiB write buffer, independent of the observation line bound.
+const OBSERVATION_CHUNK: usize = 64 * 1024;
+fn write_overlong(path: &Path, before: &[u8], after: &[u8]) {
+    use std::io::Write;
+    let mut file = fs::File::create(path).expect("overlong observations fixture");
+    file.write_all(before).expect("before overlong line");
+    let chunk = vec![b'x'; OBSERVATION_CHUNK];
+    let bound = skein_lib::usize_of(temper_fake::limits::OBSERVATION_BYTES);
+    for _ in 0..bound / OBSERVATION_CHUNK {
+        file.write_all(&chunk).expect("overlong line chunk");
+    }
+    file.write_all(&chunk[..bound % OBSERVATION_CHUNK]).expect("overlong line remainder");
+    // Exactly one byte beyond the line bound (including LF).
+    file.write_all(b"\n").expect("overlong line LF");
+    file.write_all(after).expect("after overlong line");
+}
+
 #[test]
 fn observations() {
     let root = scratch("fake-check-observations");
+    write_overlong(&root.join("overlong-prefix"), b"", START);
+    write_overlong(&root.join("overlong-tail"), START, b"");
     let bound = skein_lib::usize_of(temper_fake::limits::OBSERVATION_BYTES);
-    // Exactly one byte beyond the line bound (including LF).
-    let mut overlong = vec![b'x'; bound];
-    overlong.push(b'\n');
     let overlong_error = format!("line 1: line past {bound} bytes");
     let missing_file =
         format!("observations {}: {}", root.join("absent").display(), std::io::Error::from_raw_os_error(2));
@@ -173,8 +189,8 @@ fn observations() {
         ("no-checkpoint", Some(DELETED.to_vec()), Err(MISSING)),
         ("empty", Some(vec![]), Err(MISSING)),
         ("absent", None, Err(missing_file.as_str())),
-        ("overlong-prefix", Some([overlong.as_slice(), START].concat()), Err(overlong_error.as_str())),
-        ("overlong-tail", Some([START, overlong.as_slice()].concat()), Ok((1, 0, vec![START.to_vec()]))),
+        ("overlong-prefix", None, Err(overlong_error.as_str())),
+        ("overlong-tail", None, Ok((1, 0, vec![START.to_vec()]))),
         (
             "checkpoints",
             Some([START, DELETED, LOST, b"partial"].concat()),
@@ -229,6 +245,7 @@ const REPO: Repository = Repository { forge: 1, repository: 2 };
 fn repository() -> d::Stored {
     d::Stored::Repository(d::Repository {
         contexts: Box::new([]),
+        landing: b"main".as_slice().into(),
         workflows: Box::default(),
         project: 1,
         home: true,
@@ -330,7 +347,12 @@ fn unreadable_store(path: &Path, errno: u8) -> Outcome {
 fn agent_metadata_fixture(root: &Path) -> temper_service::settings::Agent {
     let (agent, _) = crate::tests::configuration::documents(root, "/fixture/temper");
     fs::write(root.join("root.der"), skein_tls_kit::pki::ROOT).expect("fixture trust");
-    crate::agent::prepare_bytes(agent.into_boxed_slice()).expect("agent metadata").agent
+    let mut agent: serde_json::Value = serde_json::from_slice(&agent).expect("agent JSON");
+    for endpoint in agent["endpoints"].as_array_mut().expect("fixture endpoints") {
+        endpoint.as_object_mut().expect("fixture endpoint").remove("program");
+    }
+    let bytes = serde_json::to_vec(&agent).expect("agent JSON").into_boxed_slice();
+    crate::agent::prepare_bytes(bytes).expect("agent metadata").agent
 }
 #[test]
 fn verb() {
@@ -415,9 +437,14 @@ fn verb() {
             Copy::Absent => {}
             Copy::File => fs::write(&check.store, b"not a store").expect("non-store"),
         }
+        let entries_before = fs::read_dir(data).expect("fixture entries").count();
         assert_eq!(outcome(&directories, &check), expected, "{name}");
         assert_eq!(fs::read(data.join("agents.setting")).expect("copy remains"), copy_before, "{name}: read-only copy");
-        assert_eq!(fs::read_dir(data).expect("data entries").count(), 1, "{name}: creates no data resources");
+        assert_eq!(
+            fs::read_dir(data).expect("data entries").count(),
+            entries_before,
+            "{name}: creates no data resources"
+        );
         assert!(!directory.join("cache").exists(), "{name}: creates no cache directory");
     }
     fs::remove_dir_all(root).expect("scratch removed");

@@ -60,6 +60,7 @@ mod address;
 mod instructions;
 
 mod deadlines;
+mod topic_apart;
 
 mod index;
 
@@ -103,7 +104,7 @@ fn valid_refuses_each_unrepresentable_limit() {
         ("proposal_stall", crate::Limits { proposal_stall: Duration::ZERO, ..limits }, KEPT, false),
         ("escalation_stall", crate::Limits { escalation_stall: Duration::ZERO, ..limits }, KEPT, false),
         ("batch names", crate::Limits { batch: u32::MAX, ..limits }, KEPT, false),
-        ("timer place boundary", crate::Limits { subscriptions: u32::MAX / limits.tasks, ..limits }, KEPT, true),
+        ("timer place boundary", crate::Limits { subscriptions: u32::MAX / limits.tasks - 1, ..limits }, KEPT, true),
         ("timer places", crate::Limits { subscriptions: u32::MAX, ..limits }, KEPT, false),
         ("revision holders", limits, crate::Kept { revisions: u32::MAX, ..KEPT }, false),
         // No retained dependency/input names means a large batch needs no stub multiplication.

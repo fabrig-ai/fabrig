@@ -1541,7 +1541,10 @@ pub fn retain_live_model(path: &std::path::Path, name: &str) {
     assert_eq!(name, LiveModel::ChatGpt { account: None }.name());
     let mut value: serde_json::Value = serde_json::from_slice(&fs::read(path).expect("deployment")).expect("JSON");
     for table in ["providers", "endpoints"] {
-        value["engine"]["llm"][table].as_array_mut().expect("LLM table").retain(|row| row["name"] != "anthropic");
+        temper_agent_fixtures::providers::input(&mut value)[table]
+            .as_array_mut()
+            .expect("LLM table")
+            .retain(|row| row["name"] != "anthropic");
     }
     super::write_private(path, &serde_json::to_vec(&value).expect("deployment JSON"));
 }
@@ -1550,7 +1553,7 @@ pub fn configure_live_model(config: &std::path::Path, model: LiveModel<'_>, exec
     if let LiveModel::AnthropicKey { .. } = model {
         let path = config.join("temper.json");
         let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("deployment")).expect("JSON");
-        let provider = value["engine"]["llm"]["providers"]
+        let provider = temper_agent_fixtures::providers::input(&mut value)["providers"]
             .as_array_mut()
             .expect("providers")
             .iter_mut()
@@ -1581,7 +1584,7 @@ pub fn configure_live_model(config: &std::path::Path, model: LiveModel<'_>, exec
     endpoint["program"] = "claude_code".into();
     endpoint["address"] = "api.anthropic.com:443".into();
     endpoint["server_name"] = "api.anthropic.com".into();
-    let mut route = value["engine"]["llm"]["endpoints"]
+    let mut route = temper_agent_fixtures::providers::input(&mut value)["endpoints"]
         .as_array()
         .expect("engine endpoints")
         .iter()
@@ -1597,7 +1600,8 @@ pub fn configure_live_model(config: &std::path::Path, model: LiveModel<'_>, exec
         "sources":{"programs":["claude_code"]}
     });
     for (table, field, replacement) in [("providers", "name", provider), ("endpoints", "name", route)] {
-        let entries = value["engine"]["llm"][table].as_array_mut().expect("init LLM table");
+        let entries =
+            temper_agent_fixtures::providers::input(&mut value)[table].as_array_mut().expect("init LLM table");
         entries
             .retain(|entry| entry[field] != "openai" && entry[field] != "anthropic" && entry[field] != "anthropic-api");
         entries.insert(0, replacement);

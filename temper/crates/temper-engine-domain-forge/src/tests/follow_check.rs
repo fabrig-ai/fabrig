@@ -35,6 +35,7 @@ pub(crate) fn configured() -> (Domain, ChangeRow) {
         Box::new([]),
         temper_engine_domain_forge_landing::Project::DEFAULT,
         AfterLanding {
+            wait: temper_engine_domain_forge_change::Wait::Cleared,
             verdict: p::Settings { retries: 2, suspects: p::Suspects::Bisect },
             bound: Duration::from_secs(600),
         }

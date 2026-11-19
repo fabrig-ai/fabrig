@@ -35,7 +35,7 @@ mod inbox_deployment;
 mod inbox_selection;
 mod live_delegates;
 mod objects;
-pub(crate) use objects::run_proposal;
+pub(crate) use objects::{party_proposal_history, run_proposal};
 mod offers;
 mod programs;
 mod project_note;

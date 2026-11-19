@@ -284,7 +284,7 @@ const USAGES: &[(u8, &[u8])] = &[
     (jig::rows::SIGN_IN_AT, b"sign-in FILE\nsign-in --service FILE\n"),
     (jig::rows::PARTY_MAKE_AT, b"party make --project PROJECT --role ROLE --out FILE TEXT [--key KEY]\n"),
     (jig::rows::HELP_AT, b"help [GROUP [VERB]]\n"),
-    (jig::rows::SETTING_AT, b"settings show charter|template|policy|model|worker NUMBER [--revision REVISION]\nsettings show rules\nsettings show landing-rule NUMBER [--project PROJECT] [--revision REVISION]\nsettings show forge-charter NUMBER [--revision REVISION]\nsettings show project-ways|project-questions|project-classes|project-words|project-areas|project-triager|project-landing|project-gates PROJECT [--revision REVISION]\nsettings show charter-words NUMBER [--revision REVISION]\nsettings show template-goal NUMBER [--revision REVISION]\nsettings show follow NUMBER --project PROJECT [--revision REVISION]\nsettings show dependency NUMBER --project PROJECT [--revision REVISION]\nsettings show agents [--revision REVISION]\nsettings show welcome [--revision REVISION]\nsettings show limits\nsettings show temper-limits [--revision REVISION]\n"),
+    (jig::rows::SETTING_AT, b"settings show charter|template|policy|model|worker|provider NUMBER [--revision REVISION]\nsettings show rules\nsettings show landing-rule NUMBER [--project PROJECT] [--revision REVISION]\nsettings show forge-charter NUMBER [--revision REVISION]\nsettings show project-ways|project-questions|project-classes|project-words|project-areas|project-triager|project-landing|project-gates PROJECT [--revision REVISION]\nsettings show charter-words NUMBER [--revision REVISION]\nsettings show template-goal NUMBER [--revision REVISION]\nsettings show follow NUMBER --project PROJECT [--revision REVISION]\nsettings show dependency NUMBER --project PROJECT [--revision REVISION]\nsettings show agents [--revision REVISION]\nsettings show welcome [--revision REVISION]\nsettings show limits\nsettings show temper-limits [--revision REVISION]\n"),
 ];
 #[test]
 fn a_tools_usage_reads_as_the_design_writes_it() {
@@ -578,7 +578,7 @@ fn goal_start_help_explains_the_title_line() {
     assert!(text.contains(concat!(
         "TEXT's first line is the goal's title, as Home and Work show it: ",
         "at most 60 characters naming the work for a person, ",
-        "as \"Store shape S7: history in task logs\"; the rest of TEXT follows on the lines below."
+        "as \"Store shape: history in task logs\"; the rest of TEXT follows on the lines below."
     )));
 }
 

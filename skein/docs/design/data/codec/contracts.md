@@ -1,46 +1,74 @@
-# Contracts: generated files that merge themselves
+# Contracts: lean records on jig's tasks store
 
-2026-11-18. Goal K2 of `temper/docs/design/draft/codec-shape.execution.md`:
+2026-11-18. Goal K3 of `temper/docs/design/draft/codec-shape.execution.md`:
 the shapes its changes share while it runs
-(`temper/docs/design/draft/design-economy.md`, 4.3). The draft's section 6
-is the design; this document goes with the goal's last change.
+(`temper/docs/design/draft/design-economy.md`, 4.3). The design is
+`README.md`, sections 1, 2, 4 and 6, from the draft's section 3; this
+document goes with the goal's last change.
 
-## 1. A generated module's file
+## 1. Two forms while families move
 
-- **`src/generated/<stem>.rs`,** in the crate that holds the family's
-  records, for every family a build stores, sends or embeds. `<stem>` is
-  the family's current schema file's name less its `-v<N>.schema`, each
-  `-` an `_`: `tasks-v13.schema` makes `tasks.rs`, `worker-wire-v17.schema`
-  `worker_wire.rs`, `store-v25.schema` `store.rs`.
-- **A split schema** (`client-v33.schema` with `client-v33-part1.schema`)
-  makes one module, named for its first part: `client.rs`.
-- **Unique within a crate:** two families of one crate never share a
-  stem.
-- **The Rust module keeps its name.** The crate includes the file by
-  `#[path]` under the name its hand-written code already uses
-  (`#[path = "generated/tasks.rs"] pub mod tasks_v13;`); renaming a
-  module is its owner's choice, and none is asked here.
-- **Not covered:** skein's codec fixtures outside `src/generated/`
-  (`skein/tests/codec/src/every/`, `lints/`, `scalars/`, `secrets/`),
-  which hold several versions of one family side by side
-  (`command.md`, 1), keep their names. The glue files
-  `src/generated/layouts.rs` are no family's module.
+- **Lean or sealed.** Until every family is lean (the draft's K4), the
+  generator writes either form: lean records (`README.md`, 4), or the
+  sealed form every other family has now (private fields, `Parts`,
+  constructors, accessors, `into_parts`, a `Path` enum, bound
+  arithmetic).
+- **The owner's mark:** a file `lean` in the owner's `schema/`
+  directory, beside `registered`, lists the families generated lean,
+  one family name a line as its schema's `family` line spells it
+  (`jig-store-tasks`), `#` starting a comment. No file, or a family it
+  doesn't list, is sealed.
+- **The generator's surface:**
 
-## 2. The generator's command
+  ```rust
+  // skein_codegen; Form derives Clone, Copy, Debug, equality
+  pub enum Form { Sealed, Lean }
+  pub fn generate_as(schema: &Schema, form: Form) -> Output;
+  // generate(schema) is generate_as(schema, Form::Sealed)
+  // Lean where schema_dir/lean lists family; an unreadable file is Err
+  pub fn form_of(schema_dir: &std::path::Path, family: &str)
+      -> std::io::Result<Form>;
+  ```
 
-```
-skein-codegen <schema>... <out-dir>
-```
+- **The command** (`README.md`, 4) writes the form `form_of` gives for
+  its first schema's directory and the parsed family, so the merge job
+  (`temper/docs/design/protocol/tooling.md`, 4.1) and the drift test
+  write the same module. Its arguments don't change.
+- **Each drift test** generates its families in the form their mark
+  gives. skein's `every` fixture writes its current version both ways
+  (2).
 
-- **Its texts:** the schemas' texts concatenated in the order given,
-  nothing between them, as jig's drift check reads a split family's
-  parts (`jig/tests/codec-families.rs`, `check`), parsed as one schema.
-- **Its output:** `generate`'s records' module, written to
-  `<out-dir>/<stem>.rs`, `<stem>` the first schema's (1); `<out-dir>` is
-  made where absent. Nothing else is written.
-- **Its failure:** a schema that does not read or parse exits nonzero,
-  saying why on stderr, and writes nothing.
-- **`patch`** as the first argument stays the patch command
-  (`command.md`, 8).
-- **The same bytes as the drift test:** the command's module for a
-  family's schemas is the module that family's drift test writes.
+## 2. skein's pin, both ways
+
+- **`every-v3` lean:** `skein/tests/codec/src/every/v3_lean.rs`, Rust
+  module `every_v3_lean`, generated lean from `every-v3.schema` beside
+  the sealed `every_v3`, both checked by the fixture's drift test.
+- **The same bytes, bounds and refusals:** every golden of `every-v3`
+  decodes, measures and encodes alike through both modules; each
+  declaration's encoded and decoded bounds are equal, at the ceilings
+  and at small limits; and a refusal names the same path, by name, with
+  the same reason.
+
+## 3. A lean module's surface
+
+What hand-written code reads of a lean family's module, beside
+`README.md`, 4:
+
+- **Its types** keep their names, fields, Rust field types, variants and
+  derives; each field is public. A `boxed` variant keeps its `Box`.
+- **`paths`,** a public module of one `skein_codec::Path` constant a
+  path, named as the sealed `Path` variant, in capitals:
+  `Path::SpecWords` is `paths::SPEC_WORDS`, `Path::RowTail` is
+  `paths::ROW_TAIL`, `Path::RowVersion` `paths::ROW_VERSION`,
+  `Path::PartKindTag` `paths::PART_KIND_TAG`.
+- **`pub fn name(path: Path) -> Option<&'static str>`:** the path's
+  name as the sealed `Path::name` gave it; `None` for a path the family
+  doesn't have.
+- **`pub use skein_codec::{Path, Problem, Record};`** so the module's
+  path names them, and a caller brings `Record` into scope from it.
+- **Unchanged:** `VERSION`, `Limits` and its fields, `CEILINGS`,
+  `LIMIT_NAMES`, `Limits::values`, `check_limits`, and the family's
+  `encoded_bound` and `decoded_bound`, but that `check_limits` returns a
+  `skein_codec::Problem`.
+- **Measuring and encoding take the limits** and refuse with a
+  `Problem`; a list is checked by its length, not its capacity.

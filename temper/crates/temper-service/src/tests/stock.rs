@@ -16,12 +16,12 @@ pub(super) fn limited(document: &(impl fixtures::Input + ?Sized), name: &[u8], v
 #[test]
 fn the_stock_passes_jigs_one_check() {
     let init = generated();
-    let without_demo = fixtures::with(&init, b"application.demo", b"null");
-    for (row, document) in [("init", without_demo), ("single model", single_model()), ("demo", init)] {
+    for (row, document) in [("init", init)] {
         fixtures::named(&document, &config::Directories::working()).expect("stock passes startup parsing");
         let engine = engine(&document);
         let core = config::core(&engine, [1; 16], 7);
-        let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
+        let mut defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
+        defaults.providers = config::llm::provider_values(&engine.llm);
         assert_eq!(
             defaults.charters[0].policy.instructions.as_ref(),
             include_bytes!("../../../temper-engine-service-stock/src/stock/chat.txt")
@@ -48,7 +48,8 @@ fn each_floor_refuses_one_below_the_stocks_need() {
     let document = without_projects();
     let engine = engine(&document);
     let core = config::core(&engine, [1; 16], 7);
-    let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
+    let mut defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
+    defaults.providers = config::llm::provider_values(&engine.llm);
     let mut run = (0, Setting::Charter(1));
     for charter in &defaults.charters {
         let resolved = settings::charters::resolved(charter, &defaults.models, &engine.limits.core).unwrap();
@@ -58,7 +59,7 @@ fn each_floor_refuses_one_below_the_stocks_need() {
         }
     }
     // The main model and eight alternatives each carry eight aligned cache-lifetime bytes.
-    assert_eq!(run, (27_765, Setting::Charter(5)));
+    assert_eq!(run, (27_615, Setting::Charter(5)));
     let current = settings::Current::new(defaults, &engine.limits.core, &[]);
     let rows: &[(&[u8], u64, Setting, &str)] = &[
         // Each policy authority includes the standing roles' charter executors.
@@ -200,13 +201,13 @@ fn an_inline_seed_policy_is_refused_naming_its_path() {
 }
 
 #[test]
-fn stock_startup_requires_a_model_before_building_its_charters() {
-    let mut document = generated();
-    for path in [b"engine.llm.providers".as_slice(), b"engine.llm.endpoints"] {
-        document = fixtures::with(&document, path, b"[]");
-    }
-    let found = fixtures::named(&document, &config::Directories::working()).unwrap_err();
-    assert_eq!(crate::startup::lines(&found).as_ref(), b"engine.llm.providers: past its bound\n");
+fn stock_startup_keeps_its_models_even_without_running_providers() {
+    let document = fixtures::engine_alone_document();
+    let given = crate::stock::Given::Stock.with_providers(Box::new([]), Box::new([]));
+    let named = crate::startup::named_with(&document, &config::Directories::working(), &given).unwrap();
+    assert_eq!(named.llm.models.len(), 7);
+    assert!(named.llm.providers.is_empty());
+    assert!(named.llm.endpoints.is_empty());
 }
 
 #[test]
@@ -300,54 +301,40 @@ fn startup_gives_the_stock_ways_or_the_worlds_own() {
 }
 
 #[test]
+#[expect(clippy::disallowed_types, reason = "ordinary JSON fixtures exercise the enclosing moved member")]
 fn a_documents_models_are_refused_at_their_paths() {
     let init: serde_json::Value = serde_json::from_slice(&generated()).unwrap();
-    for (parent, member, path) in [
-        ("/engine/llm", "models", "engine.llm.models"),
-        ("/engine/llm/providers/0", "models", "engine.llm.providers[0].models"),
-    ] {
+    for value in [serde_json::json!({"models":[]}), serde_json::json!({"providers":[{"models":[]}]})] {
         let mut document = init.clone();
-        document
-            .pointer_mut(parent)
-            .unwrap()
-            .as_object_mut()
-            .unwrap()
-            .insert(member.into(), serde_json::from_slice::<serde_json::Value>(b"[]").unwrap());
+        document["engine"]["llm"] = value;
         let problems =
             fixtures::named(&serde_json::to_vec(&document).unwrap(), &config::Directories::working()).unwrap_err();
         assert_eq!(problems.problems.len(), 1);
         assert_eq!(
             crate::startup::lines(&problems).as_ref(),
-            format!("{path}: settings live in the store; read them with temper ctl DIR settings show\n").as_bytes()
+            b"engine.llm: moved: LLM providers are settings; see them with temper ctl settings show provider\n"
         );
     }
-    let mut document = init;
-    document["engine"]["llm"]["providers"][0].as_object_mut().unwrap().remove("endpoint");
-    let problems =
-        fixtures::named(&serde_json::to_vec(&document).unwrap(), &config::Directories::working()).unwrap_err();
-    assert_eq!(
-        crate::startup::lines(&problems).as_ref(),
-        b"engine.llm.providers[0].endpoint: missing\nengine.llm.providers[0].keep: unknown reference\n"
-    );
 }
 
 #[test]
 fn a_model_added_by_rest_is_checked_against_the_agents_bounds() {
-    let engine = engine(&generated());
+    let mut engine = engine(&generated());
+    engine.charters[0].policy.alternatives = Box::new([]);
     let mut agent = fixtures::parsed_agent(fixtures::stock_configuration(63_740, 48_000).unwrap());
     let mut problems = crate::startup::Problems::empty();
     let core = config::core(&engine, [7; 16], 7);
     let warnings = crate::startup::checks::admission(&core, &engine, &agent.declaration(), &mut problems);
     assert!(problems.is_empty());
     assert!(warnings.is_empty());
-    let demo = agent.bounds.endpoints.iter_mut().find(|endpoint| endpoint.endpoint == 3).unwrap();
-    demo.output = 8191;
+    let rest = agent.bounds.endpoints.iter_mut().find(|endpoint| endpoint.endpoint == 1).unwrap();
+    rest.output = 8191;
     let warnings = crate::startup::checks::admission(&core, &engine, &agent.declaration(), &mut problems);
     assert!(problems.is_empty());
     assert_eq!(warnings.problems.len(), 1);
     assert_eq!(
         crate::startup::lines(&warnings).as_ref(),
-        b"engine.charters[0].alternatives[6]: needs 8192 output tokens; the agent offers 8191 tokens\n"
+        b"engine.charters[0].alternatives[2]: needs 8192 output tokens; the agent offers 8191 tokens\n"
     );
 }
 
@@ -362,13 +349,11 @@ pub(super) fn generated() -> fixtures::Start {
             login: Some(b"ada"),
             ports: temper_init::Ports {
                 clients: NonZeroU16::new(8367).unwrap(),
-                llm: NonZeroU16::new(8370).unwrap(),
                 webhooks: NonZeroU16::new(8371).unwrap(),
             },
         },
         &temper_init::Directories { config: b"/config", data: b"/data" },
         &[0; 32],
-        &[1; 32],
     )
     .unwrap();
     for file in answer.files {
@@ -386,21 +371,8 @@ pub(super) fn engine(document: &[u8]) -> config::Engine {
     crate::startup::engine(&parsed, parsed.member(0, b"engine").unwrap(), &config::Directories::working()).unwrap()
 }
 
-fn single_model() -> fixtures::Start {
-    let bytes = generated();
-    let document = fixtures::Json::new(&bytes);
-    let providers = [b"[".as_slice(), document.value(b"engine.llm.providers[0]"), b"]"].concat();
-    let endpoints = [b"[".as_slice(), document.value(b"engine.llm.endpoints[0]"), b"]"].concat();
-    document.with(&[
-        (b"engine.llm.providers", &providers),
-        (b"engine.llm.endpoints", &endpoints),
-        (b"application.demo", b"null"),
-    ])
-}
-
 fn without_projects() -> fixtures::Start {
-    let document = generated();
-    fixtures::Json::new(&document).with(&[(b"application.demo", b"null")])
+    generated()
 }
 
 #[path = "stock_brief.rs"]
@@ -416,7 +388,7 @@ fn a_fresh_box_admits_the_stock_at_inits_catalogue() {
     assert_eq!(temper_limits_fixtures::small().root.journal.run_bytes, 65_536);
     let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     assert_eq!(crate::stock::floors(&defaults, &engine.limits), Ok(()));
-    for (number, expected) in [(2, 12_596), (5, 27_765)] {
+    for (number, expected) in [(2, 12_456), (5, 27_615)] {
         let charter = defaults.charters.iter().find(|charter| charter.number == number).unwrap();
         let resolved =
             jig_domain_core::settings::charters::resolved(charter, &defaults.models, &engine.limits.core).unwrap();
@@ -437,7 +409,7 @@ fn a_standard_document_admits_stock_policy_one_without_seeding_a_project() {
         &parsed,
         0,
         &config::Directories::working(),
-        config::Defaults::Passed,
+        config::Defaults::PassedProviders,
         &crate::startup::fixed(&jig_protocol_config::Directories::working()).unwrap(),
     )
     .unwrap();
@@ -455,10 +427,12 @@ fn a_standard_document_admits_stock_policy_one_without_seeding_a_project() {
         policy.policy.ceiling.delegation.kinds.len(),
         engine.limits.core.authority.executors
     );
-    config::pass(&mut engine, defaults).expect("a standard deployment seeds stock policy 1");
+    config::pass_providers(&mut engine, defaults, &crate::stock::providers(), Box::new([]))
+        .expect("a standard deployment seeds stock policy 1");
     assert!(engine.projects.is_empty());
     let core = config::core(&engine, [1; 16], 7);
-    let defaults = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
+    let mut defaults = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
+    defaults.providers = config::llm::provider_values(&engine.llm);
     assert_eq!(crate::stock::floors(&defaults, &engine.limits), Ok(()));
     let current = jig_domain_core::settings::Current::new(defaults, &engine.limits.core, &[]);
     assert_eq!(

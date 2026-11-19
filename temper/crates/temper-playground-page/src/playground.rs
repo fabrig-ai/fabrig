@@ -90,7 +90,10 @@ pub fn printed_link(printed: &bridge::Printed) -> Option<&str> {
     if authority.is_empty() || authority.contains(['?', '#', '@', '\\']) || line.chars().any(char::is_whitespace) {
         return None;
     }
-    let path = rest.strip_prefix("jig/v1/sign-in/link?secret=")?;
+    let page = std::str::from_utf8(temper_client_domain_forge::sign_in::LINK_PAGE).expect("ASCII link page");
+    let path = rest
+        .strip_prefix("jig/v1/sign-in/link?secret=")
+        .or_else(|| rest.strip_prefix(page.strip_prefix('/').expect("absolute link page"))?.strip_prefix("?secret="))?;
     if path.is_empty() || path.contains(['#', '\\']) || line.bytes().any(|byte| byte.is_ascii_control()) {
         return None;
     }

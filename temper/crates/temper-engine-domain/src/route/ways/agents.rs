@@ -93,6 +93,7 @@ fn row(domain: &Domain, number: u32) -> Option<&CatalogueModel> {
             | Value::Policy(_)
             | Value::Rules(_)
             | Value::Limits(_)
+            | Value::Provider(_)
             | Value::Worker(_)
             | Value::Application(_),
         )

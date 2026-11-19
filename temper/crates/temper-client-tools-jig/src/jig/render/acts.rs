@@ -39,6 +39,29 @@ pub fn name(act: ActKind) -> &'static [u8] {
         ActKind::Withdraw => b"withdraw",
     }
 }
+/// Proposal withdrawal is offered by the engine to its maker alone.
+pub fn proposal_offers(value: &jig_client::contract::Proposal, limits: &crate::jig::Limits, out: &mut Text) {
+    for offer in &value.acts {
+        if offer.act != ActKind::Withdraw {
+            continue;
+        }
+        out.put(b"acts:\n  proposal withdraw ");
+        super::document::settings::proposal_text(value.key, out);
+        out.put(b" --project ");
+        out.number(u64::from(value.project));
+        out.put(b" --key KEY");
+        match &offer.admission {
+            Admission::Allowed => {}
+            Admission::Refused(why) => {
+                out.put(b": ");
+                refusal(why, &super::document::phrasebook(limits.text), out);
+            }
+            Admission::Proposed { to } => proposed(to, None, out),
+            Admission::Bounded { within, .. } => bounds(within, out),
+        }
+        out.put(b"\n");
+    }
+}
 pub fn text(task: &Task, me: Option<&Me>, book: &Phrasebook, out: &mut Text) {
     out.put(b"acts:\n");
     for offer in &task.acts {

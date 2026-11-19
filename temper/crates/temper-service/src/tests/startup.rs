@@ -58,7 +58,8 @@ fn record_sizing_leaves_driver_admission_until_after_agent_checks() {
     engine.limits.root.loads.transcript_bytes = 3_000_000;
     engine.limits.root.loads.read_bytes = 1_000_000;
     let root = crate::limits::engine(&engine.jig.limits, &engine.limits).unwrap();
-    let refused = crate::store::admit(&root, &root.forge, &engine.jig.limits.store, None).unwrap_err();
+    let refused = crate::store::admit(&root, &root.forge, &engine.jig.limits.store, Some(root.loads.transcript_bytes))
+        .unwrap_err();
     let crate::store::Refusal::ReadRoom { read, needs } = refused else {
         panic!("the driver's page is the only refusal: {refused:?}");
     };
@@ -72,8 +73,7 @@ fn record_sizing_leaves_driver_admission_until_after_agent_checks() {
 #[test]
 fn a_read_bound_set_to_the_refusals_number_starts() {
     const TRANSCRIPT: u32 = 10_000_000;
-    // With a smaller agent turn the page drives the requirement; with a turn
-    // as large as the transcript the decoded row drives it instead.
+    // The provider row floor is covered by the chunk; each decoded turn must fit the read itself.
     for turn in [fixtures::startup_agent().limits.bodies.turn_body, TRANSCRIPT] {
         let mut agent = fixtures::startup_agent();
         agent.limits.bodies.turn_body = turn;
@@ -104,13 +104,12 @@ fn a_read_bound_set_to_the_refusals_number_starts() {
         let decoded = u64::from(turn)
             + u64::try_from(size_of::<jig_domain_core::reads::Row>()).unwrap()
             + u64::try_from(size_of::<jig_domain_core::Record>()).unwrap();
-        assert!(frame > map);
-        assert_eq!(page, frame);
-        assert!(u64::from(store.store.chunk) < page);
-        assert_eq!(decoded > page, turn == TRANSCRIPT);
-        let required = page.max(decoded);
-        // A read with no carrier room exercises both causes together; the
-        // same complete figure must be named there and at one byte short.
+        assert!(map > frame);
+        assert_eq!(page, map);
+        assert!(u64::from(store.store.chunk) >= page);
+        assert!(decoded < page);
+        let required = decoded;
+        // The complete decoded figure is named both without carrier room and at one byte short.
         for read in [u64::from(turn), required - 1, required] {
             let mut document = document.clone();
             document.own.root.loads.read_bytes = read;
@@ -257,14 +256,6 @@ fn startup_names_the_policy_row_before_its_general_refusal() {
 }
 
 #[test]
-fn the_template_shaped_demo_reads_into_its_public_fields() {
-    let (members, problems) = application(&fixtures::demo_application(), &fixtures::engine().jig);
-    assert_eq!(&*lines(&problems), b"");
-    let demo = members.unwrap().demo.unwrap();
-    assert_eq!(demo.provider, 3);
-    assert!(demo.key_file.ends_with(b"llm.key"));
-}
-#[test]
 fn the_welcome_member_is_refused_with_its_moved_words() {
     for value in ["true", "false", "\"yes\"", "1", "null", "{}", "[]"] {
         let input = format!("{{\"welcome\":{value},{}", &core::str::from_utf8(fixtures::APPLICATION).unwrap()[1..]);
@@ -278,49 +269,23 @@ fn the_welcome_member_is_refused_with_its_moved_words() {
     }
 }
 #[test]
-fn a_null_demo_reads_as_none() {
+fn the_demo_member_is_refused_with_its_moved_words() {
+    for value in ["null", "{}", "false"] {
+        let input = format!("{{\"demo\":{value},{}", &core::str::from_utf8(fixtures::APPLICATION).unwrap()[1..]);
+        let (members, problems) = application(input.as_bytes(), &fixtures::engine().jig);
+        assert!(members.is_none(), "{value}");
+        assert_eq!(
+            lines(&problems).as_ref(),
+            b"application.demo: moved: the playground's scripted model is the box's own\n"
+        );
+    }
+}
+#[test]
+fn an_engine_document_has_no_demo() {
     let (members, problems) = application(fixtures::APPLICATION, &fixtures::engine().jig);
     assert_eq!(&*lines(&problems), b"");
     assert!(members.unwrap().demo.is_none());
 }
-#[test]
-fn an_unanswerable_demo_is_refused_at_its_field() {
-    use temper_client_protocol_wire::v1::CEILINGS;
-    let input = fixtures::demo_application();
-    let input = core::str::from_utf8(&input).unwrap();
-    for (row, from, to, expected) in [
-        (
-            "cue count at bound",
-            "\"asked\":[",
-            ["\"asked\":[", &"{\"cue\":\"extra\",\"turns\":[\"x\"]},".repeat(5)].concat(),
-            "",
-        ),
-        (
-            "cue count past bound",
-            "\"asked\":[",
-            ["\"asked\":[", &"{\"cue\":\"extra\",\"turns\":[\"x\"]},".repeat(6)].concat(),
-            "application.demo.llm.asked: past its bound\n",
-        ),
-        (
-            "cue at bound",
-            "Add CSV export to widget",
-            "x".repeat(usize::try_from(CEILINGS.playground_answer_cues_item).unwrap()),
-            "",
-        ),
-        (
-            "cue past bound",
-            "Add CSV export to widget",
-            "x".repeat(usize::try_from(CEILINGS.playground_answer_cues_item + 1).unwrap()),
-            "application.demo.llm.asked[0].cue: past its bound\n",
-        ),
-    ] {
-        let input = input.replace(from, &to);
-        let (members, problems) = application(input.as_bytes(), &fixtures::engine().jig);
-        assert_eq!(members.is_some(), expected.is_empty(), "{row}");
-        assert_eq!(&*lines(&problems), expected.as_bytes(), "{row}");
-    }
-}
-
 #[test]
 fn the_clients_listener_is_read_from_the_application_member() {
     let jig = fixtures::engine().jig;
@@ -783,11 +748,10 @@ fn a_worker_secret_at_its_bound_excludes_its_final_newline() {
 }
 
 #[test]
-fn a_missing_demo_is_refused_naming_its_path() {
-    let input = core::str::from_utf8(fixtures::APPLICATION).unwrap().replace("\"demo\":null,", "");
-    let (members, problems) = application(input.as_bytes(), &fixtures::engine().jig);
-    assert!(members.is_none());
-    assert_eq!(&*lines(&problems), b"application.demo: missing\n");
+fn a_demo_document_member_is_refused_naming_its_path() {
+    let input = fixtures::with(&fixtures::document(), b"application.demo", b"null");
+    let problems = fixtures::named(&input, &config::Directories::working()).unwrap_err();
+    assert_eq!(&*lines(&problems), b"application.demo: fixed by temper\n");
 }
 
 // protocol/openid-provider.md: a configured provider is admitted, and startup reads its key and
@@ -884,6 +848,7 @@ fn a_standalone_check_reserve_shortfall_prepares_with_one_warning() {
     let mut agent = fixtures::startup_agent();
     agent.bounds.checks = skein_lib::Duration::from_millis(90_000);
     let mut defaults = crate::stock::with_models(Box::new([fixtures::small_model()]), 32);
+    defaults.providers = temper_worker_service_fixtures::providers();
     defaults.charters.iter_mut().find(|charter| charter.number == 2).unwrap().policy.reserve_time =
         skein_lib::Duration::from_secs(60);
     let document = fixtures::document();
@@ -995,7 +960,7 @@ fn an_engine_alone_prepares_without_a_worker_or_its_files_and_agent() {
     for path in [b"worker-secret".as_slice(), fixtures::AGENT_JSON] {
         files.entries = fixtures::without(files.entries, path);
     }
-    let service = crate::startup::with_setup(
+    let service = fixtures::with_setup(
         &input,
         &config::Directories::working(),
         &files,
@@ -1113,21 +1078,6 @@ fn clients_public_bounds_dns_labels_and_the_host() {
 }
 
 #[test]
-fn a_document_without_demo_forge_and_project_is_read() {
-    let input = fixtures::demo_application();
-    let input = core::str::from_utf8(&input).unwrap().replace(",\n\"forge\":1,\"project\":1", "");
-    let (members, problems) = application(input.as_bytes(), &fixtures::turn_jig());
-    assert_eq!(&*lines(&problems), b"");
-    let demo = members.unwrap().demo.unwrap();
-    assert_eq!(demo.provider, 3);
-    assert_eq!(demo.owner.as_ref(), b"playground");
-    assert_eq!(demo.name.as_ref(), b"widget");
-    assert_eq!(demo.landing.as_ref(), b"main");
-    assert!(demo.key_file.ends_with(b"demo/llm.key"));
-    assert_eq!(demo.cues.len(), 3);
-}
-
-#[test]
 fn a_document_naming_forges_is_refused_by_path() {
     let input = core::str::from_utf8(&fixtures::turn_document())
         .unwrap()
@@ -1143,17 +1093,6 @@ fn identities_and_setup_are_unknown_members() {
             .replace("\"application\":{", &format!("\"application\":{{\"{member}\":[],"));
         let found = fixtures::named(input.as_bytes(), &config::Directories::working()).unwrap_err();
         assert_eq!(lines(&found).as_ref(), format!("application.{member}: unknown member\n").as_bytes());
-    }
-}
-
-#[test]
-fn demo_refuses_forge_and_project_members() {
-    for member in ["forge", "project"] {
-        let input = fixtures::demo_application();
-        let input = core::str::from_utf8(&input).unwrap().replace("\"demo\":{", &format!("\"demo\":{{\"{member}\":1,"));
-        let (members, problems) = application(input.as_bytes(), &fixtures::turn_jig());
-        assert!(members.is_none());
-        assert_eq!(lines(&problems).as_ref(), format!("application.demo.{member}: unknown member\n").as_bytes());
     }
 }
 

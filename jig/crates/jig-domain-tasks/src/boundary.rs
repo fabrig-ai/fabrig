@@ -1782,8 +1782,6 @@ pub enum Event {
         reply_to: ReplyTo,
         by: Party,
         operation: crate::Amend,
-        /// The accepter's source; a direct amendment keeps its present funding.
-        funder: Option<Funder>,
     },
     /// Root-authorized person adoption of one live task, with its reservation moved to that person's pool.
     Move {
@@ -1802,6 +1800,13 @@ pub enum Event {
     },
     /// Root-authorized connector topic interest with the same durable task subscription.
     SubscribeTopic {
+        reply_to: ReplyTo,
+        task: u64,
+        subscription: Subscription,
+    },
+    /// Root-authorized connector topic admitted one past the task's `subscriptions`
+    /// (domain/tasks/messages.md, 4).
+    SubscribeTopicApart {
         reply_to: ReplyTo,
         task: u64,
         subscription: Subscription,

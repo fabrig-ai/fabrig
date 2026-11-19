@@ -160,7 +160,7 @@ fn a_proposal_below_says_the_party_is_waited_on_for_that_proposal() {
             whom: people::Whom::Person(1),
             entries: 1,
             task: 2,
-            kind: people::EntryKind::Proposal { number: 4 },
+            kind: people::EntryKind::Proposal { proposer: Proposer::Task(2), number: 4 },
         }
     );
 }

@@ -8,7 +8,7 @@ pub const APPLICATION: &[u8] = br#"{
 "webhooks":null,
 "clients":{"listener":{"socket":"127.0.0.1:7100"},"public":null,"bundle":null},
 
-"demo":null,"sign_in":null
+"sign_in":null
 }"#;
 
 pub fn document() -> Box<[u8]> {

@@ -19,36 +19,48 @@ pub(crate) fn answered(core: &mut Core, env: &Env<Limits>, routed: &mut Routed, 
             accounts::Event::ListFailed { read, failure: failed(failure), at: env.wall }
         }
         link::ListOutcome::Listed(rows) => {
-            let Some(provider_facts) = core.settings.llm_providers.get(provider) else { return };
-            let Some(list) = &provider_facts.list else { return };
-            let models = s::catalogue::entries(&core.current);
-            let change = s::catalogue::from_list(
-                provider,
-                list,
-                &rows,
-                core.accounts.listed_names(provider, account),
-                env.wall,
-                &models,
-                &core.settings.endpoints,
-            );
-            // The root's deployment header and the account's record share this commit.
-            let room =
-                s::writes_bound(&env.limits).expect("settings writes checked at configuration").saturating_sub(2);
-            if change.items.is_empty()
-                || super::settings::dispatch::decide(
-                    core,
-                    env,
-                    routed,
-                    s::Decider::List { provider },
-                    None,
-                    s::Change { against: core.current.newest(), items: change.items, running: s::Running::Stays },
-                    room,
-                )
-                .is_ok()
-            {
-                accounts::Event::Listed { read, names: change.names, left_out: change.left_out, at: env.wall }
-            } else {
-                accounts::Event::ListFailed { read, failure: accounts::ReadFailure::Room, at: env.wall }
+            let list = match core.settings.llm_providers.get(provider) {
+                Some(value) => value.list.as_ref(),
+                None => None,
+            };
+            match list {
+                None => accounts::Event::ListFailed { read, failure: accounts::ReadFailure::Unreachable, at: env.wall },
+                Some(list) => {
+                    let models = s::catalogue::entries(&core.current);
+                    let change = s::catalogue::from_list(
+                        provider,
+                        list,
+                        &rows,
+                        core.accounts.listed_names(provider, account),
+                        env.wall,
+                        &models,
+                        &core.settings.endpoints,
+                    );
+                    // The root's deployment header and the account's record share this commit.
+                    let room = s::writes_bound(&env.limits)
+                        .expect("settings writes checked at configuration")
+                        .saturating_sub(2);
+                    if change.items.is_empty()
+                        || super::settings::dispatch::decide(
+                            core,
+                            env,
+                            routed,
+                            s::Decider::List { provider },
+                            None,
+                            s::Change {
+                                against: core.current.newest(),
+                                items: change.items,
+                                running: s::Running::Stays,
+                            },
+                            room,
+                        )
+                        .is_ok()
+                    {
+                        accounts::Event::Listed { read, names: change.names, left_out: change.left_out, at: env.wall }
+                    } else {
+                        accounts::Event::ListFailed { read, failure: accounts::ReadFailure::Room, at: env.wall }
+                    }
+                }
             }
         }
     };

@@ -1,14 +1,20 @@
 """Regression checks for tools/lints/design.md, 7, on repositories built per test."""
+import contextlib
+import importlib.util
+import io
 from pathlib import Path
-import shutil
 import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 HERE = Path(__file__).resolve().parent
 LIST = "tools/lints/panics.txt"
 SUMMARY = "0 findings (skein/docs/foundation/programming-model.md, 10.4)\n"
+SPEC = importlib.util.spec_from_file_location("panics", HERE / "panics.py")
+CHECK = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(CHECK)
 
 
 class Panics(unittest.TestCase):
@@ -16,24 +22,19 @@ class Panics(unittest.TestCase):
         temporary = tempfile.TemporaryDirectory(prefix="panics-")
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name)
-        shutil.copytree(HERE, self.root / "tools/lints")
-        self.copy_check()
+        self.configure_check()
         self.write(LIST, "# fixture list\n")
         self.git("init", "-q")
-        self.git("add", ".")
 
     def write(self, path, text):
         path = self.root / path
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(text, encoding="utf-8")
 
-    def copy_check(self, *, falling=True):
+    def configure_check(self, *, falling=True):
         """Keep a non-refused pattern for the falling list's mechanism tests."""
-        text = (HERE / "panics.py").read_text(encoding="utf-8")
-        if falling:
-            text = text.replace('REFUSED = ("catch_unwind", "resume_unwind", "should_panic")\n',
-                                'REFUSED = ("catch_unwind", "resume_unwind")\n')
-        self.write("tools/lints/panics.py", text)
+        self.refused = tuple(pattern for pattern in CHECK.REFUSED
+                             if not falling or pattern != "should_panic")
 
     def track(self, path, text):
         self.write(path, text)
@@ -43,11 +44,14 @@ class Panics(unittest.TestCase):
         return subprocess.run(("git", *args), cwd=self.root, capture_output=True, text=True, check=True)
 
     def run_check(self, *args, status=0):
-        result = subprocess.run((sys.executable, "-I", "-B", "tools/lints/panics.py", *args),
-                                cwd=self.root, capture_output=True, text=True)
-        self.assertEqual(result.returncode, status, result.stdout + result.stderr)
-        self.assertEqual(result.stderr, "")
-        return result.stdout
+        stdout, stderr = io.StringIO(), io.StringIO()
+        with contextlib.chdir(self.root), mock.patch.object(sys, "argv", ["panics.py", *args]), \
+                mock.patch.object(CHECK, "REFUSED", self.refused), \
+                contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            result = CHECK.main()
+        self.assertEqual(result, status, stdout.getvalue() + stderr.getvalue())
+        self.assertEqual(stderr.getvalue(), "")
+        return stdout.getvalue()
 
     def test_a_use_and_a_call_are_refused(self):
         self.track("a.rs", "use std::panic::catch_unwind;\nlet _ = std::panic::catch_unwind(f);\n")
@@ -98,7 +102,7 @@ class Panics(unittest.TestCase):
         self.assertIn("a.rs: should_panic count 1 exceeds list 0\n", self.run_check(status=1))
 
     def test_a_refused_count_is_a_finding_without_a_list_line(self):
-        self.copy_check(falling=False)
+        self.configure_check(falling=False)
         for pattern, source in (("catch_unwind", "catch_unwind(f);\n"),
                                 ("resume_unwind", "resume_unwind(f);\n"),
                                 ("should_panic", "#[should_panic]\n")):
@@ -108,7 +112,7 @@ class Panics(unittest.TestCase):
                                  "1 findings (skein/docs/foundation/programming-model.md, 10.4)\n")
 
     def test_a_refused_list_line_sets_no_limit(self):
-        self.copy_check(falling=False)
+        self.configure_check(falling=False)
         for pattern, counted_source in (("catch_unwind", "catch_unwind(x);\n"),
                                         ("resume_unwind", "resume_unwind(x);\n"),
                                         ("should_panic", "#[should_panic]\n")):

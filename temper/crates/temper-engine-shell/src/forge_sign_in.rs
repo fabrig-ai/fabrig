@@ -60,6 +60,22 @@ pub(crate) fn run(
 
 /// Never read existing credentials. New files are complete and private before rename.
 pub fn make_missing(path: &Path, key: bool) -> Result<(), String> {
+    make_missing_from(path, if key { Credential::Key } else { Credential::Secret })
+}
+
+/// Publish given bytes through the same private partial file as generated credentials.
+pub fn make_missing_given(path: &Path, bytes: &[u8]) -> Result<(), String> {
+    make_missing_from(path, Credential::Given(bytes))
+}
+
+#[derive(Clone, Copy)]
+enum Credential<'a> {
+    Key,
+    Secret,
+    Given(&'a [u8]),
+}
+
+fn make_missing_from(path: &Path, source: Credential<'_>) -> Result<(), String> {
     match fs::symlink_metadata(path) {
         Ok(_) => return Ok(()),
         Err(why) if why.kind() == std::io::ErrorKind::NotFound => {}
@@ -86,13 +102,16 @@ pub fn make_missing(path: &Path, key: bool) -> Result<(), String> {
         .mode(0o600)
         .open(&temporary)
         .map_err(|why| format!("{}: {why}", temporary.display()))?;
-    let result = if key {
-        host::sign_in_key(file)
-    } else {
-        skein_shell::crypto_seed().map_err(|errno| format!("system randomness: errno {errno}")).and_then(|seed| {
-            let random: &[u8; 32] = seed.expose().try_into().expect("system seed has 32 bytes");
-            file.write_all(sign_in::secret(random).expose()).map_err(|why| format!("{}: {why}", temporary.display()))
-        })
+    let result = match source {
+        Credential::Key => host::sign_in_key(file),
+        Credential::Secret => {
+            skein_shell::crypto_seed().map_err(|errno| format!("system randomness: errno {errno}")).and_then(|seed| {
+                let random: &[u8; 32] = seed.expose().try_into().expect("system seed has 32 bytes");
+                file.write_all(sign_in::secret(random).expose())
+                    .map_err(|why| format!("{}: {why}", temporary.display()))
+            })
+        }
+        Credential::Given(bytes) => file.write_all(bytes).map_err(|why| format!("{}: {why}", temporary.display())),
     };
     let result = result.and_then(|()| fs::rename(&temporary, path).map_err(|why| format!("{}: {why}", path.display())));
     if result.is_err() {

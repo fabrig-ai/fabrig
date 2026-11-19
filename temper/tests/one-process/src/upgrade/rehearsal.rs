@@ -83,7 +83,7 @@ fn start(inherited: &skein_world::Inherited) -> SignalHost<Tool> {
     let given = temper_playground::documents::given(&document);
     temper_playground::documents::settings::strip_models(&mut document);
     let mut runtime = temper_service::AccountsRuntime { providers: List::with_capacity(2), trust: None };
-    for provider in document["engine"]["llm"]["providers"].as_array().expect("LLM providers") {
+    for provider in document["world_settings"]["llm"]["providers"].as_array().expect("LLM providers") {
         if provider["sources"]["sign_in"].is_object() {
             let endpoint = || accounts::Endpoint {
                 address: ([127, 0, 0, 1], 7104).into(),
@@ -104,6 +104,7 @@ fn start(inherited: &skein_world::Inherited) -> SignalHost<Tool> {
         }
     }
     let files = fixtures::files();
+    document.as_object_mut().expect("world document").remove("world_settings");
     let mut service = temper_service::startup::restoring_with_limits(
         &serde_json::to_vec(&document).expect("configuration"),
         &jig_protocol_config::Directories::working(),
@@ -169,14 +170,10 @@ pub fn accounts_check(directory: &Path) {
     let mut document = deployment_document(directory);
     // The configured endpoints and identity providers coexist with the floor's kept settings versions.
     document.jig_over("core.settings.versions", 12);
-    let mut endpoint = document["engine"]["llm"]["endpoints"][0].clone();
-    endpoint["name"] = "second".into();
-    endpoint["number"] = 2.into();
-    endpoint["provider"] = "golden-provider".into();
-    document["engine"]["llm"]["endpoints"].as_array_mut().expect("endpoints").push(endpoint);
-    document["engine"]["llm"]["providers"][1]["endpoint"] = "second".into();
-    document["engine"]["llm"]["models"][1]["endpoint"] = "second".into();
-    for provider in document["engine"]["llm"]["providers"].as_array_mut().expect("providers") {
+    document["world_settings"]["llm"]["endpoints"][1]["name"] = "second".into();
+    document["world_settings"]["llm"]["providers"][1]["endpoint"] = "second".into();
+    document["world_settings"]["llm"]["models"][1]["endpoint"] = "second".into();
+    for provider in document["world_settings"]["llm"]["providers"].as_array_mut().expect("providers") {
         provider["signed_in_plan"] = true.into();
         provider["manage_usage"] = "https://accounts.example.invalid/usage".into();
         provider["sources"] = serde_json::json!({"keys":true,"sign_in":{

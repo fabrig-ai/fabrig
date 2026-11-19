@@ -6,7 +6,7 @@ use skein_lib::{Time, Token};
 fn review_assignment(pull_bytes: usize) -> temper_engine_domain::Assignment {
     use temper_engine_domain::{BriefBody, BriefKind, BriefSection, ForgeBriefKind};
     let settings = fixtures::engine();
-    let stock = crate::stock::defaults(&settings.jig.llm, settings.jig.limits.core.tasks.result_bytes);
+    let stock = crate::stock::with_models(settings.jig.llm.models.clone(), settings.jig.limits.core.tasks.result_bytes);
     let mut assignment = fixtures::assignment_with(fixtures::repository(7, b"acme", b"shop"));
     assignment.charter = 4;
     assignment.run.policy = stock.charters.into_iter().find(|charter| charter.number == 4).unwrap().policy;

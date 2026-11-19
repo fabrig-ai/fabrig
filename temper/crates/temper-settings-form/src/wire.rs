@@ -83,6 +83,7 @@ pub(crate) fn settings_restore_setting(value: &w::Setting, limits: &Limits) -> c
         w::Setting::Limits => c::Setting::Limits,
         w::Setting::Model(item) => c::Setting::Model(settings_restore_setting_number(item, limits)),
         w::Setting::Worker(item) => c::Setting::Worker(settings_restore_setting_number(item, limits)),
+        w::Setting::Provider(item) => c::Setting::Provider(settings_restore_setting_number(item, limits)),
     }
 }
 
@@ -203,6 +204,7 @@ pub(crate) fn settings_restore_setting_value(
     limits: &Limits,
 ) -> Result<c::SettingValue, w::Problem> {
     Ok(match value {
+        w::SettingValue::Provider(item) => c::SettingValue::Provider(Box::new(providers::decode(item))),
         w::SettingValue::Overlay(item) => c::SettingValue::Overlay(Box::new(restore_overlay(item, limits)?)),
         w::SettingValue::Charter(item) => c::SettingValue::Charter(Box::new(settings_restore_charter(item, limits)?)),
         w::SettingValue::Template(item) => c::SettingValue::Template(Box::new(documents_me_template(item, limits)?)),
@@ -1151,6 +1153,7 @@ pub(crate) fn settings_wire_setting_value(
             limits,
             w::ApplicationValueParts { bytes: v.clone() },
         )?),
+        c::SettingValue::Provider(item) => w::SettingValue::Provider(Box::new(providers::encode(item, limits)?)),
         c::SettingValue::Worker(item) => w::SettingValue::Worker(Box::new(w::WorkerSetting::new(
             limits,
             w::WorkerSettingParts {
@@ -1829,6 +1832,7 @@ pub(crate) fn settings_wire_setting(value: c::Setting, limits: &w::Limits) -> Re
         c::Setting::Limits => w::Setting::Limits,
         c::Setting::Model(item) => w::Setting::Model(settings_wire_setting_number(item, limits)?),
         c::Setting::Worker(item) => w::Setting::Worker(settings_wire_setting_number(item, limits)?),
+        c::Setting::Provider(item) => w::Setting::Provider(settings_wire_setting_number(item, limits)?),
         c::Setting::ProjectPolicy { project } => {
             w::Setting::ProjectPolicy(w::ProjectPolicySetting::new(limits, w::ProjectPolicySettingParts { project })?)
         }
@@ -1991,3 +1995,5 @@ fn restore_catalogue(value: &w::CatalogueEntry, limits: &Limits) -> Result<c::Ca
         },
     })
 }
+
+mod providers;

@@ -10,6 +10,8 @@ mod activity;
 mod admission;
 #[path = "../support/admission.rs"]
 mod admission_support;
+#[path = "../support/amendment_funding.rs"]
+mod amendment_funding;
 mod application_documents;
 mod application_settings;
 #[path = "../support/bundle.rs"]
@@ -98,6 +100,7 @@ mod templates;
 mod topics;
 
 mod fuzzy {
+    mod amendment_funding;
     mod decision_reads;
     mod deletion;
     mod faults;

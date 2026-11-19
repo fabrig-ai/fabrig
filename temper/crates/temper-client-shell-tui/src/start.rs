@@ -51,6 +51,16 @@ impl Refused {
 }
 
 pub fn address(argument: &[u8]) -> Result<SocketAddr, Refused> {
+    // A link is never an argument, even when its secret is malformed (client/tui/README.md, 1).
+    if let Some(rest) = std::str::from_utf8(argument).ok().and_then(|text| text.strip_prefix("http://"))
+        && let Some((host, path)) = rest.split_once('/')
+        && host.parse::<SocketAddr>().is_ok()
+        && let Some((path, _)) = path.split_once("?secret=")
+        && (path == "jig/v1/sign-in/link"
+            || Some(path.as_bytes()) == temper_client_domain::sign_in::LINK_PAGE.strip_prefix(b"/"))
+    {
+        return Err(Refused::Link);
+    }
     match engine_address::target(argument) {
         Ok(engine_address::Target::Address { engine }) => Ok(engine),
         Ok(engine_address::Target::Link { .. }) => Err(Refused::Link),
@@ -89,9 +99,15 @@ pub fn fixed_start(environment: &[EnvironmentEntry], engine: SocketAddr) -> Resu
     FixedStart::read(value).map(Some).ok_or(Refused::FixedStart)
 }
 
-// Keep a walk's seed and its loop clock together at startup.
-fn fixed_run(start: &FixedStart) -> (u64, Clock) {
-    (start.seed, Clock::fixed(start))
+// The TUI's seed stream (temper/docs/design/client/journey-clock.md, 4.3).
+const TUI_SEED_STREAM: u64 = 4;
+
+// Draw a walk's seed on the TUI's stream and keep it with its loop clock at startup.
+pub(crate) fn fixed_run(start: &FixedStart) -> (u64, Clock) {
+    let mut bytes = [0u8; 8];
+    start.draw(TUI_SEED_STREAM, &mut bytes);
+    let seed = u64::from_le_bytes(bytes);
+    (seed, Clock::fixed(start))
 }
 
 #[must_use]

@@ -97,9 +97,9 @@ pub fn valid_revision(revision: &settings::Revision, limits: &Limits) -> bool {
                         }
                     }
                     settings::Value::Rules(_)
+                    | settings::Value::Provider(_)
                     | settings::Value::Worker(_)
-                    | settings::Value::Model(_)
-                    | settings::Value::Limits(_) => {}
+                    | settings::Value::Model(_) | settings::Value::Limits(_) => {}
                     settings::Value::Application(_) => unreachable!("an application's setting: apps-core"),
                 }
             }

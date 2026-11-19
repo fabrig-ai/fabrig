@@ -1,34 +1,5 @@
 {{
   "engine": {{
-    "llm": {{
-      "providers": [
-        {{
-          "name": "openai",
-          "number": 1,
-          "endpoint": "fake",
-          "sources": {{
-            "keys": true
-          }}
-        }}
-      ],
-      "endpoints": [
-        {{
-          "name": "fake",
-          "number": 0,
-          "dialect": 3,
-          "provider": "openai",
-          "address": {{
-            "socket": "{proc.llm.ready.address}"
-          }},
-          "transport": "tls",
-          "headers": [],
-          "connect_ms": 10000,
-          "handshake_ms": 10000,
-          "server_name": "skein.test",
-          "trust": "{proc.llm.dir}/root.der"
-        }}
-      ]
-    }},
     "hosts": {{
       "listener": [
         {{
@@ -58,7 +29,6 @@
       "bundle": null,
       "public": null
     }},
-    "demo": null,
     "sign_in": null
-}}
+  }}
 }}

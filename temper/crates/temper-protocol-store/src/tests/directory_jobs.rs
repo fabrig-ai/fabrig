@@ -38,67 +38,59 @@ pub(super) fn header(number: u64) -> Record {
     }))
 }
 fn without_deleted_repository_job() -> OwnerSets {
-    OwnerSets {
-        sets: Box::leak(
-            SETS.sets
-                .iter()
-                .map(
-                    |set| {
-                        if set.name == "temper" { OwnerSet { jobs: &crate::OWNER_SET.jobs[..4], ..*set } } else { *set }
-                    },
-                )
-                .collect::<Vec<_>>()
-                .into_boxed_slice(),
-        ),
-    }
+    const APPLICATION: OwnerSet = OwnerSet { jobs: crate::OWNER_SET.jobs.split_at(4).0, ..crate::OWNER_SET };
+    OwnerSets { sets: &[store::SKEIN_SET, store::SMITH_SET, jig_protocol_accounts::JIG_SET, APPLICATION] }
 }
 
-fn floor_sets() -> OwnerSets {
-    use super::fixtures::layouts;
-    let schema = skein_codec::schema::parse(layouts::FLOOR.as_bytes()).unwrap();
-    let mut application = crate::OWNER_SET;
-    application.jobs = &[];
-    application.families = Box::leak(
-        application
-            .families
-            .iter()
-            .map(|family| {
-                if family.name != "temper-store" {
-                    return *family;
-                }
-                let types: Vec<_> = family
-                    .types
-                    .iter()
-                    .copied()
-                    .filter(|ty| schema.root(ty.root.as_bytes(), ty.variant.map(str::as_bytes)).is_some())
-                    .collect();
-                let keys = family
-                    .keys
-                    .iter()
-                    .copied()
-                    .filter(|key| {
-                        types.iter().any(|ty| ty.keys.iter().any(|range| range.from == key.from && range.to == key.to))
-                    })
-                    .collect::<Vec<_>>();
-                store::KeptFamily {
-                    current: layouts::FLOOR,
-                    types: Box::leak(types.into_boxed_slice()),
-                    keys: Box::leak(keys.into_boxed_slice()),
-                    ..*family
-                }
-            })
-            .collect::<Vec<_>>()
-            .into_boxed_slice(),
-    );
-    OwnerSets {
-        sets: Box::leak(
-            SETS.sets
-                .iter()
-                .map(|set| if set.name == "temper" { application } else { *set })
-                .collect::<Vec<_>>()
-                .into_boxed_slice(),
-        ),
+// The floor has neither the registered change parts nor person briefs. Keep every
+// other current declaration and range, without leaking an owner set at each open.
+const PARTS: usize = 3;
+const fn after_floor(from: &[u8]) -> bool {
+    from.len() == 1
+        && (from[0] == crate::keys::CHANGE_COLD
+            || from[0] == crate::keys::CHANGE_HOT
+            || from[0] == crate::keys::PERSON_BRIEF)
+}
+const fn floor_types() -> [store::ValueType; crate::OWNER_SET.families[0].types.len() - PARTS] {
+    let types = crate::OWNER_SET.families[0].types;
+    let mut kept = [types[0]; crate::OWNER_SET.families[0].types.len() - PARTS];
+    let mut read = 0;
+    let mut written = 0;
+    while read < types.len() {
+        if !after_floor(types[read].keys[0].from) {
+            kept[written] = types[read];
+            written = written.checked_add(1).unwrap();
+        }
+        read = read.checked_add(1).unwrap();
     }
+    assert!(written == kept.len());
+    kept
+}
+const fn floor_keys() -> [store::Keys; crate::OWNER_SET.families[0].keys.len() - PARTS] {
+    let keys = crate::OWNER_SET.families[0].keys;
+    let mut kept = [keys[0]; crate::OWNER_SET.families[0].keys.len() - PARTS];
+    let mut read = 0;
+    let mut written = 0;
+    while read < keys.len() {
+        if !after_floor(keys[read].from) {
+            kept[written] = keys[read];
+            written = written.checked_add(1).unwrap();
+        }
+        read = read.checked_add(1).unwrap();
+    }
+    assert!(written == kept.len());
+    kept
+}
+fn floor_sets() -> OwnerSets {
+    const FAMILY: store::KeptFamily = store::KeptFamily {
+        current: super::fixtures::layouts::FLOOR,
+        types: &floor_types(),
+        keys: &floor_keys(),
+        ..crate::OWNER_SET.families[0]
+    };
+    const APPLICATION: OwnerSet =
+        OwnerSet { jobs: &[], families: &[FAMILY, crate::OWNER_SET.families[1]], ..crate::OWNER_SET };
+    OwnerSets { sets: &[store::SKEIN_SET, store::SMITH_SET, jig_protocol_accounts::JIG_SET, APPLICATION] }
 }
 
 fn seed_floor(disk: &mut Disk, rows: Vec<store::JobRow>) -> OwnerSets {
@@ -125,15 +117,16 @@ fn the_four_id_jobs_open_floor_rows_before_deleted_repositories_are_read() {
     use super::{fixtures, test_ids};
     use temper_engine_domain_forge_vocabulary as d;
     let mut disk = Disk::new();
-    let (long, expected) = test_ids::long_tier();
+    let mut floor = fixtures::layouts::Floor::new();
+    let (long, expected) = test_ids::long_tier(&mut floor);
     let short = [test_ids::landing(), test_ids::receipt_row(), test_ids::verification()];
     let mut rows: Vec<_> = short
         .iter()
         .zip(["landing", "receipt", "verification"])
-        .map(|(stored, variant)| test_ids::row(stored, variant))
+        .map(|(stored, variant)| floor.row(stored, variant))
         .collect();
     rows.push(long);
-    rows.push(test_ids::row(&fixtures::adopted(d::Protection::Absent), "repository"));
+    rows.push(floor.row(&fixtures::adopted(d::Protection::Absent), "repository"));
     seed_floor(&mut disk, rows);
     let mut current = component(&disk, SETS);
     let bounds = crate::bounds(&fixtures::LIMITS, disk.limits().core.tasks.spec_bytes).unwrap();
@@ -195,7 +188,8 @@ fn an_in_flight_long_id_refuses_open_without_changing_the_active_store() {
     let mut disk = Disk::new();
     let mut tier = test_ids::tier();
     tier.record.run = fixtures::tier_row().record.run;
-    let mut row = test_ids::row(&temper_engine_domain_forge_vocabulary::Stored::Tier(tier), "tier");
+    let mut floor = fixtures::layouts::Floor::new();
+    let mut row = floor.row(&temper_engine_domain_forge_vocabulary::Stored::Tier(tier), "tier");
     row.value = fixtures::layouts::replace_id(&row.value, b"t::a", &[b't'; 2000]);
     let key = row.key.clone();
     let original = row.value.clone();

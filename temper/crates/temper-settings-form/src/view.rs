@@ -2,6 +2,10 @@
 use alloc::boxed::Box;
 use skein_lib::{Duration, List, Wall};
 pub const AUTHORITY_MODELS: u32 = 64;
+/// Mirrors jig-domain-people's settings numbers without a client-domain dependency.
+pub const NUMBERS: u32 = 64;
+/// The stock's last number; higher numbers through `NUMBERS` are a deployment's own.
+pub const STOCK_NUMBERS: u32 = 32;
 pub const AUTHORITY_MODEL_BYTES: u32 = 4_096;
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum AuthorityModels {
@@ -382,6 +386,7 @@ pub enum Running {
 pub enum Setting {
     Model(SettingNumber),
     Worker(SettingNumber),
+    Provider(SettingNumber),
     Application {
         kind: u32,
         scope: u32,
@@ -415,6 +420,8 @@ pub enum SettingEdit {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum SettingFault {
     Linked,
+    Accounts,
+    Range,
     Judged,
     Shape,
     Count,
@@ -497,6 +504,7 @@ pub enum SettingValue {
     Overlay(Box<Overlay>),
     Model(Box<CatalogueEntry>),
     Worker(Box<WorkerSetting>),
+    Provider(Box<ProviderSetting>),
     Application(Box<[u8]>),
     Charter(Box<Charter>),
     Template(Box<Template>),
@@ -814,4 +822,84 @@ pub struct WorkerSetting {
     pub places: u32,
     pub digest: Option<[u8; 32]>,
     pub withdrawn: bool,
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum EndpointAddress {
+    Socket(core::net::SocketAddr),
+    Host { name: Box<[u8]>, port: u16 },
+}
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct ProviderSetting {
+    pub provider: Provider,
+    pub endpoints: Box<[Endpoint]>,
+    pub withdrawn: bool,
+}
+/// One configured LLM provider.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Provider {
+    /// Its name for showing.
+    pub name: Box<[u8]>,
+    pub number: u32,
+    /// The endpoint its added models take (jig/docs/design/protocol/configuration.md, 3).
+    pub endpoint: Option<Box<[u8]>>,
+    /// The program-free endpoint its sign-ins and keys take (jig/docs/design/protocol/configuration.md, 3).
+    pub direct: Option<Box<[u8]>>,
+    pub list: Option<ProviderList>,
+    pub signed_in_plan: bool,
+    pub manage_usage: Option<Box<[u8]>>,
+    /// The sign-in it offers, with its public registration.
+    pub sign_in: Option<Registration>,
+    /// Whether it offers a key.
+    pub keys: bool,
+    /// The programs it offers, such as `claude_code`.
+    pub programs: Box<[Box<[u8]>]>,
+}
+
+/// A provider's public registration for its sign-in: a client secret is refused.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Registration {
+    pub issuer: Box<[u8]>,
+    pub client: Box<[u8]>,
+    pub scopes: Box<[Box<[u8]>]>,
+    pub name_hint: Option<Box<[u8]>>,
+    pub authorization: Box<[u8]>,
+    pub token: Box<[u8]>,
+    pub revocation: Option<Box<[u8]>>,
+    pub keys: Box<[u8]>,
+    pub endpoint_transport: Transport,
+    pub must_grant: Box<[Box<[u8]>]>,
+    pub resource: Option<Box<[u8]>>,
+    pub redirect_path: Box<[u8]>,
+    pub redirect_port: Option<u16>,
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Endpoint {
+    pub name: Box<[u8]>,
+    pub number: u32,
+    pub dialect: u32,
+    pub provider: Box<[u8]>,
+    pub program: Option<Box<[u8]>>,
+    pub address: EndpointAddress,
+    pub transport: Transport,
+    pub headers: Box<[Header]>,
+    pub connect: Duration,
+    pub handshake: Duration,
+}
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Header {
+    pub name: Box<[u8]>,
+    pub value: Box<[u8]>,
+}
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum Transport {
+    Tls { server_name: Box<[u8]>, trust: Option<Box<[u8]>> },
+    Plaintext,
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct ProviderList {
+    pub keep: Box<[Box<[u8]>]>,
+    pub drop: Box<[Box<[u8]>]>,
 }

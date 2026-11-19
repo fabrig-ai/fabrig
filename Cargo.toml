@@ -325,6 +325,7 @@ members = [
     "temper/testing/temper-agent-fixtures",
     "temper/testing/temper-landing-fixtures",
     "temper/testing/temper-test-env",
+    "temper/testing/temper-deployment-fixtures",
     "temper/crates/temper-box-shell",
     "temper/bin/temper-box",
     "temper/bin/temper",
@@ -349,6 +350,7 @@ members = [
     "temper/crates/temper-client-view-work",
     "temper/crates/temper-client-view-setup",
     "temper/testing/temper-client-view-kit",
+    "temper/testing/temper-client-journeys-kit",
     "temper/crates/temper-client-tui",
     "temper/crates/temper-client-domain",
     "temper/crates/temper-client-domain-forge",
@@ -364,6 +366,7 @@ members = [
     "temper/crates/temper-engine-service-component",
     "temper/crates/temper-worker-service",
     "temper/testing/temper-worker-service-fixtures",
+    "temper/testing/temper-service-link-fixtures",
     "temper/tests/worker/protocol-git",
     "temper/crates/temper-forge-setup",
     "temper/crates/temper-fetch",
@@ -708,6 +711,7 @@ settings-form = { package = "temper-settings-form", path = "temper/crates/temper
 temper-docs = { path = "temper/crates/temper-docs" }
 temper-github-app = { path = "temper/testing/temper-github-app" }
 temper-test-env = { path = "temper/testing/temper-test-env" }
+temper-deployment-fixtures = { path = "temper/testing/temper-deployment-fixtures" }
 temper-box-kit = { path = "temper/testing/temper-box-kit" }
 temper-process-guard = { path = "temper/testing/temper-process-guard" }
 temper-limits-fixtures = { path = "temper/testing/temper-limits-fixtures" }
@@ -747,6 +751,7 @@ temper-client-view-parts = { path = "temper/crates/temper-client-view-parts" }
 temper-client-view-work = { path = "temper/crates/temper-client-view-work" }
 temper-client-view-setup = { path = "temper/crates/temper-client-view-setup" }
 temper-client-view-kit = { path = "temper/testing/temper-client-view-kit" }
+temper-client-journeys-kit = { path = "temper/testing/temper-client-journeys-kit" }
 temper-client-gallery-tool = { path = "temper/crates/temper-client-gallery-tool" }
 temper-shell = { path = "temper/crates/temper-shell" }
 temper-agent-shell = { path = "temper/crates/temper-agent-shell" }
@@ -765,6 +770,7 @@ temper-client-tools = { path = "temper/crates/temper-client-tools" }
 temper-client-tools-jig = { path = "temper/crates/temper-client-tools-jig" }
 temper-box-shell = { path = "temper/crates/temper-box-shell" }
 temper-worker-service-fixtures = { path = "temper/testing/temper-worker-service-fixtures" }
+temper-service-link-fixtures = { path = "temper/testing/temper-service-link-fixtures" }
 temper-worker-service = { path = "temper/crates/temper-worker-service" }
 temper-service-core = { path = "temper/crates/temper-service-core" }
 temper-service = { path = "temper/crates/temper-service" }

@@ -10,20 +10,6 @@ pub const DIALECT: u32 = 3;
 // The stock catalogue holds twelve charters.
 // The closer procedure and close job make seventeen executor places in both limits.
 pub const ENGINE: &[u8] = br#"{
-"llm": {
-"providers":[{"name":"fake-provider","number":1,"endpoint":"fake","sources":{"keys":true}}],
-"endpoints": [{
-"name": "fake",
-"number": 1,
-"dialect": 3,
-"provider": "fake-provider",
-"address": {"socket": "127.0.0.1:7101"},
-"transport": "plaintext",
-"headers": [],
-"connect_ms": 10000,
-"handshake_ms": 10000
-}]
-},
 "hosts": {
 "listener": [{"in_process": "workers"}]
 },
@@ -162,21 +148,16 @@ pub fn parse_engine(bytes: &[u8]) -> jig_protocol_config::Engine {
         &document,
         0,
         &jig_protocol_config::Directories::working(),
-        jig_protocol_config::Defaults::Passed,
+        jig_protocol_config::Defaults::PassedProviders,
         &temper_engine_service_startup::startup::fixed(&jig_protocol_config::Directories::working()).unwrap(),
         &jig_limits(),
     )
     .unwrap();
-    let own = match jig.llm.endpoints.first() {
-        Some(endpoint) => endpoint.name.as_ref() == b"fake",
-        None => false,
-    };
-    let defaults = if own {
-        crate::stock::checked_with(Box::new([small_model()]), jig.limits.core.tasks.result_bytes).unwrap()
-    } else {
-        crate::stock::defaults(&jig.llm, jig.limits.core.tasks.result_bytes)
-    };
-    jig_protocol_config::pass(&mut jig, defaults).unwrap();
+    let running = temper_worker_service_fixtures::providers();
+    let mut defaults =
+        crate::stock::checked_with(Box::new([small_model()]), jig.limits.core.tasks.result_bytes).unwrap();
+    defaults.providers = running.clone();
+    jig_protocol_config::pass_providers(&mut jig, defaults, &running, Box::new([])).unwrap();
     jig
 }
 
@@ -422,7 +403,9 @@ pub fn completed_store() -> crate::store::Store {
                 root::Request::Store(request) => assert!(store.down(request)),
                 root::Request::ForgeKept(_)
                 | root::Request::Worker(root::WorkerRequest::Settings(_))
-                | root::Request::Party(root::PartyRequest::Catalogue { .. })
+                | root::Request::Party(
+                    root::PartyRequest::Catalogue { .. } | root::PartyRequest::Deliver(root::Delivery::Providers(_)),
+                )
                 | root::Request::Account(jig_domain_accounts::Request::Signing(
                     jig_domain_accounts::Signing::Restored,
                 )) => {}

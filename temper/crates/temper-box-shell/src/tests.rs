@@ -7,6 +7,7 @@ mod init_clients;
 mod limits;
 mod reference_settings;
 mod settings_fields;
+mod upgrade;
 
 // jig/docs/design/protocol/client/sign-in.md; temper/docs/design/protocol/setup/box.md, 2.
 #[test]
@@ -60,6 +61,34 @@ const OPEN_LINK: &[u8] =
 type OpenRow = (&'static str, &'static [u8], Result<(bool, &'static str), &'static str>);
 const OPEN_ARGUMENTS: &[OpenRow] = &[
     ("link", OPEN_LINK, Ok((true, "127.0.0.1:7000"))),
+    (
+        "page link",
+        b"http://127.0.0.1:7000/sign-in?secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+        Ok((true, "127.0.0.1:7000")),
+    ),
+    (
+        "IPv6 page link",
+        b"http://[::1]:7000/sign-in?secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+        Ok((true, "[::1]:7000")),
+    ),
+    (
+        "remote page link",
+        b"http://10.0.0.1:7000/sign-in?secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+        Err("the engine's address must be on loopback"),
+    ),
+    (
+        "short page secret",
+        b"http://127.0.0.1:7000/sign-in?secret=AA",
+        Err("not a link or an address: http://127.0.0.1:7000/sign-in?secret=AA"),
+    ),
+    (
+        "page other query",
+        b"http://127.0.0.1:7000/sign-in?other=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+        Err(
+            "not a link or an address: http://127.0.0.1:7000/sign-in?other=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+        ),
+    ),
+    ("page no query", b"http://127.0.0.1:7000/sign-in", Err("not a link or an address: http://127.0.0.1:7000/sign-in")),
     ("address", b"http://127.0.0.1:7000".as_slice(), Ok((false, "127.0.0.1:7000"))),
     ("slash", b"http://127.0.0.1:7000/".as_slice(), Ok((false, "127.0.0.1:7000"))),
     ("IPv6", b"http://[::1]:7000/".as_slice(), Ok((false, "[::1]:7000"))),
@@ -147,15 +176,23 @@ fn the_standalone_operations_check_retains_no_descriptors() {
     ] {
         write(name, bytes);
     }
-    let (agent, config) = configuration::typed_documents(&directory, "/fixture/temper");
+    let listener = crate::scripted::choose().expect("scripted listener");
+    let environment = [(
+        Box::from(crate::scripted::ADDRESS),
+        listener.local_addr().expect("scripted address").to_string().into_bytes().into_boxed_slice(),
+    )];
+    let (agent, mut config) = configuration::typed_documents(&directory, "/fixture/temper");
     let document = serde_json::to_vec(&config).expect("deployment document");
     let named_file = directory.join("worker.secret");
     write("temper.json", &document);
     temper_agent_fixtures::install(&directory, &serde_json::from_slice(&agent).expect("agent JSON"));
+    let composed = temper_agent_fixtures::at(&config, &directory);
+    configuration::support::turn_bounds::apply(&mut config, configuration::support::turn_bounds::turn_body(&composed));
+    let document = serde_json::to_vec(&config).expect("deployment document");
     assert_eq!(configuration::flags(&directory).len(), 6);
     let operations = super::operations_in_with_limits(
         "temper",
-        &[],
+        &environment,
         b"/",
         &configuration::directories(&directory),
         &document,
@@ -170,7 +207,7 @@ fn the_standalone_operations_check_retains_no_descriptors() {
     let mut owned = Vec::new();
     let (mut service, _, _) = super::serve::prepare_with_limits(
         "temper",
-        &[],
+        &environment,
         b"/",
         &configuration::directories(&directory),
         &document,
@@ -201,7 +238,7 @@ fn the_standalone_operations_check_retains_no_descriptors() {
             .len(),
         fs::metadata(&binary).expect("running program").len()
     );
-    let prepared = super::serve::configured_agent(&document, &configuration::directories(&directory), &[])
+    let prepared = super::serve::configured_agent(&document, &configuration::directories(&directory), &environment)
         .expect("derived agent")
         .expect("local agent");
     assert_eq!(
@@ -210,13 +247,14 @@ fn the_standalone_operations_check_retains_no_descriptors() {
     );
     fs::remove_file(&named_file).expect("remove named file");
     assert_eq!(
-        super::operations_in(&[], b"/", &configuration::directories(&directory), &document)
+        super::operations_in(&environment, b"/", &configuration::directories(&directory), &document)
             .expect("count without named file"),
         operations
     );
     write("temper.json", &document);
-    let why =
-        super::prepare_in(&[], b"/", &configuration::directories(&directory)).err().expect("missing file refused");
+    let why = super::prepare_in(&environment, b"/", &configuration::directories(&directory))
+        .err()
+        .expect("missing file refused");
     assert!(why.starts_with("temper serve: "), "{why}");
     assert!(why.contains(named_file.to_str().expect("named path")), "{why}");
     fs::remove_dir_all(directory).expect("remove operations scratch");
@@ -250,50 +288,24 @@ fn fixed_sign_in_ports_are_checked_against_the_demo_listener() {
     // Resolve the fixture's data paths as a deployment does.
     let example = include_bytes!("../../../docs/examples/owned.json");
     let mut value: serde_json::Value = serde_json::from_slice(example).expect("owned JSON");
-    value["engine"]["llm"]["providers"] = serde_json::json!([{
-        "name":"OpenAI", "number":1, "signed_in_plan":false, "endpoint":"openai", "sources":{
-            "sign_in": {"issuer":"https://issuer.example", "client":"client", "scopes":[],
-                "authorization":"https://issuer.example/auth", "token":"https://issuer.example/token",
-                "keys":"https://issuer.example/keys", "transport":"tls", "server_name":"issuer.example",
-                "must_grant":[], "redirect_path":"callback", "redirect_port":3000}
-        }
-    }]);
     // Keep git concurrency at one so the small profile's 48 sockets reach the
     // redirect-port check after this fixture adds an OAuth listener.
     value["workers"][0]["slots"] = 1.into();
-    let mut demo = value.clone();
-    demo["engine"]["llm"]["providers"][0]["sources"]["sign_in"]["redirect_port"] = 8370.into();
-    let fixture = configuration::demo_document(std::path::Path::new("/config"), "127.0.0.1:8370");
-    for field in ["providers", "endpoints"] {
-        let member = fixture["engine"]["llm"][field].as_array().expect("LLM table").last().expect("demo member");
-        demo["engine"]["llm"][field].as_array_mut().expect("LLM table").push(member.clone());
-    }
-    demo["application"]["demo"] = fixture["application"]["demo"].clone();
-    let mut bad_demo = demo.clone();
-    bad_demo["application"]["demo"]["project"] = 9.into();
-    for (document, expected) in [
-        (&bad_demo, "application.demo.project: unknown member\n"),
-        (
-            &demo,
-            "engine.llm.providers[0].sources.sign_in.redirect_port: fixed port conflicts with application.demo.llm.listen\n",
-        ),
-    ] {
-        assert_eq!(
-            super::setup::check(
-                &serde_json::to_vec(document).expect("local JSON"),
-                &jig_protocol_config::Directories::given(b"/config", b"/data", b"/cache").expect("fixture directories")
-            )
-            .expect_err("local listen conflict"),
-            expected
-        );
-    }
-    // The same API on a connected forge belongs to the remote peer, not this process.
-    let deployment = super::setup::check(
-        &serde_json::to_vec(&value).expect("connected JSON"),
-        &jig_protocol_config::Directories::given(b"/config", b"/data", b"/cache").expect("fixture directories"),
-    )
-    .expect("connected forge");
-    assert!(deployment.demo.is_none());
+    let directories = jig_protocol_config::Directories::given(b"/config", b"/data", b"/cache").expect("directories");
+    let mut providers = temper_service::stock::providers();
+    providers[0].provider.sign_in.as_mut().unwrap().redirect_port = Some(8370);
+    let given = temper_service::stock::Given::Stock
+        .with_providers(providers.clone(), Box::new([temper_service::stock::scripted(crate::scripted::PREFERRED)]));
+    let bytes = serde_json::to_vec(&value).expect("JSON");
+    assert_eq!(
+        super::setup::check_with(&bytes, &directories, &given).unwrap_err(),
+        "providers.setting.providers[0].sources.sign_in.redirect_port: fixed port conflicts with the box's scripted model\n"
+    );
+    // A remote peer's port is not a listener of this process.
+    providers[0].provider.sign_in.as_mut().unwrap().redirect_port = Some(3000);
+    let given = temper_service::stock::Given::Stock
+        .with_providers(providers, Box::new([temper_service::stock::scripted(crate::scripted::PREFERRED)]));
+    assert!(super::setup::check_with(&bytes, &directories, &given).expect("remote port").demo.is_some());
 }
 
 #[test]
@@ -457,4 +469,28 @@ fn box_echo_resolves_its_default_and_flag_without_consuming_other_arguments() {
 #[test]
 fn the_launchers_io_is_the_small_profiles() {
     assert_eq!(temper_launcher::IO, jig_protocol_config_fixtures::small().io,);
+}
+
+#[test]
+fn the_box_builds_its_playground_from_the_scripted_provider_but_an_engine_alone_has_none() {
+    let directories = jig_protocol_config::Directories::given(b"/config", b"/data", b"/cache").expect("directories");
+    let value = configuration::demo_document(std::path::Path::new("/config"), "127.0.0.1:8370");
+    assert!(value["application"].get("demo").is_none());
+    let bytes = serde_json::to_vec(&value).expect("fixture");
+    let boxed = super::setup::check(&bytes, &directories).expect("box");
+    let fake = boxed.demo.expect("scripted provider");
+    assert_eq!(fake.llm().listen().to_string(), "127.0.0.1:8370");
+    let demo = super::setup::playground(&fake);
+    assert_eq!(demo.provider, 3);
+    assert_eq!(demo.key_file.as_ref(), b"/data/demo/llm.key");
+    assert_eq!(
+        demo.cues.iter().map(AsRef::as_ref).collect::<Vec<_>>(),
+        [b"Add CSV export to widget".as_slice(), b"Add a dark theme to widget", b"Fix widget's empty search state",]
+    );
+    let mut engine = value.clone();
+    engine["workers"] = serde_json::json!([]);
+    engine["engine"]["hosts"]["listener"] = serde_json::json!([{"socket":"127.0.0.1:7200"}]);
+    let engine = serde_json::to_vec(&engine).expect("engine fixture");
+    assert!(temper_engine_shell::setup::check(&engine, &directories).expect("engine alone").demo.is_none());
+    assert!(value["engine"].get("llm").is_none(), "the scripted provider is never a document member");
 }

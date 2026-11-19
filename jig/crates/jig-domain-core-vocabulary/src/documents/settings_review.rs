@@ -40,6 +40,7 @@ pub fn settings_heads(items: &[t::SettingHead]) -> List<crate::reads::RevisionIt
                     t::Setting::Limits => s::Setting::Limits,
                     t::Setting::Model(n) => s::Setting::Model(n),
                     t::Setting::Worker(n) => s::Setting::Worker(n),
+                    t::Setting::Provider(n) => s::Setting::Provider(n),
                 },
                 edit: match item.edit {
                     t::SettingEdit::Set => crate::reads::RevisionEdit::Set,

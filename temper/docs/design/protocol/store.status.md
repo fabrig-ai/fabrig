@@ -1,7 +1,14 @@
 # store: status
 
-2026-11-17. Where temper's code lags or departs from [store.md](store.md).
+2026-11-18. Where temper's code lags or departs from [store.md](store.md).
 
+
+- **Not yet:** 4: `ApplicationAdopted`'s `landing` [in flight: change
+  8088].
+- **Not yet:** 2: family 30, `LandingLog`: its members keep no goal or
+  milestone, its landings no tiers' entries, and it holds its last
+  `landings_kept` landings whether or not a tier has judged them
+  [in flight: change 8589].
 
 
 - **Not yet:** 2: family 41, `LandedDraft`, neither kept nor read

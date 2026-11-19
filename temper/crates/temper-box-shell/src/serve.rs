@@ -73,14 +73,24 @@ pub(crate) fn prepare_with_limits(
     limits: Option<(&jig_protocol_config::Limits, &service::limits::Limits)>,
     fixed_start: Option<&skein_shell::FixedStart>,
 ) -> Result<(Service, Box<[u8]>, u32), String> {
-    if service::startup::shape_with(bytes, &jig_directories(directories), given)
-        .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?
-        == service::startup::Shape::WorkerAlone
-    {
+    let shape = service::startup::shape_with(bytes, &jig_directories(directories), given)
+        .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
+    if shape == service::startup::Shape::WorkerAlone {
         return worker::alone(directories, bytes, owned, environment)
             .map(|service| (Service::Worker(service), Box::new([]) as Box<[u8]>, 0));
     }
-    let setup::Deployment { mut named, checked, limits: box_limits, .. } =
+    let given = if shape == service::startup::Shape::Standalone {
+        crate::scripted::given(directories, given, crate::scripted::address(environment)?)
+    } else {
+        let providers = temper_service_shell::providers::read(
+            &path(&directories.data).join("providers.setting"),
+            given.running(),
+            &mut std::io::stderr(),
+        );
+        given.with_providers(providers, Box::new([]))
+    };
+    let given = &given;
+    let setup::Deployment { mut named, checked, limits: box_limits, demo } =
         setup::check_over(bytes, &jig_directories(directories), given, limits)?;
     let engine = engine::settings(bytes, directories, given);
     let engine::Runtimes { roots, github } = engine::runtimes(named.test_github.as_ref())?;
@@ -238,6 +248,7 @@ pub(crate) fn prepare_with_limits(
             return Err(String::from_utf8_lossy(&service::startup::lines(&why)).into_owned());
         }
     };
+    start.engine_mut().demo = demo.as_ref().map(setup::playground);
     if !projects.is_empty() {
         let engine = start.engine_mut();
         engine.jig.owners = engine
@@ -307,14 +318,10 @@ pub(crate) fn configured_agent(
 ) -> Result<Option<agent::Prepared>, String> {
     let initial = agents_setting(&path(&directories.data).join("agents.setting"), &mut std::io::stderr())
         .unwrap_or_else(service::stock::agents);
-    let mut part = service::startup::box_worker(
-        bytes,
-        &jig_directories(directories),
-        &service::stock::Given::Stock,
-        &initial,
-        environment,
-    )
-    .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
+    let given =
+        crate::scripted::given(directories, &service::stock::Given::Stock, crate::scripted::address(environment)?);
+    let mut part = service::startup::box_worker(bytes, &jig_directories(directories), &given, &initial, environment)
+        .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
     part.as_mut().map(|part| prepare_agent(part, directories, environment)).transpose()
 }
 fn prepare_agent(

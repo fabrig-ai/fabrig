@@ -1006,6 +1006,7 @@ fn startup_calls_and_proofs_with_zero_identities_reach_the_root_unchanged() {
         task: 0,
         attempt: 0,
         conversation: 0,
+        endpoint: None,
         credentials: Box::new([]),
         accounts: Box::new([]),
         placement: None,

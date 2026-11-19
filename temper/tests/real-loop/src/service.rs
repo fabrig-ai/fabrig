@@ -193,8 +193,8 @@ impl ServiceHost {
         .expect("standalone operation count");
         let restartable = cluster.is_some();
         let queued = if restartable { operations } else { 1 };
-        let records_seeded = matches!(cluster, Some(crate::cluster::Shape::Worker { .. }))
-            || cluster.is_none() && fixture.is_none() && github.is_none();
+        let records_seeded =
+            matches!(cluster, Some(crate::cluster::Shape::Worker { .. })) || fixture.is_none() && github.is_none();
         Self {
             pending_streak: crate::patience::PendingStreak::default(),
             restartable,
@@ -448,15 +448,7 @@ impl ServiceHost {
         {
             self.service = None;
             if self.fixture.is_some() || self.github.is_some() {
-                fixtures::seed(&self.path, self.forge_address.expect("forge peer address"), self.github);
-            }
-            if matches!(self.cluster, Some(crate::cluster::Shape::Engine { .. })) {
-                let mut agent: serde_json::Value = serde_json::from_slice(
-                    &std::fs::read(self.path.join("world-agent.json")).expect("world agent fixture"),
-                )
-                .expect("agent JSON");
-                agent["profile"]["policy"]["unacknowledged"] = 1.into();
-                crate::cluster::seed_agents(&self.path, &agent);
+                fixtures::seed(&self.path, self.forge_address.expect("forge peer address"), self.github, Vec::new());
             }
             self.records_seeded = true;
         }

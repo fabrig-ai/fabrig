@@ -116,6 +116,7 @@ pub(super) fn encode_run_proof(source: &domain::RunProof, limits: &View) -> Resu
         task,
         attempt,
         conversation,
+        endpoint,
         accounts,
         placement,
         account_failure,
@@ -135,6 +136,7 @@ pub(super) fn encode_run_proof(source: &domain::RunProof, limits: &View) -> Resu
             task: *task,
             attempt: *attempt,
             conversation: *conversation,
+            endpoint: *endpoint,
             accounts: encode_accounts(accounts, limits)?,
             placement: match placement {
                 Some(channel) => Some(channel.raw()),
@@ -164,6 +166,7 @@ pub(super) fn decode_run_proof(source: wire::RunProof, limits: &View) -> Result<
         task,
         attempt,
         conversation,
+        endpoint,
         accounts,
         placement,
         account_failure,
@@ -181,6 +184,7 @@ pub(super) fn decode_run_proof(source: wire::RunProof, limits: &View) -> Result<
         task,
         attempt,
         conversation,
+        endpoint,
         accounts: decode_accounts(accounts),
         placement: match placement {
             Some(channel) => Some(skein_lib::Token::new(channel)),

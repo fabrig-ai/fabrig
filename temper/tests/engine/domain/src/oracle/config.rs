@@ -11,6 +11,7 @@ pub fn copy_defaults(defaults: &core::settings::Defaults) -> core::settings::Def
     }
     core::settings::Defaults {
         limits: defaults.limits.clone(),
+        providers: defaults.providers.clone(),
         workers: defaults.workers.clone(),
         models: defaults.models.clone(),
         charters: defaults.charters.clone(),
@@ -41,6 +42,7 @@ pub fn copy(config: &engine::Config) -> engine::Config {
         ways_stock: config.ways_stock.clone(),
         period_span: config.period_span,
         core: core::Config {
+            fixed_providers: c.fixed_providers.clone(),
             parts: config.core.parts.clone(),
             jobs: c.jobs.clone(),
             kept_starts: Box::new([]),

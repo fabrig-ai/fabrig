@@ -273,13 +273,7 @@ pub struct Cursor {
 
 /// One restored or loaded row.
 #[derive(Debug)]
-#[cfg_attr(
-    not(target_arch = "wasm32"),
-    expect(
-        clippy::large_enum_variant,
-        reason = "bounded jig records travel by value; Row queues price their full size"
-    )
-)]
+#[expect(clippy::large_enum_variant, reason = "bounded jig records travel by value; Row queues price their full size")]
 pub enum Row {
     /// jig's record, decoded.
     Jig(core::Record),

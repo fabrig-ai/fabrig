@@ -11,6 +11,7 @@ mod kinds;
 pub mod overlay;
 pub mod page;
 pub mod proposal;
+pub mod providers;
 pub mod render;
 mod text;
 pub mod values;
@@ -177,7 +178,7 @@ pub fn refusal(why: &Refusal, out: &mut Text) {
             out.put(b"; ");
             render::setting_text(*setting, out);
             out.put(b": ");
-            out.put(render::fault_word(*fault));
+            render::setting_fault(*setting, *fault, out);
             if let Some(detail) = detail {
                 render::setting_detail(detail, out);
             }

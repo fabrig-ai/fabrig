@@ -390,11 +390,8 @@ pub struct Bounds {
     pub landing_rules: u32,
     pub gates: u32,
     pub roles: u32,
-    pub charters: u32,
     pub segments: u32,
     pub segment_bytes: u32,
-    /// Template numbers (temper/docs/design/protocol/configuration/settings.md, 2).
-    pub templates: u32,
     pub follows: u32,
     pub dependencies: u32,
     pub follow_paths: u32,
@@ -517,7 +514,7 @@ impl Refusal {
             Self::SetNumber => b"a set outside 1 to 6",
             Self::SetTwice => b"a set named twice",
             Self::DeploymentSets => b"a deployment's rule names no path set",
-            Self::Charter => b"a charter outside 1 to tasks.charters, or the forge's charter removed",
+            Self::Charter => b"a charter outside 1 to 64, or the forge's charter removed",
             Self::Value => b"a value of another kind",
             Self::Retired => b"retired stored setting",
             Self::Replaced => b"the replaced value is no longer kept",
@@ -615,7 +612,7 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
     let numbers = match kind {
         Kind::DeploymentRules | Kind::ProjectRules => bounds.landing_rules,
         Kind::Charters => 2,
-        Kind::CharterWords => bounds.charters,
+        Kind::CharterWords | Kind::TemplateGoal => jig_domain_people::NUMBERS,
         Kind::ProjectLanding
         | Kind::ProjectGates
         | Kind::ProjectQuestions
@@ -627,7 +624,6 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
         | Kind::Limits
         | Kind::Agents
         | Kind::Welcome => 1,
-        Kind::TemplateGoal => bounds.templates,
         Kind::Follow => bounds.follows,
         Kind::Dependency => bounds.dependencies,
     };
@@ -734,7 +730,7 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
         },
         Kind::Charters => {
             return match &item.value {
-                Some(Value::Charter(charter)) if *charter > 0 && *charter <= bounds.charters => Ok(()),
+                Some(Value::Charter(charter)) if *charter > 0 && *charter <= jig_domain_people::NUMBERS => Ok(()),
                 Some(Value::Charter(_)) | None => Err(Refusal::Charter),
                 Some(
                     Value::Dependency(_)

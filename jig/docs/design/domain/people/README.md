@@ -444,6 +444,18 @@ entry naming the task or proposal it is and its project:
   query: proposals, escalations and questions are entries, not tasks.
 - **What is addressed to a role** is in the inbox of every party holding
   it, until one of them acts, when it leaves every one.
+- **Each source keeps its own needs.** A need comes from one source: a
+  task, whose questions, escalation, person task, replies and own
+  proposal it carries, or a party's proposal. Saving a source replaces
+  only that source's needs. A party's proposal is a source of its own,
+  even where it names a task (its amendment's target, its batch's first
+  goal), so it and that task never replace each other's needs: both are
+  counted and listed, whichever is saved first. The task it names stays
+  the need's link. A proposal's need names its proposer, a task or a
+  party, beside its number, so two proposals of one number are two needs.
+  The child's `Waiting` names the source it replaces, `NeedSource::Task(n)`
+  or `NeedSource::Proposal { party, number }`, and a start restores each
+  source's needs alike.
 - **Bounded:** what needs the party is derived from live tasks, and the
   child's census holds every live need, whatever its requester's root (a
   goal, a chat, a standing task), so it is counted exactly and paged from

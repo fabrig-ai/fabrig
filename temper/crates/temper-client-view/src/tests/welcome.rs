@@ -487,11 +487,35 @@ fn press(root: &d::Domain, role: Role, name: &str) -> d::Action {
     crate::act(&mut view, id, Act::Press).expect("bound control")
 }
 #[test]
+fn the_welcome_can_turn_night_back_to_day_from_its_first_frame_and_each_step() {
+    for step in [Step::Welcome, Step::WelcomeAsked, Step::Forge { forge: None }, Step::Model { way: None }, Step::Ready]
+    {
+        for (mut root, steps) in [
+            (Box::new(f::reading_me_at(Address::Welcome { step })), false),
+            (Box::new(waiting_for_deployment(step).0), false),
+            (Box::new(f::welcome_root(step, true)), true),
+        ] {
+            for night in [false, true] {
+                let mut view = f::browser_page_view(&root);
+                super::frame::assert_top_children(&view, steps, true, night);
+                super::frame::assert_top_end(&view, &[(Role::Region, None)]);
+                super::frame::assert_top_children(&f::page_view(&root), steps, false, night);
+                let id = node(view.tree(), Role::Button, "Night mode");
+                let action = crate::act(&mut view, id, Act::Press).unwrap();
+                assert_eq!(action, d::Action::Pages(pages::Act::Terminal(pages::terminal::Act::Night)));
+                f::root_event(&mut root, d::Event::Act { action });
+                assert_eq!(root.pages().look().night, !night);
+            }
+            assert!(!root.pages().look().night);
+        }
+    }
+}
+#[test]
 fn the_welcome_frame_is_the_brand_the_steps_and_the_link_alone() {
     let root = f::welcome_root(Step::Welcome, true);
     let mut view = f::page_view(&root);
     let brand = f::find(view.tree(), Role::Link, b"temper").unwrap();
-    assert_eq!(crate::href(&mut view, brand).as_deref(), Some(b"/".as_slice()));
+    assert_eq!(crate::href(&mut view, brand).as_deref(), Some(b"/needs".as_slice()));
     let tree = view.tree();
     assert!(
         tree.nodes()
@@ -785,17 +809,17 @@ fn the_steps_tick_forge_and_model_facts_in_both_shells() {
 }
 
 #[test]
-fn the_welcome_brand_goes_to_the_inbox() {
+fn the_welcome_brand_goes_home_in_the_browser_and_to_the_inbox_in_the_terminal() {
     for step in [Step::Welcome, Step::WelcomeAsked, Step::Forge { forge: None }, Step::Model { way: None }, Step::Ready]
     {
         let root = f::welcome_root(step, true);
-        for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
+        for (mut view, address, path) in [
+            (f::page_view(&root), Address::Inbox { filter: d::address::Filter::ALL }, b"/needs".as_slice()),
+            (f::browser_page_view(&root), Address::AllHome, b"/home".as_slice()),
+        ] {
             let brand = node(view.tree(), Role::Link, "temper");
-            assert_eq!(crate::href(&mut view, brand).as_deref(), Some(b"/".as_slice()));
-            assert_eq!(
-                crate::act(&mut view, brand, Act::Press),
-                Some(d::Action::Pages(pages::Act::Go { address: Address::Inbox { filter: d::address::Filter::ALL } }))
-            );
+            assert_eq!(crate::href(&mut view, brand).as_deref(), Some(path));
+            assert_eq!(crate::act(&mut view, brand, Act::Press), Some(d::Action::Pages(pages::Act::Go { address })));
         }
     }
 }

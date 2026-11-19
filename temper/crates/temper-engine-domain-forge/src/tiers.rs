@@ -1,4 +1,5 @@
 //! Tiers follow their configured branches (temper/docs/design/domain/after-landing.md, 2, 3, 4 and 10).
+//! Landing targets use the adoption (temper/docs/design/domain/forge/adoption.md, 8).
 use crate::{Domain, Follows, Limits, Name, Request, Stored, Tier, TierBranch, TierLanding, TierRow, Topic, What};
 use alloc::boxed::Box;
 use skein_forge::api::{self, Commit, Repository, Write};
@@ -78,7 +79,7 @@ fn configured(d: &Domain, row: &TierRow) -> Option<Tier> {
 fn followed(d: &Domain, repository: Repository, tier: &Tier) -> Option<Box<[u8]>> {
     match &tier.follows {
         Follows::Branch(branch) => Some(branch.clone()),
-        Follows::Landing => Some(d.repositories.get(&repository)?.settings.default_branch.clone()),
+        Follows::Landing => Some(d.repositories.get(&repository)?.landing.clone()),
         Follows::Goals => None,
     }
 }
@@ -1881,7 +1882,19 @@ fn posted_words(tier: &[u8], verdict: &p::Verdict, landings: &[crate::TierPosted
 }
 
 fn landing_change(d: &Domain, repository: Repository, commit: Commit) -> Option<u64> {
-    d.verifications.get(&(repository, commit))?.changes.first().copied()
+    if let Some(verification) = d.verifications.get(&(repository, commit)) {
+        return verification.changes.first().copied();
+    }
+    let log = d.landing_log(repository)?;
+    for landing in &log.landings {
+        if landing.commit == commit {
+            return match landing.changes.first() {
+                Some(member) => Some(member.task),
+                None => None,
+            };
+        }
+    }
+    None
 }
 
 // One complete attribution per line lets the task shell fit its report without cutting an ID.

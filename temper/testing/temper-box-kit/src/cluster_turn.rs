@@ -117,6 +117,7 @@ pub fn settings(root: &Path, calls: &[support::Ended]) -> Call {
                 .expect("owner role");
             owner["period_spend"] = (period / 48 * 41).into();
         } else {
+            support::provider_setup::use_provider(&mut value, 1);
             value["documents"] = json!([]);
             value["hosts"] = "workers".into();
         }
@@ -127,6 +128,8 @@ pub fn settings(root: &Path, calls: &[support::Ended]) -> Call {
     items.push(json!({"setting":{"kind":"landing-rule","project":1,"number":1},"set":{
         "pattern":{"segments":["6272616e6368"],"last":{"open":""}},
         "enforce":true,"ci":true,"up_to_date":true,"gates":[],"approvals":[]}}));
+    let providers = temper_agent_fixtures::providers::read(&root.join("engine/data"));
+    items.extend(support::provider_setup::items(&providers));
     let path = root.join("turn-settings.json");
     write(&path, &json!({"items":items}));
     ctl::settings_change(&calls[1], &path, "turn-settings")

@@ -21,6 +21,7 @@ import unittest
 
 HERE = Path(__file__).resolve().parent
 CPU = runpy.run_path(str(HERE / 'cpu.py'))
+REPAIR_LINE = CPU['REPAIR_LINE']
 
 # Recorded from nextest's cancellation output (tools/tiers/design.md, 7.4).
 GLOBAL_TIMEOUT_LINE = '  Cancelling due to global timeout: 1 test still running\n'
@@ -235,7 +236,7 @@ class OneProcessTests(unittest.TestCase):
                 result = self.summary({'default': {'cpu_suite_s': limit}})
                 self.assertEqual(result['verdict'], verdict)
                 self.assertEqual(result['over_budget'], [] if limit == 1.5 else
-                                 ['suite default: 1.500000s > 1.0s'])
+                                 ['suite default: 1.500000s > 1.0s\n' + REPAIR_LINE])
         budget = self.root / 'budget.toml'
         budget.write_text('[default]\ncpu_suite_s=1.0\n')
         self.assertEqual(self.cli('--budgets', str(budget)).returncode, 1)
@@ -271,7 +272,7 @@ class OneProcessTests(unittest.TestCase):
                          ceiling_s=470, budget_s=470, main_budget_s=None, lowest_s=510,
                          main_over=False, grew=[], ideal_s=15, reference_s=2, over=True)])
                 self.assertEqual(result['trees'], [dict(tree='temper', cpu_s=510, main_s=None, ceiling_s=725, budget_s=725, ideal_s=100)])
-                self.assertEqual(result['over_budget'], [self.over_line] if gate else [])
+                self.assertEqual(result['over_budget'], [self.over_line + '\n' + REPAIR_LINE] if gate else [])
                 self.assertEqual(result['warnings'], [] if gate else [self.over_line])
                 self.assertEqual(result['verdict'], 'over budget' if gate else 'no budget set')
                 output = io.StringIO()
@@ -307,7 +308,7 @@ class OneProcessTests(unittest.TestCase):
                 self.assertEqual(result['trees'], [
                     dict(tree='temper', cpu_s=490, main_s=None, ceiling_s=490, budget_s=490, ideal_s=100)])
                 line = 'layer over budget: temper default simulated: 460.00 CPU s, budget 458 s'
-                self.assertEqual(result['over_budget'], [line] if gate else [])
+                self.assertEqual(result['over_budget'], [line + '\n' + REPAIR_LINE] if gate else [])
                 self.assertEqual(result['warnings'], [] if gate else [line])
                 self.assertEqual(result['verdict'], 'over budget' if gate else 'no budget set')
 
@@ -331,7 +332,7 @@ class OneProcessTests(unittest.TestCase):
                 self.assertEqual(result['trees'], [
                     dict(tree='temper', cpu_s=2, main_s=None, ceiling_s=725, budget_s=725, ideal_s=100)])
                 self.assertEqual(result['over_budget'], [] if moved else [
-                    'layer over budget: temper default machine: 2.00 CPU s, no budget'])
+                    'layer over budget: temper default machine: 2.00 CPU s, no budget\n' + REPAIR_LINE])
 
     def test_layer_gate_exit_statuses(self):
         self.layer_case()
@@ -365,7 +366,7 @@ class OneProcessTests(unittest.TestCase):
                 self.assertEqual([r['tree'] for r in result['trees']], ['smith', 'jig', 'temper', 'repository'])
                 self.assertEqual([r['over'] for r in result['layers']], [False, False, False, True, False, False, False])
                 line = 'layer over budget: temper default io: 0.50 CPU s, no budget'
-                self.assertEqual(result['over_budget'], [line] if gate else [])
+                self.assertEqual(result['over_budget'], [line + '\n' + REPAIR_LINE] if gate else [])
                 self.assertEqual(result['warnings'], ['unplaced: pkg::suite has no layer (tools/tiers/layers.md)',
                                                      *([] if gate else [line])])
                 self.assertIsNone(result['layers'][5]['budget_s'])
@@ -420,7 +421,7 @@ class OneProcessTests(unittest.TestCase):
         self.assertEqual([r['reference_s'] for r in result['layers']], [10, 10])
         self.assertEqual([r['budget_s'] for r in result['layers']], [13, 196])
         self.assertEqual(result['over_budget'], [
-            'layer over budget: temper fuzzy simulated: 500.00 CPU s, budget 196 s'])
+            'layer over budget: temper fuzzy simulated: 500.00 CPU s, budget 196 s\n' + REPAIR_LINE])
         self.run.update(profile='default', starved=False)
         self.results['profile'] = 'default'
         self.results['processes'][0].update(user_s=0, system_s=0)
@@ -497,6 +498,7 @@ class OneProcessTests(unittest.TestCase):
             self.assertEqual(result['layers'], [])
             self.assertEqual(result['trees'], [])
             self.assertEqual(result['references'], [])
+            self.assertEqual(result['swings'], [])
             self.assertEqual(result['suite']['cpu_s'], 1.5)
 
     def reference_case(self, why='new', cpu=0.05):
@@ -528,7 +530,7 @@ class OneProcessTests(unittest.TestCase):
             with self.subTest(gate=gate):
                 result = self.summary(self.limits, gate=gate)
                 self.assertEqual(result['verdict'], 'over budget' if gate else 'no budget set')
-                self.assertEqual(result['over_budget'], [message] if gate else [])
+                self.assertEqual(result['over_budget'], [message + '\n' + REPAIR_LINE] if gate else [])
                 self.assertEqual(result['warnings'], [] if gate else [message])
                 self.assertEqual(result['references'][0]['limit_s'], 0.04)
                 self.assertTrue(result['references'][0]['over'])
@@ -658,6 +660,103 @@ class OneProcessTests(unittest.TestCase):
         self.assertEqual(cli.returncode, 2, cli.stdout + cli.stderr)
         with self.assertRaisesRegex(ValueError, 'base.*one-process'):
             CPU['summary'](self.directory, pair='tools', expected=['tool'], base=base)
+
+    def test_swings_three_figures_in_whole_milliseconds(self):
+        self.ledger_case()
+        for alone, swings in (([0.100, 0.160, 0.120], True),
+                              ([0.100, 0.150, 0.120], False),
+                              ([0.036, 0.054, 0.045], False),
+                              ([0.100, 0.200], False),
+                              ([0.000, 0.002, 0.001], True)):
+            with self.subTest(alone=alone):
+                self.main['binaries']['temper-engine::domain'] = self.ledger_entry(
+                    [1], tests={'forge::opens': [0.01]}, alone={'forge::opens': alone})
+                result = self.summary(ledger=self.main)
+                self.assertEqual(result['swings'], [dict(binary_id='temper-engine::domain',
+                    test_name='forge::opens', tree='temper', layer='domain', alone=alone)] if swings else [])
+                figures = ', '.join(f'{figure:.3f}' for figure in alone)
+                self.assertEqual(result['warnings'], [
+                    f'test swings alone at main: temper-engine::domain forge::opens: {figures} CPU s alone'
+                ] if swings else [])
+
+    def test_swings_use_given_ledger_in_binary_and_test_order(self):
+        self.ledger_case()
+        # Neither binary ran: one is unlisted, the other absent from workspace.
+        self.main['binaries']['temper-b::domain'].update(
+            tests={'z': [0.01], 'a': [0.01]},
+            alone={'z': [0.120, 0.100, 0.160], 'a': [0.100, 0.160, 0.120]})
+        self.main['binaries']['skein-c::io'].update(
+            tests={'gone': [0.01]}, alone={'gone': [0.000, 0.002, 0.001]})
+        # A swing only in the run's folded ledger is not a swing at main.
+        folded = copy.deepcopy(self.main)
+        folded['binaries']['temper-a::domain']['alone'] = {'z': [0.100, 0.200, 0.100]}
+        self.write()
+        CPU['save'](self.directory / 'ledger.json', folded)
+        result = self.summary(ledger=self.main)
+        self.assertEqual(result['swings'], [
+            dict(binary_id='skein-c::io', test_name='gone', tree='skein', layer='io', alone=[0.000, 0.002, 0.001]),
+            dict(binary_id='temper-b::domain', test_name='a', tree='temper', layer='domain', alone=[0.100, 0.160, 0.120]),
+            dict(binary_id='temper-b::domain', test_name='z', tree='temper', layer='domain', alone=[0.120, 0.100, 0.160])])
+        self.assertEqual(result['warnings'], [
+            'test swings alone at main: skein-c::io gone: 0.000, 0.002, 0.001 CPU s alone',
+            'test swings alone at main: temper-b::domain a: 0.100, 0.160, 0.120 CPU s alone',
+            'test swings alone at main: temper-b::domain z: 0.120, 0.100, 0.160 CPU s alone'])
+        result = self.summary()
+        self.assertEqual((result['swings'], result['warnings']), ([], []))
+
+    def test_swings_warn_last_without_changing_judgement(self):
+        self.reference_case()
+        self.results['references'].append(self.reference('a', cpu_s=None, outcome='crashed'))
+        path = self.root / 'main.json'
+        budgets = self.root / 'budgets.toml'
+        budgets.write_text(CPU['toml_config'](self.limits))
+        message = 'test swings alone at main: pkg::suite z: 0.100, 0.160, 0.120 CPU s alone'
+        for gate in (False, True):
+            for cpu in (0.03, 0.05):
+                with self.subTest(gate=gate, cpu=cpu):
+                    self.results['references'][0]['cpu_s'] = cpu
+                    self.main['binaries']['pkg::suite']['alone']['z'] = [0.120] * 3
+                    baseline = self.summary(self.limits, gate=gate, ledger=self.main)
+                    CPU['save'](path, self.main)
+                    arguments = ['--budgets', str(budgets), '--ledger', str(path)] + (['--gate'] if gate else [])
+                    baseline_cli = self.cli(*arguments)
+                    self.assertEqual(baseline_cli.returncode, int(gate and cpu > 0.04), baseline_cli.stderr)
+                    self.main['binaries']['pkg::suite']['alone']['z'] = [0.100, 0.160, 0.120]
+                    result = self.summary(self.limits, gate=gate, ledger=self.main)
+                    self.assertEqual(result['warnings'], baseline['warnings'] + [message])
+                    self.assertIn('test not measured alone: pkg::suite a: crashed', baseline['warnings'])
+                    self.assertEqual({key: value for key, value in result.items() if key not in ('warnings', 'swings')},
+                                     {key: value for key, value in baseline.items() if key not in ('warnings', 'swings')})
+                    CPU['save'](path, self.main)
+                    cli = self.cli(*arguments)
+                    self.assertEqual(cli.returncode, baseline_cli.returncode, cli.stdout + cli.stderr)
+                    self.assertIn('warning: ' + message, cli.stdout)
+
+    def test_swings_print_and_cli_json(self):
+        self.ledger_case()
+        self.main['binaries']['temper-engine::domain'] = self.ledger_entry(
+            [1], tests={'forge::opens': [0.01]}, alone={'forge::opens': [0.100, 0.160, 0.120]})
+        result = self.summary(ledger=self.main)
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            CPU['print_summary'](result)
+        self.assertEqual([line for line in output.getvalue().splitlines() if line.startswith('warning:')], [
+            'warning: test swings alone at main: temper-engine::domain forge::opens: 0.100, 0.160, 0.120 CPU s alone'])
+        path = self.root / 'main.json'
+        for version in (3, 2, 1):
+            with self.subTest(version=version):
+                main = copy.deepcopy(self.main)
+                main['ledger'] = version
+                if version != 3:
+                    for entry in main['binaries'].values():
+                        entry['cpu_s'] = entry.pop('cpu')[0]
+                        if version == 1:
+                            del entry['alone']
+                CPU['save'](path, main)
+                cli = self.cli('--ledger', str(path), '--json')
+                self.assertEqual(cli.returncode, 0, cli.stdout + cli.stderr)
+                expected = result if version != 1 else dict(result, swings=[], warnings=[])
+                self.assertEqual(json.loads(cli.stdout), expected)
 
     def test_ledger_fold_alone_history(self):
         self.reference_case()
@@ -980,6 +1079,10 @@ class OneProcessTests(unittest.TestCase):
         self.assertEqual(grew[1]['tests'], [dict(test_name=f'test-{n}', wall_s=n + 1, main_wall_s=1)
                                           for n in reversed(range(1, 7))])
         text = result['over_budget'][0]
+        self.assertEqual(text.splitlines()[0], 'layer over budget: temper default domain: '
+                         '177.00 CPU s, budget 1 s, ceiling 1 s, at main 99.00 CPU s')
+        self.assertEqual(text.splitlines()[-1], REPAIR_LINE)
+        self.assertEqual(text.count(REPAIR_LINE), 1)
         self.assertEqual(sum(line.startswith('  pkg-') for line in text.splitlines()), 10)
         self.assertIn('  2 more binaries', text)
         self.assertIn('    2 more tests', text)
@@ -1283,6 +1386,10 @@ class CollectorTests(unittest.TestCase):
         self.assertEqual(result.returncode, 1, result.stderr)
         self.assertIn('test fixture::suite one', result.stdout)
         self.assertIn('suite qa-jig', result.stdout)
+        entries = CPU['summary'](self.directory, {'qa-jig': {'cpu_suite_s': 1.0, 'cpu_test_s': 1.0}})['over_budget']
+        self.assertEqual(entries, [line + '\n' + REPAIR_LINE for line in
+                                  ('test fixture::suite one: 1.500000s > 1.0s',
+                                   'suite qa-jig: 1.500000s > 1.0s')])
         self.assertEqual(self.cli('--pair', 'qa-skein').returncode, 2)
 
     def test_missing_extra_duplicate_malformed_and_unfinished_records(self):
@@ -2611,7 +2718,10 @@ os.waitpid(child,0)
         budget.write_text('[tools."tools/fixture.py"]\ncpu_suite_s=1.0\ncpu_test_s=1.0\n')
         result = self.summary(*arguments)
         self.assertEqual(result.returncode, 1, result.stderr)
-        self.assertEqual(len(json.loads(result.stdout)['over_budget']), 2)
+        self.assertEqual(json.loads(result.stdout)['over_budget'],
+                         [line + '\n' + REPAIR_LINE for line in
+                          ('test tools/fixture.py suite: 1.500000s > 1.0s',
+                           'suite tools/fixture.py: 1.500000s > 1.0s')])
         for content in ('tools=1', '[tools]\ncpu_suite_s=1',
                         '[tools."tools/fixture.py"]\ncpu_suite_s=nan',
                         '[tools."tools/fixture.py"]\nunknown=1'):

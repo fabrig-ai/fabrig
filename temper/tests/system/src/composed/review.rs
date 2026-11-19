@@ -81,7 +81,7 @@ impl World {
         smith_protocol_channel::decode_charter(
             &process.charter,
             &smith_charter::CEILINGS,
-            &super::worker_protocol::endpoints(),
+            &super::worker_protocol::endpoints_with_dialect(3),
         )
         .expect("receiving charter")
     }

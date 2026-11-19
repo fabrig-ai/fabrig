@@ -431,7 +431,7 @@ pub static PAGES: [Page; 77] = [
         name: "ctl-proposal",
         kind: Kind::Reference,
         title: "temper ctl proposal",
-        summary: "Proposals: read one, decide it.",
+        summary: "Proposals: read, decide or withdraw one.",
         text: include_str!("../../../docs/help/reference/ctl-proposal.md"),
     },
     Page {
@@ -620,7 +620,7 @@ pub static PAGES: [Page; 77] = [
         name: "settings-fields",
         kind: Kind::Reference,
         title: "Settings fields",
-        summary: "Settings' types, bounds and effects for files and `settings show`.",
+        summary: "JSON types, bounds and effects for settings files and `settings show`.",
         text: include_str!("../../../docs/help/reference/settings-fields.md"),
     },
 ];

@@ -204,6 +204,20 @@ fn box_step_seven_names_every_ending_and_the_direct_report() {
 }
 
 #[test]
+fn template_and_charter_help_name_the_stock_and_own_number_ranges() {
+    for (kind, plural) in [("template", "templates"), ("charter", "charters")] {
+        let page = help::answer(&configured(&["help", kind])).expect("settings help");
+        let (_, what) = page.split_once("## What it is\n").expect("What it is");
+        let what = what.split("\n## ").next().expect("section");
+        let text = what.split_whitespace().collect::<Vec<_>>().join(" ");
+        let words = format!(
+            "Numbered: the stock's {plural} take 1 to 32, and your own 33 to 64; a {kind} below 33 that the stock doesn't have is refused."
+        );
+        assert!(text.contains(&words), "{kind}: {text}");
+    }
+}
+
+#[test]
 fn charter_help_explains_documents_and_host_discovery() {
     let page = help::answer(&configured(&["help", "charter"])).expect("charter help");
     let text = page.split_whitespace().collect::<Vec<_>>().join(" ");
@@ -268,14 +282,8 @@ fn tester_stock() -> jig_domain_core::settings::Defaults {
         &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 16384, depth: 32 },
     )
     .expect("engine document");
-    let engine = jig_protocol_config::engine(
-        &document,
-        0,
-        &jig_protocol_config::Directories::working(),
-        jig_protocol_config::Defaults::Passed,
-        &temper_service::startup::fixed(&jig_protocol_config::Directories::working()).unwrap(),
-    )
-    .expect("engine configuration");
+    let engine = temper_service::startup::engine(&document, 0, &jig_protocol_config::Directories::working())
+        .expect("engine configuration");
     temper_service::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes)
 }
 
@@ -294,7 +302,7 @@ fn tester_recipe_copies_a_stock_charter_without_landing_tools() {
         attempt: 1,
         conversation: 1,
         live: jig_domain_host::LiveAsk::NONE,
-        charter: 3,
+        charter: 33,
         run: Box::new(engine::RunCharter {
             revision: 1,
             ended_by: tasks::EndedBy::Result,
@@ -349,18 +357,18 @@ fn tester_recipe_template_reports_without_a_goal_branch() {
         .expect("documented settings file");
     assert_eq!(items.len(), 1);
     let item = items.as_slice().first().expect("template item");
-    assert_eq!(item.setting, Setting::Template(SettingNumber { number: 3 }));
+    assert_eq!(item.setting, Setting::Template(SettingNumber { number: 33 }));
     let SettingEdit::Set(set) = &item.edit else { panic!("example sets the template") };
     let SettingValue::Template(template) = &set.value else { panic!("template value") };
-    assert_eq!(template.number, 3);
-    assert_eq!(template.executor, TemplateExecutor::Charter(3), "the recipe's copied charter");
+    assert_eq!(template.number, 33);
+    assert_eq!(template.executor, TemplateExecutor::Charter(33), "the recipe's copied charter");
     assert_eq!(template.contract, TaskContractDocument::Report { words: 16000 });
     assert!(template.resources.is_empty(), "no goal branch");
     assert_eq!(template.flags.ended_by, settings_form::view::EndedBy::Result);
     assert_eq!(template.tracked, Some(1));
     let stock = tester_stock();
-    assert!(stock.charters.iter().all(|charter| charter.number != 3), "free charter number");
-    assert!(stock.templates.iter().all(|template| template.number != 3), "free template number");
+    assert!(stock.charters.iter().all(|charter| charter.number != 33), "free charter number");
+    assert!(stock.templates.iter().all(|template| template.number != 33), "free template number");
 }
 
 #[test]
@@ -798,7 +806,7 @@ fn account_and_deployment_help_explain_offering_another_model() {
     let account = account.split_whitespace().collect::<Vec<_>>().join(" ");
     assert!(account.contains("temper help deployment"), "{account}");
     assert!(account.contains("Offering another model"), "{account}");
-    assert!(account.contains("The providers are the configuration's and the models are settings"), "{account}");
+    assert!(account.contains("Providers and models are settings"), "{account}");
     let deployment = help::answer(&configured(&["help", "deployment"])).expect("deployment help");
     assert!(!deployment.contains("```json"), "model declarations belong in settings: {deployment}");
     let guidance = deployment
@@ -825,8 +833,15 @@ fn account_and_deployment_help_explain_offering_another_model() {
         "A task keeps the model it has",
         "no restart",
         "local model",
-        "`endpoint` in `engine.llm.providers`",
-        "`CONFIG/temper.json`",
+        "temper ctl settings show provider N",
+        "\"setting\": {\"kind\": \"provider\", \"number\": N}",
+        "\"set\": VALUE",
+        "temper ctl settings apply FILE --against REVISION --key KEY",
+        "`keep`",
+        "`drop`",
+        "`sources`",
+        "`endpoint` names an entry in its `endpoints` list",
+        "`address.socket`",
         "`CONFIG/temper.json`",
         "claude-haiku-5-5",
         "output",
@@ -1046,6 +1061,9 @@ fn tier_help_explains_report_formats_and_preserving_configuration() {
         "Preserve the existing settings",
         "restart",
         "`tier_retries` and `verification_bound_ms` beside the project's `by`",
+        "`\"wait\": \"landed\"`",
+        "a change ends at its landing and its tiers judge it later",
+        "`change show TASK --until landed` for such a change",
     ] {
         assert!(text.contains(instruction), "missing {instruction}: {text}");
     }

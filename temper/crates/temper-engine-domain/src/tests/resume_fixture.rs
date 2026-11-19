@@ -311,6 +311,7 @@ pub fn config_with_project_room(seed: u64, projects: u32) -> engine::Config {
         ways_stock: Box::default(),
         period_span: Duration::from_secs(7 * 24 * 60 * 60),
         core: jig_domain_core::Config {
+            fixed_providers: Box::new([]),
             parts: Box::new([]),
             deployment: [31; 16],
             seed,
@@ -328,6 +329,7 @@ pub fn config_with_project_room(seed: u64, projects: u32) -> engine::Config {
             kinds: Box::default(),
             defaults: jig_domain_core::settings::Defaults {
                 limits: Box::default(),
+                providers: Box::new([provider_setting()]),
                 workers: Box::new([jig_domain_core::settings::WorkerSetting {
                     number: 1,
                     name: Box::from(b"worker".as_slice()),
@@ -346,7 +348,7 @@ pub fn config_with_project_room(seed: u64, projects: u32) -> engine::Config {
                     direct: Box::new([]),
                     providers: Box::new([]),
                     number: 1,
-                    dialect: 1,
+                    dialect: 3,
                     program: None,
                 }]),
                 key_bytes: 256,
@@ -443,7 +445,7 @@ pub fn charter() -> engine::Charter {
             model: engine::Model {
                 provider: 1,
                 program: None,
-                dialect: 1,
+                dialect: 3,
                 endpoint: 1,
                 name: b"scripted".as_slice().into(),
                 cache_life_ms: 0,
@@ -523,6 +525,7 @@ const FORGE_LIMITS: forge::Limits = forge::Limits {
     landings: 8,
     landing_members: 2,
     landings_kept: 16,
+    landings_pending: 64,
     changes_rows: 32,
     changes_landed: 8,
     gates: 2,
@@ -809,7 +812,10 @@ impl StartStore {
                     engine::Request::ToChild(released) => engine::step(root, env, engine::Event::Released(released)),
                     engine::Request::Store(engine::StoreRequest::Catalogue { .. })
                     | engine::Request::ForgeKept(_)
-                    | engine::Request::Party(engine::PartyRequest::Catalogue { .. })
+                    | engine::Request::Party(
+                        engine::PartyRequest::Catalogue { .. }
+                        | engine::PartyRequest::Deliver(engine::Delivery::Providers(_)),
+                    )
                     | engine::Request::Worker(engine::WorkerRequest::Settings(_)) => {}
                     engine::Request::Account(accounts::Request::Signing(accounts::Signing::Restored)) => {
                         assert!(self.wires > 0, "account restoration follows durable wires");
@@ -907,4 +913,35 @@ fn configured_forges() -> Box<[forge::Configured]> {
         read_only: false,
         asked: false,
     }])
+}
+
+fn provider_setting() -> jig_domain_core::settings::ProviderSetting {
+    use jig_domain_core::settings::{Endpoint, EndpointAddress, Provider, ProviderSetting, Transport};
+    ProviderSetting {
+        provider: Provider {
+            number: 1,
+            name: b"Scripted".as_slice().into(),
+            endpoint: Some(b"scripted".as_slice().into()),
+            direct: None,
+            list: None,
+            signed_in_plan: false,
+            manage_usage: None,
+            sign_in: None,
+            keys: false,
+            programs: Box::new([]),
+        },
+        endpoints: Box::new([Endpoint {
+            number: 1,
+            name: b"scripted".as_slice().into(),
+            provider: b"Scripted".as_slice().into(),
+            dialect: 3,
+            program: None,
+            address: EndpointAddress::Socket(::core::net::SocketAddr::from(([127, 0, 0, 1], 8080))),
+            transport: Transport::Plaintext,
+            headers: Box::new([]),
+            connect: Duration::from_millis(10_000),
+            handshake: Duration::from_millis(10_000),
+        }]),
+        withdrawn: false,
+    }
 }

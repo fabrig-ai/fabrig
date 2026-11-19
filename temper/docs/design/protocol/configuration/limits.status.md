@@ -1,6 +1,8 @@
 # limits: status
 
-2026-11-17. Where the tree's code lags or departs from [limits.md](limits.md).
+2026-11-18. Where the tree's code lags or departs from [limits.md](limits.md).
+
+- **Not yet:** "A repository's landing log", and the landing log's check in "Limits checked against each other at start": no `forge.landings_pending` [in flight: change 8589].
 
 
 

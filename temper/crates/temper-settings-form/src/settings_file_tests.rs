@@ -173,6 +173,7 @@ fn temper_kinds_round_trip_from_file_to_shown_json() {
         (br#"{"kind":"project-areas","project":3}"#, br#"{"areas":[{"name":"tests","words":"vsr's C tests","owner":{"role":0}}]}"#, c::Setting::Application { kind: 14, scope: 3, number: 1 }),
         (br#"{"kind":"project-triager","project":3}"#, br#"{"owner":{"charter":14}}"#, c::Setting::Application { kind: 15, scope: 3, number: 1 }),
         (br#"{"kind":"project-landing","project":1}"#, b"{}", c::Setting::Application { kind: 4, scope: 1, number: 1 }),
+        (br#"{"kind":"project-landing","project":1}"#, br#"{"wait":"landed"}"#, c::Setting::Application { kind: 4, scope: 1, number: 1 }),
         (br#"{"kind":"project-landing","project":1}"#, br#"{"by":"turn","batch":4}"#, c::Setting::Application { kind: 4, scope: 1, number: 1 }),
         (br#"{"kind":"project-gates","project":1}"#, br#"{"repositories":[{"forge":1,"repository":7,"gates":[{"name":"gate","workflow":"gate.yml","blocking":true,"report":{"artifact":"report","format":"lines","fuzzy":"fuzzy_"}}],"tiers":[{"name":"slow","workflow":"slow.yml","artifact":"report","format":"junit","branch":"goal"}]}]}"#, c::Setting::Application { kind: 5, scope: 1, number: 1 }),
         (TEMPLATE_GOAL, GOAL, c::Setting::Application { kind: 11, scope: 0, number: 4 }),
@@ -181,6 +182,16 @@ fn temper_kinds_round_trip_from_file_to_shown_json() {
         let item = items.get(0).expect("one item");
         assert_eq!(item.setting, expected);
         let c::SettingEdit::Set(set) = &item.edit else { panic!("set value") };
+        if item.setting == (c::Setting::Application { kind: 4, scope: 1, number: 1 }) {
+            use temper_client_protocol_wire::v1 as w;
+            let c::SettingValue::Application(bytes) = &set.value else { panic!("landing bytes") };
+            let landing = w::ProjectLanding::decode(&w::CEILINGS, &mut skein_lib::Reader::new(bytes)).unwrap();
+            assert_eq!(*landing.wait(), if json == br#"{"wait":"landed"}"# {
+                w::SettingsLandingWait::Landed
+            } else {
+                w::SettingsLandingWait::Cleared
+            });
+        }
         let document = c::ReadValue::Setting(Box::new(c::SettingDocument {
             overlay: None,
             setting: item.setting,
@@ -192,6 +203,15 @@ fn temper_kinds_round_trip_from_file_to_shown_json() {
         assert_eq!(shown(&document), joined(&[br#"{"setting":"#, setting, br#","revision":1,"value":"#, json, b"}"]));
     }
 }
+#[test]
+fn landing_wait_refuses_another_word_at_wait() {
+    let bytes = kind_file(br#"{"kind":"project-landing","project":1}"#, br#"{"wait":"soon"}"#);
+    assert_eq!(
+        file::decode(&bytes, &Limits::standard()).expect_err("unknown wait").as_ref(),
+        b"settings file item 1: wait: cleared or landed required"
+    );
+}
+
 #[test]
 fn welcome_is_an_unnumbered_deployment_setting_with_a_boolean_value_and_reset() {
     use temper_client_protocol_wire::v1 as w;
@@ -1116,6 +1136,65 @@ fn both_limit_kinds_use_a_whole_list_of_named_values_and_reasons() {
     for kind in [br#"{"kind":"limits","number":1}"#.as_slice(), br#"{"kind":"temper-limits","project":1}"#] {
         assert!(file::decode(&kind_file(kind, list), &limits).is_err(), "unnumbered deployment kind");
     }
+}
+
+#[test]
+fn provider_files_proposals_and_reads_keep_the_whole_value_and_number() {
+    const SETTING: &[u8] = br#"{"kind":"provider","number":3}"#;
+    const VALUE: &[u8] = br#"{"number":3,"name":"local","endpoint":"local","signed_in_plan":false,"sources":{},"endpoints":[{"name":"local","number":5,"dialect":3,"address":{"socket":"127.0.0.1:8080"},"transport":"plaintext","headers":[],"connect_ms":10000,"handshake_ms":10000}]}"#;
+    let limits = Limits::standard();
+    let items = file::decode(&kind_file(SETTING, VALUE), &limits).unwrap();
+    let item = items.get(0).unwrap();
+    assert_eq!(item.setting, c::Setting::Provider(c::SettingNumber { number: 3 }));
+    let c::SettingEdit::Set(set) = &item.edit else { panic!("set") };
+    let c::SettingValue::Provider(value) = &set.value else { panic!("provider") };
+    assert_eq!(value.provider.number, 3);
+    assert_eq!(value.provider.name.as_ref(), b"local");
+    let endpoint = value.endpoints.first().unwrap();
+    assert_eq!(endpoint.name.as_ref(), b"local");
+    assert_eq!(endpoint.number, 5);
+    assert_eq!(endpoint.provider.as_ref(), b"local");
+    assert_eq!(endpoint.connect.as_millis(), 10000);
+    let mut measured = Encoder::measure(&skein_json::writer::Limits { depth: 32, length: 32768 });
+    crate::render::encode_value(&set.value, &mut measured);
+    let mut out =
+        Encoder::write(measured.measured().unwrap(), &skein_json::writer::Limits { depth: 32, length: 32768 });
+    crate::render::encode_value(&set.value, &mut out);
+    assert_eq!(file::decode(&kind_file(SETTING, &out.finish()), &limits).unwrap(), items);
+    let shown = shown(&c::ReadValue::Setting(Box::new(c::SettingDocument {
+        setting: item.setting,
+        revision: 2,
+        value: Some(set.value.clone()),
+        overlay: None,
+        application: None,
+        proposed: None,
+    })));
+    assert!(skein_lib::bytes::find(&shown, VALUE).is_some());
+    let proposal = joined(&[
+        br#"{"against":1,"reason":"Add provider","items":[{"setting":"#,
+        SETTING,
+        br#", "set":"#,
+        VALUE,
+        b"}]}",
+    ]);
+    assert_eq!(file::proposal_items(&proposal, &limits).unwrap(), items);
+    let mismatch = joined(&[br#"{"number":4,"name":"local","sources":{},"endpoints":[]}"#]);
+    let why = file::decode(&kind_file(SETTING, &mismatch), &limits).unwrap_err();
+    assert!(skein_lib::bytes::find(&why, b"number").is_some(), "{why:?}");
+    for (edit, expected) in [
+        (br#""remove":true"#.as_slice(), c::SettingEdit::Removed),
+        (br#""reset":true"#, c::SettingEdit::Reset),
+        (br#""edit":"removed""#, c::SettingEdit::Removed),
+        (br#""edit":"reset""#, c::SettingEdit::Reset),
+    ] {
+        let bytes = joined(&[br#"{"items":[{"setting":"#, SETTING, b",", edit, b"}]}"]);
+        let items = file::decode(&bytes, &limits).unwrap();
+        assert_eq!(items.get(0).unwrap(), &c::SettingItem { setting: item.setting, edit: expected });
+    }
+    let read = joined(&[br#"{"setting":"#, SETTING, b"}"]);
+    assert_eq!(file::read_setting(&read, &limits).unwrap(), item.setting);
+    let page = crate::fields::page(&limits);
+    assert!(skein_lib::bytes::find(&page, b"taken at the engine's next start").is_some());
 }
 
 #[test]

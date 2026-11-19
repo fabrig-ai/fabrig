@@ -23,7 +23,9 @@
     (3) follows the main;
   - *the top bar,* on any other page, the frame wherever the rail
     isn't (the look request `outside-pages`; `web/look.md`,
-    *Outside a project*): temper's mark, "temper", a link to `/`; then,
+    *Outside a project*): temper's mark, "temper", a link in the browser
+    to where the root goes, `rail::root_home` (`web/README.md`, 2.3), and in
+    the terminal to the inbox; then,
     signed in, at its right: "Offline" while the link is offline and
     "Behind" while a page's watch reopens, the person's name, "Sign out did not reach the engine." while that
     holds (`line.md`, 6), and "Sign out" once `me` is read or while that alert
@@ -33,14 +35,22 @@
     state, as the rail's foot's does, so that the terminal's first line
     prints it (`line.md`, 4); the browser shows the region only while it says
     "Offline", so no "Signed out", "Connecting" or "Live" shows there.
-    Until `me` is read, the top bar shows its mark alone, so that no
-    other frame shows before the first page. On `Welcome`, every step of
+    Until `me` is read, the top bar shows its mark alone, and the
+    browser's night switch, so that no other frame shows before the first
+    page. On `Welcome`, every step of
     it, the welcome's steps follow the mark once the deployment's read
     answers, and its right is the link region alone, before that read
     too: no person's name, no "Sign out" and no sign-out alert, and the
     browser draws the right only while it says "Offline" (the look request
     `welcome-top`, 2026-11-12). temper box's line is the Welcome step's,
-    under its cards (`pages/welcome.md`, 1);
+    under its cards (`pages/welcome.md`, 1).
+    In the browser the top bar's last child, after its right, is the
+    rail's night switch (3), on every page and in every state that draws
+    the top bar, from its first frame, before `me` is read, since the
+    look is the browser's, not the person's: on `Welcome` after the steps
+    and the link region, elsewhere after the person's name and "Sign
+    out", and after the mark alone while nothing else shows. The terminal
+    draws none (the look request `night-switch-top`, 2026-11-18);
   - *while `me` is read,* the top bar alone, at every address but the
     sign-in page, the `Authorize` and approval places and the pages not
     about the work (below), which draw without `me`: no banner, an empty
@@ -83,7 +93,8 @@
 - **The pages not about the work** (jig's `client/domain/pages.md`,
   section 8). While the link is signed out or out of date, `me` has
   ended (jig's `client/domain/client/watches.md`, 2). The top bar is then
-  temper's mark alone (the terminal's link region with it, `line.md`, 4), no
+  temper's mark alone, with the browser's night switch after it (1) and
+  the terminal's link region (`line.md`, 4), no
   navigation is offered, and the main, in place of the page at the
   address, is the column: the link's state its level-1 heading,
   "Signed out" or "Out of date", and temper's words under it, one
@@ -239,8 +250,10 @@
 `web/whole-story/`, each page's `nav.rail`), on a project page (1): a
 navigation named by the open project, in this order:
 
-- temper's name, a link to where "Home" goes, named "temper
-  home";
+- temper's name, named "temper home", a link in the browser to where
+  the root goes, `rail::root_home` (`web/README.md`, 2.3; draft-2's
+  answer of 2026-11-18: the mark goes where the root goes, inside and
+  outside a project), and in the terminal to where "Home" goes;
 - the switcher (*Projects in the rail,* below);
 - "Home", to the open project's `Home`, and to `AllHome` on a page across
   projects; "Needs you", to *Needs you* filtered by the open project, and
@@ -311,7 +324,10 @@ navigation named by the open project, in this order:
 - the night switch, a browser's, the rail's last child, after its foot and drawn
   at the foot's right: a button named "Night mode", pressed while the night look
   is on, a moon by day and a sun by night, drawn by style; on a phone, at the top
-  bar's right. It shows on every page that draws the rail, at every width,
+  bar's right. Where the top bar draws in the rail's place (1), the same button
+  is the top bar's last child, at its right (the look request
+  `night-switch-top`). It shows on every page that draws the rail or the top
+  bar, at every width,
   wherever the rail's other parts go: in the rail folded beside a chat's Split,
   at the folded rail's foot; on a phone's chat layout (`pages/chat/README.md`, 1, *One layout for
   every chat*), where the rail and its top bar go, at the right of the chat's
@@ -446,7 +462,7 @@ The All projects row is the way back across projects, below.
 row while the person is in two projects or more, a button named "All
 projects", in small type at its right how many, "4 projects". Pressed, it
 goes to a page across projects: on `Inbox`, its filter with the project
-taken out, where a sign-in lands, `/`, having none; anywhere else
+taken out, `/needs` having none; anywhere else
 `AllHome` (`pages/home.md`, 1, *Home on All projects*). While the page is one across
 projects, `AllHome` or `Inbox` with no project, and the person is in two
 projects or more, the switcher's summary names "All projects" and its row
@@ -455,8 +471,9 @@ and never names it: its summary names that project and its row is the
 pressed one on every page, those across projects included, in the rail
 and a phone's top bar alike (the look request `one-project`, the user's
 word of 2026-11-15). "Home" and "Needs you"
-stay across projects there (`../draft/surfaces.md`, sections 1 and 2): "Home",
-temper's name and the phone's "Home" go to `AllHome`, current on it; "Needs
+stay across projects there (`../draft/surfaces.md`, sections 1 and 2): "Home"
+and the phone's "Home" go to `AllHome`, current on it, and temper's name in
+the terminal; "Needs
 you" and the phone's "Needs" go to `Inbox` with no project, current on it,
 their count across the person's projects (`pages/needs-you.md`, 1, *What the
 client keeps*). The rail's other entries keep the open project, the one last

@@ -24,6 +24,43 @@ fn a_registered_layout_defaults_an_added_list() {
 }
 
 #[test]
+fn a_landing_layout_without_wait_defaults_it_to_cleared() {
+    use super::fixtures;
+    use crate::records;
+    use skein_codec::{
+        layout::{Plan, Workspace},
+        schema,
+    };
+    use temper_engine_domain_forge_vocabulary::{Stored, settings as d};
+    let family = crate::OWNER_SET.families.iter().find(|family| family.name == "temper-store").unwrap();
+    let before = family.current.replacen(" wait: SettingsLandingWait = cleared", "", 1);
+    assert_ne!(before, family.current, "the earlier landing omits wait");
+    let old = schema::parse(before.as_bytes()).unwrap();
+    let new = schema::parse(family.current.as_bytes()).unwrap();
+    let old_root = old.root(b"Row", Some(b"setting")).unwrap();
+    let new_root = new.root(b"Row", Some(b"setting")).unwrap();
+    let write_old = Plan::derive_dropping(&new, new_root, &[], &old, old_root, &[]).unwrap();
+    let mut work = Workspace::new();
+    assert!(work.fit(&write_old));
+    let stored = Stored::Setting(d::SettingRow {
+        key: d::SettingKey { kind: 4, scope: 7, number: 1, slot: d::SettingSlot::Change },
+        edit: d::Edit::Set(d::SizedValue {
+            value: d::Value::Landing(d::ProjectLanding { batch: 3, ..d::ProjectLanding::default() }),
+            size: 123,
+        }),
+    });
+    let mut earlier = skein_lib::Buffer::with_capacity(4096);
+    write_old.convert(&records::encode(&stored), &mut earlier, &mut work).unwrap();
+    let read_old =
+        Plan::derive(&old, old_root, &[], &new, new_root, &[]).expect("an added wait defaults stored kind 4 values");
+    assert!(work.fit(&read_old));
+    let mut current = skein_lib::Buffer::with_capacity(4096);
+    read_old.convert(earlier.as_slice(), &mut current, &mut work).unwrap();
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    assert_eq!(records::decode(current.as_slice(), &bounds), Ok(stored));
+}
+
+#[test]
 fn a_change_layout_without_source_or_kept_defaults_both_to_none() {
     let family = crate::OWNER_SET.families.iter().find(|family| family.name == "temper-store").unwrap();
     let mut before = family.current.to_owned();
@@ -97,6 +134,89 @@ fn a_change_layout_without_regate_defaults_it_to_none() {
     assert!(row.regate().is_none());
 }
 
+#[test]
+fn a_repository_layout_without_landing_defaults_it_to_its_default_branch() {
+    use super::fixtures;
+    use crate::records;
+    use skein_codec::{
+        layout::{Plan, Workspace},
+        schema,
+    };
+    use temper_engine_domain_forge_vocabulary::{Protection, Stored};
+
+    let family = crate::OWNER_SET.families.iter().find(|family| family.name == "temper-store").unwrap();
+    let before = family.current.replacen(" landing: bytes 4096 = 0x", "", 1);
+    assert_ne!(before, family.current, "the old layout omits landing");
+    let old = schema::parse(before.as_bytes()).unwrap();
+    let new = schema::parse(family.current.as_bytes()).unwrap();
+    let old_root = old.root(b"Row", Some(b"repository")).unwrap();
+    let new_root = new.root(b"Row", Some(b"repository")).unwrap();
+    let write_old = Plan::derive_dropping(&new, new_root, &[], &old, old_root, &[]).unwrap();
+    let mut work = Workspace::new();
+    assert!(work.fit(&write_old));
+    let stored = fixtures::adopted(Protection::Absent);
+    let mut earlier = skein_lib::Buffer::with_capacity(4096);
+    write_old.convert(&records::encode(&stored), &mut earlier, &mut work).unwrap();
+
+    let read_old = Plan::derive(&old, old_root, &[], &new, new_root, &[])
+        .expect("an added landing has a default for stored repositories");
+    assert!(work.fit(&read_old));
+    let mut current = skein_lib::Buffer::with_capacity(4096);
+    read_old.convert(earlier.as_slice(), &mut current, &mut work).unwrap();
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    let decoded = records::decode(current.as_slice(), &bounds).unwrap();
+    let Stored::Repository(row) = &decoded else { panic!("repository") };
+    assert_eq!(row.settings.default_branch.as_ref(), b"main");
+    assert_eq!(row.landing.as_ref(), b"main");
+    assert_eq!(decoded, stored);
+}
+
+#[test]
+fn an_application_adopted_layout_without_landing_defaults_it_to_empty() {
+    use super::{fixtures, jobs};
+    use crate::records;
+    use skein_codec::{
+        layout::{Plan, Workspace},
+        schema,
+    };
+    use temper_engine_domain_forge_vocabulary::{ApplicationOutcome, Stored};
+
+    let family = crate::OWNER_SET.families.iter().find(|family| family.name == "temper-store").unwrap();
+    let before = family.current.replacen(
+        "protection: RepositoryProtection landing: bytes 4096 = 0x }",
+        "protection: RepositoryProtection }",
+        1,
+    );
+    assert_ne!(before, family.current, "the old outcome layout omits landing");
+    let old = schema::parse(before.as_bytes()).unwrap();
+    let new = schema::parse(family.current.as_bytes()).unwrap();
+    let old_root = old.root(b"Row", Some(b"application")).unwrap();
+    let new_root = new.root(b"Row", Some(b"application")).unwrap();
+    let write_old = Plan::derive_dropping(&new, new_root, &[], &old, old_root, &[]).unwrap();
+    let mut work = Workspace::new();
+    assert!(work.fit(&write_old));
+    let mut stored = jobs::application(fixtures::REPO);
+    let Stored::Application { outcome: ApplicationOutcome::Adopted(outcome), .. } = &mut stored else {
+        panic!("adopted application")
+    };
+    outcome.landing = b"staging".as_slice().into();
+    let mut earlier = skein_lib::Buffer::with_capacity(4096);
+    write_old.convert(&records::encode(&stored), &mut earlier, &mut work).unwrap();
+
+    let read_old =
+        Plan::derive(&old, old_root, &[], &new, new_root, &[]).expect("an added outcome landing has an empty default");
+    assert!(work.fit(&read_old));
+    let mut current = skein_lib::Buffer::with_capacity(4096);
+    read_old.convert(earlier.as_slice(), &mut current, &mut work).unwrap();
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    let decoded = records::decode(current.as_slice(), &bounds).unwrap();
+    let Stored::Application { outcome: ApplicationOutcome::Adopted(outcome), .. } = &mut stored else {
+        panic!("adopted application")
+    };
+    outcome.landing = Box::new([]);
+    assert_eq!(decoded, stored, "an old outcome keeps its facts but names no landing");
+}
+
 fn golden(text: &str, name: &str) -> Box<[u8]> {
     skein_codegen::goldens(&skein_codegen::parse(text).expect("current store schema"))
         .into_iter()
@@ -104,4 +224,60 @@ fn golden(text: &str, name: &str) -> Box<[u8]> {
         .expect("named fixed-rule Change row")
         .bytes
         .into_boxed_slice()
+}
+
+#[test]
+fn an_earlier_landing_log_defaults_member_goals_and_tier_entries() {
+    use skein_codec::{
+        layout::{Plan, Workspace},
+        schema,
+    };
+    use temper_engine_domain_forge_vocabulary as d;
+    let family = crate::OWNER_SET.families.iter().find(|family| family.name == "temper-store").unwrap();
+    let mut before = family.current.to_owned();
+    for field in [" goal: option u64 = none", " milestone: option u64 = none", " tiers: list 32 LoggedTier = []"] {
+        before = before.replacen(field, "", 1);
+    }
+    let old = schema::parse(before.as_bytes()).unwrap();
+    let new = schema::parse(family.current.as_bytes()).unwrap();
+    let old_root = old.root(b"Row", Some(b"landing_log")).unwrap();
+    let new_root = new.root(b"Row", Some(b"landing_log")).unwrap();
+    let write_old = Plan::derive_dropping(&new, new_root, &[], &old, old_root, &[]).unwrap();
+    let mut work = Workspace::new();
+    assert!(work.fit(&write_old));
+    let stored = d::Stored::LandingLog(d::LandingLog {
+        repository: skein_forge::api::Repository { forge: 1, repository: 2 },
+        landings: Box::new([d::LoggedLanding {
+            commit: [7; 32],
+            branch: b"main".as_slice().into(),
+            at: skein_lib::Wall::from_nanos(123),
+            changes: Box::new([d::LoggedChange {
+                signed: Box::new([]),
+                task: 51,
+                pull: Some(2),
+                title: b"member".as_slice().into(),
+                goal: Some(42),
+                milestone: Some(40),
+            }]),
+            tiers: Box::new([d::LoggedTier { tier: b"slow".as_slice().into(), verdict: d::LoggedVerdict::Verifying }]),
+        }]),
+    });
+    let mut earlier = skein_lib::Buffer::with_capacity(4096);
+    write_old.convert(&crate::records::encode(&stored), &mut earlier, &mut work).unwrap();
+    let read_old = Plan::derive(&old, old_root, &[], &new, new_root, &[]).expect("added landing fields have defaults");
+    assert!(work.fit(&read_old));
+    let mut current = skein_lib::Buffer::with_capacity(4096);
+    read_old.convert(earlier.as_slice(), &mut current, &mut work).unwrap();
+    let bounds = crate::bounds(&super::fixtures::LIMITS, super::fixtures::LIMITS.client.op_bytes).unwrap();
+    let decoded = crate::records::decode(current.as_slice(), &bounds).unwrap();
+    let d::Stored::LandingLog(row) = decoded else { panic!("landing log") };
+    assert_eq!(row.landings.len(), 1);
+    assert_eq!(row.landings[0].commit, [7; 32]);
+    assert!(row.landings[0].tiers.is_empty());
+    for member in &row.landings[0].changes {
+        assert_eq!(member.task, 51);
+        assert_eq!(member.pull, Some(2));
+        assert_eq!(member.title.as_ref(), b"member");
+        assert_eq!((member.goal, member.milestone), (None, None));
+    }
 }

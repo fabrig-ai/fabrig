@@ -10,28 +10,10 @@ pub const APPLICATION: &[u8] = br#"{
 "webhooks":null,
 "clients":{"listener":{"socket":"127.0.0.1:7100"},"public":null,"bundle":null},
 
-"demo":null,"sign_in":null
+"sign_in":null
 }"#;
-pub const DEMO: &str = r#""demo":{"llm":{"listen":{"socket":"$llm"},"provider":3,"key":"demo/llm.key",
-"asked":[{"cue":"Add CSV export to widget","turns":["CSV"]},
-{"cue":"Add a dark theme to widget","turns":["Theme"]},
-{"cue":"Fix widget's empty search state","turns":["Search"]}],
-"cued":[{"cue":"Export widget's table as CSV","turns":["Code"]}],"otherwise":["Demo"]}}"#;
-pub const DEMO_SETUP: &str = r#""setup":[{"forge":1,"directory":"demo/forge",
-"bot":{"login":"temper","email":"temper@example.test"},"mode":{"fake":{
-"listen":{"socket":"$forge"},"git":"demo/bin/git","owner":"demo",
-"repositories":[{"name":"widget","landing":"main"},{"name":"other","landing":"main"}]}}}]"#;
-
-pub fn demo_document() -> Box<[u8]> {
-    core::str::from_utf8(&document())
-        .unwrap()
-        .replace("\"setup\":[]", DEMO_SETUP)
-        .replace("\"demo\":null", DEMO)
-        .into_bytes()
-        .into_boxed_slice()
-}
 pub fn demo_service() -> crate::Service {
-    let document = demo_document();
+    let document = document();
     let document = with(&document, b"workers", b"[]");
     let document = with(&document, b"engine.hosts.listener", br#"[{"socket":"127.0.0.1:7200"}]"#);
     let mut start = crate::startup::checked_start_with_limits(
@@ -43,7 +25,11 @@ pub fn demo_service() -> crate::Service {
         super::forge_runtime(),
         None,
         &crate::stock::Given::Own {
-            jig: crate::stock::with_models(Box::new([super::small_model()]), 32),
+            jig: {
+                let mut defaults = crate::stock::with_models(Box::new([super::small_model()]), 32);
+                defaults.providers = temper_worker_service_fixtures::providers();
+                defaults
+            },
             forge: Box::default(),
             ways: crate::stock::ways(),
         },
@@ -51,6 +37,7 @@ pub fn demo_service() -> crate::Service {
         &startup_limits().1,
     )
     .unwrap();
+    start.engine.demo = Some(demo());
     let seeded = super::engine().jig;
     start.engine.jig.projects = seeded.projects;
     start.engine.jig.owners = seeded.owners;
@@ -64,6 +51,20 @@ pub fn demo_service() -> crate::Service {
         ]),
     }]);
     crate::Service::prepared(start.engine, &super::seeds(), None, start.forges, start.io, None, None).unwrap()
+}
+pub fn demo() -> settings::Demo {
+    settings::Demo {
+        provider: 3,
+        key_file: b"demo/llm.key".as_slice().into(),
+        owner: b"playground".as_slice().into(),
+        name: b"widget".as_slice().into(),
+        landing: b"main".as_slice().into(),
+        cues: Box::new([
+            b"Add CSV export to widget".as_slice().into(),
+            b"Add a dark theme to widget".as_slice().into(),
+            b"Fix widget's empty search state".as_slice().into(),
+        ]),
+    }
 }
 pub fn document() -> Box<[u8]> {
     let mut document = Vec::from(b"{\"engine\":".as_slice());

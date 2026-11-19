@@ -8,7 +8,7 @@ use std::process::{Command, ExitCode};
 
 use skein_codegen::diff::Rename;
 use skein_codegen::patch::{self, Landed, Options};
-use skein_codegen::{generate, parse};
+use skein_codegen::{check_as, form_of, generate_as, parse};
 
 const USAGE: &str = "usage: skein-codegen <schema>... <out-dir> | patch <crate> [--baseline] [--owner <name>] [--after <upstream> <level>] [--rename <family> <old> <new>] [--base <ref>] [--check]";
 
@@ -137,7 +137,7 @@ fn landed(owner: &Path, base: Option<&str>) -> Result<Landed, Box<dyn core::erro
     Ok(Landed::new(files))
 }
 
-/// The command's texts and filename (data/codec/contracts.md, 1 and 2).
+/// The command's texts and filename (data/codec/README.md, 4).
 fn generate_files(schema_paths: &[PathBuf], out_dir: &Path) -> Result<(), Box<dyn core::error::Error>> {
     let first = schema_paths.first().ok_or(USAGE)?;
     let (family, version) = first
@@ -154,7 +154,9 @@ fn generate_files(schema_paths: &[PathBuf], out_dir: &Path) -> Result<(), Box<dy
         source.push_str(&std::fs::read_to_string(path)?);
     }
     let schema = parse(&source)?;
-    let output = generate(&schema);
+    let form = form_of(first.parent().ok_or("schema has no directory")?, &schema.family)?;
+    check_as(&schema, form)?;
+    let output = generate_as(&schema, form);
     std::fs::create_dir_all(out_dir)?;
     let path = out_dir.join(format!("{}.rs", family.replace('-', "_")));
     std::fs::write(path, output.records)?;

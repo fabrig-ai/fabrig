@@ -77,6 +77,82 @@ pub fn offered(current: &Current, defaults: bool, items: &[Item]) -> skein_lib::
     }
     result
 }
+/// One constructor for every range refusal (domain/engine/settings.md, 1).
+#[must_use]
+pub fn range_failure(setting: Setting) -> Failure {
+    Failure { setting, fault: Fault::Range, detail: None }
+}
+
+fn out_of_range(current: &Current, defaults: bool, setting: Setting, value: &Value) -> bool {
+    let number = match setting {
+        Setting::Charter(number) | Setting::Template(number) | Setting::Policy(number) | Setting::Model(number) => {
+            number
+        }
+        Setting::Rules
+        | Setting::Provider(_)
+        | Setting::Worker(_)
+        | Setting::Application { .. }
+        | Setting::ProjectPolicy { .. } => {
+            return false;
+        }
+    };
+    if let Some(model) = value.as_model()
+        && model.withdrawn
+    {
+        return false;
+    }
+    number > super::NUMBERS
+        || if defaults {
+            number > super::STOCK_NUMBERS
+        } else {
+            number <= super::STOCK_NUMBERS && current.default_value(setting).is_none()
+        }
+}
+
+fn check_ranges(current: &Current, defaults: bool, items: &[Item]) -> Result<(), Failure> {
+    for &setting in &offered(current, defaults, items) {
+        let value = overlay_value(current, defaults, items, setting).expect("offered setting");
+        if out_of_range(current, defaults, setting, value) {
+            return Err(range_failure(setting));
+        }
+    }
+    Ok(())
+}
+
+/// All defaults and offered changes outside their numbers, in setting order (domain/engine/settings.md, 7).
+#[must_use]
+pub fn numbers(current: &Current) -> Box<[crate::start::Numbered]> {
+    let capacity = current.defaults.len().checked_add(current.changes.len()).expect("held settings count");
+    let mut names = skein_lib::Map::with_capacity(capacity);
+    for (&setting, _) in &current.defaults {
+        names.insert(setting, ()).expect("held default name");
+    }
+    for (&setting, _) in &current.changes {
+        names.insert(setting, ()).expect("held change name");
+    }
+    let mut result = skein_lib::List::with_capacity(capacity);
+    for (&setting, ()) in &names {
+        if let Some(default) = current.defaults.get(&setting)
+            && out_of_range(current, true, setting, &default.value)
+        {
+            result.push(crate::start::Numbered { setting, changed: false }).expect("one per default");
+        }
+        if let Some(change) = current.changes.get(&setting)
+            && let Some(value) = &change.value
+            && out_of_range(current, false, setting, value)
+        {
+            result.push(crate::start::Numbered { setting, changed: true }).expect("one per change");
+        }
+    }
+    result.into_boxed()
+}
+
+/// Admission judges the offered numbers before the edits' other faults (domain/engine/settings.md, 1).
+pub fn check_edits(current: &Current, items: &[Item], limits: &Limits) -> Result<(), Failure> {
+    check_ranges(current, false, items)?;
+    super::change_shape(items, limits)
+}
+
 /// Check proposed settings through the same borrowed selection as startup.
 pub fn check_change(
     current: &Current,
@@ -85,12 +161,14 @@ pub fn check_change(
     connectors: &[u16],
     limits: &Limits,
 ) -> Result<(), Failure> {
-    super::change_shape(items, limits)?;
+    check_edits(current, items, limits)?;
     super::workers::check_change(current, items)?;
+    super::providers::check_change(current, items)?;
     for item in items {
         let number = match item.setting {
             Setting::Model(number) => number,
-            Setting::Worker(_)
+            Setting::Provider(_)
+            | Setting::Worker(_)
             | Setting::Charter(_)
             | Setting::Template(_)
             | Setting::Policy(_)
@@ -117,8 +195,8 @@ pub fn check_change(
                         return Err(failure);
                     }
                 }
-                if let Err(fault) = super::catalogue::shape(value, number, settings) {
-                    return Err(Failure { fault, ..failure });
+                if !super::catalogue::fits(value, number) {
+                    return Err(failure);
                 }
             }
         }
@@ -137,7 +215,10 @@ pub fn check_set(
     connectors: &[u16],
     limits: &Limits,
 ) -> Result<(), Failure> {
+    check_ranges(current, defaults, items)?;
     super::workers::check_set(current, defaults, items)?;
+    super::providers::check_set(current, defaults, items)?;
+    let providers = super::providers::overlay(current, defaults, items);
     let mut counts = [0_u32; 3];
     for (&setting, _) in &current.defaults {
         count(setting, &mut counts, limits)?;
@@ -229,6 +310,7 @@ pub fn check_set(
             | Value::Template(_)
             | Value::Policy(_)
             | Value::Rules(_)
+            | Value::Provider(_)
             | Value::Limits(_)
             | Value::Worker(_)
             | Value::Model(_)
@@ -270,9 +352,9 @@ pub fn check_set(
                 Some(authority::PolicyRefusal::Full) => Some(Fault::Count),
                 None => policy_fault(current, defaults, items, policy, &models, connectors, limits),
             },
-            Value::Model(value) => super::catalogue::shape(value, value.number, settings).err(),
+            Value::Model(value) => super::catalogue::shape(value, value.number, &providers).err(),
             Value::Overlay(_) => unreachable!("overlay made into a charter"),
-            Value::Worker(_) | Value::Rules(_) | Value::Application(_) | Value::Limits(_) => None,
+            Value::Provider(_) | Value::Limits(_) | Value::Worker(_) | Value::Rules(_) | Value::Application(_) => None,
         };
         if let Some(fault) = fault {
             return Err(Failure { setting, fault, detail: None });
@@ -286,6 +368,7 @@ pub fn shape(setting: Setting, value: &Value, limits: &Limits) -> Result<(), Fai
             Setting::Charter(number) => number != 0,
             Setting::Template(_)
             | Setting::Policy(_)
+            | Setting::Provider(_)
             | Setting::Worker(_)
             | Setting::Model(_)
             | Setting::Rules
@@ -306,6 +389,7 @@ pub fn shape(setting: Setting, value: &Value, limits: &Limits) -> Result<(), Fai
             Setting::ProjectPolicy { project } => project != 0,
             Setting::Charter(_)
             | Setting::Template(_)
+            | Setting::Provider(_)
             | Setting::Worker(_)
             | Setting::Model(_)
             | Setting::Rules
@@ -322,6 +406,7 @@ pub fn shape(setting: Setting, value: &Value, limits: &Limits) -> Result<(), Fai
         }
         Value::Model(value) => setting == Setting::Model(value.number) && super::catalogue::fits(value, value.number),
         Value::Limits(value) => setting == Setting::Limits && super::check_overrides(value).is_ok(),
+        Value::Provider(value) => setting == Setting::Provider(value.provider.number) && super::providers::fits(value),
         Value::Worker(value) => setting == Setting::Worker(value.number) && super::workers::fits(value, limits),
         Value::Application(_) => super::application::is_application(setting),
     };
@@ -371,6 +456,7 @@ pub fn restore_fit(setting: Setting, value: &Value, limits: &Limits) -> Result<(
         }
         Value::Model(value) => setting == Setting::Model(value.number) && super::catalogue::fits(value, value.number),
         Value::Limits(value) => setting == Setting::Limits && super::check_overrides(value).is_ok(),
+        Value::Provider(value) => setting == Setting::Provider(value.provider.number) && super::providers::fits(value),
         Value::Worker(value) => setting == Setting::Worker(value.number) && super::workers::fits(value, limits),
         Value::Application(_) => super::application::is_application(setting),
     };
@@ -875,23 +961,25 @@ fn requirement_refs(requirements: &[authority::Requirement], connectors: &[u16])
     true
 }
 pub fn count(setting: Setting, counts: &mut [u32; 3], limits: &Limits) -> Result<(), Failure> {
-    if let Setting::Worker(number) = setting {
-        return if number > limits.fleet.configured_workers {
-            Err(Failure { setting, fault: Fault::Count, detail: None })
-        } else {
-            Ok(())
-        };
-    }
     let (slot, bound) = match setting {
+        Setting::Provider(number) => {
+            return if number > super::PROVIDERS {
+                Err(Failure { setting, fault: Fault::Count, detail: None })
+            } else {
+                Ok(())
+            };
+        }
+        Setting::Worker(number) => {
+            return if number > limits.fleet.configured_workers {
+                Err(Failure { setting, fault: Fault::Count, detail: None })
+            } else {
+                Ok(())
+            };
+        }
         Setting::Charter(_) => (0, limits.tasks.charters),
         Setting::Template(_) => (1, limits.templates),
         Setting::Policy(_) => (2, limits.authority.projects),
-        Setting::Worker(_)
-        | Setting::Model(_)
-        | Setting::Rules
-        | Setting::Limits
-        | Setting::Application { .. }
-        | Setting::ProjectPolicy { .. } => {
+        Setting::Limits | Setting::Model(_) | Setting::Rules | Setting::Application { .. } | Setting::ProjectPolicy { .. } => {
             return Ok(());
         }
     };

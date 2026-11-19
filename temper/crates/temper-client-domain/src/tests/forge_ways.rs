@@ -734,6 +734,7 @@ fn proposal_cards(key: u64, kind: u32) -> List<crate::pages::inbox::Card> {
     let mut cards = List::with_capacity(1);
     cards
         .push(crate::pages::inbox::Card {
+            withdraw_unread: false,
             whole: None,
             task: None,
             object: c::ObjectKey::Proposal(key),

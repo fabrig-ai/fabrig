@@ -82,11 +82,6 @@ fn start_reads_the_key(request: w::Request, expected: temper_engine_domain_forge
         panic!("the demo key is adoptable as a source")
     };
     assert_eq!(value.expose(), b"test-key\n");
-    enqueue_request(&mut engine.clients, request.clone());
-    engine.clients.advance(&mut engine.events, &engine.workers.forges, engine.demo.as_ref(), &mut engine.accounts);
-    let next = engine.clients.playground_read().unwrap();
-    assert_eq!(next.path, read.path);
-    assert_ne!(next.run, read.run);
 }
 
 #[test]
@@ -119,16 +114,31 @@ fn unreadable_empty_and_oversize_playground_keys_carry_nothing() {
 }
 
 #[test]
-fn parked_playground_starts_are_bounded() {
+fn concurrent_playground_starts_wait_for_the_first_keys_read_and_admission() {
     let mut service = fixtures::demo_service();
     let engine = service.engine.as_mut().unwrap();
     for _ in 0..=PLAYGROUND_STARTS {
         enqueue(&mut engine.clients);
         engine.clients.advance(&mut engine.events, &engine.workers.forges, engine.demo.as_ref(), &mut engine.accounts);
     }
-    assert_eq!(engine.clients.playground_starts.len(), PLAYGROUND_STARTS);
-    assert_eq!(engine.clients.playground_reads.len(), PLAYGROUND_STARTS);
-    assert_eq!(engine.clients.out.len(), 1);
+    assert_eq!(engine.clients.playground_starts.len(), 1);
+    assert_eq!(engine.clients.playground_reads.len(), 1);
+    assert_eq!(engine.clients.out.len(), PLAYGROUND_STARTS);
+}
+
+#[test]
+fn running_and_starting_playgrounds_do_not_write_or_read_another_key() {
+    use temper_engine_domain_forge::{Playground, PlaygroundState};
+    for state in [PlaygroundState::Running, PlaygroundState::Starting] {
+        let mut service = fixtures::demo_service();
+        let engine = service.engine.as_mut().unwrap();
+        engine.clients.starting = None;
+        engine.clients.playground = Some(Playground { state, forge: 1, project: None, account: None });
+        enqueue(&mut engine.clients);
+        engine.clients.advance(&mut engine.events, &engine.workers.forges, engine.demo.as_ref(), &mut engine.accounts);
+        assert!(engine.clients.playground_read().is_none(), "no key IO while {state:?}");
+        assert!(!engine.events.is_empty(), "the root answers the start from its row");
+    }
 }
 
 #[test]

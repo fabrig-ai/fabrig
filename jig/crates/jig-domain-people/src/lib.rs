@@ -59,7 +59,7 @@ extern crate alloc;
 mod restore;
 pub use restore::{RestoreBound, RestoreCause, RestoreFailure, RestoreProjection};
 mod settings;
-pub use settings::{Running, Setting, SettingDetail, SettingFault, SettingMember, SettingRule};
+pub use settings::{NUMBERS, Running, STOCK_NUMBERS, Setting, SettingDetail, SettingFault, SettingMember, SettingRule};
 mod scope;
 pub use scope::ApplicationScope;
 mod templates;
@@ -103,9 +103,9 @@ pub use amendment::{
 pub use boundary::{
     ADDRESS, AccountChange, AccountHolder, AccountHostFailure, AccountHostWhy, Act, ActGrant, ActKey, ActKind,
     ActStatus, Adoption, Ask, AskFamily, Counts, DeletionStep, Entry, EntryKind, EscalationChoice, EscalationDecision,
-    Event, Holding, Identity, IdentityKey, InitialOwner, KeptDeletion, Key, Kind, LoginExit, Needs, NoteChange,
-    NoteScope, Outcome, OutcomeFamily, PersonResult, ProjectRole, ProposalChoice, ProposalDecision, Proposer, Reply,
-    Request, RequestKey, ResourceName, ResourceRole, Role, Seed, Signer, Stored, USES, Use, Whom,
+    Event, Holding, Identity, IdentityKey, InitialOwner, KeptDeletion, Key, Kind, LoginExit, NeedSource, Needs,
+    NoteChange, NoteScope, Outcome, OutcomeFamily, PersonResult, ProjectRole, ProposalChoice, ProposalDecision,
+    Proposer, Reply, Request, RequestKey, ResourceName, ResourceRole, Role, Seed, Signer, Stored, USES, Use, Whom,
 };
 pub use capacity::{CapacityAction, CapacityCause, CapacityRefusal};
 pub use decisions::{Bound, Exceeded, FailureClass, HoldReason, Moved};

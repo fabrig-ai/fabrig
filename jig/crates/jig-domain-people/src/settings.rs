@@ -1,4 +1,12 @@
 //! Setting names and check faults carried by keyed answers (jig/docs/design/domain/engine/settings.md, 1, 5).
+
+/// The last number of a charter, template, policy or model (jig/docs/design/domain/engine/settings.md, 1).
+pub const NUMBERS: u32 = 64;
+
+/// The defaults' last number; higher numbers through `NUMBERS` are a deployment's own
+/// (jig/docs/design/domain/engine/settings.md, 1).
+pub const STOCK_NUMBERS: u32 = 32;
+
 /// A core or application setting (jig/docs/design/domain/engine/settings.md, 1, 5).
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum Setting {
@@ -19,6 +27,7 @@ pub enum Setting {
     Model(u32),
     Worker(u32),
     Limits,
+    Provider(u32),
 }
 /// A check fault, including a connector's judgment (jig/docs/design/domain/engine/settings.md, 1, 5).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -32,6 +41,9 @@ pub enum SettingFault {
     Owner,
     Judged,
     Linked,
+    Accounts,
+    /// A charter, template, policy or model numbered out of its range.
+    Range,
 }
 
 /// Whether an accepted settings revision moves running work (domain/engine/settings.md, 2).
@@ -84,4 +96,16 @@ pub struct SettingDetail {
     pub supplied: u32,
     /// The minimum or maximum; zero for `Registered`.
     pub bound: u32,
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn settings_number_constants_bound_stock_and_deployment() {
+        let numbers: u32 = crate::NUMBERS;
+        let stock_numbers: u32 = crate::STOCK_NUMBERS;
+        assert_eq!(numbers, 64);
+        assert_eq!(stock_numbers, 32);
+        assert!(stock_numbers < numbers);
+    }
 }

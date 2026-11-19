@@ -90,7 +90,9 @@ pub(crate) fn world_document() -> documents::Configuration {
     crate::m15::configure(&mut value);
     crate::public::configure(&mut value);
     if crate::stories::model_list() {
-        value["engine"]["llm"]["providers"][0]["keep"] = serde_json::json!(["*"]);
+        value["world_settings"]["llm"]["providers"][0]["keep"] = serde_json::json!(["*"]);
+        value["world_settings"]["llm"]["providers"][0]["endpoint"] =
+            value["world_settings"]["llm"]["endpoints"][0]["name"].clone();
     }
     value
 }
@@ -162,6 +164,7 @@ pub(crate) fn adoption_given() -> temper_service::stock::Given {
     static GIVEN: std::sync::OnceLock<Given> = std::sync::OnceLock::new();
     match GIVEN.get_or_init(|| crate::stories::given(&document())) {
         Given::Stock => Given::Stock,
+        Given::Running { given, providers, fixed } => given.with_providers(providers.clone(), fixed.clone()),
         Given::Own { jig, forge, ways } => {
             let mut policies = skein_lib::Map::with_capacity(jig.policies.capacity());
             for (number, policy) in &jig.policies {
@@ -170,6 +173,7 @@ pub(crate) fn adoption_given() -> temper_service::stock::Given {
             Given::Own {
                 jig: jig_domain_core::settings::Defaults {
                     limits: jig.limits.clone(),
+                    providers: jig.providers.clone(),
                     workers: Box::new([]),
                     charters: jig.charters.clone(),
                     templates: jig.templates.clone(),

@@ -115,7 +115,27 @@ fn field_line_for_path(schema: &Schema, path: &str) -> usize {
     unreachable!("each bound path belongs to a checked field")
 }
 
+fn path_position(position: usize, line: usize, part: &str) -> Result<(), Error> {
+    if u16::try_from(position).is_err() {
+        return Err(error(line, format!("{part} position exceeds a path's u16")));
+    }
+    Ok(())
+}
+
+fn record_positions(fields: usize, versioned: bool, line: usize) -> Result<(), Error> {
+    if let Some(last) = fields.checked_sub(1) {
+        path_position(last, line, "field")?;
+    }
+    if versioned {
+        path_position(fields, line, "version")?;
+    }
+    let tail =
+        fields.checked_add(usize::from(versioned)).ok_or_else(|| error(line, "tail position overflows usize"))?;
+    path_position(tail, line, "tail")
+}
+
 fn record_names(record: &Record) -> Result<(), Error> {
+    record_positions(record.fields.len(), record.versioned, record.line)?;
     for field in &record.fields {
         if !valid_member_name(&field.name) || reserved_field_name(&field.name) {
             return Err(error(field.line, format!("invalid generated field name {}", field.name)));
@@ -149,7 +169,7 @@ pub(crate) fn check(schema: &Schema) -> Result<(), Error> {
         "Result".to_string(),
     ]);
     let mut paths = BTreeSet::new();
-    for declaration in &schema.declarations {
+    for (position, declaration) in schema.declarations.iter().enumerate() {
         let (name, line) = match declaration {
             Declaration::Record(record) => {
                 record_names(record)?;
@@ -160,6 +180,7 @@ pub(crate) fn check(schema: &Schema) -> Result<(), Error> {
                 (&enumeration.name, enumeration.line)
             }
         };
+        path_position(position, line, "declaration")?;
         if !valid_type_name(name) {
             return Err(error(line, format!("invalid generated type name {name}")));
         }
@@ -207,4 +228,52 @@ pub(crate) fn check(schema: &Schema) -> Result<(), Error> {
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{path_position, record_positions};
+
+    #[test]
+    fn lean_surface_names_are_checked_without_changing_sealed_parse() {
+        use crate::{Declaration, Form, check_as, parse};
+        for name in ["Record", "Path", "Problem"] {
+            for source in ["record Value {}", "enum Value { unit }"] {
+                let mut schema = parse(&format!("family names 1\n{source}")).expect("shared schema");
+                match schema.declarations.first_mut().expect("one declaration") {
+                    Declaration::Record(record) => record.name = name.into(),
+                    Declaration::Enum(enumeration) => enumeration.name = name.into(),
+                }
+                assert_eq!(check_as(&schema, Form::Sealed), Ok(()));
+                let error = check_as(&schema, Form::Lean).expect_err("lean re-export name is reserved");
+                assert_eq!(error.line, 2);
+                assert_eq!(error.message, format!("lean type name {name} is reserved"));
+            }
+        }
+        parse("family names 1\nversioned record Record { word: u8 }").expect("sealed Record stays valid");
+        for name in ["Path", "Problem"] {
+            parse(&format!("family names 1\nrecord {name} {{}}")).expect_err("shared names remain reserved");
+        }
+    }
+
+    #[test]
+    fn declaration_positions_fit_a_path() {
+        assert_eq!(path_position(65_535, 7, "declaration"), Ok(()));
+        let error = path_position(65_536, 7, "declaration").expect_err("declaration past u16");
+        assert_eq!(error.line, 7);
+        assert_eq!(error.message, "declaration position exceeds a path's u16");
+    }
+
+    #[test]
+    fn field_version_and_tail_positions_fit_a_path() {
+        assert_eq!(record_positions(65_535, false, 8), Ok(()));
+        assert_eq!(record_positions(65_534, true, 8), Ok(()));
+        for (fields, versioned, part) in
+            [(65_537, false, "field"), (65_536, true, "version"), (65_536, false, "tail"), (65_535, true, "tail")]
+        {
+            let error = record_positions(fields, versioned, 8).expect_err("part past u16");
+            assert_eq!(error.line, 8);
+            assert_eq!(error.message, format!("{part} position exceeds a path's u16"));
+        }
+    }
 }

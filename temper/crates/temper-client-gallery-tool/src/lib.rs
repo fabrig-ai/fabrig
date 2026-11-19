@@ -34,6 +34,12 @@ pub enum Refusal {
 /// # Errors
 /// Refuses an existing directory without index.html, or a bundle or filesystem failure.
 pub fn print(out: &Path) -> Result<(), Refusal> {
+    print_with(out, |_, _| {})
+}
+/// Prints the gallery, visiting each written page's semantic tree without rebuilding it.
+/// # Errors
+/// Refuses the same directory, bundle and filesystem failures as [`print`].
+pub fn print_with(out: &Path, mut visit: impl FnMut(&Sample, &skein_ui::Tree)) -> Result<(), Refusal> {
     replace_gallery(out)?;
     let mut stylesheets = Vec::new();
     for path in STYLESHEETS {
@@ -61,9 +67,13 @@ pub fn print(out: &Path) -> Result<(), Refusal> {
         Err(why) => return Err(Refusal::Bundle(why)),
     };
     let samples = samples::samples();
-    let inputs = ViewInputs::new();
+    let mut inputs = ViewInputs::new();
+    let limits = *inputs.limits();
     for sample in &samples {
-        write(&out.join(format!("{}.html", sample.name)), &page_with(sample, &digest, inputs.clone()))?;
+        let (html, view) = page_with(sample, &digest, inputs);
+        write(&out.join(format!("{}.html", sample.name)), &html)?;
+        visit(sample, view.tree());
+        inputs = ViewInputs::from_view(view, limits);
     }
     write(&out.join("index.html"), &index(&samples))
 }
@@ -98,15 +108,15 @@ pub fn view(sample: &Sample) -> temper_client_view::View {
     let (view, _, _) = built(sample);
     view
 }
-// Every state uses the same shipped words and bounds (client/web/gallery.md, 2).
-#[derive(Clone)]
-struct ViewInputs {
+/// Shipped browser words and bounds shared by a gallery catalogue walk (client/web/gallery.md, 2).
+pub struct ViewInputs {
     limits: temper_client_domain::Limits,
     words: temper_client_view::words::Words,
     bounds: temper_client_view::Limits,
 }
 impl ViewInputs {
-    fn new() -> Self {
+    #[must_use]
+    pub fn new() -> Self {
         let limits = driver::limits();
         let words = temper_client_view::words::Words::english(
             temper_client_protocol_wire::FORGE,
@@ -116,6 +126,21 @@ impl ViewInputs {
         .expect("shipped browser words");
         let bounds = temper_client_view::Limits::of(&limits, &words).expect("shipped view bounds");
         Self { limits, words, bounds }
+    }
+    /// Reuse a completed view's owned words for the next sample, without cloning the phrasebook.
+    #[must_use]
+    pub fn from_view(view: temper_client_view::View, limits: temper_client_domain::Limits) -> Self {
+        let bounds = *view.limits();
+        Self { limits, bounds, words: view.into_words() }
+    }
+    #[must_use]
+    pub const fn limits(&self) -> &temper_client_domain::Limits {
+        &self.limits
+    }
+}
+impl Default for ViewInputs {
+    fn default() -> Self {
+        Self::new()
     }
 }
 fn built(sample: &Sample) -> (temper_client_view::View, temper_client_view::Limits, Vec<skein_ui::Patch>) {
@@ -127,7 +152,9 @@ fn built_with(
 ) -> (temper_client_view::View, temper_client_view::Limits, Vec<skein_ui::Patch>) {
     built_root(sample, inputs, &samples::domain(sample))
 }
-fn built_root(
+/// Build a sample's view and browser patches over its already-stepped root.
+#[must_use]
+pub fn built_root(
     sample: &Sample,
     inputs: ViewInputs,
     root: &temper_client_domain::Domain,
@@ -147,7 +174,7 @@ fn built_root(
     forge_sign_in.read("3 forgejo http://127.0.0.1:8368 owned");
     view.forge_sign_in(forge_sign_in);
     let mut patches = Queue::with_capacity(bounds.tree.patches);
-    temper_client_view::build(&mut view, root, worlds::sample_now(sample.world, sample.name), &mut patches);
+    temper_client_view::build(&mut view, root, sample.now(), &mut patches);
     let mut collected = Vec::new();
     for _ in 0..patches.len() {
         collected.push(patches.pop().expect("queued patch"));
@@ -157,10 +184,14 @@ fn built_root(
 /// One state's page, a whole HTML document.
 #[must_use]
 pub fn page(sample: &Sample, digest: &skein_ui_bundle::Digest) -> String {
-    page_with(sample, digest, ViewInputs::new())
+    page_with(sample, digest, ViewInputs::new()).0
 }
 #[expect(clippy::too_many_lines, reason = "This print keeps the page and its narrow scenes together.")]
-fn page_with(sample: &Sample, digest: &skein_ui_bundle::Digest, inputs: ViewInputs) -> String {
+fn page_with(
+    sample: &Sample,
+    digest: &skein_ui_bundle::Digest,
+    inputs: ViewInputs,
+) -> (String, temper_client_view::View) {
     let root = samples::domain(sample);
     let night = if root.pages().look().night { " data-night" } else { "" };
     let (mut view, bounds, collected) = built_root(sample, inputs, &root);
@@ -260,9 +291,10 @@ fn page_with(sample: &Sample, digest: &skein_ui_bundle::Digest, inputs: ViewInpu
             "</style>",
         ));
     }
-    format!(
+    let html = format!(
         "<!doctype html>\n<html lang=\"en\"{night}><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1, viewport-fit=cover\"><title>{title}</title>{styles}</head><body>{html}</body></html>\n"
-    )
+    );
+    (html, view)
 }
 fn heading(tree: &skein_ui::Tree) -> Vec<u8> {
     let nodes = tree.nodes();

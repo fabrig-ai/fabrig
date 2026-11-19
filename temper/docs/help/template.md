@@ -14,6 +14,8 @@ Template 5 is Ask temper, run by charter 11; `chat start --template 5` starts it
 Template 6 is a design session, run by charter 12, the drafter;
 `chat start --template 6` starts it.
 `--template` selects another offered template.
+Numbered: the stock's templates take 1 to 32, and your own 33 to 64; a
+template below 33 that the stock doesn't have is refused.
 
 A template holds:
 

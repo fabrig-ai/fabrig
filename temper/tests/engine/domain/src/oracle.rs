@@ -300,6 +300,7 @@ impl Driver {
             | Delivery::ProjectReleased { .. }
             | Delivery::MoveStanding { .. }
             | Delivery::FindingsOwned { .. }
+            | Delivery::Providers(..)
             | Delivery::WorkerFigures { .. }
             | Delivery::PlaygroundNote { .. }
             | Delivery::Panel { .. }

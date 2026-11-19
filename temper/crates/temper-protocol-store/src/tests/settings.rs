@@ -67,6 +67,7 @@ fn settings_round_trip_every_slot_edit_value_and_pattern_last_and_match_their_ke
                 gate_timeout_ms: 70000,
                 tier_retries: 4,
                 verification_bound_ms: 90000,
+                wait: temper_engine_domain_forge_change::Wait::Landed,
             }),
         ),
         (

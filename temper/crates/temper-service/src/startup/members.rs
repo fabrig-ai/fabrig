@@ -9,7 +9,7 @@ pub(crate) use temper_forge_setup::machine::MemberObject as Object;
 mod tests;
 
 /// Every application shape, including the test peer decoder’s rows.
-pub static SHAPES: [Shape; 22] = [
+pub static SHAPES: [Shape; 17] = [
     Shape { name: "document", paths: &[""], line: "The top-level members of the configuration document." },
     Shape {
         name: "application",
@@ -55,31 +55,6 @@ pub static SHAPES: [Shape; 22] = [
         paths: &["application.sign_in.google.endpoints.transport.tls"],
         line: "The sign-in issuer’s TLS identity and trust.",
     },
-    Shape { name: "demo", paths: &["application.demo"], line: "The playground’s scripted model." },
-    Shape { name: "demo-llm", paths: &["application.demo.llm"], line: "The scripted provider’s fake model." },
-    Shape {
-        name: "demo-script",
-        paths: &["application.demo.llm.asked[]", "application.demo.llm.cued[]"],
-        line: "One cue and its scripted turns.",
-    },
-    Shape {
-        name: "demo-turn",
-        paths: &[
-            "application.demo.llm.asked[].turns[]",
-            "application.demo.llm.cued[].turns[]",
-            "application.demo.llm.otherwise[]",
-        ],
-        line: "One scripted model turn, or text for a plain answer.",
-    },
-    Shape {
-        name: "demo-line",
-        paths: &[
-            "application.demo.llm.asked[].turns[].lines[]",
-            "application.demo.llm.cued[].turns[].lines[]",
-            "application.demo.llm.otherwise[].lines[]",
-        ],
-        line: "One text answer or tool call.",
-    },
     machine::SHAPES[3],
     machine::SHAPES[7],
     machine::SHAPES[8],
@@ -87,7 +62,7 @@ pub static SHAPES: [Shape; 22] = [
 ];
 
 /// Every member the application decoders take, including refused settings members.
-pub static MEMBERS: [Member; 68] = [
+pub static MEMBERS: [Member; 54] = [
     Member {
         shape: "document",
         name: "engine",
@@ -136,11 +111,11 @@ pub static MEMBERS: [Member; 68] = [
     Member {
         shape: "application",
         name: "demo",
-        kind: "demo or null",
-        bound: "engine shapes only",
-        required: true,
-        line: "The playground’s scripted model, or null for none.",
-        gone: None,
+        kind: "refused",
+        bound: "",
+        required: false,
+        line: "The playground’s scripted model is the box’s own.",
+        gone: Some("moved: the playground's scripted model is the box's own"),
     },
     Member {
         shape: "application",
@@ -486,141 +461,6 @@ pub static MEMBERS: [Member; 68] = [
         line: "The trust roots file, or null for the machine’s roots.",
         gone: None,
     },
-    Member {
-        shape: "demo",
-        name: "llm",
-        kind: "demo-llm",
-        bound: "",
-        required: true,
-        line: "The fake model listener, provider, key path and scripts.",
-        gone: None,
-    },
-    Member {
-        shape: "demo-llm",
-        name: "listen",
-        kind: "address",
-        bound: "loopback socket, unique among listeners",
-        required: true,
-        line: "The fake model’s listener.",
-        gone: None,
-    },
-    Member {
-        shape: "demo-llm",
-        name: "provider",
-        kind: "integer",
-        bound: "configured LLM provider; at most 4,294,967,295",
-        required: true,
-        line: "The provider whose account the playground makes.",
-        gone: None,
-    },
-    Member {
-        shape: "demo-llm",
-        name: "key",
-        kind: "text",
-        bound: "data path; at most 4,096 bytes",
-        required: true,
-        line: "The private file holding the scripted provider’s key.",
-        gone: None,
-    },
-    Member {
-        shape: "demo-llm",
-        name: "asked",
-        kind: "list of demo-script",
-        bound: "at most 16 scripts",
-        required: true,
-        line: "The scripts offered as playground prompts.",
-        gone: None,
-    },
-    Member {
-        shape: "demo-llm",
-        name: "cued",
-        kind: "list of demo-script",
-        bound: "at most 16 scripts",
-        required: false,
-        line: "The scripts matched by their cues without being offered as prompts.",
-        gone: None,
-    },
-    Member {
-        shape: "demo-llm",
-        name: "otherwise",
-        kind: "list of demo-turn or text",
-        bound: "nonempty; at most 16 turns",
-        required: true,
-        line: "The fallback script for a prompt matching no cue.",
-        gone: None,
-    },
-    Member {
-        shape: "demo-script",
-        name: "cue",
-        kind: "text",
-        bound: "1 to 256 bytes; unique across scripts",
-        required: true,
-        line: "The prompt cue matching this script.",
-        gone: None,
-    },
-    Member {
-        shape: "demo-script",
-        name: "turns",
-        kind: "list of demo-turn or text",
-        bound: "nonempty; at most 16 turns",
-        required: true,
-        line: "The model turns played for this cue.",
-        gone: None,
-    },
-    Member {
-        shape: "demo-turn",
-        name: "lines",
-        kind: "list of demo-line",
-        bound: "1 to 16 lines",
-        required: true,
-        line: "The text or tool call making up this turn.",
-        gone: None,
-    },
-    Member {
-        shape: "demo-turn",
-        name: "finish",
-        kind: "text",
-        bound: "stop, tool_calls, length or content_filter",
-        required: true,
-        line: "The reason this model turn ends.",
-        gone: None,
-    },
-    Member {
-        shape: "demo-turn",
-        name: "tokens",
-        kind: "integer",
-        bound: "1 to 18,446,744,073,709,551,615",
-        required: true,
-        line: "The number of tokens charged for the turn.",
-        gone: None,
-    },
-    Member {
-        shape: "demo-line",
-        name: "text",
-        kind: "text",
-        bound: "text alone, or call with arguments",
-        required: false,
-        line: "The text returned by a plain answer.",
-        gone: None,
-    },
-    Member {
-        shape: "demo-line",
-        name: "call",
-        kind: "text",
-        bound: "at most 64 bytes; call with arguments",
-        required: false,
-        line: "The tool called by this scripted answer.",
-        gone: None,
-    },
-    Member {
-        shape: "demo-line",
-        name: "arguments",
-        kind: "JSON value",
-        bound: "tool input schema",
-        required: false,
-        line: "The tool call’s input, interpreted by the named tool.",
-        gone: None,
-    },
     machine::MEMBERS[3],
     machine::MEMBERS[14],
     machine::MEMBERS[15],
@@ -652,9 +492,5 @@ pub(crate) fn object(
 }
 
 /// Paths whose address decoder and member rows belong to the shared engine table.
-pub const ADDRESS_PATHS: &[&str] = &[
-    "application.clients.listener",
-    "application.webhooks.listener",
-    "application.test.github.api",
-    "application.demo.llm.listen",
-];
+pub const ADDRESS_PATHS: &[&str] =
+    &["application.clients.listener", "application.webhooks.listener", "application.test.github.api"];

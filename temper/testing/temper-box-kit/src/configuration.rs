@@ -59,11 +59,6 @@ pub fn typed_documents(directory: &Path, _program: &str) -> (Vec<u8>, temper_pla
     value["workers"][0]["name"] = "local".into();
     value.jig_over("fleet.slots", 4);
     value["engine"]["hosts"]["listener"] = serde_json::json!([{"in_process":"workers"}]);
-    value["engine"]["llm"]["endpoints"] = serde_json::json!([{
-        "name":"fake","number":1,"dialect":3,"provider":"openai",
-        "address":{"socket":"127.0.0.1:0"},"transport":"tls","server_name":"skein.test",
-        "trust":directory.join("root.der"),"connect_ms":1000,"handshake_ms":1000,"headers":[]
-    }]);
     // The stock carries twelve charters, fourteen grants and twenty-two executor kinds.
     value.jig_over("tasks.charters", 16);
     value.jig_over("core.templates", 7);
@@ -101,7 +96,7 @@ pub fn typed_documents(directory: &Path, _program: &str) -> (Vec<u8>, temper_pla
     value["application"] = serde_json::json!({
         "webhooks":null,
 "clients":{"listener":{"socket":"127.0.0.1:0"},"public":null,"bundle":null},
-        "demo":null,"sign_in":null});
+        "sign_in":null});
     value.temper_over("forge.client.answer_bytes", 65_536_u64);
     value.temper_over("forge.client.op_bytes", 512_u64);
     value.temper_over("forge_component.body_bytes", 16_384_u64);
@@ -112,6 +107,13 @@ pub fn typed_documents(directory: &Path, _program: &str) -> (Vec<u8>, temper_pla
     value.temper_over("forge.resources_per_task", 4_u64);
 
     let mut agent = temper_agent_fixtures::configuration(&value);
+    agent["endpoints"][0]["address"] = "127.0.0.1:0".into();
+    agent["endpoints"][0]["transport"] = "tls".into();
+    agent["endpoints"][0]["server_name"] = "skein.test".into();
+    agent["endpoints"][0]["trust_der"] = serde_json::json!(directory.join("root.der"));
+    agent["endpoints"][0]["connect"] = 1000.into();
+    agent["endpoints"][0]["handshake"] = 1000.into();
+    // Keep the fixture's deadlines while taking the store's default agent figures.
     agent["profile"]["policy"]["check_timeout"] = 60_000.into();
     agent["endpoints"][0]["limits"]["idle"] = 30_000.into();
     agent["programs"] = serde_json::json!({});
@@ -296,24 +298,8 @@ pub fn check_document(directory: &Path) -> serde_json::Value {
     serde_json::from_slice(&bytes).expect("fixture JSON")
 }
 
-/// A demo model whose one plaintext endpoint listens at the supplied address.
+/// A box document; the scripted provider is its startup constant.
 #[must_use]
-pub fn demo_document(directory: &Path, listen: &str) -> serde_json::Value {
-    let mut value = check_document(directory);
-    let llm = serde_json::json!({
-        "providers":[{"name":"demo", "number":3, "endpoint":"demo", "sources":{"keys":true}}],
-        "endpoints":[{"name":"demo", "number":3, "dialect":3, "provider":"demo",
-            "address":{"socket":listen}, "transport":"plaintext", "headers":[],
-            "connect_ms":10_000, "handshake_ms":10_000}]
-    });
-    for field in ["providers", "endpoints"] {
-        value["engine"]["llm"][field]
-            .as_array_mut()
-            .expect("LLM table")
-            .extend(llm[field].as_array().expect("demo table").iter().cloned());
-    }
-    value["application"]["demo"] = serde_json::json!({"llm":{
-        "listen":{"socket":listen}, "provider":3, "key":"demo/llm.key",
-        "asked":[{"cue":"say hello", "turns":["hello from QA"]}], "otherwise":["fallback"]}});
-    value
+pub fn demo_document(directory: &Path, _listen: &str) -> serde_json::Value {
+    check_document(directory)
 }

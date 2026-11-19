@@ -6,7 +6,23 @@ use alloc::boxed::Box;
 use jig_protocol_config::{Problems, What};
 use skein_io::{self as io, kernel::Fd};
 use skein_lib::{List, Queue, Time, Token};
+fn normalize_trust(transport: &mut jig_protocol_config::Transport, directories: &jig_protocol_config::Directories) {
+    match transport {
+        jig_protocol_config::Transport::Plaintext => {}
+        jig_protocol_config::Transport::Tls { trust, .. } => {
+            if let Some(path) = trust
+                && let Ok(joined) = directories.join(jig_protocol_config::Directory::Config, path)
+            {
+                *path = joined;
+            }
+        }
+    }
+}
 impl engine::Engine {
+    #[expect(
+        clippy::too_many_lines,
+        reason = "the checked component construction also pins the providers kept by the shell"
+    )]
     pub fn prepared(
         mut settings: settings::Engine,
         seeds: &settings::Seeds,
@@ -91,6 +107,20 @@ impl engine::Engine {
             playground: playground_config(settings.demo.as_ref(), settings.limits.setup.deadline),
         };
         let store = store::Store::new(&limits, &store_limits, &config.core.settings.models, seeds);
+        let providers_path = settings
+            .directories
+            .join(jig_protocol_config::Directory::Data, b"providers.setting")
+            .or(Err(start_problem(b"providers.setting", What::Bound)))?;
+        let mut running_providers = List::uncapped();
+        for provider in jig_protocol_config::llm::provider_values(&settings.jig.llm) {
+            let mut fixed = false;
+            for value in &settings.jig.fixed_llm_providers {
+                fixed |= provider.provider.number == value.provider.number;
+            }
+            if !fixed {
+                running_providers.push(provider).expect("running providers");
+            }
+        }
         let demo = settings.demo;
         let own = settings.limits;
         let mut engine = engine::Engine::new(
@@ -101,11 +131,36 @@ impl engine::Engine {
             values,
             first_periods,
         )?;
+        engine.providers_path = providers_path;
+        engine.providers_directory = Some(settings.directories);
+        engine.running_providers = running_providers.into_boxed();
         engine.places = Some(places);
         if let Some(line_bytes) = box_line_bytes {
             engine.box_link = box_link::Link::new(line_bytes, false);
         }
         Ok(engine)
+    }
+    /// Each committed providers ask reaches the shell, fixed providers never among them.
+    #[expect(clippy::type_complexity, reason = "a file act is its destination and whole provider values")]
+    pub fn take_providers_write(&mut self) -> Option<(Box<[u8]>, Box<[jig_protocol_config::ProviderSetting]>)> {
+        let providers = self.providers.pop()?;
+        let mut normalized = providers.clone();
+        if let Some(directories) = &self.providers_directory {
+            for provider in &mut normalized {
+                if let Some(registration) = &mut provider.provider.sign_in {
+                    normalize_trust(&mut registration.endpoint_transport, directories);
+                }
+                for endpoint in &mut provider.endpoints {
+                    normalize_trust(&mut endpoint.transport, directories);
+                }
+            }
+        }
+        if normalized != self.running_providers {
+            self.notes.push(crate::Note::StartupWarning {
+                line: skein_lib::bytes::copy_of(b"LLM providers changed; they apply at the engine's next start"),
+            });
+        }
+        Some((self.providers_path.clone(), providers))
     }
     /// Keep kind 21 in the box's data directory (protocol/configuration/figures.md, 4).
     pub fn keep_agents(&mut self, path: Box<[u8]>, initial: Option<temper_client_protocol_wire::v1::AgentFigures>) {

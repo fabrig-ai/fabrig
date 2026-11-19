@@ -2,6 +2,9 @@
 
 use skein_lib::List;
 
+#[cfg(test)]
+mod tests;
+
 /// The order in which a block's header sends the widths of its width code
 /// (RFC 1951, 3.2.7).
 const ORDER: [u8; 19] = [16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15];
@@ -101,7 +104,7 @@ fn blocks(data: &[u8], out: &mut List<u8>) -> Option<usize> {
         match input.bits(data, 2)? {
             0 => stored(&mut input, data, out)?,
             1 => {
-                let (literals, distances) = fixed()?;
+                let (literals, distances) = (Code::FixedLiterals, Code::FixedDistances);
                 codes(&mut input, data, out, &literals, &distances)?;
             }
             2 => {
@@ -117,7 +120,7 @@ fn blocks(data: &[u8], out: &mut List<u8>) -> Option<usize> {
     input.align()
 }
 
-/// A member's DEFLATE data read bit by bit, each byte's lowest bit first
+/// A member's DEFLATE data, each byte's lowest bit first
 /// (RFC 1951, 3.1.1).
 struct Input {
     bit: usize,
@@ -126,14 +129,27 @@ struct Input {
 impl Input {
     /// `width` bits, at most 16, the first lowest.
     fn bits(&mut self, data: &[u8], width: u32) -> Option<u32> {
-        let mut value = 0_u32;
-        for index in 0..width.min(16) {
-            let byte = *data.get(self.bit >> 3_u32)?;
-            let bit = u32::from(byte.checked_shr(u32::try_from(self.bit & 7).ok()?)? & 1);
-            value |= bit.checked_shl(index)?;
-            self.bit = self.bit.checked_add(1)?;
+        let width = width.min(16);
+        let (value, available) = self.peek(data)?;
+        if available < width {
+            return None;
         }
-        Some(value)
+        self.bit = self.bit.checked_add(usize::try_from(width).ok()?)?;
+        Some(value & 1_u32.checked_shl(width)?.checked_sub(1)?)
+    }
+
+    /// Up to sixteen bits without advancing; padding never counts as input.
+    fn peek(&self, data: &[u8]) -> Option<(u32, u32)> {
+        let bytes = data.get(self.bit >> 3_u32..)?;
+        let shift = u32::try_from(self.bit & 7).ok()?;
+        let value = u32::from_le_bytes([
+            bytes.first().copied().unwrap_or(0),
+            bytes.get(1).copied().unwrap_or(0),
+            bytes.get(2).copied().unwrap_or(0),
+            0,
+        ]);
+        let available = bytes.len().min(3).checked_mul(8)?.checked_sub(usize::try_from(shift).ok()?)?;
+        Some((value.checked_shr(shift)?, u32::try_from(available.min(16)).ok()?))
     }
 
     /// Skips to the next byte's start, and returns where that is.
@@ -144,27 +160,34 @@ impl Input {
     }
 }
 
-/// A canonical Huffman code (RFC 1951, 3.2.2), for decoding: how many codes
-/// there are of each width, and the symbols in the codes' order.
-struct Code {
-    counts: [u16; 16],
-    symbols: [u16; SYMBOLS],
+/// Fixed or canonical Huffman codes (RFC 1951, 3.2.2, 3.2.6).
+/// Only a dynamic code needs counts and symbols in canonical order.
+#[expect(clippy::large_enum_variant, reason = "DEFLATE decoding allocates no tables on the heap (data/deflate.md, 1)")]
+enum Code {
+    FixedLiterals,
+    FixedDistances,
+    Canonical { counts: [u16; 16], symbols: [u16; SYMBOLS], shortest: u8 },
 }
 
 /// The code whose symbols have these widths, 0 for a symbol unused; an
 /// oversubscribed code is refused, and an incomplete one fails only on a
 /// string that starts no code.
 fn code(widths: &[u8]) -> Option<Code> {
-    let mut code = Code { counts: [0; 16], symbols: [0; SYMBOLS] };
+    let mut counts = [0_u16; 16];
+    let mut symbols = [0_u16; SYMBOLS];
+    let mut shortest = 15_u8;
     for width in widths {
-        let count = code.counts.get_mut(usize::from(*width))?;
+        let count = counts.get_mut(usize::from(*width))?;
         *count = count.checked_add(1)?;
+        if *width != 0 {
+            shortest = shortest.min(*width);
+        }
     }
-    *code.counts.get_mut(0)? = 0;
+    *counts.get_mut(0)? = 0;
     let mut left = 1_i32;
     let mut offsets = [0_u16; 16];
     for width in 1..16_usize {
-        let count = *code.counts.get(width)?;
+        let count = *counts.get(width)?;
         left = left.checked_mul(2)?.checked_sub(i32::from(count))?;
         if left < 0_i32 {
             return None;
@@ -176,33 +199,71 @@ fn code(widths: &[u8]) -> Option<Code> {
     for (symbol, width) in widths.iter().enumerate() {
         if *width != 0 {
             let offset = offsets.get_mut(usize::from(*width))?;
-            *code.symbols.get_mut(usize::from(*offset))? = u16::try_from(symbol).ok()?;
+            *symbols.get_mut(usize::from(*offset))? = u16::try_from(symbol).ok()?;
             *offset = offset.checked_add(1)?;
         }
     }
-    Some(code)
+    Some(Code::Canonical { counts, symbols, shortest })
 }
 
 impl Code {
-    /// The next symbol, its code read one bit at a time, most significant
-    /// first.
     fn decode(&self, input: &mut Input, data: &[u8]) -> Option<u16> {
-        let mut value = 0_u32;
-        let mut first = 0_u32;
-        let mut index = 0_u32;
-        for count in self.counts.get(1..)? {
-            value |= input.bits(data, 1)?;
-            let count = u32::from(*count);
-            if value < first.checked_add(count)? {
-                let at = index.checked_add(value.checked_sub(first)?)?;
-                return self.symbols.get(usize::try_from(at).ok()?).copied();
+        let (bits, available) = input.peek(data)?;
+        let bits = bits.reverse_bits();
+        let (symbol, width) = match self {
+            Self::FixedLiterals => fixed_literal(bits)?,
+            Self::FixedDistances => {
+                let symbol = u16::try_from(bits.checked_shr(27)?).ok()?;
+                if symbol >= 30 {
+                    return None;
+                }
+                (symbol, 5)
             }
-            index = index.checked_add(count)?;
-            first = first.checked_add(count)?.checked_shl(1)?;
-            value = value.checked_shl(1)?;
+            Self::Canonical { counts, symbols, shortest } => canonical(bits, counts, symbols, *shortest)?,
+        };
+        if width > available {
+            return None;
         }
-        None
+        input.bit = input.bit.checked_add(usize::try_from(width).ok()?)?;
+        Some(symbol)
     }
+}
+
+/// The fixed codes' four canonical ranges (RFC 1951, 3.2.6).
+fn fixed_literal(bits: u32) -> Option<(u16, u32)> {
+    let seven = u16::try_from(bits.checked_shr(25)?).ok()?;
+    if seven < 24 {
+        return Some((seven.checked_add(256)?, 7));
+    }
+    let eight = u16::try_from(bits.checked_shr(24)?).ok()?;
+    if eight < 192 {
+        return Some((eight.checked_sub(48)?, 8));
+    }
+    if eight < 200 {
+        return Some((eight.checked_add(88)?, 8));
+    }
+    let nine = u16::try_from(bits.checked_shr(23)?).ok()?;
+    Some((nine.checked_sub(256)?, 9))
+}
+
+/// Compare canonical codes starting at the shortest width, over one peek.
+fn canonical(bits: u32, counts: &[u16; 16], symbols: &[u16; SYMBOLS], shortest: u8) -> Option<(u16, u32)> {
+    let mut width = u32::from(shortest);
+    let mut first = 0_u32;
+    let mut index = 0_u32;
+    for count in counts.get(usize::from(shortest)..)? {
+        let value = bits.checked_shr(32_u32.checked_sub(width)?)?;
+        let count = u32::from(*count);
+        if value < first.checked_add(count)? {
+            let at = index.checked_add(value.checked_sub(first)?)?;
+            let symbol = symbols.get(usize::try_from(at).ok()?).copied()?;
+            return Some((symbol, width));
+        }
+        index = index.checked_add(count)?;
+        first = first.checked_add(count)?.checked_shl(1)?;
+        width = width.checked_add(1)?;
+    }
+    None
 }
 
 /// A stored block (RFC 1951, 3.2.4): its length, that length's complement,
@@ -221,19 +282,6 @@ fn stored(input: &mut Input, data: &[u8], out: &mut List<u8>) -> Option<()> {
     }
     input.bit = end.checked_mul(8)?;
     Some(())
-}
-
-/// The fixed literal/length and distance codes (RFC 1951, 3.2.6).
-fn fixed() -> Option<(Code, Code)> {
-    let mut widths = [0_u8; 288];
-    for (symbol, width) in widths.iter_mut().enumerate() {
-        *width = match symbol {
-            0..=143 | 280.. => 8,
-            144..=255 => 9,
-            _ => 7,
-        };
-    }
-    Some((code(&widths)?, code(&[5; 30])?))
 }
 
 /// A block's header in its own codes (RFC 1951, 3.2.7): its literal/length

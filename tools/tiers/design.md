@@ -781,6 +781,11 @@ change to the build command a caller wraps changes none of them.
 - `tools/tiers/one-process --alone HEAD_DIR [--out DIR] [NEXTEST_ARGS...]`:
   a head run's flagged tests run alone at this checkout, the base's
   (`tools/tiers/references.md`, 5).
+- `python3 -I -B tools/tiers/figures.py --base BASE [--head HEAD]`: refuses,
+  exit 1, a change from BASE to HEAD that raises a figure of
+  `tools/tiers/budgets.toml` or adds a reason's line, naming each, unless it
+  changes that file alone; 0 where it passes, 2 for a usage or git failure
+  (`tools/tiers/budgets.md`, 10.1).
 
 ### 10.2 `cpu.py`
 
@@ -871,8 +876,8 @@ Relative paths are the caller's working directory's, the checkout root.
 | `pair` | the pair, or `tools` |
 | `verdict` | `over budget`, `starved`, `within budget` (the pair has a table) or `no budget set` |
 | `failures` | `"BINARY_ID TEST_NAME"` for each test whose failure stands (7.3); for tools, `"ID suite"` |
-| `over_budget` | one line for each CPU budget passed, naming its test or suite, and with `gate` each layer over its budget (`tools/tiers/budgets.md`, 4) |
-| `warnings` | one line for each `auto_reap` declaration and each unobserved attempt; in a one-process run, each unplaced binary and, without `gate`, each layer over its budget |
+| `over_budget` | one entry for each CPU budget passed, naming its test or suite, and with `gate` each layer over its budget (`tools/tiers/budgets.md`, 4) and each test past its reference; every entry ends with the repair line (`tools/tiers/budgets.md`, 10.1) |
+| `warnings` | one line for each `auto_reap` declaration and each unobserved attempt; in a one-process run, each unplaced binary and, without `gate`, each layer over its budget; with a ledger, each test that swings alone at main, last (`tools/tiers/references.md`, 6) |
 | `unobserved` | `{binary_id, test_name, attempt}` for each attempt cancellation stopped before its record (7.3); always empty for tools |
 | `tests` | for each test: `binary_id`, `test_name`, `attempts`, `cpu_s`, `user_s`, `system_s`, `wall_s`, `starved`, `leaked`, `incomplete` |
 | `suite` | the totals: `tests`, `attempts`, `cpu_s`, `user_s`, `system_s`, `wall_s`, `test_wall_s`, `starved`, `starved_run`, `unobserved`, `leaked`, `incomplete`, `cpu_by` |
@@ -880,6 +885,7 @@ Relative paths are the caller's working directory's, the checkout root.
 | `layers` | for each tree and layer with a process in a one-process run, or with a ledger a figure at the head or at main: `tree`, `layer`, `cpu_s`, `measured_s`, `main_s`, `ceiling_s`, `budget_s`, `main_budget_s`, `lowest_s`, `ideal_s`, `reference_s`, `over`, `main_over`, `grew` (`tools/tiers/budgets.md`, 4 and 8); empty for a nextest run and for tools |
 | `trees` | for each tree with a row in `layers`: `tree`, `cpu_s`, `main_s`, `ceiling_s`, `budget_s`, `ideal_s` (`tools/tiers/budgets.md`, 4 and 8); empty for a nextest run and for tools |
 | `references` | for each test a one-process run ran alone for its reference: `binary_id`, `test_name`, `tree`, `layer`, `why`, `wall_s`, `main_wall_s`, `cpu_s`, `main_cpu_s`, `main_from`, `reference_s`, `line_s`, `limit_s`, `over` (`tools/tiers/references.md`, 6); empty for a nextest run, for tools and for a run that ran none alone |
+| `swings` | for each test of the given ledger whose last three figures alone lie past half again apart: `binary_id`, `test_name`, `tree`, `layer`, `alone` (`tools/tiers/references.md`, 6); empty without a ledger, for a nextest run and for tools |
 
 `suite`'s `cpu_by` is `"test"` for a nextest run and for tools, where each
 attempt or suite has its CPU, and `"process"` for a one-process run, where

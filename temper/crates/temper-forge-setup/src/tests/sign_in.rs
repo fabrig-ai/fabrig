@@ -1,6 +1,14 @@
 use super::fixtures;
 use crate::sign_in::{FirstSignIn, instructions, quote, secret};
 #[test]
+fn provider_key_arguments_request_3072_bit_rsa() {
+    assert_eq!(
+        crate::sign_in::KEY_ARGUMENTS,
+        &[b"genpkey".as_slice(), b"-algorithm", b"RSA", b"-pkeyopt", b"rsa_keygen_bits:3072"]
+    );
+}
+
+#[test]
 fn instructions_name_the_files_and_never_the_secret() {
     let secret = secret(&[0; 32]);
     let printed = instructions(

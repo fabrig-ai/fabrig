@@ -534,3 +534,41 @@ fn worker_item(digest: u8) -> settings::Item {
         }))),
     }
 }
+
+#[test]
+fn provider_sets_withdrawals_and_returns_survive_random_restarts() {
+    let mut coverage = [false; 2];
+    for seed in 907..915 {
+        let mut rng = Rng::new(seed);
+        let mut world = start(2);
+        let mut signed = sign_in(&mut world);
+        for step in 0..8_u8 {
+            let setting = settings::Setting::Provider(4);
+            let before = world.domain.settings().value(setting).and_then(settings::Value::as_provider);
+            let removed = before.is_some_and(|value| !value.withdrawn) && rng.below(2) == 0;
+            let edit = if removed {
+                coverage[0] = true;
+                settings::Edit::Removed
+            } else {
+                coverage[1] = true;
+                let mut value = jig_test_profile::fixtures::provider_setting(4, b"local", 5);
+                value.endpoints[0].connect = Duration::from_millis(10_000 + u64::from(step));
+                settings::Edit::Set(settings::Value::Provider(Box::new(value)))
+            };
+            let against = world.domain.settings().newest();
+            changed(
+                &change(&mut world, signed, step + 40, against, Box::new([settings::Item { setting, edit }])),
+                against + 1,
+            );
+            assert_eq!(world.domain.settings().value(setting).unwrap().as_provider().unwrap().withdrawn, removed);
+            agree(&world);
+            if rng.below(3) == 0 {
+                restart(&mut world, configuration().0);
+                signed = sign_in(&mut world);
+                assert_eq!(world.domain.settings().value(setting).unwrap().as_provider().unwrap().withdrawn, removed);
+                agree(&world);
+            }
+        }
+    }
+    assert_eq!(coverage, [true; 2]);
+}

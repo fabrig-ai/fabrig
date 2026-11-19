@@ -1,52 +1,6 @@
 {
-  "application": {
-    "clients": {
-      "bundle": null,
-      "listener": {
-        "socket": "127.0.0.1:7102"
-      },
-      "public": null
-    },
-    "demo": {
-      "llm": {
-        "asked": [
-          {
-            "cue": "Add CSV export to widget"
-          },
-          {
-            "cue": "Add a dark theme to widget"
-          },
-          {
-            "cue": "Fix widget's empty search state"
-          }
-        ],
-        "cued": [],
-        "key": "/setup/llm.key",
-        "listen": {
-          "socket": "127.0.0.1:443"
-        },
-        "otherwise": [
-          "The story's scripts are in its LLM document."
-        ],
-        "provider": 1
-      }
-    },
-    "sign_in": null,
-    "webhooks": {
-      "listener": {
-        "socket": "127.0.0.1:0"
-      }
-    }
-  },
-  "engine": {
-    "clients": {},
-    "hosts": {
-      "listener": [
-        {
-          "in_process": "workers"
-        }
-      ]
-    },
+  "world_settings": {
+    "playground": true,
     "llm": {
       "endpoints": [
         {
@@ -73,6 +27,31 @@
           "endpoint": "fake"
         }
       ]
+    }
+  },
+  "application": {
+    "clients": {
+      "bundle": null,
+      "listener": {
+        "socket": "127.0.0.1:7102"
+      },
+      "public": null
+    },
+    "sign_in": null,
+    "webhooks": {
+      "listener": {
+        "socket": "127.0.0.1:0"
+      }
+    }
+  },
+  "engine": {
+    "clients": {},
+    "hosts": {
+      "listener": [
+        {
+          "in_process": "workers"
+        }
+      ]
     },
     "owners": [
       {
@@ -86,7 +65,6 @@
       "engine": {
         "in_process": "workers"
       },
-
       "name": "local",
       "secret": "worker.secret",
       "slots": 1

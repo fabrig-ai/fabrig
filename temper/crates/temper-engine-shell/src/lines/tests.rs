@@ -922,6 +922,25 @@ fn forge_link_refusals_name_the_phase_kind_key_and_missing_target() {
 }
 
 #[test]
+fn start_numbers_name_every_source_kind_and_both_ranges() {
+    use jig_domain_core::{
+        settings::Setting,
+        start::{Failure, Numbered},
+    };
+    assert_eq!(
+        start_failure(&Failure::Numbers {
+            settings: Box::new([
+                Numbered { setting: Setting::Template(9), changed: true },
+                Numbered { setting: Setting::Charter(17), changed: true },
+                Numbered { setting: Setting::Policy(40), changed: false },
+                Numbered { setting: Setting::Model(70), changed: true },
+            ])
+        }),
+        "settings out of their numbers (the stock's 1 to 32, a deployment's own 33 to 64): changed template 9, changed charter 17, default policy 40, changed model 70"
+    );
+}
+
+#[test]
 fn start_failures_name_the_set_key_setting_and_measured_limit() {
     use jig_domain_core::{
         HeldLimit, Key, settings,
@@ -1491,4 +1510,37 @@ fn restart_lines_name_the_wait_or_the_workers_older_wire() {
             expected
         );
     }
+}
+
+#[test]
+fn the_playground_start_makes_a_private_random_key_before_reading_it() {
+    use std::os::unix::{ffi::OsStrExt as _, fs::MetadataExt as _};
+    let scratch = skein_scratch::Scratch::new("playground-key");
+    let path = scratch.path().join("demo/llm.key");
+    let read = temper_engine_service::HandoverRead {
+        forge: 0,
+        run: skein_lib::Token::new(1),
+        path: path.as_os_str().as_bytes().into(),
+        max: 4097,
+    };
+    let first = read_handover(&read).expect("make then read key").expect("key present");
+    assert_eq!(first.expose().len(), 64);
+    assert!(first.expose().iter().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(b)));
+    let file = std::fs::read(&path).expect("generated fixture");
+    assert_eq!(file.len(), 65);
+    assert_eq!(file.last(), Some(&b'\n'));
+    let same_key = file.strip_suffix(b"\n") == Some(first.expose());
+    assert!(same_key, "the account gets the generated key without its final newline");
+    assert_eq!(std::fs::metadata(path.parent().expect("demo")).expect("directory").mode() & 0o777, 0o700);
+    assert_eq!(std::fs::metadata(&path).expect("key").mode() & 0o777, 0o600);
+    // Replacing a linked file must neither reuse its mode nor change its target.
+    std::fs::remove_file(&path).expect("remove fixture");
+    let target = scratch.path().join("kept");
+    std::fs::write(&target, b"kept").expect("fixture");
+    std::os::unix::fs::symlink(&target, &path).expect("linked fixture");
+    let next = read_handover(&read).expect("replace then read key").expect("key present");
+    assert!(next.expose() != first.expose(), "a fresh kernel seed, not a reused key");
+    assert_eq!(std::fs::read(target).expect("target unchanged"), b"kept");
+    assert!(!std::fs::symlink_metadata(&path).expect("key").is_symlink());
+    assert_eq!(std::fs::metadata(&path).expect("key").mode() & 0o777, 0o600);
 }

@@ -37,6 +37,8 @@ pub fn documents(
         serde_json::from_slice(&jig_channel_kit::fixtures::engine_document()).expect("engine JSON"),
     );
     value.as_object_mut().expect("whole object").remove("service");
+    value["world_settings"]["llm"] =
+        value["engine"].as_object_mut().expect("engine").remove("llm").expect("world catalogue");
     for (name, count) in
         [("clients.streams", 8_u32), ("clients.exchanges", 12), ("clients_http.streams", 8), ("clients_http.calls", 12)]
     {
@@ -66,8 +68,8 @@ pub fn documents(
     value["workers"][0]["name"] = "local".into();
     value.jig_over("fleet.slots", 4);
     value["engine"]["hosts"]["listener"] = serde_json::json!([{"in_process":"workers"}]);
-    value["engine"]["llm"]["endpoints"][0]["dialect"] = 3.into();
-    value["engine"]["llm"]["endpoints"][0]["address"] = serde_json::json!({"socket":llm.to_string()});
+    value["world_settings"]["llm"]["endpoints"][0]["dialect"] = 3.into();
+    value["world_settings"]["llm"]["endpoints"][0]["address"] = serde_json::json!({"socket":llm.to_string()});
     value.jig_over("core.load_slots", 8);
     value.jig_over("documents.rows", 2);
     value.jig_over("documents.lines", 2);
@@ -78,7 +80,7 @@ pub fn documents(
     value["application"] = serde_json::json!({
         "webhooks":null,
 "clients":{"listener":{"socket":"127.0.0.1:0"},"public":null,"bundle":null},
-        "demo":null,"sign_in":null});
+        "sign_in":null});
     for (name, figure) in [
         ("forge.client.answer_bytes", 65_536_u64),
         ("forge.client.op_bytes", 512),
@@ -105,11 +107,13 @@ pub fn documents(
 pub(crate) fn sign_in_documents(directory: &Path, issuer: SocketAddr) -> std::io::Result<()> {
     let path = directory.join("temper.json");
     let mut config: serde_json::Value = serde_json::from_slice(&std::fs::read(&path)?)?;
-    config["engine"]["llm"]["providers"] = serde_json::json!([{
+    config["world_settings"] = serde_json::from_slice(&std::fs::read(directory.join("world-settings.json"))?)?;
+    config["world_settings"]["llm"]["providers"] = serde_json::json!([{
         "name":"openai", "number":1, "signed_in_plan":true, "manage_usage":format!("https://{issuer}/settings/usage"), "endpoint":"fake",
         "sources":{"keys":true,"sign_in":crate::issuer::registration(issuer)}
     }]);
-    private(&path, &serde_json::to_vec(&config)?)
+    config["world_settings"]["llm"]["endpoints"][0]["provider"] = "openai".into();
+    finish_configuration(directory, &mut config)
 }
 
 /// Create the standalone tree; every private directory and file has its final mode.
@@ -140,9 +144,17 @@ pub fn write(
         )?;
         program_documents(directory, &mut agent, &mut config);
     }
+    if let Some(configure) = configure {
+        configure(&mut config, &mut agent);
+        turn_bounds::apply(&mut config, turn_bounds::turn_body(&agent));
+    }
     private(&directory.join("world-agent.json"), &serde_json::to_vec(&agent)?)?;
+    temper_service_shell::providers::write(
+        &directory.join("providers.setting"),
+        &jig_protocol_config::llm::provider_values(&crate::settings::configuration(&config).llm),
+    )?;
     temper_agent_fixtures::apply(&mut config, directory, &agent);
-    private(&directory.join("temper.json"), &serde_json::to_vec(&config)?)?;
+    finish_configuration(directory, &mut config)?;
     Ok(config)
 }
 pub(crate) type EnvironmentEntry = (Box<[u8]>, Box<[u8]>);
@@ -172,7 +184,7 @@ fn program_documents(
     endpoint["provider"] = "anthropic".into();
     endpoint["program"] = "claude_code".into();
     agent["endpoints"].as_array_mut().expect("agent endpoints").push(endpoint);
-    let llm = &mut config["engine"]["llm"];
+    let llm = &mut config["world_settings"]["llm"];
     let mut endpoint = llm["endpoints"][0].clone();
     endpoint["name"] = "fake-claude".into();
     endpoint["number"] = 2.into();
@@ -221,7 +233,7 @@ fn bind_documents(agent: &mut serde_json::Value, config: &mut serde_json::Value,
         }
     }
     agent["endpoints"][0]["address"] = llm.to_string().into();
-    config["engine"]["llm"]["endpoints"][0]["address"] = serde_json::json!({"socket":llm.to_string()});
+    config["world_settings"]["llm"]["endpoints"][0]["address"] = serde_json::json!({"socket":llm.to_string()});
 }
 
 fn bind_forge(value: &mut serde_json::Value, addresses: [(&str, &str); 2]) {
@@ -365,13 +377,14 @@ pub(crate) fn key_documents(
     agent["endpoints"][0]["provider"] = "openai".into();
     agent["endpoints"][0]["dialect"] = 3.into();
     let config_path = directory.join("temper.json");
-    config["engine"]["llm"]["endpoints"][0]["dialect"] = 3.into();
+    config["world_settings"] = serde_json::from_slice(&std::fs::read(directory.join("world-settings.json"))?)?;
+    config["world_settings"]["llm"]["endpoints"][0]["dialect"] = 3.into();
     config.jig_over("people.projects", 2);
     config.jig_over("authority.projects", 2);
     // Each project needs its period and the owner's pool in the tasks ledger.
     config.jig_over("tasks.funders", 4);
     config["world_settings"]["requester"] = true.into();
-    private(&config_path, &serde_json::to_vec(&config)?)?;
+    finish_configuration(directory, &mut config)?;
     private(&path, &serde_json::to_vec(&agent)?)
 }
 
@@ -463,6 +476,13 @@ pub(crate) fn finish_configuration(
 ) -> std::io::Result<()> {
     stock_document(value);
     temper_playground::documents::settings::strip_models(value);
+    let running = crate::settings::configuration(value);
+    temper_service_shell::providers::write(
+        &directory.join("providers.setting"),
+        &jig_protocol_config::llm::provider_values(&running.llm),
+    )?;
+    let agent = temper_agent_fixtures::at(value, directory);
+    turn_bounds::apply(value, turn_bounds::turn_body(&agent));
     let mut flags =
         value.as_object_mut().expect("configuration").remove("world_settings").unwrap_or(serde_json::json!({}));
     if directory.join("standing-chats").exists() {
@@ -615,6 +635,7 @@ fn defaults_for(values: &serde_json::Value, engine: &jig_protocol_config::Engine
     let flags = &values["world_settings"];
     let mut defaults =
         temper_service::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
+    defaults.providers = jig_protocol_config::llm::provider_values(&engine.llm);
     let stock_period_spend = defaults.rules.period_spend;
     // Charter 1 also produces finite changes in this world; the Smith boundary keeps Open chats inspecting.
     defaults.charters[0].policy.modify = true;

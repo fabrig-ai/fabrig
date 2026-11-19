@@ -133,7 +133,10 @@ pub fn deployment(paths: &[PathBuf; 3]) -> temper_playground::documents::Configu
     let mut value = crate::limit_settings::configuration(&paths[0]);
     let mut worker = temper_agent_fixtures::read(&paths[0]);
     for table in ["providers", "endpoints"] {
-        value["engine"]["llm"][table].as_array_mut().expect("LLM table").retain(|row| row["name"] != "anthropic");
+        temper_agent_fixtures::providers::input(&mut value)[table]
+            .as_array_mut()
+            .expect("LLM table")
+            .retain(|row| row["name"] != "anthropic");
     }
     worker["endpoints"].as_array_mut().expect("endpoints").retain(|endpoint| endpoint["name"] != "anthropic");
     // Keep the stock endpoint ceiling: its response holds the escaped stock tool payload.
@@ -778,11 +781,10 @@ fn fake_account(root: &Path, paths: &[PathBuf; 3], file: &Path) {
     assert_eq!(outcome.exit, Some(Exit::Code(0)));
     assert!(outcome.checked.is_some() && outcome.left.as_ref().is_none_or(Vec::is_empty), "donor drained");
     let registration =
-        read_json(&donor_paths[0].join("temper.json"))["engine"]["llm"]["providers"][0]["sources"]["sign_in"].clone();
-    let config = paths[0].join("temper.json");
-    let mut destination = read_json(&config);
-    destination["engine"]["llm"]["providers"][0]["sources"]["sign_in"] = registration;
-    write_json(&config, &destination);
+        temper_agent_fixtures::providers::read(&donor_paths[1])["providers"][0]["sources"]["sign_in"].clone();
+    let mut destination = temper_agent_fixtures::providers::read(&paths[1]);
+    destination["providers"][0]["sources"]["sign_in"] = registration;
+    temper_agent_fixtures::providers::write(&paths[1], &destination);
 }
 
 struct TwinPeers {
@@ -964,8 +966,18 @@ fn configure_model(driver: &mut Driver) -> Result<(), String> {
     require(value["model"]["name"] == "gpt-6.1-sol", "stock row 4 is sol")?;
     value["model"]["window"] = 1_048_576.into();
     value["model"]["output"] = 32_000.into();
+    let mut items = vec![json!({"setting":setting["setting"], "set":value})];
+    for number in ["1", "2"] {
+        let charter = driver.ctl(&["settings", "show", "charter", number], None)?;
+        let mut charter_value = charter["value"].clone();
+        super::super::provider_setup::use_provider(&mut charter_value, 1);
+        charter_value["model"] = value["model"].clone();
+        items.push(json!({"setting":charter["setting"], "set":charter_value}));
+    }
+    let providers = temper_agent_fixtures::providers::read(&driver.store.join("data"));
+    items.extend(super::super::provider_setup::items(&providers));
     let file = driver.store.join("model-settings.json");
-    write_json(&file, &json!({"items":[{"setting":setting["setting"], "set":value}]}));
+    write_json(&file, &json!({"items":items}));
     driver.ctl(
         &[
             "settings",

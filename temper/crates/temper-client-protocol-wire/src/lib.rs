@@ -235,6 +235,7 @@ pub fn limits(bounds: &Bounds) -> Option<v1::Limits> {
         adopt_landing: bounds.field_bytes,
         adopted_owner: bounds.field_bytes,
         adopted_name: bounds.field_bytes,
+        adopted_landing: bounds.field_bytes,
         rule_branch: bounds.field_bytes,
         adopt_checks: bounds.checks,
         rule_contexts: bounds.contexts,

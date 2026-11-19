@@ -66,6 +66,7 @@ pub struct Host {
     out: Queue<Request>,
     patches: Queue<Patch>,
     address: Address,
+    root_pending: bool,
     mapping: jig_client_protocol_http::Mapping,
     stream: jig_client_protocol_http::Stream,
     tickets: jig_client_shell_web::adapter::Exchanges,
@@ -89,8 +90,7 @@ impl Host {
         zone_minutes: i32,
         ways: view::sign_in::Ways,
     ) -> Self {
-        assert!(limits::valid(&client), "web capacities are checked");
-        let (bounds, words) = limits::view(&client).expect("web view capacities are checked");
+        let (bounds, words) = limits::checked(&client).expect("web capacities are checked");
         let mut root = root::new(&client, seed);
         root.set_zone_minutes(zone_minutes);
         Self {
@@ -100,7 +100,8 @@ impl Host {
             env: Env { now, wall, limits: client },
             out: Queue::uncapped(),
             patches: Queue::with_capacity(bounds.tree.patches),
-            address: Address::Inbox { filter: Filter::ALL },
+            address: Address::AllHome,
+            root_pending: false,
             mapping: jig_client_protocol_http::Mapping::new(b"/jig").expect("mapping prefix"),
             stream: jig_client_protocol_http::Stream::new(&limits::stream().expect("stream bounds")),
             tickets: jig_client_shell_web::adapter::Exchanges::default(),
@@ -161,7 +162,12 @@ impl Host {
     }
     // The page a path names; a path that prints otherwise is replaced by the printed one.
     fn opened(&mut self, path: &[u8]) -> Address {
+        self.root_pending = false;
         let address = match parse(path) {
+            Place::Root | Place::Missing => {
+                self.root_pending = true;
+                return Address::AllHome;
+            }
             Place::Approve { code } => {
                 let printed = root::address::print_approve(code);
                 if *printed != *path {
@@ -171,7 +177,7 @@ impl Host {
             }
             Place::Authorize { .. } | Place::AuthorizeMalformed => return self.address.clone(),
             Place::Address(address) => address,
-            Place::Missing | Place::Public(_) => Address::Inbox { filter: Filter::ALL },
+            Place::Public(_) => Address::Inbox { filter: Filter::ALL },
         };
         let printed = print(&address);
         if *printed != *path {
@@ -358,11 +364,12 @@ impl Host {
                     self.carry(request, &mut asked);
                 }
                 Request::Show { address, replace } => {
-                    if address != self.address || self.root.authorization().is_some() {
+                    if address != self.address || self.root_pending || self.root.authorization().is_some() {
                         let path = print(&address);
-                        if path != print(&self.address) || self.root.authorization().is_some() {
+                        if path != print(&self.address) || self.root_pending || self.root.authorization().is_some() {
                             self.show = Some((path, replace));
                         }
+                        self.root_pending = false;
                         self.address = address.clone();
                         self.event(Event::Went { place: Place::Address(address) });
                     }

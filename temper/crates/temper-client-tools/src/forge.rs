@@ -375,6 +375,10 @@ fn answer_text(a: &forge::Adoption, answer: &forge::Answer, kept: bool, unread: 
                 out,
             );
             out.put(b"\n");
+            if !a.landing.is_empty() {
+                phrase(Word::LandsInto, &[Hole::Name(a.landing.clone())], out);
+                out.put(b"\n");
+            }
             if a.home {
                 phrase(Word::IsHome, &[], out);
                 out.put(b"\n");
@@ -544,6 +548,7 @@ fn adopted_json(a: &forge::Adopted, out: &mut Encoder) {
     for (key, bytes) in [
         (b"owner".as_slice(), a.owner.as_ref()),
         (b"name", a.name.as_ref()),
+        (b"landing", a.landing.as_ref()),
         (b"role", word_bytes(words::role(a.role)).as_ref()),
     ] {
         out.key(key);
@@ -688,8 +693,10 @@ pub(crate) fn change(kind: u16, resource: &c::Part, words: &c::DocumentText, out
 fn verification_room(evidence: &[u8]) -> usize {
     if evidence.starts_with(b"Cleared by ")
         || evidence.starts_with(b"Not cleared:")
+        || evidence.starts_with(b"Ended at landing;")
         || skein_lib::bytes::find(evidence, b"\nCleared by ").is_some()
         || skein_lib::bytes::find(evidence, b"\nNot cleared:").is_some()
+        || skein_lib::bytes::find(evidence, b"\nEnded at landing;").is_some()
     {
         evidence.len().saturating_add(1)
     } else {

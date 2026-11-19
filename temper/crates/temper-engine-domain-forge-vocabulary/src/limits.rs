@@ -46,8 +46,10 @@ pub struct Limits {
     /// Live landing procedure rows (domain/landing.md, 12).
     pub landings: u32,
     pub landing_members: u32,
-    /// Retained landings per repository (domain/after-landing.md, 10).
+    /// Judged landings retained per repository (domain/after-landing.md, 10).
     pub landings_kept: u32,
+    /// Landings retained until every following tier judges them (domain/after-landing.md, 10).
+    pub landings_pending: u32,
     /// Queued rows and recent landed changes in the changes document (client/forge/records.md).
     pub changes_rows: u32,
     pub changes_landed: u32,
@@ -176,7 +178,8 @@ pub fn valid(l: &Limits) -> bool {
         || l.applications == 0
         || l.collaborators == 0
         || l.landings_kept == 0
-        || l.landings_kept > 256
+        || l.landings_pending == 0
+        || match l.landings_kept.checked_add(l.landings_pending) { Some(count) => count > 256, None => true }
         || l.changes_rows == 0
         || l.changes_rows > 32
         || l.changes_landed == 0

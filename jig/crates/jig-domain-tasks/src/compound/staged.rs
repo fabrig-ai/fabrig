@@ -559,6 +559,9 @@ fn project_amend<'a>(row: &mut CompoundTask<'a>, plan: &'a crate::control::Amend
     if let Some(value) = &amendment.authority {
         row.authority = value;
     }
+    if let Some((destination, _)) = plan.funding {
+        row.funder = destination;
+    }
     row.revision = row.revision.checked_add(1).expect("admission checked");
     row.revisions.spec = row.revisions.spec.checked_add(u64::from(plan.changed)).expect("admission checked");
     row.revisions.person = row.revisions.person.checked_add(u64::from(plan.person_changed)).expect("admission checked");

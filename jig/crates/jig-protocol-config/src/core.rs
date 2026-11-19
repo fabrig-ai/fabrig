@@ -68,8 +68,13 @@ pub fn core(engine: &Engine, deployment: [u8; 16], seed: u64) -> domain::Config 
         owners: engine.owners.clone(),
         grants: engine.acts.clone(),
         kinds: Box::default(),
+        fixed_providers: engine.fixed_llm_providers.clone(),
         defaults: domain::settings::Defaults {
             limits: Box::default(),
+            providers: match &engine.provider_defaults {
+                Some(values) => values.clone(),
+                None => crate::llm::provider_values(&engine.llm),
+            },
             workers: Box::new([]),
             models: engine.llm.models.clone(),
             charters: engine.charters.clone(),

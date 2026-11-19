@@ -36,6 +36,7 @@ fn the_deployment_command_is_published_only_by_a_standalone_start() {
             if standalone { Some(fixtures::worker_runtime()) } else { None },
             if under_box { Some(fixtures::system::BOX_BYTES) } else { None },
             Some(line.as_slice().into()),
+            &fixtures::given(&document, &jig_protocol_config::Directories::working()),
             Box::new([]),
         )
         .unwrap();

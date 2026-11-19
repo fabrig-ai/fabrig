@@ -77,6 +77,7 @@ const LIMITS: Limits = Limits {
     landings: 8,
     landing_members: 2,
     landings_kept: 16,
+    landings_pending: 64,
     changes_rows: 32,
     changes_landed: 8,
     gates: 2,
@@ -156,6 +157,7 @@ fn domain_with_limits(limits: &Limits) -> Domain {
 fn adopted() -> Repository {
     Repository {
         contexts: Box::new([]),
+        landing: b"main".as_slice().into(),
         workflows: Box::default(),
         project: 5,
         home: true,
@@ -406,6 +408,7 @@ fn setup_with_limits(limits: &Limits) -> Domain {
                     tiers: Box::new([]),
                 }]),
                 AfterLanding {
+                    wait: temper_engine_domain_forge_change::Wait::Cleared,
                     verdict: temper_engine_domain_forge_tiers::Settings {
                         retries: 2,
                         suspects: temper_engine_domain_forge_tiers::Suspects::Bisect,
@@ -959,6 +962,8 @@ fn logged(commit: [u8; 32], at: u64, tasks: &[u64]) -> LoggedLanding {
     for task in tasks {
         changes
             .push(LoggedChange {
+                goal: None,
+                milestone: None,
                 signed: Box::new([]),
                 task: *task,
                 pull: Some(LOGGED_PULL),
@@ -966,7 +971,13 @@ fn logged(commit: [u8; 32], at: u64, tasks: &[u64]) -> LoggedLanding {
             })
             .expect("logged change");
     }
-    LoggedLanding { commit, branch: Box::from(MARKERS[0]), at: Wall::from_nanos(at), changes: changes.into_boxed() }
+    LoggedLanding {
+        tiers: Box::new([]),
+        commit,
+        branch: Box::from(MARKERS[0]),
+        at: Wall::from_nanos(at),
+        changes: changes.into_boxed(),
+    }
 }
 fn install_log(d: &mut Domain, landings: Box<[LoggedLanding]>) {
     d.landing_logs.insert(REPO, LandingLog { repository: REPO, landings }).expect("log");
@@ -1088,7 +1099,14 @@ fn a_public_merge_keeps_a_dropped_member_from_its_log() {
     let log = d.landing_logs.get(&REPO).unwrap();
     assert_eq!(
         log.landings[0].changes[1],
-        LoggedChange { signed: Box::new([]), task: SECOND, pull: Some(LOGGED_PULL), title: Box::from(MARKERS[1]) }
+        LoggedChange {
+            goal: None,
+            milestone: None,
+            signed: Box::new([]),
+            task: SECOND,
+            pull: Some(LOGGED_PULL),
+            title: Box::from(MARKERS[1])
+        }
     );
     // Handed tasks still bound the public projection, even without a change row.
     assert!(landings(&d, &public[..1]).landings().is_empty());

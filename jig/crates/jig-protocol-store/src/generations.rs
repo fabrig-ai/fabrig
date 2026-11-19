@@ -371,7 +371,8 @@ struct CopyParent {
 }
 /// Generation `from`'s maps linked and copied (protocol/store/opening.md 2, step 2).
 /// A patch links the snapshot and all but the newest log segment, found over every
-/// page first, and every task log in logs/shard; a whole rehearsal copies everything, while Openings skips store/logs.
+/// page first, and every task log in logs/shard. A Whole rehearsal copies everything;
+/// an Openings rehearsal links as a patch does, but skips store/logs.
 /// Refused links fall back to copies. Two suspended directory pages bound the
 /// depth-first logs walk, with each destination synced before returning to its parent.
 /// Directories are made 0o700, secrets opened private, copied files created
@@ -432,7 +433,10 @@ pub(crate) fn copy_between(
         from,
         to,
         chunk,
-        way: CopyWay::Copy,
+        way: match reach {
+            crate::Reach::Whole => CopyWay::Copy,
+            crate::Reach::Openings => CopyWay::Link,
+        },
         reach,
         newest: None,
         map: Map::Store,

@@ -332,6 +332,7 @@ fn frozen_model_masks_and_template_choices_follow_names_after_a_catalogue_reorde
             s::Value::Overlay(_)
             | s::Value::Policy(_)
             | s::Value::Charter(_)
+            | s::Value::Provider(_)
             | s::Value::Worker(_)
             | s::Value::Model(_)
             | s::Value::Application(_)
