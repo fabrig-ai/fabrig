@@ -17,17 +17,37 @@ pub use stream::{Stream, valid};
 #[derive(Debug, PartialEq, Eq)]
 pub struct Mapping {
     prefix: Box<[u8]>,
+    page: Option<Box<[u8]>>,
 }
 #[derive(Debug, PartialEq, Eq)]
 pub enum Unmapped {
     Prefix,
+    Page,
 }
 impl Mapping {
     pub fn new(prefix: &[u8]) -> Result<Self, Unmapped> {
         if prefix.len() > 64 || !prefix.starts_with(b"/") || prefix.ends_with(b"/") {
             return Err(Unmapped::Prefix);
         }
-        Ok(Self { prefix: bytes::copy_of(prefix) })
+        Ok(Self { prefix: bytes::copy_of(prefix), page: None })
+    }
+    pub fn with_page(prefix: &[u8], page: &[u8]) -> Result<Self, Unmapped> {
+        let mut mapping = Self::new(prefix)?;
+        if page.len() > 64
+            || !page.starts_with(b"/")
+            || page.ends_with(b"/")
+            || page.contains(&b'?')
+            || page.contains(&b'#')
+        {
+            return Err(Unmapped::Page);
+        }
+        if let Some(rest) = page.strip_prefix(prefix)
+            && (rest.is_empty() || rest.starts_with(b"/"))
+        {
+            return Err(Unmapped::Page);
+        }
+        mapping.page = Some(bytes::copy_of(page));
+        Ok(mapping)
     }
 }
 #[cfg(test)]

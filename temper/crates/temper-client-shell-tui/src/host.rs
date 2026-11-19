@@ -188,7 +188,8 @@ impl Host {
             focus: Focus::default(),
             frame: Frame::new(limits.most),
             draft_shown: false,
-            mapping: jig_client_protocol_http::Mapping::new(b"/jig").expect("mapping prefix"),
+            mapping: jig_client_protocol_http::Mapping::with_page(b"/jig", temper_client_domain::sign_in::LINK_PAGE)
+                .expect("temper mapping"),
             credential: None,
             signing: Set::with_capacity(temper_client_shell_terminal::limits::EXCHANGES),
             local: false,

@@ -230,7 +230,8 @@ pub fn originals(lines: &[Line], given: &[Box<[u8]>]) -> Originals {
 }
 
 fn link_original(url: &[u8]) -> Option<(Kind, Box<[u8]>)> {
-    let mapping = jig_client_protocol_http::Mapping::new(b"/jig").expect("mapping prefix");
+    let mapping = jig_client_protocol_http::Mapping::with_page(b"/jig", temper_client_domain::sign_in::LINK_PAGE)
+        .expect("temper mapping");
     jig_client_protocol_http::printed(&mapping, url).ok().map(|link| (Kind::Link, link.secret.into_exposed()))
 }
 

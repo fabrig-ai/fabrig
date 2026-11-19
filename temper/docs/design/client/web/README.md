@@ -230,8 +230,8 @@ replay says the same clocks (`../view.md`, 6).
      `protocol/browser/README.md`, 12.1 and 12.2);
   2. with no bundle, the configuration naming none (`null`) and the
      binary built without its own (2.6), a `GET` of any other path but
-     under `/bundle/` and `/robots.txt`, the printed link's route among
-     them, answers `200` temper's page for no bundle, every other
+     under `/bundle/` and `/robots.txt`, the printed link's route and
+     its page, `/sign-in`, among them, answers `200` temper's page for no bundle, every other
      request not found, as `../engine.md` says. The page is
      fixed HTML in the binary, under the page's policy, with no script,
      style or picture: the level-1 heading "temper", then "This temper
@@ -251,7 +251,8 @@ replay says the same clocks (`../view.md`, 6).
      fixed in its binary, `no-cache` (2.7): the service worker,
      `Content-Type: text/javascript`, and the web app's manifest,
      `application/manifest+json`;
-  7. any other `GET`, the printed link's route among them: the page,
+  7. any other `GET`, the printed link's route and its page,
+     `/sign-in` (`../README.md`, section 4), among them: the page,
      with its ETag and `no-cache`, and `304` on a matching
      `If-None-Match` (skein's `ui/web/bundle.md`, 4).
 - **The page's metas,** made into the bundle's page at start, before
@@ -505,10 +506,12 @@ replay says the same clocks (`../view.md`, 6).
 ### 2.4 Signing in
 
 - **The printed link,**
-  `http://HOST:PORT/jig/v1/sign-in/link?secret=SECRET`, opened in a
+  `http://HOST:PORT/jig/v1/sign-in/link?secret=SECRET`, or the same
+  link at its page, `http://HOST:PORT/sign-in?secret=SECRET`, opened in a
   browser on the engine's machine (`../README.md`, section 4): temper's
-  server answers its `GET` with the page (2.2); jig's sign-in part takes
-  the secret and replaces the address with `/welcome`, temper's home for
+  server answers either's `GET` with the page, which spends nothing (2.2); jig's sign-in part,
+  given the link's route and its page, takes
+  the secret at either and replaces the address with `/welcome`, temper's home for
   a sign-in, before anything is sent; the client signs in with it
   (`SignIn { with: Link { secret, held: None } }`), and the mapping's
   answer sets its cookie, which the client never sees (jig's
