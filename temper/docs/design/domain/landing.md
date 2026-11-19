@@ -1,6 +1,6 @@
 # Landings
 
-Provisional, 2026-11-13. How a project that lands by turn lands its
+Provisional, 2026-11-19. How a project that lands by turn lands its
 changes: a train per repository and branch, one landing at a time on
 each, the next formed from the changes waiting in the queue's order, a
 batch of them up to the project's `batch`; each landing's members
@@ -263,11 +263,13 @@ producing ─► opening ─► gating ─► ready ─► in its landing ─►
     by the job's name in its run: `JOB: waiting for a runner labelled
     L1, L2`, `JOB: blocked by the jobs it needs`, `JOB: running at step
     N, NAME`, `JOB: pending, its job unread`;
-  - an effect refused at admission or failed at the forge, naming the
-    operation, its resource and the refusal or forge answer, with its
-    outbox entry and the task's release command;
-  - its pull request or a merge refused for a cause not stale (section 8),
-    `turn: WHY`.
+  - an effect refused at admission or failed at the forge, but its
+    merge, naming the operation, its resource and the refusal or forge
+    answer, with its outbox entry and the task's release command;
+  - its pull request refused for a cause not stale, `turn: WHY`; its
+    merge not made and read again, its branch at the round's base and
+    its pull request not closed (section 8), `turn: merge of #N: WHY;
+    read #N STATE, BRANCH at TIP`.
 
   A step a member's change makes (its judgement, its repair) is
   bounded by the change's own stall (`forge/change/stalls.md`): the
@@ -668,7 +670,7 @@ The default, for a project with no prepare command:
   `Write::UpdateRef`; temper’s App must always bypass a rule requiring
   a pull request (`forge/adoption.md`, 4).
 - **Every member lands** when the branch's tip reads back as the
-  candidate. In stack order, the landing records each landed at its
+  candidate, or as a commit containing it. In stack order, the landing records each landed at its
   prefix, waits for its pull request's merge mark until one configured
   poll after readback, then tells its change it landed at that prefix.
   Readback is authoritative: absent or delayed forge detection cannot
@@ -691,11 +693,31 @@ The default, for a project with no prepare command:
   manual merge, the landing closes a squashed member's pull request
   instead (kind 12).
 - **Nothing runs inside the turn:** no gate, no prepare, no run of an
-  agent's. A merge refused or uncertain is settled as `forge/README.md`,
-  section 4 settles any merge: a fast-forward-only merge raced by a
-  push to the branch answers uncertain or refused, its find reads the
-  pull request unmerged, and the freshness of the next try makes the
-  round stale.
+  agent's.
+- **A merge not made is read again,** never held at once: the landing
+  settles its own merge, and no outcome of it holds the task for its
+  effect (4.2). An uncertain merge is the client's, looked for and made
+  again within `forge.client.write_attempts`, each try waiting out its
+  lifetime (skein's `forge/client.md`, 7.4, 7.5), the turn waiting with
+  it and reading its freshness meanwhile. A fast-forward-only merge
+  raced by a push to the branch, a goal's design delivery among them
+  (`forge/branches.md`, 1), is one: Forgejo answers it `500`, which the
+  client keeps as a lost answer (skein's `forge/forgejo.md`, 1.2). An
+  outcome but made, a refusal or a merge unknown past those tries, reads
+  afresh the train's tip, whether it holds the candidate, and the
+  round's pull request:
+  - the tip holds the candidate, or the pull request reads merged at
+    it: every member lands, as by readback;
+  - the tip is another than the round's base: the round is stale;
+  - the pull request reads closed, not merged: the round ends unlanded
+    and the landing prepares again in a new round, keeping its
+    receipts, as after a release (4.2);
+  - else the tries ran out: the landing holds, `turn: merge of #N: WHY;
+    read #N STATE, BRANCH at TIP`, WHY the forge's last answer in its
+    effect's words (`forge timed out`), STATE `open` or `merged at
+    COMMIT`, commits in hexadecimal at the forge's length. Its release
+    prepares it again in a new round (4.2), and it holds its own train
+    alone (section 9).
 - **On GitHub,** which merges no pull request fast-forward, the turn
   would update the branch's ref to the candidate, fast-forward only
   (skein's `Write::UpdateRef`), under temper's App's `Always` bypass of
@@ -717,7 +739,9 @@ The default, for a project with no prepare command:
 - **A train is a repository and the branch its changes land into:** a
   repository's main, or a goal's branch, each a train of its own.
 - **Held** by its live landing from the decision that forms it to its
-  end. Held is derived from the landings' phases, never stored.
+  end. Held is derived from the landings' phases, never stored. A
+  landing held for a person (4.2) holds its own train alone: other
+  trains form, prove and turn beside it.
 - **Waiting changes** are ready (section 3) under turn and in no
   landing. Their order is `forge/queues.md`'s: the goal's priority, then
   the time each first became ready, which a change keeps while it stays
@@ -1007,7 +1031,12 @@ across a restart, a worker's loss and a release
 saved delivery across its worker's loss beside a proving landing; going
 live by `turn` with running work's settings kept (13); a copied policy's
 ceilings on the shipped capacities; a goal's delivery leaving its
-landing mid-proof, or sharing its run; two goals' changes, each
+landing mid-proof, or sharing its run; a turn's merge not made (8):
+raced by a goal's design delivery and answered `500`, its round ending
+with no hold and the next landing; lost and found merged, landed; lost
+with its pull request open, made again and landed; closed unmerged,
+prepared again; past its tries, held with what it read, another goal's
+train landing beside it; two goals' changes, each
 approved by its review and waiting on one person task, released
 together by the person's answer, forming one landing of two by `turn`
 at a `batch` of two, proved by one green run at the top and landed by
@@ -1025,3 +1054,7 @@ them (`../testing/qa/setups.md`, 6).
   more.
 - **A gate for a goal's branch's train:** none here (7.1); a project
   that wants one names it when one does.
+- **A merge raced by a push** waits out the client's tries before its
+  round ends (section 8), its pull request's lane holding the round's
+  close behind it. A typed answer for Forgejo's `500`, or a pending merge
+  withdrawn once its round is stale, would end it at once.
