@@ -272,7 +272,8 @@ keeps (`../../protocol/configuration/README.md`, section 2).
   - *Where the ask came from:* AGO is `../view.md`, 6's *ago*, from the
     read's wall time; ADDRESS the ask's source, an IPv4 address in
     dotted decimal and an IPv6 one in RFC 5952's text, as core's
-    `IpAddr` prints them, "Asked 12 seconds ago from 203.0.113.7"; with
+    `IpAddr` prints them, "Asked just now from 203.0.113.7" under a
+    minute, "Asked 3 min ago from 2001:db8::7" after; with
     none, "from an unknown address". The read's own source, the reading
     browser's, is said nowhere but in the `typed` row's comparison.
   - *Deciding:* "Approve" and "Refuse" each send `DecideApproval {
