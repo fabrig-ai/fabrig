@@ -2,19 +2,9 @@
 
 2026-11-18. Where the tree's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 1, *The origin*, 2's `address` at most 300 bytes and
-  `sign-in` note naming the origin's authority, and 3: `temper-client-tui`'s
-  `Origin`, `Start.address` and `Duties.address` origins, every address
-  opened the origin's [in flight: change 8877].
-- **Not yet:** 1: `temper https://NAME[:PORT]`, its refusals, the name
-  resolved and the machine's roots read at start, no link file read at
-  a name; 3, *The handshake*, and 4: `Report::Handshake` and the run's
-  engine the native shell's `Engine` [in flight: change 8886].
 - **Not yet:** 2, *One directory per deployment* to *From the directory
   before it*: `at/HOST/PORT`, the theme carried and the move [in
   flight: change 8884].
-- **Not yet:** 3, the events' `SignIn` row: at a name, the sign-in
-  screen's "Ask again" button [in flight: change 8885].
 - **Not yet:** 2: no `recording-TIME`; a recording is `recording` [in
   flight: change 3611].
 - **Not yet:** 3: the events table's `Act { act }` row: a close done

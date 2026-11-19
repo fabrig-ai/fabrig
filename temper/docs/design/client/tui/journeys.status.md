@@ -2,9 +2,6 @@
 
 2026-11-18. Where temper's code lags or departs from [journeys.md](journeys.md).
 
-- **Not yet:** 3.2: `address` and `signed` hold the origin printed, a
-  bare `HOST:PORT` read as `http://` [in flight: change 8877].
-- **Not yet:** 3.2: the `handshake` record [in flight: change 8886].
 - **Not yet:** 3.2: no start facts `plain` and `version` [in flight:
   change 3431].
 - **Not yet:** 3.2: no start facts `set-up` and `box-log` [in flight:
