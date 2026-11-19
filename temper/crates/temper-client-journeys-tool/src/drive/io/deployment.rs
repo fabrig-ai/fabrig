@@ -151,7 +151,7 @@ pub(in crate::drive) fn prepare_with(plan: &Plan, random: Option<[u8; 32]>) -> R
 }
 pub(in crate::drive) fn worker(plan: &Plan) -> Result<deployment::Worker, String> {
     let scratch = &plan.options.scratch;
-    let document = read(&beneath(scratch, Path::new("config/worker/temper.json"))?, deployment::DOCUMENT_BYTES)?;
+    let document = read(&beneath(scratch, &crate::line::Document::Worker.path())?, deployment::DOCUMENT_BYTES)?;
     let digest = read(&beneath(scratch, Path::new("data/engine/secrets/worker.digest"))?, 65)?;
     deployment::Worker::read(&document, &digest)
 }
@@ -181,15 +181,19 @@ pub(in crate::drive) fn patch(
 ) -> Result<deployment::RenderedFile, String> {
     let directory = plan.options.files.as_ref().ok_or("deployment patch: no files directory (--files DIR)")?;
     let files = super::forge::read_files(directory, &[path.into()])?;
-    let path = beneath(&plan.options.scratch, Path::new(document.path()))?;
+    let path = beneath(&plan.options.scratch, &document.path())?;
     let bytes = read(&path, deployment::DOCUMENT_BYTES)?;
     let change = files.first().expect("one patch file");
+    let shape = match document {
+        crate::line::Document::Engine => temper_config_shell::Shape::EngineAlone,
+        crate::line::Document::Worker => temper_config_shell::Shape::WorkerAlone,
+    };
     let merged =
-        deployment::merge(&bytes, change, &plan.place()?).map_err(|why| format!("{}: {why}", path.display()))?;
+        deployment::merge(&bytes, change, &plan.place()?, shape).map_err(|why| format!("{}: {why}", path.display()))?;
     Ok((path, merged))
 }
 pub(in crate::drive) fn replace(path: &Path, bytes: &[u8]) -> Result<(), String> {
-    let temporary = path.with_extension("json.patch");
+    let temporary = path.with_added_extension("patch");
     write(&temporary, bytes)?;
     fs::rename(&temporary, path).map_err(|why| {
         let _removed = fs::remove_file(&temporary);

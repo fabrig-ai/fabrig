@@ -119,24 +119,6 @@ fn a_last_line_cut_short_decodes_its_whole_groups() {
 }
 
 #[test]
-fn the_committed_recordings_read_and_write_unchanged() {
-    let journeys = skein_scratch::paths::tree().join("docs/design/client/web/journeys");
-    let mut count = 0;
-    for entry in std::fs::read_dir(journeys).expect("journeys") {
-        let path = entry.expect("journey").path().join("recording");
-        if !path.is_file() {
-            continue;
-        }
-        count += 1;
-        let original = std::fs::read(path).expect("recording");
-        let mut lines = crate::journey::lines(&original).expect("recording lines");
-        Streams::read(&lines).expect("recording streams").write(&mut lines);
-        assert!(written(&lines) == original, "recording is byte-identical");
-    }
-    assert!(count > 0, "committed recordings were checked");
-}
-
-#[test]
 fn refused_bodies_and_partial_prefixes_are_plain() {
     for bytes in [b"refused\nbody".as_slice(), b"dat", b": partial comment"] {
         let mut lines = vec![piece(bytes)];

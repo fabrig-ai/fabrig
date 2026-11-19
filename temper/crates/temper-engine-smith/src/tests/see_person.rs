@@ -5,6 +5,7 @@ use jig_domain_core::{
 };
 use jig_domain_tasks as tasks;
 use skein_lib::{List, Wall};
+use smith_transcript::Record;
 use temper_engine_domain::{SeeAnswer, SeeName, SeeNames, SeePerson, SeeRead, SeeWords};
 
 fn text(words: &[u8]) -> d::Text {
@@ -437,76 +438,46 @@ fn turn_record_with(
 ) -> jig_domain_core::TurnRecord {
     use smith_transcript::v7 as s;
     const BLOCKS: u32 = 5; // Words and two call/result pairs.
-    let bounds = &s::CEILINGS;
+
     let mut blocks = List::with_capacity(BLOCKS);
     blocks
-        .push(s::Block::Text(
-            s::Text::new(
-                bounds,
-                s::TextParts {
-                    text: b"I will read the charter.\nThen propose the settings.".as_slice().into(),
-                    replay: None,
-                },
-            )
-            .unwrap(),
-        ))
+        .push(s::Block::Text(s::Text {
+            text: b"I will read the charter.\nThen propose the settings.".as_slice().into(),
+            replay: None,
+        }))
         .unwrap();
     for (id, tool, input, result) in [
         (b"first".as_slice(), b"see".as_slice(), input, b"charter 4, the reviewer's\nLong settings text".as_slice()),
         (b"second", second_tool, second_input, second_result),
     ] {
         blocks
-            .push(s::Block::Call(
-                s::Call::new(
-                    bounds,
-                    s::CallParts { id: id.into(), name: tool.into(), input: input.into(), replay: None },
-                )
-                .unwrap(),
-            ))
+            .push(s::Block::Call(s::Call { id: id.into(), name: tool.into(), input: input.into(), replay: None }))
             .unwrap();
         blocks
-            .push(s::Block::Result(
-                s::ToolResult::new(
-                    bounds,
-                    s::ToolResultParts {
-                        id: id.into(),
-                        returned: s::Returned::Said(
-                            s::Said::new(bounds, s::SaidParts { text: result.into(), error: false }).unwrap(),
-                        ),
-                    },
-                )
-                .unwrap(),
-            ))
+            .push(s::Block::Result(s::ToolResult {
+                id: id.into(),
+                returned: s::Returned::Said(s::Said { text: result.into(), error: false }),
+            }))
             .unwrap();
     }
-    let source = s::Turn::new(
-        bounds,
-        s::TurnParts {
-            system: Some(system.into()),
-            model: b"gpt-6".as_slice().into(),
-            effort: None,
-            kind: s::TurnKind::Ordinary,
-            opening: None,
-            endpoint: b"unused-endpoint".as_slice().into(),
-            dialect: 1,
-            place: 2,
-            usage: s::Usage::new(
-                bounds,
-                s::UsageParts { input: None, output: None, cache_read: None, cache_write: None, reasoning: None },
-            )
-            .unwrap(),
-            spent: 12,
-            jobs: 0,
-            messages: List::from_boxed(Box::new([s::Message::new(
-                bounds,
-                s::MessageParts { role: s::Role::Assistant, blocks },
-            )
-            .unwrap()])),
-        },
-    )
-    .unwrap();
-    let mut out = skein_lib::Writer::new(usize::try_from(source.measure()).unwrap());
-    source.encode(&mut out).unwrap();
+    let source = s::Turn {
+        system: Some(system.into()),
+        model: b"gpt-6".as_slice().into(),
+        effort: None,
+        kind: s::TurnKind::Ordinary,
+        opening: None,
+        endpoint: b"unused-endpoint".as_slice().into(),
+        dialect: 1,
+        place: 2,
+        usage: s::Usage { input: None, output: None, cache_read: None, cache_write: None, reasoning: None },
+        spent: 12,
+        jobs: 0,
+        messages: List::from_boxed(Box::new([s::Message { role: s::Role::Assistant, blocks }])),
+    };
+    let mut out = skein_lib::Writer::new(
+        usize::try_from(source.measure(&smith_transcript::CEILINGS).expect("bounded transcript")).unwrap(),
+    );
+    source.write(&smith_transcript::CEILINGS, &mut out).unwrap();
     jig_domain_core::TurnRecord {
         opens_window: false,
         task: 41,

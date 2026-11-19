@@ -92,9 +92,8 @@ fn worker_value(frame: &Frame) -> wire::FromWorker {
     let bytes = writer.finish();
     wire::FromWorker::decode(&wire::CEILINGS, &mut Reader::new(&bytes)).unwrap()
 }
-fn golden(text: &str, name: &str) -> Box<[u8]> {
-    let goldens = skein_codegen::goldens(&skein_codegen::parse(text).unwrap());
-    fixture_golden(&goldens, name)
+fn golden(text: &'static str, name: &str) -> Box<[u8]> {
+    fixture_golden(&skein_codegen::values(text).goldens, name)
 }
 fn fixture_golden(goldens: &[skein_codegen::Golden], name: &str) -> Box<[u8]> {
     for golden in goldens {
@@ -757,20 +756,20 @@ fn older_notices_and_calls_round_trip_through_seventeen_unchanged() {
 }
 
 #[test]
-#[expect(clippy::disallowed_macros, reason = "the bridge test reads its current schema as the expected bytes")]
+#[expect(clippy::disallowed_macros, reason = "the bridge test formats generated fixture names")]
 fn seventeens_kept_goldens_go_up_to_eighteens_equal_bytes_and_back() {
     use crate::patches::kept::jig_worker_wire as kept;
-    use skein_codegen::{Declaration, goldens, parse, snake};
+    use skein_codegen::{Declaration, snake, values};
     let mut old = None;
     for text in kept::TEXTS {
         if text.starts_with("family jig-worker-wire 17\n") {
             old = Some(*text);
         }
     }
-    let old = parse(old.expect("kept 17")).unwrap();
-    let current = parse(include_str!("../../schema/worker-wire-v18.schema")).unwrap();
-    let older = goldens(&old);
-    let newer = goldens(&current);
+    let old = values(old.expect("kept 17"));
+    let current = values(crate::SCHEMA);
+    let older = &old.goldens;
+    let newer = &current.goldens;
     let mut bridge = kept::bridge(Capacity {
         versions: u32::try_from(kept::TEXTS.len()).unwrap(),
         patches: u32::try_from(crate::patches::PATCHES.len() * 2).unwrap(),
@@ -779,7 +778,7 @@ fn seventeens_kept_goldens_go_up_to_eighteens_equal_bytes_and_back() {
         nodes: 65_536,
     })
     .unwrap();
-    for declaration in &old.declarations {
+    for declaration in &old.schema.declarations {
         let mut names = List::uncapped();
         let root = match declaration {
             Declaration::Record(record) => {
@@ -796,8 +795,8 @@ fn seventeens_kept_goldens_go_up_to_eighteens_equal_bytes_and_back() {
         for name in names.into_boxed() {
             for size in ["smallest", "full"] {
                 let name = format!("{name}_{size}");
-                let before = fixture_golden(&older, &name);
-                let after = fixture_golden(&newer, &name);
+                let before = fixture_golden(older, &name);
+                let after = fixture_golden(newer, &name);
                 let up = bridge.translate(17, 18, root.as_bytes(), before.clone()).unwrap();
                 assert_eq!(up, after, "{name}.bin");
                 let down = bridge.translate(18, 17, root.as_bytes(), up).unwrap();

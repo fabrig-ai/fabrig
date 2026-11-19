@@ -206,7 +206,9 @@ impl Runtime {
                 setup::Mode::Fake(fake) => skein_lib::len_u64(fake.repositories.len()),
                 setup::Mode::Owned(_) | setup::Mode::Managed { .. } => 0,
             },
-            pending: true,
+            // A newly asked owned group is prepared only at the box's started.
+            // Initial restores and fake groups still read at their own start.
+            pending: !restored || record.mode != domain::Mode::Owned,
             restored,
             read_again: if !restored
                 && record.mode == domain::Mode::Owned

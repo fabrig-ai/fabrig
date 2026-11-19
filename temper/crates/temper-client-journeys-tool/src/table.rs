@@ -129,6 +129,37 @@ pub(crate) const AGAIN: Command = Command {
     ..REPRINT
 };
 
+const PAGE_INPUTS: Settings = Settings { tool: "temper-client-journeys pages", ..PREPARED };
+const PAGE_BOUND: Settings = Settings {
+    tool: "temper-client-journeys pages",
+    about: "The walks' bound from the command's start; the reprint is not bounded.",
+    table: &[Setting {
+        name: "within",
+        value: "DURATION",
+        about: "Digits then s, m or h (90m).",
+        fallback: Fallback::Text(""),
+        set: Set::Internal,
+        twin: None,
+        notes: "A cut walk, or one not started before the bound passes, stops naming the bound.",
+    }],
+};
+/// The journeys' writer (temper/docs/design/client/journey-writer.md, 3).
+pub(crate) const PAGES: Command = Command {
+    reach: Reach::Words(&["pages"]),
+    forms: &["[--prepared DIR] [--within DURATION]", "--check"],
+    settings: &[&PAGE_INPUTS, &PAGE_BOUND],
+    switches: &[Switch {
+        name: "check",
+        set: Set::Internal,
+        line: "Name each journey fresh or stale; write nothing and start no child.",
+        notes: "Takes no other argument. Exit 0: every journey fresh; 1: a stale journey; 2: usage; 3: a root unreadable.",
+    }],
+    line: "Walk each stale journey again, then reprint both clients and remove pages with no recording.",
+    variables: AGAIN.variables,
+    notes: "Current journeys start nothing and change no byte. Inputs are built once when needed, unless --prepared supplies them; their build counts against --within. A stopped walk keeps its own scratch and leaves its journey's files as they were; the others still print. Stdout has one line a journey, the browser's then the TUI's, each in name order: fresh NAME, walked again NAME, or stopped NAME: WHY; scratch kept at PATH where a stopped walk left one. Every other word goes to stderr. Exit 0: every journey printed; 1: a journey left unprinted; 2: usage; 3: a root unreadable or unwritable.",
+    ..REPRINT
+};
+
 const SESSION: Settings = Settings {
     tool: "temper-client-journeys drive",
     about: "The given build and private scratch directory; nothing is built.",
@@ -286,7 +317,7 @@ pub const TABLE: Table = Table {
     line: "recorded walks, replayed through the shipped hosts and printed.",
     version: "",
     commit: "",
-    commands: &[REPRINT, ADD, NORMALISE, AGAIN, DRIVE, RECIPE_WALK, RECIPE_HASH, RECIPE_LIST],
+    commands: &[REPRINT, ADD, NORMALISE, AGAIN, PAGES, DRIVE, RECIPE_WALK, RECIPE_HASH, RECIPE_LIST],
     settings: &[],
     variables: &[&CHROMIUM, &BUNDLE, &RECORD, &FIXED_START, &PATH, &TARGET],
     more: "temper-client-journeys COMMAND --help prints a command; read temper/docs/design/client/web/journeys.md, section 5.1.",

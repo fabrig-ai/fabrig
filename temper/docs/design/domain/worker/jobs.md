@@ -166,8 +166,10 @@ A merge job prepares whatever the count of the files in conflict. Past
 the checkout's `conflicts`, every file stays marked in the tree and
 unmerged in the index, and the checkout names the first `conflicts` of
 them (`checkouts.md`; `../../protocol/git.md`, 4.6). The command reads the
-index, never that list, and stages each file it settles, so its delivery
-lists only the files it left (2026-11-09).
+index, never that list, and stages each file it settles, in the run's own
+git directory (`checkouts.md`, *Two git directories*); its delivery scans
+every file the merge left in conflict, in pages past `conflicts`, and
+refuses one still marked (`../../protocol/git.md`, 4.7) (2026-11-09).
 
 A job's failure is a line on the side that met it, and on the engine's
 too (2026-11-09):

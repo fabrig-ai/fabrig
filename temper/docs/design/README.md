@@ -170,7 +170,8 @@ forge, temper adds:
 
 - **`domain/`:** temper's domain layer on jig's: its root, the forge
   connector, landings by turn (`landing.md`), what follows a landing
-  (`after-landing.md`) and findings (`findings.md`), the worker, and
+  (`after-landing.md`) and findings (`findings.md`, its reds after
+  landing `red-findings.md`), the worker, and
   what temper fills in of smith's agent; and `testing/README.md`, temper's tiers, its fakes, its scenarios and its layout,
   on skein's testing strategy and jig's worlds. Its `README.md` gives the
   reading order, the structure, the names and the decisions.
@@ -203,6 +204,10 @@ forge, temper adds:
   journeys hold for what varies between walks,
   `client/journey-clock.md` the fixed start and clock `again` walks
   them on,
+  `client/journey-writer.md` the one writer of main's journey files,
+  run after each landing,
+  `client/journey-walks.md` a journey's walk, printed in one process
+  with no box, browser or recording,
   `client/web/look-requests.md` the look requests' round trip,
   `client/box-binary.md` how `temper box` finds or downloads
   `temper-box`, `client/view-crates.md` the view's crates and how it
@@ -221,7 +226,8 @@ forge, temper adds:
   to the client in `client/` itself, the browser's in `client/web/`, the
   TUI's in `client/tui/`, and `temper ctl`'s in `client/ctl/`.
   - `client/tui/pages/README.md`: the TUI's state, shared words, foot and commands.
-  - `client/tui/pages/sign-in.md`: signing in and renewing from the engine's link.
+  - `client/tui/pages/sign-in.md`: signing in and renewing from the engine's link, and at a deployment by name.
+  - `client/tui/pages/refused.md`: the screen for a build the engine refuses.
   - `client/tui/pages/launchpad.md`: the launchpad and its needs walk.
   - `client/tui/pages/chat.md`: a chat's conversation and question.
   - `client/tui/pages/design-session.md`: the draft pane, reply choices and starting a goal.

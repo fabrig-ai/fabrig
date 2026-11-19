@@ -5,15 +5,18 @@ pub(super) fn saves() -> (Box<[u8]>, Box<[u8]>) {
     let mut world = TuiWorld::sized(b"127.0.0.1:9", skein_ui_screen::Size { rows: 24, columns: 80 });
     let first = world.save();
     world.mark();
-    let exchange = world.exchange(false);
+    let exchange = TuiWorld::saved_exchange(&first, false);
     world.report(Report::Heard(jig_client::Event::Reply { exchange, message: tui_approval_reply() }));
     world.report(Report::Opened { opened: true });
     (first, world.save())
 }
 fn approve(m: &mut Machine, source: &str) -> Vec<Action> {
+    approve_with_save(m, source, saves().1)
+}
+fn approve_with_save(m: &mut Machine, source: &str, save: Box<[u8]>) -> Vec<Action> {
     assert!(matches!(line(m, source).as_slice(), [Action::StartTui { .. }]));
     step(m, Event::TuiReady);
-    step(m, Event::TuiSaved(saves().1));
+    step(m, Event::TuiSaved(save));
     step(m, Event::BrowserAddress(b"http://127.0.0.1:9/projects/3?tab=home".as_slice().into()));
     step(m, Event::FaceDone(Ok(())));
     step(m, Event::Found(Some(NodeId(5))));
@@ -21,11 +24,30 @@ fn approve(m: &mut Machine, source: &str) -> Vec<Action> {
     step(m, Event::FaceDone(Ok(())))
 }
 fn running() -> Machine {
+    running_with_save(saves().1)
+}
+fn running_with_save(save: Box<[u8]>) -> Machine {
     let mut m = ready();
-    approve(&mut m, "tui key enter");
+    approve_with_save(&mut m, "tui key enter", save);
     step(&mut m, Event::TuiWritten);
     m
 }
+#[test]
+fn journey_lines_fail_unkept_without_starting_a_tui() {
+    for mut m in [ready(), running(), ctl_ready()] {
+        let was_running = m.tui_running;
+        for source in ["tui mark", "tui approve"] {
+            let number = m.number + 1;
+            let actions = line(&mut m, source);
+            assert!(matches!(actions.as_slice(), [Action::Answer(_)]), "{source}: {actions:?}");
+            assert_eq!(answer(&actions).print(), format!("failed: line {number}: {source} is a journey's line\n"));
+            assert_eq!(m.tui_running, was_running);
+            assert!(m.current.is_none());
+            assert_eq!(answer(&line(&mut m, "")).print(), "ok\n");
+        }
+    }
+}
+
 #[test]
 fn first_tui_line_starts_confined_and_approves_before_acting() {
     let mut m = ready();
@@ -103,21 +125,22 @@ fn keys_use_walk_bytes_and_look_replays_rows() {
 }
 #[test]
 fn see_polls_native_final_frame_until_thirty_seconds() {
-    let mut m = running();
+    let (first, final_frame) = saves();
+    let mut m = running_with_save(final_frame.clone());
     line(&mut m, r#"tui see "then press Approve.""#);
-    assert!(step(&mut m, Event::TuiSaved(saves().0)).is_empty());
+    assert!(step(&mut m, Event::TuiSaved(first)).is_empty());
     assert!(matches!(m.step(Event::Deadline, Time::from_nanos(50_000_000)).as_slice(), [Action::SaveTui]));
-    assert_eq!(answer(&step(&mut m, Event::TuiSaved(saves().1))).print(), "ok\n");
+    assert_eq!(answer(&step(&mut m, Event::TuiSaved(final_frame.clone()))).print(), "ok\n");
     line(&mut m, r#"tui see "Missing""#);
-    step(&mut m, Event::TuiSaved(saves().1));
+    step(&mut m, Event::TuiSaved(final_frame.clone()));
     assert!(!m.step(Event::Deadline, Time::from_nanos(29_999_999_999)).iter().any(|a| matches!(a, Action::Answer(_))));
-    m.step(Event::TuiSaved(saves().1), Time::from_nanos(29_999_999_999));
+    m.step(Event::TuiSaved(final_frame.clone()), Time::from_nanos(29_999_999_999));
     let actions = m.step(Event::Deadline, Time::from_nanos(30_000_000_000));
     let why = answer(&actions).failed.as_deref().expect("30 s expired");
     assert!(why.contains("Missing") && why.contains("then press Approve.") && why.contains("line 3"), "{why}");
     assert!(m.ready());
     line(&mut m, r#"tui see "not the native frame""#);
-    let mut records = journey::lines(&saves().1).expect("save");
+    let mut records = journey::lines(&final_frame).expect("save");
     let deadline = records.iter_mut().rev().find(|r| matches!(r, journey::Line::Deadline(_))).expect("deadline");
     *deadline = journey::Line::Deadline(Some(Time::from_nanos(u64::MAX)));
     let mut bad = vec![];

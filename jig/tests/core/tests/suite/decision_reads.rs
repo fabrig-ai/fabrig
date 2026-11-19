@@ -166,35 +166,53 @@ pub(crate) enum Restart {
 
 pub(crate) fn a_decision_across_a_restart(proposal: bool, restart: Restart) {
     let (mut world, holder, child) = entry_world(proposal);
-    let entry = *proof(&world, holder.0).outstanding.first().expect("entry really offered");
-    if restart == Restart::BeforeDecision {
-        reconnect(&mut world, DECISION_SEED);
+    decision_restart_checks(&mut world, holder, child, proposal, restart);
+}
+
+pub(crate) fn decision_restart_cases(proposal: bool, restarts: &[Restart]) {
+    let (mut world, holder, child) = entry_world(proposal);
+    let mut passed = 0;
+    for &restart in restarts {
+        world
+            .case(&format!("proposal={proposal} restart={restart:?}"), |world| {
+                decision_restart_checks(world, holder, child, proposal, restart);
+            })
+            .expect("decision restart passed");
+        passed += 1;
     }
-    let next = say(&mut world, holder.0, 71);
-    decide(&mut world, holder, child, entry, proposal);
-    assert_eq!(proof(&world, holder.0).outstanding.as_ref(), [entry], "decision retains offer");
+    assert_eq!(passed, restarts.len(), "every reference restart passed");
+}
+
+fn decision_restart_checks(world: &mut World, holder: (u64, u64), child: u64, proposal: bool, restart: Restart) {
+    let entry = *proof(world, holder.0).outstanding.first().expect("entry really offered");
+    if restart == Restart::BeforeDecision {
+        reconnect(world, DECISION_SEED);
+    }
+    let next = say(world, holder.0, 71);
+    decide(world, holder, child, entry, proposal);
+    assert_eq!(proof(world, holder.0).outstanding.as_ref(), [entry], "decision retains offer");
     if restart == Restart::AfterDecision {
-        reconnect(&mut world, DECISION_SEED);
+        reconnect(world, DECISION_SEED);
     }
     assert!(next > entry);
     assert!(!world.inbound.iter().any(|word| word.number == next), "decision frees no room");
-    turn(&mut world, holder, 1, entry);
-    assert_eq!(live_row(&world, holder.0).turn, 1);
-    assert_eq!(live_row(&world, holder.0).run_spent, 1);
-    assert_eq!(proof(&world, holder.0).outstanding.as_ref(), [next], "proposal={proposal} restart={restart:?}");
+    turn(world, holder, 1, entry);
+    assert_eq!(live_row(world, holder.0).turn, 1);
+    assert_eq!(live_row(world, holder.0).run_spent, 1);
+    assert_eq!(proof(world, holder.0).outstanding.as_ref(), [next], "proposal={proposal} restart={restart:?}");
     if restart == Restart::AfterTurn {
-        reconnect(&mut world, DECISION_SEED);
+        reconnect(world, DECISION_SEED);
     }
-    assert_eq!(proof(&world, holder.0).attempt, holder.1);
-    assert_eq!(proof(&world, holder.0).outstanding.as_ref(), [next], "proposal={proposal} restart={restart:?}");
+    assert_eq!(proof(world, holder.0).attempt, holder.1);
+    assert_eq!(proof(world, holder.0).outstanding.as_ref(), [next], "proposal={proposal} restart={restart:?}");
     let rows = world.store.rows.clone();
     let commits = world.store.applied;
-    turn(&mut world, holder, 1, entry); // lost acknowledgement: same exact payload
+    turn(world, holder, 1, entry); // lost acknowledgement: same exact payload
     assert_eq!(world.store.rows, rows);
     assert_eq!(world.store.applied, commits);
-    turn(&mut world, holder, 2, entry); // unchanged committed read is normalized
-    assert_eq!(live_row(&world, holder.0).turn, 2);
-    assert_eq!(live_row(&world, holder.0).run_spent, 1);
+    turn(world, holder, 2, entry); // unchanged committed read is normalized
+    assert_eq!(live_row(world, holder.0).turn, 2);
+    assert_eq!(live_row(world, holder.0).run_spent, 1);
     world.send(root::Event::Answer {
         channel: Token::new(7),
         task: holder.0,
@@ -211,9 +229,9 @@ pub(crate) fn a_decision_across_a_restart(proposal: bool, restart: Restart) {
         "answer uses a committed read: {:?}",
         world.trace
     );
-    assert!(proof(&world, holder.0).attempt > holder.1, "unread next message wakes a new attempt");
+    assert!(proof(world, holder.0).attempt > holder.1, "unread next message wakes a new attempt");
     assert_eq!(
-        proof(&world, holder.0).outstanding.as_ref(),
+        proof(world, holder.0).outstanding.as_ref(),
         [next],
         "new attempt keeps only its own assignment's offers"
     );

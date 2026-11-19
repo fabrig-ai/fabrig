@@ -98,7 +98,8 @@ fn run(seed: u64) -> (usize, ToDomain, Vec<String>) {
             let done = world.request(FromDomain::Check {
                 owner,
                 program: run::Place { root, path: Box::from(program) },
-                deadline,
+                bound: deadline.saturating_since(Time::ZERO),
+                cap: deadline,
                 tail: 8,
             });
             let exit = if mode == 4 { run::Exit::Code { code: 1 } } else { run::Exit::TimedOut };
@@ -157,7 +158,8 @@ fn configured_environment_spawns_replay_and_searches_keep_none() {
                     1 => FromDomain::Check {
                         owner: Token::new(2),
                         program: run::Place { root, path: b"check-ok".as_slice().into() },
-                        deadline: world.now().saturating_add(skein_lib::Duration::from_secs(1)),
+                        bound: skein_lib::Duration::from_secs(1),
+                        cap: world.now().saturating_add(skein_lib::Duration::from_secs(1)),
                         tail: 8,
                     },
                     2 => FromDomain::Op {

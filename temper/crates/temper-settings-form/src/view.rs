@@ -2,6 +2,10 @@
 use alloc::boxed::Box;
 use skein_lib::{Duration, List, Wall};
 pub const AUTHORITY_MODELS: u32 = 64;
+/// Mirrors jig-domain-people's settings numbers without a client-domain dependency.
+pub const NUMBERS: u32 = 64;
+/// The stock's last number; higher numbers through `NUMBERS` are a deployment's own.
+pub const STOCK_NUMBERS: u32 = 32;
 pub const AUTHORITY_MODEL_BYTES: u32 = 4_096;
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum AuthorityModels {
@@ -392,6 +396,7 @@ pub enum Setting {
     Template(SettingNumber),
     Policy(SettingNumber),
     Rules,
+    Limits,
     /// A project's own policy (jig/docs/design/domain/engine/settings.md, 2).
     ProjectPolicy {
         project: u32,
@@ -416,6 +421,7 @@ pub enum SettingEdit {
 pub enum SettingFault {
     Linked,
     Accounts,
+    Range,
     Judged,
     Shape,
     Count,
@@ -486,6 +492,13 @@ pub struct SettingPolicy {
 pub struct SettingSet {
     pub value: SettingValue,
 }
+/// Structural carrier for limits; forms do not edit this kind.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct Override {
+    pub name: Box<[u8]>,
+    pub value: u64,
+    pub reason: Box<[u8]>,
+}
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum SettingValue {
     Overlay(Box<Overlay>),
@@ -497,6 +510,7 @@ pub enum SettingValue {
     Template(Box<Template>),
     Policy(Box<SettingPolicy>),
     Rules(Box<Rules>),
+    Limits(Box<[Override]>),
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct SettingsDocument {

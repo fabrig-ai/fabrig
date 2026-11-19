@@ -218,7 +218,7 @@ fn capacity_help_names_members_and_dependencies() {
         let text = find(name).expect("capacity help page").text;
         let text = text.split_whitespace().collect::<Vec<_>>().join(" ");
         for words in [
-            "engine.limits.overrides",
+            "`limits` setting",
             "tasks.tasks",
             "tasks.project_tasks",
             "tasks.tree_tasks",

@@ -113,6 +113,7 @@ fn configuration(limits: &core::Limits) -> core::Config {
         },
         kinds: Box::default(),
         defaults: core::settings::Defaults {
+            limits: Box::default(),
             providers: Box::new([provider_setting(1, b"Fake", 1)]),
             workers: Box::new([]),
             models: Box::default(),

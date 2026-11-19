@@ -253,7 +253,7 @@ fn initial_files(initial: Initial) -> Vec<skein_fake_machine::Item> {
             items
         }
         Initial::Current => vec![
-            Item::file(b"format", &smith_local_protocol::format::file().bytes),
+            Item::file(b"format", &smith_local_protocol::format::file(&smith_local_protocol::format::layouts()).bytes),
             Item::file(b"state", &smith_local_protocol::save_state(state).bytes),
             Item::file(&delivery().name, &delivery().bytes),
         ],
@@ -304,9 +304,9 @@ fn configured_mode(seed: u64, fresh: bool, initial: Initial, config: skein_sim::
     files.close(root);
     // Peak across power-loss recovery, fresh resets, first marker creation, older-layout
     // refusals, generated whole-turn loading and the extra-seed 713 store sweep.
-    // Measured 49_973 B on 2026-11-18, with the marker's fingerprints parsed from the embedded
-    // schema texts; a quarter of headroom, rounded up.
-    const STORE_SCENARIOS_CEILING: u64 = 63_000;
+    // Measured 48_507 B on 2026-11-19, including first-use fingerprint parsing;
+    // rounded up to the next 1_000 B.
+    const STORE_SCENARIOS_CEILING: u64 = 49_000;
     let mut world =
         World::new(seed, config, Judge::default(), Memory::Within(STORE_SCENARIOS_CEILING)).with_machine(Disk(files));
     world.spawn_restartable(
@@ -324,15 +324,22 @@ fn configured_mode(seed: u64, fresh: bool, initial: Initial, config: skein_sim::
     );
     world
 }
+
+fn run(world: World<Owner, Judge, Disk>) -> skein_world::Outcome<Owner, Disk> {
+    let outcome = world.run();
+    println!("store seed {} peaks: {:?}", outcome.seed, outcome.peaks());
+    outcome
+}
+
 #[test]
 fn a_power_loss_at_any_store_operation_resumes_without_reusing_an_activation() {
-    let baseline = world(70).run();
+    let baseline = run(world(70));
     let operations = baseline.procs[0].submitted;
     assert!(operations >= 12);
     for before in 0..operations {
         let mut world = world(70 + u64::from(before));
         world.cut(0, before, Cut::PowerLoss);
-        let outcome = world.run();
+        let outcome = run(world);
         assert!(outcome.procs[0].reserved.is_some(), "cut {before}");
         assert_eq!(outcome.machine.0.open_handles(), 0);
     }
@@ -340,11 +347,11 @@ fn a_power_loss_at_any_store_operation_resumes_without_reusing_an_activation() {
 
 #[test]
 fn a_fresh_journal_resumes_its_reset_after_a_power_loss() {
-    let baseline = configured(80, true).run();
+    let baseline = run(configured(80, true));
     for before in 0..baseline.procs[0].submitted {
         let mut world = configured(80 + u64::from(before), true);
         world.cut(0, before, Cut::PowerLoss);
-        let mut outcome = world.run();
+        let mut outcome = run(world);
         let root = outcome.machine.0.reopen_root(0);
         let names = outcome.machine.0.list(root, 6, 4096).unwrap();
         assert_eq!(
@@ -357,12 +364,12 @@ fn a_fresh_journal_resumes_its_reset_after_a_power_loss() {
 }
 
 fn sweep(seed_base: u64, fresh: bool, initial: Initial) -> u32 {
-    let baseline = configured_mode(seed_base, fresh, initial, skein_sim::Config::calm()).run();
+    let baseline = run(configured_mode(seed_base, fresh, initial, skein_sim::Config::calm()));
     for before in 0..baseline.procs[0].submitted {
         let seed = seed_base + u64::from(before);
         let mut world = configured_mode(seed, fresh, initial, skein_sim::Config::calm());
         world.cut(0, before, Cut::PowerLoss);
-        let outcome = world.run();
+        let outcome = run(world);
         assert!(outcome.procs[0].reserved.is_some(), "{initial:?}, seed {seed}, cut {before}");
         assert_eq!(outcome.machine.0.open_handles(), 0);
     }
@@ -397,12 +404,12 @@ fn older_refusal_is_immutable_under_power_loss_and_injected_read_errors() {
         for io_error in [0, 300, 1000] {
             let mut config = skein_sim::Config::calm();
             config.faults.io_error = io_error;
-            let baseline = configured_mode(8000, false, initial, config).run();
+            let baseline = run(configured_mode(8000, false, initial, config));
             for before in 0..baseline.procs[0].submitted {
                 let seed = 8000 + u64::from(before) + u64::from(io_error);
                 let mut world = configured_mode(seed, false, initial, config);
                 world.cut(0, before, Cut::PowerLoss);
-                let mut outcome = world.run();
+                let mut outcome = run(world);
                 assert!(outcome.procs[0].refusal.is_some(), "{initial:?} seed {seed}");
                 assert_eq!(expected, disk_snapshot(&mut outcome.machine.0), "{initial:?} seed {seed}");
                 assert_eq!(outcome.machine.0.open_handles(), 0);

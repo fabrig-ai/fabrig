@@ -98,6 +98,18 @@ impl Engine {
         );
     }
 
+    /// Hold workspace completions so a test can commit a wake before the next claim.
+    pub fn hold_workspaces(&mut self) {
+        self.domain.script_workspaces();
+    }
+
+    /// Deliver held workspace completions through the root's ordinary entrance.
+    pub fn release_workspaces(&mut self) {
+        while let Some(event) = self.domain.take_workspace() {
+            self.parties.push(event);
+        }
+    }
+
     /// A test puts an application credential's later generation here before announcing it.
     pub fn put_application(&mut self, number: u32, generation: u64, value: skein_lib::Secret) {
         self.values.put_application(number, generation, value);

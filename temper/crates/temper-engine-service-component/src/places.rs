@@ -20,6 +20,8 @@ struct Choosing {
 pub(crate) struct Places {
     directories: jig_protocol_config::Directories,
     provider: bool,
+    owned_forgejo: Option<Box<[u8]>>,
+    owned_runner: Option<Box<[u8]>>,
     blocked: List<u16>,
     choosing: Map<Token, Choosing>,
     chosen: Map<u16, SetupFile>,
@@ -80,6 +82,8 @@ impl Places {
         Self {
             directories: settings.directories.clone(),
             provider: settings.jig.clients.provider.is_some(),
+            owned_forgejo: settings.owned_forgejo.clone(),
+            owned_runner: settings.owned_runner.clone(),
             blocked,
             choosing: Map::with_capacity(settings.limits.forge.applications),
             chosen: Map::with_capacity(capacity),
@@ -115,7 +119,20 @@ impl crate::engine::Engine {
         let place = match port {
             Some(port) => {
                 match setup_file::chosen(setup_kind(choosing.kind), port, &choosing.login, p.provider, &p.directories) {
-                    Ok(setup) => {
+                    Ok(mut setup) => {
+                        match &mut setup {
+                            SetupFile::Owned(owned) => {
+                                if let Some(forgejo) = &p.owned_forgejo {
+                                    owned.forgejo.clone_from(forgejo);
+                                    owned.fetch.forgejo = false;
+                                }
+                                if let Some(binary) = &p.owned_runner {
+                                    owned.runner.as_mut().expect("stock runner").binary.clone_from(binary);
+                                    owned.fetch.runner = false;
+                                }
+                            }
+                            SetupFile::Fake(_) => {}
+                        }
                         let remote = match &setup {
                             SetupFile::Owned(o) => o.remote.clone(),
                             SetupFile::Fake(f) => f.remote.clone(),

@@ -126,6 +126,7 @@ impl Agent {
         self.requests.push(Request::Spawn {
             owner: CHILD,
             spawn: Spawn {
+                reach: None,
                 program: b"claude".as_slice().into(),
                 args: arguments.iter().map(|argument| argument.as_bytes().into()).collect(),
                 env: Box::new([b"HOME=home".as_slice().into(), b"CLAUDE_CONFIG_DIR=config".as_slice().into()]),

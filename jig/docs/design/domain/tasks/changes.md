@@ -6,10 +6,15 @@
   escalation (`lifecycle.md`, 6; `proposals.md`). A party's request, an agent's tool and a
   procedure's step reach the same rules (../people/acts.md, 1; ../engine/executors.md, 3;
   ../connectors.md, 6.3). The deployment has a cancel within its project
-  (`messages.md`, section 1) and one release: a procedure task of its project from a hold
-  of its own, whose cause its connector found gone (../connectors.md, 6.3),
+  (`messages.md`, section 1) and two releases, each of a task of its project,
   never where a placed hold or a party's stop also holds it, and recorded as
-  the deployment's. No party, tool or step asks for that release.
+  the deployment's: a procedure task from a hold of its own, whose cause its
+  connector found gone (../connectors.md, 6.3); and a task of any executor
+  from a resource hold on a connector's account (`Hold::ResourceUnavailable`
+  with `HoldSource::Account`), which the application asks once that
+  connector's resource has room again. The application checks that the hold
+  is still the one it saw (the task's hold revision) before asking. No party,
+  tool or step asks for either release.
 - **What an amendment may change:** the spec and its parameters; the wake
   policy; the dependencies, added or removed (below); the authority,
   narrowed freely and widened only within

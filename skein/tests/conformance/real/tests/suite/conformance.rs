@@ -36,6 +36,12 @@ mod ring {
     mod files;
     #[path = "processes.rs"]
     mod processes;
+    #[cfg(target_os = "linux")]
+    #[path = "reach.rs"]
+    mod reach;
+    #[cfg(target_os = "macos")]
+    #[path = "reach_macos.rs"]
+    mod reach;
     #[path = "sockets.rs"]
     mod sockets;
 }
@@ -47,6 +53,12 @@ mod readiness {
     mod files;
     #[path = "processes.rs"]
     mod processes;
+    #[cfg(target_os = "linux")]
+    #[path = "reach.rs"]
+    mod reach;
+    #[cfg(target_os = "macos")]
+    #[path = "reach_macos.rs"]
+    mod reach;
     #[path = "sockets.rs"]
     mod sockets;
 }

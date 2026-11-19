@@ -216,6 +216,13 @@ fn every_new_record_translates_in_both_directions() {
         assert_eq!(e::wire_setting_fault(&client), Ok(wire));
     }
     {
+        let bytes = client_values::value("enum_setting_fault_range_smallest.bin");
+        let wire = w::SettingFault::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
+        let client = t::restore_setting_fault(&wire).unwrap();
+        assert_eq!(client, c::SettingFault::Range);
+        assert_eq!(e::wire_setting_fault(&client), Ok(wire));
+    }
+    {
         let bytes = client_values::value("record_malformed_settings_smallest.bin");
         let wire = w::MalformedSettings::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
         let client = t::restore_malformed_settings(&wire).unwrap();
@@ -743,6 +750,28 @@ fn overlays_round_trip_whole_and_obey_each_list_and_text_bound() {
     let wire = e::wire_setting_document(&document, limits.wire()).unwrap();
     assert_eq!(t::restore_setting_document(&wire, &limits), Ok(document));
     assert_eq!(t::restore_setting_follows(&w::SettingFollows::Overlay), Ok(c::SettingFollows::Overlay));
+}
+
+#[test]
+fn limits_kind_and_each_override_cross_the_client_wire_without_loss() {
+    let limits = fixtures::limits();
+    let value = c::SettingValue::Limits(Box::new([
+        c::Override { name: b"tasks.depth".as_slice().into(), value: 0, reason: b"zero is a figure".as_slice().into() },
+        c::Override { name: b"tasks.tasks".as_slice().into(), value: u64::MAX, reason: "理由".as_bytes().into() },
+    ]));
+    let change = c::ChangeSettings {
+        against: 7,
+        running: c::Running::Stays,
+        items: List::from_boxed(Box::new([c::SettingItem {
+            setting: c::Setting::Limits,
+            edit: c::SettingEdit::Set(c::SettingSet { value }),
+        }])),
+    };
+    let wire = t::wire_change_settings(&change, limits.wire()).unwrap();
+    let mut bytes = Writer::new(usize::try_from(wire.measure()).unwrap());
+    wire.encode(&mut bytes).unwrap();
+    let wire = w::ChangeSettings::decode(limits.wire(), &mut Reader::new(&bytes.finish())).unwrap();
+    assert_eq!(t::restore_change_settings(&wire, &limits), Ok(change));
 }
 
 #[test]

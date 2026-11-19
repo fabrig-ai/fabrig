@@ -74,7 +74,7 @@ pub fn restart() {
         .expect("uninstalled fixture");
     let key = description.dir("llm").join("llm.key");
     let observations = description.dir("forge").join("observations");
-    let engine = description.dir("engine").join("config/temper.json");
+    let engine = description.dir("engine").join("config").join(temper_config_shell::FILE);
     std::os::unix::fs::symlink(skein_scratch::paths::binary("temper-box"), description.dir("w1").join("git"))
         .expect("worker's fake git");
     let (mut members, hosts) = description.members();
@@ -173,14 +173,10 @@ impl Judge {
                 return Err("Must: no seeded forge records".to_owned());
             }
             self.members.prepare("engine");
-            let mut document: Value =
-                serde_json::from_slice(&fs::read(&self.engine).map_err(|_| "engine configuration".to_owned())?)
-                    .map_err(|_| "engine JSON".to_owned())?;
-            // Restart retains the worker's files. Reserve its engine endpoint,
-            // as the clients' endpoint is reserved for the App's setup URL.
-            document["engine"]["hosts"]["listener"][0]["socket"] = self.workers.to_string().into();
-            fs::write(&self.engine, serde_json::to_vec(&document).map_err(|_| "engine JSON".to_owned())?)
-                .map_err(|_| "fixed workers listener".to_owned())?;
+            let mut file = super::read_file(&self.engine, temper_config_shell::Shape::EngineAlone);
+            // Keep the endpoint across the engine's restart.
+            file.workers = Some(self.workers);
+            super::write_file(&self.engine, &file, temper_config_shell::Shape::EngineAlone);
             self.members.up(&["w1"]);
             self.stage = Stage::Worker;
             self.members.act(now, hosts);
@@ -257,8 +253,7 @@ impl Judge {
     }
     fn begin(&mut self, host: &mut cluster::Root) -> Result<(), String> {
         use ctl::Call;
-        let engine: Value = serde_json::from_slice(&fs::read(&self.engine).map_err(|_| "engine document".to_owned())?)
-            .map_err(|_| "engine JSON".to_owned())?;
+        let engine: Value = super::start_document(&self.engine, temper_config_shell::Shape::EngineAlone);
         if engine["workers"] != serde_json::json!([]) {
             return Err("engine alone".to_owned());
         }

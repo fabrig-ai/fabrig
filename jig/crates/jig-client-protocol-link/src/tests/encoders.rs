@@ -259,6 +259,7 @@ pub fn wire_setting_fault(value: &c::SettingFault) -> Result<w::SettingFault, w:
         c::SettingFault::Judged => w::SettingFault::Judged,
         c::SettingFault::Linked => w::SettingFault::Linked,
         c::SettingFault::Accounts => w::SettingFault::Accounts,
+        c::SettingFault::Range => w::SettingFault::Range,
     })
 }
 pub fn wire_setting_follows(value: &c::SettingFollows) -> Result<w::SettingFollows, w::Problem> {

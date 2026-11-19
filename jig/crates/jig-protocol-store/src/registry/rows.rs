@@ -2,7 +2,8 @@
 use super::{Layouts, Range, Row, RowKey, Text, Type, texts};
 use crate::{KeptFamily, OpenRefusal, Store, ValueType, keys, registry_v1 as wire};
 use alloc::boxed::Box;
-use skein_lib::{List, Map, Reader, Writer};
+use skein_codec::Record as _;
+use skein_lib::{List, Map, Reader};
 
 /// Loading precedes the same registration refusal in a start and a rehearsal (layouts.md, 5.1).
 pub(super) fn open(store: &mut Store, layouts: &mut Layouts, empty: bool) -> Result<bool, OpenRefusal> {
@@ -49,7 +50,7 @@ fn load(store: &mut Store, layouts: &mut Layouts) -> Result<(), OpenRefusal> {
                     let value = wire::Text::decode(&wire::CEILINGS, &mut Reader::new(&row.row.value))
                         .ok()
                         .ok_or(OpenRefusal::Failed)?;
-                    let bytes = Box::from(value.text());
+                    let bytes = value.text;
                     layouts
                         .texts
                         .insert(digest, Text { bytes, schema: None, stored: true, current: false })
@@ -86,20 +87,18 @@ fn made(
     let text = binary.text(family.name)?;
     let held = binary.held(layouts, text)?;
     let layout = binary.layout(layouts, text, ty.root.as_bytes(), super::variant(ty.variant), &held)?;
-    wire::Layout::new(
-        &wire::CEILINGS,
-        wire::LayoutParts {
-            root: Box::from(ty.root.as_bytes()),
-            variant: match super::variant(ty.variant) {
-                Some(v) => Some(Box::from(v)),
-                None => None,
-            },
-            layout,
-            text,
-            held,
+    let value = wire::Layout {
+        root: Box::from(ty.root.as_bytes()),
+        variant: match super::variant(ty.variant) {
+            Some(v) => Some(Box::from(v)),
+            None => None,
         },
-    )
-    .ok()
+        layout,
+        text,
+        held,
+    };
+    value.measure(&wire::CEILINGS).ok()?;
+    Some(value)
 }
 pub(super) fn register(store: &Store, layouts: &mut Layouts, binary: &mut texts::Binary) -> Result<bool, OpenRefusal> {
     let mut changed = false;
@@ -110,7 +109,7 @@ pub(super) fn register(store: &Store, layouts: &mut Layouts, binary: &mut texts:
                 let value = made(layouts, binary, family, ty).ok_or(refusal.clone())?;
                 let version = layouts
                     .texts
-                    .get(value.text())
+                    .get(&value.text)
                     .ok_or(refusal.clone())?
                     .schema
                     .as_ref()
@@ -118,12 +117,12 @@ pub(super) fn register(store: &Store, layouts: &mut Layouts, binary: &mut texts:
                     .version();
                 let mut found = None;
                 let mut greatest = None;
-                for ((name, number, id), row) in &layouts.rows {
-                    if name.as_ref() == family.name && *number == ty.number {
-                        greatest = Some(greatest.unwrap_or(0_u16).max(*id));
-                        if row.value.layout() == value.layout() {
-                            found = Some(*id);
-                        }
+                let first = (Box::from(family.name), ty.number, u16::MIN);
+                let last = (Box::from(family.name), ty.number, u16::MAX);
+                for ((_, _, id), row) in layouts.rows.range(first..=last) {
+                    greatest = Some(*id);
+                    if row.value.layout == value.layout {
+                        found = Some(*id);
                     }
                 }
                 let id = match found {
@@ -172,26 +171,22 @@ pub(super) fn operations(bound: u32, layouts: &mut Layouts) -> Result<(), OpenRe
             }
             continue;
         }
-        used.insert(*row.value.text(), ()).expect("uncapped digests");
-        for digest in row.value.held() {
+        used.insert(row.value.text, ()).expect("uncapped digests");
+        for digest in &row.value.held {
             used.insert(*digest, ()).expect("uncapped digests");
         }
         if !row.stored {
-            let mut writer = Writer::new(skein_lib::usize_of(row.value.measure()));
-            row.value.encode(&mut writer).ok().ok_or(OpenRefusal::Failed)?;
-            layouts.pending.push(skein_kv::Op::Put { key, value: writer.finish() });
+            let value = row.value.encode(&wire::CEILINGS).ok().ok_or(OpenRefusal::Failed)?;
+            layouts.pending.push(skein_kv::Op::Put { key, value });
         }
     }
     for (digest, text) in &layouts.texts {
         let key = keys::encode_own(&keys::Own::Text(*digest), bound).ok_or(OpenRefusal::Failed)?;
         if used.contains_key(digest) {
             if !text.stored {
-                let value = wire::Text::new(&wire::CEILINGS, wire::TextParts { text: text.bytes.clone() })
-                    .ok()
-                    .ok_or(OpenRefusal::Failed)?;
-                let mut writer = Writer::new(skein_lib::usize_of(value.measure()));
-                value.encode(&mut writer).ok().ok_or(OpenRefusal::Failed)?;
-                layouts.pending.push(skein_kv::Op::Put { key, value: writer.finish() });
+                let value =
+                    wire::Text { text: text.bytes.clone() }.encode(&wire::CEILINGS).ok().ok_or(OpenRefusal::Failed)?;
+                layouts.pending.push(skein_kv::Op::Put { key, value });
             }
         } else if text.stored {
             layouts.pending.push(skein_kv::Op::Erase { key });

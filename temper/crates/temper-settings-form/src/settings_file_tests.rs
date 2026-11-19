@@ -173,6 +173,7 @@ fn temper_kinds_round_trip_from_file_to_shown_json() {
         (br#"{"kind":"project-areas","project":3}"#, br#"{"areas":[{"name":"tests","words":"vsr's C tests","owner":{"role":0}}]}"#, c::Setting::Application { kind: 14, scope: 3, number: 1 }),
         (br#"{"kind":"project-triager","project":3}"#, br#"{"owner":{"charter":14}}"#, c::Setting::Application { kind: 15, scope: 3, number: 1 }),
         (br#"{"kind":"project-landing","project":1}"#, b"{}", c::Setting::Application { kind: 4, scope: 1, number: 1 }),
+        (br#"{"kind":"project-landing","project":1}"#, br#"{"wait":"landed"}"#, c::Setting::Application { kind: 4, scope: 1, number: 1 }),
         (br#"{"kind":"project-landing","project":1}"#, br#"{"by":"turn","batch":4}"#, c::Setting::Application { kind: 4, scope: 1, number: 1 }),
         (br#"{"kind":"project-gates","project":1}"#, br#"{"repositories":[{"forge":1,"repository":7,"gates":[{"name":"gate","workflow":"gate.yml","blocking":true,"report":{"artifact":"report","format":"lines","fuzzy":"fuzzy_"}}],"tiers":[{"name":"slow","workflow":"slow.yml","artifact":"report","format":"junit","branch":"goal"}]}]}"#, c::Setting::Application { kind: 5, scope: 1, number: 1 }),
         (TEMPLATE_GOAL, GOAL, c::Setting::Application { kind: 11, scope: 0, number: 4 }),
@@ -181,6 +182,16 @@ fn temper_kinds_round_trip_from_file_to_shown_json() {
         let item = items.get(0).expect("one item");
         assert_eq!(item.setting, expected);
         let c::SettingEdit::Set(set) = &item.edit else { panic!("set value") };
+        if item.setting == (c::Setting::Application { kind: 4, scope: 1, number: 1 }) {
+            use temper_client_protocol_wire::v1 as w;
+            let c::SettingValue::Application(bytes) = &set.value else { panic!("landing bytes") };
+            let landing = w::ProjectLanding::decode(&w::CEILINGS, &mut skein_lib::Reader::new(bytes)).unwrap();
+            assert_eq!(*landing.wait(), if json == br#"{"wait":"landed"}"# {
+                w::SettingsLandingWait::Landed
+            } else {
+                w::SettingsLandingWait::Cleared
+            });
+        }
         let document = c::ReadValue::Setting(Box::new(c::SettingDocument {
             overlay: None,
             setting: item.setting,
@@ -192,6 +203,15 @@ fn temper_kinds_round_trip_from_file_to_shown_json() {
         assert_eq!(shown(&document), joined(&[br#"{"setting":"#, setting, br#","revision":1,"value":"#, json, b"}"]));
     }
 }
+#[test]
+fn landing_wait_refuses_another_word_at_wait() {
+    let bytes = kind_file(br#"{"kind":"project-landing","project":1}"#, br#"{"wait":"soon"}"#);
+    assert_eq!(
+        file::decode(&bytes, &Limits::standard()).expect_err("unknown wait").as_ref(),
+        b"settings file item 1: wait: cleared or landed required"
+    );
+}
+
 #[test]
 fn welcome_is_an_unnumbered_deployment_setting_with_a_boolean_value_and_reset() {
     use temper_client_protocol_wire::v1 as w;
@@ -1018,6 +1038,35 @@ fn dependencies_round_trip_and_require_a_numeric_project() {
 }
 
 #[test]
+fn neutral_limits_keep_the_wire_value_and_render_one_line_per_override() {
+    let limits = Limits::standard();
+    let value = c::SettingValue::Limits(Box::new([
+        c::Override { name: b"tasks.depth".as_slice().into(), value: 0, reason: b"a reason".as_slice().into() },
+        c::Override { name: b"tasks.tasks".as_slice().into(), value: u64::MAX, reason: "理由".as_bytes().into() },
+    ]));
+    let wire = crate::wire::settings_wire_setting_value(&value, &limits.settings).unwrap();
+    let restored = crate::wire::settings_restore_setting_value(&wire, &limits).unwrap();
+    assert_eq!(restored, value);
+    let mut measured = crate::Text::measure();
+    crate::render::value_inline(&restored, &limits, &mut measured);
+    let mut text = crate::Text::writing_exact(measured);
+    crate::render::value_inline(&restored, &limits, &mut text);
+    assert_eq!(
+        text.finish().as_ref(),
+        "tasks.depth = 0  a reason\ntasks.tasks = 18446744073709551615  理由".as_bytes()
+    );
+    let bounds = JsonLimits { depth: 8, length: 1024 };
+    let mut measured = Encoder::measure(&bounds);
+    crate::render::encode_value(&restored, &mut measured);
+    let mut out = Encoder::write(measured.measured().unwrap(), &bounds);
+    crate::render::encode_value(&restored, &mut out);
+    assert_eq!(
+        out.finish().as_ref(),
+        "[{\"name\":\"tasks.depth\",\"value\":0,\"reason\":\"a reason\"},{\"name\":\"tasks.tasks\",\"value\":18446744073709551615,\"reason\":\"理由\"}]".as_bytes()
+    );
+}
+
+#[test]
 #[expect(clippy::disallowed_methods, reason = "read fixture JSON and rendered error text in the form test")]
 fn agents_form_round_trips_named_maps_and_reports_duplicates() {
     let setting = br#"{"kind":"agents"}"#;
@@ -1050,6 +1099,43 @@ fn agents_form_round_trips_named_maps_and_reports_duplicates() {
             .unwrap()
             .contains("Agent profile and endpoint limits, taken at each worker's next start.")
     );
+}
+
+#[test]
+fn both_limit_kinds_use_a_whole_list_of_named_values_and_reasons() {
+    let limits = Limits::standard();
+    let list = br#"[{"name":"forge.entries","value":16,"reason":"dev's outbox"}]"#;
+    for (kind, setting) in [
+        (br#"{"kind":"limits"}"#.as_slice(), c::Setting::Limits),
+        (br#"{"kind":"temper-limits"}"#, c::Setting::Application { kind: 22, scope: 0, number: 1 }),
+    ] {
+        let bytes = kind_file(kind, list);
+        let items = file::decode(&bytes, &limits).expect("whole override list");
+        let item = items.as_slice().first().unwrap();
+        assert_eq!(item.setting, setting);
+        let c::SettingEdit::Set(set) = &item.edit else { panic!("set list") };
+        assert_eq!(
+            crate::render::limit_values(setting, &set.value).unwrap().as_ref(),
+            &[c::Override {
+                name: b"forge.entries".as_slice().into(),
+                value: 16,
+                reason: b"dev's outbox".as_slice().into(),
+            }]
+        );
+        let shown = shown(&c::ReadValue::Setting(Box::new(c::SettingDocument {
+            setting,
+            revision: 1,
+            value: Some(set.value.clone()),
+            overlay: None,
+            application: None,
+            proposed: None,
+        })));
+        assert!(skein_lib::bytes::find(&shown, list).is_some(), "{shown:?}");
+        assert!(file::decode(&kind_file(kind, b"{}"), &limits).is_err(), "requires list");
+    }
+    for kind in [br#"{"kind":"limits","number":1}"#.as_slice(), br#"{"kind":"temper-limits","project":1}"#] {
+        assert!(file::decode(&kind_file(kind, list), &limits).is_err(), "unnumbered deployment kind");
+    }
 }
 
 #[test]
@@ -1108,7 +1194,7 @@ fn provider_files_proposals_and_reads_keep_the_whole_value_and_number() {
     let read = joined(&[br#"{"setting":"#, SETTING, b"}"]);
     assert_eq!(file::read_setting(&read, &limits).unwrap(), item.setting);
     let page = crate::fields::page(&limits);
-    assert!(skein_lib::bytes::find(&page, b"taken at the engine's next start").is_some());
+    assert!(skein_lib::bytes::find(&page, b"LLM provider/endpoints; next engine start").is_some());
 }
 
 #[test]

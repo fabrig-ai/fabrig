@@ -581,6 +581,7 @@ pub struct CtlOutcome<T> {
     pub visits: Vec<Vec<super::sign_in_browser::Hop>>,
 }
 struct CtlJudge<'a, F, T> {
+    program: PathBuf,
     failed: Option<String>,
     data: PathBuf,
     resuming_playground: Option<[PathBuf; 2]>,
@@ -681,14 +682,14 @@ fn restart_engine(
     now: Time,
     restart_at: &mut Option<Time>,
     expected_exits: &mut Vec<(usize, u8)>,
+    program: &Path,
 ) -> Result<(), String> {
     if calls.restarting_engine() {
         // Let the started caller enter its wait before stopping the engine.
         // This is an action's schedule, not a failure deadline.
         let at = *restart_at.get_or_insert(now.saturating_add(Duration::from_secs(1)));
         if now >= at {
-            let engine = find(&binary.tree_status().live_pids, &skein_scratch::paths::binary("temper-box"), b"serve")
-                .ok_or(String::from("box engine"))?;
+            let engine = find(&binary.tree_status().live_pids, program, b"serve").ok_or(String::from("box engine"))?;
             let status = std::process::Command::new("/usr/bin/kill")
                 .args(["-TERM", &engine.to_string()])
                 .status()
@@ -706,7 +707,7 @@ fn restart_engine(
 }
 impl<F, T> CtlJudge<'_, F, T> {
     fn resume_playground(&mut self, binary: &Binary) -> Result<(), String> {
-        if find(&binary.tree_status().live_pids, &skein_scratch::paths::binary("temper-box"), b"serve").is_some()
+        if find(&binary.tree_status().live_pids, &self.program, b"serve").is_some()
             && let Some([config, client]) = self.resuming_playground.take()
         {
             let parent = super::playground::interrupt_reset(binary, &config, &client);
@@ -798,7 +799,7 @@ impl<F: FnOnce(&Binary) -> T, T> Referee<Process> for CtlJudge<'_, F, T> {
             let [Process::Binary(binary), Process::Calls(calls)] = drivers else {
                 return Err(String::from("box and ctl"));
             };
-            restart_engine(calls, binary, now, &mut self.restart_at, &mut self.expected_exits)?;
+            restart_engine(calls, binary, now, &mut self.restart_at, &mut self.expected_exits, &self.program)?;
             release_llm(calls, peers, &mut self.release_answers)?;
             // A release before the response reaches its hold changes nothing.
             // Keep driving it even when the held peer has no io or timer ready
@@ -1102,10 +1103,11 @@ fn account_environment(probe: bool, cut: Option<&Path>) -> Vec<(std::ffi::OsStri
     environment
 }
 
-fn configure_face(face: Option<&super::forge_land::Face>, flags: &[String]) {
+fn configure_face(face: Option<&super::forge_land::Face>, flags: &[String], directory: &Path) {
     if let Some(super::forge_land::Face::Fake { peer, .. }) = face {
         let config = flags.windows(2).find(|pair| pair[0] == "--config").expect("explicit config directory");
         peer.configure(Path::new(&config[1]));
+        super::provider_setup::commit(directory, flags);
     }
 }
 
@@ -1145,29 +1147,33 @@ fn run_ctl_peers<T>(
         CtlModel::None | CtlModel::ResumingPlayground(_) => (None, None, None, None),
         CtlModel::Account(probe) => (None, None, Some(probe.face), None),
     };
-    configure_face(face.as_ref(), &flags);
+    configure_face(face.as_ref(), &flags, directory);
     let tab = steps.iter().any(|step| matches!(step, super::ctl::Step::Visit));
     assert!(!tab || face.is_none(), "box-owned peers or an independent face");
     let clock = Clock::new();
+    let program = peers.program.unwrap_or_else(|| skein_scratch::paths::binary("temper-box"));
     let mut binary = Binary::start_with_tree(
-        dying_with_test(Command {
-            program: peers.program.unwrap_or_else(|| skein_scratch::paths::binary("temper-box")),
-            arguments: flags.into_iter().map(Into::into).collect(),
-            directory: directory.into(),
-            // Real repository stories, including a fake box's owned Forgejo,
-            // need init to discover system git for their first chat's checkout.
-            environment: {
-                let mut environment = if on_link.is_some() || face.is_some() || fake_backends {
-                    account_environment(account_probe, cut.as_deref())
-                } else {
-                    Vec::new()
-                };
-                if fake_backends {
-                    environment.push(chosen_fake_ports());
-                }
-                environment
+        dying_with_program(
+            Command {
+                program: program.clone(),
+                arguments: flags.into_iter().map(Into::into).collect(),
+                directory: directory.into(),
+                // Real repository stories, including a fake box's owned Forgejo,
+                // need init to discover system git for their first chat's checkout.
+                environment: {
+                    let mut environment = if on_link.is_some() || face.is_some() || fake_backends {
+                        account_environment(account_probe, cut.as_deref())
+                    } else {
+                        Vec::new()
+                    };
+                    if fake_backends {
+                        environment.push(chosen_fake_ports());
+                    }
+                    environment
+                },
             },
-        }),
+            &program,
+        ),
         Mode::Pipes,
         262_144,
         Expectation::Supervise,
@@ -1182,6 +1188,7 @@ fn run_ctl_peers<T>(
     let visits = Cell::new(Vec::new());
     let follow_reply = reply.is_some();
     let mut world = real::World::new(CtlJudge {
+        program,
         failed: None,
         data: data.clone(),
         resuming_playground,
@@ -1246,7 +1253,14 @@ fn run_ctl_peers<T>(
 /// Spawn on the calling test thread, which drives the world until teardown.
 /// Linux's death signal follows that thread's lifetime, even across box's exec.
 #[must_use]
-pub fn dying_with_test(mut command: Command) -> Command {
+pub fn dying_with_test(command: Command) -> Command {
+    if cfg!(target_os = "linux") {
+        dying_with_program(command, &skein_scratch::paths::binary("temper-box"))
+    } else {
+        command
+    }
+}
+fn dying_with_program(mut command: Command, program: &Path) -> Command {
     if cfg!(target_os = "linux") {
         let mut arguments = vec![
             "internal".into(),
@@ -1260,10 +1274,31 @@ pub fn dying_with_test(mut command: Command) -> Command {
             command.program.into(),
         ];
         arguments.extend(command.arguments);
-        command.program = skein_scratch::paths::binary("temper-box");
+        command.program = program.into();
         command.arguments = arguments;
     }
     command
+}
+
+pub mod tests {
+    /// Installed binaries supply their own death-signal wrapper, not Cargo's package binary.
+    pub fn an_explicit_program_supplies_its_own_death_signal_wrapper() {
+        let program = std::path::Path::new("/installed/temper-box");
+        let command = super::dying_with_program(
+            skein_world::end_to_end::Command {
+                program: program.into(),
+                arguments: vec!["--config".into(), "/fixture".into()],
+                directory: "/fixture".into(),
+                environment: Vec::new(),
+            },
+            program,
+        );
+        assert_eq!(command.program, program);
+        assert!(command.arguments.ends_with(&["--config".into(), "/fixture".into()]));
+        if cfg!(target_os = "linux") {
+            assert!(command.arguments.windows(2).any(|pair| pair == ["--", "/installed/temper-box"]));
+        }
+    }
 }
 
 /// Drive a crash story; the probe either cuts at its boundary or lets ctl finish.
@@ -1343,6 +1378,7 @@ pub fn run_ctl_with_cut(
     let mut world = real::World::new(CutJudge {
         failed: None,
         inner: CtlJudge {
+            program: skein_scratch::paths::binary("temper-box"),
             failed: None,
             data: data.clone(),
             fail_on_panic: Some(()),

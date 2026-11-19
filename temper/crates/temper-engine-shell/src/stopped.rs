@@ -6,50 +6,69 @@ use temper_service_shell::jig_directories;
 use temper_shell::directories::Directories;
 
 /// No worker root, listener or external system is started.
-pub fn prepare(binary: &str, directories: &Directories) -> Result<(service::Service, Box<[u8]>), String> {
-    let bytes = directories.read()?;
-    if matches!(
-        service::startup::nearest(&bytes),
-        Some(service::startup::Shape::Standalone | service::startup::Shape::WorkerAlone)
-    ) {
-        return Err(format!("temper.json names a worker, and {binary} runs none"));
-    }
-    let providers = temper_service_shell::providers::read(
-        &crate::path(&directories.data).join("providers.setting"),
-        service::stock::providers(),
-        &mut std::io::stderr(),
-    );
-    let given = service::stock::Given::Stock.with_providers(providers, Box::new([]));
-    let mut named = setup::check_with(&bytes, &jig_directories(directories), &given)?.named;
-    let crate::serve::Inputs { files, google, bundle } = crate::serve::before_root(
-        &mut named.files,
-        &mut named.asked_files,
-        named.sign_in.as_ref(),
-        named.bundle.as_deref(),
-        named.bundle_limits,
-        skein_shell::effective_user(),
-        false,
-    )?;
-    let crate::serve::Runtimes { roots, github } = crate::serve::runtimes(named.test_github.as_ref())?;
-    let engine = crate::serve::settings(&bytes, directories, &given);
-    let accounts = crate::serve::accounts(&engine)?;
-    let seeds = crate::serve::seeds(None, None)?;
-    let mut service = service::startup::restoring_with(
-        &bytes,
-        &jig_directories(directories),
-        &files,
-        None,
-        &seeds,
-        Some(accounts),
-        &given,
-    )
-    .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
-    service.configure_forge_runtime(github, roots);
-    service.configure_google_endpoints(google);
-    if let Some(bundle) = bundle {
-        service.adopt_bundle(bundle);
-    }
-    Ok((service, named.deployment))
+pub fn prepare(_binary: &str, directories: &Directories) -> Result<(service::Service, Box<[u8]>), String> {
+    let read = temper_service_shell::configuration::read(directories, temper_config_shell::Shape::EngineAlone)?;
+    read.prepare(|bytes| {
+        let held = crate::serve::limits_hold(crate::path(&directories.data))?;
+        let providers = temper_service_shell::providers::read(
+            &crate::path(&directories.data).join("providers.setting"),
+            service::stock::providers(),
+            &mut std::io::stderr(),
+        );
+        let given = service::stock::Given::Stock.with_providers(providers, Box::new([]));
+        let mut named = setup::check_with(bytes, &jig_directories(directories), &given)?.named;
+        let crate::serve::Inputs { files, google, bundle } = crate::serve::before_root(
+            &mut named.files,
+            &mut named.asked_files,
+            named.sign_in.as_ref(),
+            named.bundle.as_deref(),
+            named.bundle_limits,
+            skein_shell::effective_user(),
+            false,
+        )?;
+        let crate::serve::Runtimes { roots, github } = crate::serve::runtimes(named.test_github.as_ref())?;
+        let engine = crate::serve::settings(bytes, directories, &given);
+        let accounts = crate::serve::accounts(&engine)?;
+        let seeds = crate::serve::seeds(None, None)?;
+        let inputs = service::startup::LimitInputs::new(
+            bytes,
+            &jig_directories(directories),
+            &files,
+            None,
+            &seeds,
+            &given,
+            false,
+            None,
+        );
+        let (jig, temper) = held.as_ref().map_or((&[][..], &[][..]), |held| (held.jig.as_ref(), held.temper.as_ref()));
+        let resolved = service::startup::resolve_limits(&inputs, jig, temper).map_err(|why| {
+            let line = String::from_utf8_lossy(&service::startup::lines(&why)).into_owned();
+            held.as_ref().map_or_else(|| line.clone(), |held| crate::serve::held_failure(&line, held))
+        })?;
+        if let Some(held) = &held {
+            eprintln!("{}", held.line);
+        }
+        let service::startup::CheckedStart { engine, io, forges, .. } = service::startup::checked_start_with_resolved(
+            bytes,
+            &jig_directories(directories),
+            &files,
+            None,
+            &seeds,
+            skein_lib::List::with_capacity(0),
+            None,
+            &given,
+            &resolved,
+        )
+        .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
+        let mut service = service::startup::restoring_prepared(engine, &seeds, Some(accounts), forges, io)
+            .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
+        service.configure_forge_runtime(github, roots);
+        service.configure_google_endpoints(google);
+        if let Some(bundle) = bundle {
+            service.adopt_bundle(bundle);
+        }
+        Ok((service, named.deployment))
+    })
 }
 
 /// Run only the prepared engine and render its terminal after teardown.

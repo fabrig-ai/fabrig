@@ -17,6 +17,7 @@ fn proof(domain: &mut Domain, task: u64) {
                 task,
                 attempt: 1,
                 conversation: 1,
+                endpoint: None,
                 credentials: Box::new([]),
                 accounts: Box::new([]),
                 placement: Some(Token::new(7)),
@@ -53,6 +54,7 @@ fn hold(domain: &mut Domain, env: &Env<Limits>, task: u64, branch: &[u8]) {
             },
             task,
             writer: None,
+            beside: None,
             design_writers: Box::new([]),
             drift: None,
         }),
@@ -658,6 +660,7 @@ fn check_flakes_file_with_the_triager_and_count_silently_even_when_refused() {
             source: b"check".as_slice().into(),
             ids: Box::new([flake().key]),
             first: Box::new([]),
+            many: false,
         })
     );
     let subscription =

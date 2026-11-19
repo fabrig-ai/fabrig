@@ -14,20 +14,17 @@ use skein_lib::{List, Reader};
 
 /// A version is its schema's family line (jig/docs/design/protocol/client/README.md, section 6).
 #[test]
-#[expect(clippy::disallowed_macros, reason = "the test reads schemas to hold wire constants to their family versions")]
 fn version_constants_match_their_schemas() {
-    let client =
-        skein_codec::schema::parse(include_str!("../schema/client-wire-v1.schema").as_bytes()).expect("client schema");
+    let client = &skein_codegen::values(crate::CLIENT_SCHEMA).schema;
     assert_eq!(
         crate::CLIENT_VERSION,
-        u32::from(client.version()),
+        u32::from(client.version),
         "temper-client-wire CLIENT_VERSION must equal its family version"
     );
-    let public =
-        skein_codec::schema::parse(include_str!("../schema/public-v1.schema").as_bytes()).expect("public schema");
+    let public = &skein_codegen::values(crate::PUBLIC_SCHEMA).schema;
     assert_eq!(
         crate::PUBLIC_VERSION,
-        public.version(),
+        public.version,
         "temper-public-wire PUBLIC_VERSION must equal its family version"
     );
 }
@@ -1221,6 +1218,14 @@ fn project_status_round_trips_and_refuses_trailing_bytes() {
         let status = crate::decode_project_status(bytes, &v1::CEILINGS).expect("project status golden");
         assert_eq!(crate::project_status(&status).as_ref(), bytes);
         assert_eq!(crate::decode_project_status(&fixtures::trailing(bytes), &v1::CEILINGS), None);
+        for unpaid in [false, true] {
+            let mut parts = status.clone().into_parts();
+            parts.unpaid = unpaid;
+            let status = v1::ProjectStatus::new(&v1::CEILINGS, parts).unwrap();
+            let decoded = crate::decode_project_status(&crate::project_status(&status), &v1::CEILINGS).unwrap();
+            assert_eq!(decoded.unpaid(), unpaid);
+            assert_eq!(decoded, status);
+        }
     }
 }
 
@@ -2278,16 +2283,9 @@ fn device_records_append_without_renumbering_and_refuse_trailing_bytes() {
     }
 }
 
-#[expect(clippy::disallowed_macros, reason = "fixed-rule test values are built from the embedded family text")]
 fn golden(name: &str) -> &'static [u8] {
-    static VALUES: std::sync::OnceLock<Box<[skein_codegen::Golden]>> = std::sync::OnceLock::new();
-    let values = VALUES.get_or_init(|| {
-        skein_codegen::goldens(
-            &skein_codegen::parse(include_str!("../schema/client-wire-v1.schema")).expect("client schema"),
-        )
-        .into_boxed_slice()
-    });
-    for value in values.as_ref() {
+    let values = &skein_codegen::values(crate::CLIENT_SCHEMA).goldens;
+    for value in values {
         if value.name == name {
             return &value.bytes;
         }

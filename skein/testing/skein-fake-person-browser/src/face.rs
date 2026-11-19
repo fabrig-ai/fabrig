@@ -558,7 +558,9 @@ impl<'a> BrowserFace<'a> {
                     self.trouble.push(text.clone());
                 }
             }
-            Event::Ready { .. }
+            Event::Sent { .. }
+            | Event::Answered { .. }
+            | Event::Ready { .. }
             | Event::Opened { .. }
             | Event::Met { .. }
             | Event::Missed { .. }
@@ -790,6 +792,7 @@ impl Face for BrowserFace<'_> {
 fn target_role(target: &Target) -> Option<Role> {
     match target {
         Target::Role { role, .. } | Target::ExactRole { role, .. } => Some(*role),
+        Target::TextBox { .. } => Some(Role::TextField),
         Target::Text { .. } => None,
     }
 }
@@ -797,6 +800,7 @@ fn query_parts(target: &Target) -> (&'static [&'static [u8]], &[u8], Match) {
     match target {
         Target::Role { role, name } => (accessible(*role), name, Match::Words),
         Target::ExactRole { role, name } => (accessible(*role), name, Match::Exact),
+        Target::TextBox { name } => (accessible(Role::TextField), name, Match::Exact),
         Target::Text { text } => (&[b"StaticText"], text, Match::Words),
     }
 }

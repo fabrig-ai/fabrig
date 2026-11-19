@@ -50,7 +50,7 @@ fn checkpoint_adoption_links_the_stopped_segments_at_c_and_closes_before_answeri
     let record = crate::codec::component::Checkpoint::decode(&records[0]).unwrap();
     let manifest = crate::codec::component::Manifest::decode(&records[1]).unwrap();
     assert_eq!((manifest.store, record.store), (1, 1));
-    assert!(record.files.iter().filter(|file| file.part() == 2).all(|file| file.way() == 1));
+    assert!(record.files.iter().filter(|file| file.part == 2).all(|file| file.way == 1));
     world.machine.close(root);
     world.close();
     // The deployment lock was released, and serving still recovers the same C.

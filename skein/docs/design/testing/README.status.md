@@ -1,6 +1,6 @@
 # testing: status
 
-2026-11-15. Where skein's code lags or departs from [README.md](README.md).
+2026-11-18. Where skein's code lags or departs from [README.md](README.md).
 
 Unlisted sections have no known gap. Section 6's test-only fork kit and
 its documented process boundary are present, as is the row runner's
@@ -20,78 +20,9 @@ A span counts its thread's allocations (`Span::made`, held by
 and skein-codec's patcher step tests show reuse by rooms and by none
 counted around each reused pass, never by an address.
 
-- **Not yet:** 4: the fake machine's entry inodes, groups, modes past
-  `0o777`, times and attributes, its subvolume and filesystem answers,
-  and the programs for trees.
-  5: `Referee` keeps `observe`, which panics on what it finds, and
-  `watch`'s default calls it; the referees of jig's, temper's, smith's
-  and hearth's worlds implement `observe`. [in flight: change 2882]
-  5: the domain ledger's `try_open` and `try_end`, the heap's findings
-  returned by the runs, `Outcome::try_release`, and a binary's output
-  past its limit kept as its finding: each still panics where it finds,
-  and the world's, oauth accounts' and the capture's tests trigger it,
-  `#[should_panic]`. [in flight: change 3126]
-  5: a settled world's hosted child whose output was not read to its end
-  is no finding a run returns: the simulated world panics as it settles,
-  and the world's test triggers it, `#[should_panic]`. [in flight: change 3127]
-  5: `Meter::try_check`; the meter's tests trigger `check`'s panic,
-  `#[should_panic]`. [in flight: change 3128]
-  5: the fake echo client's check of its peer and the minimal fake
-  machine's check of a handle panic where they find, and their tests
-  trigger them, `#[should_panic]`. [in flight: change 3130]
-  5: the LLM connection's close judge panics where it finds, and its
-  tests trigger it, `#[should_panic]`. [in flight: change 3129]
-  5: two step tests show a table kept by its address, not by the span's
-  count, and their binaries declare no counting allocator: skein-lib's
-  `removing_a_list_item_moves_the_last_and_keeps_capacity`, a list
-  refilled within its room (`skein/crates/skein-lib/src/tests/containers.rs`),
-  and skein-ui's `spare_node_storage_is_reused_and_replaced_bytes_are_recounted`,
-  a tree's nodes reused by `Builder::reuse`
-  (`skein/crates/skein-ui/src/tests/tree.rs`). No growth falls between
-  their reads, so what ran before cannot turn them red, but a table
-  replaced at its size, in a freed block handed back, would pass them.
-  5: no fixture outlives its test: skein's process fixture ties nothing
-  to its owner, so a test killed outright leaves its `never`,
-  `fork-live` and `supervise-*` leaders parked and its `supervise-term`
-  and `supervise-grandchild` descendants spinning. [in flight: change 1551]
-  5: no fixture outlives its test: an unwinding test's walk can leave a
-  descendant running, unreported. [in flight: change 1552]
-  5: `temper-client-world`'s public path sweep writes each case's whole
-  input before it runs it, not the case and its length.
-  [in flight: change 3078]
-  5: a real run started while another runs on its thread fails with
-  "one real loop per thread" rather than nesting. [in flight: change 2977]
-  6: `skein_scratch::paths` has no `built`: jig's and temper's browser
-  worlds, skein's browser suite and the UI example's tier take another
-  package's binary from two directories above the test's executable,
-  which the pinned nightly's cargo can put deeper. [in flight: change 2976]
-  6: `tests/boundary/tests/skein_worlds.rs` reads its sources twice: the
-  seam's rule from git's tracked Rust sources, and the `#[path]` rule from
-  a second walk of `skein/`'s directories, untracked files among them,
-  each source either rule matches parsed by itself. [in flight: change 3962]
-  7: `live-skein` has no CPU budget or wall hard limit in
-  `tools/tiers/budgets.toml`.
-  7: the focused cost repairs' at-least-6 CPU s saving is unproved.
-  `skein/docs/development/skein-limits-heavy.md` estimates 5.311441 CPU s
-  saved from selected instruction ratios, short of that request's aim.
-  The process-world row has no complete instruction pair, other tests
-  have unknown individual counts, and the row ratios come from different
-  baselines. Shared-helper measurements in
-  `skein/docs/development/world-costs.md` establish no suite total either.
-  The suite's total is the merge gate's: its full reads of 11-08 put it
-  at 28.5 CPU s (the user's word of 11-08, which set the 40 CPU s
-  budget), and no measurement in this repository records it.
-  7: the skein-limits-rows request asked a margin of at least 2.5 CPU s
-  below a 30 CPU s limit; the gate's 28.5 CPU s leaves 1.5 below that,
-  and 11.5 below the 40 CPU s budget that replaced it, the user's of
-  11-08. The rows' own repairs establish no margin:
-  Callgrind pairs for the two checking-signature
-  paths fell from 28,168,371 to 17,682,754 instructions in the forge
-  machine world's measured hand test, 126,199,178 to 58,107,517 in
-  `skein-fake-forge-github`'s, and 61,539,809 to 51,804,727 in
-  `github-conformance`'s; folds removed 397 existing test processes and
-  added eight row-kit tests of their own. These floor estimates and
-  individual instruction counts establish no whole-suite saving.
+- **Not yet:** 4: the probe's report of a contained tree.
+  4: the probe for a reach, `skein_fake_machine::probe`, and the machine honouring a reach.
+  [in flight: change 9030]
 - **Departs:** 5, 10: `skein/testing/skein-world/src/lib.rs` fences six
   items `cfg(unix)`, though these sections have the crate native, on
   Linux and macOS, so off unix it fails to build however it is fenced; no

@@ -28,14 +28,11 @@ from the stock (`limits.md`, one stock).
 
 | Source | What it is | Where a process takes it |
 |---|---|---|
-| T | the agent's largest turn, which smith derives from the agent's profile and endpoints (smith's `protocol/limits.md`, 3.6) | a box and a worker take it from their agent's configuration, as today's checks do; an engine without an agent takes the stock agent's (section 3) |
-| P | the agent's `tool_payload` | as T |
+| T | the agent's largest turn, which smith derives from the agent's profile and endpoints (smith's `protocol/limits.md`, 3.6) | a box and a worker take it from their agent's configuration, as today's checks do; an engine without an agent takes the stock agent's at the engine's P (section 3) |
+| P | the larger of the limit `tool_payload` (`limit-settings.md`, 2.3) and the agent's own `declared.tool_payload` from the `agents` setting (`figures.md`, 5), each taking its stock value when absent | fixed at the engine's start; an `agents` edit above P is refused by name, naming the `tool_payload` limit to raise and restart with first |
+| `live_goals` | the most goals live at once, the limit `live_goals` (`limit-settings.md`, 2.3), 40 in the stock, at most 100, the live goals the store is sized for (`limit-settings.md`, 3) | the engine and the box |
 | a worker's slots | the worker document's `slots` | the worker |
 | the stream bounds | `clients.streams` and `clients_http.streams`, after the document's overrides | the engine, in jig's reader (jig's `protocol/limits.md`, stream overrides) |
-
-Until the agents' figures come from the engine (`../../draft/config.md`,
-6.3), a worker's agent configuration is its own document, and a worker
-derives from it.
 
 ## 3. The stock agent
 
@@ -61,14 +58,18 @@ derives from it.
 ## 4. The order
 
 1. **The stock:** jig's stock, with temper's figures over it (`limits.md`).
-2. **The derivations** of 5.1, from T and P, written into that stock. The
-   result is the base that the document's limits are read over (jig's
-   `protocol/limits.md`, the stock).
-3. **The document's overrides,** by dotted name, as today (`limits.md`,
-   overrides by dotted name). A figure derived from another figure of the
-   same document (5.2) follows that figure's value after the overrides,
-   unless it is overridden itself.
-4. **The start's checks,** as today. They now check temper's derivations.
+2. **The sources' settings:** `live_goals` and `tool_payload` from
+   temper's limits setting, or the stock's (`limit-settings.md`, 3).
+3. **The derivations** of 5.1, from T and P, and of 5.4, from
+   `live_goals`, written into that stock. The result is the base that the
+   settings' overrides are read over (jig's `protocol/limits.md`, the
+   stock).
+4. **The settings' overrides,** by dotted name, jig's kind's over jig's
+   limits and temper's over temper's (`limit-settings.md`, 3). A worker
+   alone reads its document's instead. A figure derived from another
+   figure of the same set (5.2) follows that figure's value after the
+   overrides, unless it is overridden itself.
+5. **The start's checks,** as today. They now check temper's derivations.
    An override below its derivation is refused in today's words, naming
    the figure and its source.
 
@@ -132,10 +133,54 @@ writes only `slots`.
   lower `fleet.slots` by the same rule. The
   engine's document needs neither `fleet.slots` nor `hub.slots`, and an
   override of either is still read.
-- **A box's worker** is admitted at its document's `slots`, which the
-  start checks against the ceiling, as today.
+- **A worker's own link** caps its output at a u32 too: its places
+  times a run's turns, calls and asks, past 147 MB a place at the stock
+  (8 turns of 18,431,842 bytes), so it holds fewer places than
+  `fleet.slots`. A worker whose places pass it refuses its start,
+  naming its figures (`figures.md`, section 3, step 5).
+- **A box's worker** is built and admitted at its setting `local`'s
+  places, kept in its data directory (`figures.md`, section 4); its
+  document's `slots` gives none.
 
-### 5.4 Where the code is
+### 5.4 From `live_goals`
+
+- **A count that scales with the work in flight** is
+  ⌈stock × `live_goals` / 40⌉, its stock figure at the stock's 40 live
+  goals, so the stock resolves to the figures `limits.md` gives, and 80
+  live goals to twice them.
+- **The counts that scale:**
+  - jig's `tasks.tasks`, `tasks.project_tasks`, `tasks.project_goals`,
+    `tasks.placed_holds`, `tasks.project_placed_holds`,
+    `tasks.party_placed_holds`, `tasks.exemptions`, `tasks.funders`,
+    `tasks.pools`, `tasks.hold_waiters` and `people.inbox_tasks`;
+  - temper's `forge.tasks`, `forge.holds`, `forge.subscriptions`,
+    `forge.entries`, `forge.client.entries`, `forge.client.resources`,
+    `forge.issues` and `forge.landings`.
+
+  The rest keep their sources: a task's own fan-out and lifetime, the
+  catalogues, history, a worker's places and the readers' streams don't
+  grow with goals in flight. `forge.changes` keeps its own figure, since
+  the store's tier rows cap it (`limits.md`, `forge.changes`).
+- **A tie the start checks is kept by derivation,** not by scaling both
+  sides: `people.inbox_tasks` is twice `tasks.tasks`, `tasks.exemptions`
+  at most `tasks.tasks`, and `forge.landings` at most `forge.holds` over
+  `forge.landing_members`, each from its scaled source.
+- **The other side of a tie follows its scaled side:** where a check
+  ties a count of the list to one outside it, the outside figure is
+  derived, at most its stock unless the check needs more, and never below
+  what the check needs: `forge.landing_members` is the least of its stock
+  and `forge.holds`; `tasks.delegates` the least of its stock and
+  `tasks.tasks` less one; `people.operations` the larger of
+  `tasks.delegates` plus one and `tasks.project_goals`, at most
+  `tasks.tasks`. At the stock's 40 live goals each is its stock figure.
+  An override of one still wins, and the checks judge it.
+- **A cap a format sets holds:** a scaled count takes the least of its
+  formula and its cap, `forge.holds` the store's 256 goals of a tier
+  row, `forge.tasks` its 1,024 closer's selections and
+  `tasks.exemptions` its 4,096, so a `live_goals` past a cap scales the
+  rest and holds the capped count there.
+
+### 5.5 Where the code is
 
 - **temper's derivations** live in `temper-service-core`'s `derived`
   module, which the engine's, the box's and the worker's starts share.
@@ -173,9 +218,6 @@ writes only `slots`.
 
 ## 7. Later
 
-- **`live_goals` and `tool_payload` as settings,** with the counts that
-  scale with work in flight written as formulas of `live_goals`
-  (`../../draft/config.md`, 5.2 and 6.1).
 - **The agents' figures from the engine** (`../../draft/config.md`, 6.3):
   each worker then derives from the figures its opening brings, not from
   its own document.

@@ -37,6 +37,7 @@ mod document;
 pub mod members;
 pub mod names;
 pub mod overrides;
+pub use overrides::with_overrides;
 pub mod profile;
 pub use profile::{JournalSizes, Limits, Link, stock};
 pub mod forms;
@@ -72,7 +73,7 @@ pub struct Engine {
     pub seed_policies: Box<[Option<u32>]>,
     pub policies: Box<[Policy]>,
     pub connectors: Box<[u16]>,
-    pub memory: u64,
+    pub memory: Option<u64>,
     pub charters: Box<[jig_domain_core_vocabulary::Charter]>,
     pub templates: Box<[jig_domain_core_vocabulary::Template]>,
     pub llm: Llm,
@@ -110,7 +111,7 @@ pub fn engine_over(
         return Err(problems);
     };
     let mut limits = *base;
-    if let Some(at) = object.required(document, b"limits", &path, &mut problems) {
+    if let Some(at) = object.member(document, b"limits") {
         let parsed = overrides::parse_over(document, at, &path.member(b"limits"), base);
         limits = parsed.limits;
         for problem in &parsed.problems.problems {
@@ -196,7 +197,7 @@ pub fn engine_over(
     };
     fixed::check(fixed, &limits, &mut problems);
     limits.core.people.act_grants = u32::try_from(acts.len()).expect("act-grant count fits u32");
-    let memory = check::integer(&mut object, document, b"memory_bytes", &path, &mut problems);
+    let memory = check::optional_integer(&mut object, document, b"memory_bytes", &path, &mut problems);
     let owners = object.required(document, b"owners", &path, &mut problems);
     object.finish(document, &path, &mut problems);
     if !problems.is_empty() {
@@ -214,7 +215,7 @@ pub fn engine_over(
         connectors: connectors.expect("required member checked"),
         owners: Box::default(),
         acts,
-        memory: memory.expect("required member checked"),
+        memory,
         charters: offers.charters.expect("required member checked"),
         templates: offers.templates.expect("required member checked"),
         llm: llm.expect("required member checked"),

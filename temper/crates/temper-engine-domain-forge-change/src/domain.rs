@@ -10,7 +10,7 @@ use skein_lib::{List, Wall, bytes::copy_of};
 use crate::{
     Ask, AuthorityHold, AuthorityLack, Change, Decision, Delegate, Early, Effect, EffectResult, Facts, Freshness, Gate,
     GateFailure, GateKind, Heard, Hold, Limits, PendingKind, Pull, Repair, StartedFrom, State, Status, Stepped,
-    Verification, Way,
+    Verification, Wait, Way,
 };
 
 /// Decide one change from current forge and task facts, independent of its wake.
@@ -280,7 +280,12 @@ fn after_landing(change: &Change, facts: &Facts, standing: &Heard, now: Wall) ->
                     Decision::Finish { merge: *merge }
                 }
                 Verification::Unfollowed | Verification::Verifying | Verification::Red => {
-                    Decision::Wait { until: None }
+                    if facts.wait == Wait::Landed {
+                        next.state = State::Uncleared { merge: *merge };
+                        Decision::Finish { merge: *merge }
+                    } else {
+                        Decision::Wait { until: None }
+                    }
                 }
             };
             return Some(Stepped { change: next, decision });
@@ -312,7 +317,6 @@ fn after_landing(change: &Change, facts: &Facts, standing: &Heard, now: Wall) ->
 }
 
 fn verifying(mut change: Change, merge: [u8; 32], since: Wall, facts: &Facts, cancelled: bool, now: Wall) -> Stepped {
-    let until = Wall::from_nanos(since.as_nanos().saturating_add(facts.verification_bound.as_nanos()));
     let decision = match facts.verification {
         Verification::Unfollowed => Decision::Finish { merge },
         Verification::Verifying | Verification::Red | Verification::Cleared if cancelled => {
@@ -323,15 +327,23 @@ fn verifying(mut change: Change, merge: [u8; 32], since: Wall, facts: &Facts, ca
             change.state = State::Cleared { merge };
             Decision::Finish { merge }
         }
+        Verification::Verifying | Verification::Red if facts.wait == Wait::Landed => {
+            change.state = State::Uncleared { merge };
+            Decision::Finish { merge }
+        }
         Verification::Red => {
             change.state = State::Red { merge, since };
             Decision::Wait { until: None }
         }
-        Verification::Verifying if now >= until => {
-            change.state = State::Uncleared { merge };
-            Decision::Finish { merge }
+        Verification::Verifying => {
+            let until = Wall::from_nanos(since.as_nanos().saturating_add(facts.verification_bound.as_nanos()));
+            if now >= until {
+                change.state = State::Uncleared { merge };
+                Decision::Finish { merge }
+            } else {
+                Decision::Wait { until: Some(until) }
+            }
         }
-        Verification::Verifying => Decision::Wait { until: Some(until) },
     };
     Stepped { change, decision }
 }
@@ -1114,10 +1126,14 @@ fn valid(change: &Change, gate: Gate, report: crate::GateReport, head: [u8; 32])
 }
 
 fn verdict(change: &Change, gate: Gate, facts: &Facts, head: [u8; 32]) -> Status {
+    gate_verdict(change, gate, &facts.gates, head)
+}
+
+fn gate_verdict(change: &Change, gate: Gate, reports: &[crate::GateReport], head: [u8; 32]) -> Status {
     let mut passed = false;
     let mut pending = false;
     let mut failed = false;
-    for report in &facts.gates {
+    for report in reports {
         if !valid(change, gate, *report, head) {
             continue;
         }
@@ -1290,9 +1306,15 @@ fn queued(
     }
 }
 
-fn blocking_gates_pass(change: &Change, facts: &Facts, head: [u8; 32]) -> bool {
+pub(crate) fn blocking_gates_pass(change: &Change, facts: &Facts, head: [u8; 32]) -> bool {
+    gates_pass(change, &facts.gates, head)
+}
+
+/// Every blocking gate has a passing verdict valid at this head (domain/forge/change/gates.md, 1).
+#[must_use]
+pub fn gates_pass(change: &Change, reports: &[crate::GateReport], head: [u8; 32]) -> bool {
     for gate in &change.gates {
-        if gate.blocking && verdict(change, *gate, facts, head) != Status::Passed {
+        if gate.blocking && gate_verdict(change, *gate, reports, head) != Status::Passed {
             return false;
         }
     }

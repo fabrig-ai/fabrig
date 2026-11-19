@@ -94,6 +94,7 @@ fn facts() -> Facts {
         settling: None,
         verification: crate::Verification::Unfollowed,
         verification_bound: Duration::from_secs(7200),
+        wait: crate::Wait::Cleared,
     }
 }
 fn heard() -> Heard {
@@ -117,6 +118,48 @@ fn decide(change: &Change, facts: &Facts, heard: &Heard) -> crate::Stepped {
 
 fn reading(execution: Execution) -> Reading {
     Reading { execution, run: 7, attempt: 1 }
+}
+
+#[test]
+fn blocking_gate_reports_require_a_valid_pass_and_ignore_nonblocking_gates() {
+    let mut c = change(State::Gating { head: HEAD, asked: Box::new([1]) });
+    c.gates = Box::new([
+        Gate { number: 1, kind: GateKind::Agent, blocking: true, freshness: Freshness::Exact, eager: false },
+        Gate { number: 2, kind: GateKind::Agent, blocking: false, freshness: Freshness::Exact, eager: false },
+    ]);
+    let mut f = facts();
+    for (freshness, clean, report_head, status, expected) in [
+        (Freshness::Exact, false, HEAD, Status::Passed, true),
+        (Freshness::Exact, true, BASE, Status::Passed, false),
+        (Freshness::Clean, true, BASE, Status::Passed, true),
+        (Freshness::Clean, false, BASE, Status::Passed, false),
+        (Freshness::Exact, false, HEAD, Status::Pending, false),
+        (Freshness::Exact, false, HEAD, Status::Failed, false),
+        (Freshness::Exact, false, HEAD, Status::Unknown, false),
+    ] {
+        c.gates.first_mut().unwrap().freshness = freshness;
+        c.clean = if clean { Box::new([BASE]) } else { Box::new([]) };
+        f.gates = Box::new([
+            GateReport { number: 1, head: report_head, status },
+            GateReport { number: 2, head: HEAD, status: Status::Failed },
+        ]);
+        assert_eq!(crate::gates_pass(&c, &f.gates, HEAD), expected, "{freshness:?} {clean} {status:?}");
+        assert_eq!(crate::domain::blocking_gates_pass(&c, &f, HEAD), expected);
+    }
+    c.gates.get_mut(1).unwrap().blocking = true;
+    f.gates = Box::new([
+        GateReport { number: 1, head: HEAD, status: Status::Passed },
+        GateReport { number: 2, head: HEAD, status: Status::Failed },
+    ]);
+    assert!(!crate::gates_pass(&c, &f.gates, HEAD), "every blocking gate must pass");
+    assert!(!crate::domain::blocking_gates_pass(&c, &f, HEAD));
+    f.gates.get_mut(1).unwrap().status = Status::Passed;
+    assert!(crate::gates_pass(&c, &f.gates, HEAD));
+    assert!(crate::domain::blocking_gates_pass(&c, &f, HEAD));
+    f.gates = Box::new([]);
+    assert!(!crate::gates_pass(&c, &f.gates, HEAD), "an absent verdict is unknown");
+    c.gates = Box::new([]);
+    assert!(crate::gates_pass(&c, &f.gates, HEAD), "no blocking gates need a verdict");
 }
 
 #[test]

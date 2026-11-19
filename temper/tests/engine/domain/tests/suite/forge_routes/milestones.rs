@@ -31,7 +31,7 @@ fn created(outcome: &people::Outcome) -> u64 {
     assert_eq!(first, last);
     *first
 }
-fn milestone(world: &mut World, words: &[u8]) -> u64 {
+pub(super) fn milestone(world: &mut World, words: &[u8]) -> u64 {
     let people::Ask::Create { project, mut batch } = world.chat(1, words) else { panic!("creation") };
     let member = &mut batch[0];
     member.executor =
@@ -56,10 +56,14 @@ fn no_issue(world: &World, task: u64) {
     assert!(!world.store.rows.values().any(|record| matches!(record, Record::Forge { row } if matches!(row.as_ref(), forge_top::Stored::Subscription(subscription) if subscription.task == task))), "milestones have no topics");
 }
 fn goal(world: &mut World, milestone: u64, own_branch: bool) -> engine::Assignment {
+    goal_with_words(world, milestone, own_branch, b"Make a small fix on my branch")
+}
+pub(super) fn goal_with_words(world: &mut World, milestone: u64, own_branch: bool, words: &[u8]) -> engine::Assignment {
     let people::Ask::Create { project, mut batch } = goal_branch::goal_request(world, true) else { panic!("goal") };
     if !own_branch {
         batch[0].symbols = Box::new([]);
     }
+    batch[0].words = words.into();
     batch[0].authority.delegation.depth = 2;
     batch[0].authority.delegation.tasks = 10;
     batch[0].budget = people::Budget::AsAllowed { cap: Some(300) };
@@ -80,6 +84,151 @@ fn world() -> World {
     world.send(protocol::hello_slots(Token::new(7), 2, Box::new([])));
     world
 }
+fn registered(world: &mut World, goal: &engine::Assignment) -> forge_top::ChangeRow {
+    let before = world.assigned.len();
+    let Some(engine::CallAnswer::Delegated(made)) = mine(world, goal, 101, br#"{"words":"Small fix"}"#) else {
+        panic!("change registered")
+    };
+    let row = row(world, made[0].task);
+    reviews::next_assignment(world, before);
+    row
+}
+
+fn finish_registered(world: &mut World, goal: &engine::Assignment, row: &forge_top::ChangeRow) {
+    let producer = world.assigned.last().expect("change producer").clone();
+    assert_ne!(producer.task, goal.task);
+    let base = goal_branch::branch_tip(world, &row.base);
+    let head = early_start::push(world, &producer, base, b"file");
+    goal_landing::status(world, head, raw::Check::Passed);
+    early_start::finish(world, &producer, b"Small fix");
+    await_landed(world, row.task);
+    if let Some(milestone) = row.milestone {
+        ask(world, 182, people::Ask::Conclude { project: 1, task: milestone });
+    }
+    finish_goal(world, goal);
+}
+
+#[test]
+fn a_milestones_change_keeps_its_goals_person_title_and_draft() {
+    let mut world = world();
+    let milestone = milestone(&mut world, b"Red findings");
+    let tasks::Party::Person(person) = live_task(&world, milestone).requester else { panic!("milestone maker") };
+    let goal = goal_with_words(
+        &mut world,
+        milestone,
+        true,
+        b"R2 Reds blamed\n\nDraft: temper/docs/design/draft/after-landing-repairs.md \t\r\nDraft: ignored\nmore",
+    );
+    let row = registered(&mut world, &goal);
+    assert_eq!((row.goal, row.milestone, row.person), (Some(goal.task), Some(milestone), Some(person)));
+    assert_eq!(row.goal_title.as_deref(), Some(b"R2 Reds blamed".as_slice()));
+    assert_eq!(row.draft.as_deref(), Some(b"temper/docs/design/draft/after-landing-repairs.md".as_slice()));
+    finish_registered(&mut world, &goal, &row);
+    world.close();
+}
+
+#[test]
+fn a_direct_goals_change_keeps_its_person_without_a_draft() {
+    let (mut world, goal, _) = goal_branch::running_goal();
+    let tasks::Party::Person(person) = live_task(&world, goal.task).requester else { panic!("direct requester") };
+    let row = registered(&mut world, &goal);
+    assert_eq!((row.goal, row.milestone, row.person), (Some(goal.task), None, Some(person)));
+    assert_eq!(row.goal_title.as_deref(), Some(b"Make a small fix on my branch".as_slice()));
+    assert_eq!(row.draft, None);
+    finish_registered(&mut world, &goal, &row);
+    world.close();
+}
+
+#[test]
+fn an_untracked_changes_row_keeps_no_goal_facts() {
+    let mut world = world();
+    let people::Ask::Create { project, mut batch } = goal_branch::goal_request(&world, false) else {
+        panic!("untracked task")
+    };
+    batch[0].symbols = Box::new([]);
+    let goal = assigned_chat(&mut world, 181, people::Ask::Create { project, batch });
+    let row = registered(&mut world, &goal);
+    assert_eq!((row.goal, row.milestone, row.person), (None, None, None));
+    assert_eq!(row.goal_title, None);
+    assert_eq!(row.draft, None);
+    finish_registered(&mut world, &goal, &row);
+    world.close();
+}
+
+#[test]
+fn a_changes_goal_words_keep_the_first_draft_trimmed_and_fit_at_utf8_boundaries() {
+    let mut world = world();
+    let milestone = milestone(&mut world, b"Red findings");
+    let title = "é".repeat(130);
+    let path = "€".repeat(87);
+    let words = format!("{title}\nnot Draft: ignored\nDraft: {path} \t\r\nDraft: ignored");
+    let goal = goal_with_words(&mut world, milestone, true, words.as_bytes());
+    let row = registered(&mut world, &goal);
+    assert_eq!(row.goal_title.as_deref(), Some(format!("{}…", "é".repeat(126)).as_bytes()));
+    assert_eq!(row.draft.as_deref(), Some(format!("{}…", "€".repeat(84)).as_bytes()));
+    finish_registered(&mut world, &goal, &row);
+    world.close();
+}
+
+#[test]
+fn a_milestones_dependent_goal_starts_when_the_first_ends_at_its_landing() {
+    use temper_engine_domain_world::tier_runs::{self, LANDING_TICKS, Tier, task, tier, until};
+    let mut world = World::configured_limits(
+        true,
+        true,
+        false,
+        STEPS,
+        Gate::default(),
+        None,
+        StoryLimits {
+            tier: Some(Tier { wait: temper_engine_domain_forge_change::Wait::Landed, ..Tier::default() }),
+            slots: Some(4),
+            tasks: Some(32),
+            tree_tasks: Some(64),
+            task_delegates: Some(16),
+            authority_batch: Some(8),
+            tasks_batch: Some(8),
+            result_bytes: Some(1024),
+            ..StoryLimits::default()
+        },
+    )
+    .with_goal_closer();
+    world.env.limits.tasks.project_goals = 3; // The milestone and its two goals coexist.
+    let client = world.env.limits.forge.client;
+    let mut world = world.with_forge_client(client);
+    world.adopt();
+    world.send(protocol::hello_slots(Token::new(7), 4, Box::new([])));
+    let milestone = milestone(&mut world, b"Two goals");
+    let people::Ask::Create { project, mut batch } = goal_branch::goal_request(&world, true) else { panic!("goal") };
+    batch[0].symbols = Box::new([]);
+    batch[0].flags.ended_by = people::EndedBy::Closer(people::Closer { connector: 0, code: 6 });
+    batch[0].authority.delegation.depth = 2;
+    batch[0].authority.delegation.tasks = 16;
+    batch[0].budget = people::Budget::AsAllowed { cap: Some(200) };
+    let first =
+        created(&ask(&mut world, 181, people::Ask::Delegate { project, task: milestone, batch: batch.clone() }));
+    batch[0].dependencies = Box::new([people::Dependency::Existing(first)]);
+    batch[0].words = b"Wait for the first goal".as_slice().into();
+    let second = created(&ask(&mut world, 182, people::Ask::Delegate { project, task: milestone, batch }));
+    assert_eq!(task(&world, first).requester, tasks::Party::Task(milestone));
+    assert_eq!(task(&world, second).requester, tasks::Party::Task(milestone));
+    assert_eq!(task(&world, second).dependencies.as_ref(), &[first]);
+    assert!(!world.assigned.iter().any(|run| run.task == second));
+    let goal = world.assigned.iter().find(|run| run.task == first).unwrap().clone();
+    let change = tiers::produce(&mut world, &goal, 93, b"file", b"first goal's work");
+    let event =
+        world.protocol.answer(Token::new(7), goal.task, goal.attempt, 0, tasks::End::Parked, engine::Parts::none());
+    world.send(event);
+    until(&mut world, LANDING_TICKS, "dependent starts at the first goal's landing", |world| {
+        world.assigned.iter().any(|run| run.task == second)
+    });
+    assert!(matches!(task(&world, first).phase, tasks::Phase::Ended(tasks::Ending::Done(_))));
+    assert!(matches!(task(&world, change).phase, tasks::Phase::Ended(tasks::Ending::Done(_))));
+    assert!(tiers::result(&world, change).contains("Ended at landing; after landing judges it later."));
+    assert_eq!(tier(&world).record.sequence, 0, "no tier judgement releases the dependent");
+    assert_eq!(tier_runs::red_news(&world, second).len(), 0);
+}
+
 #[test]
 fn a_milestones_first_projection_keeps_its_project_and_utf8_name_without_an_issue() {
     for (words, name) in [

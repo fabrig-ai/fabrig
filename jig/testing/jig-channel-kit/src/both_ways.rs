@@ -33,20 +33,26 @@ impl Case {
 }
 
 fn engine(inherited: &Inherited) -> Proc {
-    let mut document: serde_json::Value = serde_json::from_slice(&fixtures::engine_document()).expect("engine JSON");
-    let llm = &mut document["engine"]["llm"];
-    llm["providers"][0]["endpoint"] = "fake".into();
-    llm["providers"][0]["direct"] = "direct".into();
-    llm["providers"][0]["sources"] = serde_json::json!({"keys":true,"programs":["claude_code"]});
-    llm["providers"][0]["manage_usage"] = "https://usage.example/".into();
-    llm["endpoints"][0]["program"] = "claude_code".into();
-    let mut direct = llm["endpoints"][0].clone();
-    direct.as_object_mut().expect("endpoint").remove("program");
-    direct["name"] = "direct".into();
-    direct["number"] = 2.into();
-    llm["endpoints"].as_array_mut().expect("endpoints").push(direct);
-    llm["models"][0]["window"] = 272_000.into();
-    processes::engine_document(inherited, &serde_json::to_vec(&document).expect("both ways JSON"))
+    static PREPARED: std::sync::OnceLock<jig_test_service::Prepared> = std::sync::OnceLock::new();
+    let prepared = PREPARED.get_or_init(|| {
+        let mut document: serde_json::Value =
+            serde_json::from_slice(&fixtures::engine_document()).expect("engine JSON");
+        let llm = &mut document["engine"]["llm"];
+        llm["providers"][0]["endpoint"] = "fake".into();
+        llm["providers"][0]["direct"] = "direct".into();
+        llm["providers"][0]["sources"] = serde_json::json!({"keys":true,"programs":["claude_code"]});
+        llm["providers"][0]["manage_usage"] = "https://usage.example/".into();
+        llm["endpoints"][0]["program"] = "claude_code".into();
+        let mut direct = llm["endpoints"][0].clone();
+        direct.as_object_mut().expect("endpoint").remove("program");
+        direct["name"] = "direct".into();
+        direct["number"] = 2.into();
+        llm["endpoints"].as_array_mut().expect("endpoints").push(direct);
+        llm["models"][0]["window"] = 272_000.into();
+        jig_test_service::prepare(&serde_json::to_vec(&document).expect("both ways JSON"))
+            .expect("both ways configuration")
+    });
+    processes::engine_document(inherited, prepared)
 }
 
 fn declarations() -> smith_agent_service::profile::Configuration {
@@ -191,6 +197,11 @@ impl Judge {
         } else if waiting(procs)? {
             // The first run still owns its slot while the worker's periodic check
             // reports the host-local change. The next activation sees that inventory.
+            for proc in procs.iter_mut() {
+                if let Proc::Engine(host) = proc {
+                    host.service.engine().ok_or("engine")?.hold_workspaces();
+                }
+            }
             self.login.set(Some(signed_in));
             self.check_after = Some(engine_wire(procs)?.frames.len());
         }
@@ -502,6 +513,21 @@ impl Judge {
             if answer.end == jig_domain_tasks::End::Parked)
         });
         self.cross(procs, parked)?;
+        // The parked finite task may self-wake. Hold its preparation until the
+        // requester's waking words have committed, before giving it a new backend.
+        let heard = self.store.rows.values().any(|row| {
+            matches!(row,
+            jig_test_domain::Record::Core(core::Record::Tasks(jig_domain_tasks::Stored::Live(task)))
+                if task.inbox.iter().any(|word| word.words.as_ref() == b"Continue on the other source"))
+        });
+        if heard {
+            for proc in procs.iter_mut() {
+                if let Proc::Engine(host) = proc {
+                    let engine = host.service.engine().ok_or("engine")?;
+                    engine.release_workspaces();
+                }
+            }
+        }
         let mut run = self.shared.borrow_mut();
         run.turns = world::turns(&self.store).into_iter().cloned().collect();
         run.terminals = self

@@ -9,30 +9,7 @@ use jig_protocol_config as config;
 
 /// The complete startup document emitted by init for fixed machine facts.
 pub(super) fn generated() -> Box<[u8]> {
-    use core::num::NonZeroU16;
-    let answer = temper_init::files(
-        &temper_init::Facts {
-            sign_in: false,
-            binary: b"/bin/temper",
-            git: Some(b"/bin/git"),
-            claude: None,
-            login: Some(b"ada"),
-            ports: temper_init::Ports {
-                clients: NonZeroU16::new(8367).unwrap(),
-                webhooks: NonZeroU16::new(8371).unwrap(),
-            },
-        },
-        &temper_init::Directories { config: b"/config", data: b"/data" },
-        &[0; 32],
-    )
-    .unwrap();
-    for file in answer.files {
-        if file.name == b"temper.json" {
-            let temper_init::Content::Bytes { bytes, .. } = file.content else { panic!("document bytes") };
-            return bytes;
-        }
-    }
-    panic!("init writes temper.json")
+    temper_config_shell::init_document(false)
 }
 pub(super) fn engine(document: &[u8]) -> config::Engine {
     let mut base = config::stock();
@@ -48,6 +25,24 @@ fn single_engine() -> config::Engine {
 }
 fn without_projects() -> Box<[u8]> {
     generated()
+}
+
+#[test]
+fn stock_items_stay_within_the_stock_numbers() {
+    let engine = engine(&generated());
+    let defaults = crate::stock::Given::Stock.defaults(&engine.llm, engine.limits.core.tasks.result_bytes).unwrap();
+    for template in &defaults.templates {
+        assert!(template.number <= jig_domain_people::STOCK_NUMBERS, "template {}", template.number);
+    }
+    for charter in &defaults.charters {
+        assert!(charter.number <= jig_domain_people::STOCK_NUMBERS, "charter {}", charter.number);
+    }
+    for (number, _) in &defaults.policies {
+        assert!(*number <= jig_domain_people::STOCK_NUMBERS, "policy {number}");
+    }
+    for model in &defaults.models {
+        assert!(model.number <= jig_domain_people::STOCK_NUMBERS, "model {}", model.number);
+    }
 }
 
 #[test]
@@ -390,6 +385,7 @@ fn ask_temper_is_charter_11_and_template_5() {
     }
     let (_, configuring) = words.split_once("## Configuring\n\n").expect("Configuring part");
     let (configuring, _) = configuring.split_once("## Showing").expect("Showing follows Configuring");
+    assert!(configuring.contains("A new template, charter or policy takes the lowest number from 33 that the settings don't hold; a model you add takes the highest free number."));
     assert!(configuring.contains("With it, write in their terms what the pages show: charter-words for each charter, what it does; project-words for the project's own way, a headline and a short lede."));
     assert!(configuring.contains("Draw in it what it describes, as Showing says: the project's path from its view, never as a list of steps, and a proposal that waits from its own view until it is decided."));
     let (_, remembering) = words.split_once("## Remembering\n\n").expect("Remembering part");
@@ -807,8 +803,7 @@ fn the_goals_charter_asks_for_one_report_revised_in_place() {
     for phrase in [
         "If your brief says [Requested by person N], your requester is that person, who has no task to message: wherever you would ask them with message, call delegate instead with one task: executor {kind: person, person: N}, N from that line and no one else; spec words your question; contract {kind: report, words: 4096}; authority {tools: 0, grants: [], delegation: {kinds: [], tasks: 0, depth: 0}, budget: {spend: 0}, notes: 0}. Then call wait: its result is their answer.",
         "After planning",
-        "report: ` then a one-line headline for the person saying where the goal stands, naming no task, change or pull request by number",
-        "5 of its 7 changes landed; the other 2 are building.",
+        "report: ` then a one-line headline for the person saying, in the work's own terms, what the goal has done and what's left, naming no task, change or pull request by number, no draft code or branch, and none of the words of how goals run, as \"Most of it is in; the last two parts are being built.\"",
         "Left: ",
         "Risk: ",
         "Decided: ",
@@ -819,6 +814,7 @@ fn the_goals_charter_asks_for_one_report_revised_in_place() {
     ] {
         assert!(goal.contains(phrase), "{phrase}");
     }
+    assert!(!goal.contains("5 of its 7 changes"));
 }
 
 fn chat_and_goal_use_asking() {
@@ -837,8 +833,9 @@ fn goals_changes_and_roles_open_with_titles_for_a_person() {
         .split("\n\n")
         .find(|paragraph| paragraph.starts_with("Titles, for a goal and the person's chat:"))
         .expect("titles paragraph");
-    let sentence = "Open the words of each goal and change you start with a title line: at most 60 characters naming the work for a person, as Store shape S7 · history in task logs; the rest follows on the lines below.";
+    let sentence = "Open the words of each goal and change you start with a title line: at most 60 characters naming the work in plain words, with no draft codes or internal names, as Store shape · history in task logs; the rest follows on the lines below.";
     assert!(titles.contains(sentence));
+    assert!(!words.contains("Store shape S7"));
     for words in [
         include_str!("../stock/role.md"),
         include_str!("../stock/triager.md"),
@@ -847,6 +844,7 @@ fn goals_changes_and_roles_open_with_titles_for_a_person() {
     ] {
         let shared = words.strip_prefix("## shared\n").unwrap().split_once("## part, on:").unwrap().0;
         assert!(shared.contains(sentence));
+        assert!(!words.contains("Store shape S7"));
     }
 }
 
@@ -1103,7 +1101,7 @@ fn every_stock_charter_names_its_first_choices_and_the_rest() {
             ],
         ),
         (
-            engine(include_bytes!("../../../temper-init/template/bare.json")).llm,
+            engine(&temper_config_shell::init_document(false)).llm,
             vec![
                 "claude-opus-5-5",
                 "gpt-6.1-sol",
@@ -1814,6 +1812,14 @@ fn kinds_are_declared_with_their_bounds() {
                 per_scope: 1,
                 charters: 0,
             },
+            Kind {
+                number: 22,
+                scope: KindScope::Deployment,
+                connector: CONNECTOR,
+                value_bytes: 51_204,
+                per_scope: 1,
+                charters: 0,
+            },
         ]
     );
     limits.authority.segment_bytes = 6;
@@ -1823,12 +1829,13 @@ fn kinds_are_declared_with_their_bounds() {
 #[test]
 fn the_binary_gives_the_forges_stock_at_every_start() {
     // protocol/configuration/stock.md: every project's rule 1, both forge charters and each charter's words and template 4's work.
-    const ITEMS: usize = 17;
+    const ITEMS: usize = 18;
     use temper_engine_domain_forge::{self as forge, settings};
     let engine = fixtures::engine();
     let limits = crate::limits::engine(&engine.jig.limits, &engine.limits).unwrap();
     let stock = crate::stock::forge(&limits);
     assert_eq!(stock.len(), ITEMS);
+    assert_eq!(stock.last().unwrap().value.value, settings::Value::Limits(Box::new([])));
     assert_eq!((stock[0].kind, stock[0].scope, stock[0].number), (2, 0, 1));
     assert_eq!(
         stock[0].value.value,
@@ -2212,7 +2219,7 @@ fn the_status_charters_words_are_the_requests() {
     let words = include_str!("../stock/status.txt");
     assert_eq!(
         words,
-        "You write the few lines at the top of a project's home page, from the facts in your task. Write one sentence on what landed, starting with the count, or, where nothing landed, on what changed among the open findings. Then a blank line, then at most three plain sentences on what stands out: what finished, what is stuck and why, and what the open findings are about. Name findings by what they are about, grouped, as: \"Seven of the 11 findings are about tests: four fail only beside other tests, and three CI runs failed with no fault in the change they checked.\" Name a goal by its milestone where it has one, and say when a milestone completed and when its last goal landed. Say only what the facts say. No greetings, no lists, no advice."
+        "You write the few lines at the top of a project's home page, for a person, from the facts in your task. Write one sentence of at most 25 words on what landed, starting with the count, or, where nothing landed, on what changed among the open findings. Then a blank line and at most two plain sentences, 70 words in all, on what stands out: what finished, what is stuck and why, what the open findings are about. Name findings by what they are about, grouped, as: \"Seven of the 11 findings are about tests: four fail only beside other tests, and three CI runs failed with no fault in the change they checked.\" Name a goal by its milestone where it has one and by what it does, with no codes (K3), wire or protocol versions or words of how goals run (delegates, cut, wave, spec), and say when a milestone completed and its last goal landed. Say a person is waited on only where a line counts questions open to a person, never from a Now alone. Say only what the facts say. No greetings, no lists, no advice."
     );
     let engine = single_engine();
     let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
@@ -2315,7 +2322,7 @@ fn stock_numbers_each_model_for_good() {
 
 #[test]
 fn all_deployments_keep_seven_models_and_the_boxs_default_is_scripted() {
-    let bare = engine(include_bytes!("../../../temper-init/template/bare.json"));
+    let bare = engine(&temper_config_shell::init_document(false));
     let models = crate::stock::models(&bare.llm);
     assert_eq!(models.iter().map(|entry| entry.number).collect::<Box<[_]>>().as_ref(), [1, 2, 3, 4, 5, 6, 7]);
     let mut llm = with_scripted(engine(&generated()).llm);

@@ -1,5 +1,5 @@
 //! The standing task's own scope and required Now (domain/tasks/standing.md, 6).
-use crate::{closed_proofs, settings_support as support};
+use crate::{run_helpers, settings_support as support};
 use jig_core_world::{
     client_peer::ClientPeer,
     fixtures,
@@ -43,7 +43,7 @@ fn start_with_spend(ending: people::EndedBy, resume: bool, kept: Vec<notes::Entr
     let signed = support::sign_in(&mut world);
     world.sign_in = Some(signed);
     world.send(root::Event::Core(core::Event::Period { project: 1, period: 1, budget: 100, next: None }));
-    closed_proofs::hello(&mut world);
+    run_helpers::hello(&mut world);
     let task = create(&mut world, signed, 101, ending, spend);
     (world, signed, task)
 }
@@ -206,6 +206,47 @@ fn kept(name: u64, description: &[u8], body: &[u8]) -> notes::Entry {
         revision: 3,
         changed: Wall::from_nanos(123_456_789),
     }
+}
+
+#[test]
+fn a_standing_wake_on_another_endpoint_ends_fresh_with_now_and_the_note_index() {
+    use super::sessions;
+    let (mut world, run, child) = sessions::opened();
+    jig_core_world::stories::per_wake::park(&mut world, run, None);
+    let now_body = b"Watch the build.\nKeep the second line whole.\n";
+    let mut now = kept(20, b"now", now_body);
+    now.scope = notes::Scope::Goal { project: 1, goal: run.0 };
+    world.seed(Box::new([
+        root::Record::Core(core::Record::Notes(notes::Record::Line(notes::Line {
+            name: now.name,
+            scope: now.scope.clone(),
+            description: now.description.clone(),
+            revision: now.revision,
+        }))),
+        root::Record::Core(core::Record::Notes(notes::Record::Entry(now))),
+    ]));
+    let mut proof = world.domain.core().proofs.get(&run.0).expect("saved run proof").clone();
+    proof.endpoint = Some(2);
+    world.seed(Box::new([root::Record::Core(core::Record::Core(core::CoreRecord::RunProof(proof)))]));
+    sessions::restart(&mut world, child);
+    sessions::say(&mut world, run.0, 80);
+    assert_eq!(sessions::ends(&world, run.0), [(run.1, tasks::SessionEnd::Fresh)]);
+    let assigned = world.assigned.as_ref().expect("new session assigned");
+    assert_eq!(assigned.task, run.0);
+    assert!(!assigned.run.policy.resume);
+    assert!(assigned.transcript.is_empty());
+    let now = std::str::from_utf8(section(&world, Section::Now).expect("Now whole")).expect("Now text");
+    let (_, body) = now.split_once("\n\n").expect("body separator");
+    assert_eq!(body.as_bytes(), now_body);
+    let index = section(&world, Section::NotesIndex).expect("note index");
+    assert!(index.windows(b"now".len()).any(|bytes| bytes == b"now"));
+    assert_eq!(section(&world, Section::TranscriptTail), None);
+    let key = root::Key::Core(core::Key::Core(core::CoreKey::RunProof(assigned.task)));
+    let root::Record::Core(core::Record::Core(core::CoreRecord::RunProof(proof))) = &world.store.rows[&key] else {
+        panic!("durable run proof")
+    };
+    assert_eq!(proof.endpoint, Some(assigned.run.policy.model.endpoint));
+    world.close();
 }
 
 #[test]

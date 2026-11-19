@@ -118,6 +118,7 @@ impl Command {
         below.push(io::Request::Spawn {
             owner: io_owner,
             spawn: kernel::Spawn {
+                reach: None,
                 program: launch.program,
                 args: launch.arguments,
                 env: launch.environment,

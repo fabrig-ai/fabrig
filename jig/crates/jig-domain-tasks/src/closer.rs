@@ -171,7 +171,7 @@ pub(crate) fn ended(
                 out.push(Request::Stop { task, attempt });
             }
         }
-        crate::Ending::Failed { .. } => {
+        crate::Ending::Failed { reason } => {
             row.tries.add(Class::Run);
             if row.tries.run > env.limits.retries.run.retries {
                 row.phase = Phase::Closing(crate::Closing {
@@ -179,7 +179,7 @@ pub(crate) fn ended(
                         Some(attempt) => crate::Stage::Run { attempt },
                         None => crate::Stage::Delegates,
                     },
-                    ending: crate::Ending::Failed { reason: Box::new([]) },
+                    ending: crate::Ending::Failed { reason: crate::failed::closer(reason, &env.limits) },
                 });
                 if let Some(attempt) = attempt {
                     out.push(Request::Stop { task, attempt });

@@ -64,8 +64,8 @@ skein's (skein's `ui/web/README.md`), and how a client of jig's does is jig's
   for the states no journey reaches.
 - **Journeys** are walks recorded in a browser on a fresh fake box,
   replayed natively through the shipped host and printed as the
-  client's pages, where the look is tuned and kept current by a test
-  (`journeys.md`).
+  client's pages, where the look is tuned (`journeys.md`), kept current
+  on main by one writer after each landing (`../journey-writer.md`).
 - **Look requests** carry the person's changes from the prints into a
   landing, an account and an after-landing render check (`look-requests.md`).
 
@@ -230,8 +230,8 @@ replay says the same clocks (`../view.md`, 6).
      `protocol/browser/README.md`, 12.1 and 12.2);
   2. with no bundle, the configuration naming none (`null`) and the
      binary built without its own (2.6), a `GET` of any other path but
-     under `/bundle/` and `/robots.txt`, the printed link's route among
-     them, answers `200` temper's page for no bundle, every other
+     under `/bundle/` and `/robots.txt`, the printed link's route and
+     its page, `/sign-in`, among them, answers `200` temper's page for no bundle, every other
      request not found, as `../engine.md` says. The page is
      fixed HTML in the binary, under the page's policy, with no script,
      style or picture: the level-1 heading "temper", then "This temper
@@ -251,7 +251,8 @@ replay says the same clocks (`../view.md`, 6).
      fixed in its binary, `no-cache` (2.7): the service worker,
      `Content-Type: text/javascript`, and the web app's manifest,
      `application/manifest+json`;
-  7. any other `GET`, the printed link's route among them: the page,
+  7. any other `GET`, the printed link's route and its page,
+     `/sign-in` (`../README.md`, section 4), among them: the page,
      with its ETag and `no-cache`, and `304` on a matching
      `If-None-Match` (skein's `ui/web/bundle.md`, 4).
 - **The page's metas,** made into the bundle's page at start, before
@@ -505,10 +506,12 @@ replay says the same clocks (`../view.md`, 6).
 ### 2.4 Signing in
 
 - **The printed link,**
-  `http://HOST:PORT/jig/v1/sign-in/link?secret=SECRET`, opened in a
+  `http://HOST:PORT/jig/v1/sign-in/link?secret=SECRET`, or the same
+  link at its page, `http://HOST:PORT/sign-in?secret=SECRET`, opened in a
   browser on the engine's machine (`../README.md`, section 4): temper's
-  server answers its `GET` with the page (2.2); jig's sign-in part takes
-  the secret and replaces the address with `/welcome`, temper's home for
+  server answers either's `GET` with the page, which spends nothing (2.2); jig's sign-in part,
+  given the link's route and its page, takes
+  the secret at either and replaces the address with `/welcome`, temper's home for
   a sign-in, before anything is sent; the client signs in with it
   (`SignIn { with: Link { secret, held: None } }`), and the mapping's
   answer sets its cookie, which the client never sees (jig's
@@ -832,8 +835,9 @@ they are, and two small root files carry the rest.
   with and without Google; each `Authorize` state; out of date; no
   project yet with and without the welcome; the GitHub App's setup pages;
   and night. It takes in the six repairs of `look-round-22`: the
-  welcome's top bar, signed in, ending with the person's name and "Sign
-  out" after its steps at each width; the top bar over an empty main
+  welcome's top bar with its steps and link region, no person or "Sign
+  out", and the night switch last (`welcome-top` and `night-switch-top`)
+  at each width; the top bar over an empty main
   while `me` is read at `/chats` and `/chats/new`, until "No project yet"
   settles, with the heading's focus once the page comes (2.3); "Code" and
   "Project name" at 14 px on a 22.4 px line, the field and its act

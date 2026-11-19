@@ -8,6 +8,7 @@
 )]
 use jig_domain_core_vocabulary::{CoreRecord, Deployment, Record};
 use jig_protocol_store::{self as store, Event, Get, OwnerSet, OwnerSets, Request, Row, Store, Write};
+use skein_codec::Record as _;
 use skein_lib::Token;
 #[path = "directory_disk.rs"]
 pub(super) mod disk;
@@ -42,11 +43,14 @@ fn without_deleted_repository_job() -> OwnerSets {
     OwnerSets { sets: &[store::SKEIN_SET, store::SMITH_SET, jig_protocol_accounts::JIG_SET, APPLICATION] }
 }
 
-// The floor predates the two registered change parts. Keep every other current
-// declaration and range, without allocating a leaked owner set at each open.
-const PARTS: usize = 2;
+// The floor has neither the registered change parts nor person briefs. Keep every
+// other current declaration and range, without leaking an owner set at each open.
+const PARTS: usize = 3;
 const fn after_floor(from: &[u8]) -> bool {
-    from.len() == 1 && (from[0] == crate::keys::CHANGE_COLD || from[0] == crate::keys::CHANGE_HOT)
+    from.len() == 1
+        && (from[0] == crate::keys::CHANGE_COLD
+            || from[0] == crate::keys::CHANGE_HOT
+            || from[0] == crate::keys::PERSON_BRIEF)
 }
 const fn floor_types() -> [store::ValueType; crate::OWNER_SET.families[0].types.len() - PARTS] {
     let types = crate::OWNER_SET.families[0].types;

@@ -2,127 +2,142 @@
 
 Kind: reference
 
-The configuration document's top level and application members, their bounds and what temper-box init --box writes.
+The configuration file's keys, their shapes, bounds and defaults.
 
-Configuration is read at startup; changing a permitted member needs a restart.
+Every key is read at a start; changing any key needs a restart.
 
-Objects and lists of objects name their shapes below; init values show objects and list lengths, with scalar values written as JSON.
-Address objects use the engine page's address shape; see temper help configuration-engine. Engine-only application members are absent for a worker alone.
+S: `temper-box`; E: `temper-engine`; W: `temper-worker`. Help lists public keys alone.
 
-## document
+## Keys
 
-Shape: `document`. Paths: `document`. The top-level members of the configuration document.
+| Key | Shapes | Set | Form and bound | Default | What it says |
+|---|---|---|---|---|---|
+| `listen` | S E | public | a socket address on loopback, such as "127.0.0.1:7100" | 127.0.0.1:7100 | where the client connects |
+| `public` | S E | public | an origin within 267 bytes; the start checks its form | the listener's origin | where people reach it |
+| `webhooks` | S E | public | a socket address on loopback, such as "127.0.0.1:7100" | listen's next port (0 stays 0) | the forge's webhooks' listener |
+| `owner` | S E | public | an address of 3 to 254 visible ASCII bytes with one @ | the user's login at localhost | the first owner, read at the first start alone |
+| `workers` | E | public | a socket address on loopback, such as "127.0.0.1:7100" | required | where workers connect, on loopback |
+| `engine` | W | public | a socket address on loopback, such as "127.0.0.1:7100" | required | where its engine listens for workers |
+| `name` | W | public | 1 to 32 bytes | the host's name | the name its engine knows it by, if not the host's |
+| `[sign_in]` | S E | public | a table | no Google sign-in | Google sign-in and its members |
+| `[sign_in.google]` | S E | public | a table | no Google sign-in | Google's sign-in |
+| `sign_in.google.client` | S E | public | 1 to 256 visible ASCII bytes | required with Google | Google's client |
+| `sign_in.google.secret` | S E | public | a nonempty data path, no NUL or relative .. component, at most 4096 bytes | required with Google | in the data directory, mode 0600 |
+| `[[sign_in.members]]` | S E | public | an array of 1 to 64 member tables | required with Google | one for each member |
+| `sign_in.members[].address` | S E | public | an address of 3 to 254 visible ASCII bytes with one @ | required | the member's address |
+| `sign_in.members[].login` | S E | public | a login of 1 to 40 ASCII letters, digits, -, _ or ., starting and ending alphanumeric | required | the member's login |
+| `[[sign_in.forges]]` | S E | public | an array of tables | none | each Forgejo whose sign-in goes through temper |
+| `sign_in.forges[].forge` | S E | public | a forge number of 1 to 65535 | required | the forge's number |
+| `sign_in.forges[].client` | S E | public | 1 to 255 visible ASCII bytes | required | the provider's client |
+| `[openid]` | S E | public | a table | the box's provider, where provider.key exists; none on an engine | temper as an OpenID provider for Forgejo's sign-in |
+| `openid.key` | S E | public | a nonempty data path, no NUL or relative .. component, at most 4096 bytes | provider.key | the provider's signing key in the data directory |
+| `openid.addresses` | S E | public | a list containing only 1 (printed link) or 3 (Google) | [3] with Google, else [1] | the providers whose subjects are given as email |
+| `[[openid.clients]]` | S E | public | an array of tables | none | each client of the provider |
+| `openid.clients[].id` | S E | public | 1 to 255 visible ASCII bytes | required | the client's id |
+| `openid.clients[].secret` | S E | public | a nonempty data path, no NUL or relative .. component, at most 4096 bytes | public client | the client's secret's file in the data directory |
+| `openid.clients[].redirect` | S E | public | a redirect URI within 2048 bytes; the start checks its form | required | the client's redirect URI |
+| `[push]` | S E | public | a table | no push | the deployment's push |
+| `push.key` | S E | public | a nonempty data path, no NUL or relative .. component, at most 4096 bytes | required | the push key's file in the data directory |
+| `push.subject` | S E | public | a mailto: or https: subject, at most 256 visible ASCII bytes | required | where a push service may reach the operator |
+| `[programs]` | S W | public | a table | found or fetched | programs by their paths |
+| `programs.git` | S W | public | an absolute path, no NUL, at most 1048576 bytes | found on PATH | the git executable |
+| `programs.claude` | S W | public | an absolute path, no NUL, at most 1048576 bytes | found on PATH or fetched | the Claude executable |
+| `programs.forgejo` | S | public | an absolute path, no NUL, at most 1048576 bytes | fetched at set-up | the Forgejo executable |
+| `programs.runner` | S | public | an absolute path, no NUL, at most 1048576 bytes | fetched at set-up | the Forgejo runner executable |
+| `[environment]` | S W | public | a table of strings; names nonempty without = or NUL, values without NUL | PATH and HOME appended where absent | one line for each variable |
+| `[internal]` | S E | internal | a table | the binary's own | internal build inputs |
+| `internal.bundle` | S E | internal | an absolute path, no NUL, at most 1048576 bytes | the binary's own bundle | a client bundle of another build |
+| `[test]` | S E | test | a table | the real services | test services |
+| `[test.github]` | S E | test | a table | github.com's | a fake GitHub |
+| `test.github.api` | S E | test | a socket address or HOST:PORT | required | the fake GitHub's API |
+| `test.github.transport` | S E | test | "plaintext" on loopback, or { server_name = "...", trust = "..." } | required | the fake GitHub's transport |
+| `test.github.transport.server_name` | S E | test | 1 to 4096 visible ASCII bytes | required with TLS | the TLS server name |
+| `test.github.transport.trust` | S E | test | a nonempty configuration path, no NUL or relative .. component, at most 4096 bytes | the machine's roots | the TLS trust file in the configuration directory |
+| `test.github.remote` | S E | test | an HTTP(S) URL base with no final slash, at most 4096 bytes | required | the fake's remote URL base |
+| `test.github.web` | S E | test | an HTTP(S) URL base with no final slash, at most 4096 bytes | required | the fake's web URL base |
+| `test.github.git` | S E | test | a nonempty data path, no NUL or relative .. component, at most 4096 bytes | the worker's git | the fake's git in the data directory |
+| `[test.google]` | S E | test | a table | Google's | a fake issuer for Google sign-in |
+| `test.google.issuer` | S E | test | an HTTP(S) URL within 2048 bytes; HTTP only to loopback | required | the fake issuer's URL |
+| `test.google.authorization` | S E | test | an HTTP(S) URL within 2048 bytes; HTTP only to loopback | required | the fake's authorization URL |
+| `test.google.token` | S E | test | an HTTP(S) URL within 2048 bytes; HTTP only to loopback | required | the fake's token URL |
+| `test.google.keys` | S E | test | an HTTP(S) URL within 2048 bytes; HTTP only to loopback | required | the fake's keys URL |
+| `test.google.transport` | S E | test | "plaintext" on loopback, or { server_name = "...", trust = "..." } | required | the fake issuer's transport |
+| `test.google.transport.server_name` | S E | test | 1 to 4096 visible ASCII bytes | required with TLS | the TLS server name |
+| `test.google.transport.trust` | S E | test | a nonempty configuration path, no NUL or relative .. component, at most 4096 bytes | the machine's roots | the TLS trust file in the configuration directory |
+| `[test.push]` | S E | test | a table | the real push services | fake push services |
+| `test.push.services` | S E | test | 1 to 8 origins within 1024 bytes; HTTP only to loopback | required | the fake push services' origins |
 
-- `engine`: engine, absent for a worker alone; optional; init writes object. The engine’s configuration; see temper help configuration-engine.
-- `workers`: list of worker, one in standalone or worker alone; empty for engine alone; required; init writes list (1 entry). The workers’ configurations; see temper help configuration-engine.
-- `application`: application; required; init writes object. The machine, listeners and application limits.
+## Where each member of temper.json went
 
-## application
-
-Shape: `application`. Paths: `application`. The application’s machine parts, read before startup.
-
-- `machine`: refused: moved: a forge's place is chosen when it's set up, and kept with the forge
-- `demo`: refused: moved: the playground's scripted model is the box's own
-- `welcome`: refused: moved: the welcome is a setting; change it with temper ctl settings
-- `limits`: application-limits; required; init writes object. The application limits profile and named overrides.
-- `environment`: list of environment-entry, standalone and worker alone only; absent or empty inherits HOME then PATH; entries keep their order, adding HOME then PATH where omitted; optional; init leaves it out. The agents’ variables; only missing HOME and PATH come from the worker’s process.
-- `workers`: refused: moved: a worker's workspaces are the data directory's; its git is found on PATH
-- `clients`: application-clients, engine shapes only; required; init writes object. The clients’ listener, browser bundle and public origin.
-- `sign_in`: sign-in or null, engine shapes only; required; init writes null. The people’s sign-in registration, or null for none.
-- `push`: push or null, absent or null for none; engine shapes only; optional; init leaves it out. The deployment’s push key, contact and services.
-- `landing`: refused: moved: a project's landing is settings, project-landing and project-gates; set them with temper ctl settings apply
-- `webhooks`: webhooks or null, engine shapes only; required; init writes object. The Forgejo webhook listener, or null for none.
-- `charter`: refused: the forge's charters live in the store; read them with temper ctl settings show forge-charter 1
-
-## application.limits
-
-Shape: `application-limits`. Paths: `application.limits`. The application’s limits profile and named overrides.
-
-- `profile`: text, standard; optional; init writes "standard". May be absent or standard; either reads the stock before overrides.
-- `overrides`: named limits, see temper help limits; required; init writes {"checkout.message_bytes":63740,"checkout.workspaces":4,"forge.client.op_bytes":63738,"forge.client.repositories":3,"forge.judge_projects":8,"forge.output":82,"forge.repositories":3,"forge_component.body_bytes":127497,"git_component.operations":4,"root.journal.transcript_bytes":18431846,"root.loads.bytes":18432090,"root.loads.read_bytes":36863684,"root.loads.reply_bytes":18432090,"root.loads.transcript_bytes":18431842}. The dotted limit names whose values replace the stock’s.
-
-## application.clients
-
-Shape: `application-clients`. Paths: `application.clients`. The clients’ listener and browser presentation.
-
-- `listener`: address, socket address; loopback when printed links or approvals are enabled; required; init writes {"socket":"127.0.0.1:8367"}. The clients’ listener and the address of printed sign-in links.
-- `bundle`: text or null, absolute directory; at most 1,048,576 bytes; required; init writes null. The browser bundle directory, or null for the binary’s bundle.
-- `public`: text or null, origin; at most 267 bytes; required; init writes null. The public browser origin, or null for the listener’s address.
-
-## application.environment[]
-
-Shape: `environment-entry`. Paths: `application.environment[]`. One variable given to the agents’ programs.
-
-- `name`: text, at most 1,048,576 bytes; unique names; smith also refuses empty names, = and NUL; required; init leaves it out. The variable’s name.
-- `value`: text, at most 1,048,576 bytes; smith also refuses NUL; required; init leaves it out. The variable’s value.
-
-## application.push
-
-Shape: `push`. Paths: `application.push`. The deployment’s push key and services.
-
-- `key`: text, private data file, 0o600; PKCS#8 PEM P-256; at most 1,024 bytes; required; init leaves it out. The kept VAPID signing key; its public half is the clients’.
-- `subject`: text, mailto: or https: URI; 1 to 256 printable ASCII bytes, no space, quote or backslash; required; init leaves it out. Where the push services may reach the operator.
-- `services`: list of text or null, 1 to 8 origins; https, or http on loopback; null for https://fcm.googleapis.com, https://updates.push.services.mozilla.com and https://web.push.apple.com; required; init leaves it out. The allowed push services; hosts resolve at each send, HTTPS uses machine roots.
-
-## application.webhooks
-
-Shape: `webhooks`. Paths: `application.webhooks`. The Forgejo deliveries listener.
-
-- `listener`: address, loopback socket, unique among listeners; required; init writes {"socket":"127.0.0.1:8371"}. The listener receiving Forgejo webhook hints.
-
-## application.sign_in
-
-Shape: `sign-in`. Paths: `application.sign_in`. The registration and people allowed to sign in.
-
-- `google`: google; required; init leaves it out. The sign-in registration and its provider.
-- `members`: list of sign-in-member, 1 to sign_in.members; required; init leaves it out. The people allowed to sign in through this registration.
-- `forges`: list of forge-sign-in, each forge and client unique; optional; init leaves it out. The Forgejo forges signing their people in through the deployment.
-
-## application.sign_in.google
-
-Shape: `google`. Paths: `application.sign_in.google`. The sign-in provider’s public registration and secret path.
-
-- `provider`: integer, application provider number; at most 65,535; required; init leaves it out. The identity provider number used for sign-in.
-- `client`: text, 1 to 256 visible ASCII bytes; required; init leaves it out. The provider’s client id.
-- `secret`: text, data path; at most 1,048,576 bytes; required; init leaves it out. The private file holding the client secret.
-- `endpoints`: sign-in-endpoints or null; required; init leaves it out. The issuer’s endpoints, or null for Google’s own.
-
-## application.sign_in.members[]
-
-Shape: `sign-in-member`. Paths: `application.sign_in.members[]`. One person allowed to sign in.
-
-- `address`: text, 3 to 254 visible ASCII bytes; one @; unique ignoring ASCII case; required; init leaves it out. The verified email address used as the identity’s subject.
-- `login`: text, 1 to 40 bytes; letters, digits, dash, underscore or dot; unique ignoring ASCII case; required; init leaves it out. The login minted for the person.
-
-## application.sign_in.forges[]
-
-Shape: `forge-sign-in`. Paths: `application.sign_in.forges[]`. One Forgejo client of the deployment’s sign-in provider.
-
-- `forge`: integer, 1 to 65,535; unique; required; init leaves it out. The forge’s number in the deployment.
-- `client`: text, visible ASCII; unique; a configured provider client; required; init leaves it out. The client id used by the forge to sign people in.
-
-## application.sign_in.google.endpoints
-
-Shape: `sign-in-endpoints`. Paths: `application.sign_in.google.endpoints`. The sign-in issuer’s endpoints and transport.
-
-- `issuer`: text, HTTPS URL, or HTTP on loopback; at most sign_in.url_bytes; required; init leaves it out. The issuer identifier checked in sign-in tokens.
-- `authorization`: text, HTTPS URL, or HTTP on loopback; at most sign_in.url_bytes; required; init leaves it out. The endpoint where the browser authorizes sign-in.
-- `token`: text, HTTPS URL, or HTTP on loopback; at most sign_in.url_bytes; required; init leaves it out. The endpoint exchanging the authorization code.
-- `keys`: text, HTTPS URL, or HTTP on loopback; at most sign_in.url_bytes; required; init leaves it out. The endpoint supplying the issuer’s verification keys.
-- `transport`: application-transport or text, plaintext on loopback, or TLS; required; init leaves it out. The transport used for the issuer’s endpoints.
-
-## application.sign_in.google.endpoints.transport
-
-Shape: `application-transport`. Paths: `application.sign_in.google.endpoints.transport`. A TLS transport object, or plaintext as text.
-
-- `tls`: application-tls; required; init leaves it out. The issuer’s TLS server name and trust roots.
-
-## application.sign_in.google.endpoints.transport.tls
-
-Shape: `application-tls`. Paths: `application.sign_in.google.endpoints.transport.tls`. The sign-in issuer’s TLS identity and trust.
-
-- `server_name`: text, at most 1,048,576 bytes; required; init leaves it out. The name checked during the TLS handshake.
-- `trust`: text or null, configuration path; at most 1,048,576 bytes; required; init leaves it out. The trust roots file, or null for the machine’s roots.
+- `application.clients.listener` → `listen`.
+- `application.clients.public` → `public`.
+- `application.webhooks` → `webhooks`.
+- `engine.owners` → `owner`.
+- `engine.hosts.listener` → `workers`.
+- `workers[0].engine` → `engine`.
+- `workers[0].name` → `name`.
+- `application.sign_in` → `[sign_in]`.
+- `application.sign_in.google` → `[sign_in.google]`.
+- `application.sign_in.google.client` → `sign_in.google.client`.
+- `application.sign_in.google.secret` → `sign_in.google.secret`.
+- `application.sign_in.members` → `[[sign_in.members]]`.
+- `application.sign_in.members[].address` → `sign_in.members[].address`.
+- `application.sign_in.members[].login` → `sign_in.members[].login`.
+- `application.sign_in.forges` → `[[sign_in.forges]]`.
+- `application.sign_in.forges[].forge` → `sign_in.forges[].forge`.
+- `application.sign_in.forges[].client` → `sign_in.forges[].client`.
+- `engine.clients.provider` → `[openid]`.
+- `engine.clients.provider.key` → `openid.key`.
+- `engine.clients.provider.addresses` → `openid.addresses`.
+- `engine.clients.provider.clients` → `[[openid.clients]]`.
+- `engine.clients.provider.clients[].id` → `openid.clients[].id`.
+- `engine.clients.provider.clients[].secret` → `openid.clients[].secret`.
+- `engine.clients.provider.clients[].redirect_uri` → `openid.clients[].redirect`.
+- `application.push` → `[push]`.
+- `application.push.key` → `push.key`.
+- `application.push.subject` → `push.subject`.
+- `application.environment` → `[environment]`.
+- `application.clients.bundle` → `internal.bundle`.
+- `application.test.github` → `[test.github]`.
+- `application.test.github.api` → `test.github.api`.
+- `application.test.github.transport` → `test.github.transport`.
+- `application.test.github.transport.tls.server_name` → `test.github.transport.server_name`.
+- `application.test.github.transport.tls.trust` → `test.github.transport.trust`.
+- `application.test.github.remote` → `test.github.remote`.
+- `application.test.github.web` → `test.github.web`.
+- `application.test.github.git` → `test.github.git`.
+- `application.sign_in.google.endpoints` → `[test.google]`.
+- `application.sign_in.google.endpoints.issuer` → `test.google.issuer`.
+- `application.sign_in.google.endpoints.authorization` → `test.google.authorization`.
+- `application.sign_in.google.endpoints.token` → `test.google.token`.
+- `application.sign_in.google.endpoints.keys` → `test.google.keys`.
+- `application.sign_in.google.endpoints.transport` → `test.google.transport`.
+- `application.sign_in.google.endpoints.transport.tls.server_name` → `test.google.transport.server_name`.
+- `application.sign_in.google.endpoints.transport.tls.trust` → `test.google.transport.trust`.
+- `application.push.services` → `test.push.services`.
+- `engine.llm`: moved: LLM providers are settings; see them with temper ctl settings show provider.
+- `application.demo`: moved: the playground's scripted model is the box's own.
+- `application.landing`: moved: a project's landing is settings, project-landing and project-gates; set them with temper ctl settings apply.
+- `engine.limits`: moved: jig's limits are the setting limits; ask temper, or use temper ctl settings apply.
+- `engine.memory_bytes`: moved: the root's budget is transcript_memory, in the setting temper-limits.
+- `application.limits`: moved: temper's limits are the setting temper-limits; ask temper, or use temper ctl settings apply.
+- `workers[].memory_bytes`: moved: nothing read a worker's memory_bytes; remove it.
+- `application.machine`: moved: a forge's place is chosen when it's set up, and kept with the forge.
+- `application.welcome`: moved: the welcome is a setting; change it with temper ctl settings.
+- `workers[].graces`: moved: temper fixes a worker's graces (temper help server).
+- `workers[].programs`: moved: temper fixes the login checks' interval.
+- `application.workers`: moved: a worker's workspaces are the data directory's; its git is found on PATH.
+- `engine.deployment`: moved: temper keeps the store in the data directory's state.
+- `engine.providers`: moved: temper fixes its identity providers: 1 link, 2 deployment, 3 Google's.
+- `engine.connectors`: moved: temper fixes its connector, the forge's, 1.
+- `engine.acts`: moved: temper fixes the forge connector's acts.
+- `engine.projects`: moved: projects are made at runtime; make one from the client or temper ctl.
+- `engine.clients.heartbeat_ms`: moved: temper fixes the clients' heartbeat, printed link and approval.
+- `engine.clients.link`: moved: temper fixes the clients' heartbeat, printed link and approval.
+- `engine.clients.approval`: moved: temper fixes the clients' heartbeat, printed link and approval.
+- `workers[].slots`: a worker's places are its setting's; temper ctl worker places NAME N.
+- `workers[].secret`: a worker's secret is secrets/worker.secret in the data directory.
+- `workers[].agent`: temper writes the agent's configuration from the engine's figures.
 
 ## The merge command
 
@@ -134,11 +149,3 @@ Shape: `application-tls`. Paths: `application.sign_in.google.endpoints.transport
 - **Exit 0:** `{"settled":[PATH]}`, no file left unmerged: temper commits the tree as the merge, with both parents, and pushes it. A file left unmerged or still marked fails the job.
 - **Exit 3:** `{"settled":[PATH],"left":[LEFT]}`, each LEFT `{"path":PATH,"kind":KIND}`, KIND `modified`, `added`, `deleted`, `renamed` or `unknown`, read from the index stages and each side's history, not a missing stage alone. A deletion or one-sided rename adds `by` (`head` or `base`), `from` or `to` for a rename, and `commit`, the first twelve hexadecimal digits of the commit in that side's history that deleted or renamed it. A rename on both sides has `by` (`both`) alone. The head is the branch merged into; the base is the commit merged in. It settles no file one side deleted or renamed: the agent judges it. Nothing is committed or pushed; an agent resolves in a merge made afresh, temper carrying this result into its words as it is, never parsing it.
 - **Any other exit,** or a result missing or past its bound, is the command's failure. A job that fails for good holds the change, as a resolution that fails does.
-
-## More slots
-
-`workers[0].slots` bounds the runs a worker hosts at once, an agent process each. The host's agents follow it; the `agents` setting does not raise them. Each of these must be at least the slots, and a start names the one that's short:
-
-- `hub.slots`, in `engine.limits.overrides`. Workers take their limits from the engine.
-- `fleet.slots`, in `engine.limits.overrides`. An engine alone can't see a worker's slots: it uses them up to this, and turns away a hello listing more runs.
-- `checkout.workspaces`, in `application.limits.overrides`, and `git_component.operations` there, at least the workspaces.

@@ -728,8 +728,8 @@ fn from_run(domain: &mut Domain, env: &Env<Limits>, request: run::Request, out: 
         run::Request::Probe { owner, at, deadline } => {
             return out.push(Request::Lower(Lower::Probe { owner, at, deadline }));
         }
-        run::Request::Check { owner, program, deadline, tail } => {
-            return out.push(Request::Lower(Lower::Check { owner, program, deadline, tail }));
+        run::Request::Check { owner, program, bound, cap, tail } => {
+            return out.push(Request::Lower(Lower::Check { owner, program, bound, cap, tail }));
         }
         run::Request::Abort { owner } => return out.push(Request::Lower(Lower::Abort { owner })),
         run::Request::Open { conversation, opening } => {

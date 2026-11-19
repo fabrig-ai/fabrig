@@ -182,6 +182,7 @@ fn setup() -> Domain {
         }]),
         temper_engine_domain_forge_landing::Project::DEFAULT,
         AfterLanding {
+            wait: temper_engine_domain_forge_change::Wait::Cleared,
             verdict: temper_engine_domain_forge_tiers::Settings {
                 retries: 2,
                 suspects: temper_engine_domain_forge_tiers::Suspects::Bisect
@@ -412,10 +413,22 @@ fn tasks(view: &ChangesView) -> Box<[u64]> {
 }
 fn logged(task: u64, commit: u8, at: u64, branch: &[u8]) -> LoggedLanding {
     LoggedLanding {
+        tiers: Box::new([]),
         commit: [commit; 32],
         branch: Box::from(branch),
         at: Wall::from_nanos(at),
-        changes: Box::new([LoggedChange { signed: Box::new([]), task, pull: None, title: Box::from(TITLE) }]),
+        changes: Box::new([LoggedChange {
+            fixes: Box::new([]),
+            goal: None,
+            milestone: None,
+            person: None,
+            goal_title: None,
+            draft: None,
+            signed: Box::new([]),
+            task,
+            pull: None,
+            title: Box::from(TITLE),
+        }]),
     }
 }
 fn log(d: &mut Domain, repository: skein_forge::api::Repository, landings: Box<[LoggedLanding]>) {
@@ -608,6 +621,7 @@ fn changes_marks_a_verifications_save_and_erasure() {
         }]),
         temper_engine_domain_forge_landing::Project::DEFAULT,
         AfterLanding {
+            wait: temper_engine_domain_forge_change::Wait::Cleared,
             verdict: temper_engine_domain_forge_tiers::Settings {
                 retries: 2,
                 suspects: temper_engine_domain_forge_tiers::Suspects::Bisect,
@@ -635,6 +649,7 @@ fn changes_marks_a_verifications_save_and_erasure() {
         b"browser",
         &verdict,
         &[temper_engine_domain_forge_tiers::Landing { commit: fixtures::HEAD, key: [7; 32] }],
+        None,
         &mut out,
     );
     assert!(queue_marked(&out));
@@ -648,7 +663,7 @@ fn changes_marks_a_verifications_save_and_erasure() {
         landings: Box::new([]),
         flakes: Box::new([]),
     };
-    verification::judged(&mut d, REPO, b"browser", &verdict, &[], &mut out);
+    verification::judged(&mut d, REPO, b"browser", &verdict, &[], None, &mut out);
     assert!(queue_marked(&out));
     assert!(changes(&d).queues.is_empty());
     let mut out = Queue::uncapped();

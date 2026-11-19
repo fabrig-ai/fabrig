@@ -82,8 +82,8 @@ fn owner_steps(tier: &Tier, client: &Path) -> Vec<Step> {
         // profile opens the next link, so neither reuses a spent sign-in link.
         open_printed(),
         exited(),
-        see(Find::exactly_named(Role::Button, b"Try the playground")),
-        press(Find::exactly_named(Role::Button, b"Try the playground")),
+        see(Find::exactly_named(Role::Button, b"Try the playground instead")),
+        press(Find::exactly_named(Role::Button, b"Try the playground instead")),
         // The press shows New chat while StartPlayground is still unanswered.
         // Wait for its answer before a fresh load asks whether to leave.
         see(Find::exactly_named(Role::Status, b"Ready")),
@@ -518,6 +518,7 @@ impl Play for Readable {
 #[test]
 fn public_board_and_task_lines_are_readable_at_desktop_and_phone_widths() {
     let tier = Tier::public_demo_title("public-readable-lines", LONG_TITLE);
+    let _model = tier.scripted_model();
     let mut reader = Readable { walk: Walk::new(&tier), stage: 0, boxes: TextBoxes::new(), measuring: false };
     let mut ctl = Script::new(Box::new([sign_in(reader.walk.client.path()), exited(), open_printed(), exited()]));
     let mut setup = tier.setup();

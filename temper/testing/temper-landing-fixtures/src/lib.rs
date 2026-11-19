@@ -18,6 +18,7 @@ pub struct ProjectLanding {
     pub repositories: Box<[RepositoryChecks]>,
     pub tier_retries: u8,
     pub verification_bound_ms: u64,
+    pub wait: temper_engine_domain_forge_change::Wait,
 }
 pub use temper_engine_domain_forge_change::Way;
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -100,6 +101,7 @@ impl ProjectLanding {
                 gate_timeout_ms: landing.gate_timeout.as_millis(),
                 tier_retries: landing.tier_retries,
                 verification_bound_ms: landing.verification_bound_ms,
+                wait: landing.wait,
             },
             forge::settings::ProjectGates { repositories: repositories.into_boxed() },
         )

@@ -616,6 +616,9 @@ impl Sim {
             return Err(self.finding(pid, &format!("{:?} is already in flight", submit.op)));
         }
         self.check(pid, summary)?;
+        if let Op::Spawn { spawn } = &submit.kind {
+            self.check_reach_roots(pid, spawn)?;
+        }
         Ok(())
     }
 

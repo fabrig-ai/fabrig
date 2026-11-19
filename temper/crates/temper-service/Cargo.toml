@@ -71,6 +71,7 @@ temper-engine-domain-forge-issues.workspace = true
 temper-worker-domain.workspace = true
 
 [dev-dependencies]
+temper-config-shell.workspace = true
 temper-service-link-fixtures.workspace = true
 temper-agent-fixtures.workspace = true
 temper-limits-fixtures.workspace = true

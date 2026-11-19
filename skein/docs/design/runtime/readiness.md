@@ -22,7 +22,7 @@ kernel with `io_uring_disabled` set, or macOS (Apple Silicon, from macOS
   operations already in the vocabulary. A feature only io_uring has is
   always an optimisation, never something io's behaviour relies on.
 - **It meets the conformance suite** as the ring does, each scenario
-  once (kernel.md, 8), on our Linux machines through epoll and on macOS
+  once (../testing/conformance.md, 1), on our Linux machines through epoll and on macOS
   through kqueue.
 
 ## 1. The choice at startup
@@ -396,6 +396,22 @@ other module is safe Rust, the same on both systems.
   is `kill`, or `killpg` for the group the child leads; one after the
   reap answers `ESRCH`, as a pidfd's does, and never signals the number.
   A handle not in the table answers `EBADF`.
+- **A group's refusal is read by what it holds.** XNU's `killpg1` skips
+  a group's zombies and answers `EPERM` when it signalled no one
+  (`bsd/kern/kern_sig.c`, `killpg1_pgrpfilt`), where Linux signals a
+  zombie and answers success. So on Darwin a signal to a group, a
+  `Signal` to the group a child leads and the keeper's `signal_group`
+  alike, that `EPERM` refuses is read by the group's members: with none
+  left but zombies, or none at all, it answers success, as Linux's does
+  for a group of zombies; with a member left that is not a zombie, it
+  stays a refusal, `Permission`; and a members' reading that fails, or
+  may have been cut short, counts as such a member, so a refusal is
+  never taken for an ending. Every other answer is the call's own, and
+  Linux's are the kernel's, unchanged. The reading from the error number
+  and what is left is in `posix`, built for macOS and for the crate's
+  tests, so that Linux's tests pin it; the members' reading is Darwin's
+  (`proc_listpids` for the group, each member's status by
+  `proc_pidinfo`).
   A stop posts `NOTE_SIGNAL`, which this `NOTE_EXIT` registration does
   not request (`bsd/kern/kern_sig.c:2124-2125`,
   `bsd/kern/kern_event.c:1213-1218`). `waitid` skips stopped children

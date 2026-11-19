@@ -5,6 +5,7 @@
 - **Not yet:** 3.7: a program's usage window kept as kind 7, origin 5 [in flight: change 8987].
 - **Not yet:** 3.7: a usage read of an idle account, origin 6 [in flight: change 8994].
 - **Not yet:** 3.7: a window's readings and rate [in flight: change 8995].
+
 - **Not yet:** 3.7: a list read on the provider's `direct` endpoint; the core reads on the first endpoint naming the provider [in flight: change 927].
 - **Not yet:** 3.4 and 4.3: the source picks the endpoint; a model whose endpoint names a program takes program sources alone, and a charter names each model's stored endpoint [in flight: change 928].
 

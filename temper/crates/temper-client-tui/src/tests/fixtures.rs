@@ -1,7 +1,16 @@
 use jig_client::contract as c;
 use skein_lib::{Duration, Env, List, Queue, RequestLimits, Secret, Time, Token, Wall, Writer};
 use temper_client_domain::{Domain, Event, Limits, Request, forge};
-pub const ADDRESS: &[u8] = b"127.0.0.1:8367";
+pub const ADDRESS: &crate::Origin =
+    &crate::Origin::Http(core::net::SocketAddr::V4(core::net::SocketAddrV4::new(core::net::Ipv4Addr::LOCALHOST, 8367)));
+pub fn name_origin() -> crate::Origin {
+    crate::Origin::Https { name: Box::from(*b"dev.fabrig.ai"), port: 443 }
+}
+pub fn long_name_origin() -> crate::Origin {
+    let name = skein_lib::bytes::concat(&[&[b'a'; 63], b".", &[b'b'; 63], b".", &[b'c'; 63], b".", &[b'd'; 61]]);
+    assert_eq!(name.len(), 253);
+    crate::Origin::Https { name, port: 8443 }
+}
 pub const NOW: Wall = Wall::EPOCH;
 pub const SEED: u64 = 11;
 #[expect(clippy::arithmetic_side_effects, reason = "the request count is the nonzero constant declared here")]
@@ -62,7 +71,10 @@ pub fn words() -> crate::words::Words {
     crate::words::Words::english(shared, &limits()).expect("TUI English fits")
 }
 pub fn view() -> crate::View {
-    crate::View::new(&crate::limits(&limits(), &skein_ui::Limits::EMPTY, 512).expect("tree limits"), words())
+    view_of(words())
+}
+pub fn view_of(words: crate::words::Words) -> crate::View {
+    crate::View::new(&crate::limits(&limits(), &skein_ui::Limits::EMPTY, 512).expect("tree limits"), words)
 }
 pub fn event(root: &mut Domain, event: Event) -> Queue<Request> {
     let mut out = Queue::uncapped();

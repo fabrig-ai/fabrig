@@ -2675,11 +2675,11 @@ fn merged_heads_empty_or_too_many_are_invalid() {
 fn a_first_hold_looks_in_spec_order_then_fetches_and_caches_the_clones() {
     let mut h = Harness::reusing(LIMITS);
     let (hold, op) = h.prepare(1, two(b"work"));
-    assert_eq!(op, Op::Look { at: place(Token::new(0), b"a"), remote: remote(b"a") });
+    assert_eq!(op, Op::Look { at: place(Token::new(0), b"a"), remote: remote(b"a"), store: store_token(b"a") });
     assert_eq!(h.facts().get(0), Some(&Fact::Held { client: Token::new(1), cached: Cached::Looking }));
     assert_eq!(
         h.next(hold, Done::Looked { holds: true }),
-        Op::Look { at: place(Token::new(0), b"b"), remote: remote(b"b") }
+        Op::Look { at: place(Token::new(0), b"b"), remote: remote(b"b"), store: store_token(b"b") }
     );
     assert_eq!(h.next(hold, Done::Looked { holds: true }).kind(), Kind::Fetch);
     assert_eq!(h.domain.workstream(0), Some(&b"work"[..]));

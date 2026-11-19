@@ -21,10 +21,8 @@ const BOUNDS: Bounds = Bounds {
     landing_rules: 4,
     gates: 2,
     roles: 2,
-    charters: 8,
     segments: 8,
     segment_bytes: 32,
-    templates: 4,
     follows: 2,
     dependencies: 4,
     follow_paths: 2,
@@ -91,6 +89,41 @@ fn restore(d: &mut Domain, item: &Asked, slot: SettingSlot) {
         )
         .is_empty()
     );
+}
+
+fn landing_wait(wait: temper_engine_domain_forge_change::Wait) -> SizedValue {
+    let value = crate::settings::ProjectLanding { wait, ..crate::settings::ProjectLanding::default() };
+    SizedValue { size: crate::settings::landing_record(&value).measure(), value: Value::Landing(value) }
+}
+
+#[test]
+fn landing_wait_is_restored_and_a_kept_change_waits_for_the_next_start() {
+    use temper_engine_domain_forge_change::Wait;
+    for (initial, changed) in [(Wait::Cleared, Wait::Landed), (Wait::Landed, Wait::Cleared)] {
+        let mut d = domain();
+        let initial_item = item(4, 5, 1, Edit::Set(landing_wait(initial)));
+        restore(&mut d, &initial_item, SettingSlot::Change);
+        outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+        assert_eq!(d.after_landing(5).unwrap().wait, initial);
+        let asked = item(4, 5, 1, Edit::Set(landing_wait(changed)));
+        assert_eq!(
+            d.judge_settings(&BOUNDS, from_ref(&asked)).as_ref(),
+            &[Judged::Accept { size: landing_wait(changed).size, charter: None }]
+        );
+        let mut out = Queue::uncapped();
+        d.keep_settings(&env(), 2, None, from_ref(&asked), &mut out);
+        assert_eq!(out.pop(), Some(save(&initial_item, SettingSlot::Replaced(2))));
+        assert_eq!(out.pop(), Some(save(&asked, SettingSlot::Change)));
+        assert!(out.is_empty());
+        assert_eq!(d.setting(4, 5, 1), Some(&landing_wait(changed)));
+        assert_eq!(d.after_landing(5).unwrap().wait, initial, "the running forge holds its restored wait");
+        let mut restarted = domain();
+        for (key, edit) in &d.setting_rows {
+            restore(&mut restarted, &item(key.kind, key.scope, key.number, edit.clone()), key.slot);
+        }
+        outputs(&mut restarted, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+        assert_eq!(restarted.after_landing(5).unwrap().wait, changed);
+    }
 }
 
 #[test]
@@ -271,11 +304,7 @@ fn a_reset_is_judged_as_its_default() {
 fn a_refused_item_names_what_fails() {
     let d = stocked();
     assert_eq!(
-        d.judge_settings(
-            &BOUNDS,
-            &[item(3, 0, 1, Edit::Set(charter(BOUNDS.charters + 1))), item(3, 0, 2, Edit::Remove)]
-        )
-        .as_ref(),
+        d.judge_settings(&BOUNDS, &[item(3, 0, 1, Edit::Set(charter(65))), item(3, 0, 2, Edit::Remove)]).as_ref(),
         &[const { Judged::Refuse(Refusal::Charter) }; 2]
     );
 }
@@ -610,7 +639,7 @@ fn a_restore_keeps_the_replaced_rule_as_the_proposals_item_and_answers_its_size(
 #[test]
 fn a_restore_of_the_forges_charter_names_the_charter() {
     let mut d = stocked();
-    let previous = item(3, 0, 1, Edit::Set(charter(BOUNDS.charters)));
+    let previous = item(3, 0, 1, Edit::Set(charter(64)));
     restore(&mut d, &previous, SettingSlot::Replaced(3));
     restore(&mut d, &previous, SettingSlot::Change);
     let mut out = Queue::uncapped();
@@ -622,7 +651,7 @@ fn a_restore_of_the_forges_charter_names_the_charter() {
             &mut out,
         )
         .as_ref(),
-        &[Judged::Accept { size: 4, charter: Some(BOUNDS.charters) }],
+        &[Judged::Accept { size: 4, charter: Some(64) }],
         "an equal current value is accepted rather than judged the same"
     );
     assert_eq!(out.pop(), Some(save(&previous, SettingSlot::Proposal(7))));
@@ -691,7 +720,7 @@ fn a_restore_keeps_removals_and_resets_and_answers_the_defaults_sizes() {
 fn a_restore_checks_the_kinds_bounds_and_keeps_only_accepted_items_in_order() {
     let mut d = stocked();
     let previous = item(2, 1, 1, Edit::Set(rule(false)));
-    let invalid = item(3, 0, 1, Edit::Set(charter(BOUNDS.charters + 1)));
+    let invalid = item(3, 0, 1, Edit::Set(charter(65)));
     restore(&mut d, &previous, SettingSlot::Replaced(3));
     restore(&mut d, &invalid, SettingSlot::Replaced(3));
     let items = [
@@ -1120,4 +1149,41 @@ fn landing_removals_and_resets_need_no_value_judgement() {
             }
         }
     }
+}
+
+#[test]
+fn limits_are_judged_kept_restarted_and_reset_to_empty() {
+    let default = SizedValue { value: Value::Limits(Box::new([])), size: 2 };
+    let mut d = domain();
+    d.give_settings_defaults(Box::new([Stock { kind: 22, scope: 0, number: 1, value: default.clone() }]));
+    assert_eq!(d.setting(22, 0, 1), Some(&default));
+    let value = SizedValue {
+        value: Value::Limits(Box::new([jig_domain_core_vocabulary::settings::Override {
+            name: b"forge.entries".as_slice().into(),
+            value: 16,
+            reason: b"dev's outbox".as_slice().into(),
+        }])),
+        size: 40,
+    };
+    let asked = item(22, 0, 1, Edit::Set(value.clone()));
+    assert_eq!(d.judge_settings(&BOUNDS, from_ref(&asked)).as_ref(), &[Judged::Accept { size: 40, charter: None }]);
+    let mut out = Queue::uncapped();
+    d.keep_settings(&env(), 2, None, from_ref(&asked), &mut out);
+    assert_eq!(out.pop(), Some(save(&item(22, 0, 1, Edit::Set(default.clone())), SettingSlot::Replaced(2))));
+    assert_eq!(out.pop(), Some(save(&asked, SettingSlot::Change)));
+    assert_eq!(d.setting(22, 0, 1), Some(&value));
+    let mut restarted = domain();
+    for (&key, edit) in &d.setting_rows {
+        restore(&mut restarted, &item(key.kind, key.scope, key.number, edit.clone()), key.slot);
+    }
+    restarted.give_settings_defaults(Box::new([Stock { kind: 22, scope: 0, number: 1, value: default.clone() }]));
+    outputs(&mut restarted, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+    assert_eq!(restarted.setting(22, 0, 1), Some(&value));
+    let reset = item(22, 0, 1, Edit::Reset);
+    assert_eq!(
+        restarted.judge_settings(&BOUNDS, from_ref(&reset)).as_ref(),
+        &[Judged::Accept { size: 2, charter: None }]
+    );
+    restarted.keep_settings(&env(), 3, None, from_ref(&reset), &mut out);
+    assert_eq!(restarted.setting(22, 0, 1), Some(&default));
 }

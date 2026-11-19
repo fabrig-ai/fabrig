@@ -6,9 +6,12 @@
 //! Fork retains that world's stack and owned memory. The child never returns
 //! to libtest: success and the first panic use `_exit`, without unwinding.
 //! Waitpid borrows local status storage only until return and reaps only our child.
+//! The reach fixture's fcntl changes only descriptor flags, without borrowing
+//! memory. Its signal probe sends 0 or SIGURG (ignored by default) to its own
+//! live parent; neither operation retains any pointer.
 #![expect(
     unsafe_code,
-    reason = "fork, waitpid and _exit form the test's process boundary (skein/docs/design/testing/README.md, 6)"
+    reason = "fork, waitpid and _exit form the test boundary; fcntl and kill observe reach inheritance (testing/README.md, 4 and 6)"
 )]
 
 use crate::{Exit, Split};
@@ -62,6 +65,38 @@ pub fn split() -> Split {
         assert!(libc::WIFSIGNALED(status), "waitpid returned no terminal status: {status}");
         Split::Parent(Exit::Signal(libc::WTERMSIG(status)))
     }
+}
+
+/// Clear close-on-exec on a service-held descriptor for the reach conformance
+/// scenario. An invalid descriptor returns its errno; no ownership changes.
+pub fn inherit(fd: i32) -> Result<(), i32> {
+    // SAFETY: F_GETFD takes only the descriptor number and retains no pointer.
+    let flags = unsafe { libc::fcntl(fd, libc::F_GETFD) };
+    if flags < 0 {
+        return Err(std::io::Error::last_os_error().raw_os_error().expect("fcntl errno"));
+    }
+    // SAFETY: F_SETFD takes only integer flags and retains no pointer.
+    if unsafe { libc::fcntl(fd, libc::F_SETFD, flags & !libc::FD_CLOEXEC) } < 0 {
+        return Err(std::io::Error::last_os_error().raw_os_error().expect("fcntl errno"));
+    }
+    Ok(())
+}
+
+/// Try signal 0 first, then SIGURG where 0 bypasses Landlock's signal scope.
+/// SIGURG's default disposition is ignore; the conformance service installs
+/// no handler for it. Reports the selected signal and the system call's errno.
+#[cfg(target_os = "linux")]
+pub fn signal_parent() -> (i32, Result<(), i32>) {
+    let parent = i32::try_from(std::os::unix::process::parent_id()).expect("a parent PID fits pid_t");
+    assert!(parent > 1, "the probe's service parent is alive");
+    for signal in [0, libc::SIGURG] {
+        // SAFETY: kill takes only a live parent PID and a nonfatal signal.
+        let result = unsafe { libc::kill(parent, signal) };
+        if result < 0 {
+            return (signal, Err(std::io::Error::last_os_error().raw_os_error().expect("kill errno")));
+        }
+    }
+    (libc::SIGURG, Ok(()))
 }
 
 /// End a child successfully; return in a process which is not a child.

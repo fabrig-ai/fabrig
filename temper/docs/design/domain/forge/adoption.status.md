@@ -1,11 +1,17 @@
 # adoption: status
 
-2026-11-18. Where the tree's code lags or departs from [adoption.md](adoption.md).
+2026-11-19. Where the tree's code lags or departs from [adoption.md](adoption.md).
 
+- **Not yet:** 9: a new request drops at most one expired answer, and
+  is answered busy while kept answers and pending requests fill
+  `forge.applications`, never making room by the oldest answered
+  (`temper-engine-domain-forge/src/adoption.rs`, `room`) [in flight:
+  change 9150].
 
 - **Not yet:** the opening's first bullet: a context adoption of a
   repository another project writes, kept for its project and read by its
   lookups, runs and follows [in flight: change 97].
+
 
 
 - **Not yet:** 1, "What waits on it": a change's step on a forge not connected reads all the same, and a read of its step answered `NotConnected` holds the change `ResourceRefused` (`temper-engine-domain-forge/src/domain/admission.rs`, `read_failed`), never stepped again on `Connected`.

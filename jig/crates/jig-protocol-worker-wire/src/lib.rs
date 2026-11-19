@@ -4,6 +4,11 @@
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 extern crate alloc;
+
+/// The current family schema text (skein/docs/design/data/codec/README.md, section 6).
+#[expect(clippy::disallowed_macros, reason = "the owner embeds its current schema text once")]
+pub const SCHEMA: &str = include_str!("../schema/worker-wire-v18.schema");
+
 use alloc::boxed::Box;
 use skein_lib::Token;
 
@@ -143,8 +148,7 @@ pub mod wire {
     pub const FLOOR: u16 = crate::patches::kept::jig_worker_wire::FLOOR;
 
     #[cfg(test)]
-    #[expect(clippy::disallowed_macros, reason = "the wire identity test embeds its current schema")]
-    const TEXT: &str = include_str!("../schema/worker-wire-v18.schema");
+    const TEXT: &str = crate::SCHEMA;
 
     /// The current schema's family fingerprint.
     #[must_use]

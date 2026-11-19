@@ -91,8 +91,8 @@ fn mutated(seed: u64, rng: &mut Rng, limits: &Limits, bounds: &str, golden: &[u8
 }
 
 fn public_values() -> Vec<skein_codegen::Golden> {
-    let text = include_str!("../../../../../crates/jig-client-protocol-wire/schema/public-v1.schema");
-    skein_codegen::goldens(&skein_codegen::parse(text).expect("public schema"))
+    let text = jig_client_protocol_wire::PUBLIC_SCHEMA;
+    skein_codegen::values(text).goldens.clone()
 }
 
 #[test]

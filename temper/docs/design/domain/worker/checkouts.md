@@ -56,9 +56,43 @@ runs as contained processes and whose output it parses.
   made again for a fault: git writes each object whole, under its name, so
   a git killed in a store leaves at most the references it was writing,
   which are its workspace's alone and set aside when that workspace is
-  made again. A checkout's own `.git`, which its run may write, is still
-  never another workstream's, and no fetch of history runs in it: only a
-  check out's or a merge's fetch of file contents.
+  made again. A checkout's git directories are never another
+  workstream's, and no fetch of history runs in either: only a check
+  out's or a merge's fetch of file contents, into the worker's.
+- **Two git directories** (`../../draft/confinement.md`, 6.3). Each
+  repository of a checkout has the worker's own git directory, outside
+  the workspace (`../../protocol/git.md`, section 2), and the run's, the
+  `.git` its work tree holds.
+  - **The worker's** is named, with the work tree, by every git operation
+    of the worker's, which never finds either from where it runs and
+    reads the work tree as files (`../../protocol/git.md`, section 3). Its
+    configuration, hooks and references are the worker's alone, so
+    nothing a run writes in its `.git` reaches the worker's git: not a
+    filter or merge driver, a hook path or an alias, not a `.git` file
+    naming another directory, not a moved reference.
+  - **The run's** is the run's to write: its index, references and
+    configuration. Its objects are borrowed, read-only, from the worker's
+    directory's and, through them, the store's. The worker never reads
+    it, but for the one file a check writes for it (`../forge/reds.md`,
+    5.5), read as bytes; it writes into it, after each operation that
+    moves its own, a view of its HEAD, index, merge and pins, so a run's
+    git, its checks among them, works as with one directory: clean at the
+    start, a merge in progress shown, `refs/temper/landing` the pin
+    (`../../protocol/git.md`, 4.13). A run that breaks its `.git` has it
+    made again by the next such operation.
+  - **A delivery commits the work tree's files** on the worker's HEAD and
+    merge (*Push commits what the run checked*, below), so a commit or a
+    merge a run made itself reaches the branch as its files alone.
+  - **A checkout made with one directory**, before the worker kept two,
+    is set aside at the worker's start with every workspace
+    (`../../protocol/git.md`, section 2); where a deployment keeps its
+    workspaces across a restart (`checkouts.status.md`), the first hold
+    gives it a worker's directory made afresh from its store, and its
+    `.git` becomes the run's, never read, nothing in it trusted, so
+    nothing in it cleaned.
+  - **What it does not close:** a run's command can still write the
+    worker's directory or a store itself, as the worker's user, until
+    confinement's fence keeps it out (`../../draft/confinement.md`, 5.2).
 - **Repositories side by side.** A workspace holds one directory per
   repository, so code that refers to a sibling by path works, and the
   agent's write authority is the list of writable ones.
@@ -145,11 +179,13 @@ runs as contained processes and whose output it parses.
   delivery (`../agent/README.md`, section 5), and its start, push and expected
   head are as before.
 - **A goal's reds for each check** (`../forge/reds.md`, 5.2 and 5.3), in
-  each writable repository with a pin, under its git directory: prepare
+  each writable repository with a pin, under the run's git directory, at
+  `.git/temper` (`../../protocol/git.md`, 4.13): prepare
   removes `temper/reds` and writes `temper/reds-wait`; a check's start
   removes `temper/reds`, and, once the engine answers, the checkout finds
-  the check's base and each red's ancestry with git
-  (`git merge-base`, `git merge-base --is-ancestor`) and writes
+  the check's base and each red's ancestry with git, in the worker's
+  directory, whose HEAD and pin the run's view holds too
+  (`git merge-base`, `git merge-base --is-ancestor`), and writes
   `temper/reds` through `temper/reds.tmp` and a rename; a check's end
   removes it. These are the checkout's typed operations, run as its
   others are, one at a time; a failed one writes no file and fails
@@ -218,11 +254,11 @@ runs as contained processes and whose output it parses.
   with nothing else writing to the checkout (smith's `domain/run.md`,
   8.1); the worker commits exactly that tree and pushes the commit, with
   the run's title and body. Delivery reads the checkout's current HEAD and
-  merge state: an in-progress merge records HEAD and MERGE_HEAD as its two
+  merge state, the worker's (*Two git directories*): an in-progress merge records HEAD and MERGE_HEAD as its two
   parents, even when its resolution is already staged. A committed merge
   keeps its ancestry. When the delivered tree is HEAD's tree and no merge
   is in progress and HEAD is not this hold's unchecked saved commit, the
-  worker delivers that commit unchanged, retaining the producer's message and identity. Edits beyond a local commit build on that
+  worker delivers that commit unchanged, retaining its message and identity. Edits beyond a local commit build on that
   commit. A second parent, in progress or at HEAD, must be reachable from a
   branch or tag on the delivery branch's remote; otherwise delivery refuses,
   saying that its second parent is not reachable from that remote, before
@@ -600,7 +636,7 @@ wire carries, keeps its first 4,096, where the fields are.
   Sharing would mix their objects in one store, which every fetch still
   names by its own remote. Default: unchecked.
 - **File contents fetched once per checkout.** A check out's or a merge's
-  lazy fetch writes into its checkout's own `.git`, not the store, so two
+  lazy fetch writes into its checkout's worker's directory, not the store, so two
   checkouts of one repository each fetch the contents they check out, and a
   checkout made again from an empty directory fetches them again. Measured
   on one deployment's forge, a blob-less store's clone took 2.3 s and 50 MB
@@ -623,8 +659,8 @@ wire carries, keeps its first 4,096, where the fields are.
   so a new one starts from an empty directory and every file is new to a
   build, though its history is the store's. Keyed by repository, it could
   keep a working tree across workstreams and a
-  restart once contained trees keep a run out of the git directory
-  (`../../protocol/git.md`, section 10), perhaps with no switch. With that goes
+  restart once confinement keeps a run's commands out of the worker's git
+  directory (`../../protocol/git.md`, section 10), perhaps with no switch. With that goes
   which workspace a workstream takes: the departure in `checkouts.status.md`
   considers only the least recently used, and after a restart only the one a
   first hold takes, since nothing says which workstream held which. So a

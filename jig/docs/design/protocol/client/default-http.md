@@ -53,6 +53,27 @@ prefix; jig's test application mounts it at `/jig`.
   secret, on the address its client reaches the engine at: the mapping's
   client end makes it, byte for byte as the engine end makes the printed
   link's, and parses it as it parses the printed link's.
+- **The link's page,** where the application gives one: a path of its
+  own, outside the prefix, given to the mapping beside the prefix
+  (temper's is `/sign-in`). It is the same link in a shorter form,
+  `<page>?secret=…` on the same address with the same secret, and
+  nothing of the mapping's: a `GET` of it is the application's, as every
+  path outside the prefix is, and its server answers its page there,
+  with the link route's referrer policy, spending nothing. The secret is
+  still spent by the link route's `POST`, as above. The client end takes
+  a link in either form, as one link (4), and so does the browser's
+  sign-in part (`../browser/README.md`, section 11); each end makes the
+  route's form alone, the printed link's and an asked link's (7).
+  - **Its path:** at most 64 bytes, beginning with `/` and not ending
+    with one, holding no `?` or `#`, and neither the prefix nor a path
+    under it, whose `GET` the engine end would answer `404` (above); any
+    other is refused when the mapping is made.
+  - **Its form, exactly:** `http://HOST<page>?secret=SECRET`, HOST the
+    numeric address and port the route's form takes, SECRET the 32
+    bytes in unpadded base64url with nothing after them, as in the
+    route's form. The page's path with no query, another query, a
+    second parameter or a fragment is no link; with no page given, the
+    page's form is no link.
 - **No provider route.** The application's sign-in runs on its own
   routes; after a `Minted`, its server sets the credential's cookie on
   its own answer with the mapping's function for it (3). So do the
@@ -168,6 +189,16 @@ prefix; jig's test application mounts it at `/jig`.
   into messages (2). The native shell and the reference's browser
   client host use it (`../browser/README.md`, 3.2); an application's own shell
   may.
+- **Its `Mapping`** is the application's: its prefix, and its link page
+  where it gives one (1). `Mapping::new(prefix)` makes one with no page
+  and `Mapping::with_page(prefix, page)` one with it, refusing a page
+  off 1's rule as `Unmapped::Page`. `printed(mapping, url)` takes the
+  printed link's URL in the route's form and, with a page, in the
+  page's, the same `Printed { host, secret }` for both; `link_url`
+  makes the route's form whatever the page. The native shell
+  (`jig-client-shell-native`) is given its application's mapping in its
+  `Settings`, and keeps no prefix of its own: its exchanges' paths and
+  every link it reads are that mapping's.
 - **`jig-protocol-engine-clients-http`,** the engine end, a component on
   skein's HTTP server: each call under its prefix routed to one of the
   component's messages, but a `GET` of the link's route, left to the
@@ -342,3 +373,11 @@ Many of jig's messages in one exchange, each answered as it is ready
   browser's shell through skein's fetch reading the exchange's body in
   pieces (skein's `ui/web/README.md`, section 8), each read on after the step, as the
   stream is (`../browser/README.md`, 5.2).
+
+## 7. Later
+
+- **The printed link in its page's form:** the engine end making the
+  printed link's URL, and the client end an asked link's, at the
+  application's link page where it gives one (1), once every client of
+  the application's deployments takes that form. Until then each end
+  makes the route's form, which every client of every build reads.

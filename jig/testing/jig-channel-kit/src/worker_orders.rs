@@ -27,6 +27,30 @@ pub struct Outcome {
     pub call_held: bool,
 }
 
+impl Outcome {
+    // Wire observations are append-only, including across reconnects.
+    fn observe(&mut self, worker: &processes::Wire, observed: &mut usize) -> Result<(), String> {
+        for (_, kind, bytes) in &worker.frames[*observed..] {
+            self.records.push(*kind);
+            if *kind == wire::Kind::Turn.number() {
+                self.turns.push(
+                    wire::Turn::decode(&wire::CEILINGS, &mut Reader::new(bytes))
+                        .map_err(|why| format!("turn: {why:?}"))?,
+                );
+            }
+            if *kind == wire::Kind::Answer.number() {
+                let answer = wire::Answer::decode(&wire::CEILINGS, &mut Reader::new(bytes))
+                    .map_err(|why| format!("answer: {why:?}"))?;
+                if answer.task() != probe::OTHER_RUN {
+                    self.answers.push(answer);
+                }
+            }
+        }
+        *observed = worker.frames.len();
+        Ok(())
+    }
+}
+
 enum Cancel {
     None,
     Ready,
@@ -46,6 +70,7 @@ struct Judge {
     done: bool,
     outcome: Rc<RefCell<Outcome>>,
     starts_at_cancel: Option<usize>,
+    observed: usize,
 }
 impl skein_world::Referee<Proc> for Judge {
     fn act(&mut self, now: Time, procs: &mut [Proc]) {
@@ -59,26 +84,7 @@ impl skein_world::Referee<Proc> for Judge {
         }
         let worker = world::check_worker_wire(procs)?;
         let mut outcome = self.outcome.borrow_mut();
-        outcome.records = worker.frames.iter().map(|(_, kind, _)| *kind).collect();
-        outcome.turns = worker
-            .frames
-            .iter()
-            .filter(|(_, kind, _)| *kind == wire::Kind::Turn.number())
-            .map(|(_, _, bytes)| {
-                wire::Turn::decode(&wire::CEILINGS, &mut Reader::new(bytes)).map_err(|why| format!("turn: {why:?}"))
-            })
-            .collect::<Result<_, _>>()?;
-        outcome.answers = worker
-            .frames
-            .iter()
-            .filter(|(_, kind, _)| *kind == wire::Kind::Answer.number())
-            .map(|(_, _, bytes)| {
-                wire::Answer::decode(&wire::CEILINGS, &mut Reader::new(bytes)).map_err(|why| format!("answer: {why:?}"))
-            })
-            .collect::<Result<Vec<_>, _>>()?
-            .into_iter()
-            .filter(|answer| answer.task() != probe::OTHER_RUN)
-            .collect();
+        outcome.observe(worker, &mut self.observed)?;
         outcome.acknowledgements = worker.acknowledgements.iter().filter(|(run, _)| *run != probe::OTHER_RUN).count();
         outcome.starts = procs.iter().filter(|proc| matches!(proc, Proc::Agent { .. })).count();
         if worker.frames.iter().any(|(_, kind, _)| *kind == wire::Kind::Cancel.number()) {
@@ -164,6 +170,7 @@ fn run_story(cancel: bool, calls: bool) -> Outcome {
         done: false,
         outcome: outcome.clone(),
         starts_at_cancel: None,
+        observed: 0,
     };
     let mut machine = skein_fake_machine::Machine::new();
     let _state = machine.lay(&[]);
@@ -293,5 +300,31 @@ impl Judge {
         }
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_watch_cursor_matches_whole_history_rescans() {
+        let history = crate::cursor_fixture::frames();
+        let mut wire = processes::Wire::default();
+        let mut incremental = Outcome::default();
+        let mut observed = 0;
+        for frame in history.frames {
+            wire.frames.push(frame);
+            incremental.observe(&wire, &mut observed).expect("new frames");
+            incremental.observe(&wire, &mut observed).expect("no new frames");
+            let mut whole = Outcome::default();
+            whole.observe(&wire, &mut 0).expect("whole history");
+            assert_eq!(incremental.records, whole.records);
+            assert_eq!(incremental.turns, whole.turns);
+            assert_eq!(incremental.answers, whole.answers);
+        }
+        assert_eq!(incremental.turns.len(), 1);
+        assert_eq!(incremental.answers.len(), 1, "the unrelated run is excluded");
+        assert_eq!(incremental.records.len(), 6, "including unrelated records");
     }
 }

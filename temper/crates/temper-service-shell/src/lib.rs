@@ -10,6 +10,7 @@ use temper_shell::{
     directories::{Directories, unread},
     link_file,
 };
+pub mod configuration;
 pub mod host;
 pub mod providers;
 mod restart_fault;
@@ -151,39 +152,43 @@ pub struct Prepared<S, A = ()> {
 pub fn run<S, B, A>(
     binary: &str,
     directories: &Directories,
+    shape: temper_config_shell::Shape,
     environment: &[EnvironmentEntry],
     served: Served<S>,
     clock: &Clock,
     before: impl FnOnce(usize) -> Result<B, String>,
-    prepare: impl FnOnce(&[u8], &mut Vec<Fd>, B) -> Result<Prepared<S, A>, String>,
+    prepare: impl FnOnce(&[u8], &temper_config_shell::Programs, &mut Vec<Fd>, B) -> Result<Prepared<S, A>, String>,
     adopt: impl FnOnce(&mut S, &mut Vec<Fd>, A) -> Result<(), String>,
 ) -> Result<Exit, String> {
-    run_inner(binary, directories, environment, served, clock, before, prepare, adopt)
+    run_inner(binary, directories, shape, environment, served, clock, before, prepare, adopt)
         .map_err(|why| prefixed(&format!("{binary} serve"), &why))
 }
 #[expect(clippy::too_many_arguments, reason = "serve supplies its loop clock beside its startup hooks")]
 fn run_inner<S, B, A>(
     binary: &str,
     directories: &Directories,
+    shape: temper_config_shell::Shape,
     environment: &[EnvironmentEntry],
     served: Served<S>,
     clock: &Clock,
     before: impl FnOnce(usize) -> Result<B, String>,
-    prepare: impl FnOnce(&[u8], &mut Vec<Fd>, B) -> Result<Prepared<S, A>, String>,
+    prepare: impl FnOnce(&[u8], &temper_config_shell::Programs, &mut Vec<Fd>, B) -> Result<Prepared<S, A>, String>,
     adopt: impl FnOnce(&mut S, &mut Vec<Fd>, A) -> Result<(), String>,
 ) -> Result<Exit, String> {
     let link_file = local_link(directories, environment);
     let listeners = skein_shell::inherited_listeners().map_err(listeners_refusal)?;
     let input = before(listeners.len())?;
-    let bytes = directories.read()?;
+    let read = configuration::read(directories, shape)?;
+    let programs = read.programs()?;
     let mut owned = listeners.iter().map(|(fd, _)| *fd).collect::<Vec<_>>();
-    let Prepared { mut service, store, adoption } = match prepare(&bytes, &mut owned, input) {
-        Ok(prepared) => prepared,
-        Err(why) => {
-            close(owned);
-            return Err(why);
-        }
-    };
+    let Prepared { mut service, store, adoption } =
+        match read.prepare(|bytes| prepare(bytes, &programs, &mut owned, input)) {
+            Ok(prepared) => prepared,
+            Err(why) => {
+                close(owned);
+                return Err(why);
+            }
+        };
     for (fd, addr) in listeners {
         if let Err(fd) = (served.adopt_listener)(&mut service, fd, addr) {
             close(owned);

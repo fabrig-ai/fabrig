@@ -596,6 +596,23 @@ impl Sim {
         Ok(())
     }
 
+    pub(super) fn check_reach_roots(&self, pid: Pid, spawn: &skein_io::kernel::Spawn) -> Result<(), String> {
+        if let Some(reach) = &spawn.reach {
+            for rule in &reach.rules {
+                let directory = self.process(pid).files.get(&rule.root).is_some_and(|file| {
+                    file.access == super::files::Access::Record(skein_io::kernel::OpenHow::Directory)
+                        || file.access == super::files::Access::Record(skein_io::kernel::OpenHow::DirectoryNoFollow)
+                });
+                if !directory {
+                    return Err(
+                        self.finding(pid, &format!("Spawn reach root {:?} is not an open directory", rule.root))
+                    );
+                }
+            }
+        }
+        Ok(())
+    }
+
     #[expect(clippy::too_many_lines, reason = "one exhaustive table for process and inherited pipe operations")]
     pub(super) fn process_op(&mut self, pid: Pid, token: Token, serial: u64, op: Op) {
         match op {
@@ -612,8 +629,24 @@ impl Sim {
                     return;
                 }
                 let root = self.process(pid).files[&spawn.root].handle;
+                let reach = spawn.reach.as_ref().map(|reach| {
+                    let rules = reach
+                        .rules
+                        .iter()
+                        .map(|rule| {
+                            let file = self
+                                .process(pid)
+                                .files
+                                .get(&rule.root)
+                                .expect("a reach rule's root is an open directory");
+                            crate::machine::Rule { root: file.handle, path: rule.path.clone(), rights: rule.rights }
+                        })
+                        .collect();
+                    Box::new(crate::machine::Reach { abi: reach.abi, rules })
+                });
                 let ask = Ask::Spawn {
                     root,
+                    reach,
                     program: spawn.program.clone(),
                     args: spawn.args.clone(),
                     env: spawn.env.clone(),
@@ -824,6 +857,10 @@ impl Sim {
         }
     }
 
+    #[expect(
+        clippy::too_many_lines,
+        reason = "one spawn answer creates the child, its report bytes and its descriptors together"
+    )]
     pub(super) fn answered_spawn(&mut self, ticket: Ticket, result: Result<Reply, Error>) {
         let (pid, token) = self.spawn_asked.remove(&ticket).expect("a spawn call waiting");
         let mut op = self.unpark(pid, token);
@@ -834,6 +871,14 @@ impl Sim {
         self.process_mut(pid).spawning = self.process(pid).spawning.checked_sub(reserved).expect("reserved spawn fds");
         match result {
             Ok(Reply::Program(program)) => {
+                let (program, report) = match program {
+                    Program::Report { output, bytes } => (Program::Exit(0), Some((output, bytes))),
+                    Program::Echo { .. }
+                    | Program::Exit(_)
+                    | Program::Never
+                    | Program::Fork { .. }
+                    | Program::Service => (program, None),
+                };
                 let given: Vec<_> = spawn
                     .pipes
                     .iter()
@@ -850,7 +895,7 @@ impl Sim {
                         Way::In | Way::Out | Way::Null | Way::Inherit => None,
                     })
                     .collect();
-                let inherited = self.inherit_descriptors(pid, &spawn.pipes, program);
+                let inherited = self.inherit_descriptors(pid, &spawn.pipes, &program);
                 let specs = spawn.pipes.clone();
                 let child_id = self.next_child;
                 self.next_child = child_id.checked_add(1).expect("fewer than 2^64 children");
@@ -862,15 +907,22 @@ impl Sim {
                         open: true,
                         ended: false,
                         read_to_end: false,
-                        bytes: VecDeque::new(),
+                        bytes: report
+                            .as_ref()
+                            .filter(|(output, _)| *output == spec.child)
+                            .map_or_else(VecDeque::new, |(_, bytes)| bytes.iter().copied().collect()),
                         waiting: None,
                     })
                     .collect();
                 let exit = match program {
                     Program::Exit(code) => Some(Exit::Code(code)),
                     Program::Fork { exit_leader: true } => Some(Exit::Code(0)),
-                    _ => None,
+                    Program::Echo { .. } | Program::Never | Program::Fork { exit_leader: false } | Program::Service => {
+                        None
+                    }
+                    Program::Report { .. } => unreachable!("a report becomes an exited child"),
                 };
+                let descendant_running = matches!(program, Program::Fork { .. });
                 self.process_mut(pid).children.insert(
                     child_id,
                     Child {
@@ -881,7 +933,7 @@ impl Sim {
                         wait_state: WaitState::Unobserved,
                         group: child_id,
                         usage: Resources::ZERO,
-                        descendant_running: matches!(program, Program::Fork { .. }),
+                        descendant_running,
                         wait: None,
                         pidfd_open: true,
                         pipes,
@@ -914,7 +966,7 @@ impl Sim {
         }
     }
 
-    fn inherit_descriptors(&mut self, pid: Pid, specs: &[Pipe], program: Program) -> Vec<(u32, InheritedPipe)> {
+    fn inherit_descriptors(&mut self, pid: Pid, specs: &[Pipe], program: &Program) -> Vec<(u32, InheritedPipe)> {
         let mut inherited = Vec::new();
         if matches!(program, Program::Exit(_) | Program::Fork { exit_leader: true }) {
             return inherited;
@@ -975,7 +1027,7 @@ impl Sim {
         }
         let (program, exit, ended) = {
             let child = &self.process(pid).children[&end.child];
-            (child.program, child.exit, child.pipes[end.index].ended)
+            (child.program.clone(), child.exit, child.pipes[end.index].ended)
         };
         if exit.is_some() || ended {
             self.complete(pid, token, op, Err(Error::BrokenPipe));
@@ -1004,7 +1056,11 @@ impl Sim {
                     (left.len().min(usize_of(self.config.buffer)), None)
                 }
             }
-            _ => (left.len().min(usize_of(self.config.buffer)), None),
+            Program::Echo { .. }
+            | Program::Exit(_)
+            | Program::Never
+            | Program::Fork { .. }
+            | Program::Report { .. } => (left.len().min(usize_of(self.config.buffer)), None),
         };
         if n == 0 {
             self.process_mut(pid).children.get_mut(&end.child).expect("child").pipes[end.index].waiting = Some(token);
@@ -1212,7 +1268,7 @@ impl Sim {
             Program::Service => {
                 return child.pipes[input_index].bytes.len() < usize_of(self.config.buffer);
             }
-            Program::Exit(_) | Program::Never | Program::Fork { .. } => return true,
+            Program::Exit(_) | Program::Never | Program::Fork { .. } | Program::Report { .. } => return true,
         };
         if child.pipes[input_index].spec.child != input {
             return true;
@@ -1262,8 +1318,79 @@ mod tests {
     use crate::{Answer, Ask, Config, Handle, Program, Reply, Sim};
 
     #[test]
+    fn reached_spawn_translates_roots_and_returns_the_machine_refusal() {
+        use skein_io::kernel::{Reach, Rights, Rule, Unenforced};
+        let mut sim = Sim::new(7, Config::calm());
+        let parent = sim.spawn_process();
+        let root = sim.root(parent, Handle::new(91));
+        let other = sim.root(parent, Handle::new(105));
+        let reach = Box::new(Reach {
+            abi: 6,
+            rules: Box::new([
+                Rule { root, path: b"one".as_slice().into(), rights: Rights::READ },
+                Rule { root: other, path: b"two".as_slice().into(), rights: Rights::FULL },
+            ]),
+        });
+        let mut submits = Queue::with_capacity(1);
+        submits.push(Submit {
+            op: Token::new(1),
+            kind: Op::Spawn {
+                spawn: Box::new(Spawn {
+                    reach: Some(reach.clone()),
+                    program: b"service".as_slice().into(),
+                    args: Box::new([]),
+                    env: Box::new([]),
+                    root,
+                    dir: Box::new([]),
+                    pipes: Box::new([Pipe { child: 1, way: Way::Out, parent: None }]),
+                }),
+            },
+        });
+        sim.submit(parent, &mut submits);
+        let mut calls = Queue::with_capacity(1);
+        sim.calls(&mut calls);
+        let call = calls.pop().expect("reached spawn asks the machine");
+        let Ask::Spawn { root: asked_root, reach: asked_reach, .. } = call.ask else { panic!("spawn call") };
+        assert_eq!(asked_root, Handle::new(91));
+        assert_eq!(
+            asked_reach,
+            Some(Box::new(crate::machine::Reach {
+                abi: 6,
+                rules: Box::new([
+                    crate::machine::Rule {
+                        root: Handle::new(91),
+                        path: b"one".as_slice().into(),
+                        rights: Rights::READ
+                    },
+                    crate::machine::Rule {
+                        root: Handle::new(105),
+                        path: b"two".as_slice().into(),
+                        rights: Rights::FULL
+                    },
+                ])
+            }))
+        );
+        let mut answers = Queue::with_capacity(1);
+        answers.push(Answer { ticket: call.ticket, result: Err(Error::Reach(Unenforced::Absent)) });
+        sim.answer(&mut answers);
+        let mut completes = Queue::with_capacity(1);
+        sim.reap(parent, &mut completes);
+        let complete = completes.pop().expect("reach refusal completes at once");
+        assert_eq!(complete.op, Token::new(1));
+        assert_eq!(complete.result, Err(Error::Reach(Unenforced::Absent)));
+        assert!(complete.is_valid());
+        let Op::Spawn { spawn } = complete.kind else { panic!("spawn record") };
+        assert_eq!(spawn.reach, Some(reach));
+        assert!(spawn.pipes.iter().all(|pipe| pipe.parent.is_none()));
+        let _closed = sim.cut(parent);
+        sim.assert_no_open_fds(parent);
+    }
+
+    #[test]
     #[expect(clippy::too_many_lines, reason = "one service exchange covers all three pipe directions and exit")]
     fn hosted_service_exchanges_three_pipes_and_settles_wait() {
+        use skein_io::kernel::Reach;
+        let reach = Some(Box::new(Reach { abi: 6, rules: Box::new([]) }));
         let mut config = Config::calm();
         config.buffer = 2;
         let mut sim = Sim::new(7, config);
@@ -1275,6 +1402,7 @@ mod tests {
             op: Token::new(1),
             kind: Op::Spawn {
                 spawn: Box::new(Spawn {
+                    reach: reach.clone(),
                     program: Box::from(&b"service"[..]),
                     args: Box::new([]),
                     env: Box::new([]),
@@ -1292,6 +1420,9 @@ mod tests {
         let mut calls = Queue::with_capacity(1);
         sim.calls(&mut calls);
         let call = calls.pop().expect("spawn call");
+        let Ask::Spawn { reach: asked_reach, .. } = &call.ask else { panic!("spawn call") };
+        assert_eq!(*asked_reach, Some(Box::new(crate::machine::Reach { abi: 6, rules: Box::new([]) })));
+        assert_eq!(sim.hosted_spawn(call.ticket).2.reach, reach);
         let mut answers = Queue::with_capacity(1);
         answers.push(Answer { ticket: call.ticket, result: Ok(Reply::Program(Program::Service)) });
         sim.answer(&mut answers);
@@ -1530,6 +1661,7 @@ mod tests {
             op: Token::new(0),
             kind: Op::Spawn {
                 spawn: Box::new(Spawn {
+                    reach: None,
                     program: b"never".to_vec().into_boxed_slice(),
                     args: Box::new([]),
                     env: Box::new([]),

@@ -51,6 +51,34 @@ fn build(fill: impl FnOnce(&mut Builder)) -> View {
 fn binding(n: u64) -> Binding {
     Binding { owner: Owner { number: 1 }, token: Token::new(n) }
 }
+#[test]
+fn text_boxes_match_both_roles_by_whole_name_in_document_order() {
+    let view = build(|b| {
+        b.open(Role::Page);
+        b.open(Role::TextArea);
+        b.name(b"Reply");
+        b.close();
+        b.open(Role::Region);
+        b.name(b"Composer");
+        for role in [Role::TextField, Role::Button, Role::TextArea] {
+            b.open(role);
+            b.name(b"Reply");
+            b.close();
+        }
+        b.close();
+        b.close();
+    });
+    let mut face = TreeFace::new(view.tree());
+    let field = Find::text_box(b"Reply");
+    assert_eq!(face.find(&field), Found::Node(NodeId(2)));
+    assert_eq!(face.find(&field.clone().nth(1)), Found::Node(NodeId(4)));
+    assert_eq!(face.find(&field.clone().nth(2)), Found::Node(NodeId(6)));
+    assert_eq!(face.find(&field.clone().nth(3)), Found::Absent);
+    assert_eq!(face.find(&field.within(Box::from([region(b"Composer")])).nth(1)), Found::Node(NodeId(6)));
+    assert_eq!(face.find(&Find::text_box(b"reply")), Found::Absent);
+    assert_eq!(face.find(&Find::text_box(b"Rep")), Found::Absent);
+}
+
 const CONTROL: NodeId = NodeId(2); // page, control
 fn page_with_control(role: Role, name: &[u8]) -> View {
     build(|b| {
@@ -561,4 +589,28 @@ fn a_tree_find_past_the_last_match_is_absent() {
     let view = repeated_buttons();
     let mut face = TreeFace::new(view.tree());
     assert_eq!(face.find(&Find::named(Role::Button, b"Choose").nth(2)), Found::Absent);
+}
+
+#[test]
+fn a_meter_is_found_by_its_role_name() {
+    assert_eq!(crate::role_name(Role::Meter), "meter");
+    assert_eq!(crate::role_named("meter"), Some(Role::Meter));
+    let view = build(|b| {
+        b.open(Role::Page);
+        b.open(Role::Main);
+        b.open(Role::Meter);
+        b.name(b"Week");
+        b.fraction(Fraction { done: 2900, total: 10000 });
+        b.run(Run::Plain, b"29% used");
+        b.close();
+        b.close();
+        b.close();
+    });
+    let mut person: Person<u8> = Person::new(Box::new([Step::See {
+        find: Find::exactly_named(crate::role_named("meter").expect("meter role"), b"Week"),
+        within: skein_lib::Duration::from_secs(1),
+    }]));
+    let mut face = TreeFace::new(view.tree());
+    assert_eq!(person.next(&mut face, Time::ZERO), Next::Wait { until: None });
+    assert_eq!(person.next(&mut face, Time::ZERO), Next::Done);
 }

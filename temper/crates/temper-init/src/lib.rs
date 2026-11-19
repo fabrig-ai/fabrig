@@ -1,16 +1,14 @@
-//! The files temper init writes, and the default document (protocol/setup/init.md, 2 and 3).
+//! The data files temper init writes (protocol/setup/init.md, 2).
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 extern crate alloc;
 
 use alloc::boxed::Box;
-use core::num::NonZeroU16;
 use skein_lib::{Writer, bytes};
 
 mod hex;
 mod path;
 mod person;
-mod template;
 #[cfg(test)]
 mod tests;
 
@@ -20,34 +18,22 @@ pub use temper_fetch::claude_code::FETCHED;
 /// What the binary finds on the machine, each path absolute (protocol/setup/init.md, 2).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Facts<'a> {
-    /// The running temper's own path: the worker's agent's program.
+    /// The running temper's own path: the playground's git link target.
     pub binary: &'a [u8],
     /// The git found on PATH, or none: the worker's git.
     pub git: Option<&'a [u8]>,
     /// The claude found on PATH, or none when its pinned build is needed.
     pub claude: Option<&'a [u8]>,
-    /// The listeners' ports on 127.0.0.1.
-    pub ports: Ports,
     /// The effective uid's name in /etc/passwd, or none.
     pub login: Option<&'a [u8]>,
-    /// Whether the host made or found the provider key (protocol/openid-provider.md, 9).
-    pub sign_in: bool,
 }
 
-/// What a bare document needs, without the box's parts (protocol/setup/init.md, 3).
+/// What the bare deployment's data files need (protocol/setup/init.md, 2).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Bare<'a> {
     pub binary: &'a [u8],
     pub git: Option<&'a [u8]>,
     pub claude: Option<&'a [u8]>,
-    pub clients: NonZeroU16,
-    pub webhooks: NonZeroU16,
-}
-
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub struct Ports {
-    pub clients: NonZeroU16,
-    pub webhooks: NonZeroU16,
 }
 
 /// The directories init writes into, each absolute (protocol/configuration/directories.md).
@@ -67,7 +53,7 @@ pub enum Directory {
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct File {
     pub directory: Directory,
-    /// Relative to its directory: `worker.secret`, `temper.json`.
+    /// Relative to its directory: `worker.secret`, `demo/bin/git`.
     pub name: &'static [u8],
     pub content: Content,
 }
@@ -84,7 +70,7 @@ pub enum Content {
     },
 }
 
-/// The files to write and whether the machine's login names forge 3's person.
+/// The files to write and whether the machine's login can name the owned Forgejo's person.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Answer {
     pub files: Box<[File]>,
@@ -117,23 +103,19 @@ pub enum Fact {
 pub enum Reason {
     /// It does not begin with `/`.
     Relative,
-    /// It is not UTF-8, which JSON's text cannot hold.
+    /// It is not UTF-8, which init's paths cannot hold.
     Text,
-    /// It, or a path joined from it (`<config>/temper.json`,
-    /// `<data>/worker.secret`), passes 4096 bytes.
+    /// It, or the joined `<data>/worker.secret`, passes 4096 bytes.
     Bound,
 }
 
-/// The files of protocol/setup/init.md 2, in its table's order: `worker.secret`,
-/// `demo/bin/git`
-/// (data, a link), `temper.json` (config), the
-/// document last.
+/// The data files of protocol/setup/init.md 2, in its table's order:
+/// `worker.secret`, then `demo/bin/git` (a link). The shell renders the configuration last.
 pub fn files(facts: &Facts<'_>, directories: &Directories<'_>, secret: &[u8; 32]) -> Result<Answer, Refusal> {
     check(facts.binary, facts.git, facts.claude, directories)?;
 
     let digits = hex::digits(secret);
-    let (login, person) = person::login(facts.login);
-    let document = template::documents(facts, directories, login);
+    let (_, person) = person::login(facts.login);
     Ok(Answer {
         person,
         files: Box::new([
@@ -147,32 +129,19 @@ pub fn files(facts: &Facts<'_>, directories: &Directories<'_>, secret: &[u8; 32]
                 name: b"demo/bin/git",
                 content: Content::Link { target: bytes::copy_of(facts.binary) },
             },
-            File {
-                directory: Directory::Config,
-                name: b"temper.json",
-                content: Content::Bytes { bytes: document, private: false },
-            },
         ]),
     })
 }
 
-/// `worker.secret`, `temper.json`, in that order.
+/// The bare deployment's data file, `worker.secret`.
 pub fn bare(facts: &Bare<'_>, directories: &Directories<'_>, secret: &[u8; 32]) -> Result<Box<[File]>, Refusal> {
     check(facts.binary, facts.git, facts.claude, directories)?;
     let digits = hex::digits(secret);
-    let document = template::bare_documents(facts, directories);
-    Ok(Box::new([
-        File {
-            directory: Directory::Data,
-            name: b"worker.secret",
-            content: Content::Bytes { bytes: line(&digits), private: true },
-        },
-        File {
-            directory: Directory::Config,
-            name: b"temper.json",
-            content: Content::Bytes { bytes: document, private: false },
-        },
-    ]))
+    Ok(Box::new([File {
+        directory: Directory::Data,
+        name: b"worker.secret",
+        content: Content::Bytes { bytes: line(&digits), private: true },
+    }]))
 }
 
 fn check(
@@ -188,7 +157,7 @@ fn check(
     if let Some(claude) = claude {
         path::check(Fact::Claude, claude, b"")?;
     }
-    path::check(Fact::Config, directories.config, b"temper.json")?;
+    path::check(Fact::Config, directories.config, b"")?;
     path::check(Fact::Data, directories.data, b"worker.secret")?;
 
     Ok(())

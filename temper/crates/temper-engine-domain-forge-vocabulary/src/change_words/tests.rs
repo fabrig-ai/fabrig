@@ -147,6 +147,7 @@ fn news_failures(ids: &[&[u8]]) -> temper_engine_domain_forge_tiers::Failures {
 
 fn red_news(on: super::forge::RedOn, logs: Box<[super::forge::JobLog]>) -> super::forge::News {
     super::forge::News::Red(super::forge::RedNews {
+        many: None,
         tier: Box::from(b"fuzzy".as_slice()),
         run: 7,
         url: Some(Box::from(b"https://forge.example/runs/7".as_slice())),
@@ -195,6 +196,98 @@ fn red_news_after_landing_names_many_failures() {
         b"many", RED_RUN_LINE,
     ]);
     assert_eq!(news_words(&news, u32::try_from(expected.len()).unwrap()), expected);
+}
+
+fn with_many_names(on: super::forge::RedOn, tests: &[&[u8]], more: u32, cut: bool) -> super::forge::RedNews {
+    let super::forge::News::Red(mut red) = red_news(on, Box::new([])) else { panic!("red fixture") };
+    let temper_engine_domain_forge_tiers::Failures::Tests(tests) = news_failures(tests) else {
+        panic!("named fixture")
+    };
+    red.many = Some(temper_engine_domain_forge_tiers::ManyTests { tests, more, cut });
+    red
+}
+fn many_landing() -> super::forge::RedOn {
+    super::forge::RedOn::Landing {
+        commit: SHA1,
+        branch: Box::from(b"main".as_slice()),
+        failing: temper_engine_domain_forge_tiers::Failures::Many,
+    }
+}
+const MANY_HEADER: &[u8] = b"Red after landing: tier fuzzy run 7 blames landing abcdef0123456789abcdef0123456789abcdef01 on main: many failing.";
+
+#[test]
+fn red_news_after_landing_keeps_many_report_names() {
+    let red = with_many_names(many_landing(), &[b"suite::a", b"suite::b"], 21, false);
+    let expected =
+        news_lines(&[MANY_HEADER, b"many; its report names:", b"suite::a", b"suite::b", b"and 21 more", RED_RUN_LINE]);
+    assert_eq!(super::forge::red_news_words(&red, u32::try_from(expected.len()).unwrap()), expected);
+    let mut red = red;
+    red.many.as_mut().unwrap().more = 0;
+    let expected = news_lines(&[MANY_HEADER, b"many; its report names:", b"suite::a", b"suite::b", RED_RUN_LINE]);
+    assert_eq!(super::forge::red_news_words(&red, u32::try_from(expected.len()).unwrap()), expected);
+}
+
+#[test]
+fn red_news_many_cut_reports_name_the_remainder_even_when_zero() {
+    for (more, remainder) in [
+        (3, b"and 3 more, its report cut at the read's bound".as_slice()),
+        (0, b"and more, its report cut at the read's bound".as_slice()),
+    ] {
+        let red = with_many_names(many_landing(), &[], more, true);
+        let expected = news_lines(&[MANY_HEADER, b"many; its report names:", remainder, RED_RUN_LINE]);
+        assert_eq!(super::forge::red_news_words(&red, u32::try_from(expected.len()).unwrap()), expected);
+    }
+}
+
+#[test]
+fn red_news_many_names_leave_room_for_remainder_and_run() {
+    let red = with_many_names(many_landing(), &[b"suite::a", b"suite::b", b"suite::c"], 2, false);
+    let expected = news_lines(&[MANY_HEADER, b"many; its report names:", b"suite::a", b"and 4 more", RED_RUN_LINE]);
+    let limit = u32::try_from(expected.len()).unwrap();
+    assert_eq!(super::forge::red_news_words(&red, limit), expected);
+    // A spare byte cannot become a partial id, nor displace the run URL.
+    assert_eq!(super::forge::red_news_words(&red, limit + 1), expected);
+    let red = with_many_names(many_landing(), &[b"suite::a", b"suite::b", b"suite::c"], 2, true);
+    let expected = news_lines(&[
+        MANY_HEADER,
+        b"many; its report names:",
+        b"suite::a",
+        b"and 4 more, its report cut at the read's bound",
+        RED_RUN_LINE,
+    ]);
+    assert_eq!(super::forge::red_news_words(&red, u32::try_from(expected.len()).unwrap()), expected);
+}
+
+#[test]
+fn red_news_on_goal_branches_prefixes_many_report_names() {
+    use temper_engine_domain_forge_tiers::Failures;
+    for new in [true, false] {
+        let on = super::forge::RedOn::Goal {
+            branch: Box::from(b"goal".as_slice()),
+            tip: SHA1,
+            new: if new { Failures::Many } else { news_failures(&[]) },
+            still: if new { news_failures(&[]) } else { Failures::Many },
+        };
+        let red = with_many_names(on, &[b"suite::a"], 21, false);
+        let expected = if new {
+            news_lines(&[
+                b"Red on goal: tier fuzzy run 7 at abcdef012345: many new, 0 still failing.",
+                b"new: many; its report names:",
+                b"new: suite::a",
+                b"new: and 21 more",
+                RED_RUN_LINE,
+            ])
+        } else {
+            news_lines(&[
+                b"Red on goal: tier fuzzy run 7 at abcdef012345: 0 new, many still failing.",
+                b"still failing: many; its report names:",
+                b"still failing: suite::a",
+                b"still failing: and 21 more",
+                RED_RUN_LINE,
+            ])
+        };
+        assert_eq!(super::forge::red_news_words(&red, u32::try_from(expected.len()).unwrap()), expected);
+    }
 }
 
 #[test]
@@ -630,6 +723,40 @@ fn a_gate_repairs_words_open_with_its_number_kind_and_head() {
 }
 
 #[test]
+fn resolution_words_make_a_merge_jobs_result_text_before_quoting_it() {
+    let words = super::resolution_words(Some(b"{\"left\":[\"a\xffb\"]}"), &[], 4096).unwrap();
+    assert!(words.ends_with(b"{\"left\":[\"a?b\"]}"));
+    assert!(skein_lib::bytes::is_utf8(&words));
+}
+
+#[test]
+fn repair_words_make_failed_test_keys_text() {
+    let mut row = change_row(Some(42));
+    row.change.last_head = Some(SHA1);
+    let why = super::forge_change::Repair::LandingAt { gate: 1, candidate: SHA1, below: None };
+    let mut failure = repair_failure(SHA1, None);
+    failure.report = super::forge::ReceiptReport::Tests(Box::new([super::forge::ReceiptTest {
+        key: b"test binary a\xffb".as_slice().into(),
+        fuzzy: false,
+    }]));
+    let words = super::repair_words(&row, why, Some(&failure), &[], 4096).unwrap();
+    assert!(skein_lib::bytes::find(&words, b"\nFailed test: test binary a?b (focused)").is_some());
+    assert!(skein_lib::bytes::is_utf8(&words));
+}
+
+#[test]
+fn repair_words_make_failed_job_names_text() {
+    let mut row = change_row(Some(42));
+    row.change.last_head = Some(SHA1);
+    let why = super::forge_change::Repair::LandingAt { gate: 1, candidate: SHA1, below: None };
+    let mut failure = repair_failure(SHA1, None);
+    failure.jobs = Box::new([super::forge::ReceiptJob { job: 9001, attempt: 1, name: b"check\xff".as_slice().into() }]);
+    let words = super::repair_words(&row, why, Some(&failure), &[], 4096).unwrap();
+    assert!(skein_lib::bytes::find(&words, b"\nFailed job: check?: read_ci what=job ").is_some());
+    assert!(skein_lib::bytes::is_utf8(&words));
+}
+
+#[test]
 fn a_resolution_preserves_both_sides_within_a_small_spec() {
     use super::tasks::Parameter;
     let parameters = [
@@ -845,6 +972,9 @@ fn change_row(pull: Option<u64>) -> super::forge::ChangeRow {
         delegate_head: None,
         verdicts: Box::new([]),
         milestone: None,
+        person: None,
+        goal_title: None,
+        draft: None,
         goal: None,
         ending: None,
         repair_tasks: Box::new([]),

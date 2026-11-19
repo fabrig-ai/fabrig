@@ -210,8 +210,20 @@ mod tests {
         let bytes = serde_json::to_vec(&value["engine"]).expect("engine JSON");
         let document = config::document(&bytes, &DocumentLimits { bytes: 8192, tokens: 4096, depth: 32 })
             .expect("engine document");
-        config::engine(&document, 0, &Directories::working(), Defaults::Document, &config::Fixed::NONE)
-            .expect("the browser engine must pass startup validation");
+        let engine = config::engine_over(
+            &document,
+            0,
+            &Directories::working(),
+            Defaults::Document,
+            &config::Fixed::NONE,
+            &jig_protocol_config_fixtures::small(),
+        )
+        .expect("the browser engine must pass startup validation");
+        let core = config::core(&engine, [0; 16], 0);
+        let limits = &engine.limits.core;
+        let mut current = jig_domain_core::settings::Current::new(core.defaults, limits, &core.kinds);
+        current.fixed_providers = core.fixed_providers;
+        assert_eq!(jig_domain_core::settings::check(&current, &core.settings, &core.connectors, limits), Ok(()));
     }
     #[test]
     fn the_tier_names_the_bundle_for_its_server() {

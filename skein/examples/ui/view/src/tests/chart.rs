@@ -14,13 +14,13 @@ fn state() -> State {
     for (number, (title, label)) in
         (0..).zip([(b"An idea".as_slice(), Label::Idea), (b"A task", Label::Task), (b"A reference", Label::Reference)])
     {
-        let mut parts = fixtures::notes().notes().get(0).unwrap().clone().into_parts();
-        parts.number = number;
-        parts.title = title.into();
-        parts.label = label;
-        notes.push(records::Note::new(&records::CEILINGS, parts).unwrap()).unwrap();
+        let mut note = fixtures::notes().notes.get(0).unwrap().clone();
+        note.number = number;
+        note.title = title.into();
+        note.label = label;
+        notes.push(note).unwrap();
     }
-    state.notes = records::Notes::new(&records::CEILINGS, records::NotesParts { notes }).unwrap();
+    state.notes = records::Notes { notes };
     state
 }
 fn drawing(state: &State) -> Drawing {

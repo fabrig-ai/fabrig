@@ -1,21 +1,18 @@
 //! Whole, versioned records at both ends of the family wire (protocol/client/README.md, 8).
-use crate::v1 as w;
+use crate::v1::{self as w, Record};
 use alloc::boxed::Box;
-use skein_lib::{Reader, Writer};
+use skein_lib::Reader;
 
 /// A record with the wrong version, malformed fields, or trailing bytes.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Undecodable;
 
 pub mod infrastructure {
-    use super::{Box, Reader, Undecodable, Writer, w};
+    use super::{Box, Reader, Record, Undecodable, w};
 
     /// Encode an admitted environment request.
-    #[must_use]
-    pub fn ask(value: &w::InfrastructureAskRecord) -> Box<[u8]> {
-        let mut writer = Writer::new(skein_lib::length::usize_of(value.measure()));
-        value.encode(&mut writer).expect("measured request");
-        writer.finish()
+    pub fn ask(value: &w::InfrastructureAskRecord) -> Result<Box<[u8]>, w::Problem> {
+        value.encode(&w::CEILINGS)
     }
 
     /// Decode a request before the engine admits it.
@@ -29,11 +26,8 @@ pub mod infrastructure {
     }
 
     /// Encode the connector's durable answer.
-    #[must_use]
-    pub fn answer_record(value: &w::InfrastructureAnswerRecord) -> Box<[u8]> {
-        let mut writer = Writer::new(skein_lib::length::usize_of(value.measure()));
-        value.encode(&mut writer).expect("measured answer");
-        writer.finish()
+    pub fn answer_record(value: &w::InfrastructureAnswerRecord) -> Result<Box<[u8]>, w::Problem> {
+        value.encode(&w::CEILINGS)
     }
 
     /// Decode the connector's answer at the client.
@@ -49,11 +43,8 @@ pub mod infrastructure {
     }
 
     /// Encode a subject kind for a watch or read.
-    #[must_use]
-    pub fn subject(value: &w::InfrastructureSubjectRecord) -> Box<[u8]> {
-        let mut writer = Writer::new(skein_lib::length::usize_of(value.measure()));
-        value.encode(&mut writer).expect("measured subject");
-        writer.finish()
+    pub fn subject(value: &w::InfrastructureSubjectRecord) -> Result<Box<[u8]>, w::Problem> {
+        value.encode(&w::CEILINGS)
     }
 
     /// Decode the subject at the engine.
@@ -69,11 +60,8 @@ pub mod infrastructure {
     }
 
     /// Encode the owner's whole document.
-    #[must_use]
-    pub fn document_record(value: &w::InfrastructureDocumentRecord) -> Box<[u8]> {
-        let mut writer = Writer::new(skein_lib::length::usize_of(value.measure()));
-        value.encode(&mut writer).expect("measured document");
-        writer.finish()
+    pub fn document_record(value: &w::InfrastructureDocumentRecord) -> Result<Box<[u8]>, w::Problem> {
+        value.encode(&w::CEILINGS)
     }
 
     /// Decode the owner's whole document at the client.
@@ -88,11 +76,8 @@ pub mod infrastructure {
         Ok(record)
     }
     /// Encode the owner's read answer, including a refusal.
-    #[must_use]
-    pub fn read_answer(value: &w::InfrastructureReadAnswer) -> Box<[u8]> {
-        let mut writer = Writer::new(skein_lib::length::usize_of(value.measure()));
-        value.encode(&mut writer).expect("measured read answer");
-        writer.finish()
+    pub fn read_answer(value: &w::InfrastructureReadAnswer) -> Result<Box<[u8]>, w::Problem> {
+        value.encode(&w::CEILINGS)
     }
     /// Decode a whole owner read answer.
     pub fn read_answer_value(bytes: &[u8]) -> Result<w::InfrastructureReadAnswer, Undecodable> {
@@ -108,14 +93,11 @@ pub mod infrastructure {
 }
 
 pub mod observability {
-    use super::{Box, Reader, Undecodable, Writer, w};
+    use super::{Box, Reader, Record, Undecodable, w};
 
     /// Encode an incident, alert or panel subject kind.
-    #[must_use]
-    pub fn subject(value: &w::ObservabilitySubjectRecord) -> Box<[u8]> {
-        let mut writer = Writer::new(skein_lib::length::usize_of(value.measure()));
-        value.encode(&mut writer).expect("measured subject");
-        writer.finish()
+    pub fn subject(value: &w::ObservabilitySubjectRecord) -> Result<Box<[u8]>, w::Problem> {
+        value.encode(&w::CEILINGS)
     }
 
     /// Decode the subject at the engine.
@@ -131,11 +113,8 @@ pub mod observability {
     }
 
     /// Encode the owner's whole incident, alert or panel document.
-    #[must_use]
-    pub fn document_record(value: &w::ObservabilityDocumentRecord) -> Box<[u8]> {
-        let mut writer = Writer::new(skein_lib::length::usize_of(value.measure()));
-        value.encode(&mut writer).expect("measured document");
-        writer.finish()
+    pub fn document_record(value: &w::ObservabilityDocumentRecord) -> Result<Box<[u8]>, w::Problem> {
+        value.encode(&w::CEILINGS)
     }
 
     /// Decode the owner's whole document at the client.
@@ -150,11 +129,8 @@ pub mod observability {
         Ok(record)
     }
     /// Encode the owner's read answer, including a refusal.
-    #[must_use]
-    pub fn read_answer(value: &w::ObservabilityReadAnswer) -> Box<[u8]> {
-        let mut writer = Writer::new(skein_lib::length::usize_of(value.measure()));
-        value.encode(&mut writer).expect("measured read answer");
-        writer.finish()
+    pub fn read_answer(value: &w::ObservabilityReadAnswer) -> Result<Box<[u8]>, w::Problem> {
+        value.encode(&w::CEILINGS)
     }
     /// Decode a whole owner read answer.
     pub fn read_answer_value(bytes: &[u8]) -> Result<w::ObservabilityReadAnswer, Undecodable> {

@@ -12,15 +12,8 @@ mod store;
 pub fn manifest_counts(rows: &[(&str, u64, u64)]) -> skein_lib::List<crate::codec::component::Count> {
     let mut counts = skein_lib::List::with_capacity(u32::try_from(rows.len()).expect("fixture count"));
     for (family, before, after) in rows {
-        let count = crate::codec::component::Count::new(
-            &crate::component_v3::CEILINGS,
-            crate::codec::component::CountParts {
-                family: Box::from(family.as_bytes()),
-                before: *before,
-                after: *after,
-            },
-        )
-        .expect("fixture family");
+        let count =
+            crate::codec::component::Count { family: Box::from(family.as_bytes()), before: *before, after: *after };
         counts.push(count).expect("fixture count");
     }
     counts

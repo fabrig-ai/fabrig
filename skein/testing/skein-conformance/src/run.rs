@@ -68,6 +68,8 @@ struct Flight<P> {
     /// A `List`'s entries: their address, and what they held.
     entries: Option<(usize, Box<[Entry]>)>,
     pipes: Option<(usize, Box<[Pipe]>)>,
+    /// Reach and rule-table addresses, with the immutable submitted value.
+    reach: Option<(usize, usize, Box<skein_io::kernel::Reach>)>,
 }
 
 impl<'b, B: Backend> Run<'b, B> {
@@ -132,7 +134,15 @@ impl<'b, B: Backend> Run<'b, B> {
             | Op::PipeWrite { .. }
             | Op::Cancel { .. } => None,
         };
-        self.flights.insert(token, Flight { process, summary: Summary::of(&op), boxes, entries, pipes });
+        let reach = if let Op::Spawn { spawn } = &op {
+            spawn
+                .reach
+                .as_ref()
+                .map(|reach| (core::ptr::from_ref(reach.as_ref()).addr(), reach.rules.as_ptr().addr(), reach.clone()))
+        } else {
+            None
+        };
+        self.flights.insert(token, Flight { process, summary: Summary::of(&op), boxes, entries, pipes, reach });
         self.submissions.push(Submit { op: token, kind: op });
         self.backend.submit(process, &mut self.submissions);
         assert!(self.submissions.is_empty(), "the backend takes every record of a scenario");
@@ -540,6 +550,30 @@ impl<B: Backend> Run<'_, B> {
         fd
     }
 
+    pub(crate) fn reach_rules(&mut self, process: B::Process, executable: &[u8]) -> Vec<skein_io::kernel::Rule> {
+        let rules = self.backend.reach_rules(process, executable);
+        for root in rules.iter().map(|rule| rule.root).collect::<BTreeSet<_>>() {
+            assert!(self.open.insert((process, root)), "a machine root is new in its process");
+        }
+        rules
+    }
+
+    pub(crate) fn hold_inheritable(&mut self, process: B::Process, root: Fd, path: &[u8]) -> Fd {
+        let fd = self.open(process, root, path, OpenHow::Read).expect("the held canary opens");
+        self.backend.hold_inheritable(process, fd);
+        fd
+    }
+
+    pub(crate) fn set_id_copy(
+        &mut self,
+        process: B::Process,
+        root: Fd,
+        executable: &[u8],
+        path: &[u8],
+    ) -> Result<(), String> {
+        self.backend.set_id_copy(process, root, executable, path)
+    }
+
     pub(crate) fn append(&mut self, process: B::Process, root: Fd, path: &[u8], mode: u32) -> Result<Fd, Error> {
         let fd = self.backend.append(process, root, path, mode)?;
         assert!(self.open.insert((process, fd)), "an append descriptor is new in its process");
@@ -871,6 +905,9 @@ fn boxes_of(op: &Op) -> Vec<&[u8]> {
             for env in &spawn.env {
                 boxes.push(env);
             }
+            if let Some(reach) = &spawn.reach {
+                boxes.extend(reach.rules.iter().map(|rule| rule.path.as_ref()));
+            }
             boxes
         }
         Op::Open { path, .. } => vec![path],
@@ -970,6 +1007,21 @@ fn handed_back<P>(flight: &Flight<P>, complete: &Complete) {
         assert!(back.as_ptr().addr() == *address, "a List's entries come back in the Box they went down in");
         let n = count.unwrap_or(0);
         assert!(back.get(n..) == held.get(n..), "a List's entries past its count come back untouched");
+    }
+    if let Op::Spawn { spawn } = &complete.kind {
+        match (&flight.reach, &spawn.reach) {
+            (Some((address, rules, held)), Some(back)) => {
+                assert_eq!(
+                    core::ptr::from_ref(back.as_ref()).addr(),
+                    *address,
+                    "the reach returns in its submitted Box"
+                );
+                assert_eq!(back.rules.as_ptr().addr(), *rules, "the reach keeps its rule table's Box");
+                assert_eq!(back, held, "a reach's ABI, roots, paths and rights return untouched (kernel.md, 4)");
+            }
+            (None, None) => {}
+            _ => unexpected("the spawn keeps its reach", &spawn.reach),
+        }
     }
     if let (Some((address, held)), Op::Spawn { spawn }) = (&flight.pipes, &complete.kind) {
         assert!(spawn.pipes.as_ptr().addr() == *address, "a Spawn's pipes come back in the Box they went down in");

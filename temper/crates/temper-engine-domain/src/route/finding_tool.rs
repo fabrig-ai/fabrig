@@ -75,7 +75,7 @@ pub(crate) fn call(
                 if (match state {
                     Some(state) => state != row.state,
                     None => false,
-                }) || (mine && holder != forge::Holder::Task(key.task))
+                }) || (mine && (row.needs_no_triage() || holder != forge::Holder::Task(key.task)))
                 {
                     continue;
                 }

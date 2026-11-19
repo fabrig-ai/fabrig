@@ -10,6 +10,7 @@ use fixtures::{BASE, CHANGE, HEAD, OPEN};
 use skein_forge::api;
 use temper_engine_domain_forge_landing as keys;
 use temper_engine_domain_forge_tiers as p;
+pub(crate) mod filing;
 mod goals;
 mod hold;
 mod post;
@@ -34,7 +35,9 @@ pub(super) fn restoring(branch: Option<&[u8]>) -> Domain {
     })
 }
 fn restoring_following(follows: Follows) -> Domain {
-    let mut d = domain();
+    restoring_in(domain(), follows)
+}
+fn restoring_in(mut d: Domain, follows: Follows) -> Domain {
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     assert!(d.project_landing(
         5,
@@ -55,6 +58,7 @@ fn restoring_following(follows: Follows) -> Domain {
         }]),
         temper_engine_domain_forge_landing::Project::DEFAULT,
         AfterLanding {
+            wait: temper_engine_domain_forge_change::Wait::Cleared,
             verdict: p::Settings { retries: RETRIES, suspects: p::Suspects::Bisect },
             bound: Duration::from_secs(7200)
         }

@@ -157,8 +157,8 @@ pub(crate) fn form_landings(domain: &mut Domain, env: &Env<Limits>) -> bool {
     false
 }
 
-/// Gate dispatch and rerun failures are retried by the landing policy
-/// (temper/docs/design/domain/landing.md, 7.4); other terminal writes need an account.
+/// The policy owns gate retries and every merge outcome
+/// (temper/docs/design/domain/landing.md, 7.4, 8); other terminal writes need an account.
 pub(super) fn failed_effect_needs_hold(domain: &Domain, task: u64, entry: u64) -> bool {
     let Some(row) = domain.forge.landing(task) else { return false };
     for pending in &row.entries {
@@ -166,10 +166,9 @@ pub(super) fn failed_effect_needs_hold(domain: &Domain, task: u64, entry: u64) -
             continue;
         }
         match pending.operation {
-            forge::Operation::Dispatch | forge::Operation::Rerun => return false,
+            forge::Operation::Dispatch | forge::Operation::Rerun | forge::Operation::Merge => return false,
             forge::Operation::Pending
             | forge::Operation::Verdict
-            | forge::Operation::Merge
             | forge::Operation::Open
             | forge::Operation::Close
             | forge::Operation::Delete
@@ -187,22 +186,49 @@ pub(super) fn start_landing(domain: &mut Domain, env: &Env<Limits>, task: u64) {
     form_train(domain, env, repository, &branch);
 }
 
+/// A step begun before readiness includes its coalesced wake until it parks.
+/// Later wakes of a waiting change are separate steps (domain/landing.md, 9).
+pub(super) fn settled_steps(domain: &mut Domain, env: &Env<Limits>) {
+    if domain.forge_settling.is_empty() {
+        return;
+    }
+    let prior = core::mem::replace(&mut domain.forge_settling, skein_lib::Set::with_capacity(env.limits.forge.changes));
+    for task in &prior {
+        if domain.core.tasks.procedure_due(*task).is_some() {
+            domain.forge_settling.insert(*task).expect("one settling step per bounded change");
+        }
+    }
+}
+
 fn form_train(domain: &mut Domain, env: &Env<Limits>, repository: skein_forge::api::Repository, branch: &[u8]) -> bool {
-    // A procedure remains due through its asynchronous forge read. Settle all
-    // changes woken together before sealing this train (domain/landing.md, 9).
+    // Due waiting changes leave their units out unless still settling readiness.
+    // Only a gating change whose gates and dependencies have settled holds this
+    // train, for one due step at that head (domain/landing.md, 9).
+    let mut excluded = List::with_capacity(env.limits.forge.changes);
     for task in domain.forge.changes_for(repository, env.limits.forge.changes) {
         let Some(row) = domain.forge.change(task) else { continue };
         if row.base.as_ref() == branch
             && row.change.way == forge_change::Way::Turn
             && row.change.landing.is_none()
-            && domain.core.tasks.procedure_due(task).is_some()
+            && let Some((_, _, step)) = domain.core.tasks.procedure_due(task)
         {
-            return false;
+            if let forge_change::State::Ready { .. } = row.change.state {
+                if domain.forge_settling.contains(&task) {
+                    return false;
+                }
+                excluded.push(task).expect("bounded changes");
+                continue;
+            }
+            if forge::gates_settled(row, returned_gate(domain, row), env.limits.forge.change_policy.gates)
+                && !kept(domain, env, task)
+                && domain.forge.hold_forming(task, step)
+            {
+                return false;
+            }
         }
     }
     let Some(repo) = domain.forge.repository(repository) else { return false };
     let project = repo.project;
-    let mut excluded = List::with_capacity(env.limits.forge.changes);
     for (provider, base) in domain.forge.waiting_trains() {
         for candidate in domain.forge.waiting_changes(provider, &base) {
             let Some(task) = domain.core.tasks.task(candidate.task) else { continue };
@@ -210,7 +236,9 @@ fn form_train(domain: &mut Domain, env: &Env<Limits>, repository: skein_forge::a
                 tasks::Phase::Active(_) | tasks::Phase::Waiting => false,
                 tasks::Phase::Held { .. } | tasks::Phase::Closing(_) | tasks::Phase::Ended(_) => true,
             };
-            if held || kept(domain, env, candidate.task) || super::change_delegate_live(domain, candidate.task) {
+            if (held || kept(domain, env, candidate.task) || super::change_delegate_live(domain, candidate.task))
+                && !excluded.as_slice().contains(&candidate.task)
+            {
                 excluded.push(candidate.task).expect("bounded changes");
             }
         }
@@ -241,6 +269,33 @@ fn form_train(domain: &mut Domain, env: &Env<Limits>, repository: skein_forge::a
         return false;
     }
     create_landing(domain, env, members, project, branch)
+}
+
+/// The current gate's terminal can be in jig's retained task or its owner's
+/// inbox before the change step copies it into the row (domain/landing.md, 9).
+fn returned_gate(domain: &Domain, row: &forge::ChangeRow) -> Option<(u64, skein_forge::api::Commit)> {
+    let (child, kind) = row.delegate?;
+    let gate = match kind {
+        forge_change::Delegate::Gate { number, head } => (number, head),
+        forge_change::Delegate::Produce
+        | forge_change::Delegate::Close
+        | forge_change::Delegate::Repair(_)
+        | forge_change::Delegate::Resolve { .. }
+        | forge_change::Delegate::Merge { .. } => return None,
+    };
+    if let Some(child) = domain.core.tasks.task(child) {
+        match child.phase {
+            tasks::Phase::Ended(_) => return Some(gate),
+            tasks::Phase::Active(_) | tasks::Phase::Waiting | tasks::Phase::Held { .. } | tasks::Phase::Closing(_) => {}
+        }
+    }
+    let owner = domain.core.tasks.task(row.task)?;
+    for word in &owner.inbox {
+        if word.from == tasks::Party::Task(child) && super::change_delegate_status(&word.kind).is_some() {
+            return Some(gate);
+        }
+    }
+    None
 }
 
 fn create_landing(

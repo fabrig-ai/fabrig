@@ -1,21 +1,20 @@
 //! The playground's native world (temper/docs/design/playground.md, 9).
 
-pub mod page;
 pub mod stories;
 
 use skein_lib::Wall;
-use skein_sim_world::{Host, Printed, StateDigests, Stream, World};
-use temper_playground::{machine::Machine, programs::Process, stories::Story};
+use skein_sim_world::{Host, Printed, StateDigests, Stream};
+use temper_playground::{programs::Process, stories::Story};
 
-/// The composition without a harness.
-pub type Playground = World<Process<()>, Machine>;
+/// The journey world's composition and box peer.
+pub use temper_client_walk_world::Playground;
 
 // The composition's own startup tests use this step bound.
 const STARTUP_STEPS: u64 = 10_000;
 
 /// A story waiting for its visitor, with its standard output read as whole lines.
 pub struct Started {
-    pub world: Playground,
+    pub world: skein_sim_world::World<Process<()>, temper_playground::machine::Machine>,
     pub printed: Vec<Printed>,
 }
 
@@ -58,7 +57,9 @@ pub fn printed_link(lines: &[Printed]) -> &str {
 
 /// Snapshot the idle world's process digests and its shared fake disk.
 #[must_use]
-pub fn digests(world: &Playground) -> StateDigests {
+pub fn digests<H: temper_playground::programs::Harness>(
+    world: &skein_sim_world::World<Process<H>, temper_playground::machine::Machine>,
+) -> StateDigests {
     let Process::Service(service) = &world.processes()[0] else { panic!("the service is process zero") };
     StateDigests {
         procs: world.processes().iter().map(Host::state_digest).collect(),

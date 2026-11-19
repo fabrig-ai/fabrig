@@ -12,7 +12,7 @@ options menus, marks, unlabelled fields, a token's focused value's
 paint and paging by the visible body are present, with end following and Escape released after the background
 wait. A side region beside the body is built
 (`ui/screen.md`, 5.2). Log-edge reporting and the other rendering and input extensions
-remain deferred (`ui/screen.md`, section 10; `ui/screen.status.md`). The kernel's missing metadata, filesystem and contained-spawn records remain `runtime/kernel.status.md`, 6.1, 6.2, 6.4, 6.5, 6.6, 7 and 8; their simulation remains `testing/simulator.status.md`, 3.1, 3.3, 3.4 and 4, their fake machine `testing/README.status.md`, 4, and startup support `runtime/shell.status.md`, 6.4. The forge kit's missing labels and `UpdateRef` remain `forge/README.status.md`, 3.2; GitHub's missing routes remain `forge/github.status.md`, 4.5; artifact observations remain `forge/forgejo.status.md`, 2; the App account observation remains `forge/github.status.md`, 13; copy and site-admin observations remain `forge/setup/forgejo.status.md`, 2; the removed-file observation remains `forge/forgejo.status.md`, 2. The fake's path read and GitHub push gaps remain `testing/fakes/forge.status.md`, 4, and `testing/fakes/github.status.md`, 1.2. Targeted-read gaps remain `forge/README.status.md`, 3.2, 3.3 and 3.7, `forge/github.status.md`, 4.1, `forge/client.status.md`, 2.3, 4 and 7.4, and `testing/fakes/forge.status.md`, 4.
+remain deferred (`ui/screen.md`, section 10; `ui/screen.status.md`). The kernel's missing metadata, filesystem and contained-spawn records remain `runtime/kernel.status.md`, 6.1, 6.2, 6.4, 6.5, 6.6 and 7, and `testing/conformance.status.md`, 1; their simulation remains `testing/simulator.status.md`, 3.1, 3.3, 3.4 and 4, their fake machine `testing/README.status.md`, 4, and startup support `runtime/shell.status.md`, 6.4. The forge kit's missing labels and `UpdateRef` remain `forge/README.status.md`, 3.2; GitHub's missing routes remain `forge/github.status.md`, 4.5; artifact observations remain `forge/forgejo.status.md`, 2; the App account observation remains `forge/github.status.md`, 13; copy and site-admin observations remain `forge/setup/forgejo.status.md`, 2; the removed-file observation remains `forge/forgejo.status.md`, 2. The fake's path read and GitHub push gaps remain `testing/fakes/forge.status.md`, 4, and `testing/fakes/github.status.md`, 1.2. Targeted-read gaps remain `forge/README.status.md`, 3.2, 3.3 and 3.7, `forge/github.status.md`, 4.1, `forge/client.status.md`, 2.3, 4 and 7.4, and `testing/fakes/forge.status.md`, 4.
 No macOS runner runs skein's suites, no build of the shell's `posix` for macOS is on record, and its two systems each keep eight functions alike but for a word (`runtime/shell.md`). The fuzz targets remain `data/json.status.md`, 6, `net/tls.status.md`, 5, and `net/http/testing.status.md` (Not yet, the whole document). Single-item gaps remain `runtime/lib.status.md`, 3, `examples.status.md`, 6, `forge/setup/README.status.md`, 4.1 and 4.3, `data/kv.status.md`, 9, and `ui/README.status.md`, 3. The LLM live-suite design gap remains `llm/README.status.md`, 5. Carrier printing remains `runtime/lib.status.md`, 6, `oauth/README.status.md`, 4, and `net/http/README.status.md`, 2. The playground's manifest and log-version departures remain `playground.status.md`, 2 and 6.1. Kept-body departures remain `llm/README.status.md`, 3, `llm/connection.status.md`, 4, and `testing/fakes/llm.status.md`, 3.1.
 Provider-list parsing, the standalone exchange and fake list replies are
 built; later pages and sharing the exchange shape remain deferred
@@ -22,6 +22,10 @@ built; later pages and sharing the exchange shape remain deferred
 styles in the worlds; the update conformance gap remains `forge/forgejo.status.md`, 2. The viewport runtime check remains `testing/browser.status.md`, 9. The kit reads a toggle's pressed
 state, and its harness awaits that state by a named target within the
 step's bound (`testing/browser.md`, section 5; `ui/web/testing.md`, 2).
+A page opened to report its requests reports each its main frame sends,
+with the load that sent it, and each first answer, and the harness's
+incremental session passes them on (`testing/browser.md`, 5 and 6;
+`ui/web/testing.md`, 2).
 The three folds-away stories await the fixture's first apply before
 acting or reading, retaining their folding, focus and outside-press
 checks and their deadlines (`ui/web/testing.md`, 2).
@@ -76,6 +80,7 @@ Design documents:
 - [`runtime/io/processes.md`](runtime/io/processes.status.md)
 - [`runtime/shell.md`](runtime/shell.status.md)
 - [`testing/simulator.md`](testing/simulator.status.md)
+- [`testing/conformance.md`](testing/conformance.status.md)
 - [`testing/world.md`](testing/world.status.md)
 - [`testing/README.md`](testing/README.status.md)
 - [`examples.md`](examples.status.md)

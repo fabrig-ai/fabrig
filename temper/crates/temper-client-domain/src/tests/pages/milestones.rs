@@ -261,18 +261,30 @@ fn home_rows_group_before_sorting_and_limiting_and_filters_keep_first_position()
     let g2 = done(2);
     let live = [g1.clone(), g3.clone()];
     let ended = [g2.clone(), g4.clone()];
-    assert_eq!(home_rows(&live, &ended, Some(h.reads()), WALL).as_slice(), [Milestone(M), Goal(1), Goal(2)]);
-    assert_eq!(groups(&[g1.clone(), g4, g2.clone(), g3], Some(h.reads())).as_slice(), [Goal(1), Milestone(M), Goal(2)]);
+    assert_eq!(
+        home_rows(&live, &ended, Some(h.reads()), h.root.pages().goals().unwrap(), WALL).as_slice(),
+        [Milestone(M), Goal(1), Goal(2)]
+    );
+    assert_eq!(
+        groups(&[g1.clone(), g4, g2.clone(), g3], Some(h.reads()), h.root.pages().goals().unwrap()).as_slice(),
+        [Goal(1), Milestone(M), Goal(2)]
+    );
     // Equal activity takes the lower task, even when its kind differs.
     let tie = line(1, Wall::from_nanos(11));
-    assert_eq!(home_rows(&[tie], &[], Some(h.reads()), WALL).as_slice(), [Goal(1), Milestone(M)]);
+    assert_eq!(
+        home_rows(&[tie], &[], Some(h.reads()), h.root.pages().goals().unwrap(), WALL).as_slice(),
+        [Goal(1), Milestone(M)]
+    );
     let live: Vec<_> = (1..=6).map(|task| line(task, Wall::from_nanos(task))).collect();
     let mut older = done(8);
     older.ended_at = Some(Wall::from_nanos(1));
-    assert_eq!(home_rows(&live, core::slice::from_ref(&g2), None, WALL).len(), 6);
-    assert_eq!(home_rows(&live[..2], &[older, done(7)], None, WALL).as_slice(), [Goal(2), Goal(1), Goal(7), Goal(8)]);
+    assert_eq!(home_rows(&live, core::slice::from_ref(&g2), None, h.root.pages().goals().unwrap(), WALL).len(), 6);
     assert_eq!(
-        home_rows(&live[..2], core::slice::from_ref(&g1), None, WALL).as_slice(),
+        home_rows(&live[..2], &[older, done(7)], None, h.root.pages().goals().unwrap(), WALL).as_slice(),
+        [Goal(2), Goal(1), Goal(7), Goal(8)]
+    );
+    assert_eq!(
+        home_rows(&live[..2], core::slice::from_ref(&g1), None, h.root.pages().goals().unwrap(), WALL).as_slice(),
         [Goal(2), Goal(1)],
         "a goal appears once"
     );
@@ -287,7 +299,7 @@ fn home_rows_group_before_sorting_and_limiting_and_filters_keep_first_position()
     live.push(g1);
     let ended: Vec<_> = (20..26).map(done).collect();
     assert_eq!(
-        home_rows(&live, &ended, Some(h.reads()), WALL).as_slice(),
+        home_rows(&live, &ended, Some(h.reads()), h.root.pages().goals().unwrap(), WALL).as_slice(),
         [Milestone(M), Goal(1), Goal(20), Goal(21), Goal(22)],
         "five rows after grouping, not ten live goals"
     );
@@ -316,7 +328,8 @@ fn home_rows_hide_old_milestones_and_keep_unknown_and_undrawn_goals() {
     let mut old_goal = in_milestone(done(3), 101);
     old_goal.requester = c::Requester::Task(101);
     assert_eq!(
-        home_rows(&[unknown], &[recent_goal, old_goal], Some(h.reads()), WALL).as_slice(),
+        home_rows(&[unknown], &[recent_goal, old_goal], Some(h.reads()), h.root.pages().goals().unwrap(), WALL)
+            .as_slice(),
         [Goal(1), Milestone(100)]
     );
     let many: Vec<_> = (200..217).map(|task| line(task, WALL)).collect();
@@ -324,7 +337,7 @@ fn home_rows_hide_old_milestones_and_keep_unknown_and_undrawn_goals() {
     let mut undrawn = in_milestone(line(4, WALL), 216);
     undrawn.requester = c::Requester::Task(216);
     assert!(h.reads().milestone(216).is_none());
-    let rows = home_rows(&[undrawn], &[], Some(h.reads()), WALL);
+    let rows = home_rows(&[undrawn], &[], Some(h.reads()), h.root.pages().goals().unwrap(), WALL);
     assert!(rows.as_slice().contains(&Goal(4)));
     assert_eq!(rows.len(), 17, "live rows are counted after grouping");
 }
@@ -441,7 +454,12 @@ fn drawn_milestones_take_their_facts_totals_and_sixteen_goals_only_from_the_row(
     lost.parts = List::from_boxed(Box::new([c::RowPart::Failed(c::PartFailure::Busy)]));
     h.live(listed, &[lost]);
     no_drawn_reads(&h.down());
-    assert!(h.reads().milestone(M).unwrap().totals.is_none());
+    let drawn = h.reads().milestone(M).unwrap();
+    assert_eq!(drawn.totals.as_ref().unwrap().done(), 2);
+    assert_eq!(drawn.more, 3);
+    assert_eq!(drawn.goals.len(), 16);
+    assert_eq!(drawn.headline(16), Some(b"Part report headline.".as_slice()));
+    assert_eq!(drawn.facts.as_ref().unwrap().whole, Some(WALL));
 }
 
 #[test]
@@ -595,18 +613,24 @@ fn a_goals_part_names_its_milestone_without_reading_any_requester() {
     goal.requester = c::Requester::Task(M);
     h.live(goals, core::slice::from_ref(&goal));
     no_drawn_reads(&h.down());
-    assert_eq!(h.reads().of(&goal), None, "a requester alone does not group");
-    assert_eq!(groups(core::slice::from_ref(&goal), Some(h.reads())).as_slice(), [GroupRow::Goal(200)]);
+    assert_eq!(h.reads().of(&goal, h.root.pages().goals().unwrap()), None, "a requester alone does not group");
+    assert_eq!(
+        groups(core::slice::from_ref(&goal), Some(h.reads()), h.root.pages().goals().unwrap()).as_slice(),
+        [GroupRow::Goal(200)]
+    );
     goal = in_milestone(goal, M);
     goal.requester = c::Requester::Task(999);
     h.live(goals, core::slice::from_ref(&goal));
     no_drawn_reads(&h.down());
-    assert_eq!(h.reads().of(&goal), Some(M), "the part, not the requester, groups");
-    assert_eq!(groups(core::slice::from_ref(&goal), Some(h.reads())).as_slice(), [GroupRow::Milestone(M)]);
+    assert_eq!(h.reads().of(&goal, h.root.pages().goals().unwrap()), Some(M), "the part, not the requester, groups");
+    assert_eq!(
+        groups(core::slice::from_ref(&goal), Some(h.reads()), h.root.pages().goals().unwrap()).as_slice(),
+        [GroupRow::Milestone(M)]
+    );
     goal.parts = List::from_boxed(Box::new([c::RowPart::Unknown]));
     h.live(goals, core::slice::from_ref(&goal));
     no_drawn_reads(&h.down());
-    assert_eq!(h.reads().of(&goal), None);
+    assert_eq!(h.reads().of(&goal, h.root.pages().goals().unwrap()), Some(M));
 }
 
 fn marked_milestones(fact: bool) -> (Harness, Token, Token) {
@@ -856,4 +880,289 @@ fn milestone_words_count_state_strip_and_headline_use_the_first_matching_rule() 
     assert_eq!(milestones::state(&milestone, &goals, Some(&all), false), State::Complete);
     milestone = closed(M);
     assert_eq!(milestones::state(&milestone, &goals, Some(&all), true), State::Closed);
+}
+
+#[test]
+fn goal_membership_stands_through_busy_and_falls_back_only_before_decoding() {
+    use crate::pages::goals::{GroupRow, groups, home_rows};
+    let mut h = Harness::new(me());
+    h.down();
+    let opened = h.open();
+    let goals = watch(&opened, Some(f::chat::LABEL), None, WINDOW);
+    let listed = watch(&opened, Some(LABEL), None, WINDOW);
+    let mut child = in_milestone(line(200, WALL), M);
+    h.live(listed, &[row_part(line(M, WALL), &[child.clone()], 0)]);
+    let unread = line(200, WALL);
+    assert_eq!(h.reads().of(&unread, h.root.pages().goals().unwrap()), Some(M));
+    h.live(goals, core::slice::from_ref(&child));
+    h.live(listed, &[row_part(line(M, WALL), &[], 0)]);
+    child.parts = List::from_boxed(Box::new([c::RowPart::Failed(c::PartFailure::Busy)]));
+    h.live(goals, core::slice::from_ref(&child));
+    let held = h.root.pages().goals().unwrap();
+    assert_eq!(h.reads().of(&child, held), Some(M));
+    assert_eq!(
+        home_rows(core::slice::from_ref(&child), &[], Some(h.reads()), held, WALL).as_slice(),
+        [GroupRow::Milestone(M)]
+    );
+    assert_eq!(groups(core::slice::from_ref(&child), Some(h.reads()), held).as_slice(), [GroupRow::Milestone(M)]);
+    h.live(listed, &[row_part(line(M, WALL), &[unread], 0)]);
+    child.parts = List::from_boxed(Box::new([temper_fixtures::client_documents::goal_part(None, None)]));
+    h.live(goals, core::slice::from_ref(&child));
+    child.parts = List::from_boxed(Box::new([c::RowPart::Unknown]));
+    h.live(goals, core::slice::from_ref(&child));
+    assert_eq!(
+        h.reads().of(&child, h.root.pages().goals().unwrap()),
+        None,
+        "decoded absence beats the milestone's list"
+    );
+    no_drawn_reads(&h.down());
+}
+
+#[test]
+fn ended_milestone_parts_stand_through_a_mark_refresh_and_leave_with_the_list() {
+    let mut h = Harness::new(me());
+    h.down();
+    let opened = h.open();
+    let listed = watch(&opened, Some(LABEL), None, WINDOW);
+    let first = ended_read(&opened, Some(LABEL), None);
+    let own = row_part(done(M), &[done(200)], 2);
+    h.answer(first, page_at(core::slice::from_ref(&own), false, 5));
+    h.live_at(listed, &[], 5);
+    h.down();
+    h.live_at(listed, &[], 6);
+    let refresh = ended_read(&h.down(), Some(LABEL), None);
+    let mut lost = own;
+    lost.parts = List::from_boxed(Box::new([c::RowPart::Failed(c::PartFailure::Busy)]));
+    h.answer(refresh, page_at(core::slice::from_ref(&lost), false, 6));
+    let drawn = h.reads().milestone(M).unwrap();
+    assert_eq!(drawn.totals.as_ref().unwrap().done(), 2);
+    assert_eq!(drawn.goals.len(), 1);
+    assert_eq!(drawn.headline(200), Some(b"Part report headline.".as_slice()));
+    assert_eq!(drawn.more, 2);
+    h.live_at(listed, &[], 7);
+    let refresh = ended_read(&h.down(), Some(LABEL), None);
+    h.answer(refresh, page_at(&[], false, 7));
+    h.live(listed, core::slice::from_ref(&lost));
+    assert!(h.reads().milestone(M).unwrap().totals.is_none(), "a returning row has no kept part");
+    h.live(listed, &[row_part(line(M, WALL), &[done(200)], 0)]);
+    h.went(Address::Settings { project: PROJECT });
+    assert!(h.root.pages().milestones().is_none());
+    let opened = h.open();
+    let listed = watch(&opened, Some(LABEL), None, WINDOW);
+    h.live(listed, &[lost]);
+    assert!(h.reads().milestone(M).unwrap().totals.is_none(), "leaving the list drops its parts");
+}
+
+pub(super) fn opened_project() -> (crate::Domain, crate::Limits, Token, Token) {
+    let mut h = Harness::new(me());
+    h.down();
+    let opened = h.open();
+    let goals = watch(&opened, Some(f::chat::LABEL), None, WINDOW);
+    let milestones = watch(&opened, Some(LABEL), None, WINDOW);
+    (h.root, h.limits, goals, milestones)
+}
+
+fn own_reads(out: &Queue<Request>) -> (jig_client::Handle, jig_client::Handle, jig_client::Handle) {
+    let mut document = None;
+    let mut own_line = None;
+    let mut totals = None;
+    for request in out {
+        if let Request::Client(jig_client::Event::Read { handle, read }) = request {
+            match read {
+                Readable::Jig(c::Read::Task { .. }) => document = Some(*handle),
+                Readable::Jig(c::Read::Tasks { query, .. }) if query.parent.is_none() => own_line = Some(*handle),
+                Readable::Family { record, .. } => {
+                    if let Some(reading) = wire::decode_reading(&record.bytes, &w::CEILINGS)
+                        && let w::Read::Milestone(_) = reading.read()
+                    {
+                        totals = Some(*handle);
+                    }
+                }
+                Readable::Jig(_) => {}
+            }
+        }
+    }
+    (document.expect("document read"), own_line.expect("own line read"), totals.expect("totals read"))
+}
+
+#[test]
+#[expect(clippy::too_many_lines, reason = "one sequence holds the milestone's independent reads through refreshes")]
+fn a_milestone_page_keeps_its_document_totals_ended_rows_and_line_until_answers() {
+    let mut h = Harness::new(me());
+    h.down();
+    let mut out = Queue::uncapped();
+    let mut task_page = crate::pages::task::Task::new(f::chat::TASK, 90_000, &h.limits, &mut out);
+    h.event(crate::Event::Client {
+        event: jig_client::Event::Watch {
+            handle: task_page.document,
+            subject: Watchable::Jig(c::Subject::Task { task: f::chat::TASK }),
+        },
+    });
+    let task_watch = h
+        .down()
+        .iter()
+        .find_map(|request| match request {
+            Down::Open { watch, subject: Watchable::Jig(c::Subject::Task { task }) } if *task == f::chat::TASK => {
+                Some(*watch)
+            }
+            Down::Save { .. }
+            | Down::Erase { .. }
+            | Down::Send { .. }
+            | Down::Open { .. }
+            | Down::Continue { .. }
+            | Down::Close { .. }
+            | Down::Read { .. } => None,
+        })
+        .unwrap();
+    let mut task = f::chat::task();
+    task.chip.executor =
+        c::ChipExecutor::Procedure { connector: jig_client::shapes::RECURRING, kind: jig_client::shapes::GATHERING };
+    task.chip.details.details.executor =
+        c::Executor::Procedure { connector: jig_client::shapes::RECURRING, code: jig_client::shapes::GATHERING };
+    f::chat::phase(&mut task, c::ChipPhase::Active(c::RunStage::Idle));
+    let deliver_task = |h: &mut Harness, task: &c::Task| {
+        h.event(crate::Event::Client {
+            event: jig_client::Event::Up {
+                up: Up::Watched {
+                    watch: task_watch,
+                    event: c::WatchEvent::Delivered(c::Delivery::Task(Box::new(task.clone()))),
+                },
+            },
+        });
+    };
+    deliver_task(&mut h, &task);
+    out.clear();
+    task_page.told(skein_lib::Time::ZERO, h.root.client(), Told::Changed { handle: task_page.document }, &mut out);
+    let (document, own_line, totals_read) = own_reads(&out);
+    let mut live_handle = None;
+    let mut ended_handle = None;
+    for request in &out {
+        if let Request::Client(jig_client::Event::Watch { handle, subject }) = request {
+            live_handle = Some(*handle);
+            h.event(crate::Event::Client {
+                event: jig_client::Event::Watch { handle: *handle, subject: subject.clone() },
+            });
+        } else if let Request::Client(jig_client::Event::Read {
+            handle,
+            read: Readable::Jig(c::Read::Tasks { query, .. }),
+        }) = request
+            && query.parent == Some(f::chat::TASK)
+        {
+            ended_handle = Some(*handle);
+        }
+    }
+    let live_handle = live_handle.unwrap();
+    let ended_handle = ended_handle.unwrap();
+    let live = watch(&h.down(), None, Some(f::chat::TASK), WINDOW);
+    out.clear();
+    let answer = |page: &mut crate::pages::task::Task, h: &Harness, handle, value, out: &mut Queue<Request>| {
+        assert!(page.told(skein_lib::Time::ZERO, h.root.client(), Told::Page { handle, page: value }, out));
+    };
+    answer(
+        &mut task_page,
+        &h,
+        document,
+        Readout::Jig(c::ReadResult::Value(c::ReadValue::Task(Box::new(task.clone())))),
+        &mut out,
+    );
+    let totals = w::MilestoneTotals::new(
+        &w::CEILINGS,
+        w::MilestoneTotalsParts {
+            task: f::chat::TASK,
+            done: 2,
+            failed: 0,
+            closed: 0,
+            live: 4,
+            ended: None,
+            last_landing: None,
+            spent: 0,
+        },
+    )
+    .unwrap();
+    let totals =
+        w::MilestoneAnswer::new(&w::CEILINGS, w::MilestoneAnswerParts { result: w::MilestoneResult::Totals(totals) })
+            .unwrap();
+    answer(
+        &mut task_page,
+        &h,
+        totals_read,
+        Readout::Family { family: wire::FORGE, record: Some(wire::milestone_answer(&totals)) },
+        &mut out,
+    );
+    let mut own = line(f::chat::TASK, WALL);
+    own.chip = task.chip.clone();
+    let own_page = c::TaskPage {
+        ended_mark: 0,
+        live: List::from_boxed(Box::new([own.clone()])),
+        live_after: None,
+        ended: c::EndedGroup::None,
+    };
+    answer(
+        &mut task_page,
+        &h,
+        own_line,
+        Readout::Jig(c::ReadResult::Value(c::ReadValue::Tasks(Box::new(own_page)))),
+        &mut out,
+    );
+    let child = super::goals::with_part(200, super::goals::report_part(Some(b"Ended goal headline")));
+    answer(&mut task_page, &h, ended_handle, page_at(&[child], false, 5), &mut out);
+    h.live_at(live, &[], 5);
+    task_page.told(skein_lib::Time::ZERO, h.root.client(), Told::Changed { handle: live_handle }, &mut out);
+    out.clear();
+    h.live_at(live, &[], 6);
+    task_page.told(skein_lib::Time::ZERO, h.root.client(), Told::Changed { handle: live_handle }, &mut out);
+    let mut refreshing = false;
+    for request in &out {
+        if let Request::Client(jig_client::Event::Read { handle, .. }) = request {
+            refreshing |= *handle == ended_handle;
+        }
+    }
+    assert!(refreshing);
+    out.clear();
+    answer(&mut task_page, &h, ended_handle, Readout::Jig(c::ReadResult::None(c::ReadNone::Busy)), &mut out);
+    let held = &task_page.milestone.as_ref().unwrap().milestone;
+    assert_eq!(held.goals.len(), 1, "a first ended read without its value keeps the old page");
+    assert_eq!(held.goals.get(0).unwrap().chip.task, 200);
+    let child = super::goals::with_part(200, c::RowPart::Failed(c::PartFailure::Busy));
+    answer(&mut task_page, &h, ended_handle, page_at(&[child], false, 6), &mut out);
+    assert_eq!(task_page.milestone.as_ref().unwrap().headline(200).as_deref(), Some(b"Ended goal headline".as_slice()));
+    task.changed = Wall::from_nanos(task.changed.as_nanos().checked_add(1).unwrap());
+    deliver_task(&mut h, &task);
+    out.clear();
+    task_page.told(skein_lib::Time::ZERO, h.root.client(), Told::Changed { handle: task_page.document }, &mut out);
+    let (document, own_line, totals_read) = own_reads(&out);
+    assert_eq!(
+        task_page.milestone.as_ref().unwrap().line.as_ref().unwrap(),
+        &own,
+        "starting another search keeps the last line"
+    );
+    out.clear();
+    for read in [document, own_line, totals_read] {
+        answer(&mut task_page, &h, read, Readout::Limit, &mut out);
+    }
+    let page = task_page.milestone.as_ref().unwrap();
+    assert_eq!(
+        page.milestone.document.as_ref().unwrap().changed.as_nanos().checked_add(1),
+        Some(task.changed.as_nanos())
+    );
+    assert!(page.milestone.facts.is_some());
+    assert_eq!(page.milestone.totals.as_ref().unwrap().done(), 2);
+    assert_eq!(page.line.as_ref().unwrap(), &own);
+}
+
+#[test]
+fn undrawn_milestones_keep_their_parts_only_while_listed() {
+    let mut h = Harness::new(me());
+    h.down();
+    let opened = h.open();
+    let listed = watch(&opened, Some(LABEL), None, WINDOW);
+    h.live(listed, &[row_part(line(M, Wall::EPOCH), &[done(200)], 0)]);
+    let many: Vec<_> = (0..17).map(|i| line(M + i, Wall::from_nanos(i))).collect();
+    h.live(listed, &many);
+    assert!(h.reads().milestone(M).is_none(), "the seventeenth row is not drawn");
+    h.live(listed, &many[..16]);
+    assert_eq!(h.reads().milestone(M).unwrap().headline(200), Some(b"Part report headline.".as_slice()));
+    h.live(listed, &many[1..16]);
+    h.live(listed, &many[..16]);
+    assert!(h.reads().milestone(M).unwrap().totals.is_none(), "leaving the list drops even undrawn parts");
 }

@@ -747,6 +747,7 @@ mod tests {
             cut: false,
             window: None,
             closed: false,
+            moved: false,
             loaded: true,
             previous_attempt: 1,
             last: None,

@@ -427,6 +427,7 @@ fn view_driver() -> (Driver, engine::Assignment) {
             }]),
             tier_retries: 1,
             verification_bound_ms: 60_000,
+            wait: temper_engine_domain_forge_change::Wait::Cleared,
         },
     );
     let mut driver = Driver::cold(Store::with_limits(&limits), config, &limits);
@@ -799,6 +800,7 @@ fn path_driver(ci_and_tiers: bool, equal_paths: bool) -> Driver {
                     }]),
                     tier_retries: 0,
                     verification_bound_ms: 1000,
+                    wait: temper_engine_domain_forge_change::Wait::Cleared,
                 },
             );
             true

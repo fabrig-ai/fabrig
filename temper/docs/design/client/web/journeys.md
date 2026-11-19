@@ -5,7 +5,7 @@ browser's client (`README.md`) recorded on a fresh `temper box
 --fake-backends`, or on any deployment with real accounts and redacted (3.5), then replayed
 natively through the shipped host and printed as the client's own pages,
 linked so that the same clicks walk them. The look is tuned on those
-pages, and the committed journeys are kept current by a test. They are not the mockups' journeys
+pages, and main's are kept current by one writer (`../journey-writer.md`). They are not the mockups' journeys
 (`mockups/README.md`, 4), which are worlds walked in the mockups.
 The TUI's journeys are `../tui/journeys.md`'s, sharing this document's
 file (3.2), redaction (`journey-redaction.md`) and last scan (3.7). Section 2 is the host on native, 3 the recording, 4 its replay, 5 the
@@ -36,7 +36,8 @@ journeys, 10 what is open.
   the live page's prints.
 - **Recorded again by a command** while its acts hold: `again NAME`
   walks them on a fresh fake box in headless Chromium, as the browser
-  tier drives it, and adds the result; no person walks it (8.1). A
+  tier drives it, and adds the result; no person walks it (8.1), and on
+  main the journeys' writer alone runs it. A
   journey that starts past the first page says how to reach it in a
   setup file beside its recording (8.2).
 - **Printed as static pages** by `temper-client-journeys`, under
@@ -45,15 +46,15 @@ journeys, 10 what is open.
   linked from the checkout, then an empty `overlay.css`; beside them the
   journey's `../README.md`, its description. No browser, no box, the same
   bytes every time (section 5).
-- **Kept current by a test** that reprints every committed journey and
-  fails while a byte differs, naming the command that reprints, so a
-  landing that changes a recorded page carries its new print. It also
-  fails while `overlay.css` holds anything (section 6).
+- **Kept current by one writer:** after each landing, `pages` walks
+  again each stale journey and reprints them all, offered as a change of
+  its own. No other change commits a recording, a page or a file
+  printed beside them, and no test holds them (`../journey-writer.md`).
 - **The look is tuned on the print:** rules in the overlay, markup in
   place, each request a commit on the person's branch `look-requests`,
   kept on `main` by `scripts/look-refresh.sh` and never landed. A
   landing that carries a request's name moves it into the shell's
-  stylesheets and the view, and reprints (section 7).
+  stylesheets and the view, and compares by a reprint (section 7).
 - **Fake, or real and redacted.** A recording keeps what the page was
   given as it was, but the sign-in, which no saved file holds (3.1). On
   a real deployment `add` first takes out what must not be
@@ -408,9 +409,13 @@ whose crate is `crates/temper-client-journeys-tool`, beside the gallery
   left as it was, and the program exits 1 once the others are printed.
 - `cargo run -p temper-client-journeys -- again NAME` records the
   journey NAME again while its acts hold (8.1).
+- `cargo run -p temper-client-journeys -- pages [--prepared DIR]
+  [--within DURATION]` is the journeys' writer's: `again` for each stale
+  journey, then the reprint; `pages --check` names each journey fresh or
+  stale and writes nothing (`../journey-writer.md`, 3).
 - `add` and the reprint read no configuration, environment, clock or
-  network, and start no server; `again` alone does. Its paths are its
-  manifest's, as the gallery's are.
+  network, and start no server; `again` alone does, and `pages` through
+  it. Its paths are its manifest's, as the gallery's are.
 
 ### 5.2 What it writes
 
@@ -426,11 +431,10 @@ Under `docs/design/client/web/journeys/`:
   `journey.js`, the program's, both written at each print; and
   `overlay.css`, the person's, made empty when missing and never written
   otherwise.
-- **Generated:** the pages, `skein-ui.css` and `journey.js` are
-  generated files, rewritten by the reprint, so that a rebase that
-  conflicts in them is resolved by reprinting. A recording, a README, a
-  setup and the overlay are sources, never regenerated. A stale journey fails the
-  reprint: such a change waits until the journey is recorded again
+- **The writer's:** on main, the recordings, the pages, `skein-ui.css`
+  and `journey.js` are written by the journeys' writer alone; a README,
+  a setup and the overlay are sources (`../journey-writer.md`, 2). A
+  stale journey keeps its pages until the writer walks it again
   (section 8).
 
 ### 5.3 A page
@@ -494,14 +498,15 @@ python3 -m http.server 8766
   event no control gives; a control's recorded name changed, holding;
   an act with no event, kept nowhere; and the proof refusing a mark
   whose html differs.
-- **The print, in `crates/temper-client-journeys-tool`'s own tests:** every
-  committed journey reprinted into a scratch directory equals its directory and
-  the files beside it, byte for byte; one that differs or is stale
-  fails, naming `cargo run -p temper-client-journeys`. A reprint keeps a
-  journey's README.
-- **No request lands as it is:** the same tests fail while
-  `overlay.css` holds any byte, and for a journey whose `../README.md` is
-  missing or empty (section 7).
+- **The print, in `crates/temper-client-journeys-tool`'s own tests,** on
+  walks they record in the host's world: printed, redacted and printed
+  again, the same pages; a reprint keeps a journey's README. No test
+  replays, reprints or compares a recording or a page of main's
+  (`../journey-writer.md`, 7).
+- **No request lands as it is:** the delivery check refuses a nonempty
+  `overlay.css` (`../journey-writer.md`, 5), and the tests fail while it
+  holds a byte, and for a journey whose `../README.md` is missing or
+  empty (section 7).
 - **The links by act,** in the print's unit tests: a press's control,
   a submit's field and a toggle's box, each with its attributes.
 - **`again`'s walk, natively,** in the journey module's tests and the
@@ -516,10 +521,7 @@ python3 -m http.server 8766
   record among them, and another version, a line out of its place, a second `reload`
   and an unknown role each unreadable; `after` joining a named setup's
   steps without its `reload`, and a chain of two, a missing name and a
-  name of its own refused; every committed setup read; and
-  `project-landing`'s first steps, replayed against `welcome-set-up`'s
-  recording, each naming a control of which the view makes that act's
-  event, so that the two starts stay one.
+  name of its own refused; and every committed setup read.
 - **`again`'s browser half has no story of its own,** as the recorder's
   keys have none: its first run, a journey recorded again, proves it,
   and skein's browser tier proves the kit's letter with Alt and its
@@ -537,13 +539,13 @@ python3 -m http.server 8766
   it can appear: a plain field, a piece's base64, split across two pieces
   at every byte, and a URL's query, each failing first. The host's world
   walks a typed key, pressed, through `add`'s steps, so that its digest
-  and its stream's name go and the replay holds. A committed journey
-  redacted replays as it stands. Test data is fake, a token's shape built
+  and its stream's name go and the replay holds. A walk of several
+  marks, redacted, replays as it stands. Test data is fake, a token's shape built
   in the test from pieces. No test reaches a real host or account.
 - **The scan, natively:** each shape in each place, a run's text split
   across deliveries among them; a length prefix of every byte before a
   key; and what must pass: `x`s, `task-` words, `code_challenge=`, and
-  the committed journeys.
+  a walk recorded in the host's world, with its pages.
 - **The binary's table,** in `bin/temper-client-journeys`' suite: help,
   version, the internal commands' pages and argument refusals, with no build
   or child started (`../../testing/tools.md`, 6). Its `arguments` and
@@ -552,8 +554,7 @@ python3 -m http.server 8766
 - **The refusal, as a process:** no original's bytes on stdout or stderr,
   a failed proof's among them, and nothing written on any path; in the
   print's tests, a refused `add` leaves its root as it was.
-- **Their cost:** the journeys' reprint together at most 1 s of the
-  default suite, as the gallery's states (`gallery.md`, 3); no fuzzy
+- **Their cost:** within their layers' budgets as they stand; no fuzzy
   test.
 
 ## 7. Editing the look
@@ -581,10 +582,12 @@ check are `look-requests.md`, sections 1 to 7. The journeys' side:
 - **Kept on `main`:** `scripts/look-refresh.sh`, run by the person in
   their checkout with `look-requests` checked out and clean, fetches
   `main` alone, rebases the branch on `origin/main`, drops each request
-  whose name a commit on `main` carries in that trailer, and pushes it
+  whose name a commit on `main` carries in that trailer once the last
+  `Printed:` there covers that commit (`../journey-writer.md`, 6), and pushes it
   with `--force-with-lease`, its lease the branch as the checkout last
   knew it, so that a branch moved from another checkout is refused,
-  never overwritten. It says, for each request, whether it was kept or
+  never overwritten. It says which commit main's pages were printed at,
+  then, for each request, whether it was kept or
   dropped and by which commit. Nothing is built on the branch, so
   moving it breaks no one, and its one name leaves no copies behind. A
   conflict is a line of a request's that `main` reprinted since: the
@@ -594,12 +597,13 @@ check are `look-requests.md`, sections 1 to 7. The journeys' side:
   progress. It takes the TUI's branch, `tui-requests` (`../tui/journeys.md`,
   10), alike, with that branch's lease, requests and push; any other
   branch is refused.
-- **Never landed:** the journeys' test refuses a request's pages, which
-  differ from the reprint, and its overlay (section 6), so `main`'s
-  overlay stays empty.
+- **Never landed:** the delivery check refuses a request's pages beside
+  any other file, and its overlay (`../journey-writer.md`, 5), so
+  `main`'s overlay stays empty.
 - **The landing** moves the overlay's rules into `temper.css` or
   `task-pages.css` and the markup's changes into the view, for every
-  state, then reprints (`look-requests.md`, 3). Its own commits carry
+  state, then compares by a reprint in its own tree and commits no page
+  (`look-requests.md`, 3). Its own commits carry
   the request's trailer, never the request's commit itself. The account
   and what done means are `look-requests.md`, 5; the render comparison
   follows landing on main (`look-requests.md`, 4).
@@ -611,17 +615,19 @@ changes, or what the client can do on a page (an event no control
 gives); never for a change to the view or the look alone, which a
 reprint carries, since its acts are events, not controls.
 
-- **While its acts hold,** `again NAME` records it again (8.1). No
-  person walks it.
+- **While its acts hold,** `again NAME` records it again (8.1), run on
+  main by the journeys' writer after the landing that staled it
+  (`../journey-writer.md`, 3). No person or goal walks it.
 - **A real journey** (section 9) is never walked by `again`, which starts
   fake boxes alone: its person records it again by hand (3.5).
 - **A setup that no longer walks** (a control renamed before the reload)
-  stops `again`, naming its line; it is edited, and no recording changes
-  for it (8.2).
+  stops `again`, naming its line; it is edited, in the change that
+  renamed it, and no recording changes for it (8.2).
 - **When the walk itself changes** (a step gone, another added), the
   journey is walked anew in a browser on a fresh fake box (3.5), from
   its `../README.md` and the change that moved it, then added (`add NAME
-  FILE`). The README changes with it, and its new pages are read as new.
+  FILE`) by the writer's runner (`../journey-writer.md`, 2). The README
+  changes with the change that moved it, and its new pages are read as new.
 - **`again`'s walks** match but where real processes decide
   (`../journey-clock.md`, 5).
 
@@ -730,9 +736,8 @@ fields, each after one space, a word bare, bytes in double quotes.
   `textbox`, `checkbox`.
 - **Shared, once:** `project-landing`'s setup walks a fresh box to Home in
   Hello, and `chat-draft`'s is `after project-landing`, what it waits for
-  on Home, and its own `reload`. `welcome-set-up`, with no setup, walks
-  that start in its recording, and a test holds the two together
-  (section 6).
+  on Home, and its own `reload`. `welcome-set-up` walks the welcome's
+  part in a world (`../journey-walks.md`, 6).
 - **Why a mark waits:** the page may stand still for seconds while a fake
   model's turn goes on, and two saves a second apart can't tell that
   from settled, where the person could (8.1). A `mark` names what the
@@ -751,8 +756,8 @@ fields, each after one space, a word bare, bytes in double quotes.
 
 | Name | The walk | Its pages |
 |---|---|---|
-| `welcome-set-up` | on a fresh `temper box --fake-backends` (3.5): the printed sign-in link opened, the welcome drawn, "Set up temper" pressed, then Forgejo's "Run on this machine" pressed on the Forge step, which opens Forgejo's sheet, then the sheet's "Run on this machine", an empty repository chosen, which makes the forge and sets it up (`../pages/README.md`) | `01.html` and `02.html`, the welcome, the second as it was when "Set up temper" was pressed, which leads to `03.html` and `04.html`, the Forge step's choices, the second as it was when "Run on this machine" was pressed, which leads to `05.html` and `06.html`, Forgejo's sheet, the second as it was when its "Run on this machine" was pressed, which leads to `07.html`, the Model step, the set up running on as it was when the recording ended; its `../README.md` says so |
-| `welcome-playground` | on a fresh `temper box --fake-backends` (3.5): the printed sign-in link opened, the welcome drawn, "Try the playground" pressed | `01.html`, the welcome as it was when "Try the playground" was pressed, which leads to `02.html`, `NewChat` in the Demo project, the playground started, its banner's one line above its main, as it was when the recording ended; its `../README.md` says so; not recorded until recorded again after page-round-trips' R4 lands |
+| `welcome-set-up` | version-2 `walk` in one process on the playground's composition, signed in by the printed link at `/welcome`, the box's part played by the world's box's peer (`../journey-walks.md`, 4.4 and 6), no `temper box`: the welcome marked, "Set up temper" pressed, the Forge step marked, Forgejo's "Run on this machine" pressed, its sheet marked with an empty repository chosen, its "Run on this machine" pressed, which makes the forge and sets it up (`../pages/README.md`), then the Model step marked as the peer reports fetching, preparing and starting, and once the forge is connected as temper and `work/hello` made | `01.html`, the welcome, leading to `02.html`, the Forge step's choices, leading to `03.html`, Forgejo's sheet, leading to `04.html` to `06.html`, the Model step with the set up's steps under way, fetching at the peer's first figure, preparing and starting, then `07.html`, the Model step with Forgejo on this machine connected as temper and `work/hello` made; its `welcome-set-up/README.md` describes the world's pages |
+| `welcome-playground` | version-2 `walk` in one process on the playground's composition, signed in by the printed link at `/welcome` (`../journey-walks.md`, 4 and 6), no `temper box`: the welcome seen and marked, "Try the playground" pressed, the banner and New chat seen, then marked | `01.html`, the welcome under its top bar, its "Try the playground" leading to `02.html`, New chat in Demo with `playground/widget`, the banner above main, the three suggested requests and composer, model `fake`; the rail offers New change, no Away, and Deployment says "a forge is setting up"; no Chat/Split/Draft switch or plan-or-key choices at this mark; its `welcome-playground/README.md` describes the world's pages |
 | `project-landing` | on a fresh `temper box --fake-backends` (3.5): its `setup` (8.2): Forgejo run on this machine with an empty `work/hello`, the ChatGPT plan signed in, Ready's offered "Hello" created and its repository adopted; once Home says "work/hello is in Hello", `/projects/1` reloaded, where the recording starts, and the settled Home saved | `01.html`, Home in Hello with the ChatGPT plan, Forgejo, "work/hello is in Hello" and To begin's one step left, "Tell temper how you work", the rail's "Home" and "Ask temper" alone, and the phone's "Home", "Ask" and "Settings" tabs; the recording holds no act; its `../README.md` says so; not recorded until recorded again after page-round-trips' R4 lands |
 | `chat-draft` | on a fresh `temper box --fake-backends` (3.5): its `setup` (8.2), `after project-landing`, up to `/projects/1/settings` reloaded, "Chats can write drafts" on as a fresh project has it; then a chat started, Split chosen and the empty pane's "Write it up from this chat" pressed (`../pages/chat/document.md`, 1), two turns of the fake model writing and changing its document (`../../testing/real-loop.md`), Chat, Split, Draft, then "Start goal…" and its goal's page, then its Draft link back to the chat; not recorded until temper/ui walks it anew (10) | a chat in Chat, Split and Draft, the sheet, the goal's page and the return to the chat (`../../domain/agent/agents.md`, 3; `../pages/README.md`) |
 
@@ -863,9 +868,9 @@ box built at `a9e804e340`: not journeys to reprint or land (section 7). Each
 landing removes its request's directory and its overlay rules, and the
 render check reads them from the request's own commit (`look-requests.md`,
 4). `welcome-set-up` and `welcome-playground` reprint with the welcome's bar
-of the brand, the steps and the link region alone and Welcome's box line
-under its cards; the prints that draw the rail reprint with the switcher's
-phone-only links' look token; `welcome-playground`'s `NewChat` reprints with
+of the brand, the steps, the link region and the night switch last
+(`night-switch-top`), and Welcome's box line under its cards; the prints
+that draw the rail reprint with the switcher's phone-only links' look token; `welcome-playground`'s `NewChat` reprints with
 its path naming no project, no ">_" and the view group in the bar. The
 states the messages name in words are the gallery's (`gallery.md`, 2).
 `chat-bar` removes "+ Draft", which `chat-draft`'s recorded walk pressed
@@ -998,10 +1003,10 @@ words in the welcome and Forges. No overlay rule changes.
   can, `project-landing`'s walk reaching a fake box's Forgejo connected, so
   that fewer states are hand-made (`look-requests.md`, 8); Model's
   forge failed waits on a fake box whose set up can fail. The two
-  fetching states wait on a still page at the fetch: `welcome-set-up`'s
-  recording holds the fetch's rows, but they keep the page moving, so
-  its pages 07 and 08 fall at preparing (8.1;
-  `../../protocol/setup/README.md`, section 9).
+  fetching states can, `welcome-set-up`'s walk in a world marking the
+  Model step at the box's peer's first figure (`../journey-walks.md`,
+  4.4 and 6); the fake box still fetches nothing a walk sees
+  (`../../protocol/setup/README.md`, section 9).
 - **A render-check command:** in `temper-client-journeys`, taking a
   request's name. Default: each landing's own script
   (`look-requests.md`, 4 and 8).

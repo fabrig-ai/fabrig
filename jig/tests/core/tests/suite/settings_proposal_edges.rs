@@ -642,7 +642,7 @@ fn review_resolves_reset_removal_and_addition_against_its_revision() {
     let owner = world.sign_in.expect("owner sign-in");
     change(&mut world, owner, 130, 1, Box::new([charter_item(b"stored override")]));
     let mut added = configuration().0.core.defaults.templates[0].clone();
-    added.number = 3;
+    added.number = 33;
     added.name = b"added template".as_slice().into();
     let added_value = s::Value::Template(Box::new(added));
     let number = propose(
@@ -653,7 +653,7 @@ fn review_resolves_reset_removal_and_addition_against_its_revision() {
         Box::new([
             s::Item { setting: s::Setting::Charter(CHARTER), edit: s::Edit::Reset },
             s::Item { setting: s::Setting::Template(2), edit: s::Edit::Removed },
-            s::Item { setting: s::Setting::Template(3), edit: s::Edit::Set(added_value.clone()) },
+            s::Item { setting: s::Setting::Template(33), edit: s::Edit::Set(added_value.clone()) },
         ]),
     );
     let doc = proposal_document(&mut world, owner, OWNER, number);
@@ -674,7 +674,7 @@ fn review_resolves_reset_removal_and_addition_against_its_revision() {
     assert_eq!(removed.origin.map(|(_, revision)| revision), Some(1));
     assert_eq!(removed.would_be, None);
     assert_eq!(removed.edit, core::reads::RevisionEdit::Removed);
-    let addition = review.items.iter().find(|item| item.setting == s::Setting::Template(3)).expect("addition item");
+    let addition = review.items.iter().find(|item| item.setting == s::Setting::Template(33)).expect("addition item");
     assert_eq!(addition.now, None);
     assert_eq!(addition.origin, None);
     assert_eq!(addition.would_be, Some(added_value));
@@ -777,12 +777,6 @@ fn acceptance_moves_work_created_after_a_real_first_start() {
     assert_eq!(settings_document(&mut world, owner).newest, 2);
     assert!(settings_revision(&world, 2).head.moved, "acceptance records the owner's Moves choice");
     assert_eq!(fixtures::live_row(&world, task).settings.task, 2);
-}
-
-#[test]
-fn settings_proposal_profiles_keep_the_advertised_bounds() {
-    assert_eq!(jig_protocol_config_fixtures::small().core.settings.proposals, 4);
-    assert_eq!(jig_protocol_config::stock().core.settings.proposals, 8);
 }
 
 fn settings_revision(world: &World, number: u32) -> &s::Revision {

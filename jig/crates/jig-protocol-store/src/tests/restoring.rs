@@ -8,12 +8,13 @@
 use super::fixtures::{self, disk::Disk};
 use crate::{
     CheckpointName, RestoreRefusal,
-    codec::component::{Checkpoint, CheckpointFile, CheckpointFileParts, Manifest},
+    codec::component::{Checkpoint, CheckpointFile, Manifest},
     restoring::{
         roll::{Intent, Progress, Rolling},
         staging::Staging,
     },
 };
+use skein_codec::Record as _;
 use skein_fake_machine::Item;
 use skein_lib::{List, Reader, Token, Writer};
 const OWNER: Token = Token::new(73);
@@ -282,14 +283,14 @@ fn restore_words_are_pinned_and_versioned_intents_round_trip() {
     ] {
         assert_eq!(why.words().as_ref(), expected);
     }
-    let schema = skein_codegen::parse(super::COMPONENT_SCHEMA).expect("component schema");
-    let goldens = skein_codegen::goldens(&schema);
+    let values = skein_codegen::values(super::COMPONENT_SCHEMA);
+    let goldens = values.goldens.clone();
     for name in ["record_restore_intent_smallest.bin", "record_restore_intent_full.bin"] {
         let bytes = goldens.iter().find(|value| value.name == name).expect("restore intent value").bytes.as_slice();
         let row = crate::component_v3::RestoreIntent::decode(&crate::component_v3::CEILINGS, &mut Reader::new(bytes))
             .unwrap();
-        let mut out = Writer::new(usize::try_from(row.measure()).unwrap());
-        row.encode(&mut out).unwrap();
+        let mut out = Writer::new(usize::try_from(row.measure(&crate::component_v3::CEILINGS).unwrap()).unwrap());
+        row.write(&crate::component_v3::CEILINGS, &mut out).unwrap();
         assert_eq!(out.finish().as_ref(), bytes);
     }
     let before = intent();
@@ -336,15 +337,7 @@ fn staging_fixture() -> (Vec<Item>, Checkpoint) {
         if way != 3 {
             items.push(Item::file(&[b"source/".as_slice(), &relative].concat(), bytes));
         }
-        files
-            .push(
-                CheckpointFile::new(
-                    &crate::component_v3::CEILINGS,
-                    CheckpointFileParts { part, number, length: 3, way },
-                )
-                .unwrap(),
-            )
-            .unwrap();
+        files.push(CheckpointFile { part, number, length: 3, way }).unwrap();
     }
     (
         items,
@@ -414,11 +407,8 @@ fn staging_links_only_immutable_files_copies_extents_and_keeps_secrets_private()
     for short in [false, true] {
         let (mut items, mut record) = staging_fixture();
         if short {
-            let first = record.files.get(0).unwrap().clone().into_parts();
-            record.files.get_mut(0).unwrap().clone_from(
-                &CheckpointFile::new(&crate::component_v3::CEILINGS, CheckpointFileParts { length: 4, ..first })
-                    .unwrap(),
-            );
+            let first = record.files.get(0).unwrap().clone();
+            record.files.get_mut(0).unwrap().clone_from(&CheckpointFile { length: 4, ..first });
         } else {
             items.retain(|item| item.path != b"source/generations/1/store/snapshot");
         }

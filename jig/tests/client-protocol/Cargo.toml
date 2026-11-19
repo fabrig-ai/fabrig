@@ -9,6 +9,7 @@ publish.workspace = true
 [dependencies]
 jig-client-protocol-kit.workspace = true
 jig-client.workspace = true
+jig-client-shell-native.workspace = true
 jig-test-service.workspace = true
 skein-lib.workspace = true
 skein-http.workspace = true

@@ -448,6 +448,15 @@ fn a_non_loopback_link_exits_1_before_sending() {
     assert_eq!(f.exit(), Some(Exit::Code(1)));
 }
 #[test]
+fn a_non_loopback_page_link_exits_1_before_sending() {
+    let mut f =
+        fixtures::Disk::sign_in(b"http://192.0.2.1:4000/sign-in?secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
+    f.drain();
+    assert_eq!(f.stderr(), b"temper ctl: the engine's address must be on loopback\n");
+    assert_eq!(f.requests(), 0);
+    assert_eq!(f.exit(), Some(Exit::Code(1)));
+}
+#[test]
 fn a_refused_link_never_prints_its_secret() {
     let mut f = fixtures::Disk::sign_in(fixtures::LINK);
     f.refuse_link = Some(());
@@ -773,6 +782,18 @@ fn sign_in_dash_reads_stdin() {
     f.input = fixtures::LINK;
     f.answer_sign_in_then_me();
     assert_eq!(f.stored(b"token"), Some(fixtures::TOKEN_BYTES));
+    assert_eq!(f.link_leaf, None);
+    assert_eq!(f.exit(), Some(Exit::Code(0)));
+}
+#[test]
+fn sign_in_dash_reads_a_page_link_from_stdin() {
+    let mut f = fixtures::Disk::act(&[b"sign-in", b"-"]);
+    f.token = b"";
+    f.input = b"http://127.0.0.1:4000/sign-in?secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+    f.answer_sign_in_then_me();
+    assert_eq!(f.stored(b"token"), Some(fixtures::TOKEN_BYTES));
+    assert_eq!(f.stored(b"address"), Some(b"http://127.0.0.1:4000\n".as_slice()));
+    assert_eq!(f.stderr(), b"");
     assert_eq!(f.link_leaf, None);
     assert_eq!(f.exit(), Some(Exit::Code(0)));
 }

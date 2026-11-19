@@ -2,10 +2,13 @@ use super::{commit_text, landing_words};
 use alloc::boxed::Box;
 
 mod call_room;
+mod due_ready;
 mod flake;
+mod limit_holds;
 mod reds;
 mod room;
 mod settling;
+mod settling_due;
 mod taking;
 
 const SHA1: [u8; 32] = [
@@ -905,6 +908,7 @@ fn pushed_heads_route_only_to_their_own_forges_hold() {
             &forge_env,
             forge::Event::Restore {
                 record: forge::Stored::Hold(forge::Hold {
+                    beside: None,
                     design_writers: Box::new([]),
                     name,
                     task: 7,
@@ -987,6 +991,7 @@ fn a_parked_answers_checked_push_reaches_the_change_before_lost_writer_reads() {
                 name: name.clone(),
                 task: 7,
                 writer: Some(forge::Writer::Run { task: 41, attempt: 1 }),
+                beside: None,
                 design_writers: Box::new([]),
                 drift: None,
             }),
@@ -1142,85 +1147,7 @@ fn writable_repositories_exclude_an_ended_forge() {
     assert_eq!(domain.forge.readable_repositories(5).len(), 1);
 }
 
-fn change_row(pull: Option<u64>) -> super::forge::ChangeRow {
-    use super::{forge, forge_change as change};
-    forge::ChangeRow {
-        room: None,
-        source: None,
-        kept: None,
-        regate: None,
-        task_release: None,
-        job: None,
-        signed: Box::new([]),
-        task: 7,
-        repository: skein_forge::api::Repository { forge: 3, repository: 1 },
-        branch: Box::from(b"temper/7".as_slice()),
-        base: Box::from(b"main".as_slice()),
-        title: Box::from(b"Change".as_slice()),
-        body: Box::new([]),
-        priority: 0,
-        ci: None,
-        change: change::Change {
-            ended_held: None,
-            early: change::Early::None,
-            way: temper_engine_domain_forge_change::Way::Queue,
-            landing: None,
-            task: 7,
-            state: change::State::Producing { requested: false },
-            gates: Box::new([]),
-            clean: Box::new([]),
-            gate_failures: Box::new([]),
-            released_resolution: false,
-            released: None,
-            repairs: 0,
-            resolutions: 0,
-            updates: 0,
-            stale: None,
-            since: skein_lib::Wall::from_nanos(0),
-            ready_since: None,
-            owns_turn: false,
-            last_head: None,
-            last_checked: None,
-            last_checked_by: None,
-            clock: None,
-        },
-        pull,
-        pending: None,
-        effect: change::EffectResult::None,
-        delegate: None,
-        delegate_status: change::Status::Unknown,
-        delegate_flake: false,
-        delegate_head: None,
-        verdicts: Box::new([]),
-        milestone: None,
-        goal: None,
-        ending: None,
-        repair_tasks: Box::new([]),
-        resolution_tasks: Box::new([]),
-        result: forge::ChangeResult::empty(),
-        gate_remarks: Box::new([]),
-        drift: None,
-        base_repair: false,
-        queue_repair: None,
-        queue_repairs: 0,
-        producing_charter: 2,
-        review_charter: 4,
-        producing_llm: None,
-        review_llm: None,
-
-        questions: temper_engine_domain_forge_change::Questions::default(),
-        effect_account: None,
-        producer_failure: None,
-        report: Box::new([]),
-        repairs: None,
-        follows: None,
-        catch_up: None,
-        close: None,
-        merge_result: None,
-        history: None,
-        follow_check: None,
-    }
-}
+use crate::tests::change_row::change_row;
 
 #[test]
 fn a_change_drift_account_names_its_held_step_and_the_branch_not_cached_ci() {
@@ -1327,6 +1254,7 @@ fn a_change_drift_account_prefers_the_forges_pair_including_unknown() {
             &env.with(env.limits.forge),
             forge::Event::Restore {
                 record: forge::Stored::Hold(forge::Hold {
+                    beside: None,
                     design_writers: Box::new([]),
                     name: name.clone(),
                     task: 7,
@@ -2305,6 +2233,7 @@ fn reserved_turn_landing() -> (super::Domain, skein_lib::Env<super::Limits>, sup
         Box::new([]),
         temper_engine_domain_forge_landing::Project::DEFAULT,
         forge::AfterLanding {
+            wait: temper_engine_domain_forge_change::Wait::Cleared,
             verdict: temper_engine_domain_forge_tiers::Settings {
                 retries: 2,
                 suspects: temper_engine_domain_forge_tiers::Suspects::Bisect
@@ -2968,18 +2897,18 @@ fn malformed_repairs_refuses_a_change_start() {
     reason = "unit fixtures format expected protocol bytes and resolution text"
 )]
 fn a_merge_jobs_spec_is_its_command_and_its_two_commits() {
-    use temper_protocol_worker_wire::v1;
+    use temper_protocol_worker_wire::v1::{self, Record};
     for (head, head_text) in COMMITS {
         for (base, base_text) in COMMITS {
             let bytes = super::merge::spec(b"fabrig", b".temper/merge", head, base, 4096).expect("merge spec");
             let decoded = v1::JobSpec::decode(&v1::CEILINGS, &mut skein_lib::Reader::new(&bytes)).unwrap();
-            assert_eq!(decoded.command(), b"fabrig/.temper/merge");
+            assert_eq!(decoded.command.as_ref(), b"fabrig/.temper/merge");
             let expected = alloc::format!(
                 "{{\"version\":1,\"head\":\"{}\",\"base\":\"{}\"}}",
                 core::str::from_utf8(head_text).unwrap(),
                 core::str::from_utf8(base_text).unwrap(),
             );
-            assert_eq!(decoded.request(), expected.as_bytes());
+            assert_eq!(decoded.request.as_ref(), expected.as_bytes());
             let bound = u32::try_from(bytes.len()).unwrap();
             assert_eq!(super::merge::spec(b"fabrig", b".temper/merge", head, base, bound), Some(bytes));
             assert_eq!(super::merge::spec(b"fabrig", b".temper/merge", head, base, bound - 1), None);
@@ -4637,7 +4566,11 @@ fn a_hold_decided_while_its_procedure_is_not_due_keeps_its_account() {
 #[test]
 fn the_job_root_names_the_declaration_the_engine_encodes() {
     use jig_protocol_worker_wire::Carried;
-    use temper_protocol_worker_wire::{application, v1, wire};
+    use temper_protocol_worker_wire::{
+        application,
+        v1::{self, Record},
+        wire,
+    };
     let application = application(&v1::CEILINGS).expect("temper's application");
     let mut found = None;
     for root in &application.roots {
@@ -4653,20 +4586,20 @@ fn the_job_root_names_the_declaration_the_engine_encodes() {
         super::merge::spec(b"repo", b"merge", &[3; 32], &[4; 32], 4096).expect("merge spec"),
     ] {
         let spec = v1::JobSpec::decode(&v1::CEILINGS, &mut skein_lib::Reader::new(&bytes)).expect("JobSpec bytes");
-        assert_ne!(spec.command(), []);
-        assert_ne!(spec.request(), []);
+        assert_ne!(spec.command.as_ref(), []);
+        assert_ne!(spec.request.as_ref(), []);
     }
 }
 
 /// temper/docs/design/domain/worker/jobs.md: preserve the close request whole.
 #[test]
 fn a_close_jobs_spec_is_its_command_and_its_request() {
-    use temper_protocol_worker_wire::v1;
+    use temper_protocol_worker_wire::v1::{self, Record};
     let request = br#"{"version":1,"goal":7,"changes":[{"task":9,"landed":true}]}"#;
     let bytes = super::close::spec(b"fabrig", b".temper/close", request, 16384).expect("close spec");
     let decoded = v1::JobSpec::decode(&v1::CEILINGS, &mut skein_lib::Reader::new(&bytes)).expect("job spec");
-    assert_eq!(decoded.command(), b"fabrig/.temper/close");
-    assert_eq!(decoded.request(), request);
+    assert_eq!(decoded.command.as_ref(), b"fabrig/.temper/close");
+    assert_eq!(decoded.request.as_ref(), request);
     let bound = u32::try_from(bytes.len()).expect("bounded spec");
     assert_eq!(super::close::spec(b"fabrig", b".temper/close", request, bound), Some(bytes));
     assert_eq!(
@@ -4755,7 +4688,7 @@ fn follow_parameter_admission_names_missing_wrong_requester_and_live_commits() {
 #[test]
 fn head_refusal_logs_full_account_and_holds_only_a_concerned_task() {
     use super::{Work, forge, tasks};
-    const WORDS: &[u8] = b"record branch head on branch temper/2/c2 in org/repo: forge.client.resources = 2; required usage 3; reduce the named work or raise this limit in the deployment configuration, restart, then release";
+    const WORDS: &[u8] = b"record branch head on branch temper/2/c2 in org/repo: forge.client.resources is 2, and this needs 3: a limit in temper-limits. Ask temper to raise it, or raise it from Needs you. This goes on by itself once room frees or the limit rises.";
     for concerned in [false, true] {
         let (mut domain, env, task) = crate::tests::live_task(None, tasks::Executor::Agent { charter: 1 });
         let repository = adopted(1);
@@ -4791,10 +4724,10 @@ fn head_refusal_logs_full_account_and_holds_only_a_concerned_task() {
         assert_eq!(words.as_ref(), WORDS);
         assert!(domain.pop_fact().is_none());
         if let Some(task) = task {
-            let Some(Work::Tasks(event @ tasks::Event::HoldFrom { .. })) = domain.work.pop() else {
+            let Some(Work::ForgeLimitHold { row, words }) = domain.work.pop() else {
                 panic!("the concerned task is held");
             };
-            tasks::step(&mut domain.core.tasks, &env.with(env.limits.tasks), event, &mut skein_lib::Queue::uncapped());
+            super::limit_holds::apply_hold(&mut domain, &env, &mut decision, row, words);
             let tasks::Phase::Held { why, source: Some(source), .. } = &domain.core.tasks.task(task).unwrap().phase
             else {
                 panic!("retained resource hold");
@@ -4820,10 +4753,10 @@ fn a_configured_resource_limit_reaches_the_held_tasks_words() {
     });
     let mut decision = super::Decision::decide(&mut domain.journal, &env.limits.journal);
     super::outputs(&mut domain, &env, &mut decision, &mut out);
-    let Some(Work::Tasks(event @ tasks::Event::HoldFrom { .. })) = domain.work.pop() else {
+    let Some(Work::ForgeLimitHold { row, words }) = domain.work.pop() else {
         panic!("resource refusal routes a hold");
     };
-    tasks::step(&mut domain.core.tasks, &env.with(env.limits.tasks), event, &mut skein_lib::Queue::uncapped());
+    super::limit_holds::apply_hold(&mut domain, &env, &mut decision, row, words);
     let tasks::Phase::Held { why, source: Some(source), .. } = &domain.core.tasks.task(task).unwrap().phase else {
         panic!("refused task is held");
     };
@@ -4831,8 +4764,8 @@ fn a_configured_resource_limit_reaches_the_held_tasks_words() {
     let tasks::HoldSource::Account { words, .. } = source.as_ref() else { panic!("retained limit cause") };
     for text in [
         b"subscribe".as_slice(),
-        b"forge.paths_per_subscription = 4; required usage 5",
-        b"deployment configuration, restart, then release",
+        b"forge.paths_per_subscription is 4, and this needs 5",
+        b"This goes on by itself once room frees or the limit rises.",
     ] {
         let mut found = false;
         for part in words.windows(text.len()) {
@@ -5008,6 +4941,7 @@ fn turn_project(domain: &mut super::Domain) {
         Box::new([]),
         temper_engine_domain_forge_landing::Project::DEFAULT,
         super::forge::AfterLanding {
+            wait: temper_engine_domain_forge_change::Wait::Cleared,
             verdict: temper_engine_domain_forge_tiers::Settings {
                 retries: 2,
                 suspects: temper_engine_domain_forge_tiers::Suspects::Bisect,

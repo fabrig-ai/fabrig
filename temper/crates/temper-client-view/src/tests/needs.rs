@@ -1865,6 +1865,52 @@ fn stable_nodes(tree: &skein_ui::Tree) -> Vec<skein_ui::Node> {
     nodes
 }
 
+#[test]
+fn needs_keeps_its_count_and_cards_through_a_busy_refresh_in_both_shells() {
+    let filter = d::address::Filter { project: Some(f::PROJECT), ..d::address::Filter::ALL };
+    let (mut root, watch, decided) = fixture_watched(QUESTION, false, 4, false, filter, None);
+    deliver_asked(&mut root, decided, None);
+    let cards = root.pages().inbox().unwrap().cards.len();
+    let mut page = f::ReadPage {
+        root,
+        inbox: Some(watch),
+        me: None,
+        chats: None,
+        out: Queue::uncapped(),
+        reads: List::uncapped(),
+    };
+    for stage in 0_u32..3 {
+        if stage == 1 {
+            page.refresh_inbox();
+            let read = super::home::needs_section(&page, c::InboxReadGroup::Needs);
+            page.answer(read, c::ReadResult::None(c::ReadNone::Busy));
+            page.sections(false);
+        } else if stage == 2 {
+            page.refresh_inbox();
+            super::home::answer_needs(&mut page, 4, None);
+            page.sections(false);
+        }
+        for browser in [false, true] {
+            let view = if browser { f::browser_page_view(&page.root) } else { f::page_view(&page.root) };
+            let text = f::main_text(view.tree());
+            assert!(
+                skein_lib::bytes::find(&text, if browser { b"Four things need you." } else { b"Needs you" }).is_some(),
+                "stage={stage} browser={browser}: {}",
+                core::str::from_utf8(&text).unwrap()
+            );
+
+            assert_eq!(page.root.pages().inbox().unwrap().rows.len(), 4);
+            assert_eq!(page.root.pages().inbox().unwrap().cards.len(), cards);
+            let printed = super::home::printed(&view);
+            assert!(skein_lib::bytes::find(&printed, b"4+").is_none());
+            assert!(
+                skein_lib::bytes::find(&printed, if browser { b"Four things need you." } else { b"Needs you 4" })
+                    .is_some()
+            );
+        }
+    }
+}
+
 fn empty_column(root: &d::Domain) {
     let view = f::browser_page_view(root);
     assert!(f::find(view.tree(), Role::Heading { level: 1 }, b"Nothing needs you.").is_none());

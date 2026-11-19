@@ -65,6 +65,8 @@ struct Fixture {
     root: Domain,
     out: Queue<Request>,
     goals: Token,
+    me: Token,
+    inbox: Token,
     chats: Token,
     changes: Token,
     drafts: Token,
@@ -72,7 +74,7 @@ struct Fixture {
 
 impl Fixture {
     fn new(ways: Option<Ways>, refused: bool) -> Self {
-        let (mut root, me, ..) = f::root_at_with_values(
+        let (mut root, me, _, _, _, _, _, inbox, _) = f::root_at_with_values(
             Address::Models { project: f::PROJECT },
             &limits(),
             b"Shop",
@@ -99,6 +101,8 @@ impl Fixture {
             root,
             out: Queue::uncapped(),
             goals: Token::new(0),
+            me,
+            inbox: inbox.expect("standing inbox watch"),
             chats: Token::new(0),
             changes: Token::new(0),
             drafts: Token::new(0),
@@ -431,6 +435,267 @@ fn sections_wait_for_answers_omit_empty_and_draw_the_whole_small_project() {
         assert_eq!(styled(&tree, look::WORK_CARD).len(), 1);
         assert!(has(&tree, "Open the draft"));
         assert!(!has(&tree, "In flight · 3"));
+    }
+}
+
+/// The same store answers again, with independent goal, milestone and needs turns.
+struct TurningWork {
+    page: Fixture,
+    watch: Token,
+    goals: List<c::TaskLine>,
+    milestone: c::TaskLine,
+}
+
+impl TurningWork {
+    fn new() -> Self {
+        let mut page = Fixture::new(None, false);
+        page.populate(false);
+        let mut out = f::milestones::offer(&mut page.root, page.me, &limits());
+        let watch = f::milestones::watch(&out, Some(f::milestones::LABEL), None, limits().client.domain.rows);
+        while let Some(request) = out.pop() {
+            page.out.push(request);
+        }
+        let mut goals = List::uncapped();
+        let mut children = List::uncapped();
+        for (task, title, headline) in [
+            (3, b"K3 codec records".as_slice(), b"K3 lands the codec's shape".as_slice()),
+            (4, b"K4 codec reader", b"K4 keeps old records readable"),
+            (5, b"K5 codec writer", b"K5 writes the new shape"),
+            (6, b"K6 codec checks", b"K6 pins round trips"),
+        ] {
+            let mut goal = line(task, title);
+            goal.label = 8;
+            goal.tracked = Some(1);
+            goal.requester = c::Requester::Task(f::milestones::TASK);
+            goal.parts = list(&[temper_fixtures::client_documents::goal_part(
+                Some((headline, Wall::from_nanos(RECENT))),
+                Some(f::milestones::TASK),
+            )]);
+            if task == 3 {
+                goal.chip.phase = c::Phase::Active;
+                goal.chip.details.phase = c::ChipPhase::Active(c::RunStage::Running { attempt: 1 });
+                goal.delegates_total = 1;
+            }
+            children.push((goal.clone(), Some(headline))).unwrap();
+            goals.push(goal).unwrap();
+        }
+        for (task, title, headline, at) in [
+            (1, b"Plain reader".as_slice(), b"The reader keeps its witness".as_slice(), Wall::from_nanos(RECENT)),
+            (2, b"Plain writer", b"The writer keeps its witness", NOW),
+        ] {
+            let mut goal = line(task, title);
+            goal.label = 8;
+            goal.tracked = Some(1);
+            goal.parts = list(&[temper_fixtures::client_documents::goal_part(Some((headline, at)), None)]);
+            goals.push(goal).unwrap();
+        }
+        let mut milestone = line(f::milestones::TASK, b"Codec shape");
+        milestone.label = f::milestones::LABEL;
+        milestone.tracked = Some(1);
+        let totals = w::MilestoneTotals::new(
+            &w::CEILINGS,
+            w::MilestoneTotalsParts {
+                task: f::milestones::TASK,
+                done: 2,
+                failed: 0,
+                closed: 0,
+                live: 4,
+                ended: None,
+                last_landing: None,
+                spent: 0,
+            },
+        )
+        .unwrap();
+        milestone.parts = list(&[f::milestones::part(None, totals, children.as_slice(), 0)]);
+        page.live(watch, core::slice::from_ref(&milestone));
+        page.live(page.goals, goals.as_slice());
+        let reads = page.reads();
+        assert_eq!(reads.len(), 1, "the milestone's ended read opens");
+        for (read, what) in reads {
+            let c::Read::Tasks { query, .. } = what else { panic!("only the milestone's ended read opens") };
+            assert_eq!(query.label, Some(f::milestones::LABEL));
+            page.answer(
+                read,
+                c::ReadValue::Tasks(Box::new(c::TaskPage {
+                    ended_mark: 0,
+                    live: List::uncapped(),
+                    live_after: None,
+                    ended: c::EndedGroup::None,
+                })),
+            );
+        }
+        let mut story = Self { page, watch, goals, milestone };
+        story.inbox();
+        assert!(story.page.reads().is_empty(), "the first inbox delivery is no move");
+        let read = story.needs_read();
+        story.page.up(Up::ReadDone { read, result: Self::needs() });
+        assert!(story.page.reads().is_empty(), "every list has answered");
+        story
+    }
+
+    fn goals(&mut self, part: Option<c::RowPart>) {
+        let mut rows = self.goals.clone().into_boxed();
+        if let Some(part) = part {
+            for row in &mut rows {
+                row.parts = list(core::slice::from_ref(&part));
+            }
+        }
+        self.page.live(self.page.goals, &rows);
+    }
+
+    fn milestone(&mut self, part: Option<c::RowPart>) {
+        let mut row = self.milestone.clone();
+        if let Some(part) = part {
+            row.parts = list(&[part]);
+        }
+        self.page.live(self.watch, &[row]);
+    }
+
+    fn inbox(&mut self) {
+        let inbox = temper_fixtures::client_documents::inbox(
+            list(&[Self::need()]),
+            1,
+            c::Count { value: 0, limited: false },
+            0,
+            false,
+        );
+        self.page.up(Up::Watched {
+            watch: self.page.inbox,
+            event: c::WatchEvent::Delivered(c::Delivery::Inbox(Box::new(inbox))),
+        });
+    }
+
+    fn needs_read(&mut self) -> Token {
+        self.inbox();
+        let reads = self.page.reads();
+        assert_eq!(reads.len(), 1, "the inbox delivery asks the goals' needs again");
+        let (read, what) = reads.first().unwrap();
+        let c::Read::Inbox { group: c::InboxReadGroup::Needs, project: Some(f::PROJECT), .. } = what else {
+            panic!("the project's goals' needs read")
+        };
+        *read
+    }
+
+    fn need() -> c::InboxEntry {
+        temper_fixtures::client_documents::entry(
+            c::ObjectKey::PersonTask(6),
+            f::PROJECT,
+            1,
+            Wall::from_nanos(RECENT),
+            None,
+        )
+    }
+
+    fn needs() -> Readout {
+        Readout::Jig(c::ReadResult::Value(c::ReadValue::Inbox(Box::new(c::InboxPage {
+            rows: list(&[Self::need()]),
+            cut: false,
+            before: None,
+            after: None,
+            selection: Some(list(&[c::InboxSelection {
+                cursor: c::InboxCursor::Number { number: 1 },
+                goals: list(&[6, f::milestones::TASK]),
+            }])),
+        }))))
+    }
+
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "the test compares UTF-8 text byte for byte with readable failure drawings"
+    )]
+    fn same(&mut self, words: &Words, first: &[u8], turn: &str) {
+        let (tree, _) = self.page.tree(words);
+        let text = f::text(&tree);
+        assert_eq!(
+            core::str::from_utf8(&text).unwrap(),
+            core::str::from_utf8(first).unwrap(),
+            "{turn}, {:?}",
+            words.shell
+        );
+        assert!(self.page.reads().is_empty(), "{turn}: no unanswered follow-up read");
+    }
+}
+
+#[test]
+fn work_draws_the_same_through_partial_answers_in_turns() {
+    for words in [f::browser_words(), f::words()] {
+        let mut story = TurningWork::new();
+        let (tree, _) = story.page.tree(&words);
+        for value in [
+            "In flight · 3",
+            "Three in flight",
+            "Codec shape",
+            "6 goals so far",
+            "2 of 6 goals done.",
+            "K3 codec records",
+            "K4 codec reader",
+            "K5 codec writer",
+            "K6 codec checks",
+            "The reader keeps its witness",
+            "The writer keeps its witness",
+            "Written by the goal at 07:54",
+            "Written by the goal at 08:00",
+            "needs you",
+        ] {
+            assert!(has(&tree, value), "first drawing missing {value}");
+        }
+        assert_eq!(styled(&tree, look::WORK_CARD).len(), 3, "no separate K3–K6 cards");
+        assert_eq!(styled(&tree, look::MS_CARD).len(), 1);
+        assert_eq!(styled(&tree, look::WORK_ROW).len(), 4, "all four goal lines on the milestone");
+        assert!(!has(&tree, "In flight · 7"));
+        let first = f::text(&tree);
+        let busy = c::RowPart::Failed(c::PartFailure::Busy);
+        for part in [busy.clone(), c::RowPart::Unknown] {
+            story.goals(Some(part));
+            story.same(&words, &first, "goals' parts not made");
+            story.goals(None);
+            story.same(&words, &first, "goals' parts whole again");
+        }
+        story.milestone(Some(busy.clone()));
+        story.same(&words, &first, "milestone's part busy");
+        story.milestone(None);
+        story.same(&words, &first, "milestone's part whole again");
+        for result in [Readout::Jig(c::ReadResult::None(c::ReadNone::Busy)), Readout::Limit, TurningWork::needs()] {
+            let read = story.needs_read();
+            story.same(&words, &first, "needs read pending");
+            story.page.up(Up::ReadDone { read, result });
+            story.same(&words, &first, "needs read answered");
+        }
+        for milestone_first in [true, false] {
+            for (part, result) in [
+                (busy.clone(), Readout::Jig(c::ReadResult::None(c::ReadNone::Busy))),
+                (c::RowPart::Unknown, Readout::Limit),
+            ] {
+                let read = story.needs_read();
+                story.same(&words, &first, "all pending");
+                if milestone_first {
+                    story.milestone(Some(part.clone()));
+                    story.same(&words, &first, "milestone before goals");
+                    story.goals(Some(part));
+                } else {
+                    story.goals(Some(part.clone()));
+                    story.same(&words, &first, "goals before milestone");
+                    story.milestone(Some(part));
+                }
+                story.same(&words, &first, "both watches' parts not made");
+                story.page.up(Up::ReadDone { read, result });
+                story.same(&words, &first, "all answers not made");
+                let read = story.needs_read();
+                story.same(&words, &first, "needs pending with both parts not made");
+                story.page.up(Up::ReadDone { read, result: TurningWork::needs() });
+                story.same(&words, &first, "needs whole before watches");
+                if milestone_first {
+                    story.goals(None);
+                    story.same(&words, &first, "whole goals before milestone");
+                    story.milestone(None);
+                } else {
+                    story.milestone(None);
+                    story.same(&words, &first, "whole milestone before goals");
+                    story.goals(None);
+                }
+                story.same(&words, &first, "all whole again");
+            }
+        }
     }
 }
 

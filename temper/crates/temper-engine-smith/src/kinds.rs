@@ -85,6 +85,9 @@ pub fn decode(kind: u32, bytes: &[u8], bounds: &Bounds) -> Option<settings::Size
             let record = v1::ProjectTriager::decode(&v1::CEILINGS, &mut reader).ok()?;
             settings::Value::ProjectTriager(settings::ProjectTriager { owner: owner_from(record.into_parts().owner) })
         }
+        22 => {
+            settings::Value::Limits(settings::limits_from(v1::TemperLimits::decode(&v1::CEILINGS, &mut reader).ok()?))
+        }
         20 => {
             let record = v1::Welcome::decode(&v1::CEILINGS, &mut reader).ok()?;
             settings::Value::Welcome(settings::Welcome { shown: record.shown() })
@@ -99,6 +102,10 @@ pub fn decode(kind: u32, bytes: &[u8], bounds: &Bounds) -> Option<settings::Size
 
 /// Encode a typed value within the wire's schema ceilings.
 #[must_use]
+#[expect(
+    clippy::too_many_lines,
+    reason = "each setting value has its own wire representation, including limits and agents"
+)]
 pub fn encode(value: &settings::Value) -> Box<[u8]> {
     match value {
         settings::Value::AgentFigures(record) => {
@@ -114,6 +121,12 @@ pub fn encode(value: &settings::Value) -> Box<[u8]> {
         }
         settings::Value::Landing(value) => {
             let record = settings::landing_record(value);
+            let mut writer = Writer::new(skein_lib::usize_of(record.measure()));
+            record.encode(&mut writer).expect("measured room");
+            writer.finish()
+        }
+        settings::Value::Limits(value) => {
+            let record = settings::limits_record(value);
             let mut writer = Writer::new(skein_lib::usize_of(record.measure()));
             record.encode(&mut writer).expect("measured room");
             writer.finish()
@@ -222,6 +235,7 @@ pub fn size(value: &settings::Value) -> u32 {
         }
         settings::Value::ProjectAreas(value) => wire_areas(value).measure(),
         settings::Value::ProjectTriager(value) => wire_triager(value).measure(),
+        settings::Value::Limits(value) => settings::limits_record(value).measure(),
         settings::Value::Welcome(value) => wire_welcome(*value).measure(),
     }
 }

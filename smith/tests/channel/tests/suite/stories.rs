@@ -2,6 +2,7 @@
 use skein_channel::{Closed, StreamMode};
 use smith_channel::CEILINGS;
 use smith_channel_world::{Observation, World, initial_grant, latest_grant, refreshed_grant, window_turn_fixture};
+use smith_transcript::Record;
 
 #[test]
 fn the_halves_open_on_the_highest_version_both_speak() {
@@ -373,55 +374,38 @@ fn a_saved_oversized_answer_reaches_the_agent_as_a_settled_decision() {
 }
 
 fn saved_turn(place: u32, dialect: u32) -> Box<[u8]> {
-    let limits = smith_transcript::CEILINGS;
-    let turn = smith_transcript::Turn::new(
-        &limits,
-        smith_transcript::TurnParts {
-            system: None,
-            model: b"fake-1".as_slice().into(),
-            effort: None,
-            kind: smith_transcript::TurnKind::Ordinary,
-            opening: if place == 1 {
-                Some(
-                    smith_transcript::Opening::new(
-                        &limits,
-                        smith_transcript::OpeningParts {
-                            affinity: smith_transcript::Affinity::new(
-                                &limits,
-                                smith_transcript::AffinityParts { key: [0; 16], thread: 0 },
-                            )
-                            .expect("fixture affinity"),
-                            account: None,
-                            backend: smith_transcript::Backend::Direct,
-                        },
-                    )
-                    .expect("fixture opening"),
-                )
-            } else {
-                None
-            },
-            endpoint: Box::default(),
-            dialect,
-            place,
-            usage: smith_transcript::Usage::new(
-                &limits,
-                smith_transcript::UsageParts {
-                    input: Some(1),
-                    output: Some(2),
-                    cache_read: Some(0),
-                    cache_write: Some(0),
-                    reasoning: None,
-                },
-            )
-            .expect("usage"),
-            spent: 3,
-            jobs: 0,
-            messages: skein_lib::List::with_capacity(0),
+    let turn = smith_transcript::Turn {
+        system: None,
+        model: b"fake-1".as_slice().into(),
+        effort: None,
+        kind: smith_transcript::TurnKind::Ordinary,
+        opening: if place == 1 {
+            Some(smith_transcript::Opening {
+                affinity: smith_transcript::Affinity { key: [0; 16], thread: 0 },
+                account: None,
+                backend: smith_transcript::Backend::Direct,
+            })
+        } else {
+            None
         },
-    )
-    .expect("turn");
-    let mut writer = skein_lib::Writer::new(usize::try_from(turn.measure()).expect("turn length"));
-    turn.encode(&mut writer).expect("measured turn");
+        endpoint: Box::default(),
+        dialect,
+        place,
+        usage: smith_transcript::Usage {
+            input: Some(1),
+            output: Some(2),
+            cache_read: Some(0),
+            cache_write: Some(0),
+            reasoning: None,
+        },
+        spent: 3,
+        jobs: 0,
+        messages: skein_lib::List::with_capacity(0),
+    };
+    let mut writer = skein_lib::Writer::new(
+        usize::try_from(turn.measure(&smith_transcript::CEILINGS).expect("bounded transcript")).expect("turn length"),
+    );
+    turn.write(&smith_transcript::CEILINGS, &mut writer).expect("measured turn");
     writer.finish()
 }
 
@@ -1389,7 +1373,7 @@ fn resumed_activation(
         .expect("new activation's first output turn");
     let received = smith_transcript::Turn::decode(&smith_transcript::CEILINGS, &mut skein_lib::Reader::new(body))
         .expect("bounded output turn");
-    assert_eq!(received.place(), 3, "conversation sequence continues after saved history");
+    assert_eq!(received.place, 3, "conversation sequence continues after saved history");
     two.host_acknowledges(1);
     two.settle();
     let mut spent = smith_domain::run::Spend::ZERO;

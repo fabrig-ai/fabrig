@@ -7,6 +7,7 @@
 
 use crate::transcripts::patches;
 use skein_codec::{patch::Patcher, schema};
+use smith_transcript::Record;
 
 // Smith's schema at jig's smith pin, checked against smith-transcript's
 // generated code by `the_real_copy_is_smiths_schema`.

@@ -1,5 +1,9 @@
 //! The client's unchanged people and referee, over link and shell machines.
-use crate::{engine::Engine, family, fixtures, net::Net};
+use crate::{
+    engine::{self, Engine},
+    family, fixtures,
+    net::Net,
+};
 use jig_client_kit::{ClientId, Front, FrontFault, Test, harness::Observed};
 use jig_client_shell_native::{Conn, Connections};
 use jig_client_test_domain::{self as client, Event, Request};
@@ -28,7 +32,11 @@ impl Side {
         Self {
             party,
             wire: crate::native::wire::Wire::default(),
-            connections: Connections::new(&fixtures::connections_limits(), fixtures::HOST),
+            connections: Connections::new(
+                &fixtures::connections_limits(),
+                fixtures::HOST,
+                jig_client_protocol_http::Mapping::new(b"/jig").expect("default mapping"),
+            ),
             up: Queue::with_capacity(256),
             below: Queue::with_capacity(256),
             signing_link: None,
@@ -46,7 +54,8 @@ impl Side {
     }
 }
 pub struct Protocol {
-    engine: Engine,
+    engine: engine::Fixture,
+    booted: bool,
     clients: BTreeMap<ClientId, Side>,
     net: Net,
     callbacks: Vec<(ClientId, Event)>,
@@ -78,10 +87,19 @@ impl Protocol {
     pub fn bounded(seed: u64, limits: &jig_test_domain::Limits) -> Self {
         Self::with_engine(Engine::bounded(seed, limits))
     }
+    pub(crate) fn unseeded(seed: u64) -> Self {
+        Self::with_fixture(engine::Fixture::new(seed), seed)
+    }
     fn with_engine(engine: Engine) -> Self {
         let seed = engine.seed;
-        let mut value = Self {
+        let mut value = Self::with_fixture(engine::Fixture::ready(engine), seed);
+        value.advance(Time::ZERO, fixtures::wall(Time::ZERO));
+        value
+    }
+    fn with_fixture(engine: engine::Fixture, seed: u64) -> Self {
+        Self {
             engine,
+            booted: false,
             clients: BTreeMap::new(),
             net: Net::new(seed),
             callbacks: Vec::new(),
@@ -96,9 +114,7 @@ impl Protocol {
             answers: BTreeMap::new(),
             task_queries_read: 0,
             roles: false,
-        };
-        value.advance(Time::ZERO, fixtures::wall(Time::ZERO));
-        value
+        }
     }
     #[must_use]
     pub fn task_queries_read(&self) -> u32 {
@@ -147,7 +163,13 @@ impl Protocol {
             })
             .collect()
     }
+    fn boot(&mut self) {
+        if !self.booted {
+            self.advance(Time::ZERO, fixtures::wall(Time::ZERO));
+        }
+    }
     fn advance(&mut self, now: Time, wall: Wall) {
+        self.booted = true;
         self.now = now;
         self.engine.clock(now, wall);
         self.release_faults(now, wall);
@@ -261,6 +283,7 @@ impl Front<Test> for Protocol {
             self.roles = true;
             return;
         }
+        self.boot();
         jig_client_kit::harness::seed::seed_core(&mut self.engine.driver, self.now, fixtures::wall(self.now), seed);
         self.advance(self.now, fixtures::wall(self.now));
     }
@@ -275,6 +298,7 @@ impl Front<Test> for Protocol {
         }
     }
     fn bind(&mut self, client: ClientId, party: u64) {
+        self.boot();
         self.clients.insert(client, Side::new(party));
     }
     fn starting(&mut self, client: ClientId) -> Vec<Event> {

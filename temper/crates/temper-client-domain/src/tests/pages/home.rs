@@ -674,10 +674,10 @@ fn needs_are_unknown_until_delivered_then_count_the_needs_alone() {
         }
         assert_eq!(
             home::facts(&f.root, f::PROJECT, Wall::EPOCH).needs,
-            Needs::Count { count: NEED_GROUPS, cut: false, findings: Counted::default() }
+            Needs::Count { count: NEED_GROUPS, cut, findings: Counted::default() }
         );
         let inbox = f.root.pages().inbox().unwrap();
-        assert_eq!(inbox.cut, [false, !cut]);
+        assert_eq!(inbox.cut, [cut, !cut]);
         for (card, group) in inbox.needs().zip([
             c::InboxGroup::Questions,
             c::InboxGroup::Proposals,
@@ -691,7 +691,7 @@ fn needs_are_unknown_until_delivered_then_count_the_needs_alone() {
         let out = f::inbox_entries(&mut f.root, f.inbox, List::with_capacity(EMPTY));
         assert_eq!(
             home::facts(&f.root, f::PROJECT, Wall::EPOCH).needs,
-            Needs::Count { count: NEED_GROUPS, cut: false, findings: Counted::default() },
+            Needs::Count { count: NEED_GROUPS, cut, findings: Counted::default() },
             "known needs stand through the refresh"
         );
         for (read, _) in inbox_reads(&out) {
@@ -733,7 +733,7 @@ fn home_hears_its_chats_and_its_inbox_alike() {
         }
         assert_eq!(
             home::facts(&f.root, f::PROJECT, Wall::EPOCH).needs,
-            Needs::Count { count: 0, cut: false, findings: Counted::default() }
+            Needs::Count { count: 0, cut: true, findings: Counted::default() }
         );
     }
 }

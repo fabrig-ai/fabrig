@@ -5,7 +5,7 @@ mod names;
 mod reference;
 use alloc::boxed::Box;
 use jig_domain_link::{JobBound, JobKind};
-pub use names::{NAMES, Name, Unit, find};
+pub use names::{Applies, NAMES, Name, Unit, find};
 pub use reference::{engine_reference, engine_reference_with, reference};
 use skein_lib::{Duration, List};
 use temper_engine_domain as engine;
@@ -15,6 +15,7 @@ pub use temper_service_core::limits::{Checkout, GitComponent};
 /// Root's own limits, beyond jig's child limits.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Root {
+    pub transcript_memory: u64,
     pub journal: engine::JournalLimits,
     pub loads: engine::loads::Limits,
     pub brief: engine::BriefLimits,
@@ -46,6 +47,8 @@ pub struct Picker {
 /// Temper's domain limits, each under its owner's prefix.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Limits {
+    pub live_goals: u32,
+    pub tool_payload: u32,
     pub setup: temper_forge_setup::limits::Host,
     pub routes: Routes,
     pub records: Records,
@@ -174,7 +177,7 @@ const FORGE: forge::Limits = forge::Limits {
     // One adoption per concurrent forge request.
     adoptions: 2,
     makings: 32,
-    // Product capacity: keyed adoption answers retained for the request retention.
+    // Bounds kept answers to keyed requests; the oldest answered makes room for a new one.
     applications: 32,
     // protocol/sign-in.md, 5: room for 64 durable member bindings.
     bindings: 64,
@@ -185,6 +188,7 @@ const FORGE: forge::Limits = forge::Limits {
     // Fabrig’s development of 2026-11-16: dev’s 4, capped by the worker wire’s five prefixes.
     landing_members: 5,
     landings_kept: 16,
+    landings_pending: 64,
     changes_rows: 32,
     changes_landed: 8,
     gates: 2,
@@ -196,7 +200,8 @@ const FORGE: forge::Limits = forge::Limits {
     trees_in_flight: 2,
     tiers: temper_engine_domain_forge::TierLimits {
         tiers: 2,
-        failing_tests: 16,
+        // The most ids a finding’s signature holds (protocol/configuration/limits.md, “A tier’s failing tests”).
+        failing_tests: 64,
         // Twice the longest failing test’s id today, about 221 bytes, rounded up.
         test_id_bytes: 512,
     },
@@ -270,6 +275,7 @@ const FORGE: forge::Limits = forge::Limits {
     sitting: temper_engine_domain_forge::SITTING,
 };
 const ROOT: Root = Root {
+    transcript_memory: 1_073_741_824,
     journal: engine::JournalLimits {
         // Three journal commit stages: queued, syncing and durable.
         commits: 3,
@@ -291,10 +297,10 @@ const ROOT: Root = Root {
         loads: 2,
         // Two rows per load page, bounding each owner read’s work.
         rows: 2,
-        // The whole note's 70,208 owned bytes and its 248-byte temper record slot.
-        bytes: 70_456,
+        // The whole note's 70,208 owned bytes and its 256-byte temper record slot.
+        bytes: 70_464,
         // The same whole note and record slot fit the reply before source derivation.
-        reply_bytes: 70_456,
+        reply_bytes: 70_464,
         // One authenticated read's owned bytes; jig stock core.load_bytes.
         read_bytes: 131_072,
         // A whole stock note: body 65,536, description and pattern 256 each,
@@ -337,8 +343,8 @@ const BRIEF: engine::BriefLimits = engine::BriefLimits {
         now: 4096,
     },
     // Three 131,584-byte task, pull and review sections, cut within charter 5’s
-    // 319,686-byte stock host room after 64 titles and framing, with 66 bytes spare.
-    brief_bytes: 319_686 - 64 * (16 + 7) - 66,
+    // 319,584-byte stock host room after 64 titles and framing, with 66 bytes spare.
+    brief_bytes: 319_584 - 64 * (16 + 7) - 66,
     // Fabrig’s development of 2026-11-16: 300 seconds to gather sequential forge reads.
     gather: Duration::from_secs(300),
 };
@@ -356,6 +362,8 @@ pub const SOCKETS: u32 = 256;
 pub fn stock() -> Limits {
     let shared = temper_service_core::limits::stock();
     Limits {
+        live_goals: temper_service_core::derived::LIVE_GOALS,
+        tool_payload: temper_service_core::derived::STOCK.payload,
         picker: Picker { page: 30 },
         routes: Routes { query_bytes: 2048 },
         setup: temper_forge_setup::limits::host(),
@@ -377,6 +385,61 @@ pub fn stock() -> Limits {
             secret_bytes: 512,
         },
     }
+}
+/// The one deployment store base (configuration/limit-settings.md, 3).
+/// Typed bases retain their profile's ceilings; the stock's value and page
+/// ceilings give way to the layout, which fills them with its computed needs.
+pub fn store_base(
+    typed: Option<(&jig_protocol_config::Limits, &Limits)>,
+    sources: temper_service_core::derived::Sources,
+) -> Result<(jig_protocol_config::Limits, Limits), jig_protocol_config::Problem> {
+    use temper_service_core::derived;
+    if let Some((jig, own)) = typed {
+        return Ok((*jig, *own));
+    }
+    let (mut jig, own) = base(derived::STORE_LIVE_GOALS, derived::STOCK.payload, sources)?;
+    jig.store.store.value = u32::MAX;
+    jig.store.store.page.bytes = u32::MAX;
+    jig.store.secrets.value = u32::MAX;
+    jig.store.secrets.page.bytes = u32::MAX;
+    Ok((jig, own))
+}
+
+/// Steps 1–3 of configuration/derived.md, 4, shared by both document readers.
+pub fn base(
+    live_goals: u32,
+    tool_payload: u32,
+    sources: temper_service_core::derived::Sources,
+) -> Result<(jig_protocol_config::Limits, Limits), jig_protocol_config::Problem> {
+    let mut own = stock();
+    own.live_goals = live_goals;
+    own.tool_payload = tool_payload;
+    let mut counts = temper_service_core::derived::ForgeCounts {
+        tasks: own.forge.tasks,
+        holds: own.forge.holds,
+        subscriptions: own.forge.subscriptions,
+        entries: own.forge.entries,
+        client_entries: own.forge.client.entries,
+        client_resources: own.forge.client.resources,
+        issues: own.forge.issues,
+        landings: own.forge.landings,
+        landing_members: own.forge.landing_members,
+    };
+    let jig = temper_service_core::derived::base(live_goals, tool_payload, sources, &mut counts)?;
+    own.forge.tasks = counts.tasks;
+    own.forge.holds = counts.holds;
+    own.forge.subscriptions = counts.subscriptions;
+    own.forge.entries = counts.entries;
+    own.forge.client.entries = counts.client_entries;
+    own.forge.client.resources = counts.client_resources;
+    own.forge.issues = counts.issues;
+    own.forge.landings = counts.landings;
+    own.forge.landing_members = counts.landing_members;
+    derive(&mut own, sources.with_payload(tool_payload)).ok_or(jig_protocol_config::Problem {
+        path: jig_protocol_config::Path::root().member(b"limits"),
+        what: jig_protocol_config::What::Bound,
+    })?;
+    Ok((jig, own))
 }
 /// Apply temper's carriers before the document's overrides (configuration/derived.md, 5.1).
 pub fn derive(limits: &mut Limits, sources: temper_service_core::derived::Sources) -> Option<()> {
@@ -449,8 +512,8 @@ pub fn engine_candidate(jig: &jig_protocol_config::Limits, limits: &Limits) -> e
     engine::Limits {
         streams: jig.clients.streams,
         routes: jig.routes,
-        // The budget is the engine's own memory_bytes, set where it starts.
-        memory_bytes: u64::MAX,
+        // The start supplies engine.memory_bytes until the budget moves to settings.
+        transcript_memory: limits.root.transcript_memory,
         watermark: engine::default_watermark(&limits.root.journal),
         public_watermark: engine::default_watermark(&limits.root.journal).checked_div(2).expect("half the watermark"),
         public_reads: jig.clients.public.reads,
@@ -572,6 +635,13 @@ pub fn jobs(jig: &jig_protocol_config::Limits) -> Box<[JobBound]> {
 
 #[cfg(test)]
 mod making_tests {
+    #[test]
+    fn stock_tier_failures_fit_the_finding_signature() {
+        let tiers = stock().forge.tiers;
+        assert_eq!(tiers.failing_tests, 64);
+        assert_eq!(tiers.test_id_bytes, 512);
+    }
+
     #[test]
     fn retention_overrides_reach_the_effective_core_limits() {
         let mut jig = jig_protocol_config::stock();
