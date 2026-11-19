@@ -99,8 +99,3 @@
   teardown's, its Musts and secrets scan panic, and
   `scripts/proof-live-github.sh` stops no runner on a signal.
   [in flight: change 2875]
-- **Not yet:** the whole document: the owned-forge landing story's
-  failure evidence. A failed sitting prints no run line from the box's
-  serve log, and keeps no copy of the box's data directory in its
-  scratch (*A failure says why*, *Its box's data kept*).
-  [in flight: change 9587]
