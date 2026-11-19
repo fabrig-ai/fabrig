@@ -219,8 +219,26 @@ impl Host {
         if self.closed && !matches!(report, Report::Heard(_) | Report::Kept { .. } | Report::Lent { .. }) {
             return Duties::default();
         }
-        let project = self.root.pages().project();
         let mut duties = Duties::default();
+        if self.refused() {
+            match report {
+                Report::Key(Key::Control(b'c')) => self.close(&mut duties),
+                Report::Resize(size) => self.size = size,
+                Report::Start(_)
+                | Report::Due
+                | Report::Key(_)
+                | Report::Heard(_)
+                | Report::Kept { .. }
+                | Report::Opened { .. }
+                | Report::Local { .. }
+                | Report::Front(_)
+                | Report::Stage(_)
+                | Report::Lent { .. } => {}
+            }
+            self.draw();
+            return duties;
+        }
+        let project = self.root.pages().project();
         match report {
             Report::Lent { number, exit } => self.lent(number, exit),
             Report::Local { link } => self.found(link),
@@ -284,6 +302,11 @@ impl Host {
                 Some(Opening::Approval) | None => self.tell(Told::Opened { opened }),
             },
         }
+        if self.refused() {
+            self.out.clear();
+            self.draw();
+            return Duties::default();
+        }
         self.route(&mut duties);
         root::take(&mut self.root, &self.env, &mut self.out);
         self.route(&mut duties);
@@ -344,16 +367,25 @@ impl Host {
         self.lending(&mut duties);
         self.tell_outcome();
         self.approval(&mut duties);
-        let scheme = match self.root.pages().look().theme {
-            terminal::Theme::Dark => tui::Scheme::Dark,
-            terminal::Theme::Light => tui::Scheme::Light,
-        };
         root::settle(&mut self.root, &self.env, &mut self.out);
         self.route(&mut duties);
         if self.need.as_ref().is_some_and(|need| matches!(need.phase, Phase::Signing(None))) {
             self.end_local();
         }
 
+        self.draw();
+        duties
+    }
+
+    fn refused(&self) -> bool {
+        self.state.as_ref().is_some_and(|state| tui::refused(&self.root, state))
+    }
+
+    fn draw(&mut self) {
+        let scheme = match self.root.pages().look().theme {
+            terminal::Theme::Dark => tui::Scheme::Dark,
+            terminal::Theme::Light => tui::Scheme::Light,
+        };
         self.theme = tui::theme(scheme, self.background);
         tui::build(
             &mut self.view,
@@ -363,7 +395,6 @@ impl Host {
             &mut self.patches,
         );
         self.patches.clear();
-        duties
     }
 
     fn start(&mut self, start: Start, duties: &mut Duties) {
@@ -590,6 +621,9 @@ impl Host {
 
     #[expect(clippy::too_many_lines, reason = "one exhaustive dispatch binds each TUI event to its host acts")]
     fn event(&mut self, event: tui::Event, duties: &mut Duties) {
+        if self.refused() {
+            return;
+        }
         match event {
             tui::Event::Own { command } => self.own(command, duties),
             tui::Event::Open { address } => self.open(address, duties),
@@ -1210,7 +1244,7 @@ impl Host {
     }
 
     fn approval(&mut self, duties: &mut Duties) {
-        if self.closed || self.need.is_some() {
+        if self.closed || self.refused() || self.need.is_some() {
             return;
         }
         if self.root.client().link().state == Link::SignedOut && self.asked_opening != Some(self.state().openings()) {
@@ -1274,6 +1308,9 @@ impl Host {
             None
         };
         self.step(Event::Client { event });
+        if self.refused() {
+            return;
+        }
         if local && self.root.client().link().state == Link::SignedOut {
             match self.root.client().link().not_signed_in {
                 Some(jig_client::NotSignedIn::LinkUsed | jig_client::NotSignedIn::LinkExpired) => self.again_local(),
@@ -1420,6 +1457,9 @@ impl Host {
 
     #[must_use]
     pub fn event_of(&self, key: &Key) -> Option<tui::Event> {
+        if self.refused() {
+            return None;
+        }
         if *key == Key::Control(b'p') {
             return tui::pane_key(&self.view);
         }
@@ -1451,7 +1491,7 @@ impl Host {
 
     #[must_use]
     pub fn deadline(&self) -> Option<Time> {
-        if self.closed {
+        if self.closed || self.refused() {
             return None;
         }
         let tick = self.view.tick().map(|tick| {

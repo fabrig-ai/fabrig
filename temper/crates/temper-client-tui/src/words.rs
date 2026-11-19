@@ -217,8 +217,12 @@ pub enum Word {
     ChangePlaceholder,
     DraftPlaceholder,
     TellPlaceholder,
+    BuildRefused,
+    AnotherBuild,
+    ThisBuild,
+    StartBuild,
 }
-pub(crate) const ALL: [Word; 207] = [
+pub(crate) const ALL: [Word; 211] = [
     Word::Title,
     Word::State,
     Word::QuitKeys,
@@ -426,6 +430,10 @@ pub(crate) const ALL: [Word; 207] = [
     Word::DraftPlaceholder,
     Word::TellPlaceholder,
     Word::LinkPending,
+    Word::BuildRefused,
+    Word::AnotherBuild,
+    Word::ThisBuild,
+    Word::StartBuild,
 ];
 
 // HTTPS, a 253-byte name and port, then /terminal.
@@ -699,6 +707,10 @@ impl Word {
             Self::ChangePlaceholder => 207,
             Self::DraftPlaceholder => 208,
             Self::TellPlaceholder => 209,
+            Self::BuildRefused => 210,
+            Self::AnotherBuild => 211,
+            Self::ThisBuild => 212,
+            Self::StartBuild => 213,
         }
     }
     const fn id(self) -> PhraseId {
@@ -867,6 +879,10 @@ impl Word {
             Self::Else => (&[b"Tell it something else"], &[]),
             Self::Dots => (&[b"\xe2\x80\xa6"], &[]),
             Self::Numbered => (&[b"", b". "], &[Slot::Number]),
+            Self::BuildRefused => (&[b"Refused"], &[]),
+            Self::AnotherBuild => (&[b"", b" runs another build of temper."], &[Slot::Address]),
+            Self::ThisBuild => (&[b"This one is temper ", b"."], &[Slot::Title]),
+            Self::StartBuild => (&[b"Start the build ", b" runs, then try again."], &[Slot::Address]),
             Self::Title => (&[b"temper"], &[]),
             Self::State => (&[b"\xe2\x97\x8f ", b""], &[Slot::State]),
             Self::QuitKeys => (&[b"Ctrl+C to quit"], &[]),

@@ -15,6 +15,7 @@ mod note;
 mod origin;
 mod place;
 mod printed;
+mod refused;
 mod screens;
 mod state;
 mod theme;

@@ -30,7 +30,26 @@ fn the_tuis_screens_are_their_goldens() {
     no_browser.step(Told::Browse);
     no_browser.step(Told::Opened { opened: false });
 
+    let refused = super::refused::root();
+    let mut refused_tui = Tui::new(f::ADDRESS);
+    refused_tui.header(false, super::refused::VERSION.into());
     let rows = [
+        (
+            "refused-80x24-dark",
+            &refused,
+            &refused_tui,
+            Scheme::Dark,
+            FULL,
+            include_bytes!("golden/refused-80x24-dark.txt").as_slice(),
+        ),
+        (
+            "refused-80x24-light",
+            &refused,
+            &refused_tui,
+            Scheme::Light,
+            FULL,
+            include_bytes!("golden/refused-80x24-light.txt").as_slice(),
+        ),
         (
             "approval-80x24-dark",
             &approval,

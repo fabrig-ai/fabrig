@@ -18,6 +18,8 @@ mod goal;
 mod lending;
 #[path = "tests/playground.rs"]
 mod playground;
+#[path = "tests/refused.rs"]
+mod refused;
 pub(crate) use lending::terminal_document;
 
 use crate::{
@@ -1096,27 +1098,7 @@ pub(crate) fn stream_bytes(event: &w::StreamEvent) -> Box<[u8]> {
     writer.finish()
 }
 pub(crate) fn hello_bytes() -> Box<[u8]> {
-    let limits = &w::CEILINGS;
-    let mut served = List::with_capacity(1);
-    served
-        .push(
-            w::Served::new(
-                limits,
-                w::ServedParts {
-                    owner: w::Owner::Jig,
-                    first: jig_client_protocol_wire::VERSION,
-                    last: jig_client_protocol_wire::VERSION,
-                },
-            )
-            .expect("Jig version"),
-        )
-        .expect("one owner");
-    let hello = jig_client_test_records::opened(
-        w::Hello::new(limits, w::HelloParts { stream: [7; 16], served, heartbeat: Duration::from_secs(30) })
-            .expect("hello"),
-        jig_client_test_records::frame_record(),
-    );
-    stream_bytes(&hello)
+    hello_for_owners(limits::tui().native.client.client.domain.owners, records::frame_record())
 }
 pub(crate) fn me_bytes(_duties: &Duties) -> Box<[u8]> {
     let limits = &w::CEILINGS;
@@ -3171,7 +3153,10 @@ fn keyed_bytes(document: w::Owned) -> Box<[u8]> {
 }
 
 fn hello_for_me(host: &Host, me: w::Me) -> Box<[u8]> {
-    let owners = host.env.limits.client.domain.owners;
+    hello_for_owners(host.env.limits.client.domain.owners, me)
+}
+
+fn hello_for_owners(owners: &[jig_client::Spoken], me: w::Me) -> Box<[u8]> {
     let mut served = List::with_capacity(u32::try_from(owners.len() + 1).expect("owner count"));
     served
         .push(

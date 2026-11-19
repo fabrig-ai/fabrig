@@ -686,7 +686,17 @@ fn the_launchpad_says_each_state() {
         ("before me", &before, &ordinary, &["Connecting to 127.0.0.1:8367"][..], None),
         ("starting", &starting, &ordinary, &["Connecting to 127.0.0.1:8367"][..], None),
         ("signing", &signed_out, &signing, &["Connecting to 127.0.0.1:8367"][..], None),
-        ("out of date", &stale, &ordinary, &["This temper is out of date: run the temper the engine runs."][..], None),
+        (
+            "out of date",
+            &stale,
+            &ordinary,
+            &[
+                "temper",
+                "127.0.0.1:8367 runs another build of temper.",
+                "Start the build 127.0.0.1:8367 runs, then try again.",
+            ][..],
+            None,
+        ),
         (
             "not kept",
             &start,
@@ -717,7 +727,9 @@ fn the_launchpad_says_each_state() {
         for line in lines {
             expected.push(line.as_bytes()).unwrap();
         }
-        start_lines(&mut expected, part.project.as_deref(), part.drafts);
+        if !crate::refused(root, tui) {
+            start_lines(&mut expected, part.project.as_deref(), part.drafts);
+        }
         if tui.notice().is_some() {
             let notice = f::find(view.tree(), Role::Text, "Unknown command /unknown · /help lists them".as_bytes());
             assert_eq!(notice.styles.as_slice(), &[look::SIGNAL]);
@@ -737,7 +749,7 @@ fn the_launchpad_says_each_state() {
                 good &= node.styles.as_slice() == [look::REFUSED];
             }
         }
-        if !good || bound != 1 {
+        if !good || bound != u32::from(!crate::refused(root, tui)) {
             failures.push(name).unwrap();
         }
     }
@@ -756,7 +768,6 @@ fn the_launchpad_says_each_state() {
         (&starting, &ordinary, "● Connecting", look::WAITING, "● Connecting"),
         (&signed_out, &signing, "● Connecting", look::WAITING, "● Connecting"),
         (&offline, &ordinary, "● Offline", look::DOWN, "● Offline · Hello"),
-        (&stale, &ordinary, "● Out of date", look::DOWN, "● Out of date"),
     ] {
         let view = build(root, tui);
         let (left, right) = f::bottom_halves(view.tree());

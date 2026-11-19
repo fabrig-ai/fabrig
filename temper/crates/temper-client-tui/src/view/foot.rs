@@ -548,13 +548,17 @@ fn quiet(b: &mut Builder, part: &Foot, words: &Words) {
     b.close();
 }
 
+pub(crate) fn bottom(b: &mut Builder, state: &[u8], style: Style, words: &Words) {
+    b.open(Role::ContentInfo);
+    b.region(look::BOTTOM);
+    text(b, Role::Status, state, Some(style));
+    text(b, Role::Paragraph, &words.say(Word::QuitKeys, &[]), Some(look::HINT));
+    b.close();
+}
+
 pub(crate) fn draw(b: &mut Builder, part: &Foot, words: &Words, binds: &mut Binds) -> Option<Event> {
     let Some(composer) = &part.composer else {
-        b.open(Role::ContentInfo);
-        b.region(look::BOTTOM);
-        text(b, Role::Status, &part.state, Some(part.style));
-        text(b, Role::Paragraph, &words.say(Word::QuitKeys, &[]), Some(look::HINT));
-        b.close();
+        bottom(b, &part.state, part.style, words);
         return None;
     };
     if let Some(running) = &part.running {

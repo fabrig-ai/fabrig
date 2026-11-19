@@ -271,6 +271,22 @@ fn sign_in(b: &mut Builder, tui: &Tui, root: &Domain, words: &Words, wall: Wall)
     }
     tick
 }
+/// A build refused replaces every screen out of front (temper/docs/design/client/tui/pages/refused.md, 1).
+#[must_use]
+pub fn refused(root: &Domain, tui: &Tui) -> bool {
+    let link = root.client().link();
+    !tui.front() && (link.state == Link::OutOfDate || !link.not_served.is_empty())
+}
+
+fn refused_lines(b: &mut Builder, tui: &Tui, words: &Words) {
+    let place = crate::place(tui.address(), tui.front() || tui.boxed());
+    text(b, Role::Paragraph, &words.say(Word::AnotherBuild, &[Hole::Name(place.clone())]), None);
+    if !tui.version().is_empty() {
+        text(b, Role::Paragraph, &words.say(Word::ThisBuild, &[Hole::Name(copy_of(tui.version()))]), None);
+    }
+    text(b, Role::Paragraph, &words.say(Word::StartBuild, &[Hole::Name(place)]), None);
+}
+
 /// The sign-in screen is drawn while signed out with no sign-in from a link under way.
 #[must_use]
 pub fn sign_in_drawn(root: &Domain, tui: &Tui) -> bool {
@@ -298,7 +314,8 @@ pub fn build(view: &mut View, tui: &Tui, root: &Domain, wall: Wall, out: &mut Qu
     view.page = page_focus(root, tui.address());
     view.focus = view.page.clone();
     view.walkable = has_needs(root);
-    if sign_in_drawn(root, tui) {
+    let refused = refused(root, tui);
+    if refused || sign_in_drawn(root, tui) {
         view.reply = Box::default();
         view.selected_event = None;
         view.walkable = false;
@@ -315,9 +332,20 @@ pub fn build(view: &mut View, tui: &Tui, root: &Domain, wall: Wall, out: &mut Qu
         b.open(Role::Main);
         b.region(look::TOP);
         text(&mut b, Role::Heading { level: 1 }, &words.say(Word::Title, &[]), Some(look::TITLE));
-        view.tick = sign_in(&mut b, tui, root, words, wall);
+        view.tick = if refused {
+            refused_lines(&mut b, tui, words);
+            None
+        } else {
+            sign_in(&mut b, tui, root, words, wall)
+        };
         b.close();
-        view.escape = foot::draw(&mut b, &foot::read(root, tui, words, wall), words, &mut view.binds);
+        view.escape = if refused {
+            let state = words.say(Word::State, &[Hole::Name(words.say(Word::BuildRefused, &[]))]);
+            foot::bottom(&mut b, &state, look::DOWN, words);
+            None
+        } else {
+            foot::draw(&mut b, &foot::read(root, tui, words, wall), words, &mut view.binds)
+        };
         b.close();
         view.render.finish(b, view.shown, out);
     } else {
