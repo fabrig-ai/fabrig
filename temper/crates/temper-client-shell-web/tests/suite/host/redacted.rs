@@ -39,13 +39,17 @@ fn proved(result: &Redacted) -> Box<[u8]> {
     recording
 }
 fn absent(recording: &[u8], value: &[u8]) {
+    let mut records = lines(recording).expect("html-free lines");
+    let streams = Streams::read(&records).expect("stream records");
+    absent_lines(recording, &mut records, &streams, value);
+}
+fn absent_lines(recording: &[u8], records: &mut [Line], streams: &Streams, value: &[u8]) {
     assert!(find(recording, value).is_none(), "original absent from html-free recording");
-    for mut line in lines(recording).expect("html-free lines") {
-        for (field, _) in fields_mut(&mut line) {
+    for line in records {
+        for (field, _) in fields_mut(line) {
             assert!(find(field, value).is_none(), "original absent from byte field");
         }
     }
-    let streams = Streams::read(&lines(recording).expect("html-free lines")).expect("stream records");
     for event in streams.events() {
         assert!(find(&event.record, value).is_none(), "original absent from stream record");
     }
@@ -132,7 +136,7 @@ fn check_key_walk(byte_at_a_time: bool) {
 
 #[test]
 fn saved_sign_in_keeps_real_walks_provable_and_typed_keys_intact() {
-    use temper_client_shell_web::journey::{prove, saved, typed};
+    use temper_client_shell_web::journey::{prove_lines, redact_lines, saved_lines, typed};
     let record = skein_ui_web::store::Record {
         key: jig_client::STREAM_KEY.into(),
         value: {
@@ -147,22 +151,23 @@ fn saved_sign_in_keeps_real_walks_provable_and_typed_keys_intact() {
     let walks = [walk::walked(), walk::stored_stream(record), walk::keyed(&key, false), walk::departed()];
     let mut typed_acts = 0;
     for recording in walks {
-        prove(&recording).expect("kept walk proves");
-        let output = saved(&recording);
-        prove(&output).expect("saved walk still proves");
-        let added = redact(&output, &[]).expect("saved walk redacts");
-        assert_eq!(added.originals.count(Kind::Link), 0);
-        assert_eq!(added.originals.count(Kind::Stored), 0);
         let before = lines(&recording).expect("kept lines");
-        let after = lines(&output).expect("saved lines");
+        prove_lines(before.clone()).expect("kept walk proves");
+        let mut after = saved_lines(before.clone());
+        let output = written(&after);
+        prove_lines(after.clone()).expect("saved walk still proves");
+        let (_, added, _) = redact_lines(after.clone(), &[]).expect("saved walk redacts");
+        assert_eq!(added.count(Kind::Link), 0);
+        assert_eq!(added.count(Kind::Stored), 0);
         for (before, after) in before.iter().zip(&after) {
             if typed(before) {
                 typed_acts += 1;
                 assert_eq!(after, before, "saving leaves real typed keys for add");
             }
         }
-        absent(&output, &[7; 16]);
-        absent(&output, &[8; 16]);
+        let streams = Streams::read(&after).expect("stream records");
+        absent_lines(&output, &mut after, &streams, &[7; 16]);
+        absent_lines(&output, &mut after, &streams, &[8; 16]);
     }
     assert!(typed_acts > 0, "the key walk includes a secret input");
 }
@@ -284,18 +289,16 @@ fn a_committed_journey_redacted_replays() {
     let setup = include_bytes!("../../../../../docs/design/client/web/journeys/welcome-set-up/recording");
     let recording = setup.as_slice();
     {
-        let result = redacted(recording);
-        assert!(
-            scan::lines(&lines(&result.recording).expect("committed lines"), &result.originals)
-                .expect("decoded committed streams")
-                .is_none()
-        );
-        let mut replay = Replay::new(&result.recording).expect("committed replay");
+        let (records, originals, _) =
+            temper_client_shell_web::journey::redact_lines(lines(recording).expect("committed lines"), &[])
+                .expect("committed recording redacts");
+        assert!(scan::lines(&records, &originals).expect("decoded committed streams").is_none());
+        let mut replay = Replay::from_lines(records).expect("committed replay");
         let mut marks = 0;
         loop {
             match replay.next() {
                 Ok(Some(mark)) => {
-                    assert!(scan::page(&mark.page.html(), &result.originals).is_none(), "clean committed page");
+                    assert!(scan::page(&mark.page.html(), &originals).is_none(), "clean committed page");
                     marks += 1;
                 }
                 Ok(None) => break,
