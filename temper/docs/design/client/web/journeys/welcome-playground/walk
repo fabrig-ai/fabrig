@@ -3,4 +3,5 @@ web see "Try the playground"
 web mark
 web press button "Try the playground"
 web see "This is the playground: a scripted model and in-memory forge. Use the wizard to"
+web see "New chat"
 web mark
