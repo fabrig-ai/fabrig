@@ -625,15 +625,31 @@ impl Joint {
         self.component.as_browser(client);
     }
 
-    pub fn ask_approval(&mut self, client: ClientId) -> (jig_client::ApprovalCode, Wall) {
-        self.component.ask_approval(client);
+    /// The transport's way and source for this client's exchanges; absent is listener, unknown.
+    pub fn exchange_from(
+        &mut self,
+        client: ClientId,
+        via: jig_protocol_engine_clients::Via,
+        source: Option<std::net::IpAddr>,
+    ) {
+        self.component.exchange_from(client, via, source);
+    }
+
+    pub fn ask_approval(
+        &mut self,
+        client: ClientId,
+        port: Option<u16>,
+        via: jig_protocol_engine_clients::Via,
+        source: Option<std::net::IpAddr>,
+    ) -> (jig_client::ApprovalCode, Wall) {
+        self.component.ask_approval(client, port, via, source);
         self.pump_component();
         self.component.asked(client).expect("the component answered asked")
     }
 
-    pub fn take_approval(&mut self, client: ClientId) {
+    pub fn take_approval(&mut self, client: ClientId, grant: Option<skein_lib::Secret>) {
         self.taking.remove(&client);
-        self.component.take_approval(client);
+        self.component.take_approval(client, grant);
         self.pump_component();
     }
 

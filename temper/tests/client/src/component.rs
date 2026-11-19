@@ -8,7 +8,10 @@ use jig_domain_core as core;
 use jig_domain_people as people;
 use jig_protocol_engine_clients::{self as clients, Event, Request};
 use skein_lib::{Env, Queue, Secret, Time, Token, Wall};
-use std::collections::{BTreeMap, BTreeSet, VecDeque};
+use std::{
+    collections::{BTreeMap, BTreeSet, VecDeque},
+    net::IpAddr,
+};
 use temper_engine_domain as root;
 
 pub struct Composition {
@@ -19,6 +22,7 @@ pub struct Composition {
     out: Queue<Request>,
     links: BTreeMap<ClientId, link::Link>,
     browsers: BTreeSet<ClientId>,
+    exchange_from: BTreeMap<ClientId, (clients::Via, Option<IpAddr>)>,
     asked: BTreeMap<ClientId, (Secret, jig_client::ApprovalCode, Wall)>,
     approval_signers: BTreeMap<Token, ClientId>,
     signing_identities: BTreeMap<ClientId, people::Identity>,
@@ -189,6 +193,7 @@ impl Composition {
             out,
             links: BTreeMap::new(),
             browsers: BTreeSet::new(),
+            exchange_from: BTreeMap::new(),
             asked: BTreeMap::new(),
             approval_signers: BTreeMap::new(),
             signing_identities: BTreeMap::new(),
@@ -440,9 +445,10 @@ impl Composition {
                     link::Message::SignInService => clients::Message::SignInService(Box::new([])),
                     link::Message::SignOut => clients::Message::SignOut(Box::new([])),
                 };
+                let (via, source) = self.exchange_from.get(&client).copied().unwrap_or((clients::Via::Listener, None));
                 self.event(Event::Transport(clients::FromTransport::Exchange {
-                    via: jig_protocol_engine_clients::Via::Listener,
-                    source: None,
+                    via,
+                    source,
                     browser: self.browsers.contains(&client),
                     exchange: name,
                     credential,
@@ -524,6 +530,11 @@ impl Composition {
         self.browsers.insert(client);
     }
 
+    /// The transport's way and source for this client's exchanges; absent is listener, unknown.
+    pub fn exchange_from(&mut self, client: ClientId, via: clients::Via, source: Option<IpAddr>) {
+        self.exchange_from.insert(client, (via, source));
+    }
+
     pub fn approval(&mut self, client: ClientId, act: jig_client::ApprovalAct) {
         let event = match act {
             jig_client::ApprovalAct::Ask { port } => link::Event::AskApproval { port },
@@ -533,8 +544,9 @@ impl Composition {
         self.link(client, event);
     }
 
-    pub fn ask_approval(&mut self, client: ClientId) {
-        self.approval(client, jig_client::ApprovalAct::Ask { port: None });
+    pub fn ask_approval(&mut self, client: ClientId, port: Option<u16>, via: clients::Via, source: Option<IpAddr>) {
+        self.exchange_from(client, via, source);
+        self.approval(client, jig_client::ApprovalAct::Ask { port });
     }
 
     #[must_use]
@@ -542,11 +554,11 @@ impl Composition {
         self.asked.get(&client).map(|(_, code, expires)| (*code, *expires))
     }
 
-    pub fn take_approval(&mut self, client: ClientId) {
+    pub fn take_approval(&mut self, client: ClientId, grant: Option<Secret>) {
         let (secret, _, _) = self.asked.get(&client).expect("client asked for approval");
         let secret = secret.clone();
         self.pending_reply = Some(Reply::SignIn { client });
-        self.link(client, link::Event::SignIn { with: link::With::Approval { secret, grant: None } });
+        self.link(client, link::Event::SignIn { with: link::With::Approval { secret, grant } });
     }
 
     /// Bind the identity answered by the engine before the front releases parked work.
