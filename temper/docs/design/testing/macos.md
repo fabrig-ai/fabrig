@@ -49,8 +49,9 @@ built by a workflow of its own, which tests nothing (`../release.md`, 5.1).
   runs at once (`../draft/macos-tiers.md`, section 10); the parts run on
   `macos-26`, arm64.
 - **Each part's timeout** is its set's bound (`../draft/macos-tiers.md`,
-  section 3): 150 minutes for `process` and `browser`, 300 for a tree's
-  part, 60 for `live`.
+  section 3): 150 minutes for `process`, `browser` and `browser-temper`,
+  300 for a tree's part, 60 for `live`. Its last 15 minutes are kept for
+  the part's saves (4.4).
 - **Permissions:** `contents: read`, and `actions: read` for `report`,
   which reads the parts' files.
 - **A failure reads without a login:** the repository is public, and each
@@ -134,10 +135,15 @@ built by a workflow of its own, which tests nothing (`../release.md`, 5.1).
 | Part | Set | What it runs | Holds an id whose package is |
 |---|---|---|---|
 | `process` | `e2e` | the pair `process-temper`: `tools/tiers/run temper process` | in `tools/tiers/packages.toml`'s `process-temper` |
-| `browser` | `e2e` | the pairs `browser-temper`, `browser-jig` and `browser-skein`: `tools/tiers/run TREE browser` for each | in one of those pairs' lists |
+| `browser` | `e2e` | the pairs `browser-jig` and `browser-skein`: `tools/tiers/run TREE browser` for each | in one of those pairs' lists |
+| `browser-temper` | `e2e` | the pair `browser-temper`, the one that takes the playground: `tools/tiers/run temper browser` | in `tools/tiers/packages.toml`'s `browser-temper` |
 | `skein`, `smith`, `jig`, `temper` | `suites` | the tree's focused suite, then its fuzzy one: `tools/tiers/one-process default`, then `fuzzy`, with a `-p` for each of the tree's packages | the tree's |
 | `live` | `live` | section 8's stories | in `live-temper`'s or `live-skein`'s list |
 
+- **`browser-temper` apart from `browser`** (6.3): the playground is that
+  pair's alone and most of its build, so the pair takes a job, a cache
+  and a bound of its own. Its compiler's red is `build.browser-temper`;
+  `build.browser` is jig's and skein's pairs' build.
 - **A tree's packages** are the workspace's packages (`cargo metadata
   --no-deps`, which builds nothing) its name takes, by the rules at the
   head of `.config/nextest.toml`: skein's `skein-*`,
@@ -196,10 +202,48 @@ built by a workflow of its own, which tests nothing (`../release.md`, 5.1).
   prerequisites and test binaries (`tools/tiers/run TREE TIER -- --no-run`),
   a tree's listed binaries and test binaries (`cargo nextest run
   --no-run` with the tree's `-p`s); then it fetches the forge where it
-  takes one (section 2) and Chrome for `browser` (section 6); then it
+  takes one (section 2) and Chrome for the browser parts (6.1); then it
   runs, building nothing more.
+- **A browser pair's run makes its bundles again** from what the build
+  step built, every unit fresh, since the job's environment is the same
+  for both steps (6.3): the playground is built once a job. Where a
+  tier run's log shows cargo compiling a crate (`Compiling NAME vVERSION`),
+  the helper annotates the run with a warning naming each such crate,
+  so that a second build shows.
+- **The build shows what it built:** after the build, the helper gives
+  a notice for each build command: the number of dependencies cargo
+  compiled and of the workspace's crates, read from its `Compiling`
+  lines, where a workspace crate's line names its path. A warm run's
+  count of dependencies is zero (6.2).
 - **Each check runs through the runner of checks,** which keeps its
   output and annotates its failure (section 1).
+
+### 4.4 The part's deadline
+
+- **The saves keep the bound's last 15 minutes:** a part's deadline is
+  its job's first step (`MACOS_STARTED`) plus its timeout, less 15
+  minutes. The helper runs each command it starts as the leader of a
+  process group of its own, and at the deadline it stops that group:
+  SIGTERM, then SIGKILL to whatever is left after 60 seconds, and it
+  waits until the command has ended. The part is then cut short, a
+  fault (5.4), its log's tail annotated as a failing check's, and its
+  last steps prune and save its dependencies' build (6.2) and print its
+  disk within the minutes kept.
+- **A cancel stops it the same way:** the steps that install, build or
+  run run the helper as the step's own process (`exec`), so the SIGINT
+  or SIGTERM a cancel or GitHub's timeout sends the step reaches it;
+  it stops its command's group as at the deadline, then exits as a
+  fault. Nothing the part started writes into `target` while the save
+  reads it.
+- **Why:** in run 44561458165 (6.3) GitHub's timeout cancelled the run
+  step while the commands it had started went on, and the save that
+  followed failed: `/opt/homebrew/bin/gtar failed with exit code 1`,
+  GNU tar's status when a file changes as it reads it.
+- **The bounds are the helper's table:** the helper reads a part's
+  timeout from its own table of parts, which a test holds equal to each
+  job's `timeout-minutes`; the timeouts stay the sets' bounds
+  (section 1). A command started with no `MACOS_STARTED`, as in the
+  helper's own tests, has no deadline.
 
 ## 5. The report
 
@@ -244,7 +288,7 @@ built by a workflow of its own, which tests nothing (`../release.md`, 5.1).
 
 - **Anything but a test's failure or a build's red is a fault,** never a
   red (`../draft/macos-tiers.md`, 4.4): a runner lost, a job past its
-  timeout, the disk full, a download refused or not its pinned digest,
+  timeout or cut short at its deadline (4.4), the disk full, a download refused or not its pinned digest,
   the live secret absent (section 8), a run whose status is neither a pass
   nor a test's failure (nextest's 0 and 100, one process per binary's 0
   and 100), a whole set that selects nothing, and a run that left tests
@@ -259,6 +303,8 @@ built by a workflow of its own, which tests nothing (`../release.md`, 5.1).
 
 ## 6. What it installs and caches
 
+### 6.1 What each part installs
+
 - **As before:** the toolchain the repository's `rust-toolchain.toml` pins
   (`skein/docs/foundation/programming-model.md`, 10.1), by rustup reading
   the file in the checkout, with no version written in the workflow, and
@@ -267,14 +313,9 @@ built by a workflow of its own, which tests nothing (`../release.md`, 5.1).
 - **The runner is small:** 14 GB of disk by GitHub's table. Line tables
   only for debug information, no incremental build,
   `TEMPER_INTERNAL_BUNDLE=none` and `NEXTEST_DOUBLE_SPAWN=0`.
-- **Each part's dependencies' build:** `target`, cached under a key of the
-  part's, `target-macos-26-PART-rust-`, the toolchain file's hash, `-`,
-  the lock's hash, restored by its prefix up to the lock's hash, and saved
-  once per key. Before saving, the part removes the outputs of the
-  workspace's own packages, which build again in each run, so that the
-  cache holds the dependencies alone and the parts' caches stay within
-  GitHub's 10 GB a repository; it prints the cache's size.
-- **`browser`'s:** the `wasm32-unknown-unknown` target, checked present,
+- **Each part's dependencies' build,** cached as 6.2 has it.
+- **The browser parts', `browser`'s and `browser-temper`'s alike:** the
+  `wasm32-unknown-unknown` target, checked present,
   and Chrome for Testing at the build nearest the Chromium Linux's
   browser tiers run, on that Chromium's branch: Chrome for Testing does
   not publish every patch, so today the pin is 147.0.7727.117 beside
@@ -283,8 +324,8 @@ built by a workflow of its own, which tests nothing (`../release.md`, 5.1).
   when its major version moves. The archive comes from Chrome for Testing's public storage, is
   checked against the digest before it is unpacked, and
   `SKEIN_TEST_CHROMIUM` names its executable.
-- **`browser`'s C compiler for wasm:** ring's build script compiles C for
-  `wasm32-unknown-unknown` while the part builds its bundles, and the
+- **The browser parts' C compiler for wasm:** ring's build script compiles C for
+  `wasm32-unknown-unknown` while a part builds its bundles, and the
   runner's `clang` is Apple's, which has no such target. Before the
   build, after the target's check, the helper's `wasm-compiler` command
   takes Homebrew's LLVM: the newest `llvm` or `llvm@N` formula the runner
@@ -297,7 +338,7 @@ built by a workflow of its own, which tests nothing (`../release.md`, 5.1).
   `AR_wasm32_unknown_unknown`, its `llvm-ar`'s, which the `cc` crate
   reads for that target alone, so the native builds keep the runner's
   compiler. No LLVM, a `clang` without the target or no `llvm-ar` is a
-  fault (5.4). Only the `browser` job runs it: Linux's tiers name no
+  fault (5.4). Only the browser parts' jobs run it: Linux's tiers name no
   compiler, and the workflow's set-up is not temper's, which takes
   Homebrew as a URL alone (`../draft/macos.md`, 4.3).
 - **`process`'s and `live`'s:** Forgejo and its runner, fetched as section
@@ -305,6 +346,116 @@ built by a workflow of its own, which tests nothing (`../release.md`, 5.1).
 - **Each part's disk and wall time:** a last step, whatever the part ended
   in, prints the disk (`df`, and `du` of `target` and the registry) and the
   job's wall time since its first step.
+
+### 6.2 Each part's dependencies' build
+
+- **Its keys:** `target` is cached under the part's complete key,
+  `target-macos-26-PART-rust-`, the toolchain file's hash, `-`, the
+  lock's hash; and a run that did not build everything saves under a
+  partial key, the complete key, `-partial-`, the run's id, `-` and its
+  attempt (`target-macos-26-browser-temper-rust-T-L-partial-44561458165-1`).
+- **Restored** by the complete key; else by the newest partial key that
+  begins with it; else by the newest key of the part and the toolchain,
+  `target-macos-26-PART-rust-` and the toolchain file's hash, whatever
+  its lock.
+- **Saved whatever the part ended in,** after the prune and once the
+  part's own commands have ended (4.4): under the complete key where the
+  build step built everything; under a partial key where it did not, a
+  compiler's red, a fault, the deadline or a cancel having stopped it;
+  and not at all where the restore found the complete key, which already
+  holds every dependency the lock names. So each run cut short leaves
+  the next warmer, and an entry under a complete key is whole.
+- **The prune keeps the dependencies alone:** in each profile's
+  directory, any directory holding `.fingerprint` (`debug`, `web`,
+  `playground`, `wasm32-unknown-unknown/debug`, `wasm32-unknown-unknown/web`,
+  `wasm32-unknown-unknown/playground`), it keeps `deps`, `build` and
+  `.fingerprint`, less the workspace's entries; it removes everything
+  else under `target`: the profiles' final outputs, `examples`,
+  `incremental`, the bundles, `nextest`, `tmp` and the tiers'
+  directories, whatever their names, keeping only `target`'s own
+  `.rustc_info.json` and `CACHEDIR.TAG`.
+- **The workspace's entries by their whole name:** an entry of `deps`,
+  `build` or `.fingerprint` is the workspace's when its name, less a
+  leading `lib`, is a workspace package's or target's name (with `-` or
+  `_`) alone, followed by `-` and cargo's sixteen hex digits, or followed
+  by `.` and an extension, the two together too
+  (`libtemper_box-0123456789abcdef.rlib`); never because it only begins
+  with one, so that a workspace test named `http` would not take
+  `http-body-0123456789abcdef`. A workspace name that is also a
+  dependency's in `Cargo.lock` is left, its outputs kept, and named in a
+  warning annotation.
+- **Why the playground's dependencies built again** in run 44561458165,
+  which had restored `browser`'s key from an earlier run: that run,
+  44517790115, stopped in its build at ring's C for wasm (6.1) before
+  the playground's builds, so its entry held none of the optimized
+  profiles; the prune's former rule, by a name's beginning, matched no
+  dependency of `Cargo.lock` at `ee9999b230`; and 44561458165's own save
+  failed (4.4). Under fat LTO a warm cache spares little anyway (6.3).
+- **Within GitHub's 10 GB a repository** for every part: a complete key
+  is saved once per lock and toolchain; GitHub, past the repository's
+  limit, evicts the entries used longest ago first, which are the
+  superseded keys; partial keys pile up only while a part's runs are cut
+  short, each warmer than the last. Each part prints its `target`'s size
+  after the prune, and the save prints its archive's.
+
+### 6.3 How the browser parts fit
+
+- **Where it started:** the one `browser` part ran the three pairs. In
+  run 44561458165 (2026-11-19, at `7cacb44526`, `macos-26`, 3 cores),
+  the build step began at 16:03:03Z; `temper/scripts/bundle.sh
+  --playground` took 8,564 s, its `cargo build --target
+  wasm32-unknown-unknown --profile web -p temper-playground-page`
+  81m48s and its `--profile playground -p temper-playground` 60m36s.
+  The run step began at 18:32:06Z, began the playground's bundle again
+  at 18:32:20Z, and the job was cancelled at its 150 minutes; its save
+  failed (4.4). Run 44517790115, at `80e3098f39`, failed the part after
+  79 minutes, mostly building, on ring's C compiler for wasm, since
+  repaired (6.1). The part never reached its tests.
+- **Two parts, two jobs:** `browser-temper`, the pair that takes the
+  playground, runs alone; `browser` runs jig's and skein's pairs. Each
+  has its runner, its cache and its 150 minutes, in parallel; `e2e`'s
+  three jobs are within GitHub's macOS jobs at once.
+- **The playground lighter on macOS:** `browser-temper`'s job sets, at
+  the job's level, `CARGO_PROFILE_WEB_LTO` and
+  `CARGO_PROFILE_PLAYGROUND_LTO` to `off`, and
+  `CARGO_PROFILE_WEB_CODEGEN_UNITS` and
+  `CARGO_PROFILE_PLAYGROUND_CODEGEN_UNITS` to `16`; both profiles are
+  named, since a variable of `web`'s is not sure to reach the profile
+  that inherits it. Linux's tiers and the release build the profiles as
+  `Cargo.toml` has them (`../playground.md`, 7).
+  - *Why:* fat LTO in one codegen unit optimizes the whole program anew
+    in every build, on one core, from bitcode no cache spares, and took
+    most of the 8,564 s. Without it, each crate's code is made once, a
+    dependency's kept in the cache (6.2), and cargo compiles three crates
+    at a time.
+  - *What stays:* the opt-levels, `s` for the page and `z` for the
+    world, so that the playground runs on macOS as fast as the browser
+    harness's forty seconds (skein's `ui/web/testing.md`, section 2) and
+    the stories' waits were set for; `panic = "abort"`, the playground's
+    fail-stop (skein's `playground.md`, section 7); `overflow-checks`,
+    which every profile keeps (`skein/docs/foundation/programming-model.md`,
+    10.4); and `strip`.
+  - *Nothing the stories check depends on what changes:* no test reads
+    the profiles or holds a size of the modules or the download; the
+    download's 8 MB bar is reported, not checked (`../playground.md`,
+    8), and macOS has no budgets (`../draft/macos-tiers.md`, section 8).
+    The figures the playground's story prints on macOS, its download's
+    size among them, are this build's, never set beside Linux's.
+- **Built once a job:** the build step's tier run builds the playground;
+  the run step's makes its bundle again from units all fresh (4.3),
+  since the job's environment holds for both steps: the profiles'
+  variables at the job's level, the wasm compiler's written before the
+  build, and nothing a later step adds that cargo reads.
+- **What a run builds:** a warm one, the workspace's crates alone, four
+  times: natively for the tests and the tier's binaries, and for
+  wasm32 in `debug` (temper's bundle), `web` (the playground's page) and
+  `playground` (its world). A cold one builds every dependency for each
+  besides. A cold run fits within the bound if it can; one that doesn't
+  is cut at its deadline (4.4) and saves what it built (6.2), so that
+  the next run starts warm, and a warm run fits.
+- **Each run shows how it fit:** the build's notices (4.3), the tier
+  run's `tiers: playground bundle built in` seconds, the prune's and the
+  save's sizes (6.2), and the job's disk and wall time (6.1).
 
 ## 7. Timeouts on macOS
 
@@ -398,7 +549,17 @@ built by a workflow of its own, which tests nothing (`../release.md`, 5.1).
 
 - **The caches' sizes:** the first run by hand prints each part's; should
   they pass GitHub's 10 GB together, the parts that share most share a
-  cache.
+  cache. A part's entry keeps the dependencies a former lock named as
+  well as the current ones, so it grows with each change of a
+  dependency's version until a sweep by the lock removes them.
+- **The workspace's unchanged crates fresh across runs:** cargo judges a
+  workspace crate by its files' times, which every checkout renews, so
+  each run builds all of them. Cargo's checksum freshness on the pinned
+  nightly, with the workspace's libraries kept in the cache, would spare
+  those a commit didn't change, at the cost of a larger cache.
+- **The `live` job's one step** (section 8) runs the helper's commands in
+  turn from a shell, so its deadline holds there but a cancel's signal
+  reaches the shell alone.
 - **macOS's budgets,** from the parts' files' durations, the user's figures
   (`../draft/macos-tiers.md`, section 11).
 - **A repair that runs its macOS test before it lands,** and the live
