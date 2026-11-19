@@ -772,11 +772,16 @@ blamed landing's full commit (2026-11-04).
   `landings_pending` per repository (64), their sum at most the store's
   256 (`../protocol/configuration/limits.md`); `trailers` per landing (8) and `trailer_bytes` per line
   (200); `tiers` per repository (2 in `small`),
-  `failing_tests` per run (16), `test_id_bytes` (512, at most the
-  store's 1,024, `../protocol/store.md`, 4), and a tier's
-  name at most 32 bytes.
+  `failing_tests` per run (64, 16 in `small`) and `test_id_bytes` (512),
+  each at most what a finding's signature holds, 64 ids of at most 512
+  bytes (`findings.md`, section 4), which a start checks
+  (`../protocol/configuration/limits.md`), and within the store's 1,024
+  bytes of an id (`../protocol/store.md`, 4); and a tier's name at most
+  32 bytes.
 
-A tier's record keeps at most `failing_tests` distinct flake IDs. Once full
+A tier's record keeps at most `failing_tests` ids of its last judged
+failures, each within `test_id_bytes`; a run past either is many, as
+section 4 says. It keeps at most `failing_tests` distinct flake IDs. Once full
 it keeps counting the IDs already retained and drops newly seen flake IDs,
 without holding the tier (2026-11-04).
 
