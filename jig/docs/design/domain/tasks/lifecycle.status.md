@@ -1,9 +1,10 @@
 # lifecycle: status
 
-2026-11-18. Where the tree's code lags or departs from [lifecycle.md](lifecycle.md).
+2026-11-19. Where the tree's code lags or departs from [lifecycle.md](lifecycle.md).
 
 
 
+- **Not yet:** 6: an account's terminal read once its source is usable again is rechecked at once, with no backoff [in flight: change 9667].
 - **Not yet:** 2 and 9: a standing task: no `NothingAwaited` notice, a finish parked, its `standing` ending (`standing.md`, section 2).
 - **Not yet:** 6: a standing task's tries per session (`standing.md`, 5.1).
 
