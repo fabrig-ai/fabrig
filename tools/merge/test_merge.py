@@ -17,6 +17,7 @@ CODEC = 'a/src/generated/note.rs'
 SCHEMAS = ['b/schema/note-v1.schema', 'b/schema/note-v1-part1.schema']
 CODEC_SOURCES = ['skein/testing/skein-codegen/src/lib.rs', 'skein/crates/skein-codec/src/schema.rs']
 CODEC_LIST = 'tools/merge/codecs.txt'
+LEAN_MARK = 'b/schema/lean'
 JOURNEYS = 'temper/docs/design/client/web/journeys/'
 
 
@@ -458,7 +459,11 @@ class Merge(unittest.TestCase):
             'target = directory / "note.rs"\n'
             'assert not target.exists(), "a fresh output is required"\n'
             'if outcome == "write":\n'
-            '    target.write_text("// stub output\\n" + "".join((root / path).read_text() '
+            '    mark = Path(sys.argv[7]).parent / "lean"\n'
+            '    lean = mark.is_file() and "note" in [line.split("#", 1)[0].strip() '
+            'for line in mark.read_text().splitlines()]\n'
+            '    prefix = "// stub lean output\\n" if lean else "// stub output\\n"\n'
+            '    target.write_text(prefix + "".join((root / path).read_text() '
             'for path in sys.argv[7:-1]))\n'
             'elif outcome == "fail":\n'
             '    target.write_text("partial codec")\n    sys.exit(1)\n'
@@ -505,6 +510,36 @@ class Merge(unittest.TestCase):
         self.assertEqual(self.git('show', f':0:{CODEC}').stdout, expected)
         self.assertEqual(target.stat().st_mode & 0o777, 0o755)
         self.assertTrue(self.git('ls-files', '--stage', '--', CODEC).stdout.startswith(b'100755 '))
+
+    def test_conflicted_lean_mark_leaves_codec_unbuilt(self):
+        self.codec_generator()
+        self.write(LEAN_MARK, 'note\n')
+        self.conflict(baseline=False, other=True, other_path=CODEC,
+                      other_paths=[LEAN_MARK])
+        self.run_merge([], [CODEC, LEAN_MARK])
+        self.assertFalse((self.job / 'codec-call.json').exists(), 'a conflicted mark prevents building')
+
+    def test_clean_lean_mark_regenerates_codec_in_lean_form(self):
+        for side in ('head', 'base', 'both'):
+            with self.subTest(side=side):
+                self.setUp()
+                self.codec_generator()
+                common = '# choices\n\n\n\n\n# other choices\n'
+                if side == 'both':
+                    self.write(LEAN_MARK, common)
+                self.conflict(baseline=False, other=True, other_path=CODEC,
+                              head_files=[(LEAN_MARK, 'note\n' + common)]
+                              if side in ('head', 'both') else [],
+                              base_files=[(LEAN_MARK, common + 'other\n' if side == 'both' else 'note\n')]
+                              if side in ('base', 'both') else [])
+                self.run_merge([CODEC], [])
+                self.assert_codec_called()
+                expected = ('// stub lean output\n' + self.codec_schema() + '// schema fragment\n').encode()
+                self.assertEqual((self.repository / CODEC).read_bytes(), expected)
+                self.assertEqual(self.git('show', f':0:{CODEC}').stdout, expected)
+                self.assertEqual((self.repository / LEAN_MARK).read_text(),
+                                 'note\n' + common + 'other\n' if side == 'both'
+                                 else 'note\n' + common if side == 'head' else 'note\n')
 
     def test_conflicted_codec_sources_leave_modules_unbuilt(self):
         for source in [SCHEMAS[0], *CODEC_SOURCES]:
