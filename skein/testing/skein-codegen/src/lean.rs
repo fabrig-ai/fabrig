@@ -425,7 +425,9 @@ pub(crate) fn generate(schema: &Schema) -> Output {
     // Box is also used by Record's default encoding, but only field and variant
     // types need an import here.
     let needs_box = schema.declarations.iter().any(|declaration| match declaration {
-        Declaration::Record(record) => record.fields.iter().any(|field| crate::uses_box(&field.ty)),
+        Declaration::Record(record) => {
+            record.fields.iter().any(|field| emit_types::rust_type(&field.ty).contains("Box<"))
+        }
         Declaration::Enum(enumeration) => enumeration.variants.iter().any(|variant| variant.boxed),
     });
     if needs_box {

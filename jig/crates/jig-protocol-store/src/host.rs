@@ -2,6 +2,7 @@
 //! (jig/docs/design/protocol/store/README.md, 8; jig/docs/design/protocol/service.md, 11.5).
 use crate::Below;
 use alloc::boxed::Box;
+use skein_codec::Record as _;
 use skein_io::{
     file,
     file_layer::{FileIo, Limits as FileLimits, step},
