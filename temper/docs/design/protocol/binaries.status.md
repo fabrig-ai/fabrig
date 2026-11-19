@@ -2,9 +2,7 @@
 
 2026-11-19. Where the tree's code lags or departs from [binaries.md](binaries.md).
 
-- **Not yet:** 2: `upgrade --workers` prints no count of the files its rehearsal linked and copied [in flight: change 9155]
 
-- **Not yet:** 2: a rehearsal removes no scratch left behind under the cache directory and holds its own scratch's lock only from the scratch's open; the `upgrade --workers` rows say it works over a copy [in flight: change 9156]
 
 - **Not yet:** 1 and 2: `upgrade --check` has no per-job timing: each `Event::Ran` job line ends `time unavailable` (`temper-engine-shell/src/upgrade/report.rs`). The whole rehearsal/tool time is printed separately.
 
