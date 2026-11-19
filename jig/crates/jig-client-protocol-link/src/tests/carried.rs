@@ -96,3 +96,16 @@ fn a_move_out_the_link_cannot_post_is_unsent() {
     assert_eq!(h.answered(ATTEMPT), Some((RequestEnvelope::Again, None)));
     assert!(posted(&h).is_none());
 }
+
+#[test]
+fn a_carried_value_past_the_wire_bound_is_unsent() {
+    let limits = limits();
+    let mut h = Harness::new(&limits);
+    let length = limits.wire().keyed_value_some.checked_add(1).unwrap();
+    let value = Some(Secret::new(skein_lib::bytes::zeroed(skein_lib::usize_of(length))));
+    let ask = Ask::Family { scope: c::Scope::Own, record: fixtures::family_read() };
+    h.link.step(Time::ZERO, Event::Send { attempt: ATTEMPT, key: CARRIED_KEY, ask, value }, &mut h.out);
+    h.link.settle(&mut h.out);
+    assert_eq!(h.answered(ATTEMPT), Some((RequestEnvelope::Again, None)));
+    assert_eq!(h.exchanges(), 0);
+}

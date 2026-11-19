@@ -1,6 +1,8 @@
 //! The generic client world over the real session loop (testing.md, 5–7).
 //! Scenario identities and the clock mapping are supplied independently of
 //! owner numbers. Unsupported fault sources remain named until implemented.
+#[cfg(test)]
+use jig_client_protocol_wire::Record as _;
 use super::session::{Invalid, Session};
 use crate::{
     harness::{ClientId, Front, FrontFault, Observed},
@@ -837,8 +839,8 @@ fn a_persons_joint_inbox_is_the_components_document_for_the_same_core_state() {
     let expected = w::DeliveryValue::Inbox(
         jig_protocol_engine_clients::translate::inbox::document(&inbox, &w::CEILINGS).expect("component inbox encoder"),
     );
-    let mut writer = Writer::new(skein_lib::length::usize_of(expected.measure()));
-    expected.encode(&mut writer).expect("measured inbox");
+    let mut writer = Writer::new(skein_lib::length::usize_of(expected.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+    expected.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("measured inbox");
     let expected = jig_client_protocol_link::translate::watches::delivery(
         &writer.finish(),
         &jig_client_protocol_link::Limits::new(limits.client.domain, 64).expect("receiving link bounds"),

@@ -70,7 +70,7 @@ fn a_read_keeps_its_long_cursor_as_opaque_bytes() {
 fn a_read_cursor_past_its_wire_bound_is_refused() {
     let mut limits = *fixtures::limits().wire();
     limits.cursor_value = 47;
-    let problem = translate::reads::read(&fixtures::history_read(), &limits).unwrap_err();
+    let problem = translate::reads::read(&fixtures::history_read(), &limits).unwrap().encode(&limits).unwrap_err();
     assert_eq!(problem.path, w::paths::CURSOR_VALUE);
     assert_eq!(problem.reason, skein_codec::Reason::Bound);
 }
@@ -582,4 +582,23 @@ fn a_tasks_scope_on_a_note_row_is_undecodable() {
             assert_eq!(result, Err(translate::piece_problem(skein_codec::Reason::Malformed)));
         }
     }
+}
+
+#[test]
+fn a_family_read_past_the_envelope_bound_is_refused() {
+    let limits = fixtures::limits();
+    let mut h = fixtures::Harness::new(&limits);
+    let record = Family {
+        family: 19,
+        version: 23,
+        bytes: skein_lib::bytes::zeroed(skein_lib::usize_of(limits.wire().owned_record)),
+    };
+    h.link.step(
+        Time::ZERO,
+        Event::Read { read: fixtures::READ, what: Readable::Family { scope: c::Scope::Own, window: c::Window { rows: 2, after: None }, record } },
+        &mut h.out,
+    );
+    h.link.settle(&mut h.out);
+    assert_eq!(h.read_answered(), Some(&Readout::Jig(c::ReadResult::None(c::ReadNone::Unreachable))));
+    assert_eq!(h.exchanges(), 0);
 }

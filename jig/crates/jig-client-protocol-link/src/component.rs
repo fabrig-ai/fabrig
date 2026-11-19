@@ -234,6 +234,10 @@ impl Link {
             refuse(attempt, out);
             return;
         };
+        let Ok(bytes) = record.encode(self.limits.wire()) else {
+            refuse(attempt, out);
+            return;
+        };
         let exchange = Token::new(self.next);
         self.next = next;
         let state = Attempt {
@@ -245,9 +249,7 @@ impl Link {
             kind: ExchangeKind::Attempt { carrying, key },
         };
         self.attempts.insert(exchange, state).expect("checked exchange capacity");
-        let mut writer = Writer::new(skein_lib::length::usize_of(record.measure(self.limits.wire()).expect("bounded client record")));
-        record.write(self.limits.wire(), &mut writer).expect("measured envelope");
-        self.exchange(exchange, Message::Request(writer.finish()), out);
+        self.exchange(exchange, Message::Request(bytes), out);
     }
     fn read(&mut self, read: Token, what: Readable, again: bool, out: &mut Queue<Request>) {
         let turn = if let Readable::Jig(jig_client_domain::contract::Read::Turn { task, attempt, turn }) = &what {
@@ -278,6 +280,10 @@ impl Link {
             read_none(read, &owner, jig_client_domain::contract::ReadNone::Unreachable, out);
             return;
         };
+        let Ok(bytes) = record.encode(self.limits.wire()) else {
+            read_none(read, &owner, jig_client_domain::contract::ReadNone::Unreachable, out);
+            return;
+        };
         let exchange = Token::new(self.next);
         self.next = next;
         let state = Attempt {
@@ -289,9 +295,7 @@ impl Link {
             kind: ExchangeKind::Read { turn, retry },
         };
         self.attempts.insert(exchange, state).expect("checked exchange capacity");
-        let mut writer = Writer::new(skein_lib::length::usize_of(record.measure(self.limits.wire()).expect("bounded client record")));
-        record.write(self.limits.wire(), &mut writer).expect("measured read envelope");
-        self.exchange(exchange, Message::Read(writer.finish()), out);
+        self.exchange(exchange, Message::Read(bytes), out);
     }
     pub(super) fn answered(&mut self, exchange: Token, body: &[u8], out: &mut Queue<Request>) {
         let Some(attempt) = self.attempts.remove(&exchange) else { return };
@@ -575,6 +579,10 @@ impl Link {
             out.push(Request::Ended { watch, end: jig_client_domain::contract::WatchEnd::Dropped });
             return;
         };
+        if subject.measure(self.limits.wire()).is_err() {
+            out.push(Request::Ended { watch, end: jig_client_domain::contract::WatchEnd::Dropped });
+            return;
+        }
         let Some(name) = self.token() else {
             out.push(Request::Ended { watch, end: jig_client_domain::contract::WatchEnd::Dropped });
             return;

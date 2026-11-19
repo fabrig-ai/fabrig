@@ -936,3 +936,20 @@ fn a_delivery_past_long_text_is_refused() {
     parts.text = skein_lib::bytes::zeroed(usize::try_from(w::CEILINGS.run_text_text + 1).unwrap());
     assert_eq!(parts.encode(limits.wire()).unwrap_err().path, w::paths::RUN_TEXT_TEXT);
 }
+
+#[test]
+fn a_family_watch_past_the_envelope_bound_is_dropped() {
+    let limits = fixtures::limits();
+    let mut h = fixtures::Harness::new(&limits);
+    let record = Family {
+        family: 19,
+        version: 23,
+        bytes: skein_lib::bytes::zeroed(skein_lib::usize_of(limits.wire().owned_record)),
+    };
+    h.link.step(
+        Time::ZERO,
+        Event::Open { watch: fixtures::WATCH, subject: Watchable::Family { scope: c::Scope::Own, window: c::Window { rows: 2, after: None }, record } },
+        &mut h.out,
+    );
+    assert_eq!(h.ended(fixtures::WATCH), Some(c::WatchEnd::Dropped));
+}

@@ -1,4 +1,5 @@
 //! The real clients component and native HTTP machines around the Ops engine.
+use jig_client_protocol_wire::Record as _;
 use super::front::{ApplicationDocument, Joint, Subject, application_document, subject_route};
 use crate::conformance::Story;
 use jig_client::{Event, Message, Request, Streamed};
@@ -60,8 +61,8 @@ impl Side {
             match message {
                 Message::Request(bytes) => {
                     let value = w::Keyed::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("whole keyed bytes");
-                    if let w::Owner::Family(family) = value.owner() {
-                        self.family_requests.insert(*exchange, family.number());
+                    if let w::Owner::Family(family) = &value.owner {
+                        self.family_requests.insert(*exchange, family.number);
                     }
                 }
                 Message::Read(_)

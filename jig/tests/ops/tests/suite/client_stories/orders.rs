@@ -1,4 +1,5 @@
 //! The linked Ops root against scripted stream, transport and delayed storage.
+use jig_client_protocol_wire::Record as _;
 use jig_client::{Event as ClientEvent, Message, Streamed};
 use jig_client_protocol_wire as w;
 use jig_client_view::address::Address as JigAddress;
@@ -55,13 +56,12 @@ impl World {
     fn admit_watches(&mut self) {
         for (exchange, member, _) in std::mem::take(&mut self.watches) {
             let answer = w::OpenAnswer::Admitted;
-            let mut bytes = Writer::new(skein_lib::length::usize_of(answer.measure()));
-            answer.encode(&mut bytes).expect("opening answer");
+            let mut bytes = Writer::new(skein_lib::length::usize_of(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+            answer.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("opening answer");
             if let Some(member) = member {
-                let part = w::BatchReply::new(&w::CEILINGS, w::BatchReplyParts { member, reply: Some(bytes.finish()) })
-                    .expect("opening part");
-                let mut bytes = Writer::new(skein_lib::length::usize_of(part.measure()));
-                part.encode(&mut bytes).expect("opening part bytes");
+                let part = w::BatchReply { member, reply: Some(bytes.finish()) };
+                let mut bytes = Writer::new(skein_lib::length::usize_of(part.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+                part.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("opening part bytes");
                 self.client(ClientEvent::Part { exchange, message: bytes.finish() });
             } else {
                 self.client(ClientEvent::Reply { exchange, message: bytes.finish() });
@@ -74,8 +74,8 @@ impl World {
     }
 
     fn stream(&mut self, event: &w::StreamEvent) {
-        let mut bytes = Writer::new(skein_lib::length::usize_of(event.measure()));
-        event.encode(&mut bytes).expect("measured stream event");
+        let mut bytes = Writer::new(skein_lib::length::usize_of(event.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+        event.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("measured stream event");
         self.client(ClientEvent::Streamed { message: Streamed::Record(bytes.finish()) });
     }
 
@@ -99,12 +99,12 @@ impl World {
         match message {
             Message::Watch(bytes) => {
                 let open = w::Open::decode(&w::CEILINGS, &mut Reader::new(&bytes)).expect("watch bytes");
-                self.watches.push((exchange, member, open.watch()));
-                self.traffic.push((self.steps.len(), "open", owner(open.subject().owner())));
+                self.watches.push((exchange, member, open.watch));
+                self.traffic.push((self.steps.len(), "open", owner(&open.subject.owner)));
             }
             Message::Read(bytes) => {
                 let read = w::Owned::decode(&w::CEILINGS, &mut Reader::new(&bytes)).expect("read bytes");
-                self.traffic.push((self.steps.len(), "read", owner(read.owner())));
+                self.traffic.push((self.steps.len(), "read", owner(&read.owner)));
             }
             Message::Unwatch(_) => self.traffic.push((self.steps.len(), "close", 0)),
             Message::Batch(_)
@@ -135,19 +135,19 @@ impl World {
                 Request::Client { request: jig_client::Request::Exchange { exchange, message, .. } } => {
                     if let Message::Batch(bytes) = message {
                         let batch = w::Batch::decode(&w::CEILINGS, &mut Reader::new(&bytes)).expect("batch");
-                        for (place, record) in batch.into_parts().members.into_boxed().into_iter().enumerate() {
-                            let mut writer = Writer::new(skein_lib::length::usize_of(record.measure() - 1));
+                        for (place, record) in batch.members.into_boxed().into_iter().enumerate() {
+                            let mut writer = Writer::new(skein_lib::length::usize_of(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture") - 1));
                             let message = match record {
                                 w::Member::Read(record) => {
-                                    record.encode(&mut writer).expect("read");
+                                    record.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("read");
                                     Message::Read(writer.finish())
                                 }
                                 w::Member::Open(record) => {
-                                    record.encode(&mut writer).expect("open");
+                                    record.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("open");
                                     Message::Watch(writer.finish())
                                 }
                                 w::Member::Close(record) => {
-                                    record.encode(&mut writer).expect("close");
+                                    record.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("close");
                                     Message::Unwatch(writer.finish())
                                 }
                             };
@@ -183,42 +183,37 @@ fn hello() -> w::StreamEvent {
     ] {
         served
             .push(
-                w::Served::new(&w::CEILINGS, w::ServedParts { owner, first: version, last: version })
-                    .expect("served owner"),
+                w::Served { owner, first: version, last: version },
             )
             .expect("three owners");
     }
-    let hello = w::Hello::new(&w::CEILINGS, w::HelloParts { stream: STREAM, served, heartbeat: HEARTBEAT })
-        .expect("hello fixture");
+    let hello = w::Hello { stream: STREAM, served, heartbeat: HEARTBEAT };
     let w::StreamEvent::Delivery(delivery) = frame(0) else { unreachable!("me fixture") };
     w::StreamEvent::Opened(
-        w::Opened::new(&w::CEILINGS, w::OpenedParts { hello, me: delivery.into_parts().document }).expect("opened"),
+        w::Opened { hello, me: delivery.document },
     )
 }
 
 fn family(number: u16) -> w::Owner {
-    w::Owner::Family(w::Family::new(&w::CEILINGS, w::FamilyParts { number }).expect("owner number"))
+    w::Owner::Family(w::Family { number })
 }
 
 fn owner(owner: &w::Owner) -> u16 {
     match owner {
         w::Owner::Jig => 0,
-        w::Owner::Family(family) => family.number(),
+        w::Owner::Family(family) => family.number,
     }
 }
 
 fn text(bytes: &[u8]) -> w::DocumentText {
-    w::DocumentText::new(&w::CEILINGS, w::DocumentTextParts { bytes: bytes.into(), cut: false })
-        .expect("short fixture text")
+    w::DocumentText { bytes: bytes.into(), cut: false }
 }
 
 fn frame(watch: u64) -> w::StreamEvent {
     let mut projects = List::with_capacity(ONE_PROJECT);
     projects
         .push(
-            w::MeProject::new(
-                &w::CEILINGS,
-                w::MeProjectParts {
+            w::MeProject {
                     left_out: 0,
                     defaults: List::with_capacity(0),
                     public: None,
@@ -230,37 +225,24 @@ fn frame(watch: u64) -> w::StreamEvent {
                     creating: None,
                     models: List::with_capacity(0),
                 },
-            )
-            .expect("project fixture"),
         )
         .expect("one project");
     let projects = jig_protocol_engine_clients::translate::owner::me_projects_pieces(
         &projects,
         w::CEILINGS.me_projects,
-        w::Path::MeProjects,
-    )
+        w::paths::ME_PROJECTS, &jig_client_protocol_wire::CEILINGS)
     .expect("project pieces");
-    let frame = w::Me::new(
-        &w::CEILINGS,
-        w::MeParts {
-            party: w::MeParty::new(
-                &w::CEILINGS,
-                w::MePartyParts {
+    let frame = w::Me {
+            party: w::MeParty {
                     number: PARTY,
                     kind: w::PartyKind::Person,
                     login: text(b"fixture"),
                     name: text(b"Pat"),
                 },
-            )
-            .expect("party fixture"),
             projects,
-            needs: w::Needs::new(
-                &w::CEILINGS,
-                w::NeedsParts { questions: 0, proposals: 0, escalations: 0, person_tasks: 0 },
-            )
-            .expect("empty needs"),
+            needs: w::Needs { questions: 0, proposals: 0, escalations: 0, person_tasks: 0 },
             needs_total: 0,
-            updates: w::Count::new(&w::CEILINGS, w::CountParts { value: 0, limited: false }).expect("empty updates"),
+            updates: w::Count { value: 0, limited: false },
             results_seen: 0,
             cut: false,
             retention: HEARTBEAT,
@@ -270,19 +252,13 @@ fn frame(watch: u64) -> w::StreamEvent {
             key_bytes: 256,
             redirect_bytes: 4096,
             words_bytes: 8192,
-        },
-    )
-    .expect("frame fixture");
+        };
     let value = w::DeliveryValue::Me(frame);
-    let mut bytes = Writer::new(skein_lib::length::usize_of(value.measure()));
-    value.encode(&mut bytes).expect("measured frame");
-    let document = w::Owned::new(
-        &w::CEILINGS,
-        w::OwnedParts { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: bytes.finish() },
-    )
-    .expect("owned frame");
+    let mut bytes = Writer::new(skein_lib::length::usize_of(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+    value.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("measured frame");
+    let document = w::Owned { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: bytes.finish() };
     w::StreamEvent::Delivery(
-        w::Delivery::new(&w::CEILINGS, w::DeliveryParts { watch, document }).expect("frame delivery"),
+        w::Delivery { watch, document },
     )
 }
 
