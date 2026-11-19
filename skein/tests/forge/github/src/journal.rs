@@ -7,7 +7,7 @@ use std::{
     path::{Path, PathBuf},
 };
 #[derive(Clone)]
-pub(crate) enum Made {
+pub enum Made {
     Branch { repo: String, name: String },
     Pull { repo: String, head: String, base: String },
     Issue { repo: String, title: String },
@@ -29,7 +29,7 @@ impl Made {
         }
     }
 }
-pub(crate) struct Journal {
+pub struct Journal {
     path: PathBuf,
     pub pending: Vec<(usize, Made)>,
     next: usize,
@@ -64,17 +64,17 @@ impl Journal {
         self.pending.push((self.next, made));
         Ok(self.next)
     }
-    pub fn created(&mut self, id: usize, number: u64, secrets: &Secrets) -> Result<()> {
+    pub(crate) fn created(&mut self, id: usize, number: u64, secrets: &Secrets) -> Result<()> {
         self.append(&format!("number\t{id}\t{number}"), secrets)?;
         self.numbers.insert(id, number);
         Ok(())
     }
-    pub fn cancel(&mut self, id: usize, secrets: &Secrets) -> Result<()> {
+    pub(crate) fn cancel(&mut self, id: usize, secrets: &Secrets) -> Result<()> {
         self.append(&format!("cancel\t{id}"), secrets)?;
         self.pending.retain(|(key, _)| *key != id);
         Ok(())
     }
-    pub fn done(&mut self, id: usize, secrets: &Secrets) -> Result<()> {
+    pub(crate) fn done(&mut self, id: usize, secrets: &Secrets) -> Result<()> {
         self.append(&format!("done\t{id}"), secrets)?;
         self.pending.retain(|(key, _)| *key != id);
         Ok(())

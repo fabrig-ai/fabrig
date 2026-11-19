@@ -220,6 +220,13 @@ fn public_directory(path: &std::path::Path, _target: &std::path::Path) {
 #[test]
 fn unsafe_program_directories_map_to_failed_account_reports() {
     use std::os::unix::fs::DirBuilderExt;
+
+    // Only credentials are inspected; serde validates but does not materialize the other fields.
+    #[derive(serde::Deserialize)]
+    struct CredentialDocument {
+        credentials: serde_json::Value,
+    }
+
     // Path components and faults are row data; every row follows the same inspection.
     type Fault = fn(&std::path::Path, &std::path::Path);
     let rows: &[(&str, Fault, &str)] = &[
@@ -228,31 +235,33 @@ fn unsafe_program_directories_map_to_failed_account_reports() {
         ("programs", linked_directory, "symbolic link"),
         ("programs", public_directory, "nonprivate mode bits 0o55"),
     ];
+    let files = Files::new("smith-credentials");
+    let executable = files.path().join("unrun-program");
+    std::fs::write(&executable, b"").expect("scratch executable");
+    std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o700)).expect("executable mode");
+    let extra =
+        format!("[programs]\nclaude_code='{}'\n[endpoints.openai]\nprogram='claude_code'\n", executable.display());
+    let settings = check_settings(&files, "openai/gpt-6-luna", "program", &extra);
+    let base = files.path().join("unopened");
     for &(relative, fault, reason) in rows {
-        let files = Files::new("smith-credentials");
-        let executable = files.path().join("unrun-program");
-        std::fs::write(&executable, b"").expect("scratch executable");
-        std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o700)).expect("executable mode");
-        let extra =
-            format!("[programs]\nclaude_code='{}'\n[endpoints.openai]\nprogram='claude_code'\n", executable.display());
-        let settings = check_settings(&files, "openai/gpt-6-luna", "program", &extra);
-        let base = files.path().join("unopened");
         let path = base.join(relative);
         std::fs::DirBuilder::new()
             .recursive(true)
             .mode(0o700)
             .create(base.join("programs/openai"))
             .expect("private source tree");
-        fault(&path, &files.path().join("linked-target"));
+        // The link target stays inside the tree removed after each row.
+        fault(&path, &base.join("linked-target"));
         let report = checked(&settings);
-        let json: serde_json::Value = serde_json::from_str(&render_json(&report)).expect("check JSON");
-        assert_eq!(json["credentials"]["openai"]["state"], "program_failed", "{relative}: {reason}");
+        let json: CredentialDocument = serde_json::from_str(&render_json(&report)).expect("check JSON");
+        assert_eq!(json.credentials["openai"]["state"], "program_failed", "{relative}: {reason}");
         assert_eq!(
-            json["credentials"]["openai"]["detail"],
+            json.credentials["openai"]["detail"],
             format!("{}: {reason}", path.display()),
             "exact unsafe-directory detail"
         );
         assert!(!report.credentials_ready(), "the needed unsafe account refuses readiness");
+        std::fs::remove_dir_all(&base).expect("remove the row's source tree and fault");
     }
 }
 

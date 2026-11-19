@@ -3,6 +3,46 @@ use skein_scratch::Scratch;
 use temper_client_view_kit::readers::{has_text_run as has_text, require_named as find};
 
 #[test]
+fn usage_gallery_states_hold_windows_at_their_fixed_now() {
+    use temper_client_view::look;
+    for (name, meters, pace, colour) in [
+        ("accounts-usage", &["Week"][..], "resets in 4 d 14 h · 0.5%/h · about 84% at reset", None),
+        ("accounts-usage-filling", &["5 h", "Week"][..], "full in 1 h", Some(look::USAGE_WARNED)),
+        ("accounts-usage-calm", &["Week"][..], "resets in 2 d · 0.4%/h · about 59% at reset", None),
+        ("accounts-usage-limited", &["5 h"][..], "resets in 40 min", Some(look::USAGE_LIMITED)),
+    ] {
+        let sample = samples::samples().into_iter().find(|sample| sample.name == name).unwrap();
+        let root = samples::domain(&sample);
+        let doc = temper_client_domain::pages::accounts::document(root.client()).unwrap();
+        let account = doc.accounts.get(0).unwrap();
+        assert_eq!(account.provider_name.as_ref().unwrap().bytes(), b"anthropic");
+        let mut facts = 0;
+        for fact in &account.facts {
+            if fact.kind == jig_client::contract::FACT_USAGE {
+                let jig_client::contract::AccountFactValue::Window(window) = fact.value else { panic!("window fact") };
+                assert_eq!(fact.seen, sample.now());
+                assert!(window.resets.unwrap() > sample.now());
+                facts += 1;
+            }
+        }
+        assert!(facts > 0);
+        let view = view(&sample);
+        let actual: Vec<_> = view
+            .tree()
+            .nodes()
+            .iter()
+            .filter(|node| node.role == Role::Meter)
+            .map(|node| String::from_utf8_lossy(node.name.as_deref().unwrap()))
+            .collect();
+        assert_eq!(actual, meters, "{name}: only the windows that should show, shortest first");
+        assert!(has_text(view.tree(), pace), "{name}: {pace}");
+        if let Some(colour) = colour {
+            assert!(view.tree().nodes().iter().any(|node| node.styles.as_slice().contains(&colour)), "{name}: colour");
+        }
+    }
+}
+
+#[test]
 fn names_are_the_promised_ones() {
     let samples = samples::samples();
     let mut names = Vec::new();

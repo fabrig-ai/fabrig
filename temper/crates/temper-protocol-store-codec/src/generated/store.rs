@@ -157,6 +157,8 @@ pub struct Limits {
     pub landing_member_gates: u32,
     pub landing_member_branch: u32,
     pub failing_test_test_id: u32,
+    pub shown_test_test_id: u32,
+    pub many_tests_tests: u32,
     pub landing_selection_tests: u32,
     pub landing_by_test_gates: u32,
     pub landing_by_test_probed: u32,
@@ -255,6 +257,7 @@ pub struct Limits {
     pub follow_producer_some: u32,
     pub logged_change_signed: u32,
     pub logged_change_title: u32,
+    pub logged_red_tests: u32,
     pub logged_tier_tier: u32,
     pub logged_landing_branch: u32,
     pub logged_landing_changes: u32,
@@ -500,6 +503,8 @@ pub const CEILINGS: Limits = Limits {
     landing_member_gates: 64,
     landing_member_branch: 4_096,
     failing_test_test_id: 1_024,
+    shown_test_test_id: 1_024,
+    many_tests_tests: 64,
     landing_selection_tests: 1_024,
     landing_by_test_gates: 64,
     landing_by_test_probed: 4_096,
@@ -598,6 +603,7 @@ pub const CEILINGS: Limits = Limits {
     follow_producer_some: 8_192,
     logged_change_signed: 8,
     logged_change_title: 256,
+    logged_red_tests: 64,
     logged_tier_tier: 32,
     logged_landing_branch: 4_096,
     logged_landing_changes: 64,
@@ -843,6 +849,8 @@ pub const LIMIT_NAMES: &[&str] = &[
     "landing_member_gates",
     "landing_member_branch",
     "failing_test_test_id",
+    "shown_test_test_id",
+    "many_tests_tests",
     "landing_selection_tests",
     "landing_by_test_gates",
     "landing_by_test_probed",
@@ -941,6 +949,7 @@ pub const LIMIT_NAMES: &[&str] = &[
     "follow_producer_some",
     "logged_change_signed",
     "logged_change_title",
+    "logged_red_tests",
     "logged_tier_tier",
     "logged_landing_branch",
     "logged_landing_changes",
@@ -2793,6 +2802,18 @@ pub enum Path {
     FailingTestTestId,
     /// Bytes after `FailingTest`.
     FailingTestTail,
+    /// The `test_id` field of `ShownTest`.
+    ShownTestTestId,
+    /// Bytes after `ShownTest`.
+    ShownTestTail,
+    /// The `tests` field of `ManyTests`.
+    ManyTestsTests,
+    /// The `more` field of `ManyTests`.
+    ManyTestsMore,
+    /// The `cut` field of `ManyTests`.
+    ManyTestsCut,
+    /// Bytes after `ManyTests`.
+    ManyTestsTail,
     /// The `tests` field of `LandingSelection`.
     LandingSelectionTests,
     /// Bytes after `LandingSelection`.
@@ -3307,6 +3328,8 @@ pub enum Path {
     TierPostingOpBytes,
     /// Bytes after `TierPosting`.
     TierPostingTail,
+    /// The `many` field of `TierRow`.
+    TierRowMany,
     /// The `observations` field of `TierRow`.
     TierRowObservations,
     /// The `repository` field of `TierRow`.
@@ -3771,10 +3794,20 @@ pub enum Path {
     LoggedClearedRun,
     /// Bytes after `LoggedCleared`.
     LoggedClearedTail,
+    /// The `more` field of `LoggedMany`.
+    LoggedManyMore,
+    /// The `cut` field of `LoggedMany`.
+    LoggedManyCut,
+    /// Bytes after `LoggedMany`.
+    LoggedManyTail,
     /// The `run` field of `LoggedRed`.
     LoggedRedRun,
     /// The `failing` field of `LoggedRed`.
     LoggedRedFailing,
+    /// The `tests` field of `LoggedRed`.
+    LoggedRedTests,
+    /// The `many` field of `LoggedRed`.
+    LoggedRedMany,
     /// Bytes after `LoggedRed`.
     LoggedRedTail,
     /// The tag of `LoggedVerdict`.
@@ -5783,6 +5816,12 @@ impl Path {
             Self::LandingOwnHoldTag => "LandingOwnHold (tag)",
             Self::FailingTestTestId => "FailingTest.test_id",
             Self::FailingTestTail => "FailingTest (tail)",
+            Self::ShownTestTestId => "ShownTest.test_id",
+            Self::ShownTestTail => "ShownTest (tail)",
+            Self::ManyTestsTests => "ManyTests.tests",
+            Self::ManyTestsMore => "ManyTests.more",
+            Self::ManyTestsCut => "ManyTests.cut",
+            Self::ManyTestsTail => "ManyTests (tail)",
             Self::LandingSelectionTests => "LandingSelection.tests",
             Self::LandingSelectionTail => "LandingSelection (tail)",
             Self::LandingSelectedGateSelection => "LandingSelectedGate.selection",
@@ -6040,6 +6079,7 @@ impl Path {
             Self::TierPostingPart => "TierPosting.part",
             Self::TierPostingOpBytes => "TierPosting.op_bytes",
             Self::TierPostingTail => "TierPosting (tail)",
+            Self::TierRowMany => "TierRow.many",
             Self::TierRowObservations => "TierRow.observations",
             Self::TierRowRepository => "TierRow.repository",
             Self::TierRowTier => "TierRow.tier",
@@ -6272,8 +6312,13 @@ impl Path {
             Self::LoggedChangeTail => "LoggedChange (tail)",
             Self::LoggedClearedRun => "LoggedCleared.run",
             Self::LoggedClearedTail => "LoggedCleared (tail)",
+            Self::LoggedManyMore => "LoggedMany.more",
+            Self::LoggedManyCut => "LoggedMany.cut",
+            Self::LoggedManyTail => "LoggedMany (tail)",
             Self::LoggedRedRun => "LoggedRed.run",
             Self::LoggedRedFailing => "LoggedRed.failing",
+            Self::LoggedRedTests => "LoggedRed.tests",
+            Self::LoggedRedMany => "LoggedRed.many",
             Self::LoggedRedTail => "LoggedRed (tail)",
             Self::LoggedVerdictTag => "LoggedVerdict (tag)",
             Self::LoggedTierTier => "LoggedTier.tier",
@@ -9076,7 +9121,7 @@ impl Adopted {
 
     fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         let decoded_project = reader.u32().ok_or(Problem { path: Path::AdoptedProject, reason: skein_codec::Reason::Short })?;
-        let decoded_contexts = { let count = match skein_codec::read_count(reader, limits.adopted_contexts.min(CEILINGS.adopted_contexts)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::AdoptedContexts, reason }), }; if count > reader.remaining() / 4 { return Err(Problem { path: Path::AdoptedContexts, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = reader.u32().ok_or(Problem { path: Path::AdoptedContexts, reason: skein_codec::Reason::Short })?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_contexts = { let count = match skein_codec::read_count(reader, limits.adopted_contexts.min(CEILINGS.adopted_contexts)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::AdoptedContexts, reason }), }; if count > reader.remaining() / 4 { return Err(Problem { path: Path::AdoptedContexts, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = reader.u32().ok_or(Problem { path: Path::AdoptedContexts, reason: skein_codec::Reason::Short })?; items_0.push(item).expect("count within capacity"); } items_0 };
         let decoded_home = match reader.u8().ok_or(Problem { path: Path::AdoptedHome, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::AdoptedHome, reason: skein_codec::Reason::Bool }) };
         let decoded_provider = Repository::decode_from(limits, reader)?;
         let decoded_host = { let length = match skein_codec::read_len(reader, limits.adopted_host.min(CEILINGS.adopted_host)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::AdoptedHost, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::AdoptedHost, reason: skein_codec::Reason::Short })?) };
@@ -9085,11 +9130,11 @@ impl Adopted {
         let decoded_prefix = { let length = match skein_codec::read_len(reader, limits.adopted_prefix.min(CEILINGS.adopted_prefix)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::AdoptedPrefix, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::AdoptedPrefix, reason: skein_codec::Reason::Short })?) };
         let decoded_role = Role::decode_from(limits, reader)?;
         let decoded_ci = match reader.u8().ok_or(Problem { path: Path::AdoptedCi, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::AdoptedCi, reason: skein_codec::Reason::Bool }) };
-        let decoded_checks = { let count = match skein_codec::read_count(reader, limits.adopted_checks.min(CEILINGS.adopted_checks)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::AdoptedChecks, reason }), }; if count > reader.remaining() / 4 { return Err(Problem { path: Path::AdoptedChecks, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = reader.u32().ok_or(Problem { path: Path::AdoptedChecks, reason: skein_codec::Reason::Short })?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_checks = { let count = match skein_codec::read_count(reader, limits.adopted_checks.min(CEILINGS.adopted_checks)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::AdoptedChecks, reason }), }; if count > reader.remaining() / 4 { return Err(Problem { path: Path::AdoptedChecks, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = reader.u32().ok_or(Problem { path: Path::AdoptedChecks, reason: skein_codec::Reason::Short })?; items_0.push(item).expect("count within capacity"); } items_0 };
         let decoded_kinds = Kinds::decode_from(limits, reader)?;
         let decoded_protection = RepositoryProtection::decode_from(limits, reader)?;
         let decoded_settings = Settings::decode_from(limits, reader)?;
-        let decoded_workflows = { let count = match skein_codec::read_count(reader, limits.adopted_workflows.min(CEILINGS.adopted_workflows)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::AdoptedWorkflows, reason }), }; if count > reader.remaining() / 4 { return Err(Problem { path: Path::AdoptedWorkflows, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = { let length = match skein_codec::read_len(reader, limits.adopted_workflows_item.min(CEILINGS.adopted_workflows_item)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::AdoptedWorkflows, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::AdoptedWorkflows, reason: skein_codec::Reason::Short })?) }; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_workflows = { let count = match skein_codec::read_count(reader, limits.adopted_workflows.min(CEILINGS.adopted_workflows)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::AdoptedWorkflows, reason }), }; if count > reader.remaining() / 4 { return Err(Problem { path: Path::AdoptedWorkflows, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = { let length = match skein_codec::read_len(reader, limits.adopted_workflows_item.min(CEILINGS.adopted_workflows_item)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::AdoptedWorkflows, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::AdoptedWorkflows, reason: skein_codec::Reason::Short })?) }; items_0.push(item).expect("count within capacity"); } items_0 };
         let decoded_landing = { let length = match skein_codec::read_len(reader, limits.adopted_landing.min(CEILINGS.adopted_landing)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::AdoptedLanding, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::AdoptedLanding, reason: skein_codec::Reason::Short })?) };
         Ok(Self { project: decoded_project, contexts: decoded_contexts, home: decoded_home, provider: decoded_provider, host: decoded_host, owner: decoded_owner, name: decoded_name, prefix: decoded_prefix, role: decoded_role, ci: decoded_ci, checks: decoded_checks, kinds: decoded_kinds, protection: decoded_protection, settings: decoded_settings, workflows: decoded_workflows, landing: decoded_landing })
     }
@@ -10266,7 +10311,7 @@ impl Hold {
         let decoded_name = Name::decode_from(limits, reader)?;
         let decoded_task = reader.u64().ok_or(Problem { path: Path::HoldTask, reason: skein_codec::Reason::Short })?;
         let decoded_writer = match reader.u8().ok_or(Problem { path: Path::HoldWriter, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(Writer::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::HoldWriter, reason: skein_codec::Reason::Tag }) };
-        let decoded_design_writers = { let count = match skein_codec::read_count(reader, limits.hold_design_writers.min(CEILINGS.hold_design_writers)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::HoldDesignWriters, reason }), }; if count > reader.remaining() / 17 { return Err(Problem { path: Path::HoldDesignWriters, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = DesignWriter::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_design_writers = { let count = match skein_codec::read_count(reader, limits.hold_design_writers.min(CEILINGS.hold_design_writers)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::HoldDesignWriters, reason }), }; if count > reader.remaining() / 17 { return Err(Problem { path: Path::HoldDesignWriters, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = DesignWriter::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
         let decoded_drift = match reader.u8().ok_or(Problem { path: Path::HoldDrift, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(Drift::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::HoldDrift, reason: skein_codec::Reason::Tag }) };
         Ok(Self { beside: decoded_beside, name: decoded_name, task: decoded_task, writer: decoded_writer, design_writers: decoded_design_writers, drift: decoded_drift })
     }
@@ -10407,7 +10452,7 @@ impl Names {
 
     fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         let decoded_task = reader.u64().ok_or(Problem { path: Path::NamesTask, reason: skein_codec::Reason::Short })?;
-        let decoded_resources = { let count = match skein_codec::read_count(reader, limits.names_resources.min(CEILINGS.names_resources)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::NamesResources, reason }), }; if count > reader.remaining() / 7 { return Err(Problem { path: Path::NamesResources, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = Name::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_resources = { let count = match skein_codec::read_count(reader, limits.names_resources.min(CEILINGS.names_resources)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::NamesResources, reason }), }; if count > reader.remaining() / 7 { return Err(Problem { path: Path::NamesResources, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = Name::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
         Ok(Self { task: decoded_task, resources: decoded_resources })
     }
 }
@@ -13205,7 +13250,7 @@ impl SetReviewers {
 
     fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         let decoded_number = reader.u64().ok_or(Problem { path: Path::SetReviewersNumber, reason: skein_codec::Reason::Short })?;
-        let decoded_reviewers = { let count = match skein_codec::read_count(reader, limits.set_reviewers_reviewers.min(CEILINGS.set_reviewers_reviewers)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::SetReviewersReviewers, reason }), }; if count > reader.remaining() / 8 { return Err(Problem { path: Path::SetReviewersReviewers, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = reader.u64().ok_or(Problem { path: Path::SetReviewersReviewers, reason: skein_codec::Reason::Short })?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_reviewers = { let count = match skein_codec::read_count(reader, limits.set_reviewers_reviewers.min(CEILINGS.set_reviewers_reviewers)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::SetReviewersReviewers, reason }), }; if count > reader.remaining() / 8 { return Err(Problem { path: Path::SetReviewersReviewers, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = reader.u64().ok_or(Problem { path: Path::SetReviewersReviewers, reason: skein_codec::Reason::Short })?; items_0.push(item).expect("count within capacity"); } items_0 };
         Ok(Self { number: decoded_number, reviewers: decoded_reviewers })
     }
 }
@@ -14143,7 +14188,7 @@ impl DispatchWrite {
     fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         let decoded_workflow = { let length = match skein_codec::read_len(reader, limits.dispatch_write_workflow.min(CEILINGS.dispatch_write_workflow)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::DispatchWriteWorkflow, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::DispatchWriteWorkflow, reason: skein_codec::Reason::Short })?) };
         let decoded_branch = { let length = match skein_codec::read_len(reader, limits.dispatch_write_branch.min(CEILINGS.dispatch_write_branch)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::DispatchWriteBranch, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::DispatchWriteBranch, reason: skein_codec::Reason::Short })?) };
-        let decoded_inputs = { let count = match skein_codec::read_count(reader, limits.dispatch_write_inputs.min(CEILINGS.dispatch_write_inputs)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::DispatchWriteInputs, reason }), }; if count > reader.remaining() / 8 { return Err(Problem { path: Path::DispatchWriteInputs, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = DispatchInput::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_inputs = { let count = match skein_codec::read_count(reader, limits.dispatch_write_inputs.min(CEILINGS.dispatch_write_inputs)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::DispatchWriteInputs, reason }), }; if count > reader.remaining() / 8 { return Err(Problem { path: Path::DispatchWriteInputs, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = DispatchInput::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
         Ok(Self { workflow: decoded_workflow, branch: decoded_branch, inputs: decoded_inputs })
     }
 }
@@ -17520,7 +17565,7 @@ impl Pull {
     }
 
     fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let decoded_reviewers = { let count = match skein_codec::read_count(reader, limits.pull_reviewers.min(CEILINGS.pull_reviewers)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::PullReviewers, reason }), }; if count > reader.remaining() / 8 { return Err(Problem { path: Path::PullReviewers, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = reader.u64().ok_or(Problem { path: Path::PullReviewers, reason: skein_codec::Reason::Short })?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_reviewers = { let count = match skein_codec::read_count(reader, limits.pull_reviewers.min(CEILINGS.pull_reviewers)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::PullReviewers, reason }), }; if count > reader.remaining() / 8 { return Err(Problem { path: Path::PullReviewers, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = reader.u64().ok_or(Problem { path: Path::PullReviewers, reason: skein_codec::Reason::Short })?; items_0.push(item).expect("count within capacity"); } items_0 };
         let decoded_number = reader.u64().ok_or(Problem { path: Path::PullNumber, reason: skein_codec::Reason::Short })?;
         let decoded_state = ItemState::decode_from(limits, reader)?;
         let decoded_head = { let length = match skein_codec::read_len(reader, limits.pull_head.min(CEILINGS.pull_head)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::PullHead, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::PullHead, reason: skein_codec::Reason::Short })?) };
@@ -21426,7 +21471,7 @@ impl CompareAnswer {
         let decoded_after = { let bytes = reader.bytes(32).ok_or(Problem { path: Path::CompareAnswerAfter, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") };
         let decoded_ahead = reader.u64().ok_or(Problem { path: Path::CompareAnswerAhead, reason: skein_codec::Reason::Short })?;
         let decoded_behind = reader.u64().ok_or(Problem { path: Path::CompareAnswerBehind, reason: skein_codec::Reason::Short })?;
-        let decoded_files = { let count = match skein_codec::read_count(reader, limits.compare_answer_files.min(CEILINGS.compare_answer_files)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::CompareAnswerFiles, reason }), }; if count > reader.remaining() / 4 { return Err(Problem { path: Path::CompareAnswerFiles, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = { let length = match skein_codec::read_len(reader, limits.compare_answer_files_item.min(CEILINGS.compare_answer_files_item)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::CompareAnswerFiles, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::CompareAnswerFiles, reason: skein_codec::Reason::Short })?) }; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_files = { let count = match skein_codec::read_count(reader, limits.compare_answer_files.min(CEILINGS.compare_answer_files)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::CompareAnswerFiles, reason }), }; if count > reader.remaining() / 4 { return Err(Problem { path: Path::CompareAnswerFiles, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = { let length = match skein_codec::read_len(reader, limits.compare_answer_files_item.min(CEILINGS.compare_answer_files_item)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::CompareAnswerFiles, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::CompareAnswerFiles, reason: skein_codec::Reason::Short })?) }; items_0.push(item).expect("count within capacity"); } items_0 };
         let decoded_changed = reader.u64().ok_or(Problem { path: Path::CompareAnswerChanged, reason: skein_codec::Reason::Short })?;
         Ok(Self { before: decoded_before, after: decoded_after, ahead: decoded_ahead, behind: decoded_behind, files: decoded_files, changed: decoded_changed })
     }
@@ -21681,7 +21726,7 @@ impl CollaboratorsAnswer {
     }
 
     fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let decoded_collaborators = { let count = match skein_codec::read_count(reader, limits.collaborators_answer_collaborators.min(CEILINGS.collaborators_answer_collaborators)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::CollaboratorsAnswerCollaborators, reason }), }; if count > reader.remaining() / 9 { return Err(Problem { path: Path::CollaboratorsAnswerCollaborators, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = Collaborator::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_collaborators = { let count = match skein_codec::read_count(reader, limits.collaborators_answer_collaborators.min(CEILINGS.collaborators_answer_collaborators)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::CollaboratorsAnswerCollaborators, reason }), }; if count > reader.remaining() / 9 { return Err(Problem { path: Path::CollaboratorsAnswerCollaborators, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = Collaborator::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
         let decoded_more = match reader.u8().ok_or(Problem { path: Path::CollaboratorsAnswerMore, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::CollaboratorsAnswerMore, reason: skein_codec::Reason::Bool }) };
         Ok(Self { collaborators: decoded_collaborators, more: decoded_more })
     }
@@ -24439,11 +24484,11 @@ impl LiveRecord {
         let decoded_comment_scanning = match reader.u8().ok_or(Problem { path: Path::LiveRecordCommentScanning, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::LiveRecordCommentScanning, reason: skein_codec::Reason::Bool }) };
         let decoded_comment_repair = match reader.u8().ok_or(Problem { path: Path::LiveRecordCommentRepair, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::LiveRecordCommentRepair, reason: skein_codec::Reason::Bool }) };
         let decoded_review_page = reader.u32().ok_or(Problem { path: Path::LiveRecordReviewPage, reason: skein_codec::Reason::Short })?;
-        let decoded_comments = { let count = match skein_codec::read_count(reader, limits.live_record_comments.min(CEILINGS.live_record_comments)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::LiveRecordComments, reason }), }; if count > reader.remaining() / 16 { return Err(Problem { path: Path::LiveRecordComments, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = Delivery::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
-        let decoded_reviews = { let count = match skein_codec::read_count(reader, limits.live_record_reviews.min(CEILINGS.live_record_reviews)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::LiveRecordReviews, reason }), }; if count > reader.remaining() / 16 { return Err(Problem { path: Path::LiveRecordReviews, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = Delivery::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_comments = { let count = match skein_codec::read_count(reader, limits.live_record_comments.min(CEILINGS.live_record_comments)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::LiveRecordComments, reason }), }; if count > reader.remaining() / 16 { return Err(Problem { path: Path::LiveRecordComments, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = Delivery::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_reviews = { let count = match skein_codec::read_count(reader, limits.live_record_reviews.min(CEILINGS.live_record_reviews)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::LiveRecordReviews, reason }), }; if count > reader.remaining() / 16 { return Err(Problem { path: Path::LiveRecordReviews, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = Delivery::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
         let decoded_cached = Cached::decode_from(limits, reader)?;
         let decoded_pushed = match reader.u8().ok_or(Problem { path: Path::LiveRecordPushed, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some({ let bytes = reader.bytes(32).ok_or(Problem { path: Path::LiveRecordPushed, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") }), _ => return Err(Problem { path: Path::LiveRecordPushed, reason: skein_codec::Reason::Tag }) };
-        let decoded_echoes = { let count = match skein_codec::read_count(reader, limits.live_record_echoes.min(CEILINGS.live_record_echoes)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::LiveRecordEchoes, reason }), }; if count > reader.remaining() / 9 { return Err(Problem { path: Path::LiveRecordEchoes, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = Echo::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_echoes = { let count = match skein_codec::read_count(reader, limits.live_record_echoes.min(CEILINGS.live_record_echoes)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::LiveRecordEchoes, reason }), }; if count > reader.remaining() / 9 { return Err(Problem { path: Path::LiveRecordEchoes, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = Echo::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
         Ok(Self { watch: decoded_watch, position: decoded_position, listed: decoded_listed, comment_after: decoded_comment_after, comment_page: decoded_comment_page, comment_scanning: decoded_comment_scanning, comment_repair: decoded_comment_repair, review_page: decoded_review_page, comments: decoded_comments, reviews: decoded_reviews, cached: decoded_cached, pushed: decoded_pushed, echoes: decoded_echoes })
     }
 }
@@ -25940,7 +25985,7 @@ impl LandingBelow {
 
     fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         let decoded_green = { let bytes = reader.bytes(32).ok_or(Problem { path: Path::LandingBelowGreen, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") };
-        let decoded_changes = { let count = match skein_codec::read_count(reader, limits.landing_below_changes.min(CEILINGS.landing_below_changes)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::LandingBelowChanges, reason }), }; if count > reader.remaining() / 16 { return Err(Problem { path: Path::LandingBelowChanges, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = LandedBelow::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_changes = { let count = match skein_codec::read_count(reader, limits.landing_below_changes.min(CEILINGS.landing_below_changes)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::LandingBelowChanges, reason }), }; if count > reader.remaining() / 16 { return Err(Problem { path: Path::LandingBelowChanges, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = LandedBelow::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
         let decoded_by_test = match reader.u8().ok_or(Problem { path: Path::LandingBelowByTest, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::LandingBelowByTest, reason: skein_codec::Reason::Bool }) };
         let decoded_top = match reader.u8().ok_or(Problem { path: Path::LandingBelowTop, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::LandingBelowTop, reason: skein_codec::Reason::Bool }) };
         Ok(Self { green: decoded_green, changes: decoded_changes, by_test: decoded_by_test, top: decoded_top })
@@ -27208,7 +27253,7 @@ impl Gating {
 
     fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         let decoded_head = { let bytes = reader.bytes(32).ok_or(Problem { path: Path::GatingHead, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") };
-        let decoded_asked = { let count = match skein_codec::read_count(reader, limits.gating_asked.min(CEILINGS.gating_asked)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::GatingAsked, reason }), }; if count > reader.remaining() / 8 { return Err(Problem { path: Path::GatingAsked, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = reader.u64().ok_or(Problem { path: Path::GatingAsked, reason: skein_codec::Reason::Short })?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_asked = { let count = match skein_codec::read_count(reader, limits.gating_asked.min(CEILINGS.gating_asked)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::GatingAsked, reason }), }; if count > reader.remaining() / 8 { return Err(Problem { path: Path::GatingAsked, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = reader.u64().ok_or(Problem { path: Path::GatingAsked, reason: skein_codec::Reason::Short })?; items_0.push(item).expect("count within capacity"); } items_0 };
         Ok(Self { head: decoded_head, asked: decoded_asked })
     }
 }
@@ -28546,7 +28591,7 @@ impl Judging {
         let decoded_head = { let bytes = reader.bytes(32).ok_or(Problem { path: Path::JudgingHead, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") };
         let decoded_ready_since = reader.u64().ok_or(Problem { path: Path::JudgingReadySince, reason: skein_codec::Reason::Short })?;
         let decoded_target = Judgement::decode_from(limits, reader)?;
-        let decoded_asked = { let count = match skein_codec::read_count(reader, limits.judging_asked.min(CEILINGS.judging_asked)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::JudgingAsked, reason }), }; if count > reader.remaining() / 8 { return Err(Problem { path: Path::JudgingAsked, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = reader.u64().ok_or(Problem { path: Path::JudgingAsked, reason: skein_codec::Reason::Short })?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_asked = { let count = match skein_codec::read_count(reader, limits.judging_asked.min(CEILINGS.judging_asked)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::JudgingAsked, reason }), }; if count > reader.remaining() / 8 { return Err(Problem { path: Path::JudgingAsked, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = reader.u64().ok_or(Problem { path: Path::JudgingAsked, reason: skein_codec::Reason::Short })?; items_0.push(item).expect("count within capacity"); } items_0 };
         Ok(Self { head: decoded_head, ready_since: decoded_ready_since, target: decoded_target, asked: decoded_asked })
     }
 }
@@ -28909,7 +28954,7 @@ impl ChangeState {
 
     fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         let decoded_live = ChangeLive::decode_from(limits, reader)?;
-        let decoded_holds = { let count = match skein_codec::read_count(reader, limits.change_state_holds.min(CEILINGS.change_state_holds)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::ChangeStateHolds, reason }), }; if count > reader.remaining() { return Err(Problem { path: Path::ChangeStateHolds, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = ChangeHold::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_holds = { let count = match skein_codec::read_count(reader, limits.change_state_holds.min(CEILINGS.change_state_holds)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::ChangeStateHolds, reason }), }; if count > reader.remaining() { return Err(Problem { path: Path::ChangeStateHolds, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = ChangeHold::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
         Ok(Self { live: decoded_live, holds: decoded_holds })
     }
 }
@@ -29746,7 +29791,7 @@ impl EarlyHeads {
     }
 
     fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let decoded_heads = { let count = match skein_codec::read_count(reader, limits.early_heads_heads.min(CEILINGS.early_heads_heads)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::EarlyHeadsHeads, reason }), }; if count > reader.remaining() / 40 { return Err(Problem { path: Path::EarlyHeadsHeads, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = StartedFrom::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_heads = { let count = match skein_codec::read_count(reader, limits.early_heads_heads.min(CEILINGS.early_heads_heads)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::EarlyHeadsHeads, reason }), }; if count > reader.remaining() / 40 { return Err(Problem { path: Path::EarlyHeadsHeads, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = StartedFrom::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
         Ok(Self { heads: decoded_heads })
     }
 }
@@ -30478,8 +30523,8 @@ impl Change {
         let decoded_early = Early::decode_from(limits, reader)?;
         let decoded_task = reader.u64().ok_or(Problem { path: Path::ChangeTask, reason: skein_codec::Reason::Short })?;
         let decoded_state = ChangeState::decode_from(limits, reader)?;
-        let decoded_gates = { let count = match skein_codec::read_count(reader, limits.change_gates.min(CEILINGS.change_gates)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::ChangeGates, reason }), }; if count > reader.remaining() / 12 { return Err(Problem { path: Path::ChangeGates, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = Gate::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
-        let decoded_clean = { let count = match skein_codec::read_count(reader, limits.change_clean.min(CEILINGS.change_clean)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::ChangeClean, reason }), }; if count > reader.remaining() / 32 { return Err(Problem { path: Path::ChangeClean, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = { let bytes = reader.bytes(32).ok_or(Problem { path: Path::ChangeClean, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") }; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_gates = { let count = match skein_codec::read_count(reader, limits.change_gates.min(CEILINGS.change_gates)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::ChangeGates, reason }), }; if count > reader.remaining() / 12 { return Err(Problem { path: Path::ChangeGates, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = Gate::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_clean = { let count = match skein_codec::read_count(reader, limits.change_clean.min(CEILINGS.change_clean)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::ChangeClean, reason }), }; if count > reader.remaining() / 32 { return Err(Problem { path: Path::ChangeClean, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = { let bytes = reader.bytes(32).ok_or(Problem { path: Path::ChangeClean, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") }; items_0.push(item).expect("count within capacity"); } items_0 };
         let decoded_repairs = reader.u32().ok_or(Problem { path: Path::ChangeRepairs, reason: skein_codec::Reason::Short })?;
         let decoded_resolutions = reader.u32().ok_or(Problem { path: Path::ChangeResolutions, reason: skein_codec::Reason::Short })?;
         let decoded_updates = reader.u32().ok_or(Problem { path: Path::ChangeUpdates, reason: skein_codec::Reason::Short })?;
@@ -30491,7 +30536,7 @@ impl Change {
         let decoded_last_head = match reader.u8().ok_or(Problem { path: Path::ChangeLastHead, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some({ let bytes = reader.bytes(32).ok_or(Problem { path: Path::ChangeLastHead, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") }), _ => return Err(Problem { path: Path::ChangeLastHead, reason: skein_codec::Reason::Tag }) };
         let decoded_last_checked = match reader.u8().ok_or(Problem { path: Path::ChangeLastChecked, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some({ let bytes = reader.bytes(32).ok_or(Problem { path: Path::ChangeLastChecked, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") }), _ => return Err(Problem { path: Path::ChangeLastChecked, reason: skein_codec::Reason::Tag }) };
         let decoded_last_checked_by = match reader.u8().ok_or(Problem { path: Path::ChangeLastCheckedBy, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u64().ok_or(Problem { path: Path::ChangeLastCheckedBy, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::ChangeLastCheckedBy, reason: skein_codec::Reason::Tag }) };
-        let decoded_gate_failures = { let count = match skein_codec::read_count(reader, limits.change_gate_failures.min(CEILINGS.change_gate_failures)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::ChangeGateFailures, reason }), }; if count > reader.remaining() / 12 { return Err(Problem { path: Path::ChangeGateFailures, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = GateFailure::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_gate_failures = { let count = match skein_codec::read_count(reader, limits.change_gate_failures.min(CEILINGS.change_gate_failures)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::ChangeGateFailures, reason }), }; if count > reader.remaining() / 12 { return Err(Problem { path: Path::ChangeGateFailures, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = GateFailure::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
         let decoded_released = match reader.u8().ok_or(Problem { path: Path::ChangeReleased, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(ChangeHold::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::ChangeReleased, reason: skein_codec::Reason::Tag }) };
         let decoded_released_resolution = match reader.u8().ok_or(Problem { path: Path::ChangeReleasedResolution, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::ChangeReleasedResolution, reason: skein_codec::Reason::Bool }) };
         let decoded_way = Way::decode_from(limits, reader)?;
@@ -31563,7 +31608,7 @@ impl LlmChoice {
 
     fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         let decoded_main = ModelEffort::decode_from(limits, reader)?;
-        let decoded_subagents = { let count = match skein_codec::read_count(reader, limits.llm_choice_subagents.min(CEILINGS.llm_choice_subagents)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::LlmChoiceSubagents, reason }), }; if count > reader.remaining() / 2 { return Err(Problem { path: Path::LlmChoiceSubagents, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = ModelEffort::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_subagents = { let count = match skein_codec::read_count(reader, limits.llm_choice_subagents.min(CEILINGS.llm_choice_subagents)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::LlmChoiceSubagents, reason }), }; if count > reader.remaining() / 2 { return Err(Problem { path: Path::LlmChoiceSubagents, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = ModelEffort::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
         let decoded_account = match reader.u8().ok_or(Problem { path: Path::LlmChoiceAccount, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u32().ok_or(Problem { path: Path::LlmChoiceAccount, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::LlmChoiceAccount, reason: skein_codec::Reason::Tag }) };
         Ok(Self { main: decoded_main, subagents: decoded_subagents, account: decoded_account })
     }
@@ -32570,9 +32615,9 @@ impl Questions {
     fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         let decoded_route = Route::decode_from(limits, reader)?;
         let decoded_taken = reader.u32().ok_or(Problem { path: Path::QuestionsTaken, reason: skein_codec::Reason::Short })?;
-        let decoded_open = { let count = match skein_codec::read_count(reader, limits.questions_open.min(CEILINGS.questions_open)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::QuestionsOpen, reason }), }; if count > reader.remaining() / 25 { return Err(Problem { path: Path::QuestionsOpen, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = Open::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
-        let decoded_waiting = { let count = match skein_codec::read_count(reader, limits.questions_waiting.min(CEILINGS.questions_waiting)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::QuestionsWaiting, reason }), }; if count > reader.remaining() / 21 { return Err(Problem { path: Path::QuestionsWaiting, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = Waiting::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
-        let decoded_answered = { let count = match skein_codec::read_count(reader, limits.questions_answered.min(CEILINGS.questions_answered)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::QuestionsAnswered, reason }), }; if count > reader.remaining() / 24 { return Err(Problem { path: Path::QuestionsAnswered, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = Answered::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_open = { let count = match skein_codec::read_count(reader, limits.questions_open.min(CEILINGS.questions_open)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::QuestionsOpen, reason }), }; if count > reader.remaining() / 25 { return Err(Problem { path: Path::QuestionsOpen, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = Open::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_waiting = { let count = match skein_codec::read_count(reader, limits.questions_waiting.min(CEILINGS.questions_waiting)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::QuestionsWaiting, reason }), }; if count > reader.remaining() / 21 { return Err(Problem { path: Path::QuestionsWaiting, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = Waiting::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_answered = { let count = match skein_codec::read_count(reader, limits.questions_answered.min(CEILINGS.questions_answered)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::QuestionsAnswered, reason }), }; if count > reader.remaining() / 24 { return Err(Problem { path: Path::QuestionsAnswered, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = Answered::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
         Ok(Self { route: decoded_route, taken: decoded_taken, open: decoded_open, waiting: decoded_waiting, answered: decoded_answered })
     }
 }
@@ -33059,7 +33104,7 @@ impl ChangeFollows {
 
     fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         let decoded_follow = reader.u32().ok_or(Problem { path: Path::ChangeFollowsFollow, reason: skein_codec::Reason::Short })?;
-        let decoded_commits = { let count = match skein_codec::read_count(reader, limits.change_follows_commits.min(CEILINGS.change_follows_commits)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::ChangeFollowsCommits, reason }), }; if count > reader.remaining() / 32 { return Err(Problem { path: Path::ChangeFollowsCommits, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = { let bytes = reader.bytes(32).ok_or(Problem { path: Path::ChangeFollowsCommits, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") }; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_commits = { let count = match skein_codec::read_count(reader, limits.change_follows_commits.min(CEILINGS.change_follows_commits)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::ChangeFollowsCommits, reason }), }; if count > reader.remaining() / 32 { return Err(Problem { path: Path::ChangeFollowsCommits, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = { let bytes = reader.bytes(32).ok_or(Problem { path: Path::ChangeFollowsCommits, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") }; items_0.push(item).expect("count within capacity"); } items_0 };
         Ok(Self { follow: decoded_follow, commits: decoded_commits })
     }
 }
@@ -34006,8 +34051,8 @@ impl GoalView {
         let decoded_repository = reader.u64().ok_or(Problem { path: Path::GoalViewRepository, reason: skein_codec::Reason::Short })?;
         let decoded_title = match skein_codec::read_text(reader, limits.goal_view_title.min(CEILINGS.goal_view_title)) { Ok(text) => text, Err(reason) => return Err(Problem { path: Path::GoalViewTitle, reason }), };
         let decoded_goal_text = match skein_codec::read_text(reader, limits.goal_view_goal_text.min(CEILINGS.goal_view_goal_text)) { Ok(text) => text, Err(reason) => return Err(Problem { path: Path::GoalViewGoalText, reason }), };
-        let decoded_plan = { let count = match skein_codec::read_count(reader, limits.goal_view_plan.min(CEILINGS.goal_view_plan)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::GoalViewPlan, reason }), }; if count > reader.remaining() / 5 { return Err(Problem { path: Path::GoalViewPlan, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = PlanItem::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
-        let decoded_milestones = { let count = match skein_codec::read_count(reader, limits.goal_view_milestones.min(CEILINGS.goal_view_milestones)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::GoalViewMilestones, reason }), }; if count > reader.remaining() / 5 { return Err(Problem { path: Path::GoalViewMilestones, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = Milestone::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_plan = { let count = match skein_codec::read_count(reader, limits.goal_view_plan.min(CEILINGS.goal_view_plan)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::GoalViewPlan, reason }), }; if count > reader.remaining() / 5 { return Err(Problem { path: Path::GoalViewPlan, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = PlanItem::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_milestones = { let count = match skein_codec::read_count(reader, limits.goal_view_milestones.min(CEILINGS.goal_view_milestones)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::GoalViewMilestones, reason }), }; if count > reader.remaining() / 5 { return Err(Problem { path: Path::GoalViewMilestones, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = Milestone::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
         let decoded_finished = match reader.u8().ok_or(Problem { path: Path::GoalViewFinished, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(match skein_codec::read_text(reader, limits.goal_view_finished_some.min(CEILINGS.goal_view_finished_some)) { Ok(text) => text, Err(reason) => return Err(Problem { path: Path::GoalViewFinished, reason }), }), _ => return Err(Problem { path: Path::GoalViewFinished, reason: skein_codec::Reason::Tag }) };
         Ok(Self { phase: decoded_phase, goal: decoded_goal, repository: decoded_repository, title: decoded_title, goal_text: decoded_goal_text, plan: decoded_plan, milestones: decoded_milestones, finished: decoded_finished })
     }
@@ -34218,7 +34263,7 @@ impl Projected {
         let decoded_digest = match reader.u8().ok_or(Problem { path: Path::ProjectedDigest, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some({ let bytes = reader.bytes(32).ok_or(Problem { path: Path::ProjectedDigest, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") }), _ => return Err(Problem { path: Path::ProjectedDigest, reason: skein_codec::Reason::Tag }) };
         let decoded_last_body = match reader.u8().ok_or(Problem { path: Path::ProjectedLastBody, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u64().ok_or(Problem { path: Path::ProjectedLastBody, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::ProjectedLastBody, reason: skein_codec::Reason::Tag }) };
         let decoded_body_revision = reader.u64().ok_or(Problem { path: Path::ProjectedBodyRevision, reason: skein_codec::Reason::Short })?;
-        let decoded_milestones = { let count = match skein_codec::read_count(reader, limits.projected_milestones.min(CEILINGS.projected_milestones)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::ProjectedMilestones, reason }), }; if count > reader.remaining() { return Err(Problem { path: Path::ProjectedMilestones, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = MilestoneKey::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_milestones = { let count = match skein_codec::read_count(reader, limits.projected_milestones.min(CEILINGS.projected_milestones)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::ProjectedMilestones, reason }), }; if count > reader.remaining() { return Err(Problem { path: Path::ProjectedMilestones, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = MilestoneKey::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
         let decoded_closed = match reader.u8().ok_or(Problem { path: Path::ProjectedClosed, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::ProjectedClosed, reason: skein_codec::Reason::Bool }) };
         Ok(Self { opened: decoded_opened, digest: decoded_digest, last_body: decoded_last_body, body_revision: decoded_body_revision, milestones: decoded_milestones, closed: decoded_closed })
     }
@@ -36953,7 +36998,7 @@ impl FollowMergeAct {
     }
 
     fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let decoded_afters = { let count = match skein_codec::read_count(reader, limits.follow_merge_act_afters.min(CEILINGS.follow_merge_act_afters)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::FollowMergeActAfters, reason }), }; if count > reader.remaining() / 32 { return Err(Problem { path: Path::FollowMergeActAfters, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = { let bytes = reader.bytes(32).ok_or(Problem { path: Path::FollowMergeActAfters, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") }; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_afters = { let count = match skein_codec::read_count(reader, limits.follow_merge_act_afters.min(CEILINGS.follow_merge_act_afters)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::FollowMergeActAfters, reason }), }; if count > reader.remaining() / 32 { return Err(Problem { path: Path::FollowMergeActAfters, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = { let bytes = reader.bytes(32).ok_or(Problem { path: Path::FollowMergeActAfters, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") }; items_0.push(item).expect("count within capacity"); } items_0 };
         Ok(Self { afters: decoded_afters })
     }
 }
@@ -37550,7 +37595,7 @@ impl SeveralRepositories {
     }
 
     fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let decoded_repositories = { let count = match skein_codec::read_count(reader, limits.several_repositories_repositories.min(CEILINGS.several_repositories_repositories)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::SeveralRepositoriesRepositories, reason }), }; if count > reader.remaining() / 8 { return Err(Problem { path: Path::SeveralRepositoriesRepositories, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = OpenRepository::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_repositories = { let count = match skein_codec::read_count(reader, limits.several_repositories_repositories.min(CEILINGS.several_repositories_repositories)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::SeveralRepositoriesRepositories, reason }), }; if count > reader.remaining() / 8 { return Err(Problem { path: Path::SeveralRepositoriesRepositories, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = OpenRepository::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
         Ok(Self { repositories: decoded_repositories })
     }
 }
@@ -40898,7 +40943,7 @@ impl LandingMember {
         let decoded_head = match reader.u8().ok_or(Problem { path: Path::LandingMemberHead, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some({ let bytes = reader.bytes(32).ok_or(Problem { path: Path::LandingMemberHead, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") }), _ => return Err(Problem { path: Path::LandingMemberHead, reason: skein_codec::Reason::Tag }) };
         let decoded_base = match reader.u8().ok_or(Problem { path: Path::LandingMemberBase, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some({ let bytes = reader.bytes(32).ok_or(Problem { path: Path::LandingMemberBase, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") }), _ => return Err(Problem { path: Path::LandingMemberBase, reason: skein_codec::Reason::Tag }) };
         let decoded_candidate = match reader.u8().ok_or(Problem { path: Path::LandingMemberCandidate, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some({ let bytes = reader.bytes(32).ok_or(Problem { path: Path::LandingMemberCandidate, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") }), _ => return Err(Problem { path: Path::LandingMemberCandidate, reason: skein_codec::Reason::Tag }) };
-        let decoded_gates = { let count = match skein_codec::read_count(reader, limits.landing_member_gates.min(CEILINGS.landing_member_gates)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::LandingMemberGates, reason }), }; if count > reader.remaining() / 6 { return Err(Problem { path: Path::LandingMemberGates, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = GateProof::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_gates = { let count = match skein_codec::read_count(reader, limits.landing_member_gates.min(CEILINGS.landing_member_gates)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::LandingMemberGates, reason }), }; if count > reader.remaining() / 6 { return Err(Problem { path: Path::LandingMemberGates, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = GateProof::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
         let decoded_asked = match reader.u8().ok_or(Problem { path: Path::LandingMemberAsked, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u16().ok_or(Problem { path: Path::LandingMemberAsked, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::LandingMemberAsked, reason: skein_codec::Reason::Tag }) };
         let decoded_landed = match reader.u8().ok_or(Problem { path: Path::LandingMemberLanded, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some({ let bytes = reader.bytes(32).ok_or(Problem { path: Path::LandingMemberLanded, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") }), _ => return Err(Problem { path: Path::LandingMemberLanded, reason: skein_codec::Reason::Tag }) };
         let decoded_left = match reader.u8().ok_or(Problem { path: Path::LandingMemberLeft, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(LandingLeave::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::LandingMemberLeft, reason: skein_codec::Reason::Tag }) };
@@ -41375,22 +41420,289 @@ impl FailingTest {
 
 fn failing_test_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
     let biggest = biggest.max(FailingTest::encoded_bound_within(limits)?);
-    landing_selection_encoded_bound_family(limits, biggest)
+    shown_test_encoded_bound_family(limits, biggest)
 }
 
 fn failing_test_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
     let biggest = biggest.max(FailingTest::decoded_bound_within(limits)?);
-    landing_selection_decoded_bound_family(limits, biggest)
+    shown_test_decoded_bound_family(limits, biggest)
 }
 
 fn check_failing_test_record_limits(limits: &Limits) -> Result<(), Problem> {
     if limits.failing_test_test_id > CEILINGS.failing_test_test_id { return Err(Problem { path: Path::FailingTestTestId, reason: skein_codec::Reason::Bound }); }
-    check_landing_selection_record_limits(limits)
+    check_shown_test_record_limits(limits)
 }
 
 impl Limits {
     fn values_for_failing_test_record(&self, values: &mut List<u32>) {
         values.push(self.failing_test_test_id).expect("room for every named limit");
+        self.values_for_shown_test_record(values);
+    }
+}
+
+/// Movable fields of `ShownTest`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct ShownTestParts {
+    /// The `test_id` field.
+    pub test_id: Box<[u8]>,
+}
+
+/// `ShownTest` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct ShownTest {
+    test_id: Box<[u8]>,
+}
+
+impl ShownTest {
+    /// Makes a value within the given limits.
+    pub fn new(limits: &Limits, parts: ShownTestParts) -> Result<Self, Problem> {
+        let ShownTestParts { test_id } = parts;
+        let value = Self { test_id };
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    /// Reads the `test_id` field.
+    #[must_use]
+    pub fn test_id(&self) -> &[u8] { &self.test_id }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> ShownTestParts { ShownTestParts { test_id: self.test_id } }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        if self.test_id.len() > usize::try_from(limits.shown_test_test_id.min(CEILINGS.shown_test_test_id)).expect("u32 fits usize") { return Err(Problem { path: Path::ShownTestTestId, reason: skein_codec::Reason::Bound }); }
+        Ok(())
+    }
+}
+
+impl ShownTest {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        let field_test_id = &self.test_id;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(u32::try_from(field_test_id.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_test_id = &self.test_id;
+        writer.put(&u32::try_from(field_test_id.len()).expect("field ceiling fits u32").to_be_bytes())?;
+        writer.put(field_test_id.as_ref())?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::ShownTestTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_test_id = { let length = match skein_codec::read_len(reader, limits.shown_test_test_id.min(CEILINGS.shown_test_test_id)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::ShownTestTestId, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::ShownTestTestId, reason: skein_codec::Reason::Short })?) };
+        Ok(Self { test_id: decoded_test_id })
+    }
+}
+
+impl ShownTest {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(4_u64.checked_add(u64::from(limits.shown_test_test_id))?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(u64::from(limits.shown_test_test_id))?;
+        heap.checked_add(0)
+    }
+}
+
+fn shown_test_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(ShownTest::encoded_bound_within(limits)?);
+    many_tests_encoded_bound_family(limits, biggest)
+}
+
+fn shown_test_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(ShownTest::decoded_bound_within(limits)?);
+    many_tests_decoded_bound_family(limits, biggest)
+}
+
+fn check_shown_test_record_limits(limits: &Limits) -> Result<(), Problem> {
+    if limits.shown_test_test_id > CEILINGS.shown_test_test_id { return Err(Problem { path: Path::ShownTestTestId, reason: skein_codec::Reason::Bound }); }
+    check_many_tests_record_limits(limits)
+}
+
+impl Limits {
+    fn values_for_shown_test_record(&self, values: &mut List<u32>) {
+        values.push(self.shown_test_test_id).expect("room for every named limit");
+        self.values_for_many_tests_record(values);
+    }
+}
+
+/// Movable fields of `ManyTests`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct ManyTestsParts {
+    /// The `tests` field.
+    pub tests: List<ShownTest>,
+    /// The `more` field.
+    pub more: u32,
+    /// The `cut` field.
+    pub cut: bool,
+}
+
+/// `ManyTests` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct ManyTests {
+    tests: List<ShownTest>,
+    more: u32,
+    cut: bool,
+}
+
+impl ManyTests {
+    /// Makes a value within the given limits.
+    pub fn new(limits: &Limits, parts: ManyTestsParts) -> Result<Self, Problem> {
+        let ManyTestsParts { tests, more, cut } = parts;
+        let value = Self { tests, more, cut };
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    /// Reads the `tests` field.
+    #[must_use]
+    pub fn tests(&self) -> &List<ShownTest> { &self.tests }
+
+    /// Reads the `more` field.
+    #[must_use]
+    pub fn more(&self) -> u32 { self.more }
+
+    /// Reads the `cut` field.
+    #[must_use]
+    pub fn cut(&self) -> bool { self.cut }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> ManyTestsParts { ManyTestsParts { tests: self.tests, more: self.more, cut: self.cut } }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        if self.tests.capacity() > limits.many_tests_tests.min(CEILINGS.many_tests_tests) { return Err(Problem { path: Path::ManyTestsTests, reason: skein_codec::Reason::Bound }); }
+        for item_0 in self.tests.as_slice() {
+        item_0.check(limits)?;
+        }
+        Ok(())
+    }
+}
+
+impl ManyTests {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        let field_tests = &self.tests;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        for item_0 in field_tests.as_slice() {
+        size = size.checked_add(item_0.measure()).expect("schema ceilings fit u32");
+        }
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_tests = &self.tests;
+        writer.put(&field_tests.len().to_be_bytes())?;
+        for item_0 in field_tests.as_slice() {
+        item_0.encode(writer)?;
+        }
+        let field_more = &self.more;
+        writer.put(&field_more.to_be_bytes())?;
+        let field_cut = &self.cut;
+        writer.put(&[u8::from(*field_cut)])?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::ManyTestsTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_tests = { let count = match skein_codec::read_count(reader, limits.many_tests_tests.min(CEILINGS.many_tests_tests)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::ManyTestsTests, reason }), }; if count > reader.remaining() / 4 { return Err(Problem { path: Path::ManyTestsTests, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = ShownTest::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_more = reader.u32().ok_or(Problem { path: Path::ManyTestsMore, reason: skein_codec::Reason::Short })?;
+        let decoded_cut = match reader.u8().ok_or(Problem { path: Path::ManyTestsCut, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::ManyTestsCut, reason: skein_codec::Reason::Bool }) };
+        Ok(Self { tests: decoded_tests, more: decoded_more, cut: decoded_cut })
+    }
+}
+
+impl ManyTests {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(4_u64.checked_add(u64::from(limits.many_tests_tests).checked_mul(ShownTest::encoded_bound_within(limits)?)?)?)?.checked_add(4_u64)?;
+        size = size.checked_add(1_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(List::<ShownTest>::price(limits.many_tests_tests)?.checked_add(u64::from(limits.many_tests_tests).checked_mul(ShownTest::decoded_bound_within(limits)?)?)?)?.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
+fn many_tests_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(ManyTests::encoded_bound_within(limits)?);
+    landing_selection_encoded_bound_family(limits, biggest)
+}
+
+fn many_tests_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(ManyTests::decoded_bound_within(limits)?);
+    landing_selection_decoded_bound_family(limits, biggest)
+}
+
+fn check_many_tests_record_limits(limits: &Limits) -> Result<(), Problem> {
+    if limits.many_tests_tests > CEILINGS.many_tests_tests { return Err(Problem { path: Path::ManyTestsTests, reason: skein_codec::Reason::Bound }); }
+    check_landing_selection_record_limits(limits)
+}
+
+impl Limits {
+    fn values_for_many_tests_record(&self, values: &mut List<u32>) {
+        values.push(self.many_tests_tests).expect("room for every named limit");
         self.values_for_landing_selection_record(values);
     }
 }
@@ -41465,7 +41777,7 @@ impl LandingSelection {
     }
 
     fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let decoded_tests = { let count = match skein_codec::read_count(reader, limits.landing_selection_tests.min(CEILINGS.landing_selection_tests)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::LandingSelectionTests, reason }), }; if count > reader.remaining() / 4 { return Err(Problem { path: Path::LandingSelectionTests, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = FailingTest::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_tests = { let count = match skein_codec::read_count(reader, limits.landing_selection_tests.min(CEILINGS.landing_selection_tests)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::LandingSelectionTests, reason }), }; if count > reader.remaining() / 4 { return Err(Problem { path: Path::LandingSelectionTests, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = FailingTest::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
         Ok(Self { tests: decoded_tests })
     }
 }
@@ -41854,8 +42166,8 @@ impl LandingByTest {
     }
 
     fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let decoded_gates = { let count = match skein_codec::read_count(reader, limits.landing_by_test_gates.min(CEILINGS.landing_by_test_gates)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::LandingByTestGates, reason }), }; if count > reader.remaining() { return Err(Problem { path: Path::LandingByTestGates, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = LandingSelectedGate::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
-        let decoded_probed = { let count = match skein_codec::read_count(reader, limits.landing_by_test_probed.min(CEILINGS.landing_by_test_probed)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::LandingByTestProbed, reason }), }; if count > reader.remaining() / 13 { return Err(Problem { path: Path::LandingByTestProbed, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = LandingProbed::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_gates = { let count = match skein_codec::read_count(reader, limits.landing_by_test_gates.min(CEILINGS.landing_by_test_gates)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::LandingByTestGates, reason }), }; if count > reader.remaining() { return Err(Problem { path: Path::LandingByTestGates, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = LandingSelectedGate::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_probed = { let count = match skein_codec::read_count(reader, limits.landing_by_test_probed.min(CEILINGS.landing_by_test_probed)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::LandingByTestProbed, reason }), }; if count > reader.remaining() / 13 { return Err(Problem { path: Path::LandingByTestProbed, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = LandingProbed::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
         Ok(Self { gates: decoded_gates, probed: decoded_probed })
     }
 }
@@ -42241,7 +42553,7 @@ impl LandingSearched {
     fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         let decoded_red = { let bytes = reader.bytes(32).ok_or(Problem { path: Path::LandingSearchedRed, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") };
         let decoded_green = match reader.u8().ok_or(Problem { path: Path::LandingSearchedGreen, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some({ let bytes = reader.bytes(32).ok_or(Problem { path: Path::LandingSearchedGreen, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") }), _ => return Err(Problem { path: Path::LandingSearchedGreen, reason: skein_codec::Reason::Tag }) };
-        let decoded_changes = { let count = match skein_codec::read_count(reader, limits.landing_searched_changes.min(CEILINGS.landing_searched_changes)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::LandingSearchedChanges, reason }), }; if count > reader.remaining() / 8 { return Err(Problem { path: Path::LandingSearchedChanges, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = reader.u64().ok_or(Problem { path: Path::LandingSearchedChanges, reason: skein_codec::Reason::Short })?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_changes = { let count = match skein_codec::read_count(reader, limits.landing_searched_changes.min(CEILINGS.landing_searched_changes)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::LandingSearchedChanges, reason }), }; if count > reader.remaining() / 8 { return Err(Problem { path: Path::LandingSearchedChanges, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = reader.u64().ok_or(Problem { path: Path::LandingSearchedChanges, reason: skein_codec::Reason::Short })?; items_0.push(item).expect("count within capacity"); } items_0 };
         Ok(Self { red: decoded_red, green: decoded_green, changes: decoded_changes })
     }
 }
@@ -42842,7 +43154,7 @@ impl LandingState {
         let decoded_task = reader.u64().ok_or(Problem { path: Path::LandingStateTask, reason: skein_codec::Reason::Short })?;
         let decoded_project = reader.u32().ok_or(Problem { path: Path::LandingStateProject, reason: skein_codec::Reason::Short })?;
         let decoded_phase = LandingPhase::decode_from(limits, reader)?;
-        let decoded_members = { let count = match skein_codec::read_count(reader, limits.landing_state_members.min(CEILINGS.landing_state_members)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::LandingStateMembers, reason }), }; if count > reader.remaining() / 44 { return Err(Problem { path: Path::LandingStateMembers, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = LandingMember::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_members = { let count = match skein_codec::read_count(reader, limits.landing_state_members.min(CEILINGS.landing_state_members)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::LandingStateMembers, reason }), }; if count > reader.remaining() / 44 { return Err(Problem { path: Path::LandingStateMembers, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = LandingMember::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
         let decoded_preparation = reader.u16().ok_or(Problem { path: Path::LandingStatePreparation, reason: skein_codec::Reason::Short })?;
         let decoded_stale_proofs = reader.u32().ok_or(Problem { path: Path::LandingStateStaleProofs, reason: skein_codec::Reason::Short })?;
         let decoded_branch = { let length = match skein_codec::read_len(reader, limits.landing_state_branch.min(CEILINGS.landing_state_branch)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::LandingStateBranch, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::LandingStateBranch, reason: skein_codec::Reason::Short })?) };
@@ -44617,7 +44929,7 @@ impl HistoryJobRecord {
         let decoded_job = HistoryJob::decode_from(limits, reader)?;
         let decoded_outcome = match reader.u8().ok_or(Problem { path: Path::HistoryJobRecordOutcome, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(HistoryJobOutcome::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::HistoryJobRecordOutcome, reason: skein_codec::Reason::Tag }) };
         let decoded_round = reader.u16().ok_or(Problem { path: Path::HistoryJobRecordRound, reason: skein_codec::Reason::Short })?;
-        let decoded_members = { let count = match skein_codec::read_count(reader, limits.history_job_record_members.min(CEILINGS.history_job_record_members)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::HistoryJobRecordMembers, reason }), }; if count > reader.remaining() / 2 { return Err(Problem { path: Path::HistoryJobRecordMembers, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = reader.u16().ok_or(Problem { path: Path::HistoryJobRecordMembers, reason: skein_codec::Reason::Short })?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_members = { let count = match skein_codec::read_count(reader, limits.history_job_record_members.min(CEILINGS.history_job_record_members)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::HistoryJobRecordMembers, reason }), }; if count > reader.remaining() / 2 { return Err(Problem { path: Path::HistoryJobRecordMembers, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = reader.u16().ok_or(Problem { path: Path::HistoryJobRecordMembers, reason: skein_codec::Reason::Short })?; items_0.push(item).expect("count within capacity"); } items_0 };
         let decoded_head = match reader.u8().ok_or(Problem { path: Path::HistoryJobRecordHead, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some({ let bytes = reader.bytes(32).ok_or(Problem { path: Path::HistoryJobRecordHead, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") }), _ => return Err(Problem { path: Path::HistoryJobRecordHead, reason: skein_codec::Reason::Tag }) };
         let decoded_written = match reader.u8().ok_or(Problem { path: Path::HistoryJobRecordWritten, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::HistoryJobRecordWritten, reason: skein_codec::Reason::Bool }) };
         Ok(Self { task: decoded_task, attempt: decoded_attempt, job: decoded_job, outcome: decoded_outcome, round: decoded_round, members: decoded_members, head: decoded_head, written: decoded_written })
@@ -45160,8 +45472,8 @@ impl LandingFlakeRerun {
     fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         let decoded_key = ReceiptKey::decode_from(limits, reader)?;
         let decoded_run = reader.u64().ok_or(Problem { path: Path::LandingFlakeRerunRun, reason: skein_codec::Reason::Short })?;
-        let decoded_findings = { let count = match skein_codec::read_count(reader, limits.landing_flake_rerun_findings.min(CEILINGS.landing_flake_rerun_findings)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::LandingFlakeRerunFindings, reason }), }; if count > reader.remaining() / 4 { return Err(Problem { path: Path::LandingFlakeRerunFindings, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = reader.u32().ok_or(Problem { path: Path::LandingFlakeRerunFindings, reason: skein_codec::Reason::Short })?; items_0.push(item).expect("count within capacity"); } items_0 };
-        let decoded_pending = { let count = match skein_codec::read_count(reader, limits.landing_flake_rerun_pending.min(CEILINGS.landing_flake_rerun_pending)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::LandingFlakeRerunPending, reason }), }; if count > reader.remaining() / 52 { return Err(Problem { path: Path::LandingFlakeRerunPending, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = JobAttempt::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_findings = { let count = match skein_codec::read_count(reader, limits.landing_flake_rerun_findings.min(CEILINGS.landing_flake_rerun_findings)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::LandingFlakeRerunFindings, reason }), }; if count > reader.remaining() / 4 { return Err(Problem { path: Path::LandingFlakeRerunFindings, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = reader.u32().ok_or(Problem { path: Path::LandingFlakeRerunFindings, reason: skein_codec::Reason::Short })?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_pending = { let count = match skein_codec::read_count(reader, limits.landing_flake_rerun_pending.min(CEILINGS.landing_flake_rerun_pending)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::LandingFlakeRerunPending, reason }), }; if count > reader.remaining() / 52 { return Err(Problem { path: Path::LandingFlakeRerunPending, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = JobAttempt::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
         let decoded_redispatch = match reader.u8().ok_or(Problem { path: Path::LandingFlakeRerunRedispatch, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::LandingFlakeRerunRedispatch, reason: skein_codec::Reason::Bool }) };
         let decoded_ended = match reader.u8().ok_or(Problem { path: Path::LandingFlakeRerunEnded, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::LandingFlakeRerunEnded, reason: skein_codec::Reason::Bool }) };
         Ok(Self { key: decoded_key, run: decoded_run, findings: decoded_findings, pending: decoded_pending, redispatch: decoded_redispatch, ended: decoded_ended })
@@ -45391,9 +45703,9 @@ impl LandingRow {
         let decoded_room = match reader.u8().ok_or(Problem { path: Path::LandingRowRoom, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u64().ok_or(Problem { path: Path::LandingRowRoom, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::LandingRowRoom, reason: skein_codec::Reason::Tag }) };
         let decoded_job = match reader.u8().ok_or(Problem { path: Path::LandingRowJob, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(HistoryJobRecord::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::LandingRowJob, reason: skein_codec::Reason::Tag }) };
         let decoded_landing = LandingState::decode_from(limits, reader)?;
-        let decoded_asks = { let count = match skein_codec::read_count(reader, limits.landing_row_asks.min(CEILINGS.landing_row_asks)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::LandingRowAsks, reason }), }; if count > reader.remaining() { return Err(Problem { path: Path::LandingRowAsks, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = LandingAskSlot::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
-        let decoded_entries = { let count = match skein_codec::read_count(reader, limits.landing_row_entries.min(CEILINGS.landing_row_entries)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::LandingRowEntries, reason }), }; if count > reader.remaining() / 16 { return Err(Problem { path: Path::LandingRowEntries, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = LandingEntry::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
-        let decoded_flake_reruns = { let count = match skein_codec::read_count(reader, limits.landing_row_flake_reruns.min(CEILINGS.landing_row_flake_reruns)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::LandingRowFlakeReruns, reason }), }; if count > reader.remaining() / 65 { return Err(Problem { path: Path::LandingRowFlakeReruns, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = LandingFlakeRerun::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_asks = { let count = match skein_codec::read_count(reader, limits.landing_row_asks.min(CEILINGS.landing_row_asks)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::LandingRowAsks, reason }), }; if count > reader.remaining() { return Err(Problem { path: Path::LandingRowAsks, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = LandingAskSlot::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_entries = { let count = match skein_codec::read_count(reader, limits.landing_row_entries.min(CEILINGS.landing_row_entries)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::LandingRowEntries, reason }), }; if count > reader.remaining() / 16 { return Err(Problem { path: Path::LandingRowEntries, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = LandingEntry::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_flake_reruns = { let count = match skein_codec::read_count(reader, limits.landing_row_flake_reruns.min(CEILINGS.landing_row_flake_reruns)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::LandingRowFlakeReruns, reason }), }; if count > reader.remaining() / 65 { return Err(Problem { path: Path::LandingRowFlakeReruns, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = LandingFlakeRerun::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
         Ok(Self { room: decoded_room, job: decoded_job, landing: decoded_landing, asks: decoded_asks, entries: decoded_entries, flake_reruns: decoded_flake_reruns })
     }
 }
@@ -45668,7 +45980,7 @@ impl FailedTests {
     }
 
     fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let decoded_tests = { let count = match skein_codec::read_count(reader, limits.failed_tests_tests.min(CEILINGS.failed_tests_tests)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::FailedTestsTests, reason }), }; if count > reader.remaining() / 4 { return Err(Problem { path: Path::FailedTestsTests, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = FailingTest::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_tests = { let count = match skein_codec::read_count(reader, limits.failed_tests_tests.min(CEILINGS.failed_tests_tests)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::FailedTestsTests, reason }), }; if count > reader.remaining() / 4 { return Err(Problem { path: Path::FailedTestsTests, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = FailingTest::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
         Ok(Self { tests: decoded_tests })
     }
 }
@@ -46551,8 +46863,8 @@ impl Verification {
     fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         let decoded_repository = Repository::decode_from(limits, reader)?;
         let decoded_commit = { let bytes = reader.bytes(32).ok_or(Problem { path: Path::VerificationCommit, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") };
-        let decoded_changes = { let count = match skein_codec::read_count(reader, limits.verification_changes.min(CEILINGS.verification_changes)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::VerificationChanges, reason }), }; if count > reader.remaining() / 8 { return Err(Problem { path: Path::VerificationChanges, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = reader.u64().ok_or(Problem { path: Path::VerificationChanges, reason: skein_codec::Reason::Short })?; items_0.push(item).expect("count within capacity"); } items_0 };
-        let decoded_tiers = { let count = match skein_codec::read_count(reader, limits.verification_tiers.min(CEILINGS.verification_tiers)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::VerificationTiers, reason }), }; if count > reader.remaining() / 6 { return Err(Problem { path: Path::VerificationTiers, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = TierVerification::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_changes = { let count = match skein_codec::read_count(reader, limits.verification_changes.min(CEILINGS.verification_changes)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::VerificationChanges, reason }), }; if count > reader.remaining() / 8 { return Err(Problem { path: Path::VerificationChanges, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = reader.u64().ok_or(Problem { path: Path::VerificationChanges, reason: skein_codec::Reason::Short })?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_tiers = { let count = match skein_codec::read_count(reader, limits.verification_tiers.min(CEILINGS.verification_tiers)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::VerificationTiers, reason }), }; if count > reader.remaining() / 6 { return Err(Problem { path: Path::VerificationTiers, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = TierVerification::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
         Ok(Self { repository: decoded_repository, commit: decoded_commit, changes: decoded_changes, tiers: decoded_tiers })
     }
 }
@@ -47028,7 +47340,7 @@ impl TierTests {
     }
 
     fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let decoded_tests = { let count = match skein_codec::read_count(reader, limits.tier_tests_tests.min(CEILINGS.tier_tests_tests)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::TierTestsTests, reason }), }; if count > reader.remaining() / 4 { return Err(Problem { path: Path::TierTestsTests, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = FailingTest::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_tests = { let count = match skein_codec::read_count(reader, limits.tier_tests_tests.min(CEILINGS.tier_tests_tests)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::TierTestsTests, reason }), }; if count > reader.remaining() / 4 { return Err(Problem { path: Path::TierTestsTests, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = FailingTest::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
         Ok(Self { tests: decoded_tests })
     }
 }
@@ -47287,8 +47599,8 @@ impl TierFinding {
 
     fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         let decoded_failing = Failures::decode_from(limits, reader)?;
-        let decoded_flakes = { let count = match skein_codec::read_count(reader, limits.tier_finding_flakes.min(CEILINGS.tier_finding_flakes)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::TierFindingFlakes, reason }), }; if count > reader.remaining() / 4 { return Err(Problem { path: Path::TierFindingFlakes, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = FailingTest::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
-        let decoded_blamed = { let count = match skein_codec::read_count(reader, limits.tier_finding_blamed.min(CEILINGS.tier_finding_blamed)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::TierFindingBlamed, reason }), }; if count > reader.remaining() { return Err(Problem { path: Path::TierFindingBlamed, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = Blame::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_flakes = { let count = match skein_codec::read_count(reader, limits.tier_finding_flakes.min(CEILINGS.tier_finding_flakes)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::TierFindingFlakes, reason }), }; if count > reader.remaining() / 4 { return Err(Problem { path: Path::TierFindingFlakes, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = FailingTest::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_blamed = { let count = match skein_codec::read_count(reader, limits.tier_finding_blamed.min(CEILINGS.tier_finding_blamed)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::TierFindingBlamed, reason }), }; if count > reader.remaining() { return Err(Problem { path: Path::TierFindingBlamed, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = Blame::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
         Ok(Self { failing: decoded_failing, flakes: decoded_flakes, blamed: decoded_blamed })
     }
 }
@@ -47434,7 +47746,7 @@ impl TierGroup {
     fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         let decoded_low = reader.u32().ok_or(Problem { path: Path::TierGroupLow, reason: skein_codec::Reason::Short })?;
         let decoded_high = reader.u32().ok_or(Problem { path: Path::TierGroupHigh, reason: skein_codec::Reason::Short })?;
-        let decoded_tests = { let count = match skein_codec::read_count(reader, limits.tier_group_tests.min(CEILINGS.tier_group_tests)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::TierGroupTests, reason }), }; if count > reader.remaining() / 2 { return Err(Problem { path: Path::TierGroupTests, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = reader.u16().ok_or(Problem { path: Path::TierGroupTests, reason: skein_codec::Reason::Short })?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_tests = { let count = match skein_codec::read_count(reader, limits.tier_group_tests.min(CEILINGS.tier_group_tests)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::TierGroupTests, reason }), }; if count > reader.remaining() / 2 { return Err(Problem { path: Path::TierGroupTests, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = reader.u16().ok_or(Problem { path: Path::TierGroupTests, reason: skein_codec::Reason::Short })?; items_0.push(item).expect("count within capacity"); } items_0 };
         Ok(Self { low: decoded_low, high: decoded_high, tests: decoded_tests })
     }
 }
@@ -47619,7 +47931,7 @@ impl TierProbe {
         let decoded_low = reader.u32().ok_or(Problem { path: Path::TierProbeLow, reason: skein_codec::Reason::Short })?;
         let decoded_high = reader.u32().ok_or(Problem { path: Path::TierProbeHigh, reason: skein_codec::Reason::Short })?;
         let decoded_tests = TierSelection::decode_from(limits, reader)?;
-        let decoded_waiting = { let count = match skein_codec::read_count(reader, limits.tier_probe_waiting.min(CEILINGS.tier_probe_waiting)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::TierProbeWaiting, reason }), }; if count > reader.remaining() / 12 { return Err(Problem { path: Path::TierProbeWaiting, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = TierGroup::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_waiting = { let count = match skein_codec::read_count(reader, limits.tier_probe_waiting.min(CEILINGS.tier_probe_waiting)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::TierProbeWaiting, reason }), }; if count > reader.remaining() / 12 { return Err(Problem { path: Path::TierProbeWaiting, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = TierGroup::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
         let decoded_finding = TierFinding::decode_from(limits, reader)?;
         Ok(Self { landing: decoded_landing, low: decoded_low, high: decoded_high, tests: decoded_tests, waiting: decoded_waiting, finding: decoded_finding })
     }
@@ -47905,7 +48217,7 @@ impl TierRun {
         let decoded_number = reader.u64().ok_or(Problem { path: Path::TierRunNumber, reason: skein_codec::Reason::Short })?;
         let decoded_tip = { let bytes = reader.bytes(32).ok_or(Problem { path: Path::TierRunTip, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") };
         let decoded_key = { let bytes = reader.bytes(32).ok_or(Problem { path: Path::TierRunKey, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") };
-        let decoded_landings = { let count = match skein_codec::read_count(reader, limits.tier_run_landings.min(CEILINGS.tier_run_landings)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::TierRunLandings, reason }), }; if count > reader.remaining() / 64 { return Err(Problem { path: Path::TierRunLandings, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = TierLanding::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_landings = { let count = match skein_codec::read_count(reader, limits.tier_run_landings.min(CEILINGS.tier_run_landings)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::TierRunLandings, reason }), }; if count > reader.remaining() / 64 { return Err(Problem { path: Path::TierRunLandings, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = TierLanding::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
         let decoded_part = TierPart::decode_from(limits, reader)?;
         let decoded_faults = reader.u32().ok_or(Problem { path: Path::TierRunFaults, reason: skein_codec::Reason::Short })?;
         Ok(Self { number: decoded_number, tip: decoded_tip, key: decoded_key, landings: decoded_landings, part: decoded_part, faults: decoded_faults })
@@ -48104,7 +48416,7 @@ impl TierRecord {
         let decoded_sequence = reader.u64().ok_or(Problem { path: Path::TierRecordSequence, reason: skein_codec::Reason::Short })?;
         let decoded_judged = match reader.u8().ok_or(Problem { path: Path::TierRecordJudged, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(TierJudged::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::TierRecordJudged, reason: skein_codec::Reason::Tag }) };
         let decoded_failing = Failures::decode_from(limits, reader)?;
-        let decoded_flakes = { let count = match skein_codec::read_count(reader, limits.tier_record_flakes.min(CEILINGS.tier_record_flakes)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::TierRecordFlakes, reason }), }; if count > reader.remaining() / 8 { return Err(Problem { path: Path::TierRecordFlakes, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = TierFlake::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_flakes = { let count = match skein_codec::read_count(reader, limits.tier_record_flakes.min(CEILINGS.tier_record_flakes)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::TierRecordFlakes, reason }), }; if count > reader.remaining() / 8 { return Err(Problem { path: Path::TierRecordFlakes, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = TierFlake::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
         let decoded_run = match reader.u8().ok_or(Problem { path: Path::TierRecordRun, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(TierRun::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::TierRecordRun, reason: skein_codec::Reason::Tag }) };
         Ok(Self { sequence: decoded_sequence, judged: decoded_judged, failing: decoded_failing, flakes: decoded_flakes, run: decoded_run })
     }
@@ -48910,7 +49222,7 @@ impl TierFlight {
         let decoded_waiting = match reader.u8().ok_or(Problem { path: Path::TierFlightWaiting, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::TierFlightWaiting, reason: skein_codec::Reason::Bool }) };
         let decoded_next = match reader.u8().ok_or(Problem { path: Path::TierFlightNext, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u64().ok_or(Problem { path: Path::TierFlightNext, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::TierFlightNext, reason: skein_codec::Reason::Tag }) };
         let decoded_run = match reader.u8().ok_or(Problem { path: Path::TierFlightRun, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u64().ok_or(Problem { path: Path::TierFlightRun, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::TierFlightRun, reason: skein_codec::Reason::Tag }) };
-        let decoded_pending = { let count = match skein_codec::read_count(reader, limits.tier_flight_pending.min(CEILINGS.tier_flight_pending)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::TierFlightPending, reason }), }; if count > reader.remaining() / 52 { return Err(Problem { path: Path::TierFlightPending, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = JobAttempt::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_pending = { let count = match skein_codec::read_count(reader, limits.tier_flight_pending.min(CEILINGS.tier_flight_pending)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::TierFlightPending, reason }), }; if count > reader.remaining() / 52 { return Err(Problem { path: Path::TierFlightPending, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = JobAttempt::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
         let decoded_fault = match reader.u8().ok_or(Problem { path: Path::TierFlightFault, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(TierFault::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::TierFlightFault, reason: skein_codec::Reason::Tag }) };
         let decoded_report = match reader.u8().ok_or(Problem { path: Path::TierFlightReport, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(ReceiptRun::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::TierFlightReport, reason: skein_codec::Reason::Tag }) };
         Ok(Self { entry: decoded_entry, start: decoded_start, since: decoded_since, waiting: decoded_waiting, next: decoded_next, run: decoded_run, pending: decoded_pending, fault: decoded_fault, report: decoded_report })
@@ -49316,7 +49628,7 @@ impl ReceiptTests {
     }
 
     fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let decoded_tests = { let count = match skein_codec::read_count(reader, limits.receipt_tests_tests.min(CEILINGS.receipt_tests_tests)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::ReceiptTestsTests, reason }), }; if count > reader.remaining() / 5 { return Err(Problem { path: Path::ReceiptTestsTests, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = ReceiptTest::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_tests = { let count = match skein_codec::read_count(reader, limits.receipt_tests_tests.min(CEILINGS.receipt_tests_tests)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::ReceiptTestsTests, reason }), }; if count > reader.remaining() / 5 { return Err(Problem { path: Path::ReceiptTestsTests, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = ReceiptTest::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
         Ok(Self { tests: decoded_tests })
     }
 }
@@ -49748,7 +50060,7 @@ impl Receipt {
 
     fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         let decoded_base = match reader.u8().ok_or(Problem { path: Path::ReceiptBase, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some({ let bytes = reader.bytes(32).ok_or(Problem { path: Path::ReceiptBase, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") }), _ => return Err(Problem { path: Path::ReceiptBase, reason: skein_codec::Reason::Tag }) };
-        let decoded_jobs = { let count = match skein_codec::read_count(reader, limits.receipt_jobs.min(CEILINGS.receipt_jobs)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::ReceiptJobs, reason }), }; if count > reader.remaining() / 16 { return Err(Problem { path: Path::ReceiptJobs, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = ReceiptJob::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_jobs = { let count = match skein_codec::read_count(reader, limits.receipt_jobs.min(CEILINGS.receipt_jobs)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::ReceiptJobs, reason }), }; if count > reader.remaining() / 16 { return Err(Problem { path: Path::ReceiptJobs, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = ReceiptJob::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
         let decoded_failures = match reader.u8().ok_or(Problem { path: Path::ReceiptFailures, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(Failures::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::ReceiptFailures, reason: skein_codec::Reason::Tag }) };
         let decoded_passed = match reader.u8().ok_or(Problem { path: Path::ReceiptPassed, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::ReceiptPassed, reason: skein_codec::Reason::Bool }) };
         let decoded_run = ReceiptRun::decode_from(limits, reader)?;
@@ -50233,7 +50545,7 @@ impl TierPostedTests {
     }
 
     fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let decoded_tests = { let count = match skein_codec::read_count(reader, limits.tier_posted_tests_tests.min(CEILINGS.tier_posted_tests_tests)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::TierPostedTestsTests, reason }), }; if count > reader.remaining() / 2 { return Err(Problem { path: Path::TierPostedTestsTests, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = reader.u16().ok_or(Problem { path: Path::TierPostedTestsTests, reason: skein_codec::Reason::Short })?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_tests = { let count = match skein_codec::read_count(reader, limits.tier_posted_tests_tests.min(CEILINGS.tier_posted_tests_tests)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::TierPostedTestsTests, reason }), }; if count > reader.remaining() / 2 { return Err(Problem { path: Path::TierPostedTestsTests, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = reader.u16().ok_or(Problem { path: Path::TierPostedTestsTests, reason: skein_codec::Reason::Short })?; items_0.push(item).expect("count within capacity"); } items_0 };
         Ok(Self { tests: decoded_tests })
     }
 }
@@ -51160,8 +51472,8 @@ impl TierPosting {
         let decoded_link = { let length = match skein_codec::read_len(reader, limits.tier_posting_link.min(CEILINGS.tier_posting_link)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::TierPostingLink, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::TierPostingLink, reason: skein_codec::Reason::Short })?) };
         let decoded_status = Check::decode_from(limits, reader)?;
         let decoded_description = { let length = match skein_codec::read_len(reader, limits.tier_posting_description.min(CEILINGS.tier_posting_description)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::TierPostingDescription, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::TierPostingDescription, reason: skein_codec::Reason::Short })?) };
-        let decoded_landings = { let count = match skein_codec::read_count(reader, limits.tier_posting_landings.min(CEILINGS.tier_posting_landings)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::TierPostingLandings, reason }), }; if count > reader.remaining() / 34 { return Err(Problem { path: Path::TierPostingLandings, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = TierPostedLanding::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
-        let decoded_comments = { let count = match skein_codec::read_count(reader, limits.tier_posting_comments.min(CEILINGS.tier_posting_comments)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::TierPostingComments, reason }), }; if count > reader.remaining() / 42 { return Err(Problem { path: Path::TierPostingComments, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = TierComment::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_landings = { let count = match skein_codec::read_count(reader, limits.tier_posting_landings.min(CEILINGS.tier_posting_landings)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::TierPostingLandings, reason }), }; if count > reader.remaining() / 34 { return Err(Problem { path: Path::TierPostingLandings, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = TierPostedLanding::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_comments = { let count = match skein_codec::read_count(reader, limits.tier_posting_comments.min(CEILINGS.tier_posting_comments)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::TierPostingComments, reason }), }; if count > reader.remaining() / 42 { return Err(Problem { path: Path::TierPostingComments, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = TierComment::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
         let decoded_next = reader.u32().ok_or(Problem { path: Path::TierPostingNext, reason: skein_codec::Reason::Short })?;
         let decoded_entry = match reader.u8().ok_or(Problem { path: Path::TierPostingEntry, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u64().ok_or(Problem { path: Path::TierPostingEntry, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::TierPostingEntry, reason: skein_codec::Reason::Tag }) };
         let decoded_part = reader.u16().ok_or(Problem { path: Path::TierPostingPart, reason: skein_codec::Reason::Short })?;
@@ -51239,6 +51551,8 @@ impl Limits {
 /// Movable fields of `TierRow`.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct TierRowParts {
+    /// The `many` field.
+    pub many: Option<ManyTests>,
     /// The `observations` field.
     pub observations: Box<[u8]>,
     /// The `repository` field.
@@ -51286,6 +51600,7 @@ pub struct TierRowParts {
 /// `TierRow` in this codec family.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct TierRow {
+    many: Option<ManyTests>,
     observations: Box<[u8]>,
     repository: Repository,
     tier: Box<[u8]>,
@@ -51312,11 +51627,15 @@ pub struct TierRow {
 impl TierRow {
     /// Makes a value within the given limits.
     pub fn new(limits: &Limits, parts: TierRowParts) -> Result<Self, Problem> {
-        let TierRowParts { observations, repository, tier, record, task, requested, cancelled, purpose, pending, baseline, branch, probe, flight, held, hold, result, posting, received, goals, goal, started } = parts;
-        let value = Self { observations, repository, tier, record, task, requested, cancelled, purpose, pending, baseline, branch, probe, flight, held, hold, result, posting, received, goals, goal, started };
+        let TierRowParts { many, observations, repository, tier, record, task, requested, cancelled, purpose, pending, baseline, branch, probe, flight, held, hold, result, posting, received, goals, goal, started } = parts;
+        let value = Self { many, observations, repository, tier, record, task, requested, cancelled, purpose, pending, baseline, branch, probe, flight, held, hold, result, posting, received, goals, goal, started };
         value.check(limits)?;
         Ok(value)
     }
+
+    /// Reads the `many` field.
+    #[must_use]
+    pub fn many(&self) -> &Option<ManyTests> { &self.many }
 
     /// Reads the `observations` field.
     #[must_use]
@@ -51404,9 +51723,12 @@ impl TierRow {
 
     /// Moves the fields out without copying.
     #[must_use]
-    pub fn into_parts(self) -> TierRowParts { TierRowParts { observations: self.observations, repository: self.repository, tier: self.tier, record: self.record, task: self.task, requested: self.requested, cancelled: self.cancelled, purpose: self.purpose, pending: self.pending, baseline: self.baseline, branch: self.branch, probe: self.probe, flight: self.flight, held: self.held, hold: self.hold, result: self.result, posting: self.posting, received: self.received, goals: self.goals, goal: self.goal, started: self.started } }
+    pub fn into_parts(self) -> TierRowParts { TierRowParts { many: self.many, observations: self.observations, repository: self.repository, tier: self.tier, record: self.record, task: self.task, requested: self.requested, cancelled: self.cancelled, purpose: self.purpose, pending: self.pending, baseline: self.baseline, branch: self.branch, probe: self.probe, flight: self.flight, held: self.held, hold: self.hold, result: self.result, posting: self.posting, received: self.received, goals: self.goals, goal: self.goal, started: self.started } }
 
     fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        if let Some(some_0) = self.many.as_ref() {
+        some_0.check(limits)?;
+        }
         if self.observations.len() > usize::try_from(limits.tier_row_observations.min(CEILINGS.tier_row_observations)).expect("u32 fits usize") { return Err(Problem { path: Path::TierRowObservations, reason: skein_codec::Reason::Bound }); }
         if self.tier.len() > usize::try_from(limits.tier_row_tier.min(CEILINGS.tier_row_tier)).expect("u32 fits usize") { return Err(Problem { path: Path::TierRowTier, reason: skein_codec::Reason::Bound }); }
         self.record.check(limits)?;
@@ -51436,6 +51758,11 @@ impl TierRow {
     #[must_use]
     pub fn measure(&self) -> u32 {
         let mut size = 0_u32;
+        let field_many = &self.many;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if let Some(some_0) = field_many {
+        size = size.checked_add(some_0.measure()).expect("schema ceilings fit u32");
+        }
         let field_observations = &self.observations;
         size = size.checked_add(4).expect("schema ceilings fit u32");
         size = size.checked_add(u32::try_from(field_observations.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
@@ -51520,6 +51847,7 @@ impl TierRow {
 
     /// Writes into a writer with room for the measured bytes.
     pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        Self::encode_many_field(self, writer)?;
         Self::encode_observations_field(self, writer)?;
         Self::encode_repository_field(self, writer)?;
         Self::encode_tier_field(self, writer)?;
@@ -51552,6 +51880,7 @@ impl TierRow {
     }
 
     fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_many = match reader.u8().ok_or(Problem { path: Path::TierRowMany, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(ManyTests::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::TierRowMany, reason: skein_codec::Reason::Tag }) };
         let decoded_observations = { let length = match skein_codec::read_len(reader, limits.tier_row_observations.min(CEILINGS.tier_row_observations)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::TierRowObservations, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::TierRowObservations, reason: skein_codec::Reason::Short })?) };
         let decoded_repository = Repository::decode_from(limits, reader)?;
         let decoded_tier = { let length = match skein_codec::read_len(reader, limits.tier_row_tier.min(CEILINGS.tier_row_tier)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::TierRowTier, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::TierRowTier, reason: skein_codec::Reason::Short })?) };
@@ -51560,7 +51889,7 @@ impl TierRow {
         let decoded_requested = match reader.u8().ok_or(Problem { path: Path::TierRowRequested, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::TierRowRequested, reason: skein_codec::Reason::Bool }) };
         let decoded_cancelled = match reader.u8().ok_or(Problem { path: Path::TierRowCancelled, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::TierRowCancelled, reason: skein_codec::Reason::Bool }) };
         let decoded_purpose = match reader.u8().ok_or(Problem { path: Path::TierRowPurpose, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some({ let bytes = reader.bytes(30).ok_or(Problem { path: Path::TierRowPurpose, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") }), _ => return Err(Problem { path: Path::TierRowPurpose, reason: skein_codec::Reason::Tag }) };
-        let decoded_pending = { let count = match skein_codec::read_count(reader, limits.tier_row_pending.min(CEILINGS.tier_row_pending)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::TierRowPending, reason }), }; if count > reader.remaining() / 33 { return Err(Problem { path: Path::TierRowPending, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = TierPending::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_pending = { let count = match skein_codec::read_count(reader, limits.tier_row_pending.min(CEILINGS.tier_row_pending)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::TierRowPending, reason }), }; if count > reader.remaining() / 33 { return Err(Problem { path: Path::TierRowPending, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = TierPending::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
         let decoded_baseline = match reader.u8().ok_or(Problem { path: Path::TierRowBaseline, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(TierPending::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::TierRowBaseline, reason: skein_codec::Reason::Tag }) };
         let decoded_branch = TierBranch::decode_from(limits, reader)?;
         let decoded_probe = match reader.u8().ok_or(Problem { path: Path::TierRowProbe, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(TierProbeBranch::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::TierRowProbe, reason: skein_codec::Reason::Tag }) };
@@ -51570,13 +51899,27 @@ impl TierRow {
         let decoded_result = match reader.u8().ok_or(Problem { path: Path::TierRowResult, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(Receipt::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::TierRowResult, reason: skein_codec::Reason::Tag }) };
         let decoded_posting = match reader.u8().ok_or(Problem { path: Path::TierRowPosting, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(TierPosting::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::TierRowPosting, reason: skein_codec::Reason::Tag }) };
         let decoded_received = match reader.u8().ok_or(Problem { path: Path::TierRowReceived, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::TierRowReceived, reason: skein_codec::Reason::Bool }) };
-        let decoded_goals = { let count = match skein_codec::read_count(reader, limits.tier_row_goals.min(CEILINGS.tier_row_goals)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::TierRowGoals, reason }), }; if count > reader.remaining() / 16 { return Err(Problem { path: Path::TierRowGoals, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = TierGoal::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_goals = { let count = match skein_codec::read_count(reader, limits.tier_row_goals.min(CEILINGS.tier_row_goals)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::TierRowGoals, reason }), }; if count > reader.remaining() / 16 { return Err(Problem { path: Path::TierRowGoals, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = TierGoal::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
         let decoded_goal = match reader.u8().ok_or(Problem { path: Path::TierRowGoal, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u64().ok_or(Problem { path: Path::TierRowGoal, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::TierRowGoal, reason: skein_codec::Reason::Tag }) };
         let decoded_started = match reader.u8().ok_or(Problem { path: Path::TierRowStarted, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u64().ok_or(Problem { path: Path::TierRowStarted, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::TierRowStarted, reason: skein_codec::Reason::Tag }) };
-        Ok(Self { observations: decoded_observations, repository: decoded_repository, tier: decoded_tier, record: decoded_record, task: decoded_task, requested: decoded_requested, cancelled: decoded_cancelled, purpose: decoded_purpose, pending: decoded_pending, baseline: decoded_baseline, branch: decoded_branch, probe: decoded_probe, flight: decoded_flight, held: decoded_held, hold: decoded_hold, result: decoded_result, posting: decoded_posting, received: decoded_received, goals: decoded_goals, goal: decoded_goal, started: decoded_started })
+        Ok(Self { many: decoded_many, observations: decoded_observations, repository: decoded_repository, tier: decoded_tier, record: decoded_record, task: decoded_task, requested: decoded_requested, cancelled: decoded_cancelled, purpose: decoded_purpose, pending: decoded_pending, baseline: decoded_baseline, branch: decoded_branch, probe: decoded_probe, flight: decoded_flight, held: decoded_held, hold: decoded_hold, result: decoded_result, posting: decoded_posting, received: decoded_received, goals: decoded_goals, goal: decoded_goal, started: decoded_started })
     }
 }
 
+
+impl TierRow {
+    fn encode_many_field(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_many = &self.many;
+        match field_many {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        some_0.encode(writer)?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
+        Ok(())
+    }
+}
 
 impl TierRow {
     fn encode_observations_field(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
@@ -51829,17 +52172,17 @@ impl TierRow {
 
     pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut size = 0_u64;
-        size = size.checked_add(4_u64.checked_add(u64::from(limits.tier_row_observations))?)?.checked_add(Repository::encoded_bound_within(limits)?)?;
-        size = size.checked_add(4_u64.checked_add(u64::from(limits.tier_row_tier))?)?.checked_add(TierRecord::encoded_bound_within(limits)?)?;
-        size = size.checked_add(1_u64.checked_add(8_u64)?)?.checked_add(1_u64)?;
-        size = size.checked_add(1_u64)?.checked_add(1_u64.checked_add(u64::from(30_u32))?)?;
-        size = size.checked_add(4_u64.checked_add(u64::from(limits.tier_row_pending).checked_mul(TierPending::encoded_bound_within(limits)?)?)?)?.checked_add(1_u64.checked_add(TierPending::encoded_bound_within(limits)?)?)?;
-        size = size.checked_add(TierBranch::encoded_bound_within(limits)?)?.checked_add(1_u64.checked_add(TierProbeBranch::encoded_bound_within(limits)?)?)?;
-        size = size.checked_add(1_u64.checked_add(TierFlight::encoded_bound_within(limits)?)?)?.checked_add(1_u64.checked_add(TierFault::encoded_bound_within(limits)?)?)?;
-        size = size.checked_add(1_u64.checked_add(TierHold::encoded_bound_within(limits)?)?)?.checked_add(1_u64.checked_add(Receipt::encoded_bound_within(limits)?)?)?;
-        size = size.checked_add(1_u64.checked_add(TierPosting::encoded_bound_within(limits)?)?)?.checked_add(1_u64)?;
-        size = size.checked_add(4_u64.checked_add(u64::from(limits.tier_row_goals).checked_mul(TierGoal::encoded_bound_within(limits)?)?)?)?.checked_add(1_u64.checked_add(8_u64)?)?;
-        size = size.checked_add(1_u64.checked_add(8_u64)?)?;
+        size = size.checked_add(1_u64.checked_add(ManyTests::encoded_bound_within(limits)?)?)?.checked_add(4_u64.checked_add(u64::from(limits.tier_row_observations))?)?;
+        size = size.checked_add(Repository::encoded_bound_within(limits)?)?.checked_add(4_u64.checked_add(u64::from(limits.tier_row_tier))?)?;
+        size = size.checked_add(TierRecord::encoded_bound_within(limits)?)?.checked_add(1_u64.checked_add(8_u64)?)?;
+        size = size.checked_add(1_u64)?.checked_add(1_u64)?;
+        size = size.checked_add(1_u64.checked_add(u64::from(30_u32))?)?.checked_add(4_u64.checked_add(u64::from(limits.tier_row_pending).checked_mul(TierPending::encoded_bound_within(limits)?)?)?)?;
+        size = size.checked_add(1_u64.checked_add(TierPending::encoded_bound_within(limits)?)?)?.checked_add(TierBranch::encoded_bound_within(limits)?)?;
+        size = size.checked_add(1_u64.checked_add(TierProbeBranch::encoded_bound_within(limits)?)?)?.checked_add(1_u64.checked_add(TierFlight::encoded_bound_within(limits)?)?)?;
+        size = size.checked_add(1_u64.checked_add(TierFault::encoded_bound_within(limits)?)?)?.checked_add(1_u64.checked_add(TierHold::encoded_bound_within(limits)?)?)?;
+        size = size.checked_add(1_u64.checked_add(Receipt::encoded_bound_within(limits)?)?)?.checked_add(1_u64.checked_add(TierPosting::encoded_bound_within(limits)?)?)?;
+        size = size.checked_add(1_u64)?.checked_add(4_u64.checked_add(u64::from(limits.tier_row_goals).checked_mul(TierGoal::encoded_bound_within(limits)?)?)?)?;
+        size = size.checked_add(1_u64.checked_add(8_u64)?)?.checked_add(1_u64.checked_add(8_u64)?)?;
         size.checked_add(0)
     }
 
@@ -51852,17 +52195,17 @@ impl TierRow {
 
     pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut heap = 0_u64;
-        heap = heap.checked_add(u64::from(limits.tier_row_observations))?.checked_add(Repository::decoded_bound_within(limits)?)?;
-        heap = heap.checked_add(u64::from(limits.tier_row_tier))?.checked_add(TierRecord::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(ManyTests::decoded_bound_within(limits)?)?.checked_add(u64::from(limits.tier_row_observations))?;
+        heap = heap.checked_add(Repository::decoded_bound_within(limits)?)?.checked_add(u64::from(limits.tier_row_tier))?;
+        heap = heap.checked_add(TierRecord::decoded_bound_within(limits)?)?.checked_add(0_u64)?;
         heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?.checked_add(List::<TierPending>::price(limits.tier_row_pending)?.checked_add(u64::from(limits.tier_row_pending).checked_mul(TierPending::decoded_bound_within(limits)?)?)?)?;
+        heap = heap.checked_add(TierPending::decoded_bound_within(limits)?)?.checked_add(TierBranch::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(TierProbeBranch::decoded_bound_within(limits)?)?.checked_add(TierFlight::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(TierFault::decoded_bound_within(limits)?)?.checked_add(TierHold::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(Receipt::decoded_bound_within(limits)?)?.checked_add(TierPosting::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(0_u64)?.checked_add(List::<TierGoal>::price(limits.tier_row_goals)?.checked_add(u64::from(limits.tier_row_goals).checked_mul(TierGoal::decoded_bound_within(limits)?)?)?)?;
         heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
-        heap = heap.checked_add(List::<TierPending>::price(limits.tier_row_pending)?.checked_add(u64::from(limits.tier_row_pending).checked_mul(TierPending::decoded_bound_within(limits)?)?)?)?.checked_add(TierPending::decoded_bound_within(limits)?)?;
-        heap = heap.checked_add(TierBranch::decoded_bound_within(limits)?)?.checked_add(TierProbeBranch::decoded_bound_within(limits)?)?;
-        heap = heap.checked_add(TierFlight::decoded_bound_within(limits)?)?.checked_add(TierFault::decoded_bound_within(limits)?)?;
-        heap = heap.checked_add(TierHold::decoded_bound_within(limits)?)?.checked_add(Receipt::decoded_bound_within(limits)?)?;
-        heap = heap.checked_add(TierPosting::decoded_bound_within(limits)?)?.checked_add(0_u64)?;
-        heap = heap.checked_add(List::<TierGoal>::price(limits.tier_row_goals)?.checked_add(u64::from(limits.tier_row_goals).checked_mul(TierGoal::decoded_bound_within(limits)?)?)?)?.checked_add(0_u64)?;
-        heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
 }
@@ -52920,7 +53263,7 @@ impl CopyIntent {
     }
 
     fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let decoded_addresses = { let count = match skein_codec::read_count(reader, limits.copy_intent_addresses.min(CEILINGS.copy_intent_addresses)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::CopyIntentAddresses, reason }), }; if count > reader.remaining() / 4 { return Err(Problem { path: Path::CopyIntentAddresses, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = { let length = match skein_codec::read_len(reader, limits.copy_intent_addresses_item.min(CEILINGS.copy_intent_addresses_item)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::CopyIntentAddresses, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::CopyIntentAddresses, reason: skein_codec::Reason::Short })?) }; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_addresses = { let count = match skein_codec::read_count(reader, limits.copy_intent_addresses.min(CEILINGS.copy_intent_addresses)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::CopyIntentAddresses, reason }), }; if count > reader.remaining() / 4 { return Err(Problem { path: Path::CopyIntentAddresses, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = { let length = match skein_codec::read_len(reader, limits.copy_intent_addresses_item.min(CEILINGS.copy_intent_addresses_item)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::CopyIntentAddresses, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::CopyIntentAddresses, reason: skein_codec::Reason::Short })?) }; items_0.push(item).expect("count within capacity"); } items_0 };
         Ok(Self { addresses: decoded_addresses })
     }
 }
@@ -54823,9 +55166,9 @@ impl LandingRule {
         let decoded_enforce = match reader.u8().ok_or(Problem { path: Path::LandingRuleEnforce, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::LandingRuleEnforce, reason: skein_codec::Reason::Bool }) };
         let decoded_ci = match reader.u8().ok_or(Problem { path: Path::LandingRuleCi, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::LandingRuleCi, reason: skein_codec::Reason::Bool }) };
         let decoded_up_to_date = match reader.u8().ok_or(Problem { path: Path::LandingRuleUpToDate, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::LandingRuleUpToDate, reason: skein_codec::Reason::Bool }) };
-        let decoded_gates = { let count = match skein_codec::read_count(reader, limits.landing_rule_gates.min(CEILINGS.landing_rule_gates)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::LandingRuleGates, reason }), }; if count > reader.remaining() / 6 { return Err(Problem { path: Path::LandingRuleGates, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = RuleGate::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
-        let decoded_approvals = { let count = match skein_codec::read_count(reader, limits.landing_rule_approvals.min(CEILINGS.landing_rule_approvals)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::LandingRuleApprovals, reason }), }; if count > reader.remaining() / 9 { return Err(Problem { path: Path::LandingRuleApprovals, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = RuleApproval::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
-        let decoded_sets = { let count = match skein_codec::read_count(reader, limits.landing_rule_sets.min(CEILINGS.landing_rule_sets)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::LandingRuleSets, reason }), }; if count > reader.remaining() { return Err(Problem { path: Path::LandingRuleSets, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = reader.u8().ok_or(Problem { path: Path::LandingRuleSets, reason: skein_codec::Reason::Short })?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_gates = { let count = match skein_codec::read_count(reader, limits.landing_rule_gates.min(CEILINGS.landing_rule_gates)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::LandingRuleGates, reason }), }; if count > reader.remaining() / 6 { return Err(Problem { path: Path::LandingRuleGates, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = RuleGate::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_approvals = { let count = match skein_codec::read_count(reader, limits.landing_rule_approvals.min(CEILINGS.landing_rule_approvals)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::LandingRuleApprovals, reason }), }; if count > reader.remaining() / 9 { return Err(Problem { path: Path::LandingRuleApprovals, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = RuleApproval::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_sets = { let count = match skein_codec::read_count(reader, limits.landing_rule_sets.min(CEILINGS.landing_rule_sets)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::LandingRuleSets, reason }), }; if count > reader.remaining() { return Err(Problem { path: Path::LandingRuleSets, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = reader.u8().ok_or(Problem { path: Path::LandingRuleSets, reason: skein_codec::Reason::Short })?; items_0.push(item).expect("count within capacity"); } items_0 };
         Ok(Self { pattern: decoded_pattern, enforce: decoded_enforce, ci: decoded_ci, up_to_date: decoded_up_to_date, gates: decoded_gates, approvals: decoded_approvals, sets: decoded_sets })
     }
 }
@@ -56149,7 +56492,7 @@ impl SettingsGate {
     fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         let decoded_name = { let length = match skein_codec::read_len(reader, limits.settings_gate_name.min(CEILINGS.settings_gate_name)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::SettingsGateName, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::SettingsGateName, reason: skein_codec::Reason::Short })?) };
         let decoded_workflow = { let length = match skein_codec::read_len(reader, limits.settings_gate_workflow.min(CEILINGS.settings_gate_workflow)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::SettingsGateWorkflow, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::SettingsGateWorkflow, reason: skein_codec::Reason::Short })?) };
-        let decoded_ignored = { let count = match skein_codec::read_count(reader, limits.settings_gate_ignored.min(CEILINGS.settings_gate_ignored)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::SettingsGateIgnored, reason }), }; if count > reader.remaining() / 4 { return Err(Problem { path: Path::SettingsGateIgnored, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = { let length = match skein_codec::read_len(reader, limits.settings_gate_ignored_item.min(CEILINGS.settings_gate_ignored_item)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::SettingsGateIgnored, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::SettingsGateIgnored, reason: skein_codec::Reason::Short })?) }; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_ignored = { let count = match skein_codec::read_count(reader, limits.settings_gate_ignored.min(CEILINGS.settings_gate_ignored)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::SettingsGateIgnored, reason }), }; if count > reader.remaining() / 4 { return Err(Problem { path: Path::SettingsGateIgnored, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = { let length = match skein_codec::read_len(reader, limits.settings_gate_ignored_item.min(CEILINGS.settings_gate_ignored_item)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::SettingsGateIgnored, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::SettingsGateIgnored, reason: skein_codec::Reason::Short })?) }; items_0.push(item).expect("count within capacity"); } items_0 };
         let decoded_blocking = match reader.u8().ok_or(Problem { path: Path::SettingsGateBlocking, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::SettingsGateBlocking, reason: skein_codec::Reason::Bool }) };
         let decoded_base = match reader.u8().ok_or(Problem { path: Path::SettingsGateBase, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::SettingsGateBase, reason: skein_codec::Reason::Bool }) };
         let decoded_report = match reader.u8().ok_or(Problem { path: Path::SettingsGateReport, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(SettingsGateReport::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::SettingsGateReport, reason: skein_codec::Reason::Tag }) };
@@ -56601,7 +56944,7 @@ impl SettingsTier {
     fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         let decoded_name = { let length = match skein_codec::read_len(reader, limits.settings_tier_name.min(CEILINGS.settings_tier_name)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::SettingsTierName, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::SettingsTierName, reason: skein_codec::Reason::Short })?) };
         let decoded_workflow = { let length = match skein_codec::read_len(reader, limits.settings_tier_workflow.min(CEILINGS.settings_tier_workflow)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::SettingsTierWorkflow, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::SettingsTierWorkflow, reason: skein_codec::Reason::Short })?) };
-        let decoded_ignored = { let count = match skein_codec::read_count(reader, limits.settings_tier_ignored.min(CEILINGS.settings_tier_ignored)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::SettingsTierIgnored, reason }), }; if count > reader.remaining() / 4 { return Err(Problem { path: Path::SettingsTierIgnored, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = { let length = match skein_codec::read_len(reader, limits.settings_tier_ignored_item.min(CEILINGS.settings_tier_ignored_item)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::SettingsTierIgnored, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::SettingsTierIgnored, reason: skein_codec::Reason::Short })?) }; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_ignored = { let count = match skein_codec::read_count(reader, limits.settings_tier_ignored.min(CEILINGS.settings_tier_ignored)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::SettingsTierIgnored, reason }), }; if count > reader.remaining() / 4 { return Err(Problem { path: Path::SettingsTierIgnored, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = { let length = match skein_codec::read_len(reader, limits.settings_tier_ignored_item.min(CEILINGS.settings_tier_ignored_item)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::SettingsTierIgnored, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::SettingsTierIgnored, reason: skein_codec::Reason::Short })?) }; items_0.push(item).expect("count within capacity"); } items_0 };
         let decoded_artifact = { let length = match skein_codec::read_len(reader, limits.settings_tier_artifact.min(CEILINGS.settings_tier_artifact)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::SettingsTierArtifact, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::SettingsTierArtifact, reason: skein_codec::Reason::Short })?) };
         let decoded_format = SettingsReportFormat::decode_from(limits, reader)?;
         let decoded_follows = SettingsFollows::decode_from(limits, reader)?;
@@ -57518,7 +57861,7 @@ impl PathSet {
     fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         let decoded_number = reader.u8().ok_or(Problem { path: Path::PathSetNumber, reason: skein_codec::Reason::Short })?;
         let decoded_name = { let length = match skein_codec::read_len(reader, limits.path_set_name.min(CEILINGS.path_set_name)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::PathSetName, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::PathSetName, reason: skein_codec::Reason::Short })?) };
-        let decoded_patterns = { let count = match skein_codec::read_count(reader, limits.path_set_patterns.min(CEILINGS.path_set_patterns)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::PathSetPatterns, reason }), }; if count > reader.remaining() / 4 { return Err(Problem { path: Path::PathSetPatterns, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = { let length = match skein_codec::read_len(reader, limits.path_set_patterns_item.min(CEILINGS.path_set_patterns_item)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::PathSetPatterns, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::PathSetPatterns, reason: skein_codec::Reason::Short })?) }; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_patterns = { let count = match skein_codec::read_count(reader, limits.path_set_patterns.min(CEILINGS.path_set_patterns)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::PathSetPatterns, reason }), }; if count > reader.remaining() / 4 { return Err(Problem { path: Path::PathSetPatterns, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = { let length = match skein_codec::read_len(reader, limits.path_set_patterns_item.min(CEILINGS.path_set_patterns_item)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::PathSetPatterns, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::PathSetPatterns, reason: skein_codec::Reason::Short })?) }; items_0.push(item).expect("count within capacity"); } items_0 };
         Ok(Self { number: decoded_number, name: decoded_name, patterns: decoded_patterns })
     }
 }
@@ -57670,8 +58013,8 @@ impl ProjectClasses {
     }
 
     fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let decoded_items = { let count = match skein_codec::read_count(reader, limits.project_classes_items.min(CEILINGS.project_classes_items)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::ProjectClassesItems, reason }), }; if count > reader.remaining() / 7 { return Err(Problem { path: Path::ProjectClassesItems, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = ClassItem::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
-        let decoded_sets = { let count = match skein_codec::read_count(reader, limits.project_classes_sets.min(CEILINGS.project_classes_sets)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::ProjectClassesSets, reason }), }; if count > reader.remaining() / 9 { return Err(Problem { path: Path::ProjectClassesSets, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = PathSet::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_items = { let count = match skein_codec::read_count(reader, limits.project_classes_items.min(CEILINGS.project_classes_items)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::ProjectClassesItems, reason }), }; if count > reader.remaining() / 7 { return Err(Problem { path: Path::ProjectClassesItems, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = ClassItem::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_sets = { let count = match skein_codec::read_count(reader, limits.project_classes_sets.min(CEILINGS.project_classes_sets)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::ProjectClassesSets, reason }), }; if count > reader.remaining() / 9 { return Err(Problem { path: Path::ProjectClassesSets, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = PathSet::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
         Ok(Self { items: decoded_items, sets: decoded_sets })
     }
 }
@@ -58289,7 +58632,7 @@ impl FollowSource {
     fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         let decoded_repository = FollowRepository::decode_from(limits, reader)?;
         let decoded_branch = { let length = match skein_codec::read_len(reader, limits.follow_source_branch.min(CEILINGS.follow_source_branch)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::FollowSourceBranch, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::FollowSourceBranch, reason: skein_codec::Reason::Short })?) };
-        let decoded_paths = { let count = match skein_codec::read_count(reader, limits.follow_source_paths.min(CEILINGS.follow_source_paths)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::FollowSourcePaths, reason }), }; if count > reader.remaining() / 4 { return Err(Problem { path: Path::FollowSourcePaths, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = { let length = match skein_codec::read_len(reader, limits.follow_source_paths_item.min(CEILINGS.follow_source_paths_item)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::FollowSourcePaths, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::FollowSourcePaths, reason: skein_codec::Reason::Short })?) }; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_paths = { let count = match skein_codec::read_count(reader, limits.follow_source_paths.min(CEILINGS.follow_source_paths)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::FollowSourcePaths, reason }), }; if count > reader.remaining() / 4 { return Err(Problem { path: Path::FollowSourcePaths, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = { let length = match skein_codec::read_len(reader, limits.follow_source_paths_item.min(CEILINGS.follow_source_paths_item)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::FollowSourcePaths, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::FollowSourcePaths, reason: skein_codec::Reason::Short })?) }; items_0.push(item).expect("count within capacity"); } items_0 };
         Ok(Self { repository: decoded_repository, branch: decoded_branch, paths: decoded_paths })
     }
 }
@@ -60098,7 +60441,7 @@ impl LoggedChange {
     }
 
     fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let decoded_signed = { let count = match skein_codec::read_count(reader, limits.logged_change_signed.min(CEILINGS.logged_change_signed)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::LoggedChangeSigned, reason }), }; if count > reader.remaining() / 48 { return Err(Problem { path: Path::LoggedChangeSigned, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = SignOff::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_signed = { let count = match skein_codec::read_count(reader, limits.logged_change_signed.min(CEILINGS.logged_change_signed)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::LoggedChangeSigned, reason }), }; if count > reader.remaining() / 48 { return Err(Problem { path: Path::LoggedChangeSigned, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = SignOff::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
         let decoded_task = reader.u64().ok_or(Problem { path: Path::LoggedChangeTask, reason: skein_codec::Reason::Short })?;
         let decoded_pull = match reader.u8().ok_or(Problem { path: Path::LoggedChangePull, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u64().ok_or(Problem { path: Path::LoggedChangePull, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::LoggedChangePull, reason: skein_codec::Reason::Tag }) };
         let decoded_title = { let length = match skein_codec::read_len(reader, limits.logged_change_title.min(CEILINGS.logged_change_title)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::LoggedChangeTitle, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::LoggedChangeTitle, reason: skein_codec::Reason::Short })?) };
@@ -60153,14 +60496,14 @@ fn logged_change_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u
 fn check_logged_change_record_limits(limits: &Limits) -> Result<(), Problem> {
     if limits.logged_change_signed > CEILINGS.logged_change_signed { return Err(Problem { path: Path::LoggedChangeSigned, reason: skein_codec::Reason::Bound }); }
     if limits.logged_change_title > CEILINGS.logged_change_title { return Err(Problem { path: Path::LoggedChangeTitle, reason: skein_codec::Reason::Bound }); }
-    check_logged_tier_record_limits(limits)
+    check_logged_red_record_limits(limits)
 }
 
 impl Limits {
     fn values_for_logged_change_record(&self, values: &mut List<u32>) {
         values.push(self.logged_change_signed).expect("room for every named limit");
         values.push(self.logged_change_title).expect("room for every named limit");
-        self.values_for_logged_tier_record(values);
+        self.values_for_logged_red_record(values);
     }
 }
 
@@ -60254,96 +60597,86 @@ impl LoggedCleared {
 
 fn logged_cleared_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
     let biggest = biggest.max(LoggedCleared::encoded_bound_within(limits)?);
-    logged_red_encoded_bound_family(limits, biggest)
+    logged_many_encoded_bound_family(limits, biggest)
 }
 
 fn logged_cleared_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
     let biggest = biggest.max(LoggedCleared::decoded_bound_within(limits)?);
-    logged_red_decoded_bound_family(limits, biggest)
+    logged_many_decoded_bound_family(limits, biggest)
 }
 
-/// Movable fields of `LoggedRed`.
+/// Movable fields of `LoggedMany`.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct LoggedRedParts {
-    /// The `run` field.
-    pub run: u64,
-    /// The `failing` field.
-    pub failing: Option<u32>,
+pub struct LoggedManyParts {
+    /// The `more` field.
+    pub more: u32,
+    /// The `cut` field.
+    pub cut: bool,
 }
 
-/// `LoggedRed` in this codec family.
+/// `LoggedMany` in this codec family.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct LoggedRed {
-    run: u64,
-    failing: Option<u32>,
+pub struct LoggedMany {
+    more: u32,
+    cut: bool,
 }
 
-impl LoggedRed {
+impl LoggedMany {
     /// Makes a value within the given limits.
-    pub fn new(_limits: &Limits, parts: LoggedRedParts) -> Result<Self, Problem> {
-        let LoggedRedParts { run, failing } = parts;
-        let value = Self { run, failing };
+    pub fn new(_limits: &Limits, parts: LoggedManyParts) -> Result<Self, Problem> {
+        let LoggedManyParts { more, cut } = parts;
+        let value = Self { more, cut };
         Ok(value)
     }
 
-    /// Reads the `run` field.
+    /// Reads the `more` field.
     #[must_use]
-    pub fn run(&self) -> u64 { self.run }
+    pub fn more(&self) -> u32 { self.more }
 
-    /// Reads the `failing` field.
+    /// Reads the `cut` field.
     #[must_use]
-    pub fn failing(&self) -> &Option<u32> { &self.failing }
+    pub fn cut(&self) -> bool { self.cut }
 
     /// Moves the fields out without copying.
     #[must_use]
-    pub fn into_parts(self) -> LoggedRedParts { LoggedRedParts { run: self.run, failing: self.failing } }
+    pub fn into_parts(self) -> LoggedManyParts { LoggedManyParts { more: self.more, cut: self.cut } }
 
 }
 
-impl LoggedRed {
+impl LoggedMany {
     /// Measures this record's wire encoding.
     #[must_use]
     pub fn measure(&self) -> u32 {
         let mut size = 0_u32;
-        size = size.checked_add(8).expect("schema ceilings fit u32");
-        let field_failing = &self.failing;
-        size = size.checked_add(1).expect("schema ceilings fit u32");
-        if field_failing.is_some() {
         size = size.checked_add(4).expect("schema ceilings fit u32");
-        }
+        size = size.checked_add(1).expect("schema ceilings fit u32");
         size
     }
 
     /// Writes into a writer with room for the measured bytes.
     pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
-        let field_run = &self.run;
-        writer.put(&field_run.to_be_bytes())?;
-        let field_failing = &self.failing;
-        match field_failing {
-            Some(some_0) => {
-                writer.put(&[1_u8])?;
-        writer.put(&some_0.to_be_bytes())?;
-            }
-            None => writer.put(&[0_u8])?,
-        }
+        let field_more = &self.more;
+        writer.put(&field_more.to_be_bytes())?;
+        let field_cut = &self.cut;
+        writer.put(&[u8::from(*field_cut)])?;
         Ok(())
     }
 
     /// Reads a whole record and refuses trailing bytes.
     pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         let value = Self::decode_from(limits, reader)?;
-        if !reader.is_empty() { return Err(Problem { path: Path::LoggedRedTail, reason: skein_codec::Reason::Trailing }); }
+        if !reader.is_empty() { return Err(Problem { path: Path::LoggedManyTail, reason: skein_codec::Reason::Trailing }); }
         Ok(value)
     }
 
     fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let decoded_run = reader.u64().ok_or(Problem { path: Path::LoggedRedRun, reason: skein_codec::Reason::Short })?;
-        let decoded_failing = match reader.u8().ok_or(Problem { path: Path::LoggedRedFailing, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u32().ok_or(Problem { path: Path::LoggedRedFailing, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::LoggedRedFailing, reason: skein_codec::Reason::Tag }) };
-        Ok(Self { run: decoded_run, failing: decoded_failing })
+        let decoded_more = reader.u32().ok_or(Problem { path: Path::LoggedManyMore, reason: skein_codec::Reason::Short })?;
+        let decoded_cut = match reader.u8().ok_or(Problem { path: Path::LoggedManyCut, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::LoggedManyCut, reason: skein_codec::Reason::Bool }) };
+        Ok(Self { more: decoded_more, cut: decoded_cut })
     }
 }
 
-impl LoggedRed {
+impl LoggedMany {
     /// Maximum encoded bytes under these limits.
     #[must_use]
     pub fn encoded_bound(limits: &Limits) -> Option<u64> {
@@ -60353,7 +60686,7 @@ impl LoggedRed {
 
     pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
         let mut size = 0_u64;
-        size = size.checked_add(8_u64)?.checked_add(1_u64.checked_add(4_u64)?)?;
+        size = size.checked_add(4_u64)?.checked_add(1_u64)?;
         size.checked_add(0)
     }
 
@@ -60371,6 +60704,174 @@ impl LoggedRed {
     }
 }
 
+fn logged_many_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(LoggedMany::encoded_bound_within(limits)?);
+    logged_red_encoded_bound_family(limits, biggest)
+}
+
+fn logged_many_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(LoggedMany::decoded_bound_within(limits)?);
+    logged_red_decoded_bound_family(limits, biggest)
+}
+
+/// Movable fields of `LoggedRed`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct LoggedRedParts {
+    /// The `run` field.
+    pub run: u64,
+    /// The `failing` field.
+    pub failing: Option<u32>,
+    /// The `tests` field.
+    pub tests: List<FailingTest>,
+    /// The `many` field.
+    pub many: Option<LoggedMany>,
+}
+
+/// `LoggedRed` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct LoggedRed {
+    run: u64,
+    failing: Option<u32>,
+    tests: List<FailingTest>,
+    many: Option<LoggedMany>,
+}
+
+impl LoggedRed {
+    /// Makes a value within the given limits.
+    pub fn new(limits: &Limits, parts: LoggedRedParts) -> Result<Self, Problem> {
+        let LoggedRedParts { run, failing, tests, many } = parts;
+        let value = Self { run, failing, tests, many };
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    /// Reads the `run` field.
+    #[must_use]
+    pub fn run(&self) -> u64 { self.run }
+
+    /// Reads the `failing` field.
+    #[must_use]
+    pub fn failing(&self) -> &Option<u32> { &self.failing }
+
+    /// Reads the `tests` field.
+    #[must_use]
+    pub fn tests(&self) -> &List<FailingTest> { &self.tests }
+
+    /// Reads the `many` field.
+    #[must_use]
+    pub fn many(&self) -> &Option<LoggedMany> { &self.many }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> LoggedRedParts { LoggedRedParts { run: self.run, failing: self.failing, tests: self.tests, many: self.many } }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        if self.tests.capacity() > limits.logged_red_tests.min(CEILINGS.logged_red_tests) { return Err(Problem { path: Path::LoggedRedTests, reason: skein_codec::Reason::Bound }); }
+        for item_0 in self.tests.as_slice() {
+        item_0.check(limits)?;
+        }
+        Ok(())
+    }
+}
+
+impl LoggedRed {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        let field_failing = &self.failing;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if field_failing.is_some() {
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        }
+        let field_tests = &self.tests;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        for item_0 in field_tests.as_slice() {
+        size = size.checked_add(item_0.measure()).expect("schema ceilings fit u32");
+        }
+        let field_many = &self.many;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if field_many.is_some() {
+        size = size.checked_add(5).expect("schema ceilings fit u32");
+        }
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_run = &self.run;
+        writer.put(&field_run.to_be_bytes())?;
+        let field_failing = &self.failing;
+        match field_failing {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        writer.put(&some_0.to_be_bytes())?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
+        let field_tests = &self.tests;
+        writer.put(&field_tests.len().to_be_bytes())?;
+        for item_0 in field_tests.as_slice() {
+        item_0.encode(writer)?;
+        }
+        let field_many = &self.many;
+        match field_many {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        some_0.encode(writer)?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::LoggedRedTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_run = reader.u64().ok_or(Problem { path: Path::LoggedRedRun, reason: skein_codec::Reason::Short })?;
+        let decoded_failing = match reader.u8().ok_or(Problem { path: Path::LoggedRedFailing, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u32().ok_or(Problem { path: Path::LoggedRedFailing, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::LoggedRedFailing, reason: skein_codec::Reason::Tag }) };
+        let decoded_tests = { let count = match skein_codec::read_count(reader, limits.logged_red_tests.min(CEILINGS.logged_red_tests)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::LoggedRedTests, reason }), }; if count > reader.remaining() / 4 { return Err(Problem { path: Path::LoggedRedTests, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = FailingTest::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_many = match reader.u8().ok_or(Problem { path: Path::LoggedRedMany, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(LoggedMany::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::LoggedRedMany, reason: skein_codec::Reason::Tag }) };
+        Ok(Self { run: decoded_run, failing: decoded_failing, tests: decoded_tests, many: decoded_many })
+    }
+}
+
+impl LoggedRed {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(8_u64)?.checked_add(1_u64.checked_add(4_u64)?)?;
+        size = size.checked_add(4_u64.checked_add(u64::from(limits.logged_red_tests).checked_mul(FailingTest::encoded_bound_within(limits)?)?)?)?.checked_add(1_u64.checked_add(LoggedMany::encoded_bound_within(limits)?)?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap = heap.checked_add(List::<FailingTest>::price(limits.logged_red_tests)?.checked_add(u64::from(limits.logged_red_tests).checked_mul(FailingTest::decoded_bound_within(limits)?)?)?)?.checked_add(LoggedMany::decoded_bound_within(limits)?)?;
+        heap.checked_add(0)
+    }
+}
+
 fn logged_red_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
     let biggest = biggest.max(LoggedRed::encoded_bound_within(limits)?);
     logged_verdict_encoded_bound_family(limits, biggest)
@@ -60379,6 +60880,18 @@ fn logged_red_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64>
 fn logged_red_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
     let biggest = biggest.max(LoggedRed::decoded_bound_within(limits)?);
     logged_verdict_decoded_bound_family(limits, biggest)
+}
+
+fn check_logged_red_record_limits(limits: &Limits) -> Result<(), Problem> {
+    if limits.logged_red_tests > CEILINGS.logged_red_tests { return Err(Problem { path: Path::LoggedRedTests, reason: skein_codec::Reason::Bound }); }
+    check_logged_tier_record_limits(limits)
+}
+
+impl Limits {
+    fn values_for_logged_red_record(&self, values: &mut List<u32>) {
+        values.push(self.logged_red_tests).expect("room for every named limit");
+        self.values_for_logged_tier_record(values);
+    }
 }
 
 /// `LoggedVerdict` in this codec family.
@@ -60394,10 +60907,18 @@ pub enum LoggedVerdict {
 
 impl LoggedVerdict {
     /// Checks the payload against the given limits.
-    pub fn new(_limits: &Limits, value: Self) -> Result<Self, Problem> {
+    pub fn new(limits: &Limits, value: Self) -> Result<Self, Problem> {
+        value.check(limits)?;
         Ok(value)
     }
 
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        match self {
+            Self::Red(record) => LoggedRed::check(record, limits),
+            Self::Verifying | Self::Cleared(_) => Ok(()),
+        }?;
+        Ok(())
+    }
 }
 
 impl LoggedVerdict {
@@ -60517,6 +61038,7 @@ impl LoggedTier {
 
     fn check(&self, limits: &Limits) -> Result<(), Problem> {
         if self.tier.len() > usize::try_from(limits.logged_tier_tier.min(CEILINGS.logged_tier_tier)).expect("u32 fits usize") { return Err(Problem { path: Path::LoggedTierTier, reason: skein_codec::Reason::Bound }); }
+        self.verdict.check(limits)?;
         Ok(())
     }
 }
@@ -60736,8 +61258,8 @@ impl LoggedLanding {
         let decoded_commit = { let bytes = reader.bytes(32).ok_or(Problem { path: Path::LoggedLandingCommit, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") };
         let decoded_branch = { let length = match skein_codec::read_len(reader, limits.logged_landing_branch.min(CEILINGS.logged_landing_branch)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::LoggedLandingBranch, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::LoggedLandingBranch, reason: skein_codec::Reason::Short })?) };
         let decoded_at = reader.u64().ok_or(Problem { path: Path::LoggedLandingAt, reason: skein_codec::Reason::Short })?;
-        let decoded_changes = { let count = match skein_codec::read_count(reader, limits.logged_landing_changes.min(CEILINGS.logged_landing_changes)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::LoggedLandingChanges, reason }), }; if count > reader.remaining() / 19 { return Err(Problem { path: Path::LoggedLandingChanges, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = LoggedChange::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
-        let decoded_tiers = { let count = match skein_codec::read_count(reader, limits.logged_landing_tiers.min(CEILINGS.logged_landing_tiers)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::LoggedLandingTiers, reason }), }; if count > reader.remaining() / 5 { return Err(Problem { path: Path::LoggedLandingTiers, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = LoggedTier::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_changes = { let count = match skein_codec::read_count(reader, limits.logged_landing_changes.min(CEILINGS.logged_landing_changes)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::LoggedLandingChanges, reason }), }; if count > reader.remaining() / 19 { return Err(Problem { path: Path::LoggedLandingChanges, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = LoggedChange::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_tiers = { let count = match skein_codec::read_count(reader, limits.logged_landing_tiers.min(CEILINGS.logged_landing_tiers)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::LoggedLandingTiers, reason }), }; if count > reader.remaining() / 5 { return Err(Problem { path: Path::LoggedLandingTiers, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = LoggedTier::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
         Ok(Self { commit: decoded_commit, branch: decoded_branch, at: decoded_at, changes: decoded_changes, tiers: decoded_tiers })
     }
 }
@@ -61439,7 +61961,7 @@ impl LandingLog {
 
     fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         let decoded_repository = Repository::decode_from(limits, reader)?;
-        let decoded_landings = { let count = match skein_codec::read_count(reader, limits.landing_log_landings.min(CEILINGS.landing_log_landings)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::LandingLogLandings, reason }), }; if count > reader.remaining() / 52 { return Err(Problem { path: Path::LandingLogLandings, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = LoggedLanding::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_landings = { let count = match skein_codec::read_count(reader, limits.landing_log_landings.min(CEILINGS.landing_log_landings)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::LandingLogLandings, reason }), }; if count > reader.remaining() / 52 { return Err(Problem { path: Path::LandingLogLandings, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = LoggedLanding::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
         Ok(Self { repository: decoded_repository, landings: decoded_landings })
     }
 }
@@ -62675,7 +63197,7 @@ impl Decided {
         let decoded_task = reader.u64().ok_or(Problem { path: Path::DecidedTask, reason: skein_codec::Reason::Short })?;
         let decoded_at = reader.u64().ok_or(Problem { path: Path::DecidedAt, reason: skein_codec::Reason::Short })?;
         let decoded_question = { let length = match skein_codec::read_len(reader, limits.decided_question.min(CEILINGS.decided_question)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::DecidedQuestion, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::DecidedQuestion, reason: skein_codec::Reason::Short })?) };
-        let decoded_options = { let count = match skein_codec::read_count(reader, limits.decided_options.min(CEILINGS.decided_options)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::DecidedOptions, reason }), }; if count > reader.remaining() / 4 { return Err(Problem { path: Path::DecidedOptions, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = { let length = match skein_codec::read_len(reader, limits.decided_options_item.min(CEILINGS.decided_options_item)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::DecidedOptions, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::DecidedOptions, reason: skein_codec::Reason::Short })?) }; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_options = { let count = match skein_codec::read_count(reader, limits.decided_options.min(CEILINGS.decided_options)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::DecidedOptions, reason }), }; if count > reader.remaining() / 4 { return Err(Problem { path: Path::DecidedOptions, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = { let length = match skein_codec::read_len(reader, limits.decided_options_item.min(CEILINGS.decided_options_item)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::DecidedOptions, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::DecidedOptions, reason: skein_codec::Reason::Short })?) }; items_0.push(item).expect("count within capacity"); } items_0 };
         let decoded_took = match reader.u8().ok_or(Problem { path: Path::DecidedTook, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u8().ok_or(Problem { path: Path::DecidedTook, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::DecidedTook, reason: skein_codec::Reason::Tag }) };
         let decoded_why = { let length = match skein_codec::read_len(reader, limits.decided_why.min(CEILINGS.decided_why)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::DecidedWhy, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::DecidedWhy, reason: skein_codec::Reason::Short })?) };
         let decoded_overturned = match reader.u8().ok_or(Problem { path: Path::DecidedOverturned, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::DecidedOverturned, reason: skein_codec::Reason::Bool }) };
@@ -63013,7 +63535,7 @@ impl ClosingTasks {
     }
 
     fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let decoded_tasks = { let count = match skein_codec::read_count(reader, limits.closing_tasks_tasks.min(CEILINGS.closing_tasks_tasks)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::ClosingTasksTasks, reason }), }; if count > reader.remaining() / 8 { return Err(Problem { path: Path::ClosingTasksTasks, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = reader.u64().ok_or(Problem { path: Path::ClosingTasksTasks, reason: skein_codec::Reason::Short })?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_tasks = { let count = match skein_codec::read_count(reader, limits.closing_tasks_tasks.min(CEILINGS.closing_tasks_tasks)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::ClosingTasksTasks, reason }), }; if count > reader.remaining() / 8 { return Err(Problem { path: Path::ClosingTasksTasks, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = reader.u64().ok_or(Problem { path: Path::ClosingTasksTasks, reason: skein_codec::Reason::Short })?; items_0.push(item).expect("count within capacity"); } items_0 };
         Ok(Self { tasks: decoded_tasks })
     }
 }
@@ -63143,7 +63665,7 @@ impl ClosingJobs {
     }
 
     fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let decoded_attempts = { let count = match skein_codec::read_count(reader, limits.closing_jobs_attempts.min(CEILINGS.closing_jobs_attempts)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::ClosingJobsAttempts, reason }), }; if count > reader.remaining() / 52 { return Err(Problem { path: Path::ClosingJobsAttempts, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = JobAttempt::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_attempts = { let count = match skein_codec::read_count(reader, limits.closing_jobs_attempts.min(CEILINGS.closing_jobs_attempts)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::ClosingJobsAttempts, reason }), }; if count > reader.remaining() / 52 { return Err(Problem { path: Path::ClosingJobsAttempts, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = JobAttempt::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
         let decoded_next = reader.u32().ok_or(Problem { path: Path::ClosingJobsNext, reason: skein_codec::Reason::Short })?;
         Ok(Self { attempts: decoded_attempts, next: decoded_next })
     }
@@ -64313,7 +64835,7 @@ impl ClosingRelay {
 
     fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         let decoded_open = match reader.u8().ok_or(Problem { path: Path::ClosingRelayOpen, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(ClosingQuestion::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::ClosingRelayOpen, reason: skein_codec::Reason::Tag }) };
-        let decoded_replies = { let count = match skein_codec::read_count(reader, limits.closing_relay_replies.min(CEILINGS.closing_relay_replies)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::ClosingRelayReplies, reason }), }; if count > reader.remaining() / 13 { return Err(Problem { path: Path::ClosingRelayReplies, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = ClosingMessage::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_replies = { let count = match skein_codec::read_count(reader, limits.closing_relay_replies.min(CEILINGS.closing_relay_replies)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::ClosingRelayReplies, reason }), }; if count > reader.remaining() / 13 { return Err(Problem { path: Path::ClosingRelayReplies, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = ClosingMessage::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
         Ok(Self { open: decoded_open, replies: decoded_replies })
     }
 }
@@ -64654,9 +65176,9 @@ impl Closer {
         let decoded_hold = match reader.u8().ok_or(Problem { path: Path::CloserHold, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(ClosingRun::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::CloserHold, reason: skein_codec::Reason::Tag }) };
         let decoded_retry = match reader.u8().ok_or(Problem { path: Path::CloserRetry, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(ClosingStep::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::CloserRetry, reason: skein_codec::Reason::Tag }) };
         let decoded_making = match reader.u8().ok_or(Problem { path: Path::CloserMaking, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(ClosingStep::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::CloserMaking, reason: skein_codec::Reason::Tag }) };
-        let decoded_close_changes = { let count = match skein_codec::read_count(reader, limits.closer_close_changes.min(CEILINGS.closer_close_changes)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::CloserCloseChanges, reason }), }; if count > reader.remaining() / 8 { return Err(Problem { path: Path::CloserCloseChanges, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = reader.u64().ok_or(Problem { path: Path::CloserCloseChanges, reason: skein_codec::Reason::Short })?; items_0.push(item).expect("count within capacity"); } items_0 };
-        let decoded_landing_changes = { let count = match skein_codec::read_count(reader, limits.closer_landing_changes.min(CEILINGS.closer_landing_changes)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::CloserLandingChanges, reason }), }; if count > reader.remaining() / 8 { return Err(Problem { path: Path::CloserLandingChanges, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = reader.u64().ok_or(Problem { path: Path::CloserLandingChanges, reason: skein_codec::Reason::Short })?; items_0.push(item).expect("count within capacity"); } items_0 };
-        let decoded_selections = { let count = match skein_codec::read_count(reader, limits.closer_selections.min(CEILINGS.closer_selections)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::CloserSelections, reason }), }; if count > reader.remaining() / 10 { return Err(Problem { path: Path::CloserSelections, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = ClosingSelection::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_close_changes = { let count = match skein_codec::read_count(reader, limits.closer_close_changes.min(CEILINGS.closer_close_changes)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::CloserCloseChanges, reason }), }; if count > reader.remaining() / 8 { return Err(Problem { path: Path::CloserCloseChanges, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = reader.u64().ok_or(Problem { path: Path::CloserCloseChanges, reason: skein_codec::Reason::Short })?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_landing_changes = { let count = match skein_codec::read_count(reader, limits.closer_landing_changes.min(CEILINGS.closer_landing_changes)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::CloserLandingChanges, reason }), }; if count > reader.remaining() / 8 { return Err(Problem { path: Path::CloserLandingChanges, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = reader.u64().ok_or(Problem { path: Path::CloserLandingChanges, reason: skein_codec::Reason::Short })?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_selections = { let count = match skein_codec::read_count(reader, limits.closer_selections.min(CEILINGS.closer_selections)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::CloserSelections, reason }), }; if count > reader.remaining() / 10 { return Err(Problem { path: Path::CloserSelections, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = ClosingSelection::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
         let decoded_done = match reader.u8().ok_or(Problem { path: Path::CloserDone, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::CloserDone, reason: skein_codec::Reason::Bool }) };
         let decoded_relay = match reader.u8().ok_or(Problem { path: Path::CloserRelay, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(ClosingRelay::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::CloserRelay, reason: skein_codec::Reason::Tag }) };
         Ok(Self { task: decoded_task, goal: decoded_goal, closed: decoded_closed, running: decoded_running, landing: decoded_landing, hold: decoded_hold, retry: decoded_retry, making: decoded_making, close_changes: decoded_close_changes, landing_changes: decoded_landing_changes, selections: decoded_selections, done: decoded_done, relay: decoded_relay })
@@ -65695,7 +66217,7 @@ impl FollowEntry {
         let decoded_before = { let bytes = reader.bytes(32).ok_or(Problem { path: Path::FollowEntryBefore, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") };
         let decoded_after = { let bytes = reader.bytes(32).ok_or(Problem { path: Path::FollowEntryAfter, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") };
         let decoded_pull = match reader.u8().ok_or(Problem { path: Path::FollowEntryPull, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u64().ok_or(Problem { path: Path::FollowEntryPull, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::FollowEntryPull, reason: skein_codec::Reason::Tag }) };
-        let decoded_commits = { let count = match skein_codec::read_count(reader, limits.follow_entry_commits.min(CEILINGS.follow_entry_commits)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::FollowEntryCommits, reason }), }; if count > reader.remaining() / 36 { return Err(Problem { path: Path::FollowEntryCommits, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = FollowCommit::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_commits = { let count = match skein_codec::read_count(reader, limits.follow_entry_commits.min(CEILINGS.follow_entry_commits)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::FollowEntryCommits, reason }), }; if count > reader.remaining() / 36 { return Err(Problem { path: Path::FollowEntryCommits, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = FollowCommit::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
         let decoded_more_commits = reader.u32().ok_or(Problem { path: Path::FollowEntryMoreCommits, reason: skein_codec::Reason::Short })?;
         let decoded_files = match reader.u8().ok_or(Problem { path: Path::FollowEntryFiles, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(FollowFiles::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::FollowEntryFiles, reason: skein_codec::Reason::Tag }) };
         let decoded_more_files = reader.u32().ok_or(Problem { path: Path::FollowEntryMoreFiles, reason: skein_codec::Reason::Short })?;
@@ -66728,10 +67250,10 @@ impl FollowRow {
         let decoded_heard = match reader.u8().ok_or(Problem { path: Path::FollowRowHeard, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some({ let bytes = reader.bytes(32).ok_or(Problem { path: Path::FollowRowHeard, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") }), _ => return Err(Problem { path: Path::FollowRowHeard, reason: skein_codec::Reason::Tag }) };
         let decoded_task = match reader.u8().ok_or(Problem { path: Path::FollowRowTask, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u64().ok_or(Problem { path: Path::FollowRowTask, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::FollowRowTask, reason: skein_codec::Reason::Tag }) };
         let decoded_stopped = match reader.u8().ok_or(Problem { path: Path::FollowRowStopped, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some({ let length = match skein_codec::read_len(reader, limits.follow_row_stopped_some.min(CEILINGS.follow_row_stopped_some)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::FollowRowStopped, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::FollowRowStopped, reason: skein_codec::Reason::Short })?) }), _ => return Err(Problem { path: Path::FollowRowStopped, reason: skein_codec::Reason::Tag }) };
-        let decoded_queue = { let count = match skein_codec::read_count(reader, limits.follow_row_queue.min(CEILINGS.follow_row_queue)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::FollowRowQueue, reason }), }; if count > reader.remaining() / 82 { return Err(Problem { path: Path::FollowRowQueue, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = FollowEntry::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
-        let decoded_skips = { let count = match skein_codec::read_count(reader, limits.follow_row_skips.min(CEILINGS.follow_row_skips)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::FollowRowSkips, reason }), }; if count > reader.remaining() / 36 { return Err(Problem { path: Path::FollowRowSkips, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = FollowSkip::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_queue = { let count = match skein_codec::read_count(reader, limits.follow_row_queue.min(CEILINGS.follow_row_queue)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::FollowRowQueue, reason }), }; if count > reader.remaining() / 82 { return Err(Problem { path: Path::FollowRowQueue, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = FollowEntry::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_skips = { let count = match skein_codec::read_count(reader, limits.follow_row_skips.min(CEILINGS.follow_row_skips)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::FollowRowSkips, reason }), }; if count > reader.remaining() / 36 { return Err(Problem { path: Path::FollowRowSkips, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = FollowSkip::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
         let decoded_parity = match reader.u8().ok_or(Problem { path: Path::FollowRowParity, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(FollowParity::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::FollowRowParity, reason: skein_codec::Reason::Tag }) };
-        let decoded_questions = { let count = match skein_codec::read_count(reader, limits.follow_row_questions.min(CEILINGS.follow_row_questions)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::FollowRowQuestions, reason }), }; if count > reader.remaining() / 23 { return Err(Problem { path: Path::FollowRowQuestions, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = FollowQuestion::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_questions = { let count = match skein_codec::read_count(reader, limits.follow_row_questions.min(CEILINGS.follow_row_questions)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::FollowRowQuestions, reason }), }; if count > reader.remaining() / 23 { return Err(Problem { path: Path::FollowRowQuestions, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = FollowQuestion::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
         let decoded_pending = match reader.u8().ok_or(Problem { path: Path::FollowRowPending, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(FollowAct::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::FollowRowPending, reason: skein_codec::Reason::Tag }) };
         Ok(Self { project: decoded_project, follow: decoded_follow, source: decoded_source, branch: decoded_branch, heard: decoded_heard, task: decoded_task, stopped: decoded_stopped, queue: decoded_queue, skips: decoded_skips, parity: decoded_parity, questions: decoded_questions, pending: decoded_pending })
     }
@@ -67545,7 +68067,7 @@ impl HistoryProject {
         let decoded_next = reader.u64().ok_or(Problem { path: Path::HistoryProjectNext, reason: skein_codec::Reason::Short })?;
         let decoded_kept = reader.u64().ok_or(Problem { path: Path::HistoryProjectKept, reason: skein_codec::Reason::Short })?;
         let decoded_whole_since = match reader.u8().ok_or(Problem { path: Path::HistoryProjectWholeSince, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u64().ok_or(Problem { path: Path::HistoryProjectWholeSince, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::HistoryProjectWholeSince, reason: skein_codec::Reason::Tag }) };
-        let decoded_marks = { let count = match skein_codec::read_count(reader, limits.history_project_marks.min(CEILINGS.history_project_marks)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::HistoryProjectMarks, reason }), }; if count > reader.remaining() / 16 { return Err(Problem { path: Path::HistoryProjectMarks, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = HistoryMark::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_marks = { let count = match skein_codec::read_count(reader, limits.history_project_marks.min(CEILINGS.history_project_marks)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::HistoryProjectMarks, reason }), }; if count > reader.remaining() / 16 { return Err(Problem { path: Path::HistoryProjectMarks, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = HistoryMark::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
         let decoded_sweeping = match reader.u8().ok_or(Problem { path: Path::HistoryProjectSweeping, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u64().ok_or(Problem { path: Path::HistoryProjectSweeping, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::HistoryProjectSweeping, reason: skein_codec::Reason::Tag }) };
         let decoded_removing = match reader.u8().ok_or(Problem { path: Path::HistoryProjectRemoving, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::HistoryProjectRemoving, reason: skein_codec::Reason::Bool }) };
         Ok(Self { project: decoded_project, next: decoded_next, kept: decoded_kept, whole_since: decoded_whole_since, marks: decoded_marks, sweeping: decoded_sweeping, removing: decoded_removing })
@@ -70056,7 +70578,7 @@ impl HistoryFormed {
     }
 
     fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let decoded_members = { let count = match skein_codec::read_count(reader, limits.history_formed_members.min(CEILINGS.history_formed_members)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::HistoryFormedMembers, reason }), }; if count > reader.remaining() / 42 { return Err(Problem { path: Path::HistoryFormedMembers, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = HistoryMember::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_members = { let count = match skein_codec::read_count(reader, limits.history_formed_members.min(CEILINGS.history_formed_members)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::HistoryFormedMembers, reason }), }; if count > reader.remaining() / 42 { return Err(Problem { path: Path::HistoryFormedMembers, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = HistoryMember::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
         let decoded_place = reader.u16().ok_or(Problem { path: Path::HistoryFormedPlace, reason: skein_codec::Reason::Short })?;
         Ok(Self { members: decoded_members, place: decoded_place })
     }
@@ -70829,7 +71351,7 @@ impl HistoryProved {
     }
 
     fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let decoded_proofs = { let count = match skein_codec::read_count(reader, limits.history_proved_proofs.min(CEILINGS.history_proved_proofs)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::HistoryProvedProofs, reason }), }; if count > reader.remaining() / 3 { return Err(Problem { path: Path::HistoryProvedProofs, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = HistoryProof::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_proofs = { let count = match skein_codec::read_count(reader, limits.history_proved_proofs.min(CEILINGS.history_proved_proofs)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::HistoryProvedProofs, reason }), }; if count > reader.remaining() / 3 { return Err(Problem { path: Path::HistoryProvedProofs, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = HistoryProof::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
         Ok(Self { proofs: decoded_proofs })
     }
 }
@@ -74916,10 +75438,10 @@ impl ChangeHot {
         let decoded_kept = match reader.u8().ok_or(Problem { path: Path::ChangeHotKept, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some({ let bytes = reader.bytes(32).ok_or(Problem { path: Path::ChangeHotKept, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") }), _ => return Err(Problem { path: Path::ChangeHotKept, reason: skein_codec::Reason::Tag }) };
         let decoded_task_release = match reader.u8().ok_or(Problem { path: Path::ChangeHotTaskRelease, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(TaskRelease::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::ChangeHotTaskRelease, reason: skein_codec::Reason::Tag }) };
         let decoded_job = match reader.u8().ok_or(Problem { path: Path::ChangeHotJob, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(HistoryJobRecord::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::ChangeHotJob, reason: skein_codec::Reason::Tag }) };
-        let decoded_signed = { let count = match skein_codec::read_count(reader, limits.change_hot_signed.min(CEILINGS.change_hot_signed)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::ChangeHotSigned, reason }), }; if count > reader.remaining() / 48 { return Err(Problem { path: Path::ChangeHotSigned, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = SignOff::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_signed = { let count = match skein_codec::read_count(reader, limits.change_hot_signed.min(CEILINGS.change_hot_signed)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::ChangeHotSigned, reason }), }; if count > reader.remaining() / 48 { return Err(Problem { path: Path::ChangeHotSigned, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = SignOff::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
         let decoded_ending = match reader.u8().ok_or(Problem { path: Path::ChangeHotEnding, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(ChangeEnding::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::ChangeHotEnding, reason: skein_codec::Reason::Tag }) };
-        let decoded_repair_tasks = { let count = match skein_codec::read_count(reader, limits.change_hot_repair_tasks.min(CEILINGS.change_hot_repair_tasks)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::ChangeHotRepairTasks, reason }), }; if count > reader.remaining() / 8 { return Err(Problem { path: Path::ChangeHotRepairTasks, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = reader.u64().ok_or(Problem { path: Path::ChangeHotRepairTasks, reason: skein_codec::Reason::Short })?; items_0.push(item).expect("count within capacity"); } items_0 };
-        let decoded_resolution_tasks = { let count = match skein_codec::read_count(reader, limits.change_hot_resolution_tasks.min(CEILINGS.change_hot_resolution_tasks)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::ChangeHotResolutionTasks, reason }), }; if count > reader.remaining() / 8 { return Err(Problem { path: Path::ChangeHotResolutionTasks, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = reader.u64().ok_or(Problem { path: Path::ChangeHotResolutionTasks, reason: skein_codec::Reason::Short })?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_repair_tasks = { let count = match skein_codec::read_count(reader, limits.change_hot_repair_tasks.min(CEILINGS.change_hot_repair_tasks)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::ChangeHotRepairTasks, reason }), }; if count > reader.remaining() / 8 { return Err(Problem { path: Path::ChangeHotRepairTasks, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = reader.u64().ok_or(Problem { path: Path::ChangeHotRepairTasks, reason: skein_codec::Reason::Short })?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_resolution_tasks = { let count = match skein_codec::read_count(reader, limits.change_hot_resolution_tasks.min(CEILINGS.change_hot_resolution_tasks)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::ChangeHotResolutionTasks, reason }), }; if count > reader.remaining() / 8 { return Err(Problem { path: Path::ChangeHotResolutionTasks, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = reader.u64().ok_or(Problem { path: Path::ChangeHotResolutionTasks, reason: skein_codec::Reason::Short })?; items_0.push(item).expect("count within capacity"); } items_0 };
         let decoded_result = ChangeResult::decode_from(limits, reader)?;
         let decoded_task = reader.u64().ok_or(Problem { path: Path::ChangeHotTask, reason: skein_codec::Reason::Short })?;
         let decoded_priority = reader.u32().ok_or(Problem { path: Path::ChangeHotPriority, reason: skein_codec::Reason::Short })?;
@@ -74930,8 +75452,8 @@ impl ChangeHot {
         let decoded_effect = EffectResult::decode_from(limits, reader)?;
         let decoded_delegate = match reader.u8().ok_or(Problem { path: Path::ChangeHotDelegate, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(DelegateRef::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::ChangeHotDelegate, reason: skein_codec::Reason::Tag }) };
         let decoded_delegate_status = ChangeStatus::decode_from(limits, reader)?;
-        let decoded_verdicts = { let count = match skein_codec::read_count(reader, limits.change_hot_verdicts.min(CEILINGS.change_hot_verdicts)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::ChangeHotVerdicts, reason }), }; if count > reader.remaining() / 41 { return Err(Problem { path: Path::ChangeHotVerdicts, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = GateReport::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
-        let decoded_gate_remarks = { let count = match skein_codec::read_count(reader, limits.change_hot_gate_remarks.min(CEILINGS.change_hot_gate_remarks)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::ChangeHotGateRemarks, reason }), }; if count > reader.remaining() / 44 { return Err(Problem { path: Path::ChangeHotGateRemarks, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = GateRemark::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_verdicts = { let count = match skein_codec::read_count(reader, limits.change_hot_verdicts.min(CEILINGS.change_hot_verdicts)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::ChangeHotVerdicts, reason }), }; if count > reader.remaining() / 41 { return Err(Problem { path: Path::ChangeHotVerdicts, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = GateReport::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_gate_remarks = { let count = match skein_codec::read_count(reader, limits.change_hot_gate_remarks.min(CEILINGS.change_hot_gate_remarks)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::ChangeHotGateRemarks, reason }), }; if count > reader.remaining() / 44 { return Err(Problem { path: Path::ChangeHotGateRemarks, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = GateRemark::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
         let decoded_drift = match reader.u8().ok_or(Problem { path: Path::ChangeHotDrift, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(ChangeHold::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::ChangeHotDrift, reason: skein_codec::Reason::Tag }) };
         let decoded_queue_repair = match reader.u8().ok_or(Problem { path: Path::ChangeHotQueueRepair, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u64().ok_or(Problem { path: Path::ChangeHotQueueRepair, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::ChangeHotQueueRepair, reason: skein_codec::Reason::Tag }) };
         let decoded_queue_repairs = reader.u32().ok_or(Problem { path: Path::ChangeHotQueueRepairs, reason: skein_codec::Reason::Short })?;
@@ -75884,8 +76406,8 @@ impl Subscriber {
         let decoded_number = reader.u64().ok_or(Problem { path: Path::SubscriberNumber, reason: skein_codec::Reason::Short })?;
         let decoded_topic = Topic::decode_from(limits, reader)?;
         let decoded_own_change = match reader.u8().ok_or(Problem { path: Path::SubscriberOwnChange, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u64().ok_or(Problem { path: Path::SubscriberOwnChange, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::SubscriberOwnChange, reason: skein_codec::Reason::Tag }) };
-        let decoded_goal_tasks = match reader.u8().ok_or(Problem { path: Path::SubscriberGoalTasks, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some({ let count = match skein_codec::read_count(reader, limits.subscriber_goal_tasks_some.min(CEILINGS.subscriber_goal_tasks_some)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::SubscriberGoalTasks, reason }), }; if count > reader.remaining() / 8 { return Err(Problem { path: Path::SubscriberGoalTasks, reason: skein_codec::Reason::Short }); } let mut items_1 = List::with_capacity(count); for _index in 0_u32..count { let item = reader.u64().ok_or(Problem { path: Path::SubscriberGoalTasks, reason: skein_codec::Reason::Short })?; items_1.push(item).expect("count within capacity"); } items_1 }), _ => return Err(Problem { path: Path::SubscriberGoalTasks, reason: skein_codec::Reason::Tag }) };
-        let decoded_paths = { let count = match skein_codec::read_count(reader, limits.subscriber_paths.min(CEILINGS.subscriber_paths)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::SubscriberPaths, reason }), }; if count > reader.remaining() / 4 { return Err(Problem { path: Path::SubscriberPaths, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = { let length = match skein_codec::read_len(reader, limits.subscriber_paths_item.min(CEILINGS.subscriber_paths_item)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::SubscriberPaths, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::SubscriberPaths, reason: skein_codec::Reason::Short })?) }; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_goal_tasks = match reader.u8().ok_or(Problem { path: Path::SubscriberGoalTasks, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some({ let count = match skein_codec::read_count(reader, limits.subscriber_goal_tasks_some.min(CEILINGS.subscriber_goal_tasks_some)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::SubscriberGoalTasks, reason }), }; if count > reader.remaining() / 8 { return Err(Problem { path: Path::SubscriberGoalTasks, reason: skein_codec::Reason::Short }); } let mut items_1 = List::allocated(count); for _index in 0_u32..count { let item = reader.u64().ok_or(Problem { path: Path::SubscriberGoalTasks, reason: skein_codec::Reason::Short })?; items_1.push(item).expect("count within capacity"); } items_1 }), _ => return Err(Problem { path: Path::SubscriberGoalTasks, reason: skein_codec::Reason::Tag }) };
+        let decoded_paths = { let count = match skein_codec::read_count(reader, limits.subscriber_paths.min(CEILINGS.subscriber_paths)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::SubscriberPaths, reason }), }; if count > reader.remaining() / 4 { return Err(Problem { path: Path::SubscriberPaths, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = { let length = match skein_codec::read_len(reader, limits.subscriber_paths_item.min(CEILINGS.subscriber_paths_item)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::SubscriberPaths, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::SubscriberPaths, reason: skein_codec::Reason::Short })?) }; items_0.push(item).expect("count within capacity"); } items_0 };
         Ok(Self { task: decoded_task, number: decoded_number, topic: decoded_topic, own_change: decoded_own_change, goal_tasks: decoded_goal_tasks, paths: decoded_paths })
     }
 }
@@ -76315,7 +76837,7 @@ impl FindingAreas {
     }
 
     fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let decoded_names = { let count = match skein_codec::read_count(reader, limits.finding_areas_names.min(CEILINGS.finding_areas_names)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::FindingAreasNames, reason }), }; if count > reader.remaining() / 4 { return Err(Problem { path: Path::FindingAreasNames, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = { let length = match skein_codec::read_len(reader, limits.finding_areas_names_item.min(CEILINGS.finding_areas_names_item)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::FindingAreasNames, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::FindingAreasNames, reason: skein_codec::Reason::Short })?) }; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_names = { let count = match skein_codec::read_count(reader, limits.finding_areas_names.min(CEILINGS.finding_areas_names)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::FindingAreasNames, reason }), }; if count > reader.remaining() / 4 { return Err(Problem { path: Path::FindingAreasNames, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = { let length = match skein_codec::read_len(reader, limits.finding_areas_names_item.min(CEILINGS.finding_areas_names_item)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::FindingAreasNames, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::FindingAreasNames, reason: skein_codec::Reason::Short })?) }; items_0.push(item).expect("count within capacity"); } items_0 };
         Ok(Self { names: decoded_names })
     }
 }
@@ -79343,7 +79865,7 @@ impl ProjectAreas {
     }
 
     fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let decoded_areas = { let count = match skein_codec::read_count(reader, limits.project_areas_areas.min(CEILINGS.project_areas_areas)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::ProjectAreasAreas, reason }), }; if count > reader.remaining() / 13 { return Err(Problem { path: Path::ProjectAreasAreas, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = Area::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_areas = { let count = match skein_codec::read_count(reader, limits.project_areas_areas.min(CEILINGS.project_areas_areas)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::ProjectAreasAreas, reason }), }; if count > reader.remaining() / 13 { return Err(Problem { path: Path::ProjectAreasAreas, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = Area::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
         Ok(Self { areas: decoded_areas })
     }
 }
@@ -79814,7 +80336,7 @@ impl TemperLimits {
     }
 
     fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let decoded_overrides = { let count = match skein_codec::read_count(reader, limits.temper_limits_overrides.min(CEILINGS.temper_limits_overrides)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::TemperLimitsOverrides, reason }), }; if count > reader.remaining() / 16 { return Err(Problem { path: Path::TemperLimitsOverrides, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = LimitOverride::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_overrides = { let count = match skein_codec::read_count(reader, limits.temper_limits_overrides.min(CEILINGS.temper_limits_overrides)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::TemperLimitsOverrides, reason }), }; if count > reader.remaining() / 16 { return Err(Problem { path: Path::TemperLimitsOverrides, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = LimitOverride::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
         Ok(Self { overrides: decoded_overrides })
     }
 }
@@ -80476,8 +80998,8 @@ impl AgentFigures {
     }
 
     fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let decoded_profile = { let count = match skein_codec::read_count(reader, limits.agent_figures_profile.min(CEILINGS.agent_figures_profile)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::AgentFiguresProfile, reason }), }; if count > reader.remaining() / 12 { return Err(Problem { path: Path::AgentFiguresProfile, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = AgentFigure::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
-        let decoded_endpoints = { let count = match skein_codec::read_count(reader, limits.agent_figures_endpoints.min(CEILINGS.agent_figures_endpoints)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::AgentFiguresEndpoints, reason }), }; if count > reader.remaining() / 33 { return Err(Problem { path: Path::AgentFiguresEndpoints, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = AgentEndpointLimits::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_profile = { let count = match skein_codec::read_count(reader, limits.agent_figures_profile.min(CEILINGS.agent_figures_profile)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::AgentFiguresProfile, reason }), }; if count > reader.remaining() / 12 { return Err(Problem { path: Path::AgentFiguresProfile, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = AgentFigure::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_endpoints = { let count = match skein_codec::read_count(reader, limits.agent_figures_endpoints.min(CEILINGS.agent_figures_endpoints)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::AgentFiguresEndpoints, reason }), }; if count > reader.remaining() / 33 { return Err(Problem { path: Path::AgentFiguresEndpoints, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = AgentEndpointLimits::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
         let decoded_fallback = AgentLimits::decode_from(limits, reader)?;
         Ok(Self { profile: decoded_profile, endpoints: decoded_endpoints, fallback: decoded_fallback })
     }
@@ -81603,7 +82125,7 @@ impl FindingSignature {
     fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         let decoded_repository = Repository::decode_from(limits, reader)?;
         let decoded_source = { let length = match skein_codec::read_len(reader, limits.finding_signature_source.min(CEILINGS.finding_signature_source)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::FindingSignatureSource, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::FindingSignatureSource, reason: skein_codec::Reason::Short })?) };
-        let decoded_ids = { let count = match skein_codec::read_count(reader, limits.finding_signature_ids.min(CEILINGS.finding_signature_ids)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::FindingSignatureIds, reason }), }; if count > reader.remaining() / 4 { return Err(Problem { path: Path::FindingSignatureIds, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = { let length = match skein_codec::read_len(reader, limits.finding_signature_ids_item.min(CEILINGS.finding_signature_ids_item)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::FindingSignatureIds, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::FindingSignatureIds, reason: skein_codec::Reason::Short })?) }; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_ids = { let count = match skein_codec::read_count(reader, limits.finding_signature_ids.min(CEILINGS.finding_signature_ids)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::FindingSignatureIds, reason }), }; if count > reader.remaining() / 4 { return Err(Problem { path: Path::FindingSignatureIds, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = { let length = match skein_codec::read_len(reader, limits.finding_signature_ids_item.min(CEILINGS.finding_signature_ids_item)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::FindingSignatureIds, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::FindingSignatureIds, reason: skein_codec::Reason::Short })?) }; items_0.push(item).expect("count within capacity"); } items_0 };
         let decoded_first = { let length = match skein_codec::read_len(reader, limits.finding_signature_first.min(CEILINGS.finding_signature_first)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::FindingSignatureFirst, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::FindingSignatureFirst, reason: skein_codec::Reason::Short })?) };
         Ok(Self { repository: decoded_repository, source: decoded_source, ids: decoded_ids, first: decoded_first })
     }

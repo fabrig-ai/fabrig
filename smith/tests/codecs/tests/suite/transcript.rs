@@ -1,6 +1,6 @@
 //! Turn wire boundaries (protocol/transcript.md, sections 2, 6 and 7).
 
-use crate::support::goldens::assert_measured;
+use crate::support::goldens::Goldens;
 
 use skein_codec::Reason;
 use skein_lib::Reader;
@@ -8,7 +8,8 @@ use smith_transcript::v7::{CEILINGS, Path, Turn};
 
 #[test]
 fn turn_goldens_decode_at_their_measured_length() {
-    assert_measured("transcript", 7, "turn", |bytes| {
+    let goldens = Goldens::new("transcript", 7);
+    goldens.assert_measured("turn", |bytes| {
         Turn::decode(&CEILINGS, &mut Reader::new(bytes)).expect("turn decodes").measure()
     });
 }

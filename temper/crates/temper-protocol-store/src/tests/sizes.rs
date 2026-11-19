@@ -45,7 +45,7 @@ fn the_change_bound_follows_the_tier_landings_ceilings() {
         [1024, 1024, 4096]
     );
     assert_eq!(bound, (least - 1) / 2);
-    assert_eq!(crate::v25::TierRow::encoded_bound(&ceilings), Some(1_905_271_545));
+    assert_eq!(crate::v25::TierRow::encoded_bound(&ceilings), Some(1_905_337_347));
     let mut forge = fixtures::LIMITS;
     forge.changes = bound;
     let limits = records::limits(&forge).unwrap();
