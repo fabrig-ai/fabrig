@@ -189,21 +189,18 @@ fn front_refuses_a_fixed_link_member_before_starting_steps() {
     let initialized = box_link::command(scratch.path(), "init").arg("--box").output().expect("init box");
     assert!(initialized.status.success());
     support::own_listener_files(&scratch.path().join("config"));
-    temper_agent_fixtures::legacy_init(&scratch.path().join("config"));
-    let path = scratch.path().join("config/temper.json");
-    let mut document: serde_json::Value =
-        serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("document");
+    let path = scratch.path().join("config").join(temper_config_shell::FILE);
+    // Fixed start members are tested in memory; the public file has no link switch.
+    let mut document = support::start_document(&path, temper_config_shell::Shape::Standalone);
     document["engine"]["clients"]["link"] = false.into();
-    fs::write(&path, serde_json::to_vec(&document).expect("document bytes")).expect("disabled link");
-    let mut pipes = Pipes::start(scratch.path(), &["--front"], None);
-    assert_eq!(pipes.stop(), Exit::Code(1));
-    assert_eq!(
-        pipes.bytes[1],
-        b"temper-box: engine.clients.link: moved: temper fixes the clients' heartbeat, printed link and approval\n"
-    );
-    assert!(pipes.bytes[0].is_empty() && pipes.bytes[2].is_empty() && pipes.bytes[3].is_empty());
+    let why = temper_box_shell::box_command::configuration_steps(
+        &support::configuration::directories(&scratch.path().join("config")),
+        &serde_json::to_vec(&document).expect("start JSON"),
+        Box::new([]),
+    )
+    .expect_err("no steps built");
+    assert_eq!(why, "engine.clients.link: moved: temper fixes the clients' heartbeat, printed link and approval\n");
     assert!(!scratch.path().join("data/box/logs").exists(), "no host or steps started");
-    drop(pipes);
     scratch.remove();
 }
 

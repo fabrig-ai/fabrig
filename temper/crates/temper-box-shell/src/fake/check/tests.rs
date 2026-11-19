@@ -339,7 +339,6 @@ const DECISION: &[u8] = b"{\"decision\":{\"repository\":\"playground/widget\",\"
 const MERGE: &[u8] = b"{\"observation\":\"merged\",\"repository\":\"playground/widget\",\"number\":1,\"base\":\"main\",\"head\":2,\"commit\":3,\"by\":7}\n";
 const ORDER: &[u8] =
     b"{\"fail\":\"promise/order/playground%2Fwidget/1/2\",\"summary\":\"a merge with no decision at its head\"}\n";
-const INVALID_DOCUMENT: &[u8] = b"temper fake forge check: engine: missing\ntemper fake forge check: workers: missing\ntemper fake forge check: application: missing\n";
 fn expected(status: u8, stdout: &[u8], stderr: &[u8]) -> Outcome {
     Outcome { status, stdout: stdout.into(), stderr: stderr.into() }
 }
@@ -372,6 +371,7 @@ fn agent_metadata_fixture(root: &Path) -> temper_service::settings::Agent {
     crate::agent::prepare_bytes(bytes).expect("agent metadata").agent
 }
 #[test]
+#[expect(clippy::too_many_lines, reason = "the verb's outcome matrix shares its store and file setup")]
 fn verb() {
     let root = scratch("fake-check-verb");
     let agent = agent_metadata_fixture(&root);
@@ -418,9 +418,18 @@ fn verb() {
             None,
             checkpoint(),
             Copy::Absent,
-            refused(&format!("configuration {}: absent", path("absent-document", "temper.json").display())),
+            refused(&format!("{}: absent; temper-box init writes one", temper_config_shell::FILE)),
         ),
-        ("invalid-document", Some(serde_json::json!({})), None, Copy::Absent, expected(1, b"", INVALID_DOCUMENT)),
+        (
+            "invalid-document",
+            Some(serde_json::json!({})),
+            None,
+            Copy::Absent,
+            refused(&format!(
+                "{}:1: listen: a socket address on loopback, such as \"127.0.0.1:7100\"",
+                temper_config_shell::FILE
+            )),
+        ),
     ] {
         let directory = root.join(name);
         fs::create_dir(&directory).expect("row directory");
@@ -435,7 +444,16 @@ fn verb() {
         let copy_before = fs::read(data.join("agents.setting")).expect("fixture copy");
         let bytes = document.map(|document| serde_json::to_vec(&document).expect("fixture document"));
         if let Some(bytes) = &bytes {
-            fs::write(directories.document(), bytes).expect("document file");
+            let text = if bytes.as_slice() == b"{}" {
+                b"listen = 42\n".as_slice().into()
+            } else {
+                temper_config_shell::render(
+                    &crate::tests::configuration::file(),
+                    temper_config_shell::Shape::Standalone,
+                )
+            };
+            fs::write(crate::path(&directories.config).join(temper_config_shell::FILE), text)
+                .expect("configuration file");
         }
         let check = Check { forge: 1, observations: directory.join("observations"), store: directory.join("copy") };
         if let Some(observations) = observations {

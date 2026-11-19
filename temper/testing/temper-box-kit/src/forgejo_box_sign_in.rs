@@ -43,16 +43,10 @@ fn story(root: &Path) -> io::Result<()> {
         super::WITHIN,
     );
     success(&initialized);
-    temper_agent_fixtures::legacy_init(root);
     super::own_listener_files(root);
     fixture_bundle(root);
-    let path = root.join("temper.json");
-    let document: Value = serde_json::from_slice(&fs::read(&path)?).expect("box JSON");
-    let temper: SocketAddr = document["application"]["clients"]["listener"]["socket"]
-        .as_str()
-        .expect("clients socket")
-        .parse()
-        .expect("clients address");
+    let path = root.join(temper_config_shell::FILE);
+    let temper = super::read_file(&path, temper_config_shell::Shape::Standalone).listen.expect("clients address");
     super::first_repository::stage_binaries(root);
     assert!(super::private(&root.join("provider.key")), "private issuer key");
     assert_eq!(fs::metadata(root)?.permissions().mode() & 0o777, 0o700);

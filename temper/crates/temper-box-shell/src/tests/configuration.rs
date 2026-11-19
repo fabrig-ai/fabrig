@@ -3,7 +3,7 @@
 #[expect(dead_code, reason = "these shell tests use the shared startup documents, not the cluster's figures")]
 pub(crate) mod support;
 use serde_json::Value;
-pub(crate) use support::{check_document, demo_document, directories, documents, flags, setup, typed_documents};
+pub(crate) use support::{check_document, demo_document, directories, documents, file, flags, setup, typed_documents};
 use temper_service::startup::members;
 
 pub(super) fn init_document() -> Box<[u8]> {

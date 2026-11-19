@@ -304,25 +304,6 @@ fn init_renders_only_listen_unless_its_next_port_is_taken() {
 }
 
 #[test]
-fn the_transitional_snapshot_adapter_reads_init_and_selects_only_the_legacy_file() {
-    let root = scratch("legacy-snapshot");
-    let dirs = directories(&root);
-    let written = write_bare(&dirs, &[], &root.join("temper"), [0; 2]).expect("init");
-    let expected =
-        temper_config_shell::read(&dirs, temper_config_shell::Shape::Standalone).expect("init file").document;
-    temper_agent_fixtures::legacy_init(path(&dirs.config));
-    assert!(!path(&dirs.config).join(temper_config_shell::FILE).exists());
-    let legacy = path(&dirs.config).join(temper_config_shell::FORMER);
-    assert_eq!(fs::read(&legacy).expect("snapshot"), expected.as_ref());
-    assert_eq!(fs::metadata(legacy).expect("snapshot mode").mode() & 0o777, 0o600);
-    let selected = temper_service_shell::configuration::read(&dirs, temper_config_shell::Shape::Standalone)
-        .expect("the legacy snapshot is selected");
-    assert_eq!(selected.document, expected);
-    crate::close(written.listeners.into_iter().map(|(fd, _)| fd).collect());
-    fs::remove_dir_all(root).expect("cleanup");
-}
-
-#[test]
 fn init_refusals_leave_every_file_and_directory_untouched() {
     for (row, data, dangling) in [
         (temper_config_shell::FILE, false, false),

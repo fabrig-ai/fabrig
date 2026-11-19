@@ -137,10 +137,10 @@ impl Throwaway {
     fn start_bare_with_webhooks(scratch: &Scratch, webhooks: Option<SocketAddr>) -> Self {
         let address = owned::tier_configuration(scratch.path());
         if let Some(webhooks) = webhooks {
-            let path = scratch.path().join("temper.json");
-            let mut config: Value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
-            config["application"]["webhooks"]["listener"]["socket"] = webhooks.to_string().into();
-            write_private(&path, &serde_json::to_vec(&config).expect("webhooks configuration"));
+            let path = scratch.path().join(temper_config_shell::FILE);
+            let mut file = super::read_file(&path, temper_config_shell::Shape::Standalone);
+            file.webhooks = Some(webhooks);
+            super::write_file(&path, &file, temper_config_shell::Shape::Standalone);
         }
         let running = owned::start(scratch.path());
         let pid = running.id();
@@ -151,12 +151,9 @@ impl Throwaway {
         let mut runner = owned::run(scratch.path(), "runner");
         runner.declared();
         stage("runner", began);
-        let config: Value =
-            serde_json::from_slice(&fs::read(scratch.path().join("temper.json")).expect("configuration"))
-                .expect("JSON");
-        let webhooks = config["application"]["webhooks"]["listener"]["socket"]
-            .as_str()
-            .map(|address| address.parse().expect("webhooks address"));
+        let webhooks =
+            super::read_file(&scratch.path().join(temper_config_shell::FILE), temper_config_shell::Shape::Standalone)
+                .webhooks;
         Self {
             instance,
             pid,
@@ -353,16 +350,21 @@ pub fn seed(directory: &Path, instance: &mut Instance) {
 /// temper/docs/design/protocol/forge/engine.md, 1; jig's start owns the initial store mark.
 pub fn bootstrap(config: &Path, data: &Path, cache: &Path) {
     use skein_world::end_to_end::{Binary, Command, Mode};
-    let path = config.join("temper.json");
+    let path = config.join(temper_config_shell::FILE);
     let original = fs::read(&path).expect("bootstrap configuration");
-    let mut document: Value = serde_json::from_slice(&original).expect("bootstrap JSON");
-    // A delivery story keeps this listener bound in the enclosing test.
-    document["application"]["webhooks"] = Value::Null;
-    write_private(&path, &serde_json::to_vec(&document).expect("bootstrap JSON"));
+    let (shape, binary) = if super::read_file_shape(&path) == temper_config_shell::Shape::EngineAlone {
+        (temper_config_shell::Shape::EngineAlone, "temper-engine")
+    } else {
+        (temper_config_shell::Shape::Standalone, "temper-box")
+    };
+    let mut file = super::read_file(&path, shape);
+    // A delivery story keeps its listener bound in the enclosing test.
+    file.webhooks = Some("127.0.0.1:0".parse().expect("bootstrap webhooks"));
+    super::write_file(&path, &file, shape);
     super::limit_settings::install_paths(&[config.into(), data.into(), cache.into()]);
     let binary = Binary::start(
         Command {
-            program: skein_scratch::paths::binary("temper-box"),
+            program: skein_scratch::paths::binary("temper-box").with_file_name(binary),
             arguments: vec![
                 "serve".into(),
                 "--config".into(),
@@ -394,13 +396,14 @@ pub fn configuration(directory: &Path, forge: &Forge<'_>, value: &mut temper_pla
     let mut owned = owned::Owned::beside(*api);
     owned.forgejo_binary = forgejo.into();
     owned::producer_landing_settings(directory, 2);
-    let path = directory.join("temper.json");
-    if let Ok(bytes) = fs::read(&path) {
-        let previous: Value = serde_json::from_slice(&bytes).expect("previous configuration");
-        for (name, listener) in [("clients", &mut owned.clients), ("webhooks", &mut owned.webhooks)] {
-            if let Some(address) = previous["application"][name]["listener"]["socket"].as_str() {
-                *listener = address.parse().expect("listener address");
-            }
+    let path = directory.join(temper_config_shell::FILE);
+    if path.exists() {
+        let previous = super::read_file(&path, temper_config_shell::Shape::Standalone);
+        if let Some(address) = previous.listen {
+            owned.clients = address;
+        }
+        if let Some(address) = previous.webhooks {
+            owned.webhooks = address;
         }
     }
     value["application"] = owned::application(&owned);

@@ -6,6 +6,9 @@ use temper_playground::documents::Configuration;
 
 /// Keep figures beside, never inside, the deployment document while composing a fixture.
 pub fn remember(directory: &Path, configuration: &Configuration) {
+    if let Some(providers) = configuration.get("world_providers") {
+        temper_agent_fixtures::providers::write(&temper_agent_fixtures::data(directory), providers);
+    }
     let stock = Configuration::stock(Value::Null);
     let jig: Vec<_> = jig_protocol_config::names::NAMES
         .iter()
@@ -32,9 +35,13 @@ pub fn remember(directory: &Path, configuration: &Configuration) {
 /// Continue a fixture edit without losing its non-document figures.
 #[must_use]
 pub fn configuration(directory: &Path) -> Configuration {
-    let mut value = Configuration::from_jig(
-        serde_json::from_slice(&fs::read(directory.join("temper.json")).expect("configuration")).expect("JSON"),
-    );
+    configuration_at(directory, super::read_file_shape(&directory.join(temper_config_shell::FILE)))
+}
+
+#[must_use]
+pub fn configuration_at(directory: &Path, shape: temper_config_shell::Shape) -> Configuration {
+    let mut value = Configuration::from_jig(super::start_document(&directory.join(temper_config_shell::FILE), shape));
+    value["world_providers"] = temper_agent_fixtures::providers::read(&temper_agent_fixtures::data(directory));
     let path = directory.join("fixture-limits.json");
     if path.exists() {
         let figures: Value = serde_json::from_slice(&fs::read(path).expect("fixture limits")).expect("limits JSON");
@@ -56,6 +63,24 @@ pub fn configuration(directory: &Path) -> Configuration {
         }
     }
     value
+}
+
+/// A subprocess's places are its worker setting, never its file's slots.
+pub fn local_places(root: &Path, places: u32) {
+    use jig_client_protocol_wire::{CEILINGS, WorkerSetting, WorkerSettingParts};
+    let local = WorkerSetting::new(
+        &CEILINGS,
+        WorkerSettingParts { number: 1, name: b"local".as_slice().into(), places, digest: None, withdrawn: false },
+    )
+    .expect("fixture local setting");
+    let mut writer = skein_lib::Writer::new(usize::try_from(local.measure()).expect("local bound"));
+    local.encode(&mut writer).expect("local setting");
+    super::write_private(&root.join("local.setting"), &writer.finish());
+    let item = json!({"setting":{"kind":"worker","number":1},"set":{"name":"local","places":places,"digest":null}});
+    super::write_private(
+        &root.join("local-worker-settings.json"),
+        &serde_json::to_vec(&json!({"items":[item]})).expect("local settings JSON"),
+    );
 }
 
 /// Install the composed fixture once through the shipped settings command.
@@ -179,7 +204,15 @@ pub fn apply(directories: &temper_box_shell::directories::Directories, overrides
         _ => unreachable!("limit steps are calls"),
     }));
     let command = skein_world::end_to_end::Command {
-        program: skein_scratch::paths::binary("temper-box"),
+        program: skein_scratch::paths::binary("temper-box").with_file_name(
+            match super::read_file_shape(
+                &Path::new(std::ffi::OsStr::from_bytes(&directories.config)).join(temper_config_shell::FILE),
+            ) {
+                temper_config_shell::Shape::Standalone => "temper-box",
+                temper_config_shell::Shape::EngineAlone => "temper-engine",
+                temper_config_shell::Shape::WorkerAlone => panic!("a worker alone has no limit settings store"),
+            },
+        ),
         arguments: std::iter::once("serve".into())
             .chain(directories.flags().into_vec().into_iter().map(|word| std::ffi::OsString::from_vec(word.into_vec())))
             .collect(),

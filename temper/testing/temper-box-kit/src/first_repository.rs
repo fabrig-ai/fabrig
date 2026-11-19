@@ -684,8 +684,8 @@ pub fn change_page(config: &Path, client: &Path, task: u64) -> String {
             self.closing
         }
     }
-    let document: Value = serde_json::from_slice(&fs::read(config.join("temper.json")).expect("configuration"))
-        .expect("configuration JSON");
+    let document: Value =
+        super::start_document(&config.join(temper_config_shell::FILE), temper_config_shell::Shape::Standalone);
     let engine = document
         .pointer("/application/clients/listener/socket")
         .and_then(Value::as_str)
@@ -807,11 +807,13 @@ pub fn generated(root: &Path) {
             super::write_private(&path, &bytes);
         }
     }
-    let mut value: Value = serde_json::from_slice(&temper_config_shell::init_document(false)).expect("init start");
-    value["application"]["clients"]["listener"]["socket"] = addresses[0].to_string().into();
-    value["application"]["webhooks"]["listener"]["socket"] = addresses[4].to_string().into();
-    value["engine"]["owners"][0]["subject"] = "qa-person@localhost".into();
-    super::write_private(&root.join(temper_config_shell::FORMER), &serde_json::to_vec(&value).expect("fixture start"));
+    let file = temper_config_shell::File {
+        listen: Some(addresses[0]),
+        webhooks: Some(addresses[4]),
+        owner: Some("qa-person@localhost".into()),
+        ..Default::default()
+    };
+    super::write_file(&root.join(temper_config_shell::FILE), &file, temper_config_shell::Shape::Standalone);
 }
 pub fn stage_binaries(root: &Path) {
     use skein_forge::forgejo::pin::{RUNNER_VERSION, VERSION};

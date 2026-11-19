@@ -24,27 +24,17 @@ const A: usize = 0;
 const B: usize = 2;
 const VISITOR: usize = 4;
 
-fn document(directory: &Path) -> serde_json::Value {
-    serde_json::from_slice(&fs::read(directory.join("temper.json")).expect("configuration")).expect("JSON")
-}
-
 fn configure(directory: &Path, llm: SocketAddr) -> oauth::Peer {
     let issuer = sign_in::configuration(directory);
-    let mut value = document(directory);
     let mut providers = temper_agent_fixtures::providers::read(directory);
     providers["endpoints"][0]["address"] = serde_json::json!({"socket": llm.to_string()});
     temper_agent_fixtures::providers::write(directory, &providers);
-    // Keep init's LLM registration, charters and worker, with no forge records
-    // (temper/docs/design/protocol/setup/init.md, 3).
-    let (_, fixture) = super::configuration::documents(
-        directory,
-        skein_scratch::paths::binary("temper-box").to_str().expect("a UTF-8 path"),
-    );
-    let fixture: serde_json::Value = serde_json::from_slice(&fixture).expect("fixture JSON");
-    for field in ["machine", "webhooks", "workers", "clients"] {
-        value["application"][field] = fixture["application"][field].clone();
-    }
-    super::write_private(&directory.join("temper.json"), &serde_json::to_vec(&value).expect("configuration JSON"));
+    // The issuer registration stays in the provider setting; listeners are the file's.
+    let path = directory.join(temper_config_shell::FILE);
+    let mut file = super::read_file(&path, temper_config_shell::Shape::Standalone);
+    file.listen = Some("127.0.0.1:0".parse().expect("clients"));
+    file.webhooks = Some("127.0.0.1:0".parse().expect("webhooks"));
+    super::write_file(&path, &file, temper_config_shell::Shape::Standalone);
     issuer
 }
 

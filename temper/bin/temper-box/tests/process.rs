@@ -429,8 +429,11 @@ fn boxed_example(scratch: &support::Scratch) -> support::owned::Owned {
             person: "ada",
         },
     );
-    std::fs::write(scratch.path().join("temper.json"), support::owned::example_document(scratch.path(), &owned))
-        .expect("box example");
+    std::fs::write(
+        scratch.path().join(temper_config_shell::FILE),
+        temper_config_shell::render(&support::owned::example_file(&owned), temper_config_shell::Shape::Standalone),
+    )
+    .expect("box example");
     // A retained group starts only with its started record (temper/docs/design/protocol/setup/box.md, 1).
     for directory in ["box/groups", "box/started"] {
         std::fs::create_dir_all(scratch.path().join(directory)).expect("box group directory");
@@ -991,18 +994,14 @@ fn a_mixed_document_exits_1_naming_its_path() {
         scratch.path(),
         &[("forge", "address", "127.0.0.1:3"), ("llm", "address", "127.0.0.1:1"), ("engine", "workers", "127.0.0.1:2")],
     );
-    let path = cluster.dir("engine").join("config/temper.json");
-    let mut engine: serde_json::Value =
-        serde_json::from_slice(&std::fs::read(&path).expect("engine document")).expect("engine JSON");
-    let worker: serde_json::Value =
-        serde_json::from_slice(&std::fs::read(cluster.dir("w1").join("config/temper.json")).expect("worker document"))
-            .expect("worker JSON");
-    engine["workers"] = worker["workers"].clone();
-    std::fs::write(&path, serde_json::to_vec(&engine).expect("mixed JSON")).expect("mixed document");
+    let path = cluster.dir("engine").join("config").join(temper_config_shell::FILE);
+    let mut text = std::fs::read_to_string(&path).expect("engine file");
+    text.push_str("engine = \"127.0.0.1:2\"\n");
+    std::fs::write(&path, text).expect("mixed-shape file");
     let directory = cluster.dir("engine");
     let binary = Binary::start_with_tree(
         Command {
-            program: skein_scratch::paths::binary("temper-box"),
+            program: skein_scratch::paths::binary("temper-box").with_file_name("temper-engine"),
             arguments: vec![
                 "serve".into(),
                 "--config".into(),
@@ -1030,7 +1029,8 @@ fn a_mixed_document_exits_1_naming_its_path() {
     let outcome = world.run(&clock, support::WITHIN);
     let [binary] = outcome.procs.as_slice() else { panic!("one serve") };
     assert_eq!(binary.exit_status(), Some(Exit::Code(1)));
-    assert_eq!(binary.stderr(), b"temper serve: workers: an engine alone takes no local worker, one plaintext loopback listener and workers with distinct digest paths\n");
+    let why = String::from_utf8_lossy(binary.stderr());
+    assert!(why.contains("engine") && why.contains("not temper-engine"), "{why}");
     scratch.remove();
 }
 
@@ -1045,16 +1045,18 @@ fn the_cluster_stops_in_reverse_each_exiting_0() {
 fn prepare_owned_worker(members: &mut support::cluster::Members) -> Result<(), String> {
     let directory = members.prepare("w1");
     let configuration = directory.join("config");
-    let example: serde_json::Value = serde_json::from_str(include_str!("../../../docs/examples/owned.json"))
-        .map_err(|why| format!("owned example: {why:?}"))?;
-    let mut document = serde_json::json!({
-        "workers": example["workers"],
-        "application": {}
-    });
-    let worker = &mut document["workers"][0];
-    worker["engine"] = serde_json::json!({"socket": members.capture("engine", "workers").ok_or("engine listener")?});
-    worker["name"] = "w1".into();
-    worker["secret"] = "secrets/w1.secret".into();
+    let file = temper_config_shell::File {
+        engine: Some(
+            members
+                .capture("engine", "workers")
+                .ok_or("engine listener")?
+                .parse()
+                .map_err(|why| format!("engine address: {why:?}"))?,
+        ),
+        name: Some("w1".into()),
+        ..Default::default()
+    };
+    let document = support::configuration::start(&file, temper_config_shell::Shape::WorkerAlone);
     let arguments = [
         "--config".to_owned(),
         configuration.to_str().ok_or("config path")?.to_owned(),
@@ -1063,10 +1065,7 @@ fn prepare_owned_worker(members: &mut support::cluster::Members) -> Result<(), S
         "--cache".to_owned(),
         directory.join("cache").to_str().ok_or("cache path")?.to_owned(),
     ];
-    support::write_private(
-        &configuration.join("temper.json"),
-        &serde_json::to_vec(&document).map_err(|why| format!("worker JSON: {why:?}"))?,
-    );
+    support::write_file(&configuration.join(temper_config_shell::FILE), &file, temper_config_shell::Shape::WorkerAlone);
     let arguments: Vec<Box<[u8]>> = arguments.iter().map(|s| s.as_bytes().into()).collect();
     let (directories, _) = temper_box_shell::directories::resolve(&arguments, &[], b"/")
         .map_err(|why| format!("worker directories: {why:?}"))?;
@@ -1079,11 +1078,10 @@ fn prepare_owned_worker(members: &mut support::cluster::Members) -> Result<(), S
         &[],
     )
     .map_err(|why| format!("owned worker: {why:?}"))?;
-    let engine: serde_json::Value = serde_json::from_slice(
-        &std::fs::read(members.dir("engine").join("config/temper.json"))
-            .map_err(|why| format!("engine document: {why:?}"))?,
-    )
-    .map_err(|why| format!("engine JSON: {why:?}"))?;
+    let engine = support::start_document(
+        &members.dir("engine").join("config").join(temper_config_shell::FILE),
+        temper_config_shell::Shape::EngineAlone,
+    );
     temper_worker_service::figures::apply(&mut part, support::cluster::figures(&engine))
         .map_err(|why| format!("owned worker's engine figures: {why:?}"))?;
     let operations = temper_service_core::process::Process::operations_for(
@@ -1119,18 +1117,7 @@ impl OwnedWorkerJudge {
         {
             match self.phase {
                 OwnedWorkerPhase::Engine => {
-                    let directory = self.members.prepare("engine");
-                    let path = directory.join("config/temper.json");
-                    let engine = temper_playground::documents::Configuration::from_jig(
-                        serde_json::from_slice(
-                            &std::fs::read(&path).map_err(|why| format!("engine document: {why:?}"))?,
-                        )
-                        .map_err(|why| format!("engine JSON: {why:?}"))?,
-                    );
-                    support::write_private(
-                        &path,
-                        &serde_json::to_vec(&engine).map_err(|why| format!("engine JSON: {why:?}"))?,
-                    );
+                    self.members.prepare("engine");
                     self.members.up(&["engine"]);
                     self.phase = OwnedWorkerPhase::Worker;
                 }
@@ -2763,8 +2750,11 @@ fn a_held_record_returns_on_a_box_of_its_own_after_the_storys_box_stopped() {
     let metadata = std::fs::symlink_metadata(&held).expect("the return box exported the record");
     assert!(metadata.is_file() && metadata.len() > 0);
     assert_eq!(metadata.permissions().mode() & 0o7777, 0o600);
-    let config: serde_json::Value =
-        serde_json::from_slice(&std::fs::read(paths[0].join("temper.json")).expect("configuration")).expect("JSON");
+    let config: serde_json::Value = serde_json::from_slice(
+        &support::read_start(&paths[0].join(temper_config_shell::FILE), temper_config_shell::Shape::Standalone)
+            .document,
+    )
+    .expect("JSON");
     let listener = config["application"]["clients"]["listener"]["socket"].as_str().expect("client listener");
     assert!(std::net::TcpStream::connect(listener).is_err(), "the return's box stopped");
     scratch.remove();
@@ -2804,15 +2794,10 @@ fn imported_restart_account(scratch: &std::path::Path, paths: &[std::path::PathB
     // Draw the recipient's listeners after the donor's connections have drained.
     drop(restart_deployment(paths));
     // A move must find the very same provider registration at its destination.
-    let read = |path| -> serde_json::Value {
-        serde_json::from_slice(&std::fs::read(path).expect("fixture configuration")).expect("configuration JSON")
-    };
     let donor = temper_agent_fixtures::providers::read(&donor_paths[1]);
-    let config = paths[0].join("temper.json");
-    let mut destination = read(config.clone());
-    temper_agent_fixtures::providers::input(&mut destination)["providers"][0]["sources"]["sign_in"] =
-        donor["providers"][0]["sources"]["sign_in"].clone();
-    support::write_private(&config, &serde_json::to_vec(&destination).expect("fixture configuration JSON"));
+    let mut destination = temper_agent_fixtures::providers::read(&paths[1]);
+    destination["providers"][0]["sources"]["sign_in"] = donor["providers"][0]["sources"]["sign_in"].clone();
+    temper_agent_fixtures::providers::write(&paths[1], &destination);
 }
 
 fn account_transfer_restart(case: &str) {
@@ -2834,9 +2819,11 @@ fn account_transfer_restart(case: &str) {
         steps,
         BOX_DEADLINE,
         || {
-            let value: serde_json::Value =
-                serde_json::from_slice(&std::fs::read(paths[0].join("temper.json")).expect("configuration"))
-                    .expect("JSON");
+            let value: serde_json::Value = serde_json::from_slice(
+                &support::read_start(&paths[0].join(temper_config_shell::FILE), temper_config_shell::Shape::Standalone)
+                    .document,
+            )
+            .expect("JSON");
             let upstream = value["application"]["clients"]["listener"]["socket"]
                 .as_str()
                 .expect("client address")

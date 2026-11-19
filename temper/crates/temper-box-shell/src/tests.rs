@@ -187,9 +187,9 @@ fn the_standalone_operations_check_retains_no_descriptors() {
         listener.local_addr().expect("scripted address").to_string().into_bytes().into_boxed_slice(),
     )];
     let (agent, mut config) = configuration::typed_documents(&directory, "/fixture/temper");
-    let document = serde_json::to_vec(&config).expect("deployment document");
+    let file = temper_config_shell::render(&configuration::file(), temper_config_shell::Shape::Standalone);
     let named_file = directory.join("worker.secret");
-    write("temper.json", &document);
+    write(temper_config_shell::FILE, &file);
     temper_agent_fixtures::install(&directory, &serde_json::from_slice(&agent).expect("agent JSON"));
     let composed = temper_agent_fixtures::at(&config, &directory);
     configuration::support::turn_bounds::apply(&mut config, configuration::support::turn_bounds::turn_body(&composed));
@@ -262,7 +262,7 @@ fn the_standalone_operations_check_retains_no_descriptors() {
             .expect("count without named file"),
         operations
     );
-    write("temper.json", &document);
+    write(temper_config_shell::FILE, &file);
     let why = super::prepare_in(&environment, b"/", &configuration::directories(&directory))
         .err()
         .expect("missing file refused");
@@ -394,8 +394,11 @@ fn forge_commands_refuse_the_recorded_fake_kind_for_owned_operations() {
     use std::os::unix::fs::PermissionsExt;
     let scratch = skein_scratch::Scratch::new("forge-not-owned");
     std::fs::set_permissions(scratch.path(), std::fs::Permissions::from_mode(0o700)).expect("private deployment root");
-    let document = configuration::check_document(scratch.path());
-    std::fs::write(scratch.path().join("temper.json"), serde_json::to_vec(&document).expect("JSON")).expect("document");
+    std::fs::write(
+        scratch.path().join(temper_config_shell::FILE),
+        temper_config_shell::render(&configuration::file(), temper_config_shell::Shape::Standalone),
+    )
+    .expect("document");
     std::fs::create_dir_all(scratch.path().join("box/groups")).expect("groups");
     std::fs::write(scratch.path().join("box/groups/1"), b"fake\n").expect("kind");
     configuration::setup(

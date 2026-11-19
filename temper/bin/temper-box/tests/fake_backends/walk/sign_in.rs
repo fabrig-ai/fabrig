@@ -91,8 +91,11 @@ impl Referee<NativeClient> for Judge {
 
 /// Ready, by the browser's bounds: the plan's model line, and Create enabled. It presses nothing.
 fn ready_can_create(config: &Path, client: &Path) {
-    let document: serde_json::Value =
-        serde_json::from_slice(&std::fs::read(config.join("temper.json")).expect("configuration")).expect("JSON");
+    let document: serde_json::Value = serde_json::from_slice(
+        &crate::support::read_start(&config.join(temper_config_shell::FILE), temper_config_shell::Shape::Standalone)
+            .document,
+    )
+    .expect("JSON");
     let engine = document
         .pointer("/application/clients/listener/socket")
         .and_then(serde_json::Value::as_str)
@@ -245,8 +248,11 @@ impl Referee<NativeClient> for Depart<'_> {
 }
 fn browser_sign_in(config: &Path, client: &Path) {
     const PAGE: &[u8] = b"Sign-in received. You can close this tab.\n";
-    let document: serde_json::Value =
-        serde_json::from_slice(&std::fs::read(config.join("temper.json")).expect("configuration")).expect("JSON");
+    let document: serde_json::Value = serde_json::from_slice(
+        &crate::support::read_start(&config.join(temper_config_shell::FILE), temper_config_shell::Shape::Standalone)
+            .document,
+    )
+    .expect("JSON");
     let engine = document
         .pointer("/application/clients/listener/socket")
         .and_then(serde_json::Value::as_str)

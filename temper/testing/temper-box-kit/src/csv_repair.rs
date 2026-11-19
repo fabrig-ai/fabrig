@@ -65,7 +65,6 @@ pub fn initialize(paths: &[PathBuf; 3]) {
     );
     assert!(!paths[0].join("agent.json").exists());
     assert!(stderr.contains("init: start it with temper box"), "{stderr}");
-    temper_agent_fixtures::legacy_init(&paths[0]);
     assert!(!stderr.contains("init: no git on PATH"), "real git is available: {stderr}");
     super::own_listener_files(&paths[0]);
 }

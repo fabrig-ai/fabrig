@@ -400,7 +400,7 @@ fn fake_preparation_refuses_an_open_directory_and_run_still_refuses_fake() {
 }
 
 fn fake_configuration(directory: &std::path::Path) {
-    let config = support::configuration::check_document(directory);
+    let file = support::configuration::file();
     support::configuration::setup(
         directory,
         1,
@@ -408,7 +408,11 @@ fn fake_configuration(directory: &std::path::Path) {
     );
     fs::create_dir_all(directory.join("box/groups")).expect("groups");
     support::write_private(&directory.join("box/groups/1"), b"fake\n");
-    fs::write(directory.join("temper.json"), serde_json::to_vec(&config).expect("document")).expect("document");
+    fs::write(
+        directory.join(temper_config_shell::FILE),
+        temper_config_shell::render(&file, temper_config_shell::Shape::Standalone),
+    )
+    .expect("document");
 }
 
 #[test]
@@ -545,17 +549,17 @@ fn forge_sign_in_refuses_without_openssl_a_named_forge_or_a_provider() {
     let directory = scratch.path();
     let _programs = support::owned::scripted(directory);
     forge_sign_in::configure(directory, "127.0.0.1:3000", "127.0.0.1:31000", "127.0.0.1:31999");
-    let path = directory.join("temper.json");
-    let value: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
+    let path = directory.join(temper_config_shell::FILE);
+    let value = support::read_file(&path, temper_config_shell::Shape::Standalone);
     for (case, expected) in [(0, "openssl"), (1, "application.sign_in.forges"), (2, "engine.clients.provider")] {
         let mut changed = value.clone();
         if case == 1 {
-            changed["application"]["sign_in"]["forges"] = serde_json::json!([]);
+            changed.sign_in.as_mut().expect("Google sign-in").forges.clear();
         }
         if case == 2 {
-            changed["engine"]["clients"]["provider"] = serde_json::Value::Null;
+            changed.openid = None;
         }
-        support::write_private(&path, &serde_json::to_vec(&changed).expect("JSON"));
+        support::write_file(&path, &changed, temper_config_shell::Shape::Standalone);
         let output =
             forge_sign_in::command(directory).env("PATH", directory.join("no-programs")).output().expect("refusal");
         assert_eq!(output.status.code(), Some(1));
@@ -585,15 +589,15 @@ fn forge_sign_in_prints_the_owned_command_with_public_forge_and_temper_origins()
     let directory = scratch.path();
     let _programs = support::owned::scripted(directory);
     forge_sign_in::configure(directory, "127.0.0.1:3000", "127.0.0.1:31000", "127.0.0.1:31999");
-    let path = directory.join("temper.json");
-    let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
+    let path = directory.join(temper_config_shell::FILE);
+    let mut file = support::read_file(&path, temper_config_shell::Shape::Standalone);
     let mut setup = support::owned::setup_value(directory, 1, "owned");
     setup["public"] = "https://git.example.com".into();
     support::configuration::setup(directory, 1, setup);
-    value["application"]["clients"]["public"] = "https://temper.example.com".into();
-    value["engine"]["clients"]["provider"]["clients"][0]["redirect_uri"] =
+    file.public = Some("https://temper.example.com".into());
+    file.openid.as_mut().expect("provider").clients[0].redirect =
         "https://git.example.com/user/oauth2/temper/callback".into();
-    support::write_private(&path, &serde_json::to_vec(&value).expect("JSON"));
+    support::write_file(&path, &file, temper_config_shell::Shape::Standalone);
     let output = forge_sign_in::command(directory).output().expect("sign-in command");
     forge_sign_in::success(&output);
     assert_eq!(
@@ -695,7 +699,7 @@ fn forge_no_registration_follows_the_switch_on_every_preparation_and_print() {
     );
 
     // A forge absent from sign_in.forges keeps its settings even with the switch.
-    owned::configuration_value(directory, |value| value["application"]["sign_in"]["forges"] = serde_json::json!([]));
+    owned::configuration_value(directory, |file| file.sign_in.as_mut().expect("sign-in").forges.clear());
     forge_sign_in::success(&owned::prepare(directory, 1));
     let unnamed = fs::read(&path).expect("unnamed forge ini");
     forge_sign_in::success(&owned::prepare_no_registration(directory, 1));
@@ -706,18 +710,23 @@ fn forge_no_registration_follows_the_switch_on_every_preparation_and_print() {
 
 /// The public client and owner written by init --box; no provider key is read by prepare.
 fn source_configuration(directory: &std::path::Path, port: u16) {
-    let path = directory.join("temper.json");
-    let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
-    value["engine"]["owners"] = serde_json::json!([{"provider":1,"subject":"ada@example.invalid"}]);
-    value["engine"]["clients"]["provider"] = serde_json::json!({
-        "key":"provider.key", "addresses":[1],
-        "clients":[{"id":"forgejo","secret":null,"redirect_uri":"http://127.0.0.1:3000/user/oauth2/temper/callback"}]
+    let path = directory.join(temper_config_shell::FILE);
+    let mut file = support::read_file(&path, temper_config_shell::Shape::Standalone);
+    file.owner = Some("ada@example.invalid".into());
+    file.openid = Some(temper_config_shell::OpenId {
+        key: Some("provider.key".into()),
+        addresses: Some(vec![1]),
+        clients: vec![temper_config_shell::OpenIdClient {
+            id: "forgejo".into(),
+            secret: None,
+            redirect: "http://127.0.0.1:3000/user/oauth2/temper/callback".into(),
+        }],
     });
-    value["application"]["clients"]["listener"] = serde_json::json!({"socket":format!("127.0.0.1:{port}")});
+    file.listen = Some(([127, 0, 0, 1], port).into());
     let mut setup = support::owned::setup_value(directory, 1, "owned");
     setup["sign_in"] = "forgejo".into();
     support::configuration::setup(directory, 1, setup);
-    support::write_private(&path, &serde_json::to_vec(&value).expect("JSON"));
+    support::write_file(&path, &file, temper_config_shell::Shape::Standalone);
 }
 fn source_script(directory: &std::path::Path, extra: &str) {
     let path = directory.join("forgejo");
@@ -852,16 +861,15 @@ fn source_answer(
     let issuer_address = issuer.local_addr().expect("issuer address");
     let forge_address = forge.local_addr().expect("Forgejo address");
     source_configuration(directory, issuer_address.port());
-    let path = directory.join("temper.json");
-    let mut value: serde_json::Value =
-        serde_json::from_slice(&fs::read(&path).expect("source configuration")).expect("source JSON");
+    let path = directory.join(temper_config_shell::FILE);
+    let mut file = support::read_file(&path, temper_config_shell::Shape::Standalone);
     let mut setup = support::owned::setup_value(directory, 1, "owned");
     setup["listen"] = serde_json::json!({"socket":forge_address.to_string()});
     setup["remote"] = format!("http://{forge_address}").into();
     support::configuration::setup(directory, 1, setup);
-    value["engine"]["clients"]["provider"]["clients"][0]["redirect_uri"] =
-        format!("http://{forge_address}/user/oauth2/temper/callback").into();
-    support::write_private(&path, &serde_json::to_vec(&value).expect("source JSON"));
+    file.openid.as_mut().expect("provider").clients[0].redirect =
+        format!("http://{forge_address}/user/oauth2/temper/callback");
+    support::write_file(&path, &file, temper_config_shell::Shape::Standalone);
     let program = format!(
         "#!/bin/sh\nprintf '%s\\n' \"$@\" >> '{}'\nif [ \"$5 $6 $7\" = 'admin auth list' ]; then printf '{}'; fi\n",
         directory.join("source-arguments").display(),

@@ -285,7 +285,7 @@ fn open_listeners(
 
 fn configuration_path(directories: &super::Directories) -> std::path::PathBuf {
     let file = super::path(&directories.config).join(temper_config_shell::FILE);
-    if file.exists() { file } else { directories.document() }
+    if file.exists() || !directories.document().exists() { file } else { directories.document() }
 }
 
 type Configuration = (Box<[u8]>, Vec<(Fd, std::num::NonZeroU16)>, Option<Box<[u8]>>);

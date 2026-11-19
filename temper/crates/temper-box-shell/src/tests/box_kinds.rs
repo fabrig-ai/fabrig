@@ -297,9 +297,11 @@ fn a_forge_with_no_group_file_is_the_machines_owned() {
 fn no_group_file_and_no_owned_part_is_refused_naming_both() {
     let scratch = skein_scratch::Scratch::new("forge-no-owned-entry");
     let directories = super::configuration::directories(scratch.path());
-    let document = super::configuration::check_document(scratch.path());
-    fs::write(scratch.path().join("temper.json"), serde_json::to_vec(&document).expect("document"))
-        .expect("configuration");
+    fs::write(
+        scratch.path().join(temper_config_shell::FILE),
+        temper_config_shell::render(&super::configuration::file(), temper_config_shell::Shape::Standalone),
+    )
+    .expect("configuration");
     for (verb, arguments) in
         [("fetch", vec!["fetch".into(), "17".into()]), ("run", vec!["run".into(), "17".into(), "forgejo".into()])]
     {

@@ -25,9 +25,10 @@ pub fn read_with_legacy(
     shape: Shape,
     legacy: impl FnOnce() -> Result<Box<[u8]>, String>,
 ) -> Result<Read, String> {
-    let file = Path::new(std::ffi::OsStr::from_bytes(&directories.config)).join(temper_config_shell::FILE);
-    if let Err(why) = std::fs::symlink_metadata(file)
+    let config = Path::new(std::ffi::OsStr::from_bytes(&directories.config));
+    if let Err(why) = std::fs::symlink_metadata(config.join(temper_config_shell::FILE))
         && why.kind() == ErrorKind::NotFound
+        && std::fs::symlink_metadata(config.join(temper_config_shell::FORMER)).is_ok()
     {
         return legacy().map(|document| Read { file: None, document, keys: None });
     }
