@@ -82,6 +82,7 @@ skein-shell.workspace = true
 skein-tls.workspace = true
 
 [dev-dependencies]
+temper-forge-setup.workspace = true
 skein-ui.workspace = true
 skein-ui-text.workspace = true
 

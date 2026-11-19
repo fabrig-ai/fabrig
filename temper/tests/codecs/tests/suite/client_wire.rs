@@ -51,6 +51,7 @@ fn first(state: v1::FirstState) -> v1::FirstRepository {
         &v1::CEILINGS,
         v1::FirstRepositoryParts {
             playground: false,
+            sample: true,
             org: b"work".as_slice().into(),
             repository: b"hello".as_slice().into(),
             state,
@@ -62,7 +63,7 @@ fn first(state: v1::FirstState) -> v1::FirstRepository {
 #[test]
 fn setup_and_every_first_repository_state_round_trip_at_current_version() {
     use temper_client_protocol_wire as wire;
-    assert_eq!(wire::CLIENT_VERSION, 39);
+    assert_eq!(wire::CLIENT_VERSION, 40);
     let request = setup_request();
     assert_eq!(wire::decode_requesting(&wire::requesting(&request), &v1::CEILINGS), Some(request));
     for state in [
@@ -135,6 +136,7 @@ fn setup_request() -> v1::Requesting {
                                 &v1::CEILINGS,
                                 v1::FirstEmptyParts {
                                     playground: false,
+                                    sample: true,
                                     org: b"work".as_slice().into(),
                                     repository: b"hello".as_slice().into(),
                                 },
@@ -163,6 +165,7 @@ fn first_repository_names_are_bounded_at_construction_and_decode() {
         for field in 0..2 {
             let parts = v1::FirstEmptyParts {
                 playground: false,
+                sample: false,
                 org: if field == 0 { name.clone() } else { b"o".as_slice().into() },
                 repository: if field == 1 { name.clone() } else { b"r".as_slice().into() },
             };
@@ -179,6 +182,7 @@ fn first_repository_names_are_bounded_at_construction_and_decode() {
         for field in 0..2 {
             let parts = v1::FirstRepositoryParts {
                 playground: false,
+                sample: false,
                 org: if field == 0 { name.clone() } else { b"o".as_slice().into() },
                 repository: if field == 1 { name.clone() } else { b"r".as_slice().into() },
                 state: v1::FirstState::Making,
@@ -200,12 +204,14 @@ fn first_repository_names_are_bounded_at_construction_and_decode() {
         for org in [true, false] {
             let parts = v1::FirstEmptyParts {
                 playground: false,
+                sample: false,
                 org: if org { name.clone() } else { b"o".as_slice().into() },
                 repository: if org { b"r".as_slice().into() } else { name.clone() },
             };
             assert_eq!(v1::FirstEmpty::new(&v1::CEILINGS, parts).is_ok(), size == 1024);
             let parts = v1::FirstRepositoryParts {
                 playground: false,
+                sample: false,
                 org: if org { name.clone() } else { b"o".as_slice().into() },
                 repository: if org { b"r".as_slice().into() } else { name.clone() },
                 state: v1::FirstState::Making,

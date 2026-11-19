@@ -1569,6 +1569,7 @@ fn forges(world: World) -> Box<[u8]> {
                                 &limits,
                                 w::FirstRepositoryParts {
                                     playground: false,
+                                    sample: false,
                                     org: b"work".as_slice().into(),
                                     repository: b"hello".as_slice().into(),
                                     state: if step == 7 {

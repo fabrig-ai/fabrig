@@ -1,6 +1,7 @@
 # forgejo: status
 
-2026-11-12. Where the tree's code lags or departs from [forgejo.md](forgejo.md).
+2026-11-19. Where the tree's code lags or departs from [forgejo.md](forgejo.md).
+
 
 - **Not yet:** 2: no fact records that a hook's patch keeps the secret
   the hook was made with: `skein/tests/forge/conformance/src/repo_setup.rs`,

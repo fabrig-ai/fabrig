@@ -1,15 +1,23 @@
 # welcome-set-up
 
+<<<<<<< HEAD
 A version-2 `walk` in one process, on the playground's composition,
 signed in at `/welcome` by its printed link. The world's box's peer
 plays the owned Forgejo's set-up on the world's time: no `temper box`
 (`../../../journey-walks.md`, 4.4 and 6). The walk presses "Set up
 temper", then Forgejo's "Run on this machine" and its sheet's own
 "Run on this machine", leaving "An empty repository" chosen.
+=======
+On a fresh `temper box --fake-backends`: the box's printed sign-in link
+opened, the welcome drawn under its top bar, "Set up temper" pressed, then Forgejo's
+"Run on this machine" on the Forge step, and its sheet's own "Run on
+this machine", the sample chosen.
+>>>>>>> refs/hand5/10159
 
 Every page's top bar holds temper's mark, Steps, the live link region
 and the night switch last, no person or Sign out.
 
+<<<<<<< HEAD
 - `01.html`: the welcome, with "Set up temper" and "Try the playground"
   cards. The temper box paragraph follows their note. The walk waits
   for "Set up temper", not just the heading, before marking; its link
@@ -38,3 +46,19 @@ The forge's pane sits beside the model choices from 1280 px, below
 otherwise. Pages `04.html` to `07.html` have no acted control: the
 peer's reports and the engine's own work advance the set-up, and the
 printed pages lead on by their neighbours.
+=======
+- `01.html`: the welcome, as it was first drawn. It leads to `02.html`.
+- `02.html`: the welcome as it was when "Set up temper" was pressed.
+  Its "Set up temper" leads to `03.html`.
+- `03.html`: the Forge step's choices, as they were first drawn. It
+  leads to `04.html`.
+- `04.html`: the Forge step's choices as they were when "Run on this
+  machine" was pressed. Its "Run on this machine" leads to `05.html`.
+- `05.html`: Forgejo's sheet over the choices, the sample
+  chosen, as it was first drawn. It leads to `06.html`.
+- `06.html`: the sheet as it was when its "Run on this machine" was
+  pressed. Its "Run on this machine" leads to `07.html`.
+- `07.html`: the Model step, the set up running on, its forge's line
+  and each step in the Forge region, beside the plans from 1280 px,
+  under the choices otherwise, as it was when the recording ended.
+>>>>>>> refs/hand5/10159

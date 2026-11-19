@@ -459,6 +459,7 @@ fn setup_fields_reach_the_engine_and_unknown_project_names_are_admitted() {
         row(&world, FORGE).first,
         Some(d::First {
             playground: false,
+            sample: false,
             org: b"team".as_slice().into(),
             repository: b"widget".as_slice().into(),
             state: d::FirstState::Making,
