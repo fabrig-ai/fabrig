@@ -33,6 +33,37 @@ fn decode_tests(tests: List<w::FailingTest>) -> Result<Box<[Box<[u8]>]>, Undecod
     }
     Ok(values.into_boxed())
 }
+fn encode_shown(tests: &[Box<[u8]>]) -> (List<w::ShownTest>, u32) {
+    let capacity = u32::try_from(tests.len()).expect(FITS).min(w::CEILINGS.many_tests_tests);
+    let mut values = List::with_capacity(capacity);
+    let mut dropped = 0_u32;
+    for test in tests {
+        if values.len() == capacity {
+            dropped = dropped.saturating_add(1);
+        } else {
+            values
+                .push(w::ShownTest::new(&w::CEILINGS, w::ShownTestParts { test_id: test.clone() }).expect(FITS))
+                .expect(FITS);
+        }
+    }
+    (values, dropped)
+}
+fn decode_shown(tests: List<w::ShownTest>) -> Result<Box<[Box<[u8]>]>, Undecodable> {
+    let mut values = List::with_capacity(tests.len());
+    for test in tests.into_boxed() {
+        let test = test.into_parts().test_id;
+        if test.is_empty() {
+            return Err(Undecodable::Malformed);
+        }
+        if let Some(previous) = values.as_slice().last()
+            && previous >= &test
+        {
+            return Err(Undecodable::Malformed);
+        }
+        values.push(test).expect(FITS);
+    }
+    Ok(values.into_boxed())
+}
 fn encode_landings(landings: &[p::Landing]) -> List<w::TierLanding> {
     let mut values = List::with_capacity(u32::try_from(landings.len()).expect(FITS));
     for landing in landings {
@@ -200,13 +231,16 @@ pub(super) fn encode(row: &d::TierRow) -> w::TierRow {
         &w::CEILINGS,
         w::TierRowParts {
             many: match &row.many {
-                Some(many) => Some(
-                    w::ManyTests::new(
-                        &w::CEILINGS,
-                        w::ManyTestsParts { tests: encode_tests(&many.tests), more: many.more, cut: many.cut },
+                Some(many) => {
+                    let (tests, dropped) = encode_shown(&many.tests);
+                    Some(
+                        w::ManyTests::new(
+                            &w::CEILINGS,
+                            w::ManyTestsParts { tests, more: many.more.saturating_add(dropped), cut: many.cut },
+                        )
+                        .expect(FITS),
                     )
-                    .expect(FITS),
-                ),
+                }
                 None => None,
             },
             observations: row.observations.clone(),
@@ -318,7 +352,7 @@ pub(super) fn decode(row: w::TierRow) -> Result<d::TierRow, Undecodable> {
         many: match many {
             Some(many) => {
                 let w::ManyTestsParts { tests, more, cut } = many.into_parts();
-                Some(p::ManyTests { tests: decode_tests(tests)?, more, cut })
+                Some(p::ManyTests { tests: decode_shown(tests)?, more, cut })
             }
             None => None,
         },

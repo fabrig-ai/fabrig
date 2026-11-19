@@ -74,6 +74,35 @@ fn tier_many_names_round_trip_and_obey_the_failure_bound() {
 }
 
 #[test]
+#[expect(clippy::disallowed_macros, reason = "test ids use two-digit decimal suffixes")]
+fn tier_many_names_keep_the_lowest_64_and_count_the_rest() {
+    let mut limits = fixtures::LIMITS;
+    limits.tiers.failing_tests = 70;
+    let bounds = crate::bounds(&limits, limits.client.op_bytes).unwrap();
+    let mut kept = skein_lib::List::with_capacity(64);
+    for n in 0..64_u32 {
+        kept.push(format!("t{n:02}").into_bytes().into_boxed_slice()).unwrap();
+    }
+    let kept = kept.into_boxed();
+    for (count, more, expected_more) in [(70_u32, 5, 11), (64, 5, 5), (70, u32::MAX, u32::MAX)] {
+        let mut tests = skein_lib::List::with_capacity(count);
+        for n in 0..count {
+            tests.push(format!("t{n:02}").into_bytes().into_boxed_slice()).unwrap();
+        }
+        let mut row = fixtures::tier_row();
+        row.many = Some(p::ManyTests { tests: tests.into_boxed(), more, cut: false });
+        let encoded = records::encode(&d::Stored::Tier(row));
+        let d::Stored::Tier(decoded) = records::decode(&encoded, &bounds).unwrap() else { panic!("tier row") };
+        assert_eq!(
+            decoded.many,
+            Some(p::ManyTests { tests: kept.clone(), more: expected_more, cut: false }),
+            "{count} names, more {more}"
+        );
+    }
+    assert_eq!(bounds.limits().many_tests_tests, 64);
+}
+
+#[test]
 fn a_tier_row_written_before_many_names_defaults_to_none() {
     let mut text = None;
     for family in crate::OWNER_SET.families {
@@ -386,7 +415,8 @@ fn tier_family_bounds_follow_the_forge_and_full_row_measure() {
     assert_eq!(l.verification_changes, fixtures::LIMITS.changes);
     assert_eq!(l.verification_tiers, fixtures::LIMITS.tiers.tiers);
     assert_eq!(l.failed_tests_tests, fixtures::LIMITS.tiers.failing_tests);
-    assert_eq!(l.many_tests_tests, fixtures::LIMITS.tiers.failing_tests);
+    assert_eq!(l.many_tests_tests, fixtures::LIMITS.tiers.failing_tests.min(64));
+    assert_eq!(l.shown_test_test_id, fixtures::LIMITS.tiers.test_id_bytes);
     assert_eq!(l.failing_test_test_id, fixtures::LIMITS.tiers.test_id_bytes);
     let empty_goals = records::encode(&d::Stored::Tier(fixtures::tier_row()));
     assert_eq!(empty_goals.len(), 120_227);

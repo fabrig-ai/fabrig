@@ -156,6 +156,7 @@ pub struct Limits {
     pub landing_member_gates: u32,
     pub landing_member_branch: u32,
     pub failing_test_test_id: u32,
+    pub shown_test_test_id: u32,
     pub many_tests_tests: u32,
     pub landing_selection_tests: u32,
     pub landing_by_test_gates: u32,
@@ -496,7 +497,8 @@ pub const CEILINGS: Limits = Limits {
     landing_member_gates: 64,
     landing_member_branch: 4_096,
     failing_test_test_id: 1_024,
-    many_tests_tests: 1_024,
+    shown_test_test_id: 1_024,
+    many_tests_tests: 64,
     landing_selection_tests: 1_024,
     landing_by_test_gates: 64,
     landing_by_test_probed: 4_096,
@@ -836,6 +838,7 @@ pub const LIMIT_NAMES: &[&str] = &[
     "landing_member_gates",
     "landing_member_branch",
     "failing_test_test_id",
+    "shown_test_test_id",
     "many_tests_tests",
     "landing_selection_tests",
     "landing_by_test_gates",
@@ -2754,6 +2757,10 @@ pub enum Path {
     FailingTestTestId,
     /// Bytes after `FailingTest`.
     FailingTestTail,
+    /// The `test_id` field of `ShownTest`.
+    ShownTestTestId,
+    /// Bytes after `ShownTest`.
+    ShownTestTail,
     /// The `tests` field of `ManyTests`.
     ManyTestsTests,
     /// The `more` field of `ManyTests`.
@@ -5725,6 +5732,8 @@ impl Path {
             Self::LandingOwnHoldTag => "LandingOwnHold (tag)",
             Self::FailingTestTestId => "FailingTest.test_id",
             Self::FailingTestTail => "FailingTest (tail)",
+            Self::ShownTestTestId => "ShownTest.test_id",
+            Self::ShownTestTail => "ShownTest (tail)",
             Self::ManyTestsTests => "ManyTests.tests",
             Self::ManyTestsMore => "ManyTests.more",
             Self::ManyTestsCut => "ManyTests.cut",
@@ -40823,22 +40832,140 @@ impl FailingTest {
 
 fn failing_test_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
     let biggest = biggest.max(FailingTest::encoded_bound_within(limits)?);
-    many_tests_encoded_bound_family(limits, biggest)
+    shown_test_encoded_bound_family(limits, biggest)
 }
 
 fn failing_test_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
     let biggest = biggest.max(FailingTest::decoded_bound_within(limits)?);
-    many_tests_decoded_bound_family(limits, biggest)
+    shown_test_decoded_bound_family(limits, biggest)
 }
 
 fn check_failing_test_record_limits(limits: &Limits) -> Result<(), Problem> {
     if limits.failing_test_test_id > CEILINGS.failing_test_test_id { return Err(Problem { path: Path::FailingTestTestId, reason: skein_codec::Reason::Bound }); }
-    check_many_tests_record_limits(limits)
+    check_shown_test_record_limits(limits)
 }
 
 impl Limits {
     fn values_for_failing_test_record(&self, values: &mut List<u32>) {
         values.push(self.failing_test_test_id).expect("room for every named limit");
+        self.values_for_shown_test_record(values);
+    }
+}
+
+/// Movable fields of `ShownTest`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct ShownTestParts {
+    /// The `test_id` field.
+    pub test_id: Box<[u8]>,
+}
+
+/// `ShownTest` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct ShownTest {
+    test_id: Box<[u8]>,
+}
+
+impl ShownTest {
+    /// Makes a value within the given limits.
+    pub fn new(limits: &Limits, parts: ShownTestParts) -> Result<Self, Problem> {
+        let ShownTestParts { test_id } = parts;
+        let value = Self { test_id };
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    /// Reads the `test_id` field.
+    #[must_use]
+    pub fn test_id(&self) -> &[u8] { &self.test_id }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> ShownTestParts { ShownTestParts { test_id: self.test_id } }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        if self.test_id.len() > usize::try_from(limits.shown_test_test_id.min(CEILINGS.shown_test_test_id)).expect("u32 fits usize") { return Err(Problem { path: Path::ShownTestTestId, reason: skein_codec::Reason::Bound }); }
+        Ok(())
+    }
+}
+
+impl ShownTest {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        let field_test_id = &self.test_id;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(u32::try_from(field_test_id.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_test_id = &self.test_id;
+        writer.put(&u32::try_from(field_test_id.len()).expect("field ceiling fits u32").to_be_bytes())?;
+        writer.put(field_test_id.as_ref())?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::ShownTestTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_test_id = { let length = match skein_codec::read_len(reader, limits.shown_test_test_id.min(CEILINGS.shown_test_test_id)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::ShownTestTestId, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::ShownTestTestId, reason: skein_codec::Reason::Short })?) };
+        Ok(Self { test_id: decoded_test_id })
+    }
+}
+
+impl ShownTest {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(4_u64.checked_add(u64::from(limits.shown_test_test_id))?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(u64::from(limits.shown_test_test_id))?;
+        heap.checked_add(0)
+    }
+}
+
+fn shown_test_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(ShownTest::encoded_bound_within(limits)?);
+    many_tests_encoded_bound_family(limits, biggest)
+}
+
+fn shown_test_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(ShownTest::decoded_bound_within(limits)?);
+    many_tests_decoded_bound_family(limits, biggest)
+}
+
+fn check_shown_test_record_limits(limits: &Limits) -> Result<(), Problem> {
+    if limits.shown_test_test_id > CEILINGS.shown_test_test_id { return Err(Problem { path: Path::ShownTestTestId, reason: skein_codec::Reason::Bound }); }
+    check_many_tests_record_limits(limits)
+}
+
+impl Limits {
+    fn values_for_shown_test_record(&self, values: &mut List<u32>) {
+        values.push(self.shown_test_test_id).expect("room for every named limit");
         self.values_for_many_tests_record(values);
     }
 }
@@ -40847,7 +40974,7 @@ impl Limits {
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct ManyTestsParts {
     /// The `tests` field.
-    pub tests: List<FailingTest>,
+    pub tests: List<ShownTest>,
     /// The `more` field.
     pub more: u32,
     /// The `cut` field.
@@ -40857,7 +40984,7 @@ pub struct ManyTestsParts {
 /// `ManyTests` in this codec family.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct ManyTests {
-    tests: List<FailingTest>,
+    tests: List<ShownTest>,
     more: u32,
     cut: bool,
 }
@@ -40873,7 +41000,7 @@ impl ManyTests {
 
     /// Reads the `tests` field.
     #[must_use]
-    pub fn tests(&self) -> &List<FailingTest> { &self.tests }
+    pub fn tests(&self) -> &List<ShownTest> { &self.tests }
 
     /// Reads the `more` field.
     #[must_use]
@@ -40933,7 +41060,7 @@ impl ManyTests {
     }
 
     fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let decoded_tests = { let count = match skein_codec::read_count(reader, limits.many_tests_tests.min(CEILINGS.many_tests_tests)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::ManyTestsTests, reason }), }; if count > reader.remaining() / 4 { return Err(Problem { path: Path::ManyTestsTests, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = FailingTest::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_tests = { let count = match skein_codec::read_count(reader, limits.many_tests_tests.min(CEILINGS.many_tests_tests)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::ManyTestsTests, reason }), }; if count > reader.remaining() / 4 { return Err(Problem { path: Path::ManyTestsTests, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = ShownTest::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
         let decoded_more = reader.u32().ok_or(Problem { path: Path::ManyTestsMore, reason: skein_codec::Reason::Short })?;
         let decoded_cut = match reader.u8().ok_or(Problem { path: Path::ManyTestsCut, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::ManyTestsCut, reason: skein_codec::Reason::Bool }) };
         Ok(Self { tests: decoded_tests, more: decoded_more, cut: decoded_cut })
@@ -40950,7 +41077,7 @@ impl ManyTests {
 
     pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut size = 0_u64;
-        size = size.checked_add(4_u64.checked_add(u64::from(limits.many_tests_tests).checked_mul(FailingTest::encoded_bound_within(limits)?)?)?)?.checked_add(4_u64)?;
+        size = size.checked_add(4_u64.checked_add(u64::from(limits.many_tests_tests).checked_mul(ShownTest::encoded_bound_within(limits)?)?)?)?.checked_add(4_u64)?;
         size = size.checked_add(1_u64)?;
         size.checked_add(0)
     }
@@ -40964,7 +41091,7 @@ impl ManyTests {
 
     pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut heap = 0_u64;
-        heap = heap.checked_add(List::<FailingTest>::price(limits.many_tests_tests)?.checked_add(u64::from(limits.many_tests_tests).checked_mul(FailingTest::decoded_bound_within(limits)?)?)?)?.checked_add(0_u64)?;
+        heap = heap.checked_add(List::<ShownTest>::price(limits.many_tests_tests)?.checked_add(u64::from(limits.many_tests_tests).checked_mul(ShownTest::decoded_bound_within(limits)?)?)?)?.checked_add(0_u64)?;
         heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }

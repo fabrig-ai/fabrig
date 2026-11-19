@@ -294,7 +294,8 @@ enum LandingRoundEnd { stale, leave, conflict, cut }
 record LandingRecordHold { member: u16 }
 enum LandingOwnHold { prepare, record: LandingRecordHold, timeout: LandingTimeout, turn }
 record FailingTest { test_id: bytes 1024 }
-record ManyTests { tests: list 1024 FailingTest more: u32 cut: bool }
+record ShownTest { test_id: bytes 1024 }
+record ManyTests { tests: list 64 ShownTest more: u32 cut: bool }
 record LandingSelection { tests: list 1024 FailingTest }
 record LandingSelectedGate { selection: option LandingSelection }
 record LandingProbed { member: u16 gate: u16 run: u64 passed: bool }
