@@ -92,6 +92,7 @@ fn a_fetch_runs_two_invocations_and_ends_fetched() {
     component.end(pipes[1]);
     component.exited(child, 0);
     component.closed(child, &pipes);
+    super::view::empty(&mut component);
     assert_eq!(component.done(), Some((fixtures::OWNER, git::Done::Fetched { commit: fixtures::COMMIT })));
     assert!(component.below.out.io.is_empty());
     component.shutdown();
@@ -271,7 +272,7 @@ fn an_operation_received_past_its_deadline_fails_without_output() {
 }
 
 #[test]
-fn a_cancel_after_the_last_exit_ends_with_the_operation_s_outcome() {
+fn a_cancel_after_the_last_git_exit_still_preempts_its_view() {
     let mut component = fixtures::Started::new();
     component.down(fixtures::fetch(fixtures::OWNER, fixtures::DEADLINE));
     let (child, pipes) = component.spawned();
@@ -285,9 +286,18 @@ fn a_cancel_after_the_last_exit_ends_with_the_operation_s_outcome() {
     component.end(pipes[1]);
     component.exited(child, 0);
     component.down(Request::CancelIo { owner: fixtures::OWNER });
-    assert!(component.signals().is_empty());
+    assert!(component.signals().is_empty(), "the child is already closing");
     component.closed(child, &pipes);
-    assert_eq!(component.done(), Some((fixtures::OWNER, git::Done::Fetched { commit: fixtures::COMMIT })));
+    assert_eq!(
+        component.done(),
+        Some((
+            fixtures::OWNER,
+            git::Done::FailedWithOutput {
+                fault: git::Fault::Cancelled,
+                diagnostic: git::PushDiagnostic::empty().named(b"update-ref")
+            }
+        ))
+    );
 }
 #[test]
 fn a_cancel_between_invocations_starts_no_further_one() {
@@ -379,6 +389,7 @@ fn a_merges_unmerged_stdout_alone_keeps_a_prefix_past_its_cap() {
         ]),
         cut: true,
     };
+    super::view::empty(&mut component);
     assert_eq!(component.done(), Some((fixtures::OWNER, done)));
 }
 
@@ -555,6 +566,7 @@ fn a_merges_progress_stdout_does_not_refuse_its_conflict_listing() {
             component.closed(child, &pipes);
             git::Done::Conflicted { files: Box::new([b"baseline".as_slice().into()]), cut: false }
         };
+        super::view::empty(&mut component);
         assert_eq!(component.done(), Some((fixtures::OWNER, expected)));
     }
 }

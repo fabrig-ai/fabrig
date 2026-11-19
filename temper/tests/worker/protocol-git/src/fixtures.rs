@@ -87,15 +87,24 @@ pub fn copy_script(script: &Script) -> Script {
             .collect(),
         exit_first: script.exit_first,
         file_failure: script.file_failure,
+        view_failure: script.view_failure,
     }
 }
 fn scenario(op: git::Op, cases: &[&str], expected: Expected) -> Scenario {
     let mut files = BTreeMap::new();
-    if let git::Op::Clone { at, .. } = &op {
-        files.insert(
-            [temper_worker_protocol_git::invocation::place(at).as_ref(), b"/.git/objects/info"].concat(),
-            Node::Directory,
-        );
+    let at = match &op {
+        git::Op::Clone { at, .. }
+        | git::Op::Fetch { at, .. }
+        | git::Op::Point { at, .. }
+        | git::Op::CheckOut { at, .. }
+        | git::Op::Merge { at, .. }
+        | git::Op::Commit { at, .. }
+        | git::Op::Reset { at, .. } => Some(at),
+        _ => None,
+    };
+    if let Some(at) = at {
+        files.insert(temper_worker_protocol_git::invocation::place(at).into_vec(), Node::Directory);
+        files.insert([temper_worker_protocol_git::invocation::place(at).as_ref(), b"/.git"].concat(), Node::Directory);
     }
     let identity = !matches!(op, git::Op::Clone { .. });
     Scenario {
@@ -232,6 +241,22 @@ pub fn operations() -> Vec<(&'static str, Scenario)> {
     ]
 }
 #[must_use]
+pub fn view() -> Scenario {
+    let mut scenario = point();
+    for (name, bytes) in [
+        (b"HEAD".as_slice(), b"head\n".as_slice()),
+        (b"index", b"unmerged\0index"),
+        (b"MERGE_HEAD", b"second\n"),
+        (b"MERGE_MSG", b"message\n"),
+        (b"MERGE_MODE", b""),
+        (b"refs/temper/fetched", b"fetched\n"),
+        (b"refs/temper/landing", b"landing\n"),
+    ] {
+        scenario.files.insert([b"gitdirs/7/specimen/".as_slice(), name].concat(), Node::File(bytes.into()));
+    }
+    scenario
+}
+#[must_use]
 pub fn point() -> Scenario {
     let mut point = scenario(
         git::Op::Point { at: at(), into: git::Into::Landing, commit: TWO },
@@ -303,7 +328,10 @@ pub enum Race {
 pub fn cancel_race(race: Race) -> Scenario {
     let mut scenario = fetch();
     match race {
-        Race::ExitFirst => scenario.stop = Stop::ExitFirst,
+        Race::ExitFirst => {
+            scenario.stop = Stop::ExitFirst;
+            scenario.expected = Expected::fault(git::Fault::Cancelled);
+        }
         Race::CancelFirst => {
             scenario.stop = Stop::Cancel(1);
             scenario.expected = Expected::fault(git::Fault::Cancelled);

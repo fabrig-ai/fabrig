@@ -285,26 +285,16 @@ pub(crate) struct Alternates {
     bytes: Box<[u8]>,
     remote: Box<[u8]>,
     format: invocation::Format,
-    run: bool,
     fd: Option<Fd>,
     written: u32,
     closing: bool,
     failed: bool,
 }
 impl Alternates {
-    pub fn new(at: &git::Place, store: Token, remote: Box<[u8]>, format: invocation::Format, run: bool) -> Self {
-        let (path, bytes) = if run {
-            (
-                invocation::joined(&[&invocation::place(at), b"/.git/objects/info/alternates"]),
-                invocation::joined(&[b"../../../../../", &invocation::git_dir(at), b"/objects\n"]),
-            )
-        } else {
-            (
-                invocation::joined(&[&invocation::git_dir(at), b"/objects/info/alternates"]),
-                invocation::joined(&[b"../../../../stores/", &name(store), b"/objects\n"]),
-            )
-        };
-        Self { path, bytes, remote, format, run, fd: None, written: 0, closing: false, failed: false }
+    pub fn new(at: &git::Place, store: Token, remote: Box<[u8]>, format: invocation::Format) -> Self {
+        let path = invocation::joined(&[&invocation::git_dir(at), b"/objects/info/alternates"]);
+        let bytes = invocation::joined(&[b"../../../../stores/", &name(store), b"/objects\n"]);
+        Self { path, bytes, remote, format, fd: None, written: 0, closing: false, failed: false }
     }
     pub fn first(&self, settings: &Settings) -> Action {
         Action::Run(open(settings.root, self.path.clone(), OpenHow::CreateNoFollow { mode: Some(0o600) }))
@@ -314,8 +304,6 @@ impl Alternates {
             self.fd = None;
             return if self.failed || result.is_err() || stop {
                 broken()
-            } else if self.run {
-                Action::Operation(Next::End(git::Done::Succeeded))
             } else {
                 Action::Operation(Next::Run(Command::Remote { remote: self.remote.clone(), format: self.format }))
             };

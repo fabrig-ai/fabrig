@@ -282,11 +282,32 @@ impl Component {
         let next = match next {
             Next::End(done) => {
                 let operation = self.slots.get(id).expect("live operation");
+                if operation.scan_index.is_some() {
+                    self.finish(id, done, out);
+                    return;
+                }
                 if let Command::Store { directory, .. } = &operation.command {
                     Next::InstallStore { directory: directory.clone(), done: Box::new(done) }
+                } else if !operation.viewed {
+                    sequence::ending(operation.op.as_ref().expect("operation terminal"), done)
                 } else {
                     Next::End(done)
                 }
+            }
+            Next::InitView { done, format } => {
+                let operation = self.slots.get_mut(id).expect("view operation");
+                operation.view_done = Some(done);
+                let command = match format {
+                    Some(format) => Command::Clone {
+                        directory: crate::invocation::place(
+                            sequence::view_place(operation.op.as_ref().expect("view operation")).expect("view place"),
+                        ),
+                        format,
+                        bare: false,
+                    },
+                    None => Command::Format,
+                };
+                Next::Run(command)
             }
             Next::Snapshot { parent, merging } => {
                 let operation = self.slots.get_mut(id).expect("live snapshot");
@@ -308,6 +329,8 @@ impl Component {
             | Next::Look { .. }
             | Next::Store
             | Next::InstallStore { .. }
+            | Next::View { .. }
+            | Next::RemakeView { .. }
             | Next::Alternates { .. }
             | Next::Scan { .. }) => other,
         };
@@ -371,7 +394,9 @@ impl Component {
                 operation.spawn(token, command, &self.settings, out);
                 assert!(self.index.insert(token, id).expect("same operation").is_none(), "unique token");
             }
-            Next::Snapshot { .. } => unreachable!("snapshot parents were resolved before dispatch"),
+            Next::Snapshot { .. } | Next::InitView { .. } => {
+                unreachable!("continuations were resolved before dispatch")
+            }
             Next::End(done) => self.finish(id, done, out),
             Next::Make => {
                 let Some(git::Op::Make { workspace, stores }) = &self.slots.get(id).expect("live index").op else {
@@ -397,13 +422,18 @@ impl Component {
                 operation.command = Command::Version;
                 self.file_start(id, task, out);
             }
-            Next::Alternates { format, run } => {
+            Next::View { done, retry } => {
+                self.slots.get_mut(id).expect("view operation").view_done = None;
+                self.view_start(id, done, retry, false, None, out);
+            }
+            Next::RemakeView { done, format } => self.view_start(id, done, true, true, format, out),
+            Next::Alternates { format } => {
                 let Some(git::Op::Clone { at, store, remote } | git::Op::Look { at, store, remote }) =
                     &self.slots.get(id).expect("live index").op
                 else {
                     unreachable!("Clone sequence")
                 };
-                self.file_start(id, Task::alternates(at, *store, remote.clone(), format, run), out);
+                self.file_start(id, Task::alternates(at, *store, remote.clone(), format), out);
             }
             Next::Reds { directory, content, marker, rerun } => {
                 self.file_start(id, Task::reds(directory, content, marker, rerun), out);
@@ -441,6 +471,21 @@ impl Component {
             }
         }
     }
+    fn view_start(
+        &mut self,
+        id: Id<Operation>,
+        done: Box<git::Done>,
+        retry: bool,
+        remake: bool,
+        format: Option<crate::invocation::Format>,
+        out: &mut Outputs,
+    ) {
+        let operation = self.slots.get_mut(id).expect("view operation");
+        operation.viewed = true;
+        let at = sequence::view_place(operation.op.as_ref().expect("view operation")).expect("view place");
+        let task = Task::view(at, done, retry, remake, format);
+        self.file_start(id, task, out);
+    }
     /// Every terminal with output names where it ended
     /// (temper/docs/design/protocol/git.md, section 6).
     fn finish(&mut self, id: Id<Operation>, done: git::Done, out: &mut Outputs) {
@@ -462,7 +507,7 @@ impl Component {
         out.kernel.push(kernel::Submit { op: task.pending, kind });
     }
     fn background(&mut self, mut task: Task, out: &mut Outputs) {
-        let action = task.first(&mut self.directories, &self.settings);
+        let action = task.first(&mut self.directories, &self.settings, &self.limits);
         self.background_action(task, action, out);
     }
     fn background_action(&mut self, mut task: Task, action: Action, out: &mut Outputs) {
@@ -508,7 +553,7 @@ impl Component {
     }
     fn file_start(&mut self, id: Id<Operation>, mut task: Task, out: &mut Outputs) {
         self.slots.get_mut(id).expect("live operation").word = task.word;
-        let action = task.first(&mut self.directories, &self.settings);
+        let action = task.first(&mut self.directories, &self.settings, &self.limits);
         self.file_action(id, task, action, out);
     }
     fn file_action(&mut self, id: Id<Operation>, mut task: Task, action: Action, out: &mut Outputs) {

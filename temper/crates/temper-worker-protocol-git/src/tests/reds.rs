@@ -71,7 +71,7 @@ fn under(roots: &List<(Fd, PathBuf)>, fd: Fd, name: &[u8]) -> PathBuf {
 fn file_steps(root: &Path, mut task: Task, fail: bool) -> git::Done {
     let settings = fixtures::settings();
     let mut dirs = Directories::new(1);
-    let mut action = task.first(&mut dirs, &settings);
+    let mut action = task.first(&mut dirs, &settings, &fixtures::limits());
     let mut file: Option<fs::File> = None;
     let mut roots = List::uncapped();
     roots.push((settings.root, root.to_path_buf())).unwrap();
@@ -189,6 +189,9 @@ fn perform(root: &Path, at: &git::Place, action: git::Reds, fail: bool) -> git::
             | Next::Make
             | Next::Store
             | Next::InstallStore { .. }
+            | Next::View { .. }
+            | Next::RemakeView { .. }
+            | Next::InitView { .. }
             | Next::Alternates { .. }
             | Next::Scan { .. } => panic!("check operation"),
         };

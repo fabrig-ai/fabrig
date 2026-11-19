@@ -238,6 +238,7 @@ impl Started {
     pub fn file_operation(&mut self) -> skein_io::kernel::Op {
         assert!(self.file.is_none(), "previous file operation completed");
         let submit = self.below.out.kernel.pop().expect("kernel submission");
+        assert!(submit.kind.is_valid(), "valid file operation: {:?}", submit.kind);
         let kind = clone_file_kind(&submit.kind);
         self.file = Some(submit);
         kind

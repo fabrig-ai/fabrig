@@ -77,6 +77,9 @@ d 700 1000 worker/workspaces/0/widget/.git/objects/info
 f 600 1000 worker/workspaces/0/widget/.git/objects/info/alternates
 d 700 1000 worker/workspaces/0/widget/.git/refs
 d 700 1000 worker/workspaces/0/widget/.git/refs/heads
+d 700 1000 worker/workspaces/0/widget/.git/refs/temper
+f 600 1000 worker/workspaces/0/widget/.git/refs/temper/fetched
+f 600 1000 worker/workspaces/0/widget/.git/refs/temper/landing
 d 700 1000 worker/workspaces/0/widget/.git/temper
 f 600 1000 worker/workspaces/0/widget/.git/temper/reds-wait
 f 600 1000 worker/workspaces/0/widget/.git/temper/rerun

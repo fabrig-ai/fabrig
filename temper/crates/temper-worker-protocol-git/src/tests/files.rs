@@ -146,6 +146,7 @@ fn a_merging_commit_with_markers_left_ends_conflicted_staging_nothing() {
         let Op::Close { .. } = component.file_operation() else { panic!("expected Close") };
         component.complete_ok();
     }
+    super::view::empty(&mut component);
     assert_eq!(
         component.done(),
         Some((

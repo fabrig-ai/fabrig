@@ -153,6 +153,7 @@ fn committed(started: &mut Started) {
         0,
         &line,
     );
+    super::view::empty(started);
     assert_eq!(started.done(), Some((fixtures::OWNER, git::Done::Committed { commit: fixtures::COMMIT })));
     assert!(started.below.out.kernel.is_empty());
     assert!(started.below.out.io.is_empty());
@@ -203,6 +204,7 @@ fn a_last_page_marker_refuses_without_staging_the_worker_index() {
     answer(&mut started, Command::Unmerged, true, 0, b"ee\0");
     scan(&mut started, &[b"ee"], Some(b"ee"));
     removed(&mut started);
+    super::view::empty(&mut started);
     assert_eq!(
         started.done(),
         Some((fixtures::OWNER, git::Done::Conflicted { files: Box::new([b"ee".as_slice().into()]), cut: false }))

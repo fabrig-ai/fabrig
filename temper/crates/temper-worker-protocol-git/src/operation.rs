@@ -27,6 +27,8 @@ pub(crate) struct Operation {
     pub(crate) stop: Option<git::Fault>,
     pub(crate) aborted: bool,
     pub(crate) ran: bool,
+    pub(crate) viewed: bool,
+    pub(crate) view_done: Option<Box<git::Done>>,
     pub(crate) file: Option<crate::files::Task>,
     pub(crate) scan_index: Option<Box<[u8]>>,
     phase: Phase,
@@ -80,13 +82,15 @@ impl Operation {
             aborted: false,
             ran: false,
             file: None,
+            viewed: false,
+            view_done: None,
             scan_index: None,
             phase: Phase::Spawning { failed: false },
         }
     }
     pub fn spawn(&mut self, io_owner: Token, command: Command, settings: &Settings, out: &mut Outputs) {
         self.io_owner = io_owner;
-        self.word = Some(invocation::word(&command));
+        self.word = Some(if self.view_done.is_some() { b"view" } else { invocation::word(&command) });
         self.command = command;
         self.phase = Phase::Spawning { failed: false };
         let (directory, kind) = if self.command == Command::Version {
@@ -116,6 +120,10 @@ impl Operation {
                 spawn: kernel::Spawn {
                     program: Box::from(self.program(settings).expect("program checked before spawning")),
                     args: match &self.op {
+                        Some(op) if self.view_done.is_some() && self.command == Command::Format => {
+                            let at = sequence::view_place(op).expect("view operation");
+                            invocation::arguments_at(&self.command, Some(&invocation::git_dir(at)), None)
+                        }
                         Some(op) => invocation::arguments_for(op, &self.command),
                         None => invocation::arguments(&self.command),
                     },
@@ -168,6 +176,9 @@ impl Operation {
         settings.git.as_deref()
     }
     fn environment_kind(&self, kind: Option<git::Kind>) -> Option<git::Kind> {
+        if self.view_done.is_some() {
+            return None;
+        }
         match self.command {
             Command::SnapshotFetch { .. } => Some(git::Kind::Fetch),
             Command::Clean => None,
@@ -306,7 +317,11 @@ impl Operation {
             && let Some(next) = self.ready(checkout)
         {
             match next {
-                Next::End(_) => return,
+                Next::End(done) => {
+                    if self.viewed || !sequence::views(self.op.as_ref().expect("item operation"), &done) {
+                        return;
+                    }
+                }
                 Next::Results { .. }
                 | Next::Reds { .. }
                 | Next::Run(_)
@@ -315,6 +330,9 @@ impl Operation {
                 | Next::Make
                 | Next::Store
                 | Next::InstallStore { .. }
+                | Next::View { .. }
+                | Next::RemakeView { .. }
+                | Next::InitView { .. }
                 | Next::Alternates { .. }
                 | Next::Scan { .. } => {}
             }
@@ -323,8 +341,8 @@ impl Operation {
             self.stop = Some(fault);
         }
         match &mut self.phase {
-            Phase::Active(child) => child.close(self.aborted, stop_reason(self.stop), out),
-            Phase::Spawning { .. } | Phase::Settled => {}
+            Phase::Active(child) if !child.closing => child.close(self.aborted, stop_reason(self.stop), out),
+            Phase::Active(_) | Phase::Spawning { .. } | Phase::Settled => {}
         }
     }
     pub fn ready(&self, checkout: &checkout::Limits) -> Option<Next> {
@@ -414,8 +432,11 @@ impl Operation {
         match child.exited {
             Some(kernel::Exit::Code(code)) => match &self.op {
                 Some(op) => {
-                    let mut next =
-                        sequence::after(op, &self.command, code, stdout, &tail, child.stderr.dropped(), checkout);
+                    let mut next = if let Some(done) = &self.view_done {
+                        sequence::after_view(op, &self.command, done, code, stdout, &tail, child.stderr.dropped())
+                    } else {
+                        sequence::after(op, &self.command, code, stdout, &tail, child.stderr.dropped(), checkout)
+                    };
                     if let Next::End(git::Done::Conflicted { cut, .. }) | Next::Scan { cut, .. } = &mut next {
                         *cut |= child.dropped > 0;
                     }

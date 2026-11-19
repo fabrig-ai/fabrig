@@ -113,6 +113,9 @@ fn render(world: &World, op: &Op) -> Option<Box<[u8]>> {
             | Next::Make
             | Next::Store
             | Next::InstallStore { .. }
+            | Next::View { .. }
+            | Next::InitView { .. }
+            | Next::RemakeView { .. }
             | Next::Alternates { .. }
             | Next::Scan { .. } => panic!("only check operations"),
         };

@@ -108,6 +108,11 @@ fn clone_reads_the_stores_format_and_writes_whole_relative_alternates_before_ori
             false,
             b"",
         );
+        assert_eq!(
+            s.file_operation(),
+            Op::Open { root: Fd::new(3), path: b"workspaces/7/app".as_slice().into(), how: OpenHow::DirectoryNoFollow }
+        );
+        s.complete_err(Error::NotFound);
         invocation(
             &mut s,
             &Command::Clone { directory: Box::from(b"workspaces/7/app".as_slice()), format, bare: false },
@@ -116,20 +121,7 @@ fn clone_reads_the_stores_format_and_writes_whole_relative_alternates_before_ori
             false,
             b"",
         );
-        assert_eq!(
-            s.file_operation(),
-            Op::Open {
-                root: Fd::new(3),
-                path: Box::from(b"workspaces/7/app/.git/objects/info/alternates".as_slice()),
-                how: OpenHow::CreateNoFollow { mode: Some(0o600) },
-            }
-        );
-        s.complete_ok();
-        let Op::Write { bytes, from: 0, at: 0, .. } = s.file_operation() else { panic!("run alternates") };
-        assert_eq!(bytes.as_ref(), b"../../../../../gitdirs/7/app/objects\n");
-        s.complete_ok();
-        let Op::Close { .. } = s.file_operation() else { panic!("run alternates closed") };
-        s.complete_ok();
+        super::view::empty(&mut s);
         assert_eq!(s.done(), Some((fixtures::OWNER, git::Done::Succeeded)));
     }
     for malformed in [b"sha1".as_slice(), b"sha256\n\n", b"sha512\n"] {
@@ -284,6 +276,7 @@ fn fetch_uses_its_store_then_points_the_repository_without_a_second_header() {
         true,
         b"",
     );
+    super::view::empty(&mut s);
     assert_eq!(s.done(), Some((fixtures::OWNER, git::Done::Fetched { commit: fixtures::COMMIT })));
 }
 #[test]

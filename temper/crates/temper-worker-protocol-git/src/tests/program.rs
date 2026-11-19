@@ -262,6 +262,7 @@ fn checkout(world: &mut Started, program: &[u8]) {
     for _ in 0_u8..2 {
         invocation(world, program, false, b"", 0);
     }
+    super::view::empty(world);
 }
 fn invocation(world: &mut Started, program: &[u8], version: bool, stdout: &[u8], status: u8) {
     for request in &world.below.out.io {

@@ -10,3 +10,5 @@ mod snapshot;
 mod stores;
 
 mod reds;
+
+mod view;

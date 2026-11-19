@@ -337,9 +337,14 @@ fn a_push_in_flight_across_a_new_generation_ends_on_the_value_it_began_with() {
 }
 
 #[test]
+#[expect(clippy::disallowed_methods, reason = "the shared scripted io filesystem takes Vec keys")]
 fn a_commit_on_github_takes_the_values_author() {
     use temper_protocol_worker_wire::v1;
+    use temper_worker_protocol_git_world::io::Node;
     let mut stand = fixtures::started_worker();
+    for path in [b"workspaces/91/app".as_slice(), b"workspaces/91/app/.git"] {
+        stand.below.tree.insert(path.to_vec(), Node::Directory);
+    }
     // An empty entry list still supplies a commit's author.
     let limits = fixtures::wire_limits();
     let mut record = fixtures::github_record(b"x-access-token", b"tok-second").into_parts();

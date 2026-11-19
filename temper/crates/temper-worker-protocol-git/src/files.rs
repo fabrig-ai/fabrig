@@ -8,6 +8,7 @@ mod index;
 mod objects;
 mod reds;
 mod results;
+mod view;
 use objects::{Alternates, Look, Make, Store};
 
 #[derive(Debug)]
@@ -56,6 +57,7 @@ pub(crate) enum Phase {
     Look(Look),
     Store(Store),
     Alternates(Alternates),
+    View(view::View),
     Scan(Scan),
     Index(index::File),
     Sweep(Sweep),
@@ -177,11 +179,24 @@ impl Task {
             phase: Phase::Store(Store::install(store, directory, done)),
         }
     }
-    pub fn alternates(at: &git::Place, store: Token, remote: Box<[u8]>, format: invocation::Format, run: bool) -> Task {
+    pub fn alternates(at: &git::Place, store: Token, remote: Box<[u8]>, format: invocation::Format) -> Task {
         Task {
             word: Some(b"alternates"),
             pending: Token::new(0),
-            phase: Phase::Alternates(Alternates::new(at, store, remote, format, run)),
+            phase: Phase::Alternates(Alternates::new(at, store, remote, format)),
+        }
+    }
+    pub fn view(
+        at: &git::Place,
+        done: Box<git::Done>,
+        retry: bool,
+        remake: bool,
+        format: Option<invocation::Format>,
+    ) -> Task {
+        Task {
+            word: Some(b"view"),
+            pending: Token::new(0),
+            phase: Phase::View(view::View::new(at, done, retry, remake, format)),
         }
     }
     pub fn scan(files: Box<[Box<[u8]>]>, place: Box<[u8]>, cut: bool) -> Task {
@@ -229,7 +244,7 @@ impl Task {
     pub fn closing() -> Task {
         Task { word: None, pending: Token::new(0), phase: Phase::Closing }
     }
-    pub fn first(&mut self, dirs: &mut Directories, settings: &Settings) -> Action {
+    pub fn first(&mut self, dirs: &mut Directories, settings: &Settings, limits: &Limits) -> Action {
         match &mut self.phase {
             Phase::Reds(files) => files.first(settings),
             Phase::Results(file) => file.first(settings),
@@ -238,6 +253,7 @@ impl Task {
             Phase::Look(look) => look.first(settings),
             Phase::Store(store) => store.first(dirs),
             Phase::Alternates(alternates) => alternates.first(settings),
+            Phase::View(view) => view.first(dirs, settings, limits),
             Phase::Scan(scan) => scan.next(settings),
             Phase::Index(file) => file.first(settings),
             Phase::Sweep(_) => Action::Run(open(settings.root, Box::from(&b"trash"[..]), OpenHow::DirectoryNoFollow)),
@@ -302,6 +318,7 @@ impl Task {
             Phase::Look(look) => look.complete(complete.result, stop),
             Phase::Store(store) => store.complete(complete.result, dirs, stop),
             Phase::Alternates(alternates) => alternates.complete(complete.result, stop),
+            Phase::View(view) => view.complete(complete, dirs, settings, limits, stop),
             Phase::Scan(scan) => scan.complete(complete, settings, limits, stop),
             Phase::Index(file) => file.complete(complete, settings, limits, stop),
             Phase::Sweep(sweep) => sweep.complete(complete, dirs, settings, limits, stop),
