@@ -392,7 +392,7 @@ fn started(stored: Option<crate::store::Store>) -> crate::Service {
 }
 
 fn local_value(places: u32) -> jig_client_protocol_wire::WorkerSetting {
-    use jig_client_protocol_wire::{CEILINGS, WorkerSetting, WorkerSetting};
+    use jig_client_protocol_wire::{CEILINGS, WorkerSetting};
     WorkerSetting { number: 1, name: b"local".as_slice().into(), places, digest: None, withdrawn: false }
 }
 

@@ -72,7 +72,7 @@ pub fn configuration_at(directory: &Path, shape: temper_config_shell::Shape) -> 
 
 /// A subprocess's places are its worker setting, never its file's slots.
 pub fn local_places(root: &Path, places: u32) {
-    use jig_client_protocol_wire::{CEILINGS, WorkerSetting, WorkerSetting};
+    use jig_client_protocol_wire::{CEILINGS, WorkerSetting};
     let local = WorkerSetting { number: 1, name: b"local".as_slice().into(), places, digest: None, withdrawn: false };
     let mut writer = skein_lib::Writer::new(usize::try_from(local.measure()).expect("local bound"));
     local.encode(&mut writer).expect("local setting");

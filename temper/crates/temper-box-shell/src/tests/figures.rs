@@ -177,7 +177,7 @@ fn corrupt_copy_is_logged_and_atomic_replacement_decodes_whole() {
 }
 #[test]
 fn local_copy_builds_the_next_start_at_its_places_and_bad_bytes_log_once() {
-    use jig_client_protocol_wire::{CEILINGS, WorkerSetting, WorkerSetting};
+    use jig_client_protocol_wire::{CEILINGS, WorkerSetting};
     let scratch = skein_scratch::Scratch::new("local-copy");
     let (dirs, document) = document(scratch.path());
     let bytes = serde_json::to_vec(&document).expect("JSON");

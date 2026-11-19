@@ -516,7 +516,7 @@ pub(crate) fn finish_configuration(
         flags["requester"] = true.into();
     }
     if let Some(places) = flags["local_places"].as_u64() {
-        use jig_client_protocol_wire::{CEILINGS, WorkerSetting, WorkerSetting};
+        use jig_client_protocol_wire::{CEILINGS, WorkerSetting};
         let local = WorkerSetting {
                 number: 1,
                 name: b"local".as_slice().into(),
