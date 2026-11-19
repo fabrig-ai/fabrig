@@ -66,12 +66,13 @@ impl Process {
     fn new(root: Option<Fd>, deadline: Duration) -> Self {
         let shell = root.map(|root| {
             let mut shell = Shell::new(Settings {
-                engine: address(),
+                engine: jig_client_shell_native::Engine::Plain(address()),
                 directory: b"private".as_slice().into(),
                 limits: Limits {
                     exchanges: EXCHANGES,
                     body_bytes: 128,
                     deadline,
+                    tls: jig_client_shell_native::TlsLimits { read: 4096, send: 4096, records: 131_072 },
                     http: skein_http::client::Limits { head: ROOM, headers: 8, request: ROOM, read: 64, send: 64 },
                 },
                 io: io_limits(),

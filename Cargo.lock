@@ -1049,6 +1049,7 @@ dependencies = [
  "jig-client-protocol-kit",
  "jig-client-protocol-link",
  "jig-client-protocol-wire",
+ "jig-client-shell-native",
  "jig-client-test-domain",
  "jig-client-view",
  "jig-domain-core",
@@ -1101,6 +1102,8 @@ dependencies = [
  "skein-lib",
  "skein-shell",
  "skein-sim",
+ "skein-tls",
+ "skein-tls-kit",
  "skein-world",
 ]
 

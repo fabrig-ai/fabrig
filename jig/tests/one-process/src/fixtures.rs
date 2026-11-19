@@ -112,7 +112,9 @@ pub(crate) fn provider(chat: Chat) -> skein_fake_peers::llm::Peer {
 }
 pub(crate) fn client_settings() -> jig_client_shell_native::Settings {
     jig_client_shell_native::Settings {
-        engine: skein_io::Addr::Ip((std::net::Ipv4Addr::LOCALHOST, 7100).into()),
+        engine: jig_client_shell_native::Engine::Plain(skein_io::Addr::Ip(
+            (std::net::Ipv4Addr::LOCALHOST, 7100).into(),
+        )),
         directory: b"private".as_slice().into(),
         limits: jig_client_protocol_kit::fixtures::connections_limits(),
         io: skein_io::Limits {

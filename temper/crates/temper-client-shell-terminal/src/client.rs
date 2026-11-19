@@ -82,7 +82,7 @@ impl NativeClient {
         let bounds = settings.limits;
         let (view_limits, forge_words) = limits::checked(&bounds).expect("native capacities are checked");
         let mut shell = Shell::new(jig_client_shell_native::Settings {
-            engine: settings.engine,
+            engine: jig_client_shell_native::Engine::Plain(settings.engine),
             directory: settings.directory,
             limits: bounds.connections,
             io: bounds.io,

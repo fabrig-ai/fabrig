@@ -1,4 +1,5 @@
 mod client_store;
+mod tls;
 use super::*;
 use jig_client_protocol_http::Unlinked;
 const EXCHANGE: u64 = 42;
@@ -17,6 +18,7 @@ pub(crate) fn limits() -> Limits {
         exchanges: 2,
         body_bytes: 128,
         deadline: skein_lib::Duration::from_secs(1),
+        tls: crate::TlsLimits { read: 4096, send: 4096, records: 131_072 },
         http: skein_http::client::Limits { head: 1024, headers: 8, request: 1024, read: 64, send: 64 },
     }
 }
@@ -210,7 +212,7 @@ impl Disk {
             bounds.body_bytes = client_store::STORE_BYTES;
         }
         let mut shell = Shell::new(Settings {
-            engine: skein_io::Addr::Ip((std::net::Ipv4Addr::LOCALHOST, 8080).into()),
+            engine: Engine::Plain(skein_io::Addr::Ip((std::net::Ipv4Addr::LOCALHOST, 8080).into())),
             directory: b"private".as_slice().into(),
             limits: bounds,
             io: file_io_limits(),
@@ -520,7 +522,7 @@ fn an_exchange_past_its_deadline_is_answered_lost() {
 #[test]
 fn the_native_shell_sends_its_engine_s_address_as_host() {
     let shell = Shell::new(Settings {
-        engine: skein_io::Addr::Ip("[::1]:7180".parse().expect("engine address")),
+        engine: Engine::Plain(skein_io::Addr::Ip("[::1]:7180".parse().expect("engine address"))),
         directory: Box::from(b"private".as_slice()),
         limits: limits(),
         io: file_io_limits(),
@@ -538,7 +540,7 @@ fn transport_tags_socket_events_and_waits_for_connection() {
     const OWNER: u64 = 1 << 60;
     let engine = skein_io::Addr::Ip("127.0.0.1:8080".parse().expect("engine"));
     for (tag, expected) in [(0, Token::new(1)), (OWNER, Token::new(OWNER | 1))] {
-        let mut transport = Transport::new(engine, &limits(), file_io_limits().sockets, tag);
+        let mut transport = Transport::new(Engine::Plain(engine), &limits(), file_io_limits().sockets, tag);
         let mut events = Queue::with_capacity(1);
         let mut requests = Queue::with_capacity(1); // Exercise io output backpressure.
         transport.down(
@@ -549,16 +551,16 @@ fn transport_tags_socket_events_and_waits_for_connection() {
                 version: jig_client_protocol_wire::VERSION,
             },
         );
-        transport.iterate(Time::ZERO, &mut events, &mut requests);
+        transport.iterate(Time::ZERO, skein_lib::Wall::EPOCH, &mut events, &mut requests);
         let Some(skein_io::Request::Connect { owner, .. }) = requests.pop() else { panic!("connect first") };
         assert_eq!(owner, expected);
-        transport.iterate(Time::ZERO, &mut events, &mut requests);
+        transport.iterate(Time::ZERO, skein_lib::Wall::EPOCH, &mut events, &mut requests);
         assert!(requests.is_empty());
         assert!(transport.owns(owner));
         let socket = Token::new(7);
         transport.event(Time::ZERO, skein_io::Event::Connecting { owner, socket });
         transport.event(Time::ZERO, skein_io::Event::Connected { owner });
-        transport.iterate(Time::ZERO, &mut events, &mut requests);
+        transport.iterate(Time::ZERO, skein_lib::Wall::EPOCH, &mut events, &mut requests);
         assert!(matches!(requests.pop(), Some(skein_io::Request::Stream { stream, .. }) if stream == socket));
     }
 }
@@ -567,6 +569,10 @@ fn transport_tags_socket_events_and_waits_for_connection() {
 fn valid_refuses_each_unrepresentable_limit() {
     let base = limits();
     assert!(crate::valid(&base));
+    assert!(crate::valid(&Limits {
+        tls: TlsLimits { read: 1024, send: 1024, records: skein_tls::client::MAX_RECORD },
+        ..base
+    }));
     let cases = [
         Limits { exchanges: 0, ..base },
         Limits { body_bytes: 0, ..base },
@@ -577,6 +583,9 @@ fn valid_refuses_each_unrepresentable_limit() {
         Limits { http: skein_http::client::Limits { read: u32::MAX, ..base.http }, ..base },
         Limits { body_bytes: u32::MAX, ..base },
         Limits { body_bytes: 3_221_225_400, ..base },
+        Limits { tls: TlsLimits { read: 1023, ..base.tls }, ..base },
+        Limits { tls: TlsLimits { send: 1023, ..base.tls }, ..base },
+        Limits { tls: TlsLimits { records: 0, ..base.tls }, ..base },
     ];
     for (case, limits) in cases.into_iter().enumerate() {
         assert!(!crate::valid(&limits), "case {case}");

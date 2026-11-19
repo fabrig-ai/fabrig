@@ -17,6 +17,7 @@ pub struct Limits {
     pub body_bytes: u32,
     pub deadline: Duration,
     pub http: http::Limits,
+    pub tls: skein_tls::client::Limits,
 }
 /// Whether these limits are representable: every edge bound they size
 /// is finite and every capacity they derive fits (programming-model.md, 6.3).
@@ -33,6 +34,9 @@ pub fn valid(limits: &Limits) -> bool {
         && limits.http.read != 0
         && limits.http.send != 0
         && limits.http.read.checked_mul(3).and_then(|v| v.checked_add(8)).is_some()
+        && skein_tls::client::valid(&limits.tls)
+        && limits.tls.read >= http::largest_read(&limits.http)
+        && limits.tls.send >= http::largest_room(&limits.http)
         && mapping::valid(&mapping::Limits { record, chunk: limits.http.read })
 }
 

@@ -17,7 +17,7 @@ impl Memory {
     pub(crate) fn new(engine: Addr, limits: &jig_client_shell_native::Limits) -> Self {
         let sockets = limits.exchanges.checked_add(1).expect("connections fit");
         Self {
-            transport: Transport::new(engine, limits, sockets, OWNER),
+            transport: Transport::new(jig_client_shell_native::Engine::Plain(engine), limits, sockets, OWNER),
             events: Queue::uncapped(),
             requests: Queue::uncapped(),
             connected: BTreeSet::new(),
@@ -74,7 +74,7 @@ impl Memory {
         while self.events.pop().is_some() {}
     }
     pub(crate) fn progress(&mut self, now: Time) {
-        self.transport.iterate(now, &mut self.events, &mut self.requests);
+        self.transport.iterate(now, skein_lib::Wall::EPOCH, &mut self.events, &mut self.requests);
     }
     pub(crate) fn request(&mut self) -> Option<io::Request> {
         self.requests.pop()

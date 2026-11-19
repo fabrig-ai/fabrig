@@ -82,6 +82,7 @@ pub fn native() -> Limits {
             exchanges: EXCHANGES,
             deadline: DEADLINE,
             body_bytes: 33_554_432, // Whole small store and HTTP response bodies.
+            tls: jig_client_shell_native::TlsLimits { read: 4096, send: 4096, records: 131_072 },
             http: skein_http::client::Limits {
                 head: 4096,    // Incoming HTTP head bytes.
                 headers: 16,   // Incoming HTTP fields.

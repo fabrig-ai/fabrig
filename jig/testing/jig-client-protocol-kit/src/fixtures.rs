@@ -147,6 +147,7 @@ pub fn connections_limits() -> jig_client_shell_native::Limits {
         exchanges: 8,
         body_bytes: MESSAGE_BYTES,
         deadline: Duration::from_secs(1),
+        tls: jig_client_shell_native::TlsLimits { read: 4096, send: 4096, records: 131_072 },
         http: skein_http::client::Limits { head: 4096, headers: 16, request: 4096, read: 1024, send: 1024 },
     }
 }
