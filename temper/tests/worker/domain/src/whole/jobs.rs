@@ -209,6 +209,7 @@ impl World {
                         landing: None,
                         expected: None,
                         delivered: None,
+                        pin: None,
                     }
                 } else {
                     wire::Access::ReadOnly

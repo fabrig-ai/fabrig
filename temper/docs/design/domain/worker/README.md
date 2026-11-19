@@ -298,11 +298,19 @@ temper's workspace items beside it:
     `refs/temper/landing` for the project's checks (`checkouts.md`); a writable
     item that names none (a repair, a resolution, a merge job, a chat's
     run) has the head its delivery replaces pinned there instead
-    (`checkouts.md`, *The replaced head's pin*). For an
+    (`checkouts.md`, *The replaced head's pin*), unless it names a pin
+    (below). For an
     inherited producer that starts on its push branch it is also the
     comparison for existing work, separate from the checkout start and the
     push's expected head; and on a merge in progress it marks a producer's
     start, as a goal's later run's does (`checkouts.md`);
+  - a pin, for a writable repository that names no landing branch: a
+    commit by its full object id, which prepare points
+    `refs/temper/landing` at in place of the head its delivery replaces.
+    The engine names one on the item of a repair asked by a landing alone,
+    the base that landing used (`checkouts.md`, *A named pin*); an item
+    naming both a pin and a landing branch is refused at the entrance as
+    an invalid start that names it;
   - the task's own delivery, for a writable repository: the head of this
     task's last checked push to its push branch, as the engine recorded
     it (`../forge/change/questions.md`, 1, *A checked head*), or none; a

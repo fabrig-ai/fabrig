@@ -4,10 +4,13 @@
 
 
 
+<<<<<<< HEAD
 - **Not yet:** 4.1 and `checkouts.md`, *The replaced head's pin*: a writable item naming no landing branch (a repair, a resolution, a merge job, a chat's run) writes no `refs/temper/landing` (`temper-worker-domain-checkout/src/hold.rs`, `pin_branch`), and a pin a cached checkout kept from an earlier hold is read by its checks, so a repair of a goal's landing into main checked the goal's packages.
 - **Not yet:** 5, *Its build places too, and its bound counts only them*: fabrig's check takes a hold's first line as held, a `waiting` line included, and tells smith of no wait (`tools/tiers/run`, `hold`) [in flight: change 9657].
 - **Not yet:** 5, *Its build places too, and its bound counts only them*: smith counts a check's bound from its start, its waits included (`smith-domain-run/src/land.rs`, `next`) [in flight: change 9658].
 - **Not yet:** 5, *The base's build has a target of its own*: the check's base runs inherit its `CARGO_TARGET_DIR`, or none (`tools/pre-pr/pre_pr.py`, `judge_base`) [in flight: change 9655].
+=======
+>>>>>>> refs/hand5/g9116
 - **Not yet:** 2: a start that fails is the engine still away: no story takes an engine through two failed starts to the adoption of the runs a worker hosts, and no dial is due at the grace's end less the handshake deadline.
 
 Section 4.3's failed and refused answer diagnostics reach serve's stderr and the box's

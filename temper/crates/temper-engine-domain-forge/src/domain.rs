@@ -3904,6 +3904,7 @@ fn delegated(
     kind: change::Delegate,
     out: &mut Queue<Request>,
 ) {
+    let base = delegate_base(d, task, kind);
     let Some(row) = d.changes.get_mut(&task) else {
         emit(out, Request::Refused { task });
         return;
@@ -3915,6 +3916,9 @@ fn delegated(
         change::Delegate::Repair(why) => {
             row.regate = None;
             row.result.repaired(why, row.change.last_head, env.limits.client.answer_bytes);
+            if let Some(base) = base {
+                row.result.judged(&base, env.limits.client.answer_bytes);
+            }
             row.repair_tasks = task_account(&row.repair_tasks, child);
         }
         change::Delegate::Resolve { .. } => row.resolution_tasks = task_account(&row.resolution_tasks, child),
@@ -3944,6 +3948,20 @@ fn delegated(
     crate::change_history::delegated(d, env.wall, &mut saved, child, kind, out);
     d.changes.insert(task, saved.clone()).expect("retained change");
     save_change(d, out, saved);
+}
+
+fn delegate_base(d: &Domain, task: u64, kind: change::Delegate) -> Option<skein_forge::api::Commit> {
+    match kind {
+        change::Delegate::Repair(why) => match d.landing_failure(task, why) {
+            Some(failure) => failure.base,
+            None => None,
+        },
+        change::Delegate::Produce
+        | change::Delegate::Close
+        | change::Delegate::Resolve { .. }
+        | change::Delegate::Merge { .. }
+        | change::Delegate::Gate { .. } => None,
+    }
 }
 
 fn merge_delegate(kind: change::Delegate) -> bool {
@@ -4132,6 +4150,13 @@ fn delegate_result(
     words: &[u8],
     out: &mut Queue<Request>,
 ) {
+    let base = match d.change(task) {
+        Some(row) => match row.delegate {
+            Some((_, kind)) => delegate_base(d, task, kind),
+            None => None,
+        },
+        None => None,
+    };
     let exempt = read_session::until(d, task).is_none() && d.read_sessions.contains_key(&task);
     if exempt {
         read_session::ended(d, env, task, ended_at.unwrap_or(env.wall));
@@ -4256,7 +4281,7 @@ fn delegate_result(
     } else if cancelled {
         row.producer_failure = cancelled_delegate_words(kind, child, words);
     } else if (failed || (no_change && !ci_repair))
-        && let Some(account) = failed_delegate_words(row, kind, child, no_change, words)
+        && let Some(account) = failed_delegate_words(row, kind, child, no_change, words, base)
     {
         row.producer_failure = Some(account);
     }
@@ -4348,6 +4373,7 @@ fn failed_delegate_words(
     child: u64,
     no_change: bool,
     words: &[u8],
+    base: Option<skein_forge::api::Commit>,
 ) -> Option<Box<[u8]>> {
     let (name, recovery): (&[u8], &[u8]) = match kind {
         // A producer's whole result already occupies the hold account's bound.
@@ -4365,7 +4391,11 @@ fn failed_delegate_words(
     let number = skein_lib::Decimal::of(child);
     let ending: &[u8] = if no_change { b"ended without making the required change" } else { b"failed for good" };
     let reason: &[u8] = if words.is_empty() { b"gave no account" } else { words };
-    let parts = [b"its ".as_slice(), name, b", task ", number.as_bytes(), b", ", ending, b": ", reason];
+    let judged = match base {
+        Some(base) if !no_change => skein_lib::bytes::concat(&[b", judged against ", &crate::commit_text(&base)]),
+        Some(_) | None => Box::new([]),
+    };
+    let parts = [b"its ".as_slice(), name, b", task ", number.as_bytes(), &judged, b", ", ending, b": ", reason];
     let tail = [b"; resolve this failure, then release this change to ".as_slice(), recovery, b"; or cancel it"];
     let mut tail_bytes = 0_usize;
     for part in tail {

@@ -904,6 +904,7 @@ mod tests {
                 expected: None,
                 landing: None,
                 delivered: None,
+                pin: None,
             };
         }
         let assignment = stage(&mut domain, fixtures::assignment(true, Box::new([])), items).expect("room");
@@ -946,6 +947,7 @@ mod tests {
                 expected: None,
                 landing: None,
                 delivered: None,
+                pin: None,
             };
         }
         let assignment = stage(&mut domain, fixtures::assignment(true, Box::new([])), items).expect("room");

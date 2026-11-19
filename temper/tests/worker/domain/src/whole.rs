@@ -745,6 +745,7 @@ fn assignment(first: u64, run: Token, workstream: u64, start: wire::Start) -> Ev
             expected: Some(translate::commit(first).raw()),
             landing: None,
             delivered: None,
+            pin: None,
         },
     };
     let assignment = host::Assignment {

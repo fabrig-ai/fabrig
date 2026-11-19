@@ -138,12 +138,25 @@ fn repository_item(
     }
     let access = if repository.prefixes.is_empty() {
         match &repository.push {
+<<<<<<< HEAD
             Some(push) => v1::Access::Writable(v1::Writable {
                 push: push.clone(),
                 expected: None,
                 landing: repository.landing.clone(),
                 delivered: repository.delivered,
             }),
+=======
+            Some(push) => v1::Access::Writable(v1::Writable::new(
+                limits,
+                v1::WritableParts {
+                    push: push.clone(),
+                    expected: None,
+                    landing: repository.landing.clone(),
+                    delivered: repository.delivered,
+                    pin: repository.pin,
+                },
+            )?),
+>>>>>>> refs/hand5/g9116
             None => v1::Access::ReadOnly,
         }
     } else {
@@ -319,6 +332,28 @@ mod tests {
             let v1::Access::Writable(value) = decoded.access else { panic!("writable repository") };
             assert_eq!(value.delivered, delivered);
             assert_eq!(value.expected, None);
+        }
+    }
+
+    #[test]
+    fn repository_items_encode_a_named_pin_or_none() {
+        use crate::tests::fixtures;
+        let limits = fixtures::wire_limits();
+        let forges = fixtures::forge_table(&fixtures::forges());
+        let tokens = crate::forge::tokens::Tokens::empty();
+        for pin in [None, Some([8; 32])] {
+            let mut repository = fixtures::repository(7, b"acme", b"shop");
+            repository.landing = None;
+            repository.pin = pin;
+            let item = repository_item(&repository, false, &forges, &tokens, &limits).expect("repository item");
+            let mut encoded = Writer::new(skein_lib::usize_of(item.measure()));
+            item.encode(&mut encoded).expect("measured repository");
+            let bytes = encoded.finish();
+            let decoded = v1::Repository::decode(&limits, &mut skein_lib::Reader::new(&bytes)).expect("wire item");
+            let v1::Access::Writable(value) = decoded.access() else { panic!("writable repository") };
+            assert_eq!(*value.pin(), pin);
+            assert_eq!(*value.expected(), None);
+            assert_eq!(*value.landing(), None);
         }
     }
 

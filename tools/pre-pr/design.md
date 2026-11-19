@@ -140,12 +140,26 @@ boundary (smith's run.md, 8.1).
 - **A repair's pin is the head it repairs.** A repair, a resolution and a
   merge job name no landing branch, and the worker pins the head their
   delivery replaces instead (`temper/docs/design/domain/worker/checkouts.md`
-  ): the base is that head, so a repair of a goal's landing into main
+  ): the base is that head, so a CI repair of a goal's landing into main
   checks what its own edits changed, not the goal's packages. A resolution's
   base is its branch's head before the merge, so its check selects what the
+<<<<<<< HEAD
   merge and its edits change on the branch against both parents: a path
   as the merged tip holds it was checked there (section 3, *Changed
   paths*).
+=======
+  merge and its edits change on the branch.
+- **A landing's repair is pinned at that landing's base.** A repair asked
+  by a landing's gate names a pin, the base that landing's round used
+  (`temper/docs/design/domain/worker/checkouts.md`, *A named pin*), and is
+  judged as the landing judged its change: the base is that commit once
+  the repair has merged it, whichever parent of the merge it is, so the
+  changed paths, check 7's figures and the selected tests are what the
+  change and the repair bring onto it, never what the base gained since
+  the change's source; a repair that leaves it unmerged is judged from
+  where its branch meets it, the change's edits with its own. Every other
+  repair keeps the head it repairs.
+>>>>>>> refs/hand5/g9116
 - **An unchecked save is stepped past.** Where the base is temper's
   unchecked save, a commit whose subject is `Unchecked: work in progress,
   saved before a question` (`temper/docs/design/domain/agent/README.md`,

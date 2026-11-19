@@ -20,11 +20,29 @@ pub fn limits() -> v1::Limits {
     crate::limits(&BOUNDS).expect("test bounds within ceilings")
 }
 
+<<<<<<< HEAD
 pub fn repository(tag: u64, remote: Box<[u8]>) -> v1::Repository {
     let branch = v1::Branch { branch: Box::from(&b"main"[..]) };
     let writable =
         v1::Writable { push: Box::from(&b"temper/work"[..]), expected: None, landing: None, delivered: None };
     v1::Repository {
+=======
+pub fn repository_parts(tag: u64, remote: Box<[u8]>) -> v1::RepositoryParts {
+    let limits = limits();
+    let branch = v1::Branch::new(&limits, v1::BranchParts { branch: Box::from(&b"main"[..]) }).expect("base branch");
+    let writable = v1::Writable::new(
+        &limits,
+        v1::WritableParts {
+            push: Box::from(&b"temper/work"[..]),
+            expected: None,
+            landing: None,
+            delivered: None,
+            pin: None,
+        },
+    )
+    .expect("push branch");
+    v1::RepositoryParts {
+>>>>>>> refs/hand5/g9116
         save: None,
         tag,
         name: Box::from(&b"shop"[..]),

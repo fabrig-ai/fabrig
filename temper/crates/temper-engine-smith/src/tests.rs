@@ -347,6 +347,7 @@ fn delivering_assignment() -> engine::Assignment {
         push: Some(b"temper/23/r23".as_slice().into()),
         landing: None,
         delivered: None,
+        pin: None,
         identity: 1,
     }]);
     assignment

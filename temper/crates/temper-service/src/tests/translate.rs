@@ -118,12 +118,28 @@ fn each_workspace_access_reaches_its_items() {
         (None, wire::Access::ReadOnly),
         (
             Some(Box::from(b"out".as_slice())),
+<<<<<<< HEAD
             wire::Access::Writable(wire::Writable {
                 push: b"out".as_slice().into(),
                 expected: None,
                 landing: None,
                 delivered: None,
             }),
+=======
+            wire::Access::Writable(
+                wire::Writable::new(
+                    &limits,
+                    wire::WritableParts {
+                        push: b"out".as_slice().into(),
+                        expected: None,
+                        landing: None,
+                        delivered: None,
+                        pin: None,
+                    },
+                )
+                .unwrap(),
+            ),
+>>>>>>> refs/hand5/g9116
         ),
     ] {
         assignment.workspace.repositories[0].push = push;

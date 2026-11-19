@@ -21,6 +21,17 @@ fn a_landing_repair_names_its_gate_without_borrowing_head_ci() {
     assert_eq!(result.repairs.bytes.as_ref(), b"landing gate 3 failed");
 }
 
+#[test]
+fn a_landing_repair_names_the_full_base_it_is_judged_against() {
+    let base = [0xab; 32];
+    let mut result = ChangeResult::empty();
+    result.repaired(change::Repair::Landing { gate: 3 }, Some(HEAD), BOUND);
+    result.judged(&base, BOUND);
+    let expected = skein_lib::bytes::concat(&[b"landing gate 3 failed, judged against ", &crate::commit_text(&base)]);
+    assert_eq!(result.repairs.bytes, expected);
+    assert_eq!(result.repairs.cut, 0);
+}
+
 fn check(context: &[u8], check: Check) -> Status {
     Status {
         at: skein_lib::Time::from_nanos(0),

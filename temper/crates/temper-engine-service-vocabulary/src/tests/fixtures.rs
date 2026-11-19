@@ -334,6 +334,7 @@ pub fn repository(repository: u32, owner: &[u8], name: &[u8]) -> temper_engine_d
         prefixes: Box::new([]),
         landing: None,
         delivered: None,
+        pin: None,
         identity: 1,
     }
 }

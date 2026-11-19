@@ -14,6 +14,7 @@ pub fn one_repository() -> wire::Workspace {
                 expected: None,
                 landing: None,
                 delivered: None,
+                pin: None,
             },
             identity: 1,
             account: None,
@@ -205,6 +206,7 @@ fn assigned(repository: bool) -> jig_protocol_worker_link::Request {
     let mut repositories = List::with_capacity(1);
     if repository {
         repositories
+<<<<<<< HEAD
             .push(v1::Repository {
                 save: Some(b"temper/saved-7".as_slice().into()),
                 git: None,
@@ -221,6 +223,43 @@ fn assigned(repository: bool) -> jig_protocol_worker_link::Request {
                 identity: 1,
                 account: None,
             })
+=======
+            .push(
+                v1::Repository::new(
+                    &super::wire_limits(),
+                    v1::RepositoryParts {
+                        save: Some(b"temper/saved-7".as_slice().into()),
+                        git: None,
+                        tag: (1_u64 << 32) | 3,
+                        name: b"app".as_slice().into(),
+                        remote: b"https://forge.example/acme/app.git".as_slice().into(),
+                        start: v1::Start::Base(
+                            v1::Branch::new(
+                                &super::wire_limits(),
+                                v1::BranchParts { branch: b"main".as_slice().into() },
+                            )
+                            .unwrap(),
+                        ),
+                        access: v1::Access::Writable(
+                            v1::Writable::new(
+                                &super::wire_limits(),
+                                v1::WritableParts {
+                                    push: b"temper/task-7".as_slice().into(),
+                                    expected: None,
+                                    landing: None,
+                                    delivered: None,
+                                    pin: None,
+                                },
+                            )
+                            .unwrap(),
+                        ),
+                        identity: 1,
+                        account: None,
+                    },
+                )
+                .unwrap(),
+            )
+>>>>>>> refs/hand5/g9116
             .unwrap();
     }
     let parts = if repository {

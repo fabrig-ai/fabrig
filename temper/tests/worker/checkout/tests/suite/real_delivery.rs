@@ -530,6 +530,7 @@ fn a_design_delivery_reaches_its_landing_branch_through_real_git() {
     let remote: Box<[u8]> = format!("{}/{}/{}.git", instance.base(), writer.login, repository.name).into_bytes().into();
     for design in [true, false] {
         let push = if design { b"goal".as_slice() } else { b"change".as_slice() };
+<<<<<<< HEAD
         let spec = || {
             delivery_spec(
                 &remote,
@@ -540,6 +541,25 @@ fn a_design_delivery_reaches_its_landing_branch_through_real_git() {
                     checkout::Start::Branch { branch: b"goal".as_slice().into() }
                 },
             )
+=======
+        let spec = checkout::Spec {
+            key: b"delivery".as_slice().into(),
+            repositories: Box::new([checkout::Repository {
+                prefixes: Box::new([]),
+                name: b"specimen".as_slice().into(),
+                remote: remote.clone(),
+                git: None,
+                start: checkout::Start::Base { branch: push.into() },
+                identity: 1,
+                account: None,
+                push: Some(push.into()),
+                expected: None,
+                delivered: None,
+                pin: None,
+                landing: Some(b"goal".as_slice().into()),
+                save: None,
+            }]),
+>>>>>>> refs/hand5/g9116
         };
         let checkout::Request::Prepared { prepared: checkout::Prepared::Ready { workspace, .. }, .. } =
             world.finish(checkout::Event::Prepare { client: Token::new(1), spec: spec() })

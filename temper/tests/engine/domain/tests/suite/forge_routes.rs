@@ -929,6 +929,17 @@ fn a_failed_ci_repair_brief_names_the_failed_step_and_its_logs_end() {
 }
 
 #[test]
+fn a_failed_ci_repair_keeps_its_branch_start_without_a_named_pin() {
+    let (mut world, _chat, producer, branch) = change_world(false, 0, None);
+    let repair = failed_ci_repair(&mut world, &producer, &branch, &[b"build"]);
+    let repository = &repair.workspace.repositories[0];
+    assert_eq!(repository.pin, None);
+    assert_eq!(repository.start, engine::ForgeStart::Branch(branch));
+    assert_eq!(repository.landing, None);
+    world.close();
+}
+
+#[test]
 fn a_failed_ci_with_no_failed_step_briefs_the_end_of_the_jobs_log() {
     let mut brief = World::configured_policy(true, true, false, 0, Gate::default(), None).env.limits.brief;
     // The longer preservation words leave the runner account and pull identity their room.

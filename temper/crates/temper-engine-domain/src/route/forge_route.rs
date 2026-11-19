@@ -1444,6 +1444,43 @@ pub(crate) fn run_workspace(
     })
 }
 
+<<<<<<< HEAD
+=======
+/// Translate a connector item after its write destination is checked
+/// (temper/docs/design/protocol/channel.md, 4).
+pub(crate) fn workspace_repository(
+    item: forge::items::Item,
+    push: Option<Box<[u8]>>,
+    save: Box<[u8]>,
+) -> Option<ForgeRepository> {
+    let start = match item.start {
+        forge::items::Start::Commit(commit) => ForgeStart::Commit(commit),
+        forge::items::Start::Base(branch) => ForgeStart::Base(branch),
+        forge::items::Start::Branch(branch) => ForgeStart::Branch(branch),
+        forge::items::Start::Saved(branch) => ForgeStart::Saved(branch),
+        forge::items::Start::Merge { branch, base } => ForgeStart::Merge { branch, base },
+        forge::items::Start::Merged { branch, heads } => ForgeStart::Merged { branch, heads },
+    };
+    Some(ForgeRepository {
+        prefixes: Box::new([]),
+        delivers: item.delivers && push.is_some(),
+        save: if push.is_some() { Some(save) } else { None },
+        tag: forge::tag(item.provider.forge, item.provider.repository),
+        provider: item.provider,
+        name: item.name,
+        host: item.host,
+        owner: item.owner,
+        start,
+        landing: if push.is_some() { item.landing } else { None },
+        delivered: item.delivered,
+        pin: if push.is_some() { item.pin } else { None },
+        push,
+        // The repository's git identity, from configuration (D10).
+        identity: item.credential?,
+    })
+}
+
+>>>>>>> refs/hand5/g9116
 /// Reconstruct the connector's provisional writer projection from the
 /// assignment only after the hub has durably admitted its writer slots.
 #[expect(clippy::type_complexity, reason = "the connector claim carries paired bounded names and ancestor holders")]
