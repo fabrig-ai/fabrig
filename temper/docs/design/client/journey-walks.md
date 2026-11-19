@@ -28,12 +28,6 @@ the writer takes either engine (`journey-writer.md`, 3).
   shipped terminal's own HTTP transport, a process of the world, to the
   service; what it keeps held for the walk; its deadlines on the
   world's time; what it asks to browse given to the walk's browser.
-  the browser kit; and `temper-client-walk-world`, the web client's driver
-  on the playground's composition and the walker.
-- **A walk in a world** (section 4): the shipped web host against the
-  playground's composition on skein's simulator, at fixed facts, each
-  line acted as a person acts and each mark printed as a page, the same
-  bytes from the same tree every time.
 - **The box's peer** (4.4): the world's `temper box`, at the service's
   box pipe, reporting an owned Forgejo's set-up step by step on the
   world's time, as the box reports it, with no step taken through ctl.
@@ -44,9 +38,8 @@ the writer takes either engine (`journey-writer.md`, 3).
 - **A journey moves** (section 6) in a change that gives it a `walk` of
   version 2 and takes its `setup` out; the writer's next run prints it
   in the world and removes its `recording`. `welcome-playground` moved
-  first, and `sign-in-approved` is the TUI's first.
-  in the world and removes its `recording`. `welcome-playground` moves
-  first, `welcome-set-up` second.
+  first, `welcome-set-up` second, and `sign-in-approved` is the TUI's
+  first.
 
 ## 2. The walk
 
@@ -219,14 +212,13 @@ browser kit, box crate or `temper-client-journeys-tool`.
   (section 8).
 - **`Clients`,** the world's harness, `pub enum Clients {}` with
   `impl temper_playground::programs::Harness for Clients`: its
-  `Service` is `()`, its `Process` the TUI's connection,
-  `tui::Connection` (3.3), and every other item the trait's default,
-  the playground's own. **`Playground`,** the composition's world type,
-  `skein_sim_world::World<Process<Clients>, Machine>`, its processes
-  those of `temper/tests/playground/src/lib.rs`'s world, and the TUI's
-  connection once a TUI starts.
-- **`Playground`,** the world type: the composition's processes and the
-  box's peer (4.4), moved from `temper/tests/playground/src/lib.rs`.
+  `Service` is `()`, its `Process` holds the TUI's connection,
+  `tui::Connection` (3.3), and the box's peer (4.4) beside it under the
+  harness, and every other item the trait's default, the playground's
+  own. **`Playground`,** the composition's world type,
+  `skein_sim_world::World<Process<Clients>, Machine>`, moved from
+  `temper/tests/playground/src/lib.rs`, holds the composition's
+  processes, the box's peer and the TUI's connection once a TUI starts.
 - **`box_peer`:** the box's peer (4.4): `BoxPeer`, a host of the
   world's (skein-shell's `Host`), and `OWNED`, the owned group's script
   as data, a line and its time each, which the tests read.
@@ -383,9 +375,8 @@ service, over HTTP, rather than joined to the engine's root.
 - **What runs** is the playground's composition, as story A starts it
   (`../playground.md`, 3), at `facts::start`, with the chain's joined
   scripts where any journey of it holds a `scripts.json`, under the
-  harness `Clients`.
-  scripts where any journey of it holds a `scripts.json`, and the box's
-  peer at the service's box pipe (4.4).
+  harness `Clients`, with the box's peer at the service's box pipe
+  (4.4).
 - **The browser starts** on the page the printed link opens, signed
   in, at `/welcome`. Nothing else is implied: the walk's first line
   acts on that page.
@@ -598,7 +589,6 @@ is built from, as `temper-client-journeys` does, under both roots.
   "Setting temper up makes your first project" and marked: two pages,
   on the playground's service rather than a box. It has no `setup`; its
   `walk` of version 1 is replaced.
-  and marked. It has no `setup` on main: its walk was its recording's.
 - **`welcome-set-up` moves second,** on the box's peer (4.4): its `walk`,
   the welcome seen and marked; "Set up temper" pressed, the Forge step's
   choices seen and marked; Forgejo's "Run on this machine" pressed, its
@@ -641,7 +631,6 @@ its own process.
   service and drawn; a TUI stopped and started again starting signed
   in from what it kept; the same start and keys drawing the same
   frames.
-  the HTML holding what the tree draws; story A walked as before.
 - **The box's peer,** simulated, beside the driver's: an owned set-up
   asked from the welcome, each of `OWNED`'s steps drawn in order, under
   way from its line's time and before the next line's, the steps before
@@ -678,29 +667,17 @@ its own process.
   (`../draft/journey-walks.md`, 10). Each test sits in its layer within
   that layer's budget as it stands; the cost of a journey's walk in a
   world is measured as the program first prints one of a client, and
-  kept in `../../development/limits-worlds.md`.
+  kept in `../../development/limits-worlds.md`, with each journey's that
+  moves after it.
 
 ## 8. Later
 
 - **The TUI's longer journeys,** `launchpad-chat`, `launchpad-drawn` and
   `design-session`, each after `project-landing`, with their scripts
   (`../draft/journey-walks.md`, 8.3).
-- **The box's peer** reporting an owned forge's set-up, with the forge
-  at its fixed address, `127.0.0.1:10002`, which the first journey that
-  draws it brings; and **a sign-in's tab** carried to the fake issuer
-  and back (`../draft/journey-walks.md`, 4.1).
 - **The drive session taking a journey's lines** on a box, `tui
   approve` and the marks among them, a mark there a look
   (`../draft/journey-walks.md`, 4.2).
-  world is measured as the program first prints one, and kept in
-  `../../development/limits-worlds.md`, with each journey's that moves
-  after it.
-
-## 8. Later
-
-- **The TUI's journeys,** with `tui` lines, `tui approve` and `tui
-  mark`, and the TUI's root in the program, once the TUI's host runs on
-  the simulated service (`../draft/journey-walks.md`, 4.1).
 - **The forge at its fixed address,** `127.0.0.1:10002`, which the
   first journey that draws it brings, as `project-landing`'s first page
   does; and **a sign-in's tab** carried to the fake issuer and back
