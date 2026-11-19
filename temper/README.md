@@ -67,7 +67,7 @@ agent-driven software factory: write, prove, run.
 | [temper](../temper) | Agent-driven software development on a forge | skein, smith, jig |
 | [hearth](../hearth) | Immutable machines, built from a revision | skein |
 
-Commands that read the deployment use `<config>/temper.json` and accept
+Commands that read the deployment use `<config>/temper.toml` and accept
 `--config DIR --data DIR --cache DIR` after their command words. Each flag
 falls back to `TEMPER_CONFIG`, `TEMPER_DATA` or `TEMPER_CACHE`, then the
 corresponding XDG directory under `temper`. Relative flags are joined to
@@ -75,7 +75,7 @@ the working directory once at startup. Data and cache must be private.
 
 `temper-box init --config ./config --data ./data --cache ./cache` writes the
 initial configuration and worker secret. It refuses existing
-`temper.json`, `worker.secret` or `worker.digest` files.
+`temper.toml`, the former `temper.json`, `worker.secret` or `worker.digest` files.
 
 After starting temper, open the accounts page and add an OpenAI API key.
 The initial configuration uses OpenAI's public Responses API. ChatGPT

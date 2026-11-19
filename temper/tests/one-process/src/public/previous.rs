@@ -21,7 +21,7 @@ thread_local! {
 pub(super) fn handles(name: &str) -> bool {
     matches!(name, "calibrate_projects" | "write_private_store") || name == RESTORED
 }
-pub(super) fn configure(value: &mut serde_json::Value) {
+pub(super) fn configure(value: &mut temper_playground::documents::Configuration) {
     if BEFORE.with(Cell::get) {
         for name in [
             "clients.public.reads",
@@ -37,7 +37,7 @@ pub(super) fn configure(value: &mut serde_json::Value) {
             "core.public.lines",
             "core.public.depth",
         ] {
-            value["engine"]["limits"]["overrides"][name] = 0.into();
+            value.jig_over(name, 0);
         }
     }
 }

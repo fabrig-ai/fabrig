@@ -29,6 +29,7 @@ fn an_inherited_stdout_writes_to_the_parents_pipe() {
         op: Token::new(1),
         kind: Op::Spawn {
             spawn: Box::new(Spawn {
+                reach: None,
                 program: Box::from(&b"service"[..]),
                 args: Box::new([]),
                 env: Box::new([]),

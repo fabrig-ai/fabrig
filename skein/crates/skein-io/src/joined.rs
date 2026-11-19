@@ -97,7 +97,7 @@ fn end(io: &mut Io, id: Id<Entity>) -> &mut End {
 
 pub(crate) fn listen(io: &mut Io, owner: Token, name: Name) {
     if io.entities.is_full() || io.tables.names.len() == io.tables.names.capacity() {
-        io.tables.refused.push(owner);
+        io.tables.refused.push((owner, Error::Busy));
         return;
     }
     let valid = name != Name::EMPTY && !io.tables.names.contains_key(&name);
@@ -112,7 +112,7 @@ pub(crate) fn listen(io: &mut Io, owner: Token, name: Name) {
 
 pub(crate) fn connect(io: &mut Io, owner: Token, name: Name) {
     if io.entities.is_full() {
-        io.tables.refused.push(owner);
+        io.tables.refused.push((owner, Error::Busy));
         return;
     }
     let order = io.tables.sequence;

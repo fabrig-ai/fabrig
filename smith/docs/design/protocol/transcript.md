@@ -30,7 +30,9 @@ section 8).
   now asks (domain/session.md, sections 2 and 8.2).
 - **A window is carried over, not refused,** when it ran on another
   endpoint, dialect, account or backend: it is compacted on the
-  charter's LLM, and a new window opens there (section 4).
+  charter's LLM, and a new window opens there (section 4). Whether a
+  host offers one from another endpoint or backend at all is the
+  host's decision (domain/run.md, section 6).
 - **Usage counts are optional.** A count the provider did not report is
   absent, not zero.
 - **Opaque provider blocks travel verbatim,** tagged with the dialect that
@@ -192,7 +194,11 @@ is not refused. The session compacts it on the charter's LLM before its
 first ordinary completion, sending its history without opaque blocks or
 provider's replay, which go back only to the dialect that wrote them,
 and opens the new window there; its window turn records the new
-endpoint, dialect, account and backend (domain/session.md, 8.2).
+endpoint, dialect, account and backend (domain/session.md, 8.2). A
+message that history leaves with no block keeps a fixed text block in
+its place (domain/session.md, 8.2). A host may instead start the run
+fresh rather than offer a window from another endpoint or backend, and
+jig's engine does (domain/run.md, section 6).
 
 Each refusal is distinct, and the run fails as transient, saying which
 (domain/run.md, section 6):

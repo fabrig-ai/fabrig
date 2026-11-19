@@ -367,18 +367,20 @@ fn failed_registration_queues_only_the_named_refusal_without_a_hold_or_step() {
     let Some(crate::Work::ForgeSettings(mut out)) = domain.work.pop() else {
         panic!("registration is answered before any hold or step is queued")
     };
+    let Some(forge::Request::ResourceRefused { task, operation, resource: Some(resource), cause }) = out.pop() else {
+        panic!("named registration refusal")
+    };
+    assert_eq!(task, context.task);
+    assert_eq!(operation, b"register change");
+    assert_eq!((resource.forge, resource.repository), (1, 1));
+    let forge::What::Branch(_) = resource.what else { panic!("refused branch is named") };
     assert_eq!(
-        out.pop(),
-        Some(forge::Request::ResourceRefused {
-            task: context.task,
-            operation: b"register change",
-            resource: Some(forge::Name { forge: 1, repository: 1, what: forge::What::Repository }),
-            cause: forge::RefusalCause::Limit {
-                member: "forge.changes",
-                configured: u64::from(KEPT),
-                needed: u64::from(KEPT) + 1,
-            },
-        })
+        cause,
+        forge::RefusalCause::Limit {
+            member: "forge.changes",
+            configured: u64::from(KEPT),
+            needed: u64::from(KEPT) + 1
+        }
     );
     assert!(out.is_empty());
     assert!(domain.work.is_empty(), "a refused registration queues no names, hold or step");
@@ -405,7 +407,7 @@ fn a_full_pinned_table_holds_with_the_named_limit_and_release_registers_after_un
         panic!("the new change is held")
     };
     let tasks::HoldSource::Account { words, .. } = source.as_ref() else { panic!("forge hold words") };
-    assert!(skein_lib::bytes::find(words, b"forge.changes = 128; required usage 129; reduce the named work or raise this limit in the deployment configuration, restart, then release").is_some(), "{words:?}");
+    assert!(skein_lib::bytes::find(words, b"forge.changes is 128, and this needs 129: a limit in temper-limits. Ask temper to raise it, or raise it from Needs you. This goes on by itself once room frees or the limit rises.").is_some(), "{words:?}");
     let mut row = domain.forge.change(FIRST).unwrap().clone();
     row.goal = Some(999);
     forge::step(

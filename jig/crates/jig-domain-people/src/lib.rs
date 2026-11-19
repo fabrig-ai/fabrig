@@ -59,7 +59,7 @@ extern crate alloc;
 mod restore;
 pub use restore::{RestoreBound, RestoreCause, RestoreFailure, RestoreProjection};
 mod settings;
-pub use settings::{Running, Setting, SettingDetail, SettingFault, SettingMember, SettingRule};
+pub use settings::{NUMBERS, Running, STOCK_NUMBERS, Setting, SettingDetail, SettingFault, SettingMember, SettingRule};
 mod scope;
 pub use scope::ApplicationScope;
 mod templates;

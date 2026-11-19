@@ -4,6 +4,7 @@
 //! decoded from the host's channel.
 //! Scheduling, replay and process heaps belong to Skein (smith/docs/design/testing.md, 2–5).
 use crate::fake;
+use smith_transcript::Record;
 
 mod coding;
 mod peer;
@@ -108,6 +109,7 @@ impl Parent {
         };
         parent.submit(Op::Spawn {
             spawn: Box::new(Spawn {
+                reach: None,
                 program: b"smith".as_slice().into(),
                 args: setup.arguments(),
                 env: Box::new([]),
@@ -576,6 +578,13 @@ impl skein_world::Machine for Machine {
     }
 
     fn step(&mut self, call: skein_sim::Call, answers: &mut Queue<skein_sim::Answer>) {
+        if let skein_sim::Ask::Spawn { reach: Some(_), .. } = &call.ask {
+            answers.push(skein_sim::Answer {
+                ticket: call.ticket,
+                result: Err(kernel::Error::Reach(kernel::Unenforced::Unsupported)),
+            });
+            return;
+        }
         if self.coding && coding::check(self, &call, answers) {
             return;
         }
@@ -1444,14 +1453,14 @@ impl World {
                 &mut skein_lib::Reader::new(envelope.body()),
             )
             .expect("validated transcript");
-            for message in turn.messages() {
-                if *message.role() == smith_transcript::Role::Assistant {
-                    for block in message.blocks() {
+            for message in &turn.messages {
+                if message.role == smith_transcript::Role::Assistant {
+                    for block in &message.blocks {
                         if let smith_transcript::Block::Text(text) = block {
                             count += 1;
-                            bytes += text.text().len();
+                            bytes += text.text.as_ref().len();
                             let metadata = skein_llm::Replay::from_bytes(
-                                text.replay().as_ref().expect("text replay").bytes(),
+                                text.replay.as_ref().expect("text replay").bytes.as_ref(),
                                 &crate::limits().llm.translation.client.native().document(),
                             )
                             .expect("provider metadata");

@@ -508,9 +508,9 @@ impl World {
                     Lower::Probe { owner, at, deadline } => {
                         self.machine_request(agent, smith_protocol_machine::FromDomain::Probe { owner, at, deadline });
                     }
-                    Lower::Check { owner, program, deadline, tail } => self.machine_request(
+                    Lower::Check { owner, program, bound, cap, tail } => self.machine_request(
                         agent,
-                        smith_protocol_machine::FromDomain::Check { owner, program, deadline, tail },
+                        smith_protocol_machine::FromDomain::Check { owner, program, bound, cap, tail },
                     ),
                     Lower::CancelIo { owner } | Lower::Abort { owner } => {
                         self.machine_trace.push(format!("cancel {agent:?} {owner:?}"));

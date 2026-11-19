@@ -5,7 +5,7 @@ pub use rows::{GroupRow, goal, groups, home_rows};
 use super::{Request, ended::EndedRead, report};
 use crate::{GoalsFilter, Limits, owner::Owner};
 use jig_client::{Client, Handle, Latest, Readable, Readout, Told, Watchable, contract as c};
-use skein_lib::{List, Queue, Wall};
+use skein_lib::{List, Map, Queue, Wall};
 use temper_client_domain_forge::parts;
 
 /// The open project's goal fact, taking held lists (temper/docs/design/client/pages/milestone.md, 1).
@@ -235,7 +235,7 @@ impl Fact {
 
 #[derive(Debug)]
 struct Row {
-    task: u64,
+    milestone: Option<u64>,
     report: Option<report::Report>,
 }
 
@@ -256,7 +256,8 @@ pub struct Goals {
     needs_answered: bool,
     inbox_moves: u64,
     selection: Option<List<c::InboxSelection>>,
-    rows: List<Row>,
+    // One decoded projection per task still in the live or held ended list.
+    rows: Map<u64, Row>,
 }
 
 impl Goals {
@@ -277,7 +278,7 @@ impl Goals {
             needs_answered: false,
             inbox_moves: 0,
             selection: None,
-            rows: List::with_capacity(0),
+            rows: Map::uncapped(),
         }
     }
     pub fn leave(&self, out: &mut Queue<Request>) -> u64 {
@@ -312,7 +313,7 @@ impl Goals {
             self.needs_total = None;
             self.selection = None;
             self.needs_answered = false;
-            self.rows = List::with_capacity(0);
+            self.rows = Map::uncapped();
             if let Some(query) = next {
                 out.push(Request::Client(jig_client::Event::Watch {
                     handle: self.live,
@@ -401,18 +402,13 @@ impl Goals {
             }
             Told::Page { handle, page } if handle == self.needs => {
                 self.needs_answered = true;
-                self.selection = match page {
-                    Readout::Jig(c::ReadResult::Value(c::ReadValue::Inbox(page))) => page.selection,
-                    Readout::Jig(c::ReadResult::Value(_) | c::ReadResult::None(_))
-                    | Readout::Family { .. }
-                    | Readout::NotServed { .. }
-                    | Readout::Limit => None,
-                };
+                if let Readout::Jig(c::ReadResult::Value(c::ReadValue::Inbox(page))) = page {
+                    self.selection = page.selection;
+                }
                 true
             }
             Told::Ended { handle, .. } if handle == self.needs => {
                 self.needs_answered = true;
-                self.selection = None;
                 true
             }
             Told::Ended { handle, .. } if handle == self.ended => {
@@ -433,18 +429,23 @@ impl Goals {
         }
     }
     fn reconcile(&mut self, client: &Client) {
-        let mut rows = List::uncapped();
+        let mut rows = Map::uncapped();
+        let mut previous = core::mem::replace(&mut self.rows, Map::uncapped());
         let live = match self.live(client) {
             Some(live) => live.rows.as_slice(),
             None => &[],
         };
         for lines in [live, self.ended()] {
             for line in lines {
-                let part = match parts::goal(line) {
-                    Some(part) => part.into_parts().report,
-                    None => None,
+                let Some(part) = parts::goal(line) else {
+                    if let Some(row) = previous.remove(&line.chip.task) {
+                        rows.insert(line.chip.task, row).expect("held goal rows fit");
+                    }
+                    continue;
                 };
-                let report = match part {
+                let part = part.into_parts();
+                let milestone = part.milestone;
+                let report = match part.report {
                     Some(report) => {
                         let report = report.into_parts();
                         Some(report::Report {
@@ -458,7 +459,7 @@ impl Goals {
                     }
                     None => None,
                 };
-                rows.push(Row { task: line.chip.task, report }).expect("live and ended goal rows fit");
+                rows.insert(line.chip.task, Row { milestone, report }).expect("live and ended goal rows fit");
             }
         }
         self.rows = rows;
@@ -533,12 +534,12 @@ impl Goals {
     }
     #[must_use]
     pub fn report(&self, task: u64) -> Option<&report::Report> {
-        for row in &self.rows {
-            if row.task == task {
-                return row.report.as_ref();
-            }
-        }
-        None
+        self.rows.get(&task)?.report.as_ref()
+    }
+    /// None means no part has decoded; Some(None) is a decoded absence.
+    #[must_use]
+    pub fn membership(&self, task: u64) -> Option<Option<u64>> {
+        Some(self.rows.get(&task)?.milestone)
     }
     /// The first selection goal is the need's own task; the rest are its ancestors (client/pages/work.md, 1).
     #[must_use]
@@ -595,38 +596,7 @@ pub struct Wait {
     pub more: bool,
 }
 
-/// The leading goal id (temper/docs/design/client/pages/work.md, 1, A goal's id).
-#[must_use]
-pub fn id(title: &[u8]) -> Option<&[u8]> {
-    let mut letters = 0_usize;
-    for byte in title {
-        if !byte.is_ascii_uppercase() {
-            break;
-        }
-        letters = letters.checked_add(1).expect("title fits");
-    }
-    if !(1..=3).contains(&letters) {
-        return None;
-    }
-    let rest = title.get(letters..)?;
-    let mut digits = 0_usize;
-    for byte in rest {
-        if !byte.is_ascii_digit() {
-            break;
-        }
-        digits = digits.checked_add(1).expect("title fits");
-    }
-    if !(1..=3).contains(&digits) {
-        return None;
-    }
-    let end = letters.checked_add(digits).expect("goal id fits");
-    if let Some(byte) = title.get(end)
-        && byte.is_ascii_alphanumeric()
-    {
-        return None;
-    }
-    title.get(..end)
-}
+pub use temper_client_protocol_wire::goals::id;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum State {

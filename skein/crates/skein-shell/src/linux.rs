@@ -18,12 +18,15 @@
 //! - A stream read/write borrows its slice for the call only. A signal read
 //!   writes one initialized local signalfd record, with its exact size passed.
 //! - Epoll's event pointers and ownership are documented in `epoll`.
+//! - Landlock's local uapi records, helper exec arrays and descriptor ownership
+//!   are documented in `helper`; calls retain no borrowed memory.
 
 #![expect(unsafe_code, reason = "Linux calls borrow buffers only until they return (runtime/readiness.md, 5)")]
 
 pub(crate) mod epoll;
 pub(crate) mod files;
 pub(crate) mod group;
+pub(crate) mod helper;
 #[path = "listener_calls.rs"]
 pub(crate) mod listener_calls;
 

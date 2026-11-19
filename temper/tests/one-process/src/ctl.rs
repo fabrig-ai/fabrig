@@ -242,6 +242,7 @@ impl Caller {
         self.started = true;
         self.submit(Op::Spawn {
             spawn: Box::new(Spawn {
+                reach: None,
                 program: PROGRAM.into(),
                 args: words.into_boxed_slice(),
                 env: Box::new([]),

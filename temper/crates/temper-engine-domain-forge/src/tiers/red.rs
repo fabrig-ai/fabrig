@@ -155,10 +155,16 @@ pub(super) fn landed(
     let tier = super::configured(d, row).expect("configured tier");
     let branch = super::followed(d, row.repository, &tier).expect("landing tier branch");
     let topic = Topic::Landings { repository: row.repository, branch: branch.clone() };
+    let project = d.repositories.get(&row.repository).expect("adopted tier repository").project;
+    let ends_landed = match d.after_landing(project) {
+        Some(after) => after.wait == temper_engine_domain_forge_change::Wait::Landed,
+        None => false,
+    };
     for (commit, failing) in reds {
         let verification = d.verifications.get(&(row.repository, *commit));
         let result = row.result.as_ref().expect("kept final receipt");
         let red = RedNews {
+            many: row.many.clone(),
             tier: row.tier.clone(),
             run: row.record.run.as_ref().expect("judged range").number,
             url: if result.run.url.is_empty() { None } else { Some(result.run.url.clone()) },
@@ -167,6 +173,9 @@ pub(super) fn landed(
         };
         let mut told = List::with_capacity(d.subscriptions.capacity());
         for (_, subscriber) in &d.subscriptions {
+            if ends_landed {
+                break;
+            }
             let Some(verification) = verification else { break };
             if told.as_slice().contains(&subscriber.task) || !receives(d, subscriber, verification, &topic) {
                 continue;
@@ -229,23 +238,37 @@ fn file(d: &Domain, row: &TierRow, red: &RedNews, message_bytes: u32, out: &mut 
 }
 
 /// The lowest-numbered kept member naming a follow wins (domain/forge/follows.md, 6).
-fn follow(d: &Domain, repository: Repository, commit: &Commit) -> Option<u32> {
-    let verification = d.verifications.get(&(repository, *commit))?;
-    let mut first: Option<(u64, u32)> = None;
-    for &number in &verification.changes {
-        let Some(change) = d.change(number) else { continue };
-        let Some(follows) = &change.follows else { continue };
-        if let Some((lowest, _)) = first
-            && lowest <= number
-        {
-            continue;
+pub(super) fn follow(d: &Domain, repository: Repository, commit: &Commit) -> Option<u32> {
+    let mut first = None;
+    if let Some(verification) = d.verifications.get(&(repository, *commit)) {
+        for &number in &verification.changes {
+            member_follow(d, number, &mut first);
         }
-        first = Some((number, follows.follow));
+    } else if let Some(log) = d.landing_log(repository) {
+        for landing in &log.landings {
+            if landing.commit == *commit {
+                for member in &landing.changes {
+                    member_follow(d, member.task, &mut first);
+                }
+                break;
+            }
+        }
     }
     match first {
         Some((_, follow)) => Some(follow),
         None => None,
     }
+}
+
+fn member_follow(d: &Domain, number: u64, first: &mut Option<(u64, u32)>) {
+    let Some(change) = d.change(number) else { return };
+    let Some(follows) = &change.follows else { return };
+    if let Some((lowest, _)) = first
+        && *lowest <= number
+    {
+        return;
+    }
+    *first = Some((number, follows.follow));
 }
 
 fn receives(d: &Domain, subscriber: &Subscriber, verification: &Verification, topic: &Topic) -> bool {

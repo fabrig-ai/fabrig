@@ -104,6 +104,9 @@ pub enum Shape {
     AgentProfile,
     AgentEndpoints,
     AgentLimits,
+    Limits,
+    TemperLimits,
+    LimitOverride,
 }
 /// A shape's own row.
 #[derive(Debug)]
@@ -118,6 +121,7 @@ pub enum Choice {
     Every,
     Number,
     Text,
+    List { item: Shape, bound: Bound },
     One { words: &'static [Word] },
 }
 #[derive(Debug)]
@@ -350,6 +354,8 @@ pub fn shape_of_kind(kind: &[u8]) -> Option<Shape> {
         b"project-triager" => Some(Shape::ProjectTriager),
         b"agents" => Some(Shape::Agents),
         b"welcome" => Some(Shape::Welcome),
+        b"limits" => Some(Shape::Limits),
+        b"temper-limits" => Some(Shape::TemperLimits),
         b"template-goal" => Some(Shape::TemplateGoal),
         b"follow" => Some(Shape::Follow),
         b"dependency" => Some(Shape::Dependency),

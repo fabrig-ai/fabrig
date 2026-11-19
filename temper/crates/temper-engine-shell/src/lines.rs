@@ -1,4 +1,5 @@
-//! The engine's lines and handover io (temper/docs/design/protocol/services.md, 7).
+//! The engine's lines and handover io (temper/docs/design/protocol/services.md, 7;
+//! jig/docs/design/domain/engine/settings.md, 7).
 use temper_engine_service::{CommitStop, End, RouteStop, Stop};
 use temper_shell::directories::Directories;
 
@@ -98,6 +99,12 @@ pub fn ending_with_binary(
                 binary,
                 &temper_engine_service::startup::Problems::jig(found.clone(), &jig_protocol_config::Path::root()),
             ),
+            Stop::LimitRestore { name, kind, configured, held } => format!(
+                "{binary} serve: {} (setting {}): its figure is {configured}, but the store holds {held}; put limits-held in the data directory to start at the stock\n",
+                String::from_utf8_lossy(name),
+                String::from_utf8_lossy(kind.name())
+            ),
+            Stop::CodecRestore { bound, kind, row } => codec_restore(binary, bound, *kind, row.as_ref()),
             Stop::Room(short) => {
                 format!("{binary} serve: restart refused: {}\n", String::from_utf8_lossy(&short.words()))
             }
@@ -180,6 +187,25 @@ pub fn ending_with_binary(
         }
     }
     (lines, u8::from(output_failed || end != Some(&End::Drained)))
+}
+
+fn codec_restore(
+    binary: &str,
+    bound: &jig_protocol_store::codec::Lowered,
+    kind: temper_engine_service::startup::LimitKind,
+    row: Option<&jig_protocol_store::restore::RowSite>,
+) -> String {
+    let site = match row {
+        Some(row) => format!(", key {:02x?}", row.key),
+        None => String::new(),
+    };
+    format!(
+        "{binary} serve: {} (setting {}): its figure is {}, but the store holds a record that needs {}{site}; put limits-held in the data directory to start at the stock\n",
+        String::from_utf8_lossy(bound.name),
+        String::from_utf8_lossy(kind.name()),
+        bound.configured,
+        bound.held
+    )
 }
 
 /// Bounded causes without record contents (temper/docs/design/protocol/store.md, 4).
@@ -332,9 +358,57 @@ fn restore_kind(kind: temper_engine_service::RestoreRangeKind) -> &'static str {
         Kind::History => "history",
     }
 }
+fn numbered_setting(setting: jig_domain_core::settings::Setting) -> (&'static str, u32) {
+    use jig_domain_core::settings::Setting;
+    match setting {
+        Setting::Charter(n) => ("charter", n),
+        Setting::Template(n) => ("template", n),
+        Setting::Policy(n) => ("policy", n),
+        Setting::Model(n) => ("model", n),
+        Setting::Worker(_)
+        | Setting::Provider(_)
+        | Setting::Rules
+        | Setting::Limits
+        | Setting::Application { .. }
+        | Setting::ProjectPolicy { .. } => unreachable!("only ranged kinds in a numbers refusal or taken refusal"),
+    }
+}
+
 fn start_failure(failure: &jig_domain_core::start::Failure) -> String {
     use jig_domain_core::start::Failure;
     match failure {
+        Failure::Numbers { settings } => {
+            use jig_domain_core::settings::{NUMBERS, STOCK_NUMBERS};
+            use std::fmt::Write as _;
+            let own = STOCK_NUMBERS.checked_add(1).expect("own numbers follow stock");
+            let mut line = format!(
+                "settings out of their numbers (the stock's 1 to {STOCK_NUMBERS}, a deployment's own {own} to {NUMBERS}): "
+            );
+            for (at, numbered) in settings.iter().enumerate() {
+                if at != 0 {
+                    line.push_str(", ");
+                }
+                let source = if numbered.changed { "changed" } else { "default" };
+                let (kind, number) = numbered_setting(numbered.setting);
+                write!(line, "{source} {kind} {number}").expect("format numbered setting");
+            }
+            line
+        }
+        Failure::Taken { settings } => {
+            use std::fmt::Write as _;
+            let mut line = String::from(
+                "the stock's new settings take numbers a deployment's own hold (the stock's 1 to 32, a deployment's own 33 to 64): ",
+            );
+            for (at, setting) in settings.iter().enumerate() {
+                if at != 0 {
+                    line.push_str(", ");
+                }
+                let (kind, number) = numbered_setting(*setting);
+                write!(line, "{kind} {number}").expect("format taken setting");
+            }
+            line.push_str("; move each to 33 to 64 on the build that runs now, then start this one");
+            line
+        }
         Failure::Settings { failure, changed } => {
             let source = if *changed { "changed" } else { "default" };
             format!("{source} setting {:?}: {:?}", failure.setting, failure.fault)
@@ -834,7 +908,7 @@ fn listener_failed_line(
         Some(skein_io::Error::TimedOut) => "timed out",
         Some(skein_io::Error::Reset) => "reset",
         Some(skein_io::Error::Busy) => "busy",
-        Some(skein_io::Error::Other) => "other",
+        Some(skein_io::Error::Reach(_) | skein_io::Error::Other) => "other",
         None => "closed",
     };
     format!("{binary} serve: {name} listener {address} failed: {why}\n")

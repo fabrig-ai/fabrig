@@ -1,7 +1,8 @@
 //! Batch storage (domain/landing.md, 12).
 use super::fixtures;
 use crate::{records, v25};
-use skein_lib::{Reader, Writer};
+use skein_codec::Record;
+use skein_lib::Reader;
 use temper_engine_domain_forge as forge;
 use temper_engine_domain_forge_landing as landing;
 
@@ -51,11 +52,44 @@ fn seed() -> forge::LandingRow {
 }
 
 fn stored(row: v25::LandingRow) -> forge::Stored {
-    let row = v25::Row::new(&v25::CEILINGS, v25::RowParts { value: v25::Value::Landing(Box::new(row)) }).unwrap();
-    let mut writer = Writer::new(usize::try_from(row.measure()).unwrap());
-    row.encode(&mut writer).unwrap();
-    let bytes = writer.finish();
+    let row = v25::Row { value: v25::Value::Landing(Box::new(row)) };
+    let bytes = row.encode(&v25::CEILINGS).unwrap();
     records::decode(&bytes, &crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap()).unwrap()
+}
+
+#[test]
+fn raised_codec_bounds_read_a_landing_past_the_old_entry_count() {
+    let mut limits = fixtures::LIMITS;
+    limits.entries = 8;
+    let mut bounds = crate::bounds(&limits, limits.client.op_bytes).unwrap();
+    let mut row = seed();
+    let mut entries = skein_lib::List::with_capacity(9);
+    for entry in 1..=9 {
+        entries
+            .push(forge::LandingEntry {
+                entry,
+                member: 0,
+                gate: 0,
+                operation: forge::Operation::Dispatch,
+                preparation: Some(1),
+                base: None,
+                run: None,
+            })
+            .unwrap();
+    }
+    row.entries = entries.into_boxed();
+    let stored = forge::Stored::Landing(row);
+    let bytes = records::encode(&stored);
+    assert_eq!(records::decode(&bytes, &bounds), Err(crate::Undecodable::Malformed));
+    limits.entries = 16;
+    limits.client.entries = limits.client.entries.max(16);
+    limits.tasks += 1;
+    limits.holds += 1;
+    bounds.raise(&limits);
+    assert_eq!(records::decode(&bytes, &bounds), Ok(stored));
+    assert_eq!(bounds.limits().closer_selections, limits.tasks);
+    assert_eq!(bounds.limits().hold_design_writers, limits.holds);
+    assert_eq!(bounds.limits().tier_row_goals, limits.holds);
 }
 
 #[test]
@@ -148,19 +182,15 @@ fn landing_repair_context_round_trips() {
 fn a_stored_fallback_leaves_as_held() {
     let bytes = records::encode(&forge::Stored::Landing(seed()));
     let row = v25::Row::decode(&v25::CEILINGS, &mut Reader::new(&bytes)).unwrap();
-    let v25::Value::Landing(row) = row.into_parts().value else { panic!("landing") };
-    let mut row = row.into_parts();
-    let mut state = row.landing.into_parts();
+    let v25::Value::Landing(row) = row.value else { panic!("landing") };
+    let mut row = row;
+    let mut state = row.landing;
     let member = state.members.get_mut(0).unwrap();
-    let mut parts = member.clone().into_parts();
-    parts.left = Some(v25::LandingLeave::Fallback(
-        v25::LandingFallback::new(&v25::CEILINGS, v25::LandingFallbackParts { units: 3, top: [7; 32] }).unwrap(),
-    ));
-    *member = v25::LandingMember::new(&v25::CEILINGS, parts).unwrap();
-    row.landing = v25::LandingState::new(&v25::CEILINGS, state).unwrap();
-    let forge::Stored::Landing(after) = stored(v25::LandingRow::new(&v25::CEILINGS, row).unwrap()) else {
-        panic!("landing")
-    };
+    let mut parts = member.clone();
+    parts.left = Some(v25::LandingLeave::Fallback(v25::LandingFallback { units: 3, top: [7; 32] }));
+    *member = parts;
+    row.landing = state;
+    let forge::Stored::Landing(after) = stored(*row) else { panic!("landing") };
     assert_eq!(after.landing.members[0].left, Some(landing::Leave::Held));
 }
 
@@ -213,4 +243,18 @@ fn a_by_test_repair_keeps_its_top_fact() {
         let row = forge::Stored::Landing(row);
         assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
     }
+}
+
+#[test]
+fn a_held_round_keeps_its_merge_count_and_last_read_across_storage() {
+    let mut row = seed();
+    row.landing.round.merges = 2;
+    row.landing.round.failure = b"merge of #7: withdrawn before completion; read #7 open, temper/g1 at 0000000000000000000000000000000000000000".as_slice().into();
+    row.landing.phase = landing::Phase::Held {
+        was: Box::new(landing::Phase::Turn { at: skein_lib::Wall::EPOCH }),
+        why: landing::Hold::Turn,
+    };
+    let row = forge::Stored::Landing(row);
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
 }

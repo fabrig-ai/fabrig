@@ -7,6 +7,7 @@ use skein_io::{
 };
 use skein_lib::{Duration, Env, Queue, Reader, Secret, Time, Token, Wall, Writer};
 use std::collections::BTreeMap;
+type Records = BTreeMap<Box<[u8]>, Box<[u8]>>;
 const TAG: u64 = 1 << 63;
 const OWNER: Token = Token::new(1);
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -29,7 +30,7 @@ pub(crate) struct Files {
     private: Option<Token>,
     directory: Box<[u8]>,
     stage: Stage,
-    records: BTreeMap<Box<[u8]>, Box<[u8]>>,
+    records: Records,
     batches: u32,
     writing: u32,
     refused: bool,
@@ -313,19 +314,34 @@ impl Files {
         Some(writer.finish())
     }
     fn decode(&mut self, bytes: &[u8]) -> bool {
-        let mut reader = Reader::new(bytes);
-        let Some(count) = reader.u32() else { return false };
-        for _ in 0..count {
-            let Some(len) = reader.u32() else { return false };
-            let Some(key) = reader.bytes(len) else { return false };
-            let Some(len) = reader.u32() else { return false };
-            let Some(value) = reader.bytes(len) else { return false };
-            if self.records.insert(key.into(), value.into()).is_some() {
-                return false;
-            }
-        }
-        reader.remaining() == 0
+        let Some(records) = decode_store(bytes) else { return false };
+        self.records = records;
+        true
     }
+}
+
+/// Read one record from the native shell's whole small-store file, without opening a transport.
+/// An invalid file or an absent key reads as none (protocol/client/README.md, 7).
+#[must_use]
+pub fn store_record(bytes: &[u8], key: &[u8]) -> Option<jig_client::Record> {
+    let mut records = decode_store(bytes)?;
+    records.remove(key).map(|bytes| jig_client::Record { key: key.into(), bytes })
+}
+
+fn decode_store(bytes: &[u8]) -> Option<Records> {
+    let mut records = BTreeMap::new();
+    let mut reader = Reader::new(bytes);
+    let count = reader.u32()?;
+    for _ in 0..count {
+        let len = reader.u32()?;
+        let key = reader.bytes(len)?;
+        let len = reader.u32()?;
+        let value = reader.bytes(len)?;
+        if records.insert(key.into(), value.into()).is_some() {
+            return None;
+        }
+    }
+    (reader.remaining() == 0).then_some(records)
 }
 fn env(now: Time, limits: FileLimits) -> Env<FileLimits> {
     Env { now, wall: Wall::EPOCH, limits }

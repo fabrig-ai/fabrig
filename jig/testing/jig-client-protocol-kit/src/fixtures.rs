@@ -3,6 +3,7 @@ use crate::Protocol;
 use jig_client_kit::{Settings, Test, World};
 use jig_protocol_engine_clients::{Limits, Served};
 use skein_lib::{Duration, List, Secret, Time, Wall};
+use smith_transcript::Record;
 pub const PROJECT: u32 = 1;
 pub const WIRE_TASK: u64 = 8;
 pub const SEED: u64 = 8510;
@@ -147,6 +148,7 @@ pub fn connections_limits() -> jig_client_shell_native::Limits {
         exchanges: 8,
         body_bytes: MESSAGE_BYTES,
         deadline: Duration::from_secs(1),
+        tls: jig_client_shell_native::TlsLimits { read: 4096, send: 4096, records: 131_072 },
         http: skein_http::client::Limits { head: 4096, headers: 16, request: 4096, read: 1024, send: 1024 },
     }
 }
@@ -166,7 +168,7 @@ pub fn sign_in_then(
 }
 #[must_use]
 pub fn world(seed: u64) -> World<Test, Protocol> {
-    World::new(Settings { seed, ..Settings::default() }, Protocol::new(seed))
+    World::new(Settings { seed, ..Settings::default() }, Protocol::unseeded(seed))
 }
 
 #[must_use]
@@ -305,8 +307,9 @@ pub const TURN_TEXT: &[u8] = b"abc";
 // The optional talk occupies another 32 bytes in the task owner.
 // The question wake watermark occupies eight bytes in the task owner.
 // The task owner's open attempt and optional summary join occupy 64 inline bytes.
+// Its loaded row carriers include the saved main endpoint.
 // Its joined activity line remains past this exact single-row budget.
-pub const TURN_OVERLAP_BYTES: u64 = 2817;
+pub const TURN_OVERLAP_BYTES: u64 = 2841;
 #[must_use]
 pub fn turn_overlap_limits() -> jig_test_domain::Limits {
     let mut limits = owner_limits();
@@ -317,37 +320,29 @@ pub fn turn_overlap_limits() -> jig_test_domain::Limits {
 pub fn callable_turn() -> Box<[u8]> {
     use smith_transcript::v7 as s;
     let mut blocks = List::with_capacity(2);
+    blocks.push(s::Block::Text(s::Text { text: TURN_TEXT.into(), replay: None })).expect("source text block");
     blocks
-        .push(s::Block::Text(
-            s::Text::new(&s::CEILINGS, s::TextParts { text: TURN_TEXT.into(), replay: None }).expect("source text"),
-        ))
-        .expect("source text block");
-    blocks
-        .push(s::Block::Call(
-            s::Call::new(
-                &s::CEILINGS,
-                s::CallParts {
-                    id: TURN_CALL_ID.into(),
-                    name: TURN_TOOL.into(),
-                    input: TURN_INPUT.into(),
-                    replay: None,
-                },
-            )
-            .expect("source call"),
-        ))
+        .push(s::Block::Call(s::Call {
+            id: TURN_CALL_ID.into(),
+            name: TURN_TOOL.into(),
+            input: TURN_INPUT.into(),
+            replay: None,
+        }))
         .expect("source call block");
     turn_with_blocks(blocks)
 }
 fn turn_with_blocks(blocks: List<smith_transcript::v7::Block>) -> Box<[u8]> {
     use smith_transcript::v7 as s;
-    let mut turn = smith_transcript::decode_archived(&s::CEILINGS, &turn_bytes()).expect("v7 fixture").into_parts();
-    let mut message = turn.messages.get(0).expect("person message").clone().into_parts();
+    let mut turn = smith_transcript::decode_archived(&s::CEILINGS, &turn_bytes()).expect("v7 fixture");
+    let mut message = turn.messages.get(0).expect("person message").clone();
     message.blocks = blocks;
     turn.messages = List::with_capacity(1);
-    turn.messages.push(s::Message::new(&s::CEILINGS, message).expect("source message")).expect("one message");
-    let turn = s::Turn::new(&s::CEILINGS, turn).expect("source turn");
-    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(turn.measure()));
-    turn.encode(&mut writer).expect("v7 encoding");
+    turn.messages.push(message).expect("one message");
+    let turn = turn;
+    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(
+        turn.measure(&smith_transcript::CEILINGS).expect("bounded transcript"),
+    ));
+    turn.write(&smith_transcript::CEILINGS, &mut writer).expect("v7 encoding");
     writer.finish()
 }
 
@@ -368,16 +363,10 @@ pub fn large_turn() -> Box<[u8]> {
     use smith_transcript::v7 as s;
     let mut blocks = List::with_capacity(1);
     blocks
-        .push(s::Block::Text(
-            s::Text::new(
-                &s::CEILINGS,
-                s::TextParts {
-                    text: vec![b'x'; skein_lib::length::usize_of(LARGE_TURN_TEXT_BYTES)].into_boxed_slice(),
-                    replay: None,
-                },
-            )
-            .expect("large bounded text"),
-        ))
+        .push(s::Block::Text(s::Text {
+            text: vec![b'x'; skein_lib::length::usize_of(LARGE_TURN_TEXT_BYTES)].into_boxed_slice(),
+            replay: None,
+        }))
         .expect("one block");
     turn_with_blocks(blocks)
 }

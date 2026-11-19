@@ -681,11 +681,8 @@ fn first_secrets_opened(
     let mut counts = skein_lib::List::with_capacity(crate::component_v3::CEILINGS.manifest_counts);
     for set in store.owner_sets.sets {
         for family in set.families {
-            let count = crate::codec::component::Count::new(
-                &crate::component_v3::CEILINGS,
-                crate::codec::component::CountParts { family: Box::from(family.name.as_bytes()), before: 0, after: 0 },
-            )
-            .expect("admission::bounds checked each family's name before this first start wrote");
+            let count =
+                crate::codec::component::Count { family: Box::from(family.name.as_bytes()), before: 0, after: 0 };
             counts.push(count).expect("admission::bounds checked the families' count before this first start wrote");
         }
     }

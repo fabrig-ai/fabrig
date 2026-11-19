@@ -3,10 +3,9 @@
 Provisional, 2026-11-16, from `../../draft/config.md`, 6.4 and 6.5
 (`../../draft/config.execution.md`, N5). The members a document no
 longer holds, where each went, and the constants that took the place of
-those nobody changes. The document stays JSON, `temper.json`, until
-`temper.toml` replaces it (`../../draft/config.md`, section 4); the
-members that become its keys (`listen`, `public`, `owner`, `[internal]
-bundle`) stay as they are until then.
+those nobody changes. A person writes `temper.toml` (`file.md`), whose
+keys give the start's document; the members this document names are
+that document's, and the file's names that moved are `file.md`, 3.3's.
 
 ## 1. In one page
 
@@ -28,7 +27,10 @@ bundle`) stay as they are until then.
   set up (section 5); a project's landing, temper's kinds 4 and 5
   (`../../domain/landing-settings.md`, 1.1), with the operator's hold that
   lets a deployment set them before anything lands
-  (`../../domain/landing-settings.md`, 1.3).
+  (`../../domain/landing-settings.md`, 1.3); the engine's limits and
+  its memory budget, two kinds of settings (`limit-settings.md`). A
+  worker alone's `limits` and `application.limits` stay until its
+  figures come from the engine (`../../draft/config.md`, 6.3).
 - **What stays** for now: the members `README.md` and `engine.md` give
   that this document doesn't name, among them the OpenID provider,
   `engine.clients.provider`, which a managed Forgejo's sign-in through
@@ -92,6 +94,10 @@ at most 120 bytes:
 | `application.welcome` | `moved: the welcome is a setting; change it with temper ctl settings` |
 | `application.landing` | `moved: a project's landing is settings, project-landing and project-gates; set them with temper ctl settings apply` |
 | `application.machine` | `moved: a forge's place is chosen when it's set up, and kept with the forge` |
+| `engine.limits` (engine and standalone) | `moved: jig's limits are the setting limits; ask temper, or use temper ctl settings apply` |
+| `engine.memory_bytes` (engine and standalone) | `moved: the root's budget is transcript_memory, in the setting temper-limits` |
+| `application.limits` (engine and standalone) | `moved: temper's limits are the setting temper-limits; ask temper, or use temper ctl settings apply` |
+| `workers[i].memory_bytes`, a worker alone's `memory_bytes` | `moved: nothing read a worker's memory_bytes; remove it` |
 | `engine.llm` | `moved: LLM providers are settings; see them with temper ctl settings show provider` (`providers.md`, 5) |
 | `application.demo` | `moved: the playground's scripted model is the box's own` (`providers.md`, 5) |
 
@@ -115,6 +121,6 @@ GitHub is `application.test.github`.
 ## 6. Open questions
 
 - **A managed Forgejo's sign-in through temper** keeps
-  `engine.clients.provider` in the document; `../../draft/config.md`,
-  section 4's file has no key for it. Default: the TOML file's milestone
-  gives it one, or derives it as the owned forge's is.
+  `engine.clients.provider` in the start's document, which the file's
+  `[openid]` gives (`file.md`, 3.1), and a box's provider is derived
+  from its `provider.key` as `init` made it.

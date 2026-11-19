@@ -311,6 +311,7 @@ impl Runtime {
     }
     fn browser_spawn(command: browser::command::Command, root: kernel::Fd) -> Spawn {
         Spawn {
+            reach: None,
             program: command.program,
             args: command.args.into_boxed(),
             env: command
@@ -359,6 +360,7 @@ impl Runtime {
         let server_root = open_root(std::path::Path::new("/")).expect("server root");
         let browser_spawn = Self::browser_spawn(command, root);
         let server_spawn = Spawn {
+            reach: None,
             program: setup.server.as_os_str().as_bytes().into(),
             args: setup.args.iter().map(|arg| arg.as_bytes().into()).collect(),
             env: Box::new([]),
@@ -736,7 +738,9 @@ impl Runtime {
                 self.capturing = 3;
             }
             Event::Closed { owner } => self.closing.browser_closed(*owner, &mut self.requests),
-            Event::Downloaded { .. }
+            Event::Sent { .. }
+            | Event::Answered { .. }
+            | Event::Downloaded { .. }
             | Event::Warned { .. }
             | Event::Found { .. }
             | Event::Met { .. }
@@ -807,6 +811,7 @@ impl Runtime {
                 self.requests.push_back(io::Request::Spawn {
                     owner: SERVER,
                     spawn: Spawn {
+                        reach: None,
                         program: setup.server.as_os_str().as_bytes().into(),
                         args: args.into(),
                         env: Box::new([]),
@@ -959,7 +964,7 @@ impl Runtime {
                 page_with_query(line.url.as_bytes(), &setup.page_query, setup.page_addresses)
             };
             faces[self.opening].first_url = String::from_utf8(url.to_vec()).expect("printed URL is UTF-8");
-            self.ask(Request::Page { person: person(self.opening), page: page(self.opening), url });
+            self.ask(Request::Page { person: person(self.opening), page: page(self.opening), url, requests: false });
             return true;
         }
         false

@@ -4,6 +4,7 @@ use jig_domain_host as host;
 use skein_lib::{Queue, Token};
 use temper_engine_domain as root;
 use temper_engine_domain_forge as forge;
+use temper_protocol_worker_wire::v1::Record;
 use temper_protocol_worker_wire::{self as payload, v1};
 
 pub(super) fn seed_reds(service: &mut crate::Service, task: u64) {
@@ -52,6 +53,7 @@ pub(super) fn seed_reds(service: &mut crate::Service, task: u64) {
         },
         task,
         writer: None,
+        beside: None,
         design_writers: Box::new([]),
         drift: None,
     };
@@ -139,6 +141,9 @@ fn check_change_row(task: u64) -> forge::ChangeRow {
         delegate_head: None,
         verdicts: Box::new([]),
         milestone: None,
+        person: None,
+        goal_title: None,
+        draft: None,
         goal: None,
         ending: None,
         repair_tasks: Box::new([]),
@@ -214,14 +219,14 @@ fn an_admitted_reds_ask_reads_the_goal_in_key_order_without_a_commit() {
     else {
         panic!("reds answer")
     };
-    let rows = reds.reds();
+    let rows = reds.reds;
     assert_eq!(rows.len(), 2);
     assert_eq!(
-        (rows.get(0).unwrap().key(), rows.get(0).unwrap().head()),
+        (rows.get(0).unwrap().key.as_ref(), rows.get(0).unwrap().head.as_ref()),
         (b"lint p c f".as_slice(), [1; 20].as_slice())
     );
     assert_eq!(
-        (rows.get(1).unwrap().key(), rows.get(1).unwrap().head()),
+        (rows.get(1).unwrap().key.as_ref(), rows.get(1).unwrap().head.as_ref()),
         (b"test a::t x".as_slice(), [2; 32].as_slice())
     );
     assert_eq!(service.engine.as_ref().unwrap().domain.deployment().commits, before);
@@ -286,7 +291,7 @@ fn an_admitted_landed_ask_answers_from_the_domain_without_a_commit() {
             ),
             expected
         );
-        let bytes = payload::ask(&v1::Ask::Landed(v1::Head::new(&v1::CEILINGS, v1::HeadParts { head }).unwrap()));
+        let bytes = payload::ask(&v1::Ask::Landed(v1::Head { head }));
         assert_eq!(
             answer(&mut service, &run, &bytes, 19),
             host::AskAnswer::Bytes(crate::translate::answer(expected, &v1::CEILINGS).unwrap())

@@ -22,9 +22,9 @@ fn adopt(name: &'static str) -> temper_real_loop_world::Ran {
     let fixture = forge::Fixture {
         configure: |value, _, _| {
             // The two resource segments and seven options exceed the base fixture's 64 bytes.
-            value["engine"]["limits"]["overrides"]["people.amendment_bytes"] = 512.into();
+            value.jig_over("people.amendment_bytes", 512);
             // forge/host/owner/repository/branch/temper/root/marker-task.
-            value["engine"]["limits"]["overrides"]["authority.segments"] = 8.into();
+            value.jig_over("authority.segments", 8);
         },
         ..forge::fixture()
     };

@@ -12,6 +12,7 @@ use smith_domain::{self as domain, run, session, tools};
 use smith_protocol_channel as channel;
 use smith_protocol_llm as llm;
 use smith_protocol_machine as machine;
+use smith_transcript::Record;
 
 use crate as service;
 

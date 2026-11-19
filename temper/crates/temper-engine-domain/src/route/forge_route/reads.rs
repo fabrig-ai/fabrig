@@ -126,70 +126,39 @@ fn landing_failure(
     repository: Repository,
     commit: api::Commit,
 ) -> Option<forge::LandingFailure> {
-    let context = domain.core.tasks.delegation(task)?;
-    let super::tasks::Party::Task(parent) = context.requester else { return None };
-    let row = domain.forge.change(parent)?;
-    let (child, super::forge_change::Delegate::Repair(why)) = row.delegate? else { return None };
-    if row.terminal() || child != task || row.repository != repository {
-        return None;
-    }
-    let failure = domain.forge.landing_failure(parent, why)?;
-    if row.change.last_head != Some(commit) && failure.prefix != commit {
-        return None;
-    }
-    Some(failure)
-}
-
-fn append_gate_checks(statuses: &mut Box<[api::Status]>, failure: forge::LandingFailure, rows: u32) {
-    if failure.jobs.is_empty() {
-        return;
-    }
-    let bound = usize::try_from(rows).expect("row bound fits usize");
-    let gate_rows = failure.jobs.len().min(bound);
-    let forge_rows = statuses.len().min(bound.saturating_sub(gate_rows));
-    let cut = forge_rows < statuses.len() || gate_rows < failure.jobs.len();
-    let mut combined = List::with_capacity(rows);
-    for status in statuses.iter().take(forge_rows) {
-        combined.push(status.clone()).expect("forge rows leave room for gate jobs");
-    }
-    for job in failure.jobs.iter().take(gate_rows) {
-        let mut context = List::uncapped();
-        for byte in b"temper/gate/".iter().chain(job.name.iter()) {
-            context.push(*byte).expect("context is internal receipt text");
-        }
-        combined
-            .push(api::Status {
-                at: skein_lib::Time::ZERO,
-                context: context.into_boxed(),
-                check: api::Check::Failed,
-                description: if cut {
-                    Box::from(b"Row bound: gate jobs take precedence; remaining checks omitted.".as_slice())
-                } else {
-                    Box::new([])
-                },
-                url: failure.run.url.clone(),
-                job: Some(api::JobAttempt {
-                    head: failure.prefix,
-                    run: failure.run.id,
-                    job: job.job,
-                    attempt: job.attempt,
-                }),
-            })
-            .expect("gate jobs have reserved rows");
-    }
-    *statuses = combined.into_boxed();
+    let super::tasks::Party::Task(parent) = domain.core.tasks.delegation(task)?.requester else { return None };
+    domain.forge.landing_failure_at(parent, task, repository, commit)
 }
 
 /// Busy reads wait in the host's bounded backoff (temper/docs/design/domain/forge/keeping-up.md, 3).
 pub(super) fn read_answer(domain: &mut Domain, owner: Token, result: Result<Answer, Error>) {
     let Some((to, key, repository, checks)) = domain.forge_reading.remove(&owner) else { return };
     let mut result = result;
-    // The forge client validates its answer's pins before this receipt-only overlay.
+    let right = to.into_token();
+    let to = ReplyTo::new(right);
+    // The forge client validates its answer's pins before the local overlays.
     if let Some(commit) = checks
         && let Ok(Answer::Checks(statuses)) = &mut result
-        && let Some(failure) = landing_failure(domain, key.task, repository, commit)
     {
-        append_gate_checks(statuses, failure, domain.limits.forge.client.rows);
+        let tiers = domain.forge.logged_tiers(repository, commit);
+        let failure = landing_failure(domain, key.task, repository, commit);
+        let cap = u32::try_from(smith_domain_run::HostAnswer::CAPACITY).expect("host cap fits u32");
+        let tool_bytes = domain.call_renders.get(&right).expect("decoded read").tool.len();
+        let bound = domain
+            .limits
+            .call_answer_bytes
+            .min(domain.limits.journal.transcript_bytes)
+            .saturating_sub(u32::try_from(tool_bytes).expect("admitted tool name"))
+            .min(domain.reply_bound(key).unwrap_or(cap))
+            .min(cap);
+        forge::checks::append_tier_checks(
+            statuses,
+            tiers,
+            failure,
+            domain.limits.forge.client.rows,
+            domain.limits.forge.client.op_bytes,
+            bound,
+        );
     }
     if let Err(error) = &result {
         let reason = if *error == Error::Busy { "read admission busy" } else { "forge read failed" };
@@ -210,41 +179,46 @@ mod tests {
     use super::*;
 
     #[test]
-    fn gate_jobs_reserve_rows_and_report_displaced_forge_checks() {
-        let failure = forge::LandingFailure {
-            report: forge::ReceiptReport::Unset,
-            gate: b"gate".as_slice().into(),
-            run: forge::ReceiptRun { id: 11, number: 3, url: b"https://forge.example/run/3".as_slice().into() },
-            prefix: [7; 32],
-            base: None,
-            jobs: Box::new([forge::ReceiptJob { job: 17, attempt: 2, name: b"test".as_slice().into() }]),
+    fn a_busy_branch_file_phase_discards_its_flight_without_rendering() {
+        use crate::route::host_route::{Flight, FlightRender};
+        let repository = Repository { forge: 1, repository: 1 };
+        let render = FlightRender::ForgeRead(Box::new(Read::File {
+            head: [7; 32],
+            path: b"file".as_slice().into(),
+            max_bytes: 2,
+        }));
+        let (mut domain, _) = crate::tests::resume_fixture::root();
+        let right = Token::new(501);
+        let owner = forge::root_read(1).expect("read owner");
+        let key = CallKey { task: 1, attempt: 1, completion: 1, position: 1 };
+        domain
+            .call_renders
+            .insert(
+                right,
+                Flight {
+                    task: key.task,
+                    attempt: key.attempt,
+                    key: Some(key),
+                    note_decoding: false,
+                    render,
+                    name: b"call".as_slice().into(),
+                    tool: b"read_forge".as_slice().into(),
+                    job: None,
+                    page: None,
+                },
+            )
+            .unwrap();
+        domain.forge_reading.insert(owner, (ReplyTo::new(right), key, repository, None)).unwrap();
+        read_answer(&mut domain, owner, Err(Error::Busy));
+        assert!(domain.call_renders.is_empty(), "no partial context survives the host's full-call retry");
+        assert!(domain.forge_reading.is_empty());
+        let Some(Work::Fleet(jig_domain_fleet::Event::Relayed { to, answer })) = domain.work.pop() else {
+            panic!("Busy returns to the host, without a render")
         };
-        let first = api::Status {
-            at: skein_lib::Time::ZERO,
-            context: b"build".as_slice().into(),
-            check: api::Check::Passed,
-            description: Box::new([]),
-            url: Box::new([]),
-            job: None,
+        assert_eq!(to.into_token(), right);
+        let Some(crate::boundary::Payload::Busy) = crate::assemble::take_payload(&mut domain, answer) else {
+            panic!("the host receives Busy, not a partial answer")
         };
-        let second = api::Status { context: b"fmt".as_slice().into(), ..first.clone() };
-        for (rows, kept) in [(3, 2), (2, 1), (1, 0)] {
-            let mut statuses: Box<[api::Status]> = Box::new([first.clone(), second.clone()]);
-            append_gate_checks(&mut statuses, failure.clone(), rows);
-            assert_eq!(statuses.len(), kept + 1);
-            let (gate, own) = statuses.split_last().expect("gate job");
-            assert_eq!(own, &([first.clone(), second.clone()])[..kept]);
-            assert_eq!(gate.context.as_ref(), b"temper/gate/test");
-            assert_eq!(gate.check, api::Check::Failed);
-            assert_eq!(gate.url, failure.run.url);
-            assert_eq!(gate.job, Some(api::JobAttempt { head: failure.prefix, run: 11, job: 17, attempt: 2 }));
-            assert_eq!(gate.description.is_empty(), kept == 2);
-            if kept < 2 {
-                assert_eq!(
-                    gate.description.as_ref(),
-                    b"Row bound: gate jobs take precedence; remaining checks omitted."
-                );
-            }
-        }
+        assert!(domain.work.is_empty(), "no branch or file answer follows Busy");
     }
 }

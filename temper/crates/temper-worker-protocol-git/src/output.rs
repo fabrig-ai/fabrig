@@ -153,6 +153,17 @@ pub(crate) fn conflict_paths(stdout: &[u8], checkout: &checkout::Limits) -> Opti
     listed_paths(stdout, checkout, true)
 }
 
+/// The page's literal paths on update-index's stdin.
+#[must_use]
+pub fn path_input(files: &[Box<[u8]>]) -> Box<[u8]> {
+    let mut parts = List::uncapped();
+    for file in files {
+        parts.push(file.as_ref()).expect("page paths");
+        parts.push(b"\0".as_slice()).expect("page delimiters");
+    }
+    invocation::joined(&parts.into_boxed())
+}
+
 fn listed_paths(stdout: &[u8], checkout: &checkout::Limits, prefix: bool) -> Option<Box<[Box<[u8]>]>> {
     let mut count = 0_u32;
     let mut start = 0_usize;

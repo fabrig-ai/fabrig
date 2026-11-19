@@ -140,15 +140,24 @@ fn a_box_starts_an_owned_slot_on_start_kind_and_removes_it() {
         }),
     );
     let bytes = serde_json::to_vec(&document).expect("document JSON");
-    fs::write(root.join("temper.json"), &bytes).expect("document");
+    fs::write(
+        root.join(temper_config_shell::FILE),
+        temper_config_shell::render(&support::configuration::file(), temper_config_shell::Shape::Standalone),
+    )
+    .expect("document");
     let mut directories = support::configuration::directories(root);
     directories.cache = cache.as_os_str().as_encoded_bytes().into();
     let (mut steps, limits) =
         temper_box_shell::box_command::configuration_steps(&directories, &bytes, Box::new([])).expect("kind steps");
     let (cached, _) = support::forge_land::cache_forgejo_binaries(&cache);
     assert_eq!(steps.always.len(), 1, "serve is the always step");
-    assert_eq!(steps.asked.len(), 1, "owned slot");
-    let template = &steps.asked[0].steps;
+    assert_eq!(steps.asked.len(), 2, "owned and scripted playground slots");
+    let owned = steps
+        .asked
+        .iter()
+        .find(|group| group.kind == Some(temper_forge_setup::machine::BoxKind::Owned))
+        .expect("owned slot");
+    let template = &owned.steps;
     assert!(template.iter().all(|(_, step)| step.started_notice().is_empty()), "unbound kind has no hands");
     let (_, forgejo) = template.iter().find(|(_, step)| step.name() == b"forgejo").expect("Forgejo run step");
     assert!(forgejo.ready().is_some(), "hands bind to the ready step when the group listens");
@@ -159,7 +168,8 @@ fn a_box_starts_an_owned_slot_on_start_kind_and_removes_it() {
         Kind::Long,
     )]);
     let mut listeners = Vec::new();
-    for group in &mut steps.asked {
+    for group in steps.asked.iter_mut().filter(|group| group.kind == Some(temper_forge_setup::machine::BoxKind::Owned))
+    {
         for (_, step) in &mut group.steps {
             for address in step.listeners() {
                 let (fd, _) = skein_shell::open_listener(*address, 16).expect("slot listener");

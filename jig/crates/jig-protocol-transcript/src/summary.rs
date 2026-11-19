@@ -33,11 +33,11 @@ fn hit_count(limits: &smith::Limits, piece: &[u8]) -> Result<u64, Undecodable> {
 }
 
 pub(super) fn validate(limits: &smith::Limits, source: &smith::Turn) -> Result<(), Undecodable> {
-    for message in source.messages() {
-        for block in message.blocks() {
+    for message in &source.messages {
+        for block in &message.blocks {
             match block {
                 smith::Block::Result(result) => {
-                    validate_returned(limits, result.returned())?;
+                    validate_returned(limits, &result.returned)?;
                 }
                 smith::Block::Text(_) | smith::Block::Refusal(_) | smith::Block::Call(_) | smith::Block::Opaque(_) => {}
             }
@@ -48,9 +48,9 @@ pub(super) fn validate(limits: &smith::Limits, source: &smith::Turn) -> Result<(
 
 fn validate_returned(limits: &smith::Limits, returned: &smith::Returned) -> Result<(), Undecodable> {
     match returned {
-        smith::Returned::Outcome(outcome) => match outcome.value() {
+        smith::Returned::Outcome(outcome) => match &outcome.value {
             smith::Outcome::Found(found) => {
-                hit_count(limits, found.hits())?;
+                hit_count(limits, found.hits.as_ref())?;
             }
             smith::Outcome::Read(_)
             | smith::Outcome::Listed(_)
@@ -97,54 +97,54 @@ pub(super) struct Summary {
 pub(super) fn summarize(returned: &smith::Returned) -> Summary {
     let mut builder = Builder { bytes: Intake::with_capacity(256), failed: true };
     match returned {
-        smith::Returned::Outcome(outcome) => builder.outcome(outcome.value()),
+        smith::Returned::Outcome(outcome) => builder.outcome(&outcome.value),
         smith::Returned::Said(said) => {
             // This arm is handled directly by the receiving text budget.
             builder.put(b"Tool returned text");
-            builder.failed = said.error();
+            builder.failed = said.error;
         }
         smith::Returned::Invalid(invalid) => {
             builder.put(b"Invalid call: ");
-            match invalid.problem() {
+            match &invalid.problem {
                 smith::CallProblem::UnknownTool => builder.put(b"unknown tool"),
                 smith::CallProblem::NotAnObject => builder.put(b"input is not an object"),
                 smith::CallProblem::Missing(field) => {
                     builder.put(b"missing ");
-                    builder.put(field.field());
+                    builder.put(field.field.as_ref());
                 }
                 smith::CallProblem::WrongType(field) => {
                     builder.put(b"wrong type for ");
-                    builder.put(field.field());
+                    builder.put(field.field.as_ref());
                 }
                 smith::CallProblem::BadValue(field) => {
                     builder.put(b"bad value for ");
-                    builder.put(field.field());
+                    builder.put(field.field.as_ref());
                 }
                 smith::CallProblem::TooLarge => builder.put(b"input too large"),
                 smith::CallProblem::Oversize(oversize) => {
                     builder.put(b"input too large, ");
-                    builder.number(oversize.bytes());
+                    builder.number(oversize.bytes);
                     builder.put(b" bytes over ");
-                    builder.number(u64::from(oversize.bound()));
+                    builder.number(u64::from(oversize.bound));
                 }
                 smith::CallProblem::CutOff(cut) => {
                     builder.put(b"input cut off after ");
-                    builder.number(cut.bytes());
+                    builder.number(cut.bytes);
                     builder.put(b" bytes");
                 }
                 smith::CallProblem::JobsFull(full) => {
                     builder.put(b"jobs full, at most ");
-                    builder.number(u64::from(full.jobs()));
+                    builder.number(u64::from(full.jobs));
                     builder.put(b" at once");
                 }
                 smith::CallProblem::UnknownJob(unknown) => {
                     builder.put(b"unknown job ");
-                    builder.number(u64::from(unknown.job()));
+                    builder.number(u64::from(unknown.job));
                 }
                 smith::CallProblem::Nesting => builder.put(b"nested sub-agent"),
             }
         }
-        smith::Returned::NotRun(not_run) => builder.put(match not_run.why() {
+        smith::Returned::NotRun(not_run) => builder.put(match &not_run.why {
             smith::NotRunWhy::Stopped => b"Not run: stopped",
             smith::NotRunWhy::OutsideChoice(_) => b"Not run: outside the tool choice",
             smith::NotRunWhy::AfterFailedWrite(_) => b"Not run: after a failed write",
@@ -175,13 +175,13 @@ impl Builder {
             smith::Outcome::Read(read) => {
                 self.failed = false;
                 self.put(b"Read ");
-                self.number(u64::from(read.lines()));
+                self.number(u64::from(read.lines));
                 self.put(b" of ");
-                self.number(u64::from(read.total()));
+                self.number(u64::from(read.total));
                 self.put(b" lines; skipped ");
                 // Lines are numbered from one; a zero first line skipped none.
-                self.number(u64::from(read.first().saturating_sub(1)));
-                match read.cut() {
+                self.number(u64::from(read.first.saturating_sub(1)));
+                match &read.cut {
                     smith::ReadCut::Whole => {}
                     smith::ReadCut::Line => self.put(b"; content cut"),
                 }
@@ -189,17 +189,17 @@ impl Builder {
             smith::Outcome::Listed(listed) => {
                 self.failed = false;
                 self.put(b"Listed ");
-                self.number(u64::from(listed.entries().len()));
+                self.number(u64::from(listed.entries.len()));
                 self.put(b" entries; more ");
-                self.number(listed.more());
+                self.number(listed.more);
             }
             smith::Outcome::Found(found) => {
                 self.failed = false;
                 self.put(b"Found ");
-                self.number(hit_count(&smith::CEILINGS, found.hits()).expect("hit piece validated before translation"));
+                self.number(hit_count(&smith::CEILINGS, &found.hits).expect("hit piece validated before translation"));
                 self.put(b" hits; more ");
-                self.number(found.more());
-                if found.timed_out() {
+                self.number(found.more);
+                if found.timed_out {
                     self.put(b"; search timed out");
                 }
             }
@@ -210,7 +210,7 @@ impl Builder {
             smith::Outcome::NotEmpty => self.put(b"Tool refused: directory not empty"),
             smith::Outcome::Written(written) => {
                 self.failed = false;
-                if written.created() {
+                if written.created {
                     self.put(b"Created file");
                 } else {
                     self.put(b"Wrote file");
@@ -219,15 +219,15 @@ impl Builder {
             smith::Outcome::Edited(edited) => {
                 self.failed = false;
                 self.put(b"Edited ");
-                self.number(u64::from(edited.replaced()));
+                self.number(u64::from(edited.replaced));
                 self.put(b" matches");
             }
             smith::Outcome::Exited(end) => self.command(end),
             smith::Outcome::Running(running) => {
                 self.failed = false;
                 self.put(b"Started as job ");
-                self.number(u64::from(running.job()));
-                self.output(running.head(), running.last(), running.dropped());
+                self.number(u64::from(running.job));
+                self.output(running.head.as_ref(), running.last.as_ref(), running.dropped);
             }
             smith::Outcome::Job(job) => self.job(job),
             smith::Outcome::NotGranted => self.put(b"Tool refused: not granted"),
@@ -241,19 +241,19 @@ impl Builder {
             smith::Outcome::NotDirectory(_) => self.put(b"Tool refused: not a directory"),
             smith::Outcome::TooLarge(large) => {
                 self.put(b"Tool refused: too large, ");
-                self.number(large.size());
+                self.number(large.size);
                 self.put(b" bytes");
             }
             smith::Outcome::NotRead => self.put(b"Tool refused: not read"),
             smith::Outcome::Stale => self.put(b"Tool refused: stale read"),
             smith::Outcome::EditFailed(failed) => {
                 self.put(b"Tool refused: edit ");
-                self.number(u64::from(failed.edit()));
-                match failed.why() {
+                self.number(u64::from(failed.edit));
+                match &failed.why {
                     smith::Mismatch::NoMatch => self.put(b", no match"),
                     smith::Mismatch::Ambiguous(ambiguous) => {
                         self.put(b", ambiguous, ");
-                        self.number(u64::from(ambiguous.count()));
+                        self.number(u64::from(ambiguous.count));
                         self.put(b" matches");
                     }
                     smith::Mismatch::Unchanged => self.put(b", unchanged"),
@@ -261,7 +261,7 @@ impl Builder {
             }
             smith::Outcome::Failed(failed) => {
                 self.put(b"Tool failed: ");
-                match failed.fault() {
+                match &failed.fault {
                     smith::Fault::Denied => self.put(b"denied"),
                     smith::Fault::NoSpace => self.put(b"no space"),
                     smith::Fault::Other => self.put(b"other fault"),
@@ -275,15 +275,15 @@ impl Builder {
     }
     fn job(&mut self, job: &smith::JobRead) {
         self.put(b"Job ");
-        self.number(u64::from(job.job()));
-        match job.end() {
+        self.number(u64::from(job.job));
+        match &job.end {
             smith::JobEnd::Running => {
                 self.failed = false;
                 self.put(b" answered running");
             }
             smith::JobEnd::Ended(ended) => {
                 self.put(b" ended: ");
-                self.exit(ended.exit());
+                self.exit(&ended.exit);
             }
             smith::JobEnd::Stopped => {
                 self.failed = false;
@@ -291,23 +291,23 @@ impl Builder {
             }
             smith::JobEnd::Cancelled => self.put(b" cancelled"),
         }
-        self.output(job.head(), job.last(), job.dropped());
+        self.output(job.head.as_ref(), job.last.as_ref(), job.dropped);
     }
     fn command(&mut self, end: &smith::CommandEnd) {
         self.put(b"Command ended: ");
-        self.exit(end.exit());
-        self.output(end.head(), end.last(), end.dropped());
+        self.exit(&end.exit);
+        self.output(end.head.as_ref(), end.last.as_ref(), end.dropped);
     }
     fn exit(&mut self, exit: &smith::Exit) {
         match exit {
             smith::Exit::Code(code) => {
-                self.failed = code.code() != 0;
+                self.failed = code.code != 0;
                 self.put(b"exit ");
-                self.number(u64::from(code.code()));
+                self.number(u64::from(code.code));
             }
             smith::Exit::Signal(signal) => {
                 self.put(b"signal ");
-                self.number(u64::from(signal.signal()));
+                self.number(u64::from(signal.signal));
             }
             smith::Exit::TimedOut => self.put(b"timed out"),
         }

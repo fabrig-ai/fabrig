@@ -78,6 +78,10 @@ fn matches(nodes: &[Node], index: usize, target: &Target) -> bool {
             contains(&fallback, name)
         }
         Target::ExactRole { role, name } => exactly_named(nodes, index, *role, name),
+        Target::TextBox { name } => {
+            (node.role == Role::TextField || node.role == Role::TextArea)
+                && exactly_named(nodes, index, node.role, name)
+        }
         Target::Text { text: words } => !node.text.is_empty() && contains(&text(node), words),
     }
 }
@@ -166,6 +170,7 @@ pub fn role_name(role: Role) -> &'static str {
         Role::Tabs => "tabs",
         Role::Tab => "tab",
         Role::Progress => "progress",
+        Role::Meter => "meter",
         Role::Time => "time",
         Role::Code => "code",
         Role::Quote => "quote",
@@ -224,6 +229,7 @@ pub fn role_named(name: &str) -> Option<Role> {
         "tabs" => Some(Role::Tabs),
         "tab" => Some(Role::Tab),
         "progress" => Some(Role::Progress),
+        "meter" => Some(Role::Meter),
         "time" => Some(Role::Time),
         "code" => Some(Role::Code),
         "quote" => Some(Role::Quote),
@@ -277,7 +283,8 @@ pub(crate) fn next_role(role: Role) -> Option<Role> {
         Role::TreeItem => Some(Role::Tabs),
         Role::Tabs => Some(Role::Tab),
         Role::Tab => Some(Role::Progress),
-        Role::Progress => Some(Role::Time),
+        Role::Progress => Some(Role::Meter),
+        Role::Meter => Some(Role::Time),
         Role::Time => Some(Role::Code),
         Role::Code => Some(Role::Quote),
         Role::Quote => Some(Role::Separator),

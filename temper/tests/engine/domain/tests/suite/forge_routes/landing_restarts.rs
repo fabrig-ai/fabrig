@@ -3,6 +3,7 @@
 //! temper/docs/design/domain/landing-preparing.md, 4–7).
 use super::super::{goal_branch, goal_landing};
 use super::*;
+use temper_protocol_worker_wire::v1::Record as WorkerRecord;
 
 const SLOTS: u32 = 9;
 
@@ -868,7 +869,7 @@ fn four_goals_land_together_after_loading_batch_four() {
         &mut skein_lib::Reader::new(&job.spec),
     )
     .expect("prepare spec");
-    let request: serde_json::Value = serde_json::from_slice(spec.request()).expect("prepare request");
+    let request: serde_json::Value = serde_json::from_slice(spec.request.as_ref()).expect("prepare request");
     assert_eq!(request["members"].as_array().expect("stack").len(), 4);
     // Equal goal priorities leave first-ready time, then task number, to order the queue.
     let mut queue = changes.clone();

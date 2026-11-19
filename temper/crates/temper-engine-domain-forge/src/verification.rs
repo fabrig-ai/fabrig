@@ -55,6 +55,37 @@ impl Domain {
         if tiers.is_empty() { change::Verification::Unfollowed } else { fact(tiers) }
     }
 
+    /// Whether the change's project ends changes at landing (domain/after-landing.md, 6).
+    #[must_use]
+    pub fn change_waits_landed(&self, task: u64) -> bool {
+        let Some(row) = self.change(task) else { return false };
+        let Some(repository) = self.repository(row.repository) else { return false };
+        let Some(after) = self.after_landing(repository.project) else { return false };
+        after.wait == change::Wait::Landed
+    }
+
+    /// Whether the change ends at landing with a named-branch tier left to judge it later.
+    #[must_use]
+    pub fn change_ends_at_landing(&self, task: u64) -> bool {
+        if !self.change_waits_landed(task) {
+            return false;
+        }
+        let Some(row) = self.change(task) else { return false };
+        let Some(repository) = self.repository(row.repository) else { return false };
+        let Some(gates) = self.repository_gates(repository.project, row.repository) else { return false };
+        for tier in &gates.tiers {
+            let branch = match &tier.follows {
+                crate::Follows::Landing => &repository.landing,
+                crate::Follows::Branch(branch) => branch,
+                crate::Follows::Goals => continue,
+            };
+            if *branch == row.base {
+                return true;
+            }
+        }
+        false
+    }
+
     /// The live row of this repository and commit (temper/docs/design/domain/after-landing.md, 6).
     #[must_use]
     pub fn landing_verification(&self, repository: Repository, commit: &Commit) -> Option<&Verification> {
@@ -66,6 +97,12 @@ impl Domain {
 pub(crate) fn landed(d: &mut Domain, commit: Commit, task: u64, out: &mut Queue<Request>) {
     let Some(change) = d.changes.get(&task) else { return };
     let repository = change.repository;
+    let Some(adopted) = d.repositories.get(&repository) else { return };
+    if let Some(after) = d.after_landing(adopted.project)
+        && after.wait == change::Wait::Landed
+    {
+        return;
+    }
     let subject = crate::views::changes_mark(d, repository);
     if let Some(row) = d.verifications.get_mut(&(repository, commit)) {
         if !row.changes.contains(&task) {
@@ -79,7 +116,6 @@ pub(crate) fn landed(d: &mut Domain, commit: Commit, task: u64, out: &mut Queue<
         }
         return;
     }
-    let Some(adopted) = d.repositories.get(&repository) else { return };
     let Some((_, configured, _, _, _, _, _)) = d.landing.projects.get(&adopted.project) else { return };
     let mut tiers = List::with_capacity(d.landing.limits.tiers.tiers);
     for entry in configured {
@@ -129,9 +165,11 @@ pub(crate) fn judged(
     tier: &[u8],
     verdict: &policy::Verdict,
     landings: &[policy::Landing],
+    many: Option<&policy::ManyTests>,
     out: &mut Queue<Request>,
 ) {
     assert_eq!(landings.len(), verdict.landings.len(), "one blame per landing in the judged range");
+    crate::landing_log::judged(d, repository, tier, verdict, landings, many, out);
     let subject = crate::views::changes_mark(d, repository);
     let mut keys = List::with_capacity(d.verifications.len());
     for ((repo, commit), _) in &d.verifications {
@@ -196,6 +234,10 @@ pub(crate) fn released(d: &mut Domain, task: u64, out: &mut Queue<Request>) {
         }
     }
     let Some(key) = found else { return };
+    let row = d.verifications.get(&key).expect("found verification");
+    if row.changes.len() == 1 && d.change_waits_landed(task) {
+        crate::tiers::filing::switched(d, task, &row.clone(), out);
+    }
     let mut row = d.verifications.remove(&key).expect("found verification");
     let subject = crate::views::changes_mark(d, row.repository);
     if row.changes.len() == 1 {

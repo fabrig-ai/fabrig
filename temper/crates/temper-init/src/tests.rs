@@ -1,4 +1,4 @@
-#![expect(clippy::disallowed_macros, reason = "tests compare embedded templates with the shipped owned examples")]
+#![expect(clippy::disallowed_macros, reason = "tests compare the start document with shipped examples")]
 mod documents;
 mod files;
 mod fixtures;

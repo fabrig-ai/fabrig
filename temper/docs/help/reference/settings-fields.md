@@ -4,26 +4,26 @@ Kind: reference
 
 JSON types, bounds and effects for settings files and `settings show`.
 
-Read/edit/set whole: `settings show KIND N`. Refusals: shape, count, reference, rules, budget, grace, owner, linked, accounts. Spend: deployment model-price units. uN: unsigned N-bit integer (0..2^N-1). bool: true/false. t[N]/h[N]: text/lowercase hex, <=N bytes; ns: nanoseconds; [N] T: <=N entries of T. ? optional; ! required; |null admits null. Choices: JSON strings; A|B: alternatives; choice: described alternatives. set: setting.kind; project-policy: policy.
+Read/edit/set whole: `settings show KIND N`. Refusals=shape/count/reference/rules/budget/grace/owner/linked/accounts. Spend=deployment model-price units. uN=unsigned 0..2^N-1; bool=true/false; t[N]/h[N]=text/lowercase hex <=N bytes; ns=nanoseconds; [N] T<=N entries. ?=optional; !=required; |null=nullable. Choices=JSON strings; A|B=alternatives; choice=described alternatives. set=setting.kind; project-policy=policy.
 
 ## file
-File read by `settings apply` and `settings propose`.
+`settings apply`/`settings propose` file.
 - items:[1024] item;One item per changed setting, each setting once.
 
 ## item
-A `setting` and exactly one of `set`, `edit` and `overlay`.
+A `setting`; exactly one `set`/`edit`/`overlay`.
 - setting:setting;setting the item changes.
-- overlay:overlay;charter overlay, instead of set or edit.
-- remove:bool;True, instead of set, edit or overlay: withdraw the setting.
-- reset:bool;True, instead of set, edit or overlay: follow its default.
-- set:the value for `setting.kind`;Whole replacement value.
+- overlay:overlay;charter overlay instead of set/edit.
+- remove:bool;true instead of set/edit/overlay; withdraw.
+- reset:bool;true instead of set/edit/overlay; follow default.
+- set:the value for `setting.kind`;Whole replacement.
 - edit:choice;edit instead of a value. `removed`: No longer offered, its default included; the rules cannot be removed. `reset`: Erase its change; follow its default again.
 
 ## setting
 Kind and number, or project for project settings.
-- kind:`model|worker|provider|charter|template|policy|project-policy|rules|landing-rule|forge-charter|template-goal|follow|dependency|project-ways|project-questions|project-classes|charter-words|project-words|project-landing|project-gates|project-areas|project-triager|agents|welcome`;setting's kind. `project-policy`: Project policy: `set` only, once per file alongside other settings. `project-landing`: Next start. `project-gates`: Next start.
-- number:u32;Setting number, from 1; omit for rules, welcome and unnumbered project settings.
-- project:u32;! project settings/follow/dependency. Absent: charter-words/welcome. Landing rule: >=1; absent: deployment-wide.
+- kind:`model|worker|provider|charter|template|policy|project-policy|rules|landing-rule|forge-charter|template-goal|follow|dependency|project-ways|project-questions|project-classes|charter-words|project-words|project-landing|project-gates|project-areas|project-triager|agents|welcome|limits|temper-limits`;setting's kind. `project-policy`: Project policy: `set` only, once per file alongside other settings. `project-landing`: Next start. `project-gates`: Next start.
+- number:u32;Setting number, from 1; omit for rules, welcome and limit kinds, and unnumbered project settings.
+- project:u32;! project settings/follow/dependency. Absent: charter-words/welcome/agents/limit kinds. Landing rule: >=1; absent: deployment-wide.
 
 ## charter
 Run policy from the task's creation revision.
@@ -72,12 +72,12 @@ Brief file at preparation branch head.
 - heading:t[80]|null;Heading: read until next peer/ancestor heading; null reads whole file.
 
 ## provider
-LLM provider and endpoints, taken at the engine's next start. Removal withdraws its name; reset needs a default.
+LLM provider/endpoints; next engine start. Remove withdraws its name; reset needs a default.
 - number:u32;Same as setting.number; 1..16.
 - name:t[256];!
-- endpoint:t[4096];Optional.
-- direct:t[4096];Optional.
-- signed_in_plan:bool;Required with sign_in; absent=false.
+- endpoint:t[4096];?
+- direct:t[4096];?
+- signed_in_plan:bool;! with sign_in; absent=false.
 - manage_usage:t[2048];? public HTTPS.
 - keep:[16] t[64];? needs endpoint; * and ? patterns.
 - drop:[16] t[64];Needs keep; absent=[].
@@ -86,13 +86,13 @@ LLM provider and endpoints, taken at the engine's next start. Removal withdraws 
 - withdrawn:bool;Absent=false.
 
 ## provider-sources
-Each source optional; {} offers none. Unique programs: 1..32 lowercase ASCII letters/digits/-/_.
+Sources optional; {}=none. Programs unique: 1..32 lowercase ASCII letters/digits/-/_.
 - keys:bool;Absent=false.
 - programs:[64] t[32];Absent=[].
-- sign_in:provider-registration;Optional.
+- sign_in:provider-registration;?
 
 ## provider-registration
-Public sign-in; secret refused. Nonempty issuer/client/authorization/token/keys. redirect_path: no leading /, query or fragment. TLS needs server_name; plaintext neither server_name nor trust.
+Public sign-in; no secret. issuer/client/authorization/token/keys nonempty. redirect_path: no leading /, query, fragment. TLS needs server_name; plaintext no server_name/trust.
 - issuer:t[4096];!
 - client:t[4096];!
 - authorization:t[4096];!
@@ -101,41 +101,41 @@ Public sign-in; secret refused. Nonempty issuer/client/authorization/token/keys.
 - redirect_path:t[4096];!
 - scopes:[64] t[4096];!
 - must_grant:[64] t[4096];!
-- name_hint:t[4096];Optional.
-- revocation:t[4096];Optional.
-- resource:t[4096];Optional.
-- redirect_port:u16;Optional.
+- name_hint:t[4096];?
+- revocation:t[4096];?
+- resource:t[4096];?
+- redirect_port:u16;?
 - transport:`tls|plaintext`;!
 - server_name:t[4096];!
-- trust:t[4096];Optional.
+- trust:t[4096];?
 
 ## provider-endpoint
-provider implicit. program optional. TLS needs server_name; plaintext neither server_name nor trust, and loopback only. _ms: milliseconds; 64 endpoints total.
+provider implicit; program optional. TLS needs server_name; plaintext no server_name/trust, loopback only. _ms=milliseconds; 64 endpoints total.
 - name:t[4096];!
 - number:u32;!
 - dialect:u32;!
-- program:t[4096];Optional.
+- program:t[4096];?
 - address:provider-address;!
 - transport:`tls|plaintext`;!
 - server_name:t[4096];!
-- trust:t[4096];Optional.
+- trust:t[4096];?
 - headers:[16] provider-header;!
 - connect_ms:u64;!
 - handshake_ms:u64;!
 
 ## provider-address
-Exactly one of socket or host; host requires port.
+One of socket/host; host needs port.
 - socket:t[128];IPv4:PORT or [IPv6]:PORT.
 - host:t[253];DNS name.
 - port:u16;With host.
 
 ## provider-header
-Credential headers are refused, case-insensitively: Authorization, Proxy-Authorization, X-Api-Key, Api-Key, Cookie.
+No credential headers (case-insensitive): Authorization, Proxy-Authorization, X-Api-Key, Api-Key, Cookie.
 - name:t[4096];!
 - value:t[4096];!
 
 ## worker
-Name, places, secret digest; removal withdraws name; reset needs a default.
+Name/places/secret digest; remove withdraws name; reset needs a default.
 - number:u32;Absent: the item's number.
 - name:t[128];ASCII letters/digits/-/_/., first alphanumeric; also bounded by fleet.worker_name_bytes.
 - places:u32;Concurrent runs: 1..fleet.slots; effective next opening.
@@ -143,18 +143,18 @@ Name, places, secret digest; removal withdraws name; reset needs a default.
 - withdrawn:bool;Absent: false; true is read-only. Withdraw by a removed edit.
 
 ## catalogue
-Numbered runtime model and its display facts.
+Numbered runtime model; display facts.
 - number:u32;Permanent number, 1 to 64, matching setting.number.
 - model:model;runtime model, whole.
 - shown:t[4096]|null;name for showing, or null.
 - description:t[512]|null;description, or null.
 - picker:bool;Whether a model picker shows it.
 - withdrawn:bool;Whether it is withdrawn; its number and name stay.
-- source:choice;Where the model came from. `stock`: The binary. `list`: A provider list. `person`: A person.
+- source:choice;Where the model came from. `stock`: binary. `list`: provider list. `person`: person.
 - estimated:bool;Whether its prices are provider defaults.
 
 ## model
-Runtime model, whole in model settings. Charter fields except `effort` must match configuration, else `reference` refusal.
+Whole runtime model. Charter fields except `effort` must match configuration, else `reference` refusal.
 - provider:u32;configured LLM provider that serves it; 1 when absent.
 - dialect:u32;Configured model protocol.
 - endpoint:u32;Configured serving endpoint's number.
@@ -175,7 +175,7 @@ Wake by message kind; proposals, escalations and cancels always wake.
 - words:wake_rule;Task and deployment words; a person's always wake it at once.
 - notices:wake_rule;Notices: referenced task done/held, proposal passing through, awaited hold.
 - news:wake_rule;News its connectors class as waking for it.
-- results:choice;delegates' results. `never`: None wakes it. `each`: Each delegate's result wakes it. `last_or_failure`: The last delegate's result, or any failure.
+- results:choice;delegates' results. `never`: None wakes it. `each`: Each delegate's result wakes it. `last_or_failure`: last delegate's result, or any failure.
 - questions:bool;Whether a delegate's question wakes it.
 - answers:bool;Whether an answer to its own question wakes it.
 - timers:bool;Whether its timers wake it.
@@ -214,7 +214,7 @@ Resource resolved at creation.
 - symbol:u16;connector's resource symbol; the forge's 1 is its own goal branch.
 
 ## text
-A text, whole.
+text, whole.
 - bytes:t[65536];text.
 - cut:bool;Always false: a value is set whole.
 
@@ -321,7 +321,7 @@ Model choice after the first activation.
 - subagents:[64] model_effort;Absent: []. Models for later runs' sub-agents, each named once.
 
 ## model_effort
-A model, by name, and its effort.
+model, by name, and its effort.
 - model:t[4096];configured model's name, one the task's charter offers.
 - effort:t[32]|null;Model's effort; null if it takes none.
 
@@ -337,7 +337,7 @@ Project policy copied at creation; changes affect later projects.
 - templates:[16] template_override;project's overrides of templates.
 
 ## role
-A role in a project.
+role in a project.
 - number:u32;0 owner, 1 maintainer, 2 member, 3 observer; others policy-defined. 0 must allow task creation, else `owner` refusal.
 - authority:authority;Max party task allotment, within policy `ceiling`.
 - period_spend:u64;Party allotment per period, within policy `period_spend`.
@@ -484,7 +484,7 @@ Charter number, 0 to 4,294,967,295. Setting 1: change; setting 2: reviews.
 
 ## dependency
 Dependency by project/number (1 to forge.dependencies); no stock default or automatic action.
-- project:u32;Required project number.
+- project:u32;! project.
 
 ## follow
 Context-to-owned follow by project/number (1 to forge.follows); no stock default.
@@ -493,7 +493,7 @@ Context-to-owned follow by project/number (1 to forge.follows); no stock default
 - owner:follow-owner;Follow changes' owner; required.
 - start:choice;When changes start; absent/empty: owner. `owner`: Wait for owner (default). `code`: Start after the previous change lands.
 - producer:t[8192];Change parameter 11, C;P;R. Absent/empty: change charter and its defaults.
-- check:follow-check;Required follow check.
+- check:follow-check;! follow check.
 
 ## follow-source
 Context repository. Empty branch: adopted default; empty paths: all.
@@ -509,15 +509,15 @@ Owned, writable repository. Absent/empty branch: landing branch.
 - branch:t[4096];Absent/empty: landing branch.
 
 ## follow-owner
-A project person or live standing role.
+project person or live standing role.
 - person:u64;Project person's number.
 - task:u64;Standing role task number.
 
 ## follow-check
 Target workflow and report artifact: each required, 1 to 256 bytes.
-- workflow:t[256];Required nonempty target workflow file.
-- artifact:t[256];Required nonempty uploaded artifact name.
-- format:choice;Required report format. `junit`: JUnit XML. `lines`: Line-format report.
+- workflow:t[256];! nonempty target workflow file.
+- artifact:t[256];! nonempty uploaded artifact name.
+- format:choice;! report format. `junit`: JUnit XML. `lines`: Line-format report.
 
 ## template-goal
 Goal design-first/close-out switches. Absent: plans, no close-out.
@@ -532,7 +532,7 @@ Project display and goal start. Absent: drafts true, others false, way 0.
 - way:u32;Goal's starting template: project-offered, tracked set; 0 for the first.
 
 ## project-questions
-The route a project's change takes when its maker names none.
+route a project's change takes when its maker names none.
 - `none`:No question route; the stock's value.
 - `up`:change's questions go up to its parent.
 
@@ -565,6 +565,7 @@ How work runs headline and lede; absent uses the way's words.
 ## project-landing
 Landing at the next start.
 - by:choice;? queue by default; at the next start. `queue`: Default. `turn`: Prepare, prove, turn.
+- wait:choice;? cleared by default; at the next start. `cleared`: Default. `landed`: Ends at landing.
 - combine:landing-combine-settings;? main merge, other squash.
 - batch:u16;? 1 to forge.landing_members; default 1.
 - landing_attempts:u8;? default 3. At least 1.
@@ -572,9 +573,9 @@ Landing at the next start.
 - tier_retries:u8;? default 2.
 - check_timeout_ms:u64;? 1000 to 86400000; default none.
 - gate_timeout_ms:u64;? 60000 to 86400000; default 3600000.
-- verification_bound_ms:u64;? u64 milliseconds; default 7200000.
-- merge_job:t[4096];? relative path, no NUL or .. segments; The merge command in configuration.
-- close_job:t[4096];? relative path, no NUL or .. segments.
+- verification_bound_ms:u64;? milliseconds; default 7200000.
+- merge_job:t[4096];? relative, no NUL or .. segments; see merge command in configuration.
+- close_job:t[4096];? relative, no NUL or .. segments.
 
 ## project-gates
 Project repository gates and tiers; next start.
@@ -594,25 +595,25 @@ One repository's test gates and tiers.
 
 ## gate-check
 A workflow gate proving a landing.
-- name:t[32];! letters, digits, dash or underscore; unique in the repository.
-- workflow:t[255];! workflow filename without slash.
+- name:t[32];! letters/digits/-/_; unique per repository.
+- workflow:t[255];! workflow file, no slash.
 - ignored:[1114240] t[1024];? <=forge.ignored_paths whole-segment paths, each <=forge.name_bytes.
 - blocking:bool;! whether the gate blocks.
-- base:bool;? default false; whether the gate reads the base.
+- base:bool;? false by default; reads the base.
 - report:gate-report;? artifact holding failed test ids.
 
 ## gate-report
 The failed tests uploaded by a gate.
-- artifact:t[32];! artifact name without slash.
+- artifact:t[32];! artifact, no slash.
 - format:choice;! `junit`: JUnit report. `lines`: One test id per line.
 - fuzzy:t[64];? nonempty name prefix of fuzzy tests.
 
 ## tier-check
 A slow workflow and the branch it follows.
-- name:t[32];! letters, digits, dash or underscore; unique in the repository.
-- workflow:t[255];! workflow filename without slash.
+- name:t[32];! letters/digits/-/_; unique per repository.
+- workflow:t[255];! workflow file, no slash.
 - ignored:[1114240] t[1024];? <=forge.ignored_paths whole-segment paths, each <=forge.name_bytes.
-- artifact:t[32];! artifact name without slash.
+- artifact:t[32];! artifact, no slash.
 - format:choice;! `junit`: JUnit report. `lines`: One test id per line.
 - branch:t[1048576];? default landing branch; goal follows goal branches.
 - span_ms:u64;? ms between starts; default 0, no span.
@@ -641,13 +642,13 @@ Owner: task, party, role or charter.
 - task:u64;live task of the project.
 - party:u64;party with a role in the project.
 - role:u32;Below authority.roles; 0 is the owners.
-- charter:u32;From 1 through tasks.charters.
+- charter:u32;From 1 through 64.
 
 ## agents
 Agent profile and endpoint limits, taken at each worker's next start.
-- profile:agent-profile;Overrides over the standard profile.
-- endpoints:agent-endpoints;Limits by endpoint name.
-- fallback:agent-limits;Limits for an endpoint not named here.
+- profile:agent-profile;Overrides standard profile.
+- endpoints:agent-endpoints;By endpoint name.
+- fallback:agent-limits;For unlisted endpoints.
 
 ## agent-profile
 Map: <=128 unique names (<=64 UTF-8 bytes) to unsigned integers within each type; profile declared/policy overrides over standard.
@@ -656,10 +657,24 @@ Map: <=128 unique names (<=64 UTF-8 bytes) to unsigned integers within each type
 Map: <=64 unique endpoint names (<=64 UTF-8 bytes) to agent-limits.
 
 ## agent-limits
-An endpoint's limits; every integer is positive.
+Endpoint limits; all integers >0.
 - window:u32;Input tokens.
 - output:u32;Output tokens, reasoning included.
 - reasoning_item:u32;Reasoning item bytes.
 - head_ms:u64;Milliseconds.
 - idle_ms:u64;Milliseconds.
 - oversized:choice;Oversized reasoning behavior. `fail`: Refuse an oversized reasoning item. `drop`: Drop an oversized reasoning item.
+
+## limits
+Core limits: whole list; default=[]; no number/project.
+Value: list[256] limit-override.
+
+## temper-limits
+Application kind 22; as limits.
+Value: list[256] limit-override.
+
+## limit-override
+Reasoned override.
+- name:t[64];! 1-64 bytes: a-z/0-9/_/.; ascending, unique.
+- value:u64;! limit's unit.
+- reason:t[120];! 1-120 UTF-8 bytes: why override stock.

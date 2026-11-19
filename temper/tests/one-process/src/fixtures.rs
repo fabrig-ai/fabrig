@@ -63,13 +63,13 @@ pub(crate) fn client_limits() -> temper_client_shell_terminal::limits::Limits {
         limits.client.client.domain.requests.bytes / u64::from(limits.client.client.domain.requests.requests);
     limits
 }
-pub(crate) fn document() -> Vec<u8> {
+pub(crate) fn document() -> documents::Configuration {
     let mut value = world_document();
     documents::settings::strip_models(&mut value);
     value.as_object_mut().expect("deployment").remove("world_settings");
-    serde_json::to_vec(&value).expect("deployment JSON")
+    value
 }
-pub(crate) fn world_document() -> serde_json::Value {
+pub(crate) fn world_document() -> documents::Configuration {
     let mut value = documents::world_document_with(|value| {
         crate::stories::configure(value);
         if crate::stories::uses_stock() {
@@ -77,13 +77,13 @@ pub(crate) fn world_document() -> serde_json::Value {
         }
     });
     // The native client admits eight exchanges beside its event stream.
-    value["engine"]["limits"]["overrides"]["clients.streams"] = 2.into();
-    value["engine"]["limits"]["overrides"]["clients_http.streams"] = 2.into();
+    value.jig_over("clients.streams", 2);
+    value.jig_over("clients_http.streams", 2);
     for name in ["clients.streams", "clients_http.streams"] {
-        value["engine"]["limits"]["overrides"][name] = 2.into();
+        value.jig_over(name, 2);
     }
-    value["engine"]["limits"]["overrides"]["clients_http.calls"] = 9.into();
-    value["engine"]["limits"]["overrides"]["clients.exchanges"] = 9.into();
+    value.jig_over("clients_http.calls", 9);
+    value.jig_over("clients.exchanges", 9);
     crate::push::configure(&mut value);
     crate::lower::configure(&mut value);
     crate::lower::github::configure(&mut value);
@@ -162,7 +162,7 @@ pub(crate) fn scripted_provider(scripts: Box<[skein_fake_llm_domain::api::Script
 pub(crate) fn adoption_given() -> temper_service::stock::Given {
     use temper_service::stock::Given;
     static GIVEN: std::sync::OnceLock<Given> = std::sync::OnceLock::new();
-    match GIVEN.get_or_init(|| crate::stories::given(&serde_json::from_slice(&document()).expect("deployment JSON"))) {
+    match GIVEN.get_or_init(|| crate::stories::given(&document())) {
         Given::Stock => Given::Stock,
         Given::Running { given, providers, fixed } => given.with_providers(providers.clone(), fixed.clone()),
         Given::Own { jig, forge, ways } => {
@@ -172,6 +172,7 @@ pub(crate) fn adoption_given() -> temper_service::stock::Given {
             }
             Given::Own {
                 jig: jig_domain_core::settings::Defaults {
+                    limits: jig.limits.clone(),
                     providers: jig.providers.clone(),
                     workers: Box::new([]),
                     charters: jig.charters.clone(),
@@ -201,20 +202,20 @@ pub(crate) fn store_names() -> &'static [jig_domain_core::settings::ModelName] {
     NAMES.get_or_init(|| jig_protocol_store::codec::names(&engine().llm.models()))
 }
 fn engine() -> jig_protocol_config::Engine {
-    let bytes = document();
+    let configuration = document();
+    let bytes = serde_json::to_vec(&configuration).expect("fixture document");
     let size = u32::try_from(bytes.len()).expect("fixture document");
     let doc = jig_protocol_config::document(
         &bytes,
         &jig_protocol_config::DocumentLimits { bytes: size, tokens: size, depth: 32 },
     )
     .expect("document");
-    let mut object = jig_protocol_config::read::Object::new(&doc, 0).expect("object");
-    let at = object.member(&doc, b"engine").expect("engine member");
-    temper_service::startup::engine_with(
+    temper_engine_service::startup::engine_over(
         &doc,
-        at,
+        doc.member(0, b"engine").expect("engine"),
         &jig_protocol_config::Directories::working(),
-        &crate::stories::given(&serde_json::from_slice(&bytes).expect("deployment JSON")),
+        &crate::stories::given(&configuration),
+        &mut configuration.jig.clone(),
     )
     .expect("engine")
 }

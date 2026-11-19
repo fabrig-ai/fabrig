@@ -166,16 +166,19 @@ fn full_patch_validates_then_stops_tui_and_reloads_before_answering() {
     for main in [true, false] {
         let mut machine = ready_page();
         running_tui(&mut machine);
-        line(&mut machine, "deployment patch engine landing.json");
+        line(&mut machine, "deployment patch engine public.toml");
         assert!(
-            answer(&step(&mut machine, Event::DeploymentPatch(Err("missing landing.json".into())))).failed.is_some()
+            answer(&step(&mut machine, Event::DeploymentPatch(Err("missing public.toml".into())))).failed.is_some()
         );
         assert!(machine.tui_running);
-        line(&mut machine, "deployment patch engine landing.json");
+        line(&mut machine, "deployment patch engine public.toml");
         assert!(step(&mut machine, trouble(b"engine down", ORIGIN)).is_empty());
         let actions = step(
             &mut machine,
-            Event::DeploymentPatch(Ok(("/scratch/config/engine/temper.json".into(), b"{}".as_slice().into()))),
+            Event::DeploymentPatch(Ok((
+                PathBuf::from("/scratch").join(Document::Engine.path()),
+                b"workers = \"127.0.0.1:4102\"\n".as_slice().into(),
+            ))),
         );
         assert!(matches!(actions.as_slice(), [Action::StopTui]), "{actions:?}");
         stop(&step(&mut machine, Event::TuiStopped), Process::Worker, false);

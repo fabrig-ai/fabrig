@@ -1355,7 +1355,17 @@ fn task_problem(text: &mut Text, problem: &jig_domain_tasks::Problem) -> Result<
         Refusal::Batch => text.add(b"batch limit"),
         Refusal::Grace => text.add(b"finish grace"),
         Refusal::Goals => text.add(b"goal limit"),
-        Refusal::Live => text.add(b"live task limit"),
+        Refusal::Live => {
+            text.add(b"live task limit: tasks.tasks")?;
+            if let Some(jig_domain_tasks::Capacity {
+                cause: jig_domain_tasks::CapacityCause::Tasks { limit }, ..
+            }) = problem.capacity
+            {
+                text.add(b" is ")?;
+                text.number(u64::from(limit))?;
+            }
+            text.add(b", a limit in limits; ask temper to raise it")
+        }
         Refusal::Project => text.add(b"project"),
         Refusal::Tree => text.add(b"task tree limit"),
         Refusal::Depth => text.add(b"depth limit"),
@@ -1395,6 +1405,16 @@ fn task_problem(text: &mut Text, problem: &jig_domain_tasks::Problem) -> Result<
         Refusal::HoldKind => text.add(b"resource hold kind"),
         Refusal::HoldTaken => text.add(b"resource held by"),
         Refusal::ResourceUnavailable => text.add(b"resource unavailable"),
+        Refusal::Unreported => {
+            text.add(b"unreported: no report came within tasks.hold_wait for a resource held by tasks")?;
+            if let Some(members) = &problem.blocked_by {
+                for member in members {
+                    text.add(b" ")?;
+                    text.number(*member)?;
+                }
+            }
+            return text.add(b"; nothing was made; call again");
+        }
         Refusal::Holds => text.add(b"resource hold limit"),
         Refusal::Unproposable => text.add(b"no one may accept this proposal"),
         Refusal::PersonRevision { .. } => text.add(b"older person task revision"),
@@ -1506,13 +1526,17 @@ fn task_capacity(text: &mut Text, problem: &jig_domain_tasks::Problem) -> Result
             text.number(u64::from(limit))?;
             text.add(b", counting the topics the engine keeps for a goal); unsubscribe one it made to make room")
         }
+        CapacityCause::ResourceReports { limit } => {
+            text.add(b": the engine keeps reports of at most ")?;
+            text.number(u64::from(limit))?;
+            text.add(b" resources, those live tasks and waiting batches hold, and this batch's do not fit; call again once tasks have ended")
+        }
         CapacityCause::PlacedHolds { .. }
         | CapacityCause::ProjectPlacedHolds { .. }
         | CapacityCause::PartyPlacedHolds { .. }
         | CapacityCause::Exemptions { .. }
         | CapacityCause::Tasks { .. }
         | CapacityCause::CreationFlights { .. }
-        | CapacityCause::ResourceReports { .. }
         | CapacityCause::ProjectTasks { .. }
         | CapacityCause::Tree { .. }
         | CapacityCause::Delegates { .. }
@@ -2241,6 +2265,54 @@ fn read_on(text: &mut Text, tool: &[u8]) -> Result<(), Problem> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_live_task_refusal_names_its_setting_and_figure() {
+        use jig_domain_tasks::{Capacity, CapacityAction, CapacityCause, Party, Refusal};
+        let problem = jig_domain_tasks::Problem::capacity(
+            None,
+            Refusal::Live,
+            Capacity {
+                project: Some(1),
+                by: Party::Task(7),
+                action: CapacityAction::Batch { first: Some(8), members: 1 },
+                cause: CapacityCause::Tasks { limit: 768 },
+            },
+        );
+        let rendered = answer(&CallAnswer::DelegationRefused(problem));
+        assert_eq!(
+            rendered.text(),
+            b"Refused: live task limit: tasks.tasks is 768, a limit in limits; ask temper to raise it"
+        );
+        assert!(rendered.error());
+    }
+
+    #[test]
+    fn an_unreported_batch_names_every_missing_member_and_the_retry() {
+        let problem =
+            jig_domain_tasks::Problem::naming(Some(9871), jig_domain_tasks::Refusal::Unreported, &[9871, 9873]);
+        let rendered = answer(&CallAnswer::DelegationRefused(problem));
+        assert_eq!(rendered.text(), b"Refused: task 9871 unreported: no report came within tasks.hold_wait for a resource held by tasks 9871 9873; nothing was made; call again");
+        assert!(rendered.error());
+    }
+
+    #[test]
+    fn a_batch_past_the_report_table_names_its_bound_and_the_retry() {
+        use jig_domain_tasks::{Capacity, CapacityAction, CapacityCause, Party, Refusal};
+        let problem = jig_domain_tasks::Problem::capacity(
+            None,
+            Refusal::Busy,
+            Capacity {
+                project: Some(1),
+                by: Party::Task(7),
+                action: CapacityAction::Batch { first: Some(8), members: 4 },
+                cause: CapacityCause::ResourceReports { limit: 256 },
+            },
+        );
+        let rendered = answer(&CallAnswer::DelegationRefused(problem));
+        assert_eq!(rendered.text(), b"Refused: busy: the engine keeps reports of at most 256 resources, those live tasks and waiting batches hold, and this batch's do not fit; call again once tasks have ended");
+        assert!(rendered.error());
+    }
 
     #[test]
     fn note_answers_give_the_first_writes_line_count() {

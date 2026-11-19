@@ -5,7 +5,7 @@ use crate::kernel::{self, Done};
 pub(super) fn window(result: Result<Done, kernel::Error>) -> crate::Window {
     match result {
         Ok(Done::Window(size)) => crate::Window::Size(size),
-        Err(kernel::Error::Other(_)) => crate::Window::Gone,
+        Err(kernel::Error::Reach(_) | kernel::Error::Other(_)) => crate::Window::Gone,
         Ok(
             Done::Nothing
             | Done::Count(_)
@@ -54,7 +54,7 @@ pub(super) fn window(result: Result<Done, kernel::Error>) -> crate::Window {
 pub(crate) fn unsubmitted(result: Result<Done, kernel::Error>) -> bool {
     match result {
         Ok(Done::Nothing) | Err(kernel::Error::TooLate) => false,
-        Err(kernel::Error::InvalidArgument | kernel::Error::Other(_)) => true,
+        Err(kernel::Error::InvalidArgument | kernel::Error::Reach(_) | kernel::Error::Other(_)) => true,
         Ok(
             Done::Count(_)
             | Done::Fd(_)

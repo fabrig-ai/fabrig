@@ -11,6 +11,7 @@ use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use jig_fake_workers as workers;
 use skein_lib::{Duration, List, ReplyTo, Time, Token, Wall};
+use smith_transcript::Record;
 use std::collections::{BTreeMap, VecDeque};
 type World = Harness<Ops>;
 type Inputs = Vec<Input<root::Event>>;
@@ -179,38 +180,27 @@ impl State {
 
 fn transcript(turn: u32, spent: u64) -> Box<[u8]> {
     use smith_transcript::v7 as t;
-    let limits = t::CEILINGS;
-    let text = t::Text::new(&limits, t::TextParts { text: b"shared scenario turn".as_slice().into(), replay: None })
-        .expect("text");
-    let message = t::Message::new(
-        &limits,
-        t::MessageParts { role: t::Role::Assistant, blocks: List::from_boxed(Box::new([t::Block::Text(text)])) },
-    )
-    .expect("message");
-    let value = t::Turn::new(
-        &limits,
-        t::TurnParts {
-            system: None,
-            model: b"model".as_slice().into(),
-            effort: None,
-            kind: t::TurnKind::Ordinary,
-            opening: None,
-            endpoint: b"fake".as_slice().into(),
-            dialect: jig_client_test_domain::DIALECT,
-            place: turn,
-            usage: t::Usage::new(
-                &limits,
-                t::UsageParts { input: Some(1), output: Some(1), cache_read: None, cache_write: None, reasoning: None },
-            )
-            .expect("usage"),
-            spent,
-            jobs: 0,
-            messages: List::from_boxed(Box::new([message])),
-        },
-    )
-    .expect("turn");
-    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(value.measure()));
-    value.encode(&mut writer).expect("measured turn");
+
+    let text = t::Text { text: b"shared scenario turn".as_slice().into(), replay: None };
+    let message = t::Message { role: t::Role::Assistant, blocks: List::from_boxed(Box::new([t::Block::Text(text)])) };
+    let value = t::Turn {
+        system: None,
+        model: b"model".as_slice().into(),
+        effort: None,
+        kind: t::TurnKind::Ordinary,
+        opening: None,
+        endpoint: b"fake".as_slice().into(),
+        dialect: jig_client_test_domain::DIALECT,
+        place: turn,
+        usage: t::Usage { input: Some(1), output: Some(1), cache_read: None, cache_write: None, reasoning: None },
+        spent,
+        jobs: 0,
+        messages: List::from_boxed(Box::new([message])),
+    };
+    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(
+        value.measure(&smith_transcript::CEILINGS).expect("bounded transcript"),
+    ));
+    value.write(&smith_transcript::CEILINGS, &mut writer).expect("measured turn");
     writer.finish()
 }
 

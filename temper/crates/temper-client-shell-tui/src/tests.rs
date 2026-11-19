@@ -16,9 +16,12 @@ mod events;
 mod goal;
 #[path = "tests/lending.rs"]
 mod lending;
+#[path = "tests/named.rs"]
+mod named;
 #[path = "tests/playground.rs"]
 mod playground;
-pub(crate) use lending::terminal_document;
+#[path = "tests/refused.rs"]
+mod refused;
 
 use crate::{
     host::{Duties, Host, Report, Settings, Start},
@@ -30,6 +33,7 @@ use jig_client_test_records as records;
 use skein_lib::{Duration, List, Reader, Secret, Time, Wall, Writer};
 use skein_ui_screen::{Rgb, Size};
 use skein_ui_screen_terminal::Key;
+use smith_transcript::Record;
 use temper_client_domain::{
     self as root, Address, Place,
     pages::{
@@ -48,6 +52,30 @@ fn settings() -> Settings {
 
 fn host() -> Host {
     Host::new(&settings(), 7, Time::ZERO, Wall::EPOCH)
+}
+
+/// Fresh hosts sharing only the settings and words checked by the first host.
+struct Hosts {
+    settings: Settings,
+    host: Host,
+    first: bool,
+}
+impl Hosts {
+    fn new() -> Self {
+        let settings = settings();
+        let host = Host::new(&settings, 7, Time::ZERO, Wall::EPOCH);
+        Self { settings, host, first: true }
+    }
+
+    fn next(&mut self) -> &mut Host {
+        if self.first {
+            self.first = false;
+        } else {
+            let words = self.host.view.words().clone();
+            self.host = Host::with_checked_words(&self.settings, words, 7, Time::ZERO, Wall::EPOCH);
+        }
+        &mut self.host
+    }
 }
 
 #[test]
@@ -92,6 +120,22 @@ fn start(host: &mut Host, credential: Option<Secret>) -> Duties {
 }
 
 fn start_look(host: &mut Host, credential: Option<Secret>, background: Option<Rgb>, boxed: bool) -> Duties {
+    start_at(
+        host,
+        credential,
+        background,
+        boxed,
+        temper_client_tui::Origin::Http("127.0.0.1:8367".parse().expect("fixture socket")),
+    )
+}
+
+fn start_at(
+    host: &mut Host,
+    credential: Option<Secret>,
+    background: Option<Rgb>,
+    boxed: bool,
+    address: temper_client_tui::Origin,
+) -> Duties {
     host.report(Report::Start(Start {
         set_up: false,
         box_log: Box::default(),
@@ -102,7 +146,7 @@ fn start_look(host: &mut Host, credential: Option<Secret>, background: Option<Rg
         plain: false,
         version: Box::default(),
         boxed,
-        address: b"127.0.0.1:8367".as_slice().into(),
+        address,
         local: false,
         note: None,
         kept: Vec::new(),
@@ -132,6 +176,43 @@ fn empty(duties: &Duties) {
     assert!(duties.stop.is_none());
     assert!(duties.lend.is_none());
     assert!(!duties.unlend);
+}
+
+#[test]
+fn a_handshake_report_changes_the_hosts_bottom_row_and_clearing_restores_it() {
+    use temper_client_tui::{Handshake, Origin};
+    for signed_in in [false, true] {
+        let mut host = host();
+        start_at(
+            &mut host,
+            signed_in.then(|| Secret::new(Box::new([7; 40]))),
+            None,
+            false,
+            Origin::parse(b"https://dev.fabrig.ai").expect("origin"),
+        );
+        if signed_in {
+            let hello = hello_for_me(&host, launchpad_me(true));
+            let duties = host
+                .report(Report::Heard(jig_client::Event::Streamed { message: jig_client::Streamed::Record(hello) }));
+            admit(&mut host, duties);
+            host.report(Report::Heard(jig_client::Event::StreamGone));
+        }
+        let before = text(&mut host);
+        empty(&host.report(Report::Handshake { failed: Some(Handshake::Untrusted) }));
+        assert_eq!(host.state.as_ref().expect("started").handshake(), Some(Handshake::Untrusted));
+        let frame = text(&mut host);
+        assert!(
+            frame
+                .lines()
+                .last()
+                .expect("bottom row")
+                .trim_start()
+                .starts_with("● Offline: dev.fabrig.ai's certificate isn't trusted"),
+            "signed in {signed_in}: {frame}"
+        );
+        empty(&host.report(Report::Handshake { failed: None }));
+        assert_eq!(text(&mut host), before);
+    }
 }
 
 #[test]
@@ -192,7 +273,7 @@ fn the_fronts_setup_and_log_path_reach_the_tui() {
             scheme: Some(Scheme::Dark),
             background: None,
             boxed: front,
-            address: b"127.0.0.1:8367".as_slice().into(),
+            address: temper_client_tui::Origin::Http("127.0.0.1:8367".parse().expect("fixture socket")),
             local: front,
             note: None,
             kept: Vec::new(),
@@ -209,6 +290,22 @@ fn a_pasted_link_is_checked_before_it_is_sent() {
         (vec![Key::Paste(b"not a link".as_slice().into()), Key::Enter], false, "That is not a sign-in link"),
         (link("127.0.0.1:9000"), false, "That link is for 127.0.0.1:9000"),
         (link("127.0.0.1:8367"), true, "Signing in…"),
+        (
+            vec![
+                Key::Paste(format!("http://127.0.0.1:8367/sign-in?secret={LOCAL_SECRET}").into_bytes().into()),
+                Key::Enter,
+            ],
+            true,
+            "Signing in…",
+        ),
+        (
+            vec![
+                Key::Paste(format!("http://127.0.0.1:9000/sign-in?secret={LOCAL_SECRET}").into_bytes().into()),
+                Key::Enter,
+            ],
+            false,
+            "That link is for 127.0.0.1:9000",
+        ),
     ];
     for (keys, sends, line) in rows {
         let mut host = host();
@@ -224,7 +321,9 @@ fn a_pasted_link_is_checked_before_it_is_sent() {
             assert_eq!(asked.len(), 1);
             assert!(matches!(
                 asked.first(),
-                Some(Request::Exchange { credential: None, message: Message::SignInLink(_), .. })
+                Some(Request::Exchange { credential: None, message: Message::SignInLink(secret), .. })
+                    if w::LinkSignIn::decode(&w::CEILINGS, &mut skein_lib::Reader::new(secret))
+                        .expect("link record").secret().expose() == [0; 32]
             ));
             assert!(!text(&mut host).contains(&"A".repeat(43)));
         } else {
@@ -394,6 +493,7 @@ fn approval_is_asked_once_per_opening() {
 
 #[test]
 fn approval_addresses_use_only_the_tuis_authority_and_a_valid_code() {
+    let mut hosts = Hosts::new();
     for (address, code, tail, opens) in [
         ("127.0.0.1:8367", "WDJB-MJHT", "", true),
         ("127.0.0.1:9000", "WDJB-MJHT", "", true),
@@ -402,7 +502,7 @@ fn approval_addresses_use_only_the_tuis_authority_and_a_valid_code() {
         ("127.0.0.1:8367", "WDJB-MJHT&next=http://x", "", false),
         ("127.0.0.1:8367", "WDJB-MJHT", "http://evil.example/", false),
     ] {
-        let mut host = host();
+        let host = hosts.next();
         let duties = host.report(Report::Start(Start {
             set_up: false,
             box_log: Box::default(),
@@ -413,14 +513,14 @@ fn approval_addresses_use_only_the_tuis_authority_and_a_valid_code() {
             plain: false,
             version: Box::default(),
             boxed: false,
-            address: address.as_bytes().into(),
+            address: temper_client_tui::Origin::Http(address.parse().expect("fixture socket")),
             local: false,
             note: None,
             kept: Vec::new(),
             credential: None,
         }));
         let exchange = ask(&duties);
-        let duties = reply(&mut host, exchange, approval_bytes(code.as_bytes(), tail.as_bytes()));
+        let duties = reply(host, exchange, approval_bytes(code.as_bytes(), tail.as_bytes()));
         let expected =
             opens.then(|| format!("http://{address}/terminal?code=WDJB-MJHT").into_bytes().into_boxed_slice());
         assert_eq!(duties.open, expected, "{address} {code} {tail}");
@@ -433,6 +533,7 @@ fn approval_addresses_use_only_the_tuis_authority_and_a_valid_code() {
 #[test]
 fn approval_enter_replaces_only_an_ended_or_pasted_take() {
     use jig_client_protocol_wire as w;
+    let mut hosts = Hosts::new();
     for answer in [
         w::ApprovalSignInAnswer::Refused,
         w::ApprovalSignInAnswer::Expired,
@@ -445,9 +546,9 @@ fn approval_enter_replaces_only_an_ended_or_pasted_take() {
         w::ApprovalSignInAnswer::Waiting,
     ] {
         let waiting = answer == w::ApprovalSignInAnswer::Waiting;
-        let mut host = host();
-        let exchange = ask(&start(&mut host, None));
-        let duties = reply(&mut host, exchange, approval_bytes(b"WDJBMJHT", b""));
+        let host = hosts.next();
+        let exchange = ask(&start(host, None));
+        let duties = reply(host, exchange, approval_bytes(b"WDJBMJHT", b""));
         let take = duties
             .asked
             .iter()
@@ -461,7 +562,7 @@ fn approval_enter_replaces_only_an_ended_or_pasted_take() {
             .expect("approval take");
         let mut writer = skein_lib::Writer::new(usize::try_from(answer.measure()).expect("test length"));
         answer.encode(&mut writer).expect("take answer");
-        reply(&mut host, take, writer.finish());
+        reply(host, take, writer.finish());
         host.frame();
         let duties = host.report(Report::Key(Key::Enter));
         if waiting {
@@ -477,7 +578,7 @@ fn approval_enter_replaces_only_an_ended_or_pasted_take() {
             ask(&host.report(Report::Key(Key::Enter)));
         } else {
             let exchange = ask(&duties);
-            let duties = reply(&mut host, exchange, approval_bytes(b"BCDFGHJK", b""));
+            let duties = reply(host, exchange, approval_bytes(b"BCDFGHJK", b""));
             assert_eq!(duties.open.as_deref(), Some(b"http://127.0.0.1:8367/terminal?code=BCDF-GHJK".as_slice()));
             assert!(!host.state().pasted());
         }
@@ -488,12 +589,12 @@ fn approval_enter_replaces_only_an_ended_or_pasted_take() {
         Some(w::ApprovalAskAnswer::Busy),
         None,
     ] {
-        let mut host = host();
-        let exchange = ask(&start(&mut host, None));
+        let host = hosts.next();
+        let exchange = ask(&start(host, None));
         if let Some(answer) = answer {
             let mut writer = skein_lib::Writer::new(usize::try_from(answer.measure()).expect("length"));
             answer.encode(&mut writer).expect("answer");
-            reply(&mut host, exchange, writer.finish());
+            reply(host, exchange, writer.finish());
         } else {
             host.report(Report::Heard(jig_client::Event::Lost { exchange }));
         }
@@ -687,6 +788,19 @@ fn the_engines_link_signs_in_and_falls_back() {
         row("garbage", vec![(Found(Some(Secret::new(b"garbage".as_slice().into()))), Ask)]),
         row("other address", vec![(Found(Some(local_link("127.0.0.1:9000", LOCAL_SECRET))), Ask)]),
         row("signed in", vec![(found(), Send), (Answer(signed_in_answer()), Keep), (Connect, Until)]),
+        row(
+            "page signed in",
+            vec![
+                (
+                    Found(Some(Secret::new(
+                        format!("http://127.0.0.1:8367/sign-in?secret={LOCAL_SECRET}").into_bytes().into(),
+                    ))),
+                    Send,
+                ),
+                (Answer(signed_in_answer()), Keep),
+                (Connect, Until),
+            ],
+        ),
         row(
             "used then same then fresh",
             vec![
@@ -945,7 +1059,7 @@ fn start_local(host: &mut Host, front: bool, local: bool, credential: Option<Sec
         plain: false,
         version: Box::default(),
         boxed: false,
-        address: b"127.0.0.1:8367".as_slice().into(),
+        address: temper_client_tui::Origin::Http("127.0.0.1:8367".parse().expect("fixture socket")),
         local,
         kept: Vec::new(),
         credential,
@@ -1096,27 +1210,7 @@ pub(crate) fn stream_bytes(event: &w::StreamEvent) -> Box<[u8]> {
     writer.finish()
 }
 pub(crate) fn hello_bytes() -> Box<[u8]> {
-    let limits = &w::CEILINGS;
-    let mut served = List::with_capacity(1);
-    served
-        .push(
-            w::Served::new(
-                limits,
-                w::ServedParts {
-                    owner: w::Owner::Jig,
-                    first: jig_client_protocol_wire::VERSION,
-                    last: jig_client_protocol_wire::VERSION,
-                },
-            )
-            .expect("Jig version"),
-        )
-        .expect("one owner");
-    let hello = jig_client_test_records::opened(
-        w::Hello::new(limits, w::HelloParts { stream: [7; 16], served, heartbeat: Duration::from_secs(30) })
-            .expect("hello"),
-        jig_client_test_records::frame_record(),
-    );
-    stream_bytes(&hello)
+    hello_for_owners(limits::tui().native.client.client.domain.owners, records::frame_record())
 }
 pub(crate) fn me_bytes(_duties: &Duties) -> Box<[u8]> {
     let limits = &w::CEILINGS;
@@ -1574,7 +1668,7 @@ fn a_kept_theme_starts_the_next_host_in_it() {
                 plain: false,
                 version: Box::default(),
                 boxed: false,
-                address: b"127.0.0.1:8367".as_slice().into(),
+                address: temper_client_tui::Origin::Http("127.0.0.1:8367".parse().expect("fixture socket")),
                 local: false,
                 note: None,
                 kept,
@@ -1783,7 +1877,7 @@ fn the_theme_list_takes_keeps_and_notices_a_choice() {
         plain: false,
         version: Box::default(),
         boxed: true,
-        address: b"127.0.0.1:8367".as_slice().into(),
+        address: temper_client_tui::Origin::Http("127.0.0.1:8367".parse().expect("fixture socket")),
         local: false,
         note: None,
         kept,
@@ -1951,27 +2045,21 @@ fn reply_host_draft(draft: bool) -> Host {
         let page = pane_document();
         read_reply(&mut host, read, &w::ReadValue::Notes(page));
     }
-    let mut turn = s::decode_archived(&s::CEILINGS, &records::full_turn()).unwrap().into_parts();
-    let text = s::Block::Text(
-        s::Text::new(
-            &s::CEILINGS,
-            s::TextParts {
-                text: "Choose.\n\n1. Move it at once — no mixed state\n2. Side by side\n3. Tell me something else"
-                    .as_bytes()
-                    .into(),
-                replay: None,
-            },
-        )
-        .unwrap(),
-    );
-    turn.messages = List::from_boxed(Box::new([s::Message::new(
-        &s::CEILINGS,
-        s::MessageParts { role: s::Role::Assistant, blocks: List::from_boxed(Box::new([text])) },
-    )
-    .unwrap()]));
-    let turn = s::Turn::new(&s::CEILINGS, turn).unwrap();
-    let mut writer = Writer::new(usize::try_from(turn.measure()).unwrap());
-    turn.encode(&mut writer).unwrap();
+    let mut turn = s::decode_archived(&s::CEILINGS, &records::full_turn()).unwrap();
+    let text = s::Block::Text(s::Text {
+        text: "Choose.\n\n1. Move it at once — no mixed state\n2. Side by side\n3. Tell me something else"
+            .as_bytes()
+            .into(),
+        replay: None,
+    });
+    turn.messages = List::from_boxed(Box::new([s::Message {
+        role: s::Role::Assistant,
+        blocks: List::from_boxed(Box::new([text])),
+    }]));
+    let turn = turn;
+    let mut writer =
+        Writer::new(usize::try_from(turn.measure(&smith_transcript::CEILINGS).expect("bounded transcript")).unwrap());
+    turn.write(&smith_transcript::CEILINGS, &mut writer).unwrap();
     let mut page = records::activity_rows(&[records::turn_line(1, 0, 1, &writer.finish())]).into_parts();
     page.after = None;
     page.cut = false;
@@ -2153,7 +2241,7 @@ fn a_box_set_up_before_starts_then_leaves_the_screen_at_me() {
             plain: false,
             version: Box::default(),
             boxed: true,
-            address: b"127.0.0.1:8367".as_slice().into(),
+            address: temper_client_tui::Origin::Http("127.0.0.1:8367".parse().expect("fixture socket")),
             local: true,
             kept: Vec::new(),
             credential: None,
@@ -2387,7 +2475,7 @@ fn the_host_goes_to_the_launchpad_and_follows_the_root() {
                     plain: false,
                     version: Box::default(),
                     boxed: false,
-                    address: b"127.0.0.1:8367".as_slice().into(),
+                    address: temper_client_tui::Origin::Http("127.0.0.1:8367".parse().expect("fixture socket")),
                     local: false,
                     kept: vec![],
                     credential: None,
@@ -3171,7 +3259,10 @@ fn keyed_bytes(document: w::Owned) -> Box<[u8]> {
 }
 
 fn hello_for_me(host: &Host, me: w::Me) -> Box<[u8]> {
-    let owners = host.env.limits.client.domain.owners;
+    hello_for_owners(host.env.limits.client.domain.owners, me)
+}
+
+fn hello_for_owners(owners: &[jig_client::Spoken], me: w::Me) -> Box<[u8]> {
     let mut served = List::with_capacity(u32::try_from(owners.len() + 1).expect("owner count"));
     served
         .push(
@@ -3369,7 +3460,7 @@ fn front_stages_wait_for_an_asked_end_and_quits_stop_twice() {
                 background: None,
                 plain: false,
                 version: Box::default(),
-                address: b"127.0.0.1:8367".as_slice().into(),
+                address: temper_client_tui::Origin::Http("127.0.0.1:8367".parse().expect("fixture socket")),
                 local: true,
                 boxed: false,
                 kept: Vec::new(),
@@ -3577,6 +3668,7 @@ fn brief_document() -> w::Owned {
             queued: 0,
             red: false,
             branch: b"main".as_slice().into(),
+            unpaid: false,
             brief: Some(
                 f::StatusBrief::new(
                     &f::CEILINGS,

@@ -1,70 +1,13 @@
 //! Configuration reference pages (temper/docs/design/protocol/documentation.md, 6 and 8).
 #[path = "../../../../testing/temper-box-kit/src/configuration.rs"]
+#[expect(dead_code, reason = "these shell tests use the shared startup documents, not the cluster's figures")]
 pub(crate) mod support;
-use core::num::NonZeroU16;
 use serde_json::Value;
-use skein_lib::Writer;
-pub(crate) use support::{check_document, demo_document, directories, documents, flags, setup};
-use temper_service::startup::{self, members};
-
-type Renderer = fn(&[u8], &mut Writer) -> Result<(), skein_lib::Overflow>;
+pub(crate) use support::{check_document, demo_document, directories, documents, file, flags, setup, typed_documents};
+use temper_service::startup::members;
 
 pub(super) fn init_document() -> Box<[u8]> {
-    // protocol/setup/init.md, 2: fixed starting ports and deterministic facts for the reference rendering.
-    let ports = [8367, 8368, 8369, 8370, 8371].map(|port| NonZeroU16::new(port).expect("fixed nonzero port"));
-    let facts = temper_init::Facts {
-        sign_in: true,
-        binary: b"/opt/temper/bin/temper-box",
-        git: Some(b"/usr/bin/git"),
-        claude: Some(b"/usr/bin/claude"),
-        ports: temper_init::Ports { clients: ports[0], webhooks: ports[4] },
-        login: Some(b"person"),
-    };
-    let directories = temper_init::Directories { config: b"/etc/temper", data: b"/var/lib/temper" };
-    let answer = temper_init::files(&facts, &directories, &[0; 32]).expect("init fixture");
-    for file in answer.files {
-        if file.name == b"temper.json" {
-            let temper_init::Content::Bytes { bytes, .. } = file.content else { panic!("document bytes") };
-            return bytes;
-        }
-    }
-    panic!("init writes temper.json")
-}
-
-#[test]
-fn the_pages_configuration_are_what_the_tables_render() {
-    let init = init_document();
-    let directory = skein_scratch::paths::tree().join("docs/help/reference");
-    let pages: [(&str, Renderer); 2] = [
-        ("configuration", startup::configuration_reference),
-        ("configuration-engine", startup::engine_configuration_reference),
-    ];
-    let write = temper_test_env::rewrite();
-    for (name, render) in pages {
-        let mut measured = Writer::new(temper_docs::PAGE_BYTES);
-        render(&init, &mut measured).expect("configuration page fits PAGE_BYTES");
-        let mut out = Writer::new(measured.written());
-        render(&init, &mut out).expect("configuration page fits its measured length");
-        let rendered = String::from_utf8(out.finish().into_vec()).expect("reference UTF-8");
-        assert!(rendered.len() <= temper_docs::PAGE_BYTES, "{name}: {} bytes", rendered.len());
-        assert!(!rendered.contains("application.test"), "test peers are not public configuration");
-        assert!(!rendered.contains("- `test`:"), "the test member is not public configuration");
-        assert_eq!(rendered.matches("restart").count(), 1, "one restart rule per page");
-        render(&init, &mut Writer::new(rendered.len() - 1)).expect_err("one byte short");
-        let path = directory.join(name).with_extension("md");
-        if write {
-            std::fs::write(path, &rendered).expect("write configuration reference");
-        } else {
-            assert_eq!(
-                std::fs::read_to_string(path).expect("configuration page"),
-                rendered,
-                "{name} should be:\n{rendered}; regenerate with SKEIN_CODEGEN_WRITE=1 and this test"
-            );
-            let page = temper_docs::find(name.as_bytes()).expect("compiled configuration page");
-            assert_eq!(page.kind, temper_docs::Kind::Reference);
-            assert_eq!(page.text, rendered, "compiled {name} should be:\n{rendered}");
-        }
-    }
+    temper_config_shell::init_document(true)
 }
 
 fn row(parent: &str, name: &str) -> Option<&'static members::Member> {

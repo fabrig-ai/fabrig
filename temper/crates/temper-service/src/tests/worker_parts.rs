@@ -3,7 +3,7 @@ use crate::{translate, worker_route};
 use jig_domain_host as host;
 use jig_protocol_worker_wire::Part;
 use skein_lib::Token;
-use temper_protocol_worker_wire::{self as payload, v1};
+use temper_protocol_worker_wire as payload;
 const RUN: Token = Token::new(43);
 #[test]
 fn a_resolution_past_its_workers_charter_allowance_starts_cut() {
@@ -100,15 +100,15 @@ fn an_engine_s_items_reach_the_worker_s_workspace_field_for_field() {
     .unwrap()
     .unwrap();
     for program in [None, Some(Box::from(b"/fake/git".as_slice()))] {
-        let mut fields = items.clone().into_parts();
+        let mut fields = items.clone();
         let mut repositories = skein_lib::List::with_capacity(1);
         for repository in fields.repositories.into_boxed() {
-            let mut fields = repository.into_parts();
+            let mut fields = repository;
             fields.git = program.clone();
-            repositories.push(v1::Repository::new(&limits, fields).unwrap()).unwrap();
+            repositories.push(fields).unwrap();
         }
         fields.repositories = repositories;
-        let record = v1::Items::new(&limits, fields).unwrap();
+        let record = fields;
         let parts = [Part { token: Token::new(9), bytes: payload::items(&record) }];
         let workspace = worker_route::items(&fixtures::worker_assignment(), &parts, &limits).unwrap();
         let mut expected = fixtures::one_repository();

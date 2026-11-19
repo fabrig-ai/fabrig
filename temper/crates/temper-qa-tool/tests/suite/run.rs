@@ -1189,6 +1189,21 @@ fn triage_brief_says_the_happy_path_and_reads_help() {
 }
 
 #[test]
+fn triage_brief_offers_web_requests_only_with_web_configured() {
+    let words = "For a web page whose draft promises a request budget, a step's do may be `web requests`, after a step that opens the page cold, such as a reload of its path; its see is that line's last line as the budget counts it, `N requests in W waves`: `2 requests in 2 waves` for two waves of two requests.";
+    for ctl_only in [false, true] {
+        let (_world, run) = triage_catalogue(ctl_only);
+        let brief = fs::read_to_string(&run.processes.commands[0].stdin).expect("brief");
+        if ctl_only {
+            assert!(!brief.contains(words), "ctl-only triage has no web request guidance");
+        } else {
+            let commands = brief.split("## Commands\n\n").nth(1).expect("commands");
+            assert!(commands.contains(&format!("{words} Use only the pages and setups above;")), "{commands}");
+        }
+    }
+}
+
+#[test]
 fn ctl_only_triage_lists_its_surfaces_and_walkable_chains() {
     let (world, run) = triage_catalogue(true);
     let ledger = world.ledger();
@@ -1364,10 +1379,11 @@ fn triage_offers_only_the_configured_places_kinds() {
         run.tick();
         land(&mut run, 2, 7);
         let setups = "temper/docs/development/qa/setups";
+        let file = temper_config_shell::FILE;
         for name in ["ctl-hello", "turn-landing"] {
             run.git.file_at(2, &format!("{setups}/{name}/recipe"), b"recipe 1\ncheck\nctl task list\n");
         }
-        run.git.file_at(2, &format!("{setups}/turn-landing/config/engine/temper.json"), b"{}");
+        run.git.file_at(2, &format!("{setups}/turn-landing/config/engine/{file}"), &super::engine_file());
         run.tick();
         let mut ledger = world.ledger();
         let session = &ledger.sessions[0];
@@ -1409,6 +1425,7 @@ fn triage_catalogue_follows_roots_at_merge_and_records_deployments_in_every_conf
         run.tick();
         land(&mut run, 2, 7);
         let setups = "temper/docs/development/qa/setups";
+        let file = temper_config_shell::FILE;
         for (name, recipe) in [
             ("root", "recipe 1\ncheck\nctl task list\n"),
             ("turn-landing", "recipe 1\nafter root\ncheck\nctl task list\n"),
@@ -1419,8 +1436,8 @@ fn triage_catalogue_follows_roots_at_merge_and_records_deployments_in_every_conf
         ] {
             run.git.file_at(2, &format!("{setups}/{name}/recipe"), recipe.as_bytes());
         }
-        run.git.file_at(2, &format!("{setups}/root/config/engine/temper.json"), b"{}");
-        run.git.file_at(2, &format!("{setups}/box-child/config/engine/temper.json"), b"{}");
+        run.git.file_at(2, &format!("{setups}/root/config/engine/{file}"), &super::engine_file());
+        run.git.file_at(2, &format!("{setups}/box-child/config/engine/{file}"), &super::engine_file());
         for depth in 1..=9 {
             let parent = if depth == 1 { "root".into() } else { format!("depth-{}", depth - 1) };
             run.git.file_at(

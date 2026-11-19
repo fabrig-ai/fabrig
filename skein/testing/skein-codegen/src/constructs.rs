@@ -4,7 +4,7 @@
 
 use skein_codec::schema::{self, DeclIx, FieldIx, Held, Named, Shape, Type, TypeIx, VariantIx};
 
-use crate::{Declaration, Error, emit_types, generate, parse};
+use crate::{Declaration, Error, analysis::Context, emit_codec, emit_types, parse};
 
 /// A schema type without its bound or declaration name.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -120,22 +120,27 @@ fn kind(tables: &schema::Schema, ty: Type) -> Kind {
         Type::Bool => Kind::Bool,
         Type::Duration => Kind::Duration,
         Type::Fixed(_) => Kind::Fixed,
-        Type::Bytes { .. } => Kind::Bytes,
-        Type::Secret { .. } => Kind::Secret,
+        Type::Bytes { bound: _, held: _ } => Kind::Bytes,
+        Type::Secret { bound: _, held: _ } => Kind::Secret,
         Type::Text(_) => Kind::Text,
-        Type::List { .. } => Kind::List,
+        Type::List { bound: _, item: _ } => Kind::List,
         Type::Option(_) => Kind::Option,
-        Type::Named(at) => match tables.declaration(at).shape {
-            Shape::Record { .. } => Kind::Record,
-            Shape::Enum { .. } => Kind::Enum,
-        },
+        Type::Named(at) => {
+            let schema::Declaration { name: _, line: _, shape } = tables.declaration(at);
+            match shape {
+                Shape::Record { versioned: _, first: _, count: _ } => Kind::Record,
+                Shape::Enum { first: _, count: _ } => Kind::Enum,
+            }
+        }
     }
 }
 
 fn held(found: &mut Vec<Construct>, value: Held, secret: bool) {
     match value {
         Held::Opaque => (),
-        Held::Record { .. } => push(found, if secret { Construct::SecretHolds } else { Construct::BytesHolds }),
+        Held::Record { family: _, name: _ } => {
+            push(found, if secret { Construct::SecretHolds } else { Construct::BytesHolds });
+        }
         Held::Pieces(_) => push(found, if secret { Construct::SecretPieces } else { Construct::BytesPieces }),
     }
 }
@@ -146,7 +151,7 @@ fn types(tables: &schema::Schema, mut at: TypeIx, found: &mut Vec<Construct>) {
         let ty = tables.ty(at);
         push(found, place(kind(tables, ty)));
         match ty {
-            Type::List { item, .. } => {
+            Type::List { bound: _, item } => {
                 place = Construct::ListItem;
                 at = item;
             }
@@ -154,11 +159,11 @@ fn types(tables: &schema::Schema, mut at: TypeIx, found: &mut Vec<Construct>) {
                 place = Construct::OptionValue;
                 at = item;
             }
-            Type::Bytes { held: value, .. } => {
+            Type::Bytes { bound: _, held: value } => {
                 held(found, value, false);
                 break;
             }
-            Type::Secret { held: value, .. } => {
+            Type::Secret { bound: _, held: value } => {
                 held(found, value, true);
                 break;
             }
@@ -183,7 +188,8 @@ fn former(tables: &schema::Schema, named: Named, found: &mut Vec<Construct>) {
 
 fn declaration(tables: &schema::Schema, at: DeclIx, found: &mut Vec<Construct>) {
     former(tables, Named::Declaration(at), found);
-    match tables.declaration(at).shape {
+    let schema::Declaration { name: _, line: _, shape } = tables.declaration(at);
+    match shape {
         Shape::Record { versioned, first, count } => {
             if count == 0 {
                 push(found, Construct::EmptyRecord);
@@ -197,16 +203,17 @@ fn declaration(tables: &schema::Schema, at: DeclIx, found: &mut Vec<Construct>) 
                 if tables.default_span(at).is_some() {
                     push(found, Construct::Default);
                 }
-                types(tables, tables.field(at).ty, found);
+                let schema::Field { name: _, line: _, ty } = tables.field(at);
+                types(tables, ty, found);
             }
         }
         Shape::Enum { first, count } => {
             for index in first.index()..first.index().checked_add(count).expect("variant table bounded") {
                 let at = VariantIx::new(index);
                 former(tables, Named::Variant(at), found);
-                let variant = tables.variant(at);
-                push(found, if variant.record.is_some() { Construct::RecordVariant } else { Construct::UnitVariant });
-                if variant.boxed {
+                let schema::Variant { name: _, line: _, record, boxed } = tables.variant(at);
+                push(found, if record.is_some() { Construct::RecordVariant } else { Construct::UnitVariant });
+                if boxed {
                     push(found, Construct::BoxedVariant);
                 }
             }
@@ -228,11 +235,13 @@ pub fn constructs(text: &str) -> Result<Vec<Construct>, Error> {
     }) {
         push(&mut found, Construct::NamedBooleans);
     }
-    let records = generate(&schema).records;
-    if ["Self::measure_", "Self::encode_", "Self::check_", "Self::decode_from_"]
-        .iter()
-        .any(|call| records.contains(call))
-    {
+    let context = Context::new(&schema);
+    if schema.declarations.iter().any(|declaration| match declaration {
+        Declaration::Record(record) => {
+            emit_codec::splits_record(&context, record) || emit_types::splits_record(&context, record)
+        }
+        Declaration::Enum(_) => false,
+    }) {
         push(&mut found, Construct::SplitFunction);
     }
     Ok(found)
@@ -245,6 +254,12 @@ fn without(found: Vec<Construct>, pinned: &[Construct]) -> Vec<Construct> {
 /// Finds the text's constructs not held by [`CONSTRUCTS`], in the same order.
 pub fn unpinned(text: &str) -> Result<Vec<Construct>, Error> {
     Ok(without(constructs(text)?, CONSTRUCTS))
+}
+
+/// Finds the constructs of [`CONSTRUCTS`] the text lacks, in pin order, each once.
+/// Refuses the same texts, with the same error, as [`crate::parse`].
+pub fn missing(text: &str) -> Result<Vec<Construct>, Error> {
+    Ok(without(CONSTRUCTS.to_vec(), &constructs(text)?))
 }
 
 #[cfg(test)]

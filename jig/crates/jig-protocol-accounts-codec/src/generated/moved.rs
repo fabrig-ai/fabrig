@@ -2,11 +2,14 @@
 
 use alloc::boxed::Box;
 use skein_lib::List;
+use skein_codec::field;
+pub use skein_codec::Record;
+pub type Path = skein_codec::Path<Limits>;
+pub type Problem = skein_codec::Problem<Limits>;
 
-/// This family's schema version.
 pub const VERSION: u16 = 1;
 
-/// The family's adjustable limits, each no larger than its ceiling.
+// Limits: the owner's values, checked once against ceilings.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Limits {
     pub moved_application: u32,
@@ -17,7 +20,6 @@ pub struct Limits {
     pub moved_record: u32,
 }
 
-/// The schema's maximum limits.
 pub const CEILINGS: Limits = Limits {
     moved_application: 64,
     moved_issuer: 2_048,
@@ -27,7 +29,6 @@ pub const CEILINGS: Limits = Limits {
     moved_record: 274_497,
 };
 
-/// The limits' field names, in field order.
 pub const LIMIT_NAMES: &[&str] = &[
     "moved_application",
     "moved_issuer",
@@ -38,286 +39,148 @@ pub const LIMIT_NAMES: &[&str] = &[
 ];
 
 impl Limits {
-    /// The limits' values, in `LIMIT_NAMES` order.
     #[must_use]
     pub fn values(&self) -> List<u32> {
         let mut values = List::with_capacity(u32::try_from(LIMIT_NAMES.len()).expect("schema limits fit u32"));
-        self.values_for_moved_record(&mut values);
-        values
-    }
-}
-
-/// A field or tag that caused a codec problem.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum Path {
-    /// The `application` field of `Moved`.
-    MovedApplication,
-    /// The `issuer` field of `Moved`.
-    MovedIssuer,
-    /// The `client_id` field of `Moved`.
-    MovedClientId,
-    /// The `subject` field of `Moved`.
-    MovedSubject,
-    /// The `display` field of `Moved`.
-    MovedDisplay,
-    /// The `record` field of `Moved`.
-    MovedRecord,
-    /// The version of `Moved`.
-    MovedVersion,
-    /// Bytes after `Moved`.
-    MovedTail,
-}
-
-impl Path {
-    /// The path as the schema spells it (skein/docs/design/data/codec/README.md, 4).
-    #[must_use]
-    pub const fn name(self) -> &'static str {
-        match self {
-            Self::MovedApplication => "Moved.application",
-            Self::MovedIssuer => "Moved.issuer",
-            Self::MovedClientId => "Moved.client_id",
-            Self::MovedSubject => "Moved.subject",
-            Self::MovedDisplay => "Moved.display",
-            Self::MovedRecord => "Moved.record",
-            Self::MovedVersion => "Moved (version)",
-            Self::MovedTail => "Moved (tail)",
-        }
-    }
-}
-
-/// A decoding or bound failure at a schema path.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct Problem {
-    pub path: Path,
-    pub reason: skein_codec::Reason,
-}
-
-/// Checks the family limits, naming the first limit past its ceiling.
-pub fn check_limits(limits: &Limits) -> Result<(), Problem> {
-    check_moved_record_limits(limits)
-}
-
-/// Maximum wire bytes among this family's top-level types.
-#[must_use]
-pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-    if check_limits(limits).is_err() { return None; }
-    moved_encoded_bound_family(limits, 0)
-}
-
-/// Maximum heap held by one decoded top-level value.
-#[must_use]
-pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-    if check_limits(limits).is_err() { return None; }
-    moved_decoded_bound_family(limits, 0)
-}
-
-/// Movable fields of `Moved`.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct MovedParts {
-    /// The `application` field.
-    pub application: Box<[u8]>,
-    /// The `issuer` field.
-    pub issuer: Box<[u8]>,
-    /// The `client_id` field.
-    pub client_id: Box<[u8]>,
-    /// The `subject` field.
-    pub subject: Box<[u8]>,
-    /// The `display` field.
-    pub display: Box<[u8]>,
-    /// The `record` field.
-    pub record: skein_lib::Secret,
-}
-
-/// `Moved` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct Moved {
-    application: Box<[u8]>,
-    issuer: Box<[u8]>,
-    client_id: Box<[u8]>,
-    subject: Box<[u8]>,
-    display: Box<[u8]>,
-    record: skein_lib::Secret,
-}
-
-impl Moved {
-    /// Makes a value within the given limits.
-    pub fn new(limits: &Limits, parts: MovedParts) -> Result<Self, Problem> {
-        let MovedParts { application, issuer, client_id, subject, display, record } = parts;
-        let value = Self { application, issuer, client_id, subject, display, record };
-        value.check(limits)?;
-        Ok(value)
-    }
-
-    /// Reads the `application` field.
-    #[must_use]
-    pub fn application(&self) -> &[u8] { &self.application }
-
-    /// Reads the `issuer` field.
-    #[must_use]
-    pub fn issuer(&self) -> &[u8] { &self.issuer }
-
-    /// Reads the `client_id` field.
-    #[must_use]
-    pub fn client_id(&self) -> &[u8] { &self.client_id }
-
-    /// Reads the `subject` field.
-    #[must_use]
-    pub fn subject(&self) -> &[u8] { &self.subject }
-
-    /// Reads the `display` field.
-    #[must_use]
-    pub fn display(&self) -> &[u8] { &self.display }
-
-    /// Reads the `record` field.
-    #[must_use]
-    pub fn record(&self) -> &skein_lib::Secret { &self.record }
-
-    /// Moves the fields out without copying.
-    #[must_use]
-    pub fn into_parts(self) -> MovedParts { MovedParts { application: self.application, issuer: self.issuer, client_id: self.client_id, subject: self.subject, display: self.display, record: self.record } }
-
-    fn check(&self, limits: &Limits) -> Result<(), Problem> {
-        if self.application.len() > usize::try_from(limits.moved_application.min(CEILINGS.moved_application)).expect("u32 fits usize") { return Err(Problem { path: Path::MovedApplication, reason: skein_codec::Reason::Bound }); }
-        if self.issuer.len() > usize::try_from(limits.moved_issuer.min(CEILINGS.moved_issuer)).expect("u32 fits usize") { return Err(Problem { path: Path::MovedIssuer, reason: skein_codec::Reason::Bound }); }
-        if self.client_id.len() > usize::try_from(limits.moved_client_id.min(CEILINGS.moved_client_id)).expect("u32 fits usize") { return Err(Problem { path: Path::MovedClientId, reason: skein_codec::Reason::Bound }); }
-        if self.subject.len() > usize::try_from(limits.moved_subject.min(CEILINGS.moved_subject)).expect("u32 fits usize") { return Err(Problem { path: Path::MovedSubject, reason: skein_codec::Reason::Bound }); }
-        if self.display.len() > usize::try_from(limits.moved_display.min(CEILINGS.moved_display)).expect("u32 fits usize") { return Err(Problem { path: Path::MovedDisplay, reason: skein_codec::Reason::Bound }); }
-        if self.record.len() > usize::try_from(limits.moved_record.min(CEILINGS.moved_record)).expect("u32 fits usize") { return Err(Problem { path: Path::MovedRecord, reason: skein_codec::Reason::Bound }); }
-        Ok(())
-    }
-}
-
-impl Moved {
-    /// Measures this record's wire encoding.
-    #[must_use]
-    pub fn measure(&self) -> u32 {
-        let mut size = 0_u32;
-        size = size.checked_add(2).expect("schema ceilings fit u32");
-        let field_application = &self.application;
-        size = size.checked_add(4).expect("schema ceilings fit u32");
-        size = size.checked_add(u32::try_from(field_application.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
-        let field_issuer = &self.issuer;
-        size = size.checked_add(4).expect("schema ceilings fit u32");
-        size = size.checked_add(u32::try_from(field_issuer.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
-        let field_client_id = &self.client_id;
-        size = size.checked_add(4).expect("schema ceilings fit u32");
-        size = size.checked_add(u32::try_from(field_client_id.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
-        let field_subject = &self.subject;
-        size = size.checked_add(4).expect("schema ceilings fit u32");
-        size = size.checked_add(u32::try_from(field_subject.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
-        let field_display = &self.display;
-        size = size.checked_add(4).expect("schema ceilings fit u32");
-        size = size.checked_add(u32::try_from(field_display.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
-        let field_record = &self.record;
-        size = size.checked_add(4).expect("schema ceilings fit u32");
-        size = size.checked_add(u32::try_from(field_record.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
-        size
-    }
-
-    /// Writes into a writer with room for the measured bytes.
-    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
-        writer.put(&VERSION.to_be_bytes())?;
-        let field_application = &self.application;
-        writer.put(&u32::try_from(field_application.len()).expect("field ceiling fits u32").to_be_bytes())?;
-        writer.put(field_application.as_ref())?;
-        let field_issuer = &self.issuer;
-        writer.put(&u32::try_from(field_issuer.len()).expect("field ceiling fits u32").to_be_bytes())?;
-        writer.put(field_issuer.as_ref())?;
-        let field_client_id = &self.client_id;
-        writer.put(&u32::try_from(field_client_id.len()).expect("field ceiling fits u32").to_be_bytes())?;
-        writer.put(field_client_id.as_ref())?;
-        let field_subject = &self.subject;
-        writer.put(&u32::try_from(field_subject.len()).expect("field ceiling fits u32").to_be_bytes())?;
-        writer.put(field_subject.as_ref())?;
-        let field_display = &self.display;
-        writer.put(&u32::try_from(field_display.len()).expect("field ceiling fits u32").to_be_bytes())?;
-        writer.put(field_display.as_ref())?;
-        let field_record = &self.record;
-        writer.put(&u32::try_from(field_record.len()).expect("field ceiling fits u32").to_be_bytes())?;
-        writer.put(field_record.expose())?;
-        Ok(())
-    }
-
-    /// Reads a whole record and refuses trailing bytes.
-    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let value = Self::decode_from(limits, reader)?;
-        if !reader.is_empty() { return Err(Problem { path: Path::MovedTail, reason: skein_codec::Reason::Trailing }); }
-        Ok(value)
-    }
-
-    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let version = reader.u16().ok_or(Problem { path: Path::MovedVersion, reason: skein_codec::Reason::Short })?;
-        if version != VERSION { return Err(Problem { path: Path::MovedVersion, reason: skein_codec::Reason::Version }); }
-        let decoded_application = { let length = match skein_codec::read_len(reader, limits.moved_application.min(CEILINGS.moved_application)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::MovedApplication, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::MovedApplication, reason: skein_codec::Reason::Short })?) };
-        let decoded_issuer = { let length = match skein_codec::read_len(reader, limits.moved_issuer.min(CEILINGS.moved_issuer)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::MovedIssuer, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::MovedIssuer, reason: skein_codec::Reason::Short })?) };
-        let decoded_client_id = { let length = match skein_codec::read_len(reader, limits.moved_client_id.min(CEILINGS.moved_client_id)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::MovedClientId, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::MovedClientId, reason: skein_codec::Reason::Short })?) };
-        let decoded_subject = { let length = match skein_codec::read_len(reader, limits.moved_subject.min(CEILINGS.moved_subject)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::MovedSubject, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::MovedSubject, reason: skein_codec::Reason::Short })?) };
-        let decoded_display = { let length = match skein_codec::read_len(reader, limits.moved_display.min(CEILINGS.moved_display)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::MovedDisplay, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::MovedDisplay, reason: skein_codec::Reason::Short })?) };
-        let decoded_record = skein_lib::Secret::new({ let length = match skein_codec::read_len(reader, limits.moved_record.min(CEILINGS.moved_record)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::MovedRecord, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::MovedRecord, reason: skein_codec::Reason::Short })?) });
-        Ok(Self { application: decoded_application, issuer: decoded_issuer, client_id: decoded_client_id, subject: decoded_subject, display: decoded_display, record: decoded_record })
-    }
-}
-
-impl Moved {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut size = 2_u64;
-        size = size.checked_add(4_u64.checked_add(u64::from(limits.moved_application))?)?.checked_add(4_u64.checked_add(u64::from(limits.moved_issuer))?)?;
-        size = size.checked_add(4_u64.checked_add(u64::from(limits.moved_client_id))?)?.checked_add(4_u64.checked_add(u64::from(limits.moved_subject))?)?;
-        size = size.checked_add(4_u64.checked_add(u64::from(limits.moved_display))?)?.checked_add(4_u64.checked_add(u64::from(limits.moved_record))?)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(u64::from(limits.moved_application))?.checked_add(u64::from(limits.moved_issuer))?;
-        heap = heap.checked_add(u64::from(limits.moved_client_id))?.checked_add(u64::from(limits.moved_subject))?;
-        heap = heap.checked_add(u64::from(limits.moved_display))?.checked_add(u64::from(limits.moved_record))?;
-        heap.checked_add(0)
-    }
-}
-
-fn moved_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
-    let biggest = biggest.max(Moved::encoded_bound_within(limits)?);
-    Some(biggest)
-}
-
-fn moved_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
-    let biggest = biggest.max(Moved::decoded_bound_within(limits)?);
-    Some(biggest)
-}
-
-fn check_moved_record_limits(limits: &Limits) -> Result<(), Problem> {
-    if limits.moved_application > CEILINGS.moved_application { return Err(Problem { path: Path::MovedApplication, reason: skein_codec::Reason::Bound }); }
-    if limits.moved_issuer > CEILINGS.moved_issuer { return Err(Problem { path: Path::MovedIssuer, reason: skein_codec::Reason::Bound }); }
-    if limits.moved_client_id > CEILINGS.moved_client_id { return Err(Problem { path: Path::MovedClientId, reason: skein_codec::Reason::Bound }); }
-    if limits.moved_subject > CEILINGS.moved_subject { return Err(Problem { path: Path::MovedSubject, reason: skein_codec::Reason::Bound }); }
-    if limits.moved_display > CEILINGS.moved_display { return Err(Problem { path: Path::MovedDisplay, reason: skein_codec::Reason::Bound }); }
-    if limits.moved_record > CEILINGS.moved_record { return Err(Problem { path: Path::MovedRecord, reason: skein_codec::Reason::Bound }); }
-    Ok(())
-}
-
-impl Limits {
-    fn values_for_moved_record(&self, values: &mut List<u32>) {
         values.push(self.moved_application).expect("room for every named limit");
         values.push(self.moved_issuer).expect("room for every named limit");
         values.push(self.moved_client_id).expect("room for every named limit");
         values.push(self.moved_subject).expect("room for every named limit");
         values.push(self.moved_display).expect("room for every named limit");
         values.push(self.moved_record).expect("room for every named limit");
+        values
+    }
+}
+
+const LIMIT_PATHS: &[Path] = &[
+    paths::MOVED_APPLICATION,
+    paths::MOVED_ISSUER,
+    paths::MOVED_CLIENT_ID,
+    paths::MOVED_SUBJECT,
+    paths::MOVED_DISPLAY,
+    paths::MOVED_RECORD,
+];
+
+pub fn check_limits(limits: &Limits) -> Result<(), Problem> {
+    for ((value, ceiling), path) in limits.values().as_slice().iter().zip(CEILING_VALUES).zip(LIMIT_PATHS) {
+        if value > ceiling {
+            return Err(path.problem(skein_codec::Reason::Bound));
+        }
+    }
+    Ok(())
+}
+
+// Paths: declaration and part positions, with one naming table.
+pub mod paths {
+    use super::Path;
+    pub const MOVED_APPLICATION: Path = Path::new(0, 0);
+    pub const MOVED_ISSUER: Path = Path::new(0, 1);
+    pub const MOVED_CLIENT_ID: Path = Path::new(0, 2);
+    pub const MOVED_SUBJECT: Path = Path::new(0, 3);
+    pub const MOVED_DISPLAY: Path = Path::new(0, 4);
+    pub const MOVED_RECORD: Path = Path::new(0, 5);
+    pub const MOVED_VERSION: Path = Path::new(0, 6);
+    pub const MOVED_TAIL: Path = Path::new(0, 7);
+}
+
+const PATH_NAMES: &[&[&str]] = &[
+    &[
+        "Moved.application",
+        "Moved.issuer",
+        "Moved.client_id",
+        "Moved.subject",
+        "Moved.display",
+        "Moved.record",
+        "Moved (version)",
+        "Moved (tail)",
+    ],
+];
+
+/// The path as the schema spells it, or None outside this family's table.
+#[must_use]
+pub fn name(path: Path) -> Option<&'static str> {
+    PATH_NAMES.get(usize::from(path.declaration))?.get(usize::from(path.part)).copied()
+}
+
+// Table: postordered shapes, with compiler-known heap slot sizes.
+const TABLE: &[skein_codec::bounds::Node] = &[
+    skein_codec::bounds::Node::Bytes { limit: 0 },
+    skein_codec::bounds::Node::Bytes { limit: 1 },
+    skein_codec::bounds::Node::Bytes { limit: 2 },
+    skein_codec::bounds::Node::Bytes { limit: 3 },
+    skein_codec::bounds::Node::Bytes { limit: 4 },
+    skein_codec::bounds::Node::Bytes { limit: 5 },
+    skein_codec::bounds::Node::Record { prefix: 2, fields: &[0, 1, 2, 3, 4, 5] },
+];
+
+const DECLARATIONS: &[u32] = &[
+    6,
+];
+
+const CEILING_VALUES: &[u32] = &[
+    64,
+    2_048,
+    255,
+    255,
+    64,
+    274_497,
+];
+
+#[must_use]
+pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+    Some(skein_codec::bounds::family(TABLE, limits.values().as_slice(), CEILING_VALUES, DECLARATIONS)?.encoded)
+}
+
+#[must_use]
+pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+    Some(skein_codec::bounds::family(TABLE, limits.values().as_slice(), CEILING_VALUES, DECLARATIONS)?.decoded)
+}
+
+// Type: Moved.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct Moved {
+    pub application: Box<[u8]>,
+    pub issuer: Box<[u8]>,
+    pub client_id: Box<[u8]>,
+    pub subject: Box<[u8]>,
+    pub display: Box<[u8]>,
+    pub record: skein_lib::Secret,
+}
+
+// Record: Moved.
+impl Record for Moved {
+    type Limits = Limits;
+    const TAIL: Path = paths::MOVED_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 6)?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 6)?.decoded)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::put(out, &VERSION.to_be_bytes(), paths::MOVED_VERSION)?;
+        field::write(field::Bytes { limit: limits.moved_application.min(CEILINGS.moved_application) }, &self.application, limits, out, paths::MOVED_APPLICATION)?;
+        field::write(field::Bytes { limit: limits.moved_issuer.min(CEILINGS.moved_issuer) }, &self.issuer, limits, out, paths::MOVED_ISSUER)?;
+        field::write(field::Bytes { limit: limits.moved_client_id.min(CEILINGS.moved_client_id) }, &self.client_id, limits, out, paths::MOVED_CLIENT_ID)?;
+        field::write(field::Bytes { limit: limits.moved_subject.min(CEILINGS.moved_subject) }, &self.subject, limits, out, paths::MOVED_SUBJECT)?;
+        field::write(field::Bytes { limit: limits.moved_display.min(CEILINGS.moved_display) }, &self.display, limits, out, paths::MOVED_DISPLAY)?;
+        field::write(field::Hidden { limit: limits.moved_record.min(CEILINGS.moved_record) }, &self.record, limits, out, paths::MOVED_RECORD)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        field::version(reader, VERSION, paths::MOVED_VERSION)?;
+        Ok(Self {
+            application: field::read(field::Bytes { limit: limits.moved_application.min(CEILINGS.moved_application) }, limits, reader, paths::MOVED_APPLICATION)?,
+            issuer: field::read(field::Bytes { limit: limits.moved_issuer.min(CEILINGS.moved_issuer) }, limits, reader, paths::MOVED_ISSUER)?,
+            client_id: field::read(field::Bytes { limit: limits.moved_client_id.min(CEILINGS.moved_client_id) }, limits, reader, paths::MOVED_CLIENT_ID)?,
+            subject: field::read(field::Bytes { limit: limits.moved_subject.min(CEILINGS.moved_subject) }, limits, reader, paths::MOVED_SUBJECT)?,
+            display: field::read(field::Bytes { limit: limits.moved_display.min(CEILINGS.moved_display) }, limits, reader, paths::MOVED_DISPLAY)?,
+            record: field::read(field::Hidden { limit: limits.moved_record.min(CEILINGS.moved_record) }, limits, reader, paths::MOVED_RECORD)?,
+        })
     }
 }
 

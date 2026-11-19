@@ -24,17 +24,12 @@ fn generation_snapshot(old: bool, malformed: bool) -> Vec<u8> {
             if old && crate::upgrade::JOBS.contains(&job.name) {
                 continue;
             }
-            let job_row = jig_protocol_store::registry_v1::Job::new(
-                &jig_protocol_store::registry_v1::CEILINGS,
-                jig_protocol_store::registry_v1::JobParts { ended: 1 },
-            )
-            .expect("done job");
-            let mut out = skein_lib::Writer::new(usize::try_from(job_row.measure()).expect("job size"));
-            job_row.encode(&mut out).expect("job bytes");
+            let job_row = jig_protocol_store::registry_v1::Job { ended: 1 };
+            let out = job_row.encode(&jig_protocol_store::registry_v1::CEILINGS).expect("job bytes");
             ops.push(skein_kv::Op::Put {
                 key: keys::encode_own(&keys::Own::Job { owner: set.owner, name: job.name.into() }, 1024)
                     .expect("job key"),
-                value: out.finish(),
+                value: out,
             });
         }
     }

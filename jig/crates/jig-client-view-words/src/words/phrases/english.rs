@@ -78,6 +78,7 @@ pub fn language() -> Language {
                 Segment::Hole { index: 2, kind: HoleKind::Number },
             ]),
             JigPhrase::SettingFaultJudged => Box::new([Segment::Text(copy_of(b"refused by its owner"))]),
+            JigPhrase::SettingLimits => Box::new([Segment::Text(copy_of(b"limits"))]),
             JigPhrase::SettingRules => Box::new([Segment::Text(copy_of(b"the rules"))]),
             JigPhrase::SettingFaultShape => {
                 Box::new([Segment::Text(copy_of(b"Setting is out of shape or past its bound"))])
@@ -96,6 +97,86 @@ pub fn language() -> Language {
                 Box::new([Segment::Text(copy_of(b"Setting template grace is past the allowed span"))])
             }
             JigPhrase::SettingFaultAccounts => Box::new([Segment::Text(copy_of(b" has accounts: remove them first"))]),
+            JigPhrase::SettingRangeStock => Box::new([
+                Segment::Text(copy_of(b" is among the stock's numbers, 1 to ")),
+                Segment::Hole { index: 0, kind: HoleKind::Number },
+                Segment::Text(copy_of(b"; your own items take ")),
+                Segment::Hole { index: 1, kind: HoleKind::Number },
+                Segment::Text(copy_of(b" to ")),
+                Segment::Hole { index: 2, kind: HoleKind::Number },
+            ]),
+            JigPhrase::SettingRangePast => Box::new([
+                Segment::Text(copy_of(b" is past the items' numbers: the stock's take 1 to ")),
+                Segment::Hole { index: 0, kind: HoleKind::Number },
+                Segment::Text(copy_of(b", your own ")),
+                Segment::Hole { index: 1, kind: HoleKind::Number },
+                Segment::Text(copy_of(b" to ")),
+                Segment::Hole { index: 2, kind: HoleKind::Number },
+            ]),
+            JigPhrase::SettingRangeCharterStock => Box::new([
+                Segment::Text(copy_of(b" is among the stock's numbers, 1 to ")),
+                Segment::Hole { index: 0, kind: HoleKind::Number },
+                Segment::Text(copy_of(b"; your own charters take ")),
+                Segment::Hole { index: 1, kind: HoleKind::Number },
+                Segment::Text(copy_of(b" to ")),
+                Segment::Hole { index: 2, kind: HoleKind::Number },
+            ]),
+            JigPhrase::SettingRangeCharterPast => Box::new([
+                Segment::Text(copy_of(b" is past the charters' numbers: the stock's take 1 to ")),
+                Segment::Hole { index: 0, kind: HoleKind::Number },
+                Segment::Text(copy_of(b", your own ")),
+                Segment::Hole { index: 1, kind: HoleKind::Number },
+                Segment::Text(copy_of(b" to ")),
+                Segment::Hole { index: 2, kind: HoleKind::Number },
+            ]),
+            JigPhrase::SettingRangeTemplateStock => Box::new([
+                Segment::Text(copy_of(b" is among the stock's numbers, 1 to ")),
+                Segment::Hole { index: 0, kind: HoleKind::Number },
+                Segment::Text(copy_of(b"; your own templates take ")),
+                Segment::Hole { index: 1, kind: HoleKind::Number },
+                Segment::Text(copy_of(b" to ")),
+                Segment::Hole { index: 2, kind: HoleKind::Number },
+            ]),
+            JigPhrase::SettingRangeTemplatePast => Box::new([
+                Segment::Text(copy_of(b" is past the templates' numbers: the stock's take 1 to ")),
+                Segment::Hole { index: 0, kind: HoleKind::Number },
+                Segment::Text(copy_of(b", your own ")),
+                Segment::Hole { index: 1, kind: HoleKind::Number },
+                Segment::Text(copy_of(b" to ")),
+                Segment::Hole { index: 2, kind: HoleKind::Number },
+            ]),
+            JigPhrase::SettingRangePolicyStock => Box::new([
+                Segment::Text(copy_of(b" is among the stock's numbers, 1 to ")),
+                Segment::Hole { index: 0, kind: HoleKind::Number },
+                Segment::Text(copy_of(b"; your own policies take ")),
+                Segment::Hole { index: 1, kind: HoleKind::Number },
+                Segment::Text(copy_of(b" to ")),
+                Segment::Hole { index: 2, kind: HoleKind::Number },
+            ]),
+            JigPhrase::SettingRangePolicyPast => Box::new([
+                Segment::Text(copy_of(b" is past the policies' numbers: the stock's take 1 to ")),
+                Segment::Hole { index: 0, kind: HoleKind::Number },
+                Segment::Text(copy_of(b", your own ")),
+                Segment::Hole { index: 1, kind: HoleKind::Number },
+                Segment::Text(copy_of(b" to ")),
+                Segment::Hole { index: 2, kind: HoleKind::Number },
+            ]),
+            JigPhrase::SettingRangeModelStock => Box::new([
+                Segment::Text(copy_of(b" is among the stock's numbers, 1 to ")),
+                Segment::Hole { index: 0, kind: HoleKind::Number },
+                Segment::Text(copy_of(b"; your own models take ")),
+                Segment::Hole { index: 1, kind: HoleKind::Number },
+                Segment::Text(copy_of(b" to ")),
+                Segment::Hole { index: 2, kind: HoleKind::Number },
+            ]),
+            JigPhrase::SettingRangeModelPast => Box::new([
+                Segment::Text(copy_of(b" is past the models' numbers: the stock's take 1 to ")),
+                Segment::Hole { index: 0, kind: HoleKind::Number },
+                Segment::Text(copy_of(b", your own ")),
+                Segment::Hole { index: 1, kind: HoleKind::Number },
+                Segment::Text(copy_of(b" to ")),
+                Segment::Hole { index: 2, kind: HoleKind::Number },
+            ]),
             JigPhrase::SettingFaultLinked => Box::new([Segment::Text(copy_of(b" is linked: stop it first"))]),
             JigPhrase::SettingFaultOwner => {
                 Box::new([Segment::Text(copy_of(b"Setting policy owner role cannot be a root requester"))])
@@ -517,7 +598,7 @@ pub fn language() -> Language {
                 Box::new([Segment::Text(copy_of(b"Engine admission limit: project live tasks"))])
             }
             JigPhrase::EngineLimitLiveTasks => {
-                Box::new([Segment::Text(copy_of(b"Engine admission limit: live tasks"))])
+                Box::new([Segment::Text(copy_of(b"Engine admission limit: live tasks (tasks.tasks)"))])
             }
             JigPhrase::EngineLimitTree => Box::new([Segment::Text(copy_of(b"Engine admission limit: tree"))]),
             JigPhrase::EngineLimitDepth => Box::new([Segment::Text(copy_of(b"Engine admission limit: depth"))]),

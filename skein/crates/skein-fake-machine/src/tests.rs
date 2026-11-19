@@ -4,6 +4,8 @@
 //! moved directory's `..`. What it answers, case by case, the suite holds
 //! to the real kernel (runtime/kernel.md, 8).
 
+mod reach;
+
 use alloc::vec::Vec;
 
 use crate::fs::{How, Is, Item, Machine, Refusal};
@@ -152,6 +154,7 @@ fn child_pipes_echo_at_chosen_descriptors_and_exit() {
     let pid = sim.spawn_process();
     let root = sim.root(pid, skein_sim::Handle::new(laid.raw()));
     let spawn = Spawn {
+        reach: None,
         program: Box::from(&b"echo"[..]),
         args: Box::new([]),
         env: Box::new([]),
@@ -208,6 +211,7 @@ fn never_child_waits_until_killed() {
         op: Token::new(1),
         kind: Op::Spawn {
             spawn: Box::new(Spawn {
+                reach: None,
                 program: Box::from(&b"never"[..]),
                 args: Box::new([]),
                 env: Box::new([]),
@@ -361,6 +365,38 @@ fn a_cut_synced_keeps_the_new_length_past_a_crash() {
         machine.close(file);
         machine.close(root);
     }
+}
+
+#[test]
+fn a_fork_keeps_current_bytes_and_seeded_durability_without_handles() {
+    let (mut source, root) = machine(&[Item::file(b"file", b"initial")]);
+    let file = source.open(root, b"file", How::Write).unwrap();
+    source.write(file, 0, b"changed").unwrap();
+    let mut forked = source.fork();
+    assert_eq!(forked.open_handles(), 0);
+    let fork_root = forked.reopen_root(0);
+    let fork_file = forked.open(fork_root, b"file", How::Write).unwrap();
+    assert_eq!(forked.read(fork_file, 0, 16).unwrap(), b"changed");
+    for seed in 0..16 {
+        let (mut left, root) = machine(&[Item::file(b"file", b"initial")]);
+        let file = left.open(root, b"file", How::Write).unwrap();
+        left.write(file, 0, b"changed").unwrap();
+        let mut right = forked.fork();
+        left.crash(seed);
+        right.crash(seed);
+        let left_root = left.reopen_root(0);
+        let right_root = right.reopen_root(0);
+        let left_file = left.open(left_root, b"file", How::Read).unwrap();
+        let right_file = right.open(right_root, b"file", How::Read).unwrap();
+        assert_eq!(left.read(left_file, 0, 16), right.read(right_file, 0, 16), "seed {seed}");
+    }
+    forked.write(fork_file, 0, b"another").unwrap();
+    forked.sync(fork_file);
+    assert_eq!(source.read(file, 0, 16).unwrap(), b"changed", "copy-on-write storage is independent");
+    source.crash(0);
+    let root = source.reopen_root(0);
+    let file = source.open(root, b"file", How::Read).unwrap();
+    assert_eq!(source.read(file, 0, 16).unwrap(), b"initial", "the fork did not sync its source");
 }
 
 #[test]

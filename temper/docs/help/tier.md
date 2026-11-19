@@ -57,6 +57,11 @@ A tier is a slow check of a branch after changes land on it: each run covers eve
   when a later run passes the failures, the red landing is cleared,
   repaired by that change's landing, and its change's result ends
   `repaired by COMMIT.`
+- **Under `wait: landed`,** a red finding holds its tests even when
+  dropped or routed. A run that passes its tests clears it, whatever its
+  triage state; tests that pass alone count as passed. A many run clears
+  nothing. A red filing refused for room waits on the tier, holding its
+  tests, and a later run files it oldest first when room is available.
 - **A runner's fault,** a lost run or a failed setup, runs the part
   again, up to the project's `tier_retries`. Past them, the tier's run
   task is held, `Tier NAME run N held after K runner faults, last:
@@ -66,7 +71,8 @@ A tier is a slow check of a branch after changes land on it: each run covers eve
 
 - **A change lives to cleared:** landed, then verifying, until every
   tier following its branch has cleared its landing, and its result
-  comes then (temper help change).
+  comes then (temper help change). Under `"wait": "landed"` in kind 4,
+  a change ends at its landing and its tiers judge it later.
 - **Bounded:** past the project's verification bound, two hours unless
   set, with no verdict, the change ends landed and uncleared, saying
   so; a later verdict still counts on the tier.
@@ -128,19 +134,20 @@ A tier is a slow check of a branch after changes land on it: each run covers eve
 - **The box's runner:** workflows using `temper-host` execute on the
   host. JavaScript `uses:` actions such as `actions/checkout@v4` and
   `actions/upload-artifact@v3` need compatible Node.js installed there
-  as `node`, on `application.machine.owned.runner.path` (default
+  as `node`, on `--runner-path` at forge preparation (default
   `/usr/local/bin:/usr/bin:/bin`). After changing that configuration,
   restart the box. Node.js only in an interactive shell is insufficient.
 - **Runner capacity:** CI and tiers using `temper-host` share a runner.
-  `application.machine.owned.runner.capacity` defaults to 1:
+  `--runner-capacity` at forge preparation defaults to 1:
   one job at a time, delaying CI and landings. Use
   2 for one single-job tier plus CI, or 3 for two such tiers plus CI.
   Count jobs in multi-job workflows and other repositories too.
   Stop the real-backend box with Ctrl-C or SIGTERM; wait for it to exit.
-  Edit only that setting in `CONFIG/temper.json`, then restart
-  `temper box --config CONFIG --data DATA --cache CACHE` with the same
-  directories. Prepared runners keep their registration and secrets.
-- **ctl:** `change show TASK --until cleared` waits for `cleared` or
+  A forge's place is chosen when it is set up, and kept with the forge,
+  not in `temper.toml`. Keep the same directories; prepared runners keep
+  their registration and secrets.
+- **ctl:** use `change show TASK --until landed` for such a change
+  ending at landing. `change show TASK --until cleared` waits for `cleared` or
   ended landed and uncleared; `verifying` and `red` remain pending.
   Inspect the verdict with `change show TASK`; use `--until changed`
   for panel updates.
@@ -157,9 +164,11 @@ A tier is a slow check of a branch after changes land on it: each run covers eve
 
 For the configuration members that need a restart, read `temper help configuration`.
 
-- A repository has at most two tiers in the small profile. A run names
-  at most 16 failing tests, each id at most 256 bytes; past them its
+- A repository has at most two tiers in the small profile. A stock run names
+  at most 64 failing tests, each id at most 512 bytes; past them its
   failures are many, blamed by landing alone.
 - A tier follows one branch: following two takes two tiers.
-- temper posts no verdict to the forge, and a red whose goal has
-  ended, or of a landing temper did not make, reaches no one.
+- Under `"wait": "landed"`, main's red reaches no goal; it is a project
+  finding blamed on the landing and goal behind it, filed once for
+  failures no uncleared red finding of the tier holds. Goal-branch tiers
+  still tell their goals.

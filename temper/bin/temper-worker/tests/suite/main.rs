@@ -1,10 +1,8 @@
 //! The worker binary's table and dispatch (temper/docs/design/protocol/binaries.md, 5).
 use std::process::{Command, Stdio};
+use temper_config_shell::{File, Shape, render};
 use temper_worker_shell::{PROGRAM_LOGIN, WORKER};
 
-const ENGINE: &str = r#"{"engine":{"hosts":{"listener":[{"socket":"127.0.0.1:0"}]}}}"#;
-const STANDALONE: &str = r#"{"engine":{"hosts":{"listener":[{"in_process":"workers"}]}}}"#;
-const WORKER_DOCUMENT: &str = r#"{"workers":[{"engine":{"socket":"127.0.0.1:1"}}]}"#;
 const SERVE: &[&str] = &["serve", "--config", "CONFIG", "--data", "DATA", "--cache", "CACHE"];
 const LOGIN: &[&str] = &["program-login", "--config", "CONFIG", "--data", "DATA", "--cache", "CACHE", "work"];
 const LOGIN_WITHOUT_NAME: &[&str] = &["program-login", "--config", "CONFIG", "--data", "DATA", "--cache", "CACHE"];
@@ -58,6 +56,10 @@ fn pages(text: &str) -> bool {
     text == temper_shell::help::answer(WORKER.binary, &temper_shell::help::Request::Index).expect("index page")
 }
 
+fn config_page(text: &str) -> bool {
+    text.as_bytes() == temper_config_shell::help(temper_config_shell::Shape::WorkerAlone).as_ref()
+}
+
 fn commands_page(text: &str) -> bool {
     text == temper_shell::table::commands_page(&WORKER)
 }
@@ -70,14 +72,16 @@ enum Stderr {
 impl Stderr {
     fn accepts(&self, text: &str) -> bool {
         match self {
-            Self::Exact(expected) => text == *expected,
-            Self::WorkerChecks => text.starts_with("temper-worker serve: ") && !text.contains("temper.json holds"),
+            Self::Exact(expected) => text == expected.replace("{file}", temper_config_shell::FILE),
+            Self::WorkerChecks => {
+                text.starts_with("temper-worker serve: ") && !text.contains(&format!("{}:", temper_config_shell::FILE))
+            }
         }
     }
 }
 use Stderr::Exact;
 type Check = fn(&str) -> bool;
-type Case = (&'static [&'static str], Option<&'static str>, i32, Check, Stderr);
+type Case = (&'static [&'static str], Option<Shape>, i32, Check, Stderr);
 
 const ROWS: &[Case] = &[
     (&["--version"], None, 0, version, Exact("")),
@@ -88,6 +92,7 @@ const ROWS: &[Case] = &[
     (&["help"], None, 0, help, Exact("")),
     (&["help", "pages"], None, 0, pages, Exact("")),
     (&["help", "commands"], None, 0, commands_page, Exact("")),
+    (&["help", "config"], None, 0, config_page, Exact("")),
     (&["frobnicate"], None, 2, empty, Exact("temper-worker: no command frobnicate; temper-worker --help lists them\n")),
     (&[], None, 2, empty, Exact("temper-worker: no command; temper-worker --help lists them\n")),
     (
@@ -99,34 +104,38 @@ const ROWS: &[Case] = &[
     ),
     (
         SERVE,
-        Some(ENGINE),
-        1,
-        empty,
-        Exact("temper-worker serve: temper.json holds an engine alone; temper-engine serve runs it\n"),
-    ),
-    (
-        SERVE,
-        Some(STANDALONE),
+        Some(Shape::EngineAlone),
         1,
         empty,
         Exact(
-            "temper-worker serve: temper.json holds an engine and its worker in one process; temper-box serve runs it\n",
+            "temper-worker serve: {file}:4: workers: a key of temper-engine's file, not temper-worker's\ntemper-worker serve: {file}: engine: required in temper-worker's file\n",
+        ),
+    ),
+    (
+        SERVE,
+        Some(Shape::Standalone),
+        1,
+        empty,
+        Exact(
+            "temper-worker serve: {file}:4: listen: a key of temper-box's or temper-engine's file, not temper-worker's\ntemper-worker serve: {file}: engine: required in temper-worker's file\n",
         ),
     ),
     (
         LOGIN,
-        Some(ENGINE),
-        1,
-        empty,
-        Exact("temper-worker program-login: temper.json holds an engine alone; temper-engine serve runs it\n"),
-    ),
-    (
-        LOGIN,
-        Some(STANDALONE),
+        Some(Shape::EngineAlone),
         1,
         empty,
         Exact(
-            "temper-worker program-login: temper.json holds an engine and its worker in one process; temper-box serve runs it\n",
+            "temper-worker program-login: {file}:4: workers: a key of temper-engine's file, not temper-worker's\ntemper-worker program-login: {file}: engine: required in temper-worker's file\n",
+        ),
+    ),
+    (
+        LOGIN,
+        Some(Shape::Standalone),
+        1,
+        empty,
+        Exact(
+            "temper-worker program-login: {file}:4: listen: a key of temper-box's or temper-engine's file, not temper-worker's\ntemper-worker program-login: {file}: engine: required in temper-worker's file\n",
         ),
     ),
     (
@@ -138,7 +147,7 @@ const ROWS: &[Case] = &[
             "temper-worker program-login: invalid arguments\nusage: temper-worker program-login [DIRECTORIES] NAME\n",
         ),
     ),
-    (SERVE, Some(WORKER_DOCUMENT), 1, empty, Stderr::WorkerChecks),
+    (SERVE, Some(Shape::WorkerAlone), 1, empty, Stderr::WorkerChecks),
 ];
 
 #[test]
@@ -148,11 +157,11 @@ fn the_binary_answers_its_table_and_refuses_other_shapes() {
     let data = scratch.path().join("data");
     let cache = scratch.path().join("cache");
     std::fs::create_dir(&config).expect("configuration directory");
-    let document = config.join("temper.json");
+    let document = config.join(temper_config_shell::FILE);
     let mut failures = Vec::new();
     for (arguments, contents, code, stdout, stderr) in ROWS {
         if let Some(contents) = contents {
-            std::fs::write(&document, contents).expect("write document");
+            std::fs::write(&document, shape_file(*contents)).expect("write document");
         } else if document.exists() {
             std::fs::remove_file(&document).expect("remove document");
         }
@@ -182,4 +191,14 @@ fn the_binary_answers_its_table_and_refuses_other_shapes() {
         }
     }
     assert!(failures.is_empty(), "{}", failures.join("\n"));
+}
+
+fn shape_file(shape: Shape) -> Box<[u8]> {
+    let address = "127.0.0.1:1".parse().expect("fixture address");
+    let file = match shape {
+        Shape::Standalone => File { listen: Some(address), ..File::default() },
+        Shape::EngineAlone => File { workers: Some(address), ..File::default() },
+        Shape::WorkerAlone => File { engine: Some(address), ..File::default() },
+    };
+    render(&file, shape)
 }

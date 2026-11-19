@@ -48,6 +48,7 @@ fn run(limits: &Limits, spec: &Spec, deadline: Option<Time>) -> Result<Ran, Erro
     let mut io = Io::new(limits);
     let signal = io.adopt_signals(signals).expect("room for the signal descriptor");
     let spawn = Spawn {
+        reach: None,
         program: spec.program.clone(),
         args: spec.arguments.clone(),
         env: spec.environment.clone(),

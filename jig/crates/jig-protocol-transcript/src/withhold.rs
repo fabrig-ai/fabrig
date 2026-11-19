@@ -2,7 +2,8 @@
 //! (`jig/docs/design/domain/engine/briefs.md`, 2.1).
 
 use alloc::boxed::Box;
-use skein_lib::{Intake, List, Set, Writer, length::usize_of, stream::Read};
+use skein_lib::{Intake, List, Set, stream::Read};
+use smith_transcript::Record;
 
 use crate::{Limits, Undecodable, classify, decode_source, smith, summary};
 
@@ -30,33 +31,28 @@ pub const WITHHELD: &str = "Withheld: shown to its person alone.";
 pub fn withhold(limits: &Limits, bytes: &[u8], private: &Private) -> Result<Box<[u8]>, Undecodable> {
     let source = decode_source(limits, bytes)?;
     let ids = private_ids(&source, private);
-    let mut parts = source.into_parts();
+    let mut parts = source;
     if let Some(system) = &mut parts.system
         && let Some(projected) = section(system, &private.title, limits.bytes.min(limits.smith.turn_system_some))?
     {
         *system = projected;
     }
     for message in parts.messages.iter_mut() {
-        let mut fields = message.clone().into_parts();
-        for block in fields.blocks.iter_mut() {
+        for block in message.blocks.iter_mut() {
             *block = project_block(limits, block.clone(), private, &ids)?;
         }
-        *message = match smith::Message::new(&limits.smith, fields) {
-            Ok(message) => message,
-            Err(problem) => return Err(classify(problem)),
-        };
     }
-    let projected = match smith::Turn::new(&limits.smith, parts) {
-        Ok(turn) => turn,
+    let length = match parts.measure(&limits.smith) {
+        Ok(length) => length,
         Err(problem) => return Err(classify(problem)),
     };
-    let length = projected.measure();
     if length > limits.bytes {
         return Err(Undecodable::TooLarge);
     }
-    let mut writer = Writer::new(usize_of(length));
-    projected.encode(&mut writer).expect("writer sized by the turn's measured length");
-    Ok(writer.finish())
+    match parts.encode(&limits.smith) {
+        Ok(bytes) => Ok(bytes),
+        Err(problem) => Err(classify(problem)),
+    }
 }
 
 fn private_ids(source: &smith::Turn, private: &Private) -> Set<Box<[u8]>> {
@@ -65,12 +61,12 @@ fn private_ids(source: &smith::Turn, private: &Private) -> Set<Box<[u8]>> {
         .checked_mul(smith::CEILINGS.message_blocks)
         .expect("schema bounds the number of blocks");
     let mut ids = Set::with_capacity(capacity);
-    for message in source.messages() {
-        for block in message.blocks() {
+    for message in &source.messages {
+        for block in &message.blocks {
             match block {
                 smith::Block::Call(call) => {
-                    if private_tool(private, call.name()) {
-                        ids.insert(Box::from(call.id())).expect("at most one id per block");
+                    if private_tool(private, call.name.as_ref()) {
+                        ids.insert(Box::from(call.id.as_ref())).expect("at most one id per block");
                     }
                 }
                 smith::Block::Text(_)
@@ -100,43 +96,28 @@ fn project_block(
 ) -> Result<smith::Block, Undecodable> {
     Ok(match block {
         smith::Block::Text(text) => {
-            let mut fields = text.into_parts();
+            let mut fields = text;
             if let Some(projected) = section(&fields.text, &private.title, limits.bytes.min(limits.smith.text_text))? {
                 fields.text = projected;
                 fields.replay = None;
             }
-            match smith::Text::new(&limits.smith, fields) {
-                Ok(text) => smith::Block::Text(text),
-                Err(problem) => return Err(classify(problem)),
-            }
+            smith::Block::Text(fields)
         }
         smith::Block::Call(call) => {
-            let mut fields = call.into_parts();
+            let mut fields = call;
             if private_tool(private, &fields.name) {
                 fields.input = Box::from(b"{}".as_slice());
                 fields.replay = None;
             }
-            match smith::Call::new(&limits.smith, fields) {
-                Ok(call) => smith::Block::Call(call),
-                Err(problem) => return Err(classify(problem)),
-            }
+            smith::Block::Call(fields)
         }
         smith::Block::Result(result) => {
-            let mut fields = result.into_parts();
+            let mut fields = result;
             if ids.contains(fields.id.as_ref()) {
                 let error = summary::summarize(&fields.returned).failed;
-                fields.returned = match smith::Said::new(
-                    &limits.smith,
-                    smith::SaidParts { text: Box::from(WITHHELD.as_bytes()), error },
-                ) {
-                    Ok(said) => smith::Returned::Said(said),
-                    Err(problem) => return Err(classify(problem)),
-                };
+                fields.returned = smith::Returned::Said(smith::Said { text: Box::from(WITHHELD.as_bytes()), error });
             }
-            match smith::ToolResult::new(&limits.smith, fields) {
-                Ok(result) => smith::Block::Result(result),
-                Err(problem) => return Err(classify(problem)),
-            }
+            smith::Block::Result(fields)
         }
         smith::Block::Refusal(text) => smith::Block::Refusal(text),
         smith::Block::Opaque(opaque) => smith::Block::Opaque(opaque),

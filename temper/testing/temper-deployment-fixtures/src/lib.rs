@@ -42,11 +42,12 @@ pub fn deployment() -> (skein_scratch::Scratch, Directories) {
             std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o700)).expect("private directory");
         }
     }
-    let mut document: serde_json::Value =
-        serde_json::from_slice(include_bytes!("../../../docs/examples/owned.json")).expect("owned example");
-    document["workers"] = serde_json::json!([]);
-
-    document["engine"]["hosts"]["listener"] = serde_json::json!([{"socket":"127.0.0.1:7103"}]);
+    let mut file = temper_config_shell::File {
+        listen: Some("127.0.0.1:7100".parse().expect("clients listener")),
+        workers: Some("127.0.0.1:7103".parse().expect("workers listener")),
+        owner: Some("a@b".into()),
+        ..temper_config_shell::File::default()
+    };
     let registration = serde_json::json!({
         "issuer":"http://127.0.0.1:7104", "client":"test-client", "scopes":["openid","read"],
         "authorization":"http://127.0.0.1:7104/authorize", "token":"http://127.0.0.1:7104/token",
@@ -73,12 +74,18 @@ pub fn deployment() -> (skein_scratch::Scratch, Directories) {
     provider["endpoint"] = "second".into();
     providers["providers"].as_array_mut().expect("providers").push(provider);
     temper_agent_fixtures::providers::write(&data, &providers);
-    document["application"]["test"]["github"] = serde_json::json!({
-        "api":{"socket":"127.0.0.1:1"}, "transport":"plaintext",
-        "remote":"http://127.0.0.1:1", "web":"http://127.0.0.1:1", "git":"/usr/bin/git"
+    file.test.github = Some(temper_config_shell::TestGitHub {
+        api: "127.0.0.1:1".into(),
+        transport: temper_config_shell::Transport::Plaintext,
+        remote: "http://127.0.0.1:1".into(),
+        web: "http://127.0.0.1:1".into(),
+        git: Some("/usr/bin/git".into()),
     });
-    std::fs::write(config.join("temper.json"), serde_json::to_vec(&document).expect("configuration bytes"))
-        .expect("configuration file");
+    std::fs::write(
+        config.join(temper_config_shell::FILE),
+        temper_config_shell::render(&file, temper_config_shell::Shape::EngineAlone),
+    )
+    .expect("configuration file");
     let directories = Directories {
         config: config.as_os_str().as_bytes().into(),
         data: data.as_os_str().as_bytes().into(),
@@ -86,4 +93,21 @@ pub fn deployment() -> (skein_scratch::Scratch, Directories) {
         origins: [skein_shell::Origin::Flag; 3],
     };
     (scratch, directories)
+}
+
+pub fn tree(root: &std::path::Path) -> Vec<(std::path::PathBuf, u32, Vec<u8>)> {
+    use std::os::unix::fs::PermissionsExt;
+    let mut result = Vec::new();
+    let mut entries =
+        std::fs::read_dir(root).expect("data directory").map(|entry| entry.expect("data entry")).collect::<Vec<_>>();
+    entries.sort_by_key(std::fs::DirEntry::file_name);
+    for entry in entries {
+        let metadata = entry.metadata().expect("data metadata");
+        let bytes = if metadata.is_file() { std::fs::read(entry.path()).expect("data file") } else { Vec::new() };
+        result.push((entry.path(), metadata.permissions().mode(), bytes));
+        if metadata.is_dir() {
+            result.extend(tree(&entry.path()));
+        }
+    }
+    result
 }

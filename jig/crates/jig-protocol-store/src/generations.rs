@@ -371,7 +371,8 @@ struct CopyParent {
 }
 /// Generation `from`'s maps linked and copied (protocol/store/opening.md 2, step 2).
 /// A patch links the snapshot and all but the newest log segment, found over every
-/// page first, and every task log in logs/shard; a whole rehearsal copies everything, while Openings skips store/logs.
+/// page first, and every task log in logs/shard. A Whole rehearsal copies everything;
+/// an Openings rehearsal links as a patch does, but skips store/logs.
 /// Refused links fall back to copies. Two suspended directory pages bound the
 /// depth-first logs walk, with each destination synced before returning to its parent.
 /// Directories are made 0o700, secrets opened private, copied files created
@@ -379,6 +380,9 @@ struct CopyParent {
 /// finally generations are synced. No source bytes change; a standing destination fails.
 #[derive(Debug)]
 pub(crate) struct Copying {
+    // Completed files, saturating at the rehearsal event's count ceiling.
+    pub(crate) linked: u32,
+    pub(crate) copied: u32,
     root: Root,
     source_root: Root,
     from: u64,
@@ -427,12 +431,17 @@ pub(crate) fn copy_between(
         });
     }
     Copying {
+        linked: 0,
+        copied: 0,
         root,
         source_root,
         from,
         to,
         chunk,
-        way: CopyWay::Copy,
+        way: match reach {
+            crate::Reach::Whole => CopyWay::Copy,
+            crate::Reach::Openings => CopyWay::Link,
+        },
         reach,
         newest: None,
         map: Map::Store,
@@ -783,7 +792,10 @@ fn copy_arrived(copying: &mut Copying, arrived: Arrived, queue: &mut Queue<file:
         }
         CopyStep::Link => {
             let error = match arrived.event {
-                file::Event::Linked { .. } => return copy_advance(copying, queue),
+                file::Event::Linked { .. } => {
+                    copying.linked = copying.linked.saturating_add(1);
+                    return copy_advance(copying, queue);
+                }
                 file::Event::Failed { error, .. } => error,
                 file::Event::Opened { .. }
                 | file::Event::Refused { .. }
@@ -807,7 +819,9 @@ fn copy_arrived(copying: &mut Copying, arrived: Arrived, queue: &mut Queue<file:
                 | file::Event::Made { .. } => return copy_fail(copying, queue),
             };
             match error {
-                Error::Permission | Error::TooManyLinks | Error::Other(_) => copy_open(copying, queue),
+                Error::Permission | Error::TooManyLinks | Error::Reach(_) | Error::Other(_) => {
+                    copy_open(copying, queue);
+                }
                 Error::Busy
                 | Error::Refused
                 | Error::Reset
@@ -899,6 +913,7 @@ fn copy_arrived(copying: &mut Copying, arrived: Arrived, queue: &mut Queue<file:
             let file::Event::Closed { .. } = arrived.event else {
                 return copy_fail(copying, queue);
             };
+            copying.copied = copying.copied.saturating_add(1);
             return copy_advance(copying, queue);
         }
         CopyStep::MapSync => {

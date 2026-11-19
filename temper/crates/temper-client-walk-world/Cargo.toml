@@ -1,0 +1,59 @@
+[package]
+name = "temper-client-walk-world"
+description = "Native web and terminal clients on the playground world for journey walks"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lib]
+test = true
+doctest = false
+
+[dependencies]
+skein-io.workspace = true
+skein-shell.workspace = true
+skein-ui-screen.workspace = true
+skein-ui-screen-terminal.workspace = true
+jig-client.workspace = true
+jig-client-shell-native.workspace = true
+jig-client-protocol-http.workspace = true
+temper-client-shell-tui.workspace = true
+temper-client-tui.workspace = true
+temper-client-walk-lines.workspace = true
+temper-playground.workspace = true
+skein-sim-world.workspace = true
+skein-lib.workspace = true
+temper-client-shell-web.workspace = true
+temper-client-domain.workspace = true
+temper-client-view.workspace = true
+jig-client-shell-web.workspace = true
+skein-ui.workspace = true
+skein-ui-web.workspace = true
+skein-playground.workspace = true
+skein-fake-person.workspace = true
+temper-fake.workspace = true
+skein-fake-machine.workspace = true
+temper-service.workspace = true
+temper-forge-setup.workspace = true
+jig-protocol-config.workspace = true
+
+[lints.rust] # harness: tools/lints/design.md, 2.2
+unsafe_code = "forbid"
+elided_lifetimes_in_paths = "deny"
+unused_must_use = "deny"
+
+[lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+module_name_repetitions = "allow"
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"
+wildcard_enum_match_arm = "allow"
+match_wildcard_for_single_variants = "deny"
+unwrap_used = "deny"
+allow_attributes = "deny"
+allow_attributes_without_reason = "deny"
+disallowed_types = "deny"
+disallowed_macros = "deny"
+disallowed_methods = "deny"

@@ -128,6 +128,7 @@ pub fn start() {
     start_signed_in(settings);
 }
 #[cfg(target_arch = "wasm32")]
+#[expect(clippy::too_many_lines, reason = "the signed-in starter erases either link form before building the host")]
 fn start_signed_in(settings: internal::Internal) {
     if !skein_ui_web::restart::Restart::new(
         3,
@@ -140,7 +141,11 @@ fn start_signed_in(settings: internal::Internal) {
         return;
     }
     // Replace the printed secret's address before starting anything that can send.
-    let secret = sign_in::web::take_from_page(&sign_in::Route { path: b"/jig/v1/sign-in/link", home: b"/welcome" });
+    let secret = sign_in::web::take_from_page(&sign_in::Route {
+        path: b"/jig/v1/sign-in/link",
+        page: Some(temper_client_domain::sign_in::LINK_PAGE),
+        home: b"/welcome",
+    });
     let window = web_sys::window().expect("window");
     let document = window.document().expect("document");
     let ways = document

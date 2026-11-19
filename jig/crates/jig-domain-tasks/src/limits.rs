@@ -92,7 +92,7 @@ pub struct Limits {
     pub saved_resources: u32,
     /// Maximum distinct-code choices in a nonempty verdict contract.
     pub contract_choices: u32,
-    /// Maximum retained configured agent-charter numbers.
+    /// Maximum number of configured agent charters.
     pub charters: u32,
     /// Maximum documents per charter (domain/engine/settings.md, 9).
     pub charter_documents: u32,

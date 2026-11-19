@@ -12,12 +12,19 @@ test = false
 doctest = false
 
 [dev-dependencies]
+jig-protocol-engine-clients.workspace = true
+jig-client-view-codec.workspace = true
+jig-ops-client-protocol-wire.workspace = true
+jig-client-test-protocol-wire.workspace = true
+jig-protocol-worker-wire.workspace = true
+jig-protocol-accounts.workspace = true
 jig-protocol-config-fixtures.workspace = true
 jig-domain-tasks.workspace = true
 skein-oauth.workspace = true
 jig-client-protocol-wire.workspace = true
 skein-scratch.workspace = true
 jig-domain-core.workspace = true
+jig-domain-fleet.workspace = true
 jig-domain-people.workspace = true
 jig-protocol-config.workspace = true
 jig-protocol-store.workspace = true

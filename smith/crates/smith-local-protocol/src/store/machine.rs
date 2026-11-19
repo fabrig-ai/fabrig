@@ -1,6 +1,7 @@
 //! Serial durable chat operations (protocol/host.md, 5.3; skein skein/docs/design/runtime/io/files.md, 2).
 //! Compatibility, loading, fresh-history recovery and writes own their sequence
-//! data. Record versions survive operations; conversation policy is never known.
+//! data. Record versions and computed layouts survive operations and selections;
+//! conversation policy is never known.
 mod compatibility;
 mod ephemeral;
 mod fresh;
@@ -52,6 +53,7 @@ pub struct Store {
     endpoints: Endpoints,
     phase: State,
     checked: bool,
+    layouts: Option<crate::local_store_v1::Layouts>,
     closing: bool,
     versions: Map<Box<[u8]>, Digest>,
     ephemeral: Option<ephemeral::Ephemeral>,
@@ -84,6 +86,7 @@ impl Store {
             endpoints,
             phase: State::Idle,
             checked: false,
+            layouts: None,
             closing: false,
             versions: Map::with_capacity(records),
             ephemeral: None,
@@ -128,6 +131,9 @@ impl Store {
             StoreRequest::SelectChat { name, create } => self.select_chat(name, create, out),
             StoreRequest::Load if self.ephemeral.is_some() => Self::empty(out),
             StoreRequest::Load => {
+                if self.layouts.is_none() {
+                    self.layouts = Some(crate::format::layouts());
+                }
                 self.versions = Map::with_capacity(self.versions.capacity());
                 if self.checked { State::Load(Loading::Journal) } else { State::Compatibility(Compatibility::Format) }
             }

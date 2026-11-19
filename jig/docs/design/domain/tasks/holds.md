@@ -45,6 +45,45 @@ again. Words alone do not release it (../people/acts.md, 1).
   `../../protocol/configuration.md`, 3.3), each resolved to the name the
   task holds, and whether the task is tracked. A symbol the connector
   does not offer that task refuses the batch, naming the symbol.
+- **Reported before it is taken.** For each resource a batch member
+  holds, its connector reports the resource's role and hold kind
+  (../connectors.md, 3.3), before or with its holdings answer, as many
+  reports in a row as the batch has names. The tasks child keeps the
+  latest report of each name in a table of `tasks.resource_reports`
+  entries, in memory alone: a restart's connectors report again
+  (../connectors.md, 14). A batch is made once every resource its
+  members hold has a report; until then it waits whole, making no task
+  and reserving no funding, its reply kept, and each report that comes
+  tries it again against the state as it is then.
+- **Kept while named or pinned.** An entry is kept while a live task's
+  holdings name it or a waiting batch pins it. The core pins a batch's
+  names as it takes the batch to be made, before it makes it or parks
+  it, and unpins them once the batch is made, refused or dropped. A
+  report of a name the full table lacks takes the place of the entry
+  reported least recently among those not kept, its report's order
+  counted afresh at each report; with none, it is dropped. Least
+  recently, not first by name, so that a batch's members, reported one
+  after another before its holdings answer, never push one another out
+  while the table has room for them all.
+- **Counted, or refused.** A batch is pinned only where the table holds
+  it: the names kept, those other waiting batches pin, reported or not,
+  and the batch's own, each counted once, together at most
+  `tasks.resource_reports`. A batch past that is refused whole, making
+  nothing: `Busy`, its capacity's cause `ResourceReports` with the
+  table's bound (`README.md`, section 4), its words saying that the
+  table cannot hold its resources (temper's are in
+  `temper/docs/design/domain/agent/tools.md`).
+- **Waited for within `tasks.hold_wait`.** A batch parked for a report
+  waits at most `tasks.hold_wait` from when it parked, the figure that
+  bounds a task's wait in a resource's queue (below). Then
+  it is refused whole, `Unreported`, `blocked_by` naming each member, in
+  the batch's order, some resource of whose has no report, and `task`
+  the first of them; its pins go with it. Its connector is not asked
+  again: a pinned name's report is never pushed out, so one still
+  missing then is one its connector never sent, and asking again would
+  wait on the same connector. Nothing is kept of a refused batch, and
+  its caller may call again. So a call that makes tasks always has an
+  answer: made, refused as it comes, or refused at its deadline.
 - **A taking has its effects,** as a release does (5): as the commit
   that makes a task active takes its write holds, each hold's connector
   hears of it with an outbox entry of its own, and does what its kind's
@@ -194,3 +233,11 @@ circle, each for another of the set, so that none of them could end.
   waits. A task waiting for holds past its bound is held all the same
   (2), and a connector keeps its own queue from circling: a kept task
   leaves it (../connectors.md, 3.3).
+
+## 8. Later
+
+- **A client's words for an unreported batch.** A person's batch refused
+  `Unreported` reaches a client in the form `ResourceUnavailable` takes
+  there, a required connector resource unavailable, naming no member,
+  until the client's wire carries `blocked_by` for it; an agent's call
+  names them (2).

@@ -88,3 +88,26 @@ fn forced_overdue_observes_real_tasks_operations_and_dispatch() {
     }
     assert!(!message.contains("task=5 state=absent"), "the review terminal has no stub: {message}");
 }
+
+#[test]
+fn a_busy_world_fails_through_overdue_naming_the_pending_service_component() {
+    use skein_shell::Host;
+    let scratch = real_loop::Scratch::new("overdue-service");
+    let service = real_loop::Frozen::new(scratch.path());
+    let first = format!("{:?}", service.pending(Time::ZERO));
+    let second = format!("{:?}", service.pending(Time::ZERO));
+    assert_eq!(first, second, "taking the snapshot never advances the service");
+    assert!(service.work_pending(Time::ZERO));
+    let patience = skein_lib::Duration::from_nanos(1_010_000_000);
+    let mut world = World::new(real_loop::FrozenJudge::failed(patience));
+    world.spawn(|| service);
+    let Err(message) = world.try_run(&skein_shell::Clock::new(), patience) else { panic!("the world cannot settle") };
+    assert!(message.contains("the referee failed the real loop before patience"), "{message}");
+    assert!(message.contains("engine: Some(\n        Engine {\n            work_pending: true"), "{message}");
+    assert!(message.contains("store: true"), "{message}");
+    assert!(message.contains("settled_revision:"), "{message}");
+    assert!(message.contains("pending_passes="), "{message}");
+    assert!(!message.contains("pending_passes=0 "), "the busy passes were counted: {message}");
+    assert!(message.contains("the temper judge's verdict: patience 10000000 ns; elapsed"), "{message}");
+    assert!(message.contains("thread runnable wait"), "{message}");
+}

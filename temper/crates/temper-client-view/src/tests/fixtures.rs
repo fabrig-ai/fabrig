@@ -59,6 +59,27 @@ pub fn browser_page_view(root: &temper_client_domain::Domain) -> crate::View {
     build(&mut view, root);
     view
 }
+/// A table hands each shell's checked vocabulary back between fresh trees.
+pub struct PageViews {
+    words: [Option<crate::words::Words>; 2],
+}
+impl PageViews {
+    pub fn new() -> Self {
+        Self { words: [Some(english(crate::words::Shell::Terminal)), Some(english(crate::words::Shell::Browser))] }
+    }
+    pub fn page(&mut self, root: &temper_client_domain::Domain, browser: bool) -> crate::View {
+        let words = self.words[usize::from(browser)].take().expect("the previous page returned its words");
+        let mut view = view_of(words);
+        build(&mut view, root);
+        view
+    }
+    pub fn recover(&mut self, view: crate::View) {
+        let words = view.into_words();
+        let browser = words.shell == crate::words::Shell::Browser;
+        self.words[usize::from(browser)] = Some(words);
+    }
+}
+
 /// Page-advertised sign-in ways, in either shell.
 pub fn sign_in_view(
     root: &temper_client_domain::Domain,

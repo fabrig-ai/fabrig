@@ -105,3 +105,65 @@ fn tier_acts_refuse_unknown_names_repeated_acts_and_invalid_reasons() {
     assert_eq!(d.application_answer(TOKEN), Some(Answered::Tier(Ok(()))));
     assert!(row(&d).hold.is_none());
 }
+
+#[test]
+fn pending_and_judged_landings_have_separate_bounds() {
+    let limits = Limits { landings_kept: 2, landings_pending: 3, ..LIMITS };
+    let mut d = restoring_in(domain_with_limits(&limits), Follows::Landing);
+    outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+    outputs(&mut d, Event::ReadAfresh);
+    baseline(&mut d);
+    attach(&mut d, 1, TIER_TASK);
+    settled_step(&mut d, OPEN, false);
+    made(&mut d, OPEN, skein_forge_client::Made::Branch(BASE));
+    settled_step(&mut d, DISPATCH, false);
+    made(&mut d, DISPATCH, skein_forge_client::Made::Set);
+    completed(&mut d, api::Conclusion::Success, None);
+    finish(&mut d);
+    held(&mut d);
+    let mut change = fixtures::opening_row();
+    change.base = b"main".as_slice().into();
+    d.changes.insert(CHANGE, change).unwrap();
+    let mut before = BASE;
+    for (commit, branch) in [
+        ([10; 32], b"main".as_slice()),
+        ([11; 32], b"main"),
+        ([12; 32], b"main"),
+        ([13; 32], b"goal"),
+        ([14; 32], b"goal"),
+    ] {
+        log_landing(&mut d, commit, branch);
+        if branch == b"main" {
+            seen(&mut d, Some(before), commit);
+            before = commit;
+        }
+    }
+    assert_eq!(logged_commits(&d), [10, 11, 12, 13, 14]);
+    assert!(row(&d).record.run.is_none(), "held by a person, so nothing is judged");
+    log_landing(&mut d, [15; 32], b"main");
+    seen(&mut d, Some(before), [15; 32]);
+    assert_eq!(logged_commits(&d), [11, 12, 13, 14, 15], "only the oldest pending landing leaves");
+    act(&mut d, TierAct::Release);
+    key_trees(&mut d);
+    let run = row(&d).record.run.as_ref().unwrap();
+    assert_eq!(run.number, 2);
+    // The tier's own range still holds the landing the log dropped.
+    assert_eq!(run.landings.iter().map(|landing| landing.commit[0]).collect::<Vec<_>>(), [10, 11, 12, 15]);
+    attach(&mut d, 2, NEXT_TASK);
+    settled_step(&mut d, OPEN, false);
+    made(&mut d, OPEN, skein_forge_client::Made::Branch([15; 32]));
+    settled_step(&mut d, DISPATCH, false);
+    made(&mut d, DISPATCH, skein_forge_client::Made::Set);
+    completed(&mut d, api::Conclusion::Success, None);
+    finish(&mut d);
+    assert_eq!(logged_commits(&d), [14, 15], "the oldest judged leave, in log order");
+    assert_eq!(d.landing_log(REPO).unwrap().landings[1].tiers[0].verdict, LoggedVerdict::Cleared { run: 2 });
+}
+
+fn log_landing(d: &mut Domain, commit: api::Commit, branch: &[u8]) {
+    d.changes.get_mut(&CHANGE).unwrap().base = branch.into();
+    landing_log::landed(d, env().wall, commit, CHANGE, Box::new([]), &mut Queue::uncapped());
+}
+fn logged_commits(d: &Domain) -> Vec<u8> {
+    d.landing_log(REPO).unwrap().landings.iter().map(|landing| landing.commit[0]).collect()
+}

@@ -101,7 +101,7 @@ pub fn retired_reload(config: &Path, client: &Path) {
 }
 fn reload(config: &Path, client: &Path, directory: &[u8], leaving: bool) {
     let document: serde_json::Value =
-        serde_json::from_slice(&std::fs::read(config.join("temper.json")).expect("configuration")).expect("JSON");
+        super::start_document(&config.join(temper_config_shell::FILE), temper_config_shell::Shape::Standalone);
     let engine = document
         .pointer("/application/clients/listener/socket")
         .and_then(serde_json::Value::as_str)

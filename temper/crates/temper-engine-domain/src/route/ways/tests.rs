@@ -188,6 +188,7 @@ fn repositories(domain: &mut Domain, env: &Env<crate::Limits>, home: bool) {
         }]),
         temper_engine_domain_forge_landing::Project::DEFAULT,
         forge::AfterLanding {
+            wait: temper_engine_domain_forge_change::Wait::Cleared,
             verdict: temper_engine_domain_forge_tiers::Settings {
                 retries: 1,
                 suspects: temper_engine_domain_forge_tiers::Suspects::TellAll

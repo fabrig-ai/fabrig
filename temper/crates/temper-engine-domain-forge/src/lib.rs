@@ -30,8 +30,10 @@ mod landing_proofs;
 mod milestone_rows;
 mod readiness;
 mod room;
+mod settling;
 mod stall;
 pub use approvals::{ApprovalWait, ShortApproval};
+pub use settling::gates_settled;
 pub use temper_engine_domain_forge_vocabulary::boundary;
 #[expect(hidden_glob_reexports, reason = "the top keeps its module visibility around the shared vocabulary")]
 mod brief;
@@ -56,8 +58,8 @@ pub use closer::CloserRow;
 #[expect(hidden_glob_reexports, reason = "the top keeps its module visibility around the shared vocabulary")]
 mod status;
 pub use status::{
-    BRIEF_LEDE_BYTES, BRIEF_SENTENCE_BYTES, Brief, Looked, LookedAnswer, ProjectFacts, SITTING, StatusRunning,
-    StatusView, status_paragraphs, status_subject,
+    BRIEF_LEDE_BYTES, BRIEF_SENTENCE_BYTES, Brief, Looked, LookedAnswer, PersonBrief, ProjectFacts, SITTING,
+    StatusRunning, StatusView, status_paragraphs, status_subject,
 };
 #[expect(hidden_glob_reexports, reason = "the top keeps its module visibility around the shared vocabulary")]
 mod drafts;
@@ -81,7 +83,7 @@ pub use away::{
 pub use findings::{
     AreaRow, FileFinding, FileFindingAnswer, Filer, Finding, FindingAnswer, FindingDone, FindingKind, FindingRefusal,
     FindingReply, FindingRow, FindingState, FindingWrite, Findings, HandFinding, HandFindingAnswer, Holder, Severity,
-    Triage, TriageFinding, TriageFindingAnswer, findings_subject, owner,
+    Triage, TriageFinding, TriageFindingAnswer, VerdictFiling, findings_subject, owner,
 };
 #[expect(hidden_glob_reexports, reason = "the top keeps its module visibility around the shared vocabulary")]
 mod dismissed;
@@ -145,6 +147,7 @@ use temper_engine_domain_forge_vocabulary::red;
 use temper_engine_domain_forge_vocabulary::result;
 #[expect(hidden_glob_reexports, reason = "the top keeps its module visibility around the shared vocabulary")]
 mod reconcile;
+pub use refusal::branch_name;
 #[expect(hidden_glob_reexports, reason = "the top keeps its module visibility around the shared vocabulary")]
 use temper_engine_domain_forge_vocabulary::refusal;
 mod removal;
@@ -168,6 +171,7 @@ mod tests;
 pub use temper_engine_domain_forge_vocabulary::text;
 #[expect(hidden_glob_reexports, reason = "the top keeps its module visibility around the shared vocabulary")]
 mod tiers;
+pub use tiers::tier_report_words;
 mod topics;
 #[expect(hidden_glob_reexports, reason = "the top keeps its module visibility around the shared vocabulary")]
 mod verification;

@@ -9,6 +9,7 @@ use skein_io::{self as io};
 use skein_lib::{List, Map, Queue, Reader, Time, Token};
 use temper_engine_domain as root;
 use temper_protocol_worker_wire::v1 as wire;
+use temper_protocol_worker_wire::v1::Record;
 /// Temper's roots, bridge and spoken entry, without constructing the other
 /// families in the engine's statement (temper/docs/design/protocol/wires.md, 4 and 10).
 pub fn application(
@@ -27,6 +28,7 @@ pub struct Workers {
     opening_limits: kit::Limits,
     figures: temper_engine_service_vocabulary::figures::Composer,
     copy: Option<AgentsCopy>,
+    local: Option<LocalCopy>,
     opening_ends: Map<Option<Box<[u8]>>, kit::Loss>,
 }
 /// The box's shell keeps this copy after restore and each committed change.
@@ -35,6 +37,13 @@ struct AgentsCopy {
     path: Box<[u8]>,
     initial: Option<temper_client_protocol_wire::v1::AgentFigures>,
     restored: bool,
+    writes: Queue<Box<[u8]>>,
+}
+/// The box's local worker setting, copied without changing the running worker.
+#[derive(Debug)]
+struct LocalCopy {
+    path: Box<[u8]>,
+    value: Option<jig_client_protocol_wire::WorkerSetting>,
     writes: Queue<Box<[u8]>>,
 }
 impl Workers {
@@ -65,6 +74,7 @@ impl Workers {
             notes: Queue::uncapped(),
             opening_limits: *limits,
             copy: None,
+            local: None,
             opening_ends: Map::with_capacity(opening_names),
         })
     }
@@ -79,6 +89,42 @@ impl Workers {
     pub(crate) fn take_agents_write(&mut self) -> Option<(Box<[u8]>, Box<[u8]>)> {
         let copy = self.copy.as_mut()?;
         Some((copy.path.clone(), copy.writes.pop()?))
+    }
+    pub(crate) fn keep_local(&mut self, path: Box<[u8]>, value: Option<jig_client_protocol_wire::WorkerSetting>) {
+        self.local = Some(LocalCopy { path, value, writes: Queue::uncapped() });
+    }
+    #[expect(clippy::type_complexity, reason = "a file act is its destination and whole value bytes")]
+    pub(crate) fn take_local_write(&mut self) -> Option<(Box<[u8]>, Box<[u8]>)> {
+        let copy = self.local.as_mut()?;
+        Some((copy.path.clone(), copy.writes.pop()?))
+    }
+    /// Keep the box's setting after restore and each committed worker change (configuration/figures.md, 4).
+    pub(crate) fn local(&mut self, workers: &[jig_domain_core::settings::WorkerSetting]) {
+        use jig_client_protocol_wire::{CEILINGS, WorkerSetting, WorkerSettingParts};
+        let Some(copy) = &mut self.local else { return };
+        for worker in workers {
+            if worker.number != 1 || worker.name.as_ref() != b"local" || worker.withdrawn {
+                continue;
+            }
+            let value = WorkerSetting::new(
+                &CEILINGS,
+                WorkerSettingParts {
+                    number: worker.number,
+                    name: worker.name.clone(),
+                    places: worker.places,
+                    digest: worker.digest,
+                    withdrawn: worker.withdrawn,
+                },
+            )
+            .expect("checked worker setting fits its wire");
+            if copy.value.as_ref() != Some(&value) {
+                let mut writer = skein_lib::Writer::new(skein_lib::usize_of(value.measure()));
+                value.encode(&mut writer).expect("measured local value");
+                copy.writes.push(writer.finish());
+                copy.value = Some(value);
+            }
+            break;
+        }
     }
     /// Give restored or changed agents figures to every worker (protocol/configuration/figures.md, 2).
     pub(crate) fn figures(

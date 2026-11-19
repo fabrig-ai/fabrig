@@ -3,7 +3,7 @@
 use super::{Problems, What};
 use crate::{limits, settings};
 use jig_protocol_config::{self as config, Path};
-use temper_protocol_worker_wire::v1 as payload;
+use temper_protocol_worker_wire::v1::{self as payload, Record};
 
 fn short(has: u64, needs: u64) -> Option<(u32, u32)> {
     if has < needs {

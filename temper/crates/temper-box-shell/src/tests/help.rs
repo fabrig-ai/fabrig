@@ -38,9 +38,9 @@ fn box_help_configures_coding_run_tools() {
     let (_, recipe) = before_start.split_once("**Coding runs:**").expect("coding run tools recipe before startup");
     let text = recipe.split_whitespace().collect::<Vec<_>>().join(" ");
     for required in [
-        "`CONFIG/temper.json`",
+        &format!("`CONFIG/{}`", temper_config_shell::FILE),
         "preserve the rest of the document",
-        "`application.environment`",
+        "`[environment]`",
         "Absent: the worker's own `HOME` and `PATH`",
         "exactly its entries, with the worker's own `HOME` and `PATH` added where it omits them",
         "no other process variables",
@@ -54,11 +54,23 @@ fn box_help_configures_coding_run_tools() {
     ] {
         assert!(text.contains(required), "coding run tools recipe missing {required}");
     }
-    let example = recipe.split("```json\n").nth(1).expect("command environment example");
-    let example: serde_json::Value =
-        serde_json::from_str(example.split("```").next().expect("JSON fence")).expect("valid environment JSON");
+    let example = recipe.split("```toml\n").nth(1).expect("command environment example");
+    let example = example.split("```").next().expect("TOML fence");
+    let parsed = temper_config_shell::parse(
+        example.as_bytes(),
+        temper_config_shell::Shape::Standalone,
+        &temper_config_shell::Facts { login: "coder".into(), hostname: "local".into(), provider_key: false },
+    )
+    .expect("environment TOML");
     let mut document = coding_run_agent_document();
-    document["environment"] = example["environment"].clone();
+    document["environment"] = serde_json::Value::Array(
+        parsed
+            .file
+            .environment
+            .into_iter()
+            .map(|(name, value)| serde_json::json!({"name": name, "value": value}))
+            .collect(),
+    );
     let configured = smith_agent_shell::config::from_value(document).expect("documented command environment");
     let entries = configured.service.environment.command_entries();
     for expected in
@@ -75,34 +87,25 @@ fn server_walk_gives_the_agents_environment_as_entries() {
     let (step, _) = steps.split_once("\n## 6. ").expect("step 6");
     let text = step.split_whitespace().collect::<Vec<_>>().join(" ");
     for required in [
-        "`application.environment`: optional list, not a map; unique names:",
+        "`[environment]`: optional table of strings; unique names",
         "Absent: the worker's own `HOME` and `PATH`",
         "exactly its entries, with the worker's own `HOME` and `PATH` added where it omits them",
         "no other process variables",
-        "top-level only `workers` and `application`",
-        "Remove `application.workers`",
+        "`secrets/worker.secret`",
         "No `claude` member",
         "temper help box",
     ] {
         assert!(text.contains(required), "step 5 must explain {required}");
     }
-    let (_, recipe) = step.split_once("`application.environment`: optional list").expect("agent environment");
-    let example = recipe.split('`').nth(1).expect("environment entries example");
-    let environment: serde_json::Value = serde_json::from_str(example).expect("valid environment JSON");
-    let mut document = coding_run_agent_document();
-    document["environment"] = environment.clone();
-    let configured = smith_agent_shell::config::from_value(document.clone()).expect("documented entries parse");
-    assert_eq!(
-        configured.service.environment.command_entries().as_ref(),
-        [Box::from(b"PATH=/usr/bin:/bin".as_slice())]
-    );
-    let mut map = serde_json::Map::new();
-    for entry in environment.as_array().expect("environment entries") {
-        map.insert(entry["name"].as_str().expect("entry name").into(), entry["value"].clone());
-    }
-    document["environment"] = map.into();
-    let why = smith_agent_shell::config::from_value(document).err().expect("environment map is refused").detail();
-    assert!(why.contains("invalid type: map, expected a sequence"), "{why}");
+    let example = step.split_once("```toml\n").expect("worker file").1.split_once("```").expect("fence").0;
+    let read = temper_config_shell::parse(
+        example.as_bytes(),
+        temper_config_shell::Shape::WorkerAlone,
+        &temper_config_shell::Facts { login: "coder".into(), hostname: "local".into(), provider_key: false },
+    )
+    .expect("worker TOML");
+    assert_eq!(read.file.environment, [("PATH".into(), "/usr/bin:/bin".into())]);
+    assert_eq!(read.file.name.as_deref(), Some("w1"));
 }
 
 #[test]
@@ -161,7 +164,7 @@ fn server_walk_says_when_a_forges_sign_in_meta_appears() {
         }),
     );
     assert!(text.contains(line.trim_end_matches('\n')), "step 3 must give the printed diagnostic: {line}");
-    assert!(text.contains("With `application.sign_in.forges` on a new store, `serve`'s stderr says"));
+    assert!(text.contains("With `[[sign_in.forges]]` on a new store, `serve`'s stderr says"));
     assert!(text.contains("until step 6 connects it"));
     let (_, steps) = page.split_once("\n## 6. ").expect("step 6");
     let (step, _) = steps.split_once("\n## 7. ").expect("step 7");
@@ -201,6 +204,20 @@ fn box_step_seven_names_every_ending_and_the_direct_report() {
         assert!(text.contains(words), "step 7 must explain {words}");
     }
     assert!(!text.contains("its tree says why"));
+}
+
+#[test]
+fn template_and_charter_help_name_the_stock_and_own_number_ranges() {
+    for (kind, plural) in [("template", "templates"), ("charter", "charters")] {
+        let page = help::answer(&configured(&["help", kind])).expect("settings help");
+        let (_, what) = page.split_once("## What it is\n").expect("What it is");
+        let what = what.split("\n## ").next().expect("section");
+        let text = what.split_whitespace().collect::<Vec<_>>().join(" ");
+        let words = format!(
+            "Numbered: the stock's {plural} take 1 to 32, and your own 33 to 64; a {kind} below 33 that the stock doesn't have is refused."
+        );
+        assert!(text.contains(&words), "{kind}: {text}");
+    }
 }
 
 #[test]
@@ -288,7 +305,7 @@ fn tester_recipe_copies_a_stock_charter_without_landing_tools() {
         attempt: 1,
         conversation: 1,
         live: jig_domain_host::LiveAsk::NONE,
-        charter: 3,
+        charter: 33,
         run: Box::new(engine::RunCharter {
             revision: 1,
             ended_by: tasks::EndedBy::Result,
@@ -343,18 +360,18 @@ fn tester_recipe_template_reports_without_a_goal_branch() {
         .expect("documented settings file");
     assert_eq!(items.len(), 1);
     let item = items.as_slice().first().expect("template item");
-    assert_eq!(item.setting, Setting::Template(SettingNumber { number: 3 }));
+    assert_eq!(item.setting, Setting::Template(SettingNumber { number: 33 }));
     let SettingEdit::Set(set) = &item.edit else { panic!("example sets the template") };
     let SettingValue::Template(template) = &set.value else { panic!("template value") };
-    assert_eq!(template.number, 3);
-    assert_eq!(template.executor, TemplateExecutor::Charter(3), "the recipe's copied charter");
+    assert_eq!(template.number, 33);
+    assert_eq!(template.executor, TemplateExecutor::Charter(33), "the recipe's copied charter");
     assert_eq!(template.contract, TaskContractDocument::Report { words: 16000 });
     assert!(template.resources.is_empty(), "no goal branch");
     assert_eq!(template.flags.ended_by, settings_form::view::EndedBy::Result);
     assert_eq!(template.tracked, Some(1));
     let stock = tester_stock();
-    assert!(stock.charters.iter().all(|charter| charter.number != 3), "free charter number");
-    assert!(stock.templates.iter().all(|template| template.number != 3), "free template number");
+    assert!(stock.charters.iter().all(|charter| charter.number != 33), "free charter number");
+    assert!(stock.templates.iter().all(|template| template.number != 33), "free template number");
 }
 
 #[test]
@@ -828,7 +845,7 @@ fn account_and_deployment_help_explain_offering_another_model() {
         "`sources`",
         "`endpoint` names an entry in its `endpoints` list",
         "`address.socket`",
-        "`CONFIG/temper.json`",
+        &format!("`CONFIG/{}`", temper_config_shell::FILE),
         "claude-haiku-5-5",
         "output",
         "reasoning_item",
@@ -872,7 +889,7 @@ fn box_and_tier_help_name_the_host_runners_node_prerequisite() {
             "JavaScript `uses:` actions",
             "`actions/checkout@v4`",
             "`actions/upload-artifact@v3`",
-            "`application.machine.owned.runner.path`",
+            "`--runner-path` at forge preparation",
             "`/usr/local/bin:/usr/bin:/bin`",
             "restart",
             shell,
@@ -915,7 +932,7 @@ fn box_help_names_delivery_checks_path_and_tools() {
         "`PATH=/home/box/.cargo/bin:W/bin:/usr/local/bin:/usr/bin:/bin`",
         "absolute paths",
         "restart the box unit after changing its environment",
-        "`application.machine.owned.runner.path` configures the runner alone",
+        "`--runner-path` at forge preparation configures the runner alone",
     ] {
         assert!(prerequisites.contains(required), "delivery checks missing {required}: {prerequisites}");
     }
@@ -931,14 +948,14 @@ fn box_and_tier_help_explain_shared_capacity_and_existing_boxes() {
         for required in [
             "CI and tiers",
             "`temper-host`",
-            "`application.machine.owned.runner.capacity`",
+            "`--runner-capacity` at forge preparation",
             default,
             "2 for one single-job tier plus CI, or 3 for two such tiers plus CI",
             "multi-job workflows",
             "other repositories",
             "Ctrl-C or SIGTERM",
             wait,
-            "`CONFIG/temper.json`",
+            &format!("`{}`", temper_config_shell::FILE),
             "same",
             "registration and secrets",
         ] {
@@ -1047,6 +1064,12 @@ fn tier_help_explains_report_formats_and_preserving_configuration() {
         "Preserve the existing settings",
         "restart",
         "`tier_retries` and `verification_bound_ms` beside the project's `by`",
+        "`\"wait\": \"landed\"`",
+        "a change ends at its landing and its tiers judge it later",
+        "`change show TASK --until landed` for such a change",
+        "finding blamed on the landing and goal behind it",
+        "failures no uncleared red finding of the tier holds",
+        "at most 64 failing tests, each id at most 512 bytes",
     ] {
         assert!(text.contains(instruction), "missing {instruction}: {text}");
     }

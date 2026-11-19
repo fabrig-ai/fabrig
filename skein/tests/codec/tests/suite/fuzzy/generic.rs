@@ -46,10 +46,10 @@ mod tests {
     fn generic_and_generated_decode_alike() {
         let mut value = Value::with_room(generic::ROOM);
         let mut cases = 0_u32;
-        for family in generated::families() {
+        for family in [generated::every_lean()].into_iter().chain(generated::families()) {
             let schema = skein_codec::schema::parse(family.text.as_bytes()).expect("schema");
-            let drawn_schema = skein_codegen::parse(family.text).expect("generator schema");
-            let goldens = skein_codegen::goldens(&drawn_schema);
+            let drawn_schema = skein_codegen::values(family.text).schema.clone();
+            let goldens = skein_codegen::values(family.text).goldens.clone();
             for root in family.roots {
                 let decl = schema.find(root.name.as_bytes()).expect("root");
                 let mut oracle = generic::Oracle { schema: &schema, decl, family: &family, root, value: &mut value };
@@ -102,7 +102,7 @@ mod tests {
                 }
             }
         }
-        // 50 roots * (6144 drawn/mutated + 784 arbitrary), plus 4 per golden.
-        assert_eq!(cases, 347_008);
+        // 64 roots * (6144 drawn/mutated + 784 arbitrary), plus 4 per golden.
+        assert_eq!(cases, 444_160);
     }
 }

@@ -19,7 +19,14 @@ const ROOM: u32 = 64;
 pub fn step(machine: &mut Machine, call: Call, answers: &mut Queue<Answer>) {
     let Call { ticket, ask } = call;
     let result = match ask {
-        Ask::Spawn { root, program, args, env: _, dir, pipes } => {
+        Ask::Spawn { root, reach, program, args, env: _, dir, pipes } => {
+            let layer = match reach.as_deref().map(|reach| machine.reach(reach)).transpose() {
+                Ok(layer) => layer,
+                Err(error) => {
+                    answers.push(Answer { ticket, result: Err(error) });
+                    return;
+                }
+            };
             if !dir.is_empty() && dir.as_ref() != b"." {
                 match machine.open(opened(root), &dir, How::Directory) {
                     Ok(directory) => machine.close(directory),
@@ -29,7 +36,16 @@ pub fn step(machine: &mut Machine, call: Call, answers: &mut Queue<Answer>) {
                     }
                 }
             }
-            program_of(&program, &args, &pipes).map(Reply::Program)
+            let name = program.rsplit(|&byte| byte == b'/').next().unwrap_or(&program);
+            if name == b"reach_probe" {
+                crate::probe::questions(&args).and_then(|questions| {
+                    let output = pipes.iter().find(|pipe| pipe.way == Way::Out).ok_or(Error::InvalidArgument)?.child;
+                    let report = machine.probe(opened(root), &dir, &pipes, layer, &questions)?;
+                    Ok(Reply::Program(Program::Report { output, bytes: crate::probe::encode(&report) }))
+                })
+            } else {
+                program_of(&program, &args, &pipes).map(Reply::Program)
+            }
         }
         Ask::Open { root, path, how } => match machine.open(opened(root), &path, how_of(how)) {
             Ok(file) => Ok(Reply::Opened(Handle::new(file.raw()))),

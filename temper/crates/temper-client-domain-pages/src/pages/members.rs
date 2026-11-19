@@ -69,6 +69,24 @@ impl Members {
         true
     }
 
+    pub(super) fn party_name(&self, party: u64) -> Option<&[u8]> {
+        for read in &self.reads {
+            if let Read::Project(project) = read {
+                for member in &project.members {
+                    if member.party == party {
+                        if !member.name.bytes().is_empty() {
+                            return Some(member.name.bytes());
+                        }
+                        if !member.login.bytes().is_empty() {
+                            return Some(member.login.bytes());
+                        }
+                    }
+                }
+            }
+        }
+        None
+    }
+
     #[must_use]
     pub fn read(&self, project: u32) -> &Read {
         for (index, row) in self.projects.iter().enumerate() {

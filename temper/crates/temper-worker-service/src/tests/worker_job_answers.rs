@@ -6,6 +6,7 @@ use jig_domain_link::JobKind;
 use root::tooling::{Event, Exit, Request};
 use skein_io as io;
 use skein_lib::{List, Queue, Token, Wall};
+use temper_protocol_worker_wire::v1::Record;
 use temper_worker_domain as root;
 
 const JOB: Token = Token::new(81);
@@ -188,10 +189,10 @@ fn assert_merge_answer(up: &hub::LinkUp, parts: &[jig_protocol_worker_wire::Part
     let mut reader = Reader::new(&part.bytes);
     let left = v1::Left::decode(&fixtures::wire_limits(), &mut reader).unwrap();
     assert!(reader.is_empty());
-    assert_eq!(left.landed().len(), 1);
-    let landed = left.landed().get(0).unwrap();
-    assert_eq!(landed.tag(), (1_u64 << 32_u32) | 3);
-    assert_eq!(landed.commit(), &MERGE_PUSHED);
+    assert_eq!(left.landed.len(), 1);
+    let landed = left.landed.get(0).unwrap();
+    assert_eq!(landed.tag, (1_u64 << 32_u32) | 3);
+    assert_eq!(&landed.commit, &MERGE_PUSHED);
 }
 
 fn merge_worker() -> (Worker, fixtures::worker_peers::LinkPeer) {
@@ -302,13 +303,13 @@ fn failed_job_answers_carry_their_resources_and_refusals_carry_none() {
             );
             let preparation = v1::Preparation::decode(&fixtures::wire_limits(), &mut Reader::new(&part.bytes)).unwrap();
             let v1::Preparation::Refused(tag) = preparation else { panic!("refused repository") };
-            assert_eq!(tag.tag(), (1_u64 << 32_u32) | 3);
+            assert_eq!(tag.tag, (1_u64 << 32_u32) | 3);
             assert_eq!(work, hub::Work { left: None, saved: None });
         } else {
             assert_eq!(failure, hub::JobFailure::Cancelled(hub::Reason::Engine));
             assert_eq!(work.left, Some(part.token));
             let left = v1::Left::decode(&fixtures::wire_limits(), &mut Reader::new(&part.bytes)).unwrap();
-            assert_eq!(left.landed().get(0).unwrap().commit(), &MERGE_PUSHED);
+            assert_eq!(left.landed.get(0).unwrap().commit, MERGE_PUSHED);
         }
         while worker.notes().pop().is_some() {}
         let root::Event::AssignJob { mut job, spec, .. } = merge_assignment() else { panic!("job assignment") };

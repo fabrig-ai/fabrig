@@ -66,7 +66,7 @@ fn settings_world(
 fn call(world: &mut ClientWorld, agent: ClientId, words: &[&[u8]]) -> String {
     let number = fixtures::give(world, agent, words);
     let printed = fixtures::answered(world, agent, number);
-    assert_eq!(printed.status, 0, "{printed:?}");
+    assert_eq!(printed.status, 0, "{words:?}: {printed:?}");
     String::from_utf8(printed.stdout.into_vec()).expect("ctl UTF-8")
 }
 
@@ -313,6 +313,7 @@ fn change_one_member(setting: c::Setting, value: &mut c::SettingValue) {
         // jig/docs/design/domain/engine/settings.md, 2: the template stays within the task grace bound.
         c::SettingValue::Template(value) => value.grace = Some(Duration::from_secs(4)),
         c::SettingValue::Policy(value) => value.period_spend = CHANGED_SPEND,
+        c::SettingValue::Limits(_) => panic!("limits have no file editor"),
         c::SettingValue::Rules(value) => value.maximum_run_spend += 1,
         c::SettingValue::Application(bytes) => {
             if matches!(setting, c::Setting::Application { kind: 3, .. }) {
@@ -658,13 +659,13 @@ fn a_settings_apply_past_64_kib_reports_the_stored_policy_bound_without_changes(
     let mut world = settings_world([configuration(), configuration()], client, Some(65_536));
     let agent = fixtures::agent(&mut world);
     let mut charter = configuration().core.defaults.charters[0].clone();
-    charter.number = 2;
+    charter.number = 33;
     charter.policy.instructions = vec![b'x'; 82_000].into_boxed_slice();
     let charter = value_json(
-        c::Setting::Charter(c::SettingNumber { number: 2 }),
+        c::Setting::Charter(c::SettingNumber { number: 33 }),
         client_value(&settings::Value::Charter(Box::new(charter))),
     );
-    let file = format!(r#"{{"items":[{{"setting":{{"kind":"charter","number":2}},"set":{charter}}}]}}"#);
+    let file = format!(r#"{{"items":[{{"setting":{{"kind":"charter","number":33}},"set":{charter}}}]}}"#);
     let before = call(&mut world, agent, &[b"settings", b"show"]);
     assert!(before.starts_with("newest revision 1\n"), "{before}");
     let number = fixtures::give_with_file(
@@ -677,7 +678,7 @@ fn a_settings_apply_past_64_kib_reports_the_stored_policy_bound_without_changes(
     assert_eq!(refused.status, 2, "{refused:?}");
     assert_eq!(
         String::from_utf8_lossy(&refused.stderr),
-        "settings apply: out of shape; item 0; charter 2: shape; stored policy: supplied 82376; maximum root.journal.run_bytes 65536\n",
+        "settings apply: out of shape; item 0; charter 33: shape; stored policy: supplied 82376; maximum root.journal.run_bytes 65536\n",
     );
     assert_eq!(call(&mut world, agent, &[b"settings", b"show"]), before);
     // The world keeps decoded records; ctl pending lists the same records through this renderer.
@@ -1035,4 +1036,31 @@ fn ctl_directory_overlay_exports_applies_back_and_takes_a_new_default_after_rest
     assert!(shown.contains("new default\\n\\ncommon\\n\\nour implementation rules"), "{shown}");
     let inventory = call(&mut world, agent, &[b"settings", b"show"]);
     assert!(inventory.contains("charter 2: overlay"), "{inventory}");
+}
+
+#[test]
+fn limit_files_apply_show_and_review_as_one_named_list() {
+    let mut world = revision_world();
+    let agent = fixtures::agent(&mut world);
+    let file = br#"{"items":[{"setting":{"kind":"limits"},"set":[{"name":"tasks.tasks","value":32,"reason":"more work"}]},{"setting":{"kind":"temper-limits"},"set":[{"name":"forge.entries","value":16,"reason":"dev's outbox"}]}]}"#;
+    let number = fixtures::give_with_file(
+        &mut world,
+        agent,
+        &[b"settings", b"apply", b"limits.json", b"--against", b"1", b"--key", b"limits"],
+        file,
+    );
+    let applied = fixtures::answered(&mut world, agent, number);
+    assert_eq!(applied.status, 0, "{applied:?}");
+    assert!(call(&mut world, agent, &[b"settings", b"show", b"limits"]).contains("tasks.tasks = 32  more work"));
+    assert!(
+        call(&mut world, agent, &[b"settings", b"show", b"temper-limits"]).contains("forge.entries = 16  dev's outbox")
+    );
+    for words in [vec![b"settings".as_slice(), b"show"], vec![b"revision", b"show", b"2"]] {
+        let text = call(&mut world, agent, &words);
+        let first = text.find("forge.entries = 16  dev's outbox [temper-limits]").expect(&text);
+        let second = text.find("tasks.tasks = 32  more work [limits]").expect(&text);
+        assert!(first < second, "one list by name: {text}");
+    }
+    let shown = call(&mut world, agent, &[b"settings", b"show", b"temper-limits", b"--json"]);
+    assert!(shown.contains(r#""value":[{"name":"forge.entries","value":16,"reason":"dev's outbox"}]"#), "{shown}");
 }

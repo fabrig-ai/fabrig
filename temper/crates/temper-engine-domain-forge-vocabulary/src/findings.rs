@@ -1,4 +1,5 @@
-//! Findings (temper/docs/design/domain/findings.md, 2, 6, 9; domain/areas.md, 3 to 7).
+//! Findings (temper/docs/design/domain/findings.md, 2, 6, 9; domain/areas.md, 3 to 7;
+//! domain/red-findings.md, 3, 6, 7, 9).
 use crate::{
     Request,
     settings::{AreaOwner, ProjectAreas},
@@ -7,6 +8,7 @@ use alloc::boxed::Box;
 use skein_lib::{List, Queue, Wall};
 
 mod words;
+pub use temper_client_protocol_wire::goals::id as goal_id;
 pub use words::{cut_words, news_words, ownership_words};
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -68,6 +70,51 @@ pub struct Finding {
     pub reason: Option<Box<[u8]>>,
     pub signature: Option<FindingSignature>,
     pub seen: Option<u32>,
+    pub blame: Option<FindingBlame>,
+    pub cleared: Option<FindingCleared>,
+}
+impl Finding {
+    #[must_use]
+    pub fn uncleared_red(&self) -> bool {
+        self.kind == FindingKind::Red && self.blame.is_some() && self.cleared.is_none()
+    }
+    #[must_use]
+    pub fn erasable(&self) -> bool {
+        self.cleared.is_some() || (self.state.ended() && !self.uncleared_red())
+    }
+    #[must_use]
+    pub fn needs_no_triage(&self) -> bool {
+        self.cleared.is_some()
+    }
+}
+/// Blame kept by a red finding filed under `wait: landed` (domain/red-findings.md, 3).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct FindingBlame {
+    pub strength: BlameStrength,
+    pub landings: Box<[BlamedLanding]>,
+}
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum BlameStrength {
+    Owned,
+    Suspected,
+    Unblamed,
+}
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct BlamedLanding {
+    pub commit: skein_forge::api::Commit,
+    pub goals: Box<[BlamedGoal]>,
+}
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct BlamedGoal {
+    pub goal: u64,
+    pub milestone: Option<u64>,
+    pub person: Option<u64>,
+}
+/// The run that observed a finding cleared (domain/red-findings.md, 6).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct FindingCleared {
+    pub run: u64,
+    pub at: Wall,
 }
 /// Matching identity kept on a finding (domain/findings.md, 4).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -76,21 +123,27 @@ pub struct FindingSignature {
     pub source: Box<[u8]>,
     pub ids: Box<[Box<[u8]>]>,
     pub first: Box<[u8]>,
+    pub many: bool,
 }
 impl FindingSignature {
+    /// The most ids kept on a finding (temper/docs/design/domain/findings.md, 4).
+    pub const IDS: u32 = 64;
+    /// The most bytes of each id kept on a finding (temper/docs/design/domain/findings.md, 4).
+    pub const ID_BYTES: u32 = 512;
+
     #[must_use]
     pub fn fits(&self) -> bool {
         if self.source.is_empty()
             || self.source.len() > 64
-            || self.ids.is_empty()
-            || self.ids.len() > 64
+            || (self.ids.is_empty() != self.many)
+            || self.ids.len() > skein_lib::usize_of(Self::IDS)
             || self.first.len() > 512
         {
             return false;
         }
         let mut previous: Option<&[u8]> = None;
         for id in &self.ids {
-            if id.len() > 512 {
+            if id.len() > skein_lib::usize_of(Self::ID_BYTES) {
                 return false;
             }
             if let Some(previous) = previous
@@ -116,6 +169,18 @@ pub struct FileFinding {
     pub area: Option<Box<[u8]>>,
     pub title: Box<[u8]>,
     pub body: Box<[u8]>,
+}
+/// A judged landing tier's filing (temper/docs/design/domain/red-findings.md, 2 and 9).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct VerdictFiling {
+    pub project: u32,
+    pub kind: FindingKind,
+    pub severity: Severity,
+    pub title: Box<[u8]>,
+    pub body: Box<[u8]>,
+    pub signature: FindingSignature,
+    pub blame: Option<FindingBlame>,
+    pub follow: Option<u32>,
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct HandFinding {
@@ -401,4 +466,20 @@ pub fn body_fits(body: &[u8]) -> bool {
 #[must_use]
 pub fn reason_fits(reason: &[u8]) -> bool {
     !reason.is_empty() && reason.len() <= 400 && body_fits(reason)
+}
+
+pub(crate) fn signature_bytes(signature: &FindingSignature) -> Option<u64> {
+    skein_lib::len_u64(signature.source.len())
+        .checked_add(skein_lib::len_u64(signature.first.len()))?
+        .checked_add(crate::tiers::tests_bytes(&signature.ids)?)
+}
+pub(crate) fn blame_bytes(blame: &FindingBlame) -> Option<u64> {
+    let mut held =
+        skein_lib::len_u64(blame.landings.len()).checked_mul(u64::try_from(size_of::<BlamedLanding>()).ok()?)?;
+    for landing in &blame.landings {
+        held = held.checked_add(
+            skein_lib::len_u64(landing.goals.len()).checked_mul(u64::try_from(size_of::<BlamedGoal>()).ok()?)?,
+        )?;
+    }
+    Some(held)
 }

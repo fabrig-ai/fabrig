@@ -573,7 +573,8 @@ fn settings_scopes(ask: &Ask) -> Option<skein_lib::Set<u32>> {
                 | c::Setting::Provider(_)
                 | c::Setting::Worker(_)
                 | c::Setting::Model(_)
-                | c::Setting::Rules => 0,
+                | c::Setting::Rules
+                | c::Setting::Limits => 0,
                 c::Setting::ProjectPolicy { project } => project,
                 c::Setting::Application { scope, .. } => scope,
             };

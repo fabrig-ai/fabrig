@@ -54,6 +54,7 @@ pub(super) fn comment(
     kind: CommentKind,
     link: &[u8],
     room: usize,
+    many: Option<&p::ManyTests>,
 ) -> Box<[u8]> {
     let run = joined(&[tier, b" run ", skein_lib::Decimal::of(number).as_bytes()]);
     let suffix = if link.is_empty() { Box::from(b".".as_slice()) } else { joined(&[b".\n\nRun: ", link]) };
@@ -71,7 +72,9 @@ pub(super) fn comment(
             p::Blame::Suspect(tests) => (joined(&[b"Suspected: ", &run, b" suspects this landing of "]), tests),
         },
     };
-    let p::Failures::Tests(tests) = tests else { return joined(&[&prefix, b"many tests", &suffix]) };
+    let p::Failures::Tests(tests) = tests else {
+        return many_comment(&prefix, &suffix, many, room);
+    };
     let mut complete = Box::from(b"".as_slice());
     for (at, test) in tests.iter().enumerate() {
         complete = joined(&[&complete, if at == 0 { b"" } else { b", " }, test]);
@@ -95,6 +98,29 @@ pub(super) fn comment(
     }
     joined(&[&prefix, &ids, &suffix])
 }
+fn many_comment(prefix: &[u8], suffix: &[u8], many: Option<&p::ManyTests>, room: usize) -> Box<[u8]> {
+    let fallback = joined(&[prefix, b"many tests", suffix]);
+    let Some(many) = many else { return fallback };
+    let prefix = joined(&[prefix, b"many tests; its report names "]);
+    let count = u32::try_from(many.tests.len()).expect("bounded many names");
+    let mut ids = Box::from(b"".as_slice());
+    let mut fitted = fallback;
+    // The last id may remove the remainder, so inspect every whole prefix.
+    for (at, test) in many.tests.iter().enumerate() {
+        ids = joined(&[&ids, if at == 0 { b"" } else { b", " }, test]);
+        let kept = u32::try_from(at).expect("bounded name index").checked_add(1).expect("one more name");
+        let tail = match crate::many_remainder(many, count.checked_sub(kept).expect("names left out")) {
+            Some(tail) => joined(&[b", ", &tail]),
+            None => Box::new([]),
+        };
+        let next = joined(&[&prefix, &ids, &tail, suffix]);
+        if next.len() <= room {
+            fitted = next;
+        }
+    }
+    fitted
+}
+
 fn remainder(count: u32, preceding: bool) -> Box<[u8]> {
     if count == 0 {
         return Box::new([]);
@@ -135,6 +161,74 @@ fn repairing_pull(d: &Domain, row: &TierRow, commit: Commit, range: &[p::Landing
                     && change.repairs == Some(commit)
                 {
                     return change.pull;
+                }
+            }
+        }
+    }
+    None
+}
+
+/// Repairs are projected once per retained pull, after verification's repairs (red-findings.md, 6).
+fn finding_repairs(d: &Domain, row: &TierRow, number: u64, range: &[p::Landing], comments: &mut List<Comment>) {
+    let project = d.repositories.get(&row.repository).expect("adopted tier").project;
+    let mut cleared = List::uncapped();
+    for (_, finding) in d.findings(project) {
+        if let Some(cleared_by) = finding.cleared
+            && cleared_by.run == number
+            && let Some(signature) = &finding.signature
+            && signature.repository == row.repository
+            && signature.source == row.tier
+            && let Some(blame) = &finding.blame
+        {
+            cleared.push((finding.number, blame)).expect("cleared findings");
+        }
+    }
+    let Some(log) = d.landing_logs.get(&row.repository) else { return };
+    for landing in &log.landings {
+        let mut findings = List::uncapped();
+        for (number, blame) in &cleared {
+            for blamed in &blame.landings {
+                if blamed.commit == landing.commit {
+                    findings.push(*number).expect("cleared findings blaming this landing");
+                    break;
+                }
+            }
+        }
+        if findings.is_empty() {
+            continue;
+        }
+        let kind = CommentKind::Repaired { by: finding_repairing_pull(log, range, findings.as_slice()) };
+        for member in &landing.changes {
+            let Some(pull) = member.pull else { continue };
+            let mut posted = false;
+            for comment in comments.as_slice() {
+                if comment.pull == pull {
+                    match comment.kind {
+                        CommentKind::Repaired { .. } => posted = true,
+                        CommentKind::Verdict { .. } => {}
+                    }
+                }
+            }
+            if !posted {
+                comments
+                    .push(Comment { pull, landing: landing.commit, kind })
+                    .expect("bounded repaired logged members");
+            }
+        }
+    }
+}
+fn finding_repairing_pull(log: &crate::LandingLog, range: &[p::Landing], findings: &[u32]) -> Option<u64> {
+    for landing in range.iter().rev() {
+        for logged in &log.landings {
+            if logged.commit != landing.commit {
+                continue;
+            }
+            for member in &logged.changes {
+                let Some(pull) = member.pull else { continue };
+                for number in &member.fixes {
+                    if findings.contains(number) {
+                        return Some(pull);
+                    }
                 }
             }
         }
@@ -190,6 +284,7 @@ pub(super) fn compose(d: &Domain, row: &TierRow, verdict: &p::Verdict) -> Postin
             }
         }
     }
+    finding_repairs(d, row, verdict.number, range, &mut comments);
     Posting {
         number: verdict.number,
         tip: verdict.tip,
@@ -263,7 +358,7 @@ fn write(d: &Domain, row: &TierRow, posting: &Posting) -> Write {
     Write::Post {
         number: comment_row.pull,
         key,
-        body: comment(&row.tier, posting.number, blame, comment_row.kind, &posting.link, room),
+        body: comment(&row.tier, posting.number, blame, comment_row.kind, &posting.link, room, row.many.as_ref()),
     }
 }
 pub(super) fn active(row: &TierRow) -> bool {
@@ -295,7 +390,7 @@ pub(super) fn step(d: &mut Domain, env: &Env<Limits>, row: &mut TierRow, entry: 
                 landings: blames.into_boxed(),
                 flakes: Box::new([]),
             };
-            let words = super::posted_words(&row.tier, &verdict, &posting.landings);
+            let words = super::posted_row_words(row, &verdict, &posting.landings);
             super::done(d, row, words, out);
         } else {
             row.posting = Some(posting);

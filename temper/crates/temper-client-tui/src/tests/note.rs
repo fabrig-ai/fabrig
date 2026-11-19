@@ -1,8 +1,8 @@
 use super::fixtures as f;
 use crate::Note;
-use skein_lib::{List, Wall, bytes::concat};
+use skein_lib::{List, Wall};
 
-type Row<'a> = (&'a str, &'a [u8], &'a [u8], Option<Note>);
+type Row<'a> = (&'a str, &'a [u8], &'a crate::Origin, Option<Note>);
 
 #[test]
 fn the_sign_in_notes_are_one_bounded_line_for_the_address() {
@@ -22,17 +22,7 @@ fn the_sign_in_notes_are_one_bounded_line_for_the_address() {
             }
         }
     }
-    let bound_address = b"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:8367";
-    let at_bound = concat(&[bound_address, b" until 18446744073709551615\n"]);
-    let past_bound = concat(&[b"a", &at_bound]);
-    let past_address = concat(&[b"a", bound_address]);
-    assert_eq!(Note::MOST, 64);
-    assert_eq!(at_bound.len(), 64);
-    assert_eq!(past_bound.len(), 65);
     let rows: &[Row<'_>] = &[
-        ("64 bytes", &at_bound, bound_address, Some(Note::Until(Wall::from_nanos(u64::MAX)))),
-        ("65 bytes", &past_bound, &past_address, None),
-        ("64 without line feed", &past_bound[..64], &past_address, Some(Note::Until(Wall::from_nanos(u64::MAX)))),
         ("another address", b"localhost:8367 until 123", f::ADDRESS, None),
         ("another signed-out address", b"localhost:8367 signed-out", f::ADDRESS, None),
         ("unknown word", b"127.0.0.1:8367 unknown", f::ADDRESS, None),
@@ -65,4 +55,21 @@ fn the_sign_in_notes_are_one_bounded_line_for_the_address() {
         }
     }
     assert!(failures.is_empty(), "note rows: {failures:?}");
+}
+
+#[test]
+fn notes_name_the_origin_authority_and_fit_the_longest_name() {
+    let longest = crate::Origin::Https { name: super::origin::long_name(), port: 65535 };
+    let named = super::origin::named(443);
+    assert_eq!(Note::MOST, 300);
+    assert_eq!(Note::Until(Wall::from_nanos(123)).print(&named).as_ref(), b"dev.fabrig.ai:443 until 123\n");
+    for origin in [&named, &longest] {
+        for note in [Note::Until(Wall::from_nanos(u64::MAX)), Note::SignedOut] {
+            let line = note.print(origin);
+            assert!(line.len() <= 300);
+            assert_eq!(Note::read(&line, origin), Some(note));
+            assert_eq!(Note::read(&line, f::ADDRESS), None);
+        }
+    }
+    assert_eq!(Note::read(&[b'x'; 301], &longest), None);
 }

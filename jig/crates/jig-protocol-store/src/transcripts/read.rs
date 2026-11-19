@@ -4,6 +4,7 @@ use crate::{Arrived, Below, Event, Phase, Store, TranscriptRead, codec, keys, re
 use alloc::boxed::Box;
 use jig_domain_core_vocabulary::{self as domain, TurnRecord};
 use jig_domain_tasks as tasks;
+use skein_codec::Record as _;
 use skein_io::file;
 use skein_lib::{List, Queue, Reader, Token, Writer, length::len_u64};
 mod party;

@@ -20,3 +20,8 @@ mod public_http;
 mod fuzzy {
     mod cursor;
 }
+
+mod codec_memory {
+    include!("../../../../../skein/testing/codec-memory.rs");
+}
+mod largest_memory;

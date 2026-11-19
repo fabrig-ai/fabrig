@@ -36,8 +36,8 @@ pub enum Command {
     SnapshotReset { commit: git::Commit },
     Version,
     Origin { directory: Box<[u8]> },
-    Clone { directory: Box<[u8]>, format: Format },
-    Remote { remote: Box<[u8]> },
+    Clone { directory: Box<[u8]>, format: Format, bare: bool },
+    Remote { remote: Box<[u8]>, format: Format },
     Store { directory: Box<[u8]>, remote: Box<[u8]> },
     UpdateRef { into: git::Into, commit: git::Commit },
     Fetch { remote: Box<[u8]>, source: Source, into: git::Into, workspace: Token },
@@ -46,6 +46,7 @@ pub enum Command {
     Clean,
     Merge { theirs: git::Commit },
     Unmerged,
+    UpdateIndex { paths: Box<[u8]> },
     Add,
     DiffIndex { parent: git::Commit },
     DiffPaths { before: git::Commit, after: git::Commit },
@@ -83,7 +84,7 @@ pub(crate) fn item_program(op: &git::Op) -> Option<&[u8]> {
 pub(crate) fn no_program(op: &git::Op, command: &Command) -> Box<[u8]> {
     let remote = match command {
         Command::SnapshotFetch { remote, .. }
-        | Command::Remote { remote }
+        | Command::Remote { remote, .. }
         | Command::Store { remote, .. }
         | Command::Fetch { remote, .. }
         | Command::Create { remote, .. }
@@ -119,6 +120,7 @@ pub(crate) fn no_program(op: &git::Op, command: &Command) -> Box<[u8]> {
         | Command::Clean
         | Command::Merge { .. }
         | Command::Unmerged
+        | Command::UpdateIndex { .. }
         | Command::Add
         | Command::DiffPaths { .. }
         | Command::DiffIndex { .. }
@@ -177,9 +179,7 @@ fn words(out: &mut List<Box<[u8]>>, bytes: &[&[u8]]) {
 pub(crate) const fn word(command: &Command) -> &'static [u8] {
     match command {
         Command::Reds(check) => match check {
-            crate::reds::CheckCommand::Pin
-            | crate::reds::CheckCommand::Merge
-            | crate::reds::CheckCommand::Path { .. } => b"rev-parse",
+            crate::reds::CheckCommand::Pin | crate::reds::CheckCommand::Merge => b"rev-parse",
             crate::reds::CheckCommand::Base { .. } | crate::reds::CheckCommand::Ancestor { .. } => b"merge-base",
         },
         Command::SnapshotHead => b"log",
@@ -199,6 +199,7 @@ pub(crate) const fn word(command: &Command) -> &'static [u8] {
         Command::Merge { .. } => b"merge",
         Command::DiffPaths { .. } => b"diff-tree",
         Command::Unmerged => b"diff-files",
+        Command::UpdateIndex { .. } => b"update-index",
         Command::Add => b"add",
         Command::DiffIndex { .. } => b"diff-index",
         Command::WriteTree => b"write-tree",
@@ -211,6 +212,49 @@ pub(crate) const fn word(command: &Command) -> &'static [u8] {
 /// The vector after argv[0], which io supplies from the program's path.
 #[must_use]
 pub fn arguments(command: &Command) -> Box<[Box<[u8]>]> {
+    arguments_at(command, None, None)
+}
+
+/// The complete vector for a command in its operation (protocol/git.md, 3).
+#[must_use]
+pub fn arguments_for(op: &git::Op, command: &Command) -> Box<[Box<[u8]>]> {
+    if let Command::Store { .. } | Command::Version | Command::Clone { .. } | Command::Origin { .. } = command {
+        return arguments(command);
+    }
+    let at = match op {
+        git::Op::Clone { at, store, .. } | git::Op::Look { at, store, .. } => {
+            if let Command::Format = command {
+                let store = joined(&[b"stores/", Decimal::of(store.raw()).as_bytes()]);
+                return arguments_at(command, Some(&store), None);
+            }
+            at
+        }
+        git::Op::Fetch { at, store, .. } => {
+            if let Command::Fetch { .. } = command {
+                let store = joined(&[b"stores/", Decimal::of(store.raw()).as_bytes()]);
+                return arguments_at(command, Some(&store), None);
+            }
+            at
+        }
+        git::Op::Store { .. } | git::Op::Make { .. } => return arguments(command),
+        git::Op::Reds { at, .. }
+        | git::Op::Reset { at, .. }
+        | git::Op::Point { at, .. }
+        | git::Op::Create { at, .. }
+        | git::Op::CheckOut { at, .. }
+        | git::Op::DiffPaths { at, .. }
+        | git::Op::Brings { at, .. }
+        | git::Op::IsAncestor { at, .. }
+        | git::Op::Merge { at, .. }
+        | git::Op::Commit { at, .. }
+        | git::Op::Push { at, .. } => at,
+    };
+    arguments_at(command, Some(&git_dir(at)), Some(&place(at)))
+}
+
+/// The invocation names its metadata and work tree after all settings (protocol/git.md, 3).
+#[must_use]
+pub fn arguments_at(command: &Command, git_dir: Option<&[u8]>, work_tree: Option<&[u8]>) -> Box<[Box<[u8]>]> {
     let extra = match command {
         Command::BringsList { bases, .. } => u32::try_from(bases.len()).expect("bounded merge-base stdout"),
         Command::Reds(_)
@@ -232,6 +276,7 @@ pub fn arguments(command: &Command) -> Box<[Box<[u8]>]> {
         | Command::Clean
         | Command::Merge { .. }
         | Command::Unmerged
+        | Command::UpdateIndex { .. }
         | Command::Add
         | Command::DiffIndex { .. }
         | Command::DiffPaths { .. }
@@ -244,6 +289,15 @@ pub fn arguments(command: &Command) -> Box<[Box<[u8]>]> {
     let mut out = List::with_capacity(40_u32.checked_add(extra).expect("bounded argv"));
     for setting in SETTINGS {
         words(&mut out, &[b"-c", setting]);
+    }
+    if let Command::CheckOut { .. } | Command::Merge { .. } = command {
+        words(&mut out, &[b"-c", b"remote.origin.promisor=true"]);
+    }
+    if let Some(directory) = git_dir {
+        push(&mut out, &joined(&[b"--git-dir=", directory]));
+    }
+    if let Some(directory) = work_tree {
+        push(&mut out, &joined(&[b"--work-tree=", directory]));
     }
     match command {
         Command::Reds(check) => {
@@ -282,14 +336,18 @@ pub fn arguments(command: &Command) -> Box<[Box<[u8]>]> {
         Command::SnapshotReset { commit } => words(&mut out, &[b"reset", b"--mixed", b"-q", &hex(*commit)]),
         Command::Version => push(&mut out, b"version"),
         Command::Origin { directory } => {
-            let git_dir = joined(&[b"--git-dir=", directory, b"/.git"]);
+            let git_dir = joined(&[b"--git-dir=", directory]);
             words(&mut out, &[&git_dir, b"config", b"--local", b"--get", b"remote.origin.url"]);
         }
         Command::Format => words(&mut out, &[b"rev-parse", b"--show-object-format"]),
-        Command::Clone { directory, format } => {
-            words(&mut out, &[b"init", b"--quiet", &joined(&[b"--object-format=", format.name()]), b"--", directory]);
+        Command::Clone { directory, format, bare } => {
+            words(&mut out, &[b"init", b"--quiet"]);
+            if *bare {
+                push(&mut out, b"--bare");
+            }
+            words(&mut out, &[&joined(&[b"--object-format=", format.name()]), b"--", directory]);
         }
-        Command::Remote { remote } => words(&mut out, &[b"remote", b"add", b"origin", b"--", remote]),
+        Command::Remote { remote, .. } => words(&mut out, &[b"remote", b"add", b"origin", b"--", remote]),
         Command::Store { remote, directory } => words(
             &mut out,
             &[
@@ -333,15 +391,9 @@ pub fn arguments(command: &Command) -> Box<[Box<[u8]>]> {
             let spec = joined(&[&hex(*commit), b":refs/heads/", branch]);
             words(&mut out, &[b"push", b"--porcelain", &lease, b"--", remote, &spec]);
         }
-        Command::CheckOut { commit } => words(
-            &mut out,
-            &[b"-c", b"remote.origin.promisor=true", b"checkout", b"--force", b"--detach", &hex(*commit)],
-        ),
+        Command::CheckOut { commit } => words(&mut out, &[b"checkout", b"--force", b"--detach", &hex(*commit)]),
         Command::Clean => words(&mut out, &[b"clean", b"-ffdxq"]),
-        Command::Merge { theirs } => words(
-            &mut out,
-            &[b"-c", b"remote.origin.promisor=true", b"merge", b"--no-commit", b"--no-ff", b"--", &hex(*theirs)],
-        ),
+        Command::Merge { theirs } => words(&mut out, &[b"merge", b"--no-commit", b"--no-ff", b"--", &hex(*theirs)]),
         Command::DiffPaths { before, after } => words(
             &mut out,
             &[
@@ -357,6 +409,7 @@ pub fn arguments(command: &Command) -> Box<[Box<[u8]>]> {
             ],
         ),
         Command::Unmerged => words(&mut out, &[b"diff-files", b"--name-only", b"-z", b"--diff-filter=U"]),
+        Command::UpdateIndex { .. } => words(&mut out, &[b"update-index", b"--add", b"--remove", b"-z", b"--stdin"]),
         Command::Add => words(&mut out, &[b"add", b"--all", b"--", b".", HIDDEN_LOG_EXCLUSION]),
         Command::DiffIndex { parent } => {
             words(&mut out, &[b"diff-index", b"--cached", b"--quiet", &hex(*parent), b"--"]);
@@ -398,13 +451,14 @@ pub fn arguments(command: &Command) -> Box<[Box<[u8]>]> {
 /// Whole environment; no PATH or inherited variable reaches git.
 #[must_use]
 pub fn environment(home: &[u8], kind: Option<git::Kind>, identity: Option<&Identity>) -> Box<[Box<[u8]>]> {
-    environment_for(home, kind, identity, true)
+    environment_for(home, kind, identity, true, None)
 }
 pub(crate) fn environment_for(
     home: &[u8],
     kind: Option<git::Kind>,
     identity: Option<&Identity>,
     credentials: bool,
+    index: Option<&[u8]>,
 ) -> Box<[Box<[u8]>]> {
     let identity = match kind {
         Some(
@@ -429,7 +483,11 @@ pub(crate) fn environment_for(
             | git::Kind::Make,
         ) => None,
     };
-    let mut out = List::with_capacity(14);
+    let mut out = List::with_capacity(15);
+    if let Some(index) = index {
+        let root = home.strip_suffix(b"/home").expect("worker home beneath its root");
+        push(&mut out, &joined(&[b"GIT_INDEX_FILE=", root, b"/", index, b"/temper-scan"]));
+    }
     let home = joined(&[b"HOME=", home]);
     words(
         &mut out,
@@ -549,6 +607,12 @@ fn nibble(byte: u8) -> Option<u8> {
 pub fn place(at: &git::Place) -> Box<[u8]> {
     let workspace = Decimal::of(at.workspace.raw());
     joined(&[b"workspaces/", workspace.as_bytes(), b"/", &at.repository])
+}
+
+/// The worker's private metadata directory (protocol/git.md, 2).
+#[must_use]
+pub fn git_dir(at: &git::Place) -> Box<[u8]> {
+    joined(&[b"gitdirs/", Decimal::of(at.workspace.raw()).as_bytes(), b"/", &at.repository])
 }
 
 /// The local destination of a fetch (temper/docs/design/protocol/git.md, 4.3).

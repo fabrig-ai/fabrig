@@ -1,6 +1,7 @@
 //! Retention's rows (protocol/store/retention.md, 3–4).
 use super::fixtures;
 use crate::codec;
+use crate::tasks_v13::Record as _;
 use jig_domain_core_vocabulary::Record;
 use jig_domain_tasks as t;
 use skein_lib::Wall;

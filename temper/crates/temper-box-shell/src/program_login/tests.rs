@@ -15,8 +15,9 @@ fn smiths_terminal_login_command_preserves_its_configured_process_contract() {
     std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o700)).expect("executable backend");
     let programs = directory.join("programs");
     let source = programs.join("source");
-    let (_, deployment) = crate::tests::configuration::documents(&directory, "/fixture/temper");
-    std::fs::write(directory.join("temper.json"), deployment).expect("configuration");
+    let deployment =
+        temper_config_shell::render(&crate::tests::configuration::file(), temper_config_shell::Shape::Standalone);
+    std::fs::write(directory.join(temper_config_shell::FILE), deployment).expect("configuration");
     let benign = OsString::from_vec(b"value-\xff".to_vec());
     let search = OsString::from(format!("{}:/bin", directory.display()));
     let command = super::command(

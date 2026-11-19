@@ -8,6 +8,7 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
+jig-protocol-config.workspace = true
 temper-service-core.workspace = true
 temper-engine-service-vocabulary.workspace = true
 temper-engine-domain.workspace = true

@@ -392,6 +392,75 @@ fn started(stored: Option<crate::store::Store>) -> crate::Service {
     service
 }
 
+fn local_value(places: u32) -> jig_client_protocol_wire::WorkerSetting {
+    use jig_client_protocol_wire::{CEILINGS, WorkerSetting, WorkerSettingParts};
+    WorkerSetting::new(
+        &CEILINGS,
+        WorkerSettingParts { number: 1, name: b"local".as_slice().into(), places, digest: None, withdrawn: false },
+    )
+    .unwrap()
+}
+
+#[test]
+fn local_copy_follows_owner_changes_and_repairs_a_different_restore() {
+    let path: Box<[u8]> = b"/data/local.setting".as_slice().into();
+    let mut service = started(None);
+    service.engine.as_mut().unwrap().keep_local(path.clone(), None);
+    fixtures::restart(&mut service);
+    let engine = service.engine.as_mut().unwrap();
+    let (_, default) = engine.take_local_write().expect("missing copy is repaired");
+    let mut reader = skein_lib::Reader::new(&default);
+    assert_eq!(
+        jig_client_protocol_wire::WorkerSetting::decode(&jig_client_protocol_wire::CEILINGS, &mut reader).unwrap(),
+        local_value(4)
+    );
+    assert!(reader.is_empty());
+    signed_in(engine);
+    engine.step(root::Event::Party(root::PartyInput::ChangeSettings {
+        reply_to: ReplyTo::new(Token::new(101)),
+        sign_in: 1,
+        key: [1; 16],
+        digest: [1; 32],
+        kinds: Box::new([]),
+        change: Box::new(settings::Change {
+            against: 1,
+            items: Box::new([settings::Item {
+                setting: settings::Setting::Worker(1),
+                edit: settings::Edit::Set(settings::Value::Worker(Box::new(settings::WorkerSetting {
+                    number: 1,
+                    name: b"local".as_slice().into(),
+                    places: 2,
+                    digest: None,
+                    withdrawn: false,
+                }))),
+            }]),
+            running: settings::Running::Stays,
+        }),
+    }));
+    assert_eq!(settle(engine).as_slice(), &[Reply::Outcome(people::Outcome::SettingsChanged { revision: 2 })]);
+    let (written, bytes) = engine.take_local_write().expect("owner change keeps copy");
+    assert_eq!(written, path);
+    let mut reader = skein_lib::Reader::new(&bytes);
+    assert_eq!(
+        jig_client_protocol_wire::WorkerSetting::decode(&jig_client_protocol_wire::CEILINGS, &mut reader).unwrap(),
+        local_value(2)
+    );
+    assert!(reader.is_empty());
+    assert!(engine.take_local_write().is_none());
+    let previous = service.engine.take().unwrap();
+    let stored = fixtures::reopened_store(previous.store, &previous.env.limits);
+    let mut service = started(Some(stored));
+    service.engine.as_mut().unwrap().keep_local(path.clone(), Some(local_value(4)));
+    fixtures::restart(&mut service);
+    assert_eq!(service.engine.as_mut().unwrap().take_local_write(), Some((path.clone(), bytes)));
+    let previous = service.engine.take().unwrap();
+    let stored = fixtures::reopened_store(previous.store, &previous.env.limits);
+    let mut service = started(Some(stored));
+    service.engine.as_mut().unwrap().keep_local(path, Some(local_value(2)));
+    fixtures::restart(&mut service);
+    assert!(service.engine.as_mut().unwrap().take_local_write().is_none());
+}
+
 #[test]
 fn box_copy_follows_owner_changes_and_repairs_a_different_restore() {
     let stock = crate::stock::agents();

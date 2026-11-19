@@ -304,6 +304,9 @@ pub(crate) fn brief_answer(
                 if changed.room() > 0 {
                     changed.push(file.path.clone()).expect("checked path room");
                 }
+                if name_if_not_text(&mut fetch.words, fetch.head.0, &file) {
+                    continue;
+                }
                 match fetch.mode {
                     PullMode::Conflict(_) => {
                         if name_conflict_if_past_room(&mut fetch.words, &file) {
@@ -707,6 +710,67 @@ fn moved_change(
     refused(section, stage, "the change's head moved", heads, None, out);
     wake_change(domain, item);
     BriefRead::Failed(moved())
+}
+
+/// Non-text files are named whole in every pull section, before checking room
+/// (temper/docs/design/domain/forge/change/repairs.md, A resolution).
+fn name_if_not_text(words: &mut BriefWords, head: [u8; 32], file: &skein_forge::api::File) -> bool {
+    let mut not_text = false;
+    for bytes in [file.before.as_deref(), file.after.as_deref()].into_iter().flatten() {
+        not_text |= !skein_lib::bytes::is_utf8(bytes) || skein_lib::bytes::find(bytes, b"\0").is_some();
+    }
+    if !not_text {
+        return false;
+    }
+    append(words, b"File: ");
+    append(words, &file.path);
+    append(words, b"\n[not carried, not text: ");
+    for (side, label) in [(file.before.as_deref(), b"before".as_slice()), (file.after.as_deref(), b"after")] {
+        match side {
+            Some(bytes) => {
+                append(words, b"blob ");
+                append(words, &blob_id(head, bytes));
+                append(words, b" ");
+            }
+            None => append(words, b"absent "),
+        }
+        append(words, label);
+        if label == b"before" {
+            append(words, b", ");
+        }
+    }
+    append(words, b"; read it from the repository]\n");
+    true
+}
+
+/// Git hashes a blob header and its bytes, using the pinned head's object format.
+fn blob_id(head: [u8; 32], bytes: &[u8]) -> Box<[u8]> {
+    let length = decimal(skein_lib::len_u64(bytes.len()));
+    let pieces = [b"blob ".as_slice(), &length, b"\0", bytes];
+    let sha1;
+    let sha256;
+    let digest = if head.get(20..).expect("commit width") == [0; 12] {
+        let mut hash = skein_lib::sha1::Sha1::new();
+        for piece in pieces {
+            hash.update(piece);
+        }
+        sha1 = hash.finish();
+        sha1.as_slice()
+    } else {
+        let mut hash = skein_lib::sha256::Sha256::new();
+        for piece in pieces {
+            hash.update(piece);
+        }
+        sha256 = hash.finish();
+        sha256.as_slice()
+    };
+    let mut printed = List::with_capacity(64);
+    for byte in digest {
+        for digit in hex(*byte) {
+            printed.push(digit).expect("blob id width");
+        }
+    }
+    printed.into_boxed()
 }
 
 /// Name a conflicting file whose whole contents exceed the section's room

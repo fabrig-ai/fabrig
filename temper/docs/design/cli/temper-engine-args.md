@@ -28,16 +28,16 @@ Generated from temper-engine's table (`skein/docs/design/runtime/shell.md`, 14.3
 - Rehearses an upgrade over a copy; switches nothing.
 - **Arguments:** `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.; `DIRECTORY`: A stopped deployment's data directory, a checkpoint of a serving deployment, or a copy of one; never written.
 - **Flags:** `--config CONFIG`, `--data DATA`, `--cache CACHE`
-- **Notes:** Uses the configuration serve would read and a scratch copy under the cache directory. Reports the jobs it ran, restores, elapsed time and whether workers may stay. What follows the switch is not rehearsed. Exit 0 when its jobs and restores pass, 1 when a start would be refused.
+- **Notes:** Uses the configuration serve would read and a scratch copy under the cache directory; removes a rehearsal's scratch left behind there. Reports the jobs it ran, restores, elapsed time and whether workers may stay. Names a start it refuses, including each setting out of its numbers. What follows the switch is not rehearsed. Exit 0 when its jobs and restores pass, 1 when a start would be refused.
 
 ### `temper-engine upgrade --workers`
 
 - **Set:** public
 - **Forms:** `[DIRECTORIES] DIRECTORY`
-- Judges the workers alone over a copy; switches nothing.
+- Judges the workers alone over links and small copies; switches nothing.
 - **Arguments:** `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.; `DIRECTORY`: A stopped deployment's data directory, a checkpoint of a serving deployment, or a copy of one; never written.
 - **Flags:** `--config CONFIG`, `--data DATA`, `--cache CACHE`
-- **Notes:** Uses the configuration serve would read and a scratch copy under the cache directory. Recovers the maps without task logs and prints only the workers' verdict, with no record decoded, level checked, plan, job or restore run. Exit 0 for yes, no or unknown; 1 on an opening refusal. Takes only DIRECTORY's lock, never the serving deployment's when reading a checkpoint; writes nothing under --data before the rehearsal.
+- **Notes:** Uses the configuration serve would read and a scratch of links and small copies under the cache directory; removes a rehearsal's scratch left behind there. Recovers the maps without task logs and prints only the workers' verdict, with no record decoded, level checked, plan, job or restore run. Exit 0 for yes, no or unknown; 1 on an opening refusal. Takes DIRECTORY's lock, never the serving deployment's when reading a checkpoint; writes nothing under --data before the rehearsal.
 
 ### `temper-engine upgrade --back`
 
@@ -80,7 +80,7 @@ Generated from temper-engine's table (`skein/docs/design/runtime/shell.md`, 14.3
 - **Set:** public
 - **Default:** $XDG_CONFIG_HOME/temper
 - **Twin:** `TEMPER_CONFIG`
-- Configuration, including temper.json.
+- Configuration files.
 
 ### `--data DATA`
 
@@ -133,7 +133,7 @@ Generated from temper-engine's table (`skein/docs/design/runtime/shell.md`, 14.3
 - **Forms:** `[DIRECTORIES] FORGE`
 - Make what people need to sign in to temper through a Forgejo, and print the Forgejo command that registers temper.
 - **Arguments:** `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.; `FORGE`: A forge's number in the configuration.
-- **Notes:** For a Forgejo of application.sign_in.forges, on temper's host, before temper serve. Writes the provider's key and the forge's client secret where they are missing, private, and leaves any already there; prints Forgejo's add-oauth command, never running it.
+- **Notes:** For a Forgejo of [[sign_in.forges]], on temper's host, before temper-engine serve. Writes the provider's key and the forge's client secret where they are missing, private, and leaves any already there; prints Forgejo's add-oauth command, never running it.
 
 ### `temper-engine forge source`
 

@@ -262,6 +262,8 @@ impl Event {
 /// (runtime/io/README.md, 2). Kernel errors stay below io.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum Error {
+    /// Nothing was spawned because its reach could not be enforced.
+    Reach(kernel::Unenforced),
     /// Nothing listened at the address.
     Refused,
     /// No route to the address.
@@ -310,6 +312,7 @@ pub(crate) fn setup_error(error: kernel::Error) -> Error {
         | kernel::Error::Unreachable
         | kernel::Error::TimedOut
         | kernel::Error::InvalidArgument
+        | kernel::Error::Reach(_)
         | kernel::Error::Other(_) => Error::Other,
         kernel::Error::NotFound
         | kernel::Error::Exists
@@ -348,6 +351,7 @@ pub(crate) fn connect_error(error: kernel::Error) -> Error {
         | kernel::Error::NotConnected
         | kernel::Error::AddressInUse
         | kernel::Error::InvalidArgument
+        | kernel::Error::Reach(_)
         | kernel::Error::Other(_) => Error::Other,
         kernel::Error::NotFound
         | kernel::Error::Exists
@@ -384,6 +388,7 @@ pub(crate) fn stream_fault(error: kernel::Error) -> Fault {
         | kernel::Error::AddressNotAvailable
         | kernel::Error::TooManyOpenFiles
         | kernel::Error::InvalidArgument
+        | kernel::Error::Reach(_)
         | kernel::Error::Other(_) => Fault::Other,
         kernel::Error::NotFound
         | kernel::Error::Exists

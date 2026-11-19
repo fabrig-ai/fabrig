@@ -3,6 +3,7 @@ use super::refusal;
 use crate::v25;
 use alloc::{boxed::Box, string::String};
 use jig_protocol_store::{JobAnswer, JobPage, JobRefusal, JobWrite};
+use skein_codec::Record;
 use skein_codec::{
     layout::{Misconverted, Plan, Workspace},
     schema::{self, DeclIx, FieldIx, Schema, Shape, Span, Type, TypeIx},
@@ -10,22 +11,24 @@ use skein_codec::{
 };
 use skein_lib::{Buffer, List, Map, Reader, Writer};
 
-#[expect(clippy::disallowed_macros, reason = "the job derives its wide text from the binary schema")]
-const TEXT: &str = include_str!("../../schema/store-v25.schema");
-const SUBSTITUTIONS: [(&str, &str); 7] = [
+const TEXT: &str = crate::OWNER_SET.families.first().expect("store family").current;
+const SUBSTITUTIONS: [(&str, &str); 8] = [
     ("record FailingTest { test_id: bytes 1024", "record FailingTest { test_id: bytes 4096"),
     ("record TierFlake { test: bytes 1024", "record TierFlake { test: bytes 4096"),
     ("pending: list 1537 TierPending", "pending: list 759 TierPending"),
     ("landings: list 1537 TierLanding", "landings: list 759 TierLanding"),
     ("blamed: list 1537 Blame", "blamed: list 759 Blame"),
     ("waiting: list 1537 TierGroup", "waiting: list 759 TierGroup"),
+    // These unplanned layouts predate waiting filings. Their default is empty;
+    // the wide id layout plus eight full filings would exceed u32's row bound.
+    ("waiting: list 8 VerdictFiling = []", "waiting: list 0 VerdictFiling = []"),
     ("landings: list 1537 TierPostedLanding", "landings: list 759 TierPostedLanding"),
 ];
 
 #[expect(
     clippy::disallowed_types,
     clippy::disallowed_macros,
-    reason = "seven checked substitutions derive the job's text and name a missing declaration"
+    reason = "checked substitutions derive the job's text and name a missing declaration"
 )]
 pub(crate) fn wide_text(text: &str) -> Result<String, JobRefusal> {
     let mut wide = String::from(text);
@@ -286,9 +289,8 @@ fn convert(
     let Ok(row) = v25::Row::decode(&v25::CEILINGS, &mut Reader::new(&bytes)) else {
         return Err("narrowed value does not decode at the binary's ceilings");
     };
-    let mut writer = Writer::new(usize::try_from(row.measure()).expect("row within u32"));
-    row.encode(&mut writer).expect("measured row");
-    Ok(Converted { bytes: writer.finish(), counts })
+    let bytes = row.encode(&v25::CEILINGS).expect("measured row");
+    Ok(Converted { bytes, counts })
 }
 
 fn parse(text: &[u8]) -> Result<Schema, JobRefusal> {

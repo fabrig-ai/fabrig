@@ -1,6 +1,7 @@
 //! Opening entry points (protocol/channel.md, section 2).
 use skein_channel::{Lower, StreamMode};
 use skein_lib::{Queue, stream};
+use smith_transcript::Record;
 
 use crate::fixture::small as limits;
 use crate::{Component, Heard, Limits};
@@ -23,53 +24,41 @@ fn the_agent_demands_the_open_before_the_domain_hears_anything() {
 
 fn saved_turn(place: u32, dialect: u32) -> Box<[u8]> {
     use smith_transcript as wire;
-    let limits = wire::CEILINGS;
+
     let messages = saved_messages();
-    let turn = wire::Turn::new(
-        &limits,
-        wire::TurnParts {
-            system: None,
-            model: b"model".as_slice().into(),
-            effort: None,
-            kind: wire::TurnKind::Ordinary,
-            opening: if place == 1 {
-                Some(
-                    wire::Opening::new(
-                        &limits,
-                        wire::OpeningParts {
-                            affinity: wire::Affinity::new(&limits, wire::AffinityParts { key: [0; 16], thread: 0 })
-                                .expect("fixture affinity"),
-                            account: None,
-                            backend: wire::Backend::Direct,
-                        },
-                    )
-                    .expect("fixture opening"),
-                )
-            } else {
-                None
-            },
-            endpoint: Box::default(),
-            dialect,
-            place,
-            usage: wire::Usage::new(
-                &limits,
-                wire::UsageParts {
-                    input: Some(2),
-                    output: Some(3),
-                    cache_read: Some(4),
-                    cache_write: Some(5),
-                    reasoning: None,
-                },
-            )
-            .expect("bounded usage"),
-            spent: 7,
-            jobs: 0,
-            messages,
+    let turn = wire::Turn {
+        system: None,
+        model: b"model".as_slice().into(),
+        effort: None,
+        kind: wire::TurnKind::Ordinary,
+        opening: if place == 1 {
+            Some(wire::Opening {
+                affinity: wire::Affinity { key: [0; 16], thread: 0 },
+                account: None,
+                backend: wire::Backend::Direct,
+            })
+        } else {
+            None
         },
-    )
-    .expect("bounded turn");
-    let mut writer = skein_lib::Writer::new(usize::try_from(turn.measure()).expect("bounded turn length"));
-    turn.encode(&mut writer).expect("measured turn");
+        endpoint: Box::default(),
+        dialect,
+        place,
+        usage: wire::Usage {
+            input: Some(2),
+            output: Some(3),
+            cache_read: Some(4),
+            cache_write: Some(5),
+            reasoning: None,
+        },
+        spent: 7,
+        jobs: 0,
+        messages,
+    };
+    let mut writer = skein_lib::Writer::new(
+        usize::try_from(turn.measure(&smith_transcript::CEILINGS).expect("bounded transcript"))
+            .expect("bounded turn length"),
+    );
+    turn.write(&smith_transcript::CEILINGS, &mut writer).expect("measured turn");
     writer.finish()
 }
 
@@ -272,8 +261,7 @@ fn listed_tree_paths_survive_replay_and_refuse_unnormalized_entries() {
 
 fn with_recorded_affinity(bytes: &[u8], opening: Option<smith_transcript::Opening>) -> Box<[u8]> {
     let limits = smith_transcript::CEILINGS;
-    let mut parts =
-        smith_transcript::Turn::decode(&limits, &mut skein_lib::Reader::new(bytes)).expect("fixture turn").into_parts();
+    let mut parts = smith_transcript::Turn::decode(&limits, &mut skein_lib::Reader::new(bytes)).expect("fixture turn");
     parts.opening = opening;
     encode_saved_parts(parts)
 }
@@ -283,9 +271,7 @@ fn a_transcript_records_affinity_only_in_its_opening_turn() {
     use smith_domain_session::record;
     let limits = smith_transcript::CEILINGS;
     let endpoints = saved_endpoints();
-    let affinity =
-        smith_transcript::Affinity::new(&limits, smith_transcript::AffinityParts { key: [0x42; 16], thread: 7 })
-            .expect("fixed affinity");
+    let affinity = smith_transcript::Affinity { key: [0x42; 16], thread: 7 };
     let first = with_recorded_affinity(
         &saved_turn(1, 0),
         Some(recorded_opening(affinity, None, smith_transcript::Backend::Direct)),
@@ -308,9 +294,7 @@ fn a_transcript_records_affinity_only_in_its_opening_turn() {
         decode_saved_transcript(&[with_recorded_affinity(&first, None)], &limits, &endpoints),
         Err(record::Refusal::Malformed)
     );
-    let extra =
-        smith_transcript::Affinity::new(&limits, smith_transcript::AffinityParts { key: [0x42; 16], thread: 7 })
-            .expect("fixed affinity");
+    let extra = smith_transcript::Affinity { key: [0x42; 16], thread: 7 };
     assert_eq!(
         decode_saved_transcript(
             &[
@@ -566,11 +550,7 @@ fn recorded_opening(
     account: Option<u32>,
     backend: smith_transcript::Backend,
 ) -> smith_transcript::Opening {
-    smith_transcript::Opening::new(
-        &smith_transcript::CEILINGS,
-        smith_transcript::OpeningParts { affinity, account, backend },
-    )
-    .expect("fixture opening")
+    smith_transcript::Opening { affinity, account, backend }
 }
 
 #[test]
@@ -580,15 +560,9 @@ fn an_opening_on_a_later_turn_is_malformed() {
     let endpoints = saved_endpoints();
     for (account, backend) in [
         (Some(7), wire::Backend::Direct),
-        (
-            None,
-            wire::Backend::Program(
-                wire::Program::new(&limits, wire::ProgramParts { name: b"claude_code".as_slice().into() })
-                    .expect("program"),
-            ),
-        ),
+        (None, wire::Backend::Program(wire::Program { name: b"claude_code".as_slice().into() })),
     ] {
-        let affinity = wire::Affinity::new(&limits, wire::AffinityParts { key: [0; 16], thread: 0 }).expect("affinity");
+        let affinity = wire::Affinity { key: [0; 16], thread: 0 };
         let bytes = with_recorded_affinity(&saved_turn(2, 0), Some(recorded_opening(affinity, account, backend)));
         assert_eq!(
             crate::decode_turn(&bytes, 2, &limits, &endpoints),
@@ -605,11 +579,13 @@ fn a_first_turn_without_its_opening_is_malformed() {
     let endpoints = saved_endpoints();
     for kind in [wire::TurnKind::Ordinary, wire::TurnKind::Window] {
         let bytes = with_recorded_affinity(&saved_turn(1, 0), None);
-        let mut parts = wire::Turn::decode(&limits, &mut skein_lib::Reader::new(&bytes)).expect("turn").into_parts();
+        let mut parts = wire::Turn::decode(&limits, &mut skein_lib::Reader::new(&bytes)).expect("turn");
         parts.kind = kind.clone();
-        let turn = wire::Turn::new(&limits, parts).expect("turn without opening");
-        let mut writer = skein_lib::Writer::new(usize::try_from(turn.measure()).expect("length"));
-        turn.encode(&mut writer).expect("encoding");
+        let turn = parts;
+        let mut writer = skein_lib::Writer::new(
+            usize::try_from(turn.measure(&smith_transcript::CEILINGS).expect("bounded transcript")).expect("length"),
+        );
+        turn.write(&smith_transcript::CEILINGS, &mut writer).expect("encoding");
         assert_eq!(
             crate::decode_turn(&writer.finish(), 1, &limits, &endpoints),
             Err(smith_domain_session::record::Refusal::Malformed),
@@ -628,24 +604,15 @@ fn saved_endpoints() -> crate::Endpoints {
 fn another_dialects_opaque_block_in_a_window_is_malformed() {
     use smith_transcript as wire;
     let limits = wire::CEILINGS;
-    let mut parts =
-        wire::Turn::decode(&limits, &mut skein_lib::Reader::new(&saved_turn(1, 0))).expect("fixture turn").into_parts();
+    let mut parts = wire::Turn::decode(&limits, &mut skein_lib::Reader::new(&saved_turn(1, 0))).expect("fixture turn");
     parts.kind = wire::TurnKind::Window;
     parts.place = 7;
     let mut blocks = skein_lib::List::with_capacity(1);
     blocks
-        .push(wire::Block::Opaque(
-            wire::Opaque::new(&limits, wire::OpaqueParts { dialect: 99, bytes: b"another dialect".as_slice().into() })
-                .expect("opaque fixture"),
-        ))
+        .push(wire::Block::Opaque(wire::Opaque { dialect: 99, bytes: b"another dialect".as_slice().into() }))
         .expect("one block");
     let mut messages = skein_lib::List::with_capacity(1);
-    messages
-        .push(
-            wire::Message::new(&limits, wire::MessageParts { role: wire::Role::Assistant, blocks })
-                .expect("fixture message"),
-        )
-        .expect("one message");
+    messages.push(wire::Message { role: wire::Role::Assistant, blocks }).expect("one message");
     parts.messages = messages;
     let bytes = encode_saved_parts(parts);
     assert_eq!(
@@ -654,10 +621,13 @@ fn another_dialects_opaque_block_in_a_window_is_malformed() {
     );
 }
 
-fn encode_saved_parts(parts: smith_transcript::TurnParts) -> Box<[u8]> {
-    let turn = smith_transcript::Turn::new(&smith_transcript::CEILINGS, parts).expect("bounded fixture turn");
-    let mut writer = skein_lib::Writer::new(usize::try_from(turn.measure()).expect("fixture length"));
-    turn.encode(&mut writer).expect("fixture room");
+fn encode_saved_parts(parts: smith_transcript::Turn) -> Box<[u8]> {
+    let turn = parts;
+    let mut writer = skein_lib::Writer::new(
+        usize::try_from(turn.measure(&smith_transcript::CEILINGS).expect("bounded transcript"))
+            .expect("fixture length"),
+    );
+    turn.write(&smith_transcript::CEILINGS, &mut writer).expect("fixture room");
     writer.finish()
 }
 
@@ -810,40 +780,22 @@ fn invalid_limits_are_refused() {
 
 fn saved_messages() -> skein_lib::List<smith_transcript::Message> {
     use smith_transcript as wire;
-    let limits = wire::CEILINGS;
-    let result = wire::ToolResult::new(
-        &limits,
-        wire::ToolResultParts {
-            id: Box::from(*b"call-1"),
-            returned: wire::Returned::Invalid(
-                wire::Invalid::new(&limits, wire::InvalidParts { problem: wire::CallProblem::UnknownTool })
-                    .expect("bounded invalid result"),
-            ),
-        },
-    )
-    .expect("bounded result");
+
+    let result = wire::ToolResult {
+        id: Box::from(*b"call-1"),
+        returned: wire::Returned::Invalid(wire::Invalid { problem: wire::CallProblem::UnknownTool }),
+    };
     let mut blocks = skein_lib::List::with_capacity(2);
     blocks
-        .push(wire::Block::Call(
-            wire::Call::new(
-                &limits,
-                wire::CallParts {
-                    id: Box::from(*b"call-1"),
-                    name: Box::from(*b"missing"),
-                    input: Box::from(*b"{}"),
-                    replay: None,
-                },
-            )
-            .expect("bounded call"),
-        ))
+        .push(wire::Block::Call(wire::Call {
+            id: Box::from(*b"call-1"),
+            name: Box::from(*b"missing"),
+            input: Box::from(*b"{}"),
+            replay: None,
+        }))
         .expect("first block");
     blocks.push(wire::Block::Result(result)).expect("second block");
     let mut messages = skein_lib::List::with_capacity(1);
-    messages
-        .push(
-            wire::Message::new(&limits, wire::MessageParts { role: wire::Role::Assistant, blocks })
-                .expect("bounded message"),
-        )
-        .expect("first message");
+    messages.push(wire::Message { role: wire::Role::Assistant, blocks }).expect("first message");
     messages
 }

@@ -69,8 +69,8 @@ Routing by path is later (`../draft/standing-roles.md`, section 13).
 - **Judged when saved** (`../protocol/configuration/settings.md`, 2):
   `task N` must be a live task of the project, `party N` a party with a
   role in it, `role N` within jig's `authority.roles`, and `charter N`
-  within 1 to jig's `tasks.charters`, read by the root from the core as
-  a way's template is. What stands later is section 4's to read.
+  within 1 to 64, a charter's numbers (jig's `domain/engine/settings.md`,
+  1), read by the root from the core as a way's template is. What stands later is section 4's to read.
 
 ## 4. Who owns a finding
 

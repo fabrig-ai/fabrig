@@ -1,3 +1,4 @@
+use skein_codec::Record;
 pub mod layouts;
 use skein_lib::{Duration, List, Rng};
 use temper_engine_domain_forge_vocabulary as top;
@@ -56,6 +57,7 @@ pub const LIMITS: top::Limits = top::Limits {
     landings: 8,
     landing_members: 2,
     landings_kept: 16,
+    landings_pending: 64,
     changes_rows: 32,
     changes_landed: 8,
     gates: 2,
@@ -184,7 +186,7 @@ fn client_key(random: &mut Rng) -> skein_forge_client::Key {
 #[expect(clippy::too_many_lines, reason = "one draw covers the durable key families")]
 pub fn key(random: &mut Rng) -> top::Key {
     let number = random.next_u64();
-    match random.below(44) {
+    match random.below(45) {
         0 => top::Key::Call(top::NamedCall {
             task: number,
             attempt: random.next_u64(),
@@ -205,6 +207,9 @@ pub fn key(random: &mut Rng) -> top::Key {
         12 => top::Key::Change(number),
         42 => top::Key::ChangeCold(number),
         43 => top::Key::ChangeHot(number),
+        44 => {
+            top::Key::PersonBrief { party: number, project: u32::try_from(random.below(4_294_967_296)).expect("u32") }
+        }
         13 => top::Key::Issue(number),
         14 => top::Key::Release(number),
         15 => top::Key::Application(number),
@@ -413,6 +418,7 @@ fn add_holds(name: &top::Name, rows: &mut List<(&'static str, top::Stored)>) {
         rows.push((
             label,
             top::Stored::Hold(top::Hold {
+                beside: None,
                 design_writers: Box::new([]),
                 name: name.clone(),
                 task: 1,
@@ -692,9 +698,7 @@ pub fn answers_without_item_pieces() -> [skein_forge::api::Answer; 19] {
     ]
 }
 pub fn encoded(value: &crate::v25::Error) -> Box<[u8]> {
-    let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("measured error length"));
-    value.encode(&mut writer).expect("measured room");
-    writer.finish()
+    value.encode(&crate::v25::CEILINGS).expect("measured room")
 }
 
 pub fn summary() -> skein_forge::api::Summary {
@@ -750,25 +754,16 @@ pub fn item_answers() -> [skein_forge::api::Answer; 4] {
     ]
 }
 pub fn encoded_row(row: &crate::v25::Row) -> Box<[u8]> {
-    let mut writer = skein_lib::Writer::new(usize::try_from(row.measure()).expect("measured row length"));
-    row.encode(&mut writer).expect("measured room");
-    writer.finish()
+    row.encode(&crate::v25::CEILINGS).expect("measured room")
 }
 pub fn item_piece_row(items: Box<[u8]>) -> crate::v25::Row {
     use crate::v25 as w;
-    let answer = w::Answer::Items(
-        w::ItemsAnswer::new(&w::CEILINGS, w::ItemsAnswerParts { items, more: false, now: 1, cut: false })
-            .expect("piece ceiling"),
-    );
-    let result = w::ReadResult::Answer(Box::new(
-        w::AnswerValue::new(&w::CEILINGS, w::AnswerValueParts { answer }).expect("answer ceiling"),
-    ));
-    let answer =
-        w::CallPayload::Read(w::CallRead::new(&w::CEILINGS, w::CallReadParts { result }).expect("call ceiling"));
-    let key = w::NamedCall::new(&w::CEILINGS, w::NamedCallParts { task: 1, attempt: 2, completion: 3, position: 4 })
-        .expect("key ceiling");
-    let value = w::Value::Call(w::Call::new(&w::CEILINGS, w::CallParts { key, answer }).expect("row ceiling"));
-    w::Row::new(&w::CEILINGS, w::RowParts { value }).expect("row ceiling")
+    let answer = w::Answer::Items(w::ItemsAnswer { items, more: false, now: 1, cut: false });
+    let result = w::ReadResult::Answer(Box::new(w::AnswerValue { answer }));
+    let answer = w::CallPayload::Read(w::CallRead { result });
+    let key = w::NamedCall { task: 1, attempt: 2, completion: 3, position: 4 };
+    let value = w::Value::Call(w::Call { key, answer });
+    w::Row { value }
 }
 
 pub fn status() -> skein_forge::api::Status {
@@ -948,6 +943,9 @@ pub fn change_row(state: temper_engine_domain_forge_change::State) -> top::Chang
         delegate_head: None,
         verdicts: Box::new([GateReport { number: 21, head: [22; 32], status: Status::Failed }]),
         milestone: None,
+        person: None,
+        goal_title: None,
+        draft: None,
         goal: None,
         ending: None,
         repair_tasks: Box::new([]),
@@ -1144,8 +1142,11 @@ pub fn tier_row() -> top::TierRow {
             .unwrap();
     }
     top::TierRow {
+        many: None,
         posting: None,
         hold: None,
+        waiting: Box::new([]),
+        unkept: 0,
         observations: Box::new([b'o'; 8192]),
         requested: true,
         cancelled: true,
@@ -1211,9 +1212,7 @@ pub fn tier_posting(failing: &temper_engine_domain_forge_tiers::Failures) -> top
             })
             .unwrap();
     }
-    let mut comments = List::with_capacity(
-        LIMITS.landings_kept.checked_mul(LIMITS.landing_members).unwrap().checked_add(LIMITS.changes).unwrap(),
-    );
+    let mut comments = List::with_capacity(top::tiers::posting_comments(&LIMITS).unwrap());
     for _ in 0..comments.capacity() {
         comments
             .push(top::TierComment {
@@ -1289,6 +1288,17 @@ pub fn finding() -> top::Finding {
         *id.last_mut().expect("nonempty signature key") = number;
         ids.push(id).expect("bounded signature ids");
     }
+    let mut goals = List::with_capacity(64);
+    for _ in 0_u32..64 {
+        goals
+            .push(top::BlamedGoal { goal: u64::MAX, milestone: Some(u64::MAX), person: Some(u64::MAX) })
+            .expect("bounded blamed goals");
+    }
+    let landing = top::BlamedLanding { commit: [255; 32], goals: goals.into_boxed() };
+    let mut landings = List::with_capacity(256);
+    for _ in 0_u32..256 {
+        landings.push(landing.clone()).expect("bounded blamed landings");
+    }
     top::Finding {
         project: u32::MAX,
         number: u32::MAX,
@@ -1309,7 +1319,10 @@ pub fn finding() -> top::Finding {
             source: Box::new([b's'; 64]),
             ids: ids.into_boxed(),
             first: Box::new([b'f'; 512]),
+            many: false,
         }),
         seen: Some(u32::MAX),
+        blame: Some(top::FindingBlame { strength: top::BlameStrength::Owned, landings: landings.into_boxed() }),
+        cleared: Some(top::FindingCleared { run: u64::MAX, at: skein_lib::Wall::from_nanos(u64::MAX) }),
     }
 }

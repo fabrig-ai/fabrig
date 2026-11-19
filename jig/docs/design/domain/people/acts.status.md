@@ -1,7 +1,11 @@
 # acts: status
 
-2026-11-16. Where the tree's code lags or departs from [acts.md](acts.md).
+2026-11-19. Where the tree's code lags or departs from [acts.md](acts.md).
 
+- **Not yet:** 1: a connector's refusal for its own full table of
+  answers, a `Limit` of kind `ApplicationAnswers`: jig's `LimitKind`
+  (`jig-domain-people/src/refusals.rs`) has no such kind, and no
+  connector refuses so; temper's forge makes room instead.
 
 - **Not yet:** 1 and 2: an owner's `RemoveProject` of a project with live tasks is admitted and cancels them, where it is refused *live tasks*, naming its live roots [in flight: change 628].
 - **Not yet:** 2: no mark outlives a deletion, so a deleted project's read answers unknown, not gone, and an owner's removal answer goes with the deletion's row, a resend after it answered unknown [in flight: change 629].

@@ -14,6 +14,105 @@ fn the_worker_dials_workers_and_its_hello_reaches_the_engine() {
 }
 
 #[test]
+fn the_box_fleet_admits_local_at_its_stored_places_not_its_built_slots() {
+    use jig_domain_core::{self as core, settings};
+    for places in [4, 2] {
+        let mut settings = fixtures::worker_settings();
+        settings.jig.slots = 4;
+        settings.jig.limits.as_mut().unwrap().hub.slots = 4;
+        settings.jig.limits.as_mut().unwrap().core.tasks.run_inbox = 2;
+        let mut own = fixtures::worker_limits();
+        own.checkout.workspaces = 4;
+        own.git_component.operations = 4;
+        let worker = crate::Worker::new(
+            &settings,
+            &fixtures::worker_agent(),
+            &own,
+            &fixtures::worker_files(),
+            fixtures::worker_runtime(),
+            7,
+        )
+        .unwrap();
+        let mut store = fixtures::memory_store();
+        if places == 2 {
+            fixtures::commit(
+                &mut store,
+                1,
+                Box::new([temper_engine_domain::Write::Save(temper_engine_domain::Record::Core(core::Record::Core(
+                    core::CoreRecord::Settings(settings::Record::Changed {
+                        setting: settings::Setting::Worker(1),
+                        changed: settings::Changed {
+                            revision: 1,
+                            value: Some(settings::Value::Worker(Box::new(settings::WorkerSetting {
+                                number: 1,
+                                name: b"local".as_slice().into(),
+                                places,
+                                digest: None,
+                                withdrawn: false,
+                            }))),
+                        },
+                    }),
+                )))]),
+            );
+            assert!(store.events().pop().is_some());
+        }
+        let service = fixtures::start_with_worker(&[(1, 100)], Some(store), Some(worker), false, false);
+        let mut stand = fixtures::system::SystemStand { service, kernel: fixtures::Kernel::new() };
+        fixtures::until_hosting(&mut stand);
+        assert_eq!(fixtures::hello(&stand.service).unwrap().1.slots, 4);
+        turns(&mut stand);
+        let bearer = box_sign_in(&mut stand);
+        let deployment = box_deployment(&mut stand, &bearer);
+        assert_eq!(deployment.worker_settings().len(), 1);
+        let local = deployment.worker_settings().get(0).unwrap();
+        assert_eq!(local.number(), 1);
+        assert_eq!(local.name(), b"local");
+        assert_eq!(local.places(), places);
+        assert!(local.linked());
+        let mut reader = skein_lib::Reader::new(deployment.hosts());
+        let mut admitted = None;
+        while !reader.is_empty() {
+            let bytes = skein_codec::piece::counted(&mut reader);
+            let host = jig_client_protocol_wire::Host::decode(
+                stand.service.engine.as_ref().unwrap().client_wire(),
+                &mut skein_lib::Reader::new(&bytes),
+            )
+            .unwrap();
+            if host.name().as_deref() == Some(b"local".as_slice()) {
+                assert!(host.connected());
+                admitted = Some(host.slots());
+            }
+        }
+        assert_eq!(admitted, Some(places));
+    }
+}
+
+fn box_deployment(stand: &mut fixtures::system::SystemStand, bearer: &[u8]) -> jig_client_protocol_wire::Deployment {
+    use jig_client_protocol_wire as w;
+    use skein_lib::{Reader, Writer};
+    let engine = stand.service.engine.as_mut().unwrap();
+    let read = w::Read::Deployment;
+    let mut bytes = Writer::new(usize::try_from(read.measure()).unwrap());
+    read.encode(&mut bytes).unwrap();
+    let owned = w::Owned::new(
+        engine.client_wire(),
+        w::OwnedParts { owner: w::Owner::Jig, version: w::VERSION, record: bytes.finish() },
+    )
+    .unwrap();
+    let mut bytes = Writer::new(usize::try_from(owned.measure()).unwrap());
+    owned.encode(&mut bytes).unwrap();
+    let mut peer = fixtures::http::Peer::new(engine, b"POST", b"/jig/v1/read", &bytes.finish(), Some(bearer));
+    peer.pump(engine, true);
+    let at = skein_lib::bytes::find(peer.received(), b"\r\n\r\n").unwrap().checked_add(4).unwrap();
+    let answer =
+        w::ReadAnswer::decode(engine.client_wire(), &mut Reader::new(peer.received().get(at..).unwrap())).unwrap();
+    let w::ReadAnswer::Value(value) = answer else { panic!("deployment read: {answer:?}") };
+    let value = w::ReadValue::decode(engine.client_wire(), &mut Reader::new(value.record())).unwrap();
+    let w::ReadValue::Deployment(deployment) = value else { panic!("deployment value") };
+    deployment
+}
+
+#[test]
 fn the_worker_iterates_only_once_the_engine_listens() {
     let mut stand = fixtures::one_process();
     let opened = stand.service.engine_component().exchange_store(fixtures::unopened_store());
@@ -68,7 +167,7 @@ fn io_events_and_completions_reach_the_layer_whose_tokens_they_carry() {
     let mut stand = fixtures::one_process();
     fixtures::until_hosting(&mut stand);
     assert!(stand.service.worker.as_ref().unwrap().git_ready(), "git completions reached the worker");
-    assert_eq!(stand.kernel.files, 9, "layout opens making while keeping stores");
+    assert_eq!(stand.kernel.files, 11, "layout opens both checkout trees and making while keeping stores");
     stand.service.process.told().push(skein_io::Event::Closed { owner: Token::new(crate::tokens::SERVER) });
     crate::iterate(&mut stand.service, Time::ZERO, Wall::EPOCH);
     assert_eq!(

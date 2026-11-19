@@ -1117,6 +1117,7 @@ fn circle_cut(why: &Refusal) -> bool {
         | Refusal::Unproposable
         | Refusal::PersonRevision { .. }
         | Refusal::ResourceUnavailable
+        | Refusal::Unreported
         | Refusal::NotReady
         | Refusal::Unknown
         | Refusal::Busy

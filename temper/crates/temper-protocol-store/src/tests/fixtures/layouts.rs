@@ -15,7 +15,7 @@ use skein_codec::{
 use temper_engine_domain_forge_vocabulary::Stored;
 
 pub const FLOOR: &str = include_str!("store-floor-store-v25.schema");
-pub const BINARY: &str = include_str!("../../../schema/store-v25.schema");
+pub const BINARY: &str = crate::OWNER_SET.families.first().expect("store family").current;
 
 pub fn wide() -> String {
     jobs::test_ids::wide_text(BINARY).unwrap()

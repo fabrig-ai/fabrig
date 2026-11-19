@@ -209,7 +209,7 @@ pub(super) fn report_part(headline: Option<&[u8]>) -> c::RowPart {
     };
     temper_fixtures::client_documents::goal_part(report, Some(42))
 }
-fn with_part(task: u64, part: c::RowPart) -> c::TaskLine {
+pub(super) fn with_part(task: u64, part: c::RowPart) -> c::TaskLine {
     let mut line = line(task, Wall::EPOCH);
     line.parts = List::from_boxed(Box::new([part]));
     line
@@ -403,31 +403,6 @@ fn each_state_of_the_table_reads() {
 }
 
 #[test]
-fn a_goals_id_is_its_leading_capitals_and_digits() {
-    for (title, expected) in [
-        ("S7 history in task logs", Some("S7")),
-        ("K10 · prepare reconnect statements once", Some("K10")),
-        ("H1, Home's parts", Some("H1")),
-        ("ABC123", Some("ABC123")),
-        ("A0", Some("A0")),
-        ("Fix 3 bugs", None),
-        ("s7 history", None),
-        ("SS7a", None),
-        ("ABCD1", None),
-        ("A1234", None),
-        ("A", None),
-        ("1", None),
-        ("", None),
-    ] {
-        let expected = match expected {
-            Some(id) => Some(id.as_bytes()),
-            None => None,
-        };
-        assert_eq!(goals::id(title.as_bytes()), expected, "{title}");
-    }
-}
-
-#[test]
 fn reports_arrive_with_live_and_ended_rows_without_notes() {
     let mut h = Harness::new();
     let read = ended_read(&h.reads());
@@ -442,7 +417,7 @@ fn reports_arrive_with_live_and_ended_rows_without_notes() {
     h.live(&[with_part(GOAL, report_part(Some(b"Next delivery")))], false);
     assert_eq!(h.goals().report(GOAL).unwrap().headline.as_ref(), b"Next delivery");
     h.live(&[with_part(GOAL, c::RowPart::Unknown)], false);
-    assert!(h.goals().report(GOAL).is_none(), "an unavailable replacement does not keep a stale report");
+    assert_eq!(h.goals().report(GOAL).unwrap().headline.as_ref(), b"Next delivery");
     assert!(reports(&h.reads()).is_empty());
 }
 
@@ -1209,4 +1184,97 @@ fn a_lost_read_keeps_has_goals() {
         &mut Queue::uncapped(),
     );
     assert!(h.root.has_goals(fixtures::PROJECT));
+}
+
+#[test]
+fn missing_goal_parts_keep_the_last_report_until_a_decoded_absence() {
+    for missing in [
+        c::RowPart::Failed(c::PartFailure::Busy),
+        c::RowPart::Unknown,
+        c::RowPart::NotServed(c::NotServed {
+            owner: c::Owner::Family(temper_client_protocol_wire::FORGE),
+            served: List::uncapped(),
+        }),
+        c::RowPart::Failed(c::PartFailure::Unreadable),
+    ] {
+        let mut h = Harness::new();
+        h.reads();
+        h.live(&[with_part(GOAL, report_part(Some(b"K3 lands the codec's shape")))], false);
+        h.live(&[with_part(GOAL, missing)], false);
+        assert_eq!(h.goals().report(GOAL).unwrap().headline.as_ref(), b"K3 lands the codec's shape");
+        assert!(reports(&h.reads()).is_empty(), "no read replaces a missing part");
+        h.live(&[with_part(GOAL, report_part(None))], false);
+        assert!(h.goals().report(GOAL).is_none(), "a decoded absence replaces the report");
+    }
+}
+
+#[test]
+fn ended_goal_parts_stand_through_a_mark_refresh_and_leave_with_the_row() {
+    let mut h = Harness::new();
+    let first = ended_read(&h.reads());
+    h.answer(first, page_at(&[with_part(GOAL, report_part(Some(b"Ended headline")))], false, 5));
+    h.live_at(&[], false, 5);
+    h.live_at(&[], false, 6);
+    let refresh = ended_read(&h.reads());
+    h.answer(refresh, page_at(&[with_part(GOAL, c::RowPart::Failed(c::PartFailure::Busy))], false, 6));
+    assert_eq!(h.goals().report(GOAL).unwrap().headline.as_ref(), b"Ended headline");
+    h.live_at(&[], false, 7);
+    let refresh = ended_read(&h.reads());
+    h.answer(refresh, page_at(&[], false, 7));
+    assert!(h.goals().report(GOAL).is_none());
+    assert_eq!(h.goals().membership(GOAL), None, "leaving the list drops every kept field");
+    h.live_at(&[with_part(GOAL, c::RowPart::Unknown)], false, 7);
+    assert!(h.goals().report(GOAL).is_none(), "a returning row has no kept report");
+}
+
+#[test]
+fn live_goal_parts_leave_with_the_row_and_the_shared_list() {
+    let mut h = Harness::new();
+    h.reads();
+    h.live(&[with_part(GOAL, report_part(Some(b"K3 lands")))], false);
+    h.live(&[], false);
+    assert_eq!(h.goals().membership(GOAL), None);
+    h.live(&[with_part(GOAL, c::RowPart::Unknown)], false);
+    assert!(h.goals().report(GOAL).is_none());
+    h.live(&[with_part(GOAL, report_part(Some(b"K3 lands")))], false);
+    h.event(crate::Event::Went { place: crate::Place::Address(Address::Settings { project: fixtures::PROJECT }) });
+    assert!(h.root.pages().goals().is_none(), "leaving the shared list drops its parts");
+}
+
+#[test]
+fn unanswered_needs_reads_keep_the_selection() {
+    for result in [
+        Readout::Jig(c::ReadResult::None(c::ReadNone::Busy)),
+        Readout::Limit,
+        Readout::Jig(c::ReadResult::None(c::ReadNone::Refused)),
+    ] {
+        let mut h = Harness::new();
+        let needs = needs_read(&h.reads());
+        h.answer(
+            needs,
+            c::ReadValue::Inbox(Box::new(c::InboxPage {
+                selection: Some(List::from_boxed(Box::new([c::InboxSelection {
+                    cursor: c::InboxCursor::Number { number: 1 },
+                    goals: List::from_boxed(Box::new([GOAL, OTHER])),
+                }]))),
+                rows: List::uncapped(),
+                before: None,
+                after: None,
+                cut: false,
+            })),
+        );
+        let mut changed = me();
+        changed.needs_total = 1;
+        h.event(crate::Event::Client {
+            event: jig_client::Event::Up {
+                up: Up::Watched { watch: h.me, event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(changed))) },
+            },
+        });
+        let needs = needs_read(&h.reads());
+        h.result(needs, result);
+        assert!(h.goals().needs_own(GOAL));
+        assert!(h.goals().needs_person(GOAL));
+        assert!(h.goals().needs_person(OTHER));
+        assert!(!h.goals().needs_own(OTHER));
+    }
 }

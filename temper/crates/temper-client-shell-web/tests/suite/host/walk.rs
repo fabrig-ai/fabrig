@@ -236,7 +236,7 @@ pub(super) fn walked() -> Box<[u8]> {
     walked_with_no_event(false)
 }
 pub(super) fn walked_with_no_event(no_event: bool) -> Box<[u8]> {
-    walked_with_saves(no_event).recording
+    sign_in(no_event, false, &mut |_| {})
 }
 pub(super) struct Saves {
     pub recording: Box<[u8]>,
@@ -311,20 +311,23 @@ fn linked() -> Walk {
     walk
 }
 pub(super) fn walked_with_saves(no_event: bool) -> Saves {
-    sign_in(no_event, false)
+    let mut snapshots = Vec::new();
+    let recording = sign_in(no_event, false, &mut |walk| snapshots.push(walk.recorder.save(&walk.page)));
+    let [before_press, first, later] = snapshots.try_into().expect("the three sign-in snapshots");
+    Saves { recording, before_press, first, later }
 }
 pub(super) fn walked_with_refused_tab() -> Box<[u8]> {
-    sign_in(false, true).recording
+    sign_in(false, true, &mut |_| {})
 }
-fn sign_in(no_event: bool, refuse_tab: bool) -> Saves {
+fn sign_in(no_event: bool, refuse_tab: bool, snapshot: &mut dyn FnMut(&Walk)) -> Box<[u8]> {
     let mut walk = linked();
     walk.refuse_tab = refuse_tab;
     if no_event {
         walk.press_heading();
     }
-    let before_press = walk.recorder.save(&walk.page);
+    snapshot(&walk);
     let signing = walk.continue_with_chatgpt();
-    let first = walk.recorder.save(&walk.page);
+    snapshot(&walk);
     let started = w::DocumentOutcome::AccountSignInStarted(
         w::OutcomeAccountSignInStarted::new(
             &w::CEILINGS,
@@ -338,7 +341,7 @@ fn sign_in(no_event: bool, refuse_tab: bool) -> Saves {
     let answer = w::Final::Done(w::Done::new(&w::CEILINGS, w::DoneParts { outcome }).expect("done"));
     let answer = w::KeyedAnswer::FinalAnswer(owned(encoded(answer.measure(), |writer| answer.encode(writer))));
     walk.answered(signing, &answer);
-    let later = walk.recorder.save(&walk.page);
+    snapshot(&walk);
     let watch = walk.accounts.expect("accounts watch");
     for ended in [false, true] {
         let value = accounts(ended);
@@ -350,7 +353,7 @@ fn sign_in(no_event: bool, refuse_tab: bool) -> Saves {
             .expect("accounts delivery"),
         ));
     }
-    Saves { recording: walk.recorder.save(&walk.page), before_press, first, later }
+    walk.recorder.end(&walk.page)
 }
 fn accounts(ended: bool) -> w::DeliveryValue {
     let signing = w::AccountSignIn::new(
@@ -500,7 +503,7 @@ pub(super) fn keyed(value: &[u8], byte_at_a_time: bool) -> Box<[u8]> {
     );
     let answer = w::Final::Done(w::Done::new(&w::CEILINGS, w::DoneParts { outcome }).expect("done"));
     walk.answered(sent, &w::KeyedAnswer::FinalAnswer(owned(encoded(answer.measure(), |writer| answer.encode(writer)))));
-    walk.recorder.save(&walk.page)
+    walk.recorder.end(&walk.page)
 }
 pub(super) fn stored_stream(record: skein_ui_web::store::Record) -> Box<[u8]> {
     let facts = Facts {
@@ -527,7 +530,7 @@ pub(super) fn stored_stream(record: skein_ui_web::store::Record) -> Box<[u8]> {
         wall: facts.wall,
     };
     walk.turn(vec![Report::Start]);
-    walk.recorder.save(&walk.page)
+    walk.recorder.end(&walk.page)
 }
 fn me_with_openai_key() -> w::DeliveryValue {
     let w::DeliveryValue::Me(me) = me_with_openai() else { panic!("me fixture") };

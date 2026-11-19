@@ -440,13 +440,14 @@ pub enum Lower {
     /// `deadline`.
     Probe { owner: Token, at: run::Place, deadline: Time },
     /// Run the executable at `program`, in its repository's root, as a
-    /// contained process, stopping it at `deadline`; keep the last `tail`
+    /// contained process, given `bound` of held time within `cap`; keep the last `tail`
     /// bytes of what it writes.
     Check {
         owner: Token,
         /// IO-confined check executable, run as a contained process tree.
         program: run::Place,
-        deadline: Time,
+        bound: Duration,
+        cap: Time,
         /// Last output bytes retained under the caller's cap.
         tail: u32,
     },

@@ -119,6 +119,27 @@ section 8; skein/docs/foundation/testing-strategy.md, 2.9).
   and the cursor the page printed (`ended.rows.after.value`), until a
   page prints none (../client/ctl/tools.md, 2); a page cut with no cursor,
   or past 32 pages in all, fails the story, naming it.
+  - **A failure says why:** once a sitting has returned with a finding,
+    before the test fails with it, the story prints each run the box's
+    serve log records as failed or refused, serve's operator line
+    (`../domain/worker/README.md`, 4.3; `../domain/worker/checkouts.md`,
+    1.4): its task, run, attempt and jig's failure, then its detail,
+    the agent's last error. Each line goes out redacted as every notice
+    is, and the redaction also masks an `x-api-key` header's value and
+    an Anthropic key (`sk-ant-`). Task JSON alone can't say why: a run's
+    failure reaches the task's hold as its class, with words only where
+    the model's evidence supplies them.
+  - **Its box's data kept:** the story then copies the box's data
+    directory as `data` into its own scratch, under the launcher's
+    `TMPDIR`, which a failure leaves in place, and prints the copy's
+    path: a runner's fresh `TEMPER_TEST_LIVE_STORE` need not outlive the
+    run, and the store itself stays as it is. The copy leaves credentials
+    out, by name: jig's secrets store in each generation and the
+    checkpoints that copy it, the worker's secret, the identity
+    provider's key, the programs directory and every `forge-N`
+    directory. A link is copied as a link, never followed. A copy that
+    fails prints a line of its own and leaves the test's finding the
+    story's. A pass copies nothing.
 - **The owned-forge landing story on Claude Code,**
   `a_person_asks_claude_code_to_land_a_change_on_the_owned_forge`, run
   by `scripts/proof-live.sh forge-land-claude`: the same story, every

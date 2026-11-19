@@ -15,6 +15,7 @@ mod limits;
 #[path = "tests/person_task.rs"]
 mod person_task_stories;
 mod reads;
+mod reports;
 mod routing;
 mod run_policy_tools;
 mod runs;
@@ -495,6 +496,7 @@ pub(crate) fn config(seed: u64) -> Config {
         },
         kinds: Box::default(),
         defaults: crate::settings::Defaults {
+            limits: Box::default(),
             providers: Box::new([provider_setting(1, b"Fake", 1)]),
             workers: Box::new([
                 crate::settings::WorkerSetting {
@@ -819,6 +821,7 @@ fn documents_run_has_only_the_live_proofs_committed_progress() {
                 task: 1,
                 attempt: 7,
                 conversation: 1,
+                endpoint: None,
                 credentials: Box::new([]),
                 window: None,
                 crossed: false,
@@ -2322,6 +2325,7 @@ fn watch_core() -> (Core, Limits) {
                 task: 1,
                 attempt: 7,
                 conversation: 1,
+                endpoint: None,
                 credentials: Box::new([]),
                 window: None,
                 crossed: false,

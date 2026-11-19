@@ -3,6 +3,7 @@ use jig_domain_host as host;
 use jig_domain_link::{Bounds, EndpointBound, Form, Grant};
 use skein_lib::{Secret, Token};
 use temper_protocol_records_forge as forge_records;
+use temper_protocol_worker_wire::v1::Record as WorkerRecord;
 
 // smith's protocol/agent.md, section 4: OpenAI's public Responses dialect.
 pub const DIALECT: u32 = 3;
@@ -10,14 +11,12 @@ pub const DIALECT: u32 = 3;
 // The stock catalogue holds twelve charters.
 // The closer procedure and close job make seventeen executor places in both limits.
 pub const ENGINE: &[u8] = br#"{
-"limits": {"overrides": {"fleet.slots":4,"tasks.inbox_bytes":4096,"core.run_bytes":32768,"tasks.charters":13,"core.templates":7,"tasks.result_bytes":32,"tasks.run_inbox":2,"hub.turns":1,"people.amendment_bytes":64,"core.policy_bytes":8192,"authority.grants":16,"authority.executors":22,"tasks.executor_kinds":22,"notes.scopes":32,"tasks.spec_bytes":128,"tasks.message_bytes":512,"tasks.hold_bytes":64,"tasks.authority_bytes":64,"people.words":512,"core.call_answer_bytes":2048,"notes.recalled":1}},
 "hosts": {
 "listener": [{"in_process": "workers"}]
 },
 "clients": {
 },
-"owners": [{"provider": 1, "subject": "owner-a"}],
-"memory_bytes": 1152921504606846976
+"owners": [{"provider": 1, "subject": "owner-a"}]
 }"#;
 
 // Jig's inline input is retained only to exercise policy decoding and typed guards.
@@ -48,11 +47,14 @@ pub fn engine() -> settings::Engine {
     let root = limits::engine(&jig.limits, &own).unwrap();
     let connector = *jig.connectors.first().unwrap();
     settings::Engine {
+        store_limits: None,
         kinds: crate::stock::kinds(&root, connector),
         period_span: crate::stock::PERIOD_SPAN,
         host_reply_bytes: None,
         agent_charter_bytes: None,
         setups: Box::new([]),
+        owned_forgejo: None,
+        owned_runner: None,
         test_github: None,
         directories: jig_protocol_config::Directories::working(),
         jig,
@@ -82,6 +84,7 @@ pub fn engine() -> settings::Engine {
 fn small_limits() -> limits::Limits {
     let mut own = temper_limits_fixtures::small();
     own.root.journal.run_bytes = 32_768;
+    own.root.transcript_memory = 1_152_921_504_606_846_976;
     own
 }
 
@@ -132,6 +135,13 @@ pub fn small_model() -> jig_domain_core::settings::CatalogueModel {
 }
 
 /// A parsed engine passed the stock, before any component is made.
+#[path = "../../../../testing/engine_limit_figures.rs"]
+mod engine_figures;
+use engine_figures::over as jig_limits_over;
+fn jig_limits() -> jig_protocol_config::Limits {
+    jig_limits_over(&jig_protocol_config_fixtures::small())
+}
+
 pub fn parse_engine(bytes: &[u8]) -> jig_protocol_config::Engine {
     let document = jig_protocol_config::document(
         bytes,
@@ -144,7 +154,7 @@ pub fn parse_engine(bytes: &[u8]) -> jig_protocol_config::Engine {
         &jig_protocol_config::Directories::working(),
         jig_protocol_config::Defaults::PassedProviders,
         &temper_engine_service_startup::startup::fixed(&jig_protocol_config::Directories::working()).unwrap(),
-        &jig_protocol_config_fixtures::small(),
+        &jig_limits(),
     )
     .unwrap();
     let running = temper_worker_service_fixtures::providers();
@@ -340,7 +350,6 @@ fn completed_root() -> (temper_engine_domain::Domain, skein_lib::Env<temper_engi
     let settings = start_settings(engine(), &[(1, 100)]);
     let seeds = seeds();
     let mut limits = limits::engine(&settings.jig.limits, &settings.limits).unwrap();
-    limits.memory_bytes = settings.jig.memory;
     limits.host_reply_bytes = settings.host_reply_bytes;
     let mut core = crate::system::core_config(&settings.jig, &seeds);
     core.kinds.clone_from(&settings.kinds);
@@ -430,6 +439,7 @@ pub fn completed_store() -> crate::store::Store {
                 | root::Request::Busy(_)
                 | root::Request::Restarting { .. }
                 | root::Request::Drained
+                | root::Request::LimitSettingsCommitted { .. }
                 | root::Request::Stop) => panic!("first-start fixture output: {request:?}"),
             }
         }
@@ -1028,7 +1038,10 @@ pub fn settle_root(
                 }
                 root::Request::Party(_) => {}
                 request @ root::Request::Worker(_) => crate::route::request(engine, request),
-                request @ (root::Request::Store(_) | root::Request::Account(_) | root::Request::ToChild(_)) => {
+                request @ (root::Request::Store(_)
+                | root::Request::Account(_)
+                | root::Request::ToChild(_)
+                | root::Request::LimitSettingsCommitted { .. }) => {
                     crate::route::request(engine, request);
                 }
                 root::Request::Setup { .. }
@@ -1227,7 +1240,7 @@ pub fn clients() -> crate::clients::Clients {
     .unwrap()
 }
 mod startup;
-pub use startup::{APPLICATION, Json, demo_service, document, files, value, with};
+pub use startup::{APPLICATION, Json, demo_service, document, files, value};
 pub fn forge_runtime() -> skein_lib::List<crate::ForgeRuntime> {
     let mut runtime = skein_lib::List::with_capacity(1);
     runtime

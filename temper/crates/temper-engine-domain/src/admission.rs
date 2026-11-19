@@ -20,6 +20,7 @@ pub fn completes(event: &Event) -> bool {
     match event {
         Event::Store(_)
         | Event::Released(_)
+        | Event::LimitsRaised
         | Event::Resume
         | Event::Account(_)
         | Event::Setup { .. }
@@ -53,7 +54,8 @@ pub fn completes(event: &Event) -> bool {
         Event::Worker(worker) => worker_completes(worker),
         Event::Forge(event) => match event.as_ref() {
             forge::Event::Bind { .. } | forge::Event::Installation { .. } | forge::Event::Hint { .. } => false,
-            forge::Event::ReadHistory { .. }
+            forge::Event::LimitsRaised
+            | forge::Event::ReadHistory { .. }
             | forge::Event::HistoryLoaded { .. }
             | forge::Event::HistoryUnloaded { .. }
             | forge::Event::Signed { .. }
@@ -224,6 +226,7 @@ pub fn try_step(domain: &mut Domain, env: &Env<Limits>, event: Event) -> Result<
             | StoreInput::Loaded { .. }
             | StoreInput::Unloaded { .. },
         )
+        | Event::LimitsRaised
         | Event::Resume) => {
             step(domain, env, event);
             Ok(())
@@ -263,6 +266,7 @@ pub fn try_step(domain: &mut Domain, env: &Env<Limits>, event: Event) -> Result<
                 | Event::Stop
                 | Event::Store(_)
                 | Event::Released(_)
+                | Event::LimitsRaised
                 | Event::Resume => false,
             };
             if !admitted || keeps_payload && !crate::link::room(domain) {

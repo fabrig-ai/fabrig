@@ -10,6 +10,14 @@ Provisional, 2026-10-29. Run one tree's slow tier with its prerequisites.
   using the pair's sorted package names from `tools/tiers/packages.toml`,
   followed by the extra arguments unchanged. The map is generated from the
   packages with selected tests in each profile's workspace JSON listing.
+- **A build alone takes no run's flag:** where the extra arguments hold
+  `--no-run`, the runner builds the pair's prerequisites and test
+  binaries and runs `cargo nextest run -p PKG ... --profile TIER-TREE`
+  with them, without `--no-fail-fast`, which nextest refuses beside
+  `--no-run`. The flag is the runner's own, so the runner drops it; the
+  caller's arguments still pass unchanged, and a run that executes its
+  tests takes the flag as before. The macOS workflow builds each pair so
+  (`temper/docs/design/testing/macos.md`, 4.3).
 - **The config owns the pairs:** the root `.config/nextest.toml` profile
   tables whose names contain a hyphen supply the pairs, split at the last
   hyphen into tier and tree. Unknown pairs and pairs missing a valid package
@@ -170,12 +178,24 @@ default names a tool:
      point's process group and session (never one of the hold's own, so that
      a stop of the entry point's tree stops it too), with its stdin a pipe the entry point
      keeps open, its stdout a pipe, its stderr the entry point's;
-  2. waits for the hold's first line on stdout, whatever it says: the hold
-     is taken. Until then no cargo runs. A hold that cannot start, exits or
-     closes its stdout before that line, or gives none within 60 seconds is
-     a warning, `<entry point>: hold: <why>; going on unheld`, the entry
-     point `one-process` or `pre-pr`, and never a failure: the hold's
-     process, if alive, is killed, and the run goes on with none;
+  2. waits for the hold's held line on stdout: its first line that does
+     not start with `waiting`, whatever it says: the hold is taken. Until
+     then no cargo runs. A line that starts with `waiting` says the hold
+     waits for a place it takes (below): at the first, the entry point
+     prints `<entry point>: hold: <the line>` and writes the line
+     `smith-check: waiting` to its stderr, so that smith stops the checks'
+     bound's clock (`smith/docs/design/domain/run.md`, 8.1, *A wait for
+     what a check needs*); later ones it reads and keeps waiting. After
+     any `waiting` line, the held line, or the warning below, first writes
+     `smith-check: admitted` to its stderr, and the held line prints
+     `<entry point>: hold: held after <S> s`, S the whole seconds since
+     the hold started. A hold that cannot start, exits or closes its stdout
+     before its held line, or gives no line within 60 seconds of its start
+     or of its last `waiting` line, is a warning, `<entry point>: hold:
+     <why>; going on unheld`, the entry point `one-process` or `pre-pr`,
+     and never a failure: the hold's process, if alive, is killed, and the
+     run goes on with none. A hold that writes no `waiting` line is read
+     as before, and the entry point writes neither line to its stderr;
   3. runs with `TIERS_HOLD` removed from every child's environment, so that
      an entry point under it (one-process under pre-pr) takes no hold of its
      own: one hold for the run;
@@ -190,13 +210,27 @@ default names a tool:
 
   So a hold program, the prefix started alone with no arguments added and
   without `TIERS_HOLD` in its environment: keeps the directory first, then
-  writes one line, newline-ended and flushed, to its stdout within 60
-  seconds; writes nothing more there, since no one reads it after that
-  line; keeps the directory until it reads end of file on its stdin; then
-  gives it back and exits within 10 seconds. Its keeping must also end if
-  it is killed by `SIGKILL` at that point, and a signal sent to the entry
-  point's process group reaches it too. It holds no build of its own: no
-  cargo command waits on it.
+  writes one held line, newline-ended and flushed, to its stdout, not
+  starting with `waiting`, within 60 seconds of its start or of its last
+  `waiting` line (below); writes nothing more there,
+  since no one reads it after that line; keeps the directory until it
+  reads end of file on its stdin; then gives it back and exits within 10
+  seconds. Its keeping must also end if it is killed by `SIGKILL` at that
+  point, and a signal sent to the entry point's process group reaches it
+  too. It holds no build of its own: no cargo command waits on it.
+
+  **The places it may hold.** An environment that admits its cargo
+  commands to a limited number of build places (builds at once) may have
+  its hold take the run's place too, before its held line, and keep it to
+  its end, so that the run waits for a place once and its cargo commands,
+  run under the hold, wait for none of them: how a command knows it runs
+  under a held place is the environment's. While it waits for one, it
+  writes a line starting `waiting` (`waiting for a build place`, with
+  what it waits behind if it knows), newline-ended and flushed, at once
+  and then at least every 60 seconds, so that a hold that waits is told
+  from one that hangs; then the held line once it holds them. The entry
+  point's waiting has no bound of its own: smith's call deadline and the
+  run's end bound it (smith's `smith/docs/design/domain/run.md`, 8.1).
 
 The runner sets umask 077, closes child stdin, and leaves child output visible,
 what a wrapper prints around a command included. Commands remain sequential,
@@ -779,8 +813,8 @@ change to the build command a caller wraps changes none of them.
 - `tools/tiers/one-process [--out DIR] [--budgets PATH] [--walls PATH] [--ledger PATH] [--gate] PROFILE [NEXTEST_ARGS...]`
   (11.9), with `execute_one_process`'s exit statuses.
 - `tools/tiers/one-process --alone HEAD_DIR [--out DIR] [NEXTEST_ARGS...]`:
-  a head run's flagged tests run alone at this checkout, the base's
-  (`tools/tiers/references.md`, 5).
+  a head run's flagged tests run alone three times each at this checkout,
+  the base's (`tools/tiers/references.md`, 5).
 - `python3 -I -B tools/tiers/figures.py --base BASE [--head HEAD]`: refuses,
   exit 1, a change from BASE to HEAD that raises a figure of
   `tools/tiers/budgets.toml` or adds a reason's line, naming each, unless it
@@ -877,14 +911,15 @@ Relative paths are the caller's working directory's, the checkout root.
 | `verdict` | `over budget`, `starved`, `within budget` (the pair has a table) or `no budget set` |
 | `failures` | `"BINARY_ID TEST_NAME"` for each test whose failure stands (7.3); for tools, `"ID suite"` |
 | `over_budget` | one entry for each CPU budget passed, naming its test or suite, and with `gate` each layer over its budget (`tools/tiers/budgets.md`, 4) and each test past its reference; every entry ends with the repair line (`tools/tiers/budgets.md`, 10.1) |
-| `warnings` | one line for each `auto_reap` declaration and each unobserved attempt; in a one-process run, each unplaced binary and, without `gate`, each layer over its budget |
+| `warnings` | one line for each `auto_reap` declaration and each unobserved attempt; in a one-process run, each unplaced binary and, without `gate`, each layer over its budget; with a ledger, each test that swings alone at main, last (`tools/tiers/references.md`, 6) |
 | `unobserved` | `{binary_id, test_name, attempt}` for each attempt cancellation stopped before its record (7.3); always empty for tools |
 | `tests` | for each test: `binary_id`, `test_name`, `attempts`, `cpu_s`, `user_s`, `system_s`, `wall_s`, `starved`, `leaked`, `incomplete` |
 | `suite` | the totals: `tests`, `attempts`, `cpu_s`, `user_s`, `system_s`, `wall_s`, `test_wall_s`, `starved`, `starved_run`, `unobserved`, `leaked`, `incomplete`, `cpu_by` |
 | `processes` | for each process of a one-process run: `binary_id`, `tests` (its tests' names, in the order they ran), `cpu_s`, `user_s`, `system_s`, `wall_s`, `exit_code` or `signal`, `kind`, `leaked`, `tree`, `layer`; empty for a nextest run and for tools |
 | `layers` | for each tree and layer with a process in a one-process run, or with a ledger a figure at the head or at main: `tree`, `layer`, `cpu_s`, `measured_s`, `main_s`, `ceiling_s`, `budget_s`, `main_budget_s`, `lowest_s`, `ideal_s`, `reference_s`, `over`, `main_over`, `grew` (`tools/tiers/budgets.md`, 4 and 8); empty for a nextest run and for tools |
 | `trees` | for each tree with a row in `layers`: `tree`, `cpu_s`, `main_s`, `ceiling_s`, `budget_s`, `ideal_s` (`tools/tiers/budgets.md`, 4 and 8); empty for a nextest run and for tools |
-| `references` | for each test a one-process run ran alone for its reference: `binary_id`, `test_name`, `tree`, `layer`, `why`, `wall_s`, `main_wall_s`, `cpu_s`, `main_cpu_s`, `main_from`, `reference_s`, `line_s`, `limit_s`, `over` (`tools/tiers/references.md`, 6); empty for a nextest run, for tools and for a run that ran none alone |
+| `references` | for each test a one-process run ran alone for its reference: `binary_id`, `test_name`, `tree`, `layer`, `why`, `wall_s`, `main_wall_s`, `cpu_s`, `main_cpu_s`, `main_from`, `reference_s`, `line_s`, `limit_s`, `over`, `alone`, `main_alone`, `swinging` (`tools/tiers/references.md`, 6); empty for a nextest run, for tools and for a run that ran none alone |
+| `swings` | for each test of the given ledger whose last three figures alone lie past half again apart: `binary_id`, `test_name`, `tree`, `layer`, `alone` (`tools/tiers/references.md`, 6); empty without a ledger, for a nextest run and for tools |
 
 `suite`'s `cpu_by` is `"test"` for a nextest run and for tools, where each
 attempt or suite has its CPU, and `"process"` for a one-process run, where
@@ -1004,7 +1039,8 @@ refuses, raising `ValueError` before anything runs, what it cannot hold:
   `--test-threads` or `NEXTEST_TEST_THREADS` given;
 - `retries` other than unset or 0, in the profile, an override, `--retries` or
   `NEXTEST_RETRIES`; a `slow-timeout` with `terminate-after`; an override with
-  `threads-required`, `run-extra-args` or `platform`; a profile with `inherits`;
+  `threads-required` or `run-extra-args`, or with `platform` and a key the mode
+  honours (11.3); a profile with `inherits`;
 - `--no-run`, stress (`--stress-count`, `--stress-duration`), `--debugger`,
   `--config-file`, `--tool-config-file`; a `--profile` or `-P` other than
   `profile`;
@@ -1064,6 +1100,13 @@ keys are honoured: `priority` (0 when none sets it) and `test-group`. Every
 other key is either refused (11.1) or has no effect here (`slow-timeout`'s
 period, `leak-timeout`, output and JUnit settings).
 
+**An override with `platform`** that sets neither honoured key is passed
+over, whatever its platform: it gives no test anything here, so its filter,
+which may be absent, is never compiled. macOS's doubled slow timeouts are
+such overrides (`temper/docs/design/testing/macos.md`, section 7). One with
+`platform` that sets `priority` or `test-group` is refused (11.1): the mode
+does not evaluate platforms.
+
 **`process-of-its-own`.** A test in the test group of that name runs in a
 process of its own, still under the group's `max-threads`: the place for a
 test that cannot yet leave its process as it found it (testing-strategy.md,
@@ -1101,8 +1144,14 @@ processes, and report each event as one line of their stdout beginning
 and is forwarded. The lanes write no file but those named pipes, which hold
 nothing.
 
-- **As many lanes as CPUs:** `len(os.sched_getaffinity(0))` where the lanes
-  run, which is nextest's default number of test threads.
+- **As many lanes as CPUs:** the CPUs the lanes may use where they run,
+  which is nextest's default number of test threads: the process's
+  affinity, `len(os.sched_getaffinity(0))`, where Python's `os` has it,
+  as on Linux; elsewhere, as on macOS, which has no affinity call, the
+  machine's usable CPUs, `os.cpu_count()`, the count nextest takes there;
+  and one lane where neither answers. A plan that fixes its lanes, as
+  `--again`'s one (11.9), keeps them. `run.json`'s `lanes` records the
+  count either way (11.8).
 - **Longest first.** A binary's estimate is the sum of its tests' kept wall
   times (11.8); a test with none counts the mean kept time per test of the
   selection, and with none kept anywhere every test counts 1, so binaries
@@ -1368,8 +1417,9 @@ above: taken with `TIERS_HOLD` set, none under `.temper/pre-pr`. It runs
 nothing alone for a reference.
 
 **At the base.** `tools/tiers/one-process --alone HEAD_DIR [--out DIR]
-[NEXTEST_ARGS...]`, from a checkout of a gate candidate's base, runs alone
-the tests the head's run in `HEAD_DIR` flagged, and writes their figures
+[NEXTEST_ARGS...]`, from a checkout of a gate candidate's base, runs alone,
+three times each, the tests the head's run in `HEAD_DIR` flagged, and
+writes their figures, each test's the highest of its three,
 for `cpu-summary --base` (`tools/tiers/references.md`, 5, which gives its
 listing, files and exit statuses). It lists and builds as a run does, the
 flagged binaries' own targets alone, a listing for each of their packages,

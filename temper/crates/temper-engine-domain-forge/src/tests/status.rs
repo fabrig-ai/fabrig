@@ -11,7 +11,10 @@ const LOOKS: u32 = 8;
 const BEFORE: Wall = Wall::from_nanos(10_000_000_000_000);
 
 fn facts(project: u32, landed: u64) -> ProjectFacts {
-    ProjectFacts { project, landed, last_landed: BEFORE, brief: None, running: None }
+    ProjectFacts { project, landed, last_landed: BEFORE }
+}
+fn person(party: u64, project: u32) -> PersonBrief {
+    PersonBrief { party, project, brief: None, running: None, unpaid: None }
 }
 fn look_row(party: u64, project: u32) -> Looked {
     Looked { party, project, previous: Some(Wall::EPOCH), latest: BEFORE, seen: 1, next_seen: 2 }
@@ -24,6 +27,7 @@ fn restored() -> Domain {
     let mut d = configured_domain(&[]);
     restore(&mut d, &env(), Stored::ProjectFacts(facts(PROJECT, 3)));
     restore(&mut d, &env(), Stored::Looked(look_row(PARTY, PROJECT)));
+    restore(&mut d, &env(), Stored::PersonBrief(person(PARTY, PROJECT)));
     d
 }
 fn look(d: &mut Domain, party: u64, now: Wall) -> Queue<Request> {
@@ -126,7 +130,7 @@ fn a_landing_counts_once_and_at_either_site() {
         assert!(repeated.is_empty());
         assert_eq!(
             d.project_facts.get(&PROJECT),
-            Some(&ProjectFacts { project: PROJECT, landed: 1, last_landed: env().wall, brief: None, running: None })
+            Some(&ProjectFacts { project: PROJECT, landed: 1, last_landed: env().wall })
         );
         add_change(&mut d, SECOND, b"main");
         merged(&mut d, SECOND, FIRST);
@@ -222,9 +226,9 @@ fn the_document_is_the_asking_partys_own() {
         findings: None,
     };
     let running = StatusRunning { task: Some(TIER_TASK), landed: 3, since: BEFORE, findings: None };
-    let row = ProjectFacts { brief: Some(brief.clone()), running: Some(running), ..facts(PROJECT, 3) };
-    restore(&mut d, &env(), Stored::ProjectFacts(row.clone()));
-    assert_eq!(d.project_facts.get(&PROJECT), Some(&row));
+    let row = PersonBrief { brief: Some(brief.clone()), running: Some(running), ..person(PARTY, PROJECT) };
+    restore(&mut d, &env(), Stored::PersonBrief(row.clone()));
+    assert_eq!(d.person_briefs.get(&(PARTY, PROJECT)), Some(&row));
     assert_eq!((view(&d, PARTY).previous, view(&d, PARTY).seen), (Some(Wall::EPOCH), 1));
     assert_eq!((view(&d, OTHER_PARTY).previous, view(&d, OTHER_PARTY).seen), (None, 3));
     assert_eq!(view(&d, PARTY).brief, Some(brief));
@@ -292,6 +296,9 @@ fn erased_with_its_project() {
         Stored::Looked(look_row(PARTY, PROJECT)),
         Stored::Looked(look_row(OTHER_PARTY, PROJECT)),
         Stored::Looked(look_row(PARTY, PROJECT + 1)),
+        Stored::PersonBrief(person(PARTY, PROJECT)),
+        Stored::PersonBrief(person(OTHER_PARTY, PROJECT)),
+        Stored::PersonBrief(person(PARTY, PROJECT + 1)),
     ] {
         restore(&mut d, &env(), record);
     }
@@ -303,11 +310,14 @@ fn erased_with_its_project() {
             Request::Erase { key: Key::ProjectFacts { project: PROJECT } },
             Request::Erase { key: Key::Looked { party: PARTY, project: PROJECT } },
             Request::Erase { key: Key::Looked { party: OTHER_PARTY, project: PROJECT } },
+            Request::Erase { key: Key::PersonBrief { party: PARTY, project: PROJECT } },
+            Request::Erase { key: Key::PersonBrief { party: OTHER_PARTY, project: PROJECT } },
             Request::ProjectReleased { request: REQUEST },
         ]
     );
     assert_eq!(d.project_facts.len(), 1);
     assert_eq!(d.looked.len(), 1);
+    assert_eq!(d.person_briefs.len(), 1);
     assert_eq!(
         outputs(&mut d, Event::ReleaseProject { project: PROJECT, request: REQUEST }).as_ref(),
         [Request::ProjectReleased { request: REQUEST }]
@@ -319,11 +329,17 @@ fn facts_record(project: u32) -> Stored {
 fn looked_record(project: u32) -> Stored {
     Stored::Looked(look_row(PARTY, project))
 }
+fn person_record(project: u32) -> Stored {
+    Stored::PersonBrief(person(PARTY, project))
+}
 type RestoreCase = (RecordKind, u32, fn(u32) -> Stored);
 #[test]
 fn restored_rows_past_their_bound_are_refused() {
-    let cases: [RestoreCase; 2] =
-        [(RecordKind::ProjectFacts, LIMITS.judge_projects, facts_record), (RecordKind::Looked, LOOKS, looked_record)];
+    let cases: [RestoreCase; 3] = [
+        (RecordKind::ProjectFacts, LIMITS.judge_projects, facts_record),
+        (RecordKind::Looked, LOOKS, looked_record),
+        (RecordKind::PersonBrief, LOOKS, person_record),
+    ];
     for (kind, bound, make) in cases {
         let mut d = domain();
         for project in 0..bound {
@@ -391,6 +407,8 @@ fn finding(number: u32, kind: FindingKind, severity: Severity, title: &[u8], sta
         reason: None,
         signature: None,
         seen: None,
+        blame: None,
+        cleared: None,
     }
 }
 fn high_a() -> Finding {
@@ -425,7 +443,7 @@ fn open_findings_words_count_only_open_rows_of_the_project_and_mark_their_bytes(
         b"Open findings: 4\n- qa: 1 high\n- flake: 2 low\n- red: 1 medium\nHigh ones, newest first:\n- A (qa)\n"
     );
     assert_eq!(
-        d.project_facts.get(&PROJECT).unwrap().running.as_ref().unwrap().findings,
+        d.person_briefs.get(&(PARTY, PROJECT)).unwrap().running.as_ref().unwrap().findings,
         Some(skein_lib::sha256::digest(&part))
     );
 
@@ -434,7 +452,30 @@ fn open_findings_words_count_only_open_rows_of_the_project_and_mark_their_bytes(
         restore(&mut d, &env(), Stored::Finding(row));
     }
     assert_eq!(run_findings(&mut d).as_ref(), b"Open findings: none\n");
-    assert_eq!(d.project_facts.get(&PROJECT).unwrap().running.as_ref().unwrap().findings, None);
+    assert_eq!(d.person_briefs.get(&(PARTY, PROJECT)).unwrap().running.as_ref().unwrap().findings, None);
+}
+
+#[test]
+fn blamed_red_findings_are_open_until_cleared_whatever_their_triage_state() {
+    for state in [FindingState::New, FindingState::Backlog, FindingState::Routed, FindingState::Dropped] {
+        for cleared in [false, true] {
+            let mut d = restored();
+            let row = Finding {
+                kind: FindingKind::Red,
+                state,
+                blame: Some(FindingBlame { strength: BlameStrength::Owned, landings: Box::new([]) }),
+                cleared: cleared.then_some(FindingCleared { run: 8, at: BEFORE }),
+                ..high_a()
+            };
+            restore(&mut d, &env(), Stored::Finding(row));
+            let expected: &[u8] = if cleared {
+                b"Open findings: none\n"
+            } else {
+                b"Open findings: 1\n- red: 1 high\nHigh ones, newest first:\n- A (red)\n"
+            };
+            assert_eq!(run_findings(&mut d).as_ref(), expected, "{state:?}, cleared {cleared}");
+        }
+    }
 }
 
 #[test]
@@ -477,7 +518,8 @@ fn findings_changes_start_runs_without_new_landings() {
         (FindingState::New, Severity::High, None, true),
     ] {
         let mut d = restored();
-        d.project_facts.get_mut(&PROJECT).unwrap().brief = Some(Brief { findings: previous, ..brief(BEFORE, 3) });
+        d.person_briefs.get_mut(&(PARTY, PROJECT)).unwrap().brief =
+            Some(Brief { findings: previous, ..brief(BEFORE, 3) });
         restore(&mut d, &env(), Stored::Finding(Finding { state, severity, ..high_a() }));
         assert_eq!(
             asks_run(look(&mut d, PARTY, after(7200))).is_some(),
@@ -486,7 +528,7 @@ fn findings_changes_start_runs_without_new_landings() {
         );
     }
     let mut d = restored();
-    d.project_facts.get_mut(&PROJECT).unwrap().brief = Some(Brief { findings: mark, ..brief(BEFORE, 3) });
+    d.person_briefs.get_mut(&(PARTY, PROJECT)).unwrap().brief = Some(Brief { findings: mark, ..brief(BEFORE, 3) });
     for row in [high_a(), Finding { number: 2, ..high_a() }] {
         restore(&mut d, &env(), Stored::Finding(row));
     }
@@ -503,10 +545,10 @@ fn findings_only_runs_obey_the_hour_and_the_run_in_flight() {
         (7200, Some(Some(TIER_TASK)), false),
     ] {
         let mut d = restored();
-        d.project_facts.get_mut(&PROJECT).unwrap().brief = Some(brief(BEFORE, 3));
+        d.person_briefs.get_mut(&(PARTY, PROJECT)).unwrap().brief = Some(brief(BEFORE, 3));
         restore(&mut d, &env(), Stored::Finding(high_a()));
         if let Some(task) = task {
-            d.project_facts.get_mut(&PROJECT).unwrap().running =
+            d.person_briefs.get_mut(&(PARTY, PROJECT)).unwrap().running =
                 Some(StatusRunning { task, landed: 3, since: after(seconds), findings: None });
         }
         assert_eq!(asks_run(look(&mut d, PARTY, after(seconds))).is_some(), expected, "{seconds}, {task:?}");
@@ -518,19 +560,19 @@ fn the_brief_keeps_the_mark_the_run_read() {
     for changed_during_run in [false, true] {
         let mut d = restored();
         restore(&mut d, &env(), Stored::Finding(high_a()));
-        d.project_facts.get_mut(&PROJECT).unwrap().brief = Some(brief(BEFORE, 3));
+        d.person_briefs.get_mut(&(PARTY, PROJECT)).unwrap().brief = Some(brief(BEFORE, 3));
         assert_eq!(run_findings(&mut d).as_ref(), HIGH_A);
         let mark = Some(skein_lib::sha256::digest(HIGH_A));
-        assert_eq!(d.project_facts.get(&PROJECT).unwrap().running.as_ref().unwrap().findings, mark);
-        outputs(&mut d, Event::StatusTask { project: PROJECT, task: TIER_TASK });
+        assert_eq!(d.person_briefs.get(&(PARTY, PROJECT)).unwrap().running.as_ref().unwrap().findings, mark);
+        outputs(&mut d, Event::StatusTask { project: PROJECT, party: PARTY, task: TIER_TASK });
         if changed_during_run {
             restore(&mut d, &env(), Stored::Finding(Finding { severity: Severity::Low, ..high_a() }));
         }
         let out = status_heard(&mut d, TIER_TASK, Some(b"One finding remains"));
-        let row = d.project_facts.get(&PROJECT).unwrap();
+        let row = d.person_briefs.get(&(PARTY, PROJECT)).unwrap();
         assert_eq!(row.brief.as_ref().unwrap().findings, mark);
         assert!(out.contains(&Request::Save {
-            record: Stored::ProjectFacts(row.clone()),
+            record: Stored::PersonBrief(row.clone()),
             release: None,
             read_afresh: None
         }));
@@ -571,8 +613,7 @@ fn findings_make_facts_for_a_project_that_has_landed_nothing_only_with_room() {
         assert_eq!(row.is_some(), expected);
         assert_eq!((view(&d, PARTY).landed, view(&d, PARTY).last_landed), (0, None));
         if expected {
-            let initial =
-                ProjectFacts { project: PROJECT, landed: 0, last_landed: after(7200), brief: None, running: None };
+            let initial = ProjectFacts { project: PROJECT, landed: 0, last_landed: after(7200) };
             assert!(out.contains(&Request::Save {
                 record: Stored::ProjectFacts(initial),
                 release: None,
@@ -581,13 +622,14 @@ fn findings_make_facts_for_a_project_that_has_landed_nothing_only_with_room() {
             let row = row.unwrap();
             assert_eq!(row.landed, 0);
             assert_eq!(row.last_landed, after(7200));
+            let row = d.person_briefs.get(&(PARTY, PROJECT)).unwrap();
             assert!(row.running.is_some());
             assert!(out.contains(&Request::Save {
-                record: Stored::ProjectFacts(row.clone()),
+                record: Stored::PersonBrief(row.clone()),
                 release: None,
                 read_afresh: None
             }));
-            assert_eq!(marks, 2, "the look and row creation mark status");
+            assert_eq!(marks, 3, "the look, facts and person brief creation mark status");
         } else {
             assert_eq!(saves, 0);
         }
@@ -607,7 +649,7 @@ fn brief(at: Wall, landed: u64) -> Brief {
     Brief { sentence: b"Earlier".as_slice().into(), lede: Box::new([]), at, landed, findings: None }
 }
 fn running(d: &mut Domain, task: u64, since: Wall) {
-    d.project_facts.get_mut(&PROJECT).unwrap().running =
+    d.person_briefs.get_mut(&(PARTY, PROJECT)).unwrap().running =
         Some(StatusRunning { task: Some(task), landed: 3, since, findings: None });
 }
 fn status_heard(d: &mut Domain, task: u64, report: Option<&[u8]>) -> Box<[Request]> {
@@ -627,14 +669,14 @@ fn a_new_sitting_with_something_new_asks_a_run() {
     let mut d = restored();
     assert!(asks_run(look(&mut d, PARTY, after(1800))).is_some());
     assert_eq!(
-        d.project_facts.get(&PROJECT).unwrap().running,
+        d.person_briefs.get(&(PARTY, PROJECT)).unwrap().running,
         Some(StatusRunning { task: None, landed: 3, since: after(1800), findings: None })
     );
-    let out = outputs(&mut d, Event::StatusTask { project: PROJECT, task: TIER_TASK });
-    let row = d.project_facts.get(&PROJECT).unwrap();
+    let out = outputs(&mut d, Event::StatusTask { project: PROJECT, party: PARTY, task: TIER_TASK });
+    let row = d.person_briefs.get(&(PARTY, PROJECT)).unwrap();
     assert_eq!(row.running.as_ref().unwrap().task, Some(TIER_TASK));
     assert!(out.contains(&Request::Save {
-        record: Stored::ProjectFacts(row.clone()),
+        record: Stored::PersonBrief(row.clone()),
         release: None,
         read_afresh: None
     }));
@@ -655,7 +697,8 @@ fn nothing_new_asks_none() {
         let mut d = restored();
         let row = d.project_facts.get_mut(&PROJECT).unwrap();
         row.landed = landed;
-        row.brief = if landed == 0 { None } else { Some(brief(Wall::EPOCH, landed)) };
+        d.person_briefs.get_mut(&(PARTY, PROJECT)).unwrap().brief =
+            if landed == 0 { None } else { Some(brief(Wall::EPOCH, landed)) };
         assert!(asks_run(look(&mut d, PARTY, after(1800))).is_none());
     }
 }
@@ -663,18 +706,18 @@ fn nothing_new_asks_none() {
 fn a_brief_under_an_hour_old_asks_none() {
     for seconds in [0, 3599, 3600] {
         let mut d = restored();
-        d.project_facts.get_mut(&PROJECT).unwrap().brief = Some(brief(BEFORE, 2));
+        d.person_briefs.get_mut(&(PARTY, PROJECT)).unwrap().brief = Some(brief(BEFORE, 2));
         assert!(asks_run(look(&mut d, PARTY, after(seconds))).is_none());
     }
     let mut d = restored();
-    d.project_facts.get_mut(&PROJECT).unwrap().brief = Some(brief(BEFORE, 2));
+    d.person_briefs.get_mut(&(PARTY, PROJECT)).unwrap().brief = Some(brief(BEFORE, 2));
     assert!(asks_run(look(&mut d, PARTY, after(3601))).is_some());
 }
 #[test]
 fn a_run_in_flight_asks_none() {
     for task in [None, Some(TIER_TASK)] {
         let mut d = restored();
-        d.project_facts.get_mut(&PROJECT).unwrap().running =
+        d.person_briefs.get_mut(&(PARTY, PROJECT)).unwrap().running =
             Some(StatusRunning { task, landed: 3, since: BEFORE, findings: None });
         assert!(asks_run(look(&mut d, PARTY, after(3600))).is_none());
     }
@@ -684,7 +727,7 @@ fn past_an_hour_it_counts_as_none() {
     let mut d = restored();
     running(&mut d, TIER_TASK, BEFORE);
     assert!(asks_run(look(&mut d, PARTY, after(3601))).is_some());
-    assert_eq!(d.project_facts.get(&PROJECT).unwrap().running.as_ref().unwrap().task, None);
+    assert_eq!(d.person_briefs.get(&(PARTY, PROJECT)).unwrap().running.as_ref().unwrap().task, None);
 }
 #[test]
 #[expect(clippy::disallowed_methods, reason = "this boundary test validates the fitted report as UTF-8")]
@@ -704,7 +747,7 @@ fn a_report_splits_into_sentence_and_lede() {
         // A landing made while the agent runs belongs to a later brief.
         d.project_facts.get_mut(&PROJECT).unwrap().landed = 4;
         let out = status_heard(&mut d, TIER_TASK, Some(report));
-        let row = d.project_facts.get(&PROJECT).unwrap();
+        let row = d.person_briefs.get(&(PARTY, PROJECT)).unwrap();
         assert_eq!(
             row.brief,
             Some(Brief { sentence: sentence.into(), lede: lede.into(), at: env().wall, landed: 3, findings: None })
@@ -712,7 +755,7 @@ fn a_report_splits_into_sentence_and_lede() {
         assert_eq!(row.running, None);
         assert!(out.contains(&marked()));
         assert!(out.contains(&Request::Save {
-            record: Stored::ProjectFacts(row.clone()),
+            record: Stored::PersonBrief(row.clone()),
             release: None,
             read_afresh: None
         }));
@@ -726,7 +769,7 @@ fn a_report_splits_into_sentence_and_lede() {
     report.put(b"\n\n").unwrap();
     report.put(lede.as_bytes()).unwrap();
     status_heard(&mut d, TIER_TASK, Some(&report.finish()));
-    let saved = d.project_facts.get(&PROJECT).unwrap().brief.as_ref().unwrap();
+    let saved = d.person_briefs.get(&(PARTY, PROJECT)).unwrap().brief.as_ref().unwrap();
     assert_eq!(saved.sentence, text::fit(sentence.as_bytes(), BRIEF_SENTENCE_BYTES, b"..."));
     assert_eq!(saved.lede, text::fit(lede.as_bytes(), BRIEF_LEDE_BYTES, b"..."));
     assert!(saved.sentence.len() <= BRIEF_SENTENCE_BYTES);
@@ -740,42 +783,42 @@ fn an_empty_report_saves_nothing() {
         let mut d = restored();
         running(&mut d, TIER_TASK, BEFORE);
         let out = status_heard(&mut d, TIER_TASK, Some(report));
-        assert_eq!(d.project_facts.get(&PROJECT).unwrap().brief, None);
-        assert_eq!(d.project_facts.get(&PROJECT).unwrap().running, None);
-        assert_eq!(out.len(), 1, "only save the cleared run");
+        assert_eq!(d.person_briefs.get(&(PARTY, PROJECT)).unwrap().brief, None);
+        assert_eq!(d.person_briefs.get(&(PARTY, PROJECT)).unwrap().running, None);
+        assert_eq!(out.len(), 2, "save the cleared run and mark status");
     }
 }
 #[test]
 fn a_failed_run_saves_nothing_and_asks_nobody() {
     let mut d = restored();
-    d.project_facts.get_mut(&PROJECT).unwrap().brief = Some(brief(BEFORE, 2));
+    d.person_briefs.get_mut(&(PARTY, PROJECT)).unwrap().brief = Some(brief(BEFORE, 2));
     running(&mut d, TIER_TASK, BEFORE);
     let out = status_heard(&mut d, TIER_TASK, None);
-    assert_eq!(d.project_facts.get(&PROJECT).unwrap().brief, Some(brief(BEFORE, 2)));
-    assert_eq!(d.project_facts.get(&PROJECT).unwrap().running, None);
-    assert_eq!(out.len(), 1);
+    assert_eq!(d.person_briefs.get(&(PARTY, PROJECT)).unwrap().brief, Some(brief(BEFORE, 2)));
+    assert_eq!(d.person_briefs.get(&(PARTY, PROJECT)).unwrap().running, None);
+    assert_eq!(out.len(), 2);
     running(&mut d, TIER_TASK, BEFORE);
-    let out = outputs(&mut d, Event::StatusRefused { project: PROJECT });
-    assert_eq!(d.project_facts.get(&PROJECT).unwrap().running, None);
-    assert_eq!(out.len(), 1);
+    let out = outputs(&mut d, Event::StatusRefused { project: PROJECT, party: PARTY });
+    assert_eq!(d.person_briefs.get(&(PARTY, PROJECT)).unwrap().running, None);
+    assert_eq!(out.len(), 2);
 }
 #[test]
 fn a_late_result_is_dropped() {
     let mut d = restored();
     running(&mut d, TIER_TASK, BEFORE);
     look(&mut d, PARTY, after(3601));
-    let expected = d.project_facts.get(&PROJECT).unwrap().clone();
+    let expected = d.person_briefs.get(&(PARTY, PROJECT)).unwrap().clone();
     assert!(status_heard(&mut d, TIER_TASK, Some(b"Late report")).is_empty());
-    assert_eq!(d.project_facts.get(&PROJECT), Some(&expected));
+    assert_eq!(d.person_briefs.get(&(PARTY, PROJECT)), Some(&expected));
 }
 #[test]
 fn a_restored_run_is_still_in_flight() {
     let mut d = restored();
-    let row = ProjectFacts {
+    let row = PersonBrief {
         running: Some(StatusRunning { task: Some(TIER_TASK), landed: 3, since: BEFORE, findings: None }),
-        ..facts(PROJECT, 3)
+        ..person(PARTY, PROJECT)
     };
-    restore(&mut d, &env(), Stored::ProjectFacts(row));
+    restore(&mut d, &env(), Stored::PersonBrief(row));
     assert!(asks_run(look(&mut d, PARTY, after(1800))).is_none());
     status_heard(&mut d, TIER_TASK, Some(b"Restored report"));
     assert_eq!(view(&d, PARTY).brief.unwrap().sentence.as_ref(), b"Restored report");
@@ -789,10 +832,17 @@ fn signed_landing(task: u64, at: Wall, people: &[u64]) -> LoggedLanding {
         signers.push(signed(*person)).unwrap();
     }
     LoggedLanding {
+        tiers: Box::new([]),
         commit: HEAD,
         branch: b"main".as_slice().into(),
         at,
         changes: Box::new([LoggedChange {
+            fixes: Box::new([]),
+            goal: None,
+            milestone: None,
+            person: None,
+            goal_title: None,
+            draft: None,
             task,
             pull: None,
             title: b"Small fix".as_slice().into(),
@@ -835,7 +885,7 @@ fn its_words_say_who_signed_each_landing() {
 #[test]
 fn its_signers_are_distinct_in_the_order_the_visible_titles_name_them() {
     let mut d = restored();
-    d.project_facts.get_mut(&PROJECT).unwrap().brief = Some(brief(BEFORE, 1));
+    d.person_briefs.get_mut(&(PARTY, PROJECT)).unwrap().brief = Some(brief(BEFORE, 1));
     let mut landings = List::uncapped();
     for n in 0..23 {
         let people = if n == 22 {
@@ -870,7 +920,7 @@ fn its_signers_are_distinct_in_the_order_the_visible_titles_name_them() {
 #[expect(clippy::disallowed_methods, reason = "this boundary test reads the status specification as UTF-8")]
 fn its_words_say_what_landed_since_the_brief() {
     let mut d = restored();
-    d.project_facts.get_mut(&PROJECT).unwrap().brief = Some(brief(BEFORE, 1));
+    d.person_briefs.get_mut(&(PARTY, PROJECT)).unwrap().brief = Some(brief(BEFORE, 1));
     let mut landings = List::with_capacity(24);
     for n in 0_u8..24 {
         let mut title = skein_lib::Writer::new(8);
@@ -881,10 +931,17 @@ fn its_words_say_what_landed_since_the_brief() {
         title.put(skein_lib::Decimal::of(u64::from(n)).as_bytes()).unwrap();
         landings
             .push(LoggedLanding {
+                tiers: Box::new([]),
                 commit: [n; 32],
                 branch: b"main".as_slice().into(),
                 at: after(u64::from(n)),
                 changes: Box::new([LoggedChange {
+                    fixes: Box::new([]),
+                    goal: None,
+                    milestone: None,
+                    person: None,
+                    goal_title: None,
+                    draft: None,
                     signed: Box::new([]),
                     task: u64::from(n),
                     pull: None,
@@ -926,4 +983,85 @@ fn its_words_say_what_landed_since_the_brief() {
     assert!(words.contains("Tier browser: 7 failing tests; failing-0; failing-1; failing-2; failing-3; failing-4"));
     assert!(!words.contains("failing-5"));
     assert!(words.contains("Tier many: many failing tests"));
+}
+
+fn run_request(out: Queue<Request>, party: u64) -> Wall {
+    for request in rows(out) {
+        if let Request::StatusRun { project, party: got, since, .. } = request {
+            assert_eq!((got, project), (party, PROJECT));
+            return since;
+        }
+    }
+    panic!("party's run requested");
+}
+
+#[test]
+fn each_partys_sitting_starts_and_hears_its_own_run() {
+    let mut d = restored();
+    restore(&mut d, &env(), Stored::Looked(look_row(OTHER_PARTY, PROJECT)));
+    assert_eq!(run_request(look(&mut d, PARTY, after(1800)), PARTY), Wall::EPOCH);
+    outputs(&mut d, Event::StatusTask { project: PROJECT, party: PARTY, task: TIER_TASK });
+    assert_eq!(run_request(look(&mut d, OTHER_PARTY, after(1800)), OTHER_PARTY), Wall::EPOCH);
+    outputs(&mut d, Event::StatusTask { project: PROJECT, party: OTHER_PARTY, task: SECOND });
+    assert_eq!(d.status_owner(TIER_TASK), Some((PARTY, PROJECT)));
+    assert_eq!(d.status_owner(SECOND), Some((OTHER_PARTY, PROJECT)));
+    status_heard(&mut d, TIER_TASK, Some(b"Two changes landed.\n\nThe queue is clear."));
+    assert_eq!(view(&d, PARTY).brief.unwrap().sentence.as_ref(), b"Two changes landed.");
+    assert_eq!(view(&d, OTHER_PARTY).brief, None);
+    status_heard(&mut d, SECOND, Some(b"B's own brief."));
+    assert_eq!(view(&d, OTHER_PARTY).brief.unwrap().sentence.as_ref(), b"B's own brief.");
+    assert_eq!(view(&d, PARTY).brief.unwrap().sentence.as_ref(), b"Two changes landed.");
+}
+
+#[test]
+fn a_recent_brief_stops_only_its_person_and_since_is_their_briefs_wall() {
+    let mut d = restored();
+    restore(&mut d, &env(), Stored::Looked(look_row(OTHER_PARTY, PROJECT)));
+    d.person_briefs.get_mut(&(PARTY, PROJECT)).unwrap().brief = Some(brief(BEFORE, 2));
+    assert!(asks_run(look(&mut d, PARTY, after(1800))).is_none());
+    assert_eq!(run_request(look(&mut d, OTHER_PARTY, after(1800)), OTHER_PARTY), Wall::EPOCH);
+    assert_eq!(run_request(look(&mut d, PARTY, after(3601)), PARTY), BEFORE);
+}
+
+#[test]
+fn refused_is_unpaid_only_for_its_person_and_any_heard_result_clears_it() {
+    for report in [Some(b"Paid brief".as_slice()), None] {
+        let mut d = restored();
+        running(&mut d, TIER_TASK, BEFORE);
+        let out = outputs(&mut d, Event::StatusRefused { project: PROJECT, party: PARTY });
+        let row = d.person_briefs.get(&(PARTY, PROJECT)).unwrap();
+        assert_eq!(row.running, None);
+        assert_eq!(row.unpaid, Some(env().wall));
+        assert!(out.contains(&marked()));
+        assert!(out.contains(&Request::Save {
+            record: Stored::PersonBrief(row.clone()),
+            release: None,
+            read_afresh: None
+        }));
+        assert!(view(&d, PARTY).unpaid);
+        assert!(!view(&d, OTHER_PARTY).unpaid);
+        assert!(asks_run(look(&mut d, PARTY, after(3601))).is_some());
+        outputs(&mut d, Event::StatusTask { project: PROJECT, party: PARTY, task: SECOND });
+        let out = status_heard(&mut d, SECOND, report);
+        assert!(!view(&d, PARTY).unpaid);
+        assert_eq!(view(&d, PARTY).brief.is_some(), report.is_some());
+        assert!(out.contains(&marked()));
+        assert_eq!(d.person_briefs.get(&(PARTY, PROJECT)).unwrap().unpaid, None);
+    }
+}
+
+#[test]
+fn past_the_person_briefs_bound_a_sitting_makes_no_row_or_run() {
+    let mut d = configured_domain(&[]);
+    restore(&mut d, &env(), Stored::ProjectFacts(facts(PROJECT, 3)));
+    restore(&mut d, &env(), Stored::Looked(look_row(PARTY, PROJECT)));
+    for project in 0..LOOKS {
+        restore(&mut d, &env(), Stored::PersonBrief(person(OTHER_PARTY, project)));
+    }
+    let out = rows(look(&mut d, PARTY, after(1800)));
+    assert!(!d.person_briefs.contains_key(&(PARTY, PROJECT)));
+    assert_eq!(d.person_briefs.len(), LOOKS);
+    for request in out {
+        assert!(!matches!(request, Request::StatusRun { .. } | Request::Save { record: Stored::PersonBrief(_), .. }));
+    }
 }
