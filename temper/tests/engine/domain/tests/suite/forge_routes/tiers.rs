@@ -381,6 +381,109 @@ fn switching_to_landed_ends_verifying_and_red_changes_and_later_posts_from_the_l
 }
 
 #[test]
+fn switching_a_red_landing_files_its_verdict_once_and_holds_the_next_runs_ids() {
+    let mut world = tier_runs::findings_world();
+    world.adopt();
+    let mut event = protocol::hello_slots(Token::new(7), 3, Box::new([]));
+    let engine::Event::Worker(engine::WorkerInput::Link { link: engine::Link::Hello { hello, .. }, .. }) = &mut event
+    else {
+        panic!("worker hello")
+    };
+    hello.bounds.message_bytes = world.env.limits.tasks.message_bytes;
+    world.send(event);
+    let milestone = milestones::milestone(&mut world, b"Switched reds");
+    let tasks::Party::Person(person) = task(&world, milestone).requester else { panic!("milestone maker") };
+    let goal = milestones::goal_with_words(
+        &mut world,
+        milestone,
+        false,
+        b"R2 Reds blamed\n\nDraft: temper/docs/design/draft/after-landing-repairs.md",
+    );
+    baseline(&mut world);
+    // Three green observations put the blamed landing in run 5, not the baseline.
+    for sequence in 2..=4 {
+        fake::advance(
+            &mut world.fake,
+            &world.fake_env,
+            b"org/repo",
+            b"main",
+            b"file",
+            format!("green {sequence}").as_bytes(),
+            1,
+        )
+        .unwrap();
+        until(&mut world, RUN_TICKS, "green range judged", |world| {
+            tier(world).record.sequence == sequence && tier(world).posting.is_none()
+        });
+    }
+    sign_in(&mut world);
+    let number = produce(&mut world, &goal, 94, b"failures", b"x\ny\n");
+    until(&mut world, RUN_TICKS * 3, "landing red in run 5", |world| {
+        matches!(change(world, number).change.state, State::Red { .. }) && tier(world).posting.is_none()
+    });
+    assert_eq!(tier(&world).record.sequence, 5);
+    assert!(red_findings::findings(&world).is_empty(), "a goals red under cleared is news, not a finding");
+    let commit = merge(&world, number);
+    until(&mut world, LANDING_TICKS, "restart cut", restart_cut);
+    world.restart_with_change_wait(temper_engine_domain_forge_change::Wait::Landed);
+    until(&mut world, LANDING_TICKS, "switched change ended", |world| {
+        matches!(task(world, number).phase, tasks::Phase::Ended(_))
+    });
+    assert_eq!(change(&world, number).change.state, State::Uncleared { merge: commit });
+    assert!(result(&world, number).contains("Not cleared: its project now ends a change at its landing"));
+    assert!(
+        !world
+            .store
+            .rows
+            .contains_key(&Key::Forge(forge_top::Key::Verification { repository: forge_world::REPO, commit }))
+    );
+    let rows = red_findings::findings(&world);
+    let [finding] = rows.as_slice() else { panic!("one switched finding: {rows:?}") };
+    assert_eq!(finding.title.as_ref(), b"2 tests fail in slow since R2 landed");
+    assert_eq!(
+        finding.blame,
+        Some(forge_top::FindingBlame {
+            strength: forge_top::BlameStrength::Owned,
+            landings: Box::new([forge_top::BlamedLanding {
+                commit,
+                goals: Box::new([forge_top::BlamedGoal {
+                    goal: goal.task,
+                    milestone: Some(milestone),
+                    person: Some(person)
+                }])
+            }])
+        })
+    );
+    assert_eq!(
+        finding.signature,
+        Some(forge_top::FindingSignature {
+            repository: forge_world::REPO,
+            source: b"slow".as_slice().into(),
+            ids: Box::new([b"x".as_slice().into(), b"y".as_slice().into()]),
+            first: Box::new([]),
+            many: false
+        })
+    );
+    let short = forge_top::commit_text(&commit);
+    let short = std::str::from_utf8(&short[..12]).unwrap();
+    let body = String::from_utf8_lossy(&finding.body);
+    let first = format!("slow run 5 blamed landing {short} on main before its project ended changes at landing.");
+    assert_eq!(body.lines().next(), Some(first.as_str()));
+    assert!(!body.contains("Run: "));
+    assert!(!body.contains("End of job "));
+    let finding = (*finding).clone();
+    fake::advance(&mut world.fake, &world.fake_env, b"org/repo", b"main", b"file", b"unrelated", 1).unwrap();
+    until(&mut world, RUN_TICKS * 3, "inherited red judged", |world| {
+        tier(world).record.sequence == 6 && tier(world).posting.is_none()
+    });
+    assert_eq!(
+        tier(&world).record.failing,
+        policy::Failures::Tests(Box::new([b"x".as_slice().into(), b"y".as_slice().into()]))
+    );
+    assert_eq!(red_findings::findings(&world), [&finding]);
+}
+
+#[test]
 fn a_change_landed_by_turn_waits_for_main_to_clear_it() {
     let _ = green(true);
 }

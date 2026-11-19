@@ -1,4 +1,6 @@
 //! Landing verification stories (temper/docs/design/domain/after-landing.md, 5.3, 6 and 10).
+#[path = "verification/switched.rs"]
+mod switched;
 use super::*;
 use crate::*;
 use skein_lib::{Time, Wall};

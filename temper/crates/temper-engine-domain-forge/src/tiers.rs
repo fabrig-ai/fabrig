@@ -7,7 +7,7 @@ use skein_lib::{Env, List, Map, Queue, Time, Token, Wall};
 use temper_engine_domain_forge_landing as landing;
 use temper_engine_domain_forge_tiers as p;
 pub use temper_engine_domain_forge_vocabulary::tiers::*;
-mod filing;
+pub(crate) mod filing;
 mod goals;
 pub(crate) mod hold;
 pub(crate) mod parts;

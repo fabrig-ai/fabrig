@@ -14,15 +14,34 @@ fn short(commit: &Commit) -> Box<[u8]> {
 fn joined(parts: &[&[u8]]) -> Box<[u8]> {
     super::super::joined(parts)
 }
-fn members<'a>(d: &'a Domain, row: &TierRow, commit: Commit) -> &'a [LoggedChange] {
+pub(super) fn members(d: &Domain, row: &TierRow, commit: Commit) -> Box<[LoggedChange]> {
     if let Some(log) = d.landing_log(row.repository) {
         for landing in &log.landings {
             if landing.commit == commit {
-                return &landing.changes;
+                return landing.changes.clone();
             }
         }
     }
-    &[]
+    let mut members = List::uncapped();
+    if let Some(verification) = d.landing_verification(row.repository, &commit) {
+        for task in &verification.changes {
+            let Some(change) = d.change(*task) else { continue };
+            members
+                .push(LoggedChange {
+                    task: *task,
+                    pull: change.pull,
+                    title: change.title.clone(),
+                    signed: Box::new([]),
+                    goal: change.goal,
+                    milestone: change.milestone,
+                    person: change.person,
+                    goal_title: change.goal_title.clone(),
+                    draft: change.draft.clone(),
+                })
+                .expect("retained landing members");
+        }
+    }
+    members.into_boxed()
 }
 fn goal_name(d: &Domain, row: &TierRow, landing: &crate::findings::BlamedLanding) -> Box<[u8]> {
     let Some(first) = landing.goals.first() else { return short(&landing.commit) };
@@ -45,9 +64,9 @@ fn failure_words(failing: &p::Failures) -> Box<[u8]> {
         p::Failures::Tests(ids) => joined(&[&decimal(skein_lib::len_u64(ids.len())), b" tests fail"]),
     }
 }
-fn title(d: &Domain, row: &TierRow, verdict: &p::Verdict, failing: &p::Failures, blame: &FindingBlame) -> Box<[u8]> {
+fn title(d: &Domain, row: &TierRow, run: u64, failing: &p::Failures, blame: &FindingBlame) -> Box<[u8]> {
     let since = if blame.landings.is_empty() {
-        joined(&[b" from before run ", &decimal(verdict.number)])
+        joined(&[b" from before run ", &decimal(run)])
     } else if blame.landings.len() == 1 {
         joined(&[b" since ", &goal_name(d, row, blame.landings.first().expect("one landing")), b" landed"])
     } else {
@@ -141,7 +160,7 @@ fn landing_lines(d: &Domain, row: &TierRow, blame: &FindingBlame, out: &mut List
         let mut lines = List::uncapped();
         lines.push(joined(&[b"Landing ", &short(&landing.commit), b":"])).expect("landing line");
         for goal in &landing.goals {
-            for text in goal_lines(members(d, row, landing.commit), goal.goal).into_boxed() {
+            for text in goal_lines(&members(d, row, landing.commit), goal.goal).into_boxed() {
                 lines.push(text).expect("bounded goal lines");
             }
         }
@@ -194,15 +213,55 @@ pub(super) fn red(
     blame: FindingBlame,
     logs: &[JobLog],
 ) -> VerdictFiling {
-    let title = title(d, row, verdict, &failing, &blame);
     let mut body = List::with_capacity(4096);
     line(&mut body, &run_words(d, row, verdict, true), 0);
     let url = url(d, row, verdict);
     if !url.is_empty() {
         line(&mut body, &joined(&[b"Run: ", &url]), 0);
     }
-    let tier = super::super::configured(d, row).expect("configured tier");
-    line(&mut body, &joined(&[b"Artifact: ", &tier.artifact]), 0);
+    red_body(d, row, verdict.number, failing, blame, logs, body)
+}
+
+pub(super) fn switched(
+    d: &Domain,
+    row: &TierRow,
+    verdict: &crate::TierVerdict,
+    failing: p::Failures,
+    blame: FindingBlame,
+    branch: &[u8],
+) -> VerdictFiling {
+    let mut body = List::with_capacity(4096);
+    let commit = blame.landings.first().expect("switched landing").commit;
+    line(
+        &mut body,
+        &joined(&[
+            &row.tier,
+            b" run ",
+            &decimal(verdict.run),
+            b" blamed landing ",
+            &short(&commit),
+            b" on ",
+            branch,
+            b" before its project ended changes at landing.",
+        ]),
+        0,
+    );
+    red_body(d, row, verdict.run, failing, blame, &[], body)
+}
+
+fn red_body(
+    d: &Domain,
+    row: &TierRow,
+    run: u64,
+    failing: p::Failures,
+    blame: FindingBlame,
+    logs: &[JobLog],
+    mut body: List<u8>,
+) -> VerdictFiling {
+    let title = title(d, row, run, &failing, &blame);
+    if let Some(tier) = super::super::configured(d, row) {
+        line(&mut body, &joined(&[b"Artifact: ", &tier.artifact]), 0);
+    }
     let reason = match blame.strength {
         BlameStrength::Owned => {
             joined(&[b"Owned by landing ", &short(&blame.landings.first().expect("owned landing").commit), b"."])
@@ -210,9 +269,7 @@ pub(super) fn red(
         BlameStrength::Suspected => {
             joined(&[b"Suspected: ", &decimal(skein_lib::len_u64(blame.landings.len())), b" landings."])
         }
-        BlameStrength::Unblamed => {
-            joined(&[b"Blamed on no landing: failing before run ", &decimal(verdict.number), b"."])
-        }
+        BlameStrength::Unblamed => joined(&[b"Blamed on no landing: failing before run ", &decimal(run), b"."]),
     };
     line(&mut body, &reason, b"\nFailing:".len());
     landing_lines(d, row, &blame, &mut body);

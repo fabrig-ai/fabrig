@@ -62,6 +62,55 @@ pub(super) fn finish(
     row.waiting = waiting.into_boxed();
     true
 }
+/// Preserve each unrepaired red before its verification leaves (domain/red-findings.md, 8).
+pub(crate) fn switched(d: &mut Domain, task: u64, verification: &crate::Verification, out: &mut Queue<Request>) {
+    let Some(change) = d.change(task) else { return };
+    let branch = change.base.clone();
+    let project = d.repositories.get(&verification.repository).expect("adopted landing").project;
+    let mut room = d.verdict_room(&d.landing.limits, project);
+    for tier in &verification.tiers {
+        if tier.repaired.is_some() {
+            continue;
+        }
+        let Some(verdict) = &tier.verdict else { continue };
+        let (strength, failures) = match &verdict.blame {
+            p::Blame::Cleared => continue,
+            p::Blame::Owns(failing) => (BlameStrength::Owned, failing),
+            p::Blame::Suspect(failing) => (BlameStrength::Suspected, failing),
+        };
+        let key = (verification.repository, tier.tier.clone());
+        let mut row = match d.tiers.remove(&key) {
+            Some(row) => row,
+            None => super::empty(key.0, key.1.clone()),
+        };
+        let (held, many_held) = held(d, &row, project);
+        if let Some(failures) = remaining(failures, held.as_slice(), many_held) {
+            let blame = FindingBlame {
+                strength,
+                landings: Box::new([landing(d, &row, verification.commit, &d.landing.limits)]),
+            };
+            let filing = words::switched(d, &row, verdict, failures, blame, &branch);
+            if room > 0 {
+                room = room.checked_sub(1).expect("filing room");
+                out.push(Request::FileVerdict { task, filing });
+            } else {
+                let mut waiting = List::with_capacity(8);
+                for prior in row.waiting {
+                    waiting.push(prior).expect("bounded waiting filings");
+                }
+                if waiting.room() > 0 {
+                    waiting.push(filing).expect("waiting room");
+                } else {
+                    row.unkept = row.unkept.saturating_add(1);
+                }
+                row.waiting = waiting.into_boxed();
+                super::save(&row, out);
+            }
+        }
+        d.tiers.insert(key, row).expect("replaces tier");
+    }
+}
+
 fn held(d: &Domain, row: &TierRow, project: u32) -> (List<Box<[u8]>>, bool) {
     let mut ids = List::uncapped();
     let mut many = false;
@@ -111,25 +160,15 @@ fn remaining(failing: &p::Failures, held: &[Box<[u8]>], many_held: bool) -> Opti
 }
 fn landing(d: &Domain, row: &TierRow, commit: Commit, limits: &Limits) -> BlamedLanding {
     let mut goals = List::with_capacity(limits.landing_members);
-    if let Some(log) = d.landing_log(row.repository) {
-        for landing in &log.landings {
-            if landing.commit != commit {
-                continue;
-            }
-            for member in &landing.changes {
-                let Some(goal) = member.goal else { continue };
-                let mut seen = false;
-                for kept in &goals {
-                    let kept: &BlamedGoal = kept;
-                    seen |= kept.goal == goal;
-                }
-                if !seen && goals.room() > 0 {
-                    goals
-                        .push(BlamedGoal { goal, milestone: member.milestone, person: member.person })
-                        .expect("goal room");
-                }
-            }
-            break;
+    for member in words::members(d, row, commit) {
+        let Some(goal) = member.goal else { continue };
+        let mut seen = false;
+        for kept in &goals {
+            let kept: &BlamedGoal = kept;
+            seen |= kept.goal == goal;
+        }
+        if !seen && goals.room() > 0 {
+            goals.push(BlamedGoal { goal, milestone: member.milestone, person: member.person }).expect("goal room");
         }
     }
     BlamedLanding { commit, goals: goals.into_boxed() }
