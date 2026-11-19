@@ -126,8 +126,30 @@ impl Workers {
         application: jig_protocol_worker_wire::Application,
         limits: &Limits,
     ) -> Result<Self, Problems> {
+        Self::build(config, tokens, application, limits, None)
+    }
+    /// Constructs a fresh host with the immutable full channel table prepared for these limits.
+    pub fn with_schema(
+        config: &config::Engine,
+        tokens: Tokens,
+        application: jig_protocol_worker_wire::Application,
+        limits: &Limits,
+        schema: skein_channel::Schema,
+    ) -> Result<Self, Problems> {
+        Self::build(config, tokens, application, limits, Some(schema))
+    }
+    fn build(
+        config: &config::Engine,
+        tokens: Tokens,
+        application: jig_protocol_worker_wire::Application,
+        limits: &Limits,
+        schema: Option<skein_channel::Schema>,
+    ) -> Result<Self, Problems> {
         let codec = jig_protocol_worker_wire::sizes::limits(&limits.sizes).ok_or(invalid(What::Bound))?;
-        let (schema, spoken) = jig_protocol_worker_wire::schema_and_spoken(&codec).or(Err(invalid(What::Bound)))?;
+        let (schema, spoken) = match schema {
+            Some(schema) => (schema, jig_protocol_worker_wire::spoken()),
+            None => jig_protocol_worker_wire::schema_and_spoken(&codec).or(Err(invalid(What::Bound)))?,
+        };
         let component =
             Component::with_schema(limits, Box::new([]), spoken, application, schema).or(Err(invalid(What::Bound)))?;
         let count = u32::try_from(config.hosts.listener.len()).or(Err(invalid(What::Bound)))?;

@@ -1931,8 +1931,9 @@ fn prepare_step(
         },
         PrepareStep::Candidate { repository, step } => candidate::op(holding, repository, step),
         PrepareStep::Look { repository } => {
+            let store = borrowed(holding, repository).token;
             let repository = nth(holding, repository);
-            Op::Look { at: place(workspace, repository), remote: copy_of(&repository.remote) }
+            Op::Look { at: place(workspace, repository), remote: copy_of(&repository.remote), store }
         }
         PrepareStep::Store { repository, .. } => {
             let store = borrowed(holding, repository);

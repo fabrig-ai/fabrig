@@ -58,6 +58,8 @@ fn rebinding_the_fake_model_keeps_the_split_deployments_issuer() {
     scratch.remove();
 }
 
+// It reaches `forgejo_elsewhere`, whose capture witness uses Linux's abstract Unix sockets.
+#[cfg(target_os = "linux")]
 #[test]
 fn the_elsewhere_deployment_keeps_the_whole_fixture_provider_in_its_data_directory() {
     let scratch = support::Scratch::startup("elsewhere-split-provider");
@@ -428,6 +430,7 @@ fn turn_configuration_declares_the_prepare_job() {
     support::turn_restart::tests::turn_configuration_declares_the_prepare_job();
 }
 
+// It reaches `forgejo_elsewhere`, whose capture witness uses Linux's abstract Unix sockets.
 #[cfg(target_os = "linux")]
 #[test]
 fn elsewhere_settings_follow_the_connected_project() {

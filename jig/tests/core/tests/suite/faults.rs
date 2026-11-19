@@ -7,7 +7,6 @@ use jig_core_world::world::Setup;
 use jig_core_world::world::World;
 use jig_domain_core as core;
 use jig_domain_people as people;
-use jig_domain_tasks as tasks;
 use jig_fake_workers::Fault;
 use jig_test_connector as connector;
 use jig_test_domain as root;
@@ -25,18 +24,6 @@ pub(crate) fn effect_scenario(world: &mut World) {
     world.end(jig_domain_tasks::End::Parked, 2);
 }
 
-/// The first commit of `world` saving a row `chosen` picks.
-fn commit_saving(world: &World, chosen: impl Fn(&root::Record) -> bool) -> u64 {
-    let from_end = world
-        .commits
-        .iter()
-        .rev()
-        .rposition(|writes| writes.iter().any(|write| matches!(write, root::Write::Save(row) if chosen(row))))
-        .expect("chosen row is saved");
-    // Fixture commits are absent from `commits`; count back from the durable end.
-    world.store.applied - u64::try_from(from_end).expect("commit distance")
-}
-
 fn outbox(row: &root::Record) -> bool {
     matches!(row, root::Record::Connector { record: connector::Record::Outbox(_), .. })
 }
@@ -47,10 +34,6 @@ fn terminal(row: &root::Record) -> bool {
 
 fn sign_in(row: &root::Record) -> bool {
     matches!(row, root::Record::Core(core::Record::People(people::Stored::SignIn { .. })))
-}
-
-fn chat(row: &root::Record) -> bool {
-    matches!(row, root::Record::Core(core::Record::Tasks(tasks::Stored::Live(_))))
 }
 
 fn claim(row: &root::Record) -> bool {
@@ -65,16 +48,27 @@ fn assert_saved_at_cut(world: &World, cut: Cut, chosen: impl Fn(&root::Record) -
     );
 }
 
-pub(crate) fn an_effect_cut_recovers(cut: Cut) {
-    an_effect_cut_recovers_checking(cut, |_| {});
+pub(crate) fn effect_cut_sweep(cuts: &[Cut]) {
+    let mut world = World::new(Setup { seed: 300, ..Setup::default() });
+    world.sweep(cuts.to_vec());
+    effect_scenario(&mut world);
+    if let Some(cut) = world.forked_cut() {
+        effect_cut_checks(&mut world, cut, |_| {});
+    }
+    world.cut_passed();
+    assert_eq!(world.forked, cuts, "every effect cut passed");
 }
 
 fn an_effect_cut_recovers_checking(cut: Cut, check: impl FnOnce(&World)) {
     let mut world = World::new(Setup { seed: 300, ..Setup::default() });
     world.cut = Some(cut);
     effect_scenario(&mut world);
+    effect_cut_checks(&mut world, cut, check);
+}
+
+fn effect_cut_checks(world: &mut World, cut: Cut, check: impl FnOnce(&World)) {
     assert_eq!(world.reached_cut, Some(cut));
-    check(&world);
+    check(world);
     let applied = world.systems[0].observed().iter().filter(|row| row.applied).count();
     world.store.fault(StoreFault::SlowPages { by: 2 });
     world.restart(300, false);
@@ -85,6 +79,63 @@ fn an_effect_cut_recovers_checking(cut: Cut, check: impl FnOnce(&World)) {
     assert!(recovered >= applied && recovered <= 1, "cut {cut:?}");
     world.restart(300, false);
     assert_eq!(world.systems[0].observed().iter().filter(|row| row.applied).count(), recovered);
+}
+
+#[test]
+fn forked_commit_cuts_end_as_fresh_cuts_do() {
+    let mut reference = World::new(Setup { seed: 300, ..Setup::default() });
+    let first = reference.store.applied + 1;
+    effect_scenario(&mut reference);
+    let last = reference.store.applied;
+    let compared = [first, first + (last - first) / 2, last];
+    let cuts: Vec<_> = (first..=last).flat_map(|number| [Cut::Submitted(number), Cut::Durable(number)]).collect();
+    let fresh = cuts
+        .iter()
+        .copied()
+        .filter(|cut| match cut {
+            Cut::Submitted(number) | Cut::Durable(number) => compared.contains(number),
+            Cut::Disk { .. } | Cut::Failed(_) => false,
+        })
+        .map(|cut| {
+            let mut world = World::new(Setup { seed: 300, ..Setup::default() });
+            world.cut = Some(cut);
+            effect_scenario(&mut world);
+            effect_cut_checks(&mut world, cut, |_| {});
+            world.close();
+            (
+                cut,
+                (
+                    world.store.rows.clone(),
+                    world.store.applied,
+                    world.assignments.clone(),
+                    world.systems[0].observed().to_vec(),
+                ),
+            )
+        })
+        .collect::<Vec<_>>();
+    let mut world = World::new(Setup { seed: 300, ..Setup::default() });
+    world.sweep(cuts.clone());
+    effect_scenario(&mut world);
+    if let Some(cut) = world.forked_cut() {
+        assert!(world.forked.is_empty(), "a child inherits no completed cuts");
+        effect_cut_checks(&mut world, cut, |_| {});
+        world.close();
+        if let Some((_, expected)) = fresh.iter().find(|(selected, _)| *selected == cut) {
+            assert_eq!(
+                &(
+                    world.store.rows.clone(),
+                    world.store.applied,
+                    world.assignments.clone(),
+                    world.systems[0].observed().to_vec()
+                ),
+                expected,
+                "cut {cut:?}"
+            );
+        }
+    }
+    world.cut_passed();
+    assert_eq!(world.forked, cuts, "every reference cut passed, in order");
+    assert_eq!(world.store.rows, reference.store.rows, "the parent runs uncut");
 }
 
 #[test]
@@ -99,17 +150,28 @@ fn an_effect_and_its_terminal_survive_both_crash_cuts() {
     }
 }
 
-pub(crate) fn a_failed_commit_stops(number: u64) {
-    a_failed_commit_stops_checking(number, |_| {});
+pub(crate) fn failed_commit_sweep(cuts: &[Cut]) {
+    let mut world = World::new(Setup { seed: 301, ..Setup::default() });
+    world.sweep(cuts.to_vec());
+    effect_scenario(&mut world);
+    if let Some(Cut::Failed(number)) = world.forked_cut() {
+        failed_commit_checks(&mut world, number, |_| {});
+    }
+    world.cut_passed();
+    assert_eq!(world.forked, cuts, "every failed commit passed");
 }
 
 fn a_failed_commit_stops_checking(number: u64, check: impl FnOnce(&World)) {
     let mut world = World::new(Setup { seed: 301, ..Setup::default() });
     world.store.fault(StoreFault::Fail { commit: number });
     effect_scenario(&mut world);
+    failed_commit_checks(&mut world, number, check);
+}
+
+fn failed_commit_checks(world: &mut World, number: u64, check: impl FnOnce(&World)) {
     assert!(world.stopped, "failed commit {number}");
     assert_eq!(world.store.applied, number - 1);
-    check(&world);
+    check(world);
     let rows = world.store.rows.clone();
     let outputs = world.trace.len();
     world.drain();
@@ -213,15 +275,28 @@ fn a_cold_restart_retries_a_party_request_and_retained_host_traffic() {
     );
 }
 
-pub(crate) fn a_startup_cut_restarts(engine: bool, cut: Cut) {
-    a_startup_cut_restarts_checking(engine, cut, |_| {});
+pub(crate) fn startup_cut_sweep(engine: bool, cuts: &[Cut]) {
+    let mut world = faults::workers_sweeping(307, 1, engine, cuts.to_vec());
+    if let Some(cut) = world.forked_cut() {
+        startup_cut_checks(&mut world, engine, cut, |_| {});
+    }
+    // Engine 6 step 3 settles the dead engine/in-process claim.
+    if engine {
+        world.broken();
+    }
+    world.cut_passed();
+    assert_eq!(world.forked, cuts, "every startup cut passed, engine {engine}");
 }
 
 fn a_startup_cut_restarts_checking(engine: bool, cut: Cut, check: impl FnOnce(&World)) {
     let mut world = faults::workers_at(307, 1, engine, Some(cut));
+    startup_cut_checks(&mut world, engine, cut, check);
+}
+
+fn startup_cut_checks(world: &mut World, engine: bool, cut: Cut, check: impl FnOnce(&World)) {
     assert_eq!(world.reached_cut, Some(cut));
-    check(&world);
-    faults::restart(&mut world, 307, engine);
+    check(world);
+    faults::restart(world, 307, engine);
     world.advance(Duration::from_secs(6));
     world.advance(Duration::from_secs(2));
     assert!(world.domain.ready());
@@ -265,191 +340,4 @@ fn the_sign_in_chat_and_claim_commits_restart_on_either_side_of_durability() {
     }
 }
 
-fn disk_world(seed: u64, cut: Option<Cut>) -> World {
-    let (configuration, limits) = crate::stories::person_world_fixture(seed);
-    World::new(Setup {
-        seed,
-        configuration: Some(configuration),
-        limits,
-        disk_store: true,
-        require_assignment: false,
-        cut,
-        ..Setup::default()
-    })
-}
-
-fn person_decision(world: &mut World) {
-    if world.reached_cut.is_some() {
-        return;
-    }
-    let mut member = jig_core_world::fixtures::member(
-        world,
-        tasks::Executor::Person(tasks::PersonAddress::Person(1)),
-        b"resolve the caller's question",
-    );
-    member.authority.delegation = tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
-    world.send(root::Event::Core(core::Event::DelegateValidated {
-        to: skein_lib::ReplyTo::new(skein_lib::Token::new(9801)),
-        key: world.call_key(1),
-        batch: Box::new([member]),
-        stubs: Box::new([]),
-    }));
-}
-
-fn person_task(row: &root::Record) -> bool {
-    matches!(row, root::Record::Core(core::Record::Tasks(tasks::Stored::Live(task)))
-        if task.executor == tasks::Executor::Person(tasks::PersonAddress::Person(1)))
-}
-
-fn person(row: &root::Record) -> bool {
-    matches!(row, root::Record::Core(core::Record::People(people::Stored::Person { .. })))
-}
-
-fn cut_operation(cut: Cut) -> u32 {
-    let Cut::Disk { operation, .. } = cut else { panic!("disk cut") };
-    operation
-}
-
-fn disk_cut(commit: u64, operation: u32) -> Cut {
-    Cut::Disk { from: jig_test_store_files::KillFrom::Commit(commit), operation }
-}
-
-fn disk_referee(world: &mut World, label: &str) {
-    assert!(world.domain.ready(), "{label}: {:?}", world.domain.start_failure());
-    assert_eq!(world.domain.start_failure(), None, "{label}");
-    assert!(!world.stopped, "{label}");
-    let actual = world.store.readback().expect("complete readback");
-    assert_eq!(actual, world.store.rows, "{label}: complete store readback");
-    assert_eq!(Some(&actual), world.store.prefixes.get(&world.store.applied), "{label}: whole decision prefix");
-}
-
-fn disk_restart(world: &mut World, seed: u64) {
-    let acknowledged = world.store.acknowledged;
-    // Inspect the recovered number before the start can write its own decisions.
-    world.hold_restore_pages = true;
-    world.restart_with(crate::stories::person_world_fixture(seed).0);
-    if !world.store.reached_kill() {
-        assert!(
-            (acknowledged..=acknowledged + 1).contains(&world.store.applied),
-            "last acknowledged decision or one whole uncertain decision"
-        );
-        world.finish_restore_pages();
-    }
-}
-
-/// Shared by the focused rows and the restart-operation sweep.
-pub(crate) fn double_disk_kill(seed: u64, first: Cut, second: Option<u32>) -> (u32, Vec<u32>) {
-    let mut world = disk_world(seed, Some(first));
-    person_decision(&mut world);
-    assert_eq!(world.reached_cut, Some(first));
-    let cut = second.map(|operation| Cut::Disk { from: jig_test_store_files::KillFrom::Open, operation });
-    world.cut = cut;
-    disk_restart(&mut world, seed);
-    if let Some(cut) = cut {
-        assert_eq!(world.reached_cut, Some(cut), "restart operation reached");
-        assert_eq!(world.store.open_operation_count(), cut_operation(cut));
-        disk_restart(&mut world, seed);
-    }
-    let count = world.store.open_operation_count();
-    disk_referee(&mut world, "killed twice");
-    (count, world.store.mutation_operations().to_vec())
-}
-
-#[test]
-fn a_kill_at_each_file_operation_of_a_decision_starts_from_a_whole_one() {
-    let seed = 18_301;
-    let mut reference = disk_world(seed, None);
-    person_decision(&mut reference);
-    let task_commit = commit_saving(&reference, person_task);
-    let task_writes = &reference.commits[usize::try_from(task_commit - 1).expect("commit index")];
-    assert!(
-        task_writes
-            .iter()
-            .filter(|write| matches!(
-                write,
-                root::Write::Save(root::Record::Core(core::Record::Tasks(tasks::Stored::Live(_))))
-            ))
-            .count()
-            >= 2,
-        "the decision saves both the caller and its person task"
-    );
-    let person_commit = commit_saving(&reference, person);
-    let caller_commit = commit_saving(&reference, chat);
-    for (index, (name, scenario, commit, cuts)) in [
-        (
-            "task and linked person task",
-            person_decision as fn(&mut World),
-            task_commit,
-            0..=reference.store.operation_count(task_commit),
-        ),
-        (
-            "caller person",
-            (|_: &mut World| {}) as fn(&mut World),
-            person_commit,
-            0..=reference.store.operation_count(person_commit),
-        ),
-        (
-            "task requested by caller",
-            (|_: &mut World| {}) as fn(&mut World),
-            caller_commit,
-            0..=reference.store.operation_count(caller_commit),
-        ),
-    ]
-    .into_iter()
-    .enumerate()
-    {
-        let row_seed = seed + u64::try_from(index).expect("three rows");
-        let count = *cuts.end();
-        assert!(count > 0, "{name} writes the disk");
-        eprintln!("{name}: commit {commit}, operations {count}");
-        for operation in cuts {
-            let cut = disk_cut(commit, operation);
-            let mut world = disk_world(row_seed, Some(cut));
-            scenario(&mut world);
-            // At the complete boundary no later file operation need be asked.
-            assert!(world.reached_cut == Some(cut) || operation == count, "{name}, {cut:?}");
-            assert_eq!(world.store.operation_count(commit), operation, "{name}: exact operation cut");
-            disk_restart(&mut world, row_seed);
-            disk_referee(&mut world, name);
-        }
-    }
-    let first = disk_cut(task_commit, reference.store.operation_count(task_commit) / 2);
-    let (restart_count, mut cuts) = double_disk_kill(seed, first, None);
-    cuts.extend([0, restart_count / 2, restart_count - 1]);
-    cuts.sort_unstable();
-    cuts.dedup();
-    eprintln!("restart after mid-frame kill: {restart_count} operations, chosen {cuts:?}");
-    for operation in cuts {
-        let _recovered = double_disk_kill(seed, first, Some(operation));
-    }
-    let mut restarted = disk_world(seed, Some(first));
-    person_decision(&mut restarted);
-    disk_restart(&mut restarted, seed);
-    let next = restarted.store.applied + 1;
-    restarted.probe();
-    restarted.drain();
-    let count = restarted.store.operation_count(next);
-    for operation in 0..=count {
-        let mut world = disk_world(seed, Some(first));
-        person_decision(&mut world);
-        disk_restart(&mut world, seed);
-        world.cut = Some(disk_cut(world.store.applied + 1, operation));
-        world.probe();
-        world.drain();
-        assert!(world.reached_cut.is_some() || operation == count, "next decision cut {operation}");
-        disk_restart(&mut world, seed);
-        disk_referee(&mut world, "twice, then working");
-    }
-}
-
-pub(crate) fn restart_operation_sweep() {
-    let seed = 18_302;
-    let mut reference = disk_world(seed, None);
-    person_decision(&mut reference);
-    let commit = commit_saving(&reference, person_task);
-    let first = disk_cut(commit, reference.store.operation_count(commit) / 2);
-    let (count, _) = double_disk_kill(seed, first, None);
-    for operation in 0..count {
-        let _recovered = double_disk_kill(seed, first, Some(operation));
-    }
-}
+use crate::fault_support::{chat, commit_saving};

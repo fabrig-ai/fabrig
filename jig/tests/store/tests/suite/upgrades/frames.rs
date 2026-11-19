@@ -409,24 +409,31 @@ pub(crate) fn a_read_cut_preserves_files(read: TranscriptRead, cuts: impl Fn(u32
     assert_eq!(bytes(&events), frame_reads::turn(2, b"said", &[], 24).as_ref());
     let operations = complete.operation_count() - start;
     assert!(operations > 0);
-    for cut in cuts(operations) {
-        let mut world = fixture(frame_reads::SETS, &transcript);
-        let before = world.contents();
-        world.trace_writes();
-        world.cut_at(world.operation_count() + cut);
-        let _events = settled(&mut world, ask(read, READ_BYTES));
-        assert_eq!(world.operation_count(), start + cut, "{read:?}: read cut reached");
-        assert_eq!(world.contents(), before, "{read:?}: cut {cut}/{operations}");
-        assert!(world.changes().is_empty(), "{read:?}: cut {cut}/{operations}");
-        world.crash(43);
-        assert_eq!(world.contents(), before, "{read:?}: power loss at cut {cut}/{operations}");
-    }
-    let mut waiting = fixture(frame_reads::SETS, &transcript);
-    let before = waiting.contents();
-    let events = waiting.request(ask(read, READ_BYTES));
-    assert!(matches!(events.as_slice(), [Event::Site { .. }]));
-    waiting.crash(43);
-    assert_eq!(waiting.contents(), before, "power loss at a written site");
+    let mut world = fixture(frame_reads::SETS, &transcript);
+    let before = world.contents();
+    crate::sweep::fork_case(&mut world, start, |waiting| {
+        let events = waiting.request(ask(read, READ_BYTES));
+        assert!(matches!(events.as_slice(), [Event::Site { .. }]));
+        waiting.crash(43);
+        assert_eq!(waiting.contents(), before, "power loss at a written site");
+        true
+    });
+    world.trace_writes();
+    let sweep = crate::sweep::Sweep::start(
+        &mut world,
+        cuts(operations).into_iter().map(|cut| start + cut).collect(),
+        move |world, operation| {
+            let cut = operation - start;
+            assert_eq!(world.operation_count(), start + cut, "{read:?}: read cut reached");
+            assert_eq!(world.contents(), before, "{read:?}: cut {cut}/{operations}");
+            assert!(world.changes().is_empty(), "{read:?}: cut {cut}/{operations}");
+            world.crash(43);
+            assert_eq!(world.contents(), before, "{read:?}: power loss at cut {cut}/{operations}");
+            true
+        },
+    );
+    let _events = settled(&mut world, ask(read, READ_BYTES));
+    sweep.finish(&mut world);
 }
 
 #[test]

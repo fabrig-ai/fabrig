@@ -83,9 +83,8 @@ fn first_start_recovers_after_every_disk_mutation() {
     }
 }
 
-pub(crate) fn a_drop_copy_or_switch_cut_recovers(
-    operation: u32,
-    change: jig_store_world::world::Change,
+pub(crate) fn drop_copy_or_switch_cuts(
+    cuts: &[(u32, jig_store_world::world::Change)],
     expected_last: u64,
     link_error: Option<skein_io::kernel::Error>,
 ) {
@@ -93,9 +92,27 @@ pub(crate) fn a_drop_copy_or_switch_cut_recovers(
     world.refuse_links(link_error);
     let source: std::collections::BTreeMap<_, _> =
         world.contents().into_iter().filter(|(path, _)| path.starts_with(b"generations/2/")).collect();
+    let records = Records::story();
+    let changes = cuts.to_vec();
     world.trace_writes();
-    world.cut_at(operation);
-    let _ = world.open_switched();
+    let sweep =
+        crate::sweep::Sweep::start(&mut world, cuts.iter().map(|(cut, _)| *cut).collect(), move |world, operation| {
+            let change = changes.iter().find(|(cut, _)| *cut == operation).expect("reference change").1;
+            a_drop_copy_or_switch_cut_recovers(world, &records, &source, operation, change, expected_last);
+            true
+        });
+    assert_eq!(world.open_switched(), Some(expected_last));
+    sweep.finish(&mut world);
+}
+
+fn a_drop_copy_or_switch_cut_recovers(
+    world: &mut World,
+    records: &Records,
+    source: &std::collections::BTreeMap<Vec<u8>, Option<Vec<u8>>>,
+    operation: u32,
+    change: jig_store_world::world::Change,
+    expected_last: u64,
+) {
     assert_eq!(world.operation_count(), operation, "drop/copy/switch cut reached");
     // Before the switch's rename is even attempted, only the drop's rename was seen.
     if world.changes().iter().filter(|(_, change)| *change == jig_store_world::world::Change::Rename).count() < 2 {
@@ -104,9 +121,9 @@ pub(crate) fn a_drop_copy_or_switch_cut_recovers(
     world.crash(SEED);
     assert_eq!(world.open_switched(), Some(expected_last), "cut {operation} {change:?}: {:?}", world.refusal());
     assert_eq!(world.active(), b"3\n", "cut {operation} {change:?}");
-    Records::story().check(&mut world, &(operation, change));
+    records.check(world, &(operation, change));
     let after = world.contents();
-    for (path, bytes) in &source {
+    for (path, bytes) in source {
         assert_eq!(after.get(path), Some(bytes), "source changed at {operation}: {path:?}");
         if let Some(suffix) = path.strip_prefix(b"generations/2/store/logs/")
             && bytes.is_some()
@@ -144,14 +161,18 @@ fn drop_copy_and_switch_recover_at_each_step_s_first_mutation() {
         .find(|(operation, change)| *operation > rename && *change == Change::Sync)
         .expect("switch sync")
         .0;
-    for (why, operation, change) in [
+    let cuts: Vec<_> = [
         ("drop rename", drop, Change::Rename),
         ("drop removal", removal, Change::Remove),
         ("copy directory", copy, Change::Make),
         ("switch rename", rename, Change::Rename),
         ("switch sync", sync, Change::Sync),
-    ] {
+    ]
+    .into_iter()
+    .map(|(why, operation, change)| {
         eprintln!("{why}: {operation}");
-        a_drop_copy_or_switch_cut_recovers(operation, change, expected_last, None);
-    }
+        (operation, change)
+    })
+    .collect();
+    drop_copy_or_switch_cuts(&cuts, expected_last, None);
 }

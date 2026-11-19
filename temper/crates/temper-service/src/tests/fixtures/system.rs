@@ -131,7 +131,7 @@ impl Kernel {
     }
     #[expect(
         clippy::too_many_lines,
-        reason = "the service fixture routes layout for workspaces, stores, making and home"
+        reason = "the service fixture routes layout for workspaces, gitdirs, stores, making and home"
     )]
     pub fn answer(&mut self, service: &mut Service) {
         for _ in 0..service.submissions().len() {
@@ -154,6 +154,7 @@ impl Kernel {
                     assert!(
                         path.as_ref() == b"trash"
                             || path.as_ref() == b"workspaces"
+                            || path.as_ref() == b"gitdirs"
                             || path.as_ref() == b"stores"
                             || path.as_ref() == b"making",
                         "layout opens {path:?}"
@@ -163,7 +164,10 @@ impl Kernel {
                 }
                 Op::Rename { from, .. } => {
                     assert!(
-                        from.as_ref() == b"workspaces" || from.as_ref() == b"home" || from.as_ref() == b"making",
+                        from.as_ref() == b"workspaces"
+                            || from.as_ref() == b"gitdirs"
+                            || from.as_ref() == b"home"
+                            || from.as_ref() == b"making",
                         "layout moves {from:?}"
                     );
                     self.files = self.files.checked_add(1).unwrap();

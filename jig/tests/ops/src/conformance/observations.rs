@@ -83,8 +83,7 @@ pub fn resource(service: &infra::Service, connector: u16) -> r::Name {
     }
 }
 
-pub fn observer(seed: u64, environment_chat: bool) -> jig_conformance::core::Observer {
-    let (configuration, _) = super::config::root_for(seed, environment_chat);
+pub fn observer(configuration: &root::Config, environment_chat: bool) -> jig_conformance::core::Observer {
     let mut kinds = BTreeMap::from([
         ((2, 1), r::Kind { recovery: r::Recovery::Keyed, price: 0 }),
         ((2, 2), r::Kind { recovery: r::Recovery::Conditional, price: 0 }),

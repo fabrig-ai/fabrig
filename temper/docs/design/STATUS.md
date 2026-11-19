@@ -36,6 +36,7 @@ Failed workspace preparation says where and why: worker, workspace,
 repository, stage, git command (check out distinct from clean), operation
 and prepare times; the worker logs it
 (`draft/checkout-failure-words.status.md`; `domain/worker/checkouts.md`, 1).
+A checkout's git is the worker's own, never the run's `.git` (`protocol/git.md`, 4.13).
 A real-loop story failing on an unasked kill names target, killer, time,
 reason and service notes from the run's last seconds
 (`draft/real-loop-kill-cause.status.md`; `testing/real-loop.md`).
@@ -508,9 +509,10 @@ TLS-fetching loop and agents, keep the host's clock
 Main's journey files have one writer, run after each landing, ending
 `Printed: COMMIT`; no test or goal writes them
 (`client/journey-writer.md`). A journey whose `walk` is of version 2,
-`welcome-playground` and `welcome-set-up` first, prints in one process
-by `temper-client-walk`, the box's part played by a peer of the world's
-(`client/journey-walks.md`).
+`welcome-playground`, `welcome-set-up` and the TUI's `sign-in-approved`
+first, prints in one process by `temper-client-walk`, the TUI's host on
+the service with no terminal and the box's part played by a peer of
+the world's (`client/journey-walks.md`).
 
 Design documents:
 - [`README.md`](README.status.md)

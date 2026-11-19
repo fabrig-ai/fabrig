@@ -1358,8 +1358,10 @@ dependencies = [
  "jig-test-system",
  "sha2",
  "skein-codegen",
+ "skein-fork",
  "skein-lib",
  "skein-world",
+ "tempfile",
 ]
 
 [[package]]
@@ -1390,6 +1392,7 @@ dependencies = [
  "jig-test-store",
  "jig-test-store-files",
  "jig-test-system",
+ "skein-fork",
  "skein-lib",
  "skein-world",
  "smith-channel",
@@ -2367,11 +2370,13 @@ dependencies = [
  "jig-test-profile",
  "skein-codec",
  "skein-fake-machine",
+ "skein-fork",
  "skein-heap",
  "skein-io",
  "skein-kv",
  "skein-lib",
  "skein-sim",
+ "tempfile",
 ]
 
 [[package]]
@@ -2656,7 +2661,9 @@ dependencies = [
  "jig-test-domain",
  "jig-test-profile",
  "jig-test-store",
+ "skein-codec",
  "skein-fake-machine",
+ "skein-fork",
  "skein-io",
  "skein-kv",
  "skein-lib",
@@ -8247,6 +8254,7 @@ dependencies = [
  "skein-io",
  "skein-lib",
  "skein-scratch",
+ "skein-shell",
  "skein-throwaway-forgejo",
  "skein-world",
  "temper-fake-checkout",
