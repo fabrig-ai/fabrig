@@ -2162,8 +2162,9 @@ fn deployment_accounts_and_the_playgrounds_are_sections_of_the_same_rows() {
     }
 }
 
-fn assert_no_old_chrome(root: &d::Domain) {
-    for view in [fixtures::page_view(root), fixtures::browser_page_view(root)] {
+fn assert_no_old_chrome(views: &mut fixtures::PageViews, root: &d::Domain) {
+    for browser in [false, true] {
+        let view = views.page(root, browser);
         for node in view.tree().nodes() {
             for style in [
                 crate::look::CARD,
@@ -2179,11 +2180,14 @@ fn assert_no_old_chrome(root: &d::Domain) {
                 assert!(node.styles.as_slice().contains(&crate::look::SETTINGS_SETTING));
             }
         }
+        views.recover(view);
     }
 }
 
 #[test]
 fn the_old_chrome_is_gone() {
+    let mut views = fixtures::PageViews::new();
+    let (mut root, watch) = fixtures::account_root();
     for state in [
         c::AccountState::Granted,
         c::AccountState::Asking,
@@ -2195,13 +2199,12 @@ fn the_old_chrome_is_gone() {
         c::AccountState::Moving,
         c::AccountState::Unloaded { at: c::AccountPlace::File, why: c::AccountUnread::Unreadable },
     ] {
-        let (mut root, watch) = fixtures::account_root();
         let mut doc = card_document(b"openai", b"Pat", c::AccountKind::SignIn);
         doc.accounts.get_mut(0).unwrap().sources.get_mut(0).unwrap().state = state;
         deliver(&mut root, watch, doc);
-        assert_no_old_chrome(&root);
+        assert_no_old_chrome(&mut views, &root);
         action(&mut root, A::KeyFor { row: Row { holder: c::AskAccountHolder::Own, account: 1 }, source: None });
-        assert_no_old_chrome(&root);
+        assert_no_old_chrome(&mut views, &root);
         let name = root.pages().account_name();
         action(
             &mut root,
@@ -2211,10 +2214,14 @@ fn the_old_chrome_is_gone() {
                 operation: Operation::RemoveAccount,
             },
         );
-        assert_no_old_chrome(&root);
+        assert_no_old_chrome(&mut views, &root);
+        // Leaving the page clears its key field and unconfirmed removal before the next document.
+        for address in [d::Address::Forges, d::Address::Accounts] {
+            fixtures::root_event(&mut root, d::Event::Went { place: d::Place::Address(address) });
+        }
     }
-    assert_no_old_chrome(&owner_root().0);
-    assert_no_old_chrome(&fixtures::playground_root(d::Address::Accounts, fixtures::PROJECT, true));
+    assert_no_old_chrome(&mut views, &owner_root().0);
+    assert_no_old_chrome(&mut views, &fixtures::playground_root(d::Address::Accounts, fixtures::PROJECT, true));
 }
 
 fn usage_text(tree: &skein_ui::Tree, id: skein_ui::NodeId) -> Box<[u8]> {

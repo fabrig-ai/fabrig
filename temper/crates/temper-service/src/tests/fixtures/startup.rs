@@ -157,7 +157,7 @@ pub fn named(
 }
 pub fn startup_agent() -> settings::Agent {
     // Match init's maximum run spend, including Fable's cache-write reserve.
-    let init = super::super::stock::engine(&super::super::stock::generated());
+    let init = super::super::stock::initial_engine();
     startup_agent_with_spend(init.rules.maximum_run_spend)
 }
 
@@ -337,6 +337,12 @@ pub fn worker_alone_document() -> Start {
     Start::stock(&serde_json::to_vec(&input).unwrap())
 }
 
+pub fn start_defaults() -> crate::stock::Given {
+    let mut defaults = crate::stock::with_models(Box::new([super::small_model()]), 32);
+    defaults.providers = temper_worker_service_fixtures::providers();
+    crate::stock::Given::Own { jig: defaults, forge: Box::default(), ways: crate::stock::ways() }
+}
+
 #[expect(clippy::too_many_arguments, reason = "the fixture supplies its own defaults at the startup boundary")]
 pub fn start(
     document: &(impl Input + ?Sized),
@@ -348,8 +354,21 @@ pub fn start(
     runtime: crate::WorkerRuntime,
     forges: List<crate::ForgeRuntime>,
 ) -> Result<crate::Service, crate::startup::Problems> {
-    let mut defaults = crate::stock::with_models(Box::new([super::small_model()]), 32);
-    defaults.providers = temper_worker_service_fixtures::providers();
+    start_with(document, directories, files, agent, seeds, accounts, runtime, forges, &start_defaults())
+}
+
+#[expect(clippy::too_many_arguments, reason = "the fixture reuses defaults beside its typed startup limits")]
+pub fn start_with(
+    document: &(impl Input + ?Sized),
+    directories: &jig_protocol_config::Directories,
+    files: &settings::Files,
+    agent: &settings::Agent,
+    seeds: &settings::Seeds,
+    accounts: Option<crate::AccountsRuntime>,
+    runtime: crate::WorkerRuntime,
+    forges: List<crate::ForgeRuntime>,
+    given: &crate::stock::Given,
+) -> Result<crate::Service, crate::startup::Problems> {
     let document = document.configured();
     let checked = crate::startup::checked_start_with_limits(
         &document,
@@ -359,7 +378,7 @@ pub fn start(
         seeds,
         forges,
         None,
-        &crate::stock::Given::Own { jig: defaults, forge: Box::default(), ways: crate::stock::ways() },
+        given,
         None,
         &document.jig,
         &document.own,
