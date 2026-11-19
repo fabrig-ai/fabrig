@@ -496,8 +496,10 @@ shows in the log with each attempt that fetched it (the user, 2026-11-19):
 <binary> worker: run <run> attempt <attempt> check out <repository> <commit>
 ```
 
-A job's lines put `job <kind>` after its attempt, as its failure line
-does (`jobs.md`). `<run>` and `<attempt>` are its assignment's,
+A job's lines put `job <kind> <verb>` after its attempt, its kind's
+number and verb as its failure line prints them (`jobs.md`), so that
+both join by the same words: `temper worker: run 9551 attempt 3 job 1
+prepare fetch fabrig commit <id> into fetched`. `<run>` and `<attempt>` are its assignment's,
 `<repository>` the repository's directory, `<source>` what the fetch
 names (`branch <name>`, `commit <id>` or `default`; `../../protocol/git.md`,
 4.3), `<into>` `fetched` or `landing`, and ids are in full, as
