@@ -1,7 +1,8 @@
 # store: status
 
-2026-11-18. Where temper's code lags or departs from [store.md](store.md).
+2026-11-19. Where temper's code lags or departs from [store.md](store.md).
 
+- **Not yet:** 2: family 3, `Hold`: its head beside and the write's head waiting on it [in flight: change 9081].
 
 - **Not yet:** 4: `ApplicationAdopted`'s `landing` [in flight: change
   8088].
