@@ -162,6 +162,7 @@ pub struct World {
     writer_saves: u32,
     writes: u32,
     lose_writes: bool,
+    timeout_merges: u32,
     lose_rerun_answer: bool,
     unavailable: Option<(Wall, Wall)>,
     calls: u32,
@@ -803,6 +804,7 @@ impl World {
             writer_saves: 0,
             writes: 0,
             lose_writes: false,
+            timeout_merges: 0,
             lose_rerun_answer: false,
             unavailable: None,
             calls: 0,
@@ -1620,7 +1622,21 @@ impl World {
                 self.event(event);
             }
         } else if let Some(event) = self.to_forge.pop() {
-            forge::step(&mut self.forge, &self.forge_env, event, &mut self.forge_out);
+            let mut env =
+                Env { now: self.forge_env.now, wall: self.forge_env.wall, limits: self.forge_env.limits.clone() };
+            if self.timeout_merges > 0
+                && matches!(
+                    &event,
+                    forge::Event::Call {
+                        op: raw::Op::Write(raw::Write::Merge { how: raw::MergeHow::FastForwardOnly, .. }),
+                        ..
+                    }
+                )
+            {
+                self.timeout_merges -= 1;
+                env.limits.timeouts = 1000;
+            }
+            forge::step(&mut self.forge, &env, event, &mut self.forge_out);
             self.take_forge();
         } else if self.top.is_ready() {
             top::resume(&mut self.top, &self.env, &mut self.top_out);
@@ -2014,6 +2030,11 @@ impl World {
         self.forge_env.limits.landing = 1000;
         self.forge_env.limits.land_min = after;
         self.forge_env.limits.land_max = after;
+    }
+
+    /// The fake makes these merges, then loses their answers (`Config::timeouts`).
+    pub fn timeout_merges(&mut self, count: u32) {
+        self.timeout_merges = count;
     }
 
     /// Lose writes in transit, with no copy reaching the forge.

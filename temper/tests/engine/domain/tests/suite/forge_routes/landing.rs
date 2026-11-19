@@ -1234,6 +1234,8 @@ fn a_failed_round_write_holds_the_landing_with_the_forge_answer() {
 mod delivery_restart;
 #[path = "landing_goal_midproof.rs"]
 mod goal_midproof;
+#[path = "landing_merge_readback.rs"]
+mod merge_readback;
 #[path = "landing_stale_round.rs"]
 mod stale_round;
 
