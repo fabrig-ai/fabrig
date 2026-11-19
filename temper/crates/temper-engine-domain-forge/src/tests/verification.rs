@@ -455,7 +455,7 @@ fn judge(
     let mut out = Queue::uncapped();
     let row = d.tiers.get_mut(&(REPO, Box::from(tier))).expect("tier");
     row.record = policy::judged(&row.record, &verdict, &policy::Limits { failing_tests: 16, test_id_bytes: 256 });
-    verification::judged(d, REPO, tier, &verdict, &run.landings, &mut out);
+    verification::judged(d, REPO, tier, &verdict, &run.landings, None, &mut out);
     out
 }
 
@@ -741,7 +741,10 @@ fn closing_the_last_change_erases_verification_and_a_late_verdict_only_saves_the
     );
     let log = d.landing_log(REPO).unwrap();
     assert_eq!(log.landings[0].tiers[0].verdict, LoggedVerdict::Cleared { run: 1 });
-    assert_eq!(log.landings[1].tiers[0].verdict, LoggedVerdict::Red { run: 1, failing: None });
+    assert_eq!(
+        log.landings[1].tiers[0].verdict,
+        LoggedVerdict::Red { run: 1, failing: None, tests: Box::new([]), many: None }
+    );
     let mut expected = Queue::uncapped();
     if let Some(subject) = views::changes_mark(&d, REPO) {
         expected.push(Request::Marked { tasks: Box::new(subject) });
@@ -1234,11 +1237,14 @@ fn the_verdict_keeps_each_logged_landing_and_saves_it_with_the_tier() {
 
     for blame in [
         policy::Blame::Owns(policy::Failures::Tests(Box::new([
-            b"x".as_slice().into(),
-            b"x".as_slice().into(),
-            b"y".as_slice().into(),
+            b"suite::b".as_slice().into(),
+            b"suite::a".as_slice().into(),
+            b"suite::a".as_slice().into(),
         ]))),
-        policy::Blame::Suspect(policy::Failures::Tests(Box::new([b"x".as_slice().into(), b"y".as_slice().into()]))),
+        policy::Blame::Suspect(policy::Failures::Tests(Box::new([
+            b"suite::a".as_slice().into(),
+            b"suite::b".as_slice().into(),
+        ]))),
         policy::Blame::Owns(policy::Failures::Many),
         policy::Blame::Suspect(policy::Failures::Many),
     ] {
@@ -1254,11 +1260,84 @@ fn the_verdict_keeps_each_logged_landing_and_saves_it_with_the_tier() {
         assert_eq!(log.landings[0].tiers[0].verdict, LoggedVerdict::Cleared { run: 3 });
         assert_eq!(
             log.landings[1].tiers.as_ref(),
-            &[LoggedTier { tier: TIER.into(), verdict: LoggedVerdict::Red { run: 3, failing: count } }]
+            &[LoggedTier {
+                tier: TIER.into(),
+                verdict: LoggedVerdict::Red {
+                    run: 3,
+                    failing: count,
+                    tests: if count.is_some() {
+                        Box::new([b"suite::a".as_slice().into(), b"suite::b".as_slice().into()])
+                    } else {
+                        Box::new([])
+                    },
+                    many: None,
+                }
+            }]
         );
         assert!(contains(
             &out,
             &Request::Save { read_afresh: None, release: None, record: Stored::LandingLog(log.clone()) }
         ));
+    }
+}
+
+#[test]
+fn logged_red_ids_are_bounded_without_losing_the_count_or_many_remainder() {
+    for count in [2, 70] {
+        let mut names = List::with_capacity(count);
+        for at in (0..count).rev() {
+            names.push(Box::from(format!("suite::t{at:02}").as_bytes())).unwrap();
+        }
+        let names = names.into_boxed();
+        let mut sorted = names.clone();
+        sorted.sort();
+        let expected: Box<[policy::TestId]> = Box::from(sorted.get(..skein_lib::usize_of(count.min(64))).unwrap());
+        for suspected in [false, true] {
+            for many in [false, true] {
+                let mut d = verifying();
+                let failures = if many { policy::Failures::Many } else { policy::Failures::Tests(names.clone()) };
+                let blame = if suspected {
+                    policy::Blame::Suspect(failures.clone())
+                } else {
+                    policy::Blame::Owns(failures.clone())
+                };
+                let verdict = policy::Verdict {
+                    number: 7,
+                    tip: LAST,
+                    key: LAST,
+                    failing: failures,
+                    landings: Box::new([policy::Blame::Cleared, blame]),
+                    flakes: Box::new([]),
+                };
+                let run_names = policy::ManyTests { tests: names.clone(), more: 21, cut: true };
+                let landings =
+                    [policy::Landing { commit: FIRST, key: FIRST }, policy::Landing { commit: LAST, key: LAST }];
+                let mut out = Queue::uncapped();
+                landing_log::judged(&mut d, REPO, TIER, &verdict, &landings, Some(&run_names), &mut out);
+                let log = d.landing_log(REPO).unwrap();
+                assert_eq!(log.landings[0].tiers[0].verdict, LoggedVerdict::Cleared { run: 7 });
+                assert_eq!(
+                    log.landings[1].tiers[0].verdict,
+                    LoggedVerdict::Red {
+                        run: 7,
+                        failing: if many { None } else { Some(count) },
+                        tests: if many { Box::new([]) } else { expected.clone() },
+                        many: if many {
+                            Some(policy::ManyTests {
+                                tests: expected.clone(),
+                                more: 21 + count.saturating_sub(64),
+                                cut: true,
+                            })
+                        } else {
+                            None
+                        },
+                    }
+                );
+                assert!(contains(
+                    &out,
+                    &Request::Save { read_afresh: None, release: None, record: Stored::LandingLog(log.clone()) }
+                ));
+            }
+        }
     }
 }

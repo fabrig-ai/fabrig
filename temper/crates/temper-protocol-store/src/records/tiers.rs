@@ -8,7 +8,7 @@ use temper_engine_domain_forge_tiers as p;
 use temper_engine_domain_forge_vocabulary as d;
 mod post;
 
-fn encode_tests(tests: &[Box<[u8]>]) -> List<w::FailingTest> {
+pub(super) fn encode_tests(tests: &[Box<[u8]>]) -> List<w::FailingTest> {
     let mut values = List::with_capacity(u32::try_from(tests.len()).expect(FITS));
     for test in tests {
         values
@@ -17,7 +17,7 @@ fn encode_tests(tests: &[Box<[u8]>]) -> List<w::FailingTest> {
     }
     values
 }
-fn decode_tests(tests: List<w::FailingTest>) -> Result<Box<[Box<[u8]>]>, Undecodable> {
+pub(super) fn decode_tests(tests: List<w::FailingTest>) -> Result<Box<[Box<[u8]>]>, Undecodable> {
     let mut values = List::with_capacity(tests.len());
     for test in tests.into_boxed() {
         let test = test.into_parts().test_id;

@@ -133,7 +133,16 @@ pub fn encode(value: &d::Stored) -> Box<[u8]> {
 
 /// Decode one supported row with the checked startup bounds.
 pub fn decode(bytes: &[u8], bounds: &Bounds) -> Result<d::Stored, Undecodable> {
-    let row = w::Row::decode(bounds.limits(), &mut Reader::new(bytes)).or(Err(Undecodable::Malformed))?;
+    let row = match w::Row::decode(bounds.limits(), &mut Reader::new(bytes)) {
+        Ok(row) => row,
+        Err(_) => {
+            // Earlier logs kept up to the schema's tier ceiling. The domain's
+            // restore has the repository settings and retires removed entries.
+            let mut earlier = *bounds.limits();
+            earlier.logged_landing_tiers = w::CEILINGS.logged_landing_tiers;
+            w::Row::decode(&earlier, &mut Reader::new(bytes)).or(Err(Undecodable::Malformed))?
+        }
+    };
     Ok(match row.into_parts().value {
         w::Value::RedPass(row) => d::Stored::RedPass(reds::decode_pass(row, bounds)?),
         w::Value::Red(row) => d::Stored::Red(reds::decode(row, bounds)?),
@@ -158,7 +167,9 @@ pub fn decode(bytes: &[u8], bounds: &Bounds) -> Result<d::Stored, Undecodable> {
         w::Value::Setting(row) => d::Stored::Setting(settings::decode(row, bounds)?),
         w::Value::Tier(row) => d::Stored::Tier(tiers::decode(*row)?),
         w::Value::Milestone(row) => d::Stored::Milestone(milestones::decode(row)),
-        w::Value::LandingLog(row) => d::Stored::LandingLog(landing_log::decode(row)),
+        w::Value::LandingLog(row) => {
+            d::Stored::LandingLog(landing_log::decode(row, bounds.limits().logged_landing_tiers)?)
+        }
         w::Value::Verification(row) => d::Stored::Verification(verification::decode(row)?),
         w::Value::Forge(row) => d::Stored::Forge(forges::decode(row)?),
         w::Value::ForgeNumber(row) => {
@@ -390,7 +401,9 @@ fn tier_limits(forge: &d::Limits) -> Option<w::Limits> {
         tier_tests_tests: forge.tiers.failing_tests,
         many_tests_tests: forge.tiers.failing_tests.min(w::CEILINGS.many_tests_tests),
         shown_test_test_id: forge.tiers.test_id_bytes,
+        logged_red_tests: forge.tiers.failing_tests.min(d::LOGGED_TESTS),
         landing_log_landings: forge.landings_kept.checked_add(forge.landings_pending)?,
+        logged_landing_tiers: forge.tiers.tiers,
         logged_landing_changes: forge.landing_members,
         logged_landing_branch: forge.name_bytes,
         verification_changes: forge.changes,

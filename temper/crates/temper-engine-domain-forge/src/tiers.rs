@@ -956,7 +956,7 @@ fn finish(d: &mut Domain, env: &Env<Limits>, row: &mut TierRow, message_bytes: u
             red::landed(d, row, &newly_red, &logs, message_bytes, out);
         }
         let run = row.record.run.as_ref().expect("judged range");
-        crate::verification::judged(d, row.repository, &row.tier, &verdict, &run.landings, out);
+        crate::verification::judged(d, row.repository, &row.tier, &verdict, &run.landings, row.many.as_ref(), out);
     }
     let run = row.record.run.clone();
     if !goal {
