@@ -187,6 +187,95 @@ fn settings_finish_drops_cross_record_revision_rules() {
 }
 
 #[test]
+fn stored_numbers_are_collected_before_the_whole_check() {
+    let (mut core, env) = loaded();
+    let rows = settings_rows(&core);
+    for row in rows.into_boxed() {
+        assert_eq!(restore(&mut core, &env, row), Restored::Live);
+    }
+    let mut charter = core.charter(1).unwrap().clone();
+    charter.number = 17;
+    let template = crate::Template {
+        resources: Box::new([]),
+        number: 9,
+        name: b"old".as_slice().into(),
+        executor: people::TemplateExecutor::Charter(31),
+        contract: crate::tasks::Contract::Report { words: 1 },
+        shallower: 0,
+        budget: people::TemplateBudget::Given,
+        deadline: people::TemplateDeadline::None,
+        tracked: None,
+        flags: crate::tasks::Flags::PLAIN,
+        label: 0,
+        grace: None,
+        llm: None,
+    };
+    for (setting, value) in [
+        (Setting::Charter(17), Value::Charter(Box::new(charter))),
+        (Setting::Template(9), Value::Template(Box::new(template))),
+    ] {
+        assert_eq!(
+            restore(&mut core, &env, Record::Changed { setting, changed: Changed { value: Some(value), revision: 1 } }),
+            Restored::Live
+        );
+    }
+    let expected = Failure::Numbers {
+        settings: Box::new([
+            crate::start::Numbered { setting: Setting::Charter(17), changed: true },
+            crate::start::Numbered { setting: Setting::Template(9), changed: true },
+        ]),
+    };
+    let mut out = Queue::uncapped();
+    let Action::Refused(found) = core.start_done(&env, Phase::LoadCore, &mut out) else { panic!("numbers refused") };
+    assert_eq!(found, expected);
+    assert_eq!(core.start_failure(), Some(expected));
+    assert!(out.is_empty());
+}
+
+#[test]
+fn default_numbers_are_collected_at_first_and_restored_starts() {
+    for restored in [false, true] {
+        let (mut core, env) = loaded();
+        let mut charter = core.charter(1).unwrap().clone();
+        charter.number = 40;
+        core.current.defaults.remove(&Setting::Charter(1));
+        core.current
+            .defaults
+            .insert(
+                Setting::Charter(40),
+                crate::settings::Default { value: Value::Charter(Box::new(charter)), revision: 1 },
+            )
+            .unwrap();
+        if restored {
+            for row in settings_rows(&core).into_boxed() {
+                assert_eq!(restore(&mut core, &env, row), Restored::Live);
+            }
+        }
+        let mut out = Queue::uncapped();
+        if restored {
+            let Action::Refused(found) = core.start_done(&env, Phase::LoadCore, &mut out) else {
+                panic!("default number refused")
+            };
+            assert_eq!(
+                found,
+                Failure::Numbers {
+                    settings: Box::new([crate::start::Numbered { setting: Setting::Charter(40), changed: false }])
+                }
+            );
+        } else {
+            assert!(!crate::settings::restart::first_start(&mut core, &env, &mut out));
+        }
+        assert_eq!(
+            core.start_failure(),
+            Some(Failure::Numbers {
+                settings: Box::new([crate::start::Numbered { setting: Setting::Charter(40), changed: false }])
+            })
+        );
+        assert!(out.is_empty());
+    }
+}
+
+#[test]
 fn whole_settings_fit_is_checked_by_load_core() {
     let (mut core, env) = loaded();
     let mut rows = settings_rows(&core);
@@ -229,7 +318,21 @@ fn stored_agent_needs_refuse_before_the_fleet_and_fit_at_the_bound() {
             models.push(model).unwrap();
         }
         value.settings.models = models.into_boxed();
+        let catalogue = crate::settings::catalogue::defaults(&value.settings);
+        let mut stock = List::with_capacity(32);
+        for row in &catalogue {
+            if row.number <= 32 {
+                stock.push(row.clone()).unwrap();
+            }
+        }
+        value.defaults.models = stock.into_boxed();
         value.defaults.charters[0].policy.model = value.settings.models[0].clone();
+        let first = value.defaults.charters[0].clone();
+        let mut charters = List::with_capacity(32);
+        for number in 1..=32 {
+            charters.push(crate::Charter { number, ..first.clone() }).unwrap();
+        }
+        value.defaults.charters = charters.into_boxed();
         value
     }
     let mut limits = limits();
@@ -238,12 +341,20 @@ fn stored_agent_needs_refuse_before_the_fleet_and_fit_at_the_bound() {
     limits.settings.alternatives = 63;
     limits.run_bytes = 65_536;
     let writer = Core::new(configured(), &limits).unwrap();
-    let mut rows = List::with_capacity(128);
+    let mut rows = List::with_capacity(160);
     for row in settings_rows(&writer).into_boxed() {
         rows.push(row).unwrap();
     }
-    let mut all = configured();
-    let mut charters = List::with_capacity(32);
+    let all = configured();
+    for model in crate::settings::catalogue::defaults(&all.settings) {
+        if model.number > 32 {
+            rows.push(Record::Changed {
+                setting: Setting::Model(model.number),
+                changed: Changed { revision: 1, value: Some(Value::Model(Box::new(model))) },
+            })
+            .unwrap();
+        }
+    }
     for number in 1..=32 {
         let mut charter = all.defaults.charters[0].clone();
         charter.number = number;
@@ -253,10 +364,15 @@ fn stored_agent_needs_refuse_before_the_fleet_and_fit_at_the_bound() {
             changed: Changed { revision: 1, value: Some(Value::Charter(Box::new(charter.clone()))) },
         })
         .unwrap();
-        charters.push(charter).unwrap();
     }
-    all.defaults.charters = charters.into_boxed();
-    let needs = fleet_needs::configured(&all, &limits);
+    let mut measured = Core::new(configured(), &limits).unwrap();
+    for row in &rows {
+        if let Record::Changed { setting, changed } = row {
+            measured.current.changes.insert(*setting, changed.clone()).unwrap();
+        }
+    }
+    crate::settings::charters::rebuild(&mut measured.current, &limits);
+    let needs = fleet_needs::current(&measured, &limits);
     limits.fleet.needs_bytes = 0;
     let past = fleet::needs_fit(&limits.fleet, limits.settings.versions, &needs).unwrap_err();
     for budget in [past.held - past.limit - 1, past.held - past.limit] {

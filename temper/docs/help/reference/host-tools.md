@@ -396,20 +396,20 @@ Offered where the run's charter names the read family and its authority holds it
 
 - `what`: one of `branch|branches|compare|file|protection|settings|collaborators|permission`; required. Read to make; each what below lists its required and optional members.
 - `repository`: text. owner/name; omit or empty for the project's one.
-- `branch`: text. Branch name; pull_for: the branch it merges from.
+- `branch`: text. Branch name; omit or empty for the default branch. file: read at its head unless commit.
 - `prefix`: text. Nonempty name prefix, as temper/; longer reads fewer.
 - `before`: text. Earlier commit: 40 or 64 lowercase hex digits.
 - `after`: text. Later commit: 40 or 64 lowercase hex digits.
-- `commit`: text. Commit id: 40 or 64 lowercase hex digits.
+- `commit`: text. Commit id: 40 or 64 lowercase hex digits. file: omit to read at branch's head.
 - `path`: text. File or directory path; dot or empty for root.
 - `max_bytes`: integer [1, 4294967295]. Raw prefix or log bytes; default: read limit. Leave room for metadata and escaping (up to 4x); cuts are incomplete.
 - `page`: integer [1, 4294967295], 1 when absent. Page from 1; default 1. Next page uncut; same page and skip if cut.
 - `user`: integer [1, 18446744073709551615]. Forge user's id; permission names their login.
-- `what=branch`: requires branch; takes repository, branch.
+- `what=branch`: requires none; takes repository, branch.
 - `what=branches`: requires prefix; takes repository, prefix.
 - `what=compare`: requires before, after; takes repository, before, after.
-- `what=file`: requires commit, path; takes repository, commit, path, max_bytes.
-- `what=protection`: requires branch; takes repository, branch.
+- `what=file`: requires path; takes repository, path, commit, branch, max_bytes.
+- `what=protection`: requires none; takes repository, branch.
 - `what=settings`: requires none; takes repository.
 - `what=collaborators`: requires none; takes repository, page.
 - `what=permission`: requires user; takes repository, user.

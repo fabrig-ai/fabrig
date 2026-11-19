@@ -367,7 +367,9 @@ is its own.
   (`pages::drafts_offered(root, project)`, `../../pages/README.md`, *A chat's
   document*); "/change", "one change, run as PROJECT's way says";
   "/talk", "a role, about its area", while the project has a live
-  standing role (`README.md`, 2, *`/talk`*); "/ask", "Ask temper".
+  standing role (`README.md`, 2, *`/talk`*); "/ask", "Ask temper"; and
+  in front of a box, while `/web` is offered, "/web", "Open temper in
+  your browser" (`../box.md`, *`/web`, temper in the browser*).
 - **The box keeps the keys:** the box is the only node of the launchpad
   a person acts on, so the keys stay in it (`README.md`, *The box*), but
   Up, Down, Enter and Esc on the left-off rows and `n` while it is empty

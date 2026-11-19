@@ -45,7 +45,7 @@ these paths; real-forge observation remains after-landing work
 
 `settings.md`, section 2 and `stock.md` and `reference.md` have kind 11, a goal template's work, with
 no known gap but the reference's close-out, below: the forge's
-`TemplateGoal`, judged at scope 0 and a template's number, kept,
+`TemplateGoal`, judged at scope 0 and a template's number, 1 to 64, kept,
 removed, reset and restored as kind 3 is, read by `template_goal`, with
 neither where none is held; the store's and smith's codecs; its
 declaration to jig, `limits.templates` per scope; `template-goal` in a
@@ -63,7 +63,7 @@ saved with a setting: a tier's `description`, read at the start, 1 to 120
 bytes of UTF-8 without a control character or refused at its member, and
 the reference's two tiers described; kinds 9 and 10, the forge's
 `CharterWords` and `ProjectWords`, judged by their bounds and kind 9's
-number, 1 to `tasks.charters`, kept, removed, reset and restored as kind
+number, 1 to 64, kept, removed, reset and restored as kind
 11 is, kind 10 erased with its project, kind 9 read by `charter_words`,
 both in the store's and smith's codecs; their declarations to jig, kind
 9's `per_scope` `tasks.charters`; `charter-words` and `project-words` in

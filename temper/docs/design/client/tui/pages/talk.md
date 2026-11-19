@@ -127,7 +127,8 @@ choices under the box):
 
   Illustrative: ` ● Live · vsr-rs · Porter      this session 9 min · 0.60 · 2 need you`.
 - **Its commands** (`README.md`, section 2, *Offered*): `/new`, `/chats`,
-  `/open`, `/tell`, `/theme`, `/help` and `/quit`, and `/exit` whole to
+  `/open`, in front of a box `/web` (`../box.md`, *`/web`, temper in the
+  browser*), `/tell`, `/theme`, `/help` and `/quit`, and `/exit` whole to
   leave; none of a chat's own. `/open` opens the role's card on Team,
   `Team { project, role: Some(TASK) }` (`../../pages/team.md`, 1), where its
   sessions, earlier talks among them, are read.

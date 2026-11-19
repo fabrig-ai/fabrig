@@ -109,6 +109,9 @@ pub enum Word {
     BriefCommand,
     NeedsCommand,
     OpenCommand,
+    WebCommand,
+    WebOpen,
+    WebFresh,
     BriefMore,
     BoxStart,
     ToWalk,
@@ -218,7 +221,7 @@ pub enum Word {
     DraftPlaceholder,
     TellPlaceholder,
 }
-pub(crate) const ALL: [Word; 207] = [
+pub(crate) const ALL: [Word; 210] = [
     Word::Title,
     Word::State,
     Word::QuitKeys,
@@ -320,6 +323,9 @@ pub(crate) const ALL: [Word; 207] = [
     Word::BriefCommand,
     Word::NeedsCommand,
     Word::OpenCommand,
+    Word::WebCommand,
+    Word::WebOpen,
+    Word::WebFresh,
     Word::BriefMore,
     Word::BoxStart,
     Word::ToWalk,
@@ -588,6 +594,9 @@ impl Word {
             Self::BriefCommand => 99,
             Self::NeedsCommand => 100,
             Self::OpenCommand => 101,
+            Self::WebCommand => 210,
+            Self::WebOpen => 211,
+            Self::WebFresh => 212,
             Self::BriefMore => 102,
             Self::BoxStart => 103,
             Self::ToWalk => 104,
@@ -834,6 +843,9 @@ impl Word {
             Self::Restarting => (&[b"", b" restarting"], &[Slot::Step]),
             Self::GaveUp => (&[b"", b" gave up"], &[Slot::Step]),
             Self::GaveUpNote => (&[b"The box gave up: ", b". /log shows why; Ctrl+C closes."], &[Slot::Step]),
+            Self::WebCommand => (&[b"Open temper in your browser"], &[]),
+            Self::WebOpen => (&[b"Open this link in a browser that reaches temper:"], &[]),
+            Self::WebFresh => (&[b"Opened after that, temper makes a fresh one: /web again opens the fresh one."], &[]),
             Self::LogCommand => (&[b"The box's recent log"], &[]),
             Self::LogHead => (&[b"/log"], &[]),
             Self::LogEmpty => (&[b"Nothing yet."], &[]),
@@ -1110,6 +1122,11 @@ pub(crate) const fn place(command: crate::Own) -> Option<(Word, Word)> {
         crate::Own::Change => Some((Word::ChangeTitle, Word::ChangePlaceholder)),
         crate::Own::Draft => Some((Word::DraftTitle, Word::DraftPlaceholder)),
         crate::Own::Tell => Some((Word::TellTitle, Word::TellPlaceholder)),
-        crate::Own::Talk | crate::Own::Brief | crate::Own::Needs | crate::Own::Open | crate::Own::Theme => None,
+        crate::Own::Talk
+        | crate::Own::Brief
+        | crate::Own::Needs
+        | crate::Own::Open
+        | crate::Own::Web
+        | crate::Own::Theme => None,
     }
 }

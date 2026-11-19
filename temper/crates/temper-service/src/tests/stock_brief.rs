@@ -123,7 +123,7 @@ fn red_is_offered_only_to_stock_delegators_with_room_for_their_briefs() {
         if number == 5 {
             let room = run::brief_room(&charter, Some(&workspace(true)), &limits).unwrap();
             eprintln!("red charter 5 with workspace: room={room}");
-            assert!(room >= 318_148 + 64 * (16 + 7) + 66, "charter 5's pinned whole-brief margin: {room}");
+            assert!(room >= 318_046 + 64 * (16 + 7) + 66, "charter 5's pinned whole-brief margin: {room}");
         }
         assert_eq!(
             charter.grants.host_tools.iter().any(|tool| tool.name.as_ref() == b"red"),
@@ -207,7 +207,7 @@ fn every_stock_charter_admits_its_maximal_brief_with_receiving_fitting() {
         );
         temper_protocol_brief::fit_brief(&mut charter, workspace.as_ref(), &limits);
         if number == 5 {
-            assert_eq!(original.owned_bytes().unwrap(), 59_285);
+            assert_eq!(original.owned_bytes().unwrap(), 59_385);
 
             assert_eq!(receiving, 127_407);
             assert!(original.owned_bytes().unwrap() <= receiving, "the goal's smaller offer keeps its maximal brief");
@@ -268,9 +268,9 @@ fn the_stock_brief_with_a_whole_spec_fits_both_receiving_bounds() {
     let assignments = Assignments::new();
     let largest = temper_engine_smith::charter(&assignments.assignment(5, false, 0));
     let room = run::brief_room(&largest, Some(&workspace(true)), &limits).unwrap();
-    assert_eq!(room, 319_694, "charter 5's maximal non-brief host part leaves this room");
+    assert_eq!(room, 319_594, "charter 5's maximal non-brief host part leaves this room");
 
-    assert_eq!(brief.brief_bytes, 318_148);
+    assert_eq!(brief.brief_bytes, 318_046);
     let full = brief.budgets.task + brief.budgets.pull + brief.budgets.reviews + OTHER;
     assert_eq!(full, 395_520);
     assert!(brief.brief_bytes <= full.min(room - FRAMING));

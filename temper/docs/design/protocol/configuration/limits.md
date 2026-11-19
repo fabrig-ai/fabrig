@@ -146,6 +146,18 @@
   first past it (`../../domain/landing-history.md`, 4.5 and 6). Each
   applies to every project; the events are demand-loaded and take no
   forge memory.
+- **A repository's landing log:** `forge.landings_kept`, the landings
+  every tier following their branch has judged, 16 in both profiles;
+  and `forge.landings_pending`, those some tier has still to judge, 64
+  in both, at least 1, so that a project whose changes end at landing
+  (`../../domain/after-landing.md`, section 6) keeps a slow tier's
+  backlog of landings with their members until it is judged, past which
+  the oldest is judged with no member to comment on (section 10 there).
+  Their sum is at most the store's 256 a log holds, and with
+  `forge.landing_members` and `forge.changes` it bounds a tier's posted
+  comments, `(forge.landings_kept + forge.landings_pending) *
+  forge.landing_members + forge.changes` within the store's 8,192, both
+  checked at start (below).
 - **Overrides by dotted name:** the path of the field in its owner's
   `Limits` type, a duration's last segment with `_ms`. A name temper does
   not know, or a value outside its type, refuses the start, naming it.
@@ -401,6 +413,15 @@
     refuses the start as the store's sizing names it (`engine.limits.store:
     the store's map value, N bytes, past its bound of M bytes`), the
     store limit to raise with it;
+  - the landing log's: `forge.landings_kept + forge.landings_pending`
+    at most the store schema's ceiling on a log's landings, 256, and a
+    tier's posted comments, `(forge.landings_kept +
+    forge.landings_pending) * forge.landing_members + forge.changes`,
+    at most its ceiling on them, 8,192 (`../store.md`, 4), each checked
+    before the store's sizing and naming `forge.landings_pending`:
+    `application.limits.overrides.forge.landings_pending: 241, past its
+    bound of 240, the most the store's landing log holds beside
+    forge.landings_kept 16 (within 256)`;
   - the webhooks' listener's: each of its limits above 0;
     `hook_secret_bytes` at least 32; `hook_head_bytes` at most the
     HTTP server's largest read within io's intake; `hooks` within the

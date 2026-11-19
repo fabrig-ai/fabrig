@@ -113,6 +113,15 @@ findings, kept in the store and never read back. What is open is `findings.md`, 
   again, kind `flake`, severity `low`, no area, filed or counted as
   `forge/reds.md`, 5.8 gives its title, body and signature. Each is
   filed as `areas.md`, section 5 routes it.
+- **Refused for its own alone:** a filing is refused for what it
+  carries or where it goes: an area the project lacks (`areas.md`,
+  section 5), a title or body past section 2's bounds, its project's
+  findings full (section 9). Never for its holder's room: the news's
+  subscription is the root's, admitted apart from the holder's own,
+  and a holder it can't be made for still has the finding, unheard
+  (`areas.md`, section 5). A hand-off and a route the same (section
+  6), so the root's filing of a red or a flake is lost to no task's
+  subscriptions.
 - **What a verdict files:** its reproduction is the tier's or gate's
   workflow at the run's commit with its failing tests alone; its first
   line, the failed job's failed step's last line (skein's `Read::Job`);
@@ -182,7 +191,8 @@ findings, kept in the store and never read back. What is open is `findings.md`, 
   its kind, severity and area as `areas.md`, section 5's second line,
   then its body, cut to `tasks.message_bytes` as there, through the
   goal's subscription to the project's findings topic, which the root
-  makes in that decision as for an owner. A routed or dropped finding
+  makes in that decision as for an owner, apart from the goal's own
+  room (`areas.md`, section 5). A routed or dropped finding
   is no one's to triage: its holder still reads by the rule, and it
   leaves Needs you.
 - **A goal hears a finding** as news it may act on: the fix is a change

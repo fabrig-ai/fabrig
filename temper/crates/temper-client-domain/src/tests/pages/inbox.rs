@@ -804,7 +804,7 @@ fn reply_counts_and_source_cut_survive_both_inbox_documents() {
         );
         let inbox = root.pages().inbox().unwrap();
         assert_eq!(inbox.cards.get(0).unwrap().unread, Some(count));
-        assert_eq!(inbox.cut, [true, true]);
+        assert_eq!(inbox.cut, [false, true]);
     }
 }
 #[test]
@@ -828,7 +828,7 @@ fn filtered_cut_is_kept_for_each_section_and_both_page_shapes() {
             &mut out,
         );
     }
-    assert_eq!(root.pages().inbox().unwrap().cut, [false, true]);
+    assert_eq!(root.pages().inbox().unwrap().cut, [true, true]);
 }
 
 fn section(root: &mut crate::Domain, index: usize, rows: Option<List<contract::InboxEntry>>) {

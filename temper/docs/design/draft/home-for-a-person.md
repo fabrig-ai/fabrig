@@ -110,7 +110,8 @@ Charters' words, with no new field. The stock's charters
 starts goals by script write them so.
 
 - **A goal's title** is its words' first line, at most 60 characters,
-  naming the work for a person: "Store shape S7 · history in task logs".
+  naming the work for a person in plain words, with no draft codes or
+  internal names: "Store shape · history in task logs".
   The chat's `goal` and `change` calls open their words with such a line
   (`../domain/agent/tools.md`, sections 1 and 2), and `temper ctl goal
   start`'s help says so.
@@ -118,9 +119,16 @@ starts goals by script write them so.
   situation as a person reads it, and `took` in one line, in every
   charter that decides: the chat's goals, the standing role's, the
   triager's, the prover's and the porter's.
-- **A goal's report headline:** one line for a person, saying where the
-  goal stands with no task, change or pull numbers: "5 of its 7 changes
-  landed; the other 2 are building."
+- **A goal's report headline:** one line for a person, saying plainly
+  what the goal has done and what's left, in the work's own terms, with
+  no task, change or pull numbers, no draft or milestone codes, no
+  branch names and none of the words of how goals run: "Most of it is
+  in; the last two parts are being built."
+- **The brief** at the top of Home, the status agent's, follows the
+  same rule: a sentence and at most two more, short enough that its fits
+  never cut it, with no codes, no wire or protocol versions and none of
+  the words of how goals run, and someone waited on only where its facts
+  show a question open now (`../domain/forge/attention.md`, 3).
 - **The agent's own text stays** where it is read whole: the thing's
   page, and Overturn, which quotes the question back.
 - **No second text:** every part of the page has its field already, and

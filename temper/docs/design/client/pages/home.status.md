@@ -3,7 +3,8 @@
 2026-11-18. Where the tree's code lags or departs from [home.md](home.md).
 
 
-- **Not yet:** 1, *the headline*, *Needs you*'s head and Home on All projects' *the headline*: they count the open cards of the inbox's first window, and a project's needs' read is never cut [in flight: change 7583].
+- **Not yet:** 1, *the headline* and *Needs you*'s head: a needs read that ends without its value (busy, past the client's reads) marks the count cut, "N+", until the next whole read [in flight: change 8571].
+- **Not yet:** 1, *Goals*, *One stable list*: a delivery whose rows' parts aren't made draws every goal's fallback headline, its milestone "open" with no count or strip, and the milestone's goals as rows of their own [in flight: change 8572].
 
 - **Not yet:** 1, *In the TUI*: given `boundary::Event::Launchpad`, Home holds none of the launchpad's reads across projects [in flight: change 783].
 - **Not yet:** 1, *The cards* and *On a phone*: an approval's size [in flight: change 535].

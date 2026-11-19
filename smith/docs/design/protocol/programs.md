@@ -613,7 +613,9 @@ open is section 9.
   section 4; domain/session.md, 8.2). On a program backend the
   compaction runs as a program session of its own with no tools, and
   the window turn's messages open the program's new session as its
-  first user message.
+  first user message. Whether a host offers a window from another
+  backend at all is its own decision (domain/run.md, section 6). jig's
+  engine never does: it starts the run fresh.
 - **A conversation its host does not keep,** such as the product's
   `--ephemeral` chat, resumes its program session only while it lasts:
   no later conversation derives the same session id, so the session is

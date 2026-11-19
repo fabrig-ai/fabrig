@@ -355,7 +355,7 @@ fn a_gone_terminal_stream_withdraws_its_offer_and_ends_its_login() {
 }
 
 fn opening_me(peer: &mut Peer) -> (skein_lib::Token, skein_lib::Token) {
-    let socket = peer.request_stream_target(b"/jig/v1/stream?version=35");
+    let socket = peer.request_stream_target(b"/jig/v1/stream?version=36");
     let core::Event::Watch { watcher, sign_in, subject, .. } = peer.take_core().expect("stream's me watch") else {
         panic!("me watch");
     };
@@ -406,7 +406,7 @@ fn an_unserved_or_absent_version_keeps_the_hello_alone_and_watch_zero_free() {
 }
 #[test]
 fn a_stream_query_is_exactly_one_decimal_u32_version() {
-    for query in ["abc", "", "-1", "+28", "4294967296", "28&version=35", "28&other=1"] {
+    for query in ["abc", "", "-1", "+28", "4294967296", "28&version=36", "28&other=1"] {
         let mut peer = Peer::signed_in(&fixtures::settings(), fixtures::FIRST_SIGN_IN);
         let target = format!("/jig/v1/stream?version={query}");
         let socket = peer.request_stream_target(target.as_bytes());
@@ -485,7 +485,7 @@ fn a_stream_refused_me_by_the_full_small_party_room_is_an_empty_409() {
         ));
     }
     let mut peer = Peer::signed_in(&fixtures::settings(), sign_in);
-    let socket = peer.request_stream_target(b"/jig/v1/stream?version=35");
+    let socket = peer.request_stream_target(b"/jig/v1/stream?version=36");
     let event = peer.take_core().expect("stream watch");
     let mut out = core::step(&mut core, &env, event);
     let Some(core::Request::Now(now)) = out.pop() else {

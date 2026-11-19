@@ -690,6 +690,8 @@ pub enum Path {
     RunProofAttempt,
     /// The `conversation` field of `RunProof`.
     RunProofConversation,
+    /// The `endpoint` field of `RunProof`.
+    RunProofEndpoint,
     /// The `accounts` field of `RunProof`.
     RunProofAccounts,
     /// The `placement` field of `RunProof`.
@@ -1092,6 +1094,7 @@ impl Path {
             Self::RunProofTask => "RunProof.task",
             Self::RunProofAttempt => "RunProof.attempt",
             Self::RunProofConversation => "RunProof.conversation",
+            Self::RunProofEndpoint => "RunProof.endpoint",
             Self::RunProofAccounts => "RunProof.accounts",
             Self::RunProofPlacement => "RunProof.placement",
             Self::RunProofAccountFailure => "RunProof.account_failure",
@@ -14574,6 +14577,8 @@ pub struct RunProofParts {
     pub attempt: u64,
     /// The `conversation` field.
     pub conversation: u64,
+    /// The `endpoint` field.
+    pub endpoint: Option<u32>,
     /// The `accounts` field.
     pub accounts: List<AccountBinding>,
     /// The `placement` field.
@@ -14606,6 +14611,7 @@ pub struct RunProof {
     task: u64,
     attempt: u64,
     conversation: u64,
+    endpoint: Option<u32>,
     accounts: List<AccountBinding>,
     placement: Option<u64>,
     account_failure: Option<u32>,
@@ -14623,8 +14629,8 @@ pub struct RunProof {
 impl RunProof {
     /// Makes a value within the given limits.
     pub fn new(limits: &Limits, parts: RunProofParts) -> Result<Self, Problem> {
-        let RunProofParts { task, attempt, conversation, accounts, placement, account_failure, account_terminal, credentials, window, crossed, host, offered, outstanding, turn, terminal } = parts;
-        let value = Self { task, attempt, conversation, accounts, placement, account_failure, account_terminal, credentials, window, crossed, host, offered, outstanding, turn, terminal };
+        let RunProofParts { task, attempt, conversation, endpoint, accounts, placement, account_failure, account_terminal, credentials, window, crossed, host, offered, outstanding, turn, terminal } = parts;
+        let value = Self { task, attempt, conversation, endpoint, accounts, placement, account_failure, account_terminal, credentials, window, crossed, host, offered, outstanding, turn, terminal };
         value.check(limits)?;
         Ok(value)
     }
@@ -14640,6 +14646,10 @@ impl RunProof {
     /// Reads the `conversation` field.
     #[must_use]
     pub fn conversation(&self) -> u64 { self.conversation }
+
+    /// Reads the `endpoint` field.
+    #[must_use]
+    pub fn endpoint(&self) -> &Option<u32> { &self.endpoint }
 
     /// Reads the `accounts` field.
     #[must_use]
@@ -14691,7 +14701,7 @@ impl RunProof {
 
     /// Moves the fields out without copying.
     #[must_use]
-    pub fn into_parts(self) -> RunProofParts { RunProofParts { task: self.task, attempt: self.attempt, conversation: self.conversation, accounts: self.accounts, placement: self.placement, account_failure: self.account_failure, account_terminal: self.account_terminal, credentials: self.credentials, window: self.window, crossed: self.crossed, host: self.host, offered: self.offered, outstanding: self.outstanding, turn: self.turn, terminal: self.terminal } }
+    pub fn into_parts(self) -> RunProofParts { RunProofParts { task: self.task, attempt: self.attempt, conversation: self.conversation, endpoint: self.endpoint, accounts: self.accounts, placement: self.placement, account_failure: self.account_failure, account_terminal: self.account_terminal, credentials: self.credentials, window: self.window, crossed: self.crossed, host: self.host, offered: self.offered, outstanding: self.outstanding, turn: self.turn, terminal: self.terminal } }
 
     fn check(&self, limits: &Limits) -> Result<(), Problem> {
         if self.accounts.capacity() > limits.run_proof_accounts.min(CEILINGS.run_proof_accounts) { return Err(Problem { path: Path::RunProofAccounts, reason: skein_codec::Reason::Bound }); }
@@ -14712,6 +14722,11 @@ impl RunProof {
         size = size.checked_add(8).expect("schema ceilings fit u32");
         size = size.checked_add(8).expect("schema ceilings fit u32");
         size = size.checked_add(8).expect("schema ceilings fit u32");
+        let field_endpoint = &self.endpoint;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if field_endpoint.is_some() {
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        }
         let field_accounts = &self.accounts;
         size = size.checked_add(4).expect("schema ceilings fit u32");
         size = size.checked_add(field_accounts.len().checked_mul(12).expect("schema ceilings fit u32")).expect("schema ceilings fit u32");
@@ -14765,6 +14780,14 @@ impl RunProof {
         writer.put(&field_attempt.to_be_bytes())?;
         let field_conversation = &self.conversation;
         writer.put(&field_conversation.to_be_bytes())?;
+        let field_endpoint = &self.endpoint;
+        match field_endpoint {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        writer.put(&some_0.to_be_bytes())?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
         let field_accounts = &self.accounts;
         writer.put(&field_accounts.len().to_be_bytes())?;
         for item_0 in field_accounts.as_slice() {
@@ -14848,6 +14871,7 @@ impl RunProof {
         let decoded_task = reader.u64().ok_or(Problem { path: Path::RunProofTask, reason: skein_codec::Reason::Short })?;
         let decoded_attempt = reader.u64().ok_or(Problem { path: Path::RunProofAttempt, reason: skein_codec::Reason::Short })?;
         let decoded_conversation = reader.u64().ok_or(Problem { path: Path::RunProofConversation, reason: skein_codec::Reason::Short })?;
+        let decoded_endpoint = match reader.u8().ok_or(Problem { path: Path::RunProofEndpoint, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u32().ok_or(Problem { path: Path::RunProofEndpoint, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::RunProofEndpoint, reason: skein_codec::Reason::Tag }) };
         let decoded_accounts = { let count = match skein_codec::read_count(reader, limits.run_proof_accounts.min(CEILINGS.run_proof_accounts)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::RunProofAccounts, reason }), }; if count > reader.remaining() / 12 { return Err(Problem { path: Path::RunProofAccounts, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = AccountBinding::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
         let decoded_placement = match reader.u8().ok_or(Problem { path: Path::RunProofPlacement, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u64().ok_or(Problem { path: Path::RunProofPlacement, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::RunProofPlacement, reason: skein_codec::Reason::Tag }) };
         let decoded_account_failure = match reader.u8().ok_or(Problem { path: Path::RunProofAccountFailure, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u32().ok_or(Problem { path: Path::RunProofAccountFailure, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::RunProofAccountFailure, reason: skein_codec::Reason::Tag }) };
@@ -14860,7 +14884,7 @@ impl RunProof {
         let decoded_outstanding = { let count = match skein_codec::read_count(reader, limits.run_proof_outstanding.min(CEILINGS.run_proof_outstanding)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::RunProofOutstanding, reason }), }; if count > reader.remaining() / 8 { return Err(Problem { path: Path::RunProofOutstanding, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = Number::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
         let decoded_turn = match reader.u8().ok_or(Problem { path: Path::RunProofTurn, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(TurnProof::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::RunProofTurn, reason: skein_codec::Reason::Tag }) };
         let decoded_terminal = match reader.u8().ok_or(Problem { path: Path::RunProofTerminal, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(TerminalRecord::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::RunProofTerminal, reason: skein_codec::Reason::Tag }) };
-        Ok(Self { task: decoded_task, attempt: decoded_attempt, conversation: decoded_conversation, accounts: decoded_accounts, placement: decoded_placement, account_failure: decoded_account_failure, account_terminal: decoded_account_terminal, credentials: decoded_credentials, window: decoded_window, crossed: decoded_crossed, host: decoded_host, offered: decoded_offered, outstanding: decoded_outstanding, turn: decoded_turn, terminal: decoded_terminal })
+        Ok(Self { task: decoded_task, attempt: decoded_attempt, conversation: decoded_conversation, endpoint: decoded_endpoint, accounts: decoded_accounts, placement: decoded_placement, account_failure: decoded_account_failure, account_terminal: decoded_account_terminal, credentials: decoded_credentials, window: decoded_window, crossed: decoded_crossed, host: decoded_host, offered: decoded_offered, outstanding: decoded_outstanding, turn: decoded_turn, terminal: decoded_terminal })
     }
 }
 
@@ -14875,13 +14899,13 @@ impl RunProof {
     pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut size = 0_u64;
         size = size.checked_add(8_u64)?.checked_add(8_u64)?;
-        size = size.checked_add(8_u64)?.checked_add(4_u64.checked_add(u64::from(limits.run_proof_accounts).checked_mul(AccountBinding::encoded_bound_within(limits)?)?)?)?;
-        size = size.checked_add(1_u64.checked_add(8_u64)?)?.checked_add(1_u64.checked_add(4_u64)?)?;
-        size = size.checked_add(1_u64)?.checked_add(4_u64.checked_add(u64::from(limits.run_proof_credentials).checked_mul(Credential::encoded_bound_within(limits)?)?)?)?;
-        size = size.checked_add(1_u64.checked_add(Window::encoded_bound_within(limits)?)?)?.checked_add(1_u64)?;
-        size = size.checked_add(HostKind::encoded_bound_within(limits)?)?.checked_add(1_u64.checked_add(8_u64)?)?;
-        size = size.checked_add(4_u64.checked_add(u64::from(limits.run_proof_outstanding).checked_mul(Number::encoded_bound_within(limits)?)?)?)?.checked_add(1_u64.checked_add(TurnProof::encoded_bound_within(limits)?)?)?;
-        size = size.checked_add(1_u64.checked_add(TerminalRecord::encoded_bound_within(limits)?)?)?;
+        size = size.checked_add(8_u64)?.checked_add(1_u64.checked_add(4_u64)?)?;
+        size = size.checked_add(4_u64.checked_add(u64::from(limits.run_proof_accounts).checked_mul(AccountBinding::encoded_bound_within(limits)?)?)?)?.checked_add(1_u64.checked_add(8_u64)?)?;
+        size = size.checked_add(1_u64.checked_add(4_u64)?)?.checked_add(1_u64)?;
+        size = size.checked_add(4_u64.checked_add(u64::from(limits.run_proof_credentials).checked_mul(Credential::encoded_bound_within(limits)?)?)?)?.checked_add(1_u64.checked_add(Window::encoded_bound_within(limits)?)?)?;
+        size = size.checked_add(1_u64)?.checked_add(HostKind::encoded_bound_within(limits)?)?;
+        size = size.checked_add(1_u64.checked_add(8_u64)?)?.checked_add(4_u64.checked_add(u64::from(limits.run_proof_outstanding).checked_mul(Number::encoded_bound_within(limits)?)?)?)?;
+        size = size.checked_add(1_u64.checked_add(TurnProof::encoded_bound_within(limits)?)?)?.checked_add(1_u64.checked_add(TerminalRecord::encoded_bound_within(limits)?)?)?;
         size.checked_add(0)
     }
 
@@ -14895,13 +14919,13 @@ impl RunProof {
     pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut heap = 0_u64;
         heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
-        heap = heap.checked_add(0_u64)?.checked_add(List::<AccountBinding>::price(limits.run_proof_accounts)?.checked_add(u64::from(limits.run_proof_accounts).checked_mul(AccountBinding::decoded_bound_within(limits)?)?)?)?;
         heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
-        heap = heap.checked_add(0_u64)?.checked_add(List::<Credential>::price(limits.run_proof_credentials)?.checked_add(u64::from(limits.run_proof_credentials).checked_mul(Credential::decoded_bound_within(limits)?)?)?)?;
-        heap = heap.checked_add(Window::decoded_bound_within(limits)?)?.checked_add(0_u64)?;
-        heap = heap.checked_add(HostKind::decoded_bound_within(limits)?)?.checked_add(0_u64)?;
-        heap = heap.checked_add(List::<Number>::price(limits.run_proof_outstanding)?.checked_add(u64::from(limits.run_proof_outstanding).checked_mul(Number::decoded_bound_within(limits)?)?)?)?.checked_add(TurnProof::decoded_bound_within(limits)?)?;
-        heap = heap.checked_add(TerminalRecord::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(List::<AccountBinding>::price(limits.run_proof_accounts)?.checked_add(u64::from(limits.run_proof_accounts).checked_mul(AccountBinding::decoded_bound_within(limits)?)?)?)?.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap = heap.checked_add(List::<Credential>::price(limits.run_proof_credentials)?.checked_add(u64::from(limits.run_proof_credentials).checked_mul(Credential::decoded_bound_within(limits)?)?)?)?.checked_add(Window::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(0_u64)?.checked_add(HostKind::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(0_u64)?.checked_add(List::<Number>::price(limits.run_proof_outstanding)?.checked_add(u64::from(limits.run_proof_outstanding).checked_mul(Number::decoded_bound_within(limits)?)?)?)?;
+        heap = heap.checked_add(TurnProof::decoded_bound_within(limits)?)?.checked_add(TerminalRecord::decoded_bound_within(limits)?)?;
         heap.checked_add(0)
     }
 }

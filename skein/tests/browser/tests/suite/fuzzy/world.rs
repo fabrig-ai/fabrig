@@ -25,6 +25,13 @@ fn observe(world: &mut World, referee: &mut Referee) -> Vec<Event> {
 }
 
 #[test]
+fn many_request_and_stream_interleavings_hold_the_contract() {
+    for seed in 0..128 {
+        skein_browser_world::request_scenario::run(seed);
+    }
+}
+
+#[test]
 fn varied_pages_and_faults_hold_the_contract() {
     let mut faults_seen = [false; 7];
     for case in 0..192_u64 {

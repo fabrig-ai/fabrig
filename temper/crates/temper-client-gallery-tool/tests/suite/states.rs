@@ -5374,7 +5374,7 @@ fn each_state_holds_what_its_name_says() {
                         children.push(node);
                         rest = &rest[usize::try_from(node.size).expect("banner child span")..];
                     }
-                    assert_eq!(children.len(), 3, "{}: brand, steps, end alone", sample.name);
+                    assert_eq!(children.len(), 4, "{}: brand, steps, end, night switch", sample.name);
                     assert_eq!(
                         (children[0].role, children[0].name.as_deref()),
                         (Role::Link, Some(b"temper".as_slice()))
@@ -5384,7 +5384,16 @@ fn each_state_holds_what_its_name_says() {
                         (Role::List, Some(b"Steps".as_slice()))
                     );
                     assert!(children[2].styles.as_slice().contains(&temper_client_view::look::TOP_END));
-                    let end = &banner[banner.len() - usize::try_from(children[2].size).expect("end span")..];
+                    assert_eq!(
+                        (children[3].role, children[3].name.as_deref(), children[3].styles.as_slice()),
+                        (
+                            Role::Button,
+                            Some(b"Night mode".as_slice()),
+                            [temper_client_view::look::NIGHT_SWITCH].as_slice()
+                        )
+                    );
+                    let end_at = banner.len() - usize::try_from(children[3].size).expect("switch span");
+                    let end = &banner[end_at - usize::try_from(children[2].size).expect("end span")..end_at];
                     assert_eq!(
                         end[1].region,
                         Some(skein_ui::Region { owner: temper_client_view::look::NAMES.owner, number: 0 })

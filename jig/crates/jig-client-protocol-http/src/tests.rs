@@ -86,6 +86,32 @@ fn a_printed_link_gives_its_host_and_secret() {
     assert_eq!(result.secret.expose(), &fixtures::LINK_SECRET);
 }
 #[test]
+fn the_page_and_route_forms_give_the_same_host_and_secret() {
+    let mapping = Mapping::with_page(b"/jig", b"/sign-in").unwrap();
+    for (host, url) in [
+        (
+            b"127.0.0.1:8367".as_slice(),
+            b"http://127.0.0.1:8367/sign-in?secret=AwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwM".as_slice(),
+        ),
+        (
+            b"127.0.0.1:8367".as_slice(),
+            b"http://127.0.0.1:8367/jig/v1/sign-in/link?secret=AwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwM".as_slice(),
+        ),
+        (
+            b"[::1]:9400".as_slice(),
+            b"http://[::1]:9400/sign-in?secret=AwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwM".as_slice(),
+        ),
+        (
+            b"[::1]:9400".as_slice(),
+            b"http://[::1]:9400/jig/v1/sign-in/link?secret=AwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwM".as_slice(),
+        ),
+    ] {
+        let result = printed(&mapping, url).unwrap();
+        assert_eq!(result.host.as_ref(), host);
+        assert_eq!(result.secret.expose(), &fixtures::LINK_SECRET);
+    }
+}
+#[test]
 fn an_asked_link_url_has_the_printed_links_bytes_and_round_trips() {
     let secret = skein_lib::Secret::new(Box::new([7; 32]));
     let url = link_url(&mapping(), b"127.0.0.1:8080", &secret);
@@ -98,9 +124,14 @@ fn an_asked_link_url_has_the_printed_links_bytes_and_round_trips() {
     {
         let secret = skein_lib::Secret::new(Box::new(bytes));
         let mapping = Mapping::new(prefix).unwrap();
-        let parsed = printed(&mapping, &link_url(&mapping, host, &secret)).unwrap();
-        assert_eq!(parsed.host.as_ref(), host);
-        assert_eq!(parsed.secret, secret);
+        let with_page = Mapping::with_page(prefix, b"/sign-in").unwrap();
+        let url = link_url(&mapping, host, &secret);
+        assert_eq!(link_url(&with_page, host, &secret), url);
+        for mapping in [&mapping, &with_page] {
+            let parsed = printed(mapping, &url).unwrap();
+            assert_eq!(parsed.host.as_ref(), host);
+            assert_eq!(parsed.secret, secret);
+        }
     }
 }
 
@@ -113,6 +144,59 @@ fn a_printed_link_under_another_prefix_is_refused() {
         ),
         Err(Unlinked::NoSecret)
     );
+}
+
+#[test]
+fn a_page_link_requires_its_exact_form_and_a_configured_page() {
+    let with_page = Mapping::with_page(b"/jig", b"/sign-in").unwrap();
+    for url in [
+        b"http://127.0.0.1:8367/sign-in".as_slice(),
+        b"http://127.0.0.1:8367/sign-in?other=1&secret=AwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwM".as_slice(),
+        b"http://127.0.0.1:8367/sign-in?secret=AwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwM&other=1".as_slice(),
+        b"http://127.0.0.1:8367/sign-in?secret=AwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwM#fragment".as_slice(),
+        b"http://127.0.0.1:8367/sign-in?secret=AA".as_slice(),
+        b"http://127.0.0.1:8367/sign-in?secret=AwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMA".as_slice(),
+        b"http://127.0.0.1:8367/sign-in/?secret=AwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwM".as_slice(),
+        b"http://127.0.0.1:8367/sign-inx?secret=AwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwM".as_slice(),
+        b"http://127.0.0.1:8367/sign-in/x?secret=AwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwM".as_slice(),
+    ] {
+        for mapping in [&mapping(), &with_page] {
+            assert_eq!(printed(mapping, url), Err(Unlinked::NoSecret), "{url:?}");
+        }
+    }
+    assert_eq!(
+        printed(&mapping(), b"http://127.0.0.1:8367/sign-in?secret=AwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwM"),
+        Err(Unlinked::NoSecret)
+    );
+    for (url, expected) in [
+        (
+            b"https://127.0.0.1:8367/sign-in?secret=AwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwM".as_slice(),
+            Unlinked::NotHttp,
+        ),
+        (b"http://example/sign-in?secret=AwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwM".as_slice(), Unlinked::Address),
+    ] {
+        assert_eq!(printed(&with_page, url), Err(expected));
+    }
+}
+
+#[test]
+fn a_link_page_is_bounded_and_outside_the_prefix() {
+    let mut too_long = [b'a'; 65];
+    too_long[0] = b'/';
+    for page in
+        [b"".as_slice(), b"/", b"sign-in", b"/sign-in/", &too_long, b"/sign?in", b"/sign#in", b"/jig", b"/jig/x"]
+    {
+        assert_eq!(Mapping::with_page(b"/jig", page), Err(Unmapped::Page), "{page:?}");
+    }
+    let mut longest = [b'a'; 64];
+    longest[0] = b'/';
+    for page in [b"/sign-in".as_slice(), b"/jigsaw", &longest] {
+        assert!(Mapping::with_page(b"/jig", page).is_ok(), "{page:?}");
+    }
+    for prefix in [b"".as_slice(), b"/", b"jig", b"/jig/", &too_long] {
+        assert_eq!(Mapping::new(prefix), Err(Unmapped::Prefix));
+        assert_eq!(Mapping::with_page(prefix, b"/sign-in"), Err(Unmapped::Prefix));
+    }
 }
 
 mod public;

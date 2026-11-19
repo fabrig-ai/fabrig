@@ -107,7 +107,9 @@ pub fn at(document: &Value, directory: &std::path::Path) -> Value {
         .unwrap_or_else(temper_engine_service_stock::stock::agents);
     given(document, &agents, directory)
 }
-fn data(config: &std::path::Path) -> std::path::PathBuf {
+/// The fixture's data directory, beside a split `config` directory or shared with it.
+#[must_use]
+pub fn data(config: &std::path::Path) -> std::path::PathBuf {
     let sibling = config.parent().unwrap_or(config).join("data");
     if config.ends_with("config") && sibling.is_dir() { sibling } else { config.into() }
 }

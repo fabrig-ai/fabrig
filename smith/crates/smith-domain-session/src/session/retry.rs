@@ -68,7 +68,7 @@ pub(super) fn failed(
     let class = class(failure);
     match class {
         Class::Gone => {
-            return match compaction::session_gone(conversation) {
+            return match compaction::session_gone(conversation, &env.limits) {
                 Some(end) => finish(end),
                 None => ask(conversation, id, 0, env, out),
             };

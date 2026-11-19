@@ -295,9 +295,16 @@ fn adding_a_withdrawn_name_brings_it_back() {
 }
 #[test]
 fn a_full_catalogue_refuses_as_count() {
-    let (mut world, signed) = setup(64);
-    fault(&act(&mut world, signed, 21, add(1, b"no-room")), s::Fault::Count);
-    assert_eq!(world.domain.settings().newest(), 1);
+    for stock in [1, 32] {
+        let (mut world, signed) = setup(stock);
+        for number in 33..=64 {
+            let name = format!("person-{number}");
+            let reply = act(&mut world, signed, u8::try_from(number).unwrap(), add(1, name.as_bytes()));
+            changed(&reply, number - 31);
+        }
+        fault(&act(&mut world, signed, 21, add(1, b"no-room")), s::Fault::Count);
+        assert_eq!(world.domain.settings().newest(), 33);
+    }
 }
 #[test]
 fn a_provider_with_no_stock_takes_its_endpoint_and_the_dearest_figures() {

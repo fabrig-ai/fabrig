@@ -1,6 +1,6 @@
 //! After-landing transitions (temper/docs/design/domain/after-landing.md, 6).
 use super::*;
-use crate::Verification;
+use crate::{Verification, Wait};
 
 fn merged(verification: Verification) -> Facts {
     Facts {
@@ -9,6 +9,46 @@ fn merged(verification: Verification) -> Facts {
         verification_bound: Duration::from_secs(10),
         asking: false,
         ..facts()
+    }
+}
+
+#[test]
+fn landed_wait_finishes_verifying_and_red_without_the_bound() {
+    for verification in [Verification::Verifying, Verification::Red] {
+        let f = Facts { wait: Wait::Landed, ..merged(verification) };
+        for state in [State::Landing { head: HEAD }, State::Landed { merge: MERGE, since: at(20) }] {
+            let next = step(&change(state), &f, &heard(), at(21), &LIMITS);
+            assert_eq!(next.change.state, State::Uncleared { merge: MERGE });
+            assert_eq!(next.decision, Decision::Finish { merge: MERGE });
+        }
+    }
+}
+
+#[test]
+fn landed_wait_ends_red_uncleared_unless_it_has_cleared() {
+    for (verification, expected) in [
+        (Verification::Unfollowed, State::Uncleared { merge: MERGE }),
+        (Verification::Verifying, State::Uncleared { merge: MERGE }),
+        (Verification::Red, State::Uncleared { merge: MERGE }),
+        (Verification::Cleared, State::Cleared { merge: MERGE }),
+    ] {
+        let f = Facts { wait: Wait::Landed, ..merged(verification) };
+        let next = step(&change(State::Red { merge: MERGE, since: at(20) }), &f, &heard(), at(21), &LIMITS);
+        assert_eq!(next.change.state, expected);
+        assert_eq!(next.decision, Decision::Finish { merge: MERGE });
+    }
+}
+
+#[test]
+fn landed_wait_keeps_unfollowed_landed_and_cleared_cleared() {
+    for (verification, expected) in [
+        (Verification::Unfollowed, State::Landed { merge: MERGE, since: at(21) }),
+        (Verification::Cleared, State::Cleared { merge: MERGE }),
+    ] {
+        let f = Facts { wait: Wait::Landed, ..merged(verification) };
+        let next = step(&change(State::Landing { head: HEAD }), &f, &heard(), at(21), &LIMITS);
+        assert_eq!(next.change.state, expected);
+        assert_eq!(next.decision, Decision::Finish { merge: MERGE });
     }
 }
 

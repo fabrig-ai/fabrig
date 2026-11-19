@@ -1,6 +1,6 @@
 # box: status
 
-2026-11-15. Where the tree's code lags or departs from [box.md](box.md).
+2026-11-18. Where the tree's code lags or departs from [box.md](box.md).
 
 
 - **Not yet:** *The box's stages*, *On the welcome* and *The box's
