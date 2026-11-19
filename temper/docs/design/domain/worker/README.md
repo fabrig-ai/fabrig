@@ -487,6 +487,24 @@ worker's notes (`worker_alone`'s `Note`), which its shell writes, as a
 failed preparation's does (`checkouts.md`, 1.3), once per attempt: a
 kept answer sent again after a relink logs none.
 
+**Each fetch and check out** a hold asks is logged by the worker as the
+checkout asks it, one line each, so that a start assigned again and again
+shows in the log with each attempt that fetched it (the user, 2026-11-19):
+
+```
+<binary> worker: run <run> attempt <attempt> fetch <repository> <source> into <into>
+<binary> worker: run <run> attempt <attempt> check out <repository> <commit>
+```
+
+A job's lines put `job <kind>` after its attempt, as its failure line
+does (`jobs.md`). `<run>` and `<attempt>` are its assignment's,
+`<repository>` the repository's directory, `<source>` what the fetch
+names (`branch <name>`, `commit <id>` or `default`; `../../protocol/git.md`,
+4.3), `<into>` `fetched` or `landing`, and ids are in full, as
+`../../protocol/git.md`, section 3 writes them. Each line goes through the
+worker's notes, escaped to one line, as the agent's stop line does: operator
+output that no fact or turn holds.
+
 **A configured model-call bound** is reported as jig's
 `RunFailure::Exceeded(Exceeded { bound, value })`. Smith's
 `CompletionFailure::Limit { which, bound }` supplies `value` unchanged:
@@ -823,6 +841,11 @@ for; and that nothing is live once it settles.
 
 ## 10. Open questions
 
+- **Why a run was assigned** (4.3, *Each fetch and check out*): the
+  worker's line names the run and its attempt, not why the engine
+  assigned it, which the engine keeps and no assignment carries. Where
+  that cause is printed, on serve's line for each assignment or on this
+  line, over jig's worker wire, awaits the user (2026-11-19).
 - **Several workers in one world:** the whole worker's world runs one;
   placement across several is exercised with scripted workers in the
   engine's world.

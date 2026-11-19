@@ -88,7 +88,7 @@ again when a run leaves one undecided only as 6 says.
   large, its inbox full, a name in use, or the run ending), or left
   unread (after the answer's fence, the last message it read), stays in
   the inbox, untaken, and wakes the task again when the run ends, as it
-  would had it arrived then (3).
+  would had it arrived then, after a pause where the run parked (3).
 - **Not offered, a message stays too.** A message the run isn't offered
   (6) is neither carried at its start nor relayed to it; it keeps its
   place in the inbox, untaken, and is judged again when the run ends, as a
@@ -138,6 +138,16 @@ task again only when it changes (6).
 A message a run refused, left unread or wasn't offered (2 and 6) is
 judged again when the run ends, as if it arrived then: it wakes the task
 if its kind does, and otherwise waits for the next activation.
+
+**A park that wakes at once waits a pause first.** A run that parks and
+leaves its task due again at once, so judged, on a message, a proposal or
+an escalation it left in place, claims again only after the pause a
+refusal takes (`lifecycle.md`, 6): no try spent, the pause growing with
+each such park in a row, and from the first again once a park leaves its
+task idle. The run after the pause is woken by the same message, as it
+would have been at once. What arrives meanwhile waits for it, as for any
+pause. So a run that parks without reading what wakes it never has one
+start assigned again without backoff (the user, 2026-11-19).
 
 Each charter brings a default policy, named with the charter in
 configuration (`../../protocol/configuration.md`, section 3) and kept with
