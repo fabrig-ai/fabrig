@@ -1,7 +1,8 @@
 # Limits as settings
 
 Provisional, 2026-11-17, from `../../draft/config.md`, 5.3, 6.1 and 6.6
-(`../../draft/config.execution.md`, N2). The limits leave the documents
+(`../../draft/config.execution.md`, N2), and its store sized for 100 live
+goals, 2026-11-19, from 5.2 and 5.3 (N9). The limits leave the documents
 and become two kinds of settings, one jig's and one temper's, changed by
 an owner by asking temper, with `temper ctl` or from Needs you. A raise
 of the figures 5 lists is taken at once, every other change at the next
@@ -21,9 +22,11 @@ this document says how settings lie over it.
   name (section 8). A worker alone's document keeps its limits until its
   figures come from the engine (`../../draft/config.md`, 6.3).
 - **The store is the stock's** (section 3): the store's own figures are
-  derived from the stock alone, so a start opens its store before it
-  reads a setting, reads the two kinds, and only then sizes the engine.
-  Every figure a setting gives must fit the store the stock sized.
+  derived from the stock alone, sized for 100 live goals, so a start
+  opens its store before it reads a setting, reads the two kinds, and
+  only then sizes the engine. Every figure a setting gives must fit the
+  store the stock sized, `live_goals` at most 100. At rest, the larger
+  store costs nothing.
 - **Checked whole, before it's decided** (section 4): a change or a
   proposal naming either kind is resolved and checked by the start's own
   checks at entry, in the service, and refused there naming the figure
@@ -103,7 +106,7 @@ this document says how settings lie over it.
 
   | Name | Unit | Stock | What | Applies |
   |---|---|---|---|---|
-  | `live_goals` | count | 40 | the most goals live at once; the counts of `derived.md`, 5.4 scale with it | at the next start |
+  | `live_goals` | count | 40 | the most goals live at once, at most 100, the live goals the store is sized for (section 3); the counts of `derived.md`, 5.4 scale with it | at the next start |
   | `tool_payload` | bytes | 63,740 | the largest piece a tool writes, P; the carriers of `derived.md`, 5.1 follow it | at the next start |
   | `transcript_memory` | bytes | 1,073,741,824 | the memory the runs' transcripts and turns may take while work prepares, not the process's (`../../draft/config.md`, 5.3) | at once |
 
@@ -123,13 +126,64 @@ this document says how settings lie over it.
 
 ## 3. At a start
 
-- **The store is sized from the stock alone.** The start derives the
-  store's own figures (its keys', values', operations', commits', pages',
-  chunks' and segments' bounds, `../store.md`) from the stock with no
-  setting, as it derived them from a document with no override. Neither
-  kind can move them: a store's open replays its log and snapshot under
-  these figures, and a lowered commit bound reads a sound log as a
-  damaged tail.
+- **The store is sized from the stock alone, for 100 live goals.** The
+  start derives the store's own figures (its keys', values', operations',
+  commits', pages', chunks' and segments' bounds, `../store.md`) from the
+  stock with no setting, as it derived them from a document with no
+  override, but with `live_goals` at the store's figure, 100, not the
+  stock's 40: the figure of `../../draft/config.md`, 5.2's "plan for 100
+  live goals". Neither kind can move them: a store's open replays its log
+  and snapshot under these figures, and a lowered commit bound reads a
+  sound log as a damaged tail.
+- **The store's live goals,** `STORE_LIVE_GOALS`, 100, a constant beside
+  the stock's `LIVE_GOALS` in `temper-service-core`'s `derived` module.
+  The store's base is the stock resolved at those live goals
+  (`derived.md`, 4 and 5.4), with the stock's `tool_payload` and the
+  start's sources, and no setting; the store's records are laid out over
+  it (`../store.md`, 4) as they were over the stock. Its map value bound
+  is the largest record's encoding there: a person's stored answer to a
+  compound request of amendments (jig's `jig-store-people`), which grows
+  with `people.operations` and so with `live_goals`, 100,881,496 bytes at
+  40 and about 249 MB at 100. Its page bound is key plus value, or a
+  turn's frame where that is larger, and its chunk the value's with its
+  framing. Its commits', segments', snapshots' and queue's figures follow
+  the map's budget, the root's fill mark, and the journal's writes, and
+  don't move.
+- **The store's ceilings are derived, never written.** jig's stock
+  profile caps a value at 103,387,876 bytes and a page at 103,389,955,
+  its own layout's needs (jig's `protocol/store/records.md`, 4). temper's
+  store raises both, for the store and the secrets alike, to what its
+  layout over the store's base needs, computed at the start, so a record
+  that grows moves the ceiling with it and no figure is retyped. A typed
+  world's stock (`temper-limits-fixtures`' `small`, a test's base) lays
+  its store out over its own figures, as given.
+- **`live_goals` at most the store's.** The start's checks refuse a
+  `live_goals` past `STORE_LIVE_GOALS` before the store's sizing, naming
+  the store's figure:
+
+  `live_goals (setting temper-limits): 101, past its bound of 100, the most live goals the store is sized for; put limits-held in the data directory to start at the stock`
+
+  and the entry check (section 4) refuses a change or a proposal setting
+  it in the same words, as it runs the same function. Within it, a count
+  overridden past what its live goals scale to, `tasks.project_goals` 400
+  say, still meets the store's own check, naming its setting and the
+  store's figure it passes, as today:
+  `tasks.project_goals (setting limits): the store's map value, N bytes,
+  past its bound of M bytes`, then the same ending. A `limits-held` line
+  past either is refused naming its line.
+- **At rest, the larger store costs nothing.** The store's bounds are
+  admissions, not allocations: skein-kv's map, queue and census grow with
+  what is held, a read's buffer is that read's own length, and the
+  layout's conversion buffer grows with the values it converts (jig's
+  `protocol/store/layouts.md`, 7). So the engine at rest holds what it
+  held over the store for 40 live goals, within `../../draft/config.md`,
+  5.3's few tens of MB, and so does one whose `live_goals` is 100, since
+  the counts it scales are ceilings of lazily grown containers. A
+  focused test measures it (section 9).
+- **An existing store opens at the larger bounds** at its next start,
+  its format unchanged: no bound is written in the store's files, which
+  hold lengths, counts and checksums, so nothing converts and no version
+  moves (`../../draft/config.execution.md`, N9's dev.fabrig.ai column).
 - **So the start reads its settings before it sizes anything else:**
   1. it opens the store at the stock's figures;
   2. it reads the two kinds' current values, jig's from the core's
@@ -359,6 +413,24 @@ Focused and fuzzy, in the crates that hold each piece:
   ends the oldest hold; a restart ends them all; the Needs-you card's
   raise is the round figure, and its act sends the list with the
   override set.
+- **The store for 100 live goals** (section 3), focused: a `live_goals`
+  of 100 resolves, at the start and at entry, and its largest records,
+  laid out at its resolved figures, fit the stock store; 101 is refused
+  in section 3's words at both; a count overridden past what 100 live
+  goals scale to is refused naming its setting and the store's figure;
+  the store's figures are the same at 20, 40 and 100 live goals, and its
+  value bound is the largest record's at 100.
+- **Memory at rest** (section 3), focused, under skein's counting
+  allocator (`skein-heap`): the engine brought to rest over a store in a
+  directory, and the heap it holds measured three ways, its store laid
+  out for 40 live goals, as before this section; for 100, the stock's;
+  and for 100 with a `live_goals` of 100 taken at its start. Each is
+  within 38,000,000 bytes, what dev.fabrig.ai's whole engine held at rest
+  (`../../draft/config.md`, section 2), the store for 100's within 1% of
+  the store for 40's, and the test's ceiling is the largest measured
+  figure plus a quarter, rounded up to two significant digits
+  (`skein/docs/foundation/testing-strategy.md`, section 6), the measured
+  figures in its comment.
 
 ## 10. Where the code is
 
@@ -375,6 +447,10 @@ These names cross changes:
 - temper's names table: the rows `live_goals`, `tool_payload` and
   `transcript_memory`, and each row's `applies`; the root's
   `transcript_memory`, formerly `memory_bytes`.
+- `temper_service_core::derived::STORE_LIVE_GOALS`, 100, a `u32` beside
+  `LIVE_GOALS`, and the store's base the start lays the store out over
+  (section 3), the one every path that sizes the deployment's store
+  takes.
 - The service's limit settings in force: the two lists and their
   revision, resolved by the one function the start and the entry check
   run.

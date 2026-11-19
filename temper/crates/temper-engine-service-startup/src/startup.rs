@@ -163,11 +163,27 @@ fn store_limits_over(
     directories: &config::Directories,
     limits: Option<(&config::Limits, &crate::limits::Limits)>,
 ) -> Result<StoreLimits, Problems> {
-    let mut parsed = load_with_limits(document, directories, false, &crate::stock::Given::Stock, limits)?
+    let parsed = load_with_limits(document, directories, false, &crate::stock::Given::Stock, limits)?
         .1
         .ok_or(problem(Path::root().member(b"engine"), What::Standalone))?;
-    let root = engine_limits(&mut parsed.engine.limits, &parsed.application.limits, parsed.engine.memory)?;
-    let store = checked_store(&root, &parsed.engine.limits.store, None)?;
+    let typed = match limits {
+        Some(_) => Some((&parsed.engine.limits, &parsed.application.limits)),
+        None => None,
+    };
+    deployment_store(typed, temper_service_core::derived::STOCK)
+}
+
+/// Lay out the deployment envelope once, independently of runtime overrides.
+pub fn deployment_store(
+    typed: Option<(&config::Limits, &crate::limits::Limits)>,
+    sources: temper_service_core::derived::Sources,
+) -> Result<StoreLimits, Problems> {
+    let (mut jig, own) = match crate::limits::store_base(typed, sources) {
+        Ok(base) => base,
+        Err(found) => return Err(problem(found.path, What::Jig(found.what))),
+    };
+    let root = engine_limits(&mut jig, &own, None)?;
+    let store = checked_store(&root, &jig.store, None)?;
     Ok(StoreLimits { store, forge: root.forge })
 }
 
@@ -859,7 +875,33 @@ fn checked_start_over(
     given: &crate::stock::Given,
     limits: Option<(&config::Limits, &crate::limits::Limits)>,
 ) -> Result<CheckedStart, Problems> {
-    checked_start_limits(document, directories, files, agent, seeds, forges, given, limits, false)
+    checked_start_limits(document, directories, files, agent, seeds, forges, given, limits, false, None)
+}
+/// Reuse the deployment envelope already laid out by the settings resolver.
+#[expect(clippy::too_many_arguments, reason = "the resolved start retains the checked start's immutable facts")]
+pub fn checked_start_with_resolved(
+    document: &[u8],
+    directories: &config::Directories,
+    files: &settings::Files,
+    agent: Option<&settings::Agent>,
+    seeds: &settings::Seeds,
+    forges: List<crate::ForgeRuntime>,
+    _setup: Option<&temper_forge_setup::check::Checked>,
+    given: &crate::stock::Given,
+    resolved: &Resolved,
+) -> Result<CheckedStart, Problems> {
+    checked_start_limits(
+        document,
+        directories,
+        files,
+        agent,
+        seeds,
+        forges,
+        given,
+        Some((&resolved.jig, &resolved.temper)),
+        false,
+        Some(&resolved.store),
+    )
 }
 #[expect(
     clippy::too_many_arguments,
@@ -876,6 +918,7 @@ fn checked_start_limits(
     given: &crate::stock::Given,
     limits: Option<(&config::Limits, &crate::limits::Limits)>,
     is_box: bool,
+    envelope: Option<&jig_protocol_store::Limits>,
 ) -> Result<CheckedStart, Problems> {
     let length = u32::try_from(document.len()).or(Err(problem(Path::root(), What::Jig(config::What::Bound))))?;
     let document =
@@ -963,6 +1006,20 @@ fn checked_start_limits(
     }
     let not_set_up = List::with_capacity(0);
 
+    let store_limits = match envelope {
+        Some(store) => *store,
+        None => {
+            let sources = match &declaration {
+                Some(agent) => temper_service_core::derived::Sources::agent(agent),
+                None => temper_service_core::derived::STOCK,
+            };
+            let typed = match limits {
+                Some(_) => Some((&parsed.engine.limits, &parsed.application.limits)),
+                None => None,
+            };
+            deployment_store(typed, sources)?.store
+        }
+    };
     let mut engine = settings::Engine {
         landing_held: false,
         setups: Box::new([]),
@@ -994,6 +1051,7 @@ fn checked_start_limits(
             crate::stock::Given::Own { ways, .. } => ways.clone(),
         },
         limits: parsed.application.limits,
+        store_limits: Some(store_limits),
     };
     let root = engine_limits(&mut engine.jig.limits, &engine.limits, engine.jig.memory)?;
     if let Some(&connector) = core.connectors.first() {
@@ -1012,7 +1070,10 @@ fn checked_start_limits(
     if let Some(agent) = &declaration {
         turn = Some(agent.turn_body);
     }
-    checked_store(&root, &engine.jig.limits.store, turn)?;
+    let envelope = engine.store_limits.expect("checked deployment envelope");
+    if let Err(why) = crate::store::admit(&root, &root.forge, &envelope, turn) {
+        return Err(checks::store_refusal(why));
+    }
     let io = checks::engine_io(&engine.jig.limits.io);
     let prepared_forges = prepare_forges(&engine, forges)?;
     Ok(CheckedStart { warnings, not_set_up, engine, io, forges: prepared_forges })

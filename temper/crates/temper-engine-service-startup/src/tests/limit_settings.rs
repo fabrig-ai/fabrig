@@ -63,6 +63,10 @@ fn settings_follow_scaled_derivation_and_keep_the_stock_store() {
         &[item(b"forge.client.entries", 16), item(b"forge.entries", 16), item(b"live_goals", 20)],
     )
     .unwrap();
+    let reader = startup::store_limits(&inputs.document, &inputs.directories).unwrap();
+    assert_eq!(reader.store.store, stock.store.store, "an offline reader opens the engine's envelope");
+    assert_eq!(reader.store.secrets, stock.store.secrets);
+    assert_eq!(reader.store.commits, stock.store.commits);
     assert_eq!(stock.temper.live_goals, 40);
     assert_eq!(stock.jig.core.tasks.tasks, 768);
     assert_eq!(resolved.temper.live_goals, 20);
@@ -76,23 +80,48 @@ fn settings_follow_scaled_derivation_and_keep_the_stock_store() {
     assert_eq!(resolved.store.store, stock.store.store);
     assert_eq!(resolved.store.secrets, stock.store.secrets);
     assert_eq!(resolved.store.commits, stock.store.commits);
+    let hundred = startup::resolve_limits(&inputs, &[], &[item(b"live_goals", 100)]).unwrap();
+    assert_eq!(hundred.store.store, stock.store.store);
+    assert_eq!(hundred.store.secrets, stock.store.secrets);
+    assert_eq!(hundred.store.commits, stock.store.commits);
+    let root = &hundred.root;
+    let sizes = jig_protocol_store::sizes::check_commits(
+        &temper_engine_domain::core_limits(root),
+        &temper_protocol_store::application(&root.forge, root.tasks.spec_bytes).unwrap(),
+        &hundred.store.commits,
+        &hundred.store.store,
+        hundred.store.orphan_erases,
+    )
+    .unwrap();
+    assert_eq!(stock.store.store.value, sizes.value, "the largest map value at 100 sizes the store");
 }
 #[test]
-fn eighty_goals_name_the_setting_and_fixed_store_bound() {
-    let found = startup::resolve_limits(
+fn eighty_goals_fit_the_fixed_store() {
+    let resolved = startup::resolve_limits(
         &inputs(),
         &[item(b"tasks.tasks", 1024)],
         &[item(b"forge.entries", 16), item(b"live_goals", 80)],
     )
-    .unwrap_err();
-    assert_eq!(startup::lines(&found).as_ref(), b"live_goals (setting temper-limits): the store's map value, 199008107 bytes, past its bound of 100881496 bytes; put limits-held in the data directory to start at the stock\n");
+    .unwrap();
+    assert_eq!(resolved.temper.live_goals, 80);
+}
+#[test]
+fn goals_past_the_store_envelope_name_the_setting_and_bound() {
+    let Err(found) = startup::resolve_limits(&inputs(), &[], &[item(b"live_goals", 101)]) else {
+        panic!("101 live goals must be refused before store sizing");
+    };
+    assert_eq!(startup::lines(&found).as_ref(), b"live_goals (setting temper-limits): 101, past its bound of 100, the most live goals the store is sized for; put limits-held in the data directory to start at the stock\n");
 }
 #[test]
 fn a_record_past_the_stock_store_names_its_setting_and_the_stock_figure() {
-    let found = startup::resolve_limits(&inputs(), &[item(b"tasks.project_goals", 160)], &[]).unwrap_err();
-    let text = String::from_utf8(startup::lines(&found).into_vec()).unwrap();
-    assert!(text.starts_with("tasks.project_goals (setting limits):"), "{text}");
-    assert!(text.contains("past its bound of 100881496 bytes"), "{text}");
+    let inputs = inputs();
+    let stock = startup::resolve_limits(&inputs, &[], &[]).unwrap();
+    for temper in [&[][..], &[item(b"live_goals", 100)]] {
+        let found = startup::resolve_limits(&inputs, &[item(b"tasks.project_goals", 400)], temper).unwrap_err();
+        let text = String::from_utf8(startup::lines(&found).into_vec()).unwrap();
+        assert!(text.starts_with("tasks.project_goals (setting limits): the store's map value,"), "{text}");
+        assert!(text.contains(&format!("past its bound of {} bytes", stock.store.store.value)), "{text}");
+    }
 }
 #[test]
 fn removed_names_are_left_out_and_box_worker_names_come_from_the_engine() {

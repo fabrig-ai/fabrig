@@ -32,6 +32,8 @@ fn resolve(input: &fixtures::Start) -> (config::Engine, startup::application::Me
 fn document(goals: u32) -> fixtures::Start {
     let mut input = stock::generated();
     (input.jig, input.own) = crate::limits::base(goals, STOCK.payload, STOCK).unwrap();
+    // Typed resolved figures are judged under the deployment's store envelope.
+    input.jig.store = temper_engine_service::startup::deployment_store(None, STOCK).unwrap().store;
     input
 }
 
@@ -47,21 +49,29 @@ fn jig_over(input: &mut fixtures::Start, values: serde_json::Value) {
 }
 
 #[test]
-#[expect(clippy::disallowed_macros, reason = "test compares the store refusal with both measured value figures")]
+#[expect(clippy::disallowed_macros, reason = "test compares each out-of-envelope count's refusal words")]
 fn scaled_ties_and_caps_pass_todays_start_checks() {
-    for goals in [1, 40, 80, 400] {
+    let input = stock::generated();
+    let agent = fixtures::parsed_agent(fixtures::stock_configuration(STOCK.payload, 48_000).unwrap());
+    let reader =
+        startup::store_limits(&input.document, &config::Directories::working(), Some(&agent.declaration())).unwrap();
+    let expected =
+        temper_engine_service::startup::deployment_store(None, derived::Sources::agent(&agent.declaration())).unwrap();
+    assert_eq!(reader.store.store, expected.store.store, "the box's offline reader uses the engine's envelope");
+    assert_eq!(reader.store.secrets, expected.store.secrets);
+    assert_eq!(reader.store.commits, expected.store.commits);
+    for goals in [1, 40, 80, 100, 101, 400] {
         let input = document(goals);
-        if goals >= 80 {
+        if goals > 100 {
             let found = fixtures::named(&input, &config::Directories::working()).unwrap_err();
-            let needed = if goals == 80 { 199_008_107_u32 } else { 993_957_867 };
             let expected = format!(
-                "engine.limits.store: the store's map value, {needed} bytes, past its bound of 103387876 bytes\n"
+                "application.limits.overrides.live_goals: {goals}, past its bound of 100, the most live goals the store is sized for\n"
             );
             assert_eq!(startup::lines(&found).as_ref(), expected.as_bytes());
-        } else {
-            let result = fixtures::named(&input, &config::Directories::working());
-            assert!(result.is_ok(), "live_goals {goals}: {result:?}");
+            continue;
         }
+        let result = fixtures::named(&input, &config::Directories::working());
+        assert!(result.is_ok(), "live_goals {goals}: {result:?}");
         let (mut engine, own) = resolve(&input);
         let root =
             temper_engine_service::startup::engine_limits(&mut engine.limits, &own.limits, engine.memory).unwrap();

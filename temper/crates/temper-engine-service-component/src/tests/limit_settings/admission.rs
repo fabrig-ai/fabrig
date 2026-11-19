@@ -240,6 +240,34 @@ fn owned() -> Box<crate::Service> {
 }
 
 #[test]
+fn a_hundred_goals_is_accepted_for_restart_but_a_hundred_and_one_is_refused() {
+    let mut service = owned();
+    let engine = service.engine.as_mut().unwrap();
+    let before = engine.limits_in_force().unwrap().in_force.root;
+    let change = party(Box::new([temper(Box::new([item(b"live_goals", 100)]))]), false, 1);
+    let change = admission::party(engine.limits_in_force(), change).expect("100 is admitted at entry");
+    engine.step(change);
+    fixtures::settle_root(&mut service, &mut Queue::uncapped());
+    let state = service.engine.as_ref().unwrap().limits_in_force().unwrap();
+    assert_eq!(state.revision, 2);
+    assert_eq!(state.temper.as_ref(), &[item(b"live_goals", 100)]);
+    assert_eq!(state.in_force.temper.live_goals, 40, "a raise waits for the next start");
+    assert_eq!(state.in_force.root, before);
+    let input = service.engine.as_mut().unwrap().limits_in_force.take().unwrap().inputs;
+    let mut store = opening(&input, Some(super::kept(service)));
+    let state = store.resolve_settings(input, None).unwrap();
+    assert_eq!(state.in_force.temper.live_goals, 100);
+    let mut service = build(store, state);
+    fixtures::restart(&mut service);
+    let state = service.engine.as_ref().unwrap().limits_in_force().unwrap();
+    assert_eq!(state.in_force.temper.live_goals, 100);
+    for propose in [false, true] {
+        let why = refused(state, Box::new([temper(Box::new([item(b"live_goals", 101)]))]), propose);
+        assert_eq!(judged(why, 0, TEMPER).as_ref(), b"live_goals (setting temper-limits): 101, past its bound of 100, the most live goals the store is sized for; put limits-held in the data directory to start at the stock\n");
+    }
+}
+
+#[test]
 fn durable_words_update_the_service_lists_but_not_its_running_figures() {
     let mut service = owned();
     let engine = service.engine.as_mut().unwrap();

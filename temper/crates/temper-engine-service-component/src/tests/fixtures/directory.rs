@@ -59,6 +59,28 @@ impl Directory {
         store.adopt(self.fd, 0).expect("directory adopted");
         service
     }
+    /// Open the directory before settings resolution constructs the root.
+    pub fn open_limits(&mut self, store: &mut Store) {
+        store.adopt(self.fd, 0).expect("directory adopted");
+        for _ in 0..PASSES {
+            self.io(store);
+            if let Some(event) = store.events().pop() {
+                let Event::Opened { installation, pending, .. } = event else {
+                    panic!("directory open: {event:?}");
+                };
+                store.opened_limits(installation, pending);
+                return;
+            }
+        }
+        panic!("directory opened");
+    }
+    /// Drive the whole service, including its listener and worker IO.
+    pub fn full_turn(&mut self, service: &mut Service) {
+        crate::iterate(service, Time::from_nanos(1), Wall::from_nanos(1));
+        self.sim.submit(self.pid, service.submissions());
+        serve(&mut self.machine, &mut self.sim);
+        self.sim.reap(self.pid, service.completions());
+    }
     pub fn turn(&mut self, service: &mut Service) {
         let engine = service.engine.as_mut().expect("engine");
         crate::engine::iterate(engine, Time::from_nanos(1), Wall::from_nanos(1));
@@ -73,6 +95,34 @@ impl Directory {
         while let Some(complete) = completions.pop() {
             store.complete(complete);
         }
+    }
+    /// Keep a settings revision in the directory before the next engine starts.
+    pub fn keep(&mut self, store: &mut Store, number: u64, writes: Box<[jig_protocol_store::Write]>) {
+        store.host.ask(Request::Commit { number, writes });
+        for _ in 0..PASSES {
+            self.io(store);
+            if let Some(event) = store.events().pop() {
+                let Event::Committed { .. } = event else { panic!("directory commit: {event:?}") };
+                assert!(store.idle(), "directory commit settled");
+                return;
+            }
+        }
+        panic!("directory commit answered");
+    }
+    pub fn reopen(&mut self, store: &mut Store) {
+        store.close();
+        for _ in 0..PASSES {
+            self.io(store);
+            if store.closed() {
+                break;
+            }
+        }
+        assert!(store.closed(), "directory closed");
+        self.machine.crash(1);
+        let handle = self.machine.reopen_root(0);
+        self.sim = Sim::new(1, Config::calm());
+        self.pid = self.sim.spawn_process();
+        self.fd = self.sim.root(self.pid, Handle::new(handle.raw()));
     }
     /// Complete a first start under the old job list, append the story's rows, then close.
     pub fn seed(&mut self, rows: Box<[temper_engine_domain::Write]>) {

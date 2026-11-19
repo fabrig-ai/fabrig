@@ -6,6 +6,7 @@
     reason = "ordinary focused tests edit startup documents and restart a memory store"
 )]
 mod admission;
+mod heap;
 mod reading;
 use super::fixtures;
 use crate::{
@@ -90,7 +91,7 @@ fn opening(inputs: &LimitInputs, kept: Option<jig_protocol_store::Stores>) -> St
 }
 fn build(store: Store, state: LimitSettings) -> Box<crate::Service> {
     let input = &state.inputs;
-    let start = startup::checked_start_with_limits(
+    let start = startup::checked_start_with_resolved(
         &input.document,
         &input.directories,
         &input.files,
@@ -99,13 +100,15 @@ fn build(store: Store, state: LimitSettings) -> Box<crate::Service> {
         List::with_capacity(0),
         None,
         &input.given,
-        &state.in_force.jig,
-        &state.in_force.temper,
+        &state.in_force,
     )
     .unwrap();
     let mut service = Box::new(
         crate::Service::prepared(start.engine, &input.seeds, None, start.forges, start.io, None, None).unwrap(),
     );
+    let runtime = service.engine.as_ref().unwrap().store.opening_limits();
+    assert_eq!(runtime.store, state.in_force.store.store, "the runtime opens the resolved envelope");
+    assert_eq!(runtime.secrets, state.in_force.store.secrets);
     service.engine.as_mut().unwrap().take_limit_store(store, state);
     service
 }
@@ -385,15 +388,15 @@ fn a_written_store_resolves_both_kinds_before_a_restarted_engine_restores() {
     save(
         &mut service,
         Box::new([item(b"tasks.tasks", 1024)]),
-        Box::new([item(b"forge.entries", 16), item(b"live_goals", 80)]),
+        Box::new([item(b"forge.entries", 16), item(b"live_goals", 101)]),
     );
     let input = inputs();
     let mut store = opening(&input, Some(kept(service)));
     let found = store.resolve_settings(input, None).unwrap_err();
-    assert_eq!(startup::lines(&found).as_ref(), b"live_goals (setting temper-limits): the store's map value, 199008107 bytes, past its bound of 100881496 bytes; put limits-held in the data directory to start at the stock\n");
+    assert_eq!(startup::lines(&found).as_ref(), b"live_goals (setting temper-limits): 101, past its bound of 100, the most live goals the store is sized for; put limits-held in the data directory to start at the stock\n");
     let state = store.resolve_settings(inputs(), Some((&[], &[]))).unwrap();
     assert!(state.held);
-    assert_eq!(state.temper[1].value, 80);
+    assert_eq!(state.temper[1].value, 101);
     assert_eq!(state.in_force.temper.live_goals, 40);
     let mut service = build(store, state);
     fixtures::restart(&mut service);
