@@ -231,7 +231,10 @@ reads and wakes each landing, deciding nothing; a lost attempt is
 retried in the same child once its writer slots settle; proven absence
 asks once again, fenced by jig's step, keeping the prefixes recovered;
 and a release at preparing reconciles the same way
-(`domain/landing-preparing.md`).
+(`domain/landing-preparing.md`). A landing forms whole: its task is
+made first, a refused make forms nothing and its train waits a queue
+window, and a start ends a landing whose task was never made
+(`domain/landing-forming.md`).
 
 A follow across projects is the whole story's milestone F1
 (`domain/forge/follows.md`): kind 12, a follow of a branch of a
@@ -614,6 +617,7 @@ Design documents:
 - [`domain/forge/room.md`](domain/forge/room.status.md)
 - [`domain/forge/walkthrough.md`](domain/forge/walkthrough.status.md)
 - [`domain/landing.md`](domain/landing.status.md)
+- [`domain/landing-forming.md`](domain/landing-forming.status.md)
 - [`domain/landing-settings.md`](domain/landing-settings.status.md)
 - [`domain/landing-history.md`](domain/landing-history.status.md)
 - [`domain/landing-preparing.md`](domain/landing-preparing.status.md)

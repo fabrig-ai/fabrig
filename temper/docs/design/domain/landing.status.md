@@ -16,6 +16,11 @@ each follows, as the forge holds them (`forge/change/branch-path.md`).
   (`jig/docs/design/domain/tasks/lifecycle.status.md`, 10).
 - **Not yet:** 7.1, by plan `forge-polls-quiet`: a landing polls its
   runs in flight every `poll`, not at the client's `poll_at`.
+- **Not yet:** 4.2: the landing's row, links and holds are made before
+  jig answers its task's make, and stay when jig refuses it
+  (`landing-forming.md`, 2, 3).
+- **Not yet:** 15: a live landing jig never made refuses the start, its
+  holds linking a missing task (`landing-forming.md`, 4).
 
 - **Not yet:** 4.1: `with`; pin-only members; `dependencies_join`
   (`temper-engine-domain-forge/src/landing.rs`). 5.3, 6.1: the project's
