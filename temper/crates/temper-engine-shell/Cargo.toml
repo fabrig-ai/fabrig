@@ -12,6 +12,7 @@ name = "suite"
 path = "tests/suite/main.rs"
 
 [dependencies]
+temper-config-shell.workspace = true
 temper-engine-domain.workspace = true
 temper-engine-domain-forge.workspace = true
 jig-protocol-engine-workers.workspace = true

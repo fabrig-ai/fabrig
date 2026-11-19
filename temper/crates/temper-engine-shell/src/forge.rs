@@ -186,13 +186,14 @@ pub fn start(
     start_with_binary("temper", directories, arguments, ssl_cert_file, environment)
 }
 pub fn start_with_reader(
+    shape: temper_config_shell::Shape,
     directories: &super::Directories,
     arguments: &[OsString],
     ssl_cert_file: Option<std::path::PathBuf>,
     environment: &[EnvironmentEntry],
     reader: Reader,
 ) -> Result<u8, Refused> {
-    start_with_binary_reader("temper", directories, arguments, ssl_cert_file, environment, reader)
+    start_with_binary_reader("temper", shape, directories, arguments, ssl_cert_file, environment, reader)
 }
 
 fn start_with_binary(
@@ -202,12 +203,24 @@ fn start_with_binary(
     ssl_cert_file: Option<std::path::PathBuf>,
     environment: &[EnvironmentEntry],
 ) -> Result<u8, Refused> {
-    start_with_binary_reader(binary, directories, arguments, ssl_cert_file, environment, super::setup::check)
+    start_with_binary_reader(
+        binary,
+        temper_config_shell::Shape::EngineAlone,
+        directories,
+        arguments,
+        ssl_cert_file,
+        environment,
+        super::setup::check,
+    )
 }
 
-#[expect(clippy::too_many_lines, reason = "one forge command dispatches its checked setup and process lifecycle")]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one forge command dispatches its binary-shaped document, checked setup and process lifecycle"
+)]
 fn start_with_binary_reader(
     binary: &str,
+    shape: temper_config_shell::Shape,
     directories: &super::Directories,
     arguments: &[OsString],
     ssl_cert_file: Option<std::path::PathBuf>,
@@ -258,11 +271,13 @@ fn start_with_binary_reader(
         .map(|()| 0)
         .map_err(refused);
     }
-    let bytes = directories.read().map_err(refused)?;
+    let read = temper_service_shell::configuration::read(directories, shape).map_err(refused)?;
+    let bytes = &read.document;
+    let refused = |why: String| refused(read.problems(&why));
     let super::setup::Deployment { named, checked, .. } =
-        reader(&bytes, &jig_directories(directories)).map_err(refused)?;
+        reader(bytes, &jig_directories(directories)).map_err(refused)?;
     if verb == "sign-in" {
-        return super::forge_sign_in::run(directories, &bytes, &named, number, environment).map_err(refused);
+        return super::forge_sign_in::run(directories, bytes, &named, number, environment).map_err(refused);
     }
     let owned = match &entry.mode {
         Mode::Owned(owned) => Some(owned),
@@ -302,7 +317,7 @@ fn start_with_binary_reader(
         temper_forge_setup::setup_file::SetupFile::Fake(_) => None,
     };
     if verb == "source" {
-        return super::forge_sign_in::source(&bytes, &named, owned, &place, checked.limits.deadline, client)
+        return super::forge_sign_in::source(bytes, &named, owned, &place, checked.limits.deadline, client)
             .map_err(refused);
     }
     let owned_sign_in = client.is_some();
@@ -325,7 +340,7 @@ fn start_with_binary_reader(
         })
         .with_source_address(
             owned_sign_in
-                .then(|| super::forge_sign_in::discovery(&bytes, &named).ok())
+                .then(|| super::forge_sign_in::discovery(bytes, &named).ok())
                 .flatten()
                 .map(Vec::into_boxed_slice),
             checked.limits.deadline,
@@ -435,9 +450,18 @@ pub fn run(
     ssl_cert_file: Option<std::path::PathBuf>,
     environment: &[EnvironmentEntry],
 ) -> u8 {
-    run_with_reader(binary, directories, arguments, ssl_cert_file, environment, super::setup::check)
+    run_with_shape_reader(
+        binary,
+        temper_config_shell::Shape::EngineAlone,
+        directories,
+        arguments,
+        ssl_cert_file,
+        environment,
+        super::setup::check,
+    )
 }
 
+/// The standalone reader seam used by the box's retained-document callers.
 #[must_use]
 pub fn run_with_reader(
     binary: &str,
@@ -447,7 +471,28 @@ pub fn run_with_reader(
     environment: &[EnvironmentEntry],
     reader: Reader,
 ) -> u8 {
-    match start_with_binary_reader(binary, directories, arguments, ssl_cert_file, environment, reader) {
+    run_with_shape_reader(
+        binary,
+        temper_config_shell::Shape::Standalone,
+        directories,
+        arguments,
+        ssl_cert_file,
+        environment,
+        reader,
+    )
+}
+
+#[must_use]
+pub fn run_with_shape_reader(
+    binary: &str,
+    shape: temper_config_shell::Shape,
+    directories: &super::Directories,
+    arguments: &[OsString],
+    ssl_cert_file: Option<std::path::PathBuf>,
+    environment: &[EnvironmentEntry],
+    reader: Reader,
+) -> u8 {
+    match start_with_binary_reader(binary, shape, directories, arguments, ssl_cert_file, environment, reader) {
         Ok(code) => code,
         Err(why) => {
             if arguments.first().is_some_and(|verb| verb == "source") {
@@ -679,13 +724,18 @@ pub fn configure(
 }
 
 pub fn command(binary: &str, command: Command) -> Result<u8, String> {
-    command_with_reader(binary, command, super::setup::check)
+    command_with_reader(binary, temper_config_shell::Shape::EngineAlone, command, super::setup::check)
 }
 
-pub fn command_with_reader(binary: &str, command: Command, reader: Reader) -> Result<u8, String> {
+pub fn command_with_reader(
+    binary: &str,
+    shape: temper_config_shell::Shape,
+    command: Command,
+    reader: Reader,
+) -> Result<u8, String> {
     match command {
         Command::Forge { directories, arguments, ssl_cert_file, environment } => {
-            Ok(run_with_reader(binary, &directories, &arguments, ssl_cert_file, &environment, reader))
+            Ok(run_with_shape_reader(binary, shape, &directories, &arguments, ssl_cert_file, &environment, reader))
         }
         Command::ForgeChild { parent, signal, program, arguments } => {
             let why = temper_forge_setup_shell::process::child(parent, signal, &program, &arguments);

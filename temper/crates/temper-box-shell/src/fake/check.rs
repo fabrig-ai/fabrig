@@ -76,15 +76,23 @@ pub(crate) fn outcome(directories: &Directories, check: &Check) -> Outcome {
     Outcome { status: output.status, stdout: output.stdout, stderr: stderr.into_boxed_slice() }
 }
 fn configuration(directories: &Directories) -> Result<temper_service::startup::StoreLimits, String> {
-    let document = directories.document();
-    let bytes = skein_shell::read_file(&document, crate::CONFIG_BYTES)
-        .map_err(|why| format!("configuration {}: {}", document.display(), crate::unread(why)))?;
-    let jig = jig_directories(directories);
-    let agent = crate::serve::configured_agent(&bytes, directories, &[])?;
-    let declaration = agent.as_ref().map(|prepared| prepared.agent.declaration());
-    let limits = temper_service::startup::store_limits(&bytes, &jig, declaration.as_ref())
-        .map_err(|why| String::from_utf8_lossy(&temper_service::startup::lines(&why)).into_owned())?;
-    Ok(limits)
+    let read = temper_service_shell::configuration::read_with_legacy(
+        directories,
+        temper_config_shell::Shape::Standalone,
+        || {
+            let document = directories.document();
+            skein_shell::read_file(&document, crate::CONFIG_BYTES)
+                .map_err(|why| format!("configuration {}: {}", document.display(), crate::unread(why)))
+        },
+    )?;
+    read.prepare(|bytes| {
+        let jig = jig_directories(directories);
+        let agent = crate::serve::configured_agent(bytes, directories, &[])?;
+        let declaration = agent.as_ref().map(|prepared| prepared.agent.declaration());
+        let limits = temper_service::startup::store_limits(bytes, &jig, declaration.as_ref())
+            .map_err(|why| String::from_utf8_lossy(&temper_service::startup::lines(&why)).into_owned())?;
+        Ok(limits)
+    })
 }
 fn undecided(reason: Reason, mut stderr: Vec<u8>, why: Option<&str>) -> Outcome {
     if let Some(why) = why {

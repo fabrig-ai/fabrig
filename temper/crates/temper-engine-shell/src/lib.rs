@@ -9,6 +9,8 @@ pub use temper_shell::directories;
 
 mod binary;
 pub mod commands;
+#[cfg(test)]
+mod configuration_tests;
 pub mod lines;
 pub mod served;
 pub use binary::{main, versions};

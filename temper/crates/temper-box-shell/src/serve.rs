@@ -488,13 +488,15 @@ pub fn prepare_in(
     working: &[u8],
     directories: &Directories,
 ) -> Result<Service, String> {
-    let bytes = directories.read().map_err(|why| prefixed(&format!("{binary} serve"), &why))?;
+    let read = temper_service_shell::configuration::read(directories, temper_config_shell::Shape::Standalone)
+        .map_err(|why| prefixed(&format!("{binary} serve"), &why))?;
+    let bytes = &read.document;
     let mut owned = Vec::new();
-    let result = prepare(binary, environment, working, directories, &bytes, &mut owned);
+    let result = prepare(binary, environment, working, directories, bytes, &mut owned);
     if result.is_err() {
         close(owned);
     }
-    result.map_err(|why| prefixed(&format!("{binary} serve"), &why))
+    result.map_err(|why| prefixed(&format!("{binary} serve"), &read.problems(&why)))
 }
 /// Prepare an in-process world's service with the supplied defaults.
 pub fn prepare_in_with(
@@ -572,14 +574,16 @@ pub fn prepare_in_with_inputs_and_limits(
     projects: &[jig_protocol_config::Project],
     limits: Option<(&jig_protocol_config::Limits, &service::limits::Limits)>,
 ) -> Result<Service, String> {
-    let bytes = directories.read().map_err(|why| prefixed(&format!("{binary} serve"), &why))?;
+    let read = temper_service_shell::configuration::read(directories, temper_config_shell::Shape::Standalone)
+        .map_err(|why| prefixed(&format!("{binary} serve"), &why))?;
+    let bytes = &read.document;
     let mut owned = Vec::new();
     let result = prepare_with_limits(
         binary,
         environment,
         working,
         directories,
-        &bytes,
+        bytes,
         &mut owned,
         false,
         false,
@@ -596,7 +600,7 @@ pub fn prepare_in_with_inputs_and_limits(
     if result.is_err() {
         close(owned);
     }
-    result.map_err(|why| prefixed(&format!("{binary} serve"), &why))
+    result.map_err(|why| prefixed(&format!("{binary} serve"), &read.problems(&why)))
 }
 /// The same for an in-process world's service, with the supplied defaults.
 pub fn operations_in_with(
@@ -661,6 +665,7 @@ pub fn run(
     temper_service_shell::run(
         binary,
         directories,
+        temper_config_shell::Shape::Standalone,
         environment,
         crate::served::SERVED,
         &fixed_start.map_or_else(skein_shell::Clock::new, skein_shell::Clock::fixed),

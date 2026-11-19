@@ -36,6 +36,7 @@ fn a_refused_start_is_its_binarys_serve_line() {
         super::run(
             "temper-worker",
             &directories,
+            temper_config_shell::Shape::WorkerAlone,
             &[],
             super::host::adapter_tests::SERVED,
             &skein_shell::Clock::new(),
@@ -44,6 +45,47 @@ fn a_refused_start_is_its_binarys_serve_line() {
             |_, _, ()| Ok(())
         ),
         Err("temper-worker serve: refused\n".into())
+    );
+}
+
+#[test]
+fn toml_serve_maps_member_lines_and_keeps_other_problems() {
+    use std::os::unix::ffi::OsStrExt;
+    let scratch = skein_scratch::Scratch::new("serve-key-lines");
+    let args = [
+        b"--config".as_slice(),
+        scratch.path().as_os_str().as_bytes(),
+        b"--data",
+        scratch.path().as_os_str().as_bytes(),
+        b"--cache",
+        scratch.path().as_os_str().as_bytes(),
+    ]
+    .map(Box::from);
+    let (directories, _) = temper_shell::directories::resolve(&args, &[], b"/").expect("directories");
+    std::fs::write(
+        scratch.path().join(temper_config_shell::FILE),
+        "# box\n\nlisten = \"127.0.0.1:7100\"\npublic = \"http://example.com\"\n",
+    )
+    .expect("box file");
+    assert_eq!(
+        super::run(
+            "temper-box",
+            &directories,
+            temper_config_shell::Shape::Standalone,
+            &[],
+            super::host::adapter_tests::SERVED,
+            &skein_shell::Clock::new(),
+            |_| Ok(()),
+            |_, _, ()| {
+                Err::<super::Prepared<_, ()>, _>("application.clients.public: start's words\napplication.webhooks.listener: listener words\nagents.setting: unchanged\n".into())
+            },
+            |_, _, ()| Ok(())
+        ),
+        Err(format!(
+            "temper-box serve: {}:4: public: start's words\ntemper-box serve: {}: webhooks (its default): listener words\ntemper-box serve: agents.setting: unchanged\n",
+            temper_config_shell::FILE,
+            temper_config_shell::FILE
+        ))
     );
 }
 
