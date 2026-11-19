@@ -220,6 +220,7 @@ fn refused_rows(repository: Repository) -> Vec<(&'static str, Stored)> {
                     phase: l::Phase::Waiting,
                     preparation: 0,
                     stale_proofs: 0,
+                    last_prepare: None,
                     branch: b"main".as_slice().into(),
                     members: [A, repository]
                         .into_iter()

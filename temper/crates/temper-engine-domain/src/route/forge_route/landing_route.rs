@@ -308,6 +308,7 @@ fn create_landing(
                 phase: landing::Phase::Waiting,
                 preparation: 0,
                 stale_proofs: 0,
+                last_prepare: None,
                 branch: Box::from(branch),
                 members: members.into_boxed(),
             },

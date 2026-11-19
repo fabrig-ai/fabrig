@@ -1664,6 +1664,7 @@ fn landing_rows_preserve_phases_proofs_asks_and_effects() {
                         }]),
                         preparation: 1,
                         stale_proofs: 3,
+                        last_prepare: None,
                         branch: Box::from(b"temper/g1".as_slice()),
                     },
                     asks: Box::new([ask]),
@@ -1700,6 +1701,7 @@ fn landing_with_clock(clock: Option<temper_engine_domain_forge_change::Clock>) -
             members: Box::new([]),
             preparation: 1,
             stale_proofs: 0,
+            last_prepare: None,
             branch: b"main".as_slice().into(),
             round: l::Round::new(b"temper/1/l61".as_slice().into()),
             last_left: None,
@@ -1814,6 +1816,7 @@ fn landing_faults_and_own_holds_are_mutually_exclusive() {
                     own_hold: own.then_some(v25::LandingOwnHold::Turn),
                     last_left: None,
                     searched: None,
+                    last_prepare: None,
                 },
             )
             .expect("landing state");

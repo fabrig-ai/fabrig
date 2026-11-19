@@ -41,7 +41,7 @@ RUN the run's number where the top knows it, L a landing's task.
 | `ready` | a member's change not ready: judging at its head, repairing, held | the change's step | `change C to be ready` |
 | `turn` | a single landing proved while another holds the turn (`landing.md`, 12) | that turn's end | `the turn, held by landing L` |
 | `prepare` | the round's prepare lives (`landing.md`, 5.2) | its answer | `the round's prepare job` |
-| `prefixes` | the prepare ended, the prefixes it pushed not yet read | a deadline: its members' branches read again | `the prepared prefixes on the members' branches` |
+| `prefixes` | the prepare ended, the prefixes it pushed not yet read, or the round's prepare ended with no answer it keeps, before the same prepare is asked once again (`landing-preparing.md`, 5) | a deadline: its members' branches read again | `the prepared prefixes on the members' branches` |
 | `open` | the round's pull request opening (`landing.md`, 10) | its result | `the round's pull request to open` |
 | `close` | the round's pull request closing (`landing.md`, 5.1) | its result | `the round's pull request to close` |
 | `delete` | a member's branch in the landing deleted (`landing.md`, 5.1) | its result | `change C's branch in the landing to be deleted` |

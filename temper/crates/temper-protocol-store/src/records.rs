@@ -371,6 +371,7 @@ fn tier_limits(forge: &d::Limits) -> Option<w::Limits> {
         landing_by_test_probed: forge.gates.checked_mul(forge.landing_members)?,
         landing_selection_tests: forge.tiers.failing_tests,
         landing_searched_changes: forge.landing_members,
+        landing_last_prepare_suffix: forge.landing_members,
         landing_member_branch: forge.name_bytes,
         landing_row_asks: forge.landing_members,
         landing_row_entries: forge.entries,

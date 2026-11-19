@@ -368,6 +368,7 @@ pub(super) fn encode(row: &top::LandingRow) -> w::LandingRow {
         &w::CEILINGS,
         w::LandingStateParts {
             searched: encode_searched(row.landing.searched.as_ref()),
+            last_prepare: encode_last_prepare(row.landing.last_prepare.as_ref()),
             task: row.landing.task,
             project: row.landing.project,
             phase: encode_phase(&row.landing.phase),
@@ -564,6 +565,7 @@ pub(super) fn decode(row: w::LandingRow) -> Result<top::LandingRow, super::Undec
         own_hold,
         last_left,
         searched,
+        last_prepare,
     } = landing.into_parts();
     if phase.held().is_some() && own_hold.is_some() {
         return Err(super::Undecodable::Malformed);
@@ -647,6 +649,23 @@ pub(super) fn decode(row: w::LandingRow) -> Result<top::LandingRow, super::Undec
             round: match round {
                 Some(round) => decode_round(round),
                 None => d::Round::new(Box::new([])),
+            },
+            last_prepare: match last_prepare {
+                Some(value) => {
+                    let w::LandingLastPrepareParts { member, head, main, suffix, asks, again } = value.into_parts();
+                    Some(d::LastPrepare {
+                        member,
+                        head,
+                        main,
+                        suffix: suffix.into_boxed(),
+                        asks,
+                        again: match again {
+                            Some(at) => Some(Wall::from_nanos(at)),
+                            None => None,
+                        },
+                    })
+                }
+                None => None,
             },
         },
         asks: decoded_asks.into_boxed(),
@@ -943,6 +962,31 @@ fn encode_searched(searched: Option<&d::Searched>) -> Option<w::LandingSearched>
         w::LandingSearched::new(
             &w::CEILINGS,
             w::LandingSearchedParts { red: searched.red, green: searched.green, changes },
+        )
+        .expect(FITS),
+    )
+}
+
+fn encode_last_prepare(last: Option<&d::LastPrepare>) -> Option<w::LandingLastPrepare> {
+    let last = last?;
+    let mut suffix = List::with_capacity(u32::try_from(last.suffix.len()).expect(FITS));
+    for member in &last.suffix {
+        suffix.push(*member).expect(FITS);
+    }
+    Some(
+        w::LandingLastPrepare::new(
+            &w::CEILINGS,
+            w::LandingLastPrepareParts {
+                member: last.member,
+                head: last.head,
+                main: last.main,
+                suffix,
+                asks: last.asks,
+                again: match last.again {
+                    Some(at) => Some(at.as_nanos()),
+                    None => None,
+                },
+            },
         )
         .expect(FITS),
     )

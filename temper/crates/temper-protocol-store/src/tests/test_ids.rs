@@ -269,6 +269,7 @@ pub(super) fn landing() -> d::Stored {
             phase: l::Phase::Waiting,
             preparation: 0,
             stale_proofs: 0,
+            last_prepare: None,
             branch: b"main".as_slice().into(),
             members: Box::new([]),
         },

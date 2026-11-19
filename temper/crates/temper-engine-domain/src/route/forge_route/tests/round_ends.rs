@@ -381,6 +381,8 @@ impl Round {
         self.env.wall =
             Wall::from_nanos(self.env.wall.as_nanos().checked_add(Duration::from_secs(10).as_nanos()).unwrap());
         self.entry = self.entry.checked_add(1).unwrap();
+        let context = self.domain.core.tasks.run_context(self.task).expect("landing context");
+        let preparation = route::landing_route::preparation(&self.domain, &context);
         let out = self.send(forge::Event::StepLanding {
             task: self.task,
             entry: self.entry,
@@ -390,7 +392,7 @@ impl Round {
                 dependencies: Box::new([]),
                 held: Box::new([]),
                 failure: Box::new([]),
-                preparation: Some(policy::Preparation::Absent),
+                preparation: Some(preparation),
                 released: false,
                 cancelled: false,
                 kept: Box::new([]),
@@ -516,6 +518,51 @@ impl Round {
             self.effect(entry);
             self.wake();
         }
+    }
+    // One pass; a prepare it routes is claimed as job `job` and ends done
+    // with no answer the round keeps (landing-preparing.md, 2, case 4).
+    #[expect(clippy::wildcard_enum_match_arm, reason = "a decision without effects hands over only its step")]
+    fn unanswered(&mut self, job: u64) -> policy::Decision {
+        use forge::history::{Job, JobOutcome, JobStep};
+        if self.domain.core.tasks.procedure_due(self.task).is_none() {
+            self.wake();
+        }
+        let mut out = self.gather();
+        if has_ready(&out) {
+            out = Queue::uncapped();
+            self.domain.forge.decide_landing(&self.env.with(self.env.limits.forge), self.task, true, &mut out);
+            out = self.read_until_handoff(out);
+        }
+        let mut decided = None;
+        let mut handoff = Queue::uncapped();
+        while let Some(request) = out.pop() {
+            if let forge::Request::LandingDecision { decision, .. } = &request {
+                decided = Some(*decision);
+                handoff.push(request);
+            }
+        }
+        self.route(handoff);
+        while let Some(work) = self.domain.work.pop() {
+            match work {
+                Work::Core(jig_domain_core::Event::ProcedureStep { decision, .. }) if !decision.batch.is_empty() => {
+                    self.take_step();
+                    for outcome in [None, Some(JobOutcome::Done)] {
+                        let step = JobStep { task: job, attempt: 1, job: Job::Prepare, outcome, head: None };
+                        self.send(forge::Event::JobHistory { task: self.task, job: step });
+                    }
+                }
+                Work::Core(event @ jig_domain_core::Event::ProcedureStep { .. }) => {
+                    drop(jig_domain_core::step(
+                        &mut self.domain.core,
+                        &crate::limits::environment_core(&self.env),
+                        event,
+                    ));
+                }
+                Work::Tasks(tasks::Event::WakeProcedure { task }) if task == self.task => self.wake(),
+                other => panic!("unexpected handoff {other:?}"),
+            }
+        }
+        decided.expect("a routed decision")
     }
     #[expect(clippy::wildcard_enum_match_arm, reason = "the fixture rejects writes outside round cleanup and landing")]
     fn effect(&mut self, entry: u64) {
@@ -734,4 +781,37 @@ fn a_whole_cut_retries_the_green_turns_close() {
     r.forward(policy::Decision::None);
     r.forward(policy::Decision::Open);
     r.finish_cut(1);
+}
+#[test]
+fn an_ended_prepare_with_no_kept_answer_is_asked_again_once_then_held() {
+    use policy::Decision as D;
+    let mut r = Round::stale();
+    r.domain.config.prepare_kind = Some(jig_domain_link::JobBound {
+        kind: jig_domain_link::JobKind(1),
+        spec: 16_384,
+        result: 4_096,
+        deadline: Duration::from_secs(60),
+    });
+    for decision in [D::None, D::Close, D::Delete { member: 0 }, D::Stale] {
+        r.forward(decision);
+    }
+    let prepare = D::Prepare { member: 0, head: HEAD, main: [19; 32] };
+    let mut prepares = List::with_capacity(12);
+    let mut waited = false;
+    for job in 100_u64..112 {
+        let wall = r.env.wall;
+        let decision = r.unanswered(job);
+        if let D::Wait { until: Some(until), on: policy::Awaited::Prefixes } = decision {
+            assert!(until > wall, "{decision:?}");
+            waited |= prepares.len() == 1;
+            continue;
+        }
+        // The root reads the ended job as absent: no answer its round keeps names its member.
+        prepares.push(decision).unwrap();
+        if decision == D::Hold(policy::Hold::Prepare) {
+            break;
+        }
+    }
+    assert_eq!(prepares.as_slice(), [prepare, prepare, D::Hold(policy::Hold::Prepare)]);
+    assert!(waited, "the replacement waits a poll");
 }

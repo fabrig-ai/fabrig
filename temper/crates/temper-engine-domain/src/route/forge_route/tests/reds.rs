@@ -507,6 +507,7 @@ fn a_reported_pass_ends_its_red_when_the_changes_landing_is_read_back() {
                 branch: b"temper/8/g7".as_slice().into(),
                 preparation: 0,
                 stale_proofs: 0,
+                last_prepare: None,
                 members: Box::new([landing::Member {
                     round: None,
                     change: 20,
