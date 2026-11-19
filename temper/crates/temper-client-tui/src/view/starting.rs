@@ -15,7 +15,7 @@ use temper_client_domain::{Domain, forge::words::lossy};
 
 #[derive(Debug)]
 pub(crate) struct Starting {
-    address: Box<[u8]>,
+    address: crate::Origin,
     plain: bool,
     version: Box<[u8]>,
     steps: List<Step>,
@@ -101,7 +101,7 @@ pub(crate) fn read(root: &Domain, tui: &Tui, words: &Words) -> Starting {
         .push(step(words, Word::ProjectsAhead, Word::ProjectsReading, Word::ProjectsAhead, signed_in, false))
         .expect("four starting steps");
     Starting {
-        address: copy_of(tui.address()),
+        address: tui.address().clone(),
         plain: tui.plain(),
         version: copy_of(tui.version()),
         steps,

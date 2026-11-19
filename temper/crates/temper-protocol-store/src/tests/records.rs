@@ -50,6 +50,23 @@ fn each_family_of_names_holds_and_topics_round_trips_unchanged() {
     }
 }
 #[test]
+fn a_holds_head_beside_and_waiting_write_round_trip() {
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
+    let name = forge::Name { forge: 1, repository: 20, what: forge::What::Branch(Box::new([b"g".as_slice().into()])) };
+    for waiting in [None, Some([9; 32])] {
+        let row = forge::Stored::Hold(forge::Hold {
+            name: name.clone(),
+            task: 7,
+            writer: None,
+            design_writers: Box::new([]),
+            drift: None,
+            beside: Some(forge::HeadBeside { head: [8; 32], waiting }),
+        });
+        assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
+    }
+}
+
+#[test]
 fn a_landing_other_than_the_default_branch_round_trips() {
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
     let forge::Stored::Repository(mut row) = fixtures::adopted(forge::Protection::Absent) else {
@@ -85,6 +102,7 @@ fn a_holds_design_writers_and_their_fresh_read_progress_round_trip() {
             },
             task: 1,
             writer: None,
+            beside: None,
             design_writers: Box::new([forge::DesignWriter { task: 1, attempt: 2, rereading }]),
             drift: None,
         });
@@ -111,6 +129,7 @@ fn a_branch_past_name_bytes_fails_to_decode() {
         segments.push(1_u8).expect("bounded bytes");
     }
     let row = forge::Stored::Hold(forge::Hold {
+        beside: None,
         design_writers: Box::new([]),
         name: forge::Name { forge: 1, repository: 2, what: forge::What::Branch(Box::new([segments.into_boxed()])) },
         task: 1,

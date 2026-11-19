@@ -905,6 +905,7 @@ fn pushed_heads_route_only_to_their_own_forges_hold() {
             &forge_env,
             forge::Event::Restore {
                 record: forge::Stored::Hold(forge::Hold {
+                    beside: None,
                     design_writers: Box::new([]),
                     name,
                     task: 7,
@@ -987,6 +988,7 @@ fn a_parked_answers_checked_push_reaches_the_change_before_lost_writer_reads() {
                 name: name.clone(),
                 task: 7,
                 writer: Some(forge::Writer::Run { task: 41, attempt: 1 }),
+                beside: None,
                 design_writers: Box::new([]),
                 drift: None,
             }),
@@ -1327,6 +1329,7 @@ fn a_change_drift_account_prefers_the_forges_pair_including_unknown() {
             &env.with(env.limits.forge),
             forge::Event::Restore {
                 record: forge::Stored::Hold(forge::Hold {
+                    beside: None,
                     design_writers: Box::new([]),
                     name: name.clone(),
                     task: 7,

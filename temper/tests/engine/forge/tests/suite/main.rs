@@ -16,6 +16,7 @@ mod landing_cancelled;
 mod landing_history;
 mod landing_judgement;
 mod landing_leaving;
+mod landing_merge_readback;
 mod landing_proofs;
 mod landing_red_four;
 mod landing_reports;

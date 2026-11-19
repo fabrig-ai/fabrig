@@ -129,6 +129,7 @@ fn read_only_repairs_goal_runs_and_landing_prepares_name_no_pin() {
                 name: goal_branch.clone(),
                 task: CHILD,
                 writer: None,
+                beside: None,
                 drift: None,
                 design_writers: Box::new([]),
             }),

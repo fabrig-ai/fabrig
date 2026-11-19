@@ -320,7 +320,9 @@
   deletion or restored the file, and why. The judgement is the agent's:
   neither the merge job nor the change settles a file one side deleted
   or renamed, since whether the change still needs it is a judgement
-  (`../../../protocol/tooling.md`, 4.1). The full instructions are
+  (`../../../protocol/tooling.md`, 4.1), but for the paths the journeys'
+  writer alone writes, which the reference's merge job takes from the
+  base (`../../../client/journey-writer.md`, 5). The full instructions are
   exactly:
 
   > Resolve the merge conflict. Preserve the requested change and unrelated content already landed on the base, including both independent appended lines and existing blank lines. A deletion or a rename on either side is an intended change too: a file deleted on the base stays deleted unless the requested change needs it, and a file deleted on the head or renamed on either side stays so, the other side's edits carried where they still apply. Read the commit that deleted a file before you restore anything. Do not remove content just to make a check pass, unless the change's request as revised, or an answer given on it, says otherwise; keeping an intended deletion removes none. In your result, say for each file deleted or renamed on either side whether you kept the deletion or restored the file, and why. The worker commits and pushes the resolved merge.

@@ -685,9 +685,14 @@ temper's:
   carries no value (a manifest's `Connect`, `Install`, `Forget`,
   `SetUp`, `Reachable`) is kept as any keyed request; one carrying a
   value is not.
-- **Loopback only** in standalone (`../protocol/configuration/README.md`,
-  section 2; `line.md`, 1), so a bearer token never crosses a network in
-  plaintext. Clients between hosts, over TLS, come after standalone.
+- **Loopback, or TLS by name,** so a bearer token never crosses a
+  network in plaintext: plain HTTP reaches an engine on loopback alone
+  (`../protocol/configuration/README.md`, section 2; `line.md`, 1), and
+  the TUI reaches a deployment by name over HTTPS
+  (`tui/README.md`, 1; jig's `protocol/client/README.md`, section 9),
+  each deployment's credential and small store in a directory of its
+  own (`tui/README.md`, 2). `temper-box open` and `temper ctl` stay on
+  loopback.
 - **One person.** The deployment's link signs in its first owner;
   signing in through the forge is open (section 5).
 
@@ -737,16 +742,21 @@ was answered with. A box enables it beside the printed link
     a kept credential the engine refused), while the root holds no ask:
     the host steps `Event::AskApproval`. A held credential's sign-in in
     flight is not signed out, so nothing is asked until the engine has
-    answered it. The screen still takes the printed link, pasted, as
-    `../draft/tui.md`, 4.1 has it.
+    answered it. On loopback the screen still takes the printed link,
+    pasted, as `../draft/tui.md`, 4.1 has it; at a name it holds the
+    approval alone, by a typed code (`tui/pages/sign-in.md`, 3).
   - *Asking:* until the engine answers, "Asking temper for a code…",
     dim, under the screen's first line.
   - *The tab's address* is the TUI's own, made from its own parts alone
-    by `temper-client-tui`'s `approval_address(address, code)`: the
-    engine's address it was given or kept, `http://HOST:PORT`, then the
-    approval page's printed path, `address::print_approve(Some(code))`,
-    `/terminal?code=WDJB-MJHT` (`web/README.md`, 2.3), the code an
-    `ApprovalCode`, so of the code's alphabet by its type. An answer
+    by `temper-client-tui`'s `approval_address(origin: &Origin, code:
+    ApprovalCode)`: the origin it was given or kept, printed
+    (`tui/README.md`, 1), then the approval page's printed path. On
+    loopback, `address::print_approve(Some(code))`,
+    `http://127.0.0.1:8367/terminal?code=WDJB-MJHT` (`web/README.md`,
+    2.3), the code an `ApprovalCode`, so of the code's alphabet by its
+    type; at a name, `address::print_approve(None)`, no code, so
+    `https://dev.fabrig.ai/terminal`, whose page asks for the code
+    typed (`tui/pages/sign-in.md`, 3). An answer
     whose code is off the alphabet is refused by jig's reader, so
     nothing is opened for it. It opens no address the engine sent.
   - *Opening the tab:* on each ask answered, once, the host's duty
@@ -790,7 +800,9 @@ was answered with. A box enables it beside the printed link
     PORT to this one first.", then the expiry's line. The engine is on
     loopback, so a browser elsewhere reaches it through a tunnel to its
     listener on the same port, which jig's guards require of the
-    address (jig's `protocol/browser/README.md`, 12.2).
+    address (jig's `protocol/browser/README.md`, 12.2). The tunnel's
+    line is loopback's alone: a deployment by name is reached from any
+    browser, and its lines are `tui/pages/sign-in.md`, 3's.
   - *Asking again:* Enter in the Link field while it is empty, once the
     approval has ended or was not asked, or a pasted link has replaced
     it, asks again (`may_ask_again`), and its line says "Press Enter to
@@ -813,7 +825,7 @@ was answered with. A box enables it beside the printed link
     | unknown | "temper doesn't know that code any more: it restarted, or the code is old. Press Enter to ask again." |
     | full | "All N sign-ins are in use; the earliest ends MOMENT UTC. Press Enter to ask again then." (`view.md`, 1's full, its moments so said) |
     | the take busy, not ready or lost | "temper is busy; still trying…", while `jig-client` sends it again |
-    | not asked: refused | "This temper doesn't sign terminals in from the browser. Paste the link it printed instead." |
+    | not asked: refused | "This temper doesn't sign terminals in from the browser. Paste the link it printed instead."; at a name, "PLACE doesn't sign terminals in from the browser." (`tui/pages/sign-in.md`, 3) |
     | not asked: busy | "Too many terminals are waiting to sign in. Press Enter to ask again in a moment." |
     | not asked: not ready or lost | "temper is starting or stopping, or out of reach. Press Enter to ask again." |
 

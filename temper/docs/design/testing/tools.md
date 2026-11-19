@@ -57,7 +57,10 @@ Their forms are today's:
 
 - `temper-client-gallery OUT`;
 - `temper-client-journeys`, `temper-client-journeys add [--redact
-  TEXT]... NAME FILE` and `temper-client-journeys again NAME`;
+  TEXT]... NAME FILE`, `temper-client-journeys again NAME` and
+  `temper-client-journeys pages [--prepared DIR] [--within DURATION]`
+  and `pages --check`, the journeys'
+  writer's (`../client/journey-writer.md`, 3);
 - `temper-git-transcripts --git PATH --scratch DIR --out DIR`;
 - `temper-playground-serve OUT`;
 - `temper-stage-one obligations [--json]`, `collect` with its eight

@@ -4,6 +4,218 @@ use jig_client::Link;
 use jig_client_protocol_wire::SignInAnswer as Answer;
 use skein_ui::{Role, Style};
 
+fn paragraphs(tree: &skein_ui::Tree) -> skein_lib::List<Box<[u8]>> {
+    let mut lines = skein_lib::List::with_capacity(8);
+    for node in tree.nodes() {
+        if node.role == Role::Paragraph {
+            lines.push(f::text(tree, node)).unwrap();
+        }
+    }
+    lines
+}
+
+#[test]
+fn the_named_sign_in_screen_says_each_line_without_a_field() {
+    use super::approval::{asked, code};
+    use crate::Browser;
+    use jig_client::NotAsked;
+    use skein_lib::Wall;
+    use temper_client_domain::asked::State;
+    let waiting = State::Asked { code: code(), expires: Wall::from_nanos(600_000_000_000) };
+    let tab = [
+        "A tab opened in your browser: type WDJB-MJHT there, then press Approve.",
+        "No tab? Open",
+        "https://dev.fabrig.ai/terminal",
+        "The code expires in 10 min.",
+    ];
+    let no_tab = [
+        "Open",
+        "https://dev.fabrig.ai/terminal",
+        "in a browser signed in to temper, type WDJB-MJHT, then press Approve.",
+        "The code expires in 10 min.",
+    ];
+    let rows: &[(State, Option<Browser>, &[&str])] = &[
+        (State::Asking, None, &["Asking temper for a code…"]),
+        (waiting, None, &tab),
+        (waiting, Some(Browser::Opening), &tab),
+        (waiting, Some(Browser::Opened), &tab),
+        (waiting, Some(Browser::None), &no_tab),
+        (State::NotAsked(NotAsked::Refused), None, &["dev.fabrig.ai doesn't sign terminals in from the browser."]),
+    ];
+    for (state, browser, expected) in rows {
+        let root = asked(Some(*state));
+        let mut tui = Tui::new(&f::name_origin());
+        if let Some(browser) = browser {
+            tui.step(Told::Browse);
+            match browser {
+                Browser::Opening => {}
+                Browser::Opened => tui.step(Told::Opened { opened: true }),
+                Browser::None => tui.step(Told::Opened { opened: false }),
+            }
+        }
+        let mut view = f::view();
+        f::build(&mut view, &tui, &root);
+        assert!(crate::sign_in_drawn(&root, &tui));
+        let heading = f::find(view.tree(), Role::Heading { level: 2 }, b"Sign in this terminal to dev.fabrig.ai");
+        assert!(heading.binding.is_none());
+        assert_eq!(f::count(view.tree(), Role::TextField), 0);
+        assert_eq!(f::count(view.tree(), Role::TextArea), 0);
+        let lines = paragraphs(view.tree());
+        assert_eq!(usize::try_from(lines.len()).unwrap(), expected.len().checked_add(1).unwrap());
+        for (line, wanted) in lines.iter().zip(expected.iter().copied().chain(["Ctrl+C to quit"])) {
+            assert_eq!(line.as_ref(), wanted.as_bytes(), "{state:?}, {browser:?}");
+        }
+        let retry = *state == State::NotAsked(NotAsked::Refused);
+        assert_eq!(f::count(view.tree(), Role::Button), usize::from(retry));
+        if !retry {
+            for node in view.tree().nodes() {
+                assert!(node.binding.is_none() && node.focus.is_none());
+            }
+        }
+        if *state == State::Asking {
+            assert_eq!(
+                f::find(view.tree(), Role::Paragraph, expected[0].as_bytes()).styles.as_slice(),
+                &[look::WAITING]
+            );
+        }
+        if *state == waiting {
+            assert_eq!(view.tick(), Some(Wall::from_nanos(1)));
+            assert_eq!(
+                f::find(view.tree(), Role::Paragraph, b"The code expires in 10 min.").styles.as_slice(),
+                &[look::HINT]
+            );
+        }
+    }
+}
+
+#[test]
+#[expect(clippy::disallowed_methods, reason = "the test reads the rendered frame as UTF-8 to inspect focus and order")]
+fn named_approval_outcomes_keep_loopbacks_lines_and_offer_a_focused_button() {
+    use super::approval::{asked, code, outcome};
+    use jig_client::{NotAsked, NotSignedIn, Taking};
+    use skein_lib::Wall;
+    use temper_client_domain::asked::State;
+    let waiting = State::Asked { code: code(), expires: Wall::from_nanos(600_000_000_000) };
+    let rows = [
+        (State::NotAsked(NotAsked::Refused), None, true),
+        (State::NotAsked(NotAsked::Busy), None, true),
+        (State::NotAsked(NotAsked::NotReady), None, true),
+        (State::NotAsked(NotAsked::Lost), None, true),
+        (waiting, Some(NotSignedIn::Approval(Taking::Refused)), true),
+        (waiting, Some(NotSignedIn::Approval(Taking::Expired)), true),
+        (waiting, Some(NotSignedIn::Approval(Taking::Used)), true),
+        (waiting, Some(NotSignedIn::Approval(Taking::Unknown)), true),
+        (waiting, Some(NotSignedIn::Full { sign_ins: 4, earliest: Wall::EPOCH, link_until: Wall::EPOCH }), true),
+        (waiting, Some(NotSignedIn::Busy), false),
+        (waiting, Some(NotSignedIn::NotReady), false),
+    ];
+    for (state, why, retry) in rows {
+        let mut root = asked(Some(state));
+        outcome(&mut root, why);
+        let mut named = f::view();
+        f::build(&mut named, &Tui::new(&f::name_origin()), &root);
+        let mut loopback = f::view();
+        f::build(&mut loopback, &Tui::new(f::ADDRESS), &root);
+        let lines = paragraphs(named.tree());
+        let first = lines.get(0).unwrap();
+        assert_eq!(lines.len(), 2);
+        if state != State::NotAsked(NotAsked::Refused) {
+            let same = f::find(loopback.tree(), Role::Paragraph, first);
+            assert_eq!(same.styles.as_slice(), f::find(named.tree(), Role::Paragraph, first).styles.as_slice());
+        }
+        assert_eq!(f::count(named.tree(), Role::Button), usize::from(retry));
+        if retry {
+            let button = f::find(named.tree(), Role::Button, b"Ask again");
+            let outcome = f::find(named.tree(), Role::Paragraph, first);
+            assert!(f::index(named.tree(), button.id) > f::index(named.tree(), outcome.id));
+            assert!(button.focus.is_some());
+            assert_eq!(crate::event(&named, button.id, skein_ui::Act::Press), Some(crate::Event::SignIn));
+            assert_eq!(crate::event(&named, button.id, skein_ui::Act::Submit), None);
+            let size = skein_ui_screen::Size { columns: 80, rows: 24 };
+            let mut focus = skein_ui_screen::Focus::default();
+            let mut frame = skein_ui_screen::Frame::new(size);
+            skein_ui_screen::render(
+                named.tree(),
+                &crate::theme(crate::Scheme::Dark, None),
+                size,
+                &mut focus,
+                &mut frame,
+            );
+            assert_eq!(focus.node, Some(button.id));
+            let bytes = frame.text();
+            let printed = core::str::from_utf8(&bytes).unwrap();
+            assert!(printed.contains("❯ Ask again"));
+            assert!(printed.find("Ask again").unwrap() > printed.find("Sign in this terminal").unwrap());
+        } else {
+            for node in named.tree().nodes() {
+                assert!(node.binding.is_none());
+            }
+        }
+    }
+}
+
+#[test]
+#[expect(
+    clippy::disallowed_methods,
+    reason = "the test reads the rendered frame as UTF-8 to inspect clipping and rows"
+)]
+fn a_long_named_sign_in_clips_only_its_place_and_address() {
+    use super::approval::{asked, code};
+    let origin = f::long_name_origin();
+    let root = asked(Some(temper_client_domain::asked::State::Asked {
+        code: code(),
+        expires: skein_lib::Wall::from_nanos(600_000_000_000),
+    }));
+    for opened in [true, false] {
+        let mut tui = Tui::new(&origin);
+        tui.step(Told::Browse);
+        tui.step(Told::Opened { opened });
+        let mut view = f::view();
+        f::build(&mut view, &tui, &root);
+        f::find(
+            view.tree(),
+            Role::Heading { level: 2 },
+            &skein_lib::bytes::concat(&[b"Sign in this terminal to ", &crate::place(&origin, false)]),
+        );
+        f::find(view.tree(), Role::Paragraph, &crate::approval_address(&origin, code()));
+        let size = skein_ui_screen::Size { columns: 80, rows: 24 };
+        let mut frame = skein_ui_screen::Frame::new(size);
+        skein_ui_screen::render(
+            view.tree(),
+            &crate::theme(crate::Scheme::Dark, None),
+            size,
+            &mut skein_ui_screen::Focus::default(),
+            &mut frame,
+        );
+        let bytes = frame.text();
+        let printed = core::str::from_utf8(&bytes).unwrap();
+        assert!(!printed.contains("cccc"), "no tail of the place or address wraps: {printed}");
+        assert!(!printed.contains(":8443"));
+        let mut lines = skein_lib::List::with_capacity(u32::from(size.rows));
+        for line in printed.lines() {
+            lines.push(line).unwrap();
+        }
+        assert!(lines.get(1).unwrap().contains("Sign in this terminal to aaaa"));
+        if opened {
+            assert!(
+                lines
+                    .get(2)
+                    .unwrap()
+                    .contains("A tab opened in your browser: type WDJB-MJHT there, then press Approve.")
+            );
+            assert!(lines.get(3).unwrap().contains("No tab? Open"));
+            assert!(lines.get(4).unwrap().contains("https://aaaa"));
+        } else {
+            assert!(lines.get(2).unwrap().contains("Open"));
+            assert!(lines.get(3).unwrap().contains("https://aaaa"));
+            assert!(
+                lines.get(4).unwrap().contains("in a browser signed in to temper, type WDJB-MJHT, then press Approve.")
+            );
+        }
+        assert!(lines.get(5).unwrap().contains("The code expires in 10 min."));
+    }
+}
+
 fn signing(tui: &mut Tui, signing: &Signing) {
     match signing {
         Signing::Idle => {}

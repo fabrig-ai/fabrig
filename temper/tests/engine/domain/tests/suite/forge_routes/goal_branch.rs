@@ -920,3 +920,34 @@ fn a_goal_merge_confirmed_while_its_observation_is_being_compared_is_not_drift()
     assert!(forge_hold(&world, &branch).expect("goal branch hold").drift.is_none());
     finish_siblings(&mut world, &goal);
 }
+
+#[test]
+fn a_design_answer_before_a_late_merge_record_keeps_the_goals_newer_tip() {
+    let (mut world, goal, branch, sibling) = merging_siblings();
+    let merged = branch_tip(&mut world, &branch);
+    let design = super::early_start::push(&mut world, &goal, merged, b"after-merge.md");
+    super::park_chat(&mut world, &goal);
+    for _ in 0..STEPS {
+        world.tick();
+        if forge_hold(&world, &branch).expect("held goal").design_writers.is_empty() {
+            break;
+        }
+    }
+    let beside = forge_hold(&world, &branch).expect("held goal").beside.expect("design read beside the merge");
+    assert_eq!(beside.head, translate::commit(design));
+    assert_eq!(beside.waiting, None);
+    world.release_write_answers();
+    world.until(Until::Ready);
+    observe_goal_branch(&mut world, &branch);
+    assert_eq!(branch_tip(&mut world, &branch), design);
+    let hold = forge_hold(&world, &branch).expect("held goal");
+    assert!(hold.drift.is_none(), "{hold:?}");
+    assert_eq!(hold.beside, None);
+    let name = hold.name.clone();
+    assert!(world.store.rows.values().any(|row| matches!(row,
+        Record::Forge { row } if matches!(row.as_ref(), forge_top::Stored::BranchHead(head)
+            if head.name == name && head.commit == translate::commit(design) && head.owned))));
+    assert!(!matches!(live_task(&world, goal.task).phase, tasks::Phase::Held { .. }));
+    assert!(!matches!(live_task(&world, sibling).phase, tasks::Phase::Held { .. }));
+    finish_siblings(&mut world, &goal);
+}

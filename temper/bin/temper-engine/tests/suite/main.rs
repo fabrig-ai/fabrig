@@ -160,7 +160,7 @@ fn help(text: &str) -> bool {
             .split_whitespace()
             .collect::<Vec<_>>()
             .join(" ")
-            .contains("Judges the workers alone over a copy; switches nothing.")
+            .contains("Judges the workers alone over links and small copies; switches nothing.")
         && ["serve", "versions", "upgrade", "checkpoint", "help"].iter().all(|word| rows.contains(word))
         && ["forge", "box", "program-login"].iter().all(|word| !rows.contains(word))
 }

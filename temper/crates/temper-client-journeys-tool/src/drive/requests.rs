@@ -43,7 +43,8 @@ impl Log {
         let listed = !document
             && !(method.as_ref() == b"GET"
                 && (path.starts_with(b"/bundle/")
-                    || [b"/robots.txt".as_slice(), b"/sw.js", b"/manifest.webmanifest"].contains(&path)));
+                    || [b"/robots.txt".as_slice(), b"/sw.js", b"/manifest.webmanifest", b"/favicon.ico"]
+                        .contains(&path)));
         let wave = listed.then(|| {
             self.requests
                 .iter()

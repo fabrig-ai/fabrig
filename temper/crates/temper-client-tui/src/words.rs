@@ -43,6 +43,12 @@ pub enum Word {
     ApprovalNotAskedRefused,
     ApprovalNotAskedBusy,
     ApprovalNotAskedDown,
+    ApprovalNameTab,
+    ApprovalNameNoTab,
+    ApprovalNameOpen,
+    ApprovalNameType,
+    ApprovalNameRefused,
+    AskAgain,
     Separator,
     Between,
     On,
@@ -220,8 +226,17 @@ pub enum Word {
     ChangePlaceholder,
     DraftPlaceholder,
     TellPlaceholder,
+    TlsUntrusted,
+    TlsExpired,
+    TlsNotYetValid,
+    TlsOtherName,
+    TlsFailed,
+    BuildRefused,
+    AnotherBuild,
+    ThisBuild,
+    StartBuild,
 }
-pub(crate) const ALL: [Word; 210] = [
+pub(crate) const ALL: [Word; 225] = [
     Word::Title,
     Word::State,
     Word::QuitKeys,
@@ -255,6 +270,12 @@ pub(crate) const ALL: [Word; 210] = [
     Word::ApprovalNotAskedRefused,
     Word::ApprovalNotAskedBusy,
     Word::ApprovalNotAskedDown,
+    Word::ApprovalNameTab,
+    Word::ApprovalNameNoTab,
+    Word::ApprovalNameOpen,
+    Word::ApprovalNameType,
+    Word::ApprovalNameRefused,
+    Word::AskAgain,
     Word::Separator,
     Word::Between,
     Word::On,
@@ -432,7 +453,19 @@ pub(crate) const ALL: [Word; 210] = [
     Word::DraftPlaceholder,
     Word::TellPlaceholder,
     Word::LinkPending,
+    Word::TlsUntrusted,
+    Word::TlsExpired,
+    Word::TlsNotYetValid,
+    Word::TlsOtherName,
+    Word::TlsFailed,
+    Word::BuildRefused,
+    Word::AnotherBuild,
+    Word::ThisBuild,
+    Word::StartBuild,
 ];
+
+// HTTPS, a 253-byte name and port, then /terminal.
+pub(crate) const APPROVAL_ADDRESS: u32 = 276;
 
 #[derive(Clone, Copy)]
 enum Slot {
@@ -478,16 +511,16 @@ impl Slot {
             Self::LogLine => crate::limits::LOG_LINE.saturating_mul(3),
             Self::End => 40,
             Self::Title => domain.client.domain.text,
-            Self::Address => 64,
+            Self::Address => 267,
             Self::Code => 9,
-            Self::ApprovalAddress => 95,
-            // http://, the bounded authority, /tasks/ and twenty task digits.
-            Self::PageAddress => 98,
+            Self::ApprovalAddress => APPROVAL_ADDRESS,
+            // HTTPS origin and /projects/PROJECT/team?role=TASK, at their integer bounds.
+            Self::PageAddress => 318,
             Self::Port => 5,
             Self::Span | Self::Label => 32,
             Self::Number => 20,
             Self::Moment | Self::Clock => 13,
-            Self::State => 11, // "Out of date" is the longest state word.
+            Self::State => 320, // A deployment's name and the last TLS failure's words.
         }
     }
 }
@@ -705,6 +738,21 @@ impl Word {
             Self::ChangePlaceholder => 207,
             Self::DraftPlaceholder => 208,
             Self::TellPlaceholder => 209,
+            Self::BuildRefused => 213,
+            Self::AnotherBuild => 214,
+            Self::ThisBuild => 215,
+            Self::StartBuild => 216,
+            Self::ApprovalNameTab => 217,
+            Self::ApprovalNameNoTab => 218,
+            Self::ApprovalNameOpen => 219,
+            Self::ApprovalNameType => 220,
+            Self::ApprovalNameRefused => 221,
+            Self::AskAgain => 222,
+            Self::TlsUntrusted => 223,
+            Self::TlsExpired => 224,
+            Self::TlsNotYetValid => 225,
+            Self::TlsOtherName => 226,
+            Self::TlsFailed => 227,
         }
     }
     const fn id(self) -> PhraseId {
@@ -713,6 +761,11 @@ impl Word {
     #[expect(clippy::too_many_lines, reason = "one exhaustive table holds every TUI phrase and its holes")]
     fn english(self) -> (&'static [&'static [u8]], &'static [Slot]) {
         match self {
+            Self::TlsUntrusted => (&[b"Offline: ", b"'s certificate isn't trusted"], &[Slot::Address]),
+            Self::TlsExpired => (&[b"Offline: ", b"'s certificate has expired"], &[Slot::Address]),
+            Self::TlsNotYetValid => (&[b"Offline: ", b"'s certificate isn't valid yet"], &[Slot::Address]),
+            Self::TlsOtherName => (&[b"Offline: ", b"'s certificate is for another name"], &[Slot::Address]),
+            Self::TlsFailed => (&[b"Offline: the secure connection to ", b" failed"], &[Slot::Address]),
             Self::ChangeTitle => (&[b"New change"], &[]),
             Self::DraftTitle => (&[b"Design session"], &[]),
             Self::TellTitle => (&[b"Tell temper"], &[]),
@@ -859,7 +912,7 @@ impl Word {
             Self::NeedsYou => (&[b"Needs you"], &[]),
             Self::Question => (&[b"?"], &[]),
             Self::OtherNeed => (&[b"\xe2\x80\xa2"], &[]),
-            Self::NoProject => (&[b"Setting temper up makes your first project: open http://", b" in a browser."], &[Slot::Address]),
+            Self::NoProject => (&[b"Setting temper up makes your first project: open ", b" in a browser."], &[Slot::Address]),
             Self::Needing => (&[b"", b" need you"], &[Slot::Number]),
             Self::NeedingCut => (&[b"", b"+ need you"], &[Slot::Number]),
             Self::AskTemper => (&[b"Ask temper"], &[]),
@@ -876,6 +929,10 @@ impl Word {
             Self::Else => (&[b"Tell it something else"], &[]),
             Self::Dots => (&[b"\xe2\x80\xa6"], &[]),
             Self::Numbered => (&[b"", b". "], &[Slot::Number]),
+            Self::BuildRefused => (&[b"Refused"], &[]),
+            Self::AnotherBuild => (&[b"", b" runs another build of temper."], &[Slot::Address]),
+            Self::ThisBuild => (&[b"This one is temper ", b"."], &[Slot::Title]),
+            Self::StartBuild => (&[b"Start the build ", b" runs, then try again."], &[Slot::Address]),
             Self::Title => (&[b"temper"], &[]),
             Self::State => (&[b"\xe2\x97\x8f ", b""], &[Slot::State]),
             Self::QuitKeys => (&[b"Ctrl+C to quit"], &[]),
@@ -896,6 +953,12 @@ impl Word {
             Self::Connecting => (&[b"Connecting to ", b""], &[Slot::Address]),
             Self::NotKept => (&[b"This sign-in could not be kept: the next temper asks for a link again."], &[]),
             Self::ApprovalAsking => (&[b"Asking temper for a code\xe2\x80\xa6"], &[]),
+            Self::ApprovalNameTab => (&[b"A tab opened in your browser: type ", b" there, then press Approve."], &[Slot::Code]),
+            Self::ApprovalNameNoTab => (&[b"No tab? Open"], &[]),
+            Self::ApprovalNameOpen => (&[b"Open"], &[]),
+            Self::ApprovalNameType => (&[b"in a browser signed in to temper, type ", b", then press Approve."], &[Slot::Code]),
+            Self::ApprovalNameRefused => (&[b"", b" doesn't sign terminals in from the browser."], &[Slot::Address]),
+            Self::AskAgain => (&[b"Ask again"], &[]),
             Self::ApprovalTab => (&[b"A tab opened in your browser. Check it shows"], &[]),
             Self::ApprovalCode => (&[b"", b", then press Approve."], &[Slot::Code]),
             Self::ApprovalNoTab => (&[b"No tab? Open ", b""], &[Slot::ApprovalAddress]),
