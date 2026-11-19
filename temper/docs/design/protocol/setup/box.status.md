@@ -2,7 +2,6 @@
 
 2026-11-19. Where the tree's code lags or departs from [box.md](box.md).
 
-- **Not yet:** 2: the block's link, and every fresh one, is at the link route, `/jig/v1/sign-in/link?secret=…` [in flight: change 10466].
 - **Not yet:** 5, *A fixed start*: no `--fixed-start` [in flight: change 7720].
 
 - **Departs:** 5: a malformed `TEMPER_INTERNAL_FAKE_BOX_PORTS` refuses even a

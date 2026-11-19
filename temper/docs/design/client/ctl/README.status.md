@@ -3,7 +3,6 @@
 2026-11-19. Remaining gaps between temper's code and [README.md](README.md).
 
 
-- **Not yet:** 6.1: `link --out` writes the link in the route's form [in flight: change 10466].
 - **Not yet:** 5: the spent-pool refusal's figures in ctl's amount, and its `reserved:` line [in flight: change 7671].
 
 `tools.md`, sections 2 and 3 have no known gap in a project's classes, by plan
