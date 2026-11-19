@@ -6570,15 +6570,23 @@ pub enum Shell {
     Browser,
 }
 #[derive(Clone, Debug)]
+#[expect(
+    clippy::partial_pub_fields,
+    reason = "the vocabulary is read-only so its capacities can be checked once; shell facts remain public"
+)]
 pub struct Words {
     /// The shell's minutes east of universal time (temper/docs/design/client/view.md, 6).
     pub zone_minutes: i32,
     pub shell: Shell,
-    pub book: Phrasebook,
+    pub(crate) book: Phrasebook,
     pub language: u16,
     pub connector: u16,
     /// The checked joined bound of ordinary Name holes.
     pub name_bytes: u32,
+    capacity_connector: u16,
+    ordinary: Option<u32>,
+    classes: Option<u32>,
+    follows: Option<u32>,
 }
 // A refusal joins only this closed vocabulary, bounded numbers and a calendar
 // clock: 256 bytes holds its longest three-sentence explanation whole.
@@ -7016,11 +7024,31 @@ impl Words {
                 .max(temper_client_domain::forge::change::ADDRESS_BYTES),
         };
         let book = Phrasebook::load(shapes.into_boxed(), Box::new([language]), &limits)?;
-        Ok(Words { zone_minutes: 0, shell, book, language: 0, connector, name_bytes: joined })
+        let mut words = Words {
+            zone_minutes: 0,
+            shell,
+            book,
+            language: 0,
+            connector,
+            name_bytes: joined,
+            capacity_connector: connector,
+            ordinary: None,
+            classes: None,
+            follows: None,
+        };
+        words.ordinary = words.walk_ordinary_capacity();
+        words.classes = words.walk_classes_capacity();
+        words.follows = words.walk_follows_capacity();
+        Ok(words)
+    }
+    /// The checked vocabulary; its capacities remain valid while words are reused.
+    #[must_use]
+    pub const fn book(&self) -> &Phrasebook {
+        &self.book
     }
     #[must_use]
     pub fn say(&self, word: Word, holes: &[Hole]) -> Box<[u8]> {
-        self.book.say(self.language, word.id(self.connector), holes).expect("checked forge phrase").text
+        self.book().say(self.language, word.id(self.connector), holes).expect("checked forge phrase").text
     }
     #[must_use]
     pub fn deadline(&self, at: skein_lib::Wall) -> Box<[u8]> {
@@ -7029,7 +7057,7 @@ impl Words {
     }
     #[must_use]
     pub fn say_word(&self, word: jig_client::words::Word, holes: &[Hole]) -> Box<[u8]> {
-        self.book.say(self.language, word.id(), holes).expect("checked jig word").text
+        self.book().say(self.language, word.id(), holes).expect("checked jig word").text
     }
     /// A run's supplied placement time in absolute UTC.
     #[must_use]
@@ -7046,12 +7074,13 @@ impl Words {
         word: temper_client_domain::forge::words::ResourceWord,
         holes: &[Hole],
     ) {
-        let text = self.book.say(self.language, word.id(self.connector), holes).expect("checked resource phrase").text;
+        let text =
+            self.book().say(self.language, word.id(self.connector), holes).expect("checked resource phrase").text;
         builder.text(Run::Plain, &text);
     }
     #[must_use]
     pub fn path_bytes(&self) -> u32 {
-        self.book
+        self.book()
             .capacity(temper_client_domain::forge::words::ResourceWord::Path.id(self.connector))
             .expect("checked path word")
     }
@@ -7061,21 +7090,30 @@ impl Words {
     }
     /// Grouped classes occur only in Settings and a proposal's items (client/pages/settings.md, 2).
     pub(crate) fn classes_capacity(&self) -> Option<u32> {
+        if self.connector == self.capacity_connector { self.classes } else { self.walk_classes_capacity() }
+    }
+    fn walk_classes_capacity(&self) -> Option<u32> {
         let mut most = 0;
         for word in [Word::ClassesDecide, Word::ClassesAsk, Word::ClassesAskAway, Word::HowReachAwayBut] {
-            most = most.max(self.book.capacity(word.id(self.connector))?);
+            most = most.max(self.book().capacity(word.id(self.connector))?);
         }
         Some(most)
     }
     /// Landing boxes are priced only on How work runs (client/pages/settings.md, 2).
     pub(crate) fn follows_capacity(&self) -> Option<u32> {
+        if self.connector == self.capacity_connector { self.follows } else { self.walk_follows_capacity() }
+    }
+    fn walk_follows_capacity(&self) -> Option<u32> {
         let mut most = 0;
         for word in FOLLOW_WORDS {
-            most = most.max(self.book.capacity(word.id(self.connector))?);
+            most = most.max(self.book().capacity(word.id(self.connector))?);
         }
         Some(most)
     }
     pub(crate) fn ordinary_capacity(&self) -> Option<u32> {
+        if self.connector == self.capacity_connector { self.ordinary } else { self.walk_ordinary_capacity() }
+    }
+    fn walk_ordinary_capacity(&self) -> Option<u32> {
         let mut most = 0;
         for word in ALL {
             if FOLLOW_WORDS.contains(&word)
@@ -7083,10 +7121,10 @@ impl Words {
             {
                 continue;
             }
-            most = most.max(self.book.capacity(word.id(self.connector))?);
+            most = most.max(self.book().capacity(word.id(self.connector))?);
         }
         for word in jig_client::words::ALL {
-            most = most.max(self.book.capacity(word.id())?);
+            most = most.max(self.book().capacity(word.id())?);
         }
         Some(most.max(forge::capacity(self)?).max(accounts::capacity(self)?))
     }

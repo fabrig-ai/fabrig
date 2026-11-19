@@ -370,8 +370,10 @@ def main(argv=None):
                         "tools/tiers/cpu-wrapper.c", "-o", str(wrapper)], env)
             if code:
                 raise FailedStep(f"CPU wrapper: exit {code}")
+        # A build alone takes no run's flag (tools/tiers/design.md, 1).
+        run_flags = [] if "--no-run" in extra else ["--no-fail-fast"]
         selection = [*package_arguments(package_map[profile]), "--profile", profile,
-                   "--no-fail-fast", *extra]
+                     *run_flags, *extra]
         if args.cpu:
             overlay = cpu["prepare"](args.cpu, profile, wrapper)
             command = [*command_prefix(env), "cargo", "nextest", "run", *overlay, *selection]

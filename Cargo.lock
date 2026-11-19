@@ -1258,7 +1258,14 @@ dependencies = [
  "jig-client-test-domain",
  "jig-client-test-protocol-wire",
  "jig-client-test-records",
+ "jig-client-view-codec",
+ "jig-ops-client-protocol-wire",
+ "jig-protocol-accounts",
+ "jig-protocol-engine-clients",
+ "jig-protocol-store",
+ "jig-protocol-worker-wire",
  "jig-test-profile",
+ "jig-test-store",
  "skein-codec",
  "skein-codegen",
  "skein-heap",
@@ -1351,8 +1358,10 @@ dependencies = [
  "jig-test-system",
  "sha2",
  "skein-codegen",
+ "skein-fork",
  "skein-lib",
  "skein-world",
+ "tempfile",
 ]
 
 [[package]]
@@ -1383,6 +1392,7 @@ dependencies = [
  "jig-test-store",
  "jig-test-store-files",
  "jig-test-system",
+ "skein-fork",
  "skein-lib",
  "skein-world",
  "smith-channel",
@@ -2082,6 +2092,7 @@ dependencies = [
  "jig-protocol-store",
  "jig-protocol-transcript",
  "skein-codec",
+ "skein-codegen",
  "skein-lib",
  "skein-oauth-issuer",
  "skein-rows",
@@ -2312,13 +2323,19 @@ name = "jig-store-codecs-world"
 version = "0.0.0"
 dependencies = [
  "jig-client-protocol-wire",
+ "jig-client-test-protocol-wire",
+ "jig-client-view-codec",
  "jig-domain-core",
  "jig-domain-fleet",
  "jig-domain-people",
  "jig-domain-tasks",
+ "jig-ops-client-protocol-wire",
+ "jig-protocol-accounts",
  "jig-protocol-config",
  "jig-protocol-config-fixtures",
+ "jig-protocol-engine-clients",
  "jig-protocol-store",
+ "jig-protocol-worker-wire",
  "jig-test-store",
  "skein-codec",
  "skein-codegen",
@@ -2353,11 +2370,13 @@ dependencies = [
  "jig-test-profile",
  "skein-codec",
  "skein-fake-machine",
+ "skein-fork",
  "skein-heap",
  "skein-io",
  "skein-kv",
  "skein-lib",
  "skein-sim",
+ "tempfile",
 ]
 
 [[package]]
@@ -2642,7 +2661,9 @@ dependencies = [
  "jig-test-domain",
  "jig-test-profile",
  "jig-test-store",
+ "skein-codec",
  "skein-fake-machine",
+ "skein-fork",
  "skein-io",
  "skein-kv",
  "skein-lib",
@@ -3139,6 +3160,7 @@ dependencies = [
  "skein-heap",
  "skein-lib",
  "skein-scratch",
+ "skein-ui-example-view-codec",
 ]
 
 [[package]]
@@ -5941,8 +5963,11 @@ name = "temper-client-journeys-kit"
 version = "0.0.0"
 dependencies = [
  "jig-client",
+ "jig-client-protocol-wire",
  "jig-client-shell-web",
+ "jig-client-test-records",
  "skein-lib",
+ "skein-ui",
  "skein-ui-screen",
  "skein-ui-screen-terminal",
  "skein-ui-web",

@@ -1,5 +1,7 @@
 //! Shared recorded worlds and file checks for journey-tool tests (tools/crates/design.md, 3.2).
 
+pub mod web;
+
 use skein_lib::{Time, Wall};
 use skein_ui_web::mapping::Primary;
 use std::{fs, path::Path};
@@ -162,9 +164,12 @@ impl TuiWorld {
         self.recorder.save(&mut self.host)
     }
     pub fn exchange(&mut self, approval: bool) -> skein_lib::Token {
+        Self::saved_exchange(&self.save(), approval)
+    }
+    #[must_use]
+    pub fn saved_exchange(file: &[u8], approval: bool) -> skein_lib::Token {
         use temper_client_shell_tui::journey::{Line, Sent, lines};
-        let file = self.save();
-        let records = lines(&file).expect("records");
+        let records = lines(file).expect("records");
         records
             .iter()
             .rev()

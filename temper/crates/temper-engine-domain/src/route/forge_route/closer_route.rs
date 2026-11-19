@@ -407,6 +407,7 @@ fn short_refusal(why: tasks::Refusal, left: u64, minimum: u64, room: u32) -> Sho
         | Refusal::Unproposable
         | Refusal::PersonRevision { .. }
         | Refusal::ResourceUnavailable
+        | Refusal::Unreported
         | Refusal::NotReady
         | Refusal::Unknown
         | Refusal::Busy

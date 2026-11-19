@@ -399,6 +399,37 @@ def install():
     require("platform", ["uname", "-a"])
 
 
+def wasm_compiler():
+    """Select wasm C tools (temper/docs/design/testing/macos.md, 6)."""
+    def query(name, command):
+        require(name, command)
+        return (Path(os.environ["RUNNER_TEMP"]) / "logs" / (name + ".log")).read_text()
+
+    installed = query("wasm-llvm-installed", ["brew", "list", "--formula", "--versions"])
+    formulae = []
+    for line in installed.splitlines():
+        match = re.fullmatch(r"(llvm(?:@\d+)?)\s+(\d+)[^\n]*", line)
+        if match:
+            formulae.append((int(match[2]), match[1]))
+    if formulae:
+        _, formula = max(formulae)
+    else:
+        require("wasm-llvm-install", ["env", "HOMEBREW_NO_AUTO_UPDATE=1", "brew", "install", "llvm"])
+        formula = "llvm"
+    prefix = Path(query("wasm-llvm-prefix", ["brew", "--prefix", formula]).strip())
+    clang = prefix / "bin/clang"
+    archive = prefix / "bin/llvm-ar"
+    for tool in (clang, archive):
+        if not tool.is_file():
+            raise ValueError(f"wasm compiler: missing {tool}")
+    targets = query("wasm-cc-targets", [clang, "--print-targets"])
+    if not any(line.split()[:1] == ["wasm32"] for line in targets.splitlines()):
+        raise ValueError(f"{clang}: no wasm32 target")
+    require("wasm-cc-version", [clang, "--version"])
+    with Path(os.environ["GITHUB_ENV"]).open("a") as stream:
+        stream.write(f"CC_wasm32_unknown_unknown={clang}\nAR_wasm32_unknown_unknown={archive}\n")
+
+
 def fetch_forge():
     # The first prepare's expected refusal is not a failed check (2).
     root = Path(os.environ["RUNNER_TEMP"]) / "fetch"
@@ -506,6 +537,7 @@ def main():
         sub.add_argument("part", choices=(*SETS["all"], "live"))
         sub.add_argument("destination", type=Path)
     commands.add_parser("install")
+    commands.add_parser("wasm-compiler")
     commands.add_parser("fetch-forge")
     commands.add_parser("prune")
     args = parser.parse_args()
@@ -543,6 +575,8 @@ def main():
             run_part(args.part, args.destination)
         elif args.command == "install":
             install()
+        elif args.command == "wasm-compiler":
+            wasm_compiler()
         elif args.command == "fetch-forge":
             fetch_forge()
         elif args.command == "prune":

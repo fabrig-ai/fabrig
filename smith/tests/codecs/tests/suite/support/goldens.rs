@@ -2,14 +2,18 @@
 
 pub fn all(family: &str, version: u16) -> Vec<skein_codegen::Golden> {
     let text = match (family, version) {
-        ("charter", 5) => include_str!("../../../../../crates/smith-charter/schema/charter-v5.schema"),
-        ("transcript", 7) => include_str!("../../../../../crates/smith-transcript/schema/transcript-v7.schema"),
-        ("channel", 11) => include_str!("../../../../../crates/smith-channel/schema/channel-v11.schema"),
+        ("charter", 5) => smith_charter::SCHEMA,
+        ("transcript", 7) => smith_transcript::SCHEMA,
+        ("channel", 11) => smith_channel::CHANNEL_SCHEMA,
         ("channel", 9) => include_str!("../../../../../crates/smith-channel/schema/kept/smith-channel-v9.schema"),
         ("channel", 7) => include_str!("../../../../../crates/smith-channel/schema/kept/smith-channel-v7.schema"),
         _ => panic!("no embedded schema for {family} v{version}"),
     };
-    skein_codegen::goldens(&skein_codegen::parse(text).expect("valid embedded schema"))
+    if (family == "channel" && version == 11) || family == "charter" || family == "transcript" {
+        skein_codegen::values(text).goldens.clone()
+    } else {
+        skein_codegen::goldens(&skein_codegen::parse(text).expect("valid embedded schema"))
+    }
 }
 
 pub fn bytes(family: &str, version: u16, name: &str) -> Vec<u8> {

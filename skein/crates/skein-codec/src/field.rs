@@ -5,8 +5,28 @@ use crate::{Path, Problem, Reason, Record, read_count, read_len, text_is_valid};
 use alloc::boxed::Box;
 use skein_lib::{Duration, List, Reader, Secret, Writer};
 
+mod sealed {
+    use alloc::boxed::Box;
+
+    pub trait Sealed<L, T> {}
+
+    impl<L> Sealed<L, u8> for super::U8 {}
+    impl<L> Sealed<L, u16> for super::U16 {}
+    impl<L> Sealed<L, u32> for super::U32 {}
+    impl<L> Sealed<L, u64> for super::U64 {}
+    impl<L> Sealed<L, bool> for super::Boolean {}
+    impl<L> Sealed<L, super::Duration> for super::Span {}
+    impl<L, const N: usize> Sealed<L, [u8; N]> for super::Fixed<N> {}
+    impl<L> Sealed<L, Box<[u8]>> for super::Bytes {}
+    impl<L> Sealed<L, super::Secret> for super::Hidden {}
+    impl<L> Sealed<L, Box<[u8]>> for super::Text {}
+    impl<L, T: super::Record<Limits = L>> Sealed<L, T> for super::Nested {}
+    impl<L, T, F: super::Field<L, T>> Sealed<L, super::List<T>> for super::Sequence<F> {}
+    impl<L, T, F: super::Field<L, T>> Sealed<L, Option<T>> for super::Optional<F> {}
+}
+
 /// A shape's typed operations, shared by the generic composition helpers.
-pub trait Field<L, T> {
+pub trait Field<L, T>: sealed::Sealed<L, T> {
     fn write(&self, value: &T, limits: &L, out: &mut Writer, path: Path<L>) -> Result<(), Problem<L>>;
     fn read(&self, limits: &L, reader: &mut Reader<'_>, path: Path<L>) -> Result<T, Problem<L>>;
 }

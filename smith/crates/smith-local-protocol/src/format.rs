@@ -5,8 +5,7 @@ use crate::{File, local_store_v1 as wire};
 use skein_lib::{Reader, Writer};
 use smith_local_domain::{Older, StoreFamily};
 
-#[expect(clippy::disallowed_macros, reason = "the marker embeds the local store's schema text")]
-const TEXT: &str = include_str!("../schema/local-store-v1.schema");
+const TEXT: &str = crate::SCHEMA;
 
 /// The generated family's complete fixed-size Layouts encoding bound.
 #[must_use]

@@ -10,6 +10,25 @@ pub(crate) mod times;
 pub(crate) mod words;
 
 #[test]
+fn capacity_checks_follow_the_public_connector() {
+    let mut words = fixtures::words();
+    let connector = words.connector;
+    let ordinary = words.ordinary_capacity();
+    let classes = words.classes_capacity();
+    let follows = words.follows_capacity();
+    words.connector = u16::MAX;
+    assert_eq!(words.ordinary_capacity(), None);
+    assert_eq!(words.classes_capacity(), classes);
+    assert_eq!(words.follows_capacity(), follows);
+    assert_eq!(words.capacity(), None);
+    assert!(crate::Limits::of(&fixtures::limits(), &words).is_none());
+    words.connector = connector;
+    assert_eq!(words.ordinary_capacity(), ordinary);
+    assert_eq!(words.classes_capacity(), classes);
+    assert_eq!(words.follows_capacity(), follows);
+}
+
+#[test]
 fn validity_accepts_stock_limits_and_refuses_invalid_edges() {
     let mut domain = fixtures::limits();
     let words = fixtures::words();

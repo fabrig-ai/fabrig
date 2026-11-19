@@ -2,6 +2,7 @@
 //! Decoded-bound literals use the generated types' sizes on a 64-bit target.
 
 use super::codec_memory::family;
+use crate::records::Record;
 
 const CAP: u64 = 64 * 1024 * 1024;
 
@@ -14,8 +15,8 @@ const CAP: u64 = 64 * 1024 * 1024;
 fn largest_roots_stay_within_decoded_bounds() {
     family!(
         CAP,
-        include_str!("../../schema/notes-v1.schema"),
-        crate::records, sealed,
+        skein_ui_example_view_codec::SCHEMA,
+        crate::records, lean,
         limits [
             note_title,
             note_body,

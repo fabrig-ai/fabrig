@@ -146,6 +146,17 @@
   names `tasks.subscriptions` as its own room's refusals do. A
   subscription that would leave no room in the task's inbox for its news
   is refused as any call past the inbox is, naming the inbox.
+- **A batch's resource reports** (jig's `jig/docs/design/domain/tasks/holds.md`,
+  2) answer every call that makes tasks, `change` and `delegate` among
+  them, within `tasks.hold_wait`. A batch the reports' table cannot hold
+  answers "Refused: busy: the engine keeps reports of at most 256
+  resources, those live tasks and waiting batches hold, and this batch's
+  do not fit; call again once tasks have ended", 256 the refusal's
+  bound. One whose reports have not all come by then answers "Refused:
+  task 9871 unreported: no report came within tasks.hold_wait for a
+  resource held by tasks 9871 9873; nothing was made; call again",
+  9871 its first member so named and the numbers its `blocked_by`, in
+  its order, each after a space as other refusals' tasks are.
 - **A charter's room** is `room.md`'s: smith's host part's budget, the
   allowance a charter is fitted to, how its brief is cut, what a refusal
   names when the rest alone doesn't fit, and the checks at start and at

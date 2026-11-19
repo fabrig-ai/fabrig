@@ -613,154 +613,161 @@ impl Limits {
     }
 }
 
-    #[expect(clippy::too_many_lines, reason = "one operation per schema field or limit")]
+const LIMIT_PATHS: &[Path] = &[
+    paths::TEXTS_RAW,
+    paths::TEXTS_KEY,
+    paths::TEXTS_WORDS,
+    paths::STAMP_NOTE,
+    paths::STAMP_ZONE,
+    paths::NEST_BLANKS,
+    paths::NEST_LIGHTS,
+    paths::NEST_MAYBE_LIGHTS,
+    paths::NEST_GRID,
+    paths::NEST_GRID,
+    paths::NEST_MAYBE_LIST,
+    paths::NEST_SHAPES,
+    paths::NEST_SECRETS,
+    paths::NEST_SECRETS,
+    paths::NEST_STAMPS,
+    paths::NEST_LABEL,
+    paths::EVERY_HELD,
+    paths::EVERY_ITEMS,
+    paths::LISTS_SMALL,
+    paths::LISTS_SHORT,
+    paths::LISTS_WORD,
+    paths::LISTS_LONG,
+    paths::LISTS_FLAG,
+    paths::LISTS_PAUSE,
+    paths::LISTS_TAG,
+    paths::LISTS_RAW,
+    paths::LISTS_RAW,
+    paths::LISTS_KEY,
+    paths::LISTS_KEY,
+    paths::LISTS_WORDS,
+    paths::LISTS_WORDS,
+    paths::LISTS_GRID,
+    paths::LISTS_GRID,
+    paths::LISTS_OPTIONS,
+    paths::LISTS_RECORDS,
+    paths::LISTS_ENUMS,
+    paths::OPTIONS_RAW,
+    paths::OPTIONS_KEY,
+    paths::OPTIONS_WORDS,
+    paths::OPTIONS_LISTS,
+    paths::HELD_RECORD_BYTES,
+    paths::HELD_ENUM_BYTES,
+    paths::HELD_RECORD_SECRET,
+    paths::HELD_ENUM_SECRET,
+    paths::HELD_BYTE_PIECES,
+    paths::HELD_SECRET_PIECES,
+    paths::LONG_RECORD_ALPHA,
+    paths::LONG_RECORD_BRAVO,
+    paths::LONG_RECORD_CHARLIE,
+    paths::LONG_RECORD_DELTA,
+    paths::LONG_RECORD_ECHO,
+    paths::LONG_RECORD_FOXTROT,
+    paths::LONG_RECORD_GOLF,
+    paths::LONG_RECORD_HOTEL,
+    paths::LONG_RECORD_INDIA,
+    paths::LONG_RECORD_JULIET,
+    paths::LONG_RECORD_KILO,
+    paths::LONG_RECORD_LIMA,
+    paths::LONG_RECORD_MIKE,
+    paths::LONG_RECORD_NOVEMBER,
+    paths::LONG_RECORD_OSCAR,
+    paths::LONG_RECORD_PAPA,
+    paths::LONG_RECORD_QUEBEC,
+    paths::LONG_RECORD_ROMEO,
+    paths::LONG_RECORD_SIERRA,
+    paths::LONG_RECORD_TANGO,
+    paths::LONG_RECORD_UNIFORM,
+    paths::LONG_RECORD_VICTOR,
+    paths::LONG_RECORD_WHISKEY,
+    paths::LONG_RECORD_XRAY,
+    paths::LONG_RECORD_YANKEE,
+    paths::LONG_RECORD_ZULU,
+    paths::LONG_RECORD_AMBER,
+    paths::LONG_RECORD_BIRCH,
+    paths::LONG_RECORD_CEDAR,
+    paths::LONG_RECORD_DUNE,
+    paths::LONG_RECORD_ACORN,
+    paths::LONG_RECORD_ANCHOR,
+    paths::LONG_RECORD_APRON,
+    paths::LONG_RECORD_ATLAS,
+    paths::LONG_RECORD_AUTUMN,
+    paths::LONG_RECORD_AVOCADO,
+    paths::LONG_RECORD_WALNUT,
+    paths::LONG_RECORD_BADGE,
+    paths::LONG_RECORD_BAMBOO,
+    paths::LONG_RECORD_BARREL,
+    paths::LONG_RECORD_BEACON,
+    paths::LONG_RECORD_BEETLE,
+    paths::LONG_RECORD_BRONZE,
+    paths::LONG_RECORD_CACTUS,
+    paths::LONG_RECORD_CAMERA,
+    paths::LONG_RECORD_CANYON,
+    paths::LONG_RECORD_CELLO,
+    paths::LONG_RECORD_COBALT,
+    paths::LONG_RECORD_COMET,
+    paths::LONG_RECORD_COMPASS,
+    paths::LONG_RECORD_CORAL,
+    paths::LONG_RECORD_COTTON,
+    paths::LONG_RECORD_COYOTE,
+    paths::LONG_RECORD_CRICKET,
+    paths::LONG_RECORD_CRYSTAL,
+    paths::LONG_RECORD_DRAGON,
+    paths::LONG_RECORD_ENGINE,
+    paths::LONG_RECORD_FALCON,
+    paths::LONG_RECORD_FEATHER,
+    paths::LONG_RECORD_FERN,
+    paths::LONG_RECORD_FLUTE,
+    paths::LONG_RECORD_FOSSIL,
+    paths::LONG_RECORD_GALAXY,
+    paths::LONG_RECORD_GARDEN,
+    paths::LONG_RECORD_GLACIER,
+    paths::LONG_RECORD_GRANITE,
+    paths::LONG_RECORD_HARBOR,
+    paths::LONG_RECORD_HAZEL,
+    paths::LONG_RECORD_HELMET,
+    paths::LONG_RECORD_HONEY,
+    paths::LONG_RECORD_IGLOO,
+    paths::LONG_RECORD_ISLAND,
+    paths::LONG_RECORD_IVORY,
+    paths::LONG_RECORD_JASMINE,
+    paths::LONG_RECORD_KETTLE,
+    paths::LONG_RECORD_LANTERN,
+    paths::LONG_RECORD_LEOPARD,
+    paths::LONG_RECORD_LOBSTER,
+    paths::LONG_RECORD_MAGNET,
+    paths::LONG_RECORD_MARBLE,
+    paths::LONG_RECORD_MEADOW,
+    paths::LONG_RECORD_MERMAID,
+    paths::LONG_RECORD_METEOR,
+    paths::LONG_RECORD_MOSAIC,
+    paths::LONG_RECORD_NAPKIN,
+    paths::LONG_RECORD_NECTAR,
+    paths::LONG_RECORD_OCEAN,
+    paths::LONG_RECORD_OLIVE,
+    paths::LONG_RECORD_ORCHID,
+    paths::LONG_RECORD_PANDA,
+    paths::LONG_RECORD_PENCIL,
+    paths::LONG_RECORD_PLANET,
+    paths::LONG_RECORD_POLLEN,
+    paths::LONG_RECORD_QUARTZ,
+    paths::LONG_RECORD_RAINBOW,
+    paths::LONG_RECORD_RAVEN,
+    paths::LONG_RECORD_ROCKET,
+    paths::LONG_RECORD_SAFFRON,
+    paths::LONG_RECORD_SALMON,
+    paths::LONG_RECORD_SATIN,
+];
+
 pub fn check_limits(limits: &Limits) -> Result<(), Problem> {
-    if limits.texts_raw > CEILINGS.texts_raw { return Err(Problem { path: paths::TEXTS_RAW, reason: skein_codec::Reason::Bound }); }
-    if limits.texts_key > CEILINGS.texts_key { return Err(Problem { path: paths::TEXTS_KEY, reason: skein_codec::Reason::Bound }); }
-    if limits.texts_words > CEILINGS.texts_words { return Err(Problem { path: paths::TEXTS_WORDS, reason: skein_codec::Reason::Bound }); }
-    if limits.stamp_note_some > CEILINGS.stamp_note_some { return Err(Problem { path: paths::STAMP_NOTE, reason: skein_codec::Reason::Bound }); }
-    if limits.stamp_zone > CEILINGS.stamp_zone { return Err(Problem { path: paths::STAMP_ZONE, reason: skein_codec::Reason::Bound }); }
-    if limits.nest_blanks > CEILINGS.nest_blanks { return Err(Problem { path: paths::NEST_BLANKS, reason: skein_codec::Reason::Bound }); }
-    if limits.nest_lights > CEILINGS.nest_lights { return Err(Problem { path: paths::NEST_LIGHTS, reason: skein_codec::Reason::Bound }); }
-    if limits.nest_maybe_lights > CEILINGS.nest_maybe_lights { return Err(Problem { path: paths::NEST_MAYBE_LIGHTS, reason: skein_codec::Reason::Bound }); }
-    if limits.nest_grid > CEILINGS.nest_grid { return Err(Problem { path: paths::NEST_GRID, reason: skein_codec::Reason::Bound }); }
-    if limits.nest_grid_item > CEILINGS.nest_grid_item { return Err(Problem { path: paths::NEST_GRID, reason: skein_codec::Reason::Bound }); }
-    if limits.nest_maybe_list_some > CEILINGS.nest_maybe_list_some { return Err(Problem { path: paths::NEST_MAYBE_LIST, reason: skein_codec::Reason::Bound }); }
-    if limits.nest_shapes > CEILINGS.nest_shapes { return Err(Problem { path: paths::NEST_SHAPES, reason: skein_codec::Reason::Bound }); }
-    if limits.nest_secrets > CEILINGS.nest_secrets { return Err(Problem { path: paths::NEST_SECRETS, reason: skein_codec::Reason::Bound }); }
-    if limits.nest_secrets_item > CEILINGS.nest_secrets_item { return Err(Problem { path: paths::NEST_SECRETS, reason: skein_codec::Reason::Bound }); }
-    if limits.nest_stamps > CEILINGS.nest_stamps { return Err(Problem { path: paths::NEST_STAMPS, reason: skein_codec::Reason::Bound }); }
-    if limits.nest_label_some > CEILINGS.nest_label_some { return Err(Problem { path: paths::NEST_LABEL, reason: skein_codec::Reason::Bound }); }
-    if limits.every_held > CEILINGS.every_held { return Err(Problem { path: paths::EVERY_HELD, reason: skein_codec::Reason::Bound }); }
-    if limits.every_items > CEILINGS.every_items { return Err(Problem { path: paths::EVERY_ITEMS, reason: skein_codec::Reason::Bound }); }
-    if limits.lists_small > CEILINGS.lists_small { return Err(Problem { path: paths::LISTS_SMALL, reason: skein_codec::Reason::Bound }); }
-    if limits.lists_short > CEILINGS.lists_short { return Err(Problem { path: paths::LISTS_SHORT, reason: skein_codec::Reason::Bound }); }
-    if limits.lists_word > CEILINGS.lists_word { return Err(Problem { path: paths::LISTS_WORD, reason: skein_codec::Reason::Bound }); }
-    if limits.lists_long > CEILINGS.lists_long { return Err(Problem { path: paths::LISTS_LONG, reason: skein_codec::Reason::Bound }); }
-    if limits.lists_flag > CEILINGS.lists_flag { return Err(Problem { path: paths::LISTS_FLAG, reason: skein_codec::Reason::Bound }); }
-    if limits.lists_pause > CEILINGS.lists_pause { return Err(Problem { path: paths::LISTS_PAUSE, reason: skein_codec::Reason::Bound }); }
-    if limits.lists_tag > CEILINGS.lists_tag { return Err(Problem { path: paths::LISTS_TAG, reason: skein_codec::Reason::Bound }); }
-    if limits.lists_raw > CEILINGS.lists_raw { return Err(Problem { path: paths::LISTS_RAW, reason: skein_codec::Reason::Bound }); }
-    if limits.lists_raw_item > CEILINGS.lists_raw_item { return Err(Problem { path: paths::LISTS_RAW, reason: skein_codec::Reason::Bound }); }
-    if limits.lists_key > CEILINGS.lists_key { return Err(Problem { path: paths::LISTS_KEY, reason: skein_codec::Reason::Bound }); }
-    if limits.lists_key_item > CEILINGS.lists_key_item { return Err(Problem { path: paths::LISTS_KEY, reason: skein_codec::Reason::Bound }); }
-    if limits.lists_words > CEILINGS.lists_words { return Err(Problem { path: paths::LISTS_WORDS, reason: skein_codec::Reason::Bound }); }
-    if limits.lists_words_item > CEILINGS.lists_words_item { return Err(Problem { path: paths::LISTS_WORDS, reason: skein_codec::Reason::Bound }); }
-    if limits.lists_grid > CEILINGS.lists_grid { return Err(Problem { path: paths::LISTS_GRID, reason: skein_codec::Reason::Bound }); }
-    if limits.lists_grid_item > CEILINGS.lists_grid_item { return Err(Problem { path: paths::LISTS_GRID, reason: skein_codec::Reason::Bound }); }
-    if limits.lists_options > CEILINGS.lists_options { return Err(Problem { path: paths::LISTS_OPTIONS, reason: skein_codec::Reason::Bound }); }
-    if limits.lists_records > CEILINGS.lists_records { return Err(Problem { path: paths::LISTS_RECORDS, reason: skein_codec::Reason::Bound }); }
-    if limits.lists_enums > CEILINGS.lists_enums { return Err(Problem { path: paths::LISTS_ENUMS, reason: skein_codec::Reason::Bound }); }
-    if limits.options_raw_some > CEILINGS.options_raw_some { return Err(Problem { path: paths::OPTIONS_RAW, reason: skein_codec::Reason::Bound }); }
-    if limits.options_key_some > CEILINGS.options_key_some { return Err(Problem { path: paths::OPTIONS_KEY, reason: skein_codec::Reason::Bound }); }
-    if limits.options_words_some > CEILINGS.options_words_some { return Err(Problem { path: paths::OPTIONS_WORDS, reason: skein_codec::Reason::Bound }); }
-    if limits.options_lists_some > CEILINGS.options_lists_some { return Err(Problem { path: paths::OPTIONS_LISTS, reason: skein_codec::Reason::Bound }); }
-    if limits.held_record_bytes > CEILINGS.held_record_bytes { return Err(Problem { path: paths::HELD_RECORD_BYTES, reason: skein_codec::Reason::Bound }); }
-    if limits.held_enum_bytes > CEILINGS.held_enum_bytes { return Err(Problem { path: paths::HELD_ENUM_BYTES, reason: skein_codec::Reason::Bound }); }
-    if limits.held_record_secret > CEILINGS.held_record_secret { return Err(Problem { path: paths::HELD_RECORD_SECRET, reason: skein_codec::Reason::Bound }); }
-    if limits.held_enum_secret > CEILINGS.held_enum_secret { return Err(Problem { path: paths::HELD_ENUM_SECRET, reason: skein_codec::Reason::Bound }); }
-    if limits.held_byte_pieces > CEILINGS.held_byte_pieces { return Err(Problem { path: paths::HELD_BYTE_PIECES, reason: skein_codec::Reason::Bound }); }
-    if limits.held_secret_pieces > CEILINGS.held_secret_pieces { return Err(Problem { path: paths::HELD_SECRET_PIECES, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_alpha > CEILINGS.long_record_alpha { return Err(Problem { path: paths::LONG_RECORD_ALPHA, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_bravo > CEILINGS.long_record_bravo { return Err(Problem { path: paths::LONG_RECORD_BRAVO, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_charlie > CEILINGS.long_record_charlie { return Err(Problem { path: paths::LONG_RECORD_CHARLIE, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_delta > CEILINGS.long_record_delta { return Err(Problem { path: paths::LONG_RECORD_DELTA, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_echo > CEILINGS.long_record_echo { return Err(Problem { path: paths::LONG_RECORD_ECHO, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_foxtrot > CEILINGS.long_record_foxtrot { return Err(Problem { path: paths::LONG_RECORD_FOXTROT, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_golf > CEILINGS.long_record_golf { return Err(Problem { path: paths::LONG_RECORD_GOLF, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_hotel > CEILINGS.long_record_hotel { return Err(Problem { path: paths::LONG_RECORD_HOTEL, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_india > CEILINGS.long_record_india { return Err(Problem { path: paths::LONG_RECORD_INDIA, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_juliet > CEILINGS.long_record_juliet { return Err(Problem { path: paths::LONG_RECORD_JULIET, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_kilo > CEILINGS.long_record_kilo { return Err(Problem { path: paths::LONG_RECORD_KILO, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_lima > CEILINGS.long_record_lima { return Err(Problem { path: paths::LONG_RECORD_LIMA, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_mike > CEILINGS.long_record_mike { return Err(Problem { path: paths::LONG_RECORD_MIKE, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_november > CEILINGS.long_record_november { return Err(Problem { path: paths::LONG_RECORD_NOVEMBER, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_oscar > CEILINGS.long_record_oscar { return Err(Problem { path: paths::LONG_RECORD_OSCAR, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_papa > CEILINGS.long_record_papa { return Err(Problem { path: paths::LONG_RECORD_PAPA, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_quebec > CEILINGS.long_record_quebec { return Err(Problem { path: paths::LONG_RECORD_QUEBEC, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_romeo > CEILINGS.long_record_romeo { return Err(Problem { path: paths::LONG_RECORD_ROMEO, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_sierra > CEILINGS.long_record_sierra { return Err(Problem { path: paths::LONG_RECORD_SIERRA, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_tango > CEILINGS.long_record_tango { return Err(Problem { path: paths::LONG_RECORD_TANGO, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_uniform > CEILINGS.long_record_uniform { return Err(Problem { path: paths::LONG_RECORD_UNIFORM, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_victor > CEILINGS.long_record_victor { return Err(Problem { path: paths::LONG_RECORD_VICTOR, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_whiskey > CEILINGS.long_record_whiskey { return Err(Problem { path: paths::LONG_RECORD_WHISKEY, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_xray > CEILINGS.long_record_xray { return Err(Problem { path: paths::LONG_RECORD_XRAY, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_yankee > CEILINGS.long_record_yankee { return Err(Problem { path: paths::LONG_RECORD_YANKEE, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_zulu > CEILINGS.long_record_zulu { return Err(Problem { path: paths::LONG_RECORD_ZULU, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_amber > CEILINGS.long_record_amber { return Err(Problem { path: paths::LONG_RECORD_AMBER, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_birch > CEILINGS.long_record_birch { return Err(Problem { path: paths::LONG_RECORD_BIRCH, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_cedar > CEILINGS.long_record_cedar { return Err(Problem { path: paths::LONG_RECORD_CEDAR, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_dune > CEILINGS.long_record_dune { return Err(Problem { path: paths::LONG_RECORD_DUNE, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_acorn > CEILINGS.long_record_acorn { return Err(Problem { path: paths::LONG_RECORD_ACORN, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_anchor > CEILINGS.long_record_anchor { return Err(Problem { path: paths::LONG_RECORD_ANCHOR, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_apron > CEILINGS.long_record_apron { return Err(Problem { path: paths::LONG_RECORD_APRON, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_atlas > CEILINGS.long_record_atlas { return Err(Problem { path: paths::LONG_RECORD_ATLAS, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_autumn > CEILINGS.long_record_autumn { return Err(Problem { path: paths::LONG_RECORD_AUTUMN, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_avocado > CEILINGS.long_record_avocado { return Err(Problem { path: paths::LONG_RECORD_AVOCADO, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_walnut > CEILINGS.long_record_walnut { return Err(Problem { path: paths::LONG_RECORD_WALNUT, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_badge > CEILINGS.long_record_badge { return Err(Problem { path: paths::LONG_RECORD_BADGE, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_bamboo > CEILINGS.long_record_bamboo { return Err(Problem { path: paths::LONG_RECORD_BAMBOO, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_barrel > CEILINGS.long_record_barrel { return Err(Problem { path: paths::LONG_RECORD_BARREL, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_beacon > CEILINGS.long_record_beacon { return Err(Problem { path: paths::LONG_RECORD_BEACON, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_beetle > CEILINGS.long_record_beetle { return Err(Problem { path: paths::LONG_RECORD_BEETLE, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_bronze > CEILINGS.long_record_bronze { return Err(Problem { path: paths::LONG_RECORD_BRONZE, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_cactus > CEILINGS.long_record_cactus { return Err(Problem { path: paths::LONG_RECORD_CACTUS, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_camera > CEILINGS.long_record_camera { return Err(Problem { path: paths::LONG_RECORD_CAMERA, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_canyon > CEILINGS.long_record_canyon { return Err(Problem { path: paths::LONG_RECORD_CANYON, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_cello > CEILINGS.long_record_cello { return Err(Problem { path: paths::LONG_RECORD_CELLO, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_cobalt > CEILINGS.long_record_cobalt { return Err(Problem { path: paths::LONG_RECORD_COBALT, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_comet > CEILINGS.long_record_comet { return Err(Problem { path: paths::LONG_RECORD_COMET, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_compass > CEILINGS.long_record_compass { return Err(Problem { path: paths::LONG_RECORD_COMPASS, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_coral > CEILINGS.long_record_coral { return Err(Problem { path: paths::LONG_RECORD_CORAL, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_cotton > CEILINGS.long_record_cotton { return Err(Problem { path: paths::LONG_RECORD_COTTON, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_coyote > CEILINGS.long_record_coyote { return Err(Problem { path: paths::LONG_RECORD_COYOTE, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_cricket > CEILINGS.long_record_cricket { return Err(Problem { path: paths::LONG_RECORD_CRICKET, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_crystal > CEILINGS.long_record_crystal { return Err(Problem { path: paths::LONG_RECORD_CRYSTAL, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_dragon > CEILINGS.long_record_dragon { return Err(Problem { path: paths::LONG_RECORD_DRAGON, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_engine > CEILINGS.long_record_engine { return Err(Problem { path: paths::LONG_RECORD_ENGINE, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_falcon > CEILINGS.long_record_falcon { return Err(Problem { path: paths::LONG_RECORD_FALCON, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_feather > CEILINGS.long_record_feather { return Err(Problem { path: paths::LONG_RECORD_FEATHER, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_fern > CEILINGS.long_record_fern { return Err(Problem { path: paths::LONG_RECORD_FERN, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_flute > CEILINGS.long_record_flute { return Err(Problem { path: paths::LONG_RECORD_FLUTE, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_fossil > CEILINGS.long_record_fossil { return Err(Problem { path: paths::LONG_RECORD_FOSSIL, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_galaxy > CEILINGS.long_record_galaxy { return Err(Problem { path: paths::LONG_RECORD_GALAXY, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_garden > CEILINGS.long_record_garden { return Err(Problem { path: paths::LONG_RECORD_GARDEN, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_glacier > CEILINGS.long_record_glacier { return Err(Problem { path: paths::LONG_RECORD_GLACIER, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_granite > CEILINGS.long_record_granite { return Err(Problem { path: paths::LONG_RECORD_GRANITE, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_harbor > CEILINGS.long_record_harbor { return Err(Problem { path: paths::LONG_RECORD_HARBOR, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_hazel > CEILINGS.long_record_hazel { return Err(Problem { path: paths::LONG_RECORD_HAZEL, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_helmet > CEILINGS.long_record_helmet { return Err(Problem { path: paths::LONG_RECORD_HELMET, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_honey > CEILINGS.long_record_honey { return Err(Problem { path: paths::LONG_RECORD_HONEY, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_igloo > CEILINGS.long_record_igloo { return Err(Problem { path: paths::LONG_RECORD_IGLOO, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_island > CEILINGS.long_record_island { return Err(Problem { path: paths::LONG_RECORD_ISLAND, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_ivory > CEILINGS.long_record_ivory { return Err(Problem { path: paths::LONG_RECORD_IVORY, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_jasmine > CEILINGS.long_record_jasmine { return Err(Problem { path: paths::LONG_RECORD_JASMINE, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_kettle > CEILINGS.long_record_kettle { return Err(Problem { path: paths::LONG_RECORD_KETTLE, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_lantern > CEILINGS.long_record_lantern { return Err(Problem { path: paths::LONG_RECORD_LANTERN, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_leopard > CEILINGS.long_record_leopard { return Err(Problem { path: paths::LONG_RECORD_LEOPARD, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_lobster > CEILINGS.long_record_lobster { return Err(Problem { path: paths::LONG_RECORD_LOBSTER, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_magnet > CEILINGS.long_record_magnet { return Err(Problem { path: paths::LONG_RECORD_MAGNET, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_marble > CEILINGS.long_record_marble { return Err(Problem { path: paths::LONG_RECORD_MARBLE, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_meadow > CEILINGS.long_record_meadow { return Err(Problem { path: paths::LONG_RECORD_MEADOW, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_mermaid > CEILINGS.long_record_mermaid { return Err(Problem { path: paths::LONG_RECORD_MERMAID, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_meteor > CEILINGS.long_record_meteor { return Err(Problem { path: paths::LONG_RECORD_METEOR, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_mosaic > CEILINGS.long_record_mosaic { return Err(Problem { path: paths::LONG_RECORD_MOSAIC, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_napkin > CEILINGS.long_record_napkin { return Err(Problem { path: paths::LONG_RECORD_NAPKIN, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_nectar > CEILINGS.long_record_nectar { return Err(Problem { path: paths::LONG_RECORD_NECTAR, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_ocean > CEILINGS.long_record_ocean { return Err(Problem { path: paths::LONG_RECORD_OCEAN, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_olive > CEILINGS.long_record_olive { return Err(Problem { path: paths::LONG_RECORD_OLIVE, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_orchid > CEILINGS.long_record_orchid { return Err(Problem { path: paths::LONG_RECORD_ORCHID, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_panda > CEILINGS.long_record_panda { return Err(Problem { path: paths::LONG_RECORD_PANDA, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_pencil > CEILINGS.long_record_pencil { return Err(Problem { path: paths::LONG_RECORD_PENCIL, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_planet > CEILINGS.long_record_planet { return Err(Problem { path: paths::LONG_RECORD_PLANET, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_pollen > CEILINGS.long_record_pollen { return Err(Problem { path: paths::LONG_RECORD_POLLEN, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_quartz > CEILINGS.long_record_quartz { return Err(Problem { path: paths::LONG_RECORD_QUARTZ, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_rainbow > CEILINGS.long_record_rainbow { return Err(Problem { path: paths::LONG_RECORD_RAINBOW, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_raven > CEILINGS.long_record_raven { return Err(Problem { path: paths::LONG_RECORD_RAVEN, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_rocket > CEILINGS.long_record_rocket { return Err(Problem { path: paths::LONG_RECORD_ROCKET, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_saffron > CEILINGS.long_record_saffron { return Err(Problem { path: paths::LONG_RECORD_SAFFRON, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_salmon > CEILINGS.long_record_salmon { return Err(Problem { path: paths::LONG_RECORD_SALMON, reason: skein_codec::Reason::Bound }); }
-    if limits.long_record_satin > CEILINGS.long_record_satin { return Err(Problem { path: paths::LONG_RECORD_SATIN, reason: skein_codec::Reason::Bound }); }
+    for ((value, ceiling), path) in limits.values().as_slice().iter().zip(CEILING_VALUES).zip(LIMIT_PATHS) {
+        if value > ceiling {
+            return Err(path.problem(skein_codec::Reason::Bound));
+        }
+    }
     Ok(())
 }
 

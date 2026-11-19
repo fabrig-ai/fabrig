@@ -7,24 +7,19 @@ pub(super) fn encode_key(value: &d::Key) -> w::Key {
     let origin = match value.origin {
         d::Purpose::Procedure => w::Purpose::Procedure,
         d::Purpose::Projection => w::Purpose::Projection,
-        d::Purpose::Call { attempt, completion, position } => w::Purpose::Call(
-            w::CallPurpose::new(&w::CEILINGS, w::CallPurposeParts { attempt, completion, position })
-                .expect("call identity fits schema"),
-        ),
+        d::Purpose::Call { attempt, completion, position } => {
+            w::Purpose::Call(w::CallPurpose { attempt, completion, position })
+        }
     };
-    w::Key::new(
-        &w::CEILINGS,
-        w::KeyParts { origin, deployment: value.deployment, task: value.task, purpose: value.purpose },
-    )
-    .expect("admitted fields fit schema")
+    w::Key { origin, deployment: value.deployment, task: value.task, purpose: value.purpose }
 }
 pub(super) fn decode_key(value: w::Key, _limits: &d::Limits) -> d::Key {
-    let w::KeyParts { origin, deployment, task, purpose } = value.into_parts();
+    let w::Key { origin, deployment, task, purpose } = value;
     let origin = match origin {
         w::Purpose::Procedure => d::Purpose::Procedure,
         w::Purpose::Projection => d::Purpose::Projection,
         w::Purpose::Call(call) => {
-            let w::CallPurposeParts { attempt, completion, position } = call.into_parts();
+            let w::CallPurpose { attempt, completion, position } = call;
             d::Purpose::Call { attempt, completion, position }
         }
     };
@@ -32,24 +27,20 @@ pub(super) fn decode_key(value: w::Key, _limits: &d::Limits) -> d::Key {
 }
 pub(super) fn encode_effect(value: &d::Effect) -> w::Effect {
     let d::Effect { kind, resources, purpose, condition, target, state } = value;
-    w::Effect::new(
-        &w::CEILINGS,
-        w::EffectParts {
-            kind: *kind,
-            resources: encode_effect_resources(resources),
-            purpose: *purpose,
-            condition: match condition {
-                Some(value) => Some(*value),
-                None => None,
-            },
-            target: *target,
-            state: *state,
+    w::Effect {
+        kind: *kind,
+        resources: encode_effect_resources(resources),
+        purpose: *purpose,
+        condition: match condition {
+            Some(value) => Some(*value),
+            None => None,
         },
-    )
-    .expect("admitted fields fit schema")
+        target: *target,
+        state: *state,
+    }
 }
 pub(super) fn decode_effect(value: w::Effect, limits: &d::Limits) -> Result<d::Effect, Undecodable> {
-    let w::EffectParts { kind, resources, purpose, condition, target, state } = value.into_parts();
+    let w::Effect { kind, resources, purpose, condition, target, state } = value;
     Ok(d::Effect {
         kind,
         resources: decode_effect_resources(resources, limits)?,
@@ -64,55 +55,37 @@ pub(super) fn decode_effect(value: w::Effect, limits: &d::Limits) -> Result<d::E
 }
 pub(super) fn encode_attempt(value: &d::Attempt) -> w::Attempt {
     let d::Attempt { number, sent, deadline } = value;
-    w::Attempt::new(
-        &w::CEILINGS,
-        w::AttemptParts { number: *number, sent: sent.as_nanos(), deadline: deadline.as_nanos() },
-    )
-    .expect("admitted fields fit schema")
+    w::Attempt { number: *number, sent: sent.as_nanos(), deadline: deadline.as_nanos() }
 }
 pub(super) fn decode_attempt(value: w::Attempt, _limits: &d::Limits) -> d::Attempt {
-    let w::AttemptParts { number, sent, deadline } = value.into_parts();
+    let w::Attempt { number, sent, deadline } = value;
     d::Attempt { number, sent: Wall::from_nanos(sent), deadline: Wall::from_nanos(deadline) }
 }
 pub(super) fn encode_procedure_state(value: &d::ProcedureState) -> w::ProcedureState {
     let d::ProcedureState { project, task, number, resource, index, steps, awaiting, deadline, delegate, revision } =
         value;
-    w::ProcedureState::new(
-        &w::CEILINGS,
-        w::ProcedureStateParts {
-            project: *project,
-            task: *task,
-            number: *number,
-            resource: encode_resource_path(resource),
-            index: *index,
-            steps: *steps,
-            awaiting: *awaiting,
-            delegate: *delegate,
-            revision: *revision,
-            deadline: match deadline {
-                Some(value) => Some(value.as_nanos()),
-                None => None,
-            },
+    w::ProcedureState {
+        project: *project,
+        task: *task,
+        number: *number,
+        resource: encode_resource_path(resource),
+        index: *index,
+        steps: *steps,
+        awaiting: *awaiting,
+        delegate: *delegate,
+        revision: *revision,
+        deadline: match deadline {
+            Some(value) => Some(value.as_nanos()),
+            None => None,
         },
-    )
-    .expect("admitted fields fit schema")
+    }
 }
 pub(super) fn decode_procedure_state(
     value: w::ProcedureState,
     limits: &d::Limits,
 ) -> Result<d::ProcedureState, Undecodable> {
-    let w::ProcedureStateParts {
-        project,
-        task,
-        number,
-        resource,
-        index,
-        steps,
-        awaiting,
-        deadline,
-        delegate,
-        revision,
-    } = value.into_parts();
+    let w::ProcedureState { project, task, number, resource, index, steps, awaiting, deadline, delegate, revision } =
+        value;
     Ok(d::ProcedureState {
         project,
         task,
@@ -131,33 +104,28 @@ pub(super) fn decode_procedure_state(
 }
 pub(super) fn encode_application_object(value: &d::ApplicationObject) -> w::ApplicationObject {
     let d::ApplicationObject { revision, value } = value;
-    w::ApplicationObject::new(&w::CEILINGS, w::ApplicationObjectParts { revision: *revision, value: *value })
-        .expect("admitted fields fit schema")
+    w::ApplicationObject { revision: *revision, value: *value }
 }
 pub(super) fn decode_application_object(value: w::ApplicationObject, _limits: &d::Limits) -> d::ApplicationObject {
-    let w::ApplicationObjectParts { revision, value } = value.into_parts();
+    let w::ApplicationObject { revision, value } = value;
     d::ApplicationObject { revision, value }
 }
 pub(super) fn encode_outbox_entry(value: &d::OutboxEntry) -> w::OutboxEntry {
     let d::OutboxEntry { number, task, key, effect, attempt, phase } = value;
-    w::OutboxEntry::new(
-        &w::CEILINGS,
-        w::OutboxEntryParts {
-            number: *number,
-            task: *task,
-            key: encode_key(key),
-            effect: encode_effect(effect),
-            attempt: match attempt {
-                Some(value) => Some(encode_attempt(value)),
-                None => None,
-            },
-            phase: encode_effect_phase(*phase),
+    w::OutboxEntry {
+        number: *number,
+        task: *task,
+        key: encode_key(key),
+        effect: encode_effect(effect),
+        attempt: match attempt {
+            Some(value) => Some(encode_attempt(value)),
+            None => None,
         },
-    )
-    .expect("admitted fields fit schema")
+        phase: encode_effect_phase(*phase),
+    }
 }
 pub(super) fn decode_outbox_entry(value: w::OutboxEntry, limits: &d::Limits) -> Result<d::OutboxEntry, Undecodable> {
-    let w::OutboxEntryParts { number, task, key, effect, attempt, phase } = value.into_parts();
+    let w::OutboxEntry { number, task, key, effect, attempt, phase } = value;
     Ok(d::OutboxEntry {
         number,
         task,
@@ -172,21 +140,17 @@ pub(super) fn decode_outbox_entry(value: w::OutboxEntry, limits: &d::Limits) -> 
 }
 pub(super) fn encode_application_release(value: &d::ApplicationRelease) -> w::ApplicationRelease {
     let d::ApplicationRelease { task, revision, again } = value;
-    w::ApplicationRelease::new(
-        &w::CEILINGS,
-        w::ApplicationReleaseParts {
-            task: *task,
-            revision: *revision,
-            again: match again {
-                Some(value) => Some(*value),
-                None => None,
-            },
+    w::ApplicationRelease {
+        task: *task,
+        revision: *revision,
+        again: match again {
+            Some(value) => Some(*value),
+            None => None,
         },
-    )
-    .expect("admitted fields fit schema")
+    }
 }
 pub(super) fn decode_application_release(value: w::ApplicationRelease) -> d::ApplicationRelease {
-    let w::ApplicationReleaseParts { task, revision, again } = value.into_parts();
+    let w::ApplicationRelease { task, revision, again } = value;
     d::ApplicationRelease {
         task,
         revision,
@@ -198,22 +162,18 @@ pub(super) fn decode_application_release(value: w::ApplicationRelease) -> d::App
 }
 pub(super) fn encode_application_request(value: &d::ApplicationRequest) -> w::ApplicationRequest {
     let d::ApplicationRequest { object, revision, value, release } = value;
-    w::ApplicationRequest::new(
-        &w::CEILINGS,
-        w::ApplicationRequestParts {
-            object: *object,
-            revision: *revision,
-            value: Some(*value),
-            release: match release {
-                Some(value) => Some(encode_application_release(value)),
-                None => None,
-            },
+    w::ApplicationRequest {
+        object: *object,
+        revision: *revision,
+        value: Some(*value),
+        release: match release {
+            Some(value) => Some(encode_application_release(value)),
+            None => None,
         },
-    )
-    .expect("admitted fields fit schema")
+    }
 }
 pub(super) fn decode_application_request(value: w::ApplicationRequest) -> Result<d::ApplicationRequest, Undecodable> {
-    let w::ApplicationRequestParts { object, revision, value, release } = value.into_parts();
+    let w::ApplicationRequest { object, revision, value, release } = value;
     let value = value.ok_or(Undecodable)?;
     Ok(d::ApplicationRequest {
         object,
@@ -227,21 +187,17 @@ pub(super) fn decode_application_request(value: w::ApplicationRequest) -> Result
 }
 pub(super) fn encode_fact(value: &d::Fact) -> w::Fact {
     let d::Fact { state, observed, pending } = value;
-    w::Fact::new(
-        &w::CEILINGS,
-        w::FactParts {
-            state: match state {
-                Some(value) => Some(*value),
-                None => None,
-            },
-            observed: observed.as_nanos(),
-            pending: *pending,
+    w::Fact {
+        state: match state {
+            Some(value) => Some(*value),
+            None => None,
         },
-    )
-    .expect("admitted fields fit schema")
+        observed: observed.as_nanos(),
+        pending: *pending,
+    }
 }
 pub(super) fn decode_fact(value: w::Fact, _limits: &d::Limits) -> d::Fact {
-    let w::FactParts { state, observed, pending } = value.into_parts();
+    let w::Fact { state, observed, pending } = value;
     d::Fact {
         state: match state {
             Some(value) => Some(value),
@@ -253,26 +209,22 @@ pub(super) fn decode_fact(value: w::Fact, _limits: &d::Limits) -> d::Fact {
 }
 pub(super) fn encode_description(value: &d::Description) -> w::Description {
     let d::Description { kind, resources, purpose, condition, form, recovery, price, state } = value;
-    w::Description::new(
-        &w::CEILINGS,
-        w::DescriptionParts {
-            kind: *kind,
-            resources: encode_description_resources(resources),
-            purpose: *purpose,
-            condition: *condition,
-            form: encode_form(*form),
-            recovery: encode_recovery(*recovery),
-            price: match price {
-                Some(value) => Some(*value),
-                None => None,
-            },
-            state: *state,
+    w::Description {
+        kind: *kind,
+        resources: encode_description_resources(resources),
+        purpose: *purpose,
+        condition: *condition,
+        form: encode_form(*form),
+        recovery: encode_recovery(*recovery),
+        price: match price {
+            Some(value) => Some(*value),
+            None => None,
         },
-    )
-    .expect("admitted fields fit schema")
+        state: *state,
+    }
 }
 pub(super) fn decode_description(value: w::Description, limits: &d::Limits) -> Result<d::Description, Undecodable> {
-    let w::DescriptionParts { kind, resources, purpose, condition, form, recovery, price, state } = value.into_parts();
+    let w::Description { kind, resources, purpose, condition, form, recovery, price, state } = value;
     Ok(d::Description {
         kind,
         resources: decode_description_resources(resources, limits)?,
@@ -289,25 +241,21 @@ pub(super) fn decode_description(value: w::Description, limits: &d::Limits) -> R
 }
 pub(super) fn encode_client_resource(value: &d::ClientResource) -> w::ClientResource {
     let d::ClientResource { path, role, hold, fact } = value;
-    w::ClientResource::new(
-        &w::CEILINGS,
-        w::ClientResourceParts {
-            path: encode_resource_path(path),
-            role: encode_resource_role(*role),
-            hold: encode_hold(*hold),
-            fact: match fact {
-                Some(value) => Some(encode_fact(value)),
-                None => None,
-            },
+    w::ClientResource {
+        path: encode_resource_path(path),
+        role: encode_resource_role(*role),
+        hold: encode_hold(*hold),
+        fact: match fact {
+            Some(value) => Some(encode_fact(value)),
+            None => None,
         },
-    )
-    .expect("admitted fields fit schema")
+    }
 }
 pub(super) fn decode_client_resource(
     value: w::ClientResource,
     limits: &d::Limits,
 ) -> Result<d::ClientResource, Undecodable> {
-    let w::ClientResourceParts { path, role, hold, fact } = value.into_parts();
+    let w::ClientResource { path, role, hold, fact } = value;
     Ok(d::ClientResource {
         path: decode_resource_path(path, limits)?,
         role: decode_resource_role(role, limits),
@@ -320,53 +268,42 @@ pub(super) fn decode_client_resource(
 }
 pub(super) fn encode_application_outcome(value: &d::ApplicationOutcome) -> w::ApplicationOutcome {
     match value {
-        d::ApplicationOutcome::Changed { object, now } => w::ApplicationOutcome::Changed(
-            w::ApplicationOutcomeChanged::new(
-                &w::CEILINGS,
-                w::ApplicationOutcomeChangedParts { object: *object, now: encode_application_object(now) },
-            )
-            .expect("admitted fields fit schema"),
-        ),
-        d::ApplicationOutcome::Moved { object, now } => w::ApplicationOutcome::Moved(
-            w::ApplicationOutcomeMoved::new(
-                &w::CEILINGS,
-                w::ApplicationOutcomeMovedParts { object: *object, now: encode_application_object(now) },
-            )
-            .expect("admitted fields fit schema"),
-        ),
-        d::ApplicationOutcome::Role { held } => w::ApplicationOutcome::Role(
-            w::ApplicationOutcomeRole::new(&w::CEILINGS, w::ApplicationOutcomeRoleParts { held: *held })
-                .expect("admitted fields fit schema"),
-        ),
+        d::ApplicationOutcome::Changed { object, now } => {
+            w::ApplicationOutcome::Changed(w::ApplicationOutcomeChanged {
+                object: *object,
+                now: encode_application_object(now),
+            })
+        }
+        d::ApplicationOutcome::Moved { object, now } => w::ApplicationOutcome::Moved(w::ApplicationOutcomeMoved {
+            object: *object,
+            now: encode_application_object(now),
+        }),
+        d::ApplicationOutcome::Role { held } => w::ApplicationOutcome::Role(w::ApplicationOutcomeRole { held: *held }),
         d::ApplicationOutcome::Unknown => w::ApplicationOutcome::Unknown,
         d::ApplicationOutcome::Exhausted => w::ApplicationOutcome::Exhausted,
-        d::ApplicationOutcome::CoreRefused { why } => w::ApplicationOutcome::CoreRefused(
-            w::ApplicationOutcomeCoreRefused::new(
-                &w::CEILINGS,
-                w::ApplicationOutcomeCoreRefusedParts { why: encode_refusal(why) },
-            )
-            .expect("admitted fields fit schema"),
-        ),
+        d::ApplicationOutcome::CoreRefused { why } => {
+            w::ApplicationOutcome::CoreRefused(w::ApplicationOutcomeCoreRefused { why: encode_refusal(why) })
+        }
     }
 }
 pub(super) fn decode_application_outcome(value: w::ApplicationOutcome, limits: &d::Limits) -> d::ApplicationOutcome {
     match value {
         w::ApplicationOutcome::Changed(value) => {
-            let w::ApplicationOutcomeChangedParts { object, now } = value.into_parts();
+            let w::ApplicationOutcomeChanged { object, now } = value;
             d::ApplicationOutcome::Changed { object, now: decode_application_object(now, limits) }
         }
         w::ApplicationOutcome::Moved(value) => {
-            let w::ApplicationOutcomeMovedParts { object, now } = value.into_parts();
+            let w::ApplicationOutcomeMoved { object, now } = value;
             d::ApplicationOutcome::Moved { object, now: decode_application_object(now, limits) }
         }
         w::ApplicationOutcome::Role(value) => {
-            let w::ApplicationOutcomeRoleParts { held } = value.into_parts();
+            let w::ApplicationOutcomeRole { held } = value;
             d::ApplicationOutcome::Role { held }
         }
         w::ApplicationOutcome::Unknown => d::ApplicationOutcome::Unknown,
         w::ApplicationOutcome::Exhausted => d::ApplicationOutcome::Exhausted,
         w::ApplicationOutcome::CoreRefused(value) => {
-            let w::ApplicationOutcomeCoreRefusedParts { why } = value.into_parts();
+            let w::ApplicationOutcomeCoreRefused { why } = value;
             d::ApplicationOutcome::CoreRefused { why: decode_refusal(why, limits) }
         }
     }
@@ -379,29 +316,24 @@ pub(super) fn encode_client_subject(value: &d::ClientSubject) -> w::FamilySubjec
         d::ClientSubject::Effect { project, proposal } => (Some(project), w::FamilyKind::OwnerEffect(number(proposal))),
         d::ClientSubject::Outbox { project, entry } => (Some(project), w::FamilyKind::Outbox(number(entry))),
         d::ClientSubject::Hold { project, task } => (Some(project), w::FamilyKind::Hold(number(task))),
-        d::ClientSubject::Project { project } => (
-            Some(project),
-            w::FamilyKind::Project(
-                w::FamilyProject::new(&w::CEILINGS, w::FamilyProjectParts { value: project }).expect("fixed project"),
-            ),
-        ),
+        d::ClientSubject::Project { project } => {
+            (Some(project), w::FamilyKind::Project(w::FamilyProject { value: project }))
+        }
         d::ClientSubject::Deployment => (None, w::FamilyKind::Deployment),
     };
     let scope = match project {
-        Some(value) => w::FamilyScope::Project(
-            w::FamilyProject::new(&w::CEILINGS, w::FamilyProjectParts { value }).expect("fixed project"),
-        ),
+        Some(value) => w::FamilyScope::Project(w::FamilyProject { value }),
         None => w::FamilyScope::Deployment,
     };
-    w::FamilySubject::new(&w::CEILINGS, w::FamilySubjectParts { scope, kind }).expect("fixed subject")
+    w::FamilySubject { scope, kind }
 }
 fn number(value: u64) -> w::FamilyNumber {
-    w::FamilyNumber::new(&w::CEILINGS, w::FamilyNumberParts { value }).expect("fixed number")
+    w::FamilyNumber { value }
 }
 pub(super) fn decode_client_subject(value: w::FamilySubject) -> Result<d::ClientSubject, Undecodable> {
-    let w::FamilySubjectParts { scope, kind } = value.into_parts();
+    let w::FamilySubject { scope, kind } = value;
     let project = match scope {
-        w::FamilyScope::Project(value) => value.value(),
+        w::FamilyScope::Project(value) => value.value,
         w::FamilyScope::Deployment => {
             return match kind {
                 w::FamilyKind::Deployment => Ok(d::ClientSubject::Deployment),
@@ -417,14 +349,14 @@ pub(super) fn decode_client_subject(value: w::FamilySubject) -> Result<d::Client
         }
     };
     Ok(match kind {
-        w::FamilyKind::Item(value) => d::ClientSubject::Object { project, object: value.value() },
-        w::FamilyKind::Panel(value) => d::ClientSubject::Panel { project, task: value.value() },
-        w::FamilyKind::Result(value) => d::ClientSubject::Result { project, task: value.value() },
-        w::FamilyKind::OwnerEffect(value) => d::ClientSubject::Effect { project, proposal: value.value() },
-        w::FamilyKind::Outbox(value) => d::ClientSubject::Outbox { project, entry: value.value() },
-        w::FamilyKind::Hold(value) => d::ClientSubject::Hold { project, task: value.value() },
+        w::FamilyKind::Item(value) => d::ClientSubject::Object { project, object: value.value },
+        w::FamilyKind::Panel(value) => d::ClientSubject::Panel { project, task: value.value },
+        w::FamilyKind::Result(value) => d::ClientSubject::Result { project, task: value.value },
+        w::FamilyKind::OwnerEffect(value) => d::ClientSubject::Effect { project, proposal: value.value },
+        w::FamilyKind::Outbox(value) => d::ClientSubject::Outbox { project, entry: value.value },
+        w::FamilyKind::Hold(value) => d::ClientSubject::Hold { project, task: value.value },
         w::FamilyKind::Project(value) => {
-            if value.value() != project {
+            if value.value != project {
                 return Err(Undecodable);
             }
             d::ClientSubject::Project { project }
@@ -476,25 +408,19 @@ pub(super) fn decode_hold_mode(value: w::HoldMode, _limits: &d::Limits) -> d::Ho
 }
 pub(super) fn encode_hold(value: d::Hold) -> w::Hold {
     match &value {
-        d::Hold::Exclusive { mode } => w::Hold::Exclusive(
-            w::HoldExclusive::new(&w::CEILINGS, w::HoldExclusiveParts { mode: encode_hold_mode(*mode) })
-                .expect("admitted fields fit schema"),
-        ),
-        d::Hold::Pooled { mode } => w::Hold::Pooled(
-            w::HoldPooled::new(&w::CEILINGS, w::HoldPooledParts { mode: encode_hold_mode(*mode) })
-                .expect("admitted fields fit schema"),
-        ),
+        d::Hold::Exclusive { mode } => w::Hold::Exclusive(w::HoldExclusive { mode: encode_hold_mode(*mode) }),
+        d::Hold::Pooled { mode } => w::Hold::Pooled(w::HoldPooled { mode: encode_hold_mode(*mode) }),
         d::Hold::None => w::Hold::None,
     }
 }
 pub(super) fn decode_hold(value: w::Hold, limits: &d::Limits) -> d::Hold {
     match value {
         w::Hold::Exclusive(value) => {
-            let w::HoldExclusiveParts { mode } = value.into_parts();
+            let w::HoldExclusive { mode } = value;
             d::Hold::Exclusive { mode: decode_hold_mode(mode, limits) }
         }
         w::Hold::Pooled(value) => {
-            let w::HoldPooledParts { mode } = value.into_parts();
+            let w::HoldPooled { mode } = value;
             d::Hold::Pooled { mode: decode_hold_mode(mode, limits) }
         }
         w::Hold::None => d::Hold::None,
@@ -688,16 +614,14 @@ pub(super) fn decode_clientdocumentdeployment_outbox(
 pub(super) fn encode_resource_path(path: &d::Path) -> w::ResourcePath {
     let mut segments = List::with_capacity(u32::try_from(path.segments().len()).expect("bounded path"));
     for bytes in path.segments() {
-        segments
-            .push(w::Segment::new(&w::CEILINGS, w::SegmentParts { bytes: bytes.clone() }).expect("bounded segment"))
-            .expect("same count");
+        segments.push(w::Segment { bytes: bytes.clone() }).expect("same count");
     }
-    w::ResourcePath::new(&w::CEILINGS, w::ResourcePathParts { segments }).expect("bounded path")
+    w::ResourcePath { segments }
 }
 pub(super) fn decode_resource_path(path: w::ResourcePath, limits: &d::Limits) -> Result<d::Path, Undecodable> {
-    let mut segments = List::with_capacity(path.segments().len());
-    for segment in path.into_parts().segments.into_boxed() {
-        segments.push(segment.into_parts().bytes).expect("same count");
+    let mut segments = List::with_capacity(path.segments.len());
+    for segment in path.segments.into_boxed() {
+        segments.push(segment.bytes).expect("same count");
     }
     d::Path::new(segments, limits.segment_bytes).ok_or(Undecodable)
 }

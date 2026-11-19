@@ -20,13 +20,51 @@ pub(super) struct Disk {
     pub mutations: Vec<u32>,
     pub cut: Option<u32>,
     pub reached: bool,
+    pub sweep: Vec<(crate::KillFrom, u32)>,
+    pub sweeping: Option<crate::KillFrom>,
+    pub fork_child: Option<(crate::KillFrom, u32)>,
+    pub forked: Vec<(crate::KillFrom, u32)>,
 }
 impl Disk {
     pub fn new(limits: &Limits) -> Self {
         let mut machine = Machine::for_user(0);
         let handle = machine.lay(&[]);
         let (sim, pid, root, host) = drivers(limits, handle, 0);
-        Self { machine, sim, pid, root, host, operations: 0, mutations: Vec::new(), cut: None, reached: false }
+        Self {
+            machine,
+            sim,
+            pid,
+            root,
+            host,
+            operations: 0,
+            mutations: Vec::new(),
+            cut: None,
+            reached: false,
+            sweep: Vec::new(),
+            sweeping: None,
+            fork_child: None,
+            forked: Vec::new(),
+        }
+    }
+    pub fn fork(&self, limits: &Limits) -> Self {
+        let mut machine = self.machine.fork();
+        let handle = machine.reopen_root(0);
+        let (sim, pid, root, host) = drivers(limits, handle, 0);
+        Self {
+            machine,
+            sim,
+            pid,
+            root,
+            host,
+            operations: 0,
+            mutations: Vec::new(),
+            cut: None,
+            reached: false,
+            sweep: Vec::new(),
+            sweeping: None,
+            fork_child: None,
+            forked: Vec::new(),
+        }
     }
     pub fn root(&self) -> Root {
         self.root
@@ -42,6 +80,7 @@ impl Disk {
         self.mutations.clear();
         self.cut = None;
         self.reached = false;
+        self.sweeping = None;
     }
     pub fn unread_transcript(&mut self, task: u64) {
         let root = self.machine.reopen_root(0);
@@ -104,6 +143,24 @@ impl Disk {
         }
         self.drive(store, env, above);
     }
+    fn fork_boundary(&mut self) -> Result<(), String> {
+        let Some(from) = self.sweeping else { return Ok(()) };
+        let cut = (from, self.operations);
+        let Some(index) = self.sweep.iter().position(|selected| *selected == cut) else { return Ok(()) };
+        self.sweep.remove(index);
+        match skein_fork::split() {
+            skein_fork::Split::Child => {
+                self.sweep.clear();
+                self.forked.clear();
+                self.fork_child = Some(cut);
+                self.cut = Some(self.operations);
+            }
+            skein_fork::Split::Parent(skein_fork::Exit::Code(0)) => self.forked.push(cut),
+            skein_fork::Split::Parent(exit) => return Err(format!("forked disk cut {cut:?} failed: {exit:?}")),
+        }
+        Ok(())
+    }
+
     pub fn drive(&mut self, store: &mut Store, env: &Env<Limits>, above: &mut Queue<Event>) {
         let mut idle = false;
         for _ in 0..100_000 {
@@ -125,6 +182,9 @@ impl Disk {
             let mut answers = Queue::with_capacity(QUEUE);
             self.sim.calls(&mut calls);
             while let Some(call) = calls.pop() {
+                if self.sweeping.is_some() {
+                    self.fork_boundary().unwrap_or_else(|finding| panic!("{finding}"));
+                }
                 if self.cut == Some(self.operations) {
                     self.reached = true;
                     return;
@@ -150,6 +210,11 @@ impl Disk {
             // IO. Give the component its next fire before declaring it settled.
             if self.host.idle() && !self.host.work_pending(env.now) {
                 if idle {
+                    // A complete commit may ask for no operation after its last.
+                    // Such a cut continues just as the single-cut path does.
+                    if self.sweeping.is_some() {
+                        self.fork_boundary().unwrap_or_else(|finding| panic!("{finding}"));
+                    }
                     return;
                 }
                 idle = true;
@@ -188,4 +253,23 @@ fn collect(
         into.insert(name.to_vec(), machine.read(file, 0, u32::MAX).expect("generation bytes"));
     }
     machine.close(file);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Disk;
+    use crate::KillFrom;
+
+    #[test]
+    fn a_failed_operation_child_names_its_cut() {
+        let limits = crate::component_limits(&jig_test_profile::limits());
+        let mut disk = Disk::new(&limits);
+        disk.sweep = vec![(KillFrom::Commit(1), 0)];
+        disk.sweeping = Some(KillFrom::Commit(1));
+        let result = disk.fork_boundary();
+        if disk.fork_child.is_some() {
+            std::process::exit(23);
+        }
+        assert_eq!(result, Err("forked disk cut (Commit(1), 0) failed: Code(23)".to_owned()));
+    }
 }

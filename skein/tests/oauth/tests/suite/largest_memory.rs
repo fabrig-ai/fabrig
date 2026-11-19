@@ -2,6 +2,7 @@
 //! Decoded-bound literals use the generated types' sizes on a 64-bit target.
 
 use super::codec_memory::family;
+use skein_oauth::v3::Record;
 
 const CAP: u64 = 64 * 1024 * 1024;
 
@@ -9,8 +10,8 @@ const CAP: u64 = 64 * 1024 * 1024;
 fn largest_roots_stay_within_decoded_bounds() {
     family!(
         CAP,
-        include_str!("../../../../crates/skein-oauth/schema/oauth-v3.schema"),
-        skein_oauth::v3, sealed,
+        skein_oauth::SCHEMA,
+        skein_oauth::v3, lean,
         limits [
             saved_token_access_token,
             saved_token_refresh_token_some,

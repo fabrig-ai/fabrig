@@ -3,7 +3,7 @@
 #[cfg(test)]
 mod tests {
     use skein_codec_tests::every_v3::{self, CEILINGS, Limits};
-    use skein_codegen::{Schema, largest, parse, roots};
+    use skein_codegen::{Schema, largest, roots};
     use skein_lib::{Reader, Writer};
 
     const MAX_BYTES: u64 = 16 * 1024 * 1024;
@@ -194,7 +194,7 @@ mod tests {
     }
 
     fn schema() -> Schema {
-        parse(include_str!("../../schema/every-v3.schema")).expect("every-v3 schema")
+        skein_codegen::values(skein_codec_tests::EVERY_SCHEMA).schema.clone()
     }
 
     #[test]
