@@ -606,7 +606,9 @@ impl Host {
             }
         }
         if tui::sign_in_drawn(&self.root, self.state()) {
-            self.tell(Told::Typed { value });
+            if !self.state().address().at_name() {
+                self.tell(Told::Typed { value });
+            }
         } else if self.root.pages().chat().is_some() {
             self.act(Act::MessageWords { words: value });
         } else if self.root.pages().chats().is_some() {
@@ -655,6 +657,11 @@ impl Host {
                 }
             }
             tui::Event::LeftOff { task } => self.tell(Told::LeftOff { task }),
+            tui::Event::SignIn if self.state().address().at_name() => {
+                if tui::may_ask_again(self.state(), &self.root) {
+                    self.ask();
+                }
+            }
             tui::Event::SignIn if self.state().field().is_empty() && tui::may_ask_again(self.state(), &self.root) => {
                 self.ask();
             }

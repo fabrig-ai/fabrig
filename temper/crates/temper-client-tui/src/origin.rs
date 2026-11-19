@@ -22,6 +22,15 @@ pub enum Unaddressed {
 }
 
 impl Origin {
+    /// Whether the engine is a deployment by name, with browser approval alone.
+    #[must_use]
+    pub const fn at_name(&self) -> bool {
+        match self {
+            Self::Http(_) => false,
+            Self::Https { .. } => true,
+        }
+    }
+
     /// Read an origin with no path, query, user or fragment.
     /// # Errors
     /// The address's refusal, as the start names it.

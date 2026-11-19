@@ -87,7 +87,7 @@ fn the_refused_lines_name_the_place_and_omit_an_empty_build() {
             b"Start the build 127.0.0.1:8367 runs, then try again.".as_slice(),
         ),
         (
-            b"temper.test",
+            &crate::Origin::Https { name: Box::from(*b"temper.test"), port: 443 },
             false,
             VERSION,
             b"temper.test runs another build of temper.",

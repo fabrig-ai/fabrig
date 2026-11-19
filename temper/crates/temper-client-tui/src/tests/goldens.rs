@@ -12,6 +12,7 @@ use skein_ui_screen::{Focus, Frame, Size, render};
 const FULL: Size = Size { columns: 80, rows: 24 };
 
 #[test]
+#[expect(clippy::too_many_lines, reason = "the sign-in frames share their inputs and generation/check loop")]
 #[expect(clippy::disallowed_macros, reason = "the golden test embeds its fixed inputs and formats readable mismatches")]
 fn the_tuis_screens_are_their_goldens() {
     let signed_out = f::signed_out();
@@ -30,10 +31,71 @@ fn the_tuis_screens_are_their_goldens() {
     no_browser.step(Told::Browse);
     no_browser.step(Told::Opened { opened: false });
 
+    let mut name_tab = Tui::new(&f::name_origin());
+    name_tab.step(Told::Browse);
+    name_tab.step(Told::Opened { opened: true });
+    let mut name_no_tab = Tui::new(&f::name_origin());
+    name_no_tab.step(Told::Browse);
+    name_no_tab.step(Told::Opened { opened: false });
+    let mut expired = super::approval::asked(Some(temper_client_domain::asked::State::Asked {
+        code: super::approval::code(),
+        expires: Wall::from_nanos(600_000_000_000),
+    }));
+    super::approval::outcome(&mut expired, Some(jig_client::NotSignedIn::Approval(jig_client::Taking::Expired)));
+    let name_retry = Tui::new(&f::name_origin());
+
     let refused = super::refused::root();
     let mut refused_tui = Tui::new(f::ADDRESS);
     refused_tui.header(false, super::refused::VERSION.into());
     let rows = [
+        (
+            "sign-in-name-tab-80x24-dark",
+            &approval,
+            &name_tab,
+            Scheme::Dark,
+            FULL,
+            include_bytes!("golden/sign-in-name-tab-80x24-dark.txt").as_slice(),
+        ),
+        (
+            "sign-in-name-tab-80x24-light",
+            &approval,
+            &name_tab,
+            Scheme::Light,
+            FULL,
+            include_bytes!("golden/sign-in-name-tab-80x24-light.txt").as_slice(),
+        ),
+        (
+            "sign-in-name-no-tab-80x24-dark",
+            &approval,
+            &name_no_tab,
+            Scheme::Dark,
+            FULL,
+            include_bytes!("golden/sign-in-name-no-tab-80x24-dark.txt").as_slice(),
+        ),
+        (
+            "sign-in-name-no-tab-80x24-light",
+            &approval,
+            &name_no_tab,
+            Scheme::Light,
+            FULL,
+            include_bytes!("golden/sign-in-name-no-tab-80x24-light.txt").as_slice(),
+        ),
+        (
+            "sign-in-name-ask-again-80x24-dark",
+            &expired,
+            &name_retry,
+            Scheme::Dark,
+            FULL,
+            include_bytes!("golden/sign-in-name-ask-again-80x24-dark.txt").as_slice(),
+        ),
+        (
+            "sign-in-name-ask-again-80x24-light",
+            &expired,
+            &name_retry,
+            Scheme::Light,
+            FULL,
+            include_bytes!("golden/sign-in-name-ask-again-80x24-light.txt").as_slice(),
+        ),
         (
             "refused-80x24-dark",
             &refused,
@@ -83,13 +145,13 @@ fn the_tuis_screens_are_their_goldens() {
             include_bytes!("golden/sign-in-80x24-dark.txt").as_slice(),
         ),
     ];
-    let mut views = List::with_capacity(8);
+    let mut views = List::with_capacity(12);
     for (_, root, tui, _, _, _) in &rows {
         let mut view = f::view();
         f::build(&mut view, tui, root);
         views.push(view).unwrap();
     }
-    let mut checks = List::with_capacity(8);
+    let mut checks = List::with_capacity(12);
     for ((name, _, _, scheme, size, want), view) in rows.iter().zip(views.iter()) {
         checks
             .push(Golden {

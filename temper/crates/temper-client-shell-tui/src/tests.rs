@@ -16,6 +16,8 @@ mod events;
 mod goal;
 #[path = "tests/lending.rs"]
 mod lending;
+#[path = "tests/named.rs"]
+mod named;
 #[path = "tests/playground.rs"]
 mod playground;
 #[path = "tests/refused.rs"]

@@ -241,10 +241,8 @@ fn the_trees_fit_their_limits() {
         (None, false),
         (Some(Refusal::OtherAddress { address: Box::from(address) }), true),
     ] {
-        let mut tui = Tui::new(&crate::Origin::Https {
-            name: Box::from(*b"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
-            port: 65535,
-        });
+        // Only loopback offers the link field, including a full paste and its refusal.
+        let mut tui = Tui::new(f::ADDRESS);
         tui.step(Told::Link { link: jig_client::Link::Live });
         tui.step(Told::Link { link: jig_client::Link::SignedOut });
         if browser {
@@ -263,6 +261,23 @@ fn the_trees_fit_their_limits() {
         let field = f::find(view.tree(), Role::TextField, b"Link");
         assert_eq!(field.value.as_ref().unwrap().text.len(), 512);
         assert_eq!(view.tree().len(), if browser { 28 } else { 18 });
+    }
+    // At a name, the whole place/address and the longest refused line fit without a field.
+    for state in [
+        temper_client_domain::asked::State::Asked {
+            code: super::approval::code(),
+            expires: skein_lib::Wall::from_nanos(600_000_000_000),
+        },
+        temper_client_domain::asked::State::NotAsked(jig_client::NotAsked::Refused),
+    ] {
+        let origin = f::long_name_origin();
+        let mut tui = Tui::new(&origin);
+        tui.step(Told::Browse);
+        tui.step(Told::Opened { opened: false });
+        let root = super::approval::asked(Some(state));
+        f::build(&mut view, &tui, &root);
+        fits(view.tree(), &bounds);
+        assert_eq!(f::count(view.tree(), Role::TextField), 0);
     }
     // Three left-off rows, five needs, Start and four whole briefs coexist at their bounds.
     for bytes in [200_usize, 600] {

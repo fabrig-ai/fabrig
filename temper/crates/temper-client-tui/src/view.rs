@@ -156,11 +156,17 @@ fn sign_in_line(tui: &Tui, root: &Domain, words: &Words) -> Option<(Box<[u8]>, S
         }),
     }
 }
-fn approval_line(root: &Domain, words: &Words) -> Option<(Box<[u8]>, Style)> {
+fn approval_line(tui: &Tui, root: &Domain, words: &Words) -> Option<(Box<[u8]>, Style)> {
     let word = match root.asked() {
         None => return None,
         Some(asked::State::Asking) => return Some((words.say(Word::ApprovalAsking, &[]), look::WAITING)),
         Some(asked::State::NotAsked(why)) => match why {
+            NotAsked::Refused if tui.address().at_name() => {
+                return Some((
+                    words.say(Word::ApprovalNameRefused, &[Hole::Name(crate::place(tui.address(), false))]),
+                    look::REFUSED,
+                ));
+            }
             NotAsked::Refused => Word::ApprovalNotAskedRefused,
             NotAsked::Busy => Word::ApprovalNotAskedBusy,
             NotAsked::NotReady | NotAsked::Lost => Word::ApprovalNotAskedDown,
@@ -206,6 +212,14 @@ fn approval_waiting(
     wall: Wall,
 ) -> Option<Wall> {
     let address = approval_address(tui.address(), code);
+    if tui.address().at_name() {
+        approval_name_waiting(b, tui, words, code, &address);
+    } else {
+        approval_loopback_waiting(b, tui, words, code, address);
+    }
+    approval_expiry(b, words, expires, wall)
+}
+fn approval_loopback_waiting(b: &mut Builder, tui: &Tui, words: &Words, code: ApprovalCode, address: Box<[u8]>) {
     match tui.browser() {
         Some(Browser::None) => {
             text(b, Role::Paragraph, &words.say(Word::ApprovalOpen, &[]), None);
@@ -224,6 +238,29 @@ fn approval_waiting(
             text(b, Role::Paragraph, &words.say(Word::ApprovalNoTab, &[Hole::Name(address)]), None);
         }
     }
+}
+fn clipped_line(b: &mut Builder, role: Role, bytes: &[u8]) {
+    b.open(Role::Region);
+    b.region(look::SIGN_IN_LINE);
+    text(b, role, bytes, None);
+    b.close();
+}
+fn approval_name_waiting(b: &mut Builder, tui: &Tui, words: &Words, code: ApprovalCode, address: &[u8]) {
+    let code = Hole::Name(copy_of(&code.shown()));
+    match tui.browser() {
+        Some(Browser::None) => {
+            text(b, Role::Paragraph, &words.say(Word::ApprovalNameOpen, &[]), None);
+            clipped_line(b, Role::Paragraph, address);
+            text(b, Role::Paragraph, &words.say(Word::ApprovalNameType, &[code]), None);
+        }
+        None | Some(Browser::Opening | Browser::Opened) => {
+            text(b, Role::Paragraph, &words.say(Word::ApprovalNameTab, &[code]), None);
+            text(b, Role::Paragraph, &words.say(Word::ApprovalNameNoTab, &[]), None);
+            clipped_line(b, Role::Paragraph, address);
+        }
+    }
+}
+fn approval_expiry(b: &mut Builder, words: &Words, expires: Wall, wall: Wall) -> Option<Wall> {
     // The shared span counts up from its first wall to its second; here they
     // describe the remaining time. The countdown crosses each bound just after it.
     let (span, _) = words.view().time(TimeForm::Span, wall, expires);
@@ -241,7 +278,7 @@ fn approval(b: &mut Builder, tui: &Tui, root: &Domain, words: &Words, wall: Wall
     if tui.pasted() {
         return None;
     }
-    if let Some((line, style)) = approval_line(root, words) {
+    if let Some((line, style)) = approval_line(tui, root, words) {
         text(b, Role::Paragraph, &line, Some(style));
         return None;
     }
@@ -250,9 +287,25 @@ fn approval(b: &mut Builder, tui: &Tui, root: &Domain, words: &Words, wall: Wall
         None | Some(asked::State::Asking | asked::State::NotAsked(_)) => None,
     }
 }
-fn sign_in(b: &mut Builder, tui: &Tui, root: &Domain, words: &Words, wall: Wall) -> Option<Wall> {
+fn sign_in(b: &mut Builder, tui: &Tui, root: &Domain, words: &Words, wall: Wall, focus: u64) -> Option<Wall> {
     if tui.signed_out() {
         text(b, Role::Paragraph, &words.view().say(Shared::SignedOutMain, &[]), Some(look::DOWN));
+    }
+    if tui.address().at_name() {
+        clipped_line(
+            b,
+            Role::Heading { level: 2 },
+            &words.say(Word::SignIn, &[Hole::Name(crate::place(tui.address(), false))]),
+        );
+        let tick = approval(b, tui, root, words, wall);
+        if crate::may_ask_again(tui, root) {
+            b.open(Role::Button);
+            b.name(&words.say(Word::AskAgain, &[]));
+            b.bind(Binding { owner: look::OWNER, token: look::ASK_AGAIN });
+            b.focus(focus);
+            b.close();
+        }
+        return tick;
     }
     text(b, Role::Paragraph, &words.say(Word::SignIn, &[Hole::Name(crate::place(tui.address(), false))]), None);
     let tick = approval(b, tui, root, words, wall);
@@ -336,7 +389,7 @@ pub fn build(view: &mut View, tui: &Tui, root: &Domain, wall: Wall, out: &mut Qu
             refused_lines(&mut b, tui, words);
             None
         } else {
-            sign_in(&mut b, tui, root, words, wall)
+            sign_in(&mut b, tui, root, words, wall, view.shown)
         };
         b.close();
         view.escape = if refused {
@@ -536,6 +589,9 @@ pub fn event(view: &View, node: NodeId, act: Act) -> Option<Event> {
             }
         }
         Act::Press => {
+            if bound.binding.token == look::ASK_AGAIN {
+                return Some(Event::SignIn);
+            }
             let index = u32::try_from(bound.binding.token.raw().checked_sub(4)?).ok()?;
             view.binds.events.get(index).cloned()
         }

@@ -14,7 +14,7 @@ pub fn approval_address(origin: &crate::Origin, code: ApprovalCode) -> Box<[u8]>
     crate::origin::page(origin, &temper_client_domain::address::print_approve(code))
 }
 
-/// Whether Enter in the empty Link field asks for another approval.
+/// Whether the sign-in screen can ask for another approval.
 #[must_use]
 pub fn may_ask_again(tui: &Tui, root: &Domain) -> bool {
     let link = root.client().link();
