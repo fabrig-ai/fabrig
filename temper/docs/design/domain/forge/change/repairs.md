@@ -120,6 +120,22 @@
   the gate's failed run from its receipt: for each failed job, a
   `temper/gate/NAME` line, failed, pinned for `read_ci what=job` at the commit the
   gate ran at, so that `read_ci what=job` reads its log as any job's.
+  Its delivery is judged against the base its landing used: where its
+  reason (`Landing` or `LandingAt`) resolves to a failed receipt that
+  keeps a base (`../../landing.md`, 6.2), its item names that base as its
+  pin (`../../worker/checkouts.md`, *A named pin*), so its check compares
+  its diff, its figures and its tests with what the landing judged, never
+  with the change's head or the source it was opened from (`opened.md`).
+  Where none resolves, or the receipt keeps no base, its item names none
+  and it is judged against the head it repairs, as every other repair is:
+  the change's own (CI's, a gate's, a review's or a check's, a person's
+  request for changes, a clean update's red) and a queue's ejection. Its
+  account names that base: its entry among the change's repairs
+  (`README.md`, 2, step 7) goes on from `landing gate G failed` with `,
+  judged against BASE`, and where it fails for good its hold's account
+  opens `its repair, task N, judged against BASE, failed for good: `,
+  BASE the commit in full hexadecimal. A repair judged against the head
+  it repairs keeps its words as they are.
 - **A green head ends a CI repair.** A CI repair's reason is CI failed at
   the head: a failed check, or a clean update whose CI then fails. When a
   step of the change reads CI passed at its branch's head (`../keeping-up.md`, 3):
@@ -893,9 +909,12 @@ fresh one (2026-11-12). A merge job's reservation is unchanged.
   deployment's CI fails in one gate job (2026-11-14).
 
 - **A landing repair that only merges its base** (*A landing's
-  repair*; `../../../../../../tools/pre-pr/design.md`, 2): its delivery
-  check's base is the pin, so a merge of main alone selects no tests and
-  passes, though the gate failed. Default: its words name the failed
+  repair*; `../../../../../../tools/pre-pr/design.md`, 2): judged against
+  the landing's base, a merge of it alone selects the change's own
+  packages and their readers, as the landing lands them, but not a failed
+  test outside them, so it can pass though the gate failed; and a repair
+  whose receipt keeps no base is judged against its head, where a merge
+  alone selects no tests. Default: its words name the failed
   tests, which its agent runs by name; carrying them into the check's
   selection, as `temper/reds` carries reds (`../reds.md`, 5.2), is a
   wire to its worker and waits (2026-11-15).

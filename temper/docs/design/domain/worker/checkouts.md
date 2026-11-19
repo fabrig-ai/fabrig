@@ -134,16 +134,37 @@ runs as contained processes and whose output it parses.
   repairs, whatever its start (its branch, or saved work); for a resolution
   or a merge job, the branch's head the base is merged into. Where the push
   branch does not exist yet (a chat's first run), its start's commit is
-  pinned. So a repair's checks select what its own edits changed against the
-  head it repairs, never against the branch the change lands on: a repair of
-  a goal's landing into main checks its own edits, not the goal's
-  (`tools/pre-pr/design.md`, section 2), and no pin a cached checkout kept
-  from an earlier hold is read. The pin is frozen for the hold as a landing
-  branch's is. A read-only repository delivers nothing and runs no check, and
-  its reference is left as it is. The item still names no landing branch,
-  so nothing else of it changes: it is never taken for a goal's design
-  delivery (`../agent/README.md`, section 5), and its start, push and expected
-  head are as before.
+  pinned. So a repair the change asks for itself checks what its own edits
+  changed against the head it repairs, never against the branch the change
+  lands on: a CI repair of a goal's landing into main checks its own edits,
+  not the goal's (`tools/pre-pr/design.md`, section 2), and no pin a cached
+  checkout kept from an earlier hold is read. A repair asked by a landing
+  names a pin instead (*A named pin*, below). The pin is frozen for the hold
+  as a landing branch's is. A read-only repository delivers nothing and runs
+  no check, and its reference is left as it is. The item still names no
+  landing branch, so nothing else of it changes: it is never taken for a
+  goal's design delivery (`../agent/README.md`, section 5), and its start,
+  push and expected head are as before.
+- **A named pin.** A writable item may name a pin, a commit by its full
+  object id, and then names no landing branch. The engine names one on the
+  item of a repair asked by a landing alone: the base that landing's round
+  used, its failed receipt's (`../forge/change/repairs.md`, *A landing's
+  repair*). Prepare fetches the push branch's head as for the replaced
+  head's pin, the one fetch serving its baseline and, where it is the
+  start's branch, its start, and points `refs/temper/landing` at the pin in
+  place of that head: a `Point` (`../../protocol/git.md`, 4.12) where this
+  prepare already fetched that commit, otherwise one fetch of it into
+  `Into::Landing` (`../../protocol/git.md`, 4.3), its want the commit. A
+  pin the remote lacks fails preparation as a missing commit; it never
+  falls back to the replaced head. So a landing's repair is judged as that
+  landing judged its change: its diff, its figures and its tests against
+  the base the landing used, whatever the change's head and however old
+  its source (`tools/pre-pr/design.md`, section 2). The pin is frozen for
+  the hold as every pin is, and changes nothing else of the item: its
+  start, push, expected head, own delivery, ownership and drift admission
+  are a repair's as before. An item naming both a pin and a landing branch
+  is refused at the worker's entrance as an invalid start that names it
+  (`README.md`, 4.1).
 - **A goal's reds for each check** (`../forge/reds.md`, 5.2 and 5.3), in
   each writable repository with a pin, under its git directory: prepare
   removes `temper/reds` and writes `temper/reds-wait`; a check's start

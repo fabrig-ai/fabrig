@@ -124,7 +124,7 @@ record Merge       { branch: bytes  base: fixed 32 }
 record Branch      { branch: bytes }
 record Commit      { commit: fixed 32 }
 enum   Access      { writable: Writable, read_only }
-record Writable    { push: bytes  expected: option fixed 32  landing: option bytes  delivered: option fixed 32 }
+record Writable    { push: bytes  expected: option fixed 32  landing: option bytes  delivered: option fixed 32  pin: option fixed 32 }
 ```
 
 | Field | From the engine (`ForgeRepository`) | To the worker (`wire::Repository`) |
@@ -134,7 +134,7 @@ record Writable    { push: bytes  expected: option fixed 32  landing: option byt
 | `remote` | made: the `git` base of the forge whose number is `provider.forge`, its record's (forge/engine.md, 1), `/`, `owner`, `/`, `name`, `.git` | `remote`, never interpreted by the domain; the git component's URL (git.md, section 3) |
 | `git` | made by the routing: the git program of the forge whose number is `provider.forge`, its record's, or for the playground's fake forge the machine's fake `git` (configuration/engine.md), resolved to an absolute path; none for a forge with none | `git`, never interpreted by the domain; the program the git component runs for every operation on the repository, and `workers[].git` for none (git.md, section 3) |
 | `start` | `ForgeStart::Base`, `Branch`, `Saved`, `Merge { branch, base }`, `Merged { branch, heads }`; the engine never asks for a commit | `Start`, all six; `Merged`'s heads in their order, one to 64 (a task's dependencies), each a full object id (`../domain/worker/README.md`, 4.1) |
-| `access` | `push: Some(branch)` is `writable { push: branch, expected: none, landing, delivered }`; `landing` is the change's landing branch only for an inherited writable producer starting on its push branch or from a merge in progress; `delivered` is `ForgeRepository.delivered`, the task's own delivery (below); `None` push is `read_only` | `Access`; landing is bounded by the branch-name limit; `delivered` is the checkout's `Repository.delivered` |
+| `access` | `push: Some(branch)` is `writable { push: branch, expected: none, landing, delivered, pin }`; `landing` is the change's landing branch only for an inherited writable producer starting on its push branch or from a merge in progress; `delivered` is `ForgeRepository.delivered`, the task's own delivery (below); `pin` is `ForgeRepository.pin`, a landing's repair's base (below); `None` push is `read_only` | `Access`; landing is bounded by the branch-name limit; `delivered` is the checkout's `Repository.delivered`; `pin` the checkout's `Repository.pin` |
 | `identity` | `identity`: the number of the forge's git identity, the credential jig grants the attempt (credentials.md, section 4) | `identity`, the grant's number in the application's table |
 | `account` | made by the routing, on a GitHub forge: the `account` of the entry in the forge's identity value, as the routing last made it (section 6), whose `account_login` equals `owner`, compared ASCII case-insensitively; none when no entry matches, and none on Forgejo | `account`, by which the worker's routing picks the identity's entry for each git operation on the repository (section 6) |
 | `save` | this repository's `save`, when `run.policy.resume` requests saving | `wire::Repository.save`, its optional saved-work destination, bounded by the same name limit as a branch |
@@ -168,6 +168,21 @@ record Writable    { push: bytes  expected: option fixed 32  landing: option byt
   worker that reads it (`wires.md`, section 5). Only an assignment
   carries it, never a message to a running attempt, so the change is not
   breaking (`../draft/redeploys.md`, 4.3).
+- **A named pin.** `pin` is the commit prepare points
+  `refs/temper/landing` at in place of the head the delivery replaces
+  (`../domain/worker/checkouts.md`, *A named pin*). The engine's item
+  carries one on a repair asked by a landing alone: the base that
+  landing's round used, its failed receipt's (`../domain/landing.md`,
+  6.2), where the receipt resolves and keeps one; every other item none,
+  and an item naming a pin names no `landing`. It is a full object id, as
+  the other heads, independent of `expected` and `delivered`. `Writable`
+  gains it last; the family moves by one, from 11 to 12, its floor kept,
+  with its kept text and patch (`wires.md`, 3.1). Its reverse is derived:
+  an item whose `pin` is none goes down to a worker of version 11 as it
+  was, and one that names a commit is `Unheld` there, refused at the
+  engine as untranslated, and waits for a worker that reads it
+  (`wires.md`, section 5). Only an assignment carries it, so the change
+  is not breaking (`../draft/redeploys.md`, 4.3).
 - **Saving.** The engine's routing sets jig's `save` from the typed
   `run.policy.resume`, including the first attempt before a transcript
   exists, and carries each repository's destination in its `save`

@@ -363,7 +363,9 @@ workspace's last fetches under its own token.
   under the workspace's token and in the repository, and is moved freely by
   the next fetch.
 - **`refs/temper/landing`** is the landing pin: the landing branch's tip as
-  prepare fetched it, or, for a writable item that names no landing branch,
+  prepare fetched it; or, for a writable item that names a pin, that commit
+  (`../domain/worker/checkouts.md`, *A named pin*), fetched by its full id
+  where the prepare has not; or, for a writable item that names neither,
   the head its push branch had (or its start's commit, where that branch
   does not exist yet), which the project's checks take their base from
   (`tools/pre-pr/design.md`, section 2). Only prepare's one pin writes it,
