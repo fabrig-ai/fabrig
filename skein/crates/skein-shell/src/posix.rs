@@ -14,6 +14,8 @@
 
 pub(crate) mod files;
 pub(crate) mod group;
+#[cfg(any(target_os = "macos", test))]
+pub(crate) mod links;
 pub(crate) mod process;
 pub(crate) mod terminal;
 

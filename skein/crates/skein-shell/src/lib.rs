@@ -102,7 +102,7 @@ pub use settings::{arguments, environment};
 pub use startup::{
     DirectoryAccess, OutputKind, RootBounds, Roots, RootsRefusal, STORE_OPERATIONS, StartupStore, StoreDirectory,
     Stored, Trust, Unread, Unstored, directory_access, effective_user, make_root, open_append, open_root,
-    prepare_output, process_id, read_file, read_private_file, read_trust_roots, store_file,
+    prepare_output, process_id, read_file, read_private_file, read_trust_roots, resolve_system_links, store_file,
 };
 
 #[cfg(unix)]
