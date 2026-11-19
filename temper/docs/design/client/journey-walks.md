@@ -195,7 +195,18 @@ browser kit, box crate or `temper-client-journeys-tool`.
   &str = "127.0.0.1:10001"`; for the TUI, `SIZE: skein_ui_screen::Size`,
   80 columns by 24 rows, `VERSION: &[u8] = b"0.0.0 (000000000000)"` and
   `SCHEME: temper_client_tui::Scheme = Scheme::Dark`, the scheme Auto
-  draws for a terminal that answers none (`tui/theme.md`); and
+  draws for a terminal that answers none (`tui/theme.md`);
+
+  ```rust
+  pub fn tui_seed(before: u64) -> u64;
+  ```
+
+  the seed of the walk's TUI started after `before` others,
+  `SEED + 1 + before` (wrapping), so the browser and each TUI draw
+  their own request keys, as a person's browser and each run of their
+  terminal draw their own seeds: hosts of the same seed sign the same
+  user's acts with the same keys, and the service refuses the second
+  act's key as naming another act; and
 
   ```rust
   pub fn start(scripts: Option<&[u8]>) -> Result<temper_playground::story::Start, String>;
@@ -297,7 +308,8 @@ service, over HTTP, rather than joined to the engine's root.
   the address `Origin::Http(SERVICE)`; not local, not boxed, not in
   front and not set up, with no box log; and the records, the
   credential and the note held from the walk's last TUI, none for its
-  first. Its seed is `SEED`; its clocks are the world's.
+  first. Its seed is `facts::tui_seed` of the number of TUIs the walk
+  started before it; its clocks are the world's.
 - **Each duty carried,** as the shipped run carries it, by what a world
   has:
 
@@ -382,7 +394,8 @@ service, over HTTP, rather than joined to the engine's root.
   (000000000000)`, the service's origin, a terminal that answers no
   scheme. A walk that needs it signed in says `tui approve`.
 - **The same bytes every time:** the simulator owns the schedule, and
-  both hosts take `SEED` and the world's clocks, so a walk takes the
+  the browser takes `SEED`, each TUI `facts::tui_seed`, and both the
+  world's clocks, so a walk takes the
   same turns on any host, on any day.
 
 ### 4.2 Each line
