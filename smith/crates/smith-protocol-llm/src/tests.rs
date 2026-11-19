@@ -1028,6 +1028,8 @@ fn save_is_an_empty_object_write_offered_only_under_its_descriptor() {
     assert!(skein_lib::bytes::find(&save.schema, b"\"additionalProperties\":false").is_some());
 }
 
+mod refusals;
+
 fn direct_limits() -> crate::Limits {
     crate::fixture::small(skein_llm_kit::limits(), crate::Stated::from_tools(&tools(), 4096).expect("stated"))
 }
@@ -1303,7 +1305,13 @@ fn direct_translation_refuses_non_object_host_schemas() {
                 &limits,
             )
             .expect_err("host schema must be refused before a request is built"),
-            crate::Error::Invalid
+            crate::Error::Invalid {
+                cause: crate::Cause::Smith(if schema == b"[]" {
+                    crate::Refusal::NotObject
+                } else {
+                    crate::Refusal::HostSchema
+                })
+            }
         );
     }
 }

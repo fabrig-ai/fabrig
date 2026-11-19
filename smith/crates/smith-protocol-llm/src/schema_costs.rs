@@ -3,7 +3,7 @@
 //! renderer and supplies plain numbers to run entrance admission.
 //! Contract: protocol/limits.md, section 3.9.
 
-use crate::{Error, deliver_schema, finish_schema, outcome_schema};
+use crate::{Cause, Error, deliver_schema, finish_schema, outcome_schema};
 use alloc::boxed::Box;
 use skein_json::writer::{Encoder, Limits};
 use smith_domain::run::{
@@ -113,7 +113,9 @@ fn measured(measure: Encoder) -> Result<u32, Error> {
 
 fn schema_error(refusal: skein_json::writer::Refusal) -> Error {
     match refusal {
-        skein_json::writer::Refusal::Text | skein_json::writer::Refusal::Number => Error::Invalid,
+        skein_json::writer::Refusal::Text | skein_json::writer::Refusal::Number => {
+            Error::Invalid { cause: Cause::Invalid(skein_llm::Invalid::Text) }
+        }
         skein_json::writer::Refusal::TooLong | skein_json::writer::Refusal::TooDeep => Error::Limit,
     }
 }

@@ -5246,6 +5246,8 @@ dependencies = [
  "skein-world",
  "smith-agent-service",
  "smith-agent-world",
+ "smith-channel",
+ "smith-charter",
  "smith-domain",
  "smith-domain-session",
  "smith-domain-session-fixtures",

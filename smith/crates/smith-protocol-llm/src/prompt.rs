@@ -9,7 +9,7 @@ use skein_lib::{List, bytes};
 use smith_domain::{llm, run, tools};
 
 use crate::types::{Context, ToolSchema};
-use crate::{Error, Limits, valid};
+use crate::{Cause, Error, Limits, Refusal, valid};
 
 const EMPTY_TURN: &[u8] = b"[an empty turn]";
 
@@ -97,7 +97,7 @@ fn translate(
             let mut names = List::with_capacity(u32::try_from(selected.len()).or(Err(Error::Limit))?);
             for descriptor in selected {
                 if !served.contains(descriptor) {
-                    return Err(Error::Invalid);
+                    return Err(Error::Invalid { cause: Cause::Smith(Refusal::ChoiceNotServed) });
                 }
                 names.push(bytes::copy_of(served_name(descriptor))).or(Err(Error::Limit))?;
             }
@@ -210,9 +210,9 @@ fn outside_choice(choice: Option<&[Box<[u8]>]>, maximum: u32) -> Result<Box<[u8]
 }
 
 fn after_failed_write(call: u16, previous: Option<&skein_llm::Message>, maximum: u32) -> Result<Box<[u8]>, Error> {
-    let previous = previous.ok_or(Error::Invalid)?;
+    let previous = previous.ok_or(Error::Invalid { cause: Cause::Smith(Refusal::FailedWrite) })?;
     if previous.role != skein_llm::Role::Assistant || call == 0 {
-        return Err(Error::Invalid);
+        return Err(Error::Invalid { cause: Cause::Smith(Refusal::FailedWrite) });
     }
     let mut position = 0_u16;
     for block in &previous.content {
@@ -254,7 +254,7 @@ fn after_failed_write(call: u16, previous: Option<&skein_llm::Message>, maximum:
             | skein_llm::Block::ToolResult { .. } => {}
         }
     }
-    Err(Error::Invalid)
+    Err(Error::Invalid { cause: Cause::Smith(Refusal::FailedWrite) })
 }
 
 fn inventory(input: &llm::Prompt, schemas: &[ToolSchema], limits: &Limits) -> Result<(), Error> {
@@ -278,7 +278,7 @@ fn inventory(input: &llm::Prompt, schemas: &[ToolSchema], limits: &Limits) -> Re
                 }
                 for other in schemas {
                     if other.name == tool.name {
-                        return Err(Error::Invalid);
+                        return Err(Error::Invalid { cause: Cause::Smith(Refusal::ToolName) });
                     }
                 }
             }
@@ -308,7 +308,7 @@ fn served_unique(descriptor: &llm::Served, previous: &[llm::Served]) -> Result<(
     for prior in previous {
         let repeated = served_name(descriptor) == served_name(prior);
         if repeated {
-            return Err(Error::Invalid);
+            return Err(Error::Invalid { cause: Cause::Smith(Refusal::ToolName) });
         }
     }
     Ok(())
@@ -391,7 +391,7 @@ fn result_text(
 ) -> Result<(Box<[u8]>, bool), Error> {
     match result {
         llm::Returned::Text { text, error, replay } => match replay {
-            Some(_) => Err(Error::Unsupported),
+            Some(_) => Err(Error::Unsupported { cause: Cause::Smith(Refusal::ResultReplay) }),
             None => Ok((crate::render::cut_text(text, maximum), error)),
         },
         llm::Returned::Withdrawn => Ok((bytes::copy_of(b"withdrawn"), true)),
@@ -404,7 +404,7 @@ fn result_text(
         llm::Returned::Served { returned, error } => {
             let value = smith_domain::feedback(returned, u64::from(limits.rendered_result)).or(Err(Error::Limit))?;
             if value.error != error {
-                return Err(Error::Invalid);
+                return Err(Error::Invalid { cause: Cause::Smith(Refusal::Feedback) });
             }
             Ok((crate::render::cut_text(value.text, maximum), value.error))
         }
@@ -429,7 +429,7 @@ fn replay_value(replay: Option<llm::Replay>, limits: &Limits) -> Result<Option<s
 pub(crate) fn object_schema(data: &[u8], limits: &Limits) -> Result<Box<[u8]>, Error> {
     let value = object(data, limits)?;
     let document = value.document();
-    let typed = object_type(document).ok_or(Error::Invalid)?;
+    let typed = object_type(document).ok_or(Error::Invalid { cause: Cause::Smith(Refusal::HostSchema) })?;
     if typed {
         return Ok(bytes::copy_of(data));
     }
@@ -502,7 +502,7 @@ pub(crate) fn object(data: &[u8], limits: &Limits) -> Result<skein_llm::Json, Er
     };
     match value.document().token(0) {
         Some(record) if record.kind == Kind::ObjectStart => {}
-        Some(_) | None => return Err(Error::Invalid),
+        Some(_) | None => return Err(Error::Invalid { cause: Cause::Smith(Refusal::NotObject) }),
     }
     Ok(value)
 }
