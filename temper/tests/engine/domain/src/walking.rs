@@ -175,7 +175,7 @@ pub fn limits() -> engine::Limits {
             versions: jig_domain_core::documents::Versions { minimum: 1, maximum: 1 },
         },
         authority: authority_limits(),
-        memory_bytes: u64::MAX,
+        transcript_memory: u64::MAX,
         watermark: engine::default_watermark(&journal),
         public_watermark: (engine::default_watermark(&journal)).checked_div(2).expect("half the watermark"),
         public_reads: 0,
@@ -341,6 +341,7 @@ pub fn config(seed: u64) -> engine::Config {
             grants: Box::new([]),
             kinds: Box::default(),
             defaults: jig_domain_core::settings::Defaults {
+                limits: Box::default(),
                 providers: Box::new([provider_setting()]),
                 workers: Box::new([jig_domain_core::settings::WorkerSetting {
                     number: 1,
@@ -586,8 +587,13 @@ impl World {
     pub fn new(settings: Settings) -> World {
         assert!(!(settings.restart && settings.terminal_restart), "one chosen process cut per story");
         let limits = limits();
+        let store = crate::fixtures::restored_store(config(settings.seed), &limits);
+        Self::over(settings, store)
+    }
+
+    fn over(settings: Settings, store: Store) -> World {
+        let limits = limits();
         let config = config(settings.seed);
-        let store = crate::fixtures::restored_store(self::config(settings.seed), &limits);
         let mut world = World {
             domain: engine::Domain::new(config, &limits).expect("valid engine configuration"),
             environment: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
@@ -885,6 +891,7 @@ impl World {
                 other @ (engine::Request::Worker(_)
                 | engine::Request::Party(_)
                 | engine::Request::Account(_)
+                | engine::Request::LimitSettingsCommitted { .. }
                 | engine::Request::ForgeKept(_)
                 | engine::Request::ForgeGone { .. }
                 | engine::Request::ChoosePlace { .. }
@@ -1046,6 +1053,7 @@ impl World {
             | Delivery::Document { .. }
             | Delivery::WatchEnded { .. }
             | Delivery::Restarting { .. }
+            | Delivery::LimitSettingsCommitted { .. }
             | Delivery::Drained
             | Delivery::Refuse { .. } => {
                 panic!("unexpected walking delivery {delivery:?}")
@@ -1123,7 +1131,8 @@ impl World {
 #[must_use]
 pub fn run_replayed(settings: Settings) -> World {
     let mut first = World::new(settings);
-    let mut replay = World::new(settings);
+    // Each world owns its store; only the common bootstrap is performed once.
+    let mut replay = World::over(settings, first.store.fork());
     for _ in 0..600 {
         if first.settled() {
             assert!(replay.settled());

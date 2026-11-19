@@ -41,12 +41,14 @@ the look, 11 what is open.
   `docs/design/client/tui/journeys/`: a text and a page per mark, a
   generated `theme.css` and `tui-journey.js`, and an empty `overlay.css`
   (section 6). No terminal, no box, the same bytes every time.
-- **Kept current by the journeys' test,** with the browser's, which
-  also fails while the TUI's `overlay.css` holds anything (section 7).
+- **Kept current by one writer,** with the browser's, after each
+  landing (`../journey-writer.md`); the delivery check and the journeys'
+  tests refuse a TUI `overlay.css` that holds anything (section 7).
 - **Recorded again by a command:** `again NAME` walks the journey's
   `walk` on a fresh fake box, the TUI in a pseudo-terminal and the
   approval given in headless Chromium, all on one fixed start
-  (`../journey-clock.md`), and adds the result (section 8).
+  (`../journey-clock.md`), and adds the result (section 8); on main the
+  journeys' writer alone runs it.
 - **The look is asked for on the frames:** a frame's text edited in
   place, the theme's overlay written, each request landing as the
   browser's do (section 10).
@@ -146,7 +148,7 @@ is told from a browser's by its first fact after `clocks`, `screen`.
 | `background` | red, green and blue, each a number | the terminal's answer to OSC 11, when the start has one (`README.md`, 3, `Start.background`) |
 | `plain` | none | when the start's terminal draws no mark (`README.md`, 3, `Start.plain`; `pages/README.md`, 3) |
 | `version` | the build as bytes | the start's `version`, when it is not empty (`README.md`, 3) |
-| `address` | `HOST:PORT` as bytes | the start's address |
+| `address` | the origin as `Origin::print` prints it, as bytes; a bare `HOST:PORT`, as a recording made before it holds, reads as `http://HOST:PORT` | the start's origin (`README.md`, 1) |
 | `local` | none | when the start has an engine's link file to read (`README.md`, 3, `Start.local`) |
 | `box` | none | when the start is on a box (`README.md`, 2, *On a box*; `Start.boxed`) |
 | `front` | none | when the TUI is in front of a box (`box.md`, `Start.front`) |
@@ -167,6 +169,7 @@ is told from a browser's by its first fact after `clocks`, `screen`.
 | `kept` | `done` or `failed` | a `Kept` report |
 | `opened` | `done` or `failed` | an `Opened` report |
 | `found` | the file's bytes, or `none` | a `Local` report |
+| `handshake` | `untrusted`, `expired`, `not-yet-valid`, `other-name`, `failed` or `none` | a `Handshake` report (`README.md`, 3, *The handshake*) |
 | `box-line` | a line of the box's, as `BoxLine::print` prints it, in quotes | a `Front` report (`box.md`) |
 | `box-stage` | the stage, as `BoxStage::print` prints it, in quotes | a `Stage` report (`box.md`) |
 | `send` | the exchange, the message's kind, its bytes, the credential's bytes or `none` | a duty's `Request::Exchange`, in order |
@@ -176,7 +179,7 @@ is told from a browser's by its first fact after `clocks`, `screen`.
 | `erase` | a record's key | `Request::Erase`, one per key (shared) |
 | `keep` | the credential's bytes, or `none` | the duty `keep` |
 | `note` | `until` and nanoseconds, or `signed-out` | the duty `note` |
-| `signed` | `HOST:PORT` as bytes | the duty `address` |
+| `signed` | the origin as `address` has it | the duty `address` |
 | `read` | none | the duty `local` |
 | `browse` | the address as bytes | the duty `open` |
 | `quit` | none | the duty `close` |
@@ -462,14 +465,12 @@ reports given by the test) and `crates/temper-client-journeys-tool`'s own tests:
   passing the scan in a `browse` address and a frame, and a `code=` of
   any other value still refused; a redacted approval walk replaying as
   it stands.
-- **The print:** every committed TUI journey reprinted into a scratch
-  directory equals its directory and the files beside it, byte for byte,
-  and its recording is its own normalisation (`../journey-placeholders.md`,
-  4.3);
-  one that differs or is stale fails, naming the command that reprints;
-  the tests fail while the TUI's `overlay.css` holds any byte, and for a
-  journey whose `../../README.md` is missing or empty; a page's runs, palette
-  classes, attributes and key links in the print's unit tests.
+- **The print,** on walks the tests record in the host's world: printed
+  and proved; no test replays, reprints or compares a recording or a
+  frame of main's (`../journey-writer.md`, 7); the tests fail while the
+  TUI's `overlay.css` holds any byte, and for a journey whose
+  `../../README.md` is missing or empty; a page's runs, palette classes,
+  attributes and key links in the print's unit tests.
 - **The walk, natively:** a `walk` read back, each record among them,
   and another version, a record out of its place and a second `end`
   unreadable; a recording checked against its walk; a TUI journey's
@@ -477,9 +478,8 @@ reports given by the test) and `crates/temper-client-journeys-tool`'s own tests:
   one holding a `mark` refused, naming its line.
 - **`again`'s half that drives a terminal and a browser** has no story of
   its own: the first journey, recorded by it, proves it (8.2).
-- **Their cost:** the reprint of both directories together within the
-  browser's 1 s of the default suite; no fuzzy test; no default test
-  starts a terminal, a browser or a box.
+- **Their cost:** within their layers' budgets as they stand; no fuzzy
+  test; no default test starts a terminal, a browser or a box.
 
 ## 8. Recorded again
 
@@ -646,13 +646,14 @@ As the browser's (`../web/journeys.md`, section 7), on the TUI's print:
   `scripts/look-refresh.sh`, run with `tui-requests` checked out, and
   never landed (`../web/journeys.md`, section 7;
   `../web/look-requests.md`, 2).
-- **Never landed:** the journeys' test refuses a request's frames, which
-  differ from the reprint, and its overlay, so `main`'s overlay stays
-  empty.
+- **Never landed:** the delivery check refuses a request's frames
+  beside any other file, and its overlay (`../journey-writer.md`, 5), so
+  `main`'s overlay stays empty.
 - **Done** is a landing carrying the request's trailer in commits of its
   own that moves the overlay's rules into `temper-client-tui`'s theme
   (its palette, its tokens' paints, its borders and glyphs) and the
-  frames' changes into its view and words, and reprints.
+  frames' changes into its view and words, and compares by a reprint in
+  its own tree, committing no frame (`../web/look-requests.md`, 3).
 
 ## 11. Open questions
 

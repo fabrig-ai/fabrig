@@ -316,6 +316,24 @@ impl Disk {
     pub fn requests(&self) -> &[(usize, Seen)] {
         &self.requests
     }
+    /// Names requested for links, including any refused by the file system.
+    pub fn linked(&self) -> Vec<Box<[u8]>> {
+        let mut linked: Vec<_> = self
+            .requests()
+            .iter()
+            .filter_map(|(driver, request)| {
+                if let Seen::Link { from, to } = request {
+                    assert_eq!(*driver, 2, "generation copy uses the transcripts driver");
+                    assert_eq!(from, to);
+                    Some(from.clone())
+                } else {
+                    None
+                }
+            })
+            .collect();
+        linked.sort();
+        linked
+    }
     pub fn crash(&mut self, seed: u64) {
         self.machine.crash(seed);
         self.handle = self.machine.reopen_root(0);

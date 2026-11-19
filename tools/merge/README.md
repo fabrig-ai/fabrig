@@ -39,6 +39,22 @@ restores the conflicted bytes and mode. `fabrig-boundary`'s `merge_codecs` test
 checks the list against tracked generated headers and reproduces each module
 from its listed texts.
 
+The journeys' rule knows the files the journeys' writer alone writes
+(temper/docs/design/client/journey-writer.md, 2): under
+`temper/docs/design/client/web/journeys/` or
+`temper/docs/design/client/tui/journeys/`, a journey directory's
+`recording` and its pages, `NN.html` or `NN.txt` with two digits or
+more, and at either root `skein-ui.css`, `journey.js`, `theme.css` and
+`tui-journey.js`. A conflicted path among them is settled with the
+base's copy, the commit merged in, the landing branch's, read from that
+commit at that path: where it holds the path, its bytes and mode are
+written and staged; where it does not, the path is removed from the
+tree and the index. No command runs and no model is asked. A deletion
+or a rename there is settled as any other conflict of the path, since
+only the writer writes it; the path's every stage goes, and its record
+is in `settled`. Main's copy is the writer's, whose next run writes it
+again.
+
 Any other conflicted file is left to the resolution (temper/docs/design/protocol/tooling.md, 4.1).
 
 The B0 and B1 `temper/tests/real-loop/tests/fixtures/*/llm.json` recordings

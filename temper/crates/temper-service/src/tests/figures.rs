@@ -48,12 +48,7 @@ fn the_box_keeps_entries_then_its_own_home_and_path() {
 fn a_box_derives_its_composed_carriers_from_its_agent() {
     use temper_client_protocol_wire::v1 as w;
 
-    let mut document: serde_json::Value = serde_json::from_slice(&fixtures::stock_document()).unwrap();
-    // Exercise derivation, not the init template's explicit stock carriers.
-    for name in ["hub.event_bytes", "hub.turn_bytes"] {
-        document["engine"]["limits"]["overrides"].as_object_mut().unwrap().remove(name);
-    }
-    let document = serde_json::to_vec(&document).unwrap();
+    let document = fixtures::stock_document();
     let agent = fixtures::parsed_agent(fixtures::stock_configuration(8192, 48_000).unwrap());
     let mut agents = crate::stock::agents().into_parts();
     for figure in agents.profile.iter_mut() {
@@ -66,13 +61,18 @@ fn a_box_derives_its_composed_carriers_from_its_agent() {
         }
     }
     let agents = w::AgentFigures::new(&w::CEILINGS, agents).unwrap();
-    let part = startup::box_worker_with_agent(
+    let declaration = agent.declaration();
+    let (mut jig, own) =
+        crate::limits::base(40, 4096, temper_service_core::derived::Sources::agent(&declaration)).unwrap();
+    jig.core.people.words = jig.core.tasks.message_bytes;
+    let part = startup::box_worker_with_limits(
         &document,
         &jig_protocol_config::Directories::working(),
         &crate::stock::Given::Stock,
         &agents,
         &[],
-        &agent.declaration(),
+        Some(&declaration),
+        (&jig, &own),
     )
     .unwrap()
     .unwrap();

@@ -2,7 +2,9 @@
 pub mod accounts;
 pub mod component;
 pub mod core;
+mod lowering;
 pub mod notes;
+pub use lowering::{Lowered, lowering};
 pub mod people;
 mod pieces;
 pub mod settings;

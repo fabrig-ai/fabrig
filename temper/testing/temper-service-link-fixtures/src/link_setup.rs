@@ -7,14 +7,12 @@ pub const DIALECT: u32 = 3;
 // The stock catalogue holds twelve charters.
 // The closer procedure and close job make seventeen executor places in both limits.
 pub const ENGINE: &[u8] = br#"{
-"limits": {"overrides": {"fleet.slots":4,"hub.accounts":8,"hub.inbox":8,"hub.held":8,"hub.event_bytes":512,"tasks.inbox_bytes":4096,"core.run_bytes":32768,"tasks.charters":13,"core.templates":7,"tasks.result_bytes":32,"tasks.run_inbox":2,"hub.turns":1,"people.amendment_bytes":64,"core.policy_bytes":8192,"authority.grants":16,"authority.executors":22,"tasks.executor_kinds":22,"notes.scopes":32,"tasks.spec_bytes":128,"tasks.message_bytes":512,"tasks.hold_bytes":64,"tasks.authority_bytes":64,"people.words":512,"core.call_answer_bytes":2048,"notes.recalled":1}},
 "hosts": {
 "listener": [{"in_process": "workers"}]
 },
 "clients": {
 },
-"owners": [{"provider": 1, "subject": "owner-a"}],
-"memory_bytes": 1152921504606846976
+"owners": [{"provider": 1, "subject": "owner-a"}]
 }"#;
 
 #[must_use]
@@ -82,6 +80,7 @@ pub fn engine_with(jig: jig_protocol_config::Engine) -> settings::Engine {
 fn small_limits() -> limits::Limits {
     let mut own = temper_limits_fixtures::small();
     own.root.journal.run_bytes = 32_768;
+    own.root.transcript_memory = 1_152_921_504_606_846_976;
     own
 }
 
@@ -119,6 +118,13 @@ pub fn small_model() -> jig_domain_core::settings::CatalogueModel {
 /// A parsed engine passed the stock, before any component is made.
 #[must_use]
 pub fn parse_engine(bytes: &[u8]) -> jig_protocol_config::Engine {
+    parse_engine_over(bytes, &engine_figures::over(&jig_protocol_config_fixtures::small()))
+}
+#[path = "../../engine_limit_figures.rs"]
+mod engine_figures;
+
+#[must_use]
+pub fn parse_engine_over(bytes: &[u8], base: &jig_protocol_config::Limits) -> jig_protocol_config::Engine {
     let document = jig_protocol_config::document(
         bytes,
         &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 16_384, depth: 32 },
@@ -131,7 +137,7 @@ pub fn parse_engine(bytes: &[u8]) -> jig_protocol_config::Engine {
         jig_protocol_config::Defaults::PassedProviders,
         &crate::startup::fixed(&jig_protocol_config::Directories::working())
             .expect("engine fixture values fit their declared bounds"),
-        &jig_protocol_config_fixtures::small(),
+        base,
     )
     .expect("engine fixture values fit their declared bounds");
     let running = temper_worker_service_fixtures::providers();

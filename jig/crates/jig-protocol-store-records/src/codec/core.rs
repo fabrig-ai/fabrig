@@ -1,5 +1,6 @@
 //! Core rows carried by their generated family (protocol/store/records.md, 1).
 use crate::core_v6 as wire;
+use crate::tasks_v13::Record;
 use alloc::boxed::Box;
 use jig_domain_authority as authority;
 use jig_domain_core_vocabulary as domain;

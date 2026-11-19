@@ -18,6 +18,7 @@ pub struct Original {
     kind: Kind,
     len: usize,
     forms: Vec<Box<[u8]>>,
+    form_order: Vec<usize>,
     digests: Vec<([u8; 32], [u8; 32])>,
 }
 impl Original {
@@ -36,6 +37,9 @@ impl Original {
     pub fn forms(&self) -> &[Box<[u8]>] {
         &self.forms
     }
+    pub(crate) fn form_order(&self) -> &[usize] {
+        &self.form_order
+    }
     /// The sha-256 pairs of the original and placeholder, including surrounding whitespace.
     #[must_use]
     pub fn digests(&self) -> &[([u8; 32], [u8; 32])] {
@@ -53,7 +57,16 @@ impl Original {
         {
             forms.push(form);
         }
-        Self { kind, len: bytes.len(), forms, digests: vec![(digest(bytes), digest(&vec![b'x'; bytes.len()]))] }
+        // An escaped form can contain its bytes as a prefix: a& in a&amp;.
+        let mut form_order: Vec<_> = (0..forms.len()).collect();
+        form_order.sort_by_key(|&index| Reverse(forms[index].len()));
+        Self {
+            kind,
+            len: bytes.len(),
+            forms,
+            form_order,
+            digests: vec![(digest(bytes), digest(&vec![b'x'; bytes.len()]))],
+        }
     }
 }
 #[expect(clippy::missing_fields_in_debug, reason = "original bytes and digests must never appear in Debug")]

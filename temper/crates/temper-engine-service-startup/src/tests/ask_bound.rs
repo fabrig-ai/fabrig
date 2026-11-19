@@ -49,8 +49,7 @@ fn stock_config() -> (engine::Config, engine::Limits, jig_protocol_config::Engin
         &mut crate::startup::Problems::empty(),
     )
     .expect("stock application limits");
-    let mut limits = crate::limits::engine_candidate(&parsed.limits, &application.limits);
-    limits.memory_bytes = parsed.memory;
+    let limits = crate::limits::engine_candidate(&parsed.limits, &application.limits);
     let mut config = walking::config(7);
     let owner = config.core.owners.first().expect("fixture owner").clone();
     config.core = crate::startup::core(&parsed, [31; 16], 7);

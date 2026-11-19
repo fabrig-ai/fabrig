@@ -1,6 +1,7 @@
 //! Byte-summed pieces retain the domain's byte sum (skein/docs/design/data/codec/README.md, 3; protocol/store/records.md, 1).
-use super::{Box, Reader, Writer, domain, wire};
+use super::{Box, Reader, domain, wire};
 use skein_lib::List;
+use wire::Record;
 fn admit(used: &mut usize, name: &[u8], extra: usize, limit: u32, path: wire::Path) -> Result<(), wire::Problem> {
     *used = used.saturating_add(name.len()).saturating_add(extra);
     if name.is_empty() || *used > skein_lib::length::usize_of(limit) {
@@ -26,11 +27,9 @@ pub(super) fn fields(
     for field in values {
         let domain::ResultField { name, value } = field;
         admit(&mut used, name, value.len(), limits.result_field_value, path)?;
-        let field =
-            wire::ResultField::new(limits, wire::ResultFieldParts { name: name.clone(), value: value.clone() })?;
-        let mut item = Writer::new(skein_lib::length::usize_of(field.measure()));
-        field.encode(&mut item).expect("measured field");
-        items.push(item.finish()).expect("same field count");
+        let field = wire::ResultField { name: name.clone(), value: value.clone() };
+        let item = field.encode(limits)?;
+        items.push(item).expect("same field count");
     }
     match crate::codec::pieces::join(items, bound) {
         Ok(bytes) => Ok(bytes),
@@ -48,8 +47,7 @@ pub(super) fn read_fields(
     );
     let mut used = 0;
     while let Some(bytes) = split(&mut reader, path)? {
-        let wire::ResultFieldParts { name, value } =
-            wire::ResultField::decode(limits, &mut Reader::new(&bytes))?.into_parts();
+        let wire::ResultField { name, value } = wire::ResultField::decode(limits, &mut Reader::new(&bytes))?;
         admit(&mut used, &name, value.len(), limits.result_field_value, path)?;
         values.push(domain::ResultField { name, value }).expect("piece bounds item count");
     }
@@ -61,15 +59,14 @@ pub(super) fn rules(values: &[domain::FieldRule], limits: &wire::Limits) -> Resu
     let mut used = 0;
     for field in values {
         let domain::FieldRule { name, max } = field;
-        admit(&mut used, name, skein_lib::length::usize_of(*max), limits.field_rule_name, wire::Path::VerdictFields)?;
-        let field = wire::FieldRule::new(limits, wire::FieldRuleParts { name: name.clone(), max: *max })?;
-        let mut item = Writer::new(skein_lib::length::usize_of(field.measure()));
-        field.encode(&mut item).expect("measured field");
-        items.push(item.finish()).expect("same field count");
+        admit(&mut used, name, skein_lib::length::usize_of(*max), limits.field_rule_name, wire::paths::VERDICT_FIELDS)?;
+        let field = wire::FieldRule { name: name.clone(), max: *max };
+        let item = field.encode(limits)?;
+        items.push(item).expect("same field count");
     }
     match crate::codec::pieces::join(items, limits.verdict_fields) {
         Ok(bytes) => Ok(bytes),
-        Err(reason) => Err(wire::Problem { path: wire::Path::VerdictFields, reason }),
+        Err(reason) => Err(wire::Problem { path: wire::paths::VERDICT_FIELDS, reason }),
     }
 }
 pub(super) fn read_rules(bytes: Box<[u8]>, limits: &wire::Limits) -> Result<Box<[domain::FieldRule]>, wire::Problem> {
@@ -78,10 +75,9 @@ pub(super) fn read_rules(bytes: Box<[u8]>, limits: &wire::Limits) -> Result<Box<
         u32::try_from(bytes.len().checked_div(size_of::<u32>()).expect("nonzero length size")).expect("bounded piece"),
     );
     let mut used = 0;
-    while let Some(bytes) = split(&mut reader, wire::Path::VerdictFields)? {
-        let wire::FieldRuleParts { name, max } =
-            wire::FieldRule::decode(limits, &mut Reader::new(&bytes))?.into_parts();
-        admit(&mut used, &name, skein_lib::length::usize_of(max), limits.field_rule_name, wire::Path::VerdictFields)?;
+    while let Some(bytes) = split(&mut reader, wire::paths::VERDICT_FIELDS)? {
+        let wire::FieldRule { name, max } = wire::FieldRule::decode(limits, &mut Reader::new(&bytes))?;
+        admit(&mut used, &name, skein_lib::length::usize_of(max), limits.field_rule_name, wire::paths::VERDICT_FIELDS)?;
         values.push(domain::FieldRule { name, max }).expect("piece bounds item count");
     }
     Ok(values.into_boxed())
@@ -99,9 +95,8 @@ pub(super) fn parameters(
     let mut items = List::with_capacity(count);
     for value in values {
         let value = super::value::parameter(value, limits)?;
-        let mut item = Writer::new(skein_lib::length::usize_of(value.measure()));
-        value.encode(&mut item).expect("measured item");
-        items.push(item.finish()).expect("same item count");
+        let item = value.encode(limits)?;
+        items.push(item).expect("same item count");
     }
     match crate::codec::pieces::join(items, bound) {
         Ok(bytes) => Ok(bytes),
@@ -136,10 +131,9 @@ pub(super) fn segments(
     };
     let mut items = List::with_capacity(count);
     for value in values {
-        let value = wire::Segment::new(limits, wire::SegmentParts { bytes: value.clone() })?;
-        let mut item = Writer::new(skein_lib::length::usize_of(value.measure()));
-        value.encode(&mut item).expect("measured item");
-        items.push(item.finish()).expect("same item count");
+        let value = wire::Segment { bytes: value.clone() };
+        let item = value.encode(limits)?;
+        items.push(item).expect("same item count");
     }
     match crate::codec::pieces::join(items, bound) {
         Ok(bytes) => Ok(bytes),
@@ -157,7 +151,7 @@ pub(super) fn read_segments(
     );
     while let Some(bytes) = split(&mut reader, path)? {
         let value = wire::Segment::decode(limits, &mut Reader::new(&bytes))?;
-        let value = value.into_parts().bytes;
+        let value = value.bytes;
         values.push(value).expect("piece bounds item count");
     }
     Ok(values.into_boxed())
@@ -174,10 +168,9 @@ pub(super) fn part_segments(
     };
     let mut items = List::with_capacity(count);
     for value in values {
-        let value = wire::PartSegment::new(limits, wire::PartSegmentParts { bytes: value.clone() })?;
-        let mut item = Writer::new(skein_lib::length::usize_of(value.measure()));
-        value.encode(&mut item).expect("measured item");
-        items.push(item.finish()).expect("same item count");
+        let value = wire::PartSegment { bytes: value.clone() };
+        let item = value.encode(limits)?;
+        items.push(item).expect("same item count");
     }
     match crate::codec::pieces::join(items, bound) {
         Ok(bytes) => Ok(bytes),
@@ -195,7 +188,7 @@ pub(super) fn read_part_segments(
     );
     while let Some(bytes) = split(&mut reader, path)? {
         let value = wire::PartSegment::decode(limits, &mut Reader::new(&bytes))?;
-        let value = value.into_parts().bytes;
+        let value = value.bytes;
         values.push(value).expect("piece bounds item count");
     }
     Ok(values.into_boxed())
@@ -212,10 +205,9 @@ pub(super) fn authority_segments(
     };
     let mut items = List::with_capacity(count);
     for value in values {
-        let value = wire::AuthoritySegment::new(limits, wire::AuthoritySegmentParts { bytes: value.clone() })?;
-        let mut item = Writer::new(skein_lib::length::usize_of(value.measure()));
-        value.encode(&mut item).expect("measured item");
-        items.push(item.finish()).expect("same item count");
+        let value = wire::AuthoritySegment { bytes: value.clone() };
+        let item = value.encode(limits)?;
+        items.push(item).expect("same item count");
     }
     match crate::codec::pieces::join(items, bound) {
         Ok(bytes) => Ok(bytes),
@@ -233,7 +225,7 @@ pub(super) fn read_authority_segments(
     );
     while let Some(bytes) = split(&mut reader, path)? {
         let value = wire::AuthoritySegment::decode(limits, &mut Reader::new(&bytes))?;
-        let value = value.into_parts().bytes;
+        let value = value.bytes;
         values.push(value).expect("piece bounds item count");
     }
     Ok(values.into_boxed())
@@ -250,17 +242,13 @@ pub(super) fn grants(
     };
     let mut items = List::with_capacity(count);
     for value in values {
-        let value = wire::Grant::new(
-            limits,
-            wire::GrantParts {
-                connector: value.connector,
-                kind: value.kind,
-                pattern: super::value::pattern(&value.pattern, limits)?,
-            },
-        )?;
-        let mut item = Writer::new(skein_lib::length::usize_of(value.measure()));
-        value.encode(&mut item).expect("measured item");
-        items.push(item.finish()).expect("same item count");
+        let value = wire::Grant {
+            connector: value.connector,
+            kind: value.kind,
+            pattern: super::value::pattern(&value.pattern, limits)?,
+        };
+        let item = value.encode(limits)?;
+        items.push(item).expect("same item count");
     }
     match crate::codec::pieces::join(items, bound) {
         Ok(bytes) => Ok(bytes),
@@ -279,7 +267,7 @@ pub(super) fn read_grants(
     while let Some(bytes) = split(&mut reader, path)? {
         let value = wire::Grant::decode(limits, &mut Reader::new(&bytes))?;
         let value = {
-            let wire::GrantParts { connector, kind, pattern } = value.into_parts();
+            let wire::Grant { connector, kind, pattern } = value;
             domain::Grant { connector, kind, pattern: super::value::read_pattern(pattern) }
         };
         values.push(value).expect("piece bounds item count");
@@ -298,16 +286,10 @@ pub(super) fn scopes(
     };
     let mut items = List::with_capacity(count);
     for value in values {
-        let value = wire::ResourceScope::new(
-            limits,
-            wire::ResourceScopeParts {
-                connector: value.connector,
-                pattern: super::value::pattern(&value.pattern, limits)?,
-            },
-        )?;
-        let mut item = Writer::new(skein_lib::length::usize_of(value.measure()));
-        value.encode(&mut item).expect("measured item");
-        items.push(item.finish()).expect("same item count");
+        let value =
+            wire::ResourceScope { connector: value.connector, pattern: super::value::pattern(&value.pattern, limits)? };
+        let item = value.encode(limits)?;
+        items.push(item).expect("same item count");
     }
     match crate::codec::pieces::join(items, bound) {
         Ok(bytes) => Ok(bytes),
@@ -326,7 +308,7 @@ pub(super) fn read_scopes(
     while let Some(bytes) = split(&mut reader, path)? {
         let value = wire::ResourceScope::decode(limits, &mut Reader::new(&bytes))?;
         let value = {
-            let wire::ResourceScopeParts { connector, pattern } = value.into_parts();
+            let wire::ResourceScope { connector, pattern } = value;
             domain::ResourceScope { connector, pattern: super::value::read_pattern(pattern) }
         };
         values.push(value).expect("piece bounds item count");
@@ -347,9 +329,8 @@ pub(super) fn creations(
     let mut items = List::with_capacity(count);
     for value in values {
         let value = super::phase::new(value, limits, moved)?;
-        let mut item = Writer::new(skein_lib::length::usize_of(value.measure()));
-        value.encode(&mut item).expect("measured item");
-        items.push(item.finish()).expect("same item count");
+        let item = value.encode(limits)?;
+        items.push(item).expect("same item count");
     }
     match crate::codec::pieces::join(items, bound) {
         Ok(bytes) => Ok(bytes),
@@ -386,12 +367,11 @@ pub(super) fn members(
     let mut items = List::with_capacity(count);
     for value in values {
         if value.recurring.is_some() {
-            return Err(wire::Problem { path: wire::Path::CreationRecurring, reason: skein_codec::Reason::Bound });
+            return Err(wire::Problem { path: wire::paths::CREATION_RECURRING, reason: skein_codec::Reason::Bound });
         }
         let value = super::phase::member(value, limits, moved)?;
-        let mut item = Writer::new(skein_lib::length::usize_of(value.measure()));
-        value.encode(&mut item).expect("measured item");
-        items.push(item.finish()).expect("same item count");
+        let item = value.encode(limits)?;
+        items.push(item).expect("same item count");
     }
     match crate::codec::pieces::join(items, bound) {
         Ok(bytes) => Ok(bytes),

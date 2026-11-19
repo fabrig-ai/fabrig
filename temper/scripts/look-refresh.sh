@@ -1,7 +1,7 @@
 #!/bin/sh
 # Keep whichever of look-requests and tui-requests is checked out on
-# origin/main, dropping requests whose
-# Look-request names main carries, then push with the checkout's old lease.
+# origin/main, dropping requests whose Look-request landings main's last
+# Printed trailer covers, then push with the checkout's old lease.
 # Implements docs/design/client/web/journeys.md, section 7, and
 # docs/design/client/tui/journeys.md, section 10.
 #
@@ -66,23 +66,69 @@ LC_ALL=C awk '
     /^commit / { commit = $2; next }
     /^[a-z0-9][a-z0-9-]*$/ { print $0, commit }
 ' "$scratch/main" > "$scratch/done"
+# The first valid Printed trailer in topological order decides. A damaged
+# trailer must not hide the previous print, nor may a commit off main do so.
+# Key count distinguishes an empty Printed value from no trailer at all.
+git log --topo-order --format='commit %H %(trailers:key=Printed,keyonly,separator=,)%n%(trailers:key=Printed,valueonly)' origin/main > "$scratch/prints"
+awk '
+    /^commit / { commit = $2; remaining = split($3, keys, ","); next }
+    remaining > 0 { print commit, $0; remaining-- }
+' "$scratch/prints" > "$scratch/printed"
+printed=
+while read -r carrier value; do
+    case "$value" in
+        *[!0-9a-fA-F]* | '') valid=false ;;
+        *)
+            case ${#value} in
+                40 | 64) valid=true ;;
+                *) valid=false ;;
+            esac ;;
+    esac
+    if [ "$valid" = true ] && [ "$(git cat-file -t "$value" 2>/dev/null)" = commit ] &&
+        git merge-base --is-ancestor "$value" origin/main; then
+        printed=$value
+        printed_by=$carrier
+        break
+    fi
+    printf 'look-refresh: ignoring Printed: %s in %s; expected a full commit hash in origin/main history\n' "$value" "$carrier" >&2
+done < "$scratch/printed"
 : > "$scratch/todo"
-: > "$scratch/report"
+if [ -n "$printed" ]; then
+    # Find the first first-parent landing containing the trailer's carrier,
+    # including when the writer's commit arrived through a merge.
+    git rev-list --first-parent origin/main > "$scratch/landings"
+    while IFS= read -r landing; do
+        if ! git merge-base --is-ancestor "$printed_by" "$landing"; then
+            break
+        fi
+        brought_by=$landing
+    done < "$scratch/landings"
+    since=$(git rev-list --first-parent --count "$brought_by..origin/main")
+    printed_short=$(printf '%.12s' "$printed")
+    printf 'pages printed at %s, %s landings since\n' "$printed_short" "$since" > "$scratch/report"
+else
+    printf 'pages not printed yet\n' > "$scratch/report"
+fi
 while read -r commit name; do
     done_by=$(awk -v name="$name" '$1 == name { print $2; exit }' "$scratch/done")
-    if [ -n "$done_by" ]; then
+    if [ -n "$done_by" ] && [ -n "$printed" ] && git merge-base --is-ancestor "$done_by" "$printed"; then
         printf 'drop %s\n' "$commit" >> "$scratch/todo"
-        short=$(git rev-parse --short "$done_by")
-        printf 'dropped %s, done on main by %s\n' "$name" "$short" >> "$scratch/report"
+        short=$(printf '%.12s' "$done_by")
+        printf 'dropped %s, done on main by %s, printed at %s\n' "$name" "$short" "$printed_short" >> "$scratch/report"
     else
         printf 'pick %s\n' "$commit" >> "$scratch/todo"
-        printf 'kept %s\n' "$name" >> "$scratch/report"
+        if [ -n "$done_by" ]; then
+            short=$(printf '%.12s' "$done_by")
+            printf 'kept %s, done on main by %s, not yet printed\n' "$name" "$short" >> "$scratch/report"
+        else
+            printf 'kept %s\n' "$name" >> "$scratch/report"
+        fi
     fi
 done < "$scratch/requests"
 [ -s "$scratch/todo" ] || printf 'noop\n' > "$scratch/todo"
 
 # Supply the complete, validated todo. Keep empty/patch-equivalent requests
-# too: only a landing's named trailer completes one. Never consult an editor.
+# too: only a printed landing's named trailer completes one. Never consult an editor.
 base=$(git merge-base origin/main "$branch")
 LOOK_REFRESH_TODO=$scratch/todo
 export LOOK_REFRESH_TODO

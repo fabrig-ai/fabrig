@@ -64,8 +64,8 @@ skein's (skein's `ui/web/README.md`), and how a client of jig's does is jig's
   for the states no journey reaches.
 - **Journeys** are walks recorded in a browser on a fresh fake box,
   replayed natively through the shipped host and printed as the
-  client's pages, where the look is tuned and kept current by a test
-  (`journeys.md`).
+  client's pages, where the look is tuned (`journeys.md`), kept current
+  on main by one writer after each landing (`../journey-writer.md`).
 - **Look requests** carry the person's changes from the prints into a
   landing, an account and an after-landing render check (`look-requests.md`).
 

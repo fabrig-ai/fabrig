@@ -135,7 +135,9 @@ fn projection(declared: &Value, whole: &Value, path: &str) {
         }
     }
     for (name, member) in properties {
-        let whole_member = field(whole.required(b"properties").unwrap(), name).unwrap();
+        let whole_member = field(whole.required(b"properties").unwrap(), name).unwrap_or_else(|| {
+            panic!("{path}: declared member {} absent from whole form", core::str::from_utf8(name).unwrap())
+        });
         projection(member, whole_member, &format!("{path}.{}", core::str::from_utf8(name).unwrap()));
     }
     if let Some(items) = declared.field(b"items").unwrap() {

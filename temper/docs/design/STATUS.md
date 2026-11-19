@@ -1,7 +1,7 @@
 # Status
 
-2026-11-16. The first milestone is built. Engine, worker, agent and client
-wires version their layouts, stated and checked at channel opening;
+2026-11-16. First milestone built. Engine, worker, agent and client
+wires version layouts, stated and checked at channel opening;
 builds speak from each wire's floor, jig's channel bridging versions
 shared by engine and worker (`protocol/wires.md`; `draft/redeploys.md`, R1 and R4).
 The engine restarts alone while workers keep runs: stop settles placing
@@ -36,8 +36,8 @@ Failed workspace preparation says where and why: worker, workspace,
 repository, stage, git command (check out distinct from clean), operation
 and prepare times; the worker logs it
 (`draft/checkout-failure-words.status.md`; `domain/worker/checkouts.md`, 1).
-A real-loop story failing on an unasked kill names target, killer, time
-and reason, with service notes from the run's last seconds
+A real-loop story failing on an unasked kill names target, killer, time,
+reason and service notes from the run's last seconds
 (`draft/real-loop-kill-cause.status.md`; `testing/real-loop.md`).
 A story pairs git kills caused by its own cancel with the worker's
 cancelled-attempt note and counts them as asked for. The three-worker
@@ -52,9 +52,9 @@ world checks two goals' changes forming one `turn` landing on one green
 gate (`draft/turn-landing-placement.status.md`; `testing/real-loop.md`;
 `domain/landing.md`, 16).
 Remaining: landing/finding workflows, client surfaces, deployment,
-releases, verification and cost. Status files below record code's gaps
-and departures from design, and design's from drafts; documents keep
-deferred work and open questions. Team appears at a project's second
+releases, verification and cost. Status files below record gaps and departures of
+code from design and design from drafts; documents keep deferred work
+and open questions. Team appears at a project's second
 person or first standing role. P4b, goal 713: standing-role rows and cards
 with Pause/Resume in the head, Now, rules, wakes and this week's sessions;
 two gallery states. Forge-topic words, kept charter words and session
@@ -431,7 +431,8 @@ link's state first on every screen's bottom row, at its first column
 The deployment's client is `temper`, at `bin/temper`, with its capture,
 `skein_shell::Table` and dispatch in `temper-client-shell`. Its public rows
 are `[ADDRESS]` and `help`; `ctl` is internal. It runs the TUI and ctl from
-shared shells, and `--version` reads `temper-version`. Its ctl story signs
+shared shells, and `--version` reads `temper-version`. The TUI also
+takes `https://NAME` (`draft/tui-remote.md`, M1). Its ctl story signs
 in to a `temper-engine` and runs after landing. Its closure is held by the
 boundary test's row, with five shared vocabulary crates as named
 exceptions (`protocol/binaries.status.md`; `client/README.status.md`, 2).
@@ -465,49 +466,50 @@ program-login` on the welcome's "Sign in to Claude Code", and the page
 follows the login to its end (`client/tui/box.status.md`,
 `client/pages/welcome.status.md`; `draft/claude-sign-in.status.md`).
 
-A deleted project's repositories are released whole: each, through the
-one helper every path erasing a repository takes, goes with every
-record that names it, its reads, watches and pending work retired and
-its writes paged so that a restart part-way starts and resumes, while a
-context another project adopts stays (`domain/forge/adoption.md`, 1;
-`protocol/store.md`, 2; `draft/project-delete-cascade.status.md`).
+One helper on every repository-erasing path releases a deleted
+project's repositories whole with every naming record, retires reads,
+watches and pending work, and pages writes for a part-way restart to
+start and resume. Another project's adopted context stays
+(`domain/forge/adoption.md`, 1; `protocol/store.md`, 2;
+`draft/project-delete-cascade.status.md`).
 
-A person opens a change from a branch they pushed with `temper ctl
-change open`: the root expands the client's `OpenChange` into one change
-task of their own, requested and funded by them within their role's
-creating offer, and the change's first state, taking, reads the branch's
-head once, keeps it and makes the change's own branch at it, then lands
-it as any change, under `turn` or `queue`, leaving the pushed branch
-untouched; the client's wire moved its version for it
+A person opens a change from their pushed branch with `temper ctl
+change open`: the root expands the client's `OpenChange` into their own
+change task, requested and funded by them within their role's creating
+offer. Its first state, taking, reads and keeps the branch's head once,
+makes the change's branch there, then lands as any change under `turn`
+or `queue`, leaving the pushed branch untouched; the client's wire
+moved its version for it
 (`domain/forge/change/opened.md`; `draft/mechanical-changes.status.md`,
 M1). Its walk on dev.fabrig.ai follows landing.
 
-A signed-in person's client asks a fresh sign-in link, `temper ctl
-DIRECTORY link --out FILE`, written `0o600` and never printed, so that
-a browser on the host signs in as that person once the printed links
-are spent, with no restart; the link signs in the asker's party alone,
-no longer than the asker, and ctl's refusals of a spent, expired or
-unknown link name both ways to a fresh one (`client/ctl/README.md`, 6.1
-and 7; `protocol/sign-in.md`, 2.3; jig's `protocol/client/sign-in.md`;
+A signed-in person's client asks a fresh sign-in link with `temper ctl
+DIRECTORY link --out FILE`, written `0o600`, never printed: a host
+browser signs in as that person after printed links are spent, without
+restart. The link signs in the asker's party alone, no longer than the
+asker; ctl's spent, expired or unknown link refusals name both ways to
+a fresh one (`client/ctl/README.md`, 6.1 and 7; `protocol/sign-in.md`, 2.3;
+jig's `protocol/client/sign-in.md`;
 `draft/asked-link.status.md`).
 
-A journey's recording holds placeholders for what varies between walks
-of the same screens and isn't a secret: the TUI's build, every loopback
-port and each approval code, put in by `add` after its proof and checked
-by a replay of the result. The committed recordings were normalised
-once, without being walked again, and the print's test holds each to its
-own normalisation; a browser's print numbers skein-ui's ids afresh on
-each page. Times stand, and a framed field takes a placeholder of the
-original's width alone (`client/journey-placeholders.md`;
+A journey's recording holds nonsecret placeholders for what varies
+between walks of the same screens: the TUI's build, every loopback port
+and approval code. `add` inserts them after its proof and checks by
+replay. A browser's print numbers skein-ui's ids afresh per page. Times
+stand; a framed field takes only a placeholder of the original's width
+(`client/journey-placeholders.md`;
 `draft/journey-placeholders.status.md`).
 
-`again` walks a journey on one fixed start, 2026-01-06T09:00:00Z and
-seed 7: the fake box's engine, worker and fake peers, the page and the
-TUI take it, and each one's clock moves only to its own deadlines, so
-two walks of one journey make the same recording and prints but where
-real processes decide. The box's own loop, which fetches over TLS, and
-its agents keep the host's clock; a recording walked by hand keeps its
-times (`client/journey-clock.md`; `draft/journey-clock.status.md`).
+`again` fixes start 2026-01-06T09:00:00Z, seed 7 for a journey's fake
+box engine, worker and fake peers, page and TUI; each clock moves only
+to its own deadlines. Two walks' recordings and prints match except
+where real processes decide. The box's TLS-fetching loop and agents
+keep the host's clock; hand-walked recordings keep their times (`client/journey-clock.md`;
+`draft/journey-clock.status.md`).
+
+Main's journey files have one writer, run after each landing, one
+change at a time, ending `Printed: COMMIT`; no test or goal writes them
+(`client/journey-writer.md`).
 
 Design documents:
 - [`README.md`](README.status.md)
@@ -535,6 +537,7 @@ Design documents:
 - [`client/forge/served.md`](client/forge/served.status.md)
 - [`client/journey-clock.md`](client/journey-clock.status.md)
 - [`client/journey-placeholders.md`](client/journey-placeholders.status.md)
+- [`client/journey-writer.md`](client/journey-writer.status.md)
 - [`client/line.md`](client/line.status.md)
 - [`client/pages/README.md`](client/pages/README.status.md)
 - [`client/pages/accounts.md`](client/pages/accounts.status.md)
@@ -565,6 +568,7 @@ Design documents:
 - [`client/tui/pages/chat.md`](client/tui/pages/chat.status.md)
 - [`client/tui/pages/design-session.md`](client/tui/pages/design-session.status.md)
 - [`client/tui/pages/launchpad.md`](client/tui/pages/launchpad.status.md)
+- [`client/tui/pages/refused.md`](client/tui/pages/refused.status.md)
 - [`client/tui/pages/sign-in.md`](client/tui/pages/sign-in.status.md)
 - [`client/tui/theme.md`](client/tui/theme.status.md)
 - [`client/view.md`](client/view.status.md)
@@ -636,6 +640,7 @@ Design documents:
 - [`protocol/configuration/directories.md`](protocol/configuration/directories.status.md)
 - [`protocol/configuration/engine.md`](protocol/configuration/engine.status.md)
 - [`protocol/configuration/figures.md`](protocol/configuration/figures.status.md)
+- [Limits as settings](protocol/configuration/limit-settings.status.md)
 - [`protocol/configuration/limits.md`](protocol/configuration/limits.status.md)
 - [`protocol/configuration/moved.md`](protocol/configuration/moved.status.md)
 - [`protocol/configuration/providers.md`](protocol/configuration/providers.status.md)
@@ -796,7 +801,7 @@ Drafts:
 - [`draft/store-shape.md`](draft/store-shape.status.md) — S1, goal 2651: the census, counted by skein-kv per keyspace, named and reported by jig's component, shown in the deployment's document, temper's Limits page and `temper ctl DIR deployment census`; S2, goal 2652: landed, with no head-only walk remaining; older stores refused by name, naming bridge build `3d1c717d379e`; S3, goal 2653: generations by hard links: skein-io's `HardLink` on every backend and in the file layer, and an upgrade's new generation linking the previous one's snapshot and sealed segments, copying its newest segment and secrets. S4, goal 2826: layout ids: defaults and former names in skein's schemas, a value type's layout fingerprint, derived plans over a value's bytes, the command passing over registered families; jig's store registry of layouts, its heads mapped at the store's edges and every value converted as read, the open's check, and jobs at open routed to their owners, written changes among them. S5, goal 3361: milestones as attempts: the tasks child keeps a row per attempt and per held phase, no row per phase change; escalations, history pages, goals' projections and temper's goal issues read them; client wire 23 carries them. S6, goal 3362: retention: an ended task's summary written when it ends, and its turns, full record and summary each erased past a horizon of the deployment's limits (14, 30 and 365 days) by the core's hourly pass, deferred while live work names it or its requester has not read it; forgotten tasks' remains and decided person proposals collected; a shrunk task listed from its summary; a change record dropped with its task's record. S8, goal 3363: hot records apart from cold: live tasks, goals' projections and temper's change records each kept as a part an act changes and a part that changes on most saves, a save putting only the part that changed. S7, goal 3523: history in task logs: skein-kv's payload logs, compressed by skein's DEFLATE; a task's history and its turns in two logs in the store's generation, read through a view of the map and the logs, linked into a new generation and dropped whole by retention. S1 to S8 are landed; no done upgrade job remains.
 - [`draft/surfaces.md`](draft/surfaces.status.md)
 - [`draft/template-places.md`](draft/template-places.status.md)
-- [`draft/test-budgets.md`](draft/test-budgets.status.md) — B1, goal 5270: every binary in a pyramid layer (`tools/tiers/layers.toml`); library/binary/generated-codec tests are step tests, repository checks separate; boundary validates coverage and names (`tools/tiers/layers.md`). B2, goal 5567: focused/fuzzy CPU budgets by tree/layer from 11-16 gate runs plus 10%, references and ideals; one-process totals red under `--gate`, warn otherwise (`tools/tiers/budgets.md`). B3, goal 5618: selection judged whole using main's folded ledger; held budget only falls, min(user ceiling, lowest main +10%); explicit downward transfers; red belongs to change if main fits or growth exceeds noise, naming growing tests/binaries (same, 7 to 10). B4, goal 5722: new or doubled-wall tests run alone, flagged tests at base too; CPU minus empty binary, reasons past reference, CPU-alone ledger (`tools/tiers/references.md`). B6, goal 6324: delivery uses gate rules with `TIERS_LEDGER`, ledger-keyed cache; missing ledgers warn; no builder keeps them (`tools/pre-pr/design.md`, 4 and 7). B7, goal 6661: over-budget main uses binaries' last-three CPU medians in ledger v3, including unrun head binaries and growth; folded lowest; noise max(1 s, main/20) (`tools/tiers/budgets.md`, 7 to 9). B8, goal 8104: all figures user's; `tools/tiers/figures.py` names/refuses raised figures or added reasons at gate/delivery, except figures-only landings. Every budget/reference red/refusal points to full testing strategy and 8.1's three questions; gate runner pending (same, 10.1; `tools/pre-pr/design.md`, 4). B9, goal 8135: main-ledger tests whose last three alone figures differ by over half again are named with figures; warning only (`tools/tiers/references.md`, 6). B10, goal 8139: 25 non-jig tests furthest past reference on 11-18 (temper simulated/real-loop/end-to-end/system/domain and repository checks): correct tier, cheaper cause, or measurements to user (`skein/docs/foundation/testing-strategy.md`, 8.1).
+- [`draft/test-budgets.md`](draft/test-budgets.status.md) — B1, goal 5270: every binary in pyramid layer (`tools/tiers/layers.toml`); library/binary/generated-codec at step, repository checks separate; boundary checks coverage/names (`tools/tiers/layers.md`). B2, goal 5567: focused/fuzzy CPU budgets per tree/layer: 11-16 gate runs +10%, references/ideals; one-process totals red under `--gate`, warn otherwise (`tools/tiers/budgets.md`). B3, goal 5618: selection judged whole by main's folded ledger; held budget only falls, min(user ceiling, lowest main +10%); explicit downward transfers; red is change's if main fits or growth exceeds noise; growing tests/binaries named (same, 7 to 10). B4, goal 5722: new/doubled-wall tests alone, flagged also at base; CPU minus empty binary, reasons past reference, CPU-alone ledger (`tools/tiers/references.md`). B6, goal 6324: delivery: gate rules with `TIERS_LEDGER`, ledger-keyed cache; missing ledgers warn; none on builders (`tools/pre-pr/design.md`, 4 and 7). B7, goal 6661: over-budget main: binaries' last-three CPU medians, ledger v3, with unrun head binaries and growth; folded lowest; noise max(1 s, main/20) (`tools/tiers/budgets.md`, 7 to 9). B8, goal 8104: all figures user's; `tools/tiers/figures.py` names/refuses raised figures or added reasons at gate/delivery, bar figures-only landings. Every budget/reference red/refusal: full testing strategy and 8.1's three questions; gate runner pending (same, 10.1; `tools/pre-pr/design.md`, 4). B9, goal 8135: main-ledger tests named with last three alone figures if differing by over half again; warning only (`tools/tiers/references.md`, 6). B10, goal 8139: 25 non-jig tests furthest past reference, 11-18 (temper simulated/real-loop/end-to-end/system/domain and repository checks): correct tier, cheaper cause, or measurements to user (`skein/docs/foundation/testing-strategy.md`, 8.1). Goal 8818: next 28 non-jig, 11-18, same terms: temper domain/machine, skein/smith step.
 - [`draft/tier-controls.md`](draft/tier-controls.status.md)
 - [`draft/to-begin.md`](draft/to-begin.status.md)
 - [`draft/tools-by-role.md`](draft/tools-by-role.status.md) — T1, goal 5198: unencodable assignments name fields/figures in engine log and held reason; generated paths name themselves; charter fixed costs checked by family at apply and against defaults at start, including local agents. T2, goal 5617: authority-filtered tools by charter family, `read_docs` except asking runs; ≤1,024-byte short declarations, whole on `host-tools`; 18 forge reads via `read_forge`/`read_issues`/`read_ci` with `what`; contract 4, floor 1, adapters 1–3; stock goal/coder offers ≤14,336/4,096 bytes; brief floor checked at apply/start. Goal 8709: short forms name each `what`'s inputs; omitted branch defaults, `file` at branch head; sentence refusals; contract 10, three-read adapters 6–9.

@@ -115,6 +115,7 @@ pub fn fields_mut(line: &mut Line) -> Vec<(&mut Box<[u8]>, Framing)> {
         | Line::Saved
         | Line::Unsaved
         | Line::Kept { .. }
+        | Line::Handshake(_)
         | Line::Opened { .. }
         | Line::Unstream
         | Line::Quit
@@ -206,6 +207,7 @@ pub fn originals(lines: &[Line], given: &[Box<[u8]>]) -> Originals {
             | Line::Saved
             | Line::Unsaved
             | Line::Kept { .. }
+            | Line::Handshake(_)
             | Line::Opened { .. }
             | Line::Stream(None)
             | Line::Replacing { credential: None, .. }

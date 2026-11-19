@@ -54,6 +54,7 @@ fn hold(domain: &mut Domain, env: &Env<Limits>, task: u64, branch: &[u8]) {
             },
             task,
             writer: None,
+            beside: None,
             design_writers: Box::new([]),
             drift: None,
         }),

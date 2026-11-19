@@ -12,7 +12,7 @@ use core::ops::RangeBounds;
 
 use crate::btree;
 
-/// An ordered map that holds at most a capacity fixed when it is made.
+/// An ordered map that holds at most its capacity.
 ///
 /// Inserting a new key into a full map hands the key and value back: that is
 /// the refusal. Replacing the value of a key already present always works.
@@ -53,6 +53,12 @@ impl<K: Ord, V> Map<K, V> {
     #[must_use]
     pub const fn capacity(&self) -> u32 {
         self.capacity
+    }
+
+    /// Raises the capacity in place, allocating nothing (runtime/lib.md, 5).
+    pub fn raise(&mut self, capacity: u32) {
+        assert!(capacity >= self.capacity(), "a capacity never falls");
+        self.capacity = capacity;
     }
 
     #[must_use]

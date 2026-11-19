@@ -406,7 +406,7 @@ fn an_unserved_or_absent_version_keeps_the_hello_alone_and_watch_zero_free() {
 }
 #[test]
 fn a_stream_query_is_exactly_one_decimal_u32_version() {
-    for query in ["abc", "", "-1", "+28", "4294967296", "28&version=36", "28&other=1"] {
+    for query in ["abc", "", "-1", "+28", "4294967296", "28&version=37", "28&other=1"] {
         let mut peer = Peer::signed_in(&fixtures::settings(), fixtures::FIRST_SIGN_IN);
         let target = format!("/jig/v1/stream?version={query}");
         let socket = peer.request_stream_target(target.as_bytes());

@@ -138,29 +138,11 @@ fn a_fresh_init_names_the_standard_profiles() {
             temper_init::Content::Bytes { .. } | temper_init::Content::Link { .. } => None,
         })
         .expect("generated temper.json");
-    for path in [b"engine.limits.profile".as_slice(), b"engine.limits.profile", b"application.limits.profile"] {
-        assert_eq!(fixtures::value(&init, path).as_ref(), br#""standard""#, "{}", str::from_utf8(path).unwrap());
-    }
-    let overrides = fixtures::value(&init, b"engine.limits.overrides");
-    let document = config::document(&overrides, &config::DocumentLimits { bytes: 16_384, tokens: 4096, depth: 4 })
-        .expect("init engine overrides");
-    let mut task_overrides = Vec::new();
-    for at in (1..document.len().checked_sub(1).unwrap()).step_by(2) {
-        let member = document.text(document.token(at).unwrap()).expect("override name");
-        assert!(
-            !member.starts_with(b"people.") && (!member.starts_with(b"authority.") || member == b"authority.executors"),
-            "init overrides {} instead of taking standard",
-            str::from_utf8(member).unwrap()
-        );
-        if member.starts_with(b"tasks.") {
-            task_overrides.push(str::from_utf8(member).expect("ASCII override name"));
-        }
-    }
-    task_overrides.sort_unstable();
-    assert_eq!(
-        task_overrides.as_slice(),
-        ["tasks.charters", "tasks.executor_kinds", "tasks.inbox_bytes", "tasks.message_bytes", "tasks.result_bytes"]
-    );
+    let document: serde_json::Value = serde_json::from_slice(&init).unwrap();
+    assert!(document["engine"].get("limits").is_none());
+    assert!(document["engine"].get("memory_bytes").is_none());
+    assert!(document["application"].get("limits").is_none());
+    assert!(document["workers"][0].get("limits").is_none());
     let (_, limits) = generated();
     assert_eq!(limits.tasks.inbox_messages, 82);
     assert_eq!(limits.tasks.message_bytes, 63_738);
@@ -324,7 +306,7 @@ fn real_init_policy_fits_with_two_long_github_repositories() {
     // Init runs the Standard profile; also prove the stricter product question.
     assert_eq!(limits.policy_bytes, 16_384);
     assert!(config.core.seed_projects.is_empty());
-    assert_eq!(config.kinds_stock.len(), 17);
+    assert_eq!(config.kinds_stock.len(), 18);
     let stock = config.core.defaults.policies.get(&1).expect("stock policy 1");
     let snapshot =
         core::policy_snapshot(&stock.policy, &stock.permissions, &stock.templates).expect("whole stock policy");

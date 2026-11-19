@@ -11,7 +11,7 @@ use core::slice;
 
 use crate::growth::grown;
 
-/// A sequence that grows up to a capacity fixed when it is made, and refuses
+/// A sequence that grows up to its capacity, and refuses
 /// past it. It allocates as it fills, never past its capacity and never shrinking.
 #[derive(Debug)]
 pub struct List<T> {
@@ -51,6 +51,12 @@ impl<T> List<T> {
     #[must_use]
     pub const fn capacity(&self) -> u32 {
         self.capacity
+    }
+
+    /// Raises the capacity in place, allocating nothing (runtime/lib.md, 5).
+    pub fn raise(&mut self, capacity: u32) {
+        assert!(capacity >= self.capacity(), "a capacity never falls");
+        self.capacity = capacity;
     }
 
     #[must_use]
@@ -152,6 +158,28 @@ impl<T> List<T> {
         T: Clone,
     {
         Box::from(self.items.as_slice())
+    }
+}
+
+impl<T: Copy> List<T> {
+    /// Appends a copy of an existing range, or refuses without changing the
+    /// list when the range is absent or its copy would exceed the capacity.
+    pub fn extend_from_within(&mut self, range: core::ops::Range<u32>) -> Option<()> {
+        let start = crate::usize_of(range.start);
+        let end = crate::usize_of(range.end);
+        let count = self.items.get(start..end)?.len();
+        let len = self.items.len();
+        let needed = len.checked_add(count)?;
+        let cap = crate::usize_of(self.capacity);
+        if needed > cap {
+            return None;
+        }
+        if needed > self.items.capacity() {
+            let additional = grown(len, needed, cap).checked_sub(len).expect("room for the copied range");
+            self.items.reserve_exact(additional);
+        }
+        self.items.extend_from_within(start..end);
+        Some(())
     }
 }
 

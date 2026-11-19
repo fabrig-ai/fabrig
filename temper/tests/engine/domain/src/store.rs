@@ -135,11 +135,20 @@ impl Store {
             return None;
         };
         let Stored::ChangeCold(cold) = cold.as_ref() else { return None };
-        let engine::Record::Forge { row: hot } = self.rows.get(&engine::Key::Forge(Key::ChangeHot(task)))? else {
+        let hot = self.change_hot(task)?;
+        Some(ChangeRow::join(*cold.clone(), hot.clone()))
+    }
+
+    /// Borrow the hot part for predicates that do not read the cold report,
+    /// title, body or branch (temper/docs/design/protocol/store.md, 2).
+    #[must_use]
+    pub fn change_hot(&self, task: u64) -> Option<&temper_engine_domain_forge::ChangeHot> {
+        use temper_engine_domain_forge::{Key, Stored};
+        let engine::Record::Forge { row } = self.rows.get(&engine::Key::Forge(Key::ChangeHot(task)))? else {
             return None;
         };
-        let Stored::ChangeHot(hot) = hot.as_ref() else { return None };
-        Some(ChangeRow::join(*cold.clone(), *hot.clone()))
+        let Stored::ChangeHot(hot) = row.as_ref() else { return None };
+        Some(hot)
     }
 
     #[must_use]
@@ -593,7 +602,7 @@ impl Store {
             Event::Census { .. } => {}
             Event::Committed { number, .. } => {
                 let writes = self.inflight.remove(&number).expect("root commit");
-                for write in &writes {
+                for write in writes {
                     match write {
                         Write::DropTranscript { task } => {
                             self.rows.retain(|key, _| {
@@ -602,7 +611,7 @@ impl Store {
                                     ..
                                 })) = key
                                 {
-                                    owner != task
+                                    *owner != task
                                 } else {
                                     true
                                 }
@@ -611,7 +620,7 @@ impl Store {
                         Write::DropHistory { .. } | Write::Opening(_) | Write::Wires => {}
                         Write::CopySettingsRevision(number) => {
                             let held = Key::Core(jig_domain_core::Key::Core(jig_domain_core::CoreKey::Settings(
-                                jig_domain_core::settings::Key::Held(*number),
+                                jig_domain_core::settings::Key::Held(number),
                             )));
                             let Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Settings(
                                 jig_domain_core::settings::Record::Revision { revision, .. },
@@ -628,10 +637,10 @@ impl Store {
                             self.rows.insert(row.key(), row);
                         }
                         Write::Save(row) => {
-                            self.rows.insert(row.key(), row.clone());
+                            self.rows.insert(row.key(), row);
                         }
                         Write::Erase(key) => {
-                            self.rows.remove(key);
+                            self.rows.remove(&key);
                         }
                     }
                 }

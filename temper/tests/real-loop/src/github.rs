@@ -58,7 +58,7 @@ pub struct Fixture {
     /// Seed repository history before the peer starts; setup itself starts no CI.
     pub prepare: fn(&mut domain::Domain, &skein_lib::Env<domain::Config>),
     pub config: fn() -> layer::Config,
-    pub configure: fn(&mut Value, &mut Value, SocketAddr),
+    pub configure: fn(&mut temper_playground::documents::Configuration, &mut Value, SocketAddr),
 }
 #[must_use]
 pub fn fixture() -> Fixture {
@@ -145,17 +145,22 @@ fn config() -> layer::Config {
         faults: layer::Faults { reset: 0, drop: 0, server_error: 0 },
     }
 }
-pub(crate) fn write(path: &Path, address: SocketAddr, clients: SocketAddr, fixture: Fixture) -> std::io::Result<()> {
-    let mut value: Value = serde_json::from_slice(&std::fs::read(path.join("temper.json"))?)?;
+pub(crate) fn write(
+    path: &Path,
+    address: SocketAddr,
+    clients: SocketAddr,
+    fixture: Fixture,
+    value: &mut temper_playground::documents::Configuration,
+) -> std::io::Result<()> {
     value["world_settings"] = serde_json::from_slice(&std::fs::read(path.join("world-settings.json"))?)?;
     let mut agent: Value = serde_json::from_slice(&std::fs::read(path.join("world-agent.json"))?)?;
     value["application"]["clients"]["listener"] = json!({"socket":clients.to_string()});
     value["application"]["test"]["github"] = json!({"api":{"socket":address.to_string()},
         "transport":"plaintext","remote":format!("http://{address}"),"web":format!("http://{address}")});
     // Use the landing world's procedure and capacities, without a landing rule.
-    (landing::fixture().configure)(&mut value, &mut agent, address);
+    (landing::fixture().configure)(value, &mut agent, address);
     value["world_settings"]["landing"]["projects"] = json!([]);
-    value["application"]["limits"]["overrides"]["forge_component.log_poll_ms"] = 10.into();
+    value.temper_over("forge_component.log_poll_ms", 10);
     // Adoption must reach the forge for either account, rather than fail authority first.
     let broaden = |grants: &mut Value| {
         for grant in grants.as_array_mut().expect("grants") {
@@ -168,10 +173,10 @@ pub(crate) fn write(path: &Path, address: SocketAddr, clients: SocketAddr, fixtu
         broaden(&mut project["policy"]["roles"][0]["authority"]["grants"]);
         broaden(&mut project["policy"]["projections"]);
     }
-    (fixture.configure)(&mut value, &mut agent, address);
-    fixtures::turn_bounds::apply(&mut value, fixtures::turn_bounds::turn_body(&agent));
-    temper_agent_fixtures::apply(&mut value, path, &agent);
-    fixtures::finish_configuration(path, &mut value)?;
+    (fixture.configure)(value, &mut agent, address);
+    fixtures::turn_bounds::apply(value, fixtures::turn_bounds::turn_body(&agent));
+    temper_agent_fixtures::apply(value, path, &agent);
+    fixtures::finish_configuration(path, value)?;
     fixtures::private(&path.join("world-agent.json"), &serde_json::to_vec(&agent)?)
 }
 

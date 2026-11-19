@@ -419,6 +419,7 @@ fn refused_start() {
         }
         for name in row.files {
             fs::write(dir.join(name), b"existing").expect("existing output");
+            fs::set_permissions(dir.join(name), fs::Permissions::from_mode(0o600)).expect("private retained output");
         }
         let mut command = command(row.kind, &doc);
         if let Some(path) = row.observations {

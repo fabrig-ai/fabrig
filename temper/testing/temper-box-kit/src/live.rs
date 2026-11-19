@@ -17,12 +17,12 @@ use temper_box_shell::directories::jig_directories;
 #[must_use]
 pub fn configure(directory: &Path, forge: &Throwaway) -> String {
     let path = directory.join("temper.json");
-    let mut value: Value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
+    let mut value = super::limit_settings::configuration(directory);
     let owned: Value = serde_json::from_slice(super::owned::EXAMPLE).expect("owned example");
     let providers = temper_agent_fixtures::providers::input(&mut value);
     providers["providers"].as_array_mut().expect("providers").retain(|provider| provider["number"] == 1);
     providers["endpoints"].as_array_mut().expect("endpoints").retain(|endpoint| endpoint["provider"] == "openai");
-    value["engine"]["limits"]["overrides"]["documents.rows"] = 32.into();
+    value.jig_over("documents.rows", 32);
     let mut agent: Value = temper_agent_fixtures::configuration(&owned);
     if let Some(program) = agent["programs"].get_mut("claude_code") {
         let claude = temper_test_env::value(&temper_shell::environment::PATH).and_then(|path| {
@@ -50,6 +50,7 @@ pub fn configure(directory: &Path, forge: &Throwaway) -> String {
     );
     super::configuration::use_derived(&mut value);
     write_private(&path, &serde_json::to_vec(&value).expect("live configuration JSON"));
+    super::limit_settings::remember(directory, &value);
     temper_agent_fixtures::install(directory, &agent);
     instructions
 }

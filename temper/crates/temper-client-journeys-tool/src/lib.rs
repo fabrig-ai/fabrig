@@ -18,6 +18,7 @@ type EnvironmentEntry = (Box<[u8]>, Box<[u8]>);
 pub mod again;
 pub mod drive;
 pub mod line;
+mod pages;
 pub mod print;
 pub mod recipe;
 pub mod tui;

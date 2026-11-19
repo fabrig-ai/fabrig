@@ -1,5 +1,6 @@
 //! Each holds/pieces word reads the bytes its owner wrote (protocol/store/records.md, 1).
 use super::fixtures;
+use crate::tasks_v13::Record;
 use crate::{codec, core_v6 as core, people_v17 as people, tasks_v13 as tasks};
 use jig_domain_core_vocabulary as c;
 use jig_domain_people as p;
@@ -43,7 +44,7 @@ impl Held {
             }
             Self::Phase(_) => {
                 let value = tasks::PhaseRecord::decode(&limits.tasks, &mut reader).unwrap();
-                Self::Phase(codec::tasks::phase::read_phase(value.into_parts().value, &limits.tasks).unwrap())
+                Self::Phase(codec::tasks::phase::read_phase(value.value, &limits.tasks).unwrap())
             }
             Self::Change(_) => {
                 tasks::ChangeRecord::decode(&limits.tasks, &mut reader).unwrap();
@@ -489,11 +490,11 @@ impl TaskItems {
     fn read(&self, bytes: &[u8], limits: &tasks::Limits) -> Self {
         match self {
             Self::Rules(_) => Self::Rules(pieces(bytes, limits, |limits, reader| {
-                let value = tasks::FieldRule::decode(limits, reader).unwrap().into_parts();
+                let value = tasks::FieldRule::decode(limits, reader).unwrap();
                 t::FieldRule { name: value.name, max: value.max }
             })),
             Self::Fields(_) => Self::Fields(pieces(bytes, limits, |limits, reader| {
-                let value = tasks::ResultField::decode(limits, reader).unwrap().into_parts();
+                let value = tasks::ResultField::decode(limits, reader).unwrap();
                 t::ResultField { name: value.name, value: value.value }
             })),
         }
@@ -511,40 +512,38 @@ fn tasks_piece_words_read_their_fixtures_whole() {
     let limits = super::tasks_limits();
     let task = fixtures::holds::task();
     let bytes = codec::tasks::encode(&t::Stored::Ended(Box::new(task.clone())), &limits, &[]).unwrap();
-    let tasks::Value::EndedTalk(value) =
-        tasks::Row::decode(&limits, &mut Reader::new(&bytes)).unwrap().into_parts().value
-    else {
+    let tasks::Value::EndedTalk(value) = tasks::Row::decode(&limits, &mut Reader::new(&bytes)).unwrap().value else {
         panic!("ended fixture")
     };
-    let value = value.into_parts().record.into_parts();
-    let tasks::Contract::Verdict(contract) = value.definition.contract().clone() else { panic!("contract fixture") };
+    let value = value.record;
+    let tasks::Contract::Verdict(contract) = value.definition.contract.clone() else { panic!("contract fixture") };
     let t::Contract::Verdict { choices } = task.contract else { panic!("contract fixture") };
-    let tasks::Phase::Ended(ended) = value.outcome.into_parts().phase else { panic!("ended fixture") };
-    let tasks::Ending::Done(done) = ended.into_parts().ending else { panic!("done fixture") };
-    let tasks::TaskResult::Verdict(result) = done.into_parts().result else { panic!("verdict fixture") };
+    let tasks::Phase::Ended(ended) = value.outcome.phase else { panic!("ended fixture") };
+    let tasks::Ending::Done(done) = ended.ending else { panic!("done fixture") };
+    let tasks::TaskResult::Verdict(result) = done.result else { panic!("verdict fixture") };
     let mut selected = None;
-    for item in value.interests.inbox() {
+    for item in &value.interests.inbox {
         if let tasks::InboxItem::Word(word) = item {
             selected = Some(word);
         }
     }
     let word = selected.expect("word fixture");
-    let tasks::MessageKind::Result(message) = word.kind().clone() else { panic!("message fixture") };
-    let tasks::ResultKind::Verdict(message) = message.into_parts().kind else { panic!("verdict message fixture") };
+    let tasks::MessageKind::Result(message) = word.kind.clone() else { panic!("message fixture") };
+    let tasks::ResultKind::Verdict(message) = message.kind else { panic!("verdict message fixture") };
     let rows = [
         TaskRow {
             path: "Verdict.fields",
-            bytes: contract.choices().get(0).unwrap().fields().into(),
+            bytes: contract.choices.get(0).unwrap().fields.clone(),
             expected: TaskItems::Rules(choices[0].fields.clone()),
         },
         TaskRow {
             path: "VerdictResult.fields",
-            bytes: result.into_parts().fields,
+            bytes: result.fields,
             expected: TaskItems::Fields(fixtures::holds::result_fields()),
         },
         TaskRow {
             path: "VerdictMessage.fields",
-            bytes: message.into_parts().fields,
+            bytes: message.fields,
             expected: TaskItems::Fields(fixtures::holds::result_fields()),
         },
     ];

@@ -2,6 +2,7 @@
 
 2026-11-18. Where temper's code lags or departs from [areas.md](areas.md).
 
+
 - **Not yet:** 2, 3 and 6: kinds 14 and 15, a project's areas and its triager, as settings: their values, judged by the forge and by the root from the core, kept, erased with their project, named in settings files and a run's tools [in flight: change 733].
 - **Not yet:** 4, 5 and 7: the owner rule, a finding filed or handed on reaching its holder, a task's news through the project's findings topic, kept findings, and the acts as the forge's requests and reads, refused in their words; 8's focused and fuzzy stories [in flight: change 746].
 - **Not yet:** 5, *Filed with none*: a red of no goal's filed by the root [in flight: change 751].

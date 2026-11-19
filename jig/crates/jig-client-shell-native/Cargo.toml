@@ -10,6 +10,7 @@ publish.workspace = true
 skein-lib.workspace = true
 skein-http.workspace = true
 skein-io.workspace = true
+skein-tls.workspace = true
 jig-client.workspace = true
 jig-client-protocol-http.workspace = true
 jig-client-protocol-wire.workspace = true
@@ -20,6 +21,7 @@ skein-sim.workspace = true
 skein-shell.workspace = true
 skein-fake-machine.workspace = true
 skein-world.workspace = true
+skein-tls-kit.workspace = true
 
 [lints.rust] # binary: tools/lints/design.md, 2.2
 unsafe_code = "forbid"

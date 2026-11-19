@@ -56,6 +56,9 @@ pub struct Joint {
     pub playground: Option<temper_client_protocol_wire::v1::PlaygroundAnswer>,
     pub deployment: (bool, bool),
     pub program_environment: Box<[u8]>,
+    /// The service-only Limits read, scripted at this domain world's boundary.
+    pub limit_pages: VecDeque<temper_client_protocol_wire::v1::LimitsAnswer>,
+    pub settings_changes: Vec<jig_client::contract::ChangeSettings>,
     pub hold_playground_end: bool,
     held_playground_end: Vec<(ClientId, Event)>,
     pub playground_ends: Vec<skein_lib::RequestKey>,
@@ -1643,6 +1646,8 @@ impl Joint {
             playground: None,
             deployment: (true, true),
             program_environment: Box::new([]),
+            limit_pages: VecDeque::new(),
+            settings_changes: Vec::new(),
             hold_playground_end: false,
             held_playground_end: Vec::new(),
             playground_ends: Vec::new(),
@@ -2041,6 +2046,7 @@ impl Joint {
         }
         false
     }
+    #[expect(clippy::too_many_lines, reason = "the world scripts service-only reads together")]
     fn playground_read(&mut self, who: ClientId, request: &Request) -> bool {
         if let Request::Unlinked {
             request:
@@ -2094,6 +2100,27 @@ impl Joint {
                                 result: jig_client::Readout::Family {
                                     family: wire::FORGE,
                                     record: Some(wire::program_environment_answer(&answer)),
+                                },
+                            },
+                        },
+                    }
+                    .into(),
+                ));
+                return true;
+            }
+            if temper_client_protocol_wire::decode_reading(&record.bytes, &temper_client_protocol_wire::v1::CEILINGS)
+                .is_some_and(|reading| matches!(reading.read(), temper_client_protocol_wire::v1::Read::Limits(_)))
+            {
+                let answer = self.limit_pages.pop_front();
+                self.callbacks.push((
+                    who,
+                    RootEvent::Client {
+                        event: jig_client::Event::Up {
+                            up: jig_client::Up::ReadDone {
+                                read: *read,
+                                result: jig_client::Readout::Family {
+                                    family: temper_client_protocol_wire::FORGE,
+                                    record: answer.as_ref().map(temper_client_protocol_wire::limits_answer),
                                 },
                             },
                         },
@@ -2202,6 +2229,16 @@ impl Joint {
             )
         {
             self.playground_removals.push(*key);
+        }
+        if let Request::Unlinked {
+            request:
+                jig_client::UnlinkedRequest::Down {
+                    down: jig_client::Down::Send { request: jig_client::Ask::Jig(ask), .. },
+                },
+        } = &request
+            && let jig_client::contract::Ask::ChangeSettings(change) = ask.as_ref()
+        {
+            self.settings_changes.push(change.clone());
         }
         if self.reachable(who, &request) || self.start_playground(who, &request) {
             return;

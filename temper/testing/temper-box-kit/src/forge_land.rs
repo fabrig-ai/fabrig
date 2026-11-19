@@ -916,9 +916,10 @@ pub fn live_deployment(paths: &[PathBuf; 3], model: LiveModel<'_>) {
         configure_live_model(&paths[0], model, std::path::Path::new(""));
     }
     let path = paths[0].join("temper.json");
-    let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
-    value["engine"]["limits"]["overrides"]["accounts.sign_in_deadline_ms"] = 600_000.into();
+    let mut value = super::limit_settings::configuration(&paths[0]);
+    value.jig_over("accounts.sign_in_deadline_ms", 600_000);
     super::write_private(&path, &serde_json::to_vec(&value).expect("live configuration"));
+    super::limit_settings::remember(&paths[0], &value);
 }
 
 /// Select the launcher's store and admit it before starting any process; a
@@ -2787,6 +2788,7 @@ pub fn run_live_counted(
     if let Face::Fake { peer, .. } = &face {
         peer.configure(&plan.paths[0]);
     }
+    super::limit_settings::install_paths(plan.paths);
     plan.install_return_hook(&skein_scratch::paths::binary("temper-box"))?;
     let clock = Clock::new();
     let mut binary = Binary::start_with_tree(

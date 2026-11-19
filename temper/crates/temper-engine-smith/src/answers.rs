@@ -1382,7 +1382,17 @@ fn task_problem(text: &mut Text, problem: &jig_domain_tasks::Problem) -> Result<
         Refusal::Batch => text.add(b"batch limit"),
         Refusal::Grace => text.add(b"finish grace"),
         Refusal::Goals => text.add(b"goal limit"),
-        Refusal::Live => text.add(b"live task limit"),
+        Refusal::Live => {
+            text.add(b"live task limit: tasks.tasks")?;
+            if let Some(jig_domain_tasks::Capacity {
+                cause: jig_domain_tasks::CapacityCause::Tasks { limit }, ..
+            }) = problem.capacity
+            {
+                text.add(b" is ")?;
+                text.number(u64::from(limit))?;
+            }
+            text.add(b", a limit in limits; ask temper to raise it")
+        }
         Refusal::Project => text.add(b"project"),
         Refusal::Tree => text.add(b"task tree limit"),
         Refusal::Depth => text.add(b"depth limit"),
@@ -2268,6 +2278,27 @@ fn read_on(text: &mut Text, tool: &[u8]) -> Result<(), Problem> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_live_task_refusal_names_its_setting_and_figure() {
+        use jig_domain_tasks::{Capacity, CapacityAction, CapacityCause, Party, Refusal};
+        let problem = jig_domain_tasks::Problem::capacity(
+            None,
+            Refusal::Live,
+            Capacity {
+                project: Some(1),
+                by: Party::Task(7),
+                action: CapacityAction::Batch { first: Some(8), members: 1 },
+                cause: CapacityCause::Tasks { limit: 768 },
+            },
+        );
+        let rendered = answer(&CallAnswer::DelegationRefused(problem));
+        assert_eq!(
+            rendered.text(),
+            b"Refused: live task limit: tasks.tasks is 768, a limit in limits; ask temper to raise it"
+        );
+        assert!(rendered.error());
+    }
 
     #[test]
     fn note_answers_give_the_first_writes_line_count() {

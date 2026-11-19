@@ -6,7 +6,7 @@ use jig_client_protocol_wire as w;
 use jig_client_protocol_wire::VERSION;
 use skein_lib::{Reader, Wall, length::len_u64};
 
-// Schema client-v28: ReadAnswer::Value, Owner::Jig, ReadValue::Turn,
+// Schema client-v35: ReadAnswer::Value, Owner::Jig, ReadValue::Turn,
 // TurnBytes::Carried. Generated-encoding boundary tests check this inspector.
 const VALUE: u8 = 1;
 const JIG: u8 = 0;

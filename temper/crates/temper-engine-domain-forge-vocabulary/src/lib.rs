@@ -345,6 +345,7 @@ pub fn stored_key(row: &Stored) -> Key {
         Stored::Call { key, .. } => Key::Call(*key),
         Stored::Repository(row) => Key::Repository(row.provider),
         Stored::Hold(row) => Key::Hold(row.name.clone()),
+        Stored::LimitHold(row) => Key::LimitHold(row.task),
         Stored::Names { task, .. } => Key::Names(*task),
         Stored::Subscription(row) => Key::Subscription { task: row.task, topic: row.topic.clone() },
         Stored::BranchHead(row) => Key::BranchHead(row.name.clone()),
@@ -507,6 +508,14 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
             Some(held)
         }
         Stored::Setting(row) => match &row.edit {
+            settings::Edit::Set(settings::SizedValue { value: settings::Value::Limits(values), .. }) => {
+                let mut held = skein_lib::len_u64(values.len())
+                    .checked_mul(u64::try_from(size_of::<jig_domain_core_vocabulary::settings::Override>()).ok()?)?;
+                for value in values {
+                    held = held.checked_add(bytes(&value.name))?.checked_add(bytes(&value.reason))?;
+                }
+                Some(held)
+            }
             settings::Edit::Set(settings::SizedValue { value: settings::Value::Landing(value), .. }) => {
                 let mut held = 0_u64;
                 for command in [&value.merge_job, &value.close_job].into_iter().flatten() {
@@ -623,6 +632,22 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
         Stored::Verification(row) => verification::row_bytes(row),
         Stored::LandingLog(row) => landing_log::row_bytes(row),
         Stored::Milestone(row) => Some(skein_lib::len_u64(row.name.len())),
+        Stored::LimitHold(row) => {
+            let bytes = skein_lib::len_u64(row.member.len());
+            match &row.set {
+                LimitSet::DesignWriters(resource) => bytes.checked_add(name(resource)?),
+                LimitSet::Operation
+                | LimitSet::Entries
+                | LimitSet::Holds
+                | LimitSet::Tasks
+                | LimitSet::Changes
+                | LimitSet::Steps
+                | LimitSet::Subscriptions
+                | LimitSet::Watches
+                | LimitSet::Heads
+                | LimitSet::Repositories => Some(bytes),
+            }
+        }
         Stored::RedPass(row) => Some(skein_lib::len_u64(row.key.len())),
         Stored::Red(row) => skein_lib::len_u64(row.key.len())
             .checked_add(skein_lib::len_u64(row.head.len()))?

@@ -59,6 +59,41 @@ fn stored(row: v25::LandingRow) -> forge::Stored {
 }
 
 #[test]
+fn raised_codec_bounds_read_a_landing_past_the_old_entry_count() {
+    let mut limits = fixtures::LIMITS;
+    limits.entries = 8;
+    let mut bounds = crate::bounds(&limits, limits.client.op_bytes).unwrap();
+    let mut row = seed();
+    let mut entries = skein_lib::List::with_capacity(9);
+    for entry in 1..=9 {
+        entries
+            .push(forge::LandingEntry {
+                entry,
+                member: 0,
+                gate: 0,
+                operation: forge::Operation::Dispatch,
+                preparation: Some(1),
+                base: None,
+                run: None,
+            })
+            .unwrap();
+    }
+    row.entries = entries.into_boxed();
+    let stored = forge::Stored::Landing(row);
+    let bytes = records::encode(&stored);
+    assert_eq!(records::decode(&bytes, &bounds), Err(crate::Undecodable::Malformed));
+    limits.entries = 16;
+    limits.client.entries = limits.client.entries.max(16);
+    limits.tasks += 1;
+    limits.holds += 1;
+    bounds.raise(&limits);
+    assert_eq!(records::decode(&bytes, &bounds), Ok(stored));
+    assert_eq!(bounds.limits().closer_selections, limits.tasks);
+    assert_eq!(bounds.limits().hold_design_writers, limits.holds);
+    assert_eq!(bounds.limits().tier_row_goals, limits.holds);
+}
+
+#[test]
 fn batch_members_and_leave_causes_round_trip() {
     let row = seed();
     for why in [
@@ -213,4 +248,18 @@ fn a_by_test_repair_keeps_its_top_fact() {
         let row = forge::Stored::Landing(row);
         assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
     }
+}
+
+#[test]
+fn a_held_round_keeps_its_merge_count_and_last_read_across_storage() {
+    let mut row = seed();
+    row.landing.round.merges = 2;
+    row.landing.round.failure = b"merge of #7: withdrawn before completion; read #7 open, temper/g1 at 0000000000000000000000000000000000000000".as_slice().into();
+    row.landing.phase = landing::Phase::Held {
+        was: Box::new(landing::Phase::Turn { at: skein_lib::Wall::EPOCH }),
+        why: landing::Hold::Turn,
+    };
+    let row = forge::Stored::Landing(row);
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
 }

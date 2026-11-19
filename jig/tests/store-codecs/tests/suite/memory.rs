@@ -1,5 +1,6 @@
 //! Full fixed-rule rows decode within their decoded bounds (skein's data/codec/README.md, 6).
 use super::values;
+use jig_protocol_store::tasks_v13::Record;
 use jig_protocol_store::{
     accounts_v2, component_v3, core_v6, notes_v1, people_v17, secrets_v1, settings_v3, tasks_v13,
 };

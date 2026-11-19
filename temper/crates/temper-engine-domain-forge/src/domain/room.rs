@@ -161,18 +161,15 @@ pub(super) fn drop_released(d: &mut Domain, task: u64, parts: bool, out: &mut Qu
     emit(out, Request::Marked { tasks: tasks.into_boxed() });
 }
 
-pub(super) fn refused(out: &mut Queue<Request>, row: &ChangeRow, cause: crate::RefusalCause) {
-    emit(
-        out,
-        Request::ResourceRefused {
-            task: row.task,
-            operation: b"register change",
-            resource: Some(crate::Name {
-                forge: row.repository.forge,
-                repository: row.repository.repository,
-                what: crate::What::Repository,
-            }),
-            cause,
-        },
-    );
+pub(super) fn refused(out: &mut Queue<Request>, operation: &'static [u8], row: &ChangeRow, cause: crate::RefusalCause) {
+    let resource = if let crate::RefusalCause::Limit { .. } = cause {
+        crate::refusal::branch_name(row.repository, &row.branch)
+    } else {
+        crate::Name {
+            forge: row.repository.forge,
+            repository: row.repository.repository,
+            what: crate::What::Repository,
+        }
+    };
+    emit(out, Request::ResourceRefused { task: row.task, operation, resource: Some(resource), cause });
 }
