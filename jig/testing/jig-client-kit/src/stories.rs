@@ -91,7 +91,10 @@ fn configured_rows(settings: Settings, rows: u32) -> World<Test, Scripted> {
         settings,
         Scripted::new(
             Script {
-                versions: VersionRange { first: 37, last: 37 },
+                versions: VersionRange {
+                    first: jig_client_protocol_wire::VERSION,
+                    last: jig_client_protocol_wire::VERSION,
+                },
                 truth,
                 bounds: Bounds {
                     text: 32,
