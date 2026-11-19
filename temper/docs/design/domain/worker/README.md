@@ -549,13 +549,20 @@ structured fields alone:
 - **The status** is the evidence's response status where it has one,
   else the report's status, which a program's result gives (smith's
   `protocol/programs.md`, 5.6), else none.
+- **The refusal** is the report's code where the evidence is `Unsent`,
+  the kind `Invalid` or `Unsupported` and no status came: the name smith
+  gave the cause of a call it refused before sending it (smith's
+  `protocol/llm.md`, section 6), which no provider sent. It is kept
+  where it is at most `ModelFailure::REFUSAL_BYTES` of lowercase ASCII
+  letters and hyphens, and is none otherwise, an empty code among them.
 - **Every other model fault** (a provider failed for good, a model that
   kept declining, ran out of tokens or named no tool, a program that
   could not run) carries none, nor does an account's or a bound's
   failure, which have their own (above).
 
 No provider code, request id, detail or diagnostic goes into it: the
-report's other fields, and the bounded detail, stay the operator's.
+report's other fields, a code a provider sent, and the bounded detail,
+stay the operator's.
 
 ## 5. Agent processes
 

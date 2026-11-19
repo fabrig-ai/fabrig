@@ -82,7 +82,13 @@ acts on it as its document offers (4).
   its chip supplies `run_since`, when the run was placed, in universal
   time. A run's earlier runs are the
   conversation's "Run N began" and "Run N ended": the page has no run
-  groups. An invalid run's end adds ": its result broke its contract
+  groups. A run begun fresh whose activity says why (jig's
+  `domain/engine/executors.md`, 2, *Why a run began fresh*) is "Run N
+  began fresh: " and its why: "its conversation ran on another
+  endpoint", "its conversation was closed", "a turn was too large to
+  load", "its conversation passed the resume limit" or "its session had
+  ended"; the command line's activity says the same after "run N began
+  fresh: ". Any other is "Run N began". An invalid run's end adds ": its result broke its contract
   (KIND)", naming form, verdict, words, change or followups from its
   recorded cause. An invalid end without a contract kind adds ": its
   result couldn't be read" (jig's `protocol/client/wire.md`, section 1).

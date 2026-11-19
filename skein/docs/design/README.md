@@ -69,6 +69,7 @@ this design.
 | Web Push | `skein-push` | a push message sealed for a browser's subscription and signed with the service's VAPID key, and its answer read | [net/push.md](net/push.md) |
 | the link | `skein-link` | one socket and its optional TLS, under a protocol layer's HTTP clients: the handshake, a body's upload, a bounded close that sends `close_notify` | [net/link.md](net/link.md) |
 | LLM | `skein-llm` | provider-neutral calls, streaming deltas, concrete replay and completions; subscription wire dialects | [llm/README.md](llm/README.md) |
+| LLM admission | `skein-llm` | why a request is refused before it is sent, each refusal by its cause's name | [llm/admission.md](llm/admission.md) |
 | LLM connections | `skein-llm-connection` | a protocol layer's component that runs LLM calls end to end: connecting, TLS, deadlines, reuse | [llm/connection.md](llm/connection.md) |
 | OAuth | `skein-oauth`, `skein-oauth-codec`, `skein-oauth-accounts`, `skein-fake-oauth` | bounded sign-in and refresh client, with its saved records' generated code in a codec crate below it; the driver that runs it end to end for its owner, listener, connection and keeping included; an independent rotating issuer for worlds | [oauth/README.md](oauth/README.md), [data/codec/README.md](data/codec/README.md) |
 | the OAuth issuer | `skein-oauth-issuer` | OpenID Connect's issuer, stateless: an authorization and a token request checked, an ID token signed, the discovery document, key set and userinfo answer | [oauth/issuer.md](oauth/issuer.md) |
