@@ -9,13 +9,3 @@ Section 6.2 has no known gap in `Way::Null`: Linux and macOS install
 `/dev/null` read and write through spawn file actions, and the simulator
 gives the descriptor an immediate read end and accepts its writes.
 
-- **Not yet:** 6.1, 6.4: a tree's metadata: `StatEntry`, `ReadLink`,
-  `MakeLink`, `SetMode`, `SetOwner`, the attribute records, and the whole
-  metadata, times and owners among it. 6.5: `FilesystemStatus`,
-  `SyncFilesystem` and btrfs's subvolume records. 6.2, 6.6: cgroups and
-  contained spawn, the helper's ids and containment among them. 7: the
-  invariants of those records.
-  6.2: every backend's refusal of a reach it cannot enforce, macOS's
-  `Unsupported` among them. [in flight: change 9006]
-  6.6: the helper for a reach alone, `Kernel::set_helper` and
-  `Kernel::can_restrict`. [in flight: change 9014]
