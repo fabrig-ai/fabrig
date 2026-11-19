@@ -1,7 +1,13 @@
 # lib: status
 
+<<<<<<< HEAD
 2026-11-17. Where skein's code lags or departs from [lib.md](lib.md).
+=======
+2026-11-19. Where skein's code lags or departs from [lib.md](lib.md).
+>>>>>>> f98ed9378eeae983ce22f99f452c267888bd168c
 
+- **Not yet:** 6: `bytes::utf8_replaced`.
+- **Not yet:** 6.3: `lib::sha1`.
 - **Not yet:** 3: `Slab::get2_mut`. 6: a carrier's lengths, beyond
   skein-http's heads, skein-channel's frames and the oauth crates' bodies
   and URLs (http.md, 2; ../net/channel.md, 3; ../oauth/README.md, 4). These still derive `Debug` over what they carry, as the request of
