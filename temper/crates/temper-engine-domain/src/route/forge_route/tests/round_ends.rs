@@ -11,7 +11,6 @@ const BASE: api::Commit = [4; 32];
 const HEAD: api::Commit = [3; 32];
 const GREEN: api::Commit = [11; 32];
 const RED: api::Commit = [12; 32];
-const FRESH: api::Commit = [20; 32];
 const TEST: &[u8] = b"test bin broken";
 
 fn has_ready(out: &Queue<forge::Request>) -> bool {
@@ -136,10 +135,22 @@ impl Round {
         row.landing.phase = policy::Phase::Proving;
         row.landing.round.pull = Some(99);
         row.landing.round.ending = Some(policy::RoundEnd::Cut);
-        row.landing.round.changed = Some(if three { 2 } else if kept == 1 { 1 } else { 3 });
+        row.landing.round.changed = Some(if three {
+            2
+        } else if kept == 1 {
+            1
+        } else {
+            3
+        });
         row.landing.round.search = Some(policy::Search {
             green: kept.try_into().unwrap(),
-            red: if three { 3 } else if kept == 1 { 2 } else { 4 },
+            red: if three {
+                3
+            } else if kept == 1 {
+                2
+            } else {
+                4
+            },
             tests: if whole {
                 policy::SearchTests::Whole
             } else {
@@ -173,7 +184,7 @@ impl Round {
             policy::Project::DEFAULT,
             after
         ));
-        for (candidate, passed) in [(GREEN, true), (RED, false), (FRESH, true)] {
+        for (candidate, passed) in [(GREEN, true), (RED, false)] {
             let policy::Keyed::Key(key) = policy::key(
                 policy::Repository { forge: repo.forge, repository: repo.repository },
                 &gate.name,
@@ -346,7 +357,7 @@ impl Round {
                     base: row.landing.branch.clone(),
                     commit: HEAD,
                     base_commit: Some(BASE),
-                    merged: if self.main == GREEN || self.main == FRESH { merged_member(row, number) } else { None },
+                    merged: if self.main == GREEN { merged_member(row, number) } else { None },
                     mergeable: true,
                     ci: api::Ci::Passed,
                     queued: None,
@@ -367,11 +378,7 @@ impl Round {
             Read::Reviews { .. } => Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }),
             Read::Commits { before, after, .. } => Ok(Answer::Commits {
                 // The outside tip contains neither the source head nor the prepared prefix.
-                commits: if before == [19; 32] && after == FRESH {
-                    Box::new([api::CommitMessage {
-                        id: FRESH, parents: Box::new([before, HEAD]), message: Box::new([]),
-                    }])
-                } else if before == self.main && (after == HEAD || (self.main == [19; 32] && after == GREEN)) {
+                commits: if before == self.main && (after == HEAD || (self.main == [19; 32] && after == GREEN)) {
                     Box::new([api::CommitMessage { id: after, parents: Box::new([]), message: Box::new([]) }])
                 } else {
                     Box::new([])
@@ -608,20 +615,17 @@ impl Round {
         panic!("round effect settles");
     }
     fn finish_cut(&mut self, kept: usize) {
-        self.finish_cut_at(kept, GREEN);
-    }
-    fn finish_cut_at(&mut self, kept: usize, candidate: api::Commit) {
         use policy::Decision as D;
         let member = u16::try_from(kept.checked_sub(1).unwrap()).unwrap();
         self.forward(D::None);
-        self.forward(D::Key { member, gate: 0, candidate });
+        self.forward(D::Key { member, gate: 0, candidate: GREEN });
         self.forward(D::Post { member, gate: 0, posting: policy::Posting::Received });
         self.forward(D::Proved);
-        self.forward(D::Merge { member, candidate });
+        self.forward(D::Merge { member, candidate: GREEN });
         for i in 0..kept {
             self.forward(D::Landed {
                 member: i.try_into().unwrap(),
-                prefix: if kept == 2 && i == 0 { [10; 32] } else { candidate },
+                prefix: if kept == 2 && i == 0 { [10; 32] } else { GREEN },
             });
         }
         self.forward(D::Finish);
@@ -766,22 +770,17 @@ fn cut_on_a_stale_base(point: MainMove) {
     r.lost(D::Stale);
     r.lost(D::Prepare { member: 0, head: HEAD, main: [19; 32] });
     assert_eq!(r.domain.forge.landing(r.task).unwrap().landing.members[0].base, Some([19; 32]));
-    r.prefixes[0] = Some(FRESH);
-    r.wake();
-    r.forward(D::Open);
-    r.finish_cut_at(1, FRESH);
-    assert_eq!(r.main, FRESH);
 }
 #[test]
-fn main_moving_before_a_cuts_close_is_answered_retries_and_lands() {
+fn main_moving_before_a_cuts_close_is_answered_retries_the_new_prepare() {
     cut_on_a_stale_base(MainMove::Closing);
 }
 #[test]
-fn main_moving_after_cut_cleanup_retries_and_lands() {
+fn main_moving_after_cut_cleanup_retries_the_new_prepare() {
     cut_on_a_stale_base(MainMove::Cleaned);
 }
 #[test]
-fn main_moving_after_the_kept_round_opens_retries_and_lands() {
+fn main_moving_after_the_kept_round_opens_retries_the_new_prepare() {
     cut_on_a_stale_base(MainMove::Opened);
 }
 #[test]

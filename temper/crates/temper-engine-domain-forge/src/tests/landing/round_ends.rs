@@ -61,7 +61,14 @@ impl World {
         let mut d = domain_with_limits(&e.limits);
         d.restore_begin(Wall::EPOCH);
         let mut w = Self {
-            d, env: e, prefixes: [None; 4], pull: None, main: fixtures::BASE, entry: 90, by_test, main_move: None,
+            d,
+            env: e,
+            prefixes: [None; 4],
+            pull: None,
+            main: fixtures::BASE,
+            entry: 90,
+            by_test,
+            main_move: None,
         };
         w.send(Event::Restore { record: Stored::Repository(adopted()) });
         let mut members = List::uncapped();
