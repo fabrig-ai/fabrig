@@ -354,8 +354,11 @@ loop breaks them; the reference documents the rest.
   away (`../README.md`, 3.2) folds on a press outside it, the press still going to
   what it lands on, and on Escape, after an open menu and before a form's
   Escape; a press inside it leaves it open. A menu is a button of the
-  page part's, named by the menu's name, that opens its items with the
-  platform's keys (arrows, Escape): ARIA's menu-button pattern. A press
+  page part's, named by the menu's name, or reading and named by the
+  menu's button where it has one (`../README.md`, 3.2; `elements.md`), that opens its items with the
+  platform's keys (arrows, Escape): ARIA's menu-button pattern. A patch
+  that changes a menu's button changes the button's words and name in
+  place, the menu open or closed as it was. A press
   on an item closes the menu. A press outside an open menu closes it, the
   press still going to what it lands on, and the focus returns to the
   menu's button, as on Escape, unless that press took it to another
