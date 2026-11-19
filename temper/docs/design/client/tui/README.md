@@ -43,7 +43,10 @@ it (`pages/README.md`). `temper-box open` stays the tests' line client
   - `https://NAME[:PORT]`, a deployment's public origin, the one the
     person's browser opens (`../../protocol/sign-in.md`, 2.2): NAME a
     host name, labels of letters, digits and hyphens joined by dots,
-    compared in lower case, at most 253 bytes; PORT 1 to 65535, 443
+    each 1 to 63 bytes, none starting or ending with a hyphen, the last
+    not all digits, so that every NAME taken is one TLS names a server
+    by (skein-tls's `Name`), compared in lower case, at most 253 bytes;
+    PORT 1 to 65535, 443
     where none is given; no path, query, user or fragment.
 
   HTTPS takes a name, never an IP address, since a deployment's
