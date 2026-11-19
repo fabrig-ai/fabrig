@@ -54,10 +54,12 @@ use tier_route::{describe_tier_effect, start_tier_run, tier_decision};
 
 pub(super) mod job_history;
 mod landing_route;
-pub(crate) use landing_route::form_landings;
 #[cfg(test)]
 use landing_route::start_landing;
 pub(crate) use landing_route::start_landing_step;
+pub(crate) use landing_route::{
+    admission as landing_admission, form_landings, refusal_deadline as landing_refusal_deadline,
+};
 use landing_route::{describe_landing_effect, landing_decision};
 pub(super) mod reds;
 pub(crate) use reds::landed_for_run;
@@ -949,6 +951,7 @@ pub(crate) fn subscribe_goal(domain: &mut Domain, env: &Env<Limits>, goal: u64, 
             }
             Work::GoalSubscribe(_)
             | Work::ForgeRestored
+            | Work::LandingAdmission { .. }
             | Work::ForgeLimitHold { .. }
             | Work::ForgeLimitRelease { .. }
             | Work::StatusAccount { .. }

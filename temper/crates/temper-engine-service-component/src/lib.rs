@@ -206,6 +206,14 @@ pub enum Note {
         forge: u16,
         note: temper_engine_domain_forge::LinkNote,
     },
+    /// A train's task make was refused (domain/landing-forming.md, 3).
+    LandingRefused {
+        task: u64,
+        repository: skein_forge::api::Repository,
+        branch: Box<[u8]>,
+        why: Option<jig_domain_tasks::Refusal>,
+        changes: Box<[u64]>,
+    },
     /// Start's Link repairs (domain/landing-forming.md, 4).
     LandingUnmade {
         task: u64,

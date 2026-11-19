@@ -258,9 +258,12 @@ pub enum Ask {
     DropSubscription {
         request: Token,
     },
-    /// Ask a connector whether a refused repair belongs to a held task.
+    /// Tell a connector which deployment make was refused and why (domain/authority.md, 6).
+    /// `repair` keeps the task named by the refusal, where it names one.
     RepairRefused {
         repair: Option<u64>,
+        number: u64,
+        why: tasks::Refusal,
     },
     /// Let a connector settle a refused procedure delegation.
     DelegateRefused {

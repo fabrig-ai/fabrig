@@ -131,9 +131,12 @@ fn refuse_flight(
         Flight::Internal(Internal::Deletion { project }) => {
             crate::admission::deletion::compound_done(core, project);
         }
-        Flight::Internal(Internal::Repair) => {
+        Flight::Internal(Internal::Repair { number }) => {
             for &connector in core.connectors.as_ref() {
-                out.push(Request::Ask { connector, ask: Ask::RepairRefused { repair: problem.task } });
+                out.push(Request::Ask {
+                    connector,
+                    ask: Ask::RepairRefused { repair: problem.task, number, why: problem.why },
+                });
             }
         }
         Flight::Internal(Internal::Delegate | Internal::Acknowledge) => {

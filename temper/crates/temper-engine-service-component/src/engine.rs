@@ -353,6 +353,9 @@ impl Engine {
                 root::Fact::ForgeLink { forge, note } => {
                     self.notes.push(crate::Note::ForgeLink { forge, note });
                 }
+                root::Fact::LandingRefused { task, repository, branch, why, changes } => {
+                    self.notes.push(crate::Note::LandingRefused { task, repository, branch, why, changes });
+                }
                 root::Fact::ReadRefused { task, attempt, tool, layer, reason, findings, error, job } => {
                     self.notes.push(crate::Note::ReadRefused {
                         task,

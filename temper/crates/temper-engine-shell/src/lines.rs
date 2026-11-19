@@ -484,6 +484,26 @@ pub fn note_line(binary: &str, note: temper_engine_service::Note) -> String {
             };
             format!("forge {forge}'s person: {words}\n")
         }
+        temper_engine_service::Note::LandingRefused { task, repository, branch, why, changes } => {
+            use std::fmt::Write as _;
+            let why = match why {
+                Some(why) => format!("{why:?}"),
+                None => "unknown".to_owned(),
+            };
+            let mut members = String::new();
+            for (index, change) in changes.iter().enumerate() {
+                if index != 0 {
+                    members.push_str(", ");
+                }
+                write!(members, "{change}").expect("format landing members");
+            }
+            format!(
+                "{binary} serve: warning: landing {task} into {} of repository {}/{} not formed: jig refused its task: {why}; its changes {members} wait\n",
+                String::from_utf8_lossy(&branch),
+                repository.forge,
+                repository.repository
+            )
+        }
         temper_engine_service::Note::RunFailed(diagnostic) => run_failure_line(
             binary,
             diagnostic.task,

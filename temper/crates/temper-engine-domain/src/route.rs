@@ -635,6 +635,9 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
                 let event = forge_route::status_route::admission(domain, project, party, task);
                 forge_event(domain, env, decision, event);
             }
+            Work::LandingAdmission { row, names } => {
+                forge_route::landing_admission(domain, env, decision, row, &names);
+            }
             Work::StatusAccount { procedure } => forge_route::status_route::check_account(domain, procedure),
             Work::Forge(event) => forge_event(domain, env, decision, event),
             Work::ForgeSettings(mut output) => forge_route::outputs(domain, env, decision, &mut output),

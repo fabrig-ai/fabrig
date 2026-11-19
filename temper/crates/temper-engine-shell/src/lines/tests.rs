@@ -1128,6 +1128,28 @@ fn restore_pages_name_only_the_store_supplied_cause_family_and_key() {
 }
 
 #[test]
+fn a_landing_refusal_names_its_train_reason_and_stack() {
+    for (why, words) in [(Some(jig_domain_tasks::Refusal::Live), "Live"), (None, "unknown")] {
+        let line = note_line(
+            "temper-box",
+            temper_engine_service::Note::LandingRefused {
+                task: 10030,
+                repository: skein_forge::api::Repository { forge: 1, repository: 7 },
+                branch: b"main".as_slice().into(),
+                why,
+                changes: Box::new([8975, 9104]),
+            },
+        );
+        assert_eq!(
+            line,
+            format!(
+                "temper-box serve: warning: landing 10030 into main of repository 1/7 not formed: jig refused its task: {words}; its changes 8975, 9104 wait\n"
+            )
+        );
+    }
+}
+
+#[test]
 fn refusal_lines_name_the_task_attempt_tool_layer_and_reason() {
     use temper_engine_domain_forge::LinkNote;
     use temper_engine_service::Note;

@@ -662,6 +662,14 @@ pub enum Fact {
         forge: u16,
         note: forge::LinkNote,
     },
+    /// A train's task make was refused (domain/landing-forming.md, 3).
+    LandingRefused {
+        task: u64,
+        repository: skein_forge::api::Repository,
+        branch: Box<[u8]>,
+        why: Option<tasks::Refusal>,
+        changes: Box<[u64]>,
+    },
     /// Start's Link repairs (domain/landing-forming.md, 4).
     LandingUnmade {
         task: u64,
@@ -1255,6 +1263,7 @@ pub(crate) enum Work {
     Fleet(fleet::Event),
     Brief(brief::GatherEvent),
     Forge(forge::Event),
+    LandingAdmission { row: forge::LandingRow, names: Box<[forge::Name]> },
     ForgeSettings(skein_lib::Queue<forge::Request>),
     ForgeRestored,
     ForgeLimitHold { row: forge::LimitHold, words: Box<[u8]> },

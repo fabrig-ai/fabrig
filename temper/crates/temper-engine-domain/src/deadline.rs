@@ -16,6 +16,10 @@ impl Domain {
         }
         if self.ready() && !self.core.settling() {
             next = earliest(next, wall_deadline(self.core.effect_deadline(), env.now, env.wall));
+            next = earliest(
+                next,
+                wall_deadline(crate::route::forge_route::landing_refusal_deadline(self, env), env.now, env.wall),
+            );
         }
         if self.ready() || self.settling.active() || crate::restart::connector_restarting(self) {
             next = earliest(next, self.forge.next_deadline());
