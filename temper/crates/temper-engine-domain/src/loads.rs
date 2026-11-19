@@ -268,7 +268,7 @@ pub fn begin(
 
 /// Reserve an ended task's slot before its held output is durable
 /// (temper/docs/design/domain/root.md, 7). `begin` issues it in that slot.
-pub(crate) fn reserve_result(domain: &mut Loads, waiter: Token, task: u64) {
+pub fn reserve_result(domain: &mut Loads, waiter: Token, task: u64) {
     let entry = Entry {
         waiter,
         range: Range::Core(crate::CoreRange::TaskResult { task }),
