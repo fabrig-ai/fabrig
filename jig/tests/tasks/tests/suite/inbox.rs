@@ -348,6 +348,11 @@ fn extend_goal_deadline(world: &mut World) {
 fn a_persons_words_left_unread_wake_the_task_as_its_run_ends() {
     let mut world = refusal_world(94);
     assert_eq!(world.terminal(1, End::Parked), Reply::Acknowledged(Accepted::New));
+    assert!(matches!(world.record(1).phase, Phase::Active(Active::BackingOff { .. })));
+    assert!(!world.activations.contains(&1));
+    world.advance();
+    assert_eq!(world.record(1).phase, Phase::Active(Active::Due));
+    assert_eq!(world.record(1).due_reason, jig_domain_tasks::Why::Message { message: 1 });
     assert!(world.activations.contains(&1));
     assert_eq!(world.contexts[&1].inbox.iter().map(|word| word.number).collect::<Vec<_>>(), [1, 2]);
 }
@@ -357,11 +362,22 @@ fn a_runs_refusals_end_with_its_attempt() {
     for end in [End::Parked, End::Failed(jig_domain_tasks::Class::Transient), End::Refused] {
         let mut world = refused_world(95);
         assert_eq!(world.record(1).refused.as_ref(), [1]);
+        let parked = end == End::Parked;
         assert_eq!(world.terminal(1, end), Reply::Acknowledged(Accepted::New));
         assert!(world.record(1).refused.is_empty());
         assert_eq!(world.record(1).inbox[0].number, 1);
+        if parked {
+            assert!(matches!(world.record(1).phase, Phase::Active(Active::BackingOff { .. })));
+            assert!(!world.activations.contains(&1));
+        }
         world.restart();
         assert!(world.record(1).refused.is_empty());
+        if parked {
+            world.advance();
+            assert_eq!(world.record(1).phase, Phase::Active(Active::Due));
+            assert_eq!(world.record(1).due_reason, jig_domain_tasks::Why::Message { message: 1 });
+            assert!(world.activations.contains(&1));
+        }
     }
 }
 

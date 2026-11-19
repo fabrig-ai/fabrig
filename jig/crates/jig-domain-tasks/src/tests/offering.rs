@@ -93,9 +93,121 @@ fn start_task(h: &mut Harness, number: u64, attempt: u64, offered: R) {
     h.send(Event::Started { task: number, attempt });
 }
 
-fn end(h: &mut Harness, end: End) {
+fn end(h: &mut Harness, end: End) -> Vec<Request> {
     let attempt = h.domain.task(TASK).expect("running fixture").attempt;
-    h.send(Event::Activation { reply_to: to(), task: TASK, attempt, end, saved: None, cause: crate::Cause::Unpriced });
+    h.send(Event::Activation { reply_to: to(), task: TASK, attempt, end, saved: None, cause: crate::Cause::Unpriced })
+}
+
+fn activation_requested(out: &[Request]) -> bool {
+    out.iter().any(|r| match r {
+        Request::Activate { context } => context.task == TASK,
+        _ => false,
+    })
+}
+
+fn fire_after(h: &mut Harness, until: Wall) -> Vec<Request> {
+    let duration = Duration::from_nanos(until.as_nanos().saturating_sub(h.env.wall.as_nanos()));
+    h.env.now = h.env.now.saturating_add(duration);
+    h.env.wall = until;
+    let mut out = Queue::uncapped();
+    crate::fire(&mut h.domain, &h.env, &mut out);
+    core::iter::from_fn(|| out.pop()).collect()
+}
+
+#[test]
+fn a_park_with_an_unread_persons_word_pauses_before_waking() {
+    let mut h = fixture();
+    h.env.limits.retries.transient.base = Duration::from_secs(1);
+    h.env.limits.retries.transient.max = Duration::from_secs(30);
+    arrive(&mut h, word(MESSAGE, M::Words, Party::Person(PERSON)));
+    start(&mut h, R::ALL);
+    assert_eq!(h.domain.next_waiting(TASK, None).expect("offered word").number, MESSAGE);
+    let tries = h.domain.task(TASK).expect("running task").tries;
+    let mut rng = skein_lib::Rng::new(h.domain.rng.state());
+    let duration = crate::failures::backoff(1, h.env.limits.retries.transient, &mut rng);
+    let until = Wall::from_nanos(h.env.wall.as_nanos().saturating_add(duration.as_nanos()));
+    let out = end(&mut h, End::Parked);
+    let row = h.domain.task(TASK).expect("parked task");
+    assert_eq!(row.phase, Phase::Active(Active::BackingOff { until }));
+    assert_eq!(row.refusals, 1);
+    assert_eq!(row.tries, tries);
+    assert!(!activation_requested(&out));
+    assert!((Duration::from_millis(500)..=Duration::from_secs(1)).contains(&duration));
+    let before = Wall::from_nanos(until.as_nanos().saturating_sub(1));
+    assert!(!activation_requested(&fire_after(&mut h, before)));
+    assert_eq!(h.domain.task(TASK).expect("paused task").phase, Phase::Active(Active::BackingOff { until }));
+    let after = Wall::from_nanos(until.as_nanos().saturating_add(1));
+    let out = fire_after(&mut h, after);
+    assert_eq!(h.domain.task(TASK).expect("woken task").phase, Phase::Active(Active::Due));
+    assert!(activation_requested(&out));
+    assert_eq!(h.domain.task(TASK).expect("woken task").due_reason, Why::Message { message: MESSAGE });
+}
+
+fn wake_after_pause(h: &mut Harness) -> Vec<Request> {
+    let Phase::Active(Active::BackingOff { until }) = h.domain.task(TASK).expect("paused task").phase else {
+        panic!("park with a waking leftover pauses");
+    };
+    let out = fire_after(h, Wall::from_nanos(until.as_nanos().saturating_add(1)));
+    assert_eq!(h.domain.task(TASK).expect("woken task").phase, Phase::Active(Active::Due));
+    assert!(activation_requested(&out));
+    out
+}
+
+#[test]
+fn consecutive_waking_parks_grow_the_pause_until_a_park_leaves_idle() {
+    let mut h = fixture();
+    setup(&mut h, &[Setup::Delegates(true)]);
+    arrive(&mut h, word(MESSAGE, M::Words, Party::Person(PERSON)));
+    for count in 1..=3 {
+        start(&mut h, R::ALL);
+        let mut rng = skein_lib::Rng::new(h.domain.rng.state());
+        let duration = crate::failures::backoff(count, h.env.limits.retries.transient, &mut rng);
+        let until = Wall::from_nanos(h.env.wall.as_nanos().saturating_add(duration.as_nanos()));
+        assert!(!activation_requested(&end(&mut h, End::Parked)));
+        let row = h.domain.task(TASK).expect("paused task");
+        assert_eq!(row.phase, Phase::Active(Active::BackingOff { until }));
+        assert_eq!(row.refusals, count);
+        assert_eq!(row.tries, crate::Tries::NONE);
+        wake_after_pause(&mut h);
+    }
+    start(&mut h, R::ALL);
+    commit_read(&mut h, Some(MESSAGE), &[], &[MESSAGE]);
+    // With its word read, the task waits idle for its delegate.
+    end(&mut h, End::Parked);
+    let row = h.domain.task(TASK).expect("idle task");
+    assert_eq!(row.phase, Phase::Active(Active::Idle));
+    assert_eq!(row.refusals, 0);
+    let out = arrive(&mut h, word(FENCE, M::Words, Party::Person(PERSON)));
+    assert!(activation_requested(&out));
+    assert_eq!(h.domain.task(TASK).expect("newly woken task").phase, Phase::Active(Active::Due));
+    start(&mut h, R::ALL);
+    let mut rng = skein_lib::Rng::new(h.domain.rng.state());
+    let duration = crate::failures::backoff(1, h.env.limits.retries.transient, &mut rng);
+    let until = Wall::from_nanos(h.env.wall.as_nanos().saturating_add(duration.as_nanos()));
+    end(&mut h, End::Parked);
+    let row = h.domain.task(TASK).expect("paused again");
+    assert_eq!(row.phase, Phase::Active(Active::BackingOff { until }));
+    assert_eq!(row.refusals, 1);
+}
+
+#[test]
+fn words_arriving_during_a_park_pause_wait_without_replacing_its_reason() {
+    let mut h = fixture();
+    arrive(&mut h, word(MESSAGE, M::Words, Party::Person(PERSON)));
+    start(&mut h, R::ALL);
+    end(&mut h, End::Parked);
+    let paused = h.domain.task(TASK).expect("paused task").phase.clone();
+    assert!(!activation_requested(&arrive(&mut h, word(FENCE, M::Words, Party::Person(PERSON)))));
+    let row = h.domain.task(TASK).expect("still paused");
+    assert_eq!(row.phase, paused);
+    assert_eq!(row.due_reason, Why::Message { message: MESSAGE });
+    let out = wake_after_pause(&mut h);
+    assert!(out.iter().any(|r| match r {
+        Request::Activate { context } if context.task == TASK =>
+            context.inbox.iter().map(|w| w.number).collect::<Vec<_>>() == [MESSAGE, FENCE],
+        _ => false,
+    }));
+    assert_eq!(h.domain.task(TASK).expect("woken task").due_reason, Why::Message { message: MESSAGE });
 }
 
 fn escalation(h: &mut Harness) -> Vec<Request> {
@@ -159,7 +271,9 @@ fn setup(h: &mut Harness, actions: &[Setup]) {
                     cumulative: 0,
                 });
             }
-            Setup::End(ending) => end(h, ending.clone()),
+            Setup::End(ending) => {
+                end(h, ending.clone());
+            }
             Setup::Arrive(word) => {
                 arrive(h, word.clone());
             }
@@ -581,7 +695,11 @@ fn runs_hear_and_take_only_what_their_parts_offer() {
             _ => false,
         });
         if case.park {
-            end(&mut h, End::Parked);
+            let out = end(&mut h, End::Parked);
+            assert!(!activation_requested(&out), "{}", case.name);
+            if case.due {
+                wake_after_pause(&mut h);
+            }
         }
         let row = h.domain.task(TASK).expect("task");
         results.push((
@@ -810,7 +928,11 @@ fn a_parked_escalation_waits_when_covered_regardless_of_person_delegates() {
             delegate(&mut h, TASK, PERSON_TASK, true);
         }
         let held = h.domain.task(REPAIR).expect("repair").clone();
-        end(&mut h, End::Parked);
+        let out = end(&mut h, End::Parked);
+        assert!(!activation_requested(&out), "{name}");
+        if phase == Active::Due {
+            wake_after_pause(&mut h);
+        }
         assert_eq!(h.domain.task(TASK).expect("lead").phase, Phase::Active(phase), "{name}");
         let row = h.domain.task(REPAIR).expect("repair");
         assert_eq!(row.phase, held.phase, "{name}");
