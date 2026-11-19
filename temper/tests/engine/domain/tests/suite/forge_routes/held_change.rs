@@ -230,16 +230,14 @@ fn eight_changes_open_through_a_six_entry_outbox_without_a_persons_release() {
             tree_tasks: Some(24),
             inbox_messages: Some(16),
             forge_branches: Some(16),
+            forge_entries: Some(6),
+            forge_holds: Some(24),
+            forge_pending: Some(16),
+            forge_calls: Some(4),
+            forge_rate: Some(1000),
             ..StoryLimits::default()
         },
-    )
-    .with_forge_entries(6)
-    .with_forge_holds(24);
-    let mut client = world.env.limits.forge.client;
-    client.pending = 16;
-    client.calls = 4;
-    client.rate = 1000;
-    world = world.with_forge_client(client);
+    );
     world.fake_env.limits.latency_min = Duration::ZERO;
     world.fake_env.limits.latency_max = Duration::ZERO;
     world.adopt();
@@ -279,12 +277,14 @@ fn eight_changes_open_through_a_six_entry_outbox_without_a_persons_release() {
     }
     for _ in 0..1000 {
         world.tick();
-        if changes.iter().filter(|task| change_row(&world, **task).room.is_some()).count() == 2 {
+        if changes.iter().filter(|task| world.store.change_hot(**task).expect("durable change").room.is_some()).count()
+            == 2
+        {
             break;
         }
     }
     assert_eq!(
-        changes.iter().filter(|task| change_row(&world, **task).room.is_some()).count(),
+        changes.iter().filter(|task| world.store.change_hot(**task).expect("durable change").room.is_some()).count(),
         2,
         "six entries are kept and two changes wait: {:?}; writes {:?}",
         changes
@@ -309,7 +309,7 @@ fn eight_changes_open_through_a_six_entry_outbox_without_a_persons_release() {
             );
         }
         if changes.iter().all(|task| {
-            let row = change_row(&world, *task);
+            let row = world.store.change_hot(*task).expect("durable change");
             row.pull.is_some() && row.room.is_none()
         }) {
             break;
@@ -318,7 +318,7 @@ fn eight_changes_open_through_a_six_entry_outbox_without_a_persons_release() {
     let pulls: std::collections::BTreeSet<_> = changes
         .iter()
         .map(|task| {
-            let row = change_row(&world, *task);
+            let row = world.store.change_hot(*task).expect("durable change");
             assert_eq!(row.room, None);
             row.pull.unwrap_or_else(|| {
                 panic!(

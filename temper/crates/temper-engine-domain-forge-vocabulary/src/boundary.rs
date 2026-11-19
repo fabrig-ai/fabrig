@@ -3184,6 +3184,8 @@ pub struct TierGoal {
 /// Family 28's policy and task (temper/docs/design/domain/after-landing.md, 10).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct TierRow {
+    /// The judged run's whole report's names, retained until the next run starts.
+    pub many: Option<temper_engine_domain_forge_tiers::ManyTests>,
     /// Observed execution identities awaiting or replaying the task projection across restart.
     pub observations: Box<[u8]>,
     pub repository: skein_forge::api::Repository,
@@ -3330,11 +3332,23 @@ pub struct LoggedTier {
     pub tier: Box<[u8]>,
     pub verdict: LoggedVerdict,
 }
+/// Maximum ids kept by one red log entry, matching the store's list ceiling.
+pub const LOGGED_TESTS: u32 = 64;
+
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum LoggedVerdict {
     Verifying,
-    Cleared { run: u64 },
-    Red { run: u64, failing: Option<u32> },
+    Cleared {
+        run: u64,
+    },
+    Red {
+        run: u64,
+        failing: Option<u32>,
+        /// Sorted distinct ids blamed on this landing, empty for many failures.
+        tests: Box<[temper_engine_domain_forge_tiers::TestId]>,
+        /// The judged run's report names for many failures.
+        many: Option<temper_engine_domain_forge_tiers::ManyTests>,
+    },
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct LoggedChange {

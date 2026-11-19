@@ -157,6 +157,8 @@ pub struct Limits {
     pub landing_member_gates: u32,
     pub landing_member_branch: u32,
     pub failing_test_test_id: u32,
+    pub shown_test_test_id: u32,
+    pub many_tests_tests: u32,
     pub landing_selection_tests: u32,
     pub landing_by_test_gates: u32,
     pub landing_by_test_probed: u32,
@@ -255,6 +257,7 @@ pub struct Limits {
     pub follow_producer_some: u32,
     pub logged_change_signed: u32,
     pub logged_change_title: u32,
+    pub logged_red_tests: u32,
     pub logged_tier_tier: u32,
     pub logged_landing_branch: u32,
     pub logged_landing_changes: u32,
@@ -500,6 +503,8 @@ pub const CEILINGS: Limits = Limits {
     landing_member_gates: 64,
     landing_member_branch: 4_096,
     failing_test_test_id: 1_024,
+    shown_test_test_id: 1_024,
+    many_tests_tests: 64,
     landing_selection_tests: 1_024,
     landing_by_test_gates: 64,
     landing_by_test_probed: 4_096,
@@ -598,6 +603,7 @@ pub const CEILINGS: Limits = Limits {
     follow_producer_some: 8_192,
     logged_change_signed: 8,
     logged_change_title: 256,
+    logged_red_tests: 64,
     logged_tier_tier: 32,
     logged_landing_branch: 4_096,
     logged_landing_changes: 64,
@@ -843,6 +849,8 @@ pub const LIMIT_NAMES: &[&str] = &[
     "landing_member_gates",
     "landing_member_branch",
     "failing_test_test_id",
+    "shown_test_test_id",
+    "many_tests_tests",
     "landing_selection_tests",
     "landing_by_test_gates",
     "landing_by_test_probed",
@@ -941,6 +949,7 @@ pub const LIMIT_NAMES: &[&str] = &[
     "follow_producer_some",
     "logged_change_signed",
     "logged_change_title",
+    "logged_red_tests",
     "logged_tier_tier",
     "logged_landing_branch",
     "logged_landing_changes",
@@ -2793,6 +2802,18 @@ pub enum Path {
     FailingTestTestId,
     /// Bytes after `FailingTest`.
     FailingTestTail,
+    /// The `test_id` field of `ShownTest`.
+    ShownTestTestId,
+    /// Bytes after `ShownTest`.
+    ShownTestTail,
+    /// The `tests` field of `ManyTests`.
+    ManyTestsTests,
+    /// The `more` field of `ManyTests`.
+    ManyTestsMore,
+    /// The `cut` field of `ManyTests`.
+    ManyTestsCut,
+    /// Bytes after `ManyTests`.
+    ManyTestsTail,
     /// The `tests` field of `LandingSelection`.
     LandingSelectionTests,
     /// Bytes after `LandingSelection`.
@@ -3307,6 +3328,8 @@ pub enum Path {
     TierPostingOpBytes,
     /// Bytes after `TierPosting`.
     TierPostingTail,
+    /// The `many` field of `TierRow`.
+    TierRowMany,
     /// The `observations` field of `TierRow`.
     TierRowObservations,
     /// The `repository` field of `TierRow`.
@@ -3771,10 +3794,20 @@ pub enum Path {
     LoggedClearedRun,
     /// Bytes after `LoggedCleared`.
     LoggedClearedTail,
+    /// The `more` field of `LoggedMany`.
+    LoggedManyMore,
+    /// The `cut` field of `LoggedMany`.
+    LoggedManyCut,
+    /// Bytes after `LoggedMany`.
+    LoggedManyTail,
     /// The `run` field of `LoggedRed`.
     LoggedRedRun,
     /// The `failing` field of `LoggedRed`.
     LoggedRedFailing,
+    /// The `tests` field of `LoggedRed`.
+    LoggedRedTests,
+    /// The `many` field of `LoggedRed`.
+    LoggedRedMany,
     /// Bytes after `LoggedRed`.
     LoggedRedTail,
     /// The tag of `LoggedVerdict`.
@@ -5783,6 +5816,12 @@ impl Path {
             Self::LandingOwnHoldTag => "LandingOwnHold (tag)",
             Self::FailingTestTestId => "FailingTest.test_id",
             Self::FailingTestTail => "FailingTest (tail)",
+            Self::ShownTestTestId => "ShownTest.test_id",
+            Self::ShownTestTail => "ShownTest (tail)",
+            Self::ManyTestsTests => "ManyTests.tests",
+            Self::ManyTestsMore => "ManyTests.more",
+            Self::ManyTestsCut => "ManyTests.cut",
+            Self::ManyTestsTail => "ManyTests (tail)",
             Self::LandingSelectionTests => "LandingSelection.tests",
             Self::LandingSelectionTail => "LandingSelection (tail)",
             Self::LandingSelectedGateSelection => "LandingSelectedGate.selection",
@@ -6040,6 +6079,7 @@ impl Path {
             Self::TierPostingPart => "TierPosting.part",
             Self::TierPostingOpBytes => "TierPosting.op_bytes",
             Self::TierPostingTail => "TierPosting (tail)",
+            Self::TierRowMany => "TierRow.many",
             Self::TierRowObservations => "TierRow.observations",
             Self::TierRowRepository => "TierRow.repository",
             Self::TierRowTier => "TierRow.tier",
@@ -6272,8 +6312,13 @@ impl Path {
             Self::LoggedChangeTail => "LoggedChange (tail)",
             Self::LoggedClearedRun => "LoggedCleared.run",
             Self::LoggedClearedTail => "LoggedCleared (tail)",
+            Self::LoggedManyMore => "LoggedMany.more",
+            Self::LoggedManyCut => "LoggedMany.cut",
+            Self::LoggedManyTail => "LoggedMany (tail)",
             Self::LoggedRedRun => "LoggedRed.run",
             Self::LoggedRedFailing => "LoggedRed.failing",
+            Self::LoggedRedTests => "LoggedRed.tests",
+            Self::LoggedRedMany => "LoggedRed.many",
             Self::LoggedRedTail => "LoggedRed (tail)",
             Self::LoggedVerdictTag => "LoggedVerdict (tag)",
             Self::LoggedTierTier => "LoggedTier.tier",
@@ -41375,22 +41420,289 @@ impl FailingTest {
 
 fn failing_test_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
     let biggest = biggest.max(FailingTest::encoded_bound_within(limits)?);
-    landing_selection_encoded_bound_family(limits, biggest)
+    shown_test_encoded_bound_family(limits, biggest)
 }
 
 fn failing_test_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
     let biggest = biggest.max(FailingTest::decoded_bound_within(limits)?);
-    landing_selection_decoded_bound_family(limits, biggest)
+    shown_test_decoded_bound_family(limits, biggest)
 }
 
 fn check_failing_test_record_limits(limits: &Limits) -> Result<(), Problem> {
     if limits.failing_test_test_id > CEILINGS.failing_test_test_id { return Err(Problem { path: Path::FailingTestTestId, reason: skein_codec::Reason::Bound }); }
-    check_landing_selection_record_limits(limits)
+    check_shown_test_record_limits(limits)
 }
 
 impl Limits {
     fn values_for_failing_test_record(&self, values: &mut List<u32>) {
         values.push(self.failing_test_test_id).expect("room for every named limit");
+        self.values_for_shown_test_record(values);
+    }
+}
+
+/// Movable fields of `ShownTest`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct ShownTestParts {
+    /// The `test_id` field.
+    pub test_id: Box<[u8]>,
+}
+
+/// `ShownTest` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct ShownTest {
+    test_id: Box<[u8]>,
+}
+
+impl ShownTest {
+    /// Makes a value within the given limits.
+    pub fn new(limits: &Limits, parts: ShownTestParts) -> Result<Self, Problem> {
+        let ShownTestParts { test_id } = parts;
+        let value = Self { test_id };
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    /// Reads the `test_id` field.
+    #[must_use]
+    pub fn test_id(&self) -> &[u8] { &self.test_id }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> ShownTestParts { ShownTestParts { test_id: self.test_id } }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        if self.test_id.len() > usize::try_from(limits.shown_test_test_id.min(CEILINGS.shown_test_test_id)).expect("u32 fits usize") { return Err(Problem { path: Path::ShownTestTestId, reason: skein_codec::Reason::Bound }); }
+        Ok(())
+    }
+}
+
+impl ShownTest {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        let field_test_id = &self.test_id;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(u32::try_from(field_test_id.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_test_id = &self.test_id;
+        writer.put(&u32::try_from(field_test_id.len()).expect("field ceiling fits u32").to_be_bytes())?;
+        writer.put(field_test_id.as_ref())?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::ShownTestTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_test_id = { let length = match skein_codec::read_len(reader, limits.shown_test_test_id.min(CEILINGS.shown_test_test_id)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::ShownTestTestId, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::ShownTestTestId, reason: skein_codec::Reason::Short })?) };
+        Ok(Self { test_id: decoded_test_id })
+    }
+}
+
+impl ShownTest {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(4_u64.checked_add(u64::from(limits.shown_test_test_id))?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(u64::from(limits.shown_test_test_id))?;
+        heap.checked_add(0)
+    }
+}
+
+fn shown_test_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(ShownTest::encoded_bound_within(limits)?);
+    many_tests_encoded_bound_family(limits, biggest)
+}
+
+fn shown_test_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(ShownTest::decoded_bound_within(limits)?);
+    many_tests_decoded_bound_family(limits, biggest)
+}
+
+fn check_shown_test_record_limits(limits: &Limits) -> Result<(), Problem> {
+    if limits.shown_test_test_id > CEILINGS.shown_test_test_id { return Err(Problem { path: Path::ShownTestTestId, reason: skein_codec::Reason::Bound }); }
+    check_many_tests_record_limits(limits)
+}
+
+impl Limits {
+    fn values_for_shown_test_record(&self, values: &mut List<u32>) {
+        values.push(self.shown_test_test_id).expect("room for every named limit");
+        self.values_for_many_tests_record(values);
+    }
+}
+
+/// Movable fields of `ManyTests`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct ManyTestsParts {
+    /// The `tests` field.
+    pub tests: List<ShownTest>,
+    /// The `more` field.
+    pub more: u32,
+    /// The `cut` field.
+    pub cut: bool,
+}
+
+/// `ManyTests` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct ManyTests {
+    tests: List<ShownTest>,
+    more: u32,
+    cut: bool,
+}
+
+impl ManyTests {
+    /// Makes a value within the given limits.
+    pub fn new(limits: &Limits, parts: ManyTestsParts) -> Result<Self, Problem> {
+        let ManyTestsParts { tests, more, cut } = parts;
+        let value = Self { tests, more, cut };
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    /// Reads the `tests` field.
+    #[must_use]
+    pub fn tests(&self) -> &List<ShownTest> { &self.tests }
+
+    /// Reads the `more` field.
+    #[must_use]
+    pub fn more(&self) -> u32 { self.more }
+
+    /// Reads the `cut` field.
+    #[must_use]
+    pub fn cut(&self) -> bool { self.cut }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> ManyTestsParts { ManyTestsParts { tests: self.tests, more: self.more, cut: self.cut } }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        if self.tests.capacity() > limits.many_tests_tests.min(CEILINGS.many_tests_tests) { return Err(Problem { path: Path::ManyTestsTests, reason: skein_codec::Reason::Bound }); }
+        for item_0 in self.tests.as_slice() {
+        item_0.check(limits)?;
+        }
+        Ok(())
+    }
+}
+
+impl ManyTests {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        let field_tests = &self.tests;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        for item_0 in field_tests.as_slice() {
+        size = size.checked_add(item_0.measure()).expect("schema ceilings fit u32");
+        }
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_tests = &self.tests;
+        writer.put(&field_tests.len().to_be_bytes())?;
+        for item_0 in field_tests.as_slice() {
+        item_0.encode(writer)?;
+        }
+        let field_more = &self.more;
+        writer.put(&field_more.to_be_bytes())?;
+        let field_cut = &self.cut;
+        writer.put(&[u8::from(*field_cut)])?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::ManyTestsTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_tests = { let count = match skein_codec::read_count(reader, limits.many_tests_tests.min(CEILINGS.many_tests_tests)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::ManyTestsTests, reason }), }; if count > reader.remaining() / 4 { return Err(Problem { path: Path::ManyTestsTests, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = ShownTest::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_more = reader.u32().ok_or(Problem { path: Path::ManyTestsMore, reason: skein_codec::Reason::Short })?;
+        let decoded_cut = match reader.u8().ok_or(Problem { path: Path::ManyTestsCut, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::ManyTestsCut, reason: skein_codec::Reason::Bool }) };
+        Ok(Self { tests: decoded_tests, more: decoded_more, cut: decoded_cut })
+    }
+}
+
+impl ManyTests {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(4_u64.checked_add(u64::from(limits.many_tests_tests).checked_mul(ShownTest::encoded_bound_within(limits)?)?)?)?.checked_add(4_u64)?;
+        size = size.checked_add(1_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(List::<ShownTest>::price(limits.many_tests_tests)?.checked_add(u64::from(limits.many_tests_tests).checked_mul(ShownTest::decoded_bound_within(limits)?)?)?)?.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
+fn many_tests_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(ManyTests::encoded_bound_within(limits)?);
+    landing_selection_encoded_bound_family(limits, biggest)
+}
+
+fn many_tests_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(ManyTests::decoded_bound_within(limits)?);
+    landing_selection_decoded_bound_family(limits, biggest)
+}
+
+fn check_many_tests_record_limits(limits: &Limits) -> Result<(), Problem> {
+    if limits.many_tests_tests > CEILINGS.many_tests_tests { return Err(Problem { path: Path::ManyTestsTests, reason: skein_codec::Reason::Bound }); }
+    check_landing_selection_record_limits(limits)
+}
+
+impl Limits {
+    fn values_for_many_tests_record(&self, values: &mut List<u32>) {
+        values.push(self.many_tests_tests).expect("room for every named limit");
         self.values_for_landing_selection_record(values);
     }
 }
@@ -51239,6 +51551,8 @@ impl Limits {
 /// Movable fields of `TierRow`.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct TierRowParts {
+    /// The `many` field.
+    pub many: Option<ManyTests>,
     /// The `observations` field.
     pub observations: Box<[u8]>,
     /// The `repository` field.
@@ -51286,6 +51600,7 @@ pub struct TierRowParts {
 /// `TierRow` in this codec family.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct TierRow {
+    many: Option<ManyTests>,
     observations: Box<[u8]>,
     repository: Repository,
     tier: Box<[u8]>,
@@ -51312,11 +51627,15 @@ pub struct TierRow {
 impl TierRow {
     /// Makes a value within the given limits.
     pub fn new(limits: &Limits, parts: TierRowParts) -> Result<Self, Problem> {
-        let TierRowParts { observations, repository, tier, record, task, requested, cancelled, purpose, pending, baseline, branch, probe, flight, held, hold, result, posting, received, goals, goal, started } = parts;
-        let value = Self { observations, repository, tier, record, task, requested, cancelled, purpose, pending, baseline, branch, probe, flight, held, hold, result, posting, received, goals, goal, started };
+        let TierRowParts { many, observations, repository, tier, record, task, requested, cancelled, purpose, pending, baseline, branch, probe, flight, held, hold, result, posting, received, goals, goal, started } = parts;
+        let value = Self { many, observations, repository, tier, record, task, requested, cancelled, purpose, pending, baseline, branch, probe, flight, held, hold, result, posting, received, goals, goal, started };
         value.check(limits)?;
         Ok(value)
     }
+
+    /// Reads the `many` field.
+    #[must_use]
+    pub fn many(&self) -> &Option<ManyTests> { &self.many }
 
     /// Reads the `observations` field.
     #[must_use]
@@ -51404,9 +51723,12 @@ impl TierRow {
 
     /// Moves the fields out without copying.
     #[must_use]
-    pub fn into_parts(self) -> TierRowParts { TierRowParts { observations: self.observations, repository: self.repository, tier: self.tier, record: self.record, task: self.task, requested: self.requested, cancelled: self.cancelled, purpose: self.purpose, pending: self.pending, baseline: self.baseline, branch: self.branch, probe: self.probe, flight: self.flight, held: self.held, hold: self.hold, result: self.result, posting: self.posting, received: self.received, goals: self.goals, goal: self.goal, started: self.started } }
+    pub fn into_parts(self) -> TierRowParts { TierRowParts { many: self.many, observations: self.observations, repository: self.repository, tier: self.tier, record: self.record, task: self.task, requested: self.requested, cancelled: self.cancelled, purpose: self.purpose, pending: self.pending, baseline: self.baseline, branch: self.branch, probe: self.probe, flight: self.flight, held: self.held, hold: self.hold, result: self.result, posting: self.posting, received: self.received, goals: self.goals, goal: self.goal, started: self.started } }
 
     fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        if let Some(some_0) = self.many.as_ref() {
+        some_0.check(limits)?;
+        }
         if self.observations.len() > usize::try_from(limits.tier_row_observations.min(CEILINGS.tier_row_observations)).expect("u32 fits usize") { return Err(Problem { path: Path::TierRowObservations, reason: skein_codec::Reason::Bound }); }
         if self.tier.len() > usize::try_from(limits.tier_row_tier.min(CEILINGS.tier_row_tier)).expect("u32 fits usize") { return Err(Problem { path: Path::TierRowTier, reason: skein_codec::Reason::Bound }); }
         self.record.check(limits)?;
@@ -51436,6 +51758,11 @@ impl TierRow {
     #[must_use]
     pub fn measure(&self) -> u32 {
         let mut size = 0_u32;
+        let field_many = &self.many;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if let Some(some_0) = field_many {
+        size = size.checked_add(some_0.measure()).expect("schema ceilings fit u32");
+        }
         let field_observations = &self.observations;
         size = size.checked_add(4).expect("schema ceilings fit u32");
         size = size.checked_add(u32::try_from(field_observations.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
@@ -51520,6 +51847,7 @@ impl TierRow {
 
     /// Writes into a writer with room for the measured bytes.
     pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        Self::encode_many_field(self, writer)?;
         Self::encode_observations_field(self, writer)?;
         Self::encode_repository_field(self, writer)?;
         Self::encode_tier_field(self, writer)?;
@@ -51552,6 +51880,7 @@ impl TierRow {
     }
 
     fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_many = match reader.u8().ok_or(Problem { path: Path::TierRowMany, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(ManyTests::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::TierRowMany, reason: skein_codec::Reason::Tag }) };
         let decoded_observations = { let length = match skein_codec::read_len(reader, limits.tier_row_observations.min(CEILINGS.tier_row_observations)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::TierRowObservations, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::TierRowObservations, reason: skein_codec::Reason::Short })?) };
         let decoded_repository = Repository::decode_from(limits, reader)?;
         let decoded_tier = { let length = match skein_codec::read_len(reader, limits.tier_row_tier.min(CEILINGS.tier_row_tier)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::TierRowTier, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::TierRowTier, reason: skein_codec::Reason::Short })?) };
@@ -51573,10 +51902,24 @@ impl TierRow {
         let decoded_goals = { let count = match skein_codec::read_count(reader, limits.tier_row_goals.min(CEILINGS.tier_row_goals)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::TierRowGoals, reason }), }; if count > reader.remaining() / 16 { return Err(Problem { path: Path::TierRowGoals, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = TierGoal::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
         let decoded_goal = match reader.u8().ok_or(Problem { path: Path::TierRowGoal, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u64().ok_or(Problem { path: Path::TierRowGoal, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::TierRowGoal, reason: skein_codec::Reason::Tag }) };
         let decoded_started = match reader.u8().ok_or(Problem { path: Path::TierRowStarted, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u64().ok_or(Problem { path: Path::TierRowStarted, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::TierRowStarted, reason: skein_codec::Reason::Tag }) };
-        Ok(Self { observations: decoded_observations, repository: decoded_repository, tier: decoded_tier, record: decoded_record, task: decoded_task, requested: decoded_requested, cancelled: decoded_cancelled, purpose: decoded_purpose, pending: decoded_pending, baseline: decoded_baseline, branch: decoded_branch, probe: decoded_probe, flight: decoded_flight, held: decoded_held, hold: decoded_hold, result: decoded_result, posting: decoded_posting, received: decoded_received, goals: decoded_goals, goal: decoded_goal, started: decoded_started })
+        Ok(Self { many: decoded_many, observations: decoded_observations, repository: decoded_repository, tier: decoded_tier, record: decoded_record, task: decoded_task, requested: decoded_requested, cancelled: decoded_cancelled, purpose: decoded_purpose, pending: decoded_pending, baseline: decoded_baseline, branch: decoded_branch, probe: decoded_probe, flight: decoded_flight, held: decoded_held, hold: decoded_hold, result: decoded_result, posting: decoded_posting, received: decoded_received, goals: decoded_goals, goal: decoded_goal, started: decoded_started })
     }
 }
 
+
+impl TierRow {
+    fn encode_many_field(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_many = &self.many;
+        match field_many {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        some_0.encode(writer)?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
+        Ok(())
+    }
+}
 
 impl TierRow {
     fn encode_observations_field(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
@@ -51829,17 +52172,17 @@ impl TierRow {
 
     pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut size = 0_u64;
-        size = size.checked_add(4_u64.checked_add(u64::from(limits.tier_row_observations))?)?.checked_add(Repository::encoded_bound_within(limits)?)?;
-        size = size.checked_add(4_u64.checked_add(u64::from(limits.tier_row_tier))?)?.checked_add(TierRecord::encoded_bound_within(limits)?)?;
-        size = size.checked_add(1_u64.checked_add(8_u64)?)?.checked_add(1_u64)?;
-        size = size.checked_add(1_u64)?.checked_add(1_u64.checked_add(u64::from(30_u32))?)?;
-        size = size.checked_add(4_u64.checked_add(u64::from(limits.tier_row_pending).checked_mul(TierPending::encoded_bound_within(limits)?)?)?)?.checked_add(1_u64.checked_add(TierPending::encoded_bound_within(limits)?)?)?;
-        size = size.checked_add(TierBranch::encoded_bound_within(limits)?)?.checked_add(1_u64.checked_add(TierProbeBranch::encoded_bound_within(limits)?)?)?;
-        size = size.checked_add(1_u64.checked_add(TierFlight::encoded_bound_within(limits)?)?)?.checked_add(1_u64.checked_add(TierFault::encoded_bound_within(limits)?)?)?;
-        size = size.checked_add(1_u64.checked_add(TierHold::encoded_bound_within(limits)?)?)?.checked_add(1_u64.checked_add(Receipt::encoded_bound_within(limits)?)?)?;
-        size = size.checked_add(1_u64.checked_add(TierPosting::encoded_bound_within(limits)?)?)?.checked_add(1_u64)?;
-        size = size.checked_add(4_u64.checked_add(u64::from(limits.tier_row_goals).checked_mul(TierGoal::encoded_bound_within(limits)?)?)?)?.checked_add(1_u64.checked_add(8_u64)?)?;
-        size = size.checked_add(1_u64.checked_add(8_u64)?)?;
+        size = size.checked_add(1_u64.checked_add(ManyTests::encoded_bound_within(limits)?)?)?.checked_add(4_u64.checked_add(u64::from(limits.tier_row_observations))?)?;
+        size = size.checked_add(Repository::encoded_bound_within(limits)?)?.checked_add(4_u64.checked_add(u64::from(limits.tier_row_tier))?)?;
+        size = size.checked_add(TierRecord::encoded_bound_within(limits)?)?.checked_add(1_u64.checked_add(8_u64)?)?;
+        size = size.checked_add(1_u64)?.checked_add(1_u64)?;
+        size = size.checked_add(1_u64.checked_add(u64::from(30_u32))?)?.checked_add(4_u64.checked_add(u64::from(limits.tier_row_pending).checked_mul(TierPending::encoded_bound_within(limits)?)?)?)?;
+        size = size.checked_add(1_u64.checked_add(TierPending::encoded_bound_within(limits)?)?)?.checked_add(TierBranch::encoded_bound_within(limits)?)?;
+        size = size.checked_add(1_u64.checked_add(TierProbeBranch::encoded_bound_within(limits)?)?)?.checked_add(1_u64.checked_add(TierFlight::encoded_bound_within(limits)?)?)?;
+        size = size.checked_add(1_u64.checked_add(TierFault::encoded_bound_within(limits)?)?)?.checked_add(1_u64.checked_add(TierHold::encoded_bound_within(limits)?)?)?;
+        size = size.checked_add(1_u64.checked_add(Receipt::encoded_bound_within(limits)?)?)?.checked_add(1_u64.checked_add(TierPosting::encoded_bound_within(limits)?)?)?;
+        size = size.checked_add(1_u64)?.checked_add(4_u64.checked_add(u64::from(limits.tier_row_goals).checked_mul(TierGoal::encoded_bound_within(limits)?)?)?)?;
+        size = size.checked_add(1_u64.checked_add(8_u64)?)?.checked_add(1_u64.checked_add(8_u64)?)?;
         size.checked_add(0)
     }
 
@@ -51852,17 +52195,17 @@ impl TierRow {
 
     pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut heap = 0_u64;
-        heap = heap.checked_add(u64::from(limits.tier_row_observations))?.checked_add(Repository::decoded_bound_within(limits)?)?;
-        heap = heap.checked_add(u64::from(limits.tier_row_tier))?.checked_add(TierRecord::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(ManyTests::decoded_bound_within(limits)?)?.checked_add(u64::from(limits.tier_row_observations))?;
+        heap = heap.checked_add(Repository::decoded_bound_within(limits)?)?.checked_add(u64::from(limits.tier_row_tier))?;
+        heap = heap.checked_add(TierRecord::decoded_bound_within(limits)?)?.checked_add(0_u64)?;
         heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?.checked_add(List::<TierPending>::price(limits.tier_row_pending)?.checked_add(u64::from(limits.tier_row_pending).checked_mul(TierPending::decoded_bound_within(limits)?)?)?)?;
+        heap = heap.checked_add(TierPending::decoded_bound_within(limits)?)?.checked_add(TierBranch::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(TierProbeBranch::decoded_bound_within(limits)?)?.checked_add(TierFlight::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(TierFault::decoded_bound_within(limits)?)?.checked_add(TierHold::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(Receipt::decoded_bound_within(limits)?)?.checked_add(TierPosting::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(0_u64)?.checked_add(List::<TierGoal>::price(limits.tier_row_goals)?.checked_add(u64::from(limits.tier_row_goals).checked_mul(TierGoal::decoded_bound_within(limits)?)?)?)?;
         heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
-        heap = heap.checked_add(List::<TierPending>::price(limits.tier_row_pending)?.checked_add(u64::from(limits.tier_row_pending).checked_mul(TierPending::decoded_bound_within(limits)?)?)?)?.checked_add(TierPending::decoded_bound_within(limits)?)?;
-        heap = heap.checked_add(TierBranch::decoded_bound_within(limits)?)?.checked_add(TierProbeBranch::decoded_bound_within(limits)?)?;
-        heap = heap.checked_add(TierFlight::decoded_bound_within(limits)?)?.checked_add(TierFault::decoded_bound_within(limits)?)?;
-        heap = heap.checked_add(TierHold::decoded_bound_within(limits)?)?.checked_add(Receipt::decoded_bound_within(limits)?)?;
-        heap = heap.checked_add(TierPosting::decoded_bound_within(limits)?)?.checked_add(0_u64)?;
-        heap = heap.checked_add(List::<TierGoal>::price(limits.tier_row_goals)?.checked_add(u64::from(limits.tier_row_goals).checked_mul(TierGoal::decoded_bound_within(limits)?)?)?)?.checked_add(0_u64)?;
-        heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
 }
@@ -60153,14 +60496,14 @@ fn logged_change_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u
 fn check_logged_change_record_limits(limits: &Limits) -> Result<(), Problem> {
     if limits.logged_change_signed > CEILINGS.logged_change_signed { return Err(Problem { path: Path::LoggedChangeSigned, reason: skein_codec::Reason::Bound }); }
     if limits.logged_change_title > CEILINGS.logged_change_title { return Err(Problem { path: Path::LoggedChangeTitle, reason: skein_codec::Reason::Bound }); }
-    check_logged_tier_record_limits(limits)
+    check_logged_red_record_limits(limits)
 }
 
 impl Limits {
     fn values_for_logged_change_record(&self, values: &mut List<u32>) {
         values.push(self.logged_change_signed).expect("room for every named limit");
         values.push(self.logged_change_title).expect("room for every named limit");
-        self.values_for_logged_tier_record(values);
+        self.values_for_logged_red_record(values);
     }
 }
 
@@ -60254,96 +60597,86 @@ impl LoggedCleared {
 
 fn logged_cleared_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
     let biggest = biggest.max(LoggedCleared::encoded_bound_within(limits)?);
-    logged_red_encoded_bound_family(limits, biggest)
+    logged_many_encoded_bound_family(limits, biggest)
 }
 
 fn logged_cleared_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
     let biggest = biggest.max(LoggedCleared::decoded_bound_within(limits)?);
-    logged_red_decoded_bound_family(limits, biggest)
+    logged_many_decoded_bound_family(limits, biggest)
 }
 
-/// Movable fields of `LoggedRed`.
+/// Movable fields of `LoggedMany`.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct LoggedRedParts {
-    /// The `run` field.
-    pub run: u64,
-    /// The `failing` field.
-    pub failing: Option<u32>,
+pub struct LoggedManyParts {
+    /// The `more` field.
+    pub more: u32,
+    /// The `cut` field.
+    pub cut: bool,
 }
 
-/// `LoggedRed` in this codec family.
+/// `LoggedMany` in this codec family.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct LoggedRed {
-    run: u64,
-    failing: Option<u32>,
+pub struct LoggedMany {
+    more: u32,
+    cut: bool,
 }
 
-impl LoggedRed {
+impl LoggedMany {
     /// Makes a value within the given limits.
-    pub fn new(_limits: &Limits, parts: LoggedRedParts) -> Result<Self, Problem> {
-        let LoggedRedParts { run, failing } = parts;
-        let value = Self { run, failing };
+    pub fn new(_limits: &Limits, parts: LoggedManyParts) -> Result<Self, Problem> {
+        let LoggedManyParts { more, cut } = parts;
+        let value = Self { more, cut };
         Ok(value)
     }
 
-    /// Reads the `run` field.
+    /// Reads the `more` field.
     #[must_use]
-    pub fn run(&self) -> u64 { self.run }
+    pub fn more(&self) -> u32 { self.more }
 
-    /// Reads the `failing` field.
+    /// Reads the `cut` field.
     #[must_use]
-    pub fn failing(&self) -> &Option<u32> { &self.failing }
+    pub fn cut(&self) -> bool { self.cut }
 
     /// Moves the fields out without copying.
     #[must_use]
-    pub fn into_parts(self) -> LoggedRedParts { LoggedRedParts { run: self.run, failing: self.failing } }
+    pub fn into_parts(self) -> LoggedManyParts { LoggedManyParts { more: self.more, cut: self.cut } }
 
 }
 
-impl LoggedRed {
+impl LoggedMany {
     /// Measures this record's wire encoding.
     #[must_use]
     pub fn measure(&self) -> u32 {
         let mut size = 0_u32;
-        size = size.checked_add(8).expect("schema ceilings fit u32");
-        let field_failing = &self.failing;
-        size = size.checked_add(1).expect("schema ceilings fit u32");
-        if field_failing.is_some() {
         size = size.checked_add(4).expect("schema ceilings fit u32");
-        }
+        size = size.checked_add(1).expect("schema ceilings fit u32");
         size
     }
 
     /// Writes into a writer with room for the measured bytes.
     pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
-        let field_run = &self.run;
-        writer.put(&field_run.to_be_bytes())?;
-        let field_failing = &self.failing;
-        match field_failing {
-            Some(some_0) => {
-                writer.put(&[1_u8])?;
-        writer.put(&some_0.to_be_bytes())?;
-            }
-            None => writer.put(&[0_u8])?,
-        }
+        let field_more = &self.more;
+        writer.put(&field_more.to_be_bytes())?;
+        let field_cut = &self.cut;
+        writer.put(&[u8::from(*field_cut)])?;
         Ok(())
     }
 
     /// Reads a whole record and refuses trailing bytes.
     pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         let value = Self::decode_from(limits, reader)?;
-        if !reader.is_empty() { return Err(Problem { path: Path::LoggedRedTail, reason: skein_codec::Reason::Trailing }); }
+        if !reader.is_empty() { return Err(Problem { path: Path::LoggedManyTail, reason: skein_codec::Reason::Trailing }); }
         Ok(value)
     }
 
     fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let decoded_run = reader.u64().ok_or(Problem { path: Path::LoggedRedRun, reason: skein_codec::Reason::Short })?;
-        let decoded_failing = match reader.u8().ok_or(Problem { path: Path::LoggedRedFailing, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u32().ok_or(Problem { path: Path::LoggedRedFailing, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::LoggedRedFailing, reason: skein_codec::Reason::Tag }) };
-        Ok(Self { run: decoded_run, failing: decoded_failing })
+        let decoded_more = reader.u32().ok_or(Problem { path: Path::LoggedManyMore, reason: skein_codec::Reason::Short })?;
+        let decoded_cut = match reader.u8().ok_or(Problem { path: Path::LoggedManyCut, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::LoggedManyCut, reason: skein_codec::Reason::Bool }) };
+        Ok(Self { more: decoded_more, cut: decoded_cut })
     }
 }
 
-impl LoggedRed {
+impl LoggedMany {
     /// Maximum encoded bytes under these limits.
     #[must_use]
     pub fn encoded_bound(limits: &Limits) -> Option<u64> {
@@ -60353,7 +60686,7 @@ impl LoggedRed {
 
     pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
         let mut size = 0_u64;
-        size = size.checked_add(8_u64)?.checked_add(1_u64.checked_add(4_u64)?)?;
+        size = size.checked_add(4_u64)?.checked_add(1_u64)?;
         size.checked_add(0)
     }
 
@@ -60371,6 +60704,174 @@ impl LoggedRed {
     }
 }
 
+fn logged_many_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(LoggedMany::encoded_bound_within(limits)?);
+    logged_red_encoded_bound_family(limits, biggest)
+}
+
+fn logged_many_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(LoggedMany::decoded_bound_within(limits)?);
+    logged_red_decoded_bound_family(limits, biggest)
+}
+
+/// Movable fields of `LoggedRed`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct LoggedRedParts {
+    /// The `run` field.
+    pub run: u64,
+    /// The `failing` field.
+    pub failing: Option<u32>,
+    /// The `tests` field.
+    pub tests: List<FailingTest>,
+    /// The `many` field.
+    pub many: Option<LoggedMany>,
+}
+
+/// `LoggedRed` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct LoggedRed {
+    run: u64,
+    failing: Option<u32>,
+    tests: List<FailingTest>,
+    many: Option<LoggedMany>,
+}
+
+impl LoggedRed {
+    /// Makes a value within the given limits.
+    pub fn new(limits: &Limits, parts: LoggedRedParts) -> Result<Self, Problem> {
+        let LoggedRedParts { run, failing, tests, many } = parts;
+        let value = Self { run, failing, tests, many };
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    /// Reads the `run` field.
+    #[must_use]
+    pub fn run(&self) -> u64 { self.run }
+
+    /// Reads the `failing` field.
+    #[must_use]
+    pub fn failing(&self) -> &Option<u32> { &self.failing }
+
+    /// Reads the `tests` field.
+    #[must_use]
+    pub fn tests(&self) -> &List<FailingTest> { &self.tests }
+
+    /// Reads the `many` field.
+    #[must_use]
+    pub fn many(&self) -> &Option<LoggedMany> { &self.many }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> LoggedRedParts { LoggedRedParts { run: self.run, failing: self.failing, tests: self.tests, many: self.many } }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        if self.tests.capacity() > limits.logged_red_tests.min(CEILINGS.logged_red_tests) { return Err(Problem { path: Path::LoggedRedTests, reason: skein_codec::Reason::Bound }); }
+        for item_0 in self.tests.as_slice() {
+        item_0.check(limits)?;
+        }
+        Ok(())
+    }
+}
+
+impl LoggedRed {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        let field_failing = &self.failing;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if field_failing.is_some() {
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        }
+        let field_tests = &self.tests;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        for item_0 in field_tests.as_slice() {
+        size = size.checked_add(item_0.measure()).expect("schema ceilings fit u32");
+        }
+        let field_many = &self.many;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if field_many.is_some() {
+        size = size.checked_add(5).expect("schema ceilings fit u32");
+        }
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_run = &self.run;
+        writer.put(&field_run.to_be_bytes())?;
+        let field_failing = &self.failing;
+        match field_failing {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        writer.put(&some_0.to_be_bytes())?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
+        let field_tests = &self.tests;
+        writer.put(&field_tests.len().to_be_bytes())?;
+        for item_0 in field_tests.as_slice() {
+        item_0.encode(writer)?;
+        }
+        let field_many = &self.many;
+        match field_many {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        some_0.encode(writer)?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::LoggedRedTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_run = reader.u64().ok_or(Problem { path: Path::LoggedRedRun, reason: skein_codec::Reason::Short })?;
+        let decoded_failing = match reader.u8().ok_or(Problem { path: Path::LoggedRedFailing, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u32().ok_or(Problem { path: Path::LoggedRedFailing, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::LoggedRedFailing, reason: skein_codec::Reason::Tag }) };
+        let decoded_tests = { let count = match skein_codec::read_count(reader, limits.logged_red_tests.min(CEILINGS.logged_red_tests)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::LoggedRedTests, reason }), }; if count > reader.remaining() / 4 { return Err(Problem { path: Path::LoggedRedTests, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = FailingTest::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_many = match reader.u8().ok_or(Problem { path: Path::LoggedRedMany, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(LoggedMany::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::LoggedRedMany, reason: skein_codec::Reason::Tag }) };
+        Ok(Self { run: decoded_run, failing: decoded_failing, tests: decoded_tests, many: decoded_many })
+    }
+}
+
+impl LoggedRed {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(8_u64)?.checked_add(1_u64.checked_add(4_u64)?)?;
+        size = size.checked_add(4_u64.checked_add(u64::from(limits.logged_red_tests).checked_mul(FailingTest::encoded_bound_within(limits)?)?)?)?.checked_add(1_u64.checked_add(LoggedMany::encoded_bound_within(limits)?)?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap = heap.checked_add(List::<FailingTest>::price(limits.logged_red_tests)?.checked_add(u64::from(limits.logged_red_tests).checked_mul(FailingTest::decoded_bound_within(limits)?)?)?)?.checked_add(LoggedMany::decoded_bound_within(limits)?)?;
+        heap.checked_add(0)
+    }
+}
+
 fn logged_red_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
     let biggest = biggest.max(LoggedRed::encoded_bound_within(limits)?);
     logged_verdict_encoded_bound_family(limits, biggest)
@@ -60379,6 +60880,18 @@ fn logged_red_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64>
 fn logged_red_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
     let biggest = biggest.max(LoggedRed::decoded_bound_within(limits)?);
     logged_verdict_decoded_bound_family(limits, biggest)
+}
+
+fn check_logged_red_record_limits(limits: &Limits) -> Result<(), Problem> {
+    if limits.logged_red_tests > CEILINGS.logged_red_tests { return Err(Problem { path: Path::LoggedRedTests, reason: skein_codec::Reason::Bound }); }
+    check_logged_tier_record_limits(limits)
+}
+
+impl Limits {
+    fn values_for_logged_red_record(&self, values: &mut List<u32>) {
+        values.push(self.logged_red_tests).expect("room for every named limit");
+        self.values_for_logged_tier_record(values);
+    }
 }
 
 /// `LoggedVerdict` in this codec family.
@@ -60394,10 +60907,18 @@ pub enum LoggedVerdict {
 
 impl LoggedVerdict {
     /// Checks the payload against the given limits.
-    pub fn new(_limits: &Limits, value: Self) -> Result<Self, Problem> {
+    pub fn new(limits: &Limits, value: Self) -> Result<Self, Problem> {
+        value.check(limits)?;
         Ok(value)
     }
 
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        match self {
+            Self::Red(record) => LoggedRed::check(record, limits),
+            Self::Verifying | Self::Cleared(_) => Ok(()),
+        }?;
+        Ok(())
+    }
 }
 
 impl LoggedVerdict {
@@ -60517,6 +61038,7 @@ impl LoggedTier {
 
     fn check(&self, limits: &Limits) -> Result<(), Problem> {
         if self.tier.len() > usize::try_from(limits.logged_tier_tier.min(CEILINGS.logged_tier_tier)).expect("u32 fits usize") { return Err(Problem { path: Path::LoggedTierTier, reason: skein_codec::Reason::Bound }); }
+        self.verdict.check(limits)?;
         Ok(())
     }
 }

@@ -93,6 +93,7 @@ fn pull(repository: Repository, number: u64) -> forge::Name {
 
 fn tier(repository: Repository) -> forge::Stored {
     forge::Stored::Tier(forge::TierRow {
+        many: None,
         repository,
         tier: b"focused".as_slice().into(),
         record: tiers::Record {
