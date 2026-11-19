@@ -1,6 +1,16 @@
 use super::*;
 
 #[test]
+fn requests_parse_print_are_kept_and_name_extra_fields() {
+    let line = Line::parse(b"web requests").expect("requests line");
+    assert_eq!(line.record(), &Record::Web(Web::Requests));
+    assert_eq!(line.print(), b"web requests");
+    assert!(line.kept());
+    let why = Line::parse(b"web requests 1").expect_err("extra field");
+    assert!(why.contains("extra field") && why.contains('1'), "{why}");
+}
+
+#[test]
 fn forge_lines_round_trip_and_are_kept() {
     for source in [
         r#"forge commit forgejo playground/widget "msg" "CONTRIBUTING.md" ".fake-forge/ci""#,

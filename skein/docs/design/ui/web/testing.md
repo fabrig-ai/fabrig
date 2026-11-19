@@ -129,7 +129,11 @@ Each within skein's suites' budgets (../../../foundation/testing-strategy.md, se
   its kind, its text and its resource's URL, apart from its own
   trouble (Chromium's exit or failure, a page it could not open), and
   judges none: which trouble is expected is its caller's, as a story's
-  expected troubles are the harness's (below).
+  expected troubles are the harness's (below). Its page is opened to
+  report its requests (../../testing/browser.md, section 5), and it
+  reports each request the kit reports sent and each first answer, as
+  the kit gives them, judging none: which count is its caller's. A
+  story's harness (below) opens its persons' pages without them.
 - **A date or a time is typed as a person types it,** into its native
   field's parts, since that field takes no inserted text (../../testing/browser.md,
   section 6). The face knows the field by the role Chromium computes

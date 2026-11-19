@@ -75,11 +75,11 @@ pub struct Connections {
 }
 impl Connections {
     #[must_use]
-    pub fn new(limits: &Limits, host: &str) -> Self {
+    pub fn new(limits: &Limits, host: &str, mapping: Mapping) -> Self {
         assert!(valid(limits), "usable transport limits");
         Self {
             limits: *limits,
-            mapping: Mapping::new(b"/jig").expect("default mapping"),
+            mapping,
             heard: Queue::uncapped(),
             host: host.to_owned(),
             next: 1,

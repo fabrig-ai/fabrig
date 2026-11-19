@@ -74,7 +74,7 @@ forge's connector, which judges them (jig's `domain/engine/settings.md`, 5):
 | 6, a project's questions | each project | 1 | the question route a change of the project takes when its maker names none: none or up (`../../domain/forge/change/questions.md`, 1) | that project's owners |
 | 7, a project's ways | each project | 1 | what the project shows and the way a goal starts by, a `ProjectWays` (below) | that project's owners |
 | 8, a project's classes | each project | 1 | what agents decide for a person and what reaches them, a `ProjectClasses` (below; `../../domain/forge/attention.md`, 6) | that project's owners |
-| 9, a charter's words | the deployment | a charter's, 1 to `tasks.charters` | what the charter does, in a line, a `CharterWords` (below) | the deployment's owners |
+| 9, a charter's words | the deployment | a charter's, 1 to 64 (jig's `domain/engine/settings.md`, 1) | what the charter does, in a line, a `CharterWords` (below) | the deployment's owners |
 | 10, a project's words | each project | 1 | How work runs' headline and lede for the project's own way, a `ProjectWords` (below) | that project's owners |
 | 21, the agents' figures | the deployment | 1 | the agents' profile figures and each endpoint's limits, an `AgentFigures` (`figures.md`, section 5), taken at each worker's next start | the deployment's owners |
 
@@ -163,8 +163,8 @@ forge's connector, which judges them (jig's `domain/engine/settings.md`, 5):
     names no path set": sets are a project's). A set the project's
     classes don't hold is no refusal: each item is judged alone, and the
     rule covers every change until the classes hold it (`engine.md`);
-  - *the forge's charter* outside 1 to jig's `tasks.charters`, or
-    removed: the forge always has all three charters, and an owner who
+  - *the forge's charter* outside 1 to 64, a charter's numbers (jig's
+    `domain/engine/settings.md`, 1), or removed: the forge always has all three charters, and an owner who
     wants the stock's back resets it;
   - *a project's questions* that is not one of the three routes;
   - *a project's classes* that does not decode as a `ProjectClasses`,
@@ -172,7 +172,7 @@ forge's connector, which judges them (jig's `domain/engine/settings.md`, 5):
     refusal's words saying which of its faults;
   - *words* of kind 9 or 10 that are empty, past their bound, not UTF-8
     or holding a control character, or of kind 9 at a number outside 1
-    to jig's `tasks.charters`; a removed or reset item of either is
+    to 64, a charter's numbers; a removed or reset item of either is
     always good;
   - *a project's ways* with a `way` neither 0 nor a template the project
     would offer after the whole decision, read by the root from the core
@@ -299,7 +299,10 @@ forge's connector, which judges them (jig's `domain/engine/settings.md`, 5):
   setting's words (`../../draft/whole-story.execution.md`, P3e):
   - *its scope and numbers:* the deployment's, as templates are (jig's
     `protocol/configuration.md`, 3.1); its number a template's, 1 to
-    jig's `core.templates`; decided by the deployment's owners;
+    64, the stock's 1 to 32 and a deployment's own 33 to 64 (jig's
+    `domain/engine/settings.md`, 1); decided by the deployment's owners.
+    Read at a number 1 to 64 where none is held, it answers "none kept",
+    as kind 9 does at a charter's number 1 to 64;
   - *its value,* a `TemplateGoal` record in temper's codec: `design`, a
     bool, whether the template's charter designs the goal first,
     delivering the design into the goal's branch as a change the goal's
@@ -317,8 +320,7 @@ forge's connector, which judges them (jig's `domain/engine/settings.md`, 5):
     number the settings offer no template at, or at a template no goal
     starts by, is kept and drawn nowhere;
   - *judged by the forge,* as the table's kinds are: at scope 0 alone,
-    else refused for its scope; a number 0 or past `core.templates`,
-    for its number; a value not a `TemplateGoal`, for its value; a
+    else refused for its scope; a number 0 or past 64, for its number; a value not a `TemplateGoal`, for its value; a
     removal or a reset always good;
   - *named* `template-goal`, with the template's `number`, in a settings
     file and a run's `settings`, `see` and `propose_settings`
@@ -391,7 +393,7 @@ forge's connector, which judges them (jig's `domain/engine/settings.md`, 5):
     by the root, from the core, as kind 7's way is, an owner that is not
     of the project: a `task` not a live task of it, a `party` with no
     role in it, a `role` past jig's `authority.roles`, a `charter` 0 or
-    past jig's `tasks.charters`; the refusal names the area and the
+    past 64, a charter's numbers; the refusal names the area and the
     owner. A removal or a reset is always good;
   - *named* `project-areas` and `project-triager`, with the `project`,
     in a settings file and a run's `settings`, `see` and

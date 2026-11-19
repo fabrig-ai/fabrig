@@ -6,6 +6,7 @@ use skein_world::stream::Wire;
 #[test]
 fn pointing_before_requests_changes_the_engine_and_http_host() {
     let mut shell = Shell::new(Settings {
+        mapping: jig_client_protocol_http::Mapping::new(b"/jig").expect("default mapping"),
         engine: Engine::Plain(io::Addr::Ip("127.0.0.1:8080".parse().expect("initial address"))),
         directory: b"client".as_slice().into(),
         limits: crate::tests::limits(),
@@ -20,6 +21,7 @@ fn pointing_before_requests_changes_the_engine_and_http_host() {
 #[test]
 fn an_activity_read_waits_for_the_http_slot_its_old_watch_still_owns() {
     let mut shell = Shell::new(Settings {
+        mapping: jig_client_protocol_http::Mapping::new(b"/jig").expect("default mapping"),
         engine: Engine::Plain(io::Addr::Ip("127.0.0.1:8080".parse().expect("engine address"))),
         directory: b"client".as_slice().into(),
         limits: crate::tests::limits(),

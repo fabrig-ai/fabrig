@@ -7,8 +7,13 @@ use temper_engine_service_vocabulary::limits;
 fn temper_limits_by_name_round_trip_both_stocks() {
     let small = temper_limits_fixtures::small();
     let stock = limits::stock();
+    assert_eq!(small.forge.landings_pending, 64);
+    assert_eq!(stock.forge.landings_pending, 64);
+    let mut invalid = stock;
+    assert_eq!(limits::apply(&mut invalid, b"forge.landings_pending", 0), Err(limits::Refused::Range));
     for (mut source, mut restored) in [(small, stock), (stock, small)] {
         source.checkout.workspaces = 7;
+        source.forge.landings_pending = 7;
         source.checkout.remote_timeout = Duration::from_millis(321);
         let values = limits::list(&source);
         let mut unique = skein_lib::Set::with_capacity(values.len());

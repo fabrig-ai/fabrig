@@ -41,12 +41,14 @@ the look, 11 what is open.
   `docs/design/client/tui/journeys/`: a text and a page per mark, a
   generated `theme.css` and `tui-journey.js`, and an empty `overlay.css`
   (section 6). No terminal, no box, the same bytes every time.
-- **Kept current by the journeys' test,** with the browser's, which
-  also fails while the TUI's `overlay.css` holds anything (section 7).
+- **Kept current by one writer,** with the browser's, after each
+  landing (`../journey-writer.md`); the delivery check and the journeys'
+  tests refuse a TUI `overlay.css` that holds anything (section 7).
 - **Recorded again by a command:** `again NAME` walks the journey's
   `walk` on a fresh fake box, the TUI in a pseudo-terminal and the
   approval given in headless Chromium, all on one fixed start
-  (`../journey-clock.md`), and adds the result (section 8).
+  (`../journey-clock.md`), and adds the result (section 8); on main the
+  journeys' writer alone runs it.
 - **The look is asked for on the frames:** a frame's text edited in
   place, the theme's overlay written, each request landing as the
   browser's do (section 10).
@@ -463,14 +465,12 @@ reports given by the test) and `crates/temper-client-journeys-tool`'s own tests:
   passing the scan in a `browse` address and a frame, and a `code=` of
   any other value still refused; a redacted approval walk replaying as
   it stands.
-- **The print:** every committed TUI journey reprinted into a scratch
-  directory equals its directory and the files beside it, byte for byte,
-  and its recording is its own normalisation (`../journey-placeholders.md`,
-  4.3);
-  one that differs or is stale fails, naming the command that reprints;
-  the tests fail while the TUI's `overlay.css` holds any byte, and for a
-  journey whose `../../README.md` is missing or empty; a page's runs, palette
-  classes, attributes and key links in the print's unit tests.
+- **The print,** on walks the tests record in the host's world: printed
+  and proved; no test replays, reprints or compares a recording or a
+  frame of main's (`../journey-writer.md`, 7); the tests fail while the
+  TUI's `overlay.css` holds any byte, and for a journey whose
+  `../../README.md` is missing or empty; a page's runs, palette classes,
+  attributes and key links in the print's unit tests.
 - **The walk, natively:** a `walk` read back, each record among them,
   and another version, a record out of its place and a second `end`
   unreadable; a recording checked against its walk; a TUI journey's
@@ -478,9 +478,8 @@ reports given by the test) and `crates/temper-client-journeys-tool`'s own tests:
   one holding a `mark` refused, naming its line.
 - **`again`'s half that drives a terminal and a browser** has no story of
   its own: the first journey, recorded by it, proves it (8.2).
-- **Their cost:** the reprint of both directories together within the
-  browser's 1 s of the default suite; no fuzzy test; no default test
-  starts a terminal, a browser or a box.
+- **Their cost:** within their layers' budgets as they stand; no fuzzy
+  test; no default test starts a terminal, a browser or a box.
 
 ## 8. Recorded again
 
@@ -590,7 +589,8 @@ where 8.2 says otherwise:
   rather than before the TUI starts; a `see` after it waits for the
   frame the steps lead to.
 - **The welcome's link, wrapped:** at 80 columns the welcome draws the
-  printed link over rows. The redaction seeks a `box-line` link's secret in
+  printed link over rows, and so does `/web`'s note (`box.md`, *`/web`,
+  temper in the browser*). The redaction seeks a `box-line` link's secret in
   each `mark`'s and the `end`'s print across the rows it wraps over too,
   the print's rows read as one where the link continues, each row's
   indentation and line feed left out, and the last scan reads the
@@ -646,13 +646,14 @@ As the browser's (`../web/journeys.md`, section 7), on the TUI's print:
   `scripts/look-refresh.sh`, run with `tui-requests` checked out, and
   never landed (`../web/journeys.md`, section 7;
   `../web/look-requests.md`, 2).
-- **Never landed:** the journeys' test refuses a request's frames, which
-  differ from the reprint, and its overlay, so `main`'s overlay stays
-  empty.
+- **Never landed:** the delivery check refuses a request's frames
+  beside any other file, and its overlay (`../journey-writer.md`, 5), so
+  `main`'s overlay stays empty.
 - **Done** is a landing carrying the request's trailer in commits of its
   own that moves the overlay's rules into `temper-client-tui`'s theme
   (its palette, its tokens' paints, its borders and glyphs) and the
-  frames' changes into its view and words, and reprints.
+  frames' changes into its view and words, and compares by a reprint in
+  its own tree, committing no frame (`../web/look-requests.md`, 3).
 
 ## 11. Open questions
 

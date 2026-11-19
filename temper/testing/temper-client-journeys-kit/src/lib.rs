@@ -12,6 +12,15 @@ pub fn fixture_recording() -> Box<[u8]> {
 
 #[must_use]
 pub fn fixture_with_secret(secret: Option<Box<[u8]>>) -> Box<[u8]> {
+    fixture(secret, false)
+}
+
+#[must_use]
+pub fn fixture_with_marks_and_secret(secret: Option<Box<[u8]>>) -> Box<[u8]> {
+    fixture(secret, true)
+}
+
+fn fixture(secret: Option<Box<[u8]>>, marked: bool) -> Box<[u8]> {
     let facts = journey::Facts {
         fixed: false,
         seed: 11,
@@ -27,6 +36,9 @@ pub fn fixture_with_secret(secret: Option<Box<[u8]>>) -> Box<[u8]> {
     };
     let (mut host, mut page) = facts.start();
     let mut recorder = journey::Recorder::new(&facts);
+    if marked {
+        recorder.mark(&page);
+    }
     recorder.turn(facts.now, facts.wall);
     recorder.report(&mut host, &page, temper_client_shell_web::host::Report::Start);
     if facts.secret.is_none() {
@@ -40,6 +52,9 @@ pub fn fixture_with_secret(secret: Option<Box<[u8]>>) -> Box<[u8]> {
     }
     host.draw(&mut page, &mut Vec::new());
     recorder.deadline(host.deadline());
+    if marked {
+        recorder.mark(&page);
+    }
     recorder.save(&page)
 }
 

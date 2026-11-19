@@ -145,6 +145,10 @@ impl Words {
                 use jig_client::contract::SettingFault;
                 self.setting(b, &value.setting);
                 let phrase = match value.fault {
+                    SettingFault::Range => {
+                        self.setting_range(b, &value.setting);
+                        return;
+                    }
                     SettingFault::Linked => JigPhrase::SettingFaultLinked,
                     SettingFault::Accounts => JigPhrase::SettingFaultAccounts,
                     SettingFault::Shape => JigPhrase::SettingFaultShape,
@@ -260,6 +264,33 @@ impl Words {
 }
 
 impl Words {
+    fn setting_range(&self, b: &mut Builder, setting: &jig_client::contract::Setting) {
+        use jig_client::contract::{NUMBERS, STOCK_NUMBERS, Setting};
+        let (number, stock, past) = match *setting {
+            Setting::Charter(n) => (n.number, JigPhrase::SettingRangeCharterStock, JigPhrase::SettingRangeCharterPast),
+            Setting::Template(n) => {
+                (n.number, JigPhrase::SettingRangeTemplateStock, JigPhrase::SettingRangeTemplatePast)
+            }
+            Setting::Policy(n) => (n.number, JigPhrase::SettingRangePolicyStock, JigPhrase::SettingRangePolicyPast),
+            Setting::Model(n) => (n.number, JigPhrase::SettingRangeModelStock, JigPhrase::SettingRangeModelPast),
+            Setting::Worker(n) | Setting::Provider(n) => {
+                (n.number, JigPhrase::SettingRangeStock, JigPhrase::SettingRangePast)
+            }
+            Setting::Application { number, .. } => (number, JigPhrase::SettingRangeStock, JigPhrase::SettingRangePast),
+            Setting::ProjectPolicy { project } => (project, JigPhrase::SettingRangeStock, JigPhrase::SettingRangePast),
+            Setting::Rules => (0, JigPhrase::SettingRangeStock, JigPhrase::SettingRangePast),
+        };
+        let phrase = if number <= STOCK_NUMBERS { stock } else { past };
+        self.text(
+            b,
+            phrase,
+            &[
+                Hole::Number(u64::from(STOCK_NUMBERS)),
+                Hole::Number(u64::from(STOCK_NUMBERS.checked_add(1).expect("deployment range starts after stock"))),
+                Hole::Number(u64::from(NUMBERS)),
+            ],
+        );
+    }
     pub(super) fn setting(&self, b: &mut Builder, setting: &jig_client::contract::Setting) {
         use jig_client::contract::Setting;
         match *setting {
@@ -279,10 +310,9 @@ impl Words {
                 &[Hole::Number(u64::from(kind)), Hole::Number(u64::from(scope)), Hole::Number(u64::from(number))],
             ),
             Setting::Model(n) => {
-                let mut text = skein_lib::Writer::new(32);
-                text.put(b"Model ").expect("model label room");
-                text.put(skein_lib::Decimal::of(u64::from(n.number)).as_bytes()).expect("model number room");
-                b.text(skein_ui::Run::Plain, &text.finish());
+                let number = skein_lib::Decimal::of(u64::from(n.number));
+                let text = skein_lib::bytes::concat(&[b"Model ", number.as_bytes()]);
+                b.text(skein_ui::Run::Plain, &text);
             }
             Setting::Worker(n) => {
                 let number = skein_lib::Decimal::of(u64::from(n.number));

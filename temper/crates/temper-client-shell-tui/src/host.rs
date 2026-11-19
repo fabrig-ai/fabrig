@@ -37,6 +37,7 @@ enum Phase {
 
 enum Opening {
     Approval,
+    Link,
     Page { address: Box<[u8]> },
 }
 
@@ -190,7 +191,8 @@ impl Host {
             focus: Focus::default(),
             frame: Frame::new(limits.most),
             draft_shown: false,
-            mapping: jig_client_protocol_http::Mapping::new(b"/jig").expect("mapping prefix"),
+            mapping: jig_client_protocol_http::Mapping::with_page(b"/jig", temper_client_domain::sign_in::LINK_PAGE)
+                .expect("temper mapping"),
             credential: None,
             signing: Set::with_capacity(temper_client_shell_terminal::limits::EXCHANGES),
             local: false,
@@ -305,6 +307,11 @@ impl Host {
             Report::Opened { opened } => match self.opens.pop() {
                 Some(Opening::Page { address }) => self.tell(Told::NotOpened { address: (!opened).then_some(address) }),
                 Some(Opening::Approval) | None => self.tell(Told::Opened { opened }),
+                Some(Opening::Link) => {
+                    if !opened {
+                        self.tell(Told::LinkNotOpened);
+                    }
+                }
             },
         }
         if self.refused() {
@@ -378,6 +385,10 @@ impl Host {
             self.end_local();
         }
 
+        let linked = self.root.forge().linked().unwrap_or(false);
+        if self.state().last_linked() != Some(linked) {
+            self.tell(Told::Linked { linked });
+        }
         self.draw();
         duties
     }
@@ -800,6 +811,21 @@ impl Host {
                 self.tell(Told::ThemeList { open: true });
                 self.focus.active = None;
             }
+            tui::Own::Web => {
+                self.act(Act::Terminal(terminal::Act::Dismiss));
+                self.tell(Told::Cleared);
+                if let Some(link) = self.state().live_link() {
+                    duties.open = Some(link.expose().into());
+                    self.opens.push(Opening::Link);
+                } else {
+                    let path = match self.root.pages().project() {
+                        Some(project) => root::address::print(&Address::Home { project }),
+                        None => Box::from(b"/".as_slice()),
+                    };
+                    let address = skein_lib::bytes::concat(&[&self.state().address().print(), &path]);
+                    self.open(address, duties);
+                }
+            }
             tui::Own::Open => {
                 if let Some(address) = tui::focus(&self.view) {
                     let address = address.into();
@@ -1021,7 +1047,9 @@ impl Host {
                 .words()
                 .strip_prefix(command.name())
                 .is_some_and(|rest| core::str::from_utf8(rest).is_ok_and(|rest| rest.chars().all(char::is_whitespace))),
-            tui::Own::Brief | tui::Own::Needs | tui::Own::Talk | tui::Own::Theme | tui::Own::Open => false,
+            tui::Own::Brief | tui::Own::Needs | tui::Own::Talk | tui::Own::Theme | tui::Own::Open | tui::Own::Web => {
+                false
+            }
         })
     }
 

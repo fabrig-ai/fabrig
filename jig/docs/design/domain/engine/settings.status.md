@@ -1,6 +1,6 @@
 # settings: status
 
-2026-11-11. Where the tree's code lags or departs from [settings.md](settings.md).
+2026-11-18. Where the tree's code lags or departs from [settings.md](settings.md).
 
 
 - **Not yet:** 12: a read changing only the displayed omitted count

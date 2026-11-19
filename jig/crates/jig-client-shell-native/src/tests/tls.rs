@@ -59,6 +59,7 @@ impl Process {
     fn new(root: Option<Fd>, name: &str, chain: pki::Chain, addresses: Box<[SocketAddr]>) -> Self {
         let shell = root.map(|root| {
             let mut shell = Shell::new(Settings {
+                mapping: jig_client_protocol_http::Mapping::new(b"/jig").expect("default mapping"),
                 engine: Engine::Tls(Tls {
                     name: skein_tls::Name::new(name).expect("DNS name"),
                     host: b"skein.test:8443".as_slice().into(),

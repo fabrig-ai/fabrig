@@ -173,7 +173,24 @@ A subscription is a task's standing interest in what changes:
 
 Subscriptions end with the task. A goal's subscriptions to the topics its
 connectors offer for goals are the core's to keep, not its executor's
-(../model.md, 6.2). Their number per task is bounded.
+(../model.md, 6.2). Their number per task is bounded, by `subscriptions`
+(`README.md`, section 6), but for one topic asked apart:
+
+- **One topic apart.** An application may ask a connector's topic for a
+  task apart from the bound (the tasks child's `SubscribeTopicApart`,
+  beside `SubscribeTopic`): admitted while the task holds at most
+  `subscriptions` subscriptions, so one past the bound, and refused
+  otherwise only as any topic is (its task closing or ended, its number
+  taken, no room in its inbox for its news, 2). Every other
+  subscription stops at the bound, counting it. Nothing marks it once
+  made: it is a topic subscription as any other, and the task holds at
+  most one more than the bound, however many it is asked apart. So
+  news the application owes a task, whatever the task subscribed to
+  itself, such as a work item's to the one that holds it, isn't crowded
+  out.
+- **Kept to the bound and one more:** a task's record, its restore and
+  the store's row hold `subscriptions` and one more; a client's view of
+  them keeps its own bound (`../../client/domain/pages.md`).
 
 ## 5. Who may message whom
 

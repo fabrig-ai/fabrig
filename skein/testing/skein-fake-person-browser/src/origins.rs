@@ -34,6 +34,7 @@ struct Connection {
     server: Server,
     reply: Vec<u8>,
     sent: usize,
+    streaming: bool,
 }
 
 pub struct Pages {
@@ -50,6 +51,7 @@ pub struct Pages {
     owner: Token,
     address: String,
     peers: Vec<(Box<[u8]>, String)>,
+    streamed_path: Option<Box<[u8]>>,
 }
 
 impl Pages {
@@ -76,7 +78,19 @@ impl Pages {
             owner,
             address: String::new(),
             peers: Vec::new(),
+            streamed_path: None,
         }
+    }
+
+    /// Serve this fixed page's body as the first chunk, leaving the answer
+    /// open until its client closes or the origin stops (testing/browser.md, 9).
+    pub fn stream(&mut self, path: Box<[u8]>) {
+        self.streamed_path = Some(path);
+    }
+
+    #[must_use]
+    pub fn open_streams(&self) -> usize {
+        self.connections.values().filter(|connection| connection.streaming && connection.sent > 0).count()
     }
 
     pub(crate) fn peers(&mut self, peers: &[(Box<[u8]>, String)]) {
@@ -146,7 +160,13 @@ impl Pages {
                 self.next_owner += 1;
                 self.connections.insert(
                     owner,
-                    Connection { socket, server: Server::new(&self.env.limits), reply: Vec::new(), sent: 0 },
+                    Connection {
+                        socket,
+                        server: Server::new(&self.env.limits),
+                        reply: Vec::new(),
+                        sent: 0,
+                        streaming: false,
+                    },
                 );
                 self.requests.push_back(Request::Bind { socket, owner });
                 self.down(owner, server::Request::Next);
@@ -193,6 +213,7 @@ impl Pages {
                 server::Event::Call(call) => {
                     let path = call.target.split(|byte| *byte == b'?').next().expect("target has a path");
                     let page = self.pages.iter().find(|page| page.path.as_ref() == path);
+                    let streaming = page.is_some() && self.streamed_path.as_deref() == Some(path);
                     let favicon = path == b"/favicon.ico";
                     let status = page
                         .map_or(if favicon { 204 } else { 404 }, |page| if page.kind.is_empty() { 204 } else { 200 });
@@ -214,13 +235,20 @@ impl Pages {
                     let conn = self.connections.get_mut(&owner).expect("page connection");
                     conn.reply.clone_from(&body);
                     conn.sent = 0;
+                    conn.streaming = streaming;
                     self.down(owner, server::Request::Discard);
                     self.down(
                         owner,
                         server::Request::Respond(Response {
                             status,
                             headers: headers.into_boxed_slice(),
-                            body: if status == 204 { Body::None } else { Body::Length(skein_lib::len_u64(body.len())) },
+                            body: if status == 204 {
+                                Body::None
+                            } else if streaming {
+                                Body::Chunked
+                            } else {
+                                Body::Length(skein_lib::len_u64(body.len()))
+                            },
                             close: true,
                         }),
                     );
@@ -242,7 +270,9 @@ impl Pages {
                     conn.sent = end;
                     self.down(owner, server::Request::Reply(stream::Down::Send(bytes)));
                     if end == self.connections.get(&owner).expect("page connection").reply.len() {
-                        self.down(owner, server::Request::Reply(stream::Down::Finish));
+                        if !self.connections.get(&owner).expect("page connection").streaming {
+                            self.down(owner, server::Request::Reply(stream::Down::Finish));
+                        }
                     } else {
                         self.down(
                             owner,

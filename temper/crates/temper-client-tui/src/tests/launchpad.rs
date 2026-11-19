@@ -46,6 +46,7 @@ fn status(brief: bool) -> w::ProjectStatus {
             queued: 0,
             red: false,
             branch: b"main".as_slice().into(),
+            unpaid: false,
             brief: if brief {
                 Some({
                     w::StatusBrief::new(

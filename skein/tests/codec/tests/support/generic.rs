@@ -21,19 +21,19 @@ impl Oracle<'_> {
         eprintln!("{}.{}, seed {seed:#018x}", self.family.name, self.root.name);
         let decoded = self.value.decode(self.schema, self.decl, bytes.into());
         let generated = (self.root.decode)(bytes);
-        let context = format!("{}.{}, seed {seed:#018x}, bytes {bytes:?}", self.family.name, self.root.name);
-        self.compare_outcomes(&context, bytes, valid, decoded, generated)
+        self.compare_outcomes(bytes, valid, decoded, generated).map_err(|finding| {
+            format!("{}.{}, seed {seed:#018x}, bytes {bytes:?}: {finding}", self.family.name, self.root.name)
+        })
     }
 
     fn compare_outcomes(
         &self,
-        context: &str,
         bytes: &[u8],
         valid: bool,
         decoded: Result<Node, Refusal>,
         generated: generated::Decoded,
     ) -> Result<(), String> {
-        let disagreement = || format!("{context}: generic {decoded:?}, generated {generated:?}");
+        let disagreement = || format!("generic {decoded:?}, generated {generated:?}");
         match (&decoded, &generated) {
             (Ok(node), generated::Decoded::Value { debug, bytes: encoded, .. }) => {
                 if self.value.bytes() == bytes
@@ -47,10 +47,10 @@ impl Oracle<'_> {
             }
             (Err(Refusal::Problem(problem)), generated::Decoded::Problem { path, reason }) => {
                 if valid {
-                    return Err(format!("draw or golden refused: {context}: {problem:?}"));
+                    return Err(format!("draw or golden refused: {problem:?}"));
                 }
                 if !self.value.bytes().is_empty() {
-                    return Err(format!("refusal empties the value: {context}"));
+                    return Err("refusal empties the value".into());
                 }
                 if path_name(self.schema, problem.path) == *path && problem.reason == *reason {
                     Ok(())
@@ -58,7 +58,7 @@ impl Oracle<'_> {
                     Err(disagreement())
                 }
             }
-            (generic, generated) => Err(format!("{context}: generic {generic:?}, generated {generated:?}")),
+            (generic, generated) => Err(format!("generic {generic:?}, generated {generated:?}")),
         }
     }
 }
@@ -71,10 +71,10 @@ fn spelling(schema: &Schema, span: Span) -> &str {
 pub fn path_name(schema: &Schema, path: Path) -> String {
     let name = spelling(schema, schema.declaration(path.decl).name);
     let part = match path.part {
-        Part::Field(field) => pascal(spelling(schema, schema.field(field).name)),
-        Part::Tag => "Tag".into(),
-        Part::Tail => "Tail".into(),
-        Part::Version => "Version".into(),
+        Part::Field(field) => format!(".{}", spelling(schema, schema.field(field).name)),
+        Part::Tag => " (tag)".into(),
+        Part::Tail => " (tail)".into(),
+        Part::Version => " (version)".into(),
     };
     format!("{name}{part}")
 }

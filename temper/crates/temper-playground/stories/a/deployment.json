@@ -49,9 +49,9 @@
         "forge_component.body_bytes": 16384,
         "git_component.stdout_bytes": 131072,
         "root.journal.transcript_bytes": 4194304,
-        "root.loads.bytes": 998446,
+        "root.loads.bytes": 998454,
         "root.loads.read_bytes": 1996396,
-        "root.loads.reply_bytes": 998446,
+        "root.loads.reply_bytes": 998454,
         "root.loads.transcript_bytes": 998198
       }
     },

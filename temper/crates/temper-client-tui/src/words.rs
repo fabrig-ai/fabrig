@@ -115,6 +115,9 @@ pub enum Word {
     BriefCommand,
     NeedsCommand,
     OpenCommand,
+    WebCommand,
+    WebOpen,
+    WebFresh,
     BriefMore,
     BoxStart,
     ToWalk,
@@ -233,7 +236,7 @@ pub enum Word {
     ThisBuild,
     StartBuild,
 }
-pub(crate) const ALL: [Word; 222] = [
+pub(crate) const ALL: [Word; 225] = [
     Word::Title,
     Word::State,
     Word::QuitKeys,
@@ -341,6 +344,9 @@ pub(crate) const ALL: [Word; 222] = [
     Word::BriefCommand,
     Word::NeedsCommand,
     Word::OpenCommand,
+    Word::WebCommand,
+    Word::WebOpen,
+    Word::WebFresh,
     Word::BriefMore,
     Word::BoxStart,
     Word::ToWalk,
@@ -621,6 +627,9 @@ impl Word {
             Self::BriefCommand => 99,
             Self::NeedsCommand => 100,
             Self::OpenCommand => 101,
+            Self::WebCommand => 210,
+            Self::WebOpen => 211,
+            Self::WebFresh => 212,
             Self::BriefMore => 102,
             Self::BoxStart => 103,
             Self::ToWalk => 104,
@@ -729,21 +738,21 @@ impl Word {
             Self::ChangePlaceholder => 207,
             Self::DraftPlaceholder => 208,
             Self::TellPlaceholder => 209,
-            Self::BuildRefused => 210,
-            Self::AnotherBuild => 211,
-            Self::ThisBuild => 212,
-            Self::StartBuild => 213,
-            Self::ApprovalNameTab => 214,
-            Self::ApprovalNameNoTab => 215,
-            Self::ApprovalNameOpen => 216,
-            Self::ApprovalNameType => 217,
-            Self::ApprovalNameRefused => 218,
-            Self::AskAgain => 219,
-            Self::TlsUntrusted => 220,
-            Self::TlsExpired => 221,
-            Self::TlsNotYetValid => 222,
-            Self::TlsOtherName => 223,
-            Self::TlsFailed => 224,
+            Self::BuildRefused => 213,
+            Self::AnotherBuild => 214,
+            Self::ThisBuild => 215,
+            Self::StartBuild => 216,
+            Self::ApprovalNameTab => 217,
+            Self::ApprovalNameNoTab => 218,
+            Self::ApprovalNameOpen => 219,
+            Self::ApprovalNameType => 220,
+            Self::ApprovalNameRefused => 221,
+            Self::AskAgain => 222,
+            Self::TlsUntrusted => 223,
+            Self::TlsExpired => 224,
+            Self::TlsNotYetValid => 225,
+            Self::TlsOtherName => 226,
+            Self::TlsFailed => 227,
         }
     }
     const fn id(self) -> PhraseId {
@@ -887,6 +896,9 @@ impl Word {
             Self::Restarting => (&[b"", b" restarting"], &[Slot::Step]),
             Self::GaveUp => (&[b"", b" gave up"], &[Slot::Step]),
             Self::GaveUpNote => (&[b"The box gave up: ", b". /log shows why; Ctrl+C closes."], &[Slot::Step]),
+            Self::WebCommand => (&[b"Open temper in your browser"], &[]),
+            Self::WebOpen => (&[b"Open this link in a browser that reaches temper:"], &[]),
+            Self::WebFresh => (&[b"Opened after that, temper makes a fresh one: /web again opens the fresh one."], &[]),
             Self::LogCommand => (&[b"The box's recent log"], &[]),
             Self::LogHead => (&[b"/log"], &[]),
             Self::LogEmpty => (&[b"Nothing yet."], &[]),
@@ -1173,6 +1185,11 @@ pub(crate) const fn place(command: crate::Own) -> Option<(Word, Word)> {
         crate::Own::Change => Some((Word::ChangeTitle, Word::ChangePlaceholder)),
         crate::Own::Draft => Some((Word::DraftTitle, Word::DraftPlaceholder)),
         crate::Own::Tell => Some((Word::TellTitle, Word::TellPlaceholder)),
-        crate::Own::Talk | crate::Own::Brief | crate::Own::Needs | crate::Own::Open | crate::Own::Theme => None,
+        crate::Own::Talk
+        | crate::Own::Brief
+        | crate::Own::Needs
+        | crate::Own::Open
+        | crate::Own::Web
+        | crate::Own::Theme => None,
     }
 }

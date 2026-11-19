@@ -110,7 +110,10 @@ field. The landing rules were settings already, temper's kinds 1 and 2
   reserve: a check is cut at its run's end. One past its bounds refuses the
   start at its member, `application.landing.projects[i].check_timeout_ms`.
 - **The tiers' project settings,** beside `by`, by either way:
-  `tier_retries`, a u8, 2 when absent; `verification_bound_ms`, the
+  `wait`, `"cleared"` or `"landed"`, `"cleared"` when absent, another
+  word refused at its member, `wait`: whether a change into a branch a
+  tier follows lives to cleared or ends at landed; `tier_retries`, a
+  u8, 2 when absent; `verification_bound_ms`, the
   project's verification bound, a u64, 7,200,000 (two hours) when absent
   (`../../domain/after-landing.md`, sections 3 and 6).
 - **Prepare under `turn`:** a document that selects `by: turn` needs job

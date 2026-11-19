@@ -68,7 +68,6 @@ fn route_proposal(core: &mut Core, env: &Env<Limits>, mut event: tasks::Event) -
     tag_task_outputs(core, env, out)
 }
 
-#[expect(clippy::boxed_local, reason = "the moved route retains its owned event payload")]
 pub(crate) fn route_connector_repair(
     core: &mut Core,
     work: &mut Queue<Work>,
@@ -86,13 +85,9 @@ pub(crate) fn route_connector_repair(
             }
         }
     }
-    if seed.open_period {
-        work.push(Work::Event(Event::Tasks(tasks::Event::OpenPeriod {
-            reply_to: ReplyTo::new(core.internal(Internal::Admission)),
-            project: seed.project,
-            period: seed.period,
-            budget: seed.period_budget,
-        })));
+    let (period, pool) = seed.opens;
+    for event in [period, pool].into_iter().flatten() {
+        work.push(Work::Event(Event::Tasks(event)));
     }
     work.push(Work::Event(Event::Tasks(tasks::Event::Make {
         maker: None,
@@ -111,7 +106,7 @@ pub(crate) fn route_connector_repair(
             contract,
             numbers: tasks::Numbers { budget: seed.budget, spent: 0, spent_below: 0, reserved: 0 },
             authority: seed.authority,
-            funder: tasks::Funder::Period { project: seed.project, period: seed.period },
+            funder: seed.funder,
             dependencies: Box::new([]),
             holdings,
             wake: tasks::WakePolicy::DEFAULT,

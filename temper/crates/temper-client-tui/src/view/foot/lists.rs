@@ -331,6 +331,11 @@ pub(super) fn command_items(root: &Domain, tui: &Tui, words: &Words) -> Box<[Opt
             Own::Draft | Own::Change | Own::Talk | Own::Ask => {
                 items.push(own_item(*command, words)).expect("own commands counted");
             }
+            Own::Web => {
+                if !own.contains(&Own::Open) {
+                    items.push(own_item(*command, words)).expect("web counted");
+                }
+            }
             Own::Brief | Own::Needs | Own::Open | Own::Tell | Own::Theme => {}
         }
     }
@@ -359,7 +364,7 @@ pub(super) fn command_items(root: &Domain, tui: &Tui, words: &Words) -> Box<[Opt
         if command == Command::Chats {
             for command in &own {
                 match command {
-                    Own::Brief | Own::Needs | Own::Open | Own::Tell => {
+                    Own::Brief | Own::Needs | Own::Open | Own::Web | Own::Tell => {
                         items.push(own_item(*command, words)).expect("own commands counted");
                     }
                     Own::Draft | Own::Change | Own::Talk | Own::Ask | Own::Theme => {}
@@ -378,6 +383,7 @@ fn own_item(command: Own, words: &Words) -> OptionItem {
         Own::Brief => Word::BriefCommand,
         Own::Needs => Word::NeedsCommand,
         Own::Open => Word::OpenCommand,
+        Own::Web => Word::WebCommand,
         Own::Tell => Word::TellCommand,
         Own::Theme => Word::ThemeCommand,
     };

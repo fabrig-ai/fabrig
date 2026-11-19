@@ -27,7 +27,7 @@ pub const FAMILIES: &[Family] = &[
         name: "client",
         root: "crates/jig-client-protocol-wire",
         codec_root: "crates/jig-client-protocol-wire",
-        schemas: &["schema/client-v35.schema", "schema/client-v35-part1.schema"],
+        schemas: &["schema/client-v36.schema", "schema/client-v36-part1.schema"],
         generated: &["src/generated/client.rs"],
     },
     Family {

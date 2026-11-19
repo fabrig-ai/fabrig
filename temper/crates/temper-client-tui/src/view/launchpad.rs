@@ -27,6 +27,7 @@ pub(crate) struct Launchpad {
     pub project: Option<Box<[u8]>>,
     pub drafts: bool,
     pub talk: bool,
+    pub web: bool,
     pub address: crate::Origin,
     pub front: bool,
     pub plain: bool,
@@ -325,6 +326,7 @@ pub(crate) fn read(root: &Domain, tui: &Tui, words: &Words, wall: Wall) -> Launc
             Some(project) => super::talk::available(root, project),
             None => false,
         },
+        web: super::web_offered(root, tui),
         address: tui.address().clone(),
         front: tui.front(),
         plain: tui.plain(),
@@ -592,8 +594,12 @@ fn sections(b: &mut Builder, part: &Launchpad, words: &Words) {
             (Own::Change, words.say(Word::ChangeStart, &[Hole::Name(copy_of(project))])),
             (Own::Talk, words.say(Word::TalkStart, &[])),
             (Own::Ask, words.say(Word::AskTemper, &[])),
+            (Own::Web, words.say(Word::WebCommand, &[])),
         ] {
-            if (command == Own::Draft && !part.drafts) || (command == Own::Talk && !part.talk) {
+            if (command == Own::Draft && !part.drafts)
+                || (command == Own::Talk && !part.talk)
+                || (command == Own::Web && !part.web)
+            {
                 continue;
             }
             b.open(Role::Description);
@@ -615,10 +621,11 @@ fn sections(b: &mut Builder, part: &Launchpad, words: &Words) {
     } else {
         b.close();
     }
-    foot::draw_notes(b, &part.notes, words);
+    foot::draw_other_notes(b, &part.notes);
     for line in &part.brief {
         text(b, line.role, &line.words, line.style);
     }
+    foot::draw_link_note(b, &part.notes, words);
     if part.notes.follows_end() {
         b.close();
         b.close();

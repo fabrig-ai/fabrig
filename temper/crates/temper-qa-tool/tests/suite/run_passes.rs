@@ -171,6 +171,33 @@ fn pass_brief_says_the_happy_path_and_reads_help() {
 }
 
 #[test]
+fn pass_brief_explains_web_requests_on_start_and_resume() {
+    let world = World::new();
+    let mut run = ready(&world, Agent::Fail);
+    for session in [2, 3] {
+        let brief = fs::read_to_string(world.home.session_directory(session).join("brief")).expect("brief");
+        let purpose = brief.split("\n\n## Pass\n").next().expect("what a pass is");
+        assert!(purpose.contains("judge the rest against the draft's promises. A `web` step whose do is `web requests` is that drive line: compare its see with the line's last shown line, `N requests in W waves`, which must equal it; one that differs is a finding, its seen the line's whole answer."), "{purpose}");
+        let drive_lines = brief.lines().find(|line| line.starts_with("Drive lines:")).expect("drive lines");
+        assert!(drive_lines.contains("`web look [WIDTH]`, `web requests`;"), "{drive_lines}");
+        assert!(drive_lines.contains("A look prints accessible text or the TUI's frame; a web look with WIDTH also writes a screenshot. `web requests` answers the requests the page has sent since it last loaded, each with its wave, then `N requests in W waves`."), "{drive_lines}");
+        if session == 2 {
+            run.tick();
+            world
+                .home
+                .transact(|ledger| {
+                    ledger.file_request(1, 1, Some(99), 1)?;
+                    ledger.end_goal(99, 2)
+                })
+                .expect("ended goal");
+            run.processes.next.push_back(Agent::Never);
+            run.tick();
+            assert_eq!(world.ledger().passes[0].sessions.len(), 2, "resumed the pass");
+        }
+    }
+}
+
+#[test]
 fn a_pass_starts_with_empty_files_and_keeps_them_on_resume() {
     let world = World::new();
     let mut run = ready(&world, Agent::Fail);

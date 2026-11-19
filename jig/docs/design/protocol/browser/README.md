@@ -626,9 +626,15 @@ sign in and out (`../../client/domain/client/README.md`, section 9; `../client/s
     mapping's engine end leaves it to the application's page, with the
     referrer policy (12.2), and the server answers its page there (why:
     section 18);
-  - the sign-in part reads the secret from the address's `secret` and at
+  - the same link at the application's link page, where it gives the
+    mapping one (`../client/default-http.md`, 1), `<origin><page>?secret=…`,
+    is the application's path, outside the prefix: its server answers
+    the page there too, with the same referrer policy, and its GET
+    spends nothing either;
+  - the sign-in part reads the secret from the address's `secret`, at the
+    link's route or at the link's page, given to it beside the route, and at
     once rewrites the address to the application's home, `/` in the
-    reference (why: section 18). An address at the link's route with no
+    reference (why: section 18). An address at either with no
     `secret` is no link. A `secret` that doesn't decode to 32 bytes is
     taken as an empty one, so that a made-up link takes the same path as
     any other link not this deployment's. The client host then signs the client
@@ -709,7 +715,8 @@ every answer.
 - **Frames:** `frame-ancestors 'none'` on every answer of the origin's,
   in the reference, so no other site frames a page that decides; an
   application that frames its own pages names its own origin there.
-- **The referrer:** at the printed link's route, the page's address holds
+- **The referrer:** at the printed link's route and at the link's page
+  (section 11), the page's address holds
   the secret until the sign-in part rewrites it, so its answer sends a
   policy that never sends a path to another origin (12.2); the page's
   own `referrer` meta or attributes set no wider one, which the header
@@ -729,7 +736,7 @@ before any reaches the clients' component. What each stops is section
 | a Host allow-list | any `Host` off the list answered `421`, with nothing done; the list is the listener's addresses, which the application gives once it listens, and the public name it gives when it mounts the mapping, if any (`../client/default-http.md`, 3); the reference's is the address its printed link names on loopback, and gives no public name |
 | the required header, with no CORS | a request the cookie authenticates without `Jig-Client: browser` answered `403`, with nothing done; a POST whose `Content-Type` is not `application/octet-stream` answered `415`, with nothing done; no `OPTIONS` answered and no `Access-Control-` header sent |
 | the cookie's attributes | `../client/default-http.md`, 3's |
-| a referrer policy on the printed link's route | `Referrer-Policy: no-referrer` added to the page the application answers at the link's route |
+| a referrer policy on the printed link's route | `Referrer-Policy: no-referrer` added to the page the application answers at the link's route, and at its link page where it gives one (section 11) |
 
 - **The page's policy** (12.1) is the fifth guard, against injected
   scripts acting as the person and a decision tricked by a frame; it is

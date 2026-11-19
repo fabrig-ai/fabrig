@@ -3,7 +3,9 @@
 Provisional, 2026-10-27. What follows a landing: the slower checks a
 repository runs on its newest main (its tiers), the verdict each run
 gives the landings it covers, and a change that lives until its landing
-is cleared, so that a goal ends only when its work is verified. It holds
+is cleared, so that a goal ends only when its work is verified, or,
+where its project says so, ends at its landing while the tiers judge
+that landing later (section 6). It holds
 for every landing on a repository's landing branch, by queue
 (`forge/change/README.md` and `forge/queues.md` and `forge/README.md`, section 6), by turn (`landing.md`), or by anyone
 outside temper. Findings, where a verdict files a flake or a red whose
@@ -49,9 +51,15 @@ what waits, `after-landing.md`, section 14.
   then cleared, and its result comes only then, so its goal waits for
   verification. Past the project's bound with no verdict, it ends
   landed and uncleared, and a later verdict still counts.
+- **Or ends at landed** (section 6), where its project's kind 4 says
+  `wait: landed`: its result comes at its landing, so its goal, and
+  every goal waiting on that goal, goes on then. The tiers judge the
+  landing as any other, its members read from the landing log, which
+  keeps it until every tier following its branch has judged it.
 - **A red goes to the landing's goals** (section 7) as news, with the
   failing tests and the log's end, and the goal repairs it with a change
-  that names it. Other landings go on.
+  that names it. Under `wait: landed` it is a red of no goal's instead,
+  filed once per landing. Other landings go on.
 - **Landing news carries the trailers** of the commits it brought
   (section 8), so a designer's wake policy can wake on `Taught:` alone.
 - **The forge shows** each verdict as a commit status,
@@ -207,9 +215,10 @@ branch text matches (2026-11-04).
   repository's tier with a reason, and releases it. While held, the
   tier starts no run: no baseline, no run at a move of its branch and,
   for a tier following goal branches, none on any goal's branch. Each
-  move still adds its landings to the tier's range, verifying, and the
-  project's `verification_bound` counts as ever: past it they end
-  landed and uncleared, and a later verdict still counts (section 6).
+  move still adds its landings to the tier's range, verifying, and,
+  under `wait: cleared`, the project's `verification_bound` counts as
+  ever: past it they end landed and uncleared, and a later verdict
+  still counts (section 6).
   A run in flight when the hold comes is let finish and judged, its
   verdict posted (section 9); one held on its faults stays held, and a
   release of its task dispatches it again (*Faults*, above); cancelled,
@@ -351,7 +360,7 @@ goal's next run. Many after an enumerated result is new and wakes it. When
 the new result enumerates tests but the previous result was many, none of
 those IDs is known to be still failing; each is new (2026-11-04).
 
-## 6. A change lives to cleared
+## 6. A change lives to cleared, or ends at landed
 
 ```
 … ─► landed ─► verifying ─► cleared
@@ -392,6 +401,47 @@ those IDs is known to be still failing; each is new (2026-11-04).
   the goal may have ended.
 - **Cancelling a verifying change** ends it landed and uncleared at
   once; its verdict counts as after the bound.
+- **`wait`,** kind 4's (`landing-settings.md`, 1.1): whether a
+  project's change into a branch a tier follows lives to cleared, as
+  above (`cleared`, the default), or ends at landed (`landed`). It is
+  taken at the next start, as kind 4's other members are. A change into
+  a branch no tier follows, or only a tier following goal branches
+  does, is cleared as it lands under either.
+- **Under `landed`, a change ends at landed.** Its landing makes no
+  `Verification` row (section 10), so no tier's verdict is the change's
+  and no bound applies to it: it is never red, and it never waits. Its
+  result is given at its landing, in the step that sees its merge,
+  naming the landing's commit as every landed change's result does, and
+  adding the line `Ended at landing; after landing judges it later.`
+  Its state stays `Landed`, as a change no tier follows ends. Its
+  branch's hold is released and the branch deleted as it closes, by
+  queue and by turn alike (`forge/branches.md`). Its requester hears
+  the result as any delegate's, so a goal's closer's *Land* ends at the
+  goal's landing and the goal with it (`forge/branches.md`, section 2),
+  and a goal that depends on that goal, in a milestone or not, starts
+  then (`milestones.md`, section 4; `forge/dependencies.md`). Holding
+  them for verification would protect nothing: the change is on its
+  branch already, under every goal started after it.
+- **Its landing is judged as any landing is:** each tier following its
+  branch takes it into a run's range by its commits (section 3), keys
+  and bisects it (5.2) and blames it by commit, and posts the verdict's
+  status and its comments on the members' pull requests (section 9),
+  the members read from the landing log, which keeps the landing until
+  every tier following its branch has judged it, within
+  `landings_pending` (section 10). A red one is a red of no goal's
+  (section 7).
+- **Switching** a project from `cleared` to `landed` takes effect at
+  the start that takes kind 4's new value: each of its changes still
+  verifying or red then ends landed and uncleared at its first step, as
+  a cancel would end it, its result's line `Not cleared: its project
+  now ends a change at its landing; after landing judges it later.` Its
+  `Verification` row goes as its landing's last change closes, as
+  ever; its landing stays in the landing log, verifying in each tier
+  that has not judged it, so a later verdict is posted on its members'
+  pull requests from the log, and a red one is a red of no goal's. A
+  red landing's failures stay on its tier's record, inherited by the
+  tier's next runs (5.2). Switching back to `cleared` changes no ended
+  change: the changes landing after that start live to cleared.
 
 ## 7. Where a red goes
 
@@ -400,6 +450,12 @@ those IDs is known to be still failing; each is new (2026-11-04).
   log (skein's `Read::Job`). The goal repairs it as it makes any change;
   that change names the red landing (`repairs`), and its own landing
   repairs it when a later run passes the failures.
+- **Under `wait: landed`** (section 6), no red of a tier following a
+  named branch or the landing branch reaches a goal as news, whether
+  the landing's goals have ended or still live: each is a red of no
+  goal's (below), filed once per landing it reddens, and its project's
+  triager hears it as it hears any finding (`findings.md`, section 6).
+  A tier following goal branches is unchanged (below).
 - **A member's goal** is its change's requester's tracked ancestor, the
   goal its landings' news reaches (`forge/README.md`, 5.2): the news goes
   through that goal's subscription to its own branch's landings when
@@ -441,14 +497,16 @@ those IDs is known to be still failing; each is new (2026-11-04).
   count the inherited failures. A project's setting may pause new turns
   (or queue merges) into that repository while one of its landings is
   red, instead.
-- **A goal that has ended,** or a landing temper did not make: the red
+- **A goal that has ended,** a landing temper did not make, or any
+  landing under `wait: landed`: the red
   is a red of no goal's, which the root files as a finding of its
   project in the decision that keeps the verdict, once per landing it
   reddens (`findings.md`, section 4), with no area, so that the project's
   triager holds it and hands it on (`areas.md`, section 5); a landing
   that brought a follow change has it filed with its follow's owner's
   area instead, where the owner owns one (`forge/follows.md`, section
-  6). Past the
+  6), its members read from its `Verification` row, else from the
+  landing log (section 10). Past the
   project's findings' bound it is not filed, never holding the tier, so
   that no repository's verification stops for want of a triage.
 
@@ -527,7 +585,9 @@ blamed landing's full commit (2026-11-04).
   the repairs are found. A member is a change of temper's the landing
   brought, with its pull request, read from the landing log (section
   10), else from the landing's `Verification` row and the change's row;
-  a landing temper did not make has none, and a change with no pull
+  a landing temper did not make has none, nor has one the log no longer
+  holds, past `landings_pending`, that no `Verification` row names: its
+  verdict posts its status and no comment. A change with no pull
   request is skipped. A comment's first line, TIER the tier's name:
   - `Cleared by TIER run N.` for a landing the verdict blames nothing;
   - `Red: TIER run N blames this landing for X, Y.` for one that owns
@@ -609,7 +669,8 @@ blamed landing's full commit (2026-11-04).
   `1 landing`; overflow verdicts say `many tests`.
   The existing report contract's `words` bounds this result. Each attribution
   occupies a line, with a whole quoted ID (backslash, quote, CR and LF escaped)
-  and, for a retained landing, `change show TASK`. Lines that do not fit are
+  and, for a retained landing, `change show TASK`, TASK its first
+  change, from its `Verification` row, else from the landing log. Lines that do not fit are
   omitted whole; later shorter lines may still fit. An explicit remainder ends
   the report: `and N more failing tests; change show TASK`, naming the first
   omitted retained landing (`1 more failing test` for a single ID).
@@ -651,7 +712,7 @@ blamed landing's full commit (2026-11-04).
   with its goal, its last run's tip, failures and start, and the branch
   its run in flight is for, within the forge's `holds`;
   `Verification`, keyed by repository and landing commit, for temper's
-  own landings alone, made with the landing's `Landed` row and erased
+  own landings under `wait: cleared` alone (section 6), made with the landing's `Landed` row and erased
   when its last change closes, so bounded by `changes`: the changes it
   landed, each tier's verdict (cleared, owns failures, or suspected of
   them), the failures blamed on it and the commit that repaired it; the
@@ -660,32 +721,67 @@ blamed landing's full commit (2026-11-04).
   repairs (`repairs`). Through the baseline's rules (`landing.md`, section
   12).
 - **The landing log,** a family of its own, `LandingLog`, per adopted
-  repository: its last `landings_kept` landings, each with its commit,
+  repository, oldest first: each landing until every tier following its
+  branch has judged it, at most `landings_pending` such, and the last
+  `landings_kept` landings that every such tier has judged (*Pending and
+  kept*, below), each with its commit,
   the branch it moved, the engine's wall time when it saw the move, its
   changes (none for a push from outside temper), each with its task, its
   pull request's number, so that a late verdict's comment reaches it,
   and its title, at most 256 bytes, since a change's close takes its row
   and temper's `Changes` page still names it (`../client/forge/README.md`,
   section 3; a visitor's public queue merges read its commits and tasks
-  alone, 11.2 there), the sign-offs counted at its merge, at most
+  alone, 11.2 there), its goal, the tracked ancestor of the change's
+  requester that the change's row names (section 7, *A member's goal*),
+  and that goal's milestone, where it has one (`milestones.md`), so
+  that blame names them once the change's row is gone, the sign-offs counted at its merge, at most
   `SIGN_OFFS`, each its person, head and time (`forge/change/gates.md`,
   2, *Sign-offs kept at landing*), its trailers within `trailers` and
-  `trailer_bytes`, and each tier's verdict (verifying, cleared, or red
-  with its count); a ring, written at each move of a watched landing
+  `trailer_bytes`, and each tier's verdict: an entry for each tier
+  following its branch, by the project's settings in force as it is
+  logged, `verifying`, set at that tier's verdict to cleared by run N,
+  or red by run N with the count of distinct tests blamed on it, owned
+  or suspected, or many; a ring, written at each move of a watched landing
   branch (section 8), at each merge of temper's, when a change sees its
   pull request merged by someone else or by the forge's own queue, and at
   each verdict, so that a landing's record outlives its changes' close and
   a range's judging. Every adopted repository logs, and its log is erased
   with it. A commit logged already gains the change, within the forge's
-  `landing_members`, and no second landing.
-- **Limits,** the forge's: `landings_kept` per repository (16 in
-  `small`); `trailers` per landing (8) and `trailer_bytes` per line
+  `landing_members`, and no second landing; its tiers' entries stay.
+- **Pending and kept:** a logged landing is pending while one of its
+  entries is `verifying`; one no tier follows has none, and is judged
+  as it is logged. Logging a pending landing when `landings_pending`
+  are pending drops the oldest pending one: its tiers still judge it from
+  their own records, by commit (section 3), with no member to comment
+  on (section 9). A landing whose last entry is judged joins the judged
+  ones, and the oldest judged one past `landings_kept` leaves. A verdict
+  on a landing the log holds sets its tier's entry, adding it where it
+  has none, and saves the log in the decision that keeps the verdict;
+  one on a landing the log no longer holds writes nothing there. So the
+  log holds at most `landings_kept + landings_pending` landings.
+  - *Read from before:* a landing logged before the log kept its tiers'
+    verdicts reads, at the restore, `verifying` in each tier of its
+    repository whose record still holds it to judge (its pending range
+    or its run in flight's), and judged in the others; a member logged
+    before it kept goals reads with no goal and no milestone.
+  - *A tier gone from the settings* starts no run (section 11), so a
+    start drops each `verifying` entry of a tier its repository's
+    settings no longer name; a verdict that tier's run in flight still
+    gives sets its entry as any verdict does.
+- **Limits,** the forge's: `landings_kept` per repository (16) and
+  `landings_pending` per repository (64), their sum at most the store's
+  256 (`../protocol/configuration/limits.md`); `trailers` per landing (8) and `trailer_bytes` per line
   (200); `tiers` per repository (2 in `small`),
-  `failing_tests` per run (16), `test_id_bytes` (512, at most the
-  store's 1,024, `../protocol/store.md`, 4), and a tier's
-  name at most 32 bytes.
+  `failing_tests` per run (64, 16 in `small`) and `test_id_bytes` (512),
+  each at most what a finding's signature holds, 64 ids of at most 512
+  bytes (`findings.md`, section 4), which a start checks
+  (`../protocol/configuration/limits.md`), and within the store's 1,024
+  bytes of an id (`../protocol/store.md`, 4); and a tier's name at most
+  32 bytes.
 
-A tier's record keeps at most `failing_tests` distinct flake IDs. Once full
+A tier's record keeps at most `failing_tests` ids of its last judged
+failures, each within `test_id_bytes`; a run past either is many, as
+section 4 says. It keeps at most `failing_tests` distinct flake IDs. Once full
 it keeps counting the IDs already retained and drops newly seen flake IDs,
 without holding the tier (2026-11-04).
 
@@ -693,7 +789,7 @@ without holding the tier (2026-11-04).
 
 Beside kind 5's gates, each repository's tiers, each with the branch
 it follows, or goal branches, and its span (section 2); with kind 4, the
-project's `tier_retries` (2), `verification_bound` (two hours), several
+project's `wait` (`cleared`, section 6), `tier_retries` (2), `verification_bound` (two hours), several
 suspects' rule (`bisect` or `tell all`), and whether a red pauses its
 repository (no). Until the kinds are settings, the tiers,
 `tier_retries` and `verification_bound` are in the document's
@@ -766,15 +862,34 @@ with failing tests by id and uploading their artifacts:
 - **a red to its goal:** a red of main's tier blamed on a goal's
   landing reaches that goal as news, waking it, with the failing tests,
   the run and each failed job's log's end;
-- **under queue and by turn,** the same stories.
+- **ending at landing,** under `wait: landed`: a change into main ends
+  at landed with no `Verification` row, its result naming its landing's
+  commit and saying after landing judges it later, its branch deleted
+  as it closes; a goal's closer lands the goal's branch and the goal
+  ends at that landing; a goal waiting on it in a milestone starts then;
+  the tier's next run, red, blames that landing by commit, posts its
+  `failure` status and a `Red:` comment on each member's pull request,
+  the members read from the landing log, tells no goal, and files the
+  red once as a finding of the project; a landing dropped from the log
+  past `landings_pending` is judged with its status and no comment;
+- **the log keeps what is pending:** landings past `landings_kept`
+  stay while a tier has not judged them, each member with its goal and
+  milestone, and each tier's verdict is kept on its entry; a log of the
+  layout before restores its landings verifying where a tier still
+  holds them;
+- **switching:** a project switched to `landed` with a verifying change
+  and a red one ends both landed and uncleared at the start, and a
+  later run's verdict on the verifying one's landing comments on its
+  members from the log;
+- **under queue and by turn,** the same stories; under `wait: cleared`,
+  every story above but those of ending at landing and switching, as
+  before.
 - **The reference case** (`../draft/reference-case.md`): these mechanics
   open its steps 25 to 27, a red of main's tier triaged and repaired by
   a change that names it.
 
 ## 13. Open questions
 
-- **The bound and the goal:** whether a goal may close at landed and
-  uncleared on its own judgement before the bound.
 - **Tiers on the forge's runners or on workers:** both are allowed by
   the draft; the forge's runners here, workers once a worker runs jobs.
 - **Blame on a goal's branch:** whether a tier following goal branches

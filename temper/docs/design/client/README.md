@@ -628,13 +628,30 @@ temper's:
   mapping's link route under temper's prefix,
   `http://HOST:PORT/jig/v1/sign-in/link?secret=SECRET`. `temper-box open
   DIRECTORY LINK` checks that the link names the engine's address on
-  loopback and that route, and gives the secret to `jig-client` with the
+  loopback and that route or the link's page (below), and gives the secret to `jig-client` with the
   credential DIRECTORY holds, if any (`SignIn { with: Link { secret,
   held } }`). The secret is in the command line only until the sign-in
   spends it; the client root passes it on and keeps nothing of it. The
   running engine also keeps a local link of its own at rest, never the
   printed one, for a TUI on the same machine (`tui/README.md`, 2, *The engine's link,
   kept at rest*).
+- **The link's page, `/sign-in`** (the user's request of 2026-11-18):
+  temper gives jig's mapping its link page, `/sign-in`, beside its
+  prefix, `/jig` (jig's `protocol/client/default-http.md`, 1), so the
+  same link also reads `http://HOST:PORT/sign-in?secret=SECRET`, the
+  same secret, spent by the same `POST` to the link's route. Every
+  client of temper takes a link in either form: the browser opening it
+  (`web/README.md`, 2.4), the TUI's paste and the engine's link file
+  (`tui/pages/README.md`), `temper ADDRESS` refusing it as an argument
+  (`tui/README.md`, section 1), `temper-box open` (`line.md`, 1),
+  `temper ctl DIRECTORY sign-in` (`ctl/README.md`, 6.1) and the TUI
+  journeys' redaction (`tui/journeys.md`, section 5); each reads it with
+  jig's mapping made with that page, whose path temper names once, in
+  `temper-client-domain-forge`'s `sign_in` module. temper still prints
+  the route's form, the box's block and serve's line and the TUI's
+  link line among them, and makes an asked link in it (`ctl/README.md`,
+  6.1), so that a client of the build before reads every link temper
+  gives (5.8).
 - **A sign-in held is kept** (jig's `domain/people/README.md`, section 3): a
   person still signed in who opens a fresh link with the same DIRECTORY
   keeps their sign-in, its number and its expiry, and the deployment's
@@ -858,6 +875,13 @@ was answered with. A box enables it beside the printed link
   still signs in on a reload. Falling back to the transport is jig's
   client question (jig's `client/domain/client/README.md`, section 15).
   Default: no fallback; reload to use the cookie.
+- **The printed link in its page's form** (section 4; jig's
+  `protocol/client/default-http.md`, 7): `http://HOST:PORT/sign-in?secret=SECRET`
+  printed wherever temper prints or shows a link, the box's block, the
+  TUI's link line, `temper-box open` and ctl's `address` among them,
+  once the deployments run a build that takes both forms; the user's
+  request of 2026-11-18 asks it as a later landing. Default: the route's
+  form printed, both taken.
 
 - **The forge as people's sign-in provider:** temper's own routes on its
   clients' listener run the forge's OAuth flow, read who the person is,

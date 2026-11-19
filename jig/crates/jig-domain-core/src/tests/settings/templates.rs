@@ -477,7 +477,7 @@ fn prospective_templates_follow_set_removal_and_reset_without_publishing() {
     let (mut core, _) = make_tree();
     core.current.test_templates(Box::new([template()]));
     let changed = Template { name: Box::from(b"changed".as_slice()), ..template() };
-    let added = Template { number: 2, ..template() };
+    let added = Template { number: 33, ..template() };
     let set = |value: Template| Item {
         setting: Setting::Template(value.number),
         edit: Edit::Set(Value::Template(Box::new(value))),
@@ -499,12 +499,12 @@ fn prospective_templates_follow_set_removal_and_reset_without_publishing() {
         ),
         (
             "reset addition",
-            Box::<[Item]>::from([Item { setting: Setting::Template(2), edit: Edit::Reset }]),
+            Box::<[Item]>::from([Item { setting: Setting::Template(33), edit: Edit::Reset }]),
             Box::<[Template]>::from([changed.clone()]),
         ),
         (
             "remove addition",
-            Box::<[Item]>::from([Item { setting: Setting::Template(2), edit: Edit::Removed }]),
+            Box::<[Item]>::from([Item { setting: Setting::Template(33), edit: Edit::Removed }]),
             Box::<[Template]>::from([changed]),
         ),
     ] {

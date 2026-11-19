@@ -156,8 +156,6 @@ fn normalise_rewrites_scratch_copies_and_keeps_stale_recordings() {
     let scratch = Scratch::new("journeys-normalise");
     let web = scratch.path().join("web");
     let tui = scratch.path().join("tui");
-    // Committed recordings are checked whole by the_committed_journeys_are_their_print
-    // and the_committed_journey_redacted_prints_the_same_pages in the library.
     for root in [&web, &tui] {
         fs::create_dir_all(root).expect("scratch directory");
     }

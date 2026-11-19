@@ -44,6 +44,7 @@ pub fn encode(value: &d::Stored) -> Box<[u8]> {
 
         d::Stored::Follow(row) => w::Value::Follow(Box::new(follows::encode(row))),
         d::Stored::Closer(row) => w::Value::Closer(closer::encode(row)),
+        d::Stored::PersonBrief(row) => w::Value::PersonBrief(status::encode_person_brief(row)),
         d::Stored::ProjectFacts(row) => w::Value::ProjectFacts(status::encode_facts(row)),
         d::Stored::Device(row) => w::Value::Device(away::encode_device(row)),
         d::Stored::LandedDraft(row) => w::Value::LandedDraft(drafts::encode(row)),
@@ -145,6 +146,7 @@ pub fn decode(bytes: &[u8], bounds: &Bounds) -> Result<d::Stored, Undecodable> {
 
         w::Value::Follow(row) => d::Stored::Follow(follows::decode(*row, bounds)?),
         w::Value::Closer(row) => d::Stored::Closer(closer::decode(row)),
+        w::Value::PersonBrief(row) => d::Stored::PersonBrief(status::decode_person_brief(row)),
         w::Value::ProjectFacts(row) => d::Stored::ProjectFacts(status::decode_facts(row)),
         w::Value::Device(row) => d::Stored::Device(away::decode_device(row)?),
         w::Value::LandedDraft(row) => d::Stored::LandedDraft(drafts::decode(row)?),
@@ -386,7 +388,7 @@ fn tier_limits(forge: &d::Limits) -> Option<w::Limits> {
         tier_record_flakes: forge.tiers.failing_tests,
         tier_flake_test: forge.tiers.test_id_bytes,
         tier_tests_tests: forge.tiers.failing_tests,
-        landing_log_landings: forge.landings_kept,
+        landing_log_landings: forge.landings_kept.checked_add(forge.landings_pending)?,
         logged_landing_changes: forge.landing_members,
         logged_landing_branch: forge.name_bytes,
         verification_changes: forge.changes,

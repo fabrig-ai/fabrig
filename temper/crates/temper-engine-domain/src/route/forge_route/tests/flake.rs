@@ -47,6 +47,7 @@ fn contract_fixture() -> (Domain, Env<Limits>, u64, forge::ReceiptKey) {
         }]),
         landing::Project::DEFAULT,
         forge::AfterLanding {
+            wait: temper_engine_domain_forge_change::Wait::Cleared,
             verdict: temper_engine_domain_forge_tiers::Settings {
                 retries: 2,
                 suspects: temper_engine_domain_forge_tiers::Suspects::Bisect

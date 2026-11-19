@@ -299,6 +299,14 @@ configuring form's calls (`tools.md`) decode as they do, and one answer serves b
   checks any item of temper's kinds, decoded at the call and judged at
   acceptance, and adds none of its own. temper enforces no pairing: words
   are text agents write, and a proposal without them leaves the ones kept.
+- **A new item's number:** a template, charter or policy it proposes at a
+  number the settings don't hold takes the lowest number from 33 that the
+  inventory shows free, a deployment's own range, and a model it adds the
+  highest free, from 64 down (jig's `domain/engine/settings.md`, 1 and
+  11). Ask temper's instructions say so (`ask.txt`'s *Configuring*); the
+  tool picks nothing, and jig refuses a proposal below 33 at a number the
+  stock has no item at, as *range*, in the words any refused proposal
+  is given back in.
 - **Approvals at the call:** for an asking charter's run, each landing rule of
   the set, held or its own, that enforces approvals is judged as acceptance judges
   it (`../../protocol/configuration/settings.md`, 2; `../forge/change/gates.md`, 3), for the chat's

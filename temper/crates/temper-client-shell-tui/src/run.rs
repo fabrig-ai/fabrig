@@ -157,6 +157,8 @@ impl Run {
         let host = host::Host::new(&host::Settings { limits: settings.limits.clone() }, seed, Time::ZERO, Wall::EPOCH);
         let terminal_settings = limits::terminal(&settings.limits, settings.depth, settings.scheme.is_some());
         let mut shell = jig_client_shell_native::Shell::new(jig_client_shell_native::Settings {
+            mapping: jig_client_protocol_http::Mapping::with_page(b"/jig", temper_client_domain::sign_in::LINK_PAGE)
+                .expect("temper mapping"),
             engine: settings.engine,
             directory: settings.directory.clone(),
             limits: settings.limits.native.connections,

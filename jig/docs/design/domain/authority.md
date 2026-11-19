@@ -350,6 +350,41 @@ would. Project 0 names no project and has no policy (people/README.md, section
 - **A restart** restores it, as any live task: whether it runs again is
   the application's, which cancels it first if it shouldn't.
 
+### 6.2 A person's automatic work in a project
+
+An application may start, in a project, work done for one person
+rather than for the project: temper's brief, written for the person who
+looks (temper's `domain/forge/attention.md`, 3). It is that person's
+work, paid as theirs, where a connector's repair is the project's
+(section 6, *The deployment*).
+
+- **Who makes it:** the application, for a party with a role in the
+  project: `Core::pool_seed(project, person) -> Option<RepairSeed>`,
+  then `Event::ConnectorRepair` with that seed, as a project-funded
+  repair is made from `Core::repair_seed`. Its creator is
+  `Party::Deployment { project }`, unlisted and untracked, so what
+  selects by a person requester (Chats, results, updates, the inbox)
+  never selects it.
+- **Who pays:** the person's pool in the project, `Funder::Pool {
+  project, person, period }`, the period's and the pool's opening
+  (`OpenPeriod`, `CarvePool`) in the decision that makes it where
+  either is missing, as a person's goal opens them. Its payer is the
+  person (accounts.md, 4.1), so it takes what a chat of theirs in the
+  project takes (accounts.md, 4.3), a plan of theirs included, though
+  the project has other parties.
+- **Its money:** the project's ceiling's authority, its spend the least
+  of the ceiling's spend, what the person's pool has left (its role's
+  unopened allotment where the pool isn't open yet, as
+  `Core::person_pool` reads it) and the rules' `maximum_run_spend`. A
+  run returns what it leaves to the pool when it ends (section 7).
+- **None** where that spend is zero, the person has no role in the
+  project, the project is not open or has no policy, or no task number
+  is left; nothing is written. A make that the tasks child refuses (a
+  pool the period can't carve) is refused as a repair's is, with
+  `Ask::RepairRefused`.
+- **The rest** is a repair's: the procedure's steps, its delegates
+  funded from it, its deadline and holdings, a restart restoring it.
+
 ## 7. Budgets and spend
 
 - **Four numbers per funder:** its budget (what it was given), what it

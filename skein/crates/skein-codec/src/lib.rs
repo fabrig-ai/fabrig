@@ -7,9 +7,16 @@
 #![forbid(unsafe_code)]
 
 extern crate alloc;
+#[cfg(test)]
+extern crate self as skein_codec;
 
 use alloc::boxed::Box;
 use skein_lib::Reader;
+
+pub mod bounds;
+pub mod field;
+mod record;
+pub use record::{Path, Problem, Record};
 
 pub mod bridge;
 pub mod layout;

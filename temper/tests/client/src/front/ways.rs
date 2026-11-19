@@ -221,6 +221,7 @@ fn configured(
                         }]),
                         tier_retries: 0,
                         verification_bound_ms: 7_200_000,
+                        wait: temper_engine_domain_forge_change::Wait::Cleared,
                     },
                 );
                 true

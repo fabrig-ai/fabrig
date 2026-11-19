@@ -32,11 +32,11 @@ It is the journeys' part of what `codec-shape.md` does for generated code, which
 
 From the survey, section 1:
 
-- **What main holds:** four recordings and fourteen pages, 235 KB, all of it made by walking a fake box with headless Chromium or a pseudo-terminal. The sources, every `walk` and `setup` file together, are 99 lines.
+- **What main holds:** seven recordings and 66 pages, 1.6 MB (four and fourteen, 235 KB, before the TUI's three long journeys were walked again on 11-18), all of it made by walking a fake box with headless Chromium or a pseudo-terminal. The sources, every `walk` and `setup` file together, are 99 lines.
 - **A recording is the wire's bytes:** each turn's clocks and deadline, each ask, each answer. An ask names the wire's version, and jig's client wire went from version 19 to 34 between 11-10 and 11-18.
 - **So every change to the wire stales every journey,** and so does a change to what a page asks or when. The print's test then fails (`../client/web/journeys.md`, 6), and the goal runs `again` for each journey.
 - **A walk rewrites its files whole.** In "Name tasks waiting after a program starts without its tools", 6,015 of the landing's 6,630 changed lines are journey files, and the pages differ by a drawn time. Two goals that walked the same journey cannot merge their recordings: one walks again.
-- **A walk needs what a plan may not have:** a built box, a browser, and Forgejo fetched from its host. On 11-18 that host's name did not resolve, and a goal removed six journeys in place of walking them. Main holds four of eight today.
+- **A walk needs what a plan may not have:** a built box, a browser, and Forgejo fetched from its host. On 11-18 that host's name did not resolve, and a goal removed six journeys in place of walking them. Main holds seven of eight today: `chat-draft` has been gone since 11-13.
 - **The fixes so far remove noise, not the cause.** Placeholders (`../client/journey-placeholders.md`) and the fixed start (`../client/journey-clock.md`) make two walks of the same screens give the same bytes. A wire change still rewrites everything.
 - **One walk, three languages:** the browser's `setup`, the TUI's `walk`, and the recipes' lines, which wrap both (survey, 1.6).
 
@@ -226,7 +226,7 @@ Look requests, the browser's and the TUI's, are drawn and landed all the while (
 - **Whoever lands a request** reprints in its own tree and compares with the request's pages. A change to the look leaves a recording replaying (`../client/web/journeys.md`, 8), so the reprint holds wherever main's recording does. Where the writer is still behind a change to the wire, that journey's comparison is the render check's. It commits no journey file.
 - **A journey moves alone:** in the change that gives it a `walk` of version 2 that prints in a world, its `recording` and `setup` go. From that landing the writer prints it in the world, and whoever lands a request prints it into scratch (section 7).
 - **The writer knows a moved journey** by its `walk` of version 2, and takes the other engine for every other directory.
-- **What a box cannot walk today** stays as it is until its journey moves, or is repaired sooner on its own: the TUI's `design-session`, `launchpad-chat` and `launchpad-drawn`, and `chat-draft`, have no pages on main. A request for a state they would show is drawn on a hand-made page or the gallery's, as the look requests allow (`../client/web/look-requests.md`, 2).
+- **What has no pages today** stays as it is until its journey moves, or is repaired sooner on its own: `chat-draft` alone, since the TUI's `design-session`, `launchpad-chat` and `launchpad-drawn` were walked again on 11-18 and are the writer's from its first run. A request for a state `chat-draft` would show is drawn on a hand-made page or the gallery's, as the look requests allow (`../client/web/look-requests.md`, 2).
 - **A new journey** is written as a walk of version 2 once its client walks in a world. Before that it is walked and added as today, by the writer's runner alone.
 
 ## 9. Upgrades

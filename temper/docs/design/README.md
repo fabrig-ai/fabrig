@@ -203,6 +203,8 @@ forge, temper adds:
   journeys hold for what varies between walks,
   `client/journey-clock.md` the fixed start and clock `again` walks
   them on,
+  `client/journey-writer.md` the one writer of main's journey files,
+  run after each landing,
   `client/web/look-requests.md` the look requests' round trip,
   `client/box-binary.md` how `temper box` finds or downloads
   `temper-box`, `client/view-crates.md` the view's crates and how it

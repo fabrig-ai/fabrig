@@ -144,6 +144,7 @@ fn files() -> jig_test_service::Files {
 #[must_use]
 pub fn settings() -> jig_client_shell_native::Settings {
     jig_client_shell_native::Settings {
+        mapping: jig_client_protocol_http::Mapping::new(b"/jig").expect("default mapping"),
         engine: jig_client_shell_native::Engine::Plain(skein_io::Addr::Ip(
             (std::net::Ipv4Addr::LOCALHOST, 7100).into(),
         )),

@@ -266,6 +266,22 @@ fn a_pasted_link_is_checked_before_it_is_sent() {
         (vec![Key::Paste(b"not a link".as_slice().into()), Key::Enter], false, "That is not a sign-in link"),
         (link("127.0.0.1:9000"), false, "That link is for 127.0.0.1:9000"),
         (link("127.0.0.1:8367"), true, "Signing in…"),
+        (
+            vec![
+                Key::Paste(format!("http://127.0.0.1:8367/sign-in?secret={LOCAL_SECRET}").into_bytes().into()),
+                Key::Enter,
+            ],
+            true,
+            "Signing in…",
+        ),
+        (
+            vec![
+                Key::Paste(format!("http://127.0.0.1:9000/sign-in?secret={LOCAL_SECRET}").into_bytes().into()),
+                Key::Enter,
+            ],
+            false,
+            "That link is for 127.0.0.1:9000",
+        ),
     ];
     for (keys, sends, line) in rows {
         let mut host = host();
@@ -281,7 +297,9 @@ fn a_pasted_link_is_checked_before_it_is_sent() {
             assert_eq!(asked.len(), 1);
             assert!(matches!(
                 asked.first(),
-                Some(Request::Exchange { credential: None, message: Message::SignInLink(_), .. })
+                Some(Request::Exchange { credential: None, message: Message::SignInLink(secret), .. })
+                    if w::LinkSignIn::decode(&w::CEILINGS, &mut skein_lib::Reader::new(secret))
+                        .expect("link record").secret().expose() == [0; 32]
             ));
             assert!(!text(&mut host).contains(&"A".repeat(43)));
         } else {
@@ -744,6 +762,19 @@ fn the_engines_link_signs_in_and_falls_back() {
         row("garbage", vec![(Found(Some(Secret::new(b"garbage".as_slice().into()))), Ask)]),
         row("other address", vec![(Found(Some(local_link("127.0.0.1:9000", LOCAL_SECRET))), Ask)]),
         row("signed in", vec![(found(), Send), (Answer(signed_in_answer()), Keep), (Connect, Until)]),
+        row(
+            "page signed in",
+            vec![
+                (
+                    Found(Some(Secret::new(
+                        format!("http://127.0.0.1:8367/sign-in?secret={LOCAL_SECRET}").into_bytes().into(),
+                    ))),
+                    Send,
+                ),
+                (Answer(signed_in_answer()), Keep),
+                (Connect, Until),
+            ],
+        ),
         row(
             "used then same then fresh",
             vec![
@@ -3617,6 +3648,7 @@ fn brief_document() -> w::Owned {
             queued: 0,
             red: false,
             branch: b"main".as_slice().into(),
+            unpaid: false,
             brief: Some(
                 f::StatusBrief::new(
                     &f::CEILINGS,

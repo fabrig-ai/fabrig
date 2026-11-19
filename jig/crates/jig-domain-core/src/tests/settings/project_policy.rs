@@ -523,7 +523,7 @@ fn a_whole_policy_pool_raise_past_open_room_is_refused_atomically() {
 fn a_project_policy_can_override_a_template_the_same_change_adds() {
     let (mut core, limits) = fixture();
     let template = Template {
-        number: 2,
+        number: 33,
         name: b"work".as_slice().into(),
         resources: Box::default(),
         executor: people::TemplateExecutor::Chosen,

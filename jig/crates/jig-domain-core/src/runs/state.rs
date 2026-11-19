@@ -26,10 +26,13 @@ pub enum RunAdmission {
 /// Each retained turn counts its four-byte length beside its opaque body
 /// (domain/engine/executors.md, 2).
 #[derive(Hash, Debug)]
+#[expect(clippy::struct_excessive_bools, reason = "independent load and resume facts for one saved window")]
 pub struct Transcript {
     pub window: Option<(u64, u32)>,
     /// An upgrade closed the loaded window or crossed its claim.
     pub closed: bool,
+    /// Activation found that this window ran on another endpoint.
+    pub moved: bool,
     /// A loaded turn was past its store page room (domain/engine/executors.md, 2).
     pub cut: bool,
     /// The preparation has received its final store page.
@@ -249,6 +252,7 @@ impl Core {
                     Transcript {
                         window,
                         closed,
+                        moved: false,
                         cut: false,
                         loaded: false,
                         previous_attempt,

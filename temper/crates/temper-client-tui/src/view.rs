@@ -731,16 +731,34 @@ pub fn chat_number(view: &View, number: u32) -> Option<u64> {
 pub fn focus(view: &View) -> Option<&[u8]> {
     view.focus.as_deref()
 }
+// In front alone, beside the screen under a place not yet started (client/tui/box.md, `/web`).
+fn web_offered(root: &Domain, tui: &Tui) -> bool {
+    tui.front()
+        && tui.box_stage() == &crate::BoxStage::Running
+        && !starting::shown(root, tui)
+        && !sign_in_drawn(root, tui)
+        && match tui.box_state() {
+            crate::BoxState::GaveUp { .. } | crate::BoxState::Stopping | crate::BoxState::Stopped { .. } => false,
+            crate::BoxState::Running | crate::BoxState::Starting { .. } | crate::BoxState::Restarting { .. } => true,
+        }
+}
 /// The TUI's own commands in their offered order (client/tui/pages/README.md).
 #[must_use]
 pub fn offered_own(root: &Domain, tui: &Tui) -> Box<[Own]> {
-    let mut commands = List::with_capacity(9);
+    let mut commands = List::with_capacity(10);
+    let web = web_offered(root, tui);
     if root.client().link().state == Link::SignedOut || welcome::shown(root, tui) {
+        if web {
+            commands.push(Own::Web).expect("web counted");
+        }
         commands.push(Own::Theme).expect("one theme command");
         return commands.into_boxed();
     }
     if root.pages().chat().is_some() {
         commands.push(Own::Open).expect("chat commands counted");
+        if web {
+            commands.push(Own::Web).expect("web counted");
+        }
         commands.push(Own::Tell).expect("chat commands counted");
     } else if let Some(project) = root.pages().project() {
         // Only the brief is read here; its availability does not depend on the clock.
@@ -754,6 +772,7 @@ pub fn offered_own(root: &Domain, tui: &Tui) -> Box<[Own]> {
                 Own::Change | Own::Ask | Own::Open | Own::Tell => true,
                 Own::Talk => talk::available(root, project),
                 Own::Theme => false,
+                Own::Web => web,
                 Own::Brief => brief,
                 Own::Needs => no_list && has_needs(root),
             };

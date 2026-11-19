@@ -9,6 +9,9 @@
   flight: change 3611].
 - **Not yet:** 3: the events table's `Act { act }` row: a close done
   going to the launchpad [in flight: change 3609].
+- **Not yet:** 3: the events table's `Own { command }` row: no `Web`,
+  and `Duties.open` never carries the printed link [in flight: change
+  8716].
 
 Section 3 and `pages/README.md` keep the selected launchpad row while composing a
 slash command. Host tests cover typed `/open` for a chat, a goal and Home,

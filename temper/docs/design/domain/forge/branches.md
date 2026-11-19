@@ -103,7 +103,15 @@ own, never a change's:
   by hand, as the symbol *its own goal branch* (`README.md`, section 2), offered on a
   tracked task only, since its goal is the one its changes serve (jig's
   `domain/model.md`, 6.2). Resolved once the goal has its number to
-  `temper/<root>/g<task>` in the project's home (`branches.md`). A goal
+  `temper/<root>/g<task>` in the project's home (`branches.md`).
+  `<root>` is its tree's root, as for every branch of the tree: a goal
+  made beneath a milestone, or beneath any task, takes that task's root,
+  so its branch sits under the milestone's root beside its changes'
+  branches, where the change tool, the goal's closer and a held making
+  each look it up. A goal made beneath a task before its holdings were
+  asked under its tree's root holds its branch under its own number,
+  `temper/<task>/g<task>`; no lookup finds it, so its changes land into the
+  base and its branch is kept as it closes, for a person to read. A goal
   cannot take a hold once active (jig's `domain/tasks/holds.md`, 2), so the
   choice is made with the goal.
 - **Held by its goal for its whole life,** an exclusive hold that
@@ -225,7 +233,9 @@ section 6).
      more where they hold none. CI, the queue, taking the base,
      a conflict's resolution, a CI repair and the after-landing
      verification are what they are for any change, and the step waits
-     for the landing's result at cleared, repaired or not
+     for the landing's result: at cleared, repaired or not, or, where
+     the project's kind 4 says `wait: landed`, at landed, so that the
+     goal ends as its branch lands into its base
      (`../after-landing.md`, section 6). A goal with no goal branch, or whose base
      already holds its tip, skips it.
   3. **Report:** the closer's result, below, and its end: done, which
@@ -233,9 +243,10 @@ section 6).
 - **What wakes the goal meanwhile** is what wakes it for any delegate:
   a step's change held past its bounds, its resolution or repair
   failing, escalates past the closer, a procedure, to the goal (jig's
-  `domain/tasks/proposals.md`); a red after landing, while the landing
-  is verified, is news for the goal, whose tree the landing is in
-  (`../after-landing.md`, section 7). A step's change that ends without
+  `domain/tasks/proposals.md`); under `wait: cleared`, a red after
+  landing, while the landing is verified, is news for the goal, whose
+  tree the landing is in (`../after-landing.md`, section 7), and under
+  `landed` none comes, the goal having ended at its landing. A step's change that ends without
   landing (cancelled, failed) is made again, or holds the closer,
   `ClosingStep`, by its attempts (below), its words naming the step,
   the change and why, which escalates to the goal: its release makes

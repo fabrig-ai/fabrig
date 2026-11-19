@@ -20,6 +20,7 @@ pub enum RestoreSet {
     LandingFlights,
     LandingMembers,
     LandingsKept,
+    LoggedTiers,
     LandingGates,
     LandingAsks,
     LandingEntries,

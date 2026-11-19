@@ -1,8 +1,10 @@
 use super::*;
 pub(crate) mod forge;
+mod harness_reports;
 mod logging;
 mod page;
 mod places;
+mod requests;
 use skein_fake_person::Target;
 use std::{collections::VecDeque, ffi::OsStr, os::unix::ffi::OsStrExt, path::Path};
 pub(super) fn plan() -> Plan {

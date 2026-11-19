@@ -46,6 +46,10 @@ pub struct World {
     download_on_press: Option<(u64, bool)>,
     download_serial: u64,
     pub downloads_begun: Vec<(Token, Token, Vec<u8>)>,
+    network_enabled: bool,
+    request_seed: Option<u64>,
+    request_serial: u64,
+    load_serial: u64,
 }
 
 impl Default for World {
@@ -84,7 +88,17 @@ impl World {
             download_on_press: None,
             download_serial: 0,
             downloads_begun: Vec::new(),
+            network_enabled: false,
+            request_seed: None,
+            request_serial: 0,
+            load_serial: 0,
         }
+    }
+
+    /// The scenario sends requests among snapshot operations; its seed varies
+    /// whether the first body chunk comes before the operation or is delayed.
+    pub fn requests_on_operations(&mut self, seed: u64) {
+        self.request_seed = Some(seed);
     }
 
     /// The scenario's button saves a file; the seed chooses before or after its reply,
@@ -195,6 +209,12 @@ impl World {
                             let x = params.get(b"x").and_then(skein_browser::wire::decode::Value::i64).expect("hit x");
                             let y = params.get(b"y").and_then(skein_browser::wire::decode::Value::i64).expect("hit y");
                             self.hit_points.push((x, y));
+                        }
+                        if method.as_ref() == b"Network.enable" {
+                            self.network_enabled = true;
+                        }
+                        if self.network_enabled {
+                            self.network_events(&method, &mut replies);
                         }
                         let result = self.reply(&method, root.get(b"params"));
                         let session_field = session
@@ -330,6 +350,7 @@ impl World {
             return format!("{{\"attributes\":{}}}", self.attributes);
         }
         let result = match method {
+            b"Page.getFrameTree" => r#"{"frameTree":{"frame":{"id":"f1"}}}"#,
             b"Target.getTargets" => r#"{"targetInfos":[]}"#,
             b"DOM.getDocument" => r#"{"root":{"nodeId":1}}"#,
             b"Browser.getVersion" => r#"{"product":"Chrome/153"}"#,
@@ -375,12 +396,56 @@ impl World {
     }
 
     pub fn open_with_downloads(&mut self, downloads: Option<Box<[u8]>>) {
+        self.open_page(downloads, false);
+        assert!(matches!(self.above.pop(), Some(Event::Opened { page }) if page == Token::new(3)));
+    }
+
+    pub fn open_with_requests(&mut self) {
+        self.open_page(None, true);
+    }
+
+    fn open_page(&mut self, downloads: Option<Box<[u8]>>, requests: bool) {
         self.ask(Request::Person { person: Token::new(2), downloads });
         self.ask(Request::Page {
             person: Token::new(2),
             page: Token::new(3),
             url: b"https://example.test/".to_vec().into_boxed_slice(),
+            requests,
         });
-        assert!(matches!(self.above.pop(), Some(Event::Opened { page }) if page == Token::new(3)));
     }
+
+    fn network_events(&mut self, method: &[u8], replies: &mut VecDeque<Vec<u8>>) {
+        let document = method == b"Page.navigate" || method == b"Page.reload";
+        if !document && (method != b"Accessibility.getFullAXTree" || self.request_seed.is_none()) {
+            return;
+        }
+        self.request_serial += 1;
+        if document {
+            self.load_serial += 1;
+        }
+        let load = format!("load-{}", self.load_serial);
+        let id = if document { load.clone() } else { format!("request-{}", self.request_serial) };
+        let kind = if document { "Document" } else { "Fetch" };
+        replies.push_back(framed(format!(r#"{{"method":"Network.requestWillBeSent","sessionId":"s1","params":{{"requestId":"{id}","loaderId":"{load}","frameId":"f1","type":"{kind}","request":{{"method":"GET","url":"https://example.test/request"}}}}}}"#)));
+        let seed = self.request_seed.unwrap_or(0).wrapping_add(self.request_serial);
+        let first = if seed % 3 == 0 { "Network.loadingFailed" } else { "Network.dataReceived" };
+        let first = framed(format!(r#"{{"method":"{first}","sessionId":"s1","params":{{"requestId":"{id}"}}}}"#));
+        if document || seed & 1 == 0 {
+            replies.push_back(first);
+        } else {
+            self.delayed.push_back(first);
+        }
+        // A stream's later chunks and its end can cross other operations and closure.
+        for method in ["Network.dataReceived", "Network.dataReceived", "Network.loadingFinished"] {
+            self.delayed.push_back(framed(format!(
+                r#"{{"method":"{method}","sessionId":"s1","params":{{"requestId":"{id}"}}}}"#
+            )));
+        }
+    }
+}
+
+fn framed(json: String) -> Vec<u8> {
+    let mut bytes = json.into_bytes();
+    bytes.push(0);
+    bytes
 }

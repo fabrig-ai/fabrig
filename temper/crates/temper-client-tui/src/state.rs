@@ -50,6 +50,9 @@ pub struct Tui {
     box_stage: BoxStage,
     stop_asked: bool,
     printed: Option<Secret>,
+    link_live: bool,
+    last_linked: Option<bool>,
+    link_not_opened: bool,
     box_log: Queue<Box<[u8]>>,
     restarting: Option<Box<[u8]>>,
     gave_up: Option<Box<[u8]>>,
@@ -157,6 +160,11 @@ pub enum Told {
     },
     EndWalk,
     Brief,
+    /// The forges document's printed-link sign-in (client/tui/box.md, `/web`).
+    Linked {
+        linked: bool,
+    },
+    LinkNotOpened,
     NotOpened {
         address: Option<Box<[u8]>>,
     },
@@ -298,6 +306,9 @@ impl Tui {
             box_stage: BoxStage::Finding,
             stop_asked: false,
             printed: None,
+            link_live: false,
+            last_linked: None,
+            link_not_opened: false,
             box_log: Queue::with_capacity(limits::BOX_LOG),
             restarting: None,
             gave_up: None,
@@ -461,6 +472,19 @@ impl Tui {
     pub const fn printed(&self) -> Option<&Secret> {
         self.printed.as_ref()
     }
+    /// The printed link while live: no sign-in by it seen since its `link` line.
+    #[must_use]
+    pub const fn live_link(&self) -> Option<&Secret> {
+        if self.link_live { self.printed.as_ref() } else { None }
+    }
+    #[must_use]
+    pub const fn last_linked(&self) -> Option<bool> {
+        self.last_linked
+    }
+    #[must_use]
+    pub const fn link_not_opened(&self) -> bool {
+        self.link_not_opened
+    }
     #[expect(clippy::disallowed_methods, reason = "the borrowed log iterator maps each owned line through Box::as_ref")]
     pub fn box_lines(&self) -> impl Iterator<Item = &[u8]> {
         self.box_log.iter().map(Box::as_ref)
@@ -602,8 +626,9 @@ impl Tui {
                 changed
             }
             BoxLine::Link { url } => {
-                let changed = self.printed.as_ref() != Some(&url);
+                let changed = self.printed.as_ref() != Some(&url) || !self.link_live;
                 self.printed = Some(url);
+                self.link_live = true;
                 changed
             }
             BoxLine::Log { line } => {
@@ -720,7 +745,7 @@ impl Tui {
                 changed
             }
             Told::Place { command } => {
-                if let Some(Own::Talk | Own::Brief | Own::Needs | Own::Open | Own::Theme) = command {
+                if let Some(Own::Talk | Own::Brief | Own::Needs | Own::Open | Own::Web | Own::Theme) = command {
                     return;
                 }
                 let changed = self.place != command;
@@ -754,7 +779,11 @@ impl Tui {
                     true
                 }
             }
-            Told::Send => self.tell_refusal.take().is_some(),
+            Told::Send => {
+                let changed = self.tell_refusal.take().is_some() || self.link_not_opened;
+                self.link_not_opened = false;
+                changed
+            }
             Told::Tell { serial, refusal } => {
                 if serial <= self.tell_serial {
                     false
@@ -791,6 +820,19 @@ impl Tui {
             Told::Brief => {
                 let changed = !self.brief_shown;
                 self.brief_shown = true;
+                changed
+            }
+            Told::Linked { linked } => {
+                let changed = self.last_linked != Some(linked);
+                if linked && self.last_linked != Some(true) {
+                    self.link_live = false;
+                }
+                self.last_linked = Some(linked);
+                changed
+            }
+            Told::LinkNotOpened => {
+                let changed = !self.link_not_opened;
+                self.link_not_opened = true;
                 changed
             }
             Told::NotOpened { address } => {
@@ -864,10 +906,14 @@ impl Tui {
                 self.start_chat = None;
                 let focus = self.focus.saturating_add(1);
                 let written = self.box_written.saturating_add(1);
-                let changed =
-                    self.focus != focus || self.box_written != written || self.log_shown || self.left_off.is_some();
+                let changed = self.focus != focus
+                    || self.box_written != written
+                    || self.log_shown
+                    || self.link_not_opened
+                    || self.left_off.is_some();
                 let cleared = self.clear_launchpad();
                 self.log_shown = false;
+                self.link_not_opened = false;
                 self.left_off = None;
                 self.focus = focus;
                 self.command_words = Box::default();
@@ -893,8 +939,9 @@ impl Tui {
                 let cleared = self.clear_launchpad();
                 self.command_words = Box::default();
                 let written = self.box_written.saturating_add(1);
-                let changed = self.box_written != written || self.log_shown;
+                let changed = self.box_written != written || self.log_shown || self.link_not_opened;
                 self.log_shown = false;
+                self.link_not_opened = false;
                 self.box_written = written;
                 changed || cleared
             }

@@ -23,6 +23,16 @@ pub(super) mod forge;
 mod process;
 mod tui;
 use process::Child;
+
+pub(super) fn page_event(report: Report) -> Option<Event> {
+    match report {
+        Report::Sent { id, load, document, method, url } => Some(Event::PageSent { id, load, document, method, url }),
+        Report::Answered { id } => Some(Event::PageAnswered { id }),
+        Report::Page { trouble, text, url } => Some(Event::PageTrouble { trouble, text, url }),
+        Report::Io(_) | Report::Opened | Report::BrowserClosed | Report::Trouble(_) => None,
+    }
+}
+
 type LogLines = Vec<Box<[u8]>>;
 enum FaceJob {
     Opening,
@@ -256,8 +266,8 @@ impl Session {
                     self.event(Event::FaceDone(Ok(())));
                 }
             }
-            Report::Page { trouble, text, url } => {
-                let actions = self.machine.step(Event::PageTrouble { trouble, text, url }, self.pump.now());
+            report @ (Report::Sent { .. } | Report::Answered { .. } | Report::Page { .. }) => {
+                let actions = self.machine.step(page_event(report).expect("page report"), self.pump.now());
                 if actions.iter().any(|action| matches!(action, Action::CancelFace)) {
                     self.face_job = None;
                 }

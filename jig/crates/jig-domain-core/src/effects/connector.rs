@@ -9,7 +9,7 @@ use alloc::boxed::Box;
 use jig_domain_authority as authority;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
-use skein_lib::{List, Queue, Wall};
+use skein_lib::{List, Queue, ReplyTo, Wall};
 
 use crate::{Core, Family, fresh, translate};
 
@@ -100,18 +100,49 @@ impl Core {
         Some(PersonSeed { number, funder, authority: translate::task_authority(&authority), opens })
     }
 
+    /// Allocate a person's automatic work in a project (jig/docs/design/domain/authority.md, 6.2).
+    /// None: no open project with a policy, no role, no pool room or no task number.
+    pub fn pool_seed(&mut self, project: u32, person: u64) -> Option<RepairSeed> {
+        self.start_input();
+        if !self.open_project(project) {
+            return None;
+        }
+        let mut authority = self.authority.policy(project)?.ceiling.clone();
+        self.people.role(person, project)?;
+        let (funder, numbers) = self.person_pool(project, person);
+        let available = numbers
+            .budget
+            .saturating_sub(numbers.spent)
+            .saturating_sub(numbers.spent_below)
+            .saturating_sub(numbers.reserved);
+        authority.budget.spend = authority.budget.spend.min(available).min(self.authority.rules().maximum_run_spend);
+        if authority.budget.spend == 0 {
+            return None;
+        }
+        let number = fresh(&mut self.counters, Family::Task)?;
+        let opens = self.open_person_pool(project, person);
+        Some(RepairSeed {
+            number,
+            project,
+            funder,
+            opens,
+            budget: authority.budget.spend,
+            authority: translate::task_authority(&authority),
+        })
+    }
+
     /// Allocate a policy-bounded connector repair before its root translates holdings.
     pub fn repair_seed(&mut self, project: u32) -> Option<RepairSeed> {
         self.start_input();
         let authority = self.connector_repair_authority(project)?;
         let number = fresh(&mut self.counters, Family::Task)?;
-        let period = self.period(project);
+        let funder = tasks::Funder::Period { project, period: self.period(project) };
+        let opens = self.repair_period_open(project, funder);
         Some(RepairSeed {
             number,
             project,
-            period,
-            period_budget: self.period_budget(project),
-            open_period: self.tasks.funding(tasks::Funder::Period { project, period }).is_none(),
+            funder,
+            opens,
             budget: authority.budget.spend,
             authority: translate::task_authority(&authority),
         })
@@ -129,16 +160,27 @@ impl Core {
         let mut authority = self.authority.policy(project)?.ceiling.clone();
         authority.budget.spend = 0;
         let number = fresh(&mut self.counters, Family::Task)?;
-        let period = self.period(project);
-        Some(RepairSeed {
-            number,
-            project,
-            period,
-            period_budget: self.period_budget(project),
-            open_period: self.tasks.funding(tasks::Funder::Period { project, period }).is_none(),
-            budget: 0,
-            authority: translate::task_authority(&authority),
-        })
+        let funder = tasks::Funder::Period { project, period: self.period(project) };
+        let opens = self.repair_period_open(project, funder);
+        Some(RepairSeed { number, project, funder, opens, budget: 0, authority: translate::task_authority(&authority) })
+    }
+
+    fn repair_period_open(
+        &mut self,
+        project: u32,
+        funder: tasks::Funder,
+    ) -> (Option<tasks::Event>, Option<tasks::Event>) {
+        let open = if self.tasks.funding(funder).is_none() {
+            Some(tasks::Event::OpenPeriod {
+                reply_to: ReplyTo::new(self.internal(crate::routing::flight::Internal::Admission)),
+                project,
+                period: self.period(project),
+                budget: self.period_budget(project),
+            })
+        } else {
+            None
+        };
+        (open, None)
     }
 
     /// Deployment procedures with no task budget spend only at the effect,

@@ -338,4 +338,53 @@ fn settings_refusals_name_each_setting_fault_and_retained_holder_fact() {
     shared_words().outcome(&mut builder, &Outcome::SettingsChanged(OutcomeSettingsChanged { revision: 31 }));
     builder.close();
     goldens.check(&builder.finish());
+    // Range is worded from the refusal's setting, not from any current settings document.
+    for (setting, expected) in [
+        (
+            Setting::Charter(SettingNumber { number: 9 }),
+            "charter 9 is among the stock's numbers, 1 to 32; your own charters take 33 to 64",
+        ),
+        (
+            Setting::Charter(SettingNumber { number: 70 }),
+            "charter 70 is past the charters' numbers: the stock's take 1 to 32, your own 33 to 64",
+        ),
+        (
+            Setting::Template(SettingNumber { number: 9 }),
+            "template 9 is among the stock's numbers, 1 to 32; your own templates take 33 to 64",
+        ),
+        (
+            Setting::Template(SettingNumber { number: 70 }),
+            "template 70 is past the templates' numbers: the stock's take 1 to 32, your own 33 to 64",
+        ),
+        (
+            Setting::Policy(SettingNumber { number: 9 }),
+            "policy 9 is among the stock's numbers, 1 to 32; your own policies take 33 to 64",
+        ),
+        (
+            Setting::Policy(SettingNumber { number: 70 }),
+            "policy 70 is past the policies' numbers: the stock's take 1 to 32, your own 33 to 64",
+        ),
+        (
+            Setting::Model(SettingNumber { number: 9 }),
+            "Model 9 is among the stock's numbers, 1 to 32; your own models take 33 to 64",
+        ),
+        (
+            Setting::Model(SettingNumber { number: 70 }),
+            "Model 70 is past the models' numbers: the stock's take 1 to 32, your own 33 to 64",
+        ),
+        (
+            Setting::Template(SettingNumber { number: 32 }),
+            "template 32 is among the stock's numbers, 1 to 32; your own templates take 33 to 64",
+        ),
+        (
+            Setting::Charter(SettingNumber { number: 65 }),
+            "charter 65 is past the charters' numbers: the stock's take 1 to 32, your own 33 to 64",
+        ),
+    ] {
+        let tree = render(Refusal::Malformed {
+            at: 0,
+            why: Malformed::Settings(MalformedSettings { setting, fault: SettingFault::Range, detail: None }),
+        });
+        assert!(crate::tests::kit::contains(&tree, expected.as_bytes()), "{setting:?}: {expected}");
+    }
 }
