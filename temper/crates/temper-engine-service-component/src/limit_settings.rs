@@ -307,6 +307,7 @@ fn core_fit(failure: &core::start::Failure) -> Option<(&'static [u8], u64, u64)>
         )),
         Failure::Settings { .. }
         | Failure::Numbers { .. }
+        | Failure::Taken { .. }
         | Failure::Application { .. }
         | Failure::ProjectPolicy { .. }
         | Failure::AccountsPastLimit { .. }

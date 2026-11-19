@@ -65,13 +65,14 @@ mod settings;
 
 #[test]
 fn upgrade_check_names_settings_out_of_their_numbers_without_switching_generation() {
+    use settings::Numbers;
     let (scratch, directories) = deployment::deployment();
     let config = scratch.path().join("config");
     let data = scratch.path().join("data");
     let cache = scratch.path().join("cache");
     let active_path = data.join("state/active");
-    for moved in [false, true] {
-        settings::seed_numbered_settings(&directories, moved);
+    for numbers in [Numbers::Kept, Numbers::Moved, Numbers::Past, Numbers::Taken] {
+        settings::seed_numbered_settings(&directories, numbers);
         let active = std::fs::read(&active_path).expect("active generation");
         let before = deployment::tree(&data);
         let output = Command::new(skein_scratch::paths::binary("temper-engine"))
@@ -86,17 +87,24 @@ fn upgrade_check_names_settings_out_of_their_numbers_without_switching_generatio
             .expect("run upgrade check");
         let out = String::from_utf8_lossy(&output.stdout);
         let err = String::from_utf8_lossy(&output.stderr);
-        assert_eq!(output.status.code(), Some(i32::from(!moved)), "{out}\n{err}");
+        let refused = matches!(numbers, Numbers::Past | Numbers::Taken);
+        assert_eq!(output.status.code(), Some(i32::from(refused)), "{out}\n{err}");
         assert!(err.lines().all(engine_long_pass), "{err}");
-        if moved {
+        if !refused {
             assert!(out.contains("registry commit, jobs and restores pass"), "{out}");
             assert!(!out.contains("settings out of their numbers"), "{out}");
-        } else {
+        } else if numbers == Numbers::Past {
             let refusal = out.lines().find(|line| line.contains("settings out of their numbers")).expect(&out);
-            for words in
-                ["changed template 9", "changed charter 17", "the stock's 1 to 32", "a deployment's own 33 to 64"]
-            {
+            for words in ["changed charter 65", "the stock's 1 to 32", "a deployment's own 33 to 64"] {
                 assert!(refusal.contains(words), "{refusal}");
+            }
+        } else {
+            for words in [
+                "the stock's new settings take numbers a deployment's own hold",
+                "charter 1",
+                "move each to 33 to 64 on the build that runs now, then start this one",
+            ] {
+                assert!(out.contains(words), "{out}");
             }
         }
         assert_eq!(std::fs::read(&active_path).expect("active after check"), active);

@@ -10,6 +10,79 @@ fn at(ms: u64) -> Time {
 }
 
 #[test]
+fn kept_settings_warn_once_after_start_and_none_warns_of_nothing() {
+    use crate::tests::fixtures;
+    use jig_domain_core::{
+        CoreRecord, Record,
+        settings::{self, Setting, Value},
+    };
+    use temper_engine_domain as root;
+    let config = || {
+        let mut settings = fixtures::engine();
+        settings.jig.limits.core.tasks.charters = 14;
+        settings.jig.limits.core.templates = 10;
+        settings
+    };
+    for kept in [false, true] {
+        let mut service = fixtures::start_configured(config(), &[(1, 100)], None, false, false);
+        fixtures::restart(&mut service);
+        let mut engine = service.engine.take().unwrap();
+        if kept {
+            let config = config();
+            let charter = |number| {
+                let mut value = config.jig.charters.first().expect("stock charter").clone();
+                value.number = number;
+                Value::Charter(Box::new(value))
+            };
+            let template = |number, executor| {
+                let mut value = config.jig.templates.first().expect("stock template").clone();
+                value.number = number;
+                value.executor = jig_domain_people::TemplateExecutor::Charter(executor);
+                Value::Template(Box::new(value))
+            };
+            let writes = [
+                (Setting::Charter(17), charter(17)),
+                (Setting::Charter(19), charter(19)),
+                (Setting::Template(9), template(9, 19)),
+                (Setting::Template(16), template(16, 17)),
+            ]
+            .map(|(setting, value)| {
+                root::Write::Save(root::Record::Core(Record::Core(CoreRecord::Settings(settings::Record::Changed {
+                    setting,
+                    changed: settings::Changed { value: Some(value), revision: 1 },
+                }))))
+            });
+            let commit = engine.domain.deployment().commits.checked_add(1).unwrap();
+            fixtures::commit(&mut engine.store, commit, Box::new(writes));
+            let Some(jig_protocol_store::Event::Committed { .. }) = engine.store.host.above.pop() else {
+                panic!("fixture changes committed")
+            };
+        }
+        let stored = fixtures::reopened_store(engine.store, &engine.env.limits);
+        let mut service = fixtures::start_configured(config(), &[(1, 100)], Some(stored), false, false);
+        assert!(!service.engine.as_ref().unwrap().domain.ready());
+        for note in &service.engine.as_ref().unwrap().notes {
+            if let Note::StartupWarning { line } = note {
+                assert!(!line.starts_with(b"settings kept"));
+            }
+        }
+        fixtures::restart(&mut service);
+        fixtures::restart(&mut service);
+        let expected = b"settings kept at stock numbers as a deployment's own (the stock's 1 to 32, a deployment's own 33 to 64): charter 17, charter 19, template 9, template 16; a release whose stock brings one of these numbers refuses its start until each moves to 33 to 64";
+        let mut warnings = 0_u32;
+        for note in &service.engine.as_ref().unwrap().notes {
+            if let Note::StartupWarning { line } = note
+                && line.starts_with(b"settings kept")
+            {
+                assert_eq!(line.as_ref(), expected);
+                warnings = warnings.saturating_add(1);
+            }
+        }
+        assert_eq!(warnings, u32::from(kept));
+    }
+}
+
+#[test]
 fn a_wait_names_its_reason_at_one_second_and_on_change() {
     let mut watch = Watch::new();
     let why = CoreWait::Starting { step: None };

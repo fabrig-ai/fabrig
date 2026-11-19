@@ -272,7 +272,7 @@ impl Core {
                 assert!(self.settings_restore.pending.insert(setting, true).is_ok(), "bounded added default");
             }
         }
-        if self.refuse_numbers() {
+        if self.refuse_numbers() || self.refuse_taken() {
             return false;
         }
         if let Err(failure) = super::workers::check_defaults(&self.current, self.workers_in_process) {
@@ -316,6 +316,43 @@ impl Core {
         self.start_input();
         self.refuse_restore(crate::start::Failure::Numbers { settings });
         true
+    }
+
+    /// New defaults cannot take numbers held by stored own values (domain/engine/settings.md, 7).
+    fn refuse_taken(&mut self) -> bool {
+        if self.settings_restore.defaults.is_empty() {
+            return false;
+        }
+        let mut settings = List::with_capacity(self.current.changes.len());
+        for (&setting, change) in &self.current.changes {
+            match setting {
+                Setting::Charter(_) | Setting::Template(_) | Setting::Policy(_) | Setting::Model(_) => {}
+                Setting::Rules
+                | Setting::Limits
+                | Setting::Provider(_)
+                | Setting::Worker(_)
+                | Setting::Application { .. }
+                | Setting::ProjectPolicy { .. } => continue,
+            }
+            if change.value.is_some()
+                && self.current.defaults.contains_key(&setting)
+                && !self.settings_restore.defaults.contains_key(&setting)
+            {
+                settings.push(setting).expect("one per held change");
+            }
+        }
+        if settings.is_empty() {
+            return false;
+        }
+        self.start_input();
+        self.refuse_restore(crate::start::Failure::Taken { settings: settings.into_boxed() });
+        true
+    }
+
+    /// Stored own values kept at stock numbers (domain/engine/settings.md, 7).
+    #[must_use]
+    pub fn settings_kept(&self) -> Box<[Setting]> {
+        super::check::kept(&self.current)
     }
 
     /// The typed refusal is retained even when a later completion repeats it.

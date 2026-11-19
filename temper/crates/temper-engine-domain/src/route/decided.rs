@@ -52,7 +52,7 @@ pub(crate) fn how(domain: &Domain, task: u64) -> super::AskHow {
     super::AskHow::None
 }
 
-fn person(domain: &Domain, task: u64) -> Option<u64> {
+pub(crate) fn person(domain: &Domain, task: u64) -> Option<u64> {
     let row = domain.core.tasks.task(task)?;
     match row.requester {
         tasks::Party::Person(person) => Some(person),

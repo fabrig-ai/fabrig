@@ -1,4 +1,5 @@
-//! A gate keeping parties' inputs from the root (temper/docs/design/protocol/README.md, 6.2).
+//! Input gates and the settings warning after start (temper/docs/design/protocol/README.md, 6.2;
+//! jig/docs/design/domain/engine/settings.md, 7).
 use alloc::boxed::Box;
 use jig_domain_core::start::Phase;
 use skein_lib::{Decimal, Time, bytes};
@@ -53,6 +54,35 @@ fn starting(step: Option<Phase>) -> &'static [u8] {
         Some(Phase::SettleOutbox { .. }) => b"settling the forge's outbox",
         Some(Phase::Open) => b"opening decisions",
     }
+}
+
+/// One warning after start for values kept in the stock range (jig/docs/design/domain/engine/settings.md, 7).
+pub(crate) fn settings_kept(settings: &[jig_domain_core::settings::Setting]) -> Box<[u8]> {
+    use jig_domain_core::settings::Setting;
+    let mut line: Box<[u8]> =
+        b"settings kept at stock numbers as a deployment's own (the stock's 1 to 32, a deployment's own 33 to 64): "
+            .as_slice()
+            .into();
+    for (at, setting) in settings.iter().enumerate() {
+        let separator: &[u8] = if at == 0 { b"" } else { b", " };
+        let (kind, number): (&[u8], u32) = match *setting {
+            Setting::Charter(n) => (b"charter", n),
+            Setting::Template(n) => (b"template", n),
+            Setting::Policy(n) => (b"policy", n),
+            Setting::Model(n) => (b"model", n),
+            Setting::Rules
+            | Setting::Limits
+            | Setting::Provider(_)
+            | Setting::Worker(_)
+            | Setting::Application { .. }
+            | Setting::ProjectPolicy { .. } => unreachable!("only ranged kinds are kept"),
+        };
+        line = bytes::concat(&[&line, separator, kind, b" ", Decimal::of(u64::from(number)).as_bytes()]);
+    }
+    bytes::concat(&[
+        &line,
+        b"; a release whose stock brings one of these numbers refuses its start until each moves to 33 to 64",
+    ])
 }
 
 /// One reason held; a line when it has kept inputs 1 s, again on change,
