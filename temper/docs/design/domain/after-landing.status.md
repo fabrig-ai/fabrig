@@ -14,7 +14,8 @@ in section 14. The log's other gaps and the retained change rows remain below.
   task's report*, its `Its report names:` line: a many verdict's comments
   and report say `many tests` with no id [in flight: change 9171].
 - **Not yet:** 9, *`read_ci` reads a logged landing's red*; 10, *The
-  landing log*, a red entry's ids and names: the log keeps a red's count
+  landing log*, a red entry's ids and names; *A landing's entries*, at
+  most `tiers`: the log keeps a red's count
   alone, and `read_ci what=checks` answers the forge's checks and a
   landing repair's gate rows alone [in flight: change 9174].
 - **Not yet:** 6, *`wait`* and *Switching*: kind 4 has no `wait`, so
