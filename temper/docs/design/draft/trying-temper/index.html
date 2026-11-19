@@ -1,0 +1,437 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trying temper, in frames</title>
+<link rel="stylesheet" href="../../client/tui/journeys/theme.css">
+<link rel="stylesheet" href="index.css">
+</head>
+<body>
+<main>
+<header class="top">
+<p class="kicker">Mockups · draft <code>trying-temper.md</code>, section 8 · first pass</p>
+<h1>Trying temper, in frames</h1>
+<p class="lead">The try, step by step: from <code>./temper box</code> after the download to the first change landed and the next handed over, with the browser and the terminal side by side. The browser’s pages are drawn by hand in the greenfield mock’s look; the terminal’s are the TUI’s light theme at 80 columns. Words are the draft’s, and times are unmeasured.</p>
+<p class="lead">Each change the draft proposes has a switch below: on, the page as proposed; off, what temper does today. They combine, so any one can be seen alone.</p>
+</header>
+<nav class="switches" aria-label="Proposed changes"><span class="lbl">Changes</span><button type="button" class="sw" data-c="41" aria-pressed="true"><b>4.1</b> Welcome by intent</button><button type="button" class="sw" data-c="42" aria-pressed="true"><b>4.2</b> Three steps</button><button type="button" class="sw" data-c="43" aria-pressed="true"><b>4.3</b> Ready by itself</button><button type="button" class="sw" data-c="44" aria-pressed="true"><b>4.4</b> A sample</button><button type="button" class="sw" data-c="45" aria-pressed="true"><b>4.5</b> To begin</button><button type="button" class="sw" data-c="46" aria-pressed="true"><b>4.6</b> The card</button><button type="button" class="sw" data-c="47" aria-pressed="true"><b>4.7</b> Claude Code</button><button type="button" class="sw" data-c="48" aria-pressed="true"><b>4.8</b> Its own copy</button><button type="button" class="all" data-all="on">All proposed</button><button type="button" class="all" data-all="off">All today</button></nav>
+<section class="step" id="s1">
+<header><span class="num">1</span><div><h2><code>./temper box</code> <span class="time">0:00</span></h2><p>The terminal turns into temper at once and fetches the box, once for this build. Nothing asks anything yet.</p></div><div class="chips"><span class="chip">4.2</span></div></header>
+<div class="pair"><div class="col web"><figure class="win none"><div class="bar"><i></i><i></i><i></i><span class="addr">no browser yet</span></div><div class="blank">The browser isn’t open yet.</div></figure></div><div class="col tty"><figure class="term "><div class="bar"><i></i><i></i><i></i><span class="addr">~/Downloads · temper box</span></div>
+<div class="scroll"><pre class="tui tui-light">                                                                                
+  <span class="f-accent">▄█▀▀</span>   <span class="bold">temper 0.1.0</span> <span class="f-faint">(b948f40d6df1)</span>                                            
+ <span class="f-accent">▄█▄█▄█</span>  temper box · a whole deployment on this machine                        
+                                                                                
+ <span class="bold">Welcome. Set temper up in your browser: open this link on this machine.</span>        
+                                                                                
+  <span class="f-dim">The link comes here once the box has started.</span>                                 
+                                                                                
+  It signs you in as this temper's owner, once, within 2 hours.                 
+                                                                                
+<span class="w42"> <span class="f-dim">In the browser</span>  1 Start · 2 Model · 3 Ready                                    
+</span><span class="t42"> <span class="f-dim">In the browser</span>  1 Welcome · 2 Forge · 3 Model · 4 Ready                        
+</span>                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+<span class="f-faint">────────────────────────────────────────────────────────────────────────────────</span>
+<span class="f-accent">❯</span> <span class="f-faint">/ for commands</span>                                                                
+<span class="f-faint">────────────────────────────────────────────────────────────────────────────────</span>
+ <span class="f-faint">●</span> Connecting       <span class="f-dim">Downloading temper-box, once for this build: 12.3 of 24.1 MB</span></pre></div><figcaption>The welcome, before the link: the box downloading on the quiet line. <span class="w42">The browser’s steps are three.</span><span class="t42">Today the browser’s steps are four.</span></figcaption></figure></div></div>
+</section><section class="step" id="s2">
+<header><span class="num">2</span><div><h2>The link <span class="time">0:15</span></h2><p>The link appears where the screen said it would. A click opens the browser; the terminal ticks “Signed in as the owner” by itself.</p></div><div class="chips"><span class="chip">4.2</span></div></header>
+<div class="pair"><div class="col web"><figure class="win none"><div class="bar"><i></i><i></i><i></i><span class="addr">no browser yet</span></div><div class="blank">The browser isn’t open yet.</div></figure></div><div class="col tty"><figure class="term "><div class="bar"><i></i><i></i><i></i><span class="addr">~/Downloads · temper box</span></div>
+<div class="scroll"><pre class="tui tui-light">                                                                                
+  <span class="f-accent">▄█▀▀</span>   <span class="bold">temper 0.1.0</span> <span class="f-faint">(b948f40d6df1)</span>                                            
+ <span class="f-accent">▄█▄█▄█</span>  temper box · a whole deployment on this machine                        
+                                                                                
+ <span class="bold">Welcome. Set temper up in your browser: open this link on this machine.</span>        
+                                                                                
+  <span class="f-accent underline">http://127.0.0.1:8367/jig/v1/sign-in/link?secret=…</span>                            
+                                                                                
+  It signs you in as this temper's owner, once, within 2 hours.                 
+                                                                                
+<span class="w42"> <span class="f-dim">In the browser</span>  1 Start · 2 Model · 3 Ready                                    
+</span><span class="t42"> <span class="f-dim">In the browser</span>  1 Welcome · 2 Forge · 3 Model · 4 Ready                        
+</span>                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+<span class="f-faint">────────────────────────────────────────────────────────────────────────────────</span>
+<span class="f-accent">❯</span> <span class="f-faint">/ for commands</span>                                                                
+<span class="f-faint">────────────────────────────────────────────────────────────────────────────────</span>
+ <span class="f-faint">●</span> Connecting                                                     <span class="f-dim">Starting serve</span></pre></div><figcaption>The link, where “The link comes here” stood. One live at a time, for two hours.</figcaption></figure></div></div>
+</section><section class="step" id="s3">
+<header><span class="num">3</span><div><h2>The choice <span class="time">0:20</span></h2><p>Two cards, the first answering the wary question before it is asked: nothing leaves this machine, nothing gets access to your accounts.</p></div><div class="chips"><span class="chip">4.1</span><span class="chip">4.2</span></div></header>
+<div class="pair"><div class="col web"><figure class="win "><div class="bar"><i></i><i></i><i></i><span class="addr">127.0.0.1:8367/welcome</span><a class="open" href="w03-welcome.html" target="_blank" rel="noopener">Open ↗</a></div>
+<iframe src="w03-welcome.html" height="760" loading="lazy" title="The welcome by intent: each card says what it costs. Start goes straight on, with no sheet; the copy and the playground stay behind quiet links.Today: “Set up temper” or “Try the playground”, then two more presses (next frame)."></iframe>
+<figcaption><span class="w41">The welcome by intent: each card says what it costs. Start goes straight on, with no sheet; the copy and the playground stay behind quiet links.</span><span class="t41">Today: “Set up temper” or “Try the playground”, then two more presses (next frame).</span></figcaption></figure><figure class="win t41"><div class="bar"><i></i><i></i><i></i><span class="addr">127.0.0.1:8367/welcome?at=forge</span><a class="open" href="w03-forge.html" target="_blank" rel="noopener">Open ↗</a></div>
+<iframe src="w03-forge.html" height="760" loading="lazy" title="Today only: the Forge step’s choice, then Forgejo’s sheet with its three ways to start. With 4.1 both go."></iframe>
+<figcaption><span class="t41">Today only: the Forge step’s choice, then Forgejo’s sheet with its three ways to start. With 4.1 both go.</span></figcaption></figure></div><div class="col tty"><figure class="term "><div class="bar"><i></i><i></i><i></i><span class="addr">~/Downloads · temper box</span></div>
+<div class="scroll"><pre class="tui tui-light">                                                                                
+  <span class="f-accent">▄█▀▀</span>   <span class="bold">temper 0.1.0</span> <span class="f-faint">(b948f40d6df1)</span>                                            
+ <span class="f-accent">▄█▄█▄█</span>  temper box · a whole deployment on this machine                        
+                                                                                
+ <span class="bold">Setting temper up in your browser</span>                                              
+   <span class="f-good">✓</span> Signed in as the owner                                                     
+<span class="w42">   <span class="f-accent bold">▸</span><span class="bold"> 1 Start</span>                                                                    
+</span><span class="w42">   <span class="f-faint">·</span><span class="f-dim"> 2 Model</span>                                                                    
+</span><span class="w42">   <span class="f-faint">·</span><span class="f-dim"> 3 Ready</span>                                                                    
+</span><span class="w42">                                                                                
+</span><span class="t42">   <span class="f-accent bold">▸</span><span class="bold"> 1 Welcome</span>                                                                  
+</span><span class="t42">   <span class="f-faint">·</span><span class="f-dim"> 2 Forge</span>                                                                    
+</span><span class="t42">   <span class="f-faint">·</span><span class="f-dim"> 3 Model</span>                                                                    
+</span><span class="t42">   <span class="f-faint">·</span><span class="f-dim"> 4 Ready</span>                                                                    
+</span>                                                                                
+ <span class="f-faint">The steps are the browser's; this screen follows them.</span>                         
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+<span class="f-faint">────────────────────────────────────────────────────────────────────────────────</span>
+<span class="f-accent">❯</span> <span class="f-faint">/ for commands</span>                                                                
+<span class="f-faint">────────────────────────────────────────────────────────────────────────────────</span>
+ <span class="f-good">●</span> Live                                                                         </pre></div><figcaption>Signed in; the terminal follows the browser’s steps and takes none.</figcaption></figure></div></div>
+</section><section class="step" id="s4">
+<header><span class="num">4</span><div><h2>Start: the model <span class="time">0:25</span></h2><p>temper is already starting Forgejo with the sample while the person chooses a model: the first good feeling.</p></div><div class="chips"><span class="chip">4.2</span><span class="chip">4.4</span><span class="chip">4.7</span></div></header>
+<div class="pair"><div class="col web"><figure class="win "><div class="bar"><i></i><i></i><i></i><span class="addr">127.0.0.1:8367/welcome?at=model</span><a class="open" href="w04-model.html" target="_blank" rel="noopener">Open ↗</a></div>
+<iframe src="w04-model.html" height="760" loading="lazy" title="Claude first, since a terminal runs in front of this box. Its card says Claude Code is on this machine before it is pressed. The pane names the sample.The pane names an empty repository."></iframe>
+<figcaption>Claude first, since a terminal runs in front of this box. <span class="w47">Its card says Claude Code is on this machine before it is pressed.</span> <span class="w44">The pane names the sample.</span><span class="t44">The pane names an empty repository.</span></figcaption></figure></div><div class="col tty"><figure class="term "><div class="bar"><i></i><i></i><i></i><span class="addr">~/Downloads · temper box</span></div>
+<div class="scroll"><pre class="tui tui-light">                                                                                
+  <span class="f-accent">▄█▀▀</span>   <span class="bold">temper 0.1.0</span> <span class="f-faint">(b948f40d6df1)</span>                                            
+ <span class="f-accent">▄█▄█▄█</span>  temper box · a whole deployment on this machine                        
+                                                                                
+ <span class="bold">Setting temper up in your browser</span>                                              
+   <span class="f-good">✓</span> Signed in as the owner                                                     
+<span class="w42">   <span class="f-good">✓</span> 1 Start<span class="f-dim"> · Forgejo on this machine, fetching 18%</span>                            
+</span><span class="w42">   <span class="f-accent bold">▸</span><span class="bold"> 2 Model</span>                                                                    
+</span><span class="w42">   <span class="f-faint">·</span><span class="f-dim"> 3 Ready</span>                                                                    
+</span><span class="w42">                                                                                
+</span><span class="t42">   <span class="f-good">✓</span> 1 Welcome                                                                  
+</span><span class="t42">   <span class="f-good">✓</span> 2 Forge<span class="f-dim"> · Forgejo on this machine, fetching 18%</span>                            
+</span><span class="t42">   <span class="f-accent bold">▸</span><span class="bold"> 3 Model</span>                                                                    
+</span><span class="t42">   <span class="f-faint">·</span><span class="f-dim"> 4 Ready</span>                                                                    
+</span>                                                                                
+ <span class="f-faint">The steps are the browser's; this screen follows them.</span>                         
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+<span class="f-faint">────────────────────────────────────────────────────────────────────────────────</span>
+<span class="f-accent">❯</span> <span class="f-faint">/ for commands</span>                                                                
+<span class="f-faint">────────────────────────────────────────────────────────────────────────────────</span>
+ <span class="f-good">●</span> Live                                                                         </pre></div><figcaption><span class="w42">“1 Start” ticked</span><span class="t42">“2 Forge” ticked</span> as soon as the forge is kept, still fetching.</figcaption></figure></div></div>
+</section><section class="step" id="s5">
+<header><span class="num">5</span><div><h2>The sign-in <span class="time">0:40</span></h2><p>The try’s most confusing minute: three windows at once, the browser, Anthropic’s tab and the terminal, each saying where to look next.</p></div><div class="chips"><span class="chip">4.7</span></div></header>
+<div class="pair"><div class="col web"><figure class="win "><div class="bar"><i></i><i></i><i></i><span class="addr">127.0.0.1:8367/welcome?at=model</span><a class="open" href="w05-signing-in.html" target="_blank" rel="noopener">Open ↗</a></div>
+<iframe src="w05-signing-in.html" height="640" loading="lazy" title="Pressed: one waiting line, Cancel, and what to do in the terminal."></iframe>
+<figcaption>Pressed: one waiting line, Cancel, and what to do in the terminal.</figcaption></figure><figure class="win "><div class="bar"><i></i><i></i><i></i><span class="addr">127.0.0.1:8367/welcome?at=model</span><a class="open" href="w05-signed-in.html" target="_blank" rel="noopener">Open ↗</a></div>
+<iframe src="w05-signed-in.html" height="560" loading="lazy" title="Signed in, and tried: temper ran one short turn on the plan, so it is known to work."></iframe>
+<figcaption>Signed in, and tried: temper ran one short turn on the plan, so it is known to work.</figcaption></figure><figure class="win w47"><div class="bar"><i></i><i></i><i></i><span class="addr">127.0.0.1:8367/welcome?at=model</span><a class="open" href="w05-no-claude-code.html" target="_blank" rel="noopener">Open ↗</a></div>
+<iframe src="w05-no-claude-code.html" height="640" loading="lazy" title="If Claude Code is not on this machine: said before anything is pressed, and ChatGPT becomes the default."></iframe>
+<figcaption><span class="w47">If Claude Code is not on this machine: said before anything is pressed, and ChatGPT becomes the default.</span></figcaption></figure></div><div class="col tty"><figure class="term "><div class="bar"><i></i><i></i><i></i><span class="addr">~/Downloads · temper box</span></div>
+<div class="scroll"><pre class="tui tui-light">                                                                                
+temper: Claude Code signs in here. Approve it on Anthropic's page, in the tab   
+it opens; if that page shows a code, paste it here. temper comes back when it's 
+done, or when you press Cancel in the browser.                                  
+                                                                                
+<span class="f-faint">(Claude Code's own sign-in: its screens are its own, so they aren't drawn)</span>      
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                </pre></div><figcaption>The terminal lent to Claude Code’s own sign-in, as git lends one to an editor.</figcaption></figure><figure class="term "><div class="bar"><i></i><i></i><i></i><span class="addr">~/Downloads · temper box</span></div>
+<div class="scroll"><pre class="tui tui-light">                                                                                
+  <span class="f-accent">▄█▀▀</span>   <span class="bold">temper 0.1.0</span> <span class="f-faint">(b948f40d6df1)</span>                                            
+ <span class="f-accent">▄█▄█▄█</span>  temper box · a whole deployment on this machine                        
+                                                                                
+ <span class="bold">Setting temper up in your browser</span>                                              
+   <span class="f-good">✓</span> Signed in as the owner                                                     
+<span class="w42">   <span class="f-good">✓</span> 1 Start<span class="f-dim"> · Forgejo on this machine, fetching 64%</span>                            
+</span><span class="w42">   <span class="f-good">✓</span> 2 Model<span class="f-dim"> · Claude subscription, through Claude Code</span>                         
+</span><span class="w42">   <span class="f-accent bold">▸</span><span class="bold"> 3 Ready</span>                                                                    
+</span><span class="w42">                                                                                
+</span><span class="t42">   <span class="f-good">✓</span> 1 Welcome                                                                  
+</span><span class="t42">   <span class="f-good">✓</span> 2 Forge<span class="f-dim"> · Forgejo on this machine, fetching 64%</span>                            
+</span><span class="t42">   <span class="f-good">✓</span> 3 Model<span class="f-dim"> · Claude subscription, through Claude Code</span>                         
+</span><span class="t42">   <span class="f-accent bold">▸</span><span class="bold"> 4 Ready</span>                                                                    
+</span>                                                                                
+ <span class="f-faint">The steps are the browser's; this screen follows them.</span>                         
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+<span class="f-faint">────────────────────────────────────────────────────────────────────────────────</span>
+<span class="f-accent">❯</span> <span class="f-faint">/ for commands</span>                                                                
+<span class="f-faint">────────────────────────────────────────────────────────────────────────────────</span>
+ <span class="f-good">●</span> Live                                                    <span class="f-good">Claude Code signed in</span></pre></div><figcaption>Back, with its notice; the model ticked.</figcaption></figure></div></div>
+</section><section class="step" id="s6">
+<header><span class="num">6</span><div><h2>Ready <span class="time">2:00</span></h2><p>If Forgejo is still starting, Ready says what it waits for, and opens the project by itself.</p></div><div class="chips"><span class="chip">4.3</span></div></header>
+<div class="pair"><div class="col web"><figure class="win "><div class="bar"><i></i><i></i><i></i><span class="addr">127.0.0.1:8367/welcome?at=ready</span><a class="open" href="w06-ready.html" target="_blank" rel="noopener">Open ↗</a></div>
+<iframe src="w06-ready.html" height="640" loading="lazy" title="No field, no press: the project is Hello, after its repository, and opens by itself.Today: a name to type, “Default”, and “Create your project” once both are ready."></iframe>
+<figcaption><span class="w43">No field, no press: the project is Hello, after its repository, and opens by itself.</span><span class="t43">Today: a name to type, “Default”, and “Create your project” once both are ready.</span></figcaption></figure></div><div class="col tty"><figure class="term "><div class="bar"><i></i><i></i><i></i><span class="addr">~/Downloads · temper box</span></div>
+<div class="scroll"><pre class="tui tui-light">                                                                                
+  <span class="f-accent">▄█▀▀</span>   <span class="bold">temper 0.1.0</span> <span class="f-faint">(b948f40d6df1)</span>                                            
+ <span class="f-accent">▄█▄█▄█</span>  temper box · a whole deployment on this machine                        
+                                                                                
+ <span class="bold">Setting temper up in your browser</span>                                              
+   <span class="f-good">✓</span> Signed in as the owner                                                     
+<span class="w42">   <span class="f-good">✓</span> 1 Start<span class="f-dim"> · Forgejo on this machine, starting 80%</span>                            
+</span><span class="w42">   <span class="f-good">✓</span> 2 Model<span class="f-dim"> · Claude subscription, through Claude Code</span>                         
+</span><span class="w42">                                                                                
+</span><span class="t42">   <span class="f-good">✓</span> 1 Welcome                                                                  
+</span><span class="t42">   <span class="f-good">✓</span> 2 Forge<span class="f-dim"> · Forgejo on this machine, starting 80%</span>                            
+</span><span class="t42">   <span class="f-good">✓</span> 3 Model<span class="f-dim"> · Claude subscription, through Claude Code</span>                         
+</span><span class="w43">   <span class="f-accent bold">▸</span><span class="bold"> 3 Ready</span><span class="f-dim"> · Hello opens here by itself once Forgejo is up</span>                    
+</span><span class="t43">   <span class="f-accent bold">▸</span><span class="bold"> 3 Ready</span><span class="f-dim"> · name your first project in the browser</span>                           
+</span>                                                                                
+ <span class="f-faint">The steps are the browser's; this screen follows them.</span>                         
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+<span class="f-faint">────────────────────────────────────────────────────────────────────────────────</span>
+<span class="f-accent">❯</span> <span class="f-faint">/ for commands</span>                                                                
+<span class="f-faint">────────────────────────────────────────────────────────────────────────────────</span>
+ <span class="f-good">●</span> Live                                                                         </pre></div><figcaption>“3 Ready”, waiting with the browser.</figcaption></figure></div></div>
+</section><section class="step" id="s7">
+<header><span class="num">7</span><div><h2>Hello’s Home <span class="time">2:30</span></h2><p>Home offers the first change, fit to the sample, and says what will happen to it.</p></div><div class="chips"><span class="chip">4.4</span><span class="chip">4.5</span><span class="chip">4.8</span></div></header>
+<div class="pair"><div class="col web"><figure class="win "><div class="bar"><i></i><i></i><i></i><span class="addr">127.0.0.1:8367/hello</span><a class="open" href="w07-home.html" target="_blank" rel="noopener">Open ↗</a></div>
+<iframe src="w07-home.html" height="820" loading="lazy" title="To begin, three steps: a first change with three requests, the next handed over once the first has landed, and how you work.Today: the repository ticked and “Tell temper how you work”; no change offered."></iframe>
+<figcaption><span class="w45">To begin, three steps: a first change with three requests, the next handed over once the first has landed, and how you work.</span><span class="t45">Today: the repository ticked and “Tell temper how you work”; no change offered.</span></figcaption></figure></div><div class="col tty"><figure class="term "><div class="bar"><i></i><i></i><i></i><span class="addr">~/Downloads · temper box</span></div>
+<div class="scroll"><pre class="tui tui-light">                                                                                
+  <span class="f-accent">▄█▀▀</span>   <span class="bold">temper 0.1.0</span> <span class="f-faint">(b948f40d6df1)</span>                                            
+ <span class="f-accent">▄█▄█▄█</span>  temper box · a whole deployment on this machine                        
+                                                                                
+<span class="w45"> <span class="bold">Hello is ready.</span> Your agents run on your Claude subscription, and Forgejo       
+</span><span class="w45"> on this machine.                                                               
+</span><span class="w45">                                                                                
+</span><span class="w45"> <span class="bold">To begin</span>                                                                       
+</span><span class="w45">   1 Make a first change with an agent                                          
+</span><span class="w45">       <span class="f-accent">/change</span> Add a --name option                                              
+</span><span class="w45">       <span class="f-accent">/change</span> Greet in Italian with --lang it                                  
+</span><span class="w45">       <span class="f-accent">/change</span> Add a --shout option                                             
+</span><span class="w45">   <span class="f-dim">2 Hand the next one over</span>                            <span class="f-faint">after your first change</span>  
+</span><span class="w45">   3 Tell temper how you work                                        <span class="f-accent">/ask</span>       
+</span><span class="w45">                                                                                
+</span><span class="t45">                                                                                
+</span><span class="t45">                                                                                
+</span><span class="t45">                                                                                
+</span><span class="t45">                                                                                
+</span><span class="t45">                                                                                
+</span><span class="t45">                                                                                
+</span><span class="t45">                                                                                
+</span><span class="t45">                                                                                
+</span><span class="t45">                                                                                
+</span><span class="t45">                                                                                
+</span><span class="t45">                                                                                
+</span> <span class="bold">Start</span>                                                                          
+<span class="w48">   <span class="f-accent">/change</span>   <span class="f-dim">one change, worked with an agent in its own copy</span>                   
+</span><span class="t48">   <span class="f-accent">/change</span>   <span class="f-dim">one change, run as Hello's way says</span>                                
+</span>   <span class="f-accent">/ask</span>      <span class="f-dim">Ask temper</span>                                                         
+                                                                                
+                                                                                
+<span class="f-faint">────────────────────────────────────────────────────────────────────────────────</span>
+<span class="f-accent">❯</span> <span class="f-faint">Ask for a change, or ask temper.  / for commands</span>                              
+<span class="f-faint">────────────────────────────────────────────────────────────────────────────────</span>
+ <span class="f-good">●</span> Live · Hello · Claude Opus 5.5 · high                                        </pre></div><figcaption><span class="w45">The launchpad offers the same first changes.</span><span class="t45">Today the launchpad offers /change and /ask.</span></figcaption></figure></div></div>
+</section><section class="step" id="s8">
+<header><span class="num">8</span><div><h2>The first change <span class="time">3:00</span></h2><p>A chat with an agent in its own copy of work/hello: the person watches it edit and run the test, asks for one more thing, and sees the diff.</p></div><div class="chips"><span class="chip">4.8</span><span class="chip">4.6</span></div></header>
+<div class="pair"><div class="col web"><figure class="win "><div class="bar"><i></i><i></i><i></i><span class="addr">127.0.0.1:8367/hello/chats/1</span><a class="open" href="w08-chat.html" target="_blank" rel="noopener">Open ↗</a></div>
+<iframe src="w08-chat.html" height="820" loading="lazy" title="The chat’s own verbs: Diff in its switch, Land this at its top right, where a draft chat has Start goal. The strip under the conversation says what its copy holds.Today: the chat hands the change to another agent at once, and the person watches a card."></iframe>
+<figcaption><span class="w48">The chat’s own verbs: Diff in its switch, Land this at its top right, where a draft chat has Start goal. The strip under the conversation says what its copy holds.</span><span class="t48">Today: the chat hands the change to another agent at once, and the person watches a card.</span></figcaption></figure><figure class="win w48"><div class="bar"><i></i><i></i><i></i><span class="addr">127.0.0.1:8367/hello/chats/1?split</span><a class="open" href="w08-diff.html" target="_blank" rel="noopener">Open ↗</a></div>
+<iframe src="w08-diff.html" height="820" loading="lazy" title="Show the diff: the chat’s copy against main, beside the conversation."></iframe>
+<figcaption><span class="w48">Show the diff: the chat’s copy against main, beside the conversation.</span></figcaption></figure></div><div class="col tty"><figure class="term "><div class="bar"><i></i><i></i><i></i><span class="addr">~/Downloads · temper box</span></div>
+<div class="scroll"><pre class="tui tui-light"><span class="w48"><span class="f-accent">❯</span> Add a --name option                                                           
+</span><span class="w48">                                                                                
+</span><span class="w48"><span class="f-accent">✦</span> I'll add it to hello and cover it in test.sh, in my own copy of work/hello.   
+</span><span class="w48">                                                                                
+</span><span class="w48"><span class="f-dim">▸ Read hello</span>                                                                    
+</span><span class="w48"><span class="f-dim">▸ Edited hello</span>  <span class="f-good">+5</span> <span class="f-accent">−1</span>                                                           
+</span><span class="w48"><span class="f-faint">    3</span> <span class="f-accent">-echo "Hello, world!"</span>                                                     
+</span><span class="w48"><span class="f-faint">    3</span> <span class="f-good">+name=world</span>                                                               
+</span><span class="w48"><span class="f-faint">    4</span> <span class="f-good">+if [ "$1" = "--name" ]; then</span>                                             
+</span><span class="w48"><span class="f-faint">    5</span> <span class="f-good">+  name=$2</span>                                                                
+</span><span class="w48"><span class="f-faint">    6</span> <span class="f-good">+fi</span>                                                                       
+</span><span class="w48"><span class="f-faint">    7</span> <span class="f-good">+echo "Hello, $name!"</span>                                                     
+</span><span class="w48"><span class="f-dim">▸ Edited test.sh</span>  <span class="f-good">+1</span>                                                            
+</span><span class="w48"><span class="f-dim">▸ Ran sh test.sh</span>  <span class="f-good">passed</span>  <span class="f-faint">1 s</span>                                                   
+</span><span class="w48">                                                                                
+</span><span class="w48"><span class="f-accent">✦</span> hello --name Ada now prints "Hello, Ada!", and the test covers it. With no    
+</span><span class="w48">  option it still says "Hello, world!".                                         
+</span><span class="t48"><span class="f-accent">❯</span> Add a --name option                                                           
+</span><span class="t48">                                                                                
+</span><span class="t48"><span class="f-accent">✦</span> I'll hand this to an agent: it writes the change in a branch of its own, CI   
+</span><span class="t48">  checks it, another agent reviews it, and temper merges it.                    
+</span><span class="t48">                                                                                
+</span><span class="t48"><span class="f-dim">▸ Started a change</span>  <span class="f-faint">1 s</span>                                                         
+</span><span class="t48">                                                                                
+</span><span class="t48 w46"><span class="f-accent">✦</span> <span class="bold">T2 · CHANGE</span>  Add a --name option to hello                              <span class="f-dim">Running</span>
+</span><span class="t48 w46">    <span class="f-accent bold">▸</span> Written by an agent     <span class="f-dim">task 2 is writing it</span>                              
+</span><span class="t48 w46">    <span class="f-faint">·</span> <span class="f-dim">Checked by CI</span>                                                             
+</span><span class="t48 w46">    <span class="f-faint">·</span> <span class="f-dim">Reviewed by an agent</span>                                                      
+</span><span class="t48 w46">    <span class="f-faint">·</span> <span class="f-dim">Landed</span>                                                                    
+</span><span class="t48 t46"><span class="f-accent">✦</span> <span class="bold">T2 · CHANGE</span>  Add a --name option to hello                              <span class="f-dim">Running</span>
+</span><span class="t48 t46">                                                                                
+</span><span class="t48 t46">                                                                                
+</span><span class="t48 t46">                                                                                
+</span><span class="t48 t46">                                                                                
+</span>                                                                                
+                                                                                
+                                                                                
+<span class="w48"><span class="f-faint">────────────────────────── </span><span class="f-dim">Hello / Add a --name… T1</span> · its copy: 2 files +6 −1<span class="f-faint"> ──</span>
+</span><span class="t48"><span class="f-faint">───────────────────────────────────────────── </span><span class="f-dim">Hello / Add a --name… T1</span> on box<span class="f-faint"> ──</span>
+</span><span class="w48"><span class="f-accent">❯</span> <span class="f-faint">Reply · /diff shows the change · /land lands it</span>                               
+</span><span class="t48"><span class="f-accent">❯</span> <span class="f-faint">Reply</span>                                                                         
+</span><span class="f-faint">────────────────────────────────────────────────────────────────────────────────</span>
+ <span class="f-good">●</span> Live · Hello · Claude Opus 5.5 · high                                        </pre></div><figcaption><span class="w48">The same chat: edits as diffs as they are made; /diff and /land in the box.</span><span class="t48">Today’s change chat in the terminal.</span></figcaption></figure></div></div>
+</section><section class="step" id="s9">
+<header><span class="num">9</span><div><h2>Land this <span class="time">3:40</span></h2><p>The person’s act. temper opens a change from the chat’s branch; the agent they worked with cannot merge it, and neither can the one that reviews it.</p></div><div class="chips"><span class="chip">4.8</span><span class="chip">4.6</span></div></header>
+<div class="pair"><div class="col web"><figure class="win "><div class="bar"><i></i><i></i><i></i><span class="addr">127.0.0.1:8367/hello/chats/1</span><a class="open" href="w09-checking.html" target="_blank" rel="noopener">Open ↗</a></div>
+<iframe src="w09-checking.html" height="760" loading="lazy" title="The card says the line, step by step, each with its fact.Today the browser shows the card as one line."></iframe>
+<figcaption><span class="w46">The card says the line, step by step, each with its fact.</span><span class="t46">Today the browser shows the card as one line.</span></figcaption></figure><figure class="win "><div class="bar"><i></i><i></i><i></i><span class="addr">127.0.0.1:8367/hello/chats/1</span><a class="open" href="w09-asked.html" target="_blank" rel="noopener">Open ↗</a></div>
+<iframe src="w09-asked.html" height="760" loading="lazy" title="If the review asks for a change: it comes back into the same chat, the agent fixes it with the person, and Land this again.an agent repairs it, 1 of 3."></iframe>
+<figcaption>If the review asks for a change: <span class="w48">it comes back into the same chat, the agent fixes it with the person, and Land this again.</span><span class="t48">an agent repairs it, 1 of 3.</span></figcaption></figure></div><div class="col tty"><figure class="term w48"><div class="bar"><i></i><i></i><i></i><span class="addr">~/Downloads · temper box</span></div>
+<div class="scroll"><pre class="tui tui-light"><span class="f-accent">✦</span> Done: hello -n Ada works too. It's ready when you are.                        
+                                                                                
+<span class="f-dim">▸ Edited hello</span>  <span class="f-good">+1</span> <span class="f-accent">−1</span>                                                           
+<span class="f-dim">▸ Edited test.sh</span>  <span class="f-good">+1</span>                                                            
+<span class="f-dim">▸ Ran sh test.sh</span>  <span class="f-good">passed</span>  <span class="f-faint">1 s</span>                                                   
+                                                                                
+<span class="f-faint">────────────────────────── </span><span class="f-dim">Hello / Add a --name… T1</span> · its copy: 2 files +7 −1<span class="f-faint"> ──</span>
+<span class="f-accent">❯</span> /land                                                                         
+<span class="f-faint">────────────────────────────────────────────────────────────────────────────────</span>
+<span class="bold">Land this chat's change?</span> 2 files, +7 −1; its test passed in its copy.           
+<span class="f-dim">CI checks it, another agent reviews it, and temper merges it.</span>                   
+<span class="f-accent">❯</span> 1. Land it                                                                    
+  2. Show the diff first                                                        
+  3. Not yet                                                                    </pre></div><figcaption><span class="w48">/land asks first, with the diff one key away.</span></figcaption></figure><figure class="term "><div class="bar"><i></i><i></i><i></i><span class="addr">~/Downloads · temper box</span></div>
+<div class="scroll"><pre class="tui tui-light"><span class="f-dim">▸ Pushed chat-1</span>  <span class="f-dim">2 files · 3f2a1c9</span>                                              
+                                                                                
+<span class="w46"><span class="f-accent">✦</span> <span class="bold">T2 · CHANGE</span>  Add a --name option to hello                              <span class="f-dim">Running</span>
+</span><span class="w46">    <span class="f-good">✓</span> Written with you        <span class="f-dim">this chat · 2 files</span>                               
+</span><span class="w46">    <span class="f-accent bold">▸</span> Checked by CI           <span class="f-dim">running at 3f2a1c9</span>                                
+</span><span class="w46">    <span class="f-faint">·</span> <span class="f-dim">Reviewed by an agent</span>                                                      
+</span><span class="w46">    <span class="f-faint">·</span> <span class="f-dim">Landed</span>                                                                    
+</span><span class="t46"><span class="f-accent">✦</span> <span class="bold">T2 · CHANGE</span>  Add a --name option to hello                              <span class="f-dim">Running</span>
+</span><span class="t46">                                                                                
+</span><span class="t46">                                                                                
+</span><span class="t46">                                                                                
+</span><span class="t46">                                                                                
+</span>                                                                                
+<span class="f-accent">✦</span> temper has it now: CI first, then another agent's review. Neither of us can   
+  merge it: temper does, if both pass. Anything they find comes back here.      
+                                                                                
+                                                                                
+<span class="f-faint">─────────────────────────────────────── </span><span class="f-dim">Hello / Add a --name… T1</span> · landing T2<span class="f-faint"> ──</span>
+<span class="f-accent">❯</span> <span class="f-faint">Reply · /diff shows the change</span>                                                
+<span class="f-faint">────────────────────────────────────────────────────────────────────────────────</span>
+ <span class="f-good">●</span> Live · Hello · Claude Opus 5.5 · high                                        </pre></div><figcaption><span class="w48">Pushed; the card under way.</span><span class="t48">Today’s card, running.</span></figcaption></figure></div></div>
+</section><section class="step" id="s10">
+<header><span class="num">10</span><div><h2>Landed <span class="time">5:30</span></h2><p>The same commit three times: what was checked is what was reviewed is what was merged, and the last line is temper’s.</p></div><div class="chips"><span class="chip">4.6</span><span class="chip">4.8</span></div></header>
+<div class="pair"><div class="col web"><figure class="win "><div class="bar"><i></i><i></i><i></i><span class="addr">127.0.0.1:8367/hello/chats/1</span><a class="open" href="w10-landed.html" target="_blank" rel="noopener">Open ↗</a></div>
+<iframe src="w10-landed.html" height="760" loading="lazy" title="Four facts, one commit.Today: “CI passed. Landed · merge commit 7d41e2a”."></iframe>
+<figcaption><span class="w46">Four facts, one commit.</span><span class="t46">Today: “CI passed. Landed · merge commit 7d41e2a”.</span></figcaption></figure></div><div class="col tty"><figure class="term "><div class="bar"><i></i><i></i><i></i><span class="addr">~/Downloads · temper box</span></div>
+<div class="scroll"><pre class="tui tui-light"><span class="w46"><span class="f-accent">✦</span> <span class="bold">T2 · CHANGE</span>  Add a --name option to hello                               <span class="f-good">Landed</span>
+</span><span class="w46">    <span class="f-good">✓</span> Written with you        <span class="f-dim">this chat · 2 files</span>                               
+</span><span class="w46">    <span class="f-good">✓</span> Checked by CI           <span class="f-dim">passed at 3f2a1c9</span>                                 
+</span><span class="w46">    <span class="f-good">✓</span> Reviewed by an agent    <span class="f-dim">task 3 approved 3f2a1c9: "Adds --name and -n,</span>     
+</span><span class="w46">                              <span class="f-dim">with tests."</span>                                      
+</span><span class="w46">    <span class="f-good">✓</span> Landed                  <span class="f-dim">merged 3f2a1c9 into main, by temper</span>               
+</span><span class="t46"><span class="f-accent">✦</span> <span class="bold">T2 · CHANGE</span>  Add a --name option to hello                               <span class="f-good">Landed</span>
+</span><span class="t46">                                                                                
+</span><span class="t46">                                                                                
+</span><span class="t46">                                                                                
+</span><span class="t46">                                                                                
+</span><span class="t46">                                                                                
+</span>                                                                                
+<span class="f-accent">✦</span> Landed. My copy has moved to main's new head: ask for the next change here.   
+                                                                                
+                                                                                
+<span class="f-faint">───────────────────────────────── </span><span class="f-dim">Hello / Add a --name… T1</span> · its copy at main<span class="f-faint"> ──</span>
+<span class="f-accent">❯</span> <span class="f-faint">Reply · /diff · /land</span>                                                         
+<span class="f-faint">────────────────────────────────────────────────────────────────────────────────</span>
+ <span class="f-good">●</span> Live · Hello · Claude Opus 5.5 · high                                        </pre></div><figcaption>Landed, in the terminal.</figcaption></figure></div></div>
+</section><section class="step" id="s11">
+<header><span class="num">11</span><div><h2>The next, handed over <span class="time">5:45</span></h2><p>The climb, offered: the next change runs by itself while the person watches, the rung above the one they started on.</p></div><div class="chips"><span class="chip">4.5</span><span class="chip">4.8</span><span class="chip">4.6</span></div></header>
+<div class="pair"><div class="col web"><figure class="win "><div class="bar"><i></i><i></i><i></i><span class="addr">127.0.0.1:8367/hello</span><a class="open" href="w11-home.html" target="_blank" rel="noopener">Open ↗</a></div>
+<iframe src="w11-home.html" height="760" loading="lazy" title="Back on Home: “Hand the next one over”, with the two requests left.Today To begin has no change in it."></iframe>
+<figcaption><span class="w45 w48">Back on Home: “Hand the next one over”, with the two requests left.</span><span class="t45">Today To begin has no change in it.</span></figcaption></figure><figure class="win "><div class="bar"><i></i><i></i><i></i><span class="addr">127.0.0.1:8367/hello/chats/4</span><a class="open" href="w11-handed-over.html" target="_blank" rel="noopener">Open ↗</a></div>
+<iframe src="w11-handed-over.html" height="640" loading="lazy" title="Handed over: no chat to steer, the card ticking by itself."></iframe>
+<figcaption>Handed over: no chat to steer, the card ticking by itself.</figcaption></figure></div><div class="col tty"><figure class="term "><div class="bar"><i></i><i></i><i></i><span class="addr">~/Downloads · temper box</span></div>
+<div class="scroll"><pre class="tui tui-light">                                                                                
+  <span class="f-accent">▄█▀▀</span>   <span class="bold">temper 0.1.0</span> <span class="f-faint">(b948f40d6df1)</span>                                            
+ <span class="f-accent">▄█▄█▄█</span>  temper box · a whole deployment on this machine                        
+                                                                                
+ <span class="bold">Hello:</span> your first change landed; the next is being written.                    
+                                                                                
+ <span class="bold">Where you left off</span>                                                             
+   Greet in Italian, a change · just now · <span class="f-accent">Working</span>                              
+   Add a --name option, a chat · 4 min ago · <span class="f-good">Landed</span>                             
+                                                                                
+<span class="w45"> <span class="bold">To begin</span>                                                                       
+</span><span class="w45">   <span class="f-good">✓</span> <span class="f-dim">1 Your first change landed · Add a --name option</span>                           
+</span><span class="w45">   <span class="f-accent bold">▸</span> 2 Hand the next one over · Greet in Italian, working                       
+</span><span class="w45">   3 Tell temper how you work                                        <span class="f-accent">/ask</span>       
+</span><span class="w45">                                                                                
+</span><span class="t45">                                                                                
+</span><span class="t45">                                                                                
+</span><span class="t45">                                                                                
+</span><span class="t45">                                                                                
+</span><span class="t45">                                                                                
+</span> <span class="bold">Start</span>                                                                          
+<span class="w48">   <span class="f-accent">/change</span>   <span class="f-dim">one change, worked with an agent in its own copy</span>                   
+</span><span class="t48">   <span class="f-accent">/change</span>   <span class="f-dim">one change, run as Hello's way says</span>                                
+</span>   <span class="f-accent">/ask</span>      <span class="f-dim">Ask temper</span>                                                         
+                                                                                
+                                                                                
+<span class="f-faint">────────────────────────────────────────────────────────────────────────────────</span>
+<span class="f-accent">❯</span> <span class="f-faint">Ask for a change, or ask temper.  / for commands</span>                              
+<span class="f-faint">────────────────────────────────────────────────────────────────────────────────</span>
+ <span class="f-good">●</span> Live · Hello · Claude Opus 5.5 · high                                        </pre></div><figcaption>The launchpad, the next change working.</figcaption></figure></div></div>
+</section>
+<footer class="foot"><p>Not drawn: Anthropic’s and Claude Code’s own screens, Forgejo’s pages, GitHub’s path (the draft’s section 6) and the playground (section 7).</p></footer>
+</main>
+<script src="index.js"></script>
+</body>
+</html>

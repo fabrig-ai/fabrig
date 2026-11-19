@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Hello · trying temper</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap">
+<link rel="stylesheet" href="../../client/web/greenfield/mock.css">
+<link rel="stylesheet" href="trying.css">
+<script src="frame.js"></script>
+</head>
+<body>
+<div class="app"><nav class="rail" aria-label="Hello">
+<a class="brand t-brand" href="#">temper <span class="t-live">Live</span></a>
+<div class="t-switch"><details class="switcher"><summary>Hello</summary></details><a class="t-repo" href="#">work/hello ↗</a></div>
+<div class="nav"><a href="#" aria-current="page"><span>Home</span></a><a href="#"><span>Ask temper</span></a><span class="t-sep"></span><a href="#"><span>How work runs</span></a></div>
+<a class="new" href="#">+ New change</a>
+<div class="rail-foot"><a href="#">Deployment</a><span>Owner</span></div>
+</nav><main class="main"><div class="col">
+<header class="intro"><p class="kicker">Thursday, 00:42</p><h1 class="headline">Hello is ready.</h1>
+<p class="lede">Your agents run on your Claude subscription, and Forgejo on this machine. <a class="link t-small" href="#">Add ChatGPT or another plan</a></p></header>
+<section class="section" aria-labelledby="begin">
+<div class="section-head"><h2 class="section-title" id="begin">To begin <span class="t-tag">Optional</span></h2><button type="button" class="link plain t-small">Skip</button></div>
+<p class="facts w45">Three steps. Skip them if you like; your changes stay in Work, and how you work in Ask temper.</p>
+<p class="facts t45">One step left. Skip it if you like; it stays in Ask temper.</p>
+<ol class="begin w45">
+<li><span class="mark" aria-hidden="true">1</span><div><p class="t">Make a first change with an agent</p>
+<p class="x w48">It works in its own copy of work/hello, in front of you; when you say so, CI checks it, another agent reviews it, and temper merges it.</p>
+<p class="x t48">An agent writes it in a branch of its own; CI checks it, another agent reviews it, and temper merges it, while you watch.</p>
+<p class="x t-small w44">work/hello is a greeting script, its test, and a CI check that runs the test. <a class="link" href="#">Open on Forgejo ↗</a></p>
+<div class="acts"><button type="button" class="btn primary small">Add a --name option</button><button type="button" class="btn small">Greet in Italian with --lang it</button><button type="button" class="btn small">Add a --shout option</button></div></div></li>
+<li class="w48 t-later"><span class="mark" aria-hidden="true">2</span><div><p class="t">Hand the next one over</p><p class="x">An agent writes it, checks it and lands it while you do something else. After your first change.</p></div></li>
+<li><span class="mark" aria-hidden="true">3</span><div><p class="t">Tell temper how you work</p><p class="x">In your own words: how you plan, review and land work. temper proposes how it will run that, and nothing changes until you accept.</p><div class="acts"><button type="button" class="btn small">Start</button></div></div></li>
+</ol>
+<ol class="begin t45">
+<li class="done"><span class="mark" aria-hidden="true">✓</span><div><p class="t">work/hello is in Hello</p><p class="x">temper can change its code now.</p></div></li>
+<li><span class="mark" aria-hidden="true">2</span><div><p class="t">Tell temper how you work</p><p class="x">In your own words: how you plan, review and land work. temper proposes how it will run that, and nothing changes until you accept.</p><div class="acts"><button type="button" class="btn primary small">Start</button></div></div></li>
+</ol>
+<p class="facts w45">Your own code: <a class="link" href="#">copy a public repository</a>, or <a class="link" href="#">connect GitHub</a> ›</p>
+</section>
+</div></main></div>
+</body>
+</html>

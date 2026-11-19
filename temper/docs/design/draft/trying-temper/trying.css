@@ -1,0 +1,85 @@
+/* The try's mockups: what they add to the greenfield mock's look
+   (trying-temper.md, section 8). Each change of the draft's section 4
+   draws with .wNN and today's page with .tNN; frame.js hides one. */
+html.off-41 .w41 { display: none !important; }
+html:not(.off-41) .t41 { display: none !important; }
+html.off-42 .w42 { display: none !important; }
+html:not(.off-42) .t42 { display: none !important; }
+html.off-43 .w43 { display: none !important; }
+html:not(.off-43) .t43 { display: none !important; }
+html.off-44 .w44 { display: none !important; }
+html:not(.off-44) .t44 { display: none !important; }
+html.off-45 .w45 { display: none !important; }
+html:not(.off-45) .t45 { display: none !important; }
+html.off-46 .w46 { display: none !important; }
+html:not(.off-46) .t46 { display: none !important; }
+html.off-47 .w47 { display: none !important; }
+html:not(.off-47) .t47 { display: none !important; }
+html.off-48 .w48 { display: none !important; }
+html:not(.off-48) .t48 { display: none !important; }
+
+code { font-family: var(--mono); font-size: .88em; padding: 1px 5px; border-radius: 5px; background: var(--hover); }
+.t-small { font-size: 13.5px; }
+.t-ink2 { color: var(--ink-2); }
+
+/* The welcome's cards, by what the person wants (4.1). */
+.t-costs { margin: 12px 0 0; padding: 0; list-style: none; font-size: 14px; color: var(--ink-2); }
+.t-costs li { position: relative; padding-left: 14px; }
+.t-costs li::before { content: '·'; position: absolute; left: 2px; color: var(--faint); }
+.choice .acts .t-more { flex-basis: 100%; margin-top: 2px; font-size: 13.5px; color: var(--muted); }
+.t-found { margin-top: 8px; font-size: 13.5px; color: var(--good); }
+.t-missing { margin-top: 8px; font-size: 14px; color: var(--signal-ink); }
+.forge-status .t-sub { margin: 4px 0 0 22px; font-size: 13px; color: var(--muted); }
+.t-meter { height: 4px; margin: 10px 0 0 22px; border-radius: 2px; background: var(--line); overflow: hidden; }
+.checklist .t-meter { margin-left: 0; max-width: 320px; }
+.t-meter i { display: block; width: var(--p); height: 100%; background: var(--ink); }
+.checklist .current .mark { border-color: transparent; }
+.t-backdrop { position: fixed; inset: 0; background: rgba(24, 24, 27, .32); }
+dialog.sheet.t-open-sheet { position: fixed; top: 40px; margin: 0 auto; z-index: 5; }
+
+/* Home's To begin (4.5). */
+.t-tag { margin-left: 8px; padding: 1px 8px; border: 1px solid var(--line-2); border-radius: 10px; font-size: 11px; font-weight: 500; letter-spacing: .02em; text-transform: none; color: var(--muted); }
+.begin li.t-later .t, .begin li.t-later .x { color: var(--hint); }
+.begin .x.t-small { margin-top: 8px; }
+.t-brand { justify-content: space-between; }
+.t-live { font-size: 12px; font-weight: 400; color: var(--good); }
+.t-live::before { content: '●'; margin-right: 4px; }
+.t-switch { display: flex; flex-direction: column; gap: 6px; }
+.t-sep { height: 1px; margin: 8px 10px; background: var(--line); }
+.t-repo { padding: 0 10px; font: 12px var(--mono); color: var(--faint); text-decoration: none; }
+
+/* A chat in its own copy (4.8): its strip, its diff. */
+.t-group { display: contents; }
+.t-elided { color: var(--hint); }
+.t-strip { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 6px 14px; max-width: 720px; margin: 0 auto 10px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); font-size: 13px; color: var(--muted); }
+.t-strip b { font-weight: 500; color: var(--ink); }
+.t-strip button { font-size: 13px; }
+.t-file { display: flex; justify-content: space-between; font: 500 13.5px var(--mono) !important; }
+.t-file span { color: var(--faint); font-weight: 400; }
+.t-diff { margin: 0 0 8px; padding: 10px 0; overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; font: 12.5px/1.6 var(--mono); color: var(--ink-2); white-space: pre; }
+.t-diff > span { display: block; min-width: max-content; padding: 0 12px; }
+.t-diff .add { background: #eef6f0; color: #14532d; }
+.t-diff .del { background: #fdf0ec; color: var(--signal-ink); }
+.t-diff .hunk { color: var(--hint); }
+
+/* The card says the line (4.6). */
+.t-card { padding: 14px 16px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.t-card-top { display: flex; justify-content: space-between; font: 12px var(--mono); letter-spacing: .02em; color: var(--faint); }
+.t-state.t-running { color: var(--ink-2); }
+.t-state.t-landed { color: var(--good); }
+.t-state.t-waiting { color: var(--signal-ink); }
+.t-card h3 { margin: 4px 0 12px; font-size: 15.5px; font-weight: 500; }
+.t-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 7px; font-size: 14px; }
+.t-steps li { display: grid; grid-template-columns: 20px 170px minmax(0, 1fr); align-items: baseline; }
+.t-mk { color: var(--faint); }
+.t-done .t-mk { color: var(--good); }
+.t-now .t-mk, .t-now .t-nm { color: var(--ink); font-weight: 500; }
+.t-fail .t-mk { color: var(--signal); }
+.t-todo .t-nm { color: var(--hint); }
+.t-fx { font-size: 13.5px; color: var(--muted); }
+.t-fail .t-fx { color: var(--signal-ink); }
+.t-open { display: inline-block; margin-top: 10px; font-size: 13px; color: var(--muted); }
+@media (max-width: 760px) {
+  .t-steps li { grid-template-columns: 20px minmax(0, 1fr); }
+  .t-fx { grid-column: 2; }
+}

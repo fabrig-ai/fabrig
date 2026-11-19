@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Connect a forge · trying temper</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap">
+<link rel="stylesheet" href="../../client/web/greenfield/mock.css">
+<link rel="stylesheet" href="trying.css">
+<script src="frame.js"></script>
+</head>
+<body>
+<div class="setup">
+<header class="setup-top"><a class="brand" href="#">temper</a><ol class="steps w42"><li aria-current="step"><a href="#"><span class="n">1</span><span class="l">Start</span></a></li><li><a href="#"><span class="n">2</span><span class="l">Model</span></a></li><li><a href="#"><span class="n">3</span><span class="l">Ready</span></a></li></ol><ol class="steps t42"><li class="done"><a href="#"><span class="n">✓</span><span class="l">Welcome</span></a></li><li aria-current="step"><a href="#"><span class="n">2</span><span class="l">Forge</span></a></li><li><a href="#"><span class="n">3</span><span class="l">Model</span></a></li><li><a href="#"><span class="n">4</span><span class="l">Ready</span></a></li></ol></header>
+<main class="setup-main">
+<header class="setup-head">
+<h1 class="headline">Connect a forge</h1>
+<p class="lede">Where your code lives: you tell temper what you want, agents push and land code.</p>
+</header>
+<div class="choices-list">
+<section class="choice lead"><div><h2>Forgejo</h2><p>A forge of your own: temper starts it on this machine and manages it. You can import existing repositories into it, from GitHub or elsewhere.</p><p class="meta">Here · about a minute</p></div><div class="acts"><button type="button" class="btn primary">Run on this machine</button></div></section>
+<section class="choice"><div><h2>GitHub</h2><p>Your repositories on GitHub. temper makes its own App there; you choose the account and the repositories it may use.</p><p class="meta">In this tab, on GitHub · about two minutes</p></div><div class="acts"><button type="button" class="btn">Connect GitHub</button></div></section>
+</div>
+<div class="t-backdrop"></div>
+<dialog class="sheet t-open-sheet" open><form data-pick="empty">
+<div class="sheet-head"><h2>Forgejo on this machine</h2><p class="muted">temper starts it here and connects to it; you connect your model meanwhile.</p></div>
+<fieldset><legend>Start it with</legend>
+<label class="option"><input type="radio" name="start" checked><b>An empty repository</b><small>A README and a starter CI check.</small></label>
+<div class="option-more more-empty"><div><label>Organization</label><input class="text" value="work"></div><div><label>Name</label><input class="text" value="hello"></div></div>
+<label class="option"><input type="radio" name="start"><b>Copies of public repositories</b><small>Copied into your Forgejo from GitHub or another git host, to play around with. Nothing is sent back.</small></label>
+<label class="option"><input type="radio" name="start"><b>Nothing for now</b><small>Your first project opens with no repository. Make or copy one later from temper’s UI, or adopt one you push yourself.</small></label>
+</fieldset>
+<div class="foot"><button type="button" class="btn">Cancel</button><button type="button" class="btn primary">Run on this machine</button></div>
+</form></dialog>
+</main>
+</div>
+</body>
+</html>

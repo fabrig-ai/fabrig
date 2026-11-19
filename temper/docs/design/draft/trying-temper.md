@@ -12,7 +12,10 @@ working, offline (section 7); and a rung below Pair, a person working
 with one agent in its own copy of the repository, as with a coding
 agent, without a chat that delegates to another (4.8). The try's first
 change is worked that way. GitHub's way is the second path, designed
-next (section 6). On paper first; the mockups follow (section 8).
+next (section 6). On paper first; the mockups follow (section 8). On
+2026-11-19 the user took the paper as sound, settled that Pair names the
+new rung, rung 0, and asked how the try fits the bigger picture
+(section 10); the mockups' first pass is `trying-temper/index.html`.
 
 ## 1. In one page
 
@@ -432,6 +435,30 @@ The recorded frames stand for steps 1, 2 and the Model step's first
 frame. A recording of the whole try, once its changes land, is a walk
 after landing, and measures section 3's times.
 
+**The first pass,** 2026-11-19: `trying-temper/index.html`, the eleven
+steps in order, sixteen browser pages and twelve terminal frames, each
+change of section 4 under its switch (`trying-temper/README.md`). What
+drawing them showed:
+
+- **Today's Home offers no first change:** while To begin shows, the
+  rail keeps Home and Ask temper, and To begin's steps are the
+  repository, already ticked, and "Tell temper how you work"
+  (`../client/pages/home.md`, 1). A person who came to see a change made
+  finds it only in the rail's "+ New change". 4.5 is the try's turn
+  from setting up to working, not a nicety.
+- **The terminal needs To begin too:** the launchpad offers `/change`
+  and `/ask` (`../client/tui/pages/launchpad.md`, 7), and nothing fit to
+  the sample. Drawn as a section of its own, "To begin", the browser's
+  three steps with their requests as `/change` lines: 4.5 for both.
+- **A chat in its own copy has verbs of its own:** Diff in its switch
+  beside Chat and Split, and "Land this" at its top right, where a
+  draft chat has "Start goal…"; in the terminal, `/diff` and `/land` in
+  the box's hint, and `/land` asking first. Section 10.
+- **A change waiting on its chat:** when the review asks for a change
+  of a change landed from a chat, the change waits for the chat's next
+  "Land this". The card says "Waiting", a state today's cards lack
+  (`../client/view.md`, 5), its step "back in this chat". 4.6 and 4.8.
+
 ## 9. Open questions
 
 - **The sample's language:** POSIX `sh`, which needs nothing more, or a
@@ -439,13 +466,41 @@ after landing, and measures section 3's times.
   toolchain on the machine. Default: `sh`.
 - **Ready with no press:** some people may want a moment to name the
   project. Default: no press; the switcher renames it.
-- **The rung's name:** working with an agent in its own copy is what
-  "pair programming" names, so "Pair" fits it better than the rung
-  above, where the person approves each change a delegated agent made
-  (the UX draft's rung 1). Default: none chosen here; the names are the
-  user's, in 4.8's own draft.
+- **The rung's name:** settled, the user's (2026-11-19): working with an
+  agent in its own copy is Pair, rung 0, below the UX draft's rung 1.
+  Rung 1, where the person approves each change a delegated agent made,
+  takes another name, the user's to give. Proposed: "Review", since the
+  person's part there is reviewing each change.
 - **The first change's rung:** worked with an agent (4.8), or handed
   over as today, the try then needing nothing of 4.8. Default: worked
   with an agent, the try's first change waiting for it; until it lands,
   the try's first change is a delegated one, its card saying "Written by
   an agent".
+
+## 10. The bigger picture
+
+The user's word (2026-11-19): the UX draft lets a person move between
+rungs freely, the verbs staying the same and only the noun changing;
+"each rung needs some 'sub verbs' of its own (/land, /diff) not
+applicable to others, so probably both the TUI and the web UI will need
+to be a bit 'contextual'". And: "One exercise we'll have to do is to
+design how each rung feels and works in a 'real' / day-2 deployment
+(be it temper box, which is totally adequate and just differs in the
+scale of what it can do, limited by hw, or a full fledge temper-engine
++ temper-workers deployment)." Baby steps first: the try's mockups.
+
+- **The five verbs stay:** Start, Answer, Look, Tell and Tune, the UX
+  draft's, its section 3.2, on its own branch for now, on every rung.
+- **A rung's own verbs are those five at its size,** shown where its
+  work is: a chat says which rung it works at, and its page offers that
+  rung's forms and no other's. As drawn for the try (section 8), a chat
+  in its own copy, rung 0, has "Land this", its Start, and Diff, its
+  Look (`/land`, `/diff`); a draft chat has "Start goal…" and its draft
+  (`/goal`, `/draft`); a chat that delegates has the card it waits on,
+  and nothing to land. The places are fixed, the chat's switch, its top
+  right and the box's hint; what stands in them is the rung's.
+- **The day-2 exercise:** each rung designed again at day 2, on a box
+  and on an engine with its workers: what the person opens in the
+  morning, how a rung's work is found again, and what differs only in
+  scale. After the try's mockups and GitHub's path, one rung at a time,
+  each its own draft, as 4.8's is.
