@@ -157,7 +157,7 @@ fn largest_roots_stay_within_decoded_bounds() {
     family!(
         CAP,
         jig_protocol_store::STORE_FAMILIES.get(5).expect("store family").current,
-        jig_protocol_store::people_v17, sealed,
+        jig_protocol_store::people_v17, lean,
         limits [
             segment_bytes,
             identity_key_subject,
