@@ -856,17 +856,90 @@ fn a_full_length_id_stays_in_the_panel_and_has_an_explicit_report_remainder() {
 #[test]
 fn a_many_verdict_keeps_its_explicit_word_and_blamed_commit() {
     let mut failures = Vec::new();
-    for at in 0..17 {
-        failures.extend_from_slice(format!("test-{at}\n").as_bytes());
+    for at in (0..17).rev() {
+        failures.extend_from_slice(format!("t{at:02}\n").as_bytes());
     }
     let (mut world, red) = failed_landing(&failures, true);
     let forge_top::PanelStep::Red { tiers, .. } = panel(&mut world, red) else { panic!("red panel") };
     assert_eq!(tiers.as_ref(), [Box::<[u8]>::from("slow run 2 · owns many tests".as_bytes())]);
+    // The lowest sixteen, despite the report's descending order.
+    let ids: Vec<_> = (0..16).map(|at| format!("t{at:02}")).collect();
+    let quoted = ids.iter().map(|id| format!("\"{id}\"")).collect::<Vec<_>>().join(", ");
     let expected = format!(
-        "Tier slow run 2: red, many tests failing, blamed on 1 landing\n{} owns: many tests; change show {red}",
+        "Tier slow run 2: red, many tests failing, blamed on 1 landing\n{} owns: many tests; change show {red}\nIts report names: {quoted} and 1 more.",
         String::from_utf8(forge_top::commit_text(&merge(&world, red)).into_vec()).expect("commit text is UTF-8")
     );
     tier_done(&world, 2, &expected);
+    let pull = change(&world, red).pull.expect("member pull");
+    let names = ids.join(", ");
+    let prefix =
+        format!("Red: slow run 2 blames this landing for many tests; its report names {names}, and 1 more.\n\nRun: ");
+    assert!(world.writes.iter().any(|write| matches!(write, skein_forge::api::Write::Post { number, body, .. } if *number == pull && body.starts_with(prefix.as_bytes()))));
+}
+
+#[test]
+fn any_task_reads_a_logged_landings_red_tests_and_many_report_names() {
+    for many in [false, true] {
+        let mut failures = Vec::new();
+        for at in 0..if many { 17 } else { 2 } {
+            failures.extend_from_slice(format!("suite::t{at:02}\n").as_bytes());
+        }
+        let (mut world, red) = failed_landing(&failures, many);
+        let landing = merge(&world, red);
+        let unlogged = change(&world, red).change.last_head.unwrap();
+        assert_ne!(landing, unlogged);
+        let tasks::Party::Task(caller) = task(&world, red).requester else { panic!("requester") };
+        let caller = world.assigned.iter().rev().find(|run| run.task == caller).expect("unrelated chat run").clone();
+        for (at, commit) in [landing, unlogged].into_iter().enumerate() {
+            let raw_head = u64::from_be_bytes(commit[8..16].try_into().unwrap());
+            world.external(
+                1,
+                raw::Op::Write(raw::Write::Status {
+                    commit: raw_head,
+                    context: b"own-check".as_slice().into(),
+                    state: raw::Check::Passed,
+                    description: b"forge description".as_slice().into(),
+                    link: Box::new([]),
+                }),
+            );
+            let input =
+                format!(r#"{{"commit":"{}"}}"#, String::from_utf8(forge_top::commit_text(&commit).into_vec()).unwrap());
+            let answer = change_tool::named_read(
+                &mut world,
+                &caller,
+                500 + u32::try_from(at).unwrap(),
+                b"read_checks",
+                input.as_bytes(),
+            );
+            let engine::CallAnswer::ForgeRead(result) = &answer else { panic!("forge read") };
+            let Ok(skein_forge::api::Answer::Checks(statuses)) = result.as_ref() else { panic!("checks") };
+            assert!(statuses.iter().any(|row| row.context.as_ref() == b"own-check" && row.description.as_ref() == b"forge description"));
+            if commit == unlogged {
+                assert!(!statuses.iter().any(|row| {
+                    row.description
+                        .windows(b"found this landing red".len())
+                        .any(|part| part == b"found this landing red")
+                }));
+                continue;
+            }
+            let (local, forge) = statuses.split_last().expect("local red row");
+            assert!(forge.iter().any(|row| row.context.as_ref() == b"own-check"));
+            assert_eq!(local.context.as_ref(), b"temper/verdict/slow");
+            assert_eq!(local.check, skein_forge::api::Check::Failed);
+            assert!(local.url.is_empty());
+            assert_eq!(local.job, None);
+            let expected = if many {
+                let names = (0..16).map(|at| format!("suite::t{at:02}")).collect::<Vec<_>>().join(", ");
+                format!("slow run 2 found this landing red: many tests; its report names {names}, and 1 more.")
+            } else {
+                "slow run 2 found this landing red: suite::t00, suite::t01.".to_owned()
+            };
+            assert_eq!(local.description.as_ref(), expected.as_bytes());
+            let rendered = temper_engine_smith::answer(&answer);
+            assert!(!rendered.error());
+            assert!(std::str::from_utf8(rendered.text()).unwrap().contains(&expected));
+        }
+    }
 }
 
 #[test]

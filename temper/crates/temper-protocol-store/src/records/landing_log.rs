@@ -1,5 +1,6 @@
 //! Family 30's bounded translations (temper/docs/design/protocol/store.md, 2).
-use super::{FITS, names, w};
+use super::{FITS, names, tiers, w};
+use crate::Undecodable;
 use alloc::boxed::Box;
 use skein_lib::{List, Wall};
 use temper_engine_domain_forge_vocabulary as d;
@@ -49,7 +50,7 @@ pub(super) fn encode(row: &d::LandingLog) -> w::LandingLog {
     .expect(FITS)
 }
 
-pub(super) fn decode(row: w::LandingLog) -> d::LandingLog {
+pub(super) fn decode(row: w::LandingLog, tier_bound: u32) -> Result<d::LandingLog, Undecodable> {
     let w::LandingLogParts { repository, landings } = row.into_parts();
     let mut decoded = List::with_capacity(landings.len());
     for landing in landings.into_boxed() {
@@ -61,17 +62,26 @@ pub(super) fn decode(row: w::LandingLog) -> d::LandingLog {
                 .push(d::LoggedChange { goal, milestone, task, pull, title, signed: decode_signed(signed) })
                 .expect(FITS);
         }
+        let tiers = decode_tiers(tiers)?;
+        if tiers.len() > skein_lib::usize_of(tier_bound) {
+            // Only logs written before ids were kept need the schema's wider
+            // tier ceiling; their entries are retired with settings at restore.
+            for tier in &tiers {
+                match &tier.verdict {
+                    d::LoggedVerdict::Red { tests, many, .. } => {
+                        if !tests.is_empty() || many.is_some() {
+                            return Err(Undecodable::Malformed);
+                        }
+                    }
+                    d::LoggedVerdict::Verifying | d::LoggedVerdict::Cleared { .. } => {}
+                }
+            }
+        }
         decoded
-            .push(d::LoggedLanding {
-                tiers: decode_tiers(tiers),
-                commit,
-                branch,
-                at: Wall::from_nanos(at),
-                changes: members.into_boxed(),
-            })
+            .push(d::LoggedLanding { tiers, commit, branch, at: Wall::from_nanos(at), changes: members.into_boxed() })
             .expect(FITS);
     }
-    d::LandingLog { repository: names::decode_repository(repository), landings: decoded.into_boxed() }
+    Ok(d::LandingLog { repository: names::decode_repository(repository), landings: decoded.into_boxed() })
 }
 
 pub(super) fn encode_signed(signed: &[d::SignOff]) -> List<w::SignOff> {
@@ -107,8 +117,26 @@ fn encode_tiers(tiers: &[d::LoggedTier]) -> List<w::LoggedTier> {
             d::LoggedVerdict::Cleared { run } => w::LoggedVerdict::Cleared(
                 w::LoggedCleared::new(&w::CEILINGS, w::LoggedClearedParts { run: *run }).expect(FITS),
             ),
-            d::LoggedVerdict::Red { run, failing } => w::LoggedVerdict::Red(
-                w::LoggedRed::new(&w::CEILINGS, w::LoggedRedParts { run: *run, failing: *failing }).expect(FITS),
+            d::LoggedVerdict::Red { run, failing, tests, many } => w::LoggedVerdict::Red(
+                w::LoggedRed::new(
+                    &w::CEILINGS,
+                    w::LoggedRedParts {
+                        run: *run,
+                        failing: *failing,
+                        tests: match many {
+                            Some(many) => tiers::encode_tests(&many.tests),
+                            None => tiers::encode_tests(tests),
+                        },
+                        many: match many {
+                            Some(many) => Some(
+                                w::LoggedMany::new(&w::CEILINGS, w::LoggedManyParts { more: many.more, cut: many.cut })
+                                    .expect(FITS),
+                            ),
+                            None => None,
+                        },
+                    },
+                )
+                .expect(FITS),
             ),
         };
         result
@@ -120,16 +148,31 @@ fn encode_tiers(tiers: &[d::LoggedTier]) -> List<w::LoggedTier> {
     result
 }
 
-fn decode_tiers(tiers: List<w::LoggedTier>) -> Box<[d::LoggedTier]> {
+fn decode_tiers(tiers: List<w::LoggedTier>) -> Result<Box<[d::LoggedTier]>, Undecodable> {
     let mut result = List::with_capacity(tiers.len());
     for tier in tiers.into_boxed() {
         let w::LoggedTierParts { tier, verdict } = tier.into_parts();
         let verdict = match verdict {
             w::LoggedVerdict::Verifying => d::LoggedVerdict::Verifying,
             w::LoggedVerdict::Cleared(row) => d::LoggedVerdict::Cleared { run: row.run() },
-            w::LoggedVerdict::Red(row) => d::LoggedVerdict::Red { run: row.run(), failing: *row.failing() },
+            w::LoggedVerdict::Red(row) => {
+                let w::LoggedRedParts { run, failing, tests, many } = row.into_parts();
+                let tests = tiers::decode_tests(tests)?;
+                match many {
+                    Some(many) => {
+                        let w::LoggedManyParts { more, cut } = many.into_parts();
+                        d::LoggedVerdict::Red {
+                            run,
+                            failing,
+                            tests: Box::new([]),
+                            many: Some(temper_engine_domain_forge_tiers::ManyTests { tests, more, cut }),
+                        }
+                    }
+                    None => d::LoggedVerdict::Red { run, failing, tests, many: None },
+                }
+            }
         };
         result.push(d::LoggedTier { tier, verdict }).expect(FITS);
     }
-    result.into_boxed()
+    Ok(result.into_boxed())
 }

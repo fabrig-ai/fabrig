@@ -1,5 +1,93 @@
 use super::{LIMITS, tests};
-use crate::{Failures, Format, Outcome, Unreadable, failed, report, selection};
+use crate::{Failures, Format, ManyTests, Outcome, Unreadable, failed, many_tests, report, selection};
+
+fn names(ids: &[&str], more: u32, cut: bool) -> ManyTests {
+    ManyTests { tests: super::ids(ids), more, cut }
+}
+
+#[test]
+fn many_lines_keep_the_lowest_unique_ids_and_count_displaced_listings() {
+    let limits = crate::Limits { failing_tests: 2, test_id_bytes: 16 };
+    assert_eq!(many_tests(Format::Lines, b"c\na\nc\nb\nd", &limits, false), Some(names(&["a", "b"], 3, false)));
+    assert_eq!(
+        many_tests(Format::Lines, b"b\nb\nc\na\na\nb\nc\nc\n", &limits, false),
+        Some(names(&["a", "b"], 3, false))
+    );
+    assert_eq!(
+        many_tests(Format::Lines, b"e\nc\nb\na\nd\na\n", &LIMITS, false),
+        Some(names(&["a", "b", "c", "d"], 1, false))
+    );
+}
+
+#[test]
+fn many_lines_count_each_oversized_id_without_keeping_it() {
+    assert_eq!(
+        many_tests(Format::Lines, b"z\n12345678901234567\na\n12345678901234567\n", &LIMITS, false),
+        Some(names(&["a", "z"], 2, false)),
+    );
+}
+
+#[test]
+fn many_junit_names_failed_and_errored_cases() {
+    let limits = crate::Limits { failing_tests: 2, test_id_bytes: 16 };
+    let file = br"<testsuite><testcase classname='s' name='z'><failure/></testcase><testcase classname='s' name='a'><error/></testcase><testcase classname='s' name='b'><failure/></testcase><testcase name='passes'/></testsuite>";
+    assert_eq!(many_tests(Format::Junit, file, &limits, false), Some(names(&["s.a", "s.b"], 1, false)));
+    let file = br"<testsuite><testcase name='12345678901234567'><error/></testcase><testcase name='a'><failure/></testcase></testsuite>";
+    assert_eq!(many_tests(Format::Junit, file, &limits, false), Some(names(&["a"], 1, false)));
+}
+
+#[test]
+fn a_bounded_or_unreadable_uncut_report_keeps_no_many_names() {
+    for (format, file) in [
+        (Format::Lines, b"a\nb\nc\nd\na".as_slice()),
+        (Format::Lines, b"\r\n"),
+        (Format::Junit, b"<testsuite><testcase name='a'><failure/></testcase></testsuite>"),
+        (Format::Junit, b"<testsuite><testcase name='12345678901234567'><failure/></testcase><testcase"),
+        (Format::Junit, b"not xml"),
+    ] {
+        assert_eq!(many_tests(format, file, &LIMITS, false), None, "{file:?}");
+    }
+}
+
+#[test]
+fn cut_lines_drop_the_partial_last_id_and_keep_complete_crlf_lines() {
+    assert_eq!(many_tests(Format::Lines, b"b\r\n\r\na\nc", &LIMITS, true), Some(names(&["a", "b"], 0, true)));
+    assert_eq!(many_tests(Format::Lines, b"partial", &LIMITS, true), Some(names(&[], 0, true)));
+    assert_eq!(many_tests(Format::Lines, b"", &LIMITS, true), Some(names(&[], 0, true)));
+}
+
+#[test]
+fn cut_junit_keeps_only_closed_cases_or_empty_names_when_unreadable() {
+    let prefix = "<testsuite><testcase classname='s' name='a'><failure/></testcase>";
+    for end in [
+        "<testcase name='b'><error/>",
+        "<testcase name='b",
+        "<!-- unfinished",
+        "<![CDATA[unfinished",
+        "<?unfinished",
+        "text",
+    ] {
+        let mut file = skein_lib::Writer::new(prefix.len() + end.len());
+        file.put(prefix.as_bytes()).unwrap();
+        file.put(end.as_bytes()).unwrap();
+        let file = file.finish();
+        assert_eq!(many_tests(Format::Junit, &file, &LIMITS, true), Some(names(&["s.a"], 0, true)), "{file:?}");
+    }
+    for end in ["<broken <tag", "<testcase name=nope>", "</wrong>"] {
+        let mut file = skein_lib::Writer::new(prefix.len() + end.len());
+        file.put(prefix.as_bytes()).unwrap();
+        file.put(end.as_bytes()).unwrap();
+        assert_eq!(many_tests(Format::Junit, &file.finish(), &LIMITS, true), Some(names(&[], 0, true)));
+    }
+    for file in [
+        b"<testsuite><testcase name='a'><failure/>".as_slice(),
+        b"not xml",
+        b"<testsuite><testcase name='a'><failure/></testsuite>",
+        b"",
+    ] {
+        assert_eq!(many_tests(Format::Junit, file, &LIMITS, true), Some(names(&[], 0, true)), "{file:?}");
+    }
+}
 
 #[test]
 fn gate_selection_reads_only_failed_safe_bounded_unique_ids() {

@@ -317,6 +317,84 @@ fn only_tiers_following_the_branch_are_logged_and_an_added_member_keeps_them() {
 }
 
 #[test]
+fn a_full_landing_replaces_only_judged_entries_of_removed_tiers() {
+    for (still_named, verifying) in [(false, false), (true, false), (false, true)] {
+        let names: &[(&[u8], Option<&[u8]>)] =
+            if still_named { &[(b"a", None), (b"b", None)] } else { &[(b"b", None), (b"c", None)] };
+        let mut d = configured_domain(names);
+        d.landing.limits.tiers.tiers = 2;
+        add_change(&mut d, CHANGE, b"main");
+        merged(&mut d, CHANGE, FIRST);
+        let entries = Box::new([
+            LoggedTier {
+                tier: b"a".as_slice().into(),
+                verdict: if verifying {
+                    LoggedVerdict::Verifying
+                } else {
+                    LoggedVerdict::Red { run: 3, failing: None, tests: Box::new([]), many: None }
+                },
+            },
+            LoggedTier { tier: b"b".as_slice().into(), verdict: LoggedVerdict::Cleared { run: 3 } },
+        ]);
+        d.landing_logs.get_mut(&REPO).unwrap().landings[0].tiers = entries.clone();
+        let verdict = policy::Verdict {
+            number: 7,
+            tip: FIRST,
+            key: FIRST,
+            failing: policy::Failures::Tests(Box::new([])),
+            landings: Box::new([policy::Blame::Cleared]),
+            flakes: Box::new([]),
+        };
+        let mut out = Queue::uncapped();
+        landing_log::judged(
+            &mut d,
+            REPO,
+            b"c",
+            &verdict,
+            &[policy::Landing { commit: FIRST, key: FIRST }],
+            None,
+            &mut out,
+        );
+        let log = d.landing_log(REPO).unwrap();
+        if still_named || verifying {
+            assert_eq!(log.landings[0].tiers.as_ref(), entries.as_ref());
+            assert!(saved(&out).is_empty());
+        } else {
+            assert_eq!(
+                log.landings[0].tiers.as_ref(),
+                &[
+                    entries[1].clone(),
+                    LoggedTier { tier: b"c".as_slice().into(), verdict: LoggedVerdict::Cleared { run: 7 } },
+                ]
+            );
+            assert_eq!(saved(&out).as_ref(), core::slice::from_ref(log));
+        }
+    }
+}
+
+#[test]
+fn a_restore_retires_judged_removed_tiers_to_the_entry_bound() {
+    let mut d = configured_domain(&[(b"b", None), (b"c", None)]);
+    d.landing.limits.tiers.tiers = 2;
+    add_change(&mut d, CHANGE, b"main");
+    merged(&mut d, CHANGE, FIRST);
+    let expected = Box::new([
+        LoggedTier { tier: b"b".as_slice().into(), verdict: LoggedVerdict::Verifying },
+        LoggedTier { tier: b"c".as_slice().into(), verdict: LoggedVerdict::Cleared { run: 3 } },
+    ]);
+    d.landing_logs.get_mut(&REPO).unwrap().landings[0].tiers = Box::new([
+        LoggedTier { tier: b"a".as_slice().into(), verdict: LoggedVerdict::Cleared { run: 3 } },
+        expected[0].clone(),
+        expected[1].clone(),
+    ]);
+    let mut out = Queue::uncapped();
+    landing_log::restored(&mut d, &mut out);
+    let log = d.landing_log(REPO).unwrap();
+    assert_eq!(log.landings[0].tiers.as_ref(), expected.as_ref());
+    assert_eq!(saved(&out).as_ref(), core::slice::from_ref(log));
+}
+
+#[test]
 fn a_restore_infers_verifying_from_ranges_and_drops_removed_tiers() {
     for (removed, posted) in [(false, false), (true, false), (false, true)] {
         let mut d = configured_domain(&[(TIER, None)]);
