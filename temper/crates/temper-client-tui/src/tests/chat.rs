@@ -992,9 +992,6 @@ fn the_chat_draws_each_entry() {
     assert!(failures.is_empty(), "{}", failures.as_slice().join("\n"));
 }
 
-<<<<<<< HEAD
-#[test]
-=======
 fn card_entries() -> Box<[Entry]> {
     let mut task = task();
     task.chip.title = c::DocumentText::complete(text(CARD_TITLE));
@@ -1073,7 +1070,7 @@ fn the_chat_cards_are_their_goldens() {
     goldens::check(checks.as_slice());
 }
 
->>>>>>> refs/manual/8733
+#[test]
 #[expect(
     clippy::disallowed_methods,
     clippy::disallowed_types,

@@ -17,11 +17,8 @@ mod every;
 mod every_bounds;
 mod fingerprint;
 mod generic;
-<<<<<<< HEAD
 mod largest;
-=======
 mod lean;
->>>>>>> refs/manual/8778
 mod memory;
 mod named_limits;
 mod patch;

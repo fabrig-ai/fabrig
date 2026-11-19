@@ -224,7 +224,6 @@ fn tier_bounds(limits: &limits::Limits, problems: &mut Problems) {
             }),
         );
     }
-<<<<<<< HEAD
     let bound = temper_engine_domain_forge::FindingSignature::IDS;
     if limits.forge.tiers.failing_tests > bound {
         problems.push(
@@ -232,8 +231,6 @@ fn tier_bounds(limits: &limits::Limits, problems: &mut Problems) {
             What::Half(crate::startup::EngineWhat::TierFailingTests { count: limits.forge.tiers.failing_tests, bound }),
         );
     }
-    let bound = temper_engine_domain_forge::FindingSignature::ID_BYTES;
-=======
     let ceiling = temper_protocol_store::v25::CEILINGS.landing_log_landings;
     let bound = ceiling.saturating_sub(limits.forge.landings_kept);
     if limits.forge.landings_pending > bound {
@@ -263,8 +260,7 @@ fn tier_bounds(limits: &limits::Limits, problems: &mut Problems) {
             }),
         );
     }
-    let bound = temper_protocol_store::test_id_ceiling();
->>>>>>> refs/manual/8773
+    let bound = temper_engine_domain_forge::FindingSignature::ID_BYTES;
     if limits.forge.tiers.test_id_bytes > bound {
         problems.push(
             super::checks::own(b"forge.tiers.test_id_bytes"),

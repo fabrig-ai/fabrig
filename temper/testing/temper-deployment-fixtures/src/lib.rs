@@ -88,7 +88,7 @@ pub fn deployment() -> (skein_scratch::Scratch, Directories) {
     (scratch, directories)
 }
 
-pub(crate) fn tree(root: &std::path::Path) -> Vec<(std::path::PathBuf, u32, Vec<u8>)> {
+pub fn tree(root: &std::path::Path) -> Vec<(std::path::PathBuf, u32, Vec<u8>)> {
     use std::os::unix::fs::PermissionsExt;
     let mut result = Vec::new();
     let mut entries =

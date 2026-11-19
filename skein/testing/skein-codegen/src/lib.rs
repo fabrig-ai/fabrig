@@ -17,11 +17,8 @@ mod emit_functions;
 mod emit_limits;
 mod emit_tests;
 mod emit_types;
-<<<<<<< HEAD
 mod largest;
-=======
 mod lean;
->>>>>>> refs/manual/8778
 mod parse;
 pub mod patch;
 

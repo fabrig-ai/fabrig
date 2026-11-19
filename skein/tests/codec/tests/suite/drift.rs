@@ -6,11 +6,7 @@ mod tests {
     use std::fs;
     use std::path::Path;
 
-<<<<<<< HEAD
-    use skein_codegen::{generate, goldens, missing, parse, unpinned};
-=======
-    use skein_codegen::{CONSTRUCTS, Form, constructs, form_of, generate_as, goldens, parse, unpinned};
->>>>>>> refs/manual/8778
+    use skein_codegen::{Form, form_of, generate_as, goldens, missing, parse, unpinned};
 
     const FAMILIES: [(&str, &str, Option<&str>); 7] = [
         ("schema/every-v1.schema", "src/every/v1.rs", Some("golden/every-v1")),

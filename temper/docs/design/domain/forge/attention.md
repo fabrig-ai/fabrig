@@ -231,22 +231,14 @@ and only with something new to say to them
   and goals' headlines are (`../agent/charter.md`, 4, *Words a person
   reads first*).
 - **Its words,** made by the forge, and the root adding the goals and
-<<<<<<< HEAD
   the standing roles, which are core's: the span since the party's last
   brief, the landed count, the titles of the changes the landing log
-  holds since that brief (at most 20), the project's live goals each with its
-  delegates done and total, a goal in a milestone named by its milestone
-  first, the project's live milestones and those ended since that
-=======
-  the standing roles, which are core's: the span since the last brief,
-  the landed count, the titles of the changes the landing log holds since
-  the last brief (at most 20), the project's live goals each with its
-  delegates done and total, as "Make the widget fix: 1 of 3 parts
+  holds since that brief (at most 20), the project's live goals each with
+  its delegates done and total, as "Make the widget fix: 1 of 3 parts
   done", and, where any of its live direct delegates is a person task,
   how many, as "Make the widget fix: 1 of 3 parts done, 2 questions
   open to a person" ("1 question"), a goal in a milestone named by its
-  milestone first, the project's live milestones and those ended since the last
->>>>>>> refs/manual/8666
+  milestone first, the project's live milestones and those ended since that
   brief (`../milestones.md`, section 9), the failing tests each tier of
   the project's repositories holds, the project's open findings, and
   each live standing role's Now. They say only what the engine keeps.

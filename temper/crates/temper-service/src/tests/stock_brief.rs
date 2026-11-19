@@ -199,11 +199,7 @@ fn every_stock_charter_admits_its_maximal_brief_with_receiving_fitting() {
         );
         temper_protocol_brief::fit_brief(&mut charter, workspace.as_ref(), &limits);
         if number == 5 {
-<<<<<<< HEAD
-            assert_eq!(original.owned_bytes().unwrap(), 59_275);
-=======
-            assert_eq!(original.owned_bytes().unwrap(), 59_395);
->>>>>>> refs/manual/8888
+            assert_eq!(original.owned_bytes().unwrap(), 59_385);
 
             assert_eq!(receiving, 127_407);
             assert!(original.owned_bytes().unwrap() <= receiving, "the goal's smaller offer keeps its maximal brief");
@@ -263,11 +259,7 @@ fn the_stock_brief_with_a_whole_spec_fits_both_receiving_bounds() {
     assert!(brief.parts >= TASK_PARTS);
     let largest = temper_engine_smith::charter(&assignment(5, false, 0));
     let room = run::brief_room(&largest, Some(&workspace(true)), &limits).unwrap();
-<<<<<<< HEAD
-    assert_eq!(room, 319_704, "charter 5's maximal non-brief host part leaves this room");
-=======
-    assert_eq!(room, 319_584, "charter 5's maximal non-brief host part leaves this room");
->>>>>>> refs/manual/8888
+    assert_eq!(room, 319_594, "charter 5's maximal non-brief host part leaves this room");
 
     assert_eq!(brief.brief_bytes, 318_046);
     let full = brief.budgets.task + brief.budgets.pull + brief.budgets.reviews + OTHER;

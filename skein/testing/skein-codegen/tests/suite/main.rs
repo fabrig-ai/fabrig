@@ -1,11 +1,8 @@
 extern crate alloc;
 
 mod diff;
-<<<<<<< HEAD
-mod largest;
-=======
 mod form;
->>>>>>> refs/manual/8778
+mod largest;
 mod parse;
 mod patch_bridges;
 mod patch_check;
