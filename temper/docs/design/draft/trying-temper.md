@@ -11,11 +11,13 @@ two things: the playground stays, to become a showcase of every way of
 working, offline (section 7); and a rung below Pair, a person working
 with one agent in its own copy of the repository, as with a coding
 agent, without a chat that delegates to another (4.8). The try's first
-change is worked that way. GitHub's way is the second path, designed
-next (section 6). On paper first; the mockups follow (section 8). On
+change is worked that way. GitHub's way is the second path
+(section 6). On paper first; the mockups follow (section 8). On
 2026-11-19 the user took the paper as sound, settled that Pair names the
 new rung, rung 0, and asked how the try fits the bigger picture
 (section 10); the mockups' first pass is `trying-temper/index.html`.
+Overnight, on the user's word for the night, GitHub's path was
+designed (section 6).
 
 ## 1. In one page
 
@@ -39,8 +41,8 @@ new rung, rung 0, and asked how the try fits the bigger picture
 - **The first change is worked with an agent:** one agent, in its own
   copy of the sample, edits and runs the test in front of the person,
   who presses "Land this" when it looks right. From there temper's line
-  runs: CI, another agent's review, the merge. This is the rung below
-  Pair (4.8), a design of its own.
+  runs: CI, another agent's review, the merge. This is Pair, rung 0
+  (4.8), a design of its own.
 - **The card says the line:** a change's card reads "Written with you",
   "Checked by CI", "Reviewed by an agent", "Landed", each with its fact,
   the same commit in the last three (4.6). temper says it, not the
@@ -51,6 +53,11 @@ new rung, rung 0, and asked how the try fits the bigger picture
   on the machine before it is pressed (4.7).
 - **About six minutes** to the first change landed, none of it measured
   (section 3).
+- **GitHub's path** (section 6): the same welcome and model; Ready
+  starts with the repository installed, on a press; a card says whether
+  a first change can land before one is made; the first change is the
+  person's own, from their words or an issue; their review is on
+  GitHub, which temper asks for, so that it reaches their phone.
 
 ## 2. How it feels
 
@@ -376,20 +383,207 @@ which this one only sketches, so that the try can use it.
 
 ## 6. GitHub, the second path
 
-To be designed next, from the same welcome. What differs:
+Designed on 2026-11-19, overnight, under the user's word for the night
+("take reasonable decisions, so nothing blocks on unimportant
+details"), from a survey of what main builds; for their read, its
+mockups after it. It is the UX draft's first day on GitHub (its 5.2, on
+its own branch), made short. The welcome, the Model step and the first
+change worked with an agent (4.8) are the Forgejo path's. What differs
+is the App, Ready, what the first change must pass, and the person's
+own review.
 
-- **Connect GitHub:** temper's App made from a manifest on GitHub, then
-  installed on the repositories the person chooses
-  (`../client/forge/deployment.md`). The box is on loopback, so
-  GitHub's webhooks cannot reach it: temper reads the App's delivery log
-  instead.
-- **Ready adopts nothing:** the person chooses a repository on Home.
-- **The first change runs on their own CI and protection,** the readiness
-  gap of the UX draft: what a first change needs to pass is unknown
-  until it runs.
-- **Their review is GitHub's:** a change waiting for them reaches their
-  phone through GitHub's app, the UX draft's other gap.
-- **About ten minutes,** none measured.
+### 6.1 How it feels
+
+The same developer, whose code is on GitHub, at the welcome's choice,
+at 0:20 in section 2. They press "Connect GitHub" on the second card.
+
+**0:20, before leaving.** Under the button, what GitHub will show (6.3):
+"On GitHub: create temper's App under your account, then install it on
+the repositories it may use; one is enough to start. It pushes branches
+under temper/, opens and merges pull requests, and reads your
+repositories' settings and checks." And, for an organization: "On an
+organization, its owner installs it."
+
+**0:30, GitHub.** The same tab moves to GitHub's page for a new App,
+filled in by temper: its name, temper-3fa9c1, and its permissions. They
+create it, and GitHub's install page follows: their account, "Only
+select repositories", one, pocket. Back on temper, Model, with "✓ Start
+· temper's App on ada · 1 repository"; the terminal ticks the same
+line. Nothing was copied or pasted: the manifest flow
+(`../protocol/setup/github.md`, 2).
+
+**1:00, the model.** As on Forgejo, from 0:25 to 2:00 in section 2.
+
+**2:30, Ready asks one thing,** not a name but where to start (6.4):
+
+```
+Ready
+Start with ada/pocket
+  lands into main · merge commits · CI: ci.yml
+  [ Start with pocket ]
+Another repository ›
+```
+
+One press adopts it, and the project is named after it, pocket. Its
+landing branch is GitHub's default branch, read, not typed.
+
+**2:40, Home: can a first change land?** Before any model time is
+spent, To begin's first step is temper's read of the repository, the UX
+draft's readiness card (its J1, step 3), from what the App already
+reads (6.5):
+
+```
+1  Can a first change land in ada/pocket?
+   ✓ CI on pull requests     ci.yml · main passed 2 h ago, in 6 min
+   ✓ Merging                 a merge commit, by temper's App
+   ✓ Your review counts      main asks for 1 approval; yours counts
+   · Checks before CI        none: pocket has no .temper/pre-pr
+   ? The agent's tools       known once it runs them
+   A first change can land; CI takes about 6 minutes here.
+2  Make a first change with an agent
+3  Tell temper how you work                              Ask temper ›
+```
+
+A line that isn't ready says what to do: "CI runs nothing on pull
+requests, so a change would wait for checks that never come." A read
+that failed is "?", never "✓".
+
+**3:00, the first change,** worked with an agent in its own copy of
+pocket (4.8), as on Forgejo, but from their words: temper doesn't know
+pocket well enough to suggest changes. The step offers a box, "What
+should change in pocket?", and up to three open issues as one-press
+starts, those labelled "good first issue" first (6.6). They pick "#12
+--json drops null fields".
+
+**6:00, "Land this".** The App pushes the chat's branch under `temper/`
+and opens a pull request, as temper-3fa9c1[bot]. On GitHub the card has
+a fifth step, the person's review, since a repository with code starts
+at You approve (the UX draft's section 13) (6.7):
+
+```
+T2 · CHANGE                                                Running
+Fix #12: --json drops null fields
+  ✓ Written with you      this chat · 2 files · pull request #48 ↗
+  ▸ Checked by CI         ci.yml running at 9c0e7d2 · about 6 min
+  · Reviewed by an agent
+  · Approved by you       on GitHub
+  · Landed
+```
+
+**12:30, their review.** "Approved by you: waiting for you · Review on
+GitHub ↗". temper has asked GitHub for their review, so GitHub's own
+mail and app tell them, on their phone too (6.8). They read the pull
+request there and approve. temper hears of it within seconds, through
+the App's delivery log, since GitHub can't reach the laptop
+(`../protocol/forge/README.md`, 4.1), and merges at the head CI checked
+and the agent reviewed.
+
+**13:00, landed.** "✓ Landed · merged 9c0e7d2 into main, by temper's
+App", and the pull request on GitHub says the same. The climb follows
+as on Forgejo: the next one, handed over.
+
+**About ten minutes, and their CI's time,** none of it measured. Their
+CI is the longest wait and theirs; the readiness card says how long it
+takes before the first change starts, so the wait is expected. The
+terminal follows as on Forgejo: `/land` opens the pull request, and the
+card's link is its.
+
+### 6.2 The steps that differ
+
+| Step | GitHub's | Behind | Built |
+|---|---|---|---|
+| 3. The choice | New: what GitHub will show (6.3) | none until a press | the GitHub card is built, "about two minutes" |
+| 4. Start | GitHub's App page and install page, then Model | the manifest posted, its code converted at the redirect, the installation accepted at the return (`../client/forge/served.md`, 1) | yes, not recorded; an organization's request ends there today |
+| 6. Ready | New: "Start with ada/pocket" (6.4) | the adoption, into GitHub's default branch | Ready's form and the picker are built; on GitHub Ready adopts nothing, and the picker's Landing branch is empty, under More, and required (`../client/forge/family.md`, 4) |
+| 7. Home | New: the readiness card (6.5) | the App's reads: workflows, main's last run, protection, merge styles, `.temper/` | adoption reads protection and workflow names (`../domain/forge/adoption.md`, 4 and 7); the card New |
+| 8. The first change | New: their issues as starts (6.6) | as on Forgejo (4.8), in a copy of their repository | New |
+| 9. Land this | the pull request, by the App | their Actions; the head's checks and statuses, folded (`../domain/forge/change/gates.md`, 2) | yes, against a fake GitHub only |
+| 10. Approved by you | New: the card's step, and GitHub asked for the review (6.7, 6.8) | the person's approval counted at the head, a request for changes repaired with its remarks (`../domain/forge/change/gates.md`, 2) | counting and repair built; the request to GitHub New |
+
+### 6.3 The welcome says what GitHub will show
+
+Small. Under the GitHub card's button, before the tab leaves: what the
+App may do, in the person's words; that one repository is enough to
+start; that on an organization its owner installs it. GitHub's pages
+list the permissions too, but temper says it first, to section 2's wary
+person. The card's time (4.1's "About ten minutes") adds "and your
+CI's".
+
+### 6.4 Ready starts with a repository
+
+Small. On GitHub, Ready offers the repository to start with and adopts
+it on a press: the one installed, or the most recently pushed of
+several, "Another repository" opening the picker. Its landing branch is
+the repository's default branch as GitHub reads it, its merge style the
+first GitHub allows (`../domain/forge/adoption.md`, 4 and 8). The picker, too,
+fills Landing branch from a pick's default branch, so that a pick never
+meets a required field it can't see. Unlike Forgejo's Ready (4.3), a
+press: adopting a person's repository is theirs to do.
+
+### 6.5 Can a first change land
+
+Medium: reads in the engine, a card in the client. The UX draft's
+readiness card (its J1, step 3), as To begin's first step on GitHub.
+Each line is ✓, · (not there, saying what that means) or ? (not read),
+with what to do:
+
+- **CI on pull requests:** the workflows that run on a pull request,
+  which needs each workflow's triggers read, not only its name (an open
+  question of `../domain/forge/adoption.md`, 9); main's last run, its
+  verdict and how long it took.
+- **Merging:** the merge styles GitHub allows, and protection that
+  would refuse temper's merge (`../domain/forge/adoption.md`, 4).
+- **Your review counts:** the approvals protection asks for, and
+  whether temper knows the person's GitHub account, which a manifest's
+  App gives: its owner.
+- **Checks before CI:** whether `.temper/pre-pr` is there
+  (`../domain/agent/charter.md`, 4).
+- **The agent's tools:** unknown until it runs them, and said so.
+
+A repository whose CI runs nothing on pull requests hears it here,
+before a change waits for checks that never come.
+
+### 6.6 A first change from their words or their issues
+
+Small. On GitHub To begin's second step suggests no changes, since
+temper doesn't know the repository: a box, "What should change in
+NAME?", and up to three of its open issues as one-press starts, "good
+first issue" first, none when it has none. The issue's number goes in
+the change's title, so that GitHub links the pull request to it.
+
+### 6.7 The card's fifth step
+
+Small, beside 4.6. Where a rule asks for the person's approval, the card
+shows "Approved by you" between the agent's review and the merge: "on
+GitHub" while it waits, the head it approved once given. On Forgejo,
+with You approve, it is the same step, its link Forgejo's.
+
+### 6.8 temper asks for the review on GitHub
+
+Small, the engine's. When a change waits for the person's approval, the
+App requests their review on the pull request, from their known GitHub
+account, so that GitHub's mail and app tell them, as the UX draft's J1
+expects (its step 7). temper's GitHub adapter has the call; nothing in
+temper makes it today. temper's own pages stay on the laptop; the phone
+reaches GitHub.
+
+### 6.9 Where it may still feel wrong
+
+- **An organization:** a member's installation becomes a request, and
+  temper can't wait for an owner's approval today. The welcome's line
+  says so first; waiting for an owner is not the try's.
+- **Their CI:** long, needing secrets, or red on main. The card says
+  main's last run. A red that isn't the change's goes to repair today,
+  and rerunning a runner's fault needs the App to write Actions, which
+  it doesn't ask for (`../protocol/setup/github.md`, 1).
+- **The laptop asleep:** the box stops while it sleeps; a change
+  waiting on CI catches up when it wakes, and a long sleep may hold it.
+- **The App after the try:** it stays on GitHub; removing the forge
+  says "The GitHub App stays yours: delete it in its settings."
+- **What it spends:** a few turns of their model and one run of their
+  CI.
+- **Not recorded:** no journey walks GitHub's path yet; its parts are
+  tested against a fake GitHub only.
 
 ## 7. The playground
 
@@ -471,6 +665,10 @@ drawing them showed:
   Rung 1, where the person approves each change a delegated agent made,
   takes another name, the user's to give. Proposed: "Review", since the
   person's part there is reviewing each change.
+- **GitHub's first change:** the person's words or an issue (6.6), or
+  "Teach temper this repository", the UX draft's harmless first change
+  that writes only `.temper/` (its J1, step 4). Default: their words;
+  teaching after v0.1.0, as the UX draft has it.
 - **The first change's rung:** worked with an agent (4.8), or handed
   over as today, the try then needing nothing of 4.8. Default: worked
   with an agent, the try's first change waiting for it; until it lands,
