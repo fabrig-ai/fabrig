@@ -1,4 +1,5 @@
 //! Worker FIFO and hand-out orders over the actual services and agent processes.
+use jig_protocol_worker_wire::Record;
 pub(crate) mod probe;
 
 use crate::{
@@ -77,7 +78,7 @@ impl skein_world::Referee<Proc> for Judge {
             })
             .collect::<Result<Vec<_>, _>>()?
             .into_iter()
-            .filter(|answer| answer.task() != probe::OTHER_RUN)
+            .filter(|answer| answer.task != probe::OTHER_RUN)
             .collect();
         outcome.acknowledgements = worker.acknowledgements.iter().filter(|(run, _)| *run != probe::OTHER_RUN).count();
         outcome.starts = procs.iter().filter(|proc| matches!(proc, Proc::Agent { .. })).count();
@@ -246,7 +247,7 @@ impl Judge {
                     name: Some([99; 16]),
                     request: jig_client::Ask::Jig(Box::new(jig_client::contract::Ask::Cancel {
                         project: 1,
-                        task: assignment.task(),
+                        task: assignment.task,
                         reason: jig_client::contract::Text::new(b"Stop".as_slice().into(), 512)
                             .map_err(|why| format!("bounded reason: {why:?}"))?,
                         grace: None,

@@ -89,8 +89,8 @@ fn the_turn_landing_documents_check_as_their_shapes() {
     let agent = smith_agent_shell::config::from_value(value.clone()).expect("generated agent configuration");
     let turn = temper_playground::documents::turn_bounds::turn_body(&value);
     let figures = figures();
-    let hub = figures.limits().iter().find(|limit| limit.name() == b"hub.turn_bytes").expect("engine turn figure");
-    assert!(hub.value() >= u64::from(turn), "engine figures carry the generated agent's turn");
+    let hub = figures.limits.iter().find(|limit| limit.name.as_ref() == b"hub.turn_bytes").expect("engine turn figure");
+    assert!(hub.value >= u64::from(turn), "engine figures carry the generated agent's turn");
     assert!(agent.service.limits.channel.bodies.turn_body > 0);
 
     let bytes = rendered("forgejo.json");

@@ -1,5 +1,6 @@
 //! Nested bytes before outer records on send; outer before nested on receipt
 //! (jig/docs/design/protocol/channel/bridges.md, 5, 6 and 8).
+use crate::v17::Record;
 use crate::{Agreed, Application, Carried, Kept, Root, v17 as wire};
 use alloc::boxed::Box;
 use skein_channel::{Frame, frame_writer};
@@ -277,16 +278,12 @@ impl Translation {
         let mut reader = Reader::new(&value);
         if root == b"FromEngine" {
             let record = wire::FromEngine::decode(limits, &mut reader).or(Err(order()))?;
-            let record = self.engine(record, agreed, down, limits)?;
-            let mut writer = Writer::new(skein_lib::length::usize_of(record.measure()));
-            record.encode(&mut writer).or(Err(order()))?;
-            Ok(writer.finish())
+            let record = self.engine(record, agreed, down)?;
+            record.encode(limits).or(Err(order()))
         } else {
             let record = wire::FromWorker::decode(limits, &mut reader).or(Err(order()))?;
-            let record = self.worker(record, agreed, down, limits)?;
-            let mut writer = Writer::new(skein_lib::length::usize_of(record.measure()));
-            record.encode(&mut writer).or(Err(order()))?;
-            Ok(writer.finish())
+            let record = self.worker(record, agreed, down)?;
+            record.encode(limits).or(Err(order()))
         }
     }
 }
@@ -495,297 +492,186 @@ impl Translation {
         record: wire::Assignment,
         agreed: &[Agreed],
         down: bool,
-        limits: &wire::Limits,
     ) -> Result<wire::Assignment, Untranslated> {
-        let record = record.into_parts();
-        let workspace = self.workspace(record.workspace, agreed, down, limits)?;
+        let workspace = self.workspace(record.workspace, agreed, down)?;
         let charter = self.smith(true, b"Charter", record.charter, agreed, down, false)?;
         let transcript = self.window(record.transcript, agreed, down)?;
-        let grants = self.grants(record.grants, agreed, down, limits)?;
-        wire::Assignment::new(
-            limits,
-            wire::AssignmentParts {
-                task: record.task,
-                attempt: record.attempt,
-                identity: record.identity,
-                workspace,
-                save: record.save,
-                live: record.live,
-                charter,
-                transcript,
-                answered: record.answered,
-                messages: record.messages,
-                grants,
-            },
-        )
-        .or(Err(order()))
+        let grants = self.grants(record.grants, agreed, down)?;
+        Ok(wire::Assignment {
+            task: record.task,
+            attempt: record.attempt,
+            identity: record.identity,
+            workspace,
+            save: record.save,
+            live: record.live,
+            charter,
+            transcript,
+            answered: record.answered,
+            messages: record.messages,
+            grants,
+        })
     }
-    fn job(
-        &mut self,
-        record: wire::Job,
-        agreed: &[Agreed],
-        down: bool,
-        limits: &wire::Limits,
-    ) -> Result<wire::Job, Untranslated> {
-        let record = record.into_parts();
-        let workspace = self.workspace(record.workspace, agreed, down, limits)?;
+    fn job(&mut self, record: wire::Job, agreed: &[Agreed], down: bool) -> Result<wire::Job, Untranslated> {
+        let workspace = self.workspace(record.workspace, agreed, down)?;
         let spec = self.carried(Carried::JobSpec, record.spec, agreed, down)?;
-        let grants = self.grants(record.grants, agreed, down, limits)?;
-        wire::Job::new(
-            limits,
-            wire::JobParts {
-                task: record.task,
-                attempt: record.attempt,
-                kind: record.kind,
-                spec,
-                deadline: record.deadline,
-                workspace,
-                grants,
-            },
-        )
-        .or(Err(order()))
+        let grants = self.grants(record.grants, agreed, down)?;
+        Ok(wire::Job {
+            task: record.task,
+            attempt: record.attempt,
+            kind: record.kind,
+            spec,
+            deadline: record.deadline,
+            workspace,
+            grants,
+        })
     }
-    fn granted(
-        &mut self,
-        record: wire::Granted,
-        agreed: &[Agreed],
-        down: bool,
-        limits: &wire::Limits,
-    ) -> Result<wire::Granted, Untranslated> {
-        let record = record.into_parts();
-        let grant = self.grant(record.grant, agreed, down, limits)?;
-        wire::Granted::new(limits, wire::GrantedParts { task: record.task, attempt: record.attempt, grant })
-            .or(Err(order()))
+    fn granted(&mut self, record: wire::Granted, agreed: &[Agreed], down: bool) -> Result<wire::Granted, Untranslated> {
+        let grant = self.grant(record.grant, agreed, down)?;
+        Ok(wire::Granted { task: record.task, attempt: record.attempt, grant })
     }
     fn read_list(
         &mut self,
         record: wire::ReadList,
         agreed: &[Agreed],
         down: bool,
-        limits: &wire::Limits,
     ) -> Result<wire::ReadList, Untranslated> {
-        let record = record.into_parts();
-        let grant = self.grant(record.grant, agreed, down, limits)?;
-        wire::ReadList::new(limits, wire::ReadListParts { read: record.read, endpoint: record.endpoint, grant })
-            .or(Err(order()))
+        let grant = self.grant(record.grant, agreed, down)?;
+        Ok(wire::ReadList { read: record.read, endpoint: record.endpoint, grant })
     }
-    fn grant(
-        &mut self,
-        record: wire::Grant,
-        agreed: &[Agreed],
-        down: bool,
-        limits: &wire::Limits,
-    ) -> Result<wire::Grant, Untranslated> {
-        let record = record.into_parts();
+    fn grant(&mut self, record: wire::Grant, agreed: &[Agreed], down: bool) -> Result<wire::Grant, Untranslated> {
         let value = match record.value {
             wire::GrantValue::Application(value) => {
-                let value = self.carried(Carried::Grant, bytes::copy_of(value.secret().expose()), agreed, down)?;
-                wire::GrantValue::Application(
-                    wire::ApplicationValue::new(limits, wire::ApplicationValueParts { secret: Secret::new(value) })
-                        .or(Err(order()))?,
-                )
+                let value = self.carried(Carried::Grant, bytes::copy_of(value.secret.expose()), agreed, down)?;
+                wire::GrantValue::Application(wire::ApplicationValue { secret: Secret::new(value) })
             }
             value @ (wire::GrantValue::Credential(_) | wire::GrantValue::Program(_)) => value,
         };
-        wire::Grant::new(
-            limits,
-            wire::GrantParts { number: record.number, generation: record.generation, valid: record.valid, value },
-        )
-        .or(Err(order()))
+        Ok(wire::Grant { number: record.number, generation: record.generation, valid: record.valid, value })
     }
     fn workspace_value(
         &mut self,
         record: wire::Workspace,
         agreed: &[Agreed],
         down: bool,
-        limits: &wire::Limits,
     ) -> Result<wire::Workspace, Untranslated> {
-        let record = record.into_parts();
         let items = self.carried(Carried::Items, record.items, agreed, down)?;
-        wire::Workspace::new(limits, wire::WorkspaceParts { workstream: record.workstream, items }).or(Err(order()))
+        Ok(wire::Workspace { workstream: record.workstream, items })
     }
-    fn turn(
-        &mut self,
-        record: wire::Turn,
-        agreed: &[Agreed],
-        down: bool,
-        limits: &wire::Limits,
-    ) -> Result<wire::Turn, Untranslated> {
-        let record = record.into_parts();
+    fn turn(&mut self, record: wire::Turn, agreed: &[Agreed], down: bool) -> Result<wire::Turn, Untranslated> {
         let body = self.smith(false, b"Turn", record.body, agreed, down, false)?;
-        wire::Turn::new(
-            limits,
-            wire::TurnParts {
-                task: record.task,
-                attempt: record.attempt,
-                number: record.number,
-                spent: record.spent,
-                read: record.read,
-                opens_window: record.opens_window,
-                refused: record.refused,
-                body,
-            },
-        )
-        .or(Err(order()))
+        Ok(wire::Turn {
+            task: record.task,
+            attempt: record.attempt,
+            number: record.number,
+            spent: record.spent,
+            read: record.read,
+            opens_window: record.opens_window,
+            refused: record.refused,
+            body,
+        })
     }
-    fn answer(
-        &mut self,
-        record: wire::Answer,
-        agreed: &[Agreed],
-        down: bool,
-        limits: &wire::Limits,
-    ) -> Result<wire::Answer, Untranslated> {
-        let record = record.into_parts();
-        let ending = self.ending(record.ending, agreed, down, limits)?;
-        wire::Answer::new(
-            limits,
-            wire::AnswerParts {
-                task: record.task,
-                attempt: record.attempt,
-                turns: record.turns,
-                spent: record.spent,
-                read: record.read,
-                refused: record.refused,
-                ending,
-            },
-        )
-        .or(Err(order()))
+    fn answer(&mut self, record: wire::Answer, agreed: &[Agreed], down: bool) -> Result<wire::Answer, Untranslated> {
+        let ending = self.ending(record.ending, agreed, down)?;
+        Ok(wire::Answer {
+            task: record.task,
+            attempt: record.attempt,
+            turns: record.turns,
+            spent: record.spent,
+            read: record.read,
+            refused: record.refused,
+            ending,
+        })
     }
     fn job_answer(
         &mut self,
         record: wire::JobAnswer,
         agreed: &[Agreed],
         down: bool,
-        limits: &wire::Limits,
     ) -> Result<wire::JobAnswer, Untranslated> {
-        let record = record.into_parts();
-        let ending = self.job_ending(record.ending, agreed, down, limits)?;
-        wire::JobAnswer::new(limits, wire::JobAnswerParts { task: record.task, attempt: record.attempt, ending })
-            .or(Err(order()))
+        let ending = self.job_ending(record.ending, agreed, down)?;
+        Ok(wire::JobAnswer { task: record.task, attempt: record.attempt, ending })
     }
-    fn ended(
-        &mut self,
-        record: wire::Ended,
-        agreed: &[Agreed],
-        down: bool,
-        limits: &wire::Limits,
-    ) -> Result<wire::Ended, Untranslated> {
-        let record = record.into_parts();
+    fn ended(&mut self, record: wire::Ended, agreed: &[Agreed], down: bool) -> Result<wire::Ended, Untranslated> {
         let outcome = self.smith(true, b"RunResult", record.outcome, agreed, down, false)?;
-        let work = self.work(record.work, agreed, down, limits)?;
-        wire::Ended::new(limits, wire::EndedParts { outcome, work }).or(Err(order()))
+        let work = self.work(record.work, agreed, down)?;
+        Ok(wire::Ended { outcome, work })
     }
-    fn parked(
-        &mut self,
-        record: wire::Parked,
-        agreed: &[Agreed],
-        down: bool,
-        limits: &wire::Limits,
-    ) -> Result<wire::Parked, Untranslated> {
-        let record = record.into_parts();
-        let work = self.work(record.work, agreed, down, limits)?;
-        wire::Parked::new(limits, wire::ParkedParts { work }).or(Err(order()))
+    fn parked(&mut self, record: wire::Parked, agreed: &[Agreed], down: bool) -> Result<wire::Parked, Untranslated> {
+        let work = self.work(record.work, agreed, down)?;
+        Ok(wire::Parked { work })
     }
-    fn failed(
-        &mut self,
-        record: wire::Failed,
-        agreed: &[Agreed],
-        down: bool,
-        limits: &wire::Limits,
-    ) -> Result<wire::Failed, Untranslated> {
-        let record = record.into_parts();
-        let work = self.work(record.work, agreed, down, limits)?;
-        let failure = self.failure(record.failure, agreed, down, limits)?;
-        wire::Failed::new(limits, wire::FailedParts { failure, detail: record.detail, work, model: record.model })
-            .or(Err(order()))
+    fn failed(&mut self, record: wire::Failed, agreed: &[Agreed], down: bool) -> Result<wire::Failed, Untranslated> {
+        let work = self.work(record.work, agreed, down)?;
+        let failure = self.failure(record.failure, agreed, down)?;
+        Ok(wire::Failed { failure, detail: record.detail, work, model: record.model })
     }
     fn job_finished(
         &mut self,
         record: wire::JobFinished,
         agreed: &[Agreed],
         down: bool,
-        limits: &wire::Limits,
     ) -> Result<wire::JobFinished, Untranslated> {
-        let record = record.into_parts();
-        let work = self.work(record.work, agreed, down, limits)?;
+        let work = self.work(record.work, agreed, down)?;
         let result = self.carried(Carried::JobResult, record.result, agreed, down)?;
-        wire::JobFinished::new(limits, wire::JobFinishedParts { result, work }).or(Err(order()))
+        Ok(wire::JobFinished { result, work })
     }
     fn job_failed(
         &mut self,
         record: wire::JobFailed,
         agreed: &[Agreed],
         down: bool,
-        limits: &wire::Limits,
     ) -> Result<wire::JobFailed, Untranslated> {
-        let record = record.into_parts();
-        let work = self.work(record.work, agreed, down, limits)?;
-        let failure = self.job_failure(record.failure, agreed, down, limits)?;
-        wire::JobFailed::new(limits, wire::JobFailedParts { failure, detail: record.detail, work }).or(Err(order()))
+        let work = self.work(record.work, agreed, down)?;
+        let failure = self.job_failure(record.failure, agreed, down)?;
+        Ok(wire::JobFailed { failure, detail: record.detail, work })
     }
-    fn work(
-        &mut self,
-        record: wire::Work,
-        agreed: &[Agreed],
-        down: bool,
-        limits: &wire::Limits,
-    ) -> Result<wire::Work, Untranslated> {
-        let record = record.into_parts();
+    fn work(&mut self, record: wire::Work, agreed: &[Agreed], down: bool) -> Result<wire::Work, Untranslated> {
         let left = self.optional(Carried::Left, record.left, agreed, down)?;
         let saved = self.optional(Carried::Saved, record.saved, agreed, down)?;
-        wire::Work::new(limits, wire::WorkParts { left, saved }).or(Err(order()))
+        Ok(wire::Work { left, saved })
     }
     fn resource(
         &mut self,
         record: wire::Resource,
         agreed: &[Agreed],
         down: bool,
-        limits: &wire::Limits,
     ) -> Result<wire::Resource, Untranslated> {
-        let record = record.into_parts();
         let resource = self.optional(Carried::Preparation, record.resource, agreed, down)?;
-        wire::Resource::new(limits, wire::ResourceParts { resource }).or(Err(order()))
+        Ok(wire::Resource { resource })
     }
     fn preparation_value(
         &mut self,
         record: wire::PreparationValue,
         agreed: &[Agreed],
         down: bool,
-        limits: &wire::Limits,
     ) -> Result<wire::PreparationValue, Untranslated> {
-        let record = record.into_parts();
-        let value = self.preparation(record.value, agreed, down, limits)?;
-        wire::PreparationValue::new(limits, wire::PreparationValueParts { value }).or(Err(order()))
+        let value = self.preparation(record.value, agreed, down)?;
+        Ok(wire::PreparationValue { value })
     }
     fn engine(
         &mut self,
         record: wire::FromEngine,
         agreed: &[Agreed],
         down: bool,
-        limits: &wire::Limits,
     ) -> Result<wire::FromEngine, Untranslated> {
         Ok(match record {
             wire::FromEngine::Asked(record) => {
-                let mut record = record.into_parts();
+                let mut record = record;
                 record.answer = match record.answer {
                     wire::AskAnswer::Bytes(value) => {
-                        let bytes = self.carried(Carried::Answer, value.into_parts().bytes, agreed, down)?;
-                        wire::AskAnswer::Bytes(
-                            wire::AskBytes::new(limits, wire::AskBytesParts { bytes }).or(Err(order()))?,
-                        )
+                        let bytes = self.carried(Carried::Answer, value.bytes, agreed, down)?;
+                        wire::AskAnswer::Bytes(wire::AskBytes { bytes })
                     }
                     wire::AskAnswer::Refused => wire::AskAnswer::Refused,
                 };
-                wire::FromEngine::Asked(wire::Asked::new(limits, record).or(Err(order()))?)
+                wire::FromEngine::Asked(record)
             }
             wire::FromEngine::Assignment(record) => {
-                wire::FromEngine::Assignment(self.assignment(record, agreed, down, limits)?)
+                wire::FromEngine::Assignment(self.assignment(record, agreed, down)?)
             }
-            wire::FromEngine::Job(record) => wire::FromEngine::Job(self.job(record, agreed, down, limits)?),
-            wire::FromEngine::Grant(record) => wire::FromEngine::Grant(self.granted(record, agreed, down, limits)?),
-            wire::FromEngine::ReadList(record) => {
-                wire::FromEngine::ReadList(self.read_list(record, agreed, down, limits)?)
-            }
+            wire::FromEngine::Job(record) => wire::FromEngine::Job(self.job(record, agreed, down)?),
+            wire::FromEngine::Grant(record) => wire::FromEngine::Grant(self.granted(record, agreed, down)?),
+            wire::FromEngine::ReadList(record) => wire::FromEngine::ReadList(self.read_list(record, agreed, down)?),
             record @ (wire::FromEngine::Message(_)
             | wire::FromEngine::Relayed(_)
             | wire::FromEngine::TurnKept(_)
@@ -805,19 +691,16 @@ impl Translation {
         record: wire::FromWorker,
         agreed: &[Agreed],
         down: bool,
-        limits: &wire::Limits,
     ) -> Result<wire::FromWorker, Untranslated> {
         Ok(match record {
             wire::FromWorker::Ask(record) => {
-                let mut record = record.into_parts();
+                let mut record = record;
                 record.bytes = self.carried(Carried::Ask, record.bytes, agreed, down)?;
-                wire::FromWorker::Ask(wire::Ask::new(limits, record).or(Err(order()))?)
+                wire::FromWorker::Ask(record)
             }
-            wire::FromWorker::Turn(record) => wire::FromWorker::Turn(self.turn(record, agreed, down, limits)?),
-            wire::FromWorker::Answer(record) => wire::FromWorker::Answer(self.answer(record, agreed, down, limits)?),
-            wire::FromWorker::JobAnswer(record) => {
-                wire::FromWorker::JobAnswer(self.job_answer(record, agreed, down, limits)?)
-            }
+            wire::FromWorker::Turn(record) => wire::FromWorker::Turn(self.turn(record, agreed, down)?),
+            wire::FromWorker::Answer(record) => wire::FromWorker::Answer(self.answer(record, agreed, down)?),
+            wire::FromWorker::JobAnswer(record) => wire::FromWorker::JobAnswer(self.job_answer(record, agreed, down)?),
             record @ (wire::FromWorker::Hello(_)
             | wire::FromWorker::Call(_)
             | wire::FromWorker::Fact(_)
@@ -830,17 +713,11 @@ impl Translation {
             | wire::FromWorker::Draining(_)) => record,
         })
     }
-    fn ending(
-        &mut self,
-        record: wire::Ending,
-        agreed: &[Agreed],
-        down: bool,
-        limits: &wire::Limits,
-    ) -> Result<wire::Ending, Untranslated> {
+    fn ending(&mut self, record: wire::Ending, agreed: &[Agreed], down: bool) -> Result<wire::Ending, Untranslated> {
         Ok(match record {
-            wire::Ending::Ended(record) => wire::Ending::Ended(self.ended(record, agreed, down, limits)?),
-            wire::Ending::Parked(record) => wire::Ending::Parked(self.parked(record, agreed, down, limits)?),
-            wire::Ending::Failed(record) => wire::Ending::Failed(self.failed(record, agreed, down, limits)?),
+            wire::Ending::Ended(record) => wire::Ending::Ended(self.ended(record, agreed, down)?),
+            wire::Ending::Parked(record) => wire::Ending::Parked(self.parked(record, agreed, down)?),
+            wire::Ending::Failed(record) => wire::Ending::Failed(self.failed(record, agreed, down)?),
             record @ wire::Ending::Refused(_) => record,
         })
     }
@@ -849,26 +726,17 @@ impl Translation {
         record: wire::JobEnding,
         agreed: &[Agreed],
         down: bool,
-        limits: &wire::Limits,
     ) -> Result<wire::JobEnding, Untranslated> {
         Ok(match record {
-            wire::JobEnding::Finished(record) => {
-                wire::JobEnding::Finished(self.job_finished(record, agreed, down, limits)?)
-            }
-            wire::JobEnding::Failed(record) => wire::JobEnding::Failed(self.job_failed(record, agreed, down, limits)?),
+            wire::JobEnding::Finished(record) => wire::JobEnding::Finished(self.job_finished(record, agreed, down)?),
+            wire::JobEnding::Failed(record) => wire::JobEnding::Failed(self.job_failed(record, agreed, down)?),
             record @ wire::JobEnding::Refused(_) => record,
         })
     }
-    fn failure(
-        &mut self,
-        record: wire::Failure,
-        agreed: &[Agreed],
-        down: bool,
-        limits: &wire::Limits,
-    ) -> Result<wire::Failure, Untranslated> {
+    fn failure(&mut self, record: wire::Failure, agreed: &[Agreed], down: bool) -> Result<wire::Failure, Untranslated> {
         Ok(match record {
             wire::Failure::Unprepared(record) => {
-                wire::Failure::Unprepared(self.preparation_value(record, agreed, down, limits)?)
+                wire::Failure::Unprepared(self.preparation_value(record, agreed, down)?)
             }
             record @ (wire::Failure::Run(_) | wire::Failure::Agent(_) | wire::Failure::Cancelled(_)) => record,
         })
@@ -878,11 +746,10 @@ impl Translation {
         record: wire::JobFailure,
         agreed: &[Agreed],
         down: bool,
-        limits: &wire::Limits,
     ) -> Result<wire::JobFailure, Untranslated> {
         Ok(match record {
             wire::JobFailure::Unprepared(record) => {
-                wire::JobFailure::Unprepared(self.preparation_value(record, agreed, down, limits)?)
+                wire::JobFailure::Unprepared(self.preparation_value(record, agreed, down)?)
             }
             record @ (wire::JobFailure::Failed
             | wire::JobFailure::Deadline
@@ -897,12 +764,9 @@ impl Translation {
         record: wire::Preparation,
         agreed: &[Agreed],
         down: bool,
-        limits: &wire::Limits,
     ) -> Result<wire::Preparation, Untranslated> {
         Ok(match record {
-            wire::Preparation::Permanent(record) => {
-                wire::Preparation::Permanent(self.resource(record, agreed, down, limits)?)
-            }
+            wire::Preparation::Permanent(record) => wire::Preparation::Permanent(self.resource(record, agreed, down)?),
             record @ wire::Preparation::Transient => record,
         })
     }
@@ -911,10 +775,9 @@ impl Translation {
         record: Option<wire::Workspace>,
         agreed: &[Agreed],
         down: bool,
-        limits: &wire::Limits,
     ) -> Result<Option<wire::Workspace>, Untranslated> {
         match record {
-            Some(record) => Ok(Some(self.workspace_value(record, agreed, down, limits)?)),
+            Some(record) => Ok(Some(self.workspace_value(record, agreed, down)?)),
             None => Ok(None),
         }
     }
@@ -923,11 +786,10 @@ impl Translation {
         records: List<wire::Grant>,
         agreed: &[Agreed],
         down: bool,
-        limits: &wire::Limits,
     ) -> Result<List<wire::Grant>, Untranslated> {
         let mut result = List::with_capacity(records.len());
         for record in records.into_boxed() {
-            result.push(self.grant(record, agreed, down, limits)?).expect("same grant count");
+            result.push(self.grant(record, agreed, down)?).expect("same grant count");
         }
         Ok(result)
     }

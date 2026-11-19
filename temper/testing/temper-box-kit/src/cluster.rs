@@ -63,10 +63,9 @@ pub fn figures_with_limits(
     .expect("fixture engine");
     let own = document.limits;
     let mut figures = temper_engine_service_vocabulary::figures::Composer::new(&engine, &own)
-        .compose(&temper_service::stock::agents())
-        .into_parts();
+        .compose(&temper_service::stock::agents());
     figures.places = engine.limits.core.fleet.slots;
-    jig_protocol_worker_wire::Figures::new(&jig_protocol_worker_wire::CEILINGS, figures).expect("composed figures")
+    figures
 }
 /// Agent metadata for fixture checks; no worker configuration file is supplied.
 #[must_use]

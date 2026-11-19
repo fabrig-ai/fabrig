@@ -175,10 +175,9 @@ fn box_worker_over(
     configured.environment = worker::application::agents_environment(Some(&configured.environment), own);
     let figures =
         temper_engine_service::figures::Composer::new(&parsed.engine, &parsed.application.limits).compose(agents);
-    let mut parts = figures.into_parts();
+    let mut parts = figures;
     parts.places = parsed.engine.limits.core.fleet.slots;
-    let figures =
-        jig_protocol_worker_wire::Figures::new(&jig_protocol_worker_wire::CEILINGS, parts).expect("composed figures");
+    let figures = parts;
     let mut part =
         WorkerPart::in_process(jig, configured, directories, crate::limits::worker(&parsed.application.limits));
     match temper_worker_service::figures::apply(&mut part, figures) {

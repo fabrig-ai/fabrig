@@ -4,6 +4,7 @@ use jig_engine_workers_world::{
     referee,
 };
 use jig_protocol_engine_workers::{Event, Request};
+use jig_protocol_worker_wire::Record;
 use skein_lib::{Duration, Token};
 
 fn world() -> World {
@@ -373,15 +374,15 @@ fn a_resumed_start_fits_the_room() {
         assert!(frame.body.len() + 8 <= usize::try_from(ROOM).expect("small room"));
         let mut reader = skein_lib::Reader::new(&frame.body);
         let record = wire::Assignment::decode(&codec, &mut reader).expect("assignment");
-        assert_eq!(record.answered().len(), u32::from(calls));
-        for (index, call) in record.answered().iter().enumerate() {
+        assert_eq!(record.answered.len(), u32::from(calls));
+        for (index, call) in record.answered.iter().enumerate() {
             let index = u8::try_from(index).expect("small call count");
-            assert_eq!(call.name(), &[index]);
-            assert_eq!(call.tool(), b"read");
-            let wire::SettledAnswer::Host(answer) = call.answer() else { panic!("host answer") };
-            assert!(answer.error());
+            assert_eq!(call.name.as_ref(), &[index]);
+            assert_eq!(call.tool.as_ref(), b"read");
+            let wire::SettledAnswer::Host(answer) = &call.answer else { panic!("host answer") };
+            assert!(answer.error);
             let expected = if index < calls - whole { wire::fit::cut_words(256) } else { vec![index; ANSWER].into() };
-            assert_eq!(answer.body(), expected.as_ref(), "{calls} calls, call {index}");
+            assert_eq!(answer.body.as_ref(), expected.as_ref(), "{calls} calls, call {index}");
         }
         assert!(!world.root().iter().any(|r| matches!(r, Request::Unsent { .. })));
     }

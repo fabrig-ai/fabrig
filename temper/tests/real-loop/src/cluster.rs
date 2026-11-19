@@ -1,5 +1,6 @@
 //! Engine and named workers on one ring (protocol/cluster.md, 6).
 use crate::{calls, fixtures, forge, llm, service::ServiceHost, world};
+use jig_protocol_worker_wire::Record;
 use skein_io::kernel::{Complete, Done, Op};
 use std::{fmt::Write as _, net::SocketAddr, os::unix::fs::DirBuilderExt, path::Path};
 
@@ -293,7 +294,7 @@ impl Runs {
                             &mut skein_lib::Reader::new(&self.bytes[HEADER_BYTES..end]),
                         )
                         .expect("assignment");
-                        self.pending = Some(assignment.task());
+                        self.pending = Some(assignment.task);
                         self.assigned_at.get_or_insert(now);
                         self.assignments.push(assignment);
                     }

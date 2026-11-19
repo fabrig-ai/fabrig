@@ -5,6 +5,7 @@ use super::fixtures;
 use crate::settings;
 use crate::startup::{Problems, What, application, lines};
 use jig_protocol_config::{self as config, Path, Segment};
+use jig_protocol_worker_wire::Record;
 use skein_lib::List;
 
 const REFUSED_TEMPLATE: u32 = 7;

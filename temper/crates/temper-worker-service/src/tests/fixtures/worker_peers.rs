@@ -636,7 +636,7 @@ pub(crate) fn text_turn(agent: &crate::settings::Agent, number: u32, text: &[u8]
         },
     )
     .unwrap();
-    let mut writer = skein_lib::Writer::new(usize::try_from(turn.measure()).unwrap());
+    let mut writer = skein_lib::Writer::new(usize::try_from(turn.measure()).expect("record within limits"));
     turn.encode(&mut writer).unwrap();
     writer.finish()
 }

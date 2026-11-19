@@ -2,6 +2,7 @@
 //! The service still owns its IO tokens, framing, roots and process read demands.
 use crate::processes::Wire;
 use jig_protocol_worker_wire as wire;
+use jig_protocol_worker_wire::Record;
 use skein_io::kernel::{Complete, Done, Fd, Op, Submit};
 use skein_lib::{Queue, Reader, Time, Token, Writer};
 use std::collections::{BTreeSet, VecDeque};
@@ -233,34 +234,35 @@ fn shape(frames: &Frames, pending: &mut VecDeque<u8>, buf: &mut [u8], count: usi
 }
 
 fn marker() -> Vec<u8> {
-    let kept = wire::TurnKept::new(
-        &wire::CEILINGS,
-        wire::TurnKeptParts { task: OTHER_RUN, attempt: OTHER_ATTEMPT, number: 1 },
+    let kept = wire::TurnKept { task: OTHER_RUN, attempt: OTHER_ATTEMPT, number: 1 };
+    let mut frame = skein_channel::frame_writer(
+        wire::Kind::TurnKept.number(),
+        kept.measure(&wire::CEILINGS).expect("record within limits"),
     )
-    .expect("marker");
-    let mut frame = skein_channel::frame_writer(wire::Kind::TurnKept.number(), kept.measure()).expect("marker frame");
-    let mut body = Writer::new(skein_lib::length::usize_of(kept.measure()));
-    kept.encode(&mut body).expect("marker body");
+    .expect("marker frame");
+    let mut body =
+        Writer::new(skein_lib::length::usize_of(kept.measure(&wire::CEILINGS).expect("record within limits")));
+    kept.write(&wire::CEILINGS, &mut body).expect("marker body");
     frame.put(&body.finish()).expect("marker frame body");
     frame.finish().expect("marker frame size").bytes().to_vec()
 }
 fn prefix() -> Vec<u8> {
-    let inbound = wire::Inbound::new(
-        &wire::CEILINGS,
-        wire::InboundParts {
-            task: OTHER_RUN,
-            attempt: OTHER_ATTEMPT,
-            name: 1,
-            sender: Box::default(),
-            words: b"new".as_slice().into(),
-            finish_requested: false,
-        },
+    let inbound = wire::Inbound {
+        task: OTHER_RUN,
+        attempt: OTHER_ATTEMPT,
+        name: 1,
+        sender: Box::default(),
+        words: b"new".as_slice().into(),
+        finish_requested: false,
+    };
+    let mut body =
+        Writer::new(skein_lib::length::usize_of(inbound.measure(&wire::CEILINGS).expect("record within limits")));
+    inbound.write(&wire::CEILINGS, &mut body).expect("message body");
+    let mut frame = skein_channel::frame_writer(
+        wire::Kind::Message.number(),
+        inbound.measure(&wire::CEILINGS).expect("record within limits"),
     )
-    .expect("new message");
-    let mut body = Writer::new(skein_lib::length::usize_of(inbound.measure()));
-    inbound.encode(&mut body).expect("message body");
-    let mut frame =
-        skein_channel::frame_writer(wire::Kind::Message.number(), inbound.measure()).expect("message frame");
+    .expect("message frame");
     frame.put(&body.finish()).expect("message frame body");
     let mut bytes = frame.finish().expect("message frame size").bytes().to_vec();
     bytes.extend(marker());
@@ -277,14 +279,18 @@ fn extra_assignment(wire: &Wire) -> Vec<u8> {
         .find(|(_, kind, _)| *kind == wire::Kind::Assignment.number())
         .expect("the assigned run is already calling");
     let assignment = wire::Assignment::decode(&wire::CEILINGS, &mut Reader::new(bytes)).expect("assigned run");
-    let mut parts = assignment.into_parts();
+    let mut parts = assignment;
     parts.task = OTHER_RUN;
     parts.attempt = OTHER_ATTEMPT;
-    let assignment = wire::Assignment::new(&wire::CEILINGS, parts).expect("extra assignment");
-    let mut body = Writer::new(skein_lib::length::usize_of(assignment.measure()));
-    assignment.encode(&mut body).expect("assignment body");
-    let mut frame =
-        skein_channel::frame_writer(wire::Kind::Assignment.number(), assignment.measure()).expect("assignment frame");
+    let assignment = parts;
+    let mut body =
+        Writer::new(skein_lib::length::usize_of(assignment.measure(&wire::CEILINGS).expect("record within limits")));
+    assignment.write(&wire::CEILINGS, &mut body).expect("assignment body");
+    let mut frame = skein_channel::frame_writer(
+        wire::Kind::Assignment.number(),
+        assignment.measure(&wire::CEILINGS).expect("record within limits"),
+    )
+    .expect("assignment frame");
     frame.put(&body.finish()).expect("assignment frame body");
     frame.finish().expect("assignment frame size").bytes().to_vec()
 }

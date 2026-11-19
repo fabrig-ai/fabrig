@@ -20,7 +20,7 @@ fn own() -> Box<[EnvironmentEntry]> {
 fn from_figures(given: Option<serde_json::Value>) -> startup::WorkerPart {
     let figures = stock_figures();
     let mut input: serde_json::Value = serde_json::from_slice(&fixtures::worker_alone_document()).unwrap();
-    input["workers"][0]["slots"] = figures.places().into();
+    input["workers"][0]["slots"] = figures.places.into();
     if let Some(given) = given {
         input["application"]["environment"] = given;
     }

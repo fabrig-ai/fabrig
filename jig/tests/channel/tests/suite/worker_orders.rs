@@ -13,8 +13,8 @@ fn link_records_follow_the_assignment_they_name_under_load() {
     let cancel = outcome.records.iter().position(|kind| *kind == wire::Kind::Cancel.number()).expect("cancel");
     assert!(assignment < cancel);
     assert_eq!(outcome.answers.len(), 1);
-    assert!(matches!(outcome.answers[0].ending(), wire::Ending::Failed(failure)
-        if matches!(failure.failure(), wire::Failure::Cancelled(_))));
+    assert!(matches!(&outcome.answers[0].ending, wire::Ending::Failed(failure)
+        if matches!(&failure.failure, wire::Failure::Cancelled(_))));
     assert_eq!(outcome.acknowledgements, 1);
     assert_eq!(outcome.starts, 1);
     assert_eq!(outcome.starts_after_cancel, 0);
@@ -30,9 +30,9 @@ fn a_run_ends_after_its_last_hand_out_under_load() {
     let answer = outcome.records.iter().position(|kind| *kind == wire::Kind::Answer.number()).expect("answer");
     assert!(turn < answer);
     assert_eq!(outcome.turns.len(), 1);
-    assert_eq!(outcome.turns[0].number(), 1);
+    assert_eq!(outcome.turns[0].number, 1);
     assert_eq!(outcome.answers.len(), 1);
-    assert!(matches!(outcome.answers[0].ending(), wire::Ending::Ended(_)));
+    assert!(matches!(&outcome.answers[0].ending, wire::Ending::Ended(_)));
     assert_eq!(outcome.acknowledgements, 1);
 }
 
@@ -44,7 +44,7 @@ fn a_held_call_never_acts_after_its_run_ended() {
     assert!(outcome.marker_passed, "the unrelated admitted marker passed too");
     assert!(!outcome.records.contains(&wire::Kind::Call.number()), "the held Call creates no relay");
     assert_eq!(outcome.answers.len(), 1);
-    assert!(matches!(outcome.answers[0].ending(), wire::Ending::Failed(failure)
-        if matches!(failure.failure(), wire::Failure::Cancelled(_))));
+    assert!(matches!(&outcome.answers[0].ending, wire::Ending::Failed(failure)
+        if matches!(&failure.failure, wire::Failure::Cancelled(_))));
     assert_eq!(outcome.acknowledgements, 1);
 }

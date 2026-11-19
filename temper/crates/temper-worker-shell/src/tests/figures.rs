@@ -42,26 +42,18 @@ fn the_workers_watchdog_covers_stock_agent_figures_and_a_sixty_minute_tool() {
         Box::new([temper_service::stock::scripted(([127, 0, 0, 1], 8370).into())]),
     );
     for (override_ms, expected_seconds) in [(None, 1205), (Some(3_600_000), 3605)] {
-        let mut parts = configured_figures_with(&input, &given).into_parts();
+        let mut parts = configured_figures_with(&input, &given);
         if let Some(value) = override_ms {
-            let mut agents = parts.agents.into_parts();
+            let mut agents = parts.agents;
             let mut profile = skein_lib::List::with_capacity(agents.profile.len() + 1);
             for figure in agents.profile.into_boxed() {
                 profile.push(figure).expect("existing profile figure");
             }
-            profile
-                .push(
-                    w::Limit::new(
-                        &w::CEILINGS,
-                        w::LimitParts { name: b"policy.tool_deadline".as_slice().into(), value },
-                    )
-                    .expect("tool deadline figure"),
-                )
-                .expect("profile room");
+            profile.push(w::Limit { name: b"policy.tool_deadline".as_slice().into(), value }).expect("profile room");
             agents.profile = profile;
-            parts.agents = w::Agents::new(&w::CEILINGS, agents).expect("agent figures");
+            parts.agents = agents;
         }
-        let figures = w::Figures::new(&w::CEILINGS, parts).expect("engine figures");
+        let figures = parts;
         let bytes =
             agent::figures::configuration(&figures, Some(std::path::Path::new("/fixture/claude")), scratch.path(), &[])
                 .expect("agent document from engine figures");
@@ -91,7 +83,7 @@ fn a_boxs_demo_endpoint_keeps_its_name_and_uses_smiths_openai_provider() {
         Box::new([temper_service::stock::scripted(([127, 0, 0, 1], 8370).into())]),
     );
     let figures = configured_figures_with(&input, &given);
-    assert_eq!(figures.agents().endpoints().get(3).expect("demo endpoint").provider(), b"demo");
+    assert_eq!(figures.agents.endpoints.get(3).expect("demo endpoint").provider.as_ref(), b"demo");
     let scratch = skein_scratch::Scratch::new("demo-agent-endpoint");
     let bytes = agent::figures::configuration(&figures, None, scratch.path(), &[]).expect("written agent");
     let written: serde_json::Value = serde_json::from_slice(&bytes).expect("agent JSON");
@@ -184,46 +176,29 @@ fn claude_lookup_requires_an_absolute_path_entry_and_executable_file() {
 #[test]
 fn tls_figures_write_smiths_trust_and_keep_endpoint_details() {
     use jig_protocol_worker_wire as w;
-    let mut parts = stock_figures().into_parts();
-    let mut agents = parts.agents.into_parts();
+    let mut parts = stock_figures();
+    let mut agents = parts.agents;
     let endpoint = agents.endpoints.get_mut(0).expect("endpoint");
-    let mut value = endpoint.clone().into_parts();
+    let mut value = endpoint.clone();
     value.host = b"::1".as_slice().into();
     value.port = 1234;
     value.program = Some(b"claude_code".as_slice().into());
     value.headers = skein_lib::List::with_capacity(1);
     value
         .headers
-        .push(
-            w::Header::new(
-                &w::CEILINGS,
-                w::HeaderParts { name: b"x-fixture".as_slice().into(), value: b"given".as_slice().into() },
-            )
-            .expect("header"),
-        )
+        .push(w::Header { name: b"x-fixture".as_slice().into(), value: b"given".as_slice().into() })
         .expect("one header");
-    value.transport = w::Transport::Tls(
-        w::Tls::new(
-            &w::CEILINGS,
-            w::TlsParts {
-                server_name: b"skein.test".as_slice().into(),
-                trust: Some(b"/fixture/root.der".as_slice().into()),
-            },
-        )
-        .expect("TLS"),
-    );
-    let mut limits = value.limits.into_parts();
+    value.transport = w::Transport::Tls(w::Tls {
+        server_name: b"skein.test".as_slice().into(),
+        trust: Some(b"/fixture/root.der".as_slice().into()),
+    });
+    let mut limits = value.limits;
     limits.oversized = w::Oversized::Drop;
-    value.limits = w::EndpointLimits::new(&w::CEILINGS, limits).expect("limits");
-    *endpoint = w::AgentEndpoint::new(&w::CEILINGS, value).expect("endpoint");
-    parts.agents = w::Agents::new(&w::CEILINGS, agents).expect("agents");
-    let bytes = agent::figures::configuration(
-        &w::Figures::new(&w::CEILINGS, parts).expect("figures"),
-        None,
-        std::path::Path::new("/fixture"),
-        &[],
-    )
-    .expect("written agent");
+    value.limits = limits;
+    *endpoint = value;
+    parts.agents = agents;
+    let bytes =
+        agent::figures::configuration(&parts, None, std::path::Path::new("/fixture"), &[]).expect("written agent");
     let _decoded = agent::decoded_bytes(&bytes).expect("smith reads endpoint trust");
     let document: serde_json::Value = serde_json::from_slice(&bytes).expect("JSON");
     let endpoint = &document["endpoints"][0];

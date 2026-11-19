@@ -9,6 +9,7 @@ use crate::{
 };
 use jig_domain_core as core;
 use jig_protocol_worker_wire as wire;
+use jig_protocol_worker_wire::Record;
 use skein_fake_machine::How;
 use skein_lib::{Duration, List, Reader, Time};
 use skein_world::{HostedProgram, Inherited, StartupRoot};
@@ -214,8 +215,8 @@ fn logins(procs: &[Proc]) -> Result<Vec<(usize, wire::LoginState)>, String> {
         if *kind == wire::Kind::Logins.number() {
             let logins = wire::Logins::decode(&wire::CEILINGS, &mut Reader::new(body))
                 .map_err(|why| format!("login inventory: {why:?}"))?;
-            if let Some(login) = logins.logins().iter().find(|login| login.name() == b"alice") {
-                found.push((frame, login.state().clone()));
+            if let Some(login) = logins.logins.iter().find(|login| login.name.as_ref() == b"alice") {
+                found.push((frame, login.state.clone()));
             }
         }
     }
@@ -226,7 +227,7 @@ fn waiting(procs: &[Proc]) -> Result<bool, String> {
         if *kind == wire::Kind::Fact.number() {
             let fact =
                 wire::Fact::decode(&wire::CEILINGS, &mut Reader::new(body)).map_err(|why| format!("fact: {why:?}"))?;
-            if matches!(fact.value(), wire::FactValue::Phase(phase) if *phase.value() == wire::Phase::Waiting) {
+            if matches!( &fact.value, wire::FactValue::Phase(phase) if phase.value == wire::Phase::Waiting) {
                 return Ok(true);
             }
         }
@@ -242,14 +243,14 @@ fn assignments(observed: &processes::Wire) -> Result<Vec<Assignment>, String> {
             let assignment = wire::Assignment::decode(&wire::CEILINGS, &mut Reader::new(bytes))
                 .map_err(|why| format!("assignment: {why:?}"))?;
             let charter =
-                smith_charter::Charter::decode(&smith_charter::CEILINGS, &mut Reader::new(assignment.charter()))
+                smith_charter::Charter::decode(&smith_charter::CEILINGS, &mut Reader::new(assignment.charter.as_ref()))
                     .map_err(|why| format!("charter: {why:?}"))?;
             let source = charter.main().account().ok_or("selected source")?;
-            let grant = assignment.grants().iter().find(|grant| grant.number() == source).ok_or("main's grant")?;
-            let grant = match grant.value() {
+            let grant = assignment.grants.iter().find(|grant| grant.number == source).ok_or("main's grant")?;
+            let grant = match &grant.value {
                 wire::GrantValue::Credential(value) => {
                     {
-                        let (observed_value, wanted) = (value.scheme(), &(wire::Scheme::Key));
+                        let (observed_value, wanted) = ((&value.scheme), &(wire::Scheme::Key));
                         if observed_value != wanted {
                             return Err(format!(
                                 "assertion `left == right` failed: left: {observed_value:?}, right: {wanted:?}"
@@ -257,7 +258,7 @@ fn assignments(observed: &processes::Wire) -> Result<Vec<Assignment>, String> {
                         }
                     }
                     {
-                        let (observed_value, wanted) = (&(value.bytes().expose()), &(fixtures::KEY));
+                        let (observed_value, wanted) = (&(value.bytes.expose()), &(fixtures::KEY));
                         if observed_value != wanted {
                             return Err(format!(
                                 "assertion `left == right` failed: left: {observed_value:?}, right: {wanted:?}"
@@ -268,7 +269,7 @@ fn assignments(observed: &processes::Wire) -> Result<Vec<Assignment>, String> {
                 }
                 wire::GrantValue::Program(value) => {
                     {
-                        let (observed_value, wanted) = (&(value.name()), &(b"alice"));
+                        let (observed_value, wanted) = (&(value.name.as_ref()), &(b"alice"));
                         if observed_value != wanted {
                             return Err(format!(
                                 "assertion `left == right` failed: left: {observed_value:?}, right: {wanted:?}"
@@ -280,8 +281,8 @@ fn assignments(observed: &processes::Wire) -> Result<Vec<Assignment>, String> {
                 wire::GrantValue::Application(_) => return Err(String::from("main uses the LLM grant")),
             };
             Ok(Assignment {
-                task: assignment.task(),
-                attempt: assignment.attempt(),
+                task: assignment.task,
+                attempt: assignment.attempt,
                 endpoint: charter.main().endpoint().to_vec(),
                 model: charter.main().model().to_vec(),
                 source,

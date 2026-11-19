@@ -13,9 +13,9 @@ pub fn apply(part: &mut WorkerPart, figures: Figures) -> Result<List<Box<[u8]>>,
     let names = config::overrides::list(&jig);
     let mut unknown: List<Box<[u8]>> = List::uncapped();
     let mut found = Problems::empty();
-    for limit in figures.limits() {
-        let name = limit.name();
-        let value = limit.value();
+    for limit in &figures.limits {
+        let name = limit.name.as_ref();
+        let value = limit.value;
         let mut known = false;
         for &(candidate, _) in &names {
             if candidate.as_bytes() == name {
@@ -51,7 +51,7 @@ pub fn apply(part: &mut WorkerPart, figures: Figures) -> Result<List<Box<[u8]>>,
             found.push(figure_path(name, value), what);
         }
     }
-    part.worker.jig.slots = part.worker.jig.slots.min(figures.places());
+    part.worker.jig.slots = part.worker.jig.slots.min(figures.places);
     part.worker.jig.stop_bound = match config::stop_bound(&part.worker.jig.graces, jig.link.ping, jig.link.silence) {
         Some(bound) => bound,
         None => {
@@ -82,9 +82,11 @@ pub fn problems(mut found: Problems, figures: &Figures) -> Problems {
         };
         let mut changed = false;
         if let Some(name) = name {
-            for limit in figures.limits().iter().chain(figures.agents().profile().iter()) {
-                if limit.name() == name || (name == b"tool_payload" && limit.name() == b"declared.tool_payload") {
-                    problem.path = figure_path(limit.name(), limit.value());
+            for limit in figures.limits.iter().chain(figures.agents.profile.iter()) {
+                if limit.name.as_ref() == name
+                    || (name == b"tool_payload" && limit.name.as_ref() == b"declared.tool_payload")
+                {
+                    problem.path = figure_path(limit.name.as_ref(), limit.value);
                     changed = true;
                     break;
                 }

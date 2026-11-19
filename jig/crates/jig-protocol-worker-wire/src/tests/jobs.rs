@@ -1,5 +1,6 @@
 //! Jobs retain their own records (jig/docs/design/protocol/channel/records.md, 4).
 use super::{fixtures, records::through_bytes};
+use crate::v17::Record;
 use crate::{self as wire, v17};
 use skein_lib::{Duration, List};
 
@@ -10,15 +11,11 @@ const SECOND_KIND: u32 = 11;
 // The fixture's spec bound is 32 bytes.
 const SPEC_BYTES: usize = 32;
 
-fn job_parts(spec: &[u8]) -> wire::JobParts {
-    let workspace = wire::Workspace::new(
-        &fixtures::LIMITS,
-        wire::WorkspaceParts { workstream: 7, items: b"workspace-items".as_slice().into() },
-    )
-    .expect("workspace within limits");
+fn job_parts(spec: &[u8]) -> wire::Job {
+    let workspace = wire::Workspace { workstream: 7, items: b"workspace-items".as_slice().into() };
     let mut grants = List::with_capacity(1);
     grants.push(fixtures::grant(fixtures::application_value(), 5, 9)).expect("one application grant");
-    wire::JobParts {
+    wire::Job {
         task: TASK,
         attempt: ATTEMPT,
         kind: FIRST_KIND,
@@ -30,78 +27,52 @@ fn job_parts(spec: &[u8]) -> wire::JobParts {
 }
 
 fn work() -> wire::Work {
-    wire::Work::new(&fixtures::LIMITS, wire::WorkParts { left: Some(b"left-work".as_slice().into()), saved: None })
-        .expect("job's opaque work")
+    wire::Work { left: Some(b"left-work".as_slice().into()), saved: None }
 }
 
 fn endings() -> [wire::JobEnding; 3] {
-    let finished = wire::JobFinished::new(
-        &fixtures::LIMITS,
-        wire::JobFinishedParts { result: b"opaque-result".as_slice().into(), work: work() },
-    )
-    .expect("finished job");
-    let stale = wire::DeliveryOutcomeValue::new(
-        &fixtures::LIMITS,
-        wire::DeliveryOutcomeValueParts { value: wire::DeliveryOutcome::Stale },
-    )
-    .expect("stale delivery");
-    let failed = wire::JobFailed::new(
-        &fixtures::LIMITS,
-        wire::JobFailedParts {
-            failure: wire::JobFailure::Undelivered(stale),
-            detail: b"bounded-detail".as_slice().into(),
-            work: work(),
-        },
-    )
-    .expect("failed job");
-    let invalid =
-        wire::JobInvalidValue::new(&fixtures::LIMITS, wire::JobInvalidValueParts { value: wire::JobInvalid::Kind })
-            .expect("invalid job kind");
-    let refused = wire::JobRefusalValue::new(
-        &fixtures::LIMITS,
-        wire::JobRefusalValueParts { value: wire::JobRefusal::Invalid(invalid) },
-    )
-    .expect("refused job");
+    let finished = wire::JobFinished { result: b"opaque-result".as_slice().into(), work: work() };
+    let stale = wire::DeliveryOutcomeValue { value: wire::DeliveryOutcome::Stale };
+    let failed = wire::JobFailed {
+        failure: wire::JobFailure::Undelivered(stale),
+        detail: b"bounded-detail".as_slice().into(),
+        work: work(),
+    };
+    let invalid = wire::JobInvalidValue { value: wire::JobInvalid::Kind };
+    let refused = wire::JobRefusalValue { value: wire::JobRefusal::Invalid(invalid) };
     [wire::JobEnding::Finished(finished), wire::JobEnding::Failed(failed), wire::JobEnding::Refused(refused)]
 }
 
 /// The spec holds at its byte bound (jig/docs/design/protocol/channel/records.md, 4).
 #[test]
 fn a_job_at_its_spec_bound_round_trips() {
-    let job = wire::Job::new(&fixtures::LIMITS, job_parts(&[b's'; SPEC_BYTES])).expect("spec at bound");
-    let decoded = through_bytes(&job, wire::Job::measure, wire::Job::encode, wire::Job::decode);
+    let job = job_parts(&[b's'; SPEC_BYTES]);
+    let decoded = through_bytes(&job);
     assert_eq!(decoded, job);
 }
 
 /// One byte past the spec bound is refused (jig/docs/design/protocol/channel/records.md, 4).
 #[test]
 fn a_job_one_byte_past_its_spec_bound_is_refused() {
-    let problem = wire::Job::new(&fixtures::LIMITS, job_parts(&[b's'; SPEC_BYTES + 1])).expect_err("spec past bound");
-    assert_eq!(problem, v17::Problem { path: v17::Path::JobSpec, reason: skein_codec::Reason::Bound });
+    let problem = (job_parts(&[b's'; SPEC_BYTES + 1])).encode(&fixtures::LIMITS).expect_err("spec past bound");
+    assert_eq!(problem, v17::Problem { path: v17::paths::JOB_SPEC, reason: skein_codec::Reason::Bound });
 }
 
 /// Finished, failed and refused answers keep their payloads (jig/docs/design/protocol/channel/records.md, 4).
 #[test]
 fn job_answers_keep_their_endings_through_bytes() {
     for ending in endings() {
-        let answer =
-            wire::JobAnswer::new(&fixtures::LIMITS, wire::JobAnswerParts { task: TASK, attempt: ATTEMPT, ending })
-                .expect("job answer within limits");
-        let decoded =
-            through_bytes(&answer, wire::JobAnswer::measure, wire::JobAnswer::encode, wire::JobAnswer::decode);
+        let answer = wire::JobAnswer { task: TASK, attempt: ATTEMPT, ending };
+        let decoded = through_bytes(&answer);
         assert_eq!(decoded, answer);
     }
 }
 
-fn hello_parts(kinds: &[u32]) -> wire::HelloParts {
-    let mut parts = fixtures::hello_smallest().into_parts();
+fn hello_parts(kinds: &[u32]) -> wire::Hello {
+    let mut parts = fixtures::hello_smallest();
     parts.jobs = List::with_capacity(u32::try_from(kinds.len()).expect("small list"));
     for kind in kinds {
-        let bound = wire::JobBound::new(
-            &fixtures::LIMITS,
-            wire::JobBoundParts { kind: *kind, spec: 32, result: 16, deadline: Duration::from_secs(60) },
-        )
-        .expect("job bound");
+        let bound = wire::JobBound { kind: *kind, spec: 32, result: 16, deadline: Duration::from_secs(60) };
         parts.jobs.push(bound).expect("one slot per kind");
     }
     parts
@@ -110,8 +81,8 @@ fn hello_parts(kinds: &[u32]) -> wire::HelloParts {
 /// Two declared kinds hold at the list bound (jig/docs/design/protocol/channel/README.md, 4.3, and jig/docs/design/protocol/channel/records.md, 4).
 #[test]
 fn a_hello_with_two_job_kinds_round_trips() {
-    let hello = wire::Hello::new(&fixtures::LIMITS, hello_parts(&[FIRST_KIND, SECOND_KIND])).expect("two job kinds");
-    let decoded = through_bytes(&hello, wire::Hello::measure, wire::Hello::encode, wire::Hello::decode);
+    let hello = hello_parts(&[FIRST_KIND, SECOND_KIND]);
+    let decoded = through_bytes(&hello);
     assert_eq!(decoded, hello);
 }
 
@@ -119,7 +90,7 @@ fn a_hello_with_two_job_kinds_round_trips() {
 #[test]
 fn a_hello_one_job_kind_past_its_bound_is_refused() {
     const THIRD_KIND: u32 = 19;
-    let problem = wire::Hello::new(&fixtures::LIMITS, hello_parts(&[FIRST_KIND, SECOND_KIND, THIRD_KIND]))
-        .expect_err("third job kind");
-    assert_eq!(problem, v17::Problem { path: v17::Path::HelloJobs, reason: skein_codec::Reason::Bound });
+    let problem =
+        (hello_parts(&[FIRST_KIND, SECOND_KIND, THIRD_KIND])).encode(&fixtures::LIMITS).expect_err("third job kind");
+    assert_eq!(problem, v17::Problem { path: v17::paths::HELLO_JOBS, reason: skein_codec::Reason::Bound });
 }

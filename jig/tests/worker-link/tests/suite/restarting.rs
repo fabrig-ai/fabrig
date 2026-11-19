@@ -5,13 +5,12 @@ use jig_worker_link_world::{World, fixtures};
 use skein_lib::{Duration, List, Time};
 
 pub(super) fn word(wait_ms: u64) -> skein_channel::Frame {
-    let record = wire::Restarting::new(&fixtures::codec(), wire::RestartingParts { wait_ms }).expect("word");
-    fixtures::frame(0x018f, &fixtures::encoded(record.measure(), |writer| record.encode(writer)))
+    let record = wire::Restarting { wait_ms };
+    fixtures::frame(0x018f, &fixtures::encoded(&record))
 }
 pub(super) fn sources() -> skein_channel::Frame {
-    let record = wire::Sources::new(&fixtures::codec(), wire::SourcesParts { sources: List::with_capacity(0) })
-        .expect("sources");
-    fixtures::frame(0x0188, &fixtures::encoded(record.measure(), |writer| record.encode(writer)))
+    let record = wire::Sources { sources: List::with_capacity(0) };
+    fixtures::frame(0x0188, &fixtures::encoded(&record))
 }
 pub(super) fn limits() -> jig_protocol_worker_link::Limits {
     jig_protocol_worker_link::Limits {

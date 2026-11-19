@@ -14,12 +14,12 @@ pub(crate) fn singletons(wires: &List<Spoken>) -> Option<List<Agreed>> {
 }
 
 pub(crate) fn statement(wires: &List<Spoken>, statement: &v17::Agreed) -> Option<List<Agreed>> {
-    let mut agreed: List<Agreed> = List::with_capacity(statement.wires().len());
-    for stated in statement.wires() {
+    let mut agreed: List<Agreed> = List::with_capacity(statement.wires.len());
+    for stated in &statement.wires {
         let mut found = None;
         for wire in wires {
-            if wire.name.as_bytes() == stated.name() && wire.layout(stated.version()).is_some() {
-                found = Some(Agreed { name: wire.name, version: stated.version() });
+            if wire.name.as_bytes() == stated.name.as_ref() && wire.layout(stated.version).is_some() {
+                found = Some(Agreed { name: wire.name, version: stated.version });
             }
         }
         let found = found?;

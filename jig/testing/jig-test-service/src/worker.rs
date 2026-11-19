@@ -1030,7 +1030,7 @@ mod admission_tests {
 
     use jig_domain_host::LinkDown;
     use jig_domain_link::SourceName;
-    use jig_protocol_worker_wire as wire;
+    use jig_protocol_worker_wire::{self as wire, Record};
     use skein_fake_channel::ScriptedPeer;
     use skein_lib::{Duration, Intake, Reader};
 
@@ -1088,19 +1088,17 @@ mod admission_tests {
             let mut wires = List::with_capacity(4);
             for spoken in &wire::spoken() {
                 wires
-                    .push(
-                        wire::AgreedWire::new(
-                            &codec,
-                            wire::AgreedWireParts { name: spoken.name.as_bytes().into(), version: spoken.highest() },
-                        )
-                        .expect("agreed wire"),
-                    )
+                    .push(wire::AgreedWire { name: spoken.name.as_bytes().into(), version: spoken.highest() })
                     .expect("four wires");
             }
-            let record = wire::v17::Agreed::new(&codec, wire::v17::AgreedParts { wires }).expect("statement");
-            let mut body = skein_lib::Writer::new(skein_lib::length::usize_of(record.measure()));
-            record.encode(&mut body).expect("statement body");
-            let mut frame = skein_channel::frame_writer(0x018d, record.measure()).expect("statement frame");
+            let record = wire::v17::Agreed { wires };
+            let mut body = skein_lib::Writer::new(skein_lib::length::usize_of(
+                record.measure(&wire::CEILINGS).expect("statement within limits"),
+            ));
+            record.write(&wire::CEILINGS, &mut body).expect("statement body");
+            let mut frame =
+                skein_channel::frame_writer(0x018d, record.measure(&wire::CEILINGS).expect("statement within limits"))
+                    .expect("statement frame");
             frame.put(&body.finish()).expect("measured body");
             peer.channel.play(frame.finish().expect("measured frame"));
             layer.socket = Some(SOCKET);
@@ -1184,9 +1182,7 @@ mod admission_tests {
             for frame in self.channel.observed() {
                 if frame.kind == wire::Kind::Turn.number() {
                     turns
-                        .push(
-                            wire::Turn::decode(&wire::CEILINGS, &mut Reader::new(&frame.body)).expect("turn").number(),
-                        )
+                        .push(wire::Turn::decode(&wire::CEILINGS, &mut Reader::new(&frame.body)).expect("turn").number)
                         .expect("frame count");
                 }
             }
@@ -1383,10 +1379,10 @@ mod admission_tests {
             }
         }
         assert_eq!(answers.len(), 1);
-        let wire::Ending::Failed(failure) = answers.get(0).expect("one answer").ending() else {
+        let wire::Ending::Failed(failure) = &answers.get(0).expect("one answer").ending else {
             panic!("cancelled answer");
         };
-        let wire::Failure::Cancelled(_) = failure.failure() else { panic!("cancelled failure") };
+        let wire::Failure::Cancelled(_) = &failure.failure else { panic!("cancelled failure") };
         layer.step(root::Event::Link(LinkDown::Acknowledge { run: OTHER_RUN, attempt: ATTEMPT }));
         layer.root.reclaim();
         assert_eq!(layer.root.hosted(), 1, "acknowledgement releases only the cancelled run");
