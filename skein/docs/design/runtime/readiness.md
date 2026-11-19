@@ -388,8 +388,9 @@ other module is safe Rust, the same on both systems.
   link, in a directory only that owner may write, is rewritten through
   the link's target, and the rewritten path holds no link; a path
   through another owner's link, through a link in a directory others
-  may write, ending at a link, through a `..`, or through a chain of
-  nine links is left as written.
+  may write, or ending at a link is left as written, and so is a link
+  after a `..`; a chain of nine links is rewritten through eight, the
+  ninth kept for the open to refuse.
 - **Files:** `pread`, `pwrite`, `write`, `ftruncate`, `fstat` (decoded by
   `darwin`), `renameatx_np` with `RENAME_EXCL` for a rename that never
   replaces and `renameat` otherwise, `unlinkat`, `mkdirat`, `linkat`
