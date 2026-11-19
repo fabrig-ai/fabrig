@@ -21,11 +21,13 @@ mod largest;
 mod lean;
 mod parse;
 pub mod patch;
+mod values;
 
 pub use constructs::{CONSTRUCTS, Construct, Kind, constructs, missing, unpinned};
 pub use emit_limits::{pascal, snake};
-pub use largest::{largest, roots};
+pub use largest::{largest, largest_variants, roots};
 pub use parse::{Error, parse};
+pub use values::{Values, values};
 
 /// One schema version of a family.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -138,20 +140,33 @@ pub enum Form {
 
 /// Reads the owner's `lean` mark; an absent mark leaves the family sealed.
 pub fn form_of(schema_dir: &std::path::Path, family: &str) -> std::io::Result<Form> {
-    let source = match std::fs::read_to_string(schema_dir.join("lean")) {
+    let path = schema_dir.join("lean");
+    let source = match std::fs::read_to_string(&path) {
         Ok(source) => source,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(Form::Sealed),
         Err(error) => return Err(error),
     };
-    if source.lines().any(|line| line.split('#').next().expect("a split has a first part").trim() == family) {
-        Ok(Form::Lean)
-    } else {
-        Ok(Form::Sealed)
+    let mut form = Form::Sealed;
+    for (index, line) in source.lines().enumerate() {
+        if ["<<<<<<<", "|||||||", "=======", ">>>>>>>"].iter().any(|marker| line.starts_with(marker)) {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!(
+                    "{}:{}: conflict marker in lean mark",
+                    path.display(),
+                    index.checked_add(1).expect("mark line fits usize")
+                ),
+            ));
+        }
+        if line.split('#').next().expect("a split has a first part").trim() == family {
+            form = Form::Lean;
+        }
     }
+    Ok(form)
 }
 
 /// Checks the names added by a form, beyond the shared Rust checks in `parse`.
-/// Sealed adds no check. Lean reserves its three shared codec re-exports.
+/// Sealed adds no check. Lean reserves its codec aliases and `Record` re-export.
 pub fn check_as(schema: &Schema, form: Form) -> Result<(), Error> {
     match form {
         Form::Sealed => Ok(()),

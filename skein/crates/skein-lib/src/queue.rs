@@ -44,6 +44,12 @@ impl<T> Queue<T> {
         self.capacity
     }
 
+    /// Raises the capacity in place, allocating nothing (runtime/lib.md, 5).
+    pub fn raise(&mut self, capacity: u32) {
+        assert!(capacity >= self.capacity(), "a capacity never falls");
+        self.capacity = capacity;
+    }
+
     #[must_use]
     pub fn len(&self) -> u32 {
         u32::try_from(self.items.len()).expect("no longer than its capacity")

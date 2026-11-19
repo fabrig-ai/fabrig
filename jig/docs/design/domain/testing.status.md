@@ -1,6 +1,6 @@
 # testing: status
 
-2026-11-16. Where jig's code lags or departs from [testing.md](testing.md).
+2026-11-17. Where jig's code lags or departs from [testing.md](testing.md).
 
 Section 5's keyed durable-row evidence and exhaustive forked cuts are
 present. Section 7's core row names retain typed keys until a failure
@@ -92,3 +92,45 @@ observation and world-cost work.
   assert. [in flight: change 3116]
   7: jig's domain step tests trigger assertions of start order, routing
   and their constructors' limits. [in flight: change 3110]
+
+- **Not yet:**
+  4: the core world's crash sweeps hold their prefix once, forking at each
+  cut, and a disk world opens its disk store alone. [in flight: change 6765]
+  4: the core world's deletion, agents-tools, decision-read and named-people
+  families fork after their shared prefix. [in flight: change 6766]
+  5: the conformance world's every-commit, deletion and snapshot sweeps hold
+  their prefix once, and `Store::fork` copies the durable image.
+  [in flight: change 6769]
+  9: the core world's standing cost per test (construction, the observation
+  per commit, the referee's scans, the closing oracle) is repaired.
+  [in flight: change 6767]
+  9: the core world's fuzzy sessions and settings tests read their evidence
+  and configuration once. [in flight: change 6768]
+  9: the store world's file-operation sweeps hold their settled prefix once.
+  [in flight: change 6774]
+  9: a store open takes no plan for an identical, shallow layout and finds
+  its registry rows by key. [in flight: change 6775]
+  9: the channel world's standing cost per world is repaired.
+  [in flight: change 6776]
+  9: the client-protocol world's standing cost per test is repaired.
+  [in flight: change 6777]
+  9: the client world's cost per world is repaired. [in flight: change 6778]
+  9: the ops world's repeated work is repaired. [in flight: change 6779]
+  9: the core world's stories are placed in `domain`, its disk cuts in
+  `simulated` and its step tests in `step`, with their moves.
+  [in flight: change 6788]
+  9: the conformance world's stories are placed in `domain` and its HTTP
+  settings carriage in `protocol`, with their moves. [in flight: change 6789]
+  9: the client-protocol world's step tests are placed in `step`.
+  [in flight: change 6790]
+  9: the client world's scripted stories are placed in `domain`.
+  [in flight: change 6791]
+  9: the ops world's domain stories are placed in `domain`.
+  [in flight: change 6792]
+  9: the store and channel worlds' step tests are placed in `step`.
+  [in flight: change 6793]
+- **Not yet:** 9: the client-protocol world's byte and protocol stories run
+  in its binary placed `simulated`, not `protocol`: a move into jig's
+  `protocol` layer while main holds it over its budget is a change's red
+  (`tools/tiers/budgets.md`, 8), so they move once main's figure is within
+  it.

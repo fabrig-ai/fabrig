@@ -7,6 +7,10 @@ use temper_client_domain::{
 
 #[must_use]
 pub fn state_root(state: u8) -> d::Domain {
+    super::chat_helpers::asking_task_root(state_task(state), true, 1)
+}
+#[must_use]
+pub fn state_task(state: u8) -> c::Task {
     let mut task = super::chat_helpers::asking_task();
     task.chip.phase = c::Phase::Active;
     task.chip.details.phase = c::ChipPhase::Active(c::RunStage::Idle);
@@ -38,7 +42,8 @@ pub fn state_root(state: u8) -> d::Domain {
         _ => unreachable!(),
     }
     task.chip.phase = task.chip.details.phase.compact();
-    super::chat_helpers::asking_task_root(task, true, 1)
+    task.chip.executor = c::ChipExecutor::Agent { charter: 1 };
+    task
 }
 
 #[must_use]
@@ -48,30 +53,20 @@ pub fn command_root(state: u8) -> d::Domain {
 
 #[must_use]
 pub fn command_root_with_watch(state: u8) -> (d::Domain, Option<skein_lib::Token>) {
-    let source = state_root(state);
-    let mut me = source.pages().me(source.client()).unwrap().clone();
+    let (root, chats, _) = command_root_with_watches(state);
+    (root, chats)
+}
+#[must_use]
+pub fn command_root_with_watches(state: u8) -> (d::Domain, Option<skein_lib::Token>, skein_lib::Token) {
+    let (mut root, me_watch, task_watch) = f::root_at(Address::Chat { task: f::chat::TASK }, &f::domain_limits());
+    let mut me = super::chat_helpers::asking_chat_me(root.pages().me(root.client()).unwrap().clone(), true);
     let model = me.projects.get_mut(0).unwrap().models.get_mut(0).unwrap();
     model.efforts = skein_lib::List::from_boxed(Box::new([
         c::Text::new(b"high".as_slice().into(), 32).unwrap(),
         c::Text::new(b"low".as_slice().into(), 32).unwrap(),
     ]));
     model.effort = Some(model.efforts.get(0).unwrap().clone());
-    let mut task = source.pages().chat().unwrap().task(source.client()).unwrap().clone();
-    task.llm = Some(c::LlmChoice {
-        account: Some(1),
-        main: c::ModelEffort { model: model.name.clone(), effort: model.effort.clone() },
-        subagents: skein_lib::List::with_capacity(0),
-        later: None,
-    });
-    if state != 4 {
-        let mut acts = skein_lib::List::with_capacity(4);
-        for act in task.acts.as_slice() {
-            acts.push(act.clone()).unwrap();
-        }
-        acts.push(c::Offered { act: c::ActKind::Amend, admission: c::Admission::Allowed, effect: None }).unwrap();
-        task.acts = acts;
-    }
-    let (mut root, me_watch, task_watch) = f::root_at(Address::Chat { task: f::chat::TASK }, &f::domain_limits());
+    let task = command_task(state, model);
     let mut out = skein_lib::Queue::uncapped();
     d::step(
         &mut root,
@@ -104,18 +99,38 @@ pub fn command_root_with_watch(state: u8) -> (d::Domain, Option<skein_lib::Token
             chats_watch = Some(watch);
         }
     }
+    let task_watch = task_watch.unwrap();
     f::root_event(
         &mut root,
         Event::Client {
             event: jig_client::Event::Up {
                 up: jig_client::Up::Watched {
-                    watch: task_watch.unwrap(),
+                    watch: task_watch,
                     event: c::WatchEvent::Delivered(c::Delivery::Task(Box::new(task))),
                 },
             },
         },
     );
-    (root, chats_watch)
+    (root, chats_watch, task_watch)
+}
+#[must_use]
+pub fn command_task(state: u8, model: &c::MeModel) -> c::Task {
+    let mut task = state_task(state);
+    task.llm = Some(c::LlmChoice {
+        account: Some(1),
+        main: c::ModelEffort { model: model.name.clone(), effort: model.effort.clone() },
+        subagents: skein_lib::List::with_capacity(0),
+        later: None,
+    });
+    if state != 4 {
+        let mut acts = skein_lib::List::with_capacity(4);
+        for act in task.acts.as_slice() {
+            acts.push(act.clone()).unwrap();
+        }
+        acts.push(c::Offered { act: c::ActKind::Amend, admission: c::Admission::Allowed, effect: None }).unwrap();
+        task.acts = acts;
+    }
+    task
 }
 
 #[must_use]

@@ -280,6 +280,7 @@ pub fn run(configuration: &[u8], ask: &[u8], peer: Option<impl FnOnce() -> Peer>
         parent.input = Some((Fd::new(0), ask.into(), 0));
         parent.submit(Op::Spawn {
             spawn: Box::new(Spawn {
+                reach: None,
                 program: b"smith-agent".as_slice().into(),
                 args: Box::new([configuration.into()]),
                 env: Box::new([]),

@@ -10,6 +10,7 @@ pub fn copy_defaults(defaults: &core::settings::Defaults) -> core::settings::Def
         policies.insert(*key, value.clone()).expect("copied policy");
     }
     core::settings::Defaults {
+        limits: defaults.limits.clone(),
         providers: defaults.providers.clone(),
         workers: defaults.workers.clone(),
         models: defaults.models.clone(),

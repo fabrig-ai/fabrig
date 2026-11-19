@@ -15,6 +15,7 @@ mod limits;
 #[path = "tests/person_task.rs"]
 mod person_task_stories;
 mod reads;
+mod reports;
 mod routing;
 mod run_policy_tools;
 mod runs;
@@ -495,6 +496,7 @@ pub(crate) fn config(seed: u64) -> Config {
         },
         kinds: Box::default(),
         defaults: crate::settings::Defaults {
+            limits: Box::default(),
             providers: Box::new([provider_setting(1, b"Fake", 1)]),
             workers: Box::new([
                 crate::settings::WorkerSetting {

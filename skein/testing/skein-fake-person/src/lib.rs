@@ -48,6 +48,11 @@ impl Find {
     pub fn exactly_named(role: Role, name: &[u8]) -> Self {
         Self { nth: 0, within: Box::new([]), target: Target::ExactRole { role, name: Box::from(name) } }
     }
+    /// Find a text field or text area by its whole, case-sensitive accessible name.
+    #[must_use]
+    pub fn text_box(name: &[u8]) -> Self {
+        Self { nth: 0, within: Box::new([]), target: Target::TextBox { name: Box::from(name) } }
+    }
     /// Find visible text containing these words.
     #[must_use]
     pub fn text(text: &[u8]) -> Self {
@@ -74,6 +79,8 @@ pub enum Target {
     Role { role: Role, name: Box<[u8]> },
     /// A semantic role and its whole accessible name, compared byte for byte.
     ExactRole { role: Role, name: Box<[u8]> },
+    /// A text field or text area with this whole accessible name.
+    TextBox { name: Box<[u8]> },
     /// Words in visible text, including a drawing's ordinary fallback.
     Text { text: Box<[u8]> },
 }
@@ -313,6 +320,9 @@ impl fmt::Display for Target {
             }
             Self::ExactRole { role, name } => {
                 write!(f, "{} named exactly {}", tree::role_name(*role), alloc::string::String::from_utf8_lossy(name))
+            }
+            Self::TextBox { name } => {
+                write!(f, "text box named exactly {}", alloc::string::String::from_utf8_lossy(name))
             }
             Self::Text { text } => write!(f, "text containing {}", alloc::string::String::from_utf8_lossy(text)),
         }

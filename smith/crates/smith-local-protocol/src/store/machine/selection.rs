@@ -122,6 +122,7 @@ impl Store {
                     | kernel::Error::Escape
                     | kernel::Error::NotAFile
                     | kernel::Error::InvalidArgument
+                    | kernel::Error::Reach(_)
                     | kernel::Error::Other(_) => local::ChatRefusal::Io,
                 };
                 self.selection_failed(selection, reason, out)

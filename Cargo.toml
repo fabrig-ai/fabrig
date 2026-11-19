@@ -301,6 +301,7 @@ members = [
     "temper/crates/temper-docs",
     "temper/crates/temper-fake",
     "temper/crates/temper-playground",
+    "temper/crates/temper-client-walk-world",
     "temper/crates/temper-playground-serve-tool",
     "temper/bin/temper-playground-serve",
     "temper/crates/temper-protocol-reaches",
@@ -310,7 +311,10 @@ members = [
     "temper/crates/temper-box-machine",
     "temper/crates/temper-client-gallery-tool",
     "temper/bin/temper-client-gallery",
+    "temper/crates/temper-client-walk-tool",
+    "temper/bin/temper-client-walk",
     "temper/crates/temper-client-journeys-tool",
+    "temper/crates/temper-client-walk-lines",
     "temper/bin/temper-client-journeys",
     "temper/crates/temper-stage-one-tool",
     "temper/bin/temper-stage-one",
@@ -374,6 +378,7 @@ members = [
     "temper/crates/temper-launcher",
     "temper/crates/temper-init",
     "temper/crates/temper-shell",
+    "temper/crates/temper-config-shell",
     "temper/crates/temper-forge-setup-shell",
     "temper/crates/temper-engine-shell",
     "temper/crates/temper-worker-shell",
@@ -396,6 +401,7 @@ members = [
     "temper/crates/temper-protocol-brief",
     "temper/crates/temper-charter-set",
     "temper/crates/temper-engine-domain",
+    "temper/crates/temper-engine-domain-store",
     "temper/crates/temper-engine-domain-calendar",
     "temper/crates/temper-engine-domain-room",
     "temper/crates/temper-engine-domain-trials",
@@ -548,6 +554,7 @@ skein-world = { path = "skein/testing/skein-world" }
 wasm-bindgen-cli-support = { version = "=0.2.126" }
 io-uring = { version = "0.7.15" }
 libc = { version = "0.2.186" }
+rustix = { version = "1.1.6", features = ["stdio", "fs"] }
 ring = { version = "0.17", features = ["wasm32_unknown_unknown_js"] }
 # rustls, pinned, without std and with ring for its cryptography (skein/docs/design/net/tls.md, 4).
 # Named in wasm32-unknown-unknown tables alone (skein/docs/foundation/cli.md, 3).
@@ -720,6 +727,7 @@ temper-landing-fixtures = { path = "temper/testing/temper-landing-fixtures" }
 temper-fake = { path = "temper/crates/temper-fake" }
 temper-playground = { path = "temper/crates/temper-playground" }
 temper-playground-serve-tool = { path = "temper/crates/temper-playground-serve-tool" }
+temper-client-walk-world = { path = "temper/crates/temper-client-walk-world" }
 temper-playground-world = { path = "temper/tests/playground" }
 temper-protocol-reaches = { path = "temper/crates/temper-protocol-reaches" }
 temper-protocol-records = { path = "temper/crates/temper-protocol-records" }
@@ -751,7 +759,9 @@ temper-client-view-setup = { path = "temper/crates/temper-client-view-setup" }
 temper-client-view-kit = { path = "temper/testing/temper-client-view-kit" }
 temper-client-journeys-kit = { path = "temper/testing/temper-client-journeys-kit" }
 temper-client-gallery-tool = { path = "temper/crates/temper-client-gallery-tool" }
+temper-client-walk-tool = { path = "temper/crates/temper-client-walk-tool" }
 temper-shell = { path = "temper/crates/temper-shell" }
+temper-config-shell = { path = "temper/crates/temper-config-shell" }
 temper-agent-shell = { path = "temper/crates/temper-agent-shell" }
 temper-client-tui = { path = "temper/crates/temper-client-tui" }
 temper-client-domain = { path = "temper/crates/temper-client-domain" }
@@ -760,6 +770,7 @@ temper-client-domain-pages = { path = "temper/crates/temper-client-domain-pages"
 temper-git-transcripts-tool = { path = "temper/crates/temper-git-transcripts-tool" }
 temper-version = { path = "temper/crates/temper-version" }
 temper-client-journeys-tool = { path = "temper/crates/temper-client-journeys-tool" }
+temper-client-walk-lines = { path = "temper/crates/temper-client-walk-lines" }
 temper-twin-tool = { path = "temper/crates/temper-twin-tool" }
 temper-qa-tool = { path = "temper/crates/temper-qa-tool" }
 temper-redeploy-tool = { path = "temper/crates/temper-redeploy-tool" }
@@ -786,6 +797,7 @@ temper-protocol-store-codec = { path = "temper/crates/temper-protocol-store-code
 temper-protocol-brief = { path = "temper/crates/temper-protocol-brief" }
 temper-charter-set = { path = "temper/crates/temper-charter-set" }
 temper-engine-domain = { path = "temper/crates/temper-engine-domain" }
+temper-engine-domain-store = { path = "temper/crates/temper-engine-domain-store" }
 temper-engine-domain-calendar = { path = "temper/crates/temper-engine-domain-calendar" }
 temper-engine-domain-room = { path = "temper/crates/temper-engine-domain-room" }
 temper-engine-domain-trials = { path = "temper/crates/temper-engine-domain-trials" }

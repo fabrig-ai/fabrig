@@ -21,6 +21,7 @@ pub enum EngineWhat {
     TestIdBytes { bytes: u32, bound: u32 },
     StorePage { transcript: u32, frame: u32, page: u32, ceiling: u32 },
     StoreMap(jig_protocol_store::sizes::SizeRefusal),
+    StoreLiveGoals { count: u64, bound: u32 },
     StoreTask { needs: u32, has: u32, batch_bytes: u32 },
     Agent,
     Admission { why: jig_domain_fleet::AgentShortfall, offered: u64, required: u64 },
@@ -60,7 +61,7 @@ fn words(what: EngineWhat) -> &'static [u8] {
         EngineWhat::LandingStored => b"landing rules live in the store; read them with temper ctl settings show landing-rule",
         EngineWhat::ProjectLandingStored => b"landing rules live in the store; read them with temper ctl settings show landing-rule --project",
         EngineWhat::CharterStored => b"the forge's charters live in the store; read them with temper ctl settings show forge-charter 1",
-EngineWhat::FigureEndpoints { .. } | EngineWhat::FleetGrace { .. } | EngineWhat::Room(_) | EngineWhat::Stock(_) | EngineWhat::TierChanges { .. } | EngineWhat::TierFailingTests { .. } | EngineWhat::LandingPending { .. } | EngineWhat::LandingComments { .. } | EngineWhat::TestIdBytes { .. } | EngineWhat::StorePage { .. } | EngineWhat::StoreMap(_) | EngineWhat::StoreTask { .. } | EngineWhat::Admission { .. } => b"",
+EngineWhat::FigureEndpoints { .. } | EngineWhat::FleetGrace { .. } | EngineWhat::Room(_) | EngineWhat::Stock(_) | EngineWhat::TierChanges { .. } | EngineWhat::TierFailingTests { .. } | EngineWhat::LandingPending { .. } | EngineWhat::LandingComments { .. } | EngineWhat::TestIdBytes { .. } | EngineWhat::StorePage { .. } | EngineWhat::StoreMap(_) | EngineWhat::StoreLiveGoals { .. } | EngineWhat::StoreTask { .. } | EngineWhat::Admission { .. } => b"",
  }
 }
 fn redirect_listener(listener: super::Listener, writer: &mut Writer, length: &mut usize, measuring: bool) {
@@ -144,6 +145,7 @@ fn stock(floor: crate::stock::Floor, writer: &mut Writer, length: &mut usize, me
             Setting::Template(number) => (b"template ", Some(number)),
             Setting::Policy(number) => (b"policy ", Some(number)),
             Setting::Model(number) => (b"Model ", Some(number)),
+            Setting::Limits => (b"limits", None),
             Setting::Worker(number) => (b"Worker ", Some(number)),
             Setting::Provider(number) => (b"Provider ", Some(number)),
             Setting::Rules => (b"rules", None),
@@ -215,6 +217,12 @@ fn render(problems: &Problems, writer: &mut Writer, measuring: bool) -> usize {
             }
             EngineWhat::Room(short) => put(writer, &mut length, measuring, &short.words()),
             EngineWhat::Stock(floor) => stock(floor, writer, &mut length, measuring),
+            EngineWhat::StoreLiveGoals { count, bound } => {
+                put(writer, &mut length, measuring, Decimal::of(count).as_bytes());
+                put(writer, &mut length, measuring, b", past its bound of ");
+                put(writer, &mut length, measuring, Decimal::of(u64::from(bound)).as_bytes());
+                put(writer, &mut length, measuring, b", the most live goals the store is sized for");
+            }
             EngineWhat::TierChanges { count, bound, ceiling } => {
                 past_bound(count, bound, writer, &mut length, measuring);
                 put(
@@ -301,5 +309,43 @@ pub fn lines(problems: &Problems) -> Box<[u8]> {
     let length = render(problems, &mut Writer::new(0), true);
     let mut writer = Writer::new(length);
     assert_eq!(render(problems, &mut writer, false), length, "diagnostic passes measure identically");
+    let text = writer.finish();
+    limit_hint(&text)
+}
+fn named_limit_line(line: &[u8]) -> bool {
+    use skein_lib::bytes;
+    bytes::find(line, b" (setting limits):").is_some()
+        || bytes::find(line, b" (setting temper-limits):").is_some()
+        || bytes::find(line, b" (the stock):").is_some()
+}
+fn limit_hint(text: &[u8]) -> Box<[u8]> {
+    const HINT: &[u8] = b"; put limits-held in the data directory to start at the stock";
+    let mut extra = 0_usize;
+    let mut begin = 0;
+    for end in 0..text.len() {
+        if text.get(end) == Some(&b'\n') {
+            let line = text.get(begin..end).expect("line span");
+            if named_limit_line(line) {
+                extra = extra.saturating_add(HINT.len());
+            }
+            begin = end.checked_add(1).expect("line end");
+        }
+    }
+    if extra == 0 {
+        return Box::from(text);
+    }
+    let mut writer = Writer::new(text.len().saturating_add(extra));
+    begin = 0;
+    for end in 0..text.len() {
+        if text.get(end) == Some(&b'\n') {
+            let line = text.get(begin..end).expect("line span");
+            writer.put(line).expect("measured lines");
+            if named_limit_line(line) {
+                writer.put(HINT).expect("measured hints");
+            }
+            writer.put(b"\n").expect("measured newline");
+            begin = end.checked_add(1).expect("line end");
+        }
+    }
     writer.finish()
 }

@@ -8,6 +8,7 @@
 )]
 use jig_domain_core_vocabulary::{CoreRecord, Deployment, Record};
 use jig_protocol_store::{self as store, Event, Get, OwnerSet, OwnerSets, Request, Row, Store, Write};
+use skein_codec::Record as _;
 use skein_lib::Token;
 #[path = "directory_disk.rs"]
 pub(super) mod disk;

@@ -615,7 +615,9 @@ pub fn to_root(
                             None
                         }
                     }
-                    read @ (w::Read::Setting(_)
+                    read @ (w::Read::Limits(_)
+                    | w::Read::LimitHolds(_)
+                    | w::Read::Setting(_)
                     | w::Read::RevisionSetting(_)
                     | w::Read::ProposalItems(_)
                     | w::Read::ProgramEnvironment) => forge_settings_query(read),
@@ -2447,6 +2449,29 @@ fn panel_tiers(lines: Box<[Box<[u8]>]>) -> List<Box<[u8]>> {
 pub fn forge_read(answer: root::ForgeReadAnswer, program_environment: &[u8], limits: &w::Limits) -> Option<Box<[u8]>> {
     use forge::settings::Edit;
     match answer {
+        root::ForgeReadAnswer::Limits { .. } => None, // The composing service owns the settings and names tables.
+        root::ForgeReadAnswer::LimitHolds { rows, next } => {
+            let mut encoded = List::with_capacity(limits.limit_holds_answer_rows);
+            for row in rows {
+                encoded
+                    .push(
+                        w::LimitHold::new(
+                            limits,
+                            w::LimitHoldParts {
+                                task: row.task,
+                                limit: row.member,
+                                configured: row.configured,
+                                needed: row.needed,
+                                revision: row.revision,
+                            },
+                        )
+                        .ok()?,
+                    )
+                    .ok()?;
+            }
+            let record = w::LimitHoldsAnswer::new(limits, w::LimitHoldsAnswerParts { rows: encoded, next }).ok()?;
+            Some(wire::limit_holds_answer(&record))
+        }
         root::ForgeReadAnswer::History(value) => history::answer(value, limits),
         root::ForgeReadAnswer::Milestone(value) => milestones::answer(value, limits),
         root::ForgeReadAnswer::Finding(value) => findings::read_answer(value, limits),
@@ -2500,6 +2525,8 @@ pub fn forge_read(answer: root::ForgeReadAnswer, program_environment: &[u8], lim
 
 fn forge_settings_query(read: w::Read) -> Option<root::ForgeRead> {
     match read {
+        w::Read::Limits(value) => Some(root::ForgeRead::Limits { after: value.into_parts().after }),
+        w::Read::LimitHolds(value) => Some(root::ForgeRead::LimitHolds { after: *value.after() }),
         w::Read::History(value) => Some(root::ForgeRead::History(history::query(value)?)),
         w::Read::Finding(value) => Some(root::ForgeRead::Finding { project: value.project(), number: value.number() }),
         w::Read::Milestone(value) => Some(root::ForgeRead::Milestone { project: value.project(), task: value.task() }),

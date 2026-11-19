@@ -8,6 +8,8 @@ use std::collections::{BTreeMap, VecDeque};
 
 pub const OLD: &str = "0123456789ab";
 pub const NEW: &str = "abcdef012345";
+const DEFAULT_VERDICT: &str =
+    "temper-engine upgrade: rehearsal linked 12 files, copied 3\ntemper-engine upgrade: workers may stay: yes\n";
 pub const WIRES: &str = "jig-worker-wire 13, smith-pieces 1, smith-charter 5, smith-transcript 3, temper-worker-wire 9";
 #[derive(Clone, Debug)]
 pub struct Machine {
@@ -48,7 +50,8 @@ pub struct Deployment {
     /// Lines logged by each settled engine stop, in stop order.
     pub stop_logs: VecDeque<Vec<String>>,
     pub check: Output,
-    /// Per-call verdicts; the last repeats, or yes when none are scripted.
+    /// Per-call verdicts; the last repeats, or exit 0 with a rehearsal count and
+    /// `workers may stay: yes` when none are scripted.
     pub verdict: VecDeque<Output>,
     pub openings: Vec<Opening>,
     /// Optional per-start openings, consumed before falling back to `openings`.
@@ -114,10 +117,13 @@ impl Deployment {
             .workers
             .iter()
             .map(|worker| {
-                output(
-                    0,
-                    &serde_json::json!({"workers": [{"name": worker.name, "graces": {"grace_ms": 30000}}]}).to_string(),
-                )
+                let file = temper_config_shell::File {
+                    engine: Some(([127, 0, 0, 1], 7200).into()),
+                    name: Some(worker.name.clone()),
+                    ..temper_config_shell::File::default()
+                };
+                let text = temper_config_shell::render(&file, temper_config_shell::Shape::WorkerAlone);
+                output(0, std::str::from_utf8(&text).expect("rendered UTF-8"))
             })
             .collect();
         Self {
@@ -281,10 +287,7 @@ impl Deployment {
             return if self.verdict.len() > 1 {
                 self.verdict.pop_front().expect("more than one verdict")
             } else {
-                self.verdict
-                    .front()
-                    .cloned()
-                    .unwrap_or_else(|| output(0, "temper-engine upgrade: workers may stay: yes\n"))
+                self.verdict.front().cloned().unwrap_or_else(|| output(0, DEFAULT_VERDICT))
             };
         }
         if captures(&self.description.engine.checkpoint, line).is_some() {

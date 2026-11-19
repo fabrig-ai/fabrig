@@ -9,30 +9,7 @@ use jig_protocol_config as config;
 
 /// The complete startup document emitted by init for fixed machine facts.
 pub(super) fn generated() -> Box<[u8]> {
-    use core::num::NonZeroU16;
-    let answer = temper_init::files(
-        &temper_init::Facts {
-            sign_in: false,
-            binary: b"/bin/temper",
-            git: Some(b"/bin/git"),
-            claude: None,
-            login: Some(b"ada"),
-            ports: temper_init::Ports {
-                clients: NonZeroU16::new(8367).unwrap(),
-                webhooks: NonZeroU16::new(8371).unwrap(),
-            },
-        },
-        &temper_init::Directories { config: b"/config", data: b"/data" },
-        &[0; 32],
-    )
-    .unwrap();
-    for file in answer.files {
-        if file.name == b"temper.json" {
-            let temper_init::Content::Bytes { bytes, .. } = file.content else { panic!("document bytes") };
-            return bytes;
-        }
-    }
-    panic!("init writes temper.json")
+    temper_config_shell::init_document(false)
 }
 pub(super) fn engine(document: &[u8]) -> config::Engine {
     let mut base = config::stock();
@@ -1124,7 +1101,7 @@ fn every_stock_charter_names_its_first_choices_and_the_rest() {
             ],
         ),
         (
-            engine(include_bytes!("../../../temper-init/template/bare.json")).llm,
+            engine(&temper_config_shell::init_document(false)).llm,
             vec![
                 "claude-opus-5-5",
                 "gpt-6.1-sol",
@@ -1835,6 +1812,14 @@ fn kinds_are_declared_with_their_bounds() {
                 per_scope: 1,
                 charters: 0,
             },
+            Kind {
+                number: 22,
+                scope: KindScope::Deployment,
+                connector: CONNECTOR,
+                value_bytes: 51_204,
+                per_scope: 1,
+                charters: 0,
+            },
         ]
     );
     limits.authority.segment_bytes = 6;
@@ -1844,12 +1829,13 @@ fn kinds_are_declared_with_their_bounds() {
 #[test]
 fn the_binary_gives_the_forges_stock_at_every_start() {
     // protocol/configuration/stock.md: every project's rule 1, both forge charters and each charter's words and template 4's work.
-    const ITEMS: usize = 17;
+    const ITEMS: usize = 18;
     use temper_engine_domain_forge::{self as forge, settings};
     let engine = fixtures::engine();
     let limits = crate::limits::engine(&engine.jig.limits, &engine.limits).unwrap();
     let stock = crate::stock::forge(&limits);
     assert_eq!(stock.len(), ITEMS);
+    assert_eq!(stock.last().unwrap().value.value, settings::Value::Limits(Box::new([])));
     assert_eq!((stock[0].kind, stock[0].scope, stock[0].number), (2, 0, 1));
     assert_eq!(
         stock[0].value.value,
@@ -2336,7 +2322,7 @@ fn stock_numbers_each_model_for_good() {
 
 #[test]
 fn all_deployments_keep_seven_models_and_the_boxs_default_is_scripted() {
-    let bare = engine(include_bytes!("../../../temper-init/template/bare.json"));
+    let bare = engine(&temper_config_shell::init_document(false));
     let models = crate::stock::models(&bare.llm);
     assert_eq!(models.iter().map(|entry| entry.number).collect::<Box<[_]>>().as_ref(), [1, 2, 3, 4, 5, 6, 7]);
     let mut llm = with_scripted(engine(&generated()).llm);

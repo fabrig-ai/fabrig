@@ -70,14 +70,13 @@ fn used(link: &[u8]) -> std::io::Result<bool> {
 fn a_fresh_box_holds_serves_clients_port() {
     let root = scratch("first");
     let mut child = command(&root, "").stdout(Stdio::null()).stderr(Stdio::null()).spawn().expect("box");
-    let document = root.join("config/temper.json");
+    let dirs = temper_agent_fixtures::directories(&root.join("config"));
     let mut address = None;
     let mut deadline = Deadline::arm("the box's listener document", skein_lib::Duration::from_secs(3));
     deadline.watch_process(child.id());
     loop {
-        if let Ok(bytes) = fs::read(&document)
-            && let Ok(document) = serde_json::from_slice(&bytes)
-        {
+        if let Ok(read) = temper_config_shell::read(&dirs, temper_config_shell::Shape::Standalone) {
+            let document = serde_json::from_slice(&read.document).expect("start document");
             address = Some(clients(&document));
             assert!(document["application"].get("machine").is_none());
             break;
@@ -113,14 +112,15 @@ fn a_later_box_refuses_a_taken_port_naming_the_port_and_document() {
     let root = scratch("taken");
     let output = command(&root, "init").arg("--box").output().expect("init");
     assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
-    let file = root.join("config/temper.json");
-    let bytes = fs::read(&file).expect("document");
-    let document = serde_json::from_slice(&bytes).expect("JSON");
-    let previous = clients(&document);
+    let file = root.join("config").join(temper_config_shell::FILE);
+    let dirs = temper_agent_fixtures::directories(&root.join("config"));
+    let mut configuration =
+        temper_config_shell::read(&dirs, temper_config_shell::Shape::Standalone).expect("init file").file;
     let holder = TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0)).expect("held port");
     let address = holder.local_addr().expect("address");
-    let text = String::from_utf8(bytes).expect("UTF-8").replace(&previous.to_string(), &address.to_string());
-    fs::write(&file, text).expect("configured taken port");
+    configuration.listen = Some(address);
+    fs::write(&file, temper_config_shell::render(&configuration, temper_config_shell::Shape::Standalone))
+        .expect("configured taken port");
     let output = command(&root, "").output().expect("box");
     let diagnostic = String::from_utf8_lossy(&output.stderr);
     assert!(!output.status.success(), "taken listener refuses the box");
@@ -178,9 +178,7 @@ fn a_box_without_openssl_logs_sign_in_unavailable_once_and_stays_up() {
     let mut boxed = box_link::Boxed::start("no-openssl", Some(""));
     boxed.link();
     boxed.wait(|boxed| crate::support::boxed::serve_listening(&boxed.root().join("data")));
-    let document: serde_json::Value =
-        serde_json::from_slice(&fs::read(boxed.root().join("config/temper.json")).expect("box document"))
-            .expect("JSON");
+    let document = temper_agent_fixtures::start(&boxed.root().join("config"));
     assert!(document["engine"]["clients"]["provider"].is_null());
     assert!(document["application"]["machine"]["owned"]["sign_in"].is_null());
     let (_, _, log) = boxed.stop();

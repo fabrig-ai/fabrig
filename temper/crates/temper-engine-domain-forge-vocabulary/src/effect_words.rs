@@ -15,13 +15,7 @@ fn put(words: &mut List<u8>, bytes: &[u8]) {
 }
 
 pub fn account(entry: &Entry, repository: Option<&crate::Repository>, outcome: Outcome) -> Option<Box<[u8]>> {
-    let result = match outcome {
-        Outcome::Held => Box::from(b"uncertain: it may or may not have been made".as_slice()),
-        Outcome::Failed(error) => error_words(error),
-        Outcome::Withdrawn => Box::from(b"withdrawn before completion".as_slice()),
-        Outcome::Raced { why, .. } => error_words(why),
-        Outcome::Made { .. } | Outcome::Queued | Outcome::Uncertain => return None,
-    };
+    let result = outcome_words(outcome)?;
     let mut words = List::with_capacity(ACCOUNT_BYTES);
     put(&mut words, operation(&entry.effect.write));
     put(&mut words, b": ");
@@ -37,6 +31,17 @@ pub fn account(entry: &Entry, repository: Option<&crate::Repository>, outcome: O
     }
     target(&mut words, &entry.effect.write);
     Some(words.into_boxed())
+}
+
+/// The terminal answer, shared by effect accounts and a landing's merge readback.
+pub fn outcome_words(outcome: Outcome) -> Option<Box<[u8]>> {
+    Some(match outcome {
+        Outcome::Held => Box::from(b"uncertain: it may or may not have been made".as_slice()),
+        Outcome::Failed(error) => error_words(error),
+        Outcome::Withdrawn => Box::from(b"withdrawn before completion".as_slice()),
+        Outcome::Raced { why, .. } => error_words(why),
+        Outcome::Made { .. } | Outcome::Queued | Outcome::Uncertain => return None,
+    })
 }
 
 fn operation(write: &Write) -> &'static [u8] {

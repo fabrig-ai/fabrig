@@ -33,35 +33,57 @@ fn credentials_are_private_whole_and_left_in_place_on_a_second_run() {
 
 #[test]
 fn a_public_client_refuses_before_creating_any_file() {
-    use serde_json::json;
+    use temper_config_shell::{
+        File, ForgeSignIn, Member, OpenId, OpenIdClient, Shape, SignIn, Test, TestGoogle, Transport,
+    };
     let directory = std::env::temp_dir().join(format!("temper-public-sign-in-{}", std::process::id()));
     fs::create_dir(&directory).expect("fresh scratch");
     fs::set_permissions(&directory, fs::Permissions::from_mode(0o700)).expect("private scratch");
-    let (_, bytes) = configuration::documents(&directory, "/fixture/temper");
-    let mut value: serde_json::Value = serde_json::from_slice(&bytes).expect("fixture JSON");
-    value["engine"]["clients"]["provider"] = json!({
-        "key":"provider.key", "addresses":[1],
-        "clients":[{"id":"forgejo", "secret":null,
-            "redirect_uri":"http://127.0.0.1:3000/user/oauth2/temper/callback"}]
-    });
-    value["engine"]["owners"] = json!([{"provider":3,"subject":"sam@example.com"}]);
-    value["application"]["sign_in"] = json!({
-        "google":{"provider":3,"client":"temper-test","secret":"google.secret","endpoints":{
-            "issuer":"http://127.0.0.1:31999","authorization":"http://127.0.0.1:31999/auth",
-            "token":"http://127.0.0.1:31999/token","keys":"http://127.0.0.1:31999/keys","transport":"plaintext"}},
-        "members":[{"address":"sam@example.com","login":"sam"}],"forges":[{"forge":1,"client":"forgejo"}]
-    });
-    value["workers"] = json!([]);
-
-    value["engine"]["hosts"]["listener"] = json!([{"socket":"127.0.0.1:7200"}]);
-    let bytes = serde_json::to_vec(&value).expect("configuration");
+    let file = File {
+        workers: Some("127.0.0.1:7200".parse().expect("workers address")),
+        owner: Some("sam@example.com".into()),
+        openid: Some(OpenId {
+            key: Some("provider.key".into()),
+            addresses: Some(vec![1]),
+            clients: vec![OpenIdClient {
+                id: "forgejo".into(),
+                secret: None,
+                redirect: "http://127.0.0.1:3000/user/oauth2/temper/callback".into(),
+            }],
+        }),
+        sign_in: Some(SignIn {
+            client: "temper-test".into(),
+            secret: "google.secret".into(),
+            members: vec![Member { address: "sam@example.com".into(), login: "sam".into() }],
+            forges: vec![ForgeSignIn { forge: 1, client: "forgejo".into() }],
+        }),
+        test: Test {
+            google: Some(TestGoogle {
+                issuer: "http://127.0.0.1:31999".into(),
+                authorization: "http://127.0.0.1:31999/auth".into(),
+                token: "http://127.0.0.1:31999/token".into(),
+                keys: "http://127.0.0.1:31999/keys".into(),
+                transport: Transport::Plaintext,
+            }),
+            ..Test::default()
+        },
+        ..File::default()
+    };
+    let text = temper_config_shell::render(&file, Shape::EngineAlone);
+    let bytes = temper_config_shell::parse(
+        &text,
+        Shape::EngineAlone,
+        &temper_config_shell::Facts { login: "sam".into(), hostname: "fixture".into(), provider_key: false },
+    )
+    .expect("engine file")
+    .document;
     let directories = configuration::directories(&directory);
     let named =
         temper_engine_service::startup::named(&bytes, &jig_directories(&directories)).expect("named public client");
     let refusal = super::run(&directories, &bytes, &named, 1, &[]);
     let files = fs::read_dir(&directory).expect("scratch entries").count();
-    let configuration = directory.join("temper.json");
-    fs::write(&configuration, &bytes).expect("command configuration");
+    let configuration = directory.join(temper_config_shell::FILE);
+    fs::write(&configuration, &text).expect("command configuration");
     let exit = crate::forge::run("temper", &directories, &["sign-in".into(), "1".into()], None, &[]);
     let command_files = fs::read_dir(&directory).expect("command scratch entries").count();
     fs::remove_dir_all(directory).expect("scratch removed");

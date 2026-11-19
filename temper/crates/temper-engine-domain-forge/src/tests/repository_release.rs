@@ -51,7 +51,14 @@ fn families(repository: api::Repository, project: u32, n: u32) -> Vec<(Key, Stor
     ));
     rows.push((
         Key::Hold(name.clone()),
-        Stored::Hold(Hold { name: name.clone(), task, writer: None, drift: None, design_writers: Box::new([]) }),
+        Stored::Hold(Hold {
+            name: name.clone(),
+            task,
+            writer: None,
+            drift: None,
+            beside: None,
+            design_writers: Box::new([]),
+        }),
     ));
     rows.push((Key::Names(task), Stored::Names { task, resources: Box::new([name.clone()]) }));
     let topic = Topic::Ci { repository, head: [3; 32] };

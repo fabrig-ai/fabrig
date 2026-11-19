@@ -3,6 +3,7 @@ use crate::upgrade::admission;
 use crate::{Event, Family, Older, OpenRefusal, Phase, Store, codec, format, keys, restore};
 use alloc::boxed::Box;
 use jig_domain_core_vocabulary::{CoreKey, CoreRecord, Key, Record};
+use skein_codec::Record as _;
 use skein_lib::{Queue, Token};
 
 #[expect(clippy::too_many_lines, reason = "the ordered open checks include the rehearsal's pre-plan walk")]
@@ -158,7 +159,7 @@ fn floor(store: &mut Store, owner: Token, above: &mut Queue<Event>) -> bool {
             corrupt(store, owner, above);
             return false;
         };
-        Some(row.number())
+        Some(row.number)
     } else {
         None
     };

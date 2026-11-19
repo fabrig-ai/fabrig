@@ -178,7 +178,7 @@ pub(super) fn line(
     let extra = if n.role == Role::Code { 4 } else { 0 };
     out.start(out.indent().saturating_add(extra));
     out.line();
-    if n.role == Role::Progress {
+    if n.role == Role::Progress || n.role == Role::Meter {
         if let Some(name) = &n.name {
             out.content(name, paint, focused, tree, info, frame);
         }

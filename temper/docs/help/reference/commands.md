@@ -14,7 +14,7 @@ temper's TUI, on an engine or in front of a box.
 
 Run temper's full-screen terminal client, the TUI, on an engine; temper help tui explains closing and signing out.
 
-- `ADDRESS`: Engine listener, http://HOST:PORT on loopback; defaults to the engine link file's address for this environment, else the TUI's last sign-in address, else http://127.0.0.1:8367.
+- `ADDRESS`: Engine origin, http://HOST:PORT on loopback or https://NAME[:PORT]; defaults to the engine link file's address for this environment, else the TUI's last sign-in address, else http://127.0.0.1:8367.
 
 Needs a terminal on stdin and stdout; without one, bare temper says it has no command. Its sign-in link is pasted on its screen, never given. Its directory is $XDG_STATE_HOME/temper/tui, else ~/.local/state/temper/tui. `/exit` or Ctrl+C closes it without signing out; on the sign-in screen, use Ctrl+C. `q` types a character on every screen.
 
@@ -97,18 +97,18 @@ Rehearses an upgrade over a copy; switches nothing.
 - `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.
 - `DIRECTORY`: A stopped deployment's data directory, a checkpoint of a serving deployment, or a copy of one; never written.
 
-Uses the configuration serve would read and a scratch copy under the cache directory. Reports the jobs it ran, restores, elapsed time and whether workers may stay. Names a start it refuses, including each setting out of its numbers. What follows the switch is not rehearsed. Exit 0 when its jobs and restores pass, 1 when a start would be refused.
+Uses the configuration serve would read and a scratch copy under the cache directory; removes a rehearsal's scratch left behind there. Reports the jobs it ran, restores, elapsed time and whether workers may stay. Names a start it refuses, including each setting out of its numbers. What follows the switch is not rehearsed. Exit 0 when its jobs and restores pass, 1 when a start would be refused.
 
 ### temper-engine upgrade --workers
 
 `temper-engine upgrade --workers [DIRECTORIES] DIRECTORY`
 
-Judges the workers alone over a copy; switches nothing.
+Judges the workers alone over links and small copies; switches nothing.
 
 - `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.
 - `DIRECTORY`: A stopped deployment's data directory, a checkpoint of a serving deployment, or a copy of one; never written.
 
-Uses the configuration serve would read and a scratch copy under the cache directory. Recovers the maps without task logs and prints only the workers' verdict, with no record decoded, level checked, plan, job or restore run. Exit 0 for yes, no or unknown; 1 on an opening refusal. Takes only DIRECTORY's lock, never the serving deployment's when reading a checkpoint; writes nothing under --data before the rehearsal.
+Uses the configuration serve would read and a scratch of links and small copies under the cache directory; removes a rehearsal's scratch left behind there. Recovers the maps without task logs and prints only the workers' verdict, with no record decoded, level checked, plan, job or restore run. Exit 0 for yes, no or unknown; 1 on an opening refusal. Takes DIRECTORY's lock, never the serving deployment's when reading a checkpoint; writes nothing under --data before the rehearsal.
 
 ### temper-engine upgrade --back
 
@@ -195,7 +195,7 @@ Make what people need to sign in to temper through a Forgejo, and print the Forg
 - `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.
 - `FORGE`: A forge's number in the configuration.
 
-For a Forgejo of application.sign_in.forges, on temper's host, before temper serve. Writes the provider's key and the forge's client secret where they are missing, private, and leaves any already there; prints Forgejo's add-oauth command, never running it.
+For a Forgejo of [[sign_in.forges]], on temper's host, before temper-engine serve. Writes the provider's key and the forge's client secret where they are missing, private, and leaves any already there; prints Forgejo's add-oauth command, never running it.
 
 ### temper-engine forge source
 
@@ -330,19 +330,19 @@ Write a deployment that starts, with temper's default configuration, into the th
 
 - `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.
 
-Init reserves loopback 8367 for clients and 8371 for webhooks, falling back to the kernel when taken. `temper.json` keeps those addresses, never LLM providers or the scripted model's port. `--box` prepares playground directories and its git launcher. At start the box chooses the scripted listener: 8370 when free, else the kernel's; forges choose their places at setup. Worker figures come from the engine; init writes no agent configuration.
+Init reserves loopback 8367 for clients and 8371 for webhooks, using kernel ports when taken. The file keeps those addresses, not LLM providers or the scripted model's port. `--box` prepares playground directories and its git launcher. At start the box chooses the scripted listener: 8370 when free, else the kernel's; forges choose their places at setup. Worker figures come from the engine; init writes no agent configuration.
 
 To choose ports for another box, keep the first running and give init separate empty configuration, data and cache directories; no port flag or coordinated edits. See temper help box, step 1.
 
 Saved addresses are fixed; later starts reuse them or refuse an occupied address. Separate `temper-box init` closes its reservations on exit. On empty directories `temper-box` runs init itself and keeps both reservations through startup, avoiding a selection/startup gap.
 
-Refused without changes if the configuration directory holds temper.json.
+Refused unchanged if the configuration directory holds a current or former configuration file.
 
 ### temper-box serve
 
 `temper-box serve [DIRECTORIES] [--record]`
 
-Run the deployment's services, as its configuration's shape names them, until stopped.
+Run the engine and its worker in one process until stopped.
 
 - `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.
 

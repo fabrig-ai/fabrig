@@ -1129,11 +1129,14 @@ fn deployment_recipes_copy_patch_files_and_inherit_the_parents_kind_without_conf
     let mut world = deployment_world();
     let files = world.home.directory.join("passes/1/files");
     fs::create_dir_all(files.join("patches")).expect("patch directory");
-    fs::write(files.join("patches/engine.json"), b"{\"application\":{}}").expect("patch");
-    let input = RecipeInput::decode(br#"{"after":"welcome","lines":["deployment patch engine \"patches/engine.json\"","check","ctl task list"],"readme":"A patched deployment."}"#).expect("recipe input");
+    fs::write(files.join("patches/engine.toml"), b"public = \"http://127.0.0.1:7100\"\n").expect("patch");
+    let input = RecipeInput::decode(br#"{"after":"welcome","lines":["deployment patch engine \"patches/engine.toml\"","check","ctl task list"],"readme":"A patched deployment."}"#).expect("recipe input");
     assert_eq!(world.place.recipe("added", &input, &[], &mut Vec::new()).expect("recipe"), 0);
     let added = world.place.setups.join("added");
-    assert_eq!(fs::read(added.join("files/patches/engine.json")).expect("recipe patch"), b"{\"application\":{}}");
+    assert_eq!(
+        fs::read(added.join("files/patches/engine.toml")).expect("recipe patch"),
+        b"public = \"http://127.0.0.1:7100\"\n"
+    );
     assert!(!added.join("config").exists());
     assert!(
         fs::read_to_string(added.join("recipe"))
@@ -1143,8 +1146,8 @@ fn deployment_recipes_copy_patch_files_and_inherit_the_parents_kind_without_conf
     fs::write(world.place.paths.directory.join("catalogue"), format!("{CATALOGUE}added (after welcome): Patched.\n"))
         .expect("catalogue");
     assert_eq!(world.setup("added").0, 0, "the new recipe is a deployment's through its root");
-    let missing = RecipeInput { lines: vec!["deployment patch worker missing.json".into()], ..input };
+    let missing = RecipeInput { lines: vec!["deployment patch worker missing.toml".into()], ..input };
     let why = world.place.recipe("added", &missing, &[], &mut Vec::new()).expect_err("missing patch").to_string();
-    assert!(why.contains("missing.json"), "{why}");
+    assert!(why.contains("missing.toml"), "{why}");
     assert!(!added.exists(), "a refused recipe leaves nothing");
 }

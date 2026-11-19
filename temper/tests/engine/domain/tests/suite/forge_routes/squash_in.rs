@@ -5,6 +5,7 @@ use super::goal_branch::{branch_tip, forge_hold};
 use super::light_rules::change_row;
 use super::*;
 use temper_engine_domain_forge_change as change;
+use temper_protocol_worker_wire::v1::Record as WorkerRecord;
 
 const CHANNEL: Token = Token::new(7);
 const STEPS: u32 = 1000;
@@ -73,7 +74,7 @@ fn prepare(world: &mut World, task: u64, branch: &[u8], base: u64, head: u64, up
         &mut skein_lib::Reader::new(&job.spec),
     )
     .expect("prepare spec");
-    let request: serde_json::Value = serde_json::from_slice(spec.request()).expect("prepare request");
+    let request: serde_json::Value = serde_json::from_slice(spec.request.as_ref()).expect("prepare request");
     assert_eq!(request["combine"], "squash");
     let text = |commit| String::from_utf8(forge_top::commit_text(&translate::commit(commit)).into_vec()).expect("hex");
     assert_eq!(request["main"], text(base));

@@ -9,6 +9,8 @@ publish.workspace = true
 
 [dependencies]
 skein-fail-stop.workspace = true
+skein-fake-machine.workspace = true
+skein-fork.workspace = true
 skein-lib.workspace = true
 skein-io.workspace = true
 skein-shell.workspace = true
@@ -51,3 +53,4 @@ test = false
 [[bin]]
 name = "inherit_fixture"
 test = false
+

@@ -82,34 +82,33 @@ help (`../design/client/ctl/testing.md`, 5). What is still open is
   | GitHub | GitHub, through an App, on a repository the pass may change | as a real model's rung | the App's key and its installation, and a person's token on that repository |
   | Claude | Forgejo here, as a real model's rung | Claude Code on a person's own login, its configuration directory used in place (`../design/protocol/credentials.md`, 3) | the model's login |
 
-- **The model is set before the first start.** Init's model entry is
-  kept as it is (its window, prices and output), its efforts declared in
-  `temper.json`'s `engine.llm` model, the first being what a task with
-  no choice of its own takes. Every charter takes the first configured
-  model as its main model, and the stock's spends are sized from it at
-  the start (`../design/protocol/configuration/stock.md`). After the
-  start, `temper ctl settings show charter 1` names the model; a box
-  that shows otherwise is a setup to redo, not a finding. A chat is
+- **The model is a setting, not a file key.** The stock gives its
+  window, prices, output and efforts, and every stock charter's main
+  model (`../design/protocol/configuration/stock.md`). After the
+  start, inspect and change it through settings; `temper ctl settings
+  show charter 1` names the model. A box that differs from the pass's
+  chosen settings is a setup to redo, not a finding. A chat is
   started with `--model MODEL --effort EFFORT` where its model is named;
   template 1's choice (`settings apply`, the whole choice: `{"main":
   {"model": MODEL, "effort": EFFORT}, "account": null, "subagents":
   []}`) sets it for every chat of a running box.
-- **Its room is raised beside it,** in `temper.json` before the start,
-  where a pass needs more than the profile gives: `engine.limits`'
-  override `"people.requests"`, since each deciding request's answer is
-  kept a day, which a busy pass fills, after which every keyed request
-  answers busy (jig's `domain/people/acts.md`, 1); and
-  `application.limits`' override `"root.loads.loads"`, since a restart
-  with held work loaded needs a slot for it. Its retention stays a day,
-  and the memory the start then names is raised as
-  `../design/protocol/configuration/settings.md`, 7 says. These are a pass's,
-  as the budget is; the product's own values are its design's.
-- **One configuration, checked before every start.** Every change above
-  is made in `CONFIG` after `temper init` and before the box's first
-  start, and `memory_bytes` raised by what the start names when it
-  refuses a short one. Before the first start and before every restart,
-  a pass checks that `CONFIG` says what it set; one that differs is a
-  setup to redo, never a finding.
+- **Its room is raised through settings,** where a pass needs more than
+  the stock gives: `limits`' `people.requests`, since each deciding
+  request's answer is kept a day, which a busy pass fills, after which
+  every keyed request answers busy (jig's `domain/people/acts.md`, 1);
+  and `temper-limits`' `root.loads.loads`, since a restart with held work
+  loaded needs a slot for it. Its retention stays a day, and memory is
+  `transcript_memory`, a `temper-limits` setting. Apply these before
+  restarting; for an initial start, or a setting that refuses a start,
+  use `limits-held` in the data directory, one `NAME VALUE` per line
+  (`../design/protocol/configuration/limit-settings.md`, 3). These are a
+  pass's, as the budget is; the product's own values are its design's.
+- **One configuration, checked before every start.** `CONFIG/temper.toml`
+  holds the box's file keys after `temper init`: `listen`, `[environment]`
+  and other keys listed by `temper-box help config`. Models and limits
+  are settings, not keys in that file. Before the first start and every
+  restart, a pass checks its file, settings and any `limits-held` against
+  what it set; a difference is a setup to redo, never a finding.
 - **Give back before you break it.** A case that aborts `serve`, kills
   the box or otherwise risks the deployment's restore first exports a
   login moved into the box (`account export`): what the deployment holds

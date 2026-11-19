@@ -36,11 +36,18 @@ pub fn named(name: &[u8]) -> Option<&'static Story> {
     all().iter().find(|story| story.name.as_bytes() == name)
 }
 
-pub(crate) fn admin_token(seed: u64) -> [u8; 40] {
+/// The synthetic admin credential accepted by this story's forge peer.
+#[must_use]
+pub fn admin_token(seed: u64) -> [u8; 40] {
     credential::credential(documents::seeds(seed).forge, credential::ADMIN_TOKEN)
 }
 
 impl Story {
+    #[must_use]
+    pub fn configuration(&self) -> crate::documents::Configuration {
+        crate::documents::configuration::story_a(serde_json::from_slice(self.deployment).expect("story document"))
+    }
+
     /// Decode the compiled documents and build the same peers as `temper fake`.
     #[must_use]
     pub fn start(&self, seed: u64, wall: Wall) -> Start {
@@ -52,7 +59,7 @@ impl Story {
         let (peer, shared) = forge::peer(&forge, &token, seeds.forge).expect("story's forge peer");
         let (_, table) = forge.seed(seeds.forge);
         let forge = temper_fake_git::Typed::new(shared, &table);
-        Start { seed, wall, deployment: self.deployment.into(), fakes: Fakes { llm, forge, peer }, links: Links::Print }
+        Start { seed, wall, deployment: self.configuration(), fakes: Fakes { llm, forge, peer }, links: Links::Print }
     }
 }
 

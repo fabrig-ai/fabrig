@@ -137,7 +137,12 @@ impl Shape {
     pub(crate) fn ready(&self) -> bool {
         !matches!(self, Self::Worker { engine: None, .. } | Self::Worker { started: false, .. })
     }
-    pub(crate) fn write(&self, path: &Path, standing: bool) {
+    pub(crate) fn write(
+        &self,
+        path: &Path,
+        standing: bool,
+        configuration: &mut temper_playground::documents::Configuration,
+    ) {
         use serde_json::json;
         let config = path.join("config");
         let data = path.join("data");
@@ -151,9 +156,12 @@ impl Shape {
                 .create(path.join(name))
                 .expect("cluster directories");
         }
-        let mut document: serde_json::Value =
-            serde_json::from_slice(&std::fs::read(data.join("temper.json")).expect("base document"))
-                .expect("base JSON");
+        let mut file = fixtures::file::read(&data, temper_config_shell::Shape::Standalone).file;
+        let shape = match self {
+            Self::Engine { .. } => temper_config_shell::Shape::EngineAlone,
+            Self::Worker { .. } => temper_config_shell::Shape::WorkerAlone,
+        };
+        let document = configuration;
         document["world_settings"] =
             serde_json::from_slice(&std::fs::read(data.join("world-settings.json")).expect("world settings"))
                 .expect("world JSON");
@@ -180,19 +188,21 @@ impl Shape {
                 document["world_settings"]["llm"]["endpoints"][0]["provider"] = "openai".into();
                 document["workers"] = json!([]);
 
-                document["engine"]["hosts"]["listener"] = json!([{"socket":"127.0.0.1:0"}]);
+                file.workers = Some(([127, 0, 0, 1], 0).into());
                 // Every configured position admitted: the small profile admits two workers.
-                document["engine"]["limits"]["overrides"]["fleet.workers"] = workers.len().into();
+                document.jig_over("fleet.workers", workers.len());
                 // One attempt per one-slot worker: the fleet counts attempts across the whole fleet.
-                document["engine"]["limits"]["overrides"]["fleet.attempts"] = workers.len().into();
-                document["engine"]["limits"]["overrides"]["hub.turns"] = 1.into();
-                document["engine"]["limits"]["overrides"]["link.ping_ms"] = ping_ms.into();
-                document["engine"]["limits"]["overrides"]["link.silence_ms"] = silence_ms.into();
-                document["engine"]["limits"]["overrides"]["hub.held"] = 1.into();
-                document["engine"]["limits"]["overrides"]["hub.program_sources"] = 0.into();
+                document.jig_over("fleet.attempts", workers.len());
+                document.jig_over("hub.turns", 1);
+                document.jig_over("link.ping_ms", ping_ms);
+                document.jig_over("link.silence_ms", silence_ms);
+                document.jig_over("hub.held", 1);
+                document.jig_over("hub.program_sources", 0);
                 if grace_ms >= 1_000 {
-                    document["engine"]["limits"]["overrides"]["link.ceiling_ms"] = 1_000.into();
+                    document.jig_over("link.ceiling_ms", 1_000);
                 }
+                let grace = temper_service::startup::worker_fleet_grace(&document.jig);
+                document.jig_over("fleet.grace_ms", grace.as_millis());
                 let items: Vec<_> = workers.iter().enumerate().map(|(index, name)| {
                     let secret = format!("{name}-fixture-secret");
                     let mut digest = String::new();
@@ -217,24 +227,25 @@ impl Shape {
                 worker.as_object_mut().expect("worker").remove("limits");
                 worker.as_object_mut().expect("worker").remove("agent");
                 worker["name"] = (*name).into();
-                worker["secret"] = format!("secrets/{name}.secret").into();
-                worker["engine"] = json!({"socket": engine.unwrap_or(([127,0,0,1],0).into()).to_string()});
+                worker["secret"] = "secrets/worker.secret".into();
+                file = temper_config_shell::File {
+                    name: Some((*name).into()),
+                    engine: Some(engine.unwrap_or(([127, 0, 0, 1], 0).into())),
+                    ..Default::default()
+                };
                 worker.as_object_mut().expect("worker").remove("graces");
                 worker.as_object_mut().expect("worker").remove("programs");
-                document = json!({"workers":document["workers"],"application":{}});
-                fixtures::private(
-                    &data.join(format!("secrets/{name}.secret")),
-                    format!("{name}-fixture-secret").as_bytes(),
-                )
-                .expect("fixture secret");
+                document.document = json!({"workers":document["workers"],"application":{}});
+                fixtures::private(&data.join("secrets/worker.secret"), format!("{name}-fixture-secret").as_bytes())
+                    .expect("fixture secret");
             }
         }
         if let Some(flags) = document.as_object_mut().expect("cluster document").remove("world_settings") {
             fixtures::private(&data.join("world-settings.json"), &serde_json::to_vec(&flags).expect("world flags"))
                 .expect("world settings");
         }
-        fixtures::private(&config.join("temper.json"), &serde_json::to_vec(&document).expect("cluster document"))
-            .expect("private cluster document");
+        fixtures::file::write(&config, &file, shape).expect("cluster configuration file");
+        document.document = fixtures::file::document(&config, shape);
     }
 }
 
@@ -389,10 +400,15 @@ mod tests {
         let scratch = crate::Scratch::new("cluster-initial-figures");
         let data = scratch.path().join("data");
         let address = ([127, 0, 0, 1], 0).into();
-        fixtures::write(&data, address, address).expect("fixture documents");
-        Shape::Engine { workers: vec!["w1"], grace: skein_lib::Duration::from_millis(10) }.write(scratch.path(), false);
+        let mut configuration = fixtures::write(&data, address, address).expect("fixture documents");
+        Shape::Engine { workers: vec!["w1"], grace: skein_lib::Duration::from_millis(10) }.write(
+            scratch.path(),
+            false,
+            &mut configuration,
+        );
 
-        let (temper_service::stock::Given::Own { forge, .. }, _) = fixtures::given_and_projects(&data) else {
+        let (temper_service::stock::Given::Own { forge, .. }, _) = fixtures::given_and_projects(&data, &configuration)
+        else {
             panic!("world startup defaults")
         };
         let agents = forge.iter().find(|row| row.kind == 21).expect("initial agent figures");
@@ -414,13 +430,13 @@ mod tests {
         let scratch = crate::Scratch::new("cluster-policy");
         let data = scratch.path().join("data");
         let address = ([127, 0, 0, 1], 0).into();
-        fixtures::write(&data, address, address).expect("fixture documents");
+        let mut configuration = fixtures::write(&data, address, address).expect("fixture documents");
         let path = data.join("world-agent.json");
         let expected: serde_json::Value =
             serde_json::from_slice(&std::fs::read(&path).expect("agent document")).expect("agent JSON");
 
         Shape::Worker { name: "w1", engine: Some(address), started: true, grace: skein_lib::Duration::from_millis(10) }
-            .write(scratch.path(), false);
+            .write(scratch.path(), false, &mut configuration);
 
         let prepared: serde_json::Value =
             serde_json::from_slice(&std::fs::read(data.join("world-agent.json")).expect("prepared fixture"))

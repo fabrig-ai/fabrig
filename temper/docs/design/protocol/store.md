@@ -1,29 +1,26 @@
 # temper's store
 
 Provisional, 2026-10-05, revised 2026-11-02. What temper keeps in jig's
-store, and how: its families, the forge's records, under the
-application's tag; their keys, their records and temper's store
-version; and the restart's ranges. The store itself is jig's
-(jig's `protocol/store/README.md`): `jig-protocol-store`, skein's key-value
+store: its families (the forge's records under the application's tag),
+keys, records, store version and restart ranges. jig's store
+(jig's `protocol/store/README.md`), `jig-protocol-store`, is skein's key-value
 store in the engine's process, with transcripts as files and secrets in
-a second store. temper's part is the crate `temper-protocol-store`
-(`components.md`), engine only. What is open is listed in `store.md`, section 7
-.
+a second store. temper's engine-only crate is `temper-protocol-store`
+(`components.md`). Open questions: `store.md`, section 7.
 
 ## 1. In one page
 
 - **jig's store, temper's families.** The engine's protocol layer owns
-  jig's store component; temper adds its own records beside jig's,
-  under the application's tag, in the same commits (jig's
+  jig's store component; temper adds records beside jig's under the
+  application's tag, in the same commits (jig's
   `protocol/store/README.md`, section 7).
 - **One family per forge record.** Each variant of the forge connector's
   `Stored` is a family, a keyed adoption's or forge outcome, each
   forge's writer, each forge itself, the last forge number given, the
   playground's row and a person's dismissals among them. Nothing
-  else of temper's is in the main store: temper has no index of its own
-  and no secret record there, its forges' credentials being in jig's
-  secrets' store (credentials.md, 2.1); the core's records, people's and
-  tasks' are jig's.
+  else of temper's is in the main store: no index or secrets; its forges'
+  credentials are in jig's secrets' store (credentials.md, 2.1).
+  The core's, people's and tasks' records are jig's.
 - **Keys sort as the forge's keys do:** a family byte in the variants'
   order, then the key's fields by jig's key rule; a property test holds
   each encoder to the derived order (section 3).
@@ -61,19 +58,18 @@ a second store. temper's part is the crate `temper-protocol-store`
 
 ## 2. temper's families
 
-One per variant of `temper_engine_domain_forge::Stored`
-(`crates/temper-engine-domain-forge/src/boundary.rs`), in the order of
-its variants, which is also the order of its `Key`. Each is restored
-whole at the forge's restart step (section 5), and bounded by the
-forge's limits (`temper_engine_domain_forge::Limits`, configuration/limits.md
-).
+One per `temper_engine_domain_forge::Stored` variant
+(`crates/temper-engine-domain-forge/src/boundary.rs`), in variant and `Key`
+order. Each is restored whole at the forge's restart step (section 5)
+and bounded by the forge's limits (`temper_engine_domain_forge::Limits`,
+configuration/limits.md).
 
 | Byte | Family | Key | What a row holds | Bounded by |
 |---|---|---|---|---|
 | 0 | `Call` | `Call(NamedCall)`: task, attempt, completion, position | the connector's part of a live named call | `named_calls` |
 | 1 | `ProposedEffect` | `ProposedEffect(u64)`: the proposal's number | an effect awaiting an authority holder's decision | `tasks` |
 | 2 | `Repository` | `Repository(Repository)`: forge, repository | an adopted repository: its project, role, kinds, protection, settings, CI workflows (`../domain/forge/adoption.md`, 7) and landing branch (`../domain/forge/adoption.md`, 8) | `repositories` |
-| 3 | `Hold` | `Hold(Name)` | a held resource, its task, its writer and its drift | `holds` |
+| 3 | `Hold` | `Hold(Name)` | a held resource: its task, writers, drift and heads beside (`../domain/forge/branches.md`, 3) | `holds` |
 | 4 | `Names` | `Names(u64)`: the task | the resources one live task names; or a kept task's: the repositories its names lie in, kept from its release until jig erases the task (`../domain/forge/adoption.md`, 1) | `tasks` live rows, and `repositories` kept ones |
 | 5 | `Subscription` | `Subscription { task, topic }` | one task's subscription to a topic | `subscriptions` |
 | 6 | `BranchHead` | `BranchHead(Name)` | a branch's last observed tip | the client's `resources` |
@@ -85,7 +81,7 @@ forge's limits (`temper_engine_domain_forge::Limits`, configuration/limits.md
 | 12 | `Change` | `Change(u64)`: the task | reserved (jig's `protocol/store/layouts.md`, 2): its byte lies outside `temper-store`'s keys and its value type's number is never given again; no row holds it and `Row` has no `change` variant (section 4); it held a change's record whole, which families 47 and 48 hold in two parts (below); the record is a change procedure's state, with its last producer's failure words (`producer_failure`, fitted to the hold's account bytes and cut with `...`; a new delegate or a producer's success clears them), which become a producing hold's account (`../domain/forge/change/repairs.md`); and its questions: its route, those taken since its making or last release, and its open questions, each with its asker, number, words whole, first line and where it stands, an answer held with its words (`../domain/forge/change/questions.md`, 1); and `signed`, the sign-offs its last admitted merge counted, at most 8, each a person, a head and a wall time (`../domain/forge/change/gates.md`, 2, *Sign-offs kept at landing*) | `changes` |
 | 13 | `Issue` | `Issue(u64)`: the goal | a goal's issue projection | `issues` |
 | 14 | `Release` | `Release(u64)`: the task | a closing task's release | `tasks` |
-| 15 | `Application` | `Application(u64)`: the people child's token for the request | a keyed adoption's outcome, or a keyed outcome of the FORGE family, kept until its retention ends (jig's `domain/connectors.md`, 5.5: a connector keeps its keyed requests' outcomes durably); an outcome carrying a link is kept in memory alone, until its state's life ends (`setup.state_life_ms` after `Done`; `../client/engine.md`) | `applications` |
+| 15 | `Application` | `Application(u64)`: the people child's token for the request | a keyed adoption's outcome, or a keyed outcome of the FORGE family, kept until its retention ends or erased earlier to make room for a newer request (`../domain/forge/adoption.md`, 9; jig's `domain/connectors.md`, 5.5: a connector keeps its keyed requests' outcomes durably); an outcome carrying a link is kept in memory alone, until its state's life ends (`setup.state_life_ms` after `Done`; `../client/engine.md`) | `applications` |
 | 16 | `Writer` | `Writer(forge)`: the forge's number | the forge's writer, given at runtime from its connect's user (skein's `forge/client.md`, 7.1; credentials.md, section 5), restored at start so that restored effects never meet `Forbidden`; erased in its forge's removal's decision (forge/engine.md, 3) | `forges`, the forges kept |
 | 17 | reserved | none | no row: the byte is never reused | none |
 | 18 | `Binding` | `Binding(address)`: a member's address, ASCII letters folded to lower case | the Google subject that first signed in with that member's address, `{ address, subject }`, the subject at most 255 bytes (`sign-in.md`, section 5). Written by the first sign-in alone, never erased. A family of the forge connector's though it is people's, as `Playground` is: `Stored` holds every family of temper's, restored in the one restart step and written in the root's decisions, so it takes no range of its own | `bindings`, the configured members |
@@ -371,23 +367,23 @@ forge's limits (`temper_engine_domain_forge::Limits`, configuration/limits.md
   effects, writes, live rows and cached answers; the change's and the
   issues' states; a named call's payload, with the forge's answers and
   errors), generated by skein's generator (skein's `data/codec/README.md`). The
-  domain's values are translated to and from the generated ones by small
-  total functions, exhaustive both ways, so a domain change to a durable
-  field breaks a translation's build.
+  domain's values translate to and from generated ones by small total
+  functions, exhaustive both ways: a domain change to a durable field
+  breaks a translation's build.
 - **Its generated record code in a codec crate,**
   `temper-protocol-store-codec`, which depends on skein-lib and
   skein-codec alone (skein's `data/codec/README.md`, section 2), so that
   it compiles beside the forge's domain crates rather than after them.
-  It holds the current version's code alone, `src/generated/v<N>.rs` as
-  the module `v<N>`, which `temper-protocol-store` re-exports at its root
-  under the same name, currently `v25`. Registered values are converted
-  at read from their stored layouts into that codec's layout
+  It holds only the current version's code, `src/generated/v<N>.rs`,
+  module `v<N>`, re-exported at `temper-protocol-store`'s root under
+  the same name, currently `v25`. Registered values convert at read
+  from stored layouts into that codec's layout
   (`floor.md`, 2); no older map codec or patch history is kept.
   `temper-protocol-store` keeps the current schema, owner set and
-  translations. The drift test, `temper-codecs-world`'s, compares the
-  generated records with the code in the codec crate and refuses each
-  unpinned construct. Tests build values, without family golden files or
-  generated tests; skein's `every` pins the bytes
+  translations. `temper-codecs-world`'s drift test compares generated
+  records with the codec crate's code and refuses each unpinned
+  construct. Tests build values, without family goldens or generated
+  tests; skein's `every` pins the bytes
   (`skein/docs/design/data/codec/README.md`, 6).
 - **Collections** are pieces or counted lists by jig's rule (jig's
   `protocol/store/records.md`, 1). The schema's limits are made from the
@@ -696,20 +692,28 @@ and that bound before the store's sizing runs
 bound's bytes read unchanged through the registry, so the widening from
 759 is derived.
 
-A failing test's id (`FailingTest.test_id`) and a flake's
-(`TierFlake.test`) each have a ceiling of 1,024 bytes, which holds the
-tier row's worst-case encoding within the codec's u32 length envelope at
-1,537 landings: about 1.9 GB, a finding's blamed landings' failures most
-of it, where at ids of 4,096 it passed the envelope past 759 landings
-(4,294,744,175 bytes at 759). `temper-protocol-store`'s focused test
-pins the figure. Their runtime bound is `forge.tiers.test_id_bytes`,
-512 in the stock; a value above the least of the two ceilings, 1,024,
-refuses the start, naming `forge.tiers.test_id_bytes` and that bound,
-before the store's sizing runs (`configuration/limits.md`). A store
-written at 4,096 is brought within by the `test-ids-*` jobs (above). A
-receipt report's test keys (`ReceiptTest.key`) keep their ceiling of
-4,096: no tier row holds them, and their runtime bound is
-`test_id_bytes` too, so what the store writes is within 1,024.
+Failing-test and flake ids (`FailingTest.test_id`, `TierFlake.test`)
+have 1,024-byte ceilings: worst-case tier rows fit the codec's u32 length
+envelope at 1,537 landings (~1.9 GB, mostly a finding's blamed landings'
+failures). 4,096-byte ids exceeded it past 759 landings (4,294,744,175
+bytes at 759), pinned by `temper-protocol-store`'s focused test. Runtime bound
+`forge.tiers.test_id_bytes` is stock 512, a finding signature's id
+capacity, within both ceilings (least: 1,024). Start refuses values
+above 512, naming setting and bound before store sizing
+(`configuration/limits.md`); a focused test pins the signature bound
+within the ceilings. `test-ids-*` jobs (above) bring 4,096-written stores
+within bounds. Receipt report keys (`ReceiptTest.key`) retain their
+4,096 ceiling: no tier row holds them. Runtime bound `test_id_bytes`
+also keeps stored keys within 1,024.
+
+Tier failing-test and flake lists (`FailedTests.tests`,
+`TierRecord.flakes`, `TierFinding.flakes`, `TierTests.tests`, gate
+selection's `LandingSelection.tests`, receipt's `ReceiptTests.tests`,
+among others) each have a 1,024 ceiling. Runtime bound
+`forge.tiers.failing_tests` is stock 64, start-checked against a finding
+signature's 64 ids (`configuration/limits.md`). Lists encode their
+count: tier rows written at smaller bounds (including 16) read unchanged
+through the registry at 64; the raise moves no version and brings no patch.
 
 A repository's stored CI workflows, the record's `workflows`, are a list
 with a ceiling of 16 names, each of at most 255 bytes: its bounds are the
@@ -732,7 +736,7 @@ A listing's page of items says whether it was cut at the answer's bytes (skein's
 
 - **One step, one interval.** The core's restart script asks for the
   forge connector's step (`RestoreConnector`, jig's `domain/engine/restart.md`
-  ). The root then loads `Range::Forge` a page at a time,
+  ). The root then pages through `Range::Forge`,
   restores each row into the forge (its `Event::Restore`), and ends the
   step with its `Restored`.
 - **The routing maps `Range::Forge`** to one interval: every key under
@@ -744,9 +748,9 @@ A listing's page of items says whether it was cut at the answer's bytes (skein's
   keeps the longest prefix of the page within the root's rows and
   decoded bytes, its cursor the last key kept.
 - **Family by family,** in the variants' order, since the family's byte
-  leads each key. The forge restores each row into its own table and
-  reconciles them all at `Restored`, so it takes the rows in any order;
-  a change's two parts (section 2, families 47 and 48) are joined there.
+  leads each key. The forge restores each row into its table and
+  reconciles all at `Restored`, accepting any row order and joining
+  a change's two parts (section 2, families 47 and 48) there.
 - **Every row the predicate admits.** `Range::contains` admits every
   forge key below byte 128 and no core key; a test checks the interval against it on
   generated keys of both (section 6).
@@ -780,30 +784,26 @@ A listing's page of items says whether it was cut at the answer's bytes (skein's
   (`../domain/forge/adoption.md`, 5).
 - **The core's ranges are jig's, filtered.** jig's restart ranges
   (jig's `protocol/store/README.md`, 4.3, and `protocol/store/loads.md`, 2) are coarser than the root's
-  core ranges, so the routing asks for the jig ranges that hold a root
-  range and keeps each row the root's range admits: `CoreRange::Tasks`,
-  the tasks child's live families with the goals' projections, which
-  are core rows, is jig's `[Core, Tasks]`, in that order, which is also
-  the keys' order; `CoreRange::{Calls, RunProofs}` are jig's `[Core]`.
-  A root cursor is a key of the root's range, and names the jig
-  interval that holds it. A page whose rows the filter all drops, while
-  jig's walk goes on, is asked again from jig's cursor before the root
-  hears of it, so a page that goes on keeps a row, and its cursor is the
-  last key kept.
+  core ranges. The routing asks for the jig ranges holding a root range,
+  keeping each row the root's range admits: `CoreRange::Tasks` (the tasks child's live
+  families and the goals' projections, core rows) is jig's `[Core, Tasks]`,
+  in that order, also the keys' order; `CoreRange::{Calls, RunProofs}`
+  are jig's `[Core]`. A root cursor is a key of its range, naming the jig
+  interval holding it. If the filter drops every row while jig's walk
+  goes on, it asks again from jig's cursor before the root hears of it.
+  Thus a continuing page keeps a row, its cursor the last key kept.
 - **The census is jig's walk, taken as it comes.** `Range::Census` is
-  jig's census (jig's `protocol/store/loads.md`, 2): a page's rows are ended
-  read positions and ended tasks in the walk's order, the same task once
-  for each index row that names it, and its cursor is the key of the
-  last index row walked, which jig's `Census::interval` places in the
-  walk. temper keeps no copy of the walk's order.
+  jig's census (jig's `protocol/store/loads.md`, 2): pages hold ended
+  read positions and ended tasks in walk order, each task once per index
+  row naming it. The cursor is the last index row's key, placed in the
+  walk by jig's `Census::interval`. temper keeps no copy of the walk's order.
 - **The root checks the census's rows, and keeps none.** Each row is an
-  ended task or an ended read position, and the cursor a key the census
-  admits, past the page's start in the walk's order; a page may hold no
-  row and go on. The root neither pairs, orders nor dedupes the rows: it
-  hands each to jig's core as it comes. jig's component never parts a
-  position from its task, so the root's `loads.rows` is at least 2,
-  checked at start. A cut census page stops the restart, as every cut
-  restart page does.
+  ended task or ended read position; the cursor is a census-admitted key past
+  the page's start in walk order. An empty page may go on. The root
+  neither pairs, orders nor dedupes rows, handing each to jig's core as
+  it comes. jig's component never parts a position from its task, so
+  the root's `loads.rows` is at least 2, checked at start. A cut census
+  page stops the restart, as every cut restart page does.
 
 ## 6. Testing
 
@@ -819,10 +819,10 @@ Within the suites' budgets (`../testing/README.md`, section 2):
 - **Fuzz targets** for each family's decoder and for the key decoder.
 - **The real store in the domain worlds,** as jig's `protocol/store/README.md`,
   section 9 has it: temper's engine worlds run jig's component over
-  skein-kv's in-memory mode, with temper's families encoded by
-  `temper-protocol-store`, so every story runs the real keys, codecs and
-  interval, with the world's faults: commits held, delayed, one failed
-  to stop the engine, and a crash keeping what reached the store.
+  skein-kv's in-memory mode; `temper-protocol-store` encodes temper's
+  families. Every story runs real keys, codecs and interval with faults:
+  commits held, delayed, one failed to stop the engine, and a crash
+  keeping what reached the store.
 - **The one-process world** (`tests/one-process`, `../testing/README.md`, 2.5):
   the store on skein's crashing disk, the process killed and restarted
   at drawn moments; after each restart the forge's records are those of

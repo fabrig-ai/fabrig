@@ -17,7 +17,6 @@ fn startup_carries_the_components_stock_kinds_and_period_span() {
     .unwrap();
     let settings = start.engine;
     let mut limits = crate::limits::engine(&settings.jig.limits, &settings.limits).unwrap();
-    limits.memory_bytes = settings.jig.memory;
     limits.host_reply_bytes = settings.host_reply_bytes;
     let core = crate::system::core_config(&settings.jig, &seeds);
     let connector = *core.connectors.first().unwrap();
@@ -26,30 +25,7 @@ fn startup_carries_the_components_stock_kinds_and_period_span() {
 }
 
 pub(super) fn generated() -> Box<[u8]> {
-    use core::num::NonZeroU16;
-    let answer = temper_init::files(
-        &temper_init::Facts {
-            sign_in: false,
-            binary: b"/bin/temper",
-            git: Some(b"/bin/git"),
-            claude: None,
-            login: Some(b"ada"),
-            ports: temper_init::Ports {
-                clients: NonZeroU16::new(8367).unwrap(),
-                webhooks: NonZeroU16::new(8371).unwrap(),
-            },
-        },
-        &temper_init::Directories { config: b"/config", data: b"/data" },
-        &[0; 32],
-    )
-    .unwrap();
-    for file in answer.files {
-        if file.name == b"temper.json" {
-            let temper_init::Content::Bytes { bytes, .. } = file.content else { panic!("document bytes") };
-            return bytes;
-        }
-    }
-    panic!("init writes temper.json")
+    temper_config_shell::init_document(false)
 }
 pub(super) fn engine(document: &[u8]) -> config::Engine {
     let bytes = fixtures::value(document, b"engine");

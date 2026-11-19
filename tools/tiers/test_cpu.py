@@ -575,6 +575,81 @@ class OneProcessTests(unittest.TestCase):
         self.assertEqual((row['main_cpu_s'], row['main_from'], row['main_wall_s']), (None, None, None))
         self.assertEqual(row['limit_s'], 0.04)
 
+    def test_reference_round_figures_at_head_and_base(self):
+        self.reference_case('flagged')
+        base = self.base(0.100)
+        base_data = json.loads((base / 'results.json').read_text())
+        base_data['references'][0]['runs'] = [dict(cpu_s=cpu) for cpu in (0.080, 0.100, 0.090)]
+        CPU['save'](base / 'results.json', base_data)
+        for figures, over in (((0.170, 0.140, 0.160), False), ((0.170, 0.160, 0.165), True)):
+            with self.subTest(figures=figures):
+                self.results['references'][0].update(cpu_s=min(figures), runs=[dict(cpu_s=cpu) for cpu in figures])
+                result = self.summary(self.limits, gate=True, ledger=self.main, base=base)
+                row, = result['references']
+                self.assertEqual((row['cpu_s'], row['main_cpu_s']), (min(figures), 0.100))
+                self.assertAlmostEqual(row['limit_s'], 0.150)
+                self.assertEqual((row['alone'], row['main_alone'], row['swinging']),
+                                 (list(figures), [0.080, 0.100, 0.090], False))
+                self.assertEqual((row['over'], bool(result['over_budget'])), (over, over))
+        row, = self.summary(self.limits, ledger=self.main, base=self.base(0.100))['references']
+        self.assertEqual(row['main_alone'], [0.100])
+        row, = self.summary(self.limits, ledger=self.main)['references']
+        self.assertEqual(row['main_alone'], [])
+
+    def test_reference_head_swing_warns_without_changing_verdict_or_exit(self):
+        self.reference_case()
+        path = self.root / 'budgets.toml'
+        path.write_text(CPU['toml_config'](self.limits))
+        for figures, swinging in (((0.052, 0.047, 0.031), True), ((0.052, 0.047, 0.040), False),
+                                  ((0.000, 0.001, 0.000), True), ((0.000, 0.000, 0.000), False),
+                                  ((0.052, 0.031), False), ((0.052, None, 0.031), False)):
+            for gate in (False, True):
+                with self.subTest(figures=figures, gate=gate):
+                    self.results['references'][0].update(
+                        cpu_s=min(cpu for cpu in figures if cpu is not None),
+                        runs=[dict(cpu_s=cpu, outcome='passed' if cpu is not None else 'cancelled') for cpu in figures])
+                    result = self.summary(self.limits, gate=gate)
+                    row, = result['references']
+                    self.assertEqual((row['alone'], row['swinging'], row['over']), (list(figures), swinging, False))
+                    warnings = ["test not measured alone: pkg::suite z: cancelled"] if None in figures else []
+                    if swinging:
+                        text = ', '.join(f'{cpu:.3f}' for cpu in figures)
+                        warnings.append(f'test swings alone at the head: pkg::suite z: {text} CPU s alone')
+                    self.assertEqual(result['warnings'], warnings)
+                    self.assertEqual((result['over_budget'], result['verdict']),
+                                     ([], 'within budget' if gate else 'no budget set'))
+                    cli = self.cli('--budgets', str(path), *(['--gate'] if gate else []), '--json')
+                    self.assertEqual(cli.returncode, 0, cli.stdout + cli.stderr)
+                    self.assertEqual(json.loads(cli.stdout)['warnings'], warnings)
+        # A swing does not mask an over-budget figure; its line follows other warnings.
+        self.results['references'][0].update(cpu_s=0.050, runs=[dict(cpu_s=cpu) for cpu in (0.080, 0.050, 0.060)])
+        for gate in (False, True):
+            result = self.summary(self.limits, gate=gate)
+            self.assertEqual(bool(result['over_budget']), gate)
+            self.assertTrue(result['references'][0]['over'])
+            self.assertTrue(result['warnings'][-1].startswith('test swings alone at the head:'))
+            self.assertEqual(len(result['warnings']), 1 if gate else 2)
+            cli = self.cli('--budgets', str(path), *(['--gate'] if gate else []))
+            self.assertEqual(cli.returncode, 1 if gate else 0, cli.stdout + cli.stderr)
+
+    def test_reference_unmeasured_later_run_warns(self):
+        self.reference_case(cpu=0.031)
+        self.results['references'][0]['runs'] = [dict(cpu_s=0.052, outcome='passed'),
+            dict(cpu_s=None, outcome='crashed'), dict(cpu_s=0.031, outcome='passed')]
+        for gate in (False, True):
+            result = self.summary(self.limits, gate=gate)
+            self.assertEqual(result['warnings'], ['test not measured alone: pkg::suite z: crashed'])
+            self.assertEqual(result['over_budget'], [])
+            self.assertEqual(result['references'][0]['alone'], [0.052, None, 0.031])
+            self.assertFalse(result['references'][0]['swinging'])
+
+    def test_ledger_folds_head_round_figure(self):
+        self.reference_case(cpu=0.031)
+        self.results['references'][0]['runs'] = [dict(cpu_s=cpu) for cpu in (0.052, 0.047, 0.031)]
+        folded = self.folded(self.main)
+        self.assertEqual(folded['ledger'], 3)
+        self.assertEqual(folded['binaries']['pkg::suite']['alone']['z'], [0.03, 0.025, 0.031])
+
     def test_reference_flagged_ledger_fallback(self):
         self.reference_case('flagged')
         for base in (None, self.base(None)):
@@ -625,10 +700,12 @@ class OneProcessTests(unittest.TestCase):
         self.assertEqual(result['references'], [
             dict(binary_id='pkg::suite', test_name=name, tree='temper', layer='step', why='new',
                  wall_s=0.25, main_wall_s=None, cpu_s=cpu, main_cpu_s=None, main_from=None,
-                 reference_s=0.06, line_s=None, limit_s=0.06, over=False) for name, cpu in [('z', 0.05), ('a', 0.03)]] + [
+                 reference_s=0.06, line_s=None, limit_s=0.06, over=False,
+                 alone=[cpu], main_alone=[], swinging=False) for name, cpu in [('z', 0.05), ('a', 0.03)]] + [
             dict(binary_id='other', test_name='remote', tree='temper', layer='step', why='new',
                  wall_s=None, main_wall_s=None, cpu_s=0.03, main_cpu_s=None, main_from=None,
-                 reference_s=0.06, line_s=None, limit_s=0.06, over=False)])
+                 reference_s=0.06, line_s=None, limit_s=0.06, over=False,
+                 alone=[0.03], main_alone=[], swinging=False)])
         self.limits['gate']['default']['reasons'] = [dict(binary='unplaced', test='unknown', cpu_s=0.1, why='story')]
         row = self.summary(self.limits)['references'][-1]
         self.assertEqual((row['tree'], row['layer'], row['reference_s'], row['limit_s']), (None, None, None, 0.1))

@@ -98,7 +98,7 @@ will come: your delegates have ended and no question waits. Finish with
 your result." It always wakes and merges in the dependency-met notice
 slot: an unread dependency-met notice already wakes it before this rule
 is reached. Each such park consumes a run try, retained across these
-wakes; exhausting the run tries ends the task failed. A task ended by its requester may remain idle (9), and so may a standing one (`standing.md`, section 2). A task ended by its closer is
+wakes; exhausting the run tries ends the task failed, saying so (7). A task ended by its requester may remain idle (9), and so may a standing one (`standing.md`, section 2). A task ended by its closer is
 not due by this rule: where it would be, jig makes its closer instead,
 and numbers no notice (11).
 
@@ -224,7 +224,8 @@ them (8).
     it needs did: a workspace its host could not prepare for now
     (../hosts/hub.md, 3), for a run or a job alike, or a brief's required
     section whose system failed for now or that was not gathered by the
-    brief's deadline (../engine/briefs.md, 1.1); or a run whose model's
+    brief's deadline (../engine/briefs.md, 1.1), or a dependency's or
+    input's result whose load the store answered busy (the same); or a run whose model's
     provider could not be reached, its model call failed unavailable or
     overloaded with no call reaching the model, its evidence unsent (an
     outage, ../hosts/hub.md, 3). Its allowance and backoff are its own
@@ -374,6 +375,28 @@ them (8).
 - **Failure is a result.** An executor that finds the task cannot be done
   as asked ends it failed, saying why. A failed task's dependents are
   held (6); its requester decides what follows.
+- **A failure always says why.** A failed task's reason, and so its
+  summary's (`../../protocol/store/retention.md`, 3), is never empty. An
+  executor's declared failure with no reason ends with `Its EXECUTOR
+  declared failure without a reason.`, EXECUTOR `run` for an agent's
+  run, `person` for a person's answer and `procedure` for a procedure's
+  step. Each failed ending jig makes itself carries
+  its words, N the run tries its class allows (6):
+  - past its tries parked with nothing left to await (2): `Its runs
+    parked with nothing left to await, past its N run tries.`;
+  - past its tries owing its requester a question (8): `Its runs
+    finished without asking its requester the question it owes, past
+    its N run tries.`;
+  - past its tries with its closer failing (11): `Its closer failed,
+    past its N run tries: REASON`, REASON the closer's own failure's,
+    the colon and REASON left out where that is empty.
+
+  Any other ending jig makes failed with no reason of its own takes the
+  nearest of these, never none. Each is cut at a character's edge to
+  the bound every failed reason has, `tasks.result_bytes`, as a reason
+  past it would be: a deployment whose bound is 0 keeps no reason at
+  all, its own choice, and one whose bound is smaller than the words
+  keeps their beginning (the standard's holds them whole).
 
 ## 8. Kept by a dependency
 
@@ -436,7 +459,7 @@ obligation owed again. Before it has asked, its run that finishes done
 parks with its saved state, consumes a run try, and hears a notice
 naming what it owes that wakes it at once. Its next run goes on from
 what the last one left with that notice to read. Exhausting its run
-tries ends it failed; each run also spends within the task's budget.
+tries ends it failed, saying so (7); each run also spends within the task's budget.
 Once it has asked, its own question keeps it, as below.
 
 **Its own question keeps it too.** A task that asked its requester a
@@ -713,7 +736,7 @@ mechanical once the task's work is done (temper's `domain/forge/branches.md`,
   that ends failed or cancelled is a delegate's result, which wakes the
   task by its policy; one that ends failed spends a run try, as a park
   with nothing to await does, so that a closer failing every time
-  ends the task failed. The task's next park with nothing to await
+  ends the task failed, saying so (7). The task's next park with nothing to await
   makes a closer again.
 - **New work keeps it waiting.** A delegate the task makes while its
   closer lives (by a run, an accepted proposal or a batch) becomes a

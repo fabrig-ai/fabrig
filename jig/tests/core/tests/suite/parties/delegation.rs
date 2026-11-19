@@ -327,7 +327,7 @@ fn a_deployments_gathering_keeps_its_delegates_question_out_of_person_inboxes() 
         .seed(Box::new([jig_test_domain::Record::Core(core::Record::Tasks(tasks::Stored::Live(Box::new(row))))]));
     world.restart(seed, false);
     world.domain.core_mut().person_answers();
-    crate::closed_proofs::hello(&mut world);
+    crate::run_helpers::hello(&mut world);
     let question = gathering_question(&mut world);
     assert_eq!(live_row(&world, A).questions[0].answerer, tasks::Party::Task(G));
     assert!(live_row(&world, G).inbox.iter().any(|word| word.number == question

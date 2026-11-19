@@ -333,6 +333,7 @@ impl Backend {
         self.outgoing.as_ref()?;
         let program = self.executable(&mut arguments);
         Some(kernel::Spawn {
+            reach: None,
             program,
             args: arguments,
             env: super::replies::environment(&self.settings.environment, &configuration, self.run_time)?,

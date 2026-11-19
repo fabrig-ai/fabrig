@@ -415,6 +415,36 @@ fn opening_refusals_keep_the_cores_authority_facts_and_make_nothing() {
 }
 
 #[test]
+fn an_opening_resent_after_its_answer_made_room_is_unknown_and_makes_nothing() {
+    let mut limits = limits();
+    limits.forge.applications = 3;
+    limits.people.requests = 5; // The adoption, the open and three answers displacing it.
+    assert!(limits.forge.applications > limits.forge.adoptions);
+    let mut driver = setup([config(), config()], &limits, 1);
+    let task = open(&mut driver, call());
+    assert_eq!(task_rows(&driver).len(), 1);
+    for key in 102..=104 {
+        let mut request = call();
+        request.into = Some(b"temper/7/g8".as_slice().into());
+        application(&mut driver, root::Application::OpenChange(request), key);
+        assert!(matches!(
+            answer(&driver),
+            forge::ApplicationOutcome::OpenRefused(forge::OpenRefusal::UnderPrefix { .. })
+        ));
+    }
+    assert!(!driver.store.rows.values().any(|row| matches!(row, root::Record::Forge { row } if matches!(row.as_ref(), forge::Stored::Application { outcome: forge::ApplicationOutcome::Opened { task: held }, .. } if *held == task))));
+    let before = task_rows(&driver).len();
+    application(&mut driver, root::Application::OpenChange(call()), 101);
+    // The world exposes the root's absent outcome; the service encodes it Unknown.
+    assert!(
+        driver.delivered.iter().any(|delivery| matches!(delivery, root::Delivery::Application { outcome: None, .. })),
+        "unknown answer: {:?}",
+        driver.delivered
+    );
+    assert_eq!(task_rows(&driver).len(), before);
+}
+
+#[test]
 fn an_opening_replays_its_durable_answer_before_and_after_restart() {
     let mut driver = setup([config(), config()], &limits(), 1);
     let task = open(&mut driver, call());

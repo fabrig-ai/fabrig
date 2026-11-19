@@ -899,7 +899,8 @@ impl World {
             request @ (run::Request::Read { .. } | run::Request::Probe { .. } | run::Request::Abort { .. }) => {
                 self.io_request(request);
             }
-            run::Request::Check { owner, program, deadline, tail } => {
+            run::Request::Check { owner, program, bound, cap, tail } => {
+                let deadline = self.now.saturating_add(bound).min(cap);
                 let run = current.expect("a check is made in a step about its run");
                 self.assert_alone(run);
                 self.workspace_lease(run, owner);

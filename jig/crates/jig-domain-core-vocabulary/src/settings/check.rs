@@ -89,6 +89,7 @@ fn out_of_range(current: &Current, defaults: bool, setting: Setting, value: &Val
             number
         }
         Setting::Rules
+        | Setting::Limits
         | Setting::Provider(_)
         | Setting::Worker(_)
         | Setting::Application { .. }
@@ -173,6 +174,7 @@ pub fn check_change(
             | Setting::Template(_)
             | Setting::Policy(_)
             | Setting::Rules
+            | Setting::Limits
             | Setting::Application { .. }
             | Setting::ProjectPolicy { .. } => continue,
         };
@@ -310,6 +312,7 @@ pub fn check_set(
             | Value::Policy(_)
             | Value::Rules(_)
             | Value::Provider(_)
+            | Value::Limits(_)
             | Value::Worker(_)
             | Value::Model(_)
             | Value::Application(_) => None,
@@ -352,7 +355,7 @@ pub fn check_set(
             },
             Value::Model(value) => super::catalogue::shape(value, value.number, &providers).err(),
             Value::Overlay(_) => unreachable!("overlay made into a charter"),
-            Value::Provider(_) | Value::Worker(_) | Value::Rules(_) | Value::Application(_) => None,
+            Value::Provider(_) | Value::Limits(_) | Value::Worker(_) | Value::Rules(_) | Value::Application(_) => None,
         };
         if let Some(fault) = fault {
             return Err(Failure { setting, fault, detail: None });
@@ -370,6 +373,7 @@ pub fn shape(setting: Setting, value: &Value, limits: &Limits) -> Result<(), Fai
             | Setting::Worker(_)
             | Setting::Model(_)
             | Setting::Rules
+            | Setting::Limits
             | Setting::Application { .. }
             | Setting::ProjectPolicy { .. } => false,
         },
@@ -390,6 +394,7 @@ pub fn shape(setting: Setting, value: &Value, limits: &Limits) -> Result<(), Fai
             | Setting::Worker(_)
             | Setting::Model(_)
             | Setting::Rules
+            | Setting::Limits
             | Setting::Application { .. } => false,
         },
         Value::Rules(value) => {
@@ -401,6 +406,7 @@ pub fn shape(setting: Setting, value: &Value, limits: &Limits) -> Result<(), Fai
             setting == Setting::Rules
         }
         Value::Model(value) => setting == Setting::Model(value.number) && super::catalogue::fits(value, value.number),
+        Value::Limits(value) => setting == Setting::Limits && super::check_overrides(value).is_ok(),
         Value::Provider(value) => setting == Setting::Provider(value.provider.number) && super::providers::fits(value),
         Value::Worker(value) => setting == Setting::Worker(value.number) && super::workers::fits(value, limits),
         Value::Application(_) => super::application::is_application(setting),
@@ -450,6 +456,7 @@ pub fn restore_fit(setting: Setting, value: &Value, limits: &Limits) -> Result<(
                 && rules_patterns_fit(value, bound)
         }
         Value::Model(value) => setting == Setting::Model(value.number) && super::catalogue::fits(value, value.number),
+        Value::Limits(value) => setting == Setting::Limits && super::check_overrides(value).is_ok(),
         Value::Provider(value) => setting == Setting::Provider(value.provider.number) && super::providers::fits(value),
         Value::Worker(value) => setting == Setting::Worker(value.number) && super::workers::fits(value, limits),
         Value::Application(_) => super::application::is_application(setting),
@@ -973,7 +980,11 @@ pub fn count(setting: Setting, counts: &mut [u32; 3], limits: &Limits) -> Result
         Setting::Charter(_) => (0, limits.tasks.charters),
         Setting::Template(_) => (1, limits.templates),
         Setting::Policy(_) => (2, limits.authority.projects),
-        Setting::Model(_) | Setting::Rules | Setting::Application { .. } | Setting::ProjectPolicy { .. } => {
+        Setting::Limits
+        | Setting::Model(_)
+        | Setting::Rules
+        | Setting::Application { .. }
+        | Setting::ProjectPolicy { .. } => {
             return Ok(());
         }
     };

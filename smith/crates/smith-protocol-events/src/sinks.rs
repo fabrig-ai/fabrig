@@ -932,6 +932,7 @@ fn received(writer: &mut Writer, event: io::Event, now: Time, deadline: Duration
                 | io::Error::Unreachable
                 | io::Error::TimedOut
                 | io::Error::Busy
+                | io::Error::Reach(_)
                 | io::Error::Other => false,
             };
             let why = why(writer, now, deadline, reset);

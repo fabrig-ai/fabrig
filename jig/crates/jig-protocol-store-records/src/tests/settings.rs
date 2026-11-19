@@ -6,6 +6,7 @@ use jig_domain_core_vocabulary::{self as core, settings as s};
 use jig_domain_fleet as fleet;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
+use skein_codec::Record;
 use skein_lib::{Duration, Wall};
 
 fn model() -> core::Model {
@@ -335,7 +336,8 @@ fn frozen_model_masks_and_template_choices_follow_names_after_a_catalogue_reorde
             | s::Value::Provider(_)
             | s::Value::Worker(_)
             | s::Value::Model(_)
-            | s::Value::Application(_) => {
+            | s::Value::Application(_)
+            | s::Value::Limits(_) => {
                 panic!("fixture setting")
             }
         }
@@ -906,8 +908,8 @@ fn charter_versions_use_one_root_with_an_optional_overlay() {
             let wire =
                 crate::settings_v3::CharterVersion::decode(&limits.settings, &mut skein_lib::Reader::new(&bytes))
                     .unwrap();
-            assert_eq!(wire.charter().is_some(), value.charter.is_some());
-            assert_eq!(wire.overlay().is_some(), value.overlay.is_some());
+            assert_eq!(wire.charter.is_some(), value.charter.is_some());
+            assert_eq!(wire.overlay.is_some(), value.overlay.is_some());
             assert_eq!(codec::decode(&row.key(), &bytes, &limits, &[]), Some(row));
         }
     }

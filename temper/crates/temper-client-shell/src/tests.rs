@@ -1,10 +1,14 @@
 use super::{CLIENT, tui_argument};
 
 #[test]
-fn the_bare_form_takes_one_loopback_address() {
+fn the_bare_form_takes_one_engine_origin() {
     for (words, expected) in [
         (vec![], Ok(None)),
         (vec!["http://127.0.0.1:8367"], Ok(Some(b"http://127.0.0.1:8367".as_slice()))),
+        (vec!["https://dev.fabrig.ai"], Ok(Some(b"https://dev.fabrig.ai".as_slice()))),
+        (vec!["http://dev.fabrig.ai"], Err((2, "temper: http:// reaches an engine on this machine alone: use https://NAME\nusage: temper [ADDRESS]\n".into()))),
+        (vec!["https://127.0.0.1"], Err((2, "temper: https:// needs the deployment's name\nusage: temper [ADDRESS]\n".into()))),
+        (vec!["https://dev.fabrig.ai/x"], Err((2, "temper: not an address: https://dev.fabrig.ai/x\nusage: temper [ADDRESS]\n".into()))),
         (vec!["frob"], Err((2, "temper: not an address: frob\nusage: temper [ADDRESS]\n".into()))),
         (vec!["http://127.0.0.1:8367", "extra"], Err((2, "temper: invalid arguments\nusage: temper [ADDRESS]\n".into()))),
         (vec!["http://192.0.2.1:8367"], Err((2, "temper: the engine's address must be on loopback\nusage: temper [ADDRESS]\n".into()))),

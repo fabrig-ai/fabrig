@@ -1,5 +1,5 @@
 //! Bounded read, then removal, ahead of delivery (domain/forge/reds.md, 5.6).
-use super::{Action, count, fd};
+use super::{Action, count, fd, read_buffer};
 use crate::{Settings, sequence::Next};
 use alloc::boxed::Box;
 use skein_io::kernel::{self, Error, Fd, Op, OpenHow};
@@ -7,41 +7,6 @@ use skein_lib::{Intake, bytes, stream};
 use temper_worker_domain_checkout::git;
 
 const CAPACITY: u32 = 262_145;
-fn read_buffer(op: Op) -> Box<[u8]> {
-    match op {
-        Op::Read { buf, .. } => buf,
-        Op::Lock { .. }
-        | Op::Socket { .. }
-        | Op::Bind { .. }
-        | Op::Listen { .. }
-        | Op::Accept { .. }
-        | Op::Connect { .. }
-        | Op::Recv { .. }
-        | Op::Send { .. }
-        | Op::Shutdown { .. }
-        | Op::Close { .. }
-        | Op::Open { .. }
-        | Op::Write { .. }
-        | Op::Append { .. }
-        | Op::Truncate { .. }
-        | Op::Sync { .. }
-        | Op::Stat { .. }
-        | Op::HardLink { .. }
-        | Op::Rename { .. }
-        | Op::Remove { .. }
-        | Op::MakeDirectory { .. }
-        | Op::List { .. }
-        | Op::Spawn { .. }
-        | Op::Wait { .. }
-        | Op::Signal { .. }
-        | Op::Usage
-        | Op::Window { .. }
-        | Op::ReadSignal { .. }
-        | Op::PipeRead { .. }
-        | Op::PipeWrite { .. }
-        | Op::Cancel { .. } => unreachable!("results read completion"),
-    }
-}
 #[derive(Debug)]
 pub(crate) struct File {
     directory: Box<[u8]>,

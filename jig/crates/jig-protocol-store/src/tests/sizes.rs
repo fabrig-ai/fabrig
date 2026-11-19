@@ -1,5 +1,6 @@
 //! Restart request bytes follow the store writer bounds (protocol/store/loads.md, 2).
 use super::fixtures;
+use crate::tasks_v13::Record as _;
 
 #[test]
 fn settings_value_includes_the_generated_model_names_and_replaced_values() {

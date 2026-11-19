@@ -310,7 +310,9 @@ The session takes them from its start, whatever line runs or none:
 - **After its document and its bundle's files:** the load's own document,
   and each `GET` under `/bundle/` or of a root file, `/robots.txt`,
   `/sw.js` or `/manifest.webmanifest` (`web/README.md`, 2.2, steps 4 to
-  6), are not listed and count in no wave.
+  6), or of `/favicon.ico`, the tab's icon, which the browser asks for by
+  itself, are not listed and count in no wave. Each still counts toward
+  the page's quiet (below).
 - **A line each, in the order sent:** its method, its path with the
   query and the fragment dropped, since a sign-in link carries its secret
   in its query (2.3), and its wave: `GET /jig/v1/stream, wave 1`.
@@ -345,7 +347,8 @@ The session takes them from its start, whatever line runs or none:
 The two cold opens of Work that a pass by hand counted from Chromium's
 net log on 2026-11-18, on a project with a milestone of two goals and
 three goals outside it, each sent the stream and, after its hello, one
-batch, and nothing more. This line answers such an open:
+batch, and nothing more. This line answers such an open, the
+browser's `GET /favicon.ico` before the stream left out:
 
 ```text
 | GET /jig/v1/stream, wave 1
@@ -368,7 +371,10 @@ it in at once, as a walk's `approve` does (`tui/journeys.md`, 8.1): a
 save that holds a `browse`, whose address the browser opens and whose
 "Approve" it presses, then the browser loads again the address it was
 on; within 30 seconds, before the line is carried out. So no line
-approves, and a recipe holds none.
+approves, and a recipe holds none. `tui approve`, `tui mark` and
+`web mark` are a journey's lines (`journey-walks.md`, 2.2): the session
+answers each `failed: line N: tui approve is a journey's line`, with
+its own words, keeps none, and starts no TUI for it.
 
 | Line | What the session does | Bound |
 |---|---|---|
@@ -545,10 +551,11 @@ deployment line`, and is not kept.
 ## 5. Its code
 
 - **In `temper-client-journeys-tool`,** beside `again`: a `drive`
-  module for the session and a `line` module for the lines' grammar,
-  `Line`'s parse and print, which `recipe.md`'s reader shares. A line
-  prints as it parses, field for field, so a kept line is the line
-  given.
+  module for the session. The lines' grammar, `Line`'s parse and print,
+  is `temper-client-walk-lines`' `line` module
+  (`journey-walks.md`, 3.1), which `recipe.md`'s reader and a journey's
+  walk share. A line prints as it parses, field for field, so a kept
+  line is the line given.
 - **One place, of either kind,** behind one interface
   (`../testing/qa/kinds.md`, 5): the box or the deployment's processes
   started, given their lines, asked for their values and stopped, and

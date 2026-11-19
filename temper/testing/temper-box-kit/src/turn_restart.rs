@@ -60,14 +60,14 @@ pub fn start(scratch: &super::Scratch) -> Throwaway {
 }
 
 /// Select turn landing for the seeded project, whose policy names stock policy 1.
-pub fn configure(root: &Path, repository: u64) {
-    configure_batch(root, repository, 1);
+#[expect(clippy::must_use_candidate, reason = "subprocess worlds use the files; in-process checks retain the figures")]
+pub fn configure(root: &Path, repository: u64) -> temper_playground::documents::Configuration {
+    let mut value = configure_batch(root, repository, 1);
     // The prepare job needs the standard engine profile and room for its result.
-    let path = root.join("temper.json");
-    let mut value: Value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
     super::batch_landing::message_room(root, &mut value);
     staging_limits(&mut value);
-    write_private(&path, &serde_json::to_vec(&value).expect("configuration JSON"));
+    super::limit_settings::remember(root, &value);
+    value
 }
 
 /// The narrowed batch reports failed ids and accepts a selected probe.
@@ -87,23 +87,32 @@ const STAGING_LIFETIME: skein_lib::Duration = skein_lib::Duration::from_secs(300
 
 /// Staging's deployment limits, shared by the owned Forgejo stories.
 /// temper/docs/design/protocol/configuration/limits.md.
-pub fn staging_limits(value: &mut Value) {
-    value["engine"]["limits"]["profile"] = "standard".into();
-    value["application"]["limits"]["profile"] = "standard".into();
-    value["application"]["limits"]["overrides"]["forge.client.lifetime_ms"] = STAGING_LIFETIME.as_millis().into();
-    value["application"]["limits"]["overrides"]["forge.client.answer_bytes"] = 1_048_576.into();
-    value["application"]["limits"]["overrides"].as_object_mut().expect("limits").remove("forge.key_entries");
+pub fn staging_limits(value: &mut temper_playground::documents::Configuration) {
+    value.temper_over("forge.client.lifetime_ms", STAGING_LIFETIME.as_millis());
+    value.temper_over("forge.client.op_bytes", 63_738);
+    value.temper_over("forge_component.body_bytes", 127_497);
+    value.temper_over("forge.client.answer_bytes", 1_048_576);
     for limits in ["authority.executors", "tasks.executor_kinds"] {
-        value["engine"]["limits"]["overrides"][limits] = 24.into();
+        value.jig_over(limits, 24);
     }
-    value["engine"]["limits"]["overrides"]["core.policy_bytes"] = 8192.into();
-    super::configuration::use_derived(value);
+    value.jig_over("tasks.result_bytes", 63_738);
+    value.jig_over("tasks.message_bytes", 63_738);
+    value.jig_over("tasks.inbox_bytes", 82 * 63_738);
+    value.jig_over("core.policy_bytes", 8192);
+    value.jig_over("core.call_answer_bytes", 63_740);
+    value.jig_over("core.call_answer_bytes", 63_740);
+
+    value.jig_over("tasks.result_bytes", 63_738);
+    value.jig_over("tasks.message_bytes", 63_738);
+    value.jig_over("hub.outcome_bytes", 63_740);
+    value.jig_over("hub.outcome_bytes", 63_740);
+    value.jig_over("hub.event_bytes", 63_738);
+    value.jig_over("hub.event_bytes", 63_738);
 }
 
 /// Share the owned turn setup while selecting the story's batch bound.
-pub(super) fn configure_batch(root: &Path, repository: u64, batch: u16) {
-    let path = root.join("temper.json");
-    let mut config: Value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
+pub(super) fn configure_batch(root: &Path, repository: u64, batch: u16) -> temper_playground::documents::Configuration {
+    let mut config = super::limit_settings::configuration(root);
     let settings = json!({"items":[
         {"setting":{"kind":"project-landing","project":1},"set":{"by":"turn","batch":batch}},
         {"setting":{"kind":"project-gates","project":1},"set":{"repositories":[{"forge":1,"repository":repository,"gates":[{"name":"gate","workflow":"gate.yml","ignored":["docs"],"blocking":true,"base":true}],"tiers":[]}]}}
@@ -116,24 +125,35 @@ pub(super) fn configure_batch(root: &Path, repository: u64, batch: u16) {
     // Each member and the train need watched branches
     // (temper/docs/design/protocol/configuration/limits.md, forge.landing_members).
     let members = u32::from(batch);
-    config["application"]["limits"]["overrides"]["forge.landing_members"] = members.into();
-    config["application"]["limits"]["overrides"]["forge.resources_per_task"] = (members + 1).into();
+    config.temper_over("forge.landing_members", members);
+    config.temper_over("forge.resources_per_task", members + 1);
     // The turn needs the prepare kind, declared only when its carriers fit
     // (temper/docs/design/domain/worker/jobs.md, kind 1).
     let prepare = temper_service::limits::prepare_bound();
-    config["engine"]["limits"]["overrides"]["tasks.spec_bytes"] = prepare.spec.into();
+    config.jig_over("tasks.spec_bytes", prepare.spec);
+    config.jig_over("tasks.message_bytes", prepare.result);
+    config.jig_over("tasks.result_bytes", prepare.result);
+    config.jig_over("tasks.result_bytes", prepare.result);
+    config.temper_over("forge.client.op_bytes", prepare.result);
     let mut agent = temper_agent_fixtures::read(root);
     // A JSON string's quotes share the tool payload with its message.
     let tool_payload = prepare.result + 2;
     agent["profile"]["declared"]["tool_payload"] = tool_payload.into();
-    super::configuration::use_derived(&mut config);
+    config.jig_over("hub.outcome_bytes", tool_payload);
+    config.jig_over("hub.outcome_bytes", tool_payload);
+    config.jig_over("hub.event_bytes", prepare.result);
+    // Let the call carriers follow the agent's declared payload.
+    config.jig_over("core.call_answer_bytes", jig_protocol_config::stock().core.call_answer_bytes);
+    super::configuration::turn_bounds::apply(&mut config, super::configuration::turn_bounds::turn_body(&agent));
     temper_agent_fixtures::apply(&mut config, root, &agent);
-    write_private(&path, &serde_json::to_vec(&config).expect("configuration JSON"));
+    config.agent_bounds(&temper_agent_fixtures::prepared(root).agent);
+    super::limit_settings::remember(root, &config);
     let path = root.join("native-landing-settings.json");
     let mut settings: Value =
         serde_json::from_slice(&fs::read(&path).expect("native landing settings")).expect("settings JSON");
     settings["items"][0]["set"]["gates"] = json!([{"number":1,"blocking":true,"freshness":"clean"}]);
     write_private(&path, &serde_json::to_vec(&settings).expect("settings JSON"));
+    config
 }
 
 /// Leave landing tasks a share of the seeded project's open period (domain/landing.md, 4.2).
@@ -171,9 +191,7 @@ pub mod tests {
         };
         super::super::configuration(scratch.path(), &forge);
         super::configure_batch(scratch.path(), 1, 3);
-        let config: serde_json::Value =
-            serde_json::from_slice(&std::fs::read(scratch.path().join("temper.json")).expect("configuration"))
-                .expect("configuration JSON");
+        let config = super::super::limit_settings::configuration(scratch.path());
         let engine = temper_real_loop_world::settings::configuration(&config);
         let prepare = temper_service::limits::prepare_bound();
         assert!(

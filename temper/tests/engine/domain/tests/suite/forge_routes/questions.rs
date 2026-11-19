@@ -37,6 +37,16 @@ pub(super) fn plan_world_with_gate(
     timing: &StoryLimits,
     silent_ci: bool,
 ) -> (World, engine::Assignment) {
+    plan_world_with_pull_room(bound, gate, timing, silent_ci, None)
+}
+
+fn plan_world_with_pull_room(
+    bound: Option<u32>,
+    gate: Gate,
+    timing: &StoryLimits,
+    silent_ci: bool,
+    pull_room: Option<u32>,
+) -> (World, engine::Assignment) {
     let mut world = World::configured_limits(
         true,
         true,
@@ -48,6 +58,11 @@ pub(super) fn plan_world_with_gate(
     );
     // The question and its contract share the required task section.
     world.env.limits.brief.budgets.task = 512;
+    if let Some(bytes) = pull_room {
+        world.env.limits.brief.budgets.pull = bytes;
+        world.env.limits.brief.read_bytes = world.env.limits.brief.read_bytes.max(bytes);
+        world.env.limits.brief.brief_bytes += bytes;
+    }
     let client = world.env.limits.forge.client;
     world = world.with_forge_client(client);
     world.adopt();
@@ -369,6 +384,104 @@ fn a_producers_question_goes_up_and_the_answer_comes_down() {
             .iter()
             .any(|word| word.kind == tasks::MessageKind::Answer { question } && word.words.as_ref() == ANSWER)
     );
+}
+
+/// A binary pull file must not make either resolution assignment unsendable.
+#[test]
+fn a_resolution_with_a_non_text_file_encodes_before_and_after_a_question() {
+    // Keep the named line whole, beyond the ordinary relay fixture's tiny room.
+    let (mut world, requester) =
+        plan_world_with_pull_room(None, Gate::default(), &StoryLimits::default(), false, Some(1024));
+    let change = make_change(&mut world, &requester, CALL, engine::ChangeQuestions::Up);
+    let producer = next_producer(&mut world, change);
+    world.until(Until::Ready);
+    temper_engine_domain_world::kinds::produce(&mut world, change, &producer);
+    let branch = row(&world, change).branch.clone();
+    let landing = row(&world, change).base.clone();
+    let previous = world.fake.branch(b"org/repo", &branch).expect("producer head");
+    let base = world.fake.branch(b"org/repo", &landing).expect("base head");
+    let head = fake::merge_commit(
+        &mut world.fake,
+        &world.fake_env.limits,
+        previous,
+        base,
+        Box::new([
+            raw::File { path: b"file".as_slice().into(), content: b"small fix".as_slice().into() },
+            raw::File { path: b"store/log-1".as_slice().into(), content: b"\xff\xfe\x00\x01".as_slice().into() },
+        ]),
+        b"Produce a binary store",
+    )
+    .expect("producer commits the binary file");
+    assert_eq!(
+        world.external(2, raw::Op::Git(raw::Git::Push { branch, commit: head, expected: Some(previous) })),
+        raw::Answer::Pushed(raw::Pushed::Pushed)
+    );
+    fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &landing, b"file", b"base moved", 1)
+        .expect("base conflicts with the producer");
+    let resolution = super::reviews::next_assignment(&mut world, 3);
+    assert!(
+        matches!(row(&world, change).delegate, Some((task, temper_engine_domain_forge_change::Delegate::Resolve { .. })) if task == resolution.task)
+    );
+    encode_resolution_assignment(&resolution);
+    let question = ask(&mut world, &resolution, change);
+    park_after_turn(&mut world, &resolution, None, 0);
+    answer(&mut world, &requester, change, CALL + 1);
+    let resumed = super::reviews::next_assignment(&mut world, 4);
+    assert_eq!(resumed.task, resolution.task);
+    assert!(resumed.attempt > resolution.attempt);
+    assert!(resumed.messages.iter().any(|word| word.kind == tasks::MessageKind::Answer { question }));
+    encode_resolution_assignment(&resumed);
+    let pull = resumed
+        .sections
+        .iter()
+        .find_map(|section| {
+            if section.kind == engine::BriefKind::Forge(engine::ForgeBriefKind::Pull)
+                && let engine::BriefBody::Text(words) = &section.body
+            {
+                Some(words.as_ref())
+            } else {
+                None
+            }
+        })
+        .expect("resumed pull section");
+    assert!(contains(pull, b"File: store/log-1\n[not carried, not text: absent before, blob addec90a42e64feca765d123e18e4603ed982925 after; read it from the repository]\n"), "{}", String::from_utf8_lossy(pull));
+    assert!(!contains(pull, b"\xff\xfe\x00\x01"));
+    world.close();
+}
+
+fn encode_resolution_assignment(run: &engine::Assignment) {
+    use temper_engine_service_vocabulary::{assignment, forges::Forges, settings, values::Values};
+    let mut forges = Forges::with_capacity(1);
+    assert!(forges.insert(settings::Forge {
+        log_origins: None,
+        mode: forge_top::Mode::Connected,
+        number: forge_world::REPO.forge,
+        kind: settings::Kind::Forgejo,
+        api: jig_protocol_config::Address::Host { name: b"forge.test".as_slice().into(), port: 80 },
+        transport: settings::Transport::Plaintext,
+        git: b"http://forge.test".as_slice().into(),
+        git_program: None,
+        web: None,
+        app_read_only: false,
+        user: 1,
+        identity: 1,
+    }));
+    let mut entries = skein_lib::List::with_capacity(1);
+    entries
+        .push(smith_protocol_channel::Endpoint {
+            name: Box::new([]),
+            number: run.run.policy.model.endpoint,
+            dialect: run.run.policy.model.dialect,
+        })
+        .expect("one endpoint");
+    let encoding = assignment::Encoding {
+        limits: temper_protocol_worker_wire::v1::CEILINGS,
+        endpoints: smith_protocol_channel::Endpoints::new(entries),
+        deployment: [0; 16],
+        charter_bytes: 65_536,
+    };
+    assignment::down(run.clone(), &forges, &encoding, &Values::new(0, 0), CHANNEL, Time::ZERO)
+        .expect("production resolution assignment encodes");
 }
 
 /// temper/docs/design/domain/agent/README.md, 5: an unchecked push is the next brief's head.

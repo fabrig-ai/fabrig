@@ -65,8 +65,7 @@ fn stock_box(account: OneAccount) -> StockBox {
     )
     .expect("init application");
     assert!(problems.is_empty());
-    let mut limits = crate::limits::engine_candidate(&parsed.limits, &application.limits);
-    limits.memory_bytes = parsed.memory;
+    let limits = crate::limits::engine_candidate(&parsed.limits, &application.limits);
     let mut core = crate::startup::core(&parsed, [31; 16], 91);
     core.kinds = crate::stock::kinds(&limits, 1);
     let config = engine::Config {

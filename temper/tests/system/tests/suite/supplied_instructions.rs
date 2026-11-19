@@ -87,7 +87,7 @@ fn archived(root: &mut Driver, assignment: &engine::Assignment, words: &[u8]) {
         .expect("committed archived turn");
     let decoded = smith_transcript::decode_archived(&smith_transcript::CEILINGS, &archived.transcript)
         .expect("archived bytes decode");
-    assert_eq!(decoded.system().as_deref(), Some(supplied));
+    assert_eq!(decoded.system.as_deref(), Some(supplied));
     for expected in [BASE, FIRST, words, DOCUMENT] {
         assert!(skein_lib::bytes::find(supplied, expected).is_some(), "missing supplied section {expected:?}");
     }

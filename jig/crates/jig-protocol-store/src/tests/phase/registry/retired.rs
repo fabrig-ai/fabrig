@@ -35,26 +35,20 @@ fn layout(text: &str, number: u16, id: u16) -> Vec<skein_kv::Op> {
     let schema = skein_codec::schema::parse(text.as_bytes()).unwrap();
     let root = if number == 0 { b"Growing".as_slice() } else { b"Stable" };
     let fingerprint = schema.layout(schema.root(root, None).unwrap(), &[]).unwrap().digest();
-    let layout = crate::registry_v1::Layout::new(
-        &crate::registry_v1::CEILINGS,
-        crate::registry_v1::LayoutParts {
-            root: root.into(),
-            variant: None,
-            layout: fingerprint,
-            text: hash(text),
-            held: skein_lib::List::with_capacity(0),
-        },
-    )
-    .unwrap();
-    let mut writer = skein_lib::Writer::new(usize::try_from(layout.measure()).unwrap());
-    layout.encode(&mut writer).unwrap();
-    let text_row = crate::registry_v1::Text::new(
-        &crate::registry_v1::CEILINGS,
-        crate::registry_v1::TextParts { text: text.as_bytes().into() },
-    )
-    .unwrap();
-    let mut text_writer = skein_lib::Writer::new(usize::try_from(text_row.measure()).unwrap());
-    text_row.encode(&mut text_writer).unwrap();
+    let layout = crate::registry_v1::Layout {
+        root: root.into(),
+        variant: None,
+        layout: fingerprint,
+        text: hash(text),
+        held: skein_lib::List::with_capacity(0),
+    };
+    let mut writer =
+        skein_lib::Writer::new(usize::try_from(layout.measure(&crate::registry_v1::CEILINGS).unwrap()).unwrap());
+    layout.write(&crate::registry_v1::CEILINGS, &mut writer).unwrap();
+    let text_row = crate::registry_v1::Text { text: text.as_bytes().into() };
+    let mut text_writer =
+        skein_lib::Writer::new(usize::try_from(text_row.measure(&crate::registry_v1::CEILINGS).unwrap()).unwrap());
+    text_row.write(&crate::registry_v1::CEILINGS, &mut text_writer).unwrap();
     vec![
         skein_kv::Op::Put {
             key: crate::keys::encode_own(&crate::keys::Own::Layout { family: FAMILY.name.into(), number, id }, 1024)

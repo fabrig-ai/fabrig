@@ -27,6 +27,8 @@ pub struct Script {
     pub invocations: VecDeque<Invocation>,
     pub exit_first: bool,
     pub file_failure: Option<(u32, kernel::Error)>,
+    /// Fail this step of the view on this many attempts.
+    pub view_failure: Option<(u32, u8)>,
 }
 #[derive(Clone, Debug)]
 pub enum Node {
@@ -63,6 +65,9 @@ pub struct Below {
     pub tree: BTreeMap<Vec<u8>, Node>,
     pub spawns: u32,
     pub file_calls: u32,
+    pub view_steps: u32,
+    pub view_attempts: u8,
+    view_step: u32,
     pub closed_children: u32,
     pub signals: u32,
     pub arguments: Vec<Vec<Box<[u8]>>>,
@@ -86,6 +91,9 @@ impl Below {
             tree: BTreeMap::from([(Vec::new(), Node::Directory)]),
             spawns: 0,
             file_calls: 0,
+            view_steps: 0,
+            view_attempts: 0,
+            view_step: 0,
             closed_children: 0,
             signals: 0,
             arguments: Vec::new(),
@@ -102,6 +110,9 @@ impl Below {
         self.script = script;
         self.spawns = 0;
         self.file_calls = 0;
+        self.view_steps = 0;
+        self.view_attempts = 0;
+        self.view_step = 0;
         self.closed_children = 0;
         self.arguments.clear();
         self.messages.clear();
@@ -125,14 +136,51 @@ impl Below {
             self.request(request);
         }
         while let Some(mut submit) = self.out.kernel.pop() {
+            assert!(submit.kind.is_valid(), "valid file operation: {:?}", submit.kind);
             self.file_calls += 1;
-            let result = if let Some((at, error)) = self.script.file_failure {
-                if at == self.file_calls { Err(error) } else { self.file(&mut submit.kind) }
+            if matches!(&submit.kind, kernel::Op::Open { path, how: kernel::OpenHow::DirectoryNoFollow, .. } if path.starts_with(b"workspaces/") && path.ends_with(b"/.git"))
+            {
+                self.view_attempts += 1;
+                self.view_step = 0;
+            }
+            let view = self.in_view(&submit.kind);
+            if view {
+                self.view_step += 1;
+                self.view_steps = self.view_steps.max(self.view_step);
+            }
+            let failed_view = view
+                && self
+                    .script
+                    .view_failure
+                    .is_some_and(|(at, attempts)| at == self.view_step && self.view_attempts <= attempts);
+            let error = self
+                .script
+                .file_failure
+                .filter(|(at, _)| *at == self.file_calls)
+                .map(|(_, error)| error)
+                .or(if failed_view { Some(kernel::Error::Permission) } else { None });
+            let result = if let Some(error) = error {
+                // A close consumes its descriptor even when its completion reports an error.
+                if matches!(&submit.kind, kernel::Op::Close { .. }) {
+                    let _ = self.file(&mut submit.kind);
+                }
+                Err(error)
             } else {
                 self.file(&mut submit.kind)
             };
             self.pending.push_back(Input::Kernel(kernel::Complete { op: submit.op, kind: submit.kind, result }));
         }
+    }
+    fn in_view(&self, op: &kernel::Op) -> bool {
+        use kernel::Op;
+        let path = match op {
+            Op::Open { root, path, .. } => self.path(*root, path),
+            Op::MakeDirectory { dir, name, .. } | Op::Remove { dir, name, .. } => self.path(*dir, name),
+            Op::Rename { from_dir, from, .. } if from.as_ref() == b"temper-view.tmp" => self.path(*from_dir, from),
+            Op::Read { fd, .. } | Op::Write { fd, .. } | Op::Close { fd } => self.files[fd].clone(),
+            _ => return false,
+        };
+        path.starts_with(b"workspaces/") && path.windows(5).any(|part| part == b"/.git")
     }
     pub fn next(&mut self, seed: &mut u64) -> Option<Input> {
         *seed = seed.wrapping_mul(6_364_136_223_846_793_005).wrapping_add(1);
@@ -187,15 +235,39 @@ impl Below {
         self.spawns += 1;
         let invocation = self.script.invocations.pop_front().expect("script supplies each invocation");
         let captured: Vec<&[u8]> = invocation.transcript.argv.split(|byte| *byte == b'\n').collect();
-        assert_eq!(&*spawn.args[26], captured[27], "command agrees with the real capture");
+        let word = spawn
+            .args
+            .iter()
+            .skip(26)
+            .map(AsRef::as_ref)
+            .find(|word| !word.starts_with(b"-") && *word != b"remote.origin.promisor=true");
+        let recorded = captured
+            .iter()
+            .skip(27)
+            .copied()
+            .find(|word| !word.starts_with(b"-") && *word != b"remote.origin.promisor=true");
+        assert_eq!(word, recorded, "command agrees with the real capture");
+        assert!(spawn.dir.is_empty(), "every worker invocation runs at its root");
         for argument in &spawn.args {
             assert!(!argument.windows(11).any(|part| part == b"secret-git!"));
         }
+        let init = word == Some(b"init".as_slice());
         self.arguments.push(spawn.args.into_vec());
         if invocation.fault == Fault::Spawn {
             self.event(records::Event::Failed { owner, error: records::Error::Other });
             self.event(records::Event::Closed { owner });
             return;
+        }
+        if invocation.transcript.exit == 0 && init {
+            let path = self.arguments.last().expect("init argv").last().expect("init path").clone();
+            let bare = self.arguments.last().expect("init argv").iter().any(|arg| arg.as_ref() == b"--bare");
+            if !bare {
+                self.tree.insert(path.to_vec(), Node::Directory);
+            }
+            let directory = if bare { path.into_vec() } else { [path.as_ref(), b"/.git"].concat() };
+            for suffix in [b"".as_slice(), b"/objects", b"/objects/info", b"/refs", b"/refs/heads", b"/refs/tags"] {
+                self.tree.insert([directory.as_slice(), suffix].concat(), Node::Directory);
+            }
         }
         let child = self.token();
         let mut pipes = Vec::new();

@@ -169,8 +169,10 @@ fn preferred_ports(held: bool, same: bool) -> ([u16; 2], Option<[TcpListener; 2]
 
 fn check_deployment(dirs: &Directories, binary: &Path, written: &Written, row: &str, git: bool) -> [u16; 2] {
     check_files(dirs, binary, written, row);
-    let document: serde_json::Value =
-        serde_json::from_slice(&fs::read(dirs.document()).expect("document")).expect("JSON");
+    let document: serde_json::Value = serde_json::from_slice(
+        &temper_config_shell::read(dirs, temper_config_shell::Shape::Standalone).expect("init file").document,
+    )
+    .expect("JSON");
     let agent = temper_agent_fixtures::configuration(&document);
     assert!(document["application"]["clients"]["bundle"].is_null());
     assert!(document["application"]["clients"].as_object().expect("clients object").contains_key("public"));
@@ -226,8 +228,11 @@ fn check_agent(dirs: &Directories, mut document: serde_json::Value) {
 }
 
 fn check_files(dirs: &Directories, binary: &Path, written: &Written, row: &str) {
-    let names =
-        [("worker.secret", true, Some(0o600)), ("demo/bin/git", true, None), ("temper.json", false, Some(0o644))];
+    let names = [
+        ("worker.secret", true, Some(0o600)),
+        ("demo/bin/git", true, None),
+        (temper_config_shell::FILE, false, Some(0o644)),
+    ];
     let expected: Vec<_> =
         names.iter().map(|(name, data, _)| path(if *data { &dirs.data } else { &dirs.config }).join(name)).collect();
     assert_eq!(written.paths, expected, "{row}: file order");
@@ -254,10 +259,58 @@ fn check_files(dirs: &Directories, binary: &Path, written: &Written, row: &str) 
 }
 
 #[test]
+fn init_renders_only_listen_unless_its_next_port_is_taken() {
+    use temper_config_shell::{FILE, FORMER, File, Shape, render};
+    for (boxed, taken) in [(false, false), (true, false), (true, true)] {
+        let root = scratch(&format!("one-line-{boxed}-{taken}"));
+        let dirs = directories(&root);
+        let (client, next) = (0..16)
+            .find_map(|_| {
+                let client = TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0)).expect("client candidate");
+                let port = client.local_addr().expect("client address").port().checked_add(1)?;
+                TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, port)).ok().map(|next| (client, next))
+            })
+            .expect("a pair of consecutive free ports");
+        let port = client.local_addr().expect("client address").port();
+        drop(client);
+        let next = taken.then_some(next);
+        // Drop the other reservation before init when testing the default.
+        let written = if boxed {
+            write(&dirs, &[], &root.join("temper"), [port, 0])
+        } else {
+            write_bare(&dirs, &[], &root.join("temper"), [port, 0])
+        }
+        .expect("init");
+        assert_eq!(written.listeners[0].1.get(), port);
+        let expected = File {
+            listen: Some(([127, 0, 0, 1], port).into()),
+            webhooks: taken.then(|| ([127, 0, 0, 1], written.listeners[1].1.get()).into()),
+            ..File::default()
+        };
+        let path = path(&dirs.config).join(FILE);
+        assert_eq!(fs::read(&path).expect("file"), render(&expected, Shape::Standalone).as_ref());
+        assert_eq!(fs::metadata(&path).expect("file mode").mode() & 0o777, 0o644);
+        assert_eq!(written.paths.last(), Some(&path), "configuration is written last");
+        assert!(!path.with_file_name(FORMER).exists());
+        if taken {
+            assert_ne!(written.listeners[1].1.get(), port.checked_add(1).expect("next port"));
+        } else {
+            assert_eq!(written.listeners[1].1.get(), port.checked_add(1).expect("next port"));
+        }
+        crate::close(written.listeners.into_iter().map(|(fd, _)| fd).collect());
+        drop(next);
+        fs::remove_dir_all(root).expect("cleanup");
+    }
+}
+
+#[test]
 fn init_refusals_leave_every_file_and_directory_untouched() {
-    for (row, data, dangling) in
-        [("temper.json", false, false), ("worker.secret", true, false), ("demo/bin/git", true, true)]
-    {
+    for (row, data, dangling) in [
+        (temper_config_shell::FILE, false, false),
+        (temper_config_shell::FORMER, false, false),
+        ("worker.secret", true, false),
+        ("demo/bin/git", true, true),
+    ] {
         let root = scratch(&row.replace('/', "-"));
         let dirs = directories(&root);
         let env = environment(&root, false);
@@ -320,13 +373,24 @@ fn generated_configuration_passes_the_same_checks_as_serve() {
     let dirs = directories(&root);
     let env = environment(&root, true);
     let written = write(&dirs, &env, &root.join("bin/temper"), [0; 2]).expect("init");
-    let bytes = fs::read(dirs.document()).expect("document");
+    let bytes = temper_config_shell::read(&dirs, temper_config_shell::Shape::Standalone).expect("init file").document;
     let deployment =
         crate::setup::check(&bytes, &jig_directories(&dirs)).expect("init document passes setup and named");
     let document: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
     assert!(document["application"].get("machine").is_none());
     let demo = deployment.demo.expect("init declares the demo");
     assert_eq!(demo.provider(), 3);
+    let mut providers = temper_service::stock::providers();
+    for provider in &mut providers {
+        provider.provider.sign_in = None;
+        provider.provider.signed_in_plan = false;
+        for endpoint in &mut provider.endpoints {
+            endpoint.address = jig_protocol_config::EndpointAddress::Socket(([127, 0, 0, 1], 9).into());
+            endpoint.transport = jig_protocol_config::Transport::Plaintext;
+        }
+    }
+    let given = temper_service::stock::Given::Stock.with_providers(providers, Box::new([]));
+    crate::prepare_in_with(&env, b"/", &dirs, &given).expect("a box prepares from init's file");
     crate::close(written.listeners.into_iter().map(|(fd, _)| fd).collect());
     fs::remove_dir_all(root).expect("cleanup");
 }
@@ -339,9 +403,9 @@ fn the_person_diagnostic_names_the_login_or_the_uid() {
         (
             FellBack,
             Some(b"Admin".as_slice()),
-            Some("init: Admin cannot be a Forgejo login: forge 3's person is person"),
+            Some("init: Admin cannot be a Forgejo login: the owned Forgejo's person is person"),
         ),
-        (FellBack, None, Some("init: uid 42 has no login in /etc/passwd: forge 3's person is person")),
+        (FellBack, None, Some("init: uid 42 has no login in /etc/passwd: the owned Forgejo's person is person")),
     ] {
         assert_eq!(person_line(person, login, 42).as_deref(), expected);
     }
@@ -355,8 +419,10 @@ fn explicit_program_fact_precedes_path_discovery() {
     let binary = root.join("temper");
     let adapter = root.join("fake-claude");
     let written = write_with_program(&dirs, &env, &binary, [0; 2], Some(&adapter)).expect("injected init fact");
-    let document: serde_json::Value =
-        serde_json::from_slice(&fs::read(dirs.document()).expect("document")).expect("JSON");
+    let document: serde_json::Value = serde_json::from_slice(
+        &temper_config_shell::read(&dirs, temper_config_shell::Shape::Standalone).expect("init file").document,
+    )
+    .expect("JSON");
     assert!(!document["application"].as_object().unwrap().contains_key("workers"));
     assert!(!path(&dirs.config).join("agent.json").exists());
     crate::close(written.listeners.into_iter().map(|(fd, _)| fd).collect());
@@ -370,7 +436,8 @@ fn a_bare_configuration_passes_the_same_checks_as_serve() {
         let dirs = directories(&root);
         let env = environment(&root, claude);
         let written = write_bare(&dirs, &env, &root.join("bin/temper"), [0; 2]).expect("bare init");
-        let bytes = fs::read(dirs.document()).expect("document");
+        let bytes =
+            temper_config_shell::read(&dirs, temper_config_shell::Shape::Standalone).expect("init file").document;
         let deployment =
             crate::setup::check(&bytes, &jig_directories(&dirs)).expect("bare document passes setup and named");
         let document: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
@@ -379,7 +446,10 @@ fn a_bare_configuration_passes_the_same_checks_as_serve() {
         assert!(!path(&dirs.data).join("demo").exists());
         assert_eq!(written.person, temper_init::Person::Found);
         assert!(written.login.is_none());
-        assert_eq!(written.paths, [path(&dirs.data).join("worker.secret"), dirs.document()]);
+        assert_eq!(
+            written.paths,
+            [path(&dirs.data).join("worker.secret"), path(&dirs.config).join(temper_config_shell::FILE)]
+        );
         let document: serde_json::Value = serde_json::from_slice(&bytes).expect("JSON");
         assert!(document["application"].get("welcome").is_none());
         let ports = ["clients", "webhooks"].map(|name| {
@@ -410,7 +480,10 @@ fn a_path_without_openssl_writes_a_box_without_sign_in_and_keeps_running() {
     let env = environment(&root, false);
     let written = write(&dirs, &env, &root.join("temper"), [0; 2]).expect("init succeeds without openssl");
     assert_eq!(written.no_sign_in.as_deref(), Some("openssl is not on PATH"));
-    let value: serde_json::Value = serde_json::from_slice(&fs::read(dirs.document()).unwrap()).unwrap();
+    let value: serde_json::Value = serde_json::from_slice(
+        &temper_config_shell::read(&dirs, temper_config_shell::Shape::Standalone).expect("init file").document,
+    )
+    .unwrap();
     assert!(value["engine"]["clients"]["provider"].is_null());
     assert!(value["application"].get("machine").is_none());
     assert!(!path(&dirs.data).join("provider.key").exists());
@@ -433,7 +506,10 @@ fn init_keeps_an_existing_provider_key_even_without_openssl() {
     assert_eq!(before.ino(), after.ino());
     assert_eq!(before.len(), after.len());
     assert!(written.no_sign_in.is_none());
-    let value: serde_json::Value = serde_json::from_slice(&fs::read(dirs.document()).unwrap()).unwrap();
+    let value: serde_json::Value = serde_json::from_slice(
+        &temper_config_shell::read(&dirs, temper_config_shell::Shape::Standalone).expect("init file").document,
+    )
+    .unwrap();
     assert_eq!(value["engine"]["clients"]["provider"]["key"], "provider.key");
     assert_eq!(value["engine"]["clients"]["provider"]["clients"], serde_json::json!([]));
     crate::close(written.listeners.into_iter().map(|(fd, _)| fd).collect());
@@ -461,6 +537,16 @@ fn init_makes_a_private_3072_bit_provider_key_before_writing_its_document() {
         after.children.system.as_nanos().saturating_sub(before.children.system.as_nanos())
     );
     assert!(written.no_sign_in.is_none());
+    assert_eq!(
+        written.paths,
+        [
+            path(&dirs.data).join("worker.secret"),
+            path(&dirs.data).join("provider.key"),
+            path(&dirs.data).join("demo/bin/git"),
+            path(&dirs.config).join(temper_config_shell::FILE),
+        ],
+        "the provider key is between the secret and launcher, before the configuration"
+    );
     let key = path(&dirs.data).join("provider.key");
     assert_eq!(fs::metadata(&key).unwrap().mode() & 0o777, 0o600);
     let public = root.join("public.pem");
@@ -487,7 +573,10 @@ fn init_makes_a_private_3072_bit_provider_key_before_writing_its_document() {
         .unwrap();
     assert!(details.status.success());
     assert!(details.stdout.starts_with(b"Public-Key: (3072 bit)"));
-    let value: serde_json::Value = serde_json::from_slice(&fs::read(dirs.document()).unwrap()).unwrap();
+    let value: serde_json::Value = serde_json::from_slice(
+        &temper_config_shell::read(&dirs, temper_config_shell::Shape::Standalone).expect("init file").document,
+    )
+    .unwrap();
     assert_eq!(value["engine"]["clients"]["provider"]["key"], "provider.key");
     crate::close(written.listeners.into_iter().map(|(fd, _)| fd).collect());
     fs::remove_dir_all(root).unwrap();

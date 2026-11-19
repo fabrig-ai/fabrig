@@ -60,16 +60,16 @@ impl Domain {
         outcome: Option<ApplicationOutcome>,
         out: &mut Queue<Request>,
     ) -> bool {
+        if outcome.is_none() && self.application.pending.len() >= env.limits.adoptions {
+            again(request, people::Again::Busy, out);
+            return false;
+        }
         if !room(self, env, request, out) {
             return false;
         }
         let pending = Pending { token, retention, observed: None, opening: true };
         if let Some(outcome) = outcome {
             finish(self, env, request, pending, outcome, out);
-            return false;
-        }
-        if self.application.pending.len() >= env.limits.adoptions {
-            again(request, people::Again::Busy, out);
             return false;
         }
         self.application.pending.insert(request, pending).expect("reserved opening flight");
@@ -102,11 +102,11 @@ pub(crate) fn start(
     adoption: Adoption,
     out: &mut Queue<Request>,
 ) {
-    if !room(d, env, request, out) {
-        return;
-    }
     if d.application.pending.len() >= env.limits.adoptions || d.adoptions.len() >= env.limits.adoptions {
         return again(request, people::Again::Busy, out);
+    }
+    if !room(d, env, request, out) {
+        return;
     }
     let pending = Pending { token, retention, observed: None, opening: false };
     if !d.identities.contains_key(&adoption.forge) && !d.writers.contains_key(&adoption.forge) {
@@ -794,14 +794,31 @@ pub(crate) fn making_asked(
 }
 
 pub(crate) fn room(d: &mut Domain, env: &Env<Limits>, request: Token, out: &mut Queue<Request>) -> bool {
-    let mut expired = None;
+    let mut expired = List::with_capacity(d.application.kept.len());
     for (token, (until, _)) in &d.application.kept {
         if *until <= env.wall {
-            expired = Some(*token);
-            break;
+            expired.push(*token).expect("bounded kept answers");
         }
     }
-    if let Some(token) = expired {
+    for token in expired.into_boxed() {
+        d.application.kept.remove(&token);
+        out.push(Request::Erase { key: Key::Application(token.raw()) });
+    }
+    while d.application.kept.len().saturating_add(d.application.pending.len()) >= env.limits.applications
+        && !d.application.kept.is_empty()
+    {
+        let mut oldest = None;
+        for (token, (until, _)) in &d.application.kept {
+            let candidate = (*until, *token);
+            let earlier = match oldest {
+                Some(kept) => candidate < kept,
+                None => true,
+            };
+            if earlier {
+                oldest = Some(candidate);
+            }
+        }
+        let (_, token) = oldest.expect("nonempty kept answers");
         d.application.kept.remove(&token);
         out.push(Request::Erase { key: Key::Application(token.raw()) });
     }

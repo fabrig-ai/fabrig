@@ -1,10 +1,15 @@
+//! Core stories over the in-memory store (jig/docs/design/domain/testing.md, 4 and 9).
 #[global_allocator]
 static HEAP: skein_world::domain::heap::Counting = skein_world::domain::heap::Counting;
 
-#[path = "../support/closed_proofs.rs"]
-mod closed_proofs;
+use jig_core_world::test_support::run_helpers;
 #[path = "../settings/support.rs"]
 mod settings_support;
+
+use jig_core_world::test_support::faults as fault_support;
+use jig_core_world::test_support::first as first_support;
+use jig_core_world::test_support::person as person_support;
+use jig_core_world::test_support::switch_step as switch_support;
 
 mod activity;
 mod admission;
@@ -14,15 +19,12 @@ mod admission_support;
 mod amendment_funding;
 mod application_documents;
 mod application_settings;
-#[path = "../support/bundle.rs"]
-mod bundle;
+use jig_core_world::test_support::bundle;
 mod charters;
 mod client_peer;
 mod client_peer_routes;
-mod closed_windows;
 mod completion_retry;
 mod credentials;
-mod crossed_claims;
 mod deadline_spans;
 mod decision_reads;
 mod deletion;
@@ -38,7 +40,6 @@ mod first_start;
 mod forgetting;
 mod funding;
 mod host_tools;
-mod inbox_selection_memory;
 mod instructions;
 mod jobs;
 mod joint_clock;
@@ -56,13 +57,11 @@ mod per_wake;
 mod person_reads;
 mod person_task;
 mod placed_holds;
-mod procedure_seeds;
 mod procedure_steps;
 mod projections;
 mod projects;
 mod read_filters;
 mod reads;
-mod referee;
 mod refusals;
 mod restart;
 mod restore_pages;
@@ -73,7 +72,7 @@ mod run_positions;
 mod runs;
 mod sessions;
 mod settings;
-mod settings_memory;
+mod settings_limits;
 mod settings_project_policy;
 mod settings_proposal_edges;
 mod settings_proposals;
@@ -81,16 +80,12 @@ mod settings_reads;
 mod settings_restore;
 mod simulation;
 mod standing_now;
-mod start;
 mod start_connectors;
 mod start_inbox;
 mod start_links;
-mod start_projections;
-mod start_runs;
 mod start_settings;
 mod stopping;
 mod store;
-mod store_adapter;
 mod store_peer;
 mod stories;
 mod switch_step;
@@ -104,6 +99,7 @@ mod fuzzy {
     mod deletion;
     mod faults;
     mod reads;
+    mod resource_reports;
     mod retention;
     mod row_parts;
     mod sessions;
@@ -124,3 +120,5 @@ mod party_reads;
 mod party_brief;
 
 mod withheld;
+
+use jig_core_world::test_support::store_peer as store_peer_support;

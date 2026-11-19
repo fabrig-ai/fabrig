@@ -10,3 +10,8 @@ mod stories;
 mod fuzzy {
     mod simulation;
 }
+
+mod codec_memory {
+    include!("../../../../../skein/testing/codec-memory.rs");
+}
+mod largest_memory;

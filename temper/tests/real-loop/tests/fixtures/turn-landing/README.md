@@ -28,8 +28,8 @@ number 1**, whose `gates` member includes
 `{"number":1,"blocking":true,"freshness":"clean"}`. Stock `review_rule()`
 already sets that value. The setup keeps the stock rule, or applies that
 value through settings. It puts no `rules` or review-freshness member in
-`engine.json`: that document refuses project `rules`. The world fixture's
-pre-seed `temper.json` sets
+the start's document: it refuses project `rules`. The world fixture's
+typed defaults set
 `world_settings.landing.projects[0].rules[0].gates[0].freshness` to `"clean"`;
 `finish_configuration` separates those world defaults before engine startup.
 

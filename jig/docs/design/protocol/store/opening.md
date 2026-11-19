@@ -522,7 +522,8 @@ impl OwnerSets {
   turn's bytes on undecoded. The names, texts and keys are `&'static`,
   the binary's own constants, never state: the only references in
   fields the component holds (skein/docs/foundation/programming-model.md,
-  10.3), read by each open's check and by each serving open, which makes
+  10.3), beside optional immutable parsed binary texts (below), read by each
+  open's check and by each serving open, which makes
   the frames' machines from them (`transcripts.md`, 6).
 - **A set is checked where it is admitted,** at every open, before the
   levels are compared, so a start at equal levels proves its sets too:
@@ -540,8 +541,16 @@ impl OwnerSets {
   `Set` with its owner, before anything is written. That each record of
   the map lies in one family's range takes a walk, which a rehearsal
   makes (5), not every open.
-- **One check per open.** An open checks its sets once, each text it
-  reads parsed for it alone. Whichever step of the open needs it first
+- **One check per open.** An open checks its sets once. By default each
+  text it reads is parsed for it alone. A shell may supply immutable parsed
+  binary schemas through `Store::prepared_schemas` before open. Admission
+  borrows a supplied schema only when its entire text equals the text being
+  checked; a missing or unmatched text is parsed by that open. These schemas
+  contain no stored data, admission verdict or layout verdict: every admission
+  and layout check still runs. jig's test store keeps only schemas derived
+  from its constant Skein, Smith and jig owner-set texts across tests, never a store or an
+  open's state; first starts and cold restarts remain real opens. The
+  component owns no cache that outlives an open. Whichever step needs the check first
   runs it: a first start before anything is written (1.2), the
   rehearsal (5), the registry's (`layouts.md`, 5) or readiness before
   the open serves. Its verdict, passed or the `Set` it refuses with its
@@ -550,7 +559,7 @@ impl OwnerSets {
   each step refuses where it did, with the same `Set`. The verdict is a
   few bytes beside the open's state, not a parsed text: dropped when the
   open settles, served (`Opened`) or refused, and whenever the shell
-  hands new sets (`Store::owner_sets`), so an open's start finds none
+  hands new sets (`Store::owner_sets`) or prepared schemas, so an open's start finds none
   and no verdict outlives the open it was made in. The jobs' check the
   open makes alone at its first step (`jobs.md`, 1), before reading the
   format row, is cheap and stays where it is.
@@ -665,7 +674,9 @@ deployment's lock as a start does (1, step 1).
   last start spoke (`records.md`, 3), and the workers' openings `A` keeps since that start
   (`records.md`, 3, *The workers' openings*), from which the application
   says whether each of its workers may
-  stay; and that what follows the switch (adopting runs, reading the
+  stay; how many files it linked into the scratch and how many it
+  copied, a link the file system refused counted as a copy, with
+  `Rehearsing`; and that what follows the switch (adopting runs, reading the
   systems, settling the outboxes) is not rehearsed. The scratch is
   emptied as it ends.
 - **Its reach,** `Reach`, which the request names. `Whole` is all of the
@@ -743,7 +754,7 @@ deployment's lock as a start does (1, step 1).
 Request::Rehearse { owner: Token, directory: Root, scratch: Root, installation: [u8; 16], reach: Reach } // `directory` never written; `scratch` emptied, never removed
 pub enum Reach { Whole, Openings }                     // `Openings`: `Rehearsing`, then `Closed` unasked
 Adoption::Rehearse { scratch: Fd, reach: Reach }      // the host's adoption (`host.rs`), beside `Back` and `Checkpoint`
-Event::Rehearsing { owner: Token, wires: Option<Box<[KeptWire]>>, openings: Box<[WorkerOpening]> } // before `Opened` or `OpenRefused`
+Event::Rehearsing { owner: Token, wires: Option<Box<[KeptWire]>>, openings: Box<[WorkerOpening]>, linked: u32, copied: u32 } // before `Opened` or `OpenRefused`; files linked into the scratch and copied (`Whole` links none)
 pub struct KeptWire { pub name: Box<str>, pub version: u32 }                               // `None`: A's last start kept none
 pub struct WorkerOpening { pub worker: Box<str>, pub wires: Box<[OpenedWire]>, pub output: u32, pub terms: Box<[OpenedTerm]>, pub at: Wall } // in the workers' names' order
 pub struct OpenedWire { pub name: Box<str>, pub lowest: u16, pub layouts: Box<[[u8; 32]]> }
@@ -769,5 +780,8 @@ itself are the application's. A rehearsal's store refuses
 `Request::Switch`, though its root never asks, and its close
 (`Request::Close`; an engine's store ends with its process and has
 none) empties the scratch, `removed` saying it is empty; a rehearsal
-that crashed leaves entries there, which the next rehearsal removes
-before it copies. Its jobs answer their counts as a start's do.
+that crashed leaves entries there, which the next rehearsal given that
+scratch removes before it copies. An application that makes a new
+scratch for each rehearsal removes those left behind itself, as
+temper's does (temper's `protocol/binaries.md`, section 2). Its jobs
+answer their counts as a start's do.

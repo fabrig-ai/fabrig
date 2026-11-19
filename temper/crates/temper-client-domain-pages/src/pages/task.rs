@@ -492,6 +492,7 @@ impl Task {
             | Act::Models(_)
             | Act::HandArea(_)
             | Act::StopAsking(_)
+            | Act::LimitSettings(_)
             | Act::Needs(_)
             | Act::Finding(_)
             | Act::TellWords { .. }
@@ -642,6 +643,7 @@ impl Task {
             | Act::Models(_)
             | Act::HandArea(_)
             | Act::StopAsking(_)
+            | Act::LimitSettings(_)
             | Act::Needs(_)
             | Act::Finding(_)
             | Act::TellWords { .. }

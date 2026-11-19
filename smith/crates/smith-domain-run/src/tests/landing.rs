@@ -126,19 +126,21 @@ fn each_directory_retries_a_timed_out_check_under_the_same_lease() {
     policy.reserve.time = Duration::from_secs(60);
     let (run, conversation) = harness.coding_policy(1, 100, policy);
     let requests = harness.step(finish(conversation, 7, Declared::Change(change())));
-    let [Request::Check { owner, deadline, .. }, Request::Checking { deadline: told, .. }] = &*requests else {
+    let [Request::Check { owner, bound, cap, .. }, Request::Checking { deadline: told, .. }] = &*requests else {
         panic!("first check: {requests:?}");
     };
+    let deadline = &harness.env.now.saturating_add(*bound).min(*cap);
     assert_eq!((*deadline, *told), (Time::from_nanos(Duration::from_secs(60).as_nanos()), *deadline));
     let owner = *owner;
     for root in [Token::new(900), Token::new(901)] {
         harness.after(Duration::from_secs(60));
         let requests = harness.step(Event::Checked { owner, ran: timed_out_check() });
-        let [Request::Check { owner: retry, program, deadline, .. }, Request::Checking { deadline: told, .. }] =
+        let [Request::Check { owner: retry, program, bound, cap, .. }, Request::Checking { deadline: told, .. }] =
             &*requests
         else {
             panic!("timed out check retries immediately: {requests:?}");
         };
+        let deadline = &harness.env.now.saturating_add(*bound).min(*cap);
         assert_eq!((*retry, program.root), (owner, root));
         assert_eq!((*deadline, *told), (harness.env.now.saturating_add(Duration::from_secs(120)), *deadline));
         assert_eq!(harness.domain.calls(), 1);
@@ -203,9 +205,10 @@ fn the_charters_check_bound_replaces_the_limit_and_is_cut_by_the_call() {
         let (_, conversation) = harness.coding_policy(1, 100, policy);
         let deadline = harness.env.now.saturating_add(Duration::from_secs(call_seconds));
         let requests = harness.step(finish_by(conversation, 7, Declared::Change(change()), deadline));
-        let [Request::Check { owner, deadline, .. }, Request::Checking { deadline: told, .. }] = &*requests else {
+        let [Request::Check { owner, bound, cap, .. }, Request::Checking { deadline: told, .. }] = &*requests else {
             panic!("first check: {requests:?}");
         };
+        let deadline = &harness.env.now.saturating_add(*bound).min(*cap);
         let given = Duration::from_secs(expected_seconds);
         assert_eq!((*deadline, *told), (harness.env.now.saturating_add(given), *deadline));
         let owner = *owner;
@@ -260,9 +263,10 @@ fn retries_are_cut_at_the_call_and_ordinary_deadlines() {
         let owner = *owner;
         harness.after(Duration::from_secs(60));
         let requests = harness.step(Event::Checked { owner, ran: timed_out_check() });
-        let [Request::Check { deadline, .. }, Request::Checking { deadline: told, .. }] = &*requests else {
+        let [Request::Check { bound, cap, .. }, Request::Checking { deadline: told, .. }] = &*requests else {
             panic!("retry with room: {requests:?}");
         };
+        let deadline = &harness.env.now.saturating_add(*bound).min(*cap);
         assert_eq!((*deadline, *told), (Time::ZERO.saturating_add(Duration::from_secs(expected)), *deadline));
         harness.after(Duration::from_secs(90));
         assert_eq!(
@@ -501,9 +505,10 @@ fn a_landing_past_its_deadline_is_stopped_and_returns_timed_out_once_it_has() {
     let minute = Duration::from_secs(60);
     let requests =
         harness.step(finish_by(conversation, 7, Declared::Change(change()), Time::ZERO.saturating_add(minute)));
-    let [Request::Check { owner, deadline, .. }, Request::Checking { .. }] = &*requests else {
+    let [Request::Check { owner, bound, cap, .. }, Request::Checking { .. }] = &*requests else {
         panic!("expected the first check, got {requests:?}");
     };
+    let deadline = &harness.env.now.saturating_add(*bound).min(*cap);
     // A check may not outlive its caller's earlier deadline.
     assert_eq!(*deadline, Time::ZERO.saturating_add(minute).min(Time::ZERO.saturating_add(LIMITS.check_timeout)));
     let owner = *owner;
@@ -752,9 +757,10 @@ fn a_mid_run_delivery_without_a_change_contract_needs_passing_checks() {
         let given = LIMITS.check_timeout.min(deadline.saturating_since(harness.env.now));
         let check = if custom { b".temper/pre-pr".as_slice() } else { b".smith/check".as_slice() };
         let requests = harness.step(Event::Delegated { conversation, call, name, ask, deadline });
-        let [Request::Check { owner, program, deadline, .. }, Request::Checking { .. }] = requests.as_ref() else {
+        let [Request::Check { owner, program, bound, cap, .. }, Request::Checking { .. }] = requests.as_ref() else {
             panic!("discovered check runs: {requests:?}");
         };
+        let deadline = &harness.env.now.saturating_add(*bound).min(*cap);
         assert_eq!(program.path.as_ref(), check);
         assert_eq!(*deadline, harness.env.now.saturating_add(given));
         let owner = *owner;

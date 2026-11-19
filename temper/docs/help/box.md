@@ -11,7 +11,7 @@ Run a whole deployment on one machine, on loopback, from its configuration to a 
 - **Host actions:** `temper-host` needs compatible Node.js on the host
   as `node` for JavaScript `uses:` actions: `actions/checkout@v4`,
   `actions/upload-artifact@v3`. Put it on
-  `application.machine.owned.runner.path` (default
+  `--runner-path` at forge preparation (default
   `/usr/local/bin:/usr/bin:/bin`); restart after edits.
   A shell's PATH alone is insufficient.
 - **Host delivery checks:** `.temper/pre-pr` tools inherit the box's
@@ -22,15 +22,16 @@ Run a whole deployment on one machine, on loopback, from its configuration to a 
   `PATH=/home/box/.cargo/bin:W/bin:/usr/local/bin:/usr/bin:/bin`;
   use absolute paths for Cargo's bin and the kit's `W/bin`.
   Stop (step 8); restart the box unit after changing its environment.
-  `application.machine.owned.runner.path` configures the runner alone.
+  `--runner-path` at forge preparation configures the runner alone.
 - **Capacity:** CI and tiers on `temper-host` share
-  `application.machine.owned.runner.capacity` (default and minimum 1). Slow tiers block CI and landings. Use 2
+  `--runner-capacity` at forge preparation (default and minimum 1). Slow tiers block CI and landings. Use 2
   for one single-job tier plus CI, or 3 for two such tiers plus CI.
   Count concurrent jobs in multi-job workflows and other repositories
   too (temper help tier). Stop real backends with Ctrl-C or SIGTERM;
   closing the terminal stops the box too. Wait for exit.
-  Edit only this setting in `CONFIG/temper.json`; restart (step 2) with the
-  same `CONFIG`, `DATA` and `CACHE`, keeping runners' registration and secrets.
+  A forge's place is chosen when it is set up, and kept with the forge.
+  Existing prepared runners keep their registration and secrets in the same directories;
+  this is not a `temper.toml` key.
 - **Backends:** choose before step 2; never mix. Real: account required,
   Forgejo and runner fetched. Fake: no account; local Forgejo real;
   GitHub, model, sign-in, remote Forgejo on loopback fakes. Build:
@@ -64,7 +65,7 @@ Plain `temper-box init` then `temper box` has no playground; `--fake-backends`
 refuses it.
 
 Expect: `init: wrote DATA/worker.secret`; last line: box command.
-Default worker: `local`, 4 places, no digest. Init writes no `worker.digest` or `engine.hosts.workers`.
+Default worker: `local`, 4 places, no digest. Workers are settings in the store; init writes no `worker.digest`.
 
 **Claude Code:** init adds Anthropic's provider and endpoint beside
 OpenAI's, using `claude` on the worker's `PATH` at start, else fetching its pinned
@@ -74,19 +75,18 @@ build on first use. Logins: `DATA/programs`, apart from your Claude Code configu
 Expect: `me` lists provider 2, Anthropic, `claude_code`.
 Use it in step 5; keep the demo model within init's limits.
 
-If not: `temper-box init: CONFIG/temper.json: already exists` (exit 1): empty directories needed.
+If not: `temper-box init: CONFIG/temper.toml: already exists` (exit 1): empty directories needed.
 
-**Coding runs:** edit `application.environment` in `CONFIG/temper.json` before step 2;
+**Coding runs:** edit `[environment]` in `CONFIG/temper.toml` before step 2;
 preserve the rest of the document. Absent: the worker's own
-`HOME` and `PATH`. A list gives exactly its entries, with the worker's own
+`HOME` and `PATH`. A table gives exactly its entries, with the worker's own
 `HOME` and `PATH` added where it omits them; no other process variables.
 Use deployment-specific absolute paths; no `~` or `$HOME` expansion:
 
-```json
-{"environment": [
-  {"name":"PATH","value":"/home/coder/.cargo/bin:/usr/local/bin:/usr/bin:/bin"},
-  {"name":"HOME","value":"/home/coder"}
-]}
+```toml
+[environment]
+PATH = "/home/coder/.cargo/bin:/usr/local/bin:/usr/bin:/bin"
+HOME = "/home/coder"
 ```
 
 Install tools on this PATH: Rust's `cargo` in `.cargo/bin` and

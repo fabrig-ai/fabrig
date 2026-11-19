@@ -26,6 +26,7 @@ fn null_descriptors_read_end_and_take_every_write_without_parent_ends() {
         op: Token::new(1),
         kind: Op::Spawn {
             spawn: Box::new(Spawn {
+                reach: None,
                 program: Box::from(&b"service"[..]),
                 args: Box::new([]),
                 env: Box::new([]),

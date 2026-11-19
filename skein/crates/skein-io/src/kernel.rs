@@ -550,6 +550,118 @@ pub enum Op {
     },
 }
 
+/// What a spawned tree may reach (runtime/io/processes.md, 6).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Reach {
+    pub abi: u32,
+    pub rules: Box<[Rule]>,
+}
+
+impl Reach {
+    pub const ABI: u32 = 6;
+    pub const RULES: usize = 64;
+    pub const PATH: usize = 4_095;
+    pub const COMMAND: usize = 61_440;
+}
+
+/// A path beneath a held root, and the rights granted beneath it.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Rule {
+    pub root: Fd,
+    pub path: Box<[u8]>,
+    pub rights: Rights,
+}
+
+/// Landlock's file-system rights at ABI 6 (runtime/io/processes.md, 6).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct Rights(pub u16);
+
+impl Rights {
+    pub const EXECUTE: Rights = Rights(1 << 0);
+    pub const WRITE_FILE: Rights = Rights(1 << 1);
+    pub const READ_FILE: Rights = Rights(1 << 2);
+    pub const READ_DIR: Rights = Rights(1 << 3);
+    pub const REMOVE_DIR: Rights = Rights(1 << 4);
+    pub const REMOVE_FILE: Rights = Rights(1 << 5);
+    pub const MAKE_CHAR: Rights = Rights(1 << 6);
+    pub const MAKE_DIR: Rights = Rights(1 << 7);
+    pub const MAKE_REG: Rights = Rights(1 << 8);
+    pub const MAKE_SOCK: Rights = Rights(1 << 9);
+    pub const MAKE_FIFO: Rights = Rights(1 << 10);
+    pub const MAKE_BLOCK: Rights = Rights(1 << 11);
+    pub const MAKE_SYM: Rights = Rights(1 << 12);
+    pub const REFER: Rights = Rights(1 << 13);
+    pub const TRUNCATE: Rights = Rights(1 << 14);
+    pub const IOCTL_DEV: Rights = Rights(1 << 15);
+    pub const FULL: Rights = Rights(!Self::IOCTL_DEV.0);
+    pub const FULL_BUT_EXECUTE: Rights = Rights(Self::FULL.0 & !Self::EXECUTE.0);
+    pub const READ: Rights = Self::READ_FILE.union(Self::READ_DIR);
+    pub const READ_EXECUTE: Rights = Self::READ.union(Self::EXECUTE);
+    pub const READ_WRITE_FILE: Rights = Self::READ_FILE.union(Self::WRITE_FILE);
+    pub const FILE: Rights =
+        Self::EXECUTE.union(Self::WRITE_FILE).union(Self::READ_FILE).union(Self::TRUNCATE).union(Self::IOCTL_DEV);
+
+    #[must_use]
+    pub const fn union(self, other: Rights) -> Rights {
+        Rights(self.0 | other.0)
+    }
+
+    #[must_use]
+    pub const fn contains(self, other: Rights) -> bool {
+        self.0 & other.0 == other.0
+    }
+}
+
+/// Why a reach was not enforced; nothing was spawned (runtime/io/processes.md, 6).
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+pub enum Unenforced {
+    Bounds,
+    Unsupported,
+    Absent,
+    Disabled,
+    Abi { found: u32, needs: u32 },
+    Rule { index: u32, errno: i32 },
+    Restrict { errno: i32 },
+    Helper,
+}
+
+impl core::fmt::Display for Unenforced {
+    #[expect(
+        clippy::disallowed_macros,
+        reason = "Display names the ABI, rule and errno for the operator (runtime/io/processes.md, 6)"
+    )]
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::Bounds => f.write_str("reach exceeds io's bounds; use ABI 6, at most 64 rules, relative NUL-free paths up to 4095 bytes, non-empty rights and a command up to 61440 bytes"),
+            Self::Unsupported => f.write_str("this system cannot enforce a reach; run Linux 6.12 or later with Landlock"),
+            Self::Absent => f.write_str("Landlock is absent (ENOSYS); run Linux 6.12 or later built with Landlock and let the container's seccomp profile admit Landlock calls"),
+            Self::Disabled => f.write_str("Landlock is disabled (EOPNOTSUPP); add landlock to the boot's lsm="),
+            Self::Abi { found, needs } => write!(f, "Landlock ABI {found} is below required ABI {needs}; run Linux 6.12 or later built with Landlock"),
+            Self::Rule { index, errno } => write!(f, "reach rule {index} failed: {} ({errno}); check its root, path and rights, and let the container's seccomp profile admit Landlock calls", reach_errno(*errno)),
+            Self::Restrict { errno } => write!(f, "reach restriction failed: {} ({errno}); let the container's seccomp profile admit Landlock calls and no_new_privs", reach_errno(*errno)),
+            Self::Helper => f.write_str("the executable did not run the helper; have main hand its arguments to the helper's dispatch first"),
+        }
+    }
+}
+
+fn reach_errno(errno: i32) -> &'static str {
+    match errno {
+        1 => "EPERM",
+        2 => "ENOENT",
+        7 => "E2BIG",
+        12 => "ENOMEM",
+        13 => "EACCES",
+        18 => "EXDEV",
+        20 => "ENOTDIR",
+        22 => "EINVAL",
+        36 => "ENAMETOOLONG",
+        38 => "ENOSYS",
+        40 => "ELOOP",
+        95 => "EOPNOTSUPP",
+        _ => "unknown errno",
+    }
+}
+
 /// A process's command and descriptor table. Arguments exclude argv[0],
 /// which is the program. Environment entries are `NAME=value` bytes.
 #[derive(PartialEq, Eq, Hash)]
@@ -560,6 +672,7 @@ pub struct Spawn {
     pub root: Fd,
     pub dir: Box<[u8]>,
     pub pipes: Box<[Pipe]>,
+    pub reach: Option<Box<Reach>>,
 }
 
 impl core::fmt::Debug for Spawn {
@@ -571,6 +684,7 @@ impl core::fmt::Debug for Spawn {
             .field("root", &self.root)
             .field("dir", &self.dir)
             .field("pipes", &self.pipes)
+            .field("reach", &self.reach)
             .finish()
     }
 }
@@ -887,6 +1001,8 @@ pub enum Shape {
 /// which is tabled in the module documentation.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum Error {
+    /// The spawn made nothing because its reach could not be enforced.
+    Reach(Unenforced),
     /// `Lock`: another open holds the lock (`EWOULDBLOCK`).
     Busy,
     /// `Connect`: nothing listened at the address when the connect arrived
@@ -1225,7 +1341,49 @@ impl Op {
     }
 }
 
+/// io's reach admission, at the ABI it implements (runtime/io/processes.md, 6).
+pub(crate) fn reach_admitted(spawn: &Spawn) -> bool {
+    let Some(reach) = &spawn.reach else { return true };
+    reach.abi == Reach::ABI && valid_reach(spawn)
+}
+
+// A record below io's entrance may ask for a newer ABI, which the backend
+// refuses by name. All other reach bounds are shared (io/processes.md, 6).
+fn valid_reach(spawn: &Spawn) -> bool {
+    let Some(reach) = &spawn.reach else { return true };
+    if reach.abi < Reach::ABI || reach.rules.len() > Reach::RULES {
+        return false;
+    }
+    for rule in &reach.rules {
+        if rule.path.first() == Some(&b'/')
+            || rule.path.contains(&0)
+            || rule.path.len() > Reach::PATH
+            || rule.rights.0 == 0
+        {
+            return false;
+        }
+    }
+    match command_bytes(spawn) {
+        Some(bytes) => bytes <= Reach::COMMAND,
+        None => false,
+    }
+}
+
+fn command_bytes(spawn: &Spawn) -> Option<usize> {
+    let mut bytes = spawn.program.len().checked_add(4)?;
+    for arg in &spawn.args {
+        bytes = bytes.checked_add(arg.len())?.checked_add(4)?;
+    }
+    for entry in &spawn.env {
+        bytes = bytes.checked_add(entry.len())?.checked_add(4)?;
+    }
+    bytes.checked_add(spawn.pipes.len().checked_mul(4)?)
+}
+
 fn valid_spawn(spawn: &Spawn) -> bool {
+    if !valid_reach(spawn) {
+        return false;
+    }
     if spawn.program.is_empty() || spawn.program.contains(&0) || spawn.dir.contains(&0) {
         return false;
     }
@@ -1321,7 +1479,7 @@ fn may_fail(op: &Op, error: Error) -> bool {
 /// Whether `error` may answer a `Cancel`.
 fn fails_a_cancel(error: Error) -> bool {
     match error {
-        Error::TooLate | Error::InvalidArgument | Error::Other(_) => true,
+        Error::TooLate | Error::InvalidArgument | Error::Reach(_) | Error::Other(_) => true,
         Error::Refused
         | Error::Reset
         | Error::BrokenPipe
@@ -1378,6 +1536,7 @@ fn fails_a_cancel_only(error: Error) -> bool {
         | Error::Busy
         | Error::NotAFile
         | Error::InvalidArgument
+        | Error::Reach(_)
         | Error::Other(_) => false,
     }
 }
@@ -1411,6 +1570,7 @@ fn names_a_file(error: Error) -> bool {
         | Error::Cancelled
         | Error::TooLate
         | Error::InvalidArgument
+        | Error::Reach(_)
         | Error::Other(_) => false,
     }
 }
@@ -1419,7 +1579,7 @@ fn names_a_file(error: Error) -> bool {
 /// module documentation.
 fn fails_on_files(op: Files, error: Error) -> bool {
     match error {
-        Error::NoBufferSpace | Error::InvalidArgument | Error::Other(_) => true,
+        Error::NoBufferSpace | Error::InvalidArgument | Error::Reach(_) | Error::Other(_) => true,
         Error::Busy => op == Files::Lock,
         Error::TooManyOpenFiles | Error::Escape | Error::NotAFile => op == Files::Open,
         Error::NotFound | Error::NameTooLong => among(
@@ -1697,7 +1857,7 @@ fn lists(listed: &[Entry], names: &[u8]) -> bool {
 
 fn only_other(error: Error) -> bool {
     match error {
-        Error::Other(_) => true,
+        Error::Reach(_) | Error::Other(_) => true,
         Error::Refused
         | Error::Reset
         | Error::BrokenPipe

@@ -1,3 +1,4 @@
+use temper_protocol_worker_wire::v1::Record;
 pub use temper_worker_service_fixtures::*;
 fn assigned(repository: bool) -> jig_protocol_worker_link::Request {
     let settings = super::engine();
@@ -26,19 +27,15 @@ fn assigned(repository: bool) -> jig_protocol_worker_link::Request {
             &mut skein_lib::Reader::new(&parts[0].bytes),
         )
         .unwrap();
-        let mut fields = record.into_parts();
+        let mut fields = record;
         let mut repositories = skein_lib::List::with_capacity(1);
         for repository in fields.repositories.into_boxed() {
-            let mut fields = repository.into_parts();
+            let mut fields = repository;
             fields.save = Some(b"temper/saved-7".as_slice().into());
-            repositories
-                .push(temper_protocol_worker_wire::v1::Repository::new(&encoding.limits, fields).unwrap())
-                .unwrap();
+            repositories.push(fields).unwrap();
         }
         fields.repositories = repositories;
-        parts[0].bytes = temper_protocol_worker_wire::items(
-            &temper_protocol_worker_wire::v1::Items::new(&encoding.limits, fields).unwrap(),
-        );
+        parts[0].bytes = temper_protocol_worker_wire::items(&fields);
     }
     jig_protocol_worker_link::Request::Down { down, parts }
 }

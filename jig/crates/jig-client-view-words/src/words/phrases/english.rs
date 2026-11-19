@@ -78,6 +78,7 @@ pub fn language() -> Language {
                 Segment::Hole { index: 2, kind: HoleKind::Number },
             ]),
             JigPhrase::SettingFaultJudged => Box::new([Segment::Text(copy_of(b"refused by its owner"))]),
+            JigPhrase::SettingLimits => Box::new([Segment::Text(copy_of(b"limits"))]),
             JigPhrase::SettingRules => Box::new([Segment::Text(copy_of(b"the rules"))]),
             JigPhrase::SettingFaultShape => {
                 Box::new([Segment::Text(copy_of(b"Setting is out of shape or past its bound"))])
@@ -597,7 +598,7 @@ pub fn language() -> Language {
                 Box::new([Segment::Text(copy_of(b"Engine admission limit: project live tasks"))])
             }
             JigPhrase::EngineLimitLiveTasks => {
-                Box::new([Segment::Text(copy_of(b"Engine admission limit: live tasks"))])
+                Box::new([Segment::Text(copy_of(b"Engine admission limit: live tasks (tasks.tasks)"))])
             }
             JigPhrase::EngineLimitTree => Box::new([Segment::Text(copy_of(b"Engine admission limit: tree"))]),
             JigPhrase::EngineLimitDepth => Box::new([Segment::Text(copy_of(b"Engine admission limit: depth"))]),

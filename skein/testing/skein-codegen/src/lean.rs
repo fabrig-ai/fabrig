@@ -1,4 +1,4 @@
-//! Lean modules (data/codec/README.md, 4; contracts.md, 3).
+//! Lean modules (skein/docs/design/data/codec/README.md, 4).
 
 use crate::{
     Declaration, Output, Schema, Type,
@@ -56,7 +56,7 @@ fn paths(schema: &Schema, out: &mut String) {
         }
         line(&mut names, "    &[");
         for (part, (name, text)) in parts.iter().enumerate() {
-            line(out, &format!("    pub const {name}: Path = Path {{ declaration: {at}, part: {part} }};"));
+            line(out, &format!("    pub const {name}: Path = Path::new({at}, {part});"));
             line(&mut names, &format!("        \"{text}\","));
         }
         line(&mut names, "    ],");
@@ -105,19 +105,14 @@ fn limits(context: &Context<'_>, out: &mut String) {
         line(out, "        values");
     }
     line(out, "    }\n}\n");
-    expectation(out, bounds.len().checked_add(2).expect("source length"));
-    let arg = if bounds.is_empty() { "_limits" } else { "limits" };
-    line(out, &format!("pub fn check_limits({arg}: &Limits) -> Result<(), Problem> {{"));
-    for (name, _, path) in bounds {
-        line(
-            out,
-            &format!(
-                "    if limits.{name} > CEILINGS.{name} {{ return Err(Problem {{ path: paths::{}, reason: skein_codec::Reason::Bound }}); }}",
-                constant(path)
-            ),
-        );
+    line(out, "const LIMIT_PATHS: &[Path] = &[");
+    for (_, _, path) in bounds {
+        line(out, &format!("    paths::{},", constant(path)));
     }
-    line(out, "    Ok(())\n}\n");
+    line(
+        out,
+        "];\n\npub fn check_limits(limits: &Limits) -> Result<(), Problem> {\n    for ((value, ceiling), path) in limits.values().as_slice().iter().zip(CEILING_VALUES).zip(LIMIT_PATHS) {\n        if value > ceiling {\n            return Err(path.problem(skein_codec::Reason::Bound));\n        }\n    }\n    Ok(())\n}\n",
+    );
 }
 
 fn shape(context: &Context<'_>, ty: &Type, bound: &str) -> String {
@@ -430,13 +425,18 @@ pub(crate) fn generate(schema: &Schema) -> Output {
     // Box is also used by Record's default encoding, but only field and variant
     // types need an import here.
     let needs_box = schema.declarations.iter().any(|declaration| match declaration {
-        Declaration::Record(record) => record.fields.iter().any(|field| crate::uses_box(&field.ty)),
+        Declaration::Record(record) => {
+            record.fields.iter().any(|field| emit_types::rust_type(&field.ty).contains("Box<"))
+        }
         Declaration::Enum(enumeration) => enumeration.variants.iter().any(|variant| variant.boxed),
     });
     if needs_box {
         line(&mut out, "use alloc::boxed::Box;");
     }
-    line(&mut out, "use skein_lib::List;\nuse skein_codec::field;\npub use skein_codec::{Path, Problem, Record};\n");
+    line(
+        &mut out,
+        "use skein_lib::List;\nuse skein_codec::field;\npub use skein_codec::Record;\npub type Path = skein_codec::Path<Limits>;\npub type Problem = skein_codec::Problem<Limits>;\n",
+    );
     line(&mut out, &format!("pub const VERSION: u16 = {};\n", literal(schema.version)));
     limits(&context, &mut out);
     paths(schema, &mut out);
