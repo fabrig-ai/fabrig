@@ -2,7 +2,7 @@
 
 2026-11-19. Where skein's code lags or departs from [playground.md](playground.md).
 
-- **Not yet:** 4: no `tab::Tab`.
+- **Not yet:** 4: no `tab::Tab` [in flight: change 10531].
 
 Section 6.2's *What a difference says* has no known gap: `replay`'s
 `Differs` names the line's input by `log::input_text`, none on the last
