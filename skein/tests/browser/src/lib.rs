@@ -3,6 +3,7 @@
 //! without a process or clock sleep.
 
 pub mod referee;
+pub mod request_scenario;
 pub mod world;
 
 #[cfg(test)]

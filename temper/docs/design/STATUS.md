@@ -165,7 +165,12 @@ each box setup is weighed and stays box-only. `stock-landing` reaches
 kinds the places run
 (`testing/qa/README.md`; `testing/qa/deployment.md`;
 `testing/qa/kinds.md`; `testing/qa/setups.md`; `testing/qa/gaps.md`;
-`draft/landed-qa.status.md`).
+`draft/landed-qa.status.md`). Goal 8591's drive line `web requests`
+lists the requests a page has sent since it last loaded, each with its
+wave, from the browser kit's reports; triage may write it as a step for
+a page whose draft promises a request budget, and a pass compares its
+last line as a see (`client/drive.md`, 3.2; `testing/qa/triage.md`, 3;
+`testing/qa/passes.md`, 4).
 
 Merge queue M1–M3, goals 683, 2175 and 2336: `turn` landing queues
 (`domain/landing.md`), a train per repository/branch, one landing each
