@@ -1,5 +1,6 @@
 //! One shared authentic core/worker/client fixture, with externally supplied seeds and bounds.
 use super::{Joint, engine::Driver, session::Session};
+use smith_transcript::Record;
 
 use crate::{Settings, Test, World};
 use jig_client_domain::contract as client;
@@ -16,43 +17,30 @@ pub(super) fn clock(now: Time) -> Wall {
 
 pub(super) fn turn() -> Box<[u8]> {
     use smith_transcript::v7 as source;
-    let limits = source::CEILINGS;
-    let text = source::Text::new(&limits, source::TextParts { text: b"abc".as_slice().into(), replay: None })
-        .expect("supplied worker text");
+
+    let text = source::Text { text: b"abc".as_slice().into(), replay: None };
     let blocks = crate::test::list([source::Block::Text(text)]);
-    let message = source::Message::new(&limits, source::MessageParts { role: source::Role::Assistant, blocks })
-        .expect("supplied worker message");
-    let usage = source::Usage::new(
-        &limits,
-        source::UsageParts {
-            input: Some(1),
-            output: Some(1),
-            cache_read: Some(0),
-            cache_write: Some(0),
-            reasoning: None,
-        },
-    )
-    .expect("supplied worker usage");
-    let value = source::Turn::new(
-        &limits,
-        source::TurnParts {
-            system: None,
-            model: b"model".as_slice().into(),
-            effort: None,
-            kind: source::TurnKind::Ordinary,
-            opening: None,
-            endpoint: b"fixture".as_slice().into(),
-            dialect: DIALECT,
-            place: 1,
-            usage,
-            spent: 1,
-            jobs: 0,
-            messages: crate::test::list([message]),
-        },
-    )
-    .expect("whole actual codec turn");
-    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(value.measure()));
-    value.encode(&mut writer).expect("actual codec encoding");
+    let message = source::Message { role: source::Role::Assistant, blocks };
+    let usage =
+        source::Usage { input: Some(1), output: Some(1), cache_read: Some(0), cache_write: Some(0), reasoning: None };
+    let value = source::Turn {
+        system: None,
+        model: b"model".as_slice().into(),
+        effort: None,
+        kind: source::TurnKind::Ordinary,
+        opening: None,
+        endpoint: b"fixture".as_slice().into(),
+        dialect: DIALECT,
+        place: 1,
+        usage,
+        spent: 1,
+        jobs: 0,
+        messages: crate::test::list([message]),
+    };
+    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(
+        value.measure(&smith_transcript::CEILINGS).expect("bounded transcript"),
+    ));
+    value.write(&smith_transcript::CEILINGS, &mut writer).expect("actual codec encoding");
     writer.finish()
 }
 
