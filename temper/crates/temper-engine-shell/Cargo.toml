@@ -12,12 +12,14 @@ name = "suite"
 path = "tests/suite/main.rs"
 
 [dependencies]
+temper-config-shell.workspace = true
 temper-engine-domain.workspace = true
 temper-engine-domain-forge.workspace = true
 jig-protocol-engine-workers.workspace = true
 jig-protocol-worker-wire.workspace = true
 skein-channel.workspace = true
 jig-domain-core.workspace = true
+jig-domain-people.workspace = true
 jig-domain-host.workspace = true
 jig-protocol-store.workspace = true
 temper-service-shell.workspace = true
@@ -49,7 +51,6 @@ temper-fixtures.workspace = true
 temper-agent-fixtures.workspace = true
 temper-limits-fixtures.workspace = true
 jig-domain-tasks.workspace = true
-jig-domain-people.workspace = true
 temper-test-env.workspace = true
 skein-scratch.workspace = true
 temper-client-protocol-wire.workspace = true

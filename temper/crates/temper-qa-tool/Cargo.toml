@@ -20,6 +20,7 @@ skein-shell.workspace = true
 serde_json.workspace = true
 
 [dev-dependencies]
+temper-config-shell.workspace = true
 sha2.workspace = true
 skein-scratch.workspace = true
 temper-test-env.workspace = true

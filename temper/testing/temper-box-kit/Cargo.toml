@@ -12,6 +12,7 @@ test = false
 doctest = false
 
 [dependencies]
+temper-config-shell.workspace = true
 rustix.workspace = true
 temper-engine-shell.workspace = true
 jig-client-protocol-http.workspace = true

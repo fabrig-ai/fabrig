@@ -283,7 +283,7 @@ fn a_channel_limit_past_a_ceiling_names_the_limit() {
 #[test]
 fn one_ios_entities_hold_both_services_and_their_children() {
     let document = fixtures::with(&fixtures::document(), b"application.limits.overrides", br#"{"checkout.name_bytes":600,"checkout.repositories":4,"git_component.stdout_bytes":131072,"git_component.operations":61}"#);
-    let found = fixtures::named(&document, &jig_protocol_config::Directories::working()).unwrap_err();
+    let found = started(&document, &fixtures::files(), &fixtures::startup_agent());
     assert_eq!(&*lines(&found), b"engine.limits.io.sockets: 320 bytes, past its bound of 256\n".as_slice());
 }
 
@@ -413,7 +413,7 @@ fn hook_connections_past_the_process_sockets_are_refused() {
     let document =
         fixtures::with(&fixtures::webhook_document(), b"application.limits.overrides", br#"{"checkout.name_bytes":600,"checkout.repositories":4,"git_component.stdout_bytes":131072,"forge_component.hooks":236}"#);
     assert_eq!(
-        &*lines(&fixtures::named(&document, &jig_protocol_config::Directories::working()).unwrap_err()),
+        &*lines(&started(&document, &fixtures::files(), &fixtures::startup_agent())),
         b"engine.limits.io.sockets: 317 bytes, past its bound of 256\n"
     );
 }

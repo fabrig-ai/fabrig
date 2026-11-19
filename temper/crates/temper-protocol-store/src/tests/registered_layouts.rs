@@ -1,6 +1,7 @@
 //! Registered layouts derive field defaults (jig protocol/store/layouts.md, 4 and 5).
 #![expect(clippy::disallowed_methods, reason = "ordinary Rust schema contract tests")]
 
+use skein_codec::Record;
 #[test]
 fn a_registered_layout_defaults_an_added_list() {
     let old = skein_codec::schema::parse(b"family fixture 1\nrecord Item { taken: u32 }\n").unwrap();
@@ -91,11 +92,11 @@ fn a_change_layout_without_source_or_kept_defaults_both_to_none() {
             let row =
                 crate::v25::ChangeCold::decode(&crate::v25::CEILINGS, &mut skein_lib::Reader::new(out.as_slice()))
                     .unwrap();
-            assert!(row.source().is_none());
+            assert!(row.source.is_none());
         } else {
             let row = crate::v25::ChangeHot::decode(&crate::v25::CEILINGS, &mut skein_lib::Reader::new(out.as_slice()))
                 .unwrap();
-            assert!(row.kept().is_none());
+            assert!(row.kept.is_none());
         }
     }
 }
@@ -131,7 +132,7 @@ fn a_change_layout_without_regate_defaults_it_to_none() {
     plan.convert(&current[1..], &mut out, &mut work).unwrap();
     let row =
         crate::v25::ChangeHot::decode(&crate::v25::CEILINGS, &mut skein_lib::Reader::new(out.as_slice())).unwrap();
-    assert!(row.regate().is_none());
+    assert!(row.regate.is_none());
 }
 
 #[test]

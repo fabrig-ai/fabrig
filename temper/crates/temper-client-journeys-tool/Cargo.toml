@@ -11,6 +11,10 @@ name = "suite"
 path = "tests/suite/main.rs"
 
 [dependencies]
+temper-config-shell.workspace = true
+temper-engine-service-startup.workspace = true
+temper-worker-service.workspace = true
+jig-protocol-config.workspace = true
 temper-client-walk-lines.workspace = true
 temper-fake.workspace = true
 sha2.workspace = true

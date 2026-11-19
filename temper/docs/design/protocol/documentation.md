@@ -311,7 +311,7 @@ in section 2.3's voice.
 | `host-tools` | the host tools' declarations (`temper-engine-smith`; `../domain/agent/tools.md`; `../domain/agent/declarations.md`) | a host tool: its name, its description, whether it reads or writes, when a run is offered it, then each member of its input's whole form at every depth, a nested member indented under its parent, with its type, bound, whether it is required and its description, and, for a tool taking a `what`, each `what` with the members it requires and takes; in the one order the run's tool list has |
 | `see` | `see`'s addresses (`temper-engine-smith`; `../domain/agent/ask-temper.md`, 1) | an address: its form, each form the instructions' line brackets a row of its own (`settings charter N`, `task N tree`), a line on what it answers, and the addresses one level down, its `see:` line |
 | `limits` and `limits-engine` | the limits' names: `limits` temper's, those `application.limits.overrides` takes (`temper-service`'s, the setup's `setup.*` and the box's `box.*`), and `limits-engine` jig's, those `engine.limits.overrides` and a worker's `limits.overrides` take (`jig-protocol-config`) | a named limit: its dotted name, its unit (a count, bytes, milliseconds), the stock's value (`configuration/limits.md`, one stock), a line |
-| `configuration` and `configuration-engine` | the configuration document's members by shape, beside each decoder: `configuration` temper's, the document's top level and `application`'s shapes, beside temper's decoders; `configuration-engine` jig's, `engine`'s and a worker's shapes, beside `jig-protocol-config`'s (`configuration/README.md`) | a member of a shape, the shape's section naming every path it is read at: its type and bound, whether it is required, what `temper-box init --box` writes, a line; the members that left the document for the store (`engine.charters`, `templates`, `policies` and `rules`; `application.charter` and `application.landing`'s rules: `configuration/settings.md`, 4) are one row each, saying that a start refuses it and where it went, as the refusal says, and sending the reader to `settings` |
+| `configuration` | the file's table, `temper.toml`'s keys (`temper-config-shell`; `configuration/file.md`, 5 and 7), and each binary's own, as its `help config` prints it | a key: its shapes and set, its form and bound, its default, a line; then each member of `temper.json` and where it went, a key or `configuration/moved.md`, section 3's words |
 
 - **`host-tools`' text is the run's:** the page renders the same
   description a run reads beside each tool, at most 160 bytes, and each
@@ -355,16 +355,13 @@ in section 2.3's voice.
   and the setup's and the box's, which their crates give as lists
   beside their parsers. A line is at most 120 bytes, so that each page
   stays within 32,768.
-- **`configuration` and `configuration-engine`:** every member is read
-  at a start, so a change to any of them needs a restart; each page says
-  so once, and the concepts' `Limits` link `configuration`. Each shape's
-  decoder reads its members through its table, a member it asks for
-  that the table lacks failing every test that decodes it, so that
-  every member the decoder takes is a row; a step test holds that every member
-  `temper-box init --box` writes is a row, and that every row is a member the
-  decoder takes or one of the members gone, which its decoder refuses
-  naming where it went. Where the decoder is jig's, its members' rows
-  are jig's, as `limits-engine`'s are.
+- **`configuration`:** every key is read at a start, so a change to any
+  of them needs a restart; the page says so once, and the concepts'
+  `Limits` link `configuration`. The reader reads every key through its
+  row, so a key the reader takes is a row, and `temper-config-shell`'s
+  test holds the page equal to the table's rendering
+  (`configuration/file.md`, section 8). The page `configuration-engine`
+  is gone: the file has no jig part.
 - **`configuration`'s last section, `The merge command`,** gives the
   contract `merge_job`'s command is written to (`tooling.md`, 4.1) to
   whoever writes one, since a member's line holds at most 160 bytes: that

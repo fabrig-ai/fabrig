@@ -1379,10 +1379,11 @@ fn triage_offers_only_the_configured_places_kinds() {
         run.tick();
         land(&mut run, 2, 7);
         let setups = "temper/docs/development/qa/setups";
+        let file = temper_config_shell::FILE;
         for name in ["ctl-hello", "turn-landing"] {
             run.git.file_at(2, &format!("{setups}/{name}/recipe"), b"recipe 1\ncheck\nctl task list\n");
         }
-        run.git.file_at(2, &format!("{setups}/turn-landing/config/engine/temper.json"), b"{}");
+        run.git.file_at(2, &format!("{setups}/turn-landing/config/engine/{file}"), &super::engine_file());
         run.tick();
         let mut ledger = world.ledger();
         let session = &ledger.sessions[0];
@@ -1424,6 +1425,7 @@ fn triage_catalogue_follows_roots_at_merge_and_records_deployments_in_every_conf
         run.tick();
         land(&mut run, 2, 7);
         let setups = "temper/docs/development/qa/setups";
+        let file = temper_config_shell::FILE;
         for (name, recipe) in [
             ("root", "recipe 1\ncheck\nctl task list\n"),
             ("turn-landing", "recipe 1\nafter root\ncheck\nctl task list\n"),
@@ -1434,8 +1436,8 @@ fn triage_catalogue_follows_roots_at_merge_and_records_deployments_in_every_conf
         ] {
             run.git.file_at(2, &format!("{setups}/{name}/recipe"), recipe.as_bytes());
         }
-        run.git.file_at(2, &format!("{setups}/root/config/engine/temper.json"), b"{}");
-        run.git.file_at(2, &format!("{setups}/box-child/config/engine/temper.json"), b"{}");
+        run.git.file_at(2, &format!("{setups}/root/config/engine/{file}"), &super::engine_file());
+        run.git.file_at(2, &format!("{setups}/box-child/config/engine/{file}"), &super::engine_file());
         for depth in 1..=9 {
             let parent = if depth == 1 { "root".into() } else { format!("depth-{}", depth - 1) };
             run.git.file_at(

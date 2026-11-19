@@ -1,6 +1,7 @@
 //! A goal's red families (protocol/store.md, 2).
 use super::fixtures;
 use crate::{Undecodable, keys, records, v25};
+use skein_codec::Record;
 use skein_lib::{List, Writer};
 use temper_engine_domain_forge_vocabulary as d;
 
@@ -98,18 +99,16 @@ fn red_decoding_checks_key_why_head_and_configured_byte_bounds() {
         assert_eq!(records::decode(&records::encode(&stored), &bounds), Err(Undecodable::Malformed));
     }
     for (key, head, why) in [(1025, 20, 1), (1, 33, 1), (1, 20, 257)] {
-        v25::Red::new(
-            &v25::CEILINGS,
-            v25::RedParts {
-                goal: 7,
-                key: filled(b'k', key),
-                head: filled(1, head),
-                why: filled(b'w', why),
-                by: v25::Recorder::Task(v25::Number::new(&v25::CEILINGS, v25::NumberParts { number: 7 }).unwrap()),
-                at: 1,
-                generation: 1,
-            },
-        )
+        v25::Red {
+            goal: 7,
+            key: filled(b'k', key),
+            head: filled(1, head),
+            why: filled(b'w', why),
+            by: v25::Recorder::Task(v25::Number { number: 7 }),
+            at: 1,
+            generation: 1,
+        }
+        .encode(&v25::CEILINGS)
         .unwrap_err();
     }
 }

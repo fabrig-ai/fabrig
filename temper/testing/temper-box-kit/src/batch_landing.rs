@@ -172,7 +172,7 @@ exit "$status"
 #[expect(clippy::must_use_candidate, reason = "subprocess worlds use the files; in-process checks retain the figures")]
 pub fn configure(root: &Path, repository: u64) -> temper_playground::documents::Configuration {
     let mut value = turn_restart::configure_batch(root, repository, 3);
-    let path = root.join("temper.json");
+    super::limit_settings::local_places(root, 8);
     turn_restart::selected_gate(root);
     value["workers"][0]["slots"] = 8.into();
     value.derive_places();
@@ -182,7 +182,6 @@ pub fn configure(root: &Path, repository: u64) -> temper_playground::documents::
     value.temper_over("forge_component.connections", 8);
     message_room(root, &mut value);
     turn_restart::staging_limits(&mut value);
-    super::write_private(&path, &serde_json::to_vec(&value).expect("configuration JSON"));
     super::limit_settings::remember(root, &value);
     value
 }
@@ -300,10 +299,7 @@ pub mod tests {
         };
         super::super::configuration(scratch.path(), &forge);
         super::configure(scratch.path(), 1);
-        let value = temper_playground::documents::Configuration::from_jig(
-            serde_json::from_slice(&std::fs::read(scratch.path().join("temper.json")).expect("configuration"))
-                .expect("JSON"),
-        );
+        let value = super::super::limit_settings::configuration(scratch.path());
         let engine = temper_real_loop_world::settings::configuration(&value);
         let stock = temper_service::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
         let scripts = super::scripted_batch(

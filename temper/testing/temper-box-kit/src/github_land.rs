@@ -40,7 +40,7 @@ pub fn restart() {
         .expect("uninstalled fixture");
     let key = description.dir("llm").join("llm.key");
     let observations = description.dir("forge").join("observations");
-    let engine = description.dir("engine").join("config/temper.json");
+    let engine = description.dir("engine").join("config").join(temper_config_shell::FILE);
     std::os::unix::fs::symlink(skein_scratch::paths::binary("temper-box"), description.dir("w1").join("git"))
         .expect("worker's fake git");
     let (mut members, hosts) = description.members();
@@ -185,8 +185,9 @@ impl Judge {
                 &serde_json::to_vec(&landing_settings(address, "acme", "app"))
                     .map_err(|_| "landing settings".to_owned())?,
             );
-            fs::write(&self.engine, serde_json::to_vec(&document).map_err(|_| "engine JSON".to_owned())?)
-                .map_err(|_| "fixed workers listener".to_owned())?;
+            let mut file = super::read_file(&self.engine, temper_config_shell::Shape::EngineAlone);
+            file.workers = Some(self.workers);
+            super::write_file(&self.engine, &file, temper_config_shell::Shape::EngineAlone);
             let directory = self.members.dir("engine");
             super::limit_settings::remember(&directory.join("config"), &document);
             super::forgejo::bootstrap(&directory.join("config"), &directory.join("data"), &directory.join("cache"));
@@ -277,8 +278,7 @@ impl Judge {
     }
     fn begin(&mut self, host: &mut cluster::Root) -> Result<(), String> {
         use ctl::Call;
-        let engine: Value = serde_json::from_slice(&fs::read(&self.engine).map_err(|_| "engine document".to_owned())?)
-            .map_err(|_| "engine JSON".to_owned())?;
+        let engine: Value = super::start_document(&self.engine, temper_config_shell::Shape::EngineAlone);
         if engine["workers"] != serde_json::json!([]) {
             return Err("engine alone".to_owned());
         }

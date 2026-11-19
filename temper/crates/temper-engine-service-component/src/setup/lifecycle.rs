@@ -11,6 +11,7 @@ use temper_engine_domain as root;
 use temper_engine_domain_forge as domain;
 use temper_protocol_records::{self as records, Item};
 use temper_protocol_records_forge as forge_records;
+use temper_protocol_worker_wire::v1::Record;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(super) enum Kind {
@@ -847,7 +848,7 @@ pub(crate) fn connected(engine: &mut crate::engine::Engine, forge: u16) {
                 &mut reader,
             )
             .expect("configured identity");
-            login = Box::from(identity.login());
+            login = identity.login;
         }
         (config.user, login)
     };

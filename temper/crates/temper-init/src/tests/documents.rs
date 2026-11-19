@@ -1,75 +1,59 @@
-use super::fixtures::{self, DIRECTORIES, cases, content, parse};
-use crate::{files, template};
-use serde_json::{Value, json};
-use skein_lib::bytes;
-
-fn set(value: &mut Value, path: &str, replacement: Value) {
-    *value.pointer_mut(path).expect("the member exists in the owned example") = replacement;
-}
+use super::fixtures::{self, DIRECTORIES, parse};
+use crate::files;
+use serde_json::json;
 
 #[test]
 fn engine_figures_keep_the_hub_capacity_required_by_the_stock_agent() {
-    let facts = fixtures::facts();
-    let boxed = files(&facts, &DIRECTORIES, &[0; 32]).unwrap();
-    let bare = crate::bare(&fixtures::bare_facts(&facts), &DIRECTORIES, &[0; 32]).unwrap();
-    for files in [boxed.files.as_ref(), bare.as_ref()] {
-        let document = parse(file_bytes(files, b"temper.json"));
-        assert!(document["engine"].get("limits").is_none());
-        let mut engine = temper_service_core::derived::stock();
-        temper_service_core::derived::engine(&mut engine, temper_service_core::derived::STOCK).unwrap();
-        assert_eq!(engine.hub.accounts, 4);
-        // Fabrig's own development's 63,740-byte payload, less the separator.
-        assert_eq!(engine.hub.event_bytes, 63_738);
-        assert_eq!(engine.hub.run_calls, 48);
-        for worker in document["workers"].as_array().unwrap() {
-            assert!(worker.get("limits").is_none());
-        }
+    let document = parse(&temper_config_shell::init_document(false));
+    assert!(document["engine"].get("limits").is_none());
+    let mut engine = temper_service_core::derived::stock();
+    temper_service_core::derived::engine(&mut engine, temper_service_core::derived::STOCK).unwrap();
+    assert_eq!(engine.hub.accounts, 4);
+    // Fabrig's own development's 63,740-byte payload, less the separator.
+    assert_eq!(engine.hub.event_bytes, 63_738);
+    assert_eq!(engine.hub.run_calls, 48);
+    for worker in document["workers"].as_array().unwrap() {
+        assert!(worker.get("limits").is_none());
     }
 }
 
 #[test]
 fn written_workers_outlast_an_engine_restart_below_the_fleet_grace() {
-    let facts = fixtures::facts();
-    let boxed = files(&facts, &DIRECTORIES, &[0; 32]).unwrap();
-    let bare = crate::bare(&fixtures::bare_facts(&facts), &DIRECTORIES, &[0; 32]).unwrap();
-    for files in [boxed.files.as_ref(), bare.as_ref()] {
-        let document = parse(file_bytes(files, b"temper.json"));
-        assert!(document["engine"].get("limits").is_none());
-        assert!(document["engine"].get("memory_bytes").is_none());
-        assert!(document["application"].get("limits").is_none());
-        let profile = jig_protocol_config::stock();
-        let grace = profile.core.fleet.grace.as_millis();
-        for worker in document["workers"].as_array().unwrap() {
-            assert!(worker.get("graces").is_none());
-            assert!(worker.get("programs").is_none());
-            assert!(worker.get("agent").is_none());
-            assert!(worker.get("limits").is_none());
-            let bytes = serde_json::to_vec(worker).unwrap();
-            let document = jig_protocol_config::document(
-                &bytes,
-                &jig_protocol_config::DocumentLimits { bytes: 65_536, tokens: 4096, depth: 16 },
-            )
-            .unwrap();
-            let worker = jig_protocol_config::worker(
-                &document,
-                0,
-                &jig_protocol_config::Directories::working(),
-                &temper_service_core::startup::fixed_worker(),
-            )
-            .unwrap();
-            let stop = jig_protocol_config::stop_bound(&worker.graces, profile.link.ping, profile.link.silence)
-                .unwrap()
-                .as_millis();
-            assert_eq!(stop, 326_000);
-            assert!(stop < grace);
-        }
+    let document = parse(&temper_config_shell::init_document(false));
+    assert!(document["engine"].get("limits").is_none());
+    assert!(document["engine"].get("memory_bytes").is_none());
+    assert!(document["application"].get("limits").is_none());
+    let profile = jig_protocol_config::stock();
+    let grace = profile.core.fleet.grace.as_millis();
+    for worker in document["workers"].as_array().unwrap() {
+        assert!(worker.get("graces").is_none());
+        assert!(worker.get("programs").is_none());
+        assert!(worker.get("agent").is_none());
+        assert!(worker.get("limits").is_none());
+        let bytes = serde_json::to_vec(worker).unwrap();
+        let document = jig_protocol_config::document(
+            &bytes,
+            &jig_protocol_config::DocumentLimits { bytes: 65_536, tokens: 4096, depth: 16 },
+        )
+        .unwrap();
+        let worker = jig_protocol_config::worker(
+            &document,
+            0,
+            &jig_protocol_config::Directories::working(),
+            &temper_service_core::startup::fixed_worker(),
+        )
+        .unwrap();
+        let stop = jig_protocol_config::stop_bound(&worker.graces, profile.link.ping, profile.link.silence)
+            .unwrap()
+            .as_millis();
+        assert_eq!(stop, 326_000);
+        assert!(stop < grace);
     }
 }
 
 #[test]
 fn the_box_has_room_for_reference_creating_executors() {
-    let answered = files(&fixtures::facts(), &DIRECTORIES, &[0; 32]).unwrap();
-    let written = parse(content(&answered, b"temper.json"));
+    let written = parse(&temper_config_shell::init_document(false));
     let reference = parse(include_bytes!("../../../../docs/examples/reference/settings.json"));
     let mut charters = vec![1, 2, 4, 5, 9, 10, 11, 12, 13, 14, 15, 16];
     for item in reference["items"].as_array().unwrap() {
@@ -104,77 +88,16 @@ fn the_box_has_room_for_reference_creating_executors() {
 }
 
 #[test]
-fn the_box_runs_four_agents_at_the_stock_without_document_limits() {
-    for source in [fixtures::OWNED, template::TEMPER, template::BARE] {
-        let value = parse(source);
-        assert_eq!(value["workers"][0]["slots"], 4_u32);
-        assert!(value["engine"].get("limits").is_none());
-        assert!(value["application"].get("limits").is_none());
-        assert!(value["workers"][0]["limits"]["overrides"].get("hub.slots").is_none());
-    }
+fn the_start_keeps_places_and_limits_out_of_the_document() {
+    let value = parse(&temper_config_shell::init_document(false));
+    assert_eq!(value["workers"][0]["slots"], 1_u32);
+    assert!(value["engine"].get("limits").is_none());
+    assert!(value["application"].get("limits").is_none());
+    assert!(value["workers"][0]["limits"]["overrides"].get("hub.slots").is_none());
 }
 
 #[test]
-fn the_default_keeps_the_owned_structure_with_stock_models() {
-    let owned = parse(fixtures::OWNED);
-    assert!(owned["engine"].get("memory_bytes").is_none());
-    for worker in owned["workers"].as_array().unwrap() {
-        assert!(worker.get("memory_bytes").is_none());
-    }
-    for (row, facts) in cases() {
-        let answered = files(&facts, &DIRECTORIES, &[0; 32]).expect("valid facts");
-        let actual = parse(content(&answered, b"temper.json"));
-        assert!(actual["application"].get("demo").is_none(), "{row}");
-        for name in ["forges", "identities", "setup"] {
-            assert!(actual["application"].get(name).is_none(), "{row}: {name}");
-        }
-        let ports = ["/application/clients/listener/socket", "/application/webhooks/listener/socket"]
-            .map(|path| actual.pointer(path).expect("written listener").as_str().expect("socket"));
-        for (index, port) in ports.iter().enumerate() {
-            assert!(!ports[..index].contains(port), "{row}: three distinct ports");
-        }
-        assert!(actual["application"].get("machine").is_none(), "{row}");
-        let mut expected = owned.clone();
-        assert_ne!(actual["engine"]["owners"].as_array().unwrap().len(), 0);
-
-        expected["engine"]["owners"][0]["subject"] = json!("ada@localhost");
-        expected["engine"]["clients"]["provider"] = json!({
-            "key": "provider.key", "addresses": [1_u32],
-            "clients": parse(b"[]")
-        });
-        for (path, value) in [
-            ("/application/webhooks", json!({"listener": {"socket": format!("127.0.0.1:{}", facts.ports.webhooks)}})),
-            ("/application/clients/listener/socket", json!(format!("127.0.0.1:{}", facts.ports.clients))),
-            ("/application/clients/bundle", Value::Null),
-            ("/workers/0/secret", json!("worker.secret")),
-        ] {
-            set(&mut expected, path, value);
-        }
-        for member in [
-            "llm",
-            "charters",
-            "templates",
-            "policies",
-            "rules",
-            "deployment",
-            "providers",
-            "connectors",
-            "acts",
-            "projects",
-        ] {
-            expected["engine"].as_object_mut().unwrap().remove(member);
-            assert!(actual["engine"].get(member).is_none(), "{row}: {member}");
-        }
-        assert!(actual["application"].get("demo").is_none(), "the box builds its playground in code");
-        assert!(actual["application"].get("workers").is_none(), "{row}: programs are machine facts");
-        assert_eq!(actual["workers"][0]["name"], "local", "{row}");
-        assert!(actual["engine"]["hosts"].get("workers").is_none(), "{row}");
-        assert_eq!(actual, expected, "{row}");
-    }
-}
-
-#[test]
-fn facts_are_written_as_json_text() {
+fn the_git_link_preserves_the_machine_path() {
     // configuration/moved.md, 2: machine paths stay out of the deployment document.
     for (row, binary) in [
         ("quote and backslash", b"/opt/tem\"per\\bin/temper".as_slice()),
@@ -182,21 +105,10 @@ fn facts_are_written_as_json_text() {
     ] {
         let facts = crate::Facts { binary, git: Some(binary), claude: Some(binary), ..fixtures::facts() };
         let answered = files(&facts, &DIRECTORIES, &[0; 32]).expect("valid text paths");
-        let parsed = parse(content(&answered, b"temper.json"));
-        assert!(parsed["application"].get("workers").is_none(), "{row}");
-        assert!(parsed["engine"].get("llm").is_none(), "{row}");
         let crate::Content::Link { target } = &fixtures::file(&answered.files, b"demo/bin/git").content else {
             panic!("the fake git is a launcher link")
         };
         assert_eq!(target.as_ref(), binary, "{row}: the launcher preserves the machine path");
-    }
-}
-
-#[test]
-fn no_placeholder_is_left() {
-    for (row, facts) in cases() {
-        let answered = files(&facts, &DIRECTORIES, &[0; 32]).expect("valid facts");
-        assert_eq!(bytes::find(content(&answered, b"temper.json"), b"\"$"), None, "{row}");
     }
 }
 
@@ -230,101 +142,48 @@ fn the_person_keeps_a_forgejo_login_or_falls_back() {
         let facts = crate::Facts { login, ..fixtures::facts() };
         let answer = files(&facts, &DIRECTORIES, &[0; 32]).expect("login never refuses init");
         assert_eq!(answer.person, person, "{row}");
-        let document = parse(content(&answer, b"temper.json"));
-        assert_eq!(document["engine"]["owners"][0]["subject"], json!(format!("{written}@localhost")), "{row}");
+        assert_eq!(crate::person::login(login).0, written.as_bytes(), "{row}");
     }
 }
 
 #[test]
 fn the_template_seeds_no_project_and_no_settings_members() {
-    for template in [template::TEMPER, template::BARE] {
-        let document = parse(template);
-        for member in [
-            "llm",
-            "charters",
-            "templates",
-            "policies",
-            "rules",
-            "deployment",
-            "providers",
-            "connectors",
-            "acts",
-            "projects",
-        ] {
-            assert!(document["engine"].get(member).is_none());
-        }
-        assert!(document["application"].get("landing").is_none());
-        assert!(document["application"].get("welcome").is_none());
-        assert!(document["application"].get("charter").is_none());
-        for member in ["heartbeat_ms", "link", "approval"] {
-            assert!(document["engine"]["clients"].get(member).is_none());
-        }
+    let document = parse(&temper_config_shell::init_document(false));
+    for member in [
+        "llm",
+        "charters",
+        "templates",
+        "policies",
+        "rules",
+        "deployment",
+        "providers",
+        "connectors",
+        "acts",
+        "projects",
+    ] {
+        assert!(document["engine"].get(member).is_none());
+    }
+    assert!(document["application"].get("landing").is_none());
+    assert!(document["application"].get("welcome").is_none());
+    assert!(document["application"].get("charter").is_none());
+    for member in ["heartbeat_ms", "link", "approval"] {
+        assert!(document["engine"]["clients"].get(member).is_none());
     }
 }
 
 #[test]
 fn the_bare_document_is_the_box_less_its_parts() {
-    for (row, facts) in cases() {
-        let boxed = files(&facts, &DIRECTORIES, &[0; 32]).expect("boxed files");
-        let bare = crate::bare(&fixtures::bare_facts(&facts), &DIRECTORIES, &[0; 32]).expect("bare files");
-        let mut expected = parse(content(&boxed, b"temper.json"));
-        assert!(expected["application"].get("welcome").is_none(), "{row}");
-        expected["engine"]["clients"].as_object_mut().unwrap().remove("provider");
-        expected["engine"]["owners"][0]["subject"] = json!("owner-a");
-        expected["engine"].as_object_mut().unwrap().remove("acts");
-        let names = [b"worker.secret".as_slice(), b"temper.json"];
-        assert_eq!(bare.len(), names.len(), "{row}");
-        for (file, name) in bare.iter().zip(names) {
-            assert_eq!(file.name, name, "{row}");
-            let source = fixtures::file(&boxed.files, name);
-            assert_eq!(file.directory, source.directory, "{row}");
-            let crate::Content::Bytes { bytes, private } = &file.content else { panic!("bare files hold bytes") };
-            assert_eq!(bytes::find(bytes, b"\"$"), None, "{row}: no placeholder");
-            match name {
-                b"temper.json" => {
-                    assert_eq!(parse(bytes), expected, "{row}");
-                    assert!(!private);
-                }
-                _ => assert_eq!(file, source, "{row}: shared secret and digest"),
-            }
-        }
-    }
-}
-
-#[test]
-fn every_deployment_offers_claude_found_or_fetched() {
-    // protocol/setup/init.md, 3: OpenAI, Anthropic and demo fit in one offer.
-    const PROVIDERS: u32 = 3;
-    for (row, facts) in cases() {
-        let boxed = files(&facts, &DIRECTORIES, &[0; 32]).unwrap();
-        let bare = crate::bare(&fixtures::bare_facts(&facts), &DIRECTORIES, &[0; 32]).unwrap();
-        for files in [boxed.files.as_ref(), bare.as_ref()] {
-            let document = parse(file_bytes(files, b"temper.json"));
-
-            assert!(document["engine"].get("llm").is_none(), "{row}");
-            assert!(document["application"].get("workers").is_none(), "{row}: programs are found at start");
-            for file in files {
-                assert_ne!(file.name, b"agent.json");
-            }
-            for member in ["agent", "limits"] {
-                assert!(document["workers"][0].get(member).is_none(), "{row}: {member}");
-            }
-            assert!(document["engine"].get("limits").is_none());
-            assert!(jig_protocol_config::stock().core.documents.lines >= PROVIDERS, "{row}");
-        }
-    }
-}
-
-fn file_bytes<'a>(files: &'a [crate::File], name: &[u8]) -> &'a [u8] {
-    let crate::Content::Bytes { bytes, .. } = &fixtures::file(files, name).content else { panic!("document bytes") };
-    bytes
+    let facts = fixtures::facts();
+    let boxed = files(&facts, &DIRECTORIES, &[0; 32]).expect("boxed files");
+    let bare = crate::bare(&fixtures::bare_facts(&facts), &DIRECTORIES, &[0; 32]).expect("bare files");
+    assert_eq!(bare.len(), 1);
+    assert_eq!(bare[0], boxed.files[0]);
+    assert_eq!(bare[0].name, b"worker.secret");
 }
 
 #[test]
 fn a_box_keeps_an_empty_provider_for_clients_added_at_setup() {
-    let facts = fixtures::facts();
-    let answer = files(&facts, &DIRECTORIES, &[0; 32]).unwrap();
-    let document = parse(content(&answer, b"temper.json"));
+    let document = parse(&temper_config_shell::init_document(true));
     assert_eq!(document["engine"]["owners"][0]["subject"], "ada@localhost");
     assert_eq!(
         document["engine"]["clients"]["provider"],
@@ -339,9 +198,7 @@ fn a_box_keeps_an_empty_provider_for_clients_added_at_setup() {
 
 #[test]
 fn a_box_without_a_key_keeps_its_provider_and_source_null() {
-    let facts = crate::Facts { sign_in: false, ..fixtures::facts() };
-    let answer = files(&facts, &DIRECTORIES, &[0; 32]).unwrap();
-    let document = parse(content(&answer, b"temper.json"));
+    let document = parse(&temper_config_shell::init_document(false));
     assert!(document["engine"]["clients"]["provider"].is_null());
     assert!(document["application"].get("machine").is_none());
     assert_eq!(document["engine"]["owners"][0]["subject"], "ada@localhost");

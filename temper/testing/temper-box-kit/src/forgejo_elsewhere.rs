@@ -144,8 +144,10 @@ pub fn restart() {
 }
 
 fn hook_url(root: &Path) -> String {
-    let value: Value =
-        serde_json::from_slice(&fs::read(root.join("config/temper.json")).expect("configuration")).expect("JSON");
+    let value: Value = super::start_document(
+        &root.join("config").join(temper_config_shell::FILE),
+        temper_config_shell::Shape::Standalone,
+    );
     let socket =
         value.pointer("/application/webhooks/listener/socket").and_then(Value::as_str).expect("listener socket");
     format!("http://{socket}/hooks/1")
@@ -177,10 +179,7 @@ fn configure(root: &Path, forge: &Forge<'_>) {
     let config = root.join("config");
     super::configuration(&config, forge);
     let Forge::Throwaway { api, git, .. } = forge else { panic!("elsewhere fixture") };
-    let path = config.join("temper.json");
-    let bytes = fs::read_to_string(&path).expect("configuration").replace("\"acme\"", "\"elsewhere\"");
     let mut value = super::limit_settings::configuration(&config);
-    value.document = serde_json::from_str(&bytes).expect("JSON");
     assert!(
         value.pointer("/application/webhooks/listener/socket").and_then(Value::as_str).is_some(),
         "listener configured for the hooks' URL"
@@ -202,7 +201,6 @@ fn configure(root: &Path, forge: &Forge<'_>) {
         &serde_json::to_vec(&settings).expect("landing and agents settings"),
     );
     fs::remove_dir_all(config.join("secrets")).expect("remove obsolete file credentials");
-    write_private(&path, &serde_json::to_vec(&value).expect("managed configuration"));
     super::limit_settings::remember(&config, &value);
     super::forgejo::bootstrap(&config, &root.join("data"), &root.join("cache"));
     // Bootstrap restores stock settings; the first life still needs the fixture's startup figures.

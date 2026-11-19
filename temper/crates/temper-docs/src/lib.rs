@@ -89,7 +89,7 @@ pub const HOW_TEMPER_BUILDS_TEMPER: Page = Page {
 
 /// `index`, then the concepts, walks, recipes, ways and reference pages, each by name.
 #[expect(clippy::disallowed_macros, reason = "pages compile their single Markdown source as static data")]
-pub static PAGES: [Page; 77] = [
+pub static PAGES: [Page; 76] = [
     Page {
         name: "index",
         kind: Kind::Index,
@@ -578,15 +578,8 @@ pub static PAGES: [Page; 77] = [
         name: "configuration",
         kind: Kind::Reference,
         title: "Configuration",
-        summary: "The configuration document's top level and application members, their bounds and what temper-box init --box writes.",
+        summary: "The configuration file's keys, their shapes, bounds and defaults.",
         text: include_str!("../../../docs/help/reference/configuration.md"),
-    },
-    Page {
-        name: "configuration-engine",
-        kind: Kind::Reference,
-        title: "Engine configuration",
-        summary: "The engine and worker configuration members, their bounds and what temper-box init --box writes.",
-        text: include_str!("../../../docs/help/reference/configuration-engine.md"),
     },
     Page {
         name: "host-tools",

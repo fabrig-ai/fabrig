@@ -67,8 +67,9 @@ pub(super) fn admit_worker(machine: &mut Machine) {
         step(machine, exited(Process::SignIn, 0)).as_slice(),
         [Action::RemoveLink, Action::ReadDeploymentWorker]
     ));
-    let worker = crate::drive::deployment::Worker::read(br#"{"workers":[{"name":"worker","slots":2}]}"#, &[b'a'; 64])
-        .expect("worker");
+    let worker =
+        crate::drive::deployment::Worker::read(b"engine = \"127.0.0.1:4102\"\nname = \"worker\"\n", &[b'a'; 64])
+            .expect("worker");
     assert_start(&step(machine, Event::DeploymentWorker(Ok(worker))), Process::Ctl);
     assert_start(
         &step(
@@ -102,8 +103,8 @@ fn stopped(machine: &mut Machine) -> Vec<Action> {
 fn start_waits_for_each_stream_and_uses_private_sign_in_file() {
     let (mut refused, _) = Machine::start(deployment_plan(), Time::ZERO);
     assert_eq!(
-        finish(&step(&mut refused, Event::DeploymentPrepared(Err("engine.json: missing".into())))),
-        &Exit::own("engine.json: missing".into())
+        finish(&step(&mut refused, Event::DeploymentPrepared(Err("engine.toml: missing".into())))),
+        &Exit::own("engine.toml: missing".into())
     );
     let mut machine = starting();
     assert_eq!(machine.next_deadline(), Some(Time::ZERO.saturating_add(STEP)));
@@ -181,17 +182,18 @@ fn values_and_forge_hands_come_from_documents_and_face_lines_are_unkept() {
 #[test]
 fn patch_validates_before_stop_then_restarts_engine_and_worker_without_sign_in() {
     let mut machine = deployment_ready();
-    let source = "deployment patch engine landing.json";
+    let source = "deployment patch engine public.toml";
     assert!(matches!(
         line(&mut machine, source).as_slice(),
         [Action::ReadDeploymentPatch { document: Document::Engine, .. }]
     ));
-    let refused = step(&mut machine, Event::DeploymentPatch(Err("landing.json: missing".into())));
+    let refused = step(&mut machine, Event::DeploymentPatch(Err("public.toml: missing".into())));
     assert!(matches!(refused.as_slice(), [Action::Keep(_), Action::Answer(_)]));
-    assert!(answer(&refused).failed.as_ref().expect("refusal").contains("landing.json"));
+    assert!(answer(&refused).failed.as_ref().expect("refusal").contains("public.toml"));
     line(&mut machine, source);
     assert_eq!(machine.next_deadline(), Some(Time::ZERO.saturating_add(Duration::from_secs(300))));
-    let file = (PathBuf::from("/scratch/config/engine/temper.json"), b"{}".as_slice().into());
+    let file =
+        (PathBuf::from("/scratch").join(Document::Engine.path()), b"workers = \"127.0.0.1:4102\"\n".as_slice().into());
     stop(&step(&mut machine, Event::DeploymentPatch(Ok(file))), Process::Worker, false);
     stop(&step(&mut machine, exited(Process::Worker, 0)), Process::Engine, false);
     assert!(matches!(step(&mut machine, exited(Process::Engine, 0)).as_slice(), [Action::WriteDeploymentPatch(_)]));
@@ -296,10 +298,13 @@ fn failed_starts_and_patch_restart_failures_end_as_deployment_failures() {
     );
     assert!(!actions.iter().any(|action| matches!(action, Action::Start { .. })));
     let mut machine = deployment_ready();
-    line(&mut machine, "deployment patch engine landing.json");
+    line(&mut machine, "deployment patch engine public.toml");
     step(
         &mut machine,
-        Event::DeploymentPatch(Ok(("/scratch/config/engine/temper.json".into(), b"{}".as_slice().into()))),
+        Event::DeploymentPatch(Ok((
+            PathBuf::from("/scratch").join(Document::Engine.path()),
+            b"workers = \"127.0.0.1:4102\"\n".as_slice().into(),
+        ))),
     );
     step(&mut machine, exited(Process::Worker, 0));
     step(&mut machine, exited(Process::Engine, 0));
@@ -334,10 +339,13 @@ fn failed_starts_and_patch_restart_failures_end_as_deployment_failures() {
     assert!(answer(&expired).failed.is_some());
     for process in [Process::Engine, Process::Worker] {
         let mut machine = deployment_ready();
-        line(&mut machine, "deployment patch engine landing.json");
+        line(&mut machine, "deployment patch engine public.toml");
         step(
             &mut machine,
-            Event::DeploymentPatch(Ok(("/scratch/config/engine/temper.json".into(), b"{}".as_slice().into()))),
+            Event::DeploymentPatch(Ok((
+                PathBuf::from("/scratch").join(Document::Engine.path()),
+                b"workers = \"127.0.0.1:4102\"\n".as_slice().into(),
+            ))),
         );
         step(&mut machine, exited(Process::Worker, 0));
         step(&mut machine, exited(Process::Engine, 0));
@@ -392,8 +400,11 @@ fn preparation_and_patch_files_are_private_held_and_atomic() {
     let source = plan.options.deployment.as_ref().expect("source");
     fs::create_dir(source).expect("fixture source");
     for (name, bytes) in [
-        ("engine.json", r#"{"keep":7,"application":{"landing":{"projects":[1]}}}"#),
-        ("worker.json", "{}"),
+        (
+            "engine.toml",
+            "workers = \"{place.workers}\"\nowner = \"kept@example.invalid\"\npublic = \"https://old.example.com\"\n",
+        ),
+        ("worker.toml", "engine = \"{place.workers}\"\nname = \"worker\"\n"),
         ("forgejo.json", r#"{"admin_token":"{place.data}/forgejo/admin"}"#),
         ("model.json", r#"{"key":"{place.data}/model/key"}"#),
         ("providers.json", r#"{"providers":[]}"#),
@@ -422,8 +433,8 @@ fn preparation_and_patch_files_are_private_held_and_atomic() {
         assert_eq!(fs::metadata(root.path().join(relative)).expect("directory").permissions().mode() & 0o777, 0o700);
     }
     for relative in [
-        "config/engine/temper.json",
-        "config/worker/temper.json",
+        Document::Engine.path().to_str().expect("engine path"),
+        Document::Worker.path().to_str().expect("worker path"),
         "config/forgejo.json",
         "config/model.json",
         "data/worker/secrets/worker.secret",
@@ -451,13 +462,13 @@ fn preparation_and_patch_files_are_private_held_and_atomic() {
     assert_eq!(fs::read_link(root.path().join("data/bin/git")).expect("remade git"), Path::new("/new/bin/temper-box"));
     assert_eq!(Sha256::digest(fs::read(&secret_path).expect("held secret")), secret_hash);
     assert_eq!(Sha256::digest(fs::read(&digest_path).expect("held digest")), digest_hash);
-    let engine = root.path().join("config/engine/temper.json");
+    let engine = root.path().join(Document::Engine.path());
     let before = fs::read(&engine).expect("document");
     let patch_source = root.path().join("files");
     fs::create_dir(&patch_source).expect("files");
     plan.options.files = Some(patch_source.clone());
     for (name, content) in
-        [("not-object", "[]"), ("invalid", "{"), ("landing.json", r#"{"application":{"landing":{"projects":[]}}}"#)]
+        [("not-object", "[]"), ("invalid", "{"), ("public.toml", "public = \"http://{place.clients}\"\n")]
     {
         fs::write(patch_source.join(name), content).expect("patch fixture");
     }
@@ -465,14 +476,21 @@ fn preparation_and_patch_files_are_private_held_and_atomic() {
         assert!(io::deployment::patch(&plan, Document::Engine, name.as_bytes()).is_err());
         assert_eq!(fs::read(&engine).expect("unchanged"), before);
     }
-    let (destination, bytes) = io::deployment::patch(&plan, Document::Engine, b"landing.json").expect("valid patch");
+    let (destination, bytes) = io::deployment::patch(&plan, Document::Engine, b"public.toml").expect("valid patch");
     assert_eq!(fs::read(&engine).expect("not written yet"), before);
     io::deployment::replace(&destination, &bytes).expect("atomic replacement");
-    assert_eq!(fs::read(&engine).expect("patched"), br#"{"keep":7,"application":{"landing":{"projects":[]}}}"#);
+    let patched = crate::drive::deployment::configuration(
+        "engine",
+        &fs::read(&engine).expect("patched"),
+        temper_config_shell::Shape::EngineAlone,
+    )
+    .expect("patched file");
+    assert_eq!(patched.owner.as_deref(), Some("kept@example.invalid"));
+    assert_eq!(patched.public.as_deref(), Some("http://127.0.0.1:4101"));
     assert_eq!(fs::metadata(&engine).expect("private replacement").permissions().mode() & 0o777, 0o600);
     plan.options.files = None;
     assert!(
-        io::deployment::patch(&plan, Document::Engine, b"landing.json")
+        io::deployment::patch(&plan, Document::Engine, b"public.toml")
             .expect_err("files missing")
             .contains("no files directory")
     );

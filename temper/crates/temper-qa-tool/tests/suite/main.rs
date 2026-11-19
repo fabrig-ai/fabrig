@@ -35,6 +35,16 @@ fn landing(ledger: &mut Ledger, number: u64) {
 fn session(ledger: &mut Ledger, landing: u64) -> u64 {
     ledger.start_session(landing, "low", pages(), vec!["fresh".into()], Vec::new(), 0).expect("next triage")
 }
+fn engine_file() -> Box<[u8]> {
+    temper_config_shell::render(
+        &temper_config_shell::File {
+            workers: Some(([127, 0, 0, 1], 7200).into()),
+            ..temper_config_shell::File::default()
+        },
+        temper_config_shell::Shape::EngineAlone,
+    )
+}
+
 fn case() -> CaseInput {
     CaseInput::decode(br#"{"surface":"web","page":"work","setup":"fresh","steps":[{"do":"open Work","expect":"Drafts lists the draft"}]}"#, "-").expect("case")
 }

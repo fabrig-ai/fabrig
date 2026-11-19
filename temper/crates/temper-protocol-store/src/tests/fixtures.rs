@@ -1,3 +1,4 @@
+use skein_codec::Record;
 pub mod layouts;
 use skein_lib::{Duration, List, Rng};
 use temper_engine_domain_forge_vocabulary as top;
@@ -697,9 +698,7 @@ pub fn answers_without_item_pieces() -> [skein_forge::api::Answer; 19] {
     ]
 }
 pub fn encoded(value: &crate::v25::Error) -> Box<[u8]> {
-    let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("measured error length"));
-    value.encode(&mut writer).expect("measured room");
-    writer.finish()
+    value.encode(&crate::v25::CEILINGS).expect("measured room")
 }
 
 pub fn summary() -> skein_forge::api::Summary {
@@ -755,25 +754,16 @@ pub fn item_answers() -> [skein_forge::api::Answer; 4] {
     ]
 }
 pub fn encoded_row(row: &crate::v25::Row) -> Box<[u8]> {
-    let mut writer = skein_lib::Writer::new(usize::try_from(row.measure()).expect("measured row length"));
-    row.encode(&mut writer).expect("measured room");
-    writer.finish()
+    row.encode(&crate::v25::CEILINGS).expect("measured room")
 }
 pub fn item_piece_row(items: Box<[u8]>) -> crate::v25::Row {
     use crate::v25 as w;
-    let answer = w::Answer::Items(
-        w::ItemsAnswer::new(&w::CEILINGS, w::ItemsAnswerParts { items, more: false, now: 1, cut: false })
-            .expect("piece ceiling"),
-    );
-    let result = w::ReadResult::Answer(Box::new(
-        w::AnswerValue::new(&w::CEILINGS, w::AnswerValueParts { answer }).expect("answer ceiling"),
-    ));
-    let answer =
-        w::CallPayload::Read(w::CallRead::new(&w::CEILINGS, w::CallReadParts { result }).expect("call ceiling"));
-    let key = w::NamedCall::new(&w::CEILINGS, w::NamedCallParts { task: 1, attempt: 2, completion: 3, position: 4 })
-        .expect("key ceiling");
-    let value = w::Value::Call(w::Call::new(&w::CEILINGS, w::CallParts { key, answer }).expect("row ceiling"));
-    w::Row::new(&w::CEILINGS, w::RowParts { value }).expect("row ceiling")
+    let answer = w::Answer::Items(w::ItemsAnswer { items, more: false, now: 1, cut: false });
+    let result = w::ReadResult::Answer(Box::new(w::AnswerValue { answer }));
+    let answer = w::CallPayload::Read(w::CallRead { result });
+    let key = w::NamedCall { task: 1, attempt: 2, completion: 3, position: 4 };
+    let value = w::Value::Call(w::Call { key, answer });
+    w::Row { value }
 }
 
 pub fn status() -> skein_forge::api::Status {

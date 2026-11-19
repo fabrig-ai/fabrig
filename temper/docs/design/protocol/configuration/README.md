@@ -15,6 +15,12 @@ document says what temper adds. What is open is listed in `README.md`, section 9
 
 ## 1. In one page
 
+- **A person writes `temper.toml`** (`file.md`): a few lines of TOML,
+  one file per binary, read through one table. The JSON document this
+  document gives is the start's document the file gives (`file.md`,
+  section 4), built by the code and never a file; `temper.json` is
+  refused by name. Where a section here says a person writes a member
+  or `temper.json`, `file.md` wins.
 - **One document per `temper-box serve`,** in jig's shape: three top-level
   members, `engine` (jig's engine part), `workers` (jig's worker parts)
   and `application` (temper's members). Nothing else at the top level.

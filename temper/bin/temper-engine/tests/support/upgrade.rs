@@ -25,11 +25,23 @@ pub fn empty_directory(binary: &str) {
         serde_json::json!({"socket":"127.0.0.1:1"});
     temper_agent_fixtures::providers::input(&mut document)["endpoints"][0]["transport"] = "plaintext".into();
     temper_agent_fixtures::providers::input(&mut document)["providers"][0]["signed_in_plan"] = false.into();
-    document["workers"] = serde_json::json!([]);
-
-    document["engine"]["hosts"]["listener"] = serde_json::json!([{"socket":"127.0.0.1:7102"}]);
     temper_agent_fixtures::providers::keep(&mut document, &data);
-    std::fs::write(config.join("temper.json"), serde_json::to_vec(&document).expect("document bytes"))
+    let shape = if binary == "temper-engine" {
+        temper_config_shell::Shape::EngineAlone
+    } else {
+        temper_config_shell::Shape::Standalone
+    };
+    if shape == temper_config_shell::Shape::Standalone {
+        let secret = data.join("worker.secret");
+        std::fs::write(&secret, [1; 32]).expect("fixture worker secret");
+        std::fs::set_permissions(&secret, std::fs::Permissions::from_mode(0o600)).expect("private fixture secret");
+    }
+    let file = temper_config_shell::File {
+        workers: (shape == temper_config_shell::Shape::EngineAlone)
+            .then(|| "127.0.0.1:7102".parse().expect("workers listener")),
+        ..temper_config_shell::File::default()
+    };
+    std::fs::write(config.join(temper_config_shell::FILE), temper_config_shell::render(&file, shape))
         .expect("configuration");
     for mode in ["--check", "--back"] {
         let mut command = std::process::Command::new(skein_scratch::paths::binary(binary));

@@ -97,11 +97,19 @@ fn accounts_runtime_holds_unresolved_hosts() {
         };
         Some(([192, 0, 2, last], port).into())
     }
-    let document = config::document(
-        include_bytes!("../../../../docs/examples/owned.json"),
-        &config::DocumentLimits { bytes: 1_048_576, tokens: 65_536, depth: 32 },
+    let file = temper_config_shell::File {
+        workers: Some("127.0.0.1:7200".parse().expect("workers listener")),
+        ..temper_config_shell::File::default()
+    };
+    let start = temper_config_shell::parse(
+        &temper_config_shell::render(&file, temper_config_shell::Shape::EngineAlone),
+        temper_config_shell::Shape::EngineAlone,
+        &temper_config_shell::Facts { login: "sam".into(), hostname: "fixture".into(), provider_key: false },
     )
-    .expect("owned document");
+    .expect("engine file")
+    .document;
+    let document = config::document(&start, &config::DocumentLimits { bytes: 1_048_576, tokens: 65_536, depth: 32 })
+        .expect("owned document");
     let at = super::member(&document, 0, b"engine");
     let mut engine =
         temper_engine_service::startup::engine(&document, at, &config::Directories::working()).expect("engine fixture");
@@ -173,21 +181,21 @@ fn accounts_runtime_holds_unresolved_hosts() {
 }
 
 #[test]
-fn an_engine_start_refuses_workers_before_opening_their_files() {
-    let (directories, _) = temper_shell::directories::resolve(
-        &[b"--config".as_slice(), b"/configuration", b"--data", b"/data", b"--cache", b"/cache"].map(Box::from),
-        &[],
-        b"/",
-    )
-    .expect("fixture directories");
-    for bytes in [b"{}".as_slice(), include_bytes!("../../../../docs/examples/owned.json").as_slice()] {
-        let mut owned = Vec::new();
-        let why = super::prepare("temper-engine", &[], b"/", &directories, bytes, &mut owned)
-            .err()
-            .expect("engine refuses a worker");
-        assert_eq!(why, "temper.json names a worker, and temper-engine runs none");
-        assert!(owned.is_empty(), "refusal opens no startup descriptors");
-    }
+fn an_engine_start_refuses_a_workers_file_before_opening_its_files() {
+    use temper_config_shell::{FILE, File, Shape};
+    let scratch = skein_scratch::Scratch::new("engine-worker-file");
+    let directories = crate::test_configuration::directories(scratch.path());
+    let file = File { engine: Some("127.0.0.1:7200".parse().expect("engine address")), ..File::default() };
+    std::fs::write(scratch.path().join(FILE), temper_config_shell::render(&file, Shape::WorkerAlone))
+        .expect("worker file");
+    let why = super::prepare_in("temper-engine", &[], b"/", &directories).err().expect("engine refuses a worker");
+    assert_eq!(
+        why,
+        format!(
+            "temper-engine serve: {FILE}:3: engine: a key of temper-worker's file, not temper-engine's\ntemper-engine serve: {FILE}: workers: required in temper-engine's file\n"
+        )
+    );
+    assert_eq!(std::fs::read_dir(scratch.path()).expect("scratch").count(), 1, "only the supplied file remains");
 }
 
 #[test]

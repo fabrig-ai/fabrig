@@ -7,8 +7,12 @@ fn schema_matches(codec_crate: &str, family: &str, module: &str, source: &'stati
     let crates = skein_scratch::paths::tree().join("crates");
     let unpinned = skein_codegen::unpinned(source).expect("schema valid");
     assert!(unpinned.is_empty(), "{family}: unpinned constructs: {unpinned:?}");
+    let owner = match codec_crate {
+        "temper-protocol-store-codec" => "temper-protocol-store",
+        other => other,
+    };
     let schema = &values(source).schema;
-    let form = form_of(&crates.join(codec_crate).join("schema"), &schema.family).expect("family form");
+    let form = form_of(&crates.join(owner).join("schema"), &schema.family).expect("owner's lean mark");
     let output = generate_as(schema, form);
     let code = crates.join(codec_crate).join("src/generated").join(format!("{module}.rs"));
     check_text(&code, &output.records, temper_test_env::rewrite());

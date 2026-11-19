@@ -16,6 +16,7 @@ name = "suite"
 path = "tests/suite/main.rs"
 
 [dependencies]
+temper-config-shell.workspace = true
 jig-protocol-store.workspace = true
 temper-service-core.workspace = true
 skein-shell.workspace = true

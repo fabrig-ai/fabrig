@@ -393,7 +393,7 @@ fn exchange_secrets(store: &mut crate::store::Store, secrets: &mut skein_kv::Sto
     open_seeded(store);
 }
 
-fn start_with_worker(
+pub(super) fn start_with_worker(
     projects: &[(u32, u64)],
     stored: Option<crate::store::Store>,
     worker: Option<crate::Worker>,
