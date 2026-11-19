@@ -1,9 +1,18 @@
+//! Walk lines and page printers (temper/docs/design/client/journey-walks.md, 3.1).
 //! Static pages and the files beside them (client/web/journeys.md, 5.2 and 5.3),
 //! with page-local generated ids (client/journey-placeholders.md, 5).
 
-use skein_ui::NodeId;
+use skein_ui::{NodeId, Role};
 use std::{collections::BTreeMap, fmt::Write, fs, io, path::Path};
 pub use temper_client_shell_web::journey::Lead;
+
+/// The stylesheets linked relative to a journey's directory.
+pub const STYLESHEETS: [&str; 4] = [
+    "../skein-ui.css",
+    "../../../../../../crates/temper-client-shell-web/temper.css",
+    "../../../../../../crates/temper-client-shell-web/task-pages.css",
+    "../overlay.css",
+];
 
 /// A page as the person saw it, at one mark (client/web/journeys.md, 3.4).
 pub struct Mark {
@@ -55,12 +64,7 @@ pub fn pages(marks: &[Mark]) -> Vec<Printed> {
         let mut document = format!(
             "<!doctype html>\n<html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1, viewport-fit=cover\"><title>{title}</title>"
         );
-        for stylesheet in [
-            "../skein-ui.css",
-            "../../../../../../crates/temper-client-shell-web/temper.css",
-            "../../../../../../crates/temper-client-shell-web/task-pages.css",
-            "../overlay.css",
-        ] {
+        for stylesheet in STYLESHEETS {
             write!(document, "<link rel=\"stylesheet\" href=\"{stylesheet}\">").expect("write string");
         }
         if let Some(prev) = prev {
@@ -132,6 +136,34 @@ pub fn beside(journeys: &Path) -> io::Result<()> {
 
 /// The pages' script, written beside the journeys.
 pub const SCRIPT: &str = include_str!("../journey.js");
+
+/// The main region's level-1 heading, as in the gallery (client/web/gallery.md, 1).
+#[must_use]
+pub fn heading(tree: &skein_ui::Tree) -> Vec<u8> {
+    let nodes = tree.nodes();
+    for (index, node) in nodes.iter().enumerate() {
+        if node.role == Role::Main {
+            let end = index + usize::try_from(node.size).expect("main subtree");
+            for (offset, heading) in nodes[index..end].iter().enumerate() {
+                if heading.role == (Role::Heading { level: 1 }) {
+                    let start = index + offset;
+                    let end = start + usize::try_from(heading.size).expect("heading subtree");
+                    let mut result = Vec::new();
+                    for node in &nodes[start..end] {
+                        for run in &node.text {
+                            result.extend_from_slice(&run.text);
+                        }
+                    }
+                    return result;
+                }
+            }
+        }
+    }
+    Vec::new()
+}
+
+#[cfg(test)]
+mod tests;
 
 #[cfg(test)]
 mod id_tests {

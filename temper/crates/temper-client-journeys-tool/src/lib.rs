@@ -1,6 +1,5 @@
 //! The journeys: the client's pages recorded, replayed and printed (client/web/journeys.md).
 
-use skein_ui::Role;
 use std::{
     fs, io,
     path::{Path, PathBuf},
@@ -17,9 +16,8 @@ type EnvironmentEntry = (Box<[u8]>, Box<[u8]>);
 
 pub mod again;
 pub mod drive;
-pub mod line;
+pub use temper_client_walk_lines::{line, named, print};
 mod pages;
-pub mod print;
 pub mod recipe;
 pub mod tui;
 pub mod tui_again;
@@ -55,14 +53,6 @@ pub enum Refusal {
     WalkDiffers { name: String, step: u32 },
     Save { name: String, step: u32, refusal: journey::Refusal },
     Harness { name: String, step: u32, report: String },
-}
-
-/// Whether NAME is a journey's name, `[a-z][a-z0-9-]*` (client/web/journeys.md, 5.1).
-#[must_use]
-pub fn named(name: &str) -> bool {
-    let mut bytes = name.bytes();
-    bytes.next().is_some_and(|byte| byte.is_ascii_lowercase())
-        && bytes.all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-')
 }
 
 /// Counts of the originals and replacements (client/web/journey-redaction.md).
@@ -308,7 +298,7 @@ fn printed(name: &str, recording: &[u8]) -> Result<Result<Vec<print::Printed>, S
             Ok(Some(mark)) => {
                 marks.push(print::Mark {
                     html: mark.page.html(),
-                    heading: heading(mark.tree),
+                    heading: print::heading(mark.tree),
                     acted: mark.acted,
                     lead: mark.lead,
                 });
@@ -345,30 +335,6 @@ fn printed_page(path: &Path) -> bool {
 
 fn io_refusal(path: &Path) -> Refusal {
     Refusal::Io { path: path.to_owned() }
-}
-
-// The main region's level-1 heading, as in the gallery (client/web/gallery.md, 1).
-fn heading(tree: &skein_ui::Tree) -> Vec<u8> {
-    let nodes = tree.nodes();
-    for (index, node) in nodes.iter().enumerate() {
-        if node.role == Role::Main {
-            let end = index + usize::try_from(node.size).expect("main subtree");
-            for (offset, heading) in nodes[index..end].iter().enumerate() {
-                if heading.role == (Role::Heading { level: 1 }) {
-                    let start = index + offset;
-                    let end = start + usize::try_from(heading.size).expect("heading subtree");
-                    let mut result = Vec::new();
-                    for node in &nodes[start..end] {
-                        for run in &node.text {
-                            result.extend_from_slice(&run.text);
-                        }
-                    }
-                    return result;
-                }
-            }
-        }
-    }
-    Vec::new()
 }
 
 #[cfg(test)]
