@@ -2,6 +2,7 @@
 use super::{a, catalogue_name, charter, codec, core, fixtures, people, policy, rules, s, template};
 use crate::{keys, settings_v3 as wire};
 use s::application;
+use skein_codec::Record as _;
 use skein_lib::{List, Reader, Wall, Writer};
 
 fn head() -> s::Head {
@@ -71,7 +72,7 @@ fn revision_item_sum_and_count_bounds() {
     let row = revision(repeated_items(&item, count));
     let bytes = codec::settings::encode(&row, &limits, &[]).unwrap();
     let encoded = wire::Revision::decode(&limits, &mut Reader::new(&bytes)).unwrap();
-    let mut remaining = usize::try_from(limits.revision_items).unwrap().checked_sub(encoded.items().len()).unwrap();
+    let mut remaining = usize::try_from(limits.revision_items).unwrap().checked_sub(encoded.items.len()).unwrap();
     let s::Record::Revision { mut revision, .. } = row else { panic!("revision") };
     for item in &mut revision.items {
         let (s::Edit::Set(s::Value::Provider(edited)), s::Replaced::Value(s::Value::Provider(replaced))) =
@@ -93,7 +94,7 @@ fn revision_item_sum_and_count_bounds() {
     let row = s::Record::Revision { history: false, revision: revision.clone() };
     let bytes = codec::settings::encode(&row, &limits, &[]).unwrap();
     let encoded = wire::Revision::decode(&limits, &mut Reader::new(&bytes)).unwrap();
-    assert_eq!(encoded.items().len(), usize::try_from(limits.revision_items).unwrap());
+    assert_eq!(encoded.items.len(), usize::try_from(limits.revision_items).unwrap());
     // Empty catalogues discard named masks and choices; compare against the same catalogue on both sides.
     let names = [catalogue_name(b"one"), catalogue_name(b"two")];
     let bytes = codec::settings::encode(&row, &limits, &names).unwrap();
@@ -312,7 +313,7 @@ fn revision_pieces_must_end_at_their_declared_lengths() {
     let limits = limits();
     let bytes = codec::settings::encode(&row, &limits, &[]).unwrap();
     let value = wire::Revision::decode(&limits, &mut Reader::new(&bytes)).unwrap();
-    let mut parts = value.into_parts();
+    let mut parts = value;
     let mut reader = Reader::new(&parts.items);
     let item = skein_codec::piece::split(&mut reader).unwrap().unwrap();
     let mut padded = Writer::new(item.len() + 1);
@@ -322,11 +323,10 @@ fn revision_pieces_must_end_at_their_declared_lengths() {
     let mut writer = Writer::new(padded.len() + 4);
     skein_codec::piece::write(&mut writer, &padded).unwrap();
     parts.items = writer.finish();
-    let value = wire::Revision::new(&limits, parts).unwrap();
-    let mut writer = Writer::new(usize::try_from(value.measure()).unwrap());
-    value.encode(&mut writer).unwrap();
+    let value = parts;
+    let bytes = value.encode(&limits).unwrap();
     assert_eq!(
-        codec::settings::decode(&row.key(), &writer.finish(), &limits, &[]).unwrap_err().reason,
+        codec::settings::decode(&row.key(), &bytes, &limits, &[]).unwrap_err().reason,
         skein_codec::Reason::Trailing
     );
 }

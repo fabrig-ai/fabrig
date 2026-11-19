@@ -1,8 +1,9 @@
 //! The durable intent's four matching states (protocol/store/restoring.md, 4.7 and 5).
 use crate::{Arrived, CheckpointName, Root, component_v3 as wire, generations};
 use alloc::boxed::Box;
+use skein_codec::Record as _;
 use skein_io::{file, kernel::Error};
-use skein_lib::{Queue, Reader, Token, Writer};
+use skein_lib::{Queue, Reader, Token};
 
 pub(crate) const INTENT: &[u8] = b"restore";
 pub(crate) const STAGED: &[u8] = b"transcripts.staged";
@@ -18,23 +19,17 @@ pub(crate) struct Intent {
 }
 impl Intent {
     pub fn encode(self) -> Box<[u8]> {
-        let row = wire::RestoreIntent::new(
-            &wire::CEILINGS,
-            wire::RestoreIntentParts {
-                generation: self.generation,
-                active: digest_bytes(self.active),
-                source: Box::from(self.source.bytes()),
-                safety: Box::from(self.safety.bytes()),
-                made: self.made,
-            },
-        )
-        .expect("checkpoint names fit the intent");
-        let mut out = Writer::new(skein_lib::length::usize_of(row.measure()));
-        row.encode(&mut out).expect("measured intent");
-        out.finish()
+        let row = wire::RestoreIntent {
+            generation: self.generation,
+            active: digest_bytes(self.active),
+            source: Box::from(self.source.bytes()),
+            safety: Box::from(self.safety.bytes()),
+            made: self.made,
+        };
+        row.encode(&wire::CEILINGS).expect("checkpoint names fit the intent")
     }
     pub fn decode(bytes: &[u8]) -> Option<Self> {
-        let row = wire::RestoreIntent::decode(&wire::CEILINGS, &mut Reader::new(bytes)).ok()?.into_parts();
+        let row = wire::RestoreIntent::decode(&wire::CEILINGS, &mut Reader::new(bytes)).ok()?;
         if row.generation <= 1 {
             return None;
         }
