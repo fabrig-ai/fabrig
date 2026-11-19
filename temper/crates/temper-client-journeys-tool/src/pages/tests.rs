@@ -70,6 +70,77 @@ fn stale_browser(web: &Path) {
 }
 
 #[test]
+fn moved_recordings_are_neither_named_nor_touched_by_either_print_or_check() {
+    let scratch = Scratch::new("pages-moved-recordings");
+    let (web, tui) = roots(&scratch);
+    for directory in [web.join("browser-link"), tui.join("a-terminal")] {
+        fs::write(directory.join("walk"), "walk 2\nmark\n").expect("moved source");
+        fs::write(directory.join("01.html"), "Moved engine's page\n").expect("moved page");
+    }
+    let before = tree_bytes(scratch.path());
+    let mut shown = Vec::new();
+    assert!(!check(&web, &tui, |line| shown.push(line.to_owned())).expect("check unmoved"));
+    assert_eq!(shown, ["fresh browser-welcome"]);
+    assert!(before == tree_bytes(scratch.path()), "check leaves moved bytes alone");
+    let journeys = stale(&web, &tui).expect("only unmoved recordings");
+    shown.clear();
+    assert!(
+        !unbounded(&web, &tui, &journeys, |_, _| panic!("no walk"), |line| shown.push(line.to_owned()))
+            .expect("print unmoved")
+    );
+    assert_eq!(shown, ["fresh browser-welcome"]);
+    assert!(before == tree_bytes(scratch.path()), "pages leaves moved bytes alone");
+    shown.clear();
+    assert_eq!(
+        run::reprint_roots(&web, &tui, Destination::Stdout, |_, line| shown.push(line.to_owned()))
+            .expect("bare reprint"),
+        Vec::<String>::new()
+    );
+    assert_eq!(shown, ["browser-welcome"]);
+    assert!(before == tree_bytes(scratch.path()), "bare reprint leaves moved bytes alone");
+}
+
+#[test]
+fn moved_pages_without_recordings_stay_but_unwalked_orphans_go() {
+    let scratch = Scratch::new("pages-moved-orphans");
+    let (web, tui) = roots(&scratch);
+    for (root, name) in [(&web, "browser-link"), (&tui, "a-terminal")] {
+        let directory = root.join(name);
+        fs::remove_file(directory.join("recording")).expect("moved recording removed");
+        fs::write(directory.join("walk"), "walk 2\nmark\n").expect("moved source");
+        let orphan = root.join("unwalked");
+        fs::create_dir(&orphan).expect("unwalked directory");
+        fs::write(orphan.join("01.html"), "orphan page\n").expect("orphan page");
+    }
+    let mut expected = tree_bytes(scratch.path());
+    for file in ["web/unwalked/01.html", "tui/unwalked/01.html"] {
+        assert!(expected.remove(Path::new(file)).is_some());
+    }
+    let journeys = stale(&web, &tui).expect("unmoved recordings");
+    assert!(!unbounded(&web, &tui, &journeys, |_, _| panic!("no walk"), |_| {}).expect("pages"));
+    assert!(expected == tree_bytes(scratch.path()), "only pages with neither recording nor walk go");
+}
+
+#[test]
+fn moved_names_refuse_again_and_add_for_either_client() {
+    let scratch = Scratch::new("pages-moved-commands");
+    let (web, tui) = roots(&scratch);
+    for (root, name, recording, is_tui) in
+        [(&web, "browser-link", fixture_recording(), false), (&tui, "a-terminal", tui_recording(), true)]
+    {
+        fs::write(root.join(name).join("walk"), "walk 2\nmark\n").expect("moved source");
+        let before = tree_bytes(scratch.path());
+        let expected = format!("{name} has a walk of version 2; use temper-client-walk");
+        assert_eq!(
+            run::refusal(crate::add_to(&web, &tui, name, &recording, &[]).expect_err("add moved name")),
+            expected
+        );
+        assert_eq!(run::starting(&web, &tui, name, is_tui).expect_err("again moved name"), expected);
+        assert!(before == tree_bytes(scratch.path()), "refusals change no byte");
+    }
+}
+
+#[test]
 fn current_journeys_walk_nothing_and_change_no_file_byte() {
     let scratch = Scratch::new("pages-current");
     let (web, tui) = roots(&scratch);

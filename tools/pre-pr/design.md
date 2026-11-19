@@ -518,7 +518,9 @@ delivery hears every failure; the verdict is section 6's.
      recording, pages and the files beside them are written on main by
      the journeys' writer alone (AGENTS.md, 4): restore them with git
      checkout BASE -- PATH..., and compare pages by cargo run -p
-     temper-client-journeys in your own tree`, BASE the base or
+     temper-client-journeys in your own tree, or, for a journey whose walk
+     is of version 2, by cargo run -p temper-client-walk -- print --out
+     DIR`, BASE the base or
      `HEAD`. It is the delivery's own, never inherited (section 5).
    - **Passed:** neither; a delivery whose own paths are written files
      alone among them.

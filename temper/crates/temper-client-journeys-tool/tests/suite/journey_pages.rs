@@ -11,6 +11,8 @@ use std::{
 const ROOT: &str = "temper/docs/design/client/web/journeys";
 const PAGE: &str = "temper/docs/design/client/web/journeys/welcome/01.html";
 const README: &str = "temper/docs/design/client/web/journeys/welcome/README.md";
+const RECORDING: &str = "temper/docs/design/client/web/journeys/welcome/recording";
+const TUI_ROOT: &str = "temper/docs/design/client/tui/journeys";
 const ARGS: &[&str] = &["--project", "P", "--as-allowed"];
 
 const CARGO: &str = r"#!/usr/bin/env -S python3 -I -B
@@ -18,7 +20,9 @@ import json, os, pathlib, sys
 root = pathlib.Path(os.environ['WRITER_FAKE'])
 with (root / 'cargo.log').open('a') as log:
     log.write(json.dumps({'args': sys.argv[1:], 'bundle': os.environ.get('TEMPER_INTERNAL_BUNDLE')}) + '\n')
-config = json.loads((root / 'print.json').read_text())
+package = sys.argv[sys.argv.index('-p') + 1]
+configuration = {'temper-client-journeys': 'print.json', 'temper-client-walk': 'walk-print.json'}[package]
+config = json.loads((root / configuration).read_text())
 for name, contents in config['writes']:
     path = pathlib.Path(name)
     if contents is None:
@@ -67,6 +71,8 @@ impl Repositories {
         fs::create_dir_all(repos.person.join(ROOT).join("welcome")).expect("journey directory");
         repos.write(PAGE, "<p>Main's page</p>\n");
         repos.write(README, "Journey source\n");
+        fs::create_dir_all(repos.person.join(TUI_ROOT).join("terminal")).expect("TUI directory");
+        repos.write(&format!("{TUI_ROOT}/terminal/walk"), "walk 1\nmark\n");
         repos.git(&repos.person, &["add", "."]);
         repos.git(&repos.person, &["commit", "--quiet", "-m", "Main's journeys"]);
         repos.git(&repos.person, &["push", "--quiet", "origin", "main"]);
@@ -125,8 +131,21 @@ impl Repositories {
     }
 
     fn print(&self, writes: &[(&str, Option<&str>)], stdout: &str, status: i32) {
+        self.engine_print("print.json", writes, stdout, status);
+    }
+
+    fn engine_print(&self, configuration: &str, writes: &[(&str, Option<&str>)], stdout: &str, status: i32) {
         let config = serde_json::json!({"writes": writes, "stdout": stdout, "exit": status});
-        fs::write(self.scratch.path().join("print.json"), config.to_string()).expect("print's answer");
+        fs::write(self.scratch.path().join(configuration), config.to_string()).expect("engine's answer");
+    }
+
+    fn moved(&self) -> String {
+        self.write(&format!("{ROOT}/welcome/walk"), "walk 2\nmark\n");
+        self.write(RECORDING, "Previous engine's recording\n");
+        self.git(&self.person, &["add", "."]);
+        self.git(&self.person, &["commit", "--quiet", "-m", "Move welcome"]);
+        self.git(&self.person, &["push", "--quiet", "origin", "main"]);
+        self.git(&self.person, &["rev-parse", "HEAD"])
     }
 
     fn phase(&self, phase: &str) {
@@ -186,6 +205,10 @@ impl Repositories {
     }
 
     fn assert_offered(&self, tip: &str, report: &str, budget: &[&str]) {
+        self.assert_offered_paths(tip, report, budget, PAGE);
+    }
+
+    fn assert_offered_paths(&self, tip: &str, report: &str, budget: &[&str], paths: &str) {
         let head = self.git(&self.origin, &["rev-parse", "journey-pages"]);
         assert_eq!(self.git(&self.person, &["rev-parse", "HEAD"]), head);
         assert_eq!(self.git(&self.origin, &["rev-parse", "journey-pages^"]), tip);
@@ -193,7 +216,7 @@ impl Repositories {
         let subject = format!("Journey pages printed at {short}");
         let body = if report.is_empty() { format!("Printed: {tip}") } else { format!("{report}\n\nPrinted: {tip}") };
         assert_eq!(self.git(&self.origin, &["log", "-1", "--format=%B", &head]), format!("{subject}\n\n{body}"));
-        assert_eq!(self.git(&self.origin, &["diff-tree", "--no-commit-id", "--name-only", "-r", &head]), PAGE);
+        assert_eq!(self.git(&self.origin, &["diff-tree", "--no-commit-id", "--name-only", "-r", &head]), paths);
         assert_eq!(
             self.git(&self.origin, &["log", "-1", "--format=%an <%ae>", &head]),
             "Journey Writer <writer@example.invalid>"
@@ -245,6 +268,79 @@ fn unchanged_pages_start_no_change() {
             2
         ]
     );
+}
+
+#[test]
+fn moved_walk_prints_first_and_commits_removed_recording_with_both_reports() {
+    for (walk_status, journeys_status, exit, walk_lines, journeys_lines, report) in [
+        (0, 0, 0, "printed welcome\n", "fresh terminal\n", ""),
+        (
+            1,
+            0,
+            1,
+            "printed welcome\nstopped moved-blocked: line 2: missing mark\n",
+            "fresh terminal\n",
+            "stopped moved-blocked: line 2: missing mark",
+        ),
+        (
+            1,
+            1,
+            1,
+            "printed welcome\nstopped moved-blocked: line 2: missing mark\n",
+            "fresh terminal\nstopped legacy: still stale after its walk\n",
+            "stopped moved-blocked: line 2: missing mark\nstopped legacy: still stale after its walk",
+        ),
+    ] {
+        let repos = Repositories::new("journey-pages-moved");
+        let tip = repos.moved();
+        repos.engine_print(
+            "walk-print.json",
+            &[(PAGE, Some("<p>Walk's print</p>\n")), (RECORDING, None)],
+            walk_lines,
+            walk_status,
+        );
+        repos.print(&[], journeys_lines, journeys_status);
+        let output =
+            repos.run(&["--project", "P", "--as-allowed", "--prepared", "prepared inputs", "--within", "0s"], exit);
+        let head = repos.git(&repos.person, &["rev-parse", "HEAD"]);
+        assert_eq!(
+            String::from_utf8_lossy(&output.stdout),
+            format!("{walk_lines}{journeys_lines}wrote journey-pages {head}\n")
+        );
+        repos.assert_offered_paths(&tip, report, &["--as-allowed"], &format!("{PAGE}\n{RECORDING}"));
+        assert_eq!(
+            repos.git(&repos.origin, &["diff-tree", "--no-commit-id", "--name-status", "-r", "journey-pages"]),
+            format!("M\t{PAGE}\nD\t{RECORDING}")
+        );
+        assert_eq!(repos.git(&repos.origin, &["show", &format!("journey-pages:{PAGE}")]), "<p>Walk's print</p>");
+        assert_eq!(
+            repos.calls("cargo"),
+            vec![
+                serde_json::json!({"args": ["run", "--locked", "-p", "temper-client-walk", "--", "pages"], "bundle": "none"}),
+                serde_json::json!({"args": ["run", "--locked", "-p", "temper-client-journeys", "--", "pages", "--prepared", "prepared inputs", "--within", "0s"], "bundle": "none"}),
+            ]
+        );
+    }
+}
+
+#[test]
+fn incomplete_walk_print_ends_before_journeys_and_offers_nothing() {
+    for status in [2, 3] {
+        let repos = Repositories::new("journey-pages-moved-incomplete");
+        let tip = repos.moved();
+        repos.engine_print("walk-print.json", &[], "stopped welcome: unreadable root\n", status);
+        repos.print(&[(PAGE, Some("Should not print\n"))], "fresh legacy\n", 0);
+        let output = repos.run(ARGS, 1);
+        assert_eq!(output.stdout, b"stopped welcome: unreadable root\n");
+        repos.assert_nothing_offered(&tip);
+        assert_eq!(repos.git(&repos.person, &["status", "--porcelain"]), "", "nothing written");
+        assert_eq!(
+            repos.calls("cargo"),
+            vec![
+                serde_json::json!({"args": ["run", "--locked", "-p", "temper-client-walk", "--", "pages"], "bundle": "none"})
+            ]
+        );
+    }
 }
 
 #[test]
