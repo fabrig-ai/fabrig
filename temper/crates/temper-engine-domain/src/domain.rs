@@ -723,6 +723,12 @@ impl Domain {
         backlog(self)
     }
 
+    /// Own values kept at stock numbers after start (jig/docs/design/domain/engine/settings.md, 7).
+    #[must_use]
+    pub fn settings_kept(&self) -> Box<[jig_domain_core::settings::Setting]> {
+        self.core.settings_kept()
+    }
+
     /// Decisions open and the journal is not stopped (temper/docs/design/domain/root.md, 8.1).
     #[must_use]
     pub fn ready(&self) -> bool {

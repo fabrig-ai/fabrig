@@ -941,6 +941,15 @@ fn start_numbers_name_every_source_kind_and_both_ranges() {
 }
 
 #[test]
+fn start_taken_names_settings_and_the_move_before_upgrade() {
+    use jig_domain_core::{settings::Setting, start::Failure};
+    assert_eq!(
+        start_failure(&Failure::Taken { settings: Box::new([Setting::Charter(17), Setting::Template(16)]) }),
+        "the stock's new settings take numbers a deployment's own hold (the stock's 1 to 32, a deployment's own 33 to 64): charter 17, template 16; move each to 33 to 64 on the build that runs now, then start this one"
+    );
+}
+
+#[test]
 fn start_failures_name_the_set_key_setting_and_measured_limit() {
     use jig_domain_core::{
         HeldLimit, Key, settings,
