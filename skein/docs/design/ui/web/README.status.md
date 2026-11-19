@@ -69,3 +69,4 @@ it; no browser has painted one on record.
 - **Not yet:** 5: no run on record shows that tier within its budget with
   `log_reading`'s seven stories, from the plan `chat-reading-c`, which waits for its run
   after landing likewise.
+- **Not yet:** 5: a menu reading and named by its button where it has one, and a patch changing the button in place, the menu open or closed as it was [in flight: change 10097].
