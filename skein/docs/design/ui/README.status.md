@@ -1,6 +1,10 @@
 # ui: status
 
-2026-11-14. Where skein's code lags or departs from [README.md](README.md).
+2026-11-19. Where skein's code lags or departs from [README.md](README.md).
+
+- **Not yet:** 3, 3.1, 3.2, 3.4 and 5: the meter role and the shown
+  folded state, their builder's assertions and each shell's handling
+  [in flight: change 9105].
 
 Section 6's binding of `Near` to a continuing list's foot is present.
 Unlisted sections have no known gap.

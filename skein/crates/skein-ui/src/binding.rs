@@ -105,6 +105,7 @@ pub fn takes(role: Role, submits_on_enter: bool, act: &Act) -> bool {
         | Role::TreeItem
         | Role::Tabs
         | Role::Progress
+        | Role::Meter
         | Role::Time
         | Role::Code
         | Role::Quote
