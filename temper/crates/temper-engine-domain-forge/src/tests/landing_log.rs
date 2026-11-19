@@ -22,10 +22,18 @@ fn a_merge_logs_its_change_with_its_title() {
         let expected = LandingLog {
             repository: REPO,
             landings: Box::new([LoggedLanding {
+                tiers: Box::new([]),
                 commit: FIRST,
                 branch: Box::from(b"main".as_slice()),
                 at: env().wall,
-                changes: Box::new([LoggedChange { signed: Box::new([]), task: CHANGE, pull, title }]),
+                changes: Box::new([LoggedChange {
+                    goal: None,
+                    milestone: None,
+                    signed: Box::new([]),
+                    task: CHANGE,
+                    pull,
+                    title,
+                }]),
             }]),
         };
         assert_eq!(saved(&out).as_ref(), core::slice::from_ref(&expected));
@@ -111,12 +119,21 @@ fn a_pull_seen_merged_is_logged() {
 
 #[test]
 fn the_ring_keeps_the_last_landings_kept() {
-    let mut d = configured_domain(&[]);
+    let mut d = configured_domain(&[(TIER, None)]);
     add_change(&mut d, CHANGE, b"main");
+    landing_log::landed(&mut d, env().wall, [99; 32], CHANGE, Box::new([]), &mut Queue::uncapped());
+    d.landing.projects.get_mut(&PROJECT).unwrap().1[0].tiers = Box::new([]);
+    // No tier follows these landings, so each is judged as it is logged.
     for number in 1..=17 {
         let out = merged(&mut d, CHANGE, [number; 32]);
         assert_eq!(saved(&out).len(), 1);
     }
+    let row = d.landing_log(REPO).unwrap();
+    assert_eq!(row.landings.len(), 17, "the pending landing stays beside the last 16 judged");
+    assert_eq!(row.landings[0].commit, [99; 32]);
+    assert_eq!(row.landings[1].commit, [2; 32]);
+    assert_eq!(row.landings[16].commit, [17; 32]);
+    green(&mut d, 1, &[[99; 32]]);
     let row = d.landing_log(REPO).unwrap();
     assert_eq!(row.landings.len(), 16);
     assert_eq!(row.landings[0].commit, [2; 32]);
@@ -257,4 +274,105 @@ fn a_new_admission_replaces_sign_offs_and_joins_an_existing_commit() {
     assert_eq!(log.len(), 1);
     assert_eq!(log[0].landings.len(), 1);
     assert_eq!(log[0].landings[0].changes[1].signed.as_ref(), &[second]);
+}
+
+#[test]
+fn a_merge_logs_its_goal_and_milestone() {
+    for (goal, milestone) in [(Some(42), Some(40)), (None, None)] {
+        let mut d = configured_domain(&[]);
+        add_change(&mut d, CHANGE, b"main");
+        let row = d.changes.get_mut(&CHANGE).unwrap();
+        row.goal = goal;
+        row.milestone = milestone;
+        merged(&mut d, CHANGE, FIRST);
+        let member = &d.landing_log(REPO).unwrap().landings[0].changes[0];
+        assert_eq!((member.goal, member.milestone), (goal, milestone));
+    }
+}
+
+#[test]
+fn only_tiers_following_the_branch_are_logged_and_an_added_member_keeps_them() {
+    for follows in [Follows::Landing, Follows::Branch(b"main".as_slice().into())] {
+        let mut d = configured_domain(&[(TIER, None), (b"goals", None)]);
+        let tiers = &mut d.landing.projects.get_mut(&PROJECT).unwrap().1[0].tiers;
+        tiers[0].follows = follows;
+        tiers[1].follows = Follows::Goals;
+        for (task, branch, commit) in [(CHANGE, b"main".as_slice(), FIRST), (SECOND, b"goal", LAST)] {
+            add_change(&mut d, task, branch);
+            merged(&mut d, task, commit);
+        }
+        let entries = Box::new([LoggedTier { tier: TIER.into(), verdict: LoggedVerdict::Verifying }]);
+        assert_eq!(d.landing_log(REPO).unwrap().landings[0].tiers.as_ref(), entries.as_ref());
+        assert!(d.landing_log(REPO).unwrap().landings[1].tiers.is_empty());
+        d.landing.projects.get_mut(&PROJECT).unwrap().1[0].tiers[0].follows =
+            Follows::Branch(b"other".as_slice().into());
+        add_change(&mut d, OLDER_REPAIR, b"main");
+        merged(&mut d, OLDER_REPAIR, FIRST);
+        let row = d.landing_log(REPO).unwrap();
+        assert_eq!(row.landings[0].tiers.as_ref(), entries.as_ref());
+        assert_eq!(row.landings[0].changes.len(), 2);
+        merged(&mut d, CHANGE, [99; 32]);
+        assert!(d.landing_log(REPO).unwrap().landings[2].tiers.is_empty(), "another branch adds no entry");
+    }
+}
+
+#[test]
+fn a_restore_infers_verifying_from_ranges_and_drops_removed_tiers() {
+    for (removed, posted) in [(false, false), (true, false), (false, true)] {
+        let mut d = configured_domain(&[(TIER, None)]);
+        for (task, commit) in [(CHANGE, FIRST), (SECOND, LAST), (OLDER_REPAIR, REPAIR)] {
+            add_change(&mut d, task, b"main");
+            merged(&mut d, task, commit);
+        }
+        let mut log = d.landing_log(REPO).unwrap().clone();
+        if !removed {
+            for landing in &mut log.landings {
+                landing.tiers = Box::new([]);
+            }
+        }
+        if posted {
+            green(&mut d, 1, &[FIRST]);
+        } else {
+            tier_run(&mut d, TIER, 1, &[FIRST]);
+        }
+        d.tiers.get_mut(&(REPO, TIER.into())).unwrap().pending = Box::new([TierLanding { commit: LAST, key: None }]);
+        let tier = d.tiers.get(&(REPO, TIER.into())).unwrap().clone();
+        let mut restored = configured_domain(&[(TIER, None)]);
+        restored.restore_begin(Wall::EPOCH);
+        step(&mut restored, &env(), Event::Restore { record: Stored::Tier(tier) }, &mut Queue::uncapped());
+        step(&mut restored, &env(), Event::Restore { record: Stored::LandingLog(log) }, &mut Queue::uncapped());
+        if removed {
+            restored.landing.projects.get_mut(&PROJECT).unwrap().1[0].tiers = Box::new([]);
+        }
+        let mut out = Queue::uncapped();
+        step(&mut restored, &env(), Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic }, &mut out);
+        let row = restored.landing_log(REPO).unwrap();
+        for landing in &row.landings[..2] {
+            if removed || (posted && landing.commit == FIRST) {
+                assert!(landing.tiers.is_empty(), "a verdict awaiting its posts is already judged");
+            } else {
+                assert_eq!(
+                    landing.tiers.as_ref(),
+                    &[LoggedTier { tier: TIER.into(), verdict: LoggedVerdict::Verifying }]
+                );
+            }
+        }
+        assert!(row.landings[2].tiers.is_empty(), "a tier no longer holding this commit leaves it judged");
+        assert_eq!(saved(&out).as_ref(), core::slice::from_ref(row));
+        let out = judge(
+            &mut restored,
+            TIER,
+            1,
+            &[FIRST],
+            Box::new([policy::Blame::Cleared]),
+            policy::Failures::Tests(Box::new([])),
+        );
+        let row = restored.landing_log(REPO).unwrap();
+        assert_eq!(
+            row.landings[0].tiers.as_ref(),
+            &[LoggedTier { tier: TIER.into(), verdict: LoggedVerdict::Cleared { run: 1 } }],
+            "a removed tier's in-flight run still judges"
+        );
+        assert_eq!(saved(&out).as_ref(), core::slice::from_ref(row));
+    }
 }

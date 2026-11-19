@@ -38,6 +38,9 @@ open.
   named rather than written, `forge` and a commit or a wait on the box's
   fake Forgejo as the person, and `look`, which answers the page's
   accessible text and a screenshot, or the TUI's rows (section 3).
+  `web requests` answers the requests the page has sent since it last
+  loaded, each with its wave, so that a page's request budget is
+  checked on a landed build (3.2).
 - **Each line answered,** `ok` or `failed: WHY`, what it shows prefixed
   `| `; a failed line never ends the session (3.7).
 - **Kept lines:** every line but `look`, in order, in `session/lines`,
@@ -282,11 +285,78 @@ no tui line walks in one (`recipe.md`, 5.1).
 | `web reload PATH` | loads PATH, with its query, on the box's origin, and waits for the client's main region | 60 s |
 | `web look` | answers the page's accessible text, the browser kit's snapshot, a line per node (skein's `testing/browser.md`, 6) | 10 s |
 | `web look WIDTH` | first the path of a screenshot of the page at WIDTH CSS pixels wide, its height the page's viewport's, written to `session/looks/`, then the text as `web look`; the viewport restored after | 10 s |
+| `web requests` | answers the requests the page has sent since it last loaded, a line each with its wave, then `N requests in W waves`, once the page is quiet (below) | 30 s, quiet for 2 s |
 
 A role is a word of skein's roles, lowercase, as `web/journeys.md`, 8.2
 has it. WIDTH is 320 to 3840. At a deployment the origin is the
 engine's clients' listener, its first link's
 (`../testing/qa/deployment.md`, 5 and 6.1).
+
+**The page's requests,** what `web requests` answers, come from the
+requests the browser kit reports of the session's page and their first
+answers (skein's `testing/browser.md`, 5), which the harness passes on
+as it passes the page's troubles (2.3; skein's `ui/web/testing.md`, 2).
+The session takes them from its start, whatever line runs or none:
+
+- **Since it last loaded:** the page's last load is the latest request
+  the kit reports as a `document`, and the page's requests are those it
+  reports with that load. So what the leaving page sends as a reload
+  begins, its `POST /jig/v1/read` among them, carries the leaving page's
+  load and is left out wherever it comes in the order. A move the client
+  draws in the same document is no load, and the list goes on.
+- **On its origin:** a request whose URL is not on the origin of the
+  load's document, its scheme, host and port, is left out: another
+  origin's, the browser's own, a `data:` or a `blob:` one.
+- **After its document and its bundle's files:** the load's own document,
+  and each `GET` under `/bundle/` or of a root file, `/robots.txt`,
+  `/sw.js` or `/manifest.webmanifest` (`web/README.md`, 2.2, steps 4 to
+  6), are not listed and count in no wave.
+- **A line each, in the order sent:** its method, its path with the
+  query and the fragment dropped, since a sign-in link carries its secret
+  in its query (2.3), and its wave: `GET /jig/v1/stream, wave 1`.
+- **Answered** at its first answer as the kit reports it, the first of
+  its answer's first body bytes, its end and its failure. So a stream,
+  which never ends, is answered at its first event, the hello (jig's
+  `protocol/client/default-http.md`, 2), and a batch at its first reply.
+- **Its wave** is counted as `../draft/page-round-trips.md`, 2 counts
+  waves, every exchange the client has sent that waits for an answer,
+  for answers that come apart rather than all at once: a request's wave
+  is one more than the greatest wave among the listed requests answered
+  before it was sent, and 1 where none was. So requests sent together
+  share a wave, and one sent once an answer has come is in the wave
+  after that answer's. A request's wave is the length of the chain of
+  round trips it may have waited on, and the last wave the page's count
+  of round trips; an engine that answers each wave at once, as the
+  budget's test has it, gives the same waves.
+- **Then the last line,** `N requests in W waves`, N the requests listed
+  and W their greatest wave, 0 with none, its words the same whatever
+  the numbers: `0 requests in 0 waves`.
+- **Once the page is quiet:** every request of the load on its origin
+  answered, its document and its bundle's files among them, and none
+  sent or answered for 2 seconds; at once where that already holds. The
+  bound is 30 seconds from the line's start. Past it the line fails
+  (3.6), showing the requests listed so far and the last line, its WHY
+  naming each request still unanswered as its line shows it, or, with
+  none, that the page kept sending.
+- **Kept** as every line but a look is (section 4): it acts on nothing,
+  so a replay reaches the same page, and a finding's reproduction ends
+  at the line whose answer the finding compares.
+
+The two cold opens of Work that a pass by hand counted from Chromium's
+net log on 2026-11-18, on a project with a milestone of two goals and
+three goals outside it, each sent the stream and, after its hello, one
+batch, and nothing more. This line answers such an open:
+
+```text
+| GET /jig/v1/stream, wave 1
+| POST /jig/v1/batch, wave 2
+| 2 requests in 2 waves
+ok
+```
+
+A reload whose small store kept keyed requests lists them too, beside
+the batch, though `../draft/page-round-trips.md`, 2 puts them outside
+its budget.
 
 ### 3.3 The TUI's lines
 
@@ -498,6 +568,12 @@ deployment line`, and is not kept.
   `testing/browser.md`, 5 and 6) are asked through the fake person's
   harness, which gains a read for each where it has none (skein's
   `ui/web/testing.md`, 2).
+- **The page's requests** are the harness's reports (skein's
+  `ui/web/testing.md`, 2), each an event to the logic as a trouble is: a
+  request sent, with its id, its load, whether it is a document, its
+  method and its URL, and a first answer, by its id. The logic keeps the
+  last load's from the session's start, and counts their waves, and the
+  quiet spell by its events' times, with no io (3.2).
 - **The TUI's saves and replay** are the walk's (`tui/journeys.md`, 8.1
   and 8.2), shared, not copied.
 
@@ -557,6 +633,22 @@ Focused, with no browser, no box and no Chromium:
   tui line, or a look of either, fails and is not kept; ctl and forge
   lines answer as in any session; `{model.key}` takes the box's `box:
   model key` line.
+- **The page's requests** (3.2): the logic given a recorded sequence of
+  requests and answers, with their times. A reload's document, its
+  bundle's files and `/sw.js`, the leaving page's `POST /jig/v1/read`
+  with the old load after the new document, `GET
+  /jig/v1/stream?version=…` answered at its first bytes, then `POST
+  /jig/v1/batch` and a request to another origin: `web requests`
+  answers `GET /jig/v1/stream, wave 1`, `POST /jig/v1/batch, wave 2`
+  and `2 requests in 2 waves`, no line holds a query, and the other
+  origin's request and the leaving page's are left out. Requests sent
+  apart (two together, the first answered, a third sent, the second
+  answered, a fourth sent) take waves 1, 1, 2 and 2. The answer waits
+  until 2 seconds pass with every request answered and none sent, and a
+  request sent inside the spell starts it again. A request unanswered at
+  30 seconds fails the line, naming it, and a page that sends every
+  second fails it, saying so. `web requests` parses and prints back to
+  its bytes, `web requests 1` is refused, and the line is kept.
 - **A deployment's session:** `../testing/qa/deployment.md`, 9's;
   `--ctl --deployment` a ctl session, `--deployment` alone a full one
   needing Chromium, and `--bundle` optional there.
@@ -571,6 +663,13 @@ Focused, with no browser, no box and no Chromium:
   itself (3.3), so no case walks the approval's own frames; the TUI
   journey `sign-in-approved` keeps them recorded (`tui/journeys.md`, 9).
   Default: so, until a case asks for them.
+- **The quiet spell and its bound** (3.2): 2 and 30 seconds, for a box
+  or a deployment on the session's own machine. Default: fixed until a
+  case needs another.
+- **A load that leaves the page where it was:** a navigation the
+  browser turns into a download commits no document, but its request is
+  reported as one, and the list starts again from it. Default: so; no
+  case's page navigates to a download before `web requests`.
 - **The fake GitHub's commit:** a `forge` line on the box's fake GitHub
   would commit through its git data API, as
   `../../development/acceptance.md`, 3 makes GitHub's gate one commit,

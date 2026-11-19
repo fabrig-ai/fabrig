@@ -785,28 +785,34 @@ fn all_home_counts_unfiltered_cards_and_every_approval() {
             fixture.watch(Watchable::Jig(c::Subject::Inbox { window: fixture.root.pages().inbox().unwrap().window }));
         let mut rows = List::with_capacity(1);
         rows.push(f::inbox_entry(f::acts::QUESTION, c::InboxGroup::Questions, FIRST, 0)).unwrap();
-        let document = crate::tests::documents::inbox(rows, 1, c::Count { value: 0, limited: false }, 0, inbox_cut);
-        let out = fixture
+        let document =
+            crate::tests::documents::inbox(rows.clone(), 1, c::Count { value: 0, limited: false }, 0, inbox_cut);
+        let mut out = fixture
             .up(Up::Watched { watch: inbox, event: c::WatchEvent::Delivered(c::Delivery::Inbox(Box::new(document))) });
-        for request in &out {
-            if let Request::Unlinked {
+        while let Some(request) = out.pop() {
+            let Request::Unlinked {
                 request:
-                    jig_client::UnlinkedRequest::Down {
-                        down: Down::Read { read, what: jig_client::Readable::Jig(c::Read::Question { .. }) },
-                    },
+                    jig_client::UnlinkedRequest::Down { down: Down::Read { read, what: jig_client::Readable::Jig(what) } },
             } = request
-            {
-                fixture
-                    .up(Up::ReadDone { read: *read, result: Readout::Jig(c::ReadResult::Value(f::acts::question())) });
-            }
-            if let Request::Unlinked {
-                request:
-                    jig_client::UnlinkedRequest::Down {
-                        down: Down::Read { read, what: jig_client::Readable::Jig(c::Read::Inbox { .. }) },
-                    },
-            } = request
-            {
-                fixture.up(Up::ReadDone { read: *read, result: Readout::Jig(c::ReadResult::None(c::ReadNone::Busy)) });
+            else {
+                continue;
+            };
+            let value = if let c::Read::Inbox { .. } = what {
+                c::ReadValue::Inbox(Box::new(c::InboxPage {
+                    rows: rows.clone(),
+                    after: None,
+                    before: None,
+                    selection: None,
+                    cut: inbox_cut,
+                }))
+            } else if let c::Read::Question { .. } = what {
+                f::acts::question()
+            } else {
+                continue;
+            };
+            let mut more = fixture.up(Up::ReadDone { read, result: Readout::Jig(c::ReadResult::Value(value)) });
+            while let Some(request) = more.pop() {
+                out.push(request);
             }
         }
         let approvals = fixture.watch(forge::approvals::watch(&fixture.limits.forge).unwrap());

@@ -22,6 +22,7 @@ temper-engine-shell.workspace = true
 skein-fail-stop.workspace = true
 
 [dev-dependencies]
+temper-deployment-fixtures.workspace = true
 temper-agent-fixtures.workspace = true
 jig-domain-core.workspace = true
 jig-protocol-store.workspace = true

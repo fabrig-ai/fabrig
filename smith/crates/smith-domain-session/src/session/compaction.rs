@@ -11,6 +11,8 @@ use super::{Conversation, End, Limits, Request, content_cost, payload_cost, rele
 use crate::llm::{Block, Evidence, Failure, Limit, Message, Role, Stop, Usage};
 use crate::window::{self, Admission, Bytes, State as WindowState, Window};
 
+const REASONING_NOT_CARRIED: &[u8] = b"[reasoning not carried over]";
+
 /// Opener text waits beside the old history until its new window opens.
 #[derive(Debug)]
 pub(super) enum Compaction {
@@ -203,7 +205,9 @@ pub(super) fn start(
     // The instruction moves from the spec into history; its bytes were already charged.
     let cell = u64::try_from(size_of::<Block>()).expect("summary cell fits");
     assert!(conversation.transcript.room() > 0, "history admission leaves the summary a message");
-    assert!(super::charge(conversation, Some(cell), limits), "history admission leaves the summary a block");
+    if !super::blocks_fit(conversation, 1, limits) || !super::charge(conversation, Some(cell), limits) {
+        return Some(window_limit(conversation, evidence, attempts));
+    }
     let text = mem::replace(&mut conversation.summary, Box::new([]));
     let content: Box<[Block]> = Box::new([Block::Text { text, replay: None }]);
     conversation.transcript.push(Message { role: Role::User, content }).expect("summary message slot checked");
@@ -486,7 +490,8 @@ pub(super) fn restore(
 pub(super) fn carry_over(
     conversation: &mut Conversation,
     transcript: &mut crate::record::Transcript,
-) -> Result<u64, crate::record::Refusal> {
+    bytes: &mut u64,
+) -> Result<(), crate::record::Refusal> {
     use crate::record::{Kind, Refusal};
     let first = transcript.turns.first().expect("validated nonempty history");
     let same_opening = match &first.kind {
@@ -499,23 +504,23 @@ pub(super) fn carry_over(
         && transcript.dialect == conversation.cursor.dialect
         && same_opening
     {
-        return Ok(0);
+        return Ok(());
     }
-    let mut released = 0_u64;
     let mut messages = 0_u32;
     for turn in &mut transcript.turns {
         for message in &mut turn.messages {
             messages = messages.checked_add(1).ok_or(Refusal::TooLarge)?;
-            released = released.checked_add(portable_message(message)?).ok_or(Refusal::TooLarge)?;
+            portable_message(message, bytes)?;
         }
     }
     conversation.window.stage = WindowState::Used;
     conversation.window.following = messages;
     conversation.compaction = Compaction::CarryOver { next: None };
-    Ok(released)
+    Ok(())
 }
 
-fn portable_message(message: &mut Message) -> Result<u64, crate::record::Refusal> {
+/// Replace the charged content cost, admitting growth as well as released bytes.
+fn portable_message(message: &mut Message, bytes: &mut u64) -> Result<(), crate::record::Refusal> {
     use crate::record::Refusal;
     let before = content_cost(&message.content).ok_or(Refusal::TooLarge)?;
     let content = mem::replace(&mut message.content, Box::new([]));
@@ -525,8 +530,14 @@ fn portable_message(message: &mut Message) -> Result<u64, crate::record::Refusal
             kept.push(block).expect("one retained slot per old block");
         }
     }
-    message.content = kept.into_boxed();
-    before.checked_sub(content_cost(&message.content).ok_or(Refusal::TooLarge)?).ok_or(Refusal::TooLarge)
+    message.content = if kept.is_empty() {
+        Box::new([Block::Text { text: skein_lib::bytes::copy_of(REASONING_NOT_CARRIED), replay: None }])
+    } else {
+        kept.into_boxed()
+    };
+    let after = content_cost(&message.content).ok_or(Refusal::TooLarge)?;
+    *bytes = bytes.checked_sub(before).ok_or(Refusal::TooLarge)?.checked_add(after).ok_or(Refusal::TooLarge)?;
+    Ok(())
 }
 
 fn portable(block: Block) -> Option<Block> {
@@ -554,7 +565,7 @@ fn portable(block: Block) -> Option<Block> {
 }
 
 /// A missing persisted session carries even a fresh restored window over once.
-pub(super) fn session_gone(conversation: &mut Conversation) -> Option<End> {
+pub(super) fn session_gone(conversation: &mut Conversation, limits: &Limits) -> Option<End> {
     if conversation.gone_window == Some(conversation.window.number) || conversation.compaction.asking() {
         return Some(End::Failed {
             failure: Failure::SessionGone,
@@ -565,16 +576,21 @@ pub(super) fn session_gone(conversation: &mut Conversation) -> Option<End> {
     }
     conversation.gone_window = Some(conversation.window.number);
     let mut messages = conversation.transcript.len().saturating_sub(1);
-    let mut released = 0_u64;
+    let mut bytes = conversation.bytes;
     for index in 0..conversation.transcript.len() {
         let message = conversation.transcript.get_mut(index).expect("history message");
         if message.role == Role::Assistant {
             messages = index.checked_add(1).expect("bounded history");
         }
-        released =
-            released.checked_add(portable_message(message).expect("admitted portable content")).expect("history");
+        if portable_message(message, &mut bytes).is_err() {
+            return Some(window_limit(conversation, Evidence::Unsent, 0));
+        }
     }
-    conversation.bytes = conversation.bytes.checked_sub(released).expect("portable history releases its bytes");
+    conversation.bytes = bytes;
+    match bytes.checked_add(conversation.reserved) {
+        Some(held) if held <= limits.history_bytes && super::blocks_fit(conversation, 0, limits) => {}
+        Some(_) | None => return Some(window_limit(conversation, Evidence::Unsent, 0)),
+    }
     conversation.window.stage = WindowState::Used;
     conversation.window.following = messages;
     conversation.compaction = Compaction::CarryOver { next: None };

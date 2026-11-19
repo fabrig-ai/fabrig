@@ -826,8 +826,7 @@ fn the_goals_charter_asks_for_one_report_revised_in_place() {
     for phrase in [
         "If your brief says [Requested by person N], your requester is that person, who has no task to message: wherever you would ask them with message, call delegate instead with one task: executor {kind: person, person: N}, N from that line and no one else; spec words your question; contract {kind: report, words: 4096}; authority {tools: 0, grants: [], delegation: {kinds: [], tasks: 0, depth: 0}, budget: {spend: 0}, notes: 0}. Then call wait: its result is their answer.",
         "After planning",
-        "report: ` then a one-line headline for the person saying where the goal stands, naming no task, change or pull request by number",
-        "5 of its 7 changes landed; the other 2 are building.",
+        "report: ` then a one-line headline for the person saying, in the work's own terms, what the goal has done and what's left, naming no task, change or pull request by number, no draft code or branch, and none of the words of how goals run, as \"Most of it is in; the last two parts are being built.\"",
         "Left: ",
         "Risk: ",
         "Decided: ",
@@ -838,6 +837,7 @@ fn the_goals_charter_asks_for_one_report_revised_in_place() {
     ] {
         assert!(goal.contains(phrase), "{phrase}");
     }
+    assert!(!goal.contains("5 of its 7 changes"));
 }
 
 fn chat_and_goal_use_asking() {
@@ -856,8 +856,9 @@ fn goals_changes_and_roles_open_with_titles_for_a_person() {
         .split("\n\n")
         .find(|paragraph| paragraph.starts_with("Titles, for a goal and the person's chat:"))
         .expect("titles paragraph");
-    let sentence = "Open the words of each goal and change you start with a title line: at most 60 characters naming the work for a person, as Store shape S7 · history in task logs; the rest follows on the lines below.";
+    let sentence = "Open the words of each goal and change you start with a title line: at most 60 characters naming the work in plain words, with no draft codes or internal names, as Store shape · history in task logs; the rest follows on the lines below.";
     assert!(titles.contains(sentence));
+    assert!(!words.contains("Store shape S7"));
     for words in [
         include_str!("../stock/role.md"),
         include_str!("../stock/triager.md"),
@@ -866,6 +867,7 @@ fn goals_changes_and_roles_open_with_titles_for_a_person() {
     ] {
         let shared = words.strip_prefix("## shared\n").unwrap().split_once("## part, on:").unwrap().0;
         assert!(shared.contains(sentence));
+        assert!(!words.contains("Store shape S7"));
     }
 }
 
@@ -2231,7 +2233,7 @@ fn the_status_charters_words_are_the_requests() {
     let words = include_str!("../stock/status.txt");
     assert_eq!(
         words,
-        "You write the few lines at the top of a project's home page, from the facts in your task. Write one sentence on what landed, starting with the count, or, where nothing landed, on what changed among the open findings. Then a blank line, then at most three plain sentences on what stands out: what finished, what is stuck and why, and what the open findings are about. Name findings by what they are about, grouped, as: \"Seven of the 11 findings are about tests: four fail only beside other tests, and three CI runs failed with no fault in the change they checked.\" Name a goal by its milestone where it has one, and say when a milestone completed and when its last goal landed. Say only what the facts say. No greetings, no lists, no advice."
+        "You write the few lines at the top of a project's home page, for a person, from the facts in your task. Write one sentence of at most 25 words on what landed, starting with the count, or, where nothing landed, on what changed among the open findings. Then a blank line and at most two plain sentences, 70 words in all, on what stands out: what finished, what is stuck and why, what the open findings are about. Name findings by what they are about, grouped, as: \"Seven of the 11 findings are about tests: four fail only beside other tests, and three CI runs failed with no fault in the change they checked.\" Name a goal by its milestone where it has one and by what it does, with no codes (K3), wire or protocol versions or words of how goals run (delegates, cut, wave, spec), and say when a milestone completed and its last goal landed. Say a person is waited on only where a line counts questions open to a person, never from a Now alone. Say only what the facts say. No greetings, no lists, no advice."
     );
     let engine = single_engine();
     let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);

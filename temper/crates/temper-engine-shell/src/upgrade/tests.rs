@@ -2,9 +2,7 @@
 use super::{Request, run};
 use std::os::unix::ffi::OsStrExt;
 use std::path::Path;
-mod deployment;
-pub(crate) use deployment::deployment;
-use deployment::{copy, tree};
+use temper_deployment_fixtures::deployment;
 
 #[test]
 fn workers_arguments_are_distinct_and_modes_exclude_each_other() {
@@ -48,46 +46,6 @@ fn workers_arguments_are_distinct_and_modes_exclude_each_other() {
         super::configure("--workers", rest, &environment, b"/work").unwrap().1,
         Request::Workers(b"/work/backup".as_slice().into())
     );
-}
-
-#[test]
-fn checkpoint_checks_take_only_the_checkpoint_lock_and_leave_data_unchanged() {
-    let (_scratch, directories) = deployment();
-    let data = Path::new(std::ffi::OsStr::from_bytes(&directories.data));
-    let deployment = data.join("state");
-    let checkpoints = deployment.join("checkpoints");
-    std::fs::create_dir(&checkpoints).unwrap();
-    let checkpoint = checkpoints.join("00000000000000000001-00000000000000ff");
-    // The stopped floor and its checkpoint hold the same generation's maps.
-    let staged = data.join("checkpoint-copy");
-    copy(&deployment, &staged);
-    std::fs::rename(staged, &checkpoint).unwrap();
-    let before = tree(data);
-    let held = std::fs::File::open(&deployment).unwrap();
-    held.try_lock().expect("serving engine's deployment lock");
-    for request in [
-        Request::Check(checkpoint.as_os_str().as_bytes().into()),
-        Request::Workers(checkpoint.as_os_str().as_bytes().into()),
-    ] {
-        // Preparation reads an existing --data; make_private checks its metadata alone.
-        let (service, _) = crate::stopped::prepare("temper-engine", &directories).expect("read-only preparation");
-        assert_eq!(tree(data), before, "preparation writes nothing under --data");
-        drop(service);
-        assert_eq!(
-            run("temper-engine", &directories, &request, "test-build").expect("checkpoint tool"),
-            0,
-            "deployment lock is not taken"
-        );
-        assert_eq!(tree(data), before, "the deployment and checkpoint stay unchanged");
-        let source_lock = std::fs::File::open(&checkpoint).unwrap();
-        source_lock.try_lock().expect("hold the checkpoint's source lock");
-        assert_eq!(
-            run("temper-engine", &directories, &request, "test-build").expect("busy source report"),
-            1,
-            "the checkpoint lock is taken"
-        );
-        assert_eq!(tree(data), before, "a refused rehearsal writes nothing under --data");
-    }
 }
 
 #[test]

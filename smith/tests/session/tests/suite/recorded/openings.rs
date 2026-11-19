@@ -243,6 +243,34 @@ fn a_window_from_elsewhere_is_carried_over() {
 }
 
 #[test]
+fn an_emptied_carried_message_is_marked_only_in_the_compaction() {
+    let mut row = carried_windows().remove(3);
+    let assistant = row.history.turns.last_mut().expect("last turn").messages.last_mut().expect("assistant");
+    assert_eq!(assistant.role, llm::Role::Assistant);
+    assistant.content = Box::new([]);
+    let mut world = compaction_world(Some(row.history), None, MODEL_WINDOW, NEXT_MODEL);
+    let prompt = world.prompts.first().expect("carry-over compaction");
+    assert!(matches!(prompt.purpose, llm::Purpose::Compaction { .. }));
+    assert!(prompt.messages.iter().all(|message| !message.content.is_empty()));
+    let assistant =
+        prompt.messages.iter().rev().find(|message| message.role == llm::Role::Assistant).expect("assistant");
+    assert_eq!(assistant.content, said(b"[reasoning not carried over]"));
+    summarise(&mut world);
+    assert_eq!(window(world.turns.first().expect("window turn")), row.expected.window);
+    assert!(
+        !world
+            .prompts
+            .last()
+            .expect("new window")
+            .messages
+            .iter()
+            .flat_map(|message| &message.content)
+            .any(|block| block.text() == Some(b"[reasoning not carried over]".as_slice()))
+    );
+    world.close();
+}
+
+#[test]
 fn a_resume_after_a_carry_over_does_not_compact_again() {
     let row = carried_windows().remove(0);
     let mut carried = compaction_world(Some(row.history), None, MODEL_WINDOW, NEXT_MODEL);

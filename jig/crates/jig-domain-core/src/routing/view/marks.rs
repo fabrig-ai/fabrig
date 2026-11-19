@@ -255,17 +255,20 @@ pub(crate) fn touch_people_event(core: &mut Core, limits: &Limits, event: &peopl
                 core.touch_party(party);
             }
         }
-        people::Event::Waiting { task, entries } => {
+        people::Event::Waiting { source, entries } => {
             let mut parties = List::with_capacity(core.watch_flights());
             for (_, flight) in &core.flights {
                 let crate::routing::flight::Flight::Watch { binding, .. } = flight else { continue };
                 let old = core.people.cached_waiting(&limits.people, binding.party);
-                let mut touched = core.people.task_needs(binding.party, *task)
+                let mut touched = core.people.source_needs(binding.party, *source)
                     || match old {
                         Some(old) => {
                             let mut present = false;
                             for entry in &old {
-                                present |= entry.task == *task;
+                                present |= match source {
+                                    people::NeedSource::Task(task) => entry.task == *task,
+                                    people::NeedSource::Proposal { .. } => false,
+                                };
                             }
                             present
                         }

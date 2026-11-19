@@ -2,6 +2,103 @@ use super::fixtures;
 use skein_ui::{Act, Role};
 use temper_client_domain::{Action, ChatsFilter, pages};
 
+/// Direct children only: the switch follows the complete end, never inside it.
+pub(super) fn assert_top_children(view: &crate::View, steps: bool, browser: bool, night: bool) {
+    use crate::look;
+    let nodes = view.tree().nodes();
+    let mut banner = None;
+    for (at, node) in nodes.iter().enumerate() {
+        if node.role == Role::Banner {
+            assert!(banner.is_none(), "one banner");
+            banner = Some(at);
+        }
+    }
+    let banner = banner.expect("top bar");
+    assert_eq!(nodes[banner].styles.as_slice(), [look::TOP]);
+    let end = banner.checked_add(usize::try_from(nodes[banner].size).unwrap()).unwrap();
+    let mut at = banner.checked_add(1).unwrap();
+    for (role, style, shown) in [
+        (Role::Link, look::BRAND, true),
+        (Role::List, look::FLOW_STEPS, steps),
+        (Role::Slot, look::TOP_END, true),
+        (Role::Button, look::NIGHT_SWITCH, browser),
+    ] {
+        if !shown {
+            continue;
+        }
+        assert!(at < end, "missing banner child {style:?}");
+        let node = &nodes[at];
+        assert_eq!(node.role, role);
+        assert_eq!(node.styles.as_slice(), [style]);
+        if style == look::NIGHT_SWITCH {
+            assert_eq!(node.name.as_deref(), Some(b"Night mode".as_slice()));
+            assert_eq!(node.states.as_slice().contains(&skein_ui::State::Pressed), night);
+        }
+        at = at.checked_add(usize::try_from(node.size).unwrap()).unwrap();
+    }
+    assert_eq!(at, end, "no other banner children");
+    let mut switches = 0_u32;
+    for node in &nodes[banner..end] {
+        if node.styles.as_slice().contains(&look::NIGHT_SWITCH) {
+            switches = switches.checked_add(1).unwrap();
+        }
+    }
+    assert_eq!(switches, u32::from(browser));
+}
+
+#[test]
+fn the_top_bar_switch_is_available_in_every_outside_state() {
+    use temper_client_domain::{Address, Event, Place};
+    let mut authorize = fixtures::root_in_project(None);
+    fixtures::root_event(
+        &mut authorize,
+        Event::Went { place: Place::Authorize { query: b"state=test".as_slice().into() } },
+    );
+    let mut approval = fixtures::root_in_project(None);
+    fixtures::root_event(&mut approval, Event::Went { place: Place::Approve { code: None } });
+    for mut root in [
+        Box::new(fixtures::no_project_root()),
+        Box::new(fixtures::reading_me_at(Address::Chats { filter: ChatsFilter::All })),
+        Box::new(fixtures::signed_out()),
+        Box::new(fixtures::out_of_date()),
+        Box::new(authorize),
+        Box::new(approval),
+    ] {
+        for night in [false, true] {
+            let mut view = fixtures::browser_page_view(&root);
+            assert_top_children(&view, false, true, night);
+            if root.pages().me(root.client()).is_some() {
+                assert_top_end(
+                    &view,
+                    &[(Role::Region, None), (Role::Status, Some(b"Pat")), (Role::Button, Some(b"Sign out"))],
+                );
+            }
+            let terminal = fixtures::page_view(&root);
+            assert_top_children(&terminal, false, false, night);
+            let id = fixtures::find(view.tree(), Role::Button, b"Night mode").unwrap();
+            let action = crate::act(&mut view, id, Act::Press).unwrap();
+            assert_eq!(action, Action::Pages(pages::Act::Terminal(pages::terminal::Act::Night)));
+            fixtures::root_event(&mut root, Event::Act { action });
+        }
+        assert!(!root.pages().look().night);
+    }
+    let mut root = fixtures::signed_out();
+    for night in [false, true] {
+        let mut view = fixtures::sign_in_view(
+            &root,
+            crate::words::Shell::Browser,
+            crate::sign_in::Ways::parse("google", b"https://temper.example"),
+        );
+        assert_top_children(&view, false, true, night);
+        assert!(fixtures::find(view.tree(), Role::Link, b"Continue with Google").is_some());
+        let id = fixtures::find(view.tree(), Role::Button, b"Night mode").unwrap();
+        let action = crate::act(&mut view, id, Act::Press).unwrap();
+        assert_eq!(action, Action::Pages(pages::Act::Terminal(pages::terminal::Act::Night)));
+        fixtures::root_event(&mut root, Event::Act { action });
+    }
+    assert!(!root.pages().look().night);
+}
+
 #[test]
 fn the_top_bar_says_the_links_state_and_the_persons_name() {
     use temper_client_domain::{Address, Event, Step, pages::terminal::Look};
@@ -383,7 +480,10 @@ fn out_of_date_the_browser_main_keeps_its_words() {
         ]
     );
     assert_eq!(fixtures::styles(view.tree(), Role::Main).as_ref(), [Box::from([crate::look::OUTSIDE])]);
-    assert_eq!(fixtures::styles(view.tree(), Role::Button).as_ref(), [Box::from([crate::look::OUTSIDE_PRIMARY])]);
+    assert_eq!(
+        fixtures::styles(view.tree(), Role::Button).as_ref(),
+        [Box::from([crate::look::NIGHT_SWITCH]), Box::from([crate::look::OUTSIDE_PRIMARY])]
+    );
 }
 #[test]
 fn only_the_current_reload_press_gives_the_shell_event() {
@@ -565,7 +665,15 @@ pub(super) fn assert_top_end(view: &crate::View, children: &[(Role, Option<&[u8]
     }
     let corner = corner.expect("corner");
     let end = corner.checked_add(usize::try_from(nodes[corner].size).expect("corner size")).expect("corner end");
-    assert_eq!(end, banner_end, "corner finishes the banner");
+    let after = if let Some(node) = nodes.get(end)
+        && node.styles.as_slice() == [crate::look::NIGHT_SWITCH]
+    {
+        assert_eq!(node.role, Role::Button);
+        end.checked_add(usize::try_from(node.size).expect("switch size")).expect("after switch")
+    } else {
+        end
+    };
+    assert_eq!(after, banner_end, "only the browser switch follows the corner");
     let mut index = corner.checked_add(1).expect("first child");
     for (role, name) in children {
         let node = &nodes[index];

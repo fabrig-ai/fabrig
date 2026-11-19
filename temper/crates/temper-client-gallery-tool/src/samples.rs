@@ -96,6 +96,11 @@ pub struct Sample {
     pub then: Then,
 }
 impl Sample {
+    /// The fixed instant used for this state's relative times.
+    #[must_use]
+    pub fn now(&self) -> skein_lib::Wall {
+        crate::worlds::sample_now(self.world, self.name)
+    }
     /// Opens a page-owned disclosure in the static print (client/web/gallery.md).
     #[must_use]
     pub fn open_disclosure(&self) -> Option<&[u8]> {
@@ -3640,6 +3645,7 @@ fn morning_status() -> temper_client_protocol_wire::v1::ProjectStatus {
         queued: 3,
         red: false,
         branch: b"main".as_slice().into(),
+        unpaid: false,
     }).expect("morning status fits")
 }
 

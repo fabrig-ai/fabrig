@@ -17,10 +17,19 @@ fn an_address_is_an_engine_on_loopback_and_never_a_link() {
         ("http://[::1]:9000", Ok("[::1]:9000".parse().expect("IPv6"))),
         ("http://10.0.0.1:8367", Err(Refused::NotLoopback)),
         (LINK, Err(Refused::Link)),
+        ("http://127.0.0.1:8367/sign-in?secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", Err(Refused::Link)),
+        ("http://127.0.0.1:8367/sign-in?secret=S", Err(Refused::Link)),
+        ("http://127.0.0.1:8367/jig/v1/sign-in/link?secret=S", Err(Refused::Link)),
         ("127.0.0.1:8367", Err(Refused::NotAnAddress(Box::from(b"127.0.0.1:8367".as_slice())))),
         ("http://localhost:8367", Err(Refused::NotAnAddress(Box::from(b"http://localhost:8367".as_slice())))),
     ] {
         assert_eq!(tui::address(argument.as_bytes()), expected, "{argument}");
+        if expected == Err(Refused::Link) {
+            assert_eq!(
+                expected.expect_err("link refused").line("temper"),
+                "temper: a sign-in link is never an argument: run temper http://HOST:PORT and paste it\n"
+            );
+        }
     }
 }
 
@@ -82,7 +91,7 @@ fn a_fixed_run_draws_its_seed_on_the_tuis_stream_and_keeps_the_starts_first_read
     let (seed, clock) = super::fixed_run(&start);
     let mut bytes = [0u8; 8];
     start.draw(4, &mut bytes);
-    assert_eq!(seed, u64::from_le_bytes(bytes));
+    assert_eq!(seed, u64::from_le_bytes(bytes), "the seed given to local_run");
     assert_ne!(seed, start.seed);
     assert_eq!(clock.now(), skein_shell::Now { now: skein_shell::FixedStart::NOW, wall: start.wall });
 }

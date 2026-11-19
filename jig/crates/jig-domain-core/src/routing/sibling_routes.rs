@@ -186,7 +186,10 @@ impl Core {
                         task: tasks::PROPOSAL_WITHOUT_TASK,
                         project: 0,
                         whom: people::Whom::Role { project: 0, role: people::Role::Owner.number() },
-                        kind: people::EntryKind::Proposal { number: row.number },
+                        kind: people::EntryKind::Proposal {
+                            proposer: people::Proposer::Party(row.proposer),
+                            number: row.number,
+                        },
                         at: since,
                     })
                     .expect("one owner recipient");
@@ -212,7 +215,10 @@ impl Core {
                                 task: row.first(),
                                 project: row.project,
                                 whom: people::Whom::Role { project: row.project, role: policy.number },
-                                kind: people::EntryKind::Proposal { number: row.number },
+                                kind: people::EntryKind::Proposal {
+                                    proposer: people::Proposer::Party(row.proposer),
+                                    number: row.number,
+                                },
                                 at: *since,
                             })
                             .expect("one entry per policy role");

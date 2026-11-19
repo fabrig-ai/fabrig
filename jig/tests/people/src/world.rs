@@ -420,7 +420,7 @@ impl World {
                 answer: None,
             });
         }
-        self.send(Event::Waiting { task, entries });
+        self.send(Event::Waiting { source: people::NeedSource::Task(task), entries });
     }
 
     fn person_state(&self, task: u64) -> Option<PersonClaim> {

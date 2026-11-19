@@ -942,8 +942,8 @@ pub fn fixture_6_7() -> forge::Fixture {
             (fixture().configure)(value, agent, forge);
             // Small profile, four tasks in singleton batches (base allowance 8).
             // Two calls admit tool + parked wait, three fleet calls admit the
-            // cluster's workers. Budget 64 admits the widening: 1 director completion + A's
-            // 33 reserved + director run reserve 10 + A1's 20 unspent
+            // cluster's workers. Budget 65 admits the widening: 1 director completion + A's
+            // 33 reserved + director run reserve 10 + A1's 21 unspent
             // funded anew by the director. A needs 33 = its delegation's
             // 1 spent + A1's 22 + run reserve 10. A1 needs 22 = a5's 10
             // + one opening completion + next run reserve 10, with one spare. No landing projects are used.
@@ -951,9 +951,9 @@ pub fn fixture_6_7() -> forge::Fixture {
             small_two_call_window(value, agent);
             value["engine"]["limits"]["overrides"]["hub.run_calls"] = 2.into();
             value["engine"]["limits"]["overrides"]["fleet.calls"] = PAUSE_WORKERS.len().into();
-            value["world_settings"]["cap"] = 64.into();
+            value["world_settings"]["cap"] = 65.into();
             for project in value["world_settings"]["policies"].as_array_mut().expect("projects") {
-                project["policy"]["roles"][0]["authority"]["budget"]["spend"] = 64.into();
+                project["policy"]["roles"][0]["authority"]["budget"]["spend"] = 65.into();
             }
             // Base 391 lacks decide (8) and subscribe (32).
             for project in value["world_settings"]["policies"].as_array_mut().expect("projects") {

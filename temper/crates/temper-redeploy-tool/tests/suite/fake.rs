@@ -26,16 +26,19 @@ fn fake_checkpoints_require_a_stopped_engine_and_verdict_and_ctl_are_scriptable(
             )
         );
     }
+    hosts.verdict_answer(0, "workers may stay: yes");
     hosts.verdict_answer(7, "verdict refused");
-    assert_eq!(
-        hosts
-            .run(
-                Part::Engine,
-                &fill(&d.engine.verdict, &[("binary", "/staged/temper-engine"), ("checkpoint", "a-name")])
-            )
-            .code,
-        Some(7)
-    );
+    for code in [0, 7, 7] {
+        assert_eq!(
+            hosts
+                .run(
+                    Part::Engine,
+                    &fill(&d.engine.verdict, &[("binary", "/staged/temper-engine"), ("checkpoint", "a-name")])
+                )
+                .code,
+            Some(code)
+        );
+    }
     hosts.ctl_answer("deployment checkpoint --json", output(2, "checkpoint refused"));
     assert!(temper_redeploy_tool::hosts::ctl(&d, &["deployment", "checkpoint"], &mut hosts).is_err());
 }

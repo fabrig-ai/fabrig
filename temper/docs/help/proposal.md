@@ -79,7 +79,15 @@ change, or a start, makes a new revision.
 - `temper ctl`: `inbox` lists what waits on you, proposals among it;
   `proposal show` reads one, with its review for settings; `proposal
   decide` accepts, rejects or passes it up; `settings propose`
-  proposes a change of settings.
+  proposes a change of settings. An amendment shows its target task and
+  authority before and after; a retained amendment shows its replacement
+  authority when supplied, not a reconstructed before.
+- `proposal withdraw PROPOSAL --project PROJECT` withdraws your party's
+  own pending `pN/K`, without reading the proposal first. Use the project
+  printed when it was proposed. A task's or another party's key exits 1,
+  sending nothing. Asked again under the same `--key`, it prints the first
+  answer. A retained decision prints `decided first:` with exit 0; an
+  unknown proposal or one of another project exits 2.
 - A run proposes with the host tool `propose` (a batch, an effect, an
   amendment, a widening or a release), decides with `decide`, and
   withdraws its own with `withdraw`.
@@ -105,6 +113,5 @@ For the configuration members that need a restart, read `temper help configurati
   holds no decide family and cannot call `withdraw`.
 - A party's proposal withdrawn as stale names the revision it was made
   against, not the newest: read `settings show`, and propose again.
-- temper does not let ctl withdraw a proposal.
 - A proposal of a batch names amounts: a budget of as much as fits is
   not proposable.

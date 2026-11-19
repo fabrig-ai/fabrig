@@ -14,6 +14,7 @@ fn amend(world: &mut World, dependencies: &[u64]) {
     assert_eq!(
         response(world, |reply_to| Event::Amend {
             operation: tasks::Amend {
+                funder: None,
                 task: KEPT,
                 message,
                 stop_run: false,
@@ -33,7 +34,6 @@ fn amend(world: &mut World, dependencies: &[u64]) {
             places: Box::new([]),
             reply_to,
             by: AMENDER,
-            funder: None
         }),
         Reply::Done
     );

@@ -69,7 +69,9 @@ deployment: every name here is an example, temper at
 port; a TLS proxy terminates TLS for temper's name and passes it on, the
 `Host` as the browser sent it; plain HTTP is answered with a redirect to
 HTTPS. The proxy denies the printed link's route,
-`/jig/v1/sign-in/link`, from outside (2.3). jig's stream, `GET
+`/jig/v1/sign-in/link`, and its page, `/sign-in` itself
+(`../client/README.md`, section 4), from outside (2.3); the Google
+routes below `/sign-in/` pass (4.1). jig's stream, `GET
 /jig/v1/stream`, is passed unbuffered, with a read timeout longer than
 its heartbeat (jig's `protocol/client/default-http.md`, 2).
 
@@ -98,7 +100,7 @@ browsers use (`configuration/engine.md`). With one:
 - **It stays, for recovery:** the owner's way in when Google or the
   configuration is wrong, and the terminal's only way.
 - **On the host alone:** jig enables it only on a loopback listener; the
-  proxy denies its route from outside; the owner reaches it through an
+  proxy denies its route and its page from outside (2.1); the owner reaches it through an
   SSH tunnel to the listener.
 - **A fresh one, asked:** once the printed links are spent, a client
   signed in as a person asks the engine for a fresh one-time link for

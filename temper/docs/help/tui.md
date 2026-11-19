@@ -13,7 +13,7 @@ and engine.
 `temper box` in a terminal runs this TUI in front (temper help box),
 downloading `temper-box` once for this build if needed, signed in with nothing pasted. Its welcome shows the box's link for a
 browser on this machine. In front, Ctrl+C or `/quit` stops the box too,
-asking first while work runs. `temper-box` runs the box without it.
+asking first while work runs. `/web` opens temper in your browser, signed in as the owner. `temper-box` runs the box without it.
 
 - `DIR`: your existing TUI directory, `$XDG_STATE_HOME/temper/tui`
   when `XDG_STATE_HOME` is absolute, else `$HOME/.local/state/temper/tui`.

@@ -31,7 +31,10 @@ impl Core {
                 };
                 self.project(limits, input);
             }
-            self.project(limits, people::RestoreProjection::Waiting { task: task.number, entries });
+            self.project(
+                limits,
+                people::RestoreProjection::Waiting { source: people::NeedSource::Task(task.number), entries },
+            );
         }
         let mut proposals = List::with_capacity(self.tasks.person_proposals().len());
         for (number, _) in self.tasks.person_proposals() {
@@ -40,7 +43,7 @@ impl Core {
         for number in proposals.into_boxed() {
             let proposal = self.tasks.person_proposals().get(&number).expect("snapshot proposal");
             let input = people::RestoreProjection::Waiting {
-                task: proposal.first(),
+                source: people::NeedSource::Proposal { party: proposal.proposer, number: proposal.number },
                 entries: self.person_proposal_entries(proposal),
             };
             self.project(limits, input);
@@ -200,7 +203,10 @@ impl Core {
 
         let owner = self.tasks.task(line.task).expect("named question owner");
         let entries = self.waiting_entries(limits, owner);
-        self.project(limits, people::RestoreProjection::Waiting { task: line.task, entries });
+        self.project(
+            limits,
+            people::RestoreProjection::Waiting { source: people::NeedSource::Task(line.task), entries },
+        );
         self.start_failure().is_none()
     }
 

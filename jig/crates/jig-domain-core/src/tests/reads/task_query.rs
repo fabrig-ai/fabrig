@@ -192,6 +192,7 @@ fn generated_event(core: &Core, draw: u64, iteration: u64) -> Event {
         }),
         1 => Event::Tasks(tasks::Event::Amend {
             operation: tasks::Amend {
+                funder: None,
                 task,
                 message: FIRST_GENERATED.checked_add(iteration).unwrap(),
                 stop_run: false,
@@ -215,7 +216,6 @@ fn generated_event(core: &Core, draw: u64, iteration: u64) -> Event {
                 }),
             },
             places: Box::new([]),
-            funder: None,
             reply_to,
             by: tasks::Party::Person(REQUESTER),
         }),

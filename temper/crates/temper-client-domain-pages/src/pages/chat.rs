@@ -417,12 +417,8 @@ impl Chat {
                                 self.decided = Some((history.number, at));
                             }
                         }
-                        card.page = match page {
-                            Readout::Jig(c::ReadResult::Value(value)) => Some(value),
-                            Readout::Limit | Readout::NotServed { .. } | Readout::Jig(_) | Readout::Family { .. } => {
-                                None
-                            }
-                        };
+                        card.page = None;
+                        card.receive(page, client);
                         break;
                     }
                 }
@@ -1031,6 +1027,7 @@ impl Chat {
                 .insert(
                     (key.number, handle.number),
                     super::inbox::Card {
+                        withdraw_unread: false,
                         whole: None,
                         task: None,
                         object,
@@ -1140,6 +1137,7 @@ impl Chat {
             };
             self.cards
                 .push(super::inbox::Card {
+                    withdraw_unread: false,
                     whole: None,
                     task: None,
                     object,

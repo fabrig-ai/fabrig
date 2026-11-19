@@ -378,9 +378,14 @@ fn raw_amend(world: &mut World, person: u64) -> Option<Refusal> {
     world.send(root::Event::Core(core::Event::Tasks(tasks::Event::Amend {
         reply_to: ReplyTo::new(Token::new(9053)),
         by: tasks::Party::Person(PERSON),
-        funder: None,
         places: Box::new([]),
-        operation: tasks::Amend { task: PERSON_TASK, message, stop_run: false, amendment: Box::new(amendment) },
+        operation: tasks::Amend {
+            funder: None,
+            task: PERSON_TASK,
+            message,
+            stop_run: false,
+            amendment: Box::new(amendment),
+        },
     })));
     None
 }

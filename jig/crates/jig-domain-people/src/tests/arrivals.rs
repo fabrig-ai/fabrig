@@ -6,7 +6,7 @@ fn question(message: u64) -> Entry {
 }
 
 fn waiting(test: &mut Test, entries: &[Entry]) -> Vec<Request> {
-    test.send(Event::Waiting { task: 7, entries: entries.into() })
+    test.send(Event::Waiting { source: NeedSource::Task(7), entries: entries.into() })
 }
 
 fn arrival(party: u64, needs: u32) -> Request {
@@ -71,7 +71,7 @@ fn a_named_person_without_project_membership_gets_no_arrival() {
 fn proposals_and_escalation_revisions_tell_but_updates_do_not() {
     let mut test = Test::new(LIMITS);
     test.member();
-    let proposal = Entry { kind: EntryKind::Proposal { number: 3 }, ..question(11) };
+    let proposal = Entry { kind: EntryKind::Proposal { proposer: Proposer::Task(7), number: 3 }, ..question(11) };
     assert_eq!(waiting(&mut test, &[proposal]), [arrival(1, 1)]);
     assert_eq!(waiting(&mut test, &[proposal]).len(), 0);
     let escalation = Entry { kind: EntryKind::Escalation { revision: 1 }, ..proposal };
@@ -110,9 +110,12 @@ fn arrival_counts_only_this_partys_project_needs_past_the_cache() {
         holdings: Box::new([Holding { person: 1, role: Role::Member }, Holding { person: 2, role: Role::Member }]),
     });
     test.send(Event::Roles { project: 2, holdings: Box::new([Holding { person: 1, role: Role::Member }]) });
-    test.send(Event::Waiting { task: 8, entries: Box::new([Entry { task: 8, project: 2, ..question(11) }]) });
     test.send(Event::Waiting {
-        task: 9,
+        source: NeedSource::Task(8),
+        entries: Box::new([Entry { task: 8, project: 2, ..question(11) }]),
+    });
+    test.send(Event::Waiting {
+        source: NeedSource::Task(9),
         entries: Box::new([Entry { task: 9, whom: Whom::Person(2), ..question(11) }]),
     });
     let entries = [question(11), question(12), question(13)];
@@ -131,7 +134,10 @@ fn rebuilding_the_census_is_silent_and_preserves_need_identity() {
     test.send(Event::Restore {
         record: Stored::Roles { project: 1, holdings: Box::new([Holding { person: 1, role: Role::Member }]) },
     });
-    assert!(test.d.start_project(&LIMITS, RestoreProjection::Waiting { task: 7, entries: Box::new([question(11)]) }));
+    assert!(test.d.start_project(
+        &LIMITS,
+        RestoreProjection::Waiting { source: NeedSource::Task(7), entries: Box::new([question(11)]) }
+    ));
     assert!(test.complete());
     assert_eq!(waiting(&mut test, &[question(11)]).len(), 0);
     assert_eq!(waiting(&mut test, &[question(11), question(12)]), [arrival(1, 2)]);

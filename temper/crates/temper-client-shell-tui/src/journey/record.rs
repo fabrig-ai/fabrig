@@ -349,3 +349,7 @@ pub(super) fn duty_order(line: &Line) -> Option<u8> {
         | Line::End(_) => None,
     }
 }
+
+#[cfg(test)]
+#[path = "record/tests.rs"]
+mod tests;

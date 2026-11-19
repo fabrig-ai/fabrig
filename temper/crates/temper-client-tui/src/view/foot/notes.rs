@@ -17,6 +17,7 @@ pub(crate) struct Notes {
     pub gave_up: Option<Box<[u8]>>,
     pub log: Option<LogNote>,
     pub stopping: Option<StoppingNote>,
+    pub link: Option<Box<[u8]>>,
 }
 impl Notes {
     pub(crate) const fn follows_end(&self) -> bool {
@@ -65,6 +66,7 @@ fn help(root: &Domain, tui: &Tui, words: &Words, lines: &mut List<Box<[u8]>>) {
         }
     }
 }
+#[expect(clippy::manual_map, reason = "step code reads the optional printed link without a closure")]
 pub(crate) fn read_notes(root: &Domain, tui: &Tui, words: &Words) -> Notes {
     let mut lines = List::with_capacity(
         8_u32
@@ -96,9 +98,21 @@ pub(crate) fn read_notes(root: &Domain, tui: &Tui, words: &Words) -> Notes {
         gave_up: front::gave_up_note(tui, words),
         log: front::log_note(tui, words),
         stopping: front::stopping_note(tui, words),
+        link: if tui.link_not_opened() && tui.front() {
+            match tui.printed() {
+                Some(link) => Some(temper_client_domain::forge::words::lossy(link.expose())),
+                None => None,
+            }
+        } else {
+            None
+        },
     }
 }
-pub(crate) fn draw_notes(b: &mut Builder, notes: &Notes, _words: &Words) {
+pub(crate) fn draw_notes(b: &mut Builder, notes: &Notes, words: &Words) {
+    draw_other_notes(b, notes);
+    draw_link_note(b, notes, words);
+}
+pub(crate) fn draw_other_notes(b: &mut Builder, notes: &Notes) {
     for line in &notes.lines {
         text(b, Role::Paragraph, line, Some(look::NOTE));
     }
@@ -112,6 +126,26 @@ pub(crate) fn draw_notes(b: &mut Builder, notes: &Notes, _words: &Words) {
     if let Some(stopping) = &notes.stopping {
         text(b, Role::Paragraph, &stopping.log.head, Some(look::HEAD));
         draw_log(b, &stopping.log, Some(&stopping.hint), stopping.end.as_deref());
+    }
+}
+pub(crate) fn draw_link_note(b: &mut Builder, notes: &Notes, words: &Words) {
+    if let Some(link) = &notes.link {
+        // Paragraphs wrap to their own column, as on the welcome (client/tui/box.md, `/web`).
+        text(b, Role::Paragraph, &words.say(Word::WebOpen, &[]), Some(look::NOTE));
+        text(b, Role::Paragraph, b"", None);
+        text(b, Role::Paragraph, link, None);
+        text(b, Role::Paragraph, b"", None);
+        text(b, Role::Paragraph, &words.say(Word::LinkOnce, &[]), Some(look::HINT));
+        text(b, Role::Paragraph, &words.say(Word::WebFresh, &[]), Some(look::HINT));
+        let authority = link.strip_prefix(b"http://").unwrap_or(link);
+        let end = skein_lib::bytes::find(authority, b"/").unwrap_or(authority.len());
+        let authority = authority.get(..end).expect("slash is in the link");
+        text(
+            b,
+            Role::Paragraph,
+            &words.say(Word::ApprovalTunnel, &[Hole::Name(super::super::port(authority).into())]),
+            Some(look::HINT),
+        );
     }
 }
 fn draw_log(b: &mut Builder, log: &LogNote, hint: Option<&[u8]>, end: Option<&[u8]>) {

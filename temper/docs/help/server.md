@@ -143,14 +143,14 @@ Keep `DATA` unchanged; report it.
 
 ## 4. The TLS proxy
 
-Caddy alone faces the world on 80/443:
+Caddy alone faces 80/443:
 
 ```
 git.example.com {
     reverse_proxy 127.0.0.1:3000
 }
 temper.example.com {
-    @link path /jig/v1/sign-in/link /jig/v1/sign-in/link/*
+    @link path /jig/v1/sign-in/link /jig/v1/sign-in/link/* /sign-in
     respond @link 403
     reverse_proxy 127.0.0.1:8367 {
         flush_interval -1
@@ -163,8 +163,9 @@ temper.example.com {
 
 Keep `Host` for cookies' `Secure`; no retries.
 
-Expect: `https://temper.example.com/` answers 200; a `POST` to
-`/jig/v1/sign-in/link` answers 403; `/sign-in/google` answers 303 to
+Expect: `https://temper.example.com/` answers 200;
+`POST /jig/v1/sign-in/link` and `GET /sign-in` answer 403;
+`/sign-in/google` answers 303 to
 `accounts.google.com` with your redirect URI.
 
 If not: 502: engine down or listening elsewhere; read its journal.

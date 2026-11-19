@@ -105,7 +105,7 @@ impl Listening {
         let path = directory.join("temper.json");
         let mut value: serde_json::Value =
             serde_json::from_slice(&fs::read(&path).expect("LLM configuration")).expect("JSON");
-        value["world_providers"] = temper_agent_fixtures::providers::read(directory);
+        value["world_providers"] = temper_agent_fixtures::providers::read(&temper_agent_fixtures::data(directory));
         temper_agent_fixtures::providers::input(&mut value)["endpoints"][0]["address"] =
             serde_json::json!({"socket":address});
         super::write_private(&path, &serde_json::to_vec(&value).expect("LLM configuration JSON"));

@@ -216,6 +216,7 @@ fn draw(world: &World, random: &mut Rng) -> Operation {
                         dependencies.pop();
                     }
                     operations.push(TaskOperation::Amend(tasks::Amend {
+                        funder: None,
                         task: number,
                         message: row.last_message + at + 1,
                         stop_run: false,
@@ -275,6 +276,7 @@ fn amend(world: &mut World, task: u64, dependencies: &[u64], seen: &mut BTreeSet
     let reply_to = ReplyTo::new(Token::new(call));
     world.send(Event::Amend {
         operation: tasks::Amend {
+            funder: None,
             task,
             message: before.last_message + 1,
             stop_run: false,
@@ -294,7 +296,6 @@ fn amend(world: &mut World, task: u64, dependencies: &[u64], seen: &mut BTreeSet
         places,
         reply_to,
         by: PERSON_PARTY,
-        funder: None,
     });
     match world.replies.get(&call).expect("amendment reply") {
         Reply::Done => {

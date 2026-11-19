@@ -120,7 +120,13 @@ fn the_deployments_compound_refuses_any_other_operation_or_project_whole() {
         (
             "amend",
             Party::Deployment { project: PROJECT },
-            Operation::Amend(tasks::Amend { task: CHILD, message: 1, stop_run: false, amendment: Box::new(amendment) }),
+            Operation::Amend(tasks::Amend {
+                funder: None,
+                task: CHILD,
+                message: 1,
+                stop_run: false,
+                amendment: Box::new(amendment),
+            }),
             PROJECT,
         ),
         ("stop", Party::Deployment { project: PROJECT }, Operation::Stop { task: CHILD, hold: 100 + CHILD }, PROJECT),

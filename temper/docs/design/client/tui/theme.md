@@ -69,13 +69,13 @@
   | `tui-mark-cyan` | `#00C4FE`, both themes | | the mark's cyan cells (`pages/README.md`, 3) |
   | `tui-mark-blue` | `#1B76FD`, both themes | | the mark's blue cells |
   | `tui-mark-violet` | `#8E2CF8`, both themes | | the mark's violet cells |
-  | `tui-hint` | dim | | hints, the quiet line's words; the header's build and place; on the launchpad a row's kind, time and state, a need's " · asked AGO", "/chats N", "n walks them", Start's words, "n to walk"; the chat's number; in a printed view, code's mark and words, a way's line and " · now", a card's `who`, "Drawing ADDRESS…" |
+  | `tui-hint` | dim | | hints, the quiet line's words; the header's build and place; on the launchpad a row's kind, time and state, a need's " · asked AGO", "/chats N", "n walks them", Start's words, "n to walk"; the chat's number; a delegated task's state on its card in a chat; in a printed view, code's mark and words, a way's line and " · now", a card's `who`, "Drawing ADDRESS…" |
   | `tui-live` | good | | "Live" |
   | `tui-waiting` | dim | | "Connecting", the sign-in's progress |
   | `tui-down` | accent | | "Offline", "Signed out", "Out of date" |
   | `tui-refused` | accent | | a refusal |
   | `tui-name` | bold | | "temper" and "temper box" in the header; the project's name, a row's project on the launchpad, Start's command names, a chat's heading; a printed way's or card's name |
-  | `tui-faint` | faint | | " · " in a title and the header, " / " in the rule above the box; a printed branch's bar `┃` |
+  | `tui-faint` | faint | | " · " in a title and the header, and before a delegated task's state on its card in a chat; " / " in the rule above the box; a printed branch's bar `┃` |
   | `tui-address` | dim | aligned to the end | `HOST:PORT` in a talk's title, and the place in the rule above the box |
   | `tui-byline` | dim | aligned to the end | "written by the status agent HH:MM" |
   | `tui-head` | bold | | "Where you left off", "Needs you", "Start"; a printed proposal's "Before" and "After" |

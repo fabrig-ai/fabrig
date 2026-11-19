@@ -54,6 +54,7 @@ fn amend(world: &mut World, dependencies: &[u64]) -> Reply {
     let message = world.record(PROCEDURE).last_message + 1;
     response(world, |reply_to| Event::Amend {
         operation: tasks::Amend {
+            funder: None,
             task: PROCEDURE,
             message,
             stop_run: false,
@@ -62,7 +63,6 @@ fn amend(world: &mut World, dependencies: &[u64]) -> Reply {
         reply_to,
         by: REQUESTER,
         places: Box::new([]),
-        funder: None,
     })
 }
 
@@ -169,6 +169,7 @@ fn a_procedure_amendment_cannot_drop_a_delegates_marked_dependency() {
             read,
             decision: ProcedureDecision {
                 amendments: Box::new([tasks::Amend {
+                    funder: None,
                     task: PROCEDURE,
                     message: 1,
                     stop_run: false,

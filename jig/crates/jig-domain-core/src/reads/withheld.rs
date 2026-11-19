@@ -42,6 +42,7 @@ pub(crate) fn person_answer(answer: Answer) -> Answer {
                 value @ (EndedValue::WithheldTurn(_)
                 | EndedValue::Task { .. }
                 | EndedValue::Proposal(_)
+                | EndedValue::PartyProposal(_)
                 | EndedValue::PersonProposal { .. }
                 | EndedValue::Escalation { .. }
                 | EndedValue::Question { .. }

@@ -23,8 +23,8 @@
   `taken by:` stands beside it.
 - **Not yet:**  the absent command groups remain `tools.status.md`, 1.
    the absent read commands remain `tools.status.md`, 2.  the absent deciding commands remain `tools.status.md`, 3.
-  the whole document: area 2's procedure executor choice for `goal start`,
-  `proposal withdraw` and `seen`; area 3's `party make`, `sign-in --service`, `deployment
+  the whole document: area 2's procedure executor choice for `goal start`
+  and `seen`; area 3's `party make`, `sign-in --service`, `deployment
   show`, `task move`, and the project's
   `policy`, `role` and `pool`; area 4's `create`, `propose` and
   `compound`; area 6's `forge forget`, with no request on the wire.

@@ -18,6 +18,7 @@ skein-oauth.workspace = true
 jig-client-protocol-wire.workspace = true
 skein-scratch.workspace = true
 jig-domain-core.workspace = true
+jig-domain-fleet.workspace = true
 jig-domain-people.workspace = true
 jig-protocol-config.workspace = true
 jig-protocol-store.workspace = true

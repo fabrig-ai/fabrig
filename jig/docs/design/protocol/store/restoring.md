@@ -188,7 +188,12 @@ Adoption::Restore { name: CheckpointName, draw: [u8; 16] }
   (`checkpoints.md`, 5, `Unready::Upgrade`), so a restore runs with a
   build at the deployment's levels as it stands. The generation it
   stages holds the source's state at the source's levels, so an older
-  build whose levels those are opens it as it was. A redeploy's going
+  build whose levels those are opens it as it was. No binary moves a
+  level (`records.md`, 3): what a newer build's upgrade changes is the
+  registry and the rows its jobs write (`layouts.md`, 5; `jobs.md`, 2),
+  so the staged generation holds the source's format row and registry,
+  naming only the layouts the older build registered, which it opens
+  in place, with nothing to register or run. A redeploy's going
   back after the upgraded generation's first commit restores with the
   new build, then starts the previous one (temper's `redeploy.md`, 4.6).
 
@@ -377,7 +382,14 @@ nothing else:
   intent that doesn't decode; the strays with no intent standing; a
   rehearsal refusing `Unfinished`; the staging table of 4.4 over a
   record with each kind of file, and a log whose file runs past its
-  extent copied.
+  extent copied; and 4.3's build: a checkpoint taken by a build B, then
+  the store upgraded by a newer build N that registers a layout B lacks
+  and runs a job, N's generation committing past its first commit, and
+  the checkpoint restored by N: the restored store's format row
+  (`records.md`, 3) and registry are the source's, without N's layout,
+  and B then opens it in place, with no refusal and no new generation,
+  at the checkpoint's state, so that a redeploy's going back by
+  restore starts the previous build (temper's `redeploy.md`, 4.6).
 - **The store's world,** `jig-store-world`, on its simulated disk,
   focused. A checkpoint is taken, more is committed, and the checkpoint
   is restored. The next open finds the state at C by the referee: both

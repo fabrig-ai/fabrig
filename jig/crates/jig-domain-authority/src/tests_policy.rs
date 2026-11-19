@@ -775,7 +775,7 @@ fn person_cells_check_each_request_role_rights_funding_and_proposal_rights() {
     for request in [
         PersonRequest::Create(Box::new([child(20)])),
         PersonRequest::Allot(giving.clone()),
-        PersonRequest::Amend(giving.clone()),
+        PersonRequest::Amend { authority: giving.clone(), credit: 0 },
         PersonRequest::Move(giving.clone()),
         PersonRequest::Cancel,
         PersonRequest::Release,

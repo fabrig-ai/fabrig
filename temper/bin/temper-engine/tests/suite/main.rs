@@ -8,8 +8,7 @@ fn upgrade_refuses_an_empty_deployment_directory() {
     upgrade::empty_directory("temper-engine");
 }
 
-#[path = "../../../../crates/temper-engine-shell/src/upgrade/tests/deployment.rs"]
-mod deployment;
+use temper_deployment_fixtures as deployment;
 
 #[test]
 fn upgrade_check_names_the_record_a_start_refuses_without_switching_generation() {

@@ -21,6 +21,40 @@ fn round_trip(row: d::Stored, family: u8) {
 }
 
 #[test]
+fn signature_test_ids_fit_the_store_ceiling() {
+    assert!(d::FindingSignature::ID_BYTES <= crate::test_id_ceiling());
+}
+
+#[test]
+fn tier_rows_at_fixture_and_stock_failure_bounds_round_trip() {
+    let mut limits = fixtures::LIMITS;
+    limits.tiers.failing_tests = 64;
+    limits.tiers.test_id_bytes = 512;
+    let bounds = crate::bounds(&limits, limits.client.op_bytes).unwrap();
+    let fixture_bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    let row = d::Stored::Tier(fixtures::tier_row());
+    let key = keys::encode(&d::stored_key(&row), u32::MAX).unwrap();
+    let encoded = records::encode(&row);
+    assert_eq!(records::row(&key, &encoded, &fixture_bounds), Ok(row.clone()));
+    assert_eq!(records::row(&key, &encoded, &bounds), Ok(row));
+
+    let mut row = fixtures::tier_row();
+    let mut failures = skein_lib::List::with_capacity(64);
+    let mut flakes = skein_lib::List::with_capacity(64);
+    for n in 1..=64 {
+        let test: Box<[u8]> = Box::new([n; 512]);
+        failures.push(test.clone()).unwrap();
+        flakes.push(p::Flake { test, count: u32::MAX }).unwrap();
+    }
+    row.record.failing = p::Failures::Tests(failures.into_boxed());
+    row.record.flakes = flakes.into_boxed();
+    let row = d::Stored::Tier(row);
+    let key = keys::encode(&d::stored_key(&row), u32::MAX).unwrap();
+    let decoded = records::row(&key, &records::encode(&row), &bounds).expect("64 failures and flakes fit stock bounds");
+    assert_eq!(decoded, row);
+}
+
+#[test]
 fn tier_posting_round_trips_its_cursor_blame_and_comment_purposes() {
     let mut row = fixtures::tier_row();
     row.observations = Box::new([]);
@@ -308,7 +342,7 @@ fn tier_family_bounds_follow_the_forge_and_full_row_measure() {
     full.started = Some(skein_lib::Time::from_nanos(u64::MAX));
     let row = records::encode(&d::Stored::Tier(full));
     assert_eq!(skein_lib::len_u64(row.len()), crate::v25::TierRow::encoded_bound(l).unwrap() + 3);
-    assert_eq!(row.len(), 198_044);
+    assert_eq!(row.len(), 204_444);
 }
 
 #[test]

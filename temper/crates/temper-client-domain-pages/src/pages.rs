@@ -1696,6 +1696,9 @@ fn told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, out: 
         || pages.choice.told(&told)
         || crate::acts::told(pages, &told)
     {
+        if let Some(inbox) = &mut pages.inbox {
+            inbox.discard_withdrawn(out);
+        }
         pages.shown = pages.shown.checked_add(1).expect("pages shown fits");
         return false;
     }
@@ -1737,6 +1740,9 @@ fn started(pages: &mut Pages, out: &mut Queue<Request>) {
 }
 pub fn fire(pages: &mut Pages, env: &Env<Limits>, _client: &Client, out: &mut Queue<Request>) {
     pages.team.fire(env.now, out);
+    if let Some(inbox) = &mut pages.inbox {
+        inbox.fire(env.now, out);
+    }
     if needs::fire(pages, env, out) {
         pages.shown = pages.shown.checked_add(1).expect("pages shown fits");
     }
@@ -1762,12 +1768,16 @@ pub fn next_deadline(pages: &Pages) -> Option<Time> {
         Some(chat) => chat.next_deadline(),
         None => None,
     };
+    let inbox = match &pages.inbox {
+        Some(inbox) => inbox.next_deadline(),
+        None => None,
+    };
     let remembered = match &pages.remembered {
         Some(page) => page.next_deadline(),
         None => None,
     };
     activity::earliest(
-        activity::earliest(remembered, pages.team.next_deadline()),
+        activity::earliest(activity::earliest(remembered, inbox), pages.team.next_deadline()),
         activity::earliest(activity::earliest(task, chat), pages.needs.next_deadline()),
     )
 }
@@ -2410,7 +2420,7 @@ fn page_told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, 
             return match &mut pages.inbox {
                 Some(inbox) => {
                     inbox.next = inbox.next.max(chat.next);
-                    let handled = inbox.told(client, told, &env.limits, out);
+                    let handled = inbox.told(client, env.now, told, &env.limits, out);
                     chat.next = chat.next.max(inbox.next);
                     handled
                 }
@@ -2444,12 +2454,12 @@ fn page_told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, 
     if let Some(chats) = &mut pages.chats {
         if !chats.told(told.clone(), client, &pages.address, out) {
             return match &mut pages.inbox {
-                Some(inbox) => inbox.told(client, told, &env.limits, out),
+                Some(inbox) => inbox.told(client, env.now, told, &env.limits, out),
                 None => false,
             };
         }
     } else if !match &mut pages.inbox {
-        Some(inbox) => inbox.told(client, told, &env.limits, out),
+        Some(inbox) => inbox.told(client, env.now, told, &env.limits, out),
         None => false,
     } {
         return false;
@@ -2539,7 +2549,7 @@ fn task_told(
         }
         let inbox = inbox.as_mut().expect("tracked page inbox");
         inbox.next = inbox.next.max(task.next);
-        let handled_inbox = if handled { false } else { inbox.told(client, told, &env.limits, out) };
+        let handled_inbox = if handled { false } else { inbox.told(client, env.now, told, &env.limits, out) };
         task.next = task.next.max(inbox.next);
         return handled || handled_inbox;
     }
