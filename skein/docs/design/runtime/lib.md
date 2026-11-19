@@ -341,6 +341,13 @@ if entry.key.as_ref() == name { Some(entry) } else { None }
   over in the ring's own buffer, and `clear` keeps the capacity.
 - **`Decimal`** holds the decimal digits of a count, for a step that
   writes a number as text without formatting: measure it, then put it.
+- **`bytes::ip_text(ip: IpAddr) -> Box<[u8]>`** writes an address as
+  text without formatting, byte for byte as core's `IpAddr` prints it:
+  an IPv4 address in dotted decimal, an IPv6 one in RFC 5952's text
+  (lowercase hex, the longest run of two or more zero groups, the first
+  of equals, as `::`, an IPv4-mapped one as `::ffff:a.b.c.d`). It
+  leaves a mapped address as given: the caller reads one as its IPv4
+  first where it means to.
 - **`Secret`** holds a secret's owned bytes: a credential, a token, a
   key. Its `Debug` shows its length only, never its bytes, so a record
   that holds one prints, logs and traces without it (../data/codec/README.md, section 3).
