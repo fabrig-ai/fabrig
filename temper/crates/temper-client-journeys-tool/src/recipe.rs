@@ -269,6 +269,9 @@ impl Recipe {
                 return Err(refuse("check takes no fields".into()));
             }
             let line = Line::parse(source).map_err(refuse)?;
+            if matches!(line.record(), Record::Web(Web::Mark)) {
+                return Err(refuse("web mark is a journey's line".into()));
+            }
             if !line.kept() || matches!(line.record(), Record::Tui(Tui::Stop)) {
                 return Err(refuse("empty lines, looks, end and tui stop are not recipe acts".into()));
             }

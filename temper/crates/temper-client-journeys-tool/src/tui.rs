@@ -3,8 +3,7 @@ use crate::{Added, Refusal, io_refusal, names};
 use std::{fs, path::Path};
 use temper_client_shell_tui::journey::{self, Line, Stale};
 
-mod print;
-pub use print::{SCRIPT, beside, pages, stylesheet};
+pub use temper_client_walk_lines::tui_print::{SCRIPT, beside, pages, stylesheet};
 
 pub(crate) fn proof_refusal(name: &str, mut refusal: journey::Refusal) -> Refusal {
     if let journey::Refusal::Stale(stale) = &mut refusal {

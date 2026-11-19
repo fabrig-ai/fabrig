@@ -311,6 +311,7 @@ members = [
     "temper/crates/temper-client-gallery-tool",
     "temper/bin/temper-client-gallery",
     "temper/crates/temper-client-journeys-tool",
+    "temper/crates/temper-client-walk-lines",
     "temper/bin/temper-client-journeys",
     "temper/crates/temper-stage-one-tool",
     "temper/bin/temper-stage-one",
@@ -762,6 +763,7 @@ temper-client-domain-pages = { path = "temper/crates/temper-client-domain-pages"
 temper-git-transcripts-tool = { path = "temper/crates/temper-git-transcripts-tool" }
 temper-version = { path = "temper/crates/temper-version" }
 temper-client-journeys-tool = { path = "temper/crates/temper-client-journeys-tool" }
+temper-client-walk-lines = { path = "temper/crates/temper-client-walk-lines" }
 temper-twin-tool = { path = "temper/crates/temper-twin-tool" }
 temper-qa-tool = { path = "temper/crates/temper-qa-tool" }
 temper-redeploy-tool = { path = "temper/crates/temper-redeploy-tool" }

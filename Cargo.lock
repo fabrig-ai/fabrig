@@ -5963,7 +5963,6 @@ dependencies = [
  "skein-scratch",
  "skein-shell",
  "skein-ui",
- "skein-ui-bundle",
  "skein-ui-screen",
  "skein-ui-screen-terminal",
  "skein-ui-web",
@@ -5971,6 +5970,7 @@ dependencies = [
  "temper-client-shell-tui",
  "temper-client-shell-web",
  "temper-client-tui",
+ "temper-client-walk-lines",
  "temper-fake",
  "temper-shell",
 ]
@@ -6291,6 +6291,21 @@ dependencies = [
  "temper-client-view-words",
  "temper-fixtures",
  "temper-protocol-reaches",
+]
+
+[[package]]
+name = "temper-client-walk-lines"
+version = "0.0.0"
+dependencies = [
+ "skein-scratch",
+ "skein-ui",
+ "skein-ui-bundle",
+ "skein-ui-screen",
+ "skein-ui-screen-terminal",
+ "skein-ui-web",
+ "temper-client-shell-tui",
+ "temper-client-shell-web",
+ "temper-client-tui",
 ]
 
 [[package]]

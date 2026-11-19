@@ -1,3 +1,4 @@
+//! Walk lines and page printers (temper/docs/design/client/journey-walks.md, 3.1).
 //! Drive's lines, sharing the journeys' field codec (client/drive.md, 3–5).
 use skein_ui::{Act, Role};
 use skein_ui_screen_terminal::Key;
@@ -25,6 +26,7 @@ pub enum Web {
     Reload(Box<[u8]>),
     Look(Option<u32>),
     Requests,
+    Mark,
 }
 #[derive(Debug, PartialEq, Eq)]
 pub enum Tui {
@@ -177,7 +179,7 @@ fn deployment(fields: &mut Fields) -> Result<Deployment, String> {
     Ok(Deployment::Patch { document, path })
 }
 /// Settings inputs before the first flag; stdin remains closed even for `-`.
-pub(crate) fn settings_paths(args: &[Box<[u8]>]) -> Vec<&[u8]> {
+pub fn settings_paths(args: &[Box<[u8]>]) -> Vec<&[u8]> {
     if args.first().map(AsRef::as_ref) != Some(b"settings")
         || !args.get(1).is_some_and(|arg| [b"apply".as_slice(), b"propose"].contains(&arg.as_ref()))
     {
@@ -257,6 +259,7 @@ fn web(fields: &mut Fields) -> Result<Web, String> {
             Web::Act { role, name, order, act }
         }
         b"requests" => Web::Requests,
+        b"mark" => Web::Mark,
         b"see" => Web::See(bytes(fields, "text")?),
         b"reload" => {
             let path = bytes(fields, "path and query")?;
