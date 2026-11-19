@@ -354,8 +354,12 @@ BODY
   adapter handing its `finding` calls on unchanged.
 - **ctl** (`../client/ctl/tools.md`): `finding repair FINDING...
   TEXT --key KEY` and `finding blame FINDING (--landing COMMIT |
-  --none) TEXT --key KEY`, FINDING as `P/N`, all of one project. They
-  send `TriageFinding` with the act, and print the answer.
+  --none) TEXT --key KEY`, FINDING as `P/N`, all of one project, COMMIT
+  40 or 64 hex digits, TEXT the act's words or the blame's why. They
+  send `TriageFinding` with the act and print `repair goal G made for
+  P/N, P/M`, or `blamed: P/N on landing COMMIT` (its first twelve
+  digits) or `blamed: P/N on no landing`; a refusal prints its words,
+  exit 2.
 - **The client's wire** (`../client/forge/records.md`): `Triage` gains
   `repair` and `blame`, and the triage answer the goal a repair made,
   in its next layout, unbridged (`../protocol/wires.md`, section 9).
