@@ -95,7 +95,7 @@ fn standard_rows() {
         (&merge,Command::Merge { theirs:fixtures::COMMIT },1,b"",Next::Run(Command::Unmerged)),
         (&merge,Command::Unmerged,0,b"conflict\0",Next::End(git::Done::Conflicted { files:Box::from([Box::from(&b"conflict"[..])]), cut: false })),
         (&merge,Command::Unmerged,0,b"one\0two\0three\0four\0five\0",Next::End(git::Done::Conflicted { files:Box::from([Box::from(b"one".as_slice()),Box::from(b"two".as_slice()),Box::from(b"three".as_slice()),Box::from(b"four".as_slice())]), cut: true })),
-        (&merging,Command::Unmerged,0,b"one\0two\0three\0four\0five\0",Next::End(git::Done::FailedWithOutput { fault:git::Fault::Broken,diagnostic:git::PushDiagnostic::empty() })),
+        (&merging,Command::Unmerged,0,b"one\0two\0three\0four\0five\0",Next::Scan { files: Box::from([Box::from(b"one".as_slice()),Box::from(b"two".as_slice()),Box::from(b"three".as_slice()),Box::from(b"four".as_slice())]), cut: true }),
         (&merge,Command::Unmerged,0,too_long.as_slice(),Next::End(git::Done::FailedWithOutput { fault:git::Fault::Broken,diagnostic:git::PushDiagnostic::empty() })),
         (&merge,Command::Unmerged,0,b"",Next::End(git::Done::FailedWithOutput { fault:git::Fault::Broken,diagnostic:git::PushDiagnostic::empty() })),
         (&fetch,Command::Fetch { workspace: fixtures::WORKSPACE, into: git::Into::Fetched,  remote:Box::from(fixtures::REMOTE),source:crate::invocation::Source::Default },0,b"* 0000000000000000000000000000000000000000 abababababababababababababababababababab refs/temper/7/fetched\n",Next::Run(Command::UpdateRef { into: git::Into::Fetched, commit:fixtures::COMMIT })),

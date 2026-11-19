@@ -41,6 +41,7 @@ pub fn answer(checked: &Checked, checkout: &mut Checkout, transport: &mut impl T
         git::set_directory(checkout, at, directory);
     }
     match &checked.command {
+        Command::UpdateIndex { .. } => unreachable!("private paging is not admitted by fake git"),
         Command::Reds(command) => reds(command, checkout, at, transport),
         Command::SnapshotHead => {
             let Some(head) = checkout.content(&meta(checkout, at, b"temper-head")).map(count_bytes) else {

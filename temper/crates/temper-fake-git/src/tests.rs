@@ -85,6 +85,7 @@ fn spawn(command: &Command) -> k::Spawn {
         | Command::SnapshotReachable { .. }
         | Command::SnapshotReset { .. }
         | Command::Unmerged
+        | Command::UpdateIndex { .. }
         | Command::Add
         | Command::DiffPaths { .. }
         | Command::DiffIndex { .. }

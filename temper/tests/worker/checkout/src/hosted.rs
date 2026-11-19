@@ -36,6 +36,7 @@ pub fn spawn_of(command: &Command) -> Spawn {
         | Command::SnapshotReachable { .. }
         | Command::SnapshotReset { .. }
         | Command::Unmerged
+        | Command::UpdateIndex { .. }
         | Command::Add
         | Command::DiffIndex { .. }
         | Command::WriteTree
@@ -48,7 +49,7 @@ pub fn spawn_of(command: &Command) -> Spawn {
     };
     let mut pipes =
         vec![Pipe { child: 1, way: Way::Out, parent: None }, Pipe { child: 2, way: Way::Out, parent: None }];
-    if matches!(command, Command::CommitTree { .. }) {
+    if matches!(command, Command::CommitTree { .. } | Command::UpdateIndex { .. }) {
         pipes.insert(0, Pipe { child: 0, way: Way::In, parent: None });
     }
     Spawn {

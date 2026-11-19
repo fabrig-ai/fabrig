@@ -4,6 +4,7 @@ use alloc::boxed::Box;
 use skein_io::kernel::{self, Error, Fd, Op, OpenHow};
 use skein_lib::{Decimal, List, Token, bytes};
 use temper_worker_domain_checkout::git;
+mod index;
 mod objects;
 mod reds;
 mod results;
@@ -55,6 +56,7 @@ pub(crate) enum Phase {
     Store(Store),
     Alternates(Alternates),
     Scan(Scan),
+    Index(index::File),
     Sweep(Sweep),
     Closing,
 }
@@ -87,6 +89,7 @@ pub(crate) struct Scan {
     closing: bool,
     failed: bool,
     place: Box<[u8]>,
+    next: invocation::Command,
 }
 #[derive(Debug)]
 pub(crate) struct Sweep {
@@ -177,12 +180,17 @@ impl Task {
             phase: Phase::Alternates(Alternates::new(at, store, remote, format, run)),
         }
     }
-    pub fn scan(files: Box<[Box<[u8]>]>, place: Box<[u8]>) -> Task {
+    pub fn scan(files: Box<[Box<[u8]>]>, place: Box<[u8]>, cut: bool) -> Task {
         let marked = List::with_capacity(u32::try_from(files.len()).expect("validated conflict count"));
         Task {
             word: Some(b"scan"),
             pending: Token::new(0),
             phase: Phase::Scan(Scan {
+                next: if cut {
+                    invocation::Command::UpdateIndex { paths: crate::output::path_input(&files) }
+                } else {
+                    invocation::Command::Add
+                },
                 files,
                 marked,
                 index: 0,
@@ -194,6 +202,12 @@ impl Task {
                 place,
             }),
         }
+    }
+    pub fn copy_index(directory: Box<[u8]>, next: Next) -> Task {
+        Task { word: Some(b"scan"), pending: Token::new(0), phase: Phase::Index(index::File::copy(directory, next)) }
+    }
+    pub fn remove_index(directory: Box<[u8]>, next: Next, word: Option<&'static [u8]>) -> Task {
+        Task { word, pending: Token::new(0), phase: Phase::Index(index::File::remove(directory, next)) }
     }
     pub fn sweep() -> Task {
         Task {
@@ -220,6 +234,7 @@ impl Task {
             Phase::Store(store) => store.first(dirs),
             Phase::Alternates(alternates) => alternates.first(settings),
             Phase::Scan(scan) => scan.next(settings),
+            Phase::Index(file) => file.first(settings),
             Phase::Sweep(_) => Action::Run(open(settings.root, Box::from(&b"trash"[..]), OpenHow::DirectoryNoFollow)),
             Phase::Closing => closing(dirs),
         }
@@ -282,6 +297,7 @@ impl Task {
             Phase::Store(store) => store.complete(complete.result, dirs, stop),
             Phase::Alternates(alternates) => alternates.complete(complete.result, stop),
             Phase::Scan(scan) => scan.complete(complete, settings, limits, stop),
+            Phase::Index(file) => file.complete(complete, settings, limits, stop),
             Phase::Sweep(sweep) => sweep.complete(complete, dirs, settings, limits, stop),
             Phase::Closing => closing(dirs),
         }
@@ -373,7 +389,7 @@ impl Scan {
     fn next(&mut self, settings: &Settings) -> Action {
         let Some(path) = self.files.get(self.index) else {
             return Action::Operation(if self.marked.is_empty() {
-                Next::Run(invocation::Command::Add)
+                Next::Run(self.next.clone())
             } else {
                 Next::End(git::Done::Conflicted {
                     files: core::mem::replace(&mut self.marked, List::with_capacity(0)).into_boxed(),
@@ -423,39 +439,7 @@ impl Scan {
         } else {
             match count(complete.result) {
                 Ok(n) => {
-                    let buf = match complete.kind {
-                        Op::Read { buf, .. } => buf,
-                        Op::Lock { .. }
-                        | Op::Socket { .. }
-                        | Op::Bind { .. }
-                        | Op::Listen { .. }
-                        | Op::Accept { .. }
-                        | Op::Connect { .. }
-                        | Op::Recv { .. }
-                        | Op::Send { .. }
-                        | Op::Shutdown { .. }
-                        | Op::Close { .. }
-                        | Op::Open { .. }
-                        | Op::Write { .. }
-                        | Op::Append { .. }
-                        | Op::Truncate { .. }
-                        | Op::Sync { .. }
-                        | Op::Stat { .. }
-                        | Op::HardLink { .. }
-                        | Op::Rename { .. }
-                        | Op::Remove { .. }
-                        | Op::MakeDirectory { .. }
-                        | Op::List { .. }
-                        | Op::Spawn { .. }
-                        | Op::Wait { .. }
-                        | Op::Signal { .. }
-                        | Op::Usage
-                        | Op::Window { .. }
-                        | Op::ReadSignal { .. }
-                        | Op::PipeRead { .. }
-                        | Op::PipeWrite { .. }
-                        | Op::Cancel { .. } => unreachable!("scan read"),
-                    };
+                    let buf = read_buffer(complete.kind);
                     let kept = buf.get(..usize::try_from(n).expect("read count fits")).expect("kernel read count");
                     self.markers.feed(kept);
                     self.at = self.at.checked_add(u64::from(n)).expect("file offset fits");
@@ -474,6 +458,41 @@ impl Scan {
         }
         self.closing = true;
         close(self.fd.expect("scan open"))
+    }
+}
+fn read_buffer(op: Op) -> Box<[u8]> {
+    match op {
+        Op::Read { buf, .. } => buf,
+        Op::Lock { .. }
+        | Op::Socket { .. }
+        | Op::Bind { .. }
+        | Op::Listen { .. }
+        | Op::Accept { .. }
+        | Op::Connect { .. }
+        | Op::Recv { .. }
+        | Op::Send { .. }
+        | Op::Shutdown { .. }
+        | Op::Close { .. }
+        | Op::Open { .. }
+        | Op::Write { .. }
+        | Op::Append { .. }
+        | Op::Truncate { .. }
+        | Op::Sync { .. }
+        | Op::Stat { .. }
+        | Op::HardLink { .. }
+        | Op::Rename { .. }
+        | Op::Remove { .. }
+        | Op::MakeDirectory { .. }
+        | Op::List { .. }
+        | Op::Spawn { .. }
+        | Op::Wait { .. }
+        | Op::Signal { .. }
+        | Op::Usage
+        | Op::Window { .. }
+        | Op::ReadSignal { .. }
+        | Op::PipeRead { .. }
+        | Op::PipeWrite { .. }
+        | Op::Cancel { .. } => unreachable!("results read completion"),
     }
 }
 fn page(complete: kernel::Complete) -> Result<Box<[u8]>, Error> {

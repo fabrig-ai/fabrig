@@ -3,6 +3,7 @@ mod files;
 mod fixtures;
 mod invocation;
 mod output;
+mod paging;
 mod program;
 mod sequence;
 mod snapshot;

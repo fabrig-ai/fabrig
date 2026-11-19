@@ -1463,6 +1463,7 @@ fn git_run() {
                 | GitCommand::Clean
                 | GitCommand::Merge { .. }
                 | GitCommand::Unmerged
+                | GitCommand::UpdateIndex { .. }
                 | GitCommand::Add
                 | GitCommand::DiffPaths { .. }
                 | GitCommand::DiffIndex { .. }

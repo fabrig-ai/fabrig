@@ -67,6 +67,36 @@ struct World {
 }
 
 impl World {
+    fn run_git(&self, directory: &str, args: &[&str]) -> Vec<u8> {
+        let mut command = Command::new("/usr/bin/git");
+        command.current_dir(self.root.join(directory)).env_clear();
+        let kind = if args.first() == Some(&"push") { git::Kind::Push } else { git::Kind::Commit };
+        for entry in
+            invocation::environment(self.root.join("home").as_os_str().as_bytes(), Some(kind), Some(&self.identity))
+        {
+            let at = entry.iter().position(|b| *b == b'=').expect("environment entry");
+            command.env(OsStr::from_bytes(&entry[..at]), OsStr::from_bytes(&entry[at + 1..]));
+        }
+        let output = command.args(args).output().expect("run's git ran");
+        assert!(output.status.success(), "run git {args:?}: {:?}", output.stderr);
+        output.stdout
+    }
+
+    fn topic_head(&self, workspace: Token, remote: &[u8]) -> git::Commit {
+        let git::Done::Fetched { commit } = self.perform(git::Op::Fetch {
+            at: git::Place { workspace, repository: b"specimen".as_slice().into(), git: None },
+            store: store_token(remote),
+            remote: remote.into(),
+            want: git::Want::Branch { branch: b"topic".as_slice().into() },
+            into: git::Into::Fetched,
+            identity: 1,
+            account: None,
+        }) else {
+            panic!("remote topic fetched")
+        };
+        commit
+    }
+
     fn inspect(&self, directory: &str, args: &[&str]) -> String {
         let mut command = Command::new("/usr/bin/git");
         command.current_dir(&self.root).env_clear();
@@ -323,6 +353,7 @@ impl World {
         command: &invocation::Command,
         kind: Option<git::Kind>,
         message: &[u8],
+        index: Option<&std::path::Path>,
     ) -> std::process::Output {
         let kind = if matches!(command, invocation::Command::UpdateRef { .. } | invocation::Command::Clean)
             || (matches!(command, invocation::Command::Unmerged) && kind == Some(git::Kind::Merge))
@@ -337,6 +368,9 @@ impl World {
             let at = entry.iter().position(|b| *b == b'=').expect("environment entry");
             process.env(OsStr::from_bytes(&entry[..at]), OsStr::from_bytes(&entry[at + 1..]));
         }
+        if let Some(index) = index {
+            process.env("GIT_INDEX_FILE", index);
+        }
         process.args(invocation::arguments_for(op, command).iter().map(|arg| OsStr::from_bytes(arg)));
         process.stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped());
         let mut child = process.spawn().expect("git ran");
@@ -344,7 +378,8 @@ impl World {
         let output = child.wait_with_output().expect("git output");
         if matches!(command, invocation::Command::CheckOut { .. } | invocation::Command::Merge { .. }) {
             assert!(
-                output.status.success(),
+                output.status.success()
+                    || (matches!(command, invocation::Command::Merge { .. }) && output.status.code() == Some(1)),
                 "lazy-fetch invocation failed: {}",
                 String::from_utf8_lossy(&output.stderr)
             );
@@ -374,6 +409,7 @@ impl World {
         git::Done::Succeeded
     }
 
+    #[expect(clippy::too_many_lines, reason = "the real-git harness translates process and file steps together")]
     fn perform(&self, mut op: git::Op) -> git::Done {
         if let git::Op::Make { workspace, .. } = &op {
             for tree in ["workspaces", "gitdirs"] {
@@ -389,6 +425,7 @@ impl World {
                 &invocation::Command::Store { directory: directory.into_bytes().into(), remote: remote.clone() },
                 Some(git::Kind::Store),
                 b"",
+                None,
             );
             assert!(output.status.success(), "store init: {:?}", output.stderr);
             return git::Done::Succeeded;
@@ -411,23 +448,33 @@ impl World {
             git::Op::Store { .. } | git::Op::Make { .. } => unreachable!(),
         };
         let repository = String::from_utf8(invocation::place(at).into_vec()).expect("fixture directory");
+        let git_directory = self.root.join(OsStr::from_bytes(&invocation::git_dir(at)));
+        let mut index: Option<PathBuf> = None;
         let mut next = sequence::first(&op);
         for _ in 0..20 {
             next = match next {
                 Next::Run(command) => {
-                    let message = if let (invocation::Command::CommitTree { .. }, git::Op::Commit { title, body, .. }) =
-                        (&command, &op)
+                    if matches!(command, invocation::Command::Add)
+                        && let Some(path) = index.take()
                     {
-                        invocation::message(title, body)
-                    } else {
-                        Box::default()
+                        fs::remove_file(path).expect("scan index removed before staging");
+                    }
+                    let message = match (&command, &op) {
+                        (invocation::Command::UpdateIndex { paths }, _) => paths.clone(),
+                        (invocation::Command::CommitTree { .. }, git::Op::Commit { title, body, .. }) => {
+                            invocation::message(title, body)
+                        }
+                        _ => Box::default(),
                     };
                     let kind = if matches!(command, invocation::Command::SnapshotFetch { .. }) {
                         Some(git::Kind::Fetch)
                     } else {
                         Some(op.kind())
                     };
-                    let output = self.command(&op, &command, kind, &message);
+                    let private =
+                        matches!(command, invocation::Command::Unmerged | invocation::Command::UpdateIndex { .. });
+                    let output =
+                        self.command(&op, &command, kind, &message, if private { index.as_deref() } else { None });
                     sequence::after(
                         &op,
                         &command,
@@ -448,7 +495,12 @@ impl World {
                     return self.reds(&directory, content, marker, rerun);
                 }
                 Next::Results { .. } => panic!("this delivery has no check results read"),
-                Next::End(done) => return done,
+                Next::End(done) => {
+                    if let Some(path) = index.take() {
+                        fs::remove_file(path).expect("scan index removed on refusal");
+                    }
+                    return done;
+                }
                 Next::Alternates { format, run } => {
                     let git::Op::Clone { at, store, remote } = &op else { unreachable!() };
                     let directory = String::from_utf8(invocation::git_dir(at).into_vec()).expect("metadata path");
@@ -468,7 +520,35 @@ impl World {
                     fs::write(file, bytes).expect("alternates");
                     next
                 }
-                Next::Make | Next::Store | Next::InstallStore { .. } | Next::Scan { .. } => {
+                Next::Scan { files, cut } => {
+                    if cut && index.is_none() {
+                        let path = git_directory.join("temper-scan");
+                        fs::copy(git_directory.join("index"), &path).expect("whole private index");
+                        index = Some(path);
+                    }
+                    let mut marked = Vec::new();
+                    for path in &files {
+                        let mut markers = temper_worker_protocol_git::output::Markers::START;
+                        let bytes = fs::read(self.root.join(&repository).join(OsStr::from_bytes(path)))
+                            .expect("conflicted file");
+                        markers.feed(&bytes);
+                        if markers.finish() {
+                            marked.push(path.clone());
+                        }
+                    }
+                    if marked.is_empty() {
+                        Next::Run(if cut {
+                            invocation::Command::UpdateIndex {
+                                paths: temper_worker_protocol_git::output::path_input(&files),
+                            }
+                        } else {
+                            invocation::Command::Add
+                        })
+                    } else {
+                        Next::End(git::Done::Conflicted { files: marked.into_boxed_slice(), cut: false })
+                    }
+                }
+                Next::Make | Next::Store | Next::InstallStore { .. } => {
                     panic!("no unresolved paths")
                 }
             };
@@ -666,4 +746,132 @@ fn a_design_delivery_reaches_its_landing_branch_through_real_git() {
     }
     world.no_planted_program_ran();
     instance.stop().expect("stopped");
+}
+
+#[expect(
+    clippy::too_many_lines,
+    reason = "one merge story holds preparation, resolution, delivery and its index oracle together"
+)]
+fn merge_past_the_bound(marked: bool) {
+    let binary = temper_test_env::value(&temper_test_env::FORGEJO).expect("pinned Forgejo");
+    let forgejo = Forgejo::from_path(std::path::Path::new(&binary)).expect("Forgejo");
+    let scratch = skein_scratch::Scratch::new_in(&skein_scratch::paths::target_tmp(), "paged-merge");
+    let mut settings = Settings::small();
+    settings.actions = false;
+    let mut instance = forgejo.start(&scratch.path().join("forge"), &settings).expect("started");
+    let writer = instance.admin().clone();
+    let repository = instance.create_repository(&writer, "specimen", Init::Empty).expect("repository");
+    let remote_text = format!("{}/{}/{}.git", instance.base(), writer.login, repository.name);
+    let root = scratch.path().join("worker");
+    fs::create_dir_all(root.join("seed")).expect("seed directory");
+    let mut world = World {
+        root,
+        identity: Identity {
+            token: Secret::new(writer.token.value().as_bytes().into()),
+            login: writer.login.as_bytes().into(),
+            name: b"Worker".as_slice().into(),
+            email: b"worker@example.invalid".as_slice().into(),
+        },
+        domain: checkout::Domain::new(&LIMITS),
+        hold: None,
+    };
+    world.run_git("seed", &["init", "--initial-branch=main"]);
+    let names: Vec<_> = (0..LIMITS.conflicts + 2).map(|n| format!("file{n}")).collect();
+    let write_files = |content: &[u8]| {
+        for name in &names {
+            fs::write(world.root.join("seed").join(name), content).expect("seed file");
+        }
+    };
+    write_files(b"original\n");
+    world.run_git("seed", &["add", "--all"]);
+    world.run_git("seed", &["commit", "-m", "Initial"]);
+    world.run_git("seed", &["checkout", "-b", "topic"]);
+    write_files(b"ours\n");
+    world.run_git("seed", &["add", "--all"]);
+    world.run_git("seed", &["commit", "-m", "Ours"]);
+    let ours = invocation::object(world.run_git("seed", &["rev-parse", "HEAD"]).trim_ascii()).expect("ours");
+    world.run_git("seed", &["push", &remote_text, "topic"]);
+    world.run_git("seed", &["checkout", "main"]);
+    write_files(b"theirs\n");
+    world.run_git("seed", &["add", "--all"]);
+    world.run_git("seed", &["commit", "-m", "Theirs"]);
+    let base = invocation::object(world.run_git("seed", &["rev-parse", "HEAD"]).trim_ascii()).expect("base");
+    world.run_git("seed", &["push", &remote_text, "main"]);
+    let remote: Box<[u8]> = remote_text.as_bytes().into();
+    let spec = checkout::Spec {
+        key: b"paged-merge".as_slice().into(),
+        repositories: Box::new([checkout::Repository {
+            prefixes: Box::new([]),
+            name: b"specimen".as_slice().into(),
+            remote: remote.clone(),
+            git: None,
+            start: checkout::Start::Merge { branch: b"topic".as_slice().into(), base },
+            identity: 1,
+            account: None,
+            push: Some(b"topic".as_slice().into()),
+            expected: Some(ours),
+            delivered: None,
+            landing: None,
+            save: None,
+        }]),
+    };
+    let prepared = world.finish(checkout::Event::Prepare { client: Token::new(1), spec });
+    let checkout::Request::Prepared { prepared: checkout::Prepared::Ready { workspace, conflicts }, .. } = prepared
+    else {
+        panic!("merge prepared: {prepared:?}")
+    };
+    assert_eq!(conflicts.len(), 1);
+    assert_eq!(conflicts[0].files.len(), usize::try_from(LIMITS.conflicts).expect("small bound"));
+    let directory = format!("workspaces/{}/specimen", workspace.raw());
+    let git_directory = world.root.join(format!("gitdirs/{}/specimen", workspace.raw()));
+    let unmerged_args = ["diff-files", "--name-only", "-z", "--diff-filter=U"];
+    let unmerged = names.join("\0") + "\0";
+    assert_eq!(world.inspect(&directory, &unmerged_args), unmerged);
+    let last = names.last().expect("last page path");
+    for name in &names {
+        if !marked || name != last {
+            fs::write(world.root.join(&directory).join(name), b"resolved\n").expect("settled file");
+        }
+    }
+    // The command stages into its own .git, not the worker's still-unmerged index.
+    world.run_git(&directory, &["add", "--", &names[0], &names[1]]);
+    assert_eq!(world.inspect(&directory, &unmerged_args), unmerged);
+    let answer = world.finish(checkout::Event::Push {
+        hold: world.hold.expect("held"),
+        message: checkout::Message { title: b"Resolve merge".as_slice().into(), body: Box::default() },
+    });
+    let checkout::Request::Pushed { outcome: checkout::Outcome::Pushed { landings }, .. } = answer else {
+        panic!("push terminal")
+    };
+    if marked {
+        assert_eq!(landings.as_ref(), &[checkout::Landing::Conflicted { files: Box::new([last.as_bytes().into()]) }]);
+        assert_eq!(world.inspect(&directory, &unmerged_args), unmerged, "every worker index conflict survives refusal");
+        assert_eq!(world.topic_head(workspace, &remote), ours);
+    } else {
+        let [checkout::Landing::Landed { commit }] = landings.as_ref() else { panic!("merge delivered: {landings:?}") };
+        let head = String::from_utf8(invocation::hex(*commit).into_vec()).expect("commit id");
+        assert_eq!(world.topic_head(workspace, &remote), *commit);
+        let parents = world.inspect(&directory, &["show", "--no-patch", "--format=%P", &head]);
+        assert_eq!(
+            parents.split_whitespace().map(|id| invocation::object(id.as_bytes()).expect("parent")).collect::<Vec<_>>(),
+            [ours, base]
+        );
+        for name in &names {
+            assert_eq!(world.inspect(&directory, &["show", &format!("{head}:{name}")]), "resolved\n");
+        }
+    }
+    assert!(!git_directory.join("temper-scan").exists(), "no scan copy remains");
+    let hold = world.hold.take().expect("held");
+    assert!(matches!(world.finish(checkout::Event::Release { hold }), checkout::Request::Released { .. }));
+    instance.stop().expect("stopped");
+}
+
+#[test]
+fn a_merge_delivery_pages_past_the_bound_after_the_run_stages_two_files() {
+    merge_past_the_bound(false);
+}
+
+#[test]
+fn a_last_page_marker_refuses_real_delivery_and_preserves_every_unmerged_path() {
+    merge_past_the_bound(true);
 }

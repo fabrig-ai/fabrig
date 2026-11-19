@@ -98,6 +98,7 @@ impl<T: Transport> Git<T> {
                 jobs.push_back(Job::Input(*pipes.get(&0).expect("commit stdin")));
             }
             match &checked.command {
+                Command::UpdateIndex { .. } => unreachable!("private paging is not admitted by fake git"),
                 Command::Version => {}
                 Command::Origin { directory } | Command::Clone { directory, .. } | Command::Store { directory, .. } => {
                     jobs.push_back(Job::Scan(path(&checked.root, directory)));

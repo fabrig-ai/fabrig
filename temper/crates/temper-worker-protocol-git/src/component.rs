@@ -312,6 +312,14 @@ impl Component {
         };
         match next {
             Next::Run(command) => {
+                if command == Command::Add {
+                    let operation = self.slots.get_mut(id).expect("live scan");
+                    if let Some(directory) = operation.scan_index.take() {
+                        let task = Task::remove_index(directory, Next::Run(command), operation.word);
+                        self.file_start(id, task, out);
+                        return;
+                    }
+                }
                 let operation = self.slots.get(id).expect("live index");
                 if let Command::Store { .. } = &command
                     && let Some(program) =
@@ -397,7 +405,7 @@ impl Component {
                 self.file_start(id, Task::reds(directory, content, marker, rerun), out);
             }
             Next::Results { directory } => self.file_start(id, Task::results(directory), out),
-            Next::Scan { files } => {
+            Next::Scan { files, cut } => {
                 let op = self.slots.get(id).expect("live index").op.as_ref().expect("Commit op");
                 let at = match op {
                     git::Op::Commit { at, .. } => at,
@@ -417,14 +425,28 @@ impl Component {
                     | git::Op::Merge { .. }
                     | git::Op::Push { .. } => unreachable!("scan sequence"),
                 };
-                self.file_start(id, Task::scan(files, crate::invocation::place(at)), out);
+                let directory = crate::invocation::git_dir(at);
+                let place = crate::invocation::place(at);
+                let operation = self.slots.get_mut(id).expect("live scan");
+                if cut && operation.scan_index.is_none() {
+                    operation.scan_index = Some(directory.clone());
+                    self.file_start(id, Task::copy_index(directory, Next::Scan { files, cut }), out);
+                } else {
+                    self.file_start(id, Task::scan(files, place, cut), out);
+                }
             }
         }
     }
     /// Every terminal with output names where it ended
     /// (temper/docs/design/protocol/git.md, section 6).
     fn finish(&mut self, id: Id<Operation>, done: git::Done, out: &mut Outputs) {
-        let operation = self.slots.get(id).expect("live index");
+        let operation = self.slots.get_mut(id).expect("live index");
+        if let Some(directory) = operation.scan_index.take() {
+            let done = operation.named(done);
+            let task = Task::remove_index(directory, Next::End(done), operation.word);
+            self.file_start(id, task, out);
+            return;
+        }
         if !operation.aborted {
             let done = operation.named(done);
             event(out, Event::Done { owner: operation.owner, done });

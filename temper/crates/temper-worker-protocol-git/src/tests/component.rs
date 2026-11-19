@@ -340,61 +340,46 @@ fn stdout_past_its_cap_is_read_dropped_and_ends_broken() {
 }
 #[test]
 fn a_merges_unmerged_stdout_alone_keeps_a_prefix_past_its_cap() {
-    for merging in [false, true] {
-        let mut component = fixtures::Started::new();
-        let op = if merging {
-            fixtures::commit_op(Some(fixtures::COMMIT))
-        } else {
-            git::Op::Merge { at: fixtures::at(), theirs: fixtures::COMMIT, identity: 1, account: None }
-        };
-        component.down(Request::Io {
-            owner: fixtures::OWNER,
-            op,
-            deadline: fixtures::DEADLINE,
-            identity: Some(fixtures::identity()),
-        });
-        if !merging {
-            let (child, pipes) = component.spawned();
-            component.end(pipes[0]);
-            component.end(pipes[1]);
-            component.exited(child, 1);
-            component.closed(child, &pipes);
-        }
-        let (child, pipes) = component.spawned();
-        let cap = fixtures::limits().stdout_bytes;
-        let mut stdout = skein_lib::List::with_capacity(cap.checked_add(6).expect("room for the last path"));
-        for byte in b"one\0two\0three\0four\0" {
-            stdout.push(*byte).expect("named paths fit");
-        }
-        while stdout.len() <= cap {
-            for byte in b"later\0" {
-                stdout.push(*byte).expect("room through the first path past the cap");
-            }
-        }
-        component.stdout(pipes[0], stdout.as_slice());
-        assert!(!component.below.out.io.is_empty(), "reading continues past the cap");
-        component.end(pipes[0]);
-        component.end(pipes[1]);
-        component.exited(child, 0);
-        component.closed(child, &pipes);
-        let done = if merging {
-            git::Done::FailedWithOutput {
-                fault: git::Fault::Broken,
-                diagnostic: git::PushDiagnostic::empty().named(b"diff-files"),
-            }
-        } else {
-            git::Done::Conflicted {
-                files: Box::new([
-                    Box::from(b"one".as_slice()),
-                    Box::from(b"two".as_slice()),
-                    Box::from(b"three".as_slice()),
-                    Box::from(b"four".as_slice()),
-                ]),
-                cut: true,
-            }
-        };
-        assert_eq!(component.done(), Some((fixtures::OWNER, done)), "merging commit: {merging}");
+    let mut component = fixtures::Started::new();
+    let op = git::Op::Merge { at: fixtures::at(), theirs: fixtures::COMMIT, identity: 1, account: None };
+    component.down(Request::Io {
+        owner: fixtures::OWNER,
+        op,
+        deadline: fixtures::DEADLINE,
+        identity: Some(fixtures::identity()),
+    });
+    let (child, pipes) = component.spawned();
+    component.end(pipes[0]);
+    component.end(pipes[1]);
+    component.exited(child, 1);
+    component.closed(child, &pipes);
+    let (child, pipes) = component.spawned();
+    let cap = fixtures::limits().stdout_bytes;
+    let mut stdout = skein_lib::List::with_capacity(cap.checked_add(6).expect("room for the last path"));
+    for byte in b"one\0two\0three\0four\0" {
+        stdout.push(*byte).expect("named paths fit");
     }
+    while stdout.len() <= cap {
+        for byte in b"later\0" {
+            stdout.push(*byte).expect("room through the first path past the cap");
+        }
+    }
+    component.stdout(pipes[0], stdout.as_slice());
+    assert!(!component.below.out.io.is_empty(), "reading continues past the cap");
+    component.end(pipes[0]);
+    component.end(pipes[1]);
+    component.exited(child, 0);
+    component.closed(child, &pipes);
+    let done = git::Done::Conflicted {
+        files: Box::new([
+            Box::from(b"one".as_slice()),
+            Box::from(b"two".as_slice()),
+            Box::from(b"three".as_slice()),
+            Box::from(b"four".as_slice()),
+        ]),
+        cut: true,
+    };
+    assert_eq!(component.done(), Some((fixtures::OWNER, done)));
 }
 
 #[test]

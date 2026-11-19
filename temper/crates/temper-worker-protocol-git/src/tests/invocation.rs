@@ -256,6 +256,7 @@ fn each_command_s_arguments_are_git_md_s_vector() {
             | Command::Clean
             | Command::Merge { .. }
             | Command::Unmerged
+            | Command::UpdateIndex { .. }
             | Command::Add
             | Command::DiffIndex { .. }
             | Command::DiffPaths { .. }

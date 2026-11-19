@@ -96,7 +96,8 @@ pub fn check(spawn: &Spawn) -> Result<Checked, Refusal> {
             | Command::DiffIndex { .. }
             | Command::WriteTree
             | Command::CommitTree { .. } => {}
-            Command::Reds(_)
+            Command::UpdateIndex { .. }
+            | Command::Reds(_)
             | Command::Origin { .. }
             | Command::Version
             | Command::Clone { .. }
@@ -234,6 +235,7 @@ pub(crate) fn remote(command: &Command) -> Option<&[u8]> {
         | Command::Clean
         | Command::Merge { .. }
         | Command::Unmerged
+        | Command::UpdateIndex { .. }
         | Command::Add
         | Command::DiffIndex { .. }
         | Command::WriteTree

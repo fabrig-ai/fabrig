@@ -46,6 +46,7 @@ pub enum Command {
     Clean,
     Merge { theirs: git::Commit },
     Unmerged,
+    UpdateIndex { paths: Box<[u8]> },
     Add,
     DiffIndex { parent: git::Commit },
     DiffPaths { before: git::Commit, after: git::Commit },
@@ -119,6 +120,7 @@ pub(crate) fn no_program(op: &git::Op, command: &Command) -> Box<[u8]> {
         | Command::Clean
         | Command::Merge { .. }
         | Command::Unmerged
+        | Command::UpdateIndex { .. }
         | Command::Add
         | Command::DiffPaths { .. }
         | Command::DiffIndex { .. }
@@ -197,6 +199,7 @@ pub(crate) const fn word(command: &Command) -> &'static [u8] {
         Command::Merge { .. } => b"merge",
         Command::DiffPaths { .. } => b"diff-tree",
         Command::Unmerged => b"diff-files",
+        Command::UpdateIndex { .. } => b"update-index",
         Command::Add => b"add",
         Command::DiffIndex { .. } => b"diff-index",
         Command::WriteTree => b"write-tree",
@@ -273,6 +276,7 @@ pub fn arguments_at(command: &Command, git_dir: Option<&[u8]>, work_tree: Option
         | Command::Clean
         | Command::Merge { .. }
         | Command::Unmerged
+        | Command::UpdateIndex { .. }
         | Command::Add
         | Command::DiffIndex { .. }
         | Command::DiffPaths { .. }
@@ -405,6 +409,7 @@ pub fn arguments_at(command: &Command, git_dir: Option<&[u8]>, work_tree: Option
             ],
         ),
         Command::Unmerged => words(&mut out, &[b"diff-files", b"--name-only", b"-z", b"--diff-filter=U"]),
+        Command::UpdateIndex { .. } => words(&mut out, &[b"update-index", b"--add", b"--remove", b"-z", b"--stdin"]),
         Command::Add => words(&mut out, &[b"add", b"--all", b"--", b".", HIDDEN_LOG_EXCLUSION]),
         Command::DiffIndex { parent } => {
             words(&mut out, &[b"diff-index", b"--cached", b"--quiet", &hex(*parent), b"--"]);
@@ -446,13 +451,14 @@ pub fn arguments_at(command: &Command, git_dir: Option<&[u8]>, work_tree: Option
 /// Whole environment; no PATH or inherited variable reaches git.
 #[must_use]
 pub fn environment(home: &[u8], kind: Option<git::Kind>, identity: Option<&Identity>) -> Box<[Box<[u8]>]> {
-    environment_for(home, kind, identity, true)
+    environment_for(home, kind, identity, true, None)
 }
 pub(crate) fn environment_for(
     home: &[u8],
     kind: Option<git::Kind>,
     identity: Option<&Identity>,
     credentials: bool,
+    index: Option<&[u8]>,
 ) -> Box<[Box<[u8]>]> {
     let identity = match kind {
         Some(
@@ -477,7 +483,11 @@ pub(crate) fn environment_for(
             | git::Kind::Make,
         ) => None,
     };
-    let mut out = List::with_capacity(14);
+    let mut out = List::with_capacity(15);
+    if let Some(index) = index {
+        let root = home.strip_suffix(b"/home").expect("worker home beneath its root");
+        push(&mut out, &joined(&[b"GIT_INDEX_FILE=", root, b"/", index, b"/temper-scan"]));
+    }
     let home = joined(&[b"HOME=", home]);
     words(
         &mut out,

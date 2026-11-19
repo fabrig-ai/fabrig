@@ -18,7 +18,7 @@ pub enum Next {
     Store,
     InstallStore { directory: Box<[u8]>, done: Box<git::Done> },
     Alternates { format: invocation::Format, run: bool },
-    Scan { files: Box<[Box<[u8]>]> },
+    Scan { files: Box<[Box<[u8]>]>, cut: bool },
     End(git::Done),
 }
 /// The first step depends only on the operation.
@@ -185,6 +185,7 @@ pub fn after(
                 return Next::End(git::Done::Paths { files });
             }
         }
+        Command::UpdateIndex { .. } if code == 0 => return Next::Run(Command::Unmerged),
         Command::Unmerged if code == 0 => {
             if let Some(next) = unmerged(op, stdout, checkout) {
                 return next;
@@ -288,6 +289,7 @@ pub fn after(
         | Command::Clean
         | Command::DiffPaths { .. }
         | Command::Unmerged
+        | Command::UpdateIndex { .. }
         | Command::Add
         | Command::WriteTree
         | Command::CommitTree { .. } => {}
@@ -324,21 +326,24 @@ fn pushed(stdout: &[u8], branch: &[u8], create: bool, tail: &[u8], cut: u64) -> 
     Some(Next::End(done))
 }
 fn unmerged(op: &git::Op, stdout: &[u8], checkout: &checkout::Limits) -> Option<Next> {
+    let files = output::conflict_paths(stdout, checkout)?;
+    let mut kept = 0_usize;
+    for file in &files {
+        kept = kept.checked_add(file.len())?.checked_add(1)?;
+    }
+    let cut = kept != stdout.len();
     match op {
         git::Op::Merge { .. } => {
-            let files = output::conflict_paths(stdout, checkout)?;
             if files.is_empty() {
                 return None;
             }
-            let mut kept = 0_usize;
-            for file in &files {
-                kept = kept.checked_add(file.len())?.checked_add(1)?;
-            }
-            Some(Next::End(git::Done::Conflicted { cut: kept != stdout.len(), files }))
+            Some(Next::End(git::Done::Conflicted { cut, files }))
         }
         git::Op::Commit { .. } => {
-            let files = output::paths(stdout, checkout)?;
-            Some(if files.is_empty() { Next::Run(Command::Add) } else { Next::Scan { files } })
+            if files.is_empty() {
+                return if cut { None } else { Some(Next::Run(Command::Add)) };
+            }
+            Some(Next::Scan { files, cut })
         }
         git::Op::Store { .. }
         | git::Op::Make { .. }
@@ -424,6 +429,7 @@ fn remote(command: &Command) -> bool {
         | Command::SnapshotReset { .. }
         | Command::Clean
         | Command::Unmerged
+        | Command::UpdateIndex { .. }
         | Command::Add
         | Command::DiffIndex { .. }
         | Command::DiffPaths { .. }
