@@ -238,7 +238,7 @@ fn file(d: &Domain, row: &TierRow, red: &RedNews, message_bytes: u32, out: &mut 
 }
 
 /// The lowest-numbered kept member naming a follow wins (domain/forge/follows.md, 6).
-fn follow(d: &Domain, repository: Repository, commit: &Commit) -> Option<u32> {
+pub(super) fn follow(d: &Domain, repository: Repository, commit: &Commit) -> Option<u32> {
     let mut first = None;
     if let Some(verification) = d.verifications.get(&(repository, *commit)) {
         for &number in &verification.changes {

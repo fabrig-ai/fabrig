@@ -9,8 +9,9 @@ that landing later (section 6). It holds
 for every landing on a repository's landing branch, by queue
 (`forge/change/README.md` and `forge/queues.md` and `forge/README.md`, section 6), by turn (`landing.md`), or by anyone
 outside temper. Findings, where a verdict files a flake or a red whose
-goal has ended, are `findings.md`'s; a project without findings keeps
-them in the verdict's own record. What is still open is `after-landing.md`, section 13;
+goal has ended, are `findings.md`'s, and under `wait: landed` every red
+of a landing tier is a red finding (`red-findings.md`); a project
+without findings keeps them in the verdict's own record. What is still open is `after-landing.md`, section 13;
 what waits, `after-landing.md`, section 14.
 
 ## 1. In one page
@@ -60,8 +61,9 @@ what waits, `after-landing.md`, section 14.
   keeps it until every tier following its branch has judged it.
 - **A red goes to the landing's goals** (section 7) as news, with the
   failing tests and the log's end, and the goal repairs it with a change
-  that names it. Under `wait: landed` it is a red of no goal's instead,
-  filed once per landing. Other landings go on.
+  that names it. Under `wait: landed` it is a red finding instead,
+  blamed on its landing and kept until a run passes its tests
+  (`red-findings.md`). Other landings go on.
 - **Landing news carries the trailers** of the commits it brought
   (section 8), so a designer's wake policy can wake on `Taught:` alone.
 - **The forge shows** each verdict as a commit status,
@@ -455,8 +457,8 @@ those IDs is known to be still failing; each is new (2026-11-04).
   status and its comments on the members' pull requests (section 9),
   the members read from the landing log, which keeps the landing until
   every tier following its branch has judged it, within
-  `landings_pending` (section 10). A red one is a red of no goal's
-  (section 7).
+  `landings_pending` (section 10). A red one is a red finding
+  (`red-findings.md`).
 - **Switching** a project from `cleared` to `landed` takes effect at
   the start that takes kind 4's new value: each of its changes still
   verifying or red then ends landed and uncleared at its first step, as
@@ -465,10 +467,12 @@ those IDs is known to be still failing; each is new (2026-11-04).
   `Verification` row goes as its landing's last change closes, as
   ever; its landing stays in the landing log, verifying in each tier
   that has not judged it, so a later verdict is posted on its members'
-  pull requests from the log, and a red one is a red of no goal's. A
-  red landing's failures stay on its tier's record, inherited by the
-  tier's next runs (5.2). Switching back to `cleared` changes no ended
-  change: the changes landing after that start live to cleared.
+  pull requests from the log, and a red one is a red finding. A red
+  landing's row first files its finding, blamed on that landing
+  (`red-findings.md`, section 8), and its failures stay on its tier's
+  record, inherited by the tier's next runs (5.2) and held by that
+  finding. Switching back to `cleared` changes no ended change: the
+  changes landing after that start live to cleared.
 
 ## 7. Where a red goes
 
@@ -479,10 +483,12 @@ those IDs is known to be still failing; each is new (2026-11-04).
   repairs it when a later run passes the failures.
 - **Under `wait: landed`** (section 6), no red of a tier following a
   named branch or the landing branch reaches a goal as news, whether
-  the landing's goals have ended or still live: each is a red of no
-  goal's (below), filed once per landing it reddens, and its project's
-  triager hears it as it hears any finding (`findings.md`, section 6).
-  A tier following goal branches is unchanged (below).
+  the landing's goals have ended or still live: each is a red finding,
+  filed against its tier's uncleared red findings, blamed on the
+  landing that caused it and cleared by a run that passes its tests
+  (`red-findings.md`), and its project's triager hears it as it hears
+  any finding (`findings.md`, section 6). A tier following goal
+  branches is unchanged (below).
 - **A member's goal** is its change's requester's tracked ancestor, the
   goal its landings' news reaches (`forge/README.md`, 5.2): the news goes
   through that goal's subscription to its own branch's landings when
@@ -524,8 +530,8 @@ those IDs is known to be still failing; each is new (2026-11-04).
   count the inherited failures. A project's setting may pause new turns
   (or queue merges) into that repository while one of its landings is
   red, instead.
-- **A goal that has ended,** a landing temper did not make, or any
-  landing under `wait: landed`: the red
+- **A goal that has ended,** or a landing temper did not make, under
+  `wait: cleared`: the red
   is a red of no goal's, which the root files as a finding of its
   project in the decision that keeps the verdict, once per landing it
   reddens (`findings.md`, section 4), with no area, so that the project's
@@ -746,12 +752,17 @@ Run: URL
   If any omitted attribution is `many`, the
   remainder says `many` too. Full IDs remain in the change read's retained
   `Verification`; no separate record or larger task result is needed.
+<<<<<<< HEAD
   Where the run's failures are many and its report kept names (section
   4), a line `Its report names: "ID", "ID" and K more.` follows the
   attribution lines the report holds, before its remainder, each id
   quoted as an attribution's is and taken whole in the room the
   attributions and the remainder leave, those left out joining its K
   (2026-11-19).
+=======
+  Under `wait: landed`, it ends with the tier's red filings waiting for
+  room (`red-findings.md`, section 7), kept within its bound.
+>>>>>>> refs/manual4/g8558
 - **Effects:** the tiers' dispatches and reruns are `landing.md`, 11's
   kinds 16 and 17, their branches' creation kind 9, released at the
   task's close; statuses and comments are kinds 6 and 7; each its run's
@@ -770,9 +781,9 @@ Run: URL
   `answer_bytes`; and `Read::Commits { before, after, page }`, the commits
   of a range with their messages, oldest first.
 - **In the store:** `Tier`, keyed by repository and tier, its run in
-  flight, its last judged tip and failures, its flakes, the reds of no
-  goal's until findings take them (section 7), with a count of those
-  dropped past their bound, a held run's last fault (section 3) and a
+  flight, its last judged tip and failures, its flakes, its red filings
+  waiting for room in its project's findings, at most 8, with a count
+  of those not kept (`red-findings.md`, section 7), a held run's last fault (section 3) and a
   person's hold, its party, its time and its reason, at most 1024
   bytes (section 3); a probe's part keeps the group it probes, its
   `low` and `high` landings by their index in the range and its tests,
@@ -813,7 +824,10 @@ Run: URL
   alone, 11.2 there), its goal, the tracked ancestor of the change's
   requester that the change's row names (section 7, *A member's goal*),
   and that goal's milestone, where it has one (`milestones.md`), so
-  that blame names them once the change's row is gone, the sign-offs counted at its merge, at most
+  that blame names them once the change's row is gone, with the goal's
+  person, title and `Draft:` path and the findings its pull request's
+  body names, from the change's row (`red-findings.md`, sections 3 and
+  6), the sign-offs counted at its merge, at most
   `SIGN_OFFS`, each its person, head and time (`forge/change/gates.md`,
   2, *Sign-offs kept at landing*), its trailers within `trailers` and
   `trailer_bytes`, and each tier's verdict: an entry for each tier
@@ -843,7 +857,9 @@ Run: URL
     verdicts reads, at the restore, `verifying` in each tier of its
     repository whose record still holds it to judge (its pending range
     or its run in flight's), and judged in the others; a member logged
-    before it kept goals reads with no goal and no milestone.
+    before it kept goals reads with no goal and no milestone, and one
+    logged before it kept their persons with no person, title, draft
+    or findings named.
   - *A tier gone from the settings* starts no run (section 11), so a
     start drops each `verifying` entry of a tier its repository's
     settings no longer name; a verdict that tier's run in flight still
@@ -858,6 +874,7 @@ Run: URL
   `landings_pending` per repository (64), their sum at most the store's
   256 (`../protocol/configuration/limits.md`); `trailers` per landing (8) and `trailer_bytes` per line
   (200); `tiers` per repository (2 in `small`),
+<<<<<<< HEAD
   `failing_tests` per run (64, 16 in `small`) and `test_id_bytes` (512),
   each at most what a finding's signature holds, 64 ids of at most 512
   bytes (`findings.md`, section 4), which a start checks
@@ -882,6 +899,12 @@ Run: URL
   derived worst case stays within the store's admitted value at the
   stock limits; 32 entries of two lists each would not (169 MB against
   103 MB, 2026-11-19).
+=======
+  `failing_tests` per run (64, at most a finding signature's 64,
+  `findings.md`, section 4), `test_id_bytes` (512, at most the
+  store's 1,024, `../protocol/store.md`, 4), and a tier's
+  name at most 32 bytes.
+>>>>>>> refs/manual4/g8558
 
 A tier's record keeps at most `failing_tests` ids of its last judged
 failures, each within `test_id_bytes`; a run past either is many, as

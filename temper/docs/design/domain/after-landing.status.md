@@ -6,6 +6,7 @@ Section 10's public queue merges read the log's commits and tasks alone;
 there is no known gap in that projection. Older public history is deferred
 in section 14. The log's other gaps and the retained change rows remain below.
 
+<<<<<<< HEAD
 - **Not yet:** 6, *`wait`* and *Switching*: kind 4 has no `wait`, so
   every project's changes live to cleared, and a start ends no
   verifying or red change [in flight: change 8587].
@@ -23,6 +24,19 @@ in section 14. The log's other gaps and the retained change rows remain below.
   ring drops its oldest landing whether or not a tier has judged it
   [in flight: change 8589].
 - **Not yet:** 10, *Limits*: `failing_tests` is 16 in the stock, and no start holds it or `test_id_bytes` within a finding's signature [in flight: change 8564].
+=======
+- **Not yet:** 10, *The landing log*: a member keeps no goal's person,
+  title or `Draft:` path. [in flight: change 9863]
+- **Not yet:** 7, *Under `wait: landed`*: a red is a red of no goal's,
+  filed once per landing with no blame. [in flight: change 9867]
+- **Not yet:** 10, *In the store* and *The completed run task's
+  report*: a tier's record keeps no red filings waiting for room, and
+  its report names none. [in flight: change 9868]
+- **Not yet:** 10, *The landing log*: a member keeps no findings its
+  pull request's body names. [in flight: change 9869]
+- **Not yet:** 6, *Switching*: a red landing's `Verification` row files
+  no finding as it goes. [in flight: change 9870]
+>>>>>>> refs/manual4/g8558
 - **Not yet:** 3, by plan `forge-polls-quiet`: a tier polls its run in
   flight every `poll`, not at the client's `poll_at`.
 - **Not yet:** 5.2, 11: the suspects' rule and a

@@ -953,6 +953,9 @@ pub fn change_row(state: temper_engine_domain_forge_change::State) -> top::Chang
         delegate_head: None,
         verdicts: Box::new([GateReport { number: 21, head: [22; 32], status: Status::Failed }]),
         milestone: None,
+        person: None,
+        goal_title: None,
+        draft: None,
         goal: None,
         ending: None,
         repair_tasks: Box::new([]),
@@ -1152,6 +1155,8 @@ pub fn tier_row() -> top::TierRow {
         many: None,
         posting: None,
         hold: None,
+        waiting: Box::new([]),
+        unkept: 0,
         observations: Box::new([b'o'; 8192]),
         requested: true,
         cancelled: true,
@@ -1293,6 +1298,17 @@ pub fn finding() -> top::Finding {
         *id.last_mut().expect("nonempty signature key") = number;
         ids.push(id).expect("bounded signature ids");
     }
+    let mut goals = List::with_capacity(64);
+    for _ in 0_u32..64 {
+        goals
+            .push(top::BlamedGoal { goal: u64::MAX, milestone: Some(u64::MAX), person: Some(u64::MAX) })
+            .expect("bounded blamed goals");
+    }
+    let landing = top::BlamedLanding { commit: [255; 32], goals: goals.into_boxed() };
+    let mut landings = List::with_capacity(256);
+    for _ in 0_u32..256 {
+        landings.push(landing.clone()).expect("bounded blamed landings");
+    }
     top::Finding {
         project: u32::MAX,
         number: u32::MAX,
@@ -1313,7 +1329,10 @@ pub fn finding() -> top::Finding {
             source: Box::new([b's'; 64]),
             ids: ids.into_boxed(),
             first: Box::new([b'f'; 512]),
+            many: false,
         }),
         seen: Some(u32::MAX),
+        blame: Some(top::FindingBlame { strength: top::BlameStrength::Owned, landings: landings.into_boxed() }),
+        cleared: Some(top::FindingCleared { run: u64::MAX, at: skein_lib::Wall::from_nanos(u64::MAX) }),
     }
 }

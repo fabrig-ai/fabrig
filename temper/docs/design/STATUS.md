@@ -326,12 +326,12 @@ range is bisected over its changed-key landings; each verdict is posted
 on the forge, `temper/verdict/<tier>` on the run's tip and a comment on
 each member's pull request, `Repaired by #M` once a repair passes. A
 project whose kind 4 says `wait: landed` ends each change at its
-landing, so its goal and the goals waiting on it go on then, while the
-tiers judge the landing from the landing log, which keeps each landing
-with its members' goals and milestones until every tier has judged it,
-within `forge.landings_pending`; a red there is the project's finding,
-once per landing, and switching a project ends its verifying and red
-changes landed and uncleared (`draft/after-landing-repairs.status.md`). A
+landing, so the goals waiting on it go on then, while the tiers judge
+it from the landing log, which keeps its members' goals until every
+tier has; a red there is a finding blamed on its landing's goals, held
+until a run passes its tests (`domain/red-findings.md`), and switching
+a project ends its verifying and red changes uncleared, each red one
+filing its finding (`draft/after-landing-repairs.status.md`). A
 change's stall on CI and a landing's gate run past its bound name each
 pending job's state, read by skein's `JobState`, and count only the
 time CI runs, by an execution clock read each poll, a wait for a runner
@@ -596,6 +596,7 @@ Design documents:
 - [`domain/agent/standing.md`](domain/agent/standing.status.md)
 - [`domain/agent/tools.md`](domain/agent/tools.status.md)
 - [`domain/findings.md`](domain/findings.status.md)
+- [`domain/red-findings.md`](domain/red-findings.status.md)
 - [`domain/forge/README.md`](domain/forge/README.status.md)
 - [`domain/forge/dependencies.md`](domain/forge/dependencies.status.md)
 - [`domain/forge/follows.md`](domain/forge/follows.status.md)

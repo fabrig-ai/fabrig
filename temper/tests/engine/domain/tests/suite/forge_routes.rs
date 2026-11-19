@@ -127,6 +127,7 @@ mod stall_hold;
 #[path = "forge_routes/result.rs"]
 mod result;
 
+mod findings_cleared;
 mod red_findings;
 #[path = "forge_routes/tiers.rs"]
 mod tiers;

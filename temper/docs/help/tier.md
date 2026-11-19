@@ -57,6 +57,11 @@ A tier is a slow check of a branch after changes land on it: each run covers eve
   when a later run passes the failures, the red landing is cleared,
   repaired by that change's landing, and its change's result ends
   `repaired by COMMIT.`
+- **Under `wait: landed`,** a red finding holds its tests even when
+  dropped or routed. A run that passes its tests clears it, whatever its
+  triage state; tests that pass alone count as passed. A many run clears
+  nothing. A red filing refused for room waits on the tier, holding its
+  tests, and a later run files it oldest first when room is available.
 - **A runner's fault,** a lost run or a failed setup, runs the part
   again, up to the project's `tier_retries`. Past them, the tier's run
   task is held, `Tier NAME run N held after K runner faults, last:
@@ -159,9 +164,11 @@ A tier is a slow check of a branch after changes land on it: each run covers eve
 
 For the configuration members that need a restart, read `temper help configuration`.
 
-- A repository has at most two tiers in the small profile. A run names
-  at most 16 failing tests, each id at most 256 bytes; past them its
+- A repository has at most two tiers in the small profile. A stock run names
+  at most 64 failing tests, each id at most 512 bytes; past them its
   failures are many, blamed by landing alone.
 - A tier follows one branch: following two takes two tiers.
-- Under `"wait": "landed"`, main's red reaches no goal; it is filed
-  once as a project finding. Goal-branch tiers still tell their goals.
+- Under `"wait": "landed"`, main's red reaches no goal; it is a project
+  finding blamed on the landing and goal behind it, filed once for
+  failures no uncleared red finding of the tier holds. Goal-branch tiers
+  still tell their goals.

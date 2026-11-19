@@ -168,6 +168,74 @@ fn repairing_pull(d: &Domain, row: &TierRow, commit: Commit, range: &[p::Landing
     None
 }
 
+/// Repairs are projected once per retained pull, after verification's repairs (red-findings.md, 6).
+fn finding_repairs(d: &Domain, row: &TierRow, number: u64, range: &[p::Landing], comments: &mut List<Comment>) {
+    let project = d.repositories.get(&row.repository).expect("adopted tier").project;
+    let mut cleared = List::uncapped();
+    for (_, finding) in d.findings(project) {
+        if let Some(cleared_by) = finding.cleared
+            && cleared_by.run == number
+            && let Some(signature) = &finding.signature
+            && signature.repository == row.repository
+            && signature.source == row.tier
+            && let Some(blame) = &finding.blame
+        {
+            cleared.push((finding.number, blame)).expect("cleared findings");
+        }
+    }
+    let Some(log) = d.landing_logs.get(&row.repository) else { return };
+    for landing in &log.landings {
+        let mut findings = List::uncapped();
+        for (number, blame) in &cleared {
+            for blamed in &blame.landings {
+                if blamed.commit == landing.commit {
+                    findings.push(*number).expect("cleared findings blaming this landing");
+                    break;
+                }
+            }
+        }
+        if findings.is_empty() {
+            continue;
+        }
+        let kind = CommentKind::Repaired { by: finding_repairing_pull(log, range, findings.as_slice()) };
+        for member in &landing.changes {
+            let Some(pull) = member.pull else { continue };
+            let mut posted = false;
+            for comment in comments.as_slice() {
+                if comment.pull == pull {
+                    match comment.kind {
+                        CommentKind::Repaired { .. } => posted = true,
+                        CommentKind::Verdict { .. } => {}
+                    }
+                }
+            }
+            if !posted {
+                comments
+                    .push(Comment { pull, landing: landing.commit, kind })
+                    .expect("bounded repaired logged members");
+            }
+        }
+    }
+}
+fn finding_repairing_pull(log: &crate::LandingLog, range: &[p::Landing], findings: &[u32]) -> Option<u64> {
+    for landing in range.iter().rev() {
+        for logged in &log.landings {
+            if logged.commit != landing.commit {
+                continue;
+            }
+            for member in &logged.changes {
+                let Some(pull) = member.pull else { continue };
+                for number in &member.fixes {
+                    if findings.contains(number) {
+                        return Some(pull);
+                    }
+                }
+            }
+        }
+    }
+    None
+}
+
 /// Called after verification is judged, before its changes can release their rows.
 pub(super) fn compose(d: &Domain, row: &TierRow, verdict: &p::Verdict) -> Posting {
     let range = &row.record.run.as_ref().expect("judged run").landings;
@@ -216,6 +284,7 @@ pub(super) fn compose(d: &Domain, row: &TierRow, verdict: &p::Verdict) -> Postin
             }
         }
     }
+    finding_repairs(d, row, verdict.number, range, &mut comments);
     Posting {
         number: verdict.number,
         tip: verdict.tip,
@@ -321,7 +390,11 @@ pub(super) fn step(d: &mut Domain, env: &Env<Limits>, row: &mut TierRow, entry: 
                 landings: blames.into_boxed(),
                 flakes: Box::new([]),
             };
+<<<<<<< HEAD
             let words = super::posted_words(&row.tier, &verdict, &posting.landings, row.many.as_ref());
+=======
+            let words = super::posted_words(row, &verdict, &posting.landings);
+>>>>>>> refs/manual4/g8558
             super::done(d, row, words, out);
         } else {
             row.posting = Some(posting);

@@ -217,10 +217,134 @@ fn an_application_adopted_layout_without_landing_defaults_it_to_empty() {
     assert_eq!(decoded, stored, "an old outcome keeps its facts but names no landing");
 }
 
+<<<<<<< HEAD
 fn golden(text: &'static str, name: &str) -> Box<[u8]> {
     skein_codegen::values(text)
         .goldens
         .clone()
+=======
+#[test]
+fn earlier_landing_members_and_change_rows_default_goal_facts() {
+    use skein_codec::{
+        layout::{Plan, Workspace},
+        schema,
+    };
+    use temper_engine_domain_forge_vocabulary as d;
+    let family = crate::OWNER_SET.families.iter().find(|family| family.name == "temper-store").unwrap();
+    let mut before = family.current.to_owned();
+    before = before.replacen(
+        "record LoggedChange { fixes: list 8 u32 = [] person: option u64 = none goal_title: option bytes 256 = none draft: option bytes 256 = none",
+        "record LoggedChange { fixes: list 8 u32 = []", 1,
+    );
+    before = before.replacen(
+        "record ChangeCold { person: option u64 = none goal_title: option bytes 256 = none draft: option bytes 256 = none",
+        "record ChangeCold {", 1,
+    );
+    assert_ne!(before, family.current);
+    let old = schema::parse(before.as_bytes()).unwrap();
+    let new = schema::parse(family.current.as_bytes()).unwrap();
+    let person = Some(7);
+    let goal_title = Some(Box::from(b"R2 Reds blamed".as_slice()));
+    let draft = Some(Box::from(b"temper/docs/design/draft/after-landing-repairs.md".as_slice()));
+    let (mut cold, _) = super::fixtures::change_row(temper_engine_domain_forge_change::State::Ended).split();
+    cold.goal = Some(42);
+    cold.milestone = Some(40);
+    cold.person = person;
+    cold.goal_title = goal_title.clone();
+    cold.draft = draft.clone();
+    let log = d::LandingLog {
+        repository: cold.repository,
+        landings: Box::new([d::LoggedLanding {
+            commit: [7; 32],
+            branch: b"main".as_slice().into(),
+            at: skein_lib::Wall::from_nanos(123),
+            tiers: Box::new([]),
+            changes: Box::new([d::LoggedChange {
+                fixes: Box::new([]),
+                task: cold.task,
+                pull: Some(2),
+                title: b"member".as_slice().into(),
+                signed: Box::new([]),
+                goal: cold.goal,
+                milestone: cold.milestone,
+                person,
+                goal_title,
+                draft,
+            }]),
+        }]),
+    };
+    let mut old_cold = cold.clone();
+    old_cold.person = None;
+    old_cold.goal_title = None;
+    old_cold.draft = None;
+    let mut old_log = log.clone();
+    let member = &mut old_log.landings[0].changes[0];
+    member.person = None;
+    member.goal_title = None;
+    member.draft = None;
+    for (variant, stored, expected) in [
+        (b"landing_log".as_slice(), d::Stored::LandingLog(log), d::Stored::LandingLog(old_log)),
+        (b"change_cold".as_slice(), d::Stored::ChangeCold(Box::new(cold)), d::Stored::ChangeCold(Box::new(old_cold))),
+    ] {
+        let old_root = old.root(b"Row", Some(variant)).unwrap();
+        let new_root = new.root(b"Row", Some(variant)).unwrap();
+        let write_old = Plan::derive_dropping(&new, new_root, &[], &old, old_root, &[]).unwrap();
+        let mut work = Workspace::new();
+        assert!(work.fit(&write_old));
+        let mut earlier = skein_lib::Buffer::with_capacity(4096);
+        write_old.convert(&crate::records::encode(&stored), &mut earlier, &mut work).unwrap();
+        let read_old = Plan::derive(&old, old_root, &[], &new, new_root, &[]).expect("goal facts default to none");
+        assert!(work.fit(&read_old));
+        let mut current = skein_lib::Buffer::with_capacity(4096);
+        read_old.convert(earlier.as_slice(), &mut current, &mut work).unwrap();
+        let bounds = crate::bounds(&super::fixtures::LIMITS, super::fixtures::LIMITS.client.op_bytes).unwrap();
+        let decoded = crate::records::decode(current.as_slice(), &bounds).unwrap();
+        assert_eq!(decoded, expected, "{variant:?} preserves all other facts");
+    }
+}
+
+#[test]
+fn an_earlier_finding_defaults_blame_clearing_and_many() {
+    use super::fixtures;
+    use crate::records;
+    use skein_codec::{
+        layout::{Plan, Workspace},
+        schema,
+    };
+    use temper_engine_domain_forge_vocabulary::Stored;
+
+    let family = crate::OWNER_SET.families.iter().find(|family| family.name == "temper-store").unwrap();
+    let mut before = family.current.to_owned();
+    for field in [" blame: option FindingBlame = none", " cleared: option FindingCleared = none", " many: bool = false"]
+    {
+        assert!(before.contains(field));
+        before = before.replacen(field, "", 1);
+    }
+    let old = schema::parse(before.as_bytes()).unwrap();
+    let new = schema::parse(family.current.as_bytes()).unwrap();
+    let old_root = old.root(b"Row", Some(b"finding")).unwrap();
+    let new_root = new.root(b"Row", Some(b"finding")).unwrap();
+    let write_old = Plan::derive_dropping(&new, new_root, &[], &old, old_root, &[]).unwrap();
+    let mut work = Workspace::new();
+    assert!(work.fit(&write_old));
+    let mut row = fixtures::finding();
+    let mut earlier = skein_lib::Buffer::with_capacity(1_048_576);
+    write_old.convert(&records::encode(&Stored::Finding(row.clone())), &mut earlier, &mut work).unwrap();
+    let read_old = Plan::derive(&old, old_root, &[], &new, new_root, &[]).expect("finding additions have defaults");
+    assert!(work.fit(&read_old));
+    let mut current = skein_lib::Buffer::with_capacity(1_048_576);
+    read_old.convert(earlier.as_slice(), &mut current, &mut work).unwrap();
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    let decoded = records::decode(current.as_slice(), &bounds).unwrap();
+    row.blame = None;
+    row.cleared = None;
+    assert!(!row.signature.as_ref().unwrap().many);
+    assert_eq!(decoded, Stored::Finding(row), "an old finding keeps its signature, without blame or clearing");
+}
+
+fn golden(text: &str, name: &str) -> Box<[u8]> {
+    skein_codegen::goldens(&skein_codegen::parse(text).expect("current store schema"))
+>>>>>>> refs/manual4/g8558
         .into_iter()
         .find(|value| value.name == name)
         .expect("named fixed-rule Change row")
@@ -333,12 +457,16 @@ fn an_earlier_landing_log_defaults_member_goals_and_tier_entries() {
             branch: b"main".as_slice().into(),
             at: skein_lib::Wall::from_nanos(123),
             changes: Box::new([d::LoggedChange {
+                fixes: Box::new([]),
                 signed: Box::new([]),
                 task: 51,
                 pull: Some(2),
                 title: b"member".as_slice().into(),
                 goal: Some(42),
                 milestone: Some(40),
+                person: None,
+                goal_title: None,
+                draft: None,
             }]),
             tiers: Box::new([d::LoggedTier { tier: b"slow".as_slice().into(), verdict: d::LoggedVerdict::Verifying }]),
         }]),
@@ -361,4 +489,89 @@ fn an_earlier_landing_log_defaults_member_goals_and_tier_entries() {
         assert_eq!(member.title.as_ref(), b"member");
         assert_eq!((member.goal, member.milestone), (None, None));
     }
+}
+
+#[test]
+fn an_earlier_landing_member_defaults_fixes() {
+    use skein_codec::{
+        layout::{Plan, Workspace},
+        schema,
+    };
+    use temper_engine_domain_forge_vocabulary as d;
+    let family = crate::OWNER_SET.families.iter().find(|family| family.name == "temper-store").unwrap();
+    let before = family.current.replacen(" fixes: list 8 u32 = []", "", 1);
+    assert_ne!(before, family.current);
+    let old = schema::parse(before.as_bytes()).unwrap();
+    let new = schema::parse(family.current.as_bytes()).unwrap();
+    let old_root = old.root(b"Row", Some(b"landing_log")).unwrap();
+    let new_root = new.root(b"Row", Some(b"landing_log")).unwrap();
+    let mut stored = d::Stored::LandingLog(d::LandingLog {
+        repository: skein_forge::api::Repository { forge: 1, repository: 2 },
+        landings: Box::new([d::LoggedLanding {
+            commit: [7; 32],
+            branch: b"main".as_slice().into(),
+            at: skein_lib::Wall::from_nanos(123),
+            tiers: Box::new([]),
+            changes: Box::new([d::LoggedChange {
+                fixes: Box::new([7, 12]),
+                signed: Box::new([]),
+                task: 51,
+                pull: Some(101),
+                title: b"member".as_slice().into(),
+                goal: Some(42),
+                milestone: Some(40),
+                person: Some(7),
+                goal_title: Some(b"Goal".as_slice().into()),
+                draft: None,
+            }]),
+        }]),
+    });
+    let write_old = Plan::derive_dropping(&new, new_root, &[], &old, old_root, &[]).unwrap();
+    let mut work = Workspace::new();
+    assert!(work.fit(&write_old));
+    let mut earlier = skein_lib::Buffer::with_capacity(4096);
+    write_old.convert(&crate::records::encode(&stored), &mut earlier, &mut work).unwrap();
+    let read_old = Plan::derive(&old, old_root, &[], &new, new_root, &[]).expect("fixes default to empty");
+    assert!(work.fit(&read_old));
+    let mut current = skein_lib::Buffer::with_capacity(4096);
+    read_old.convert(earlier.as_slice(), &mut current, &mut work).unwrap();
+    let bounds = crate::bounds(&super::fixtures::LIMITS, super::fixtures::LIMITS.client.op_bytes).unwrap();
+    let decoded = crate::records::decode(current.as_slice(), &bounds).unwrap();
+    let d::Stored::LandingLog(log) = &mut stored else { panic!("landing log") };
+    log.landings[0].changes[0].fixes = Box::new([]);
+    assert_eq!(decoded, stored, "the previous member layout retains all other facts but names no fixes");
+}
+
+#[test]
+fn an_earlier_tier_defaults_waiting_and_unkept() {
+    use skein_codec::{
+        layout::{Plan, Workspace},
+        schema,
+    };
+    use temper_engine_domain_forge_vocabulary::Stored;
+    let family = crate::OWNER_SET.families.iter().find(|family| family.name == "temper-store").unwrap();
+    let before = family.current.replace("waiting: list 8 VerdictFiling = [] unkept: u32 = 0 ", "");
+    assert_ne!(before, family.current);
+    let old = schema::parse(before.as_bytes()).unwrap();
+    let new = schema::parse(family.current.as_bytes()).unwrap();
+    let old_root = old.root(b"Row", Some(b"tier")).unwrap();
+    let new_root = new.root(b"Row", Some(b"tier")).unwrap();
+    let write_old = Plan::derive_dropping(&new, new_root, &[], &old, old_root, &[]).unwrap();
+    let mut work = Workspace::new();
+    assert!(work.fit(&write_old));
+    let mut row = super::fixtures::tier_row();
+    row.unkept = 12;
+    let mut earlier = skein_lib::Buffer::with_capacity(1_048_576);
+    write_old.convert(&crate::records::encode(&Stored::Tier(row.clone())), &mut earlier, &mut work).unwrap();
+    let read_old = Plan::derive(&old, old_root, &[], &new, new_root, &[]).expect("tier additions have defaults");
+    assert!(work.fit(&read_old));
+    let mut current = skein_lib::Buffer::with_capacity(1_048_576);
+    read_old.convert(earlier.as_slice(), &mut current, &mut work).unwrap();
+    let bounds = crate::bounds(&super::fixtures::LIMITS, super::fixtures::LIMITS.client.op_bytes).unwrap();
+    row.unkept = 0;
+    let decoded = crate::records::decode(current.as_slice(), &bounds).unwrap();
+    let Stored::Tier(tier) = &decoded else { panic!("tier layout") };
+    assert_eq!(tier.waiting.len(), 0);
+    assert_eq!(tier.unkept, 0);
+    assert_eq!(decoded, Stored::Tier(row));
 }

@@ -206,10 +206,14 @@ fn projection_needed(domain: &Domain, task: u64) -> bool {
     }
 }
 
+<<<<<<< HEAD
 // Each verdict line holds one whole escaped ID and its retained change read.
 fn report_words(words: &[u8], bound: u32) -> Box<[u8]> {
     forge::tier_report_words(words, bound)
 }
+=======
+use forge::tier_report::words as report_words;
+>>>>>>> refs/manual4/g8558
 
 #[cfg(test)]
 mod report_tests {
@@ -280,6 +284,18 @@ mod report_tests {
         assert!(report.ends_with(b"and 1 more failing test; change show 8"));
         assert!(skein_lib::bytes::find(&report, &[b'x'; 128]).is_none());
         assert!(report.len() <= 256);
+    }
+    #[test]
+    fn bounded_reports_reserve_waiting_and_unkept_counts_after_the_remainder() {
+        let tail =
+            b"\n8 red filings wait for room in the project's findings.\n12 red filings were dropped for want of room.";
+        let words = full_length_words(b"Tier slow run 3: red, 2 tests failing, blamed on 2 landings\naaaa owns: \"", b"\"; change show 8\nbbbb owns: \"no-break\"; change show 9\n8 red filings wait for room in the project's findings.\n12 red filings were dropped for want of room.");
+        let report = report_words(&words, 256);
+        assert!(report.ends_with(tail), "{report:?}");
+        assert!(skein_lib::bytes::find(&report, b"and 1 more failing test; change show 8").is_some(), "{report:?}");
+        assert!(skein_lib::bytes::find(&report, b"bbbb owns: \"no-break\"; change show 9").is_some(), "{report:?}");
+        assert!(report.len() <= 256, "{report:?}");
+        assert_eq!(report_words(&words, 1024), words);
     }
     fn full_length_words(prefix: &[u8], suffix: &[u8]) -> Box<[u8]> {
         let length = prefix.len().checked_add(256).unwrap().checked_add(suffix.len()).unwrap();
