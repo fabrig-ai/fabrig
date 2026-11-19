@@ -65,14 +65,15 @@ pub fn core_key(rng: &mut Rng) -> CoreKey {
     }
 }
 fn setting(rng: &mut Rng) -> Setting {
-    match rng.below(7) {
+    match rng.below(8) {
         0 => Setting::Charter(narrow(rng)),
         1 => Setting::Template(narrow(rng)),
         2 => Setting::Policy(narrow(rng)),
         3 => Setting::Rules,
         4 => Setting::Application { kind: narrow(rng), scope: narrow(rng), number: narrow(rng) },
         5 => Setting::ProjectPolicy { project: narrow(rng) },
-        _ => Setting::Model(narrow(rng)),
+        6 => Setting::Model(narrow(rng)),
+        _ => Setting::Limits,
     }
 }
 pub fn people_key(rng: &mut Rng) -> people::Key {

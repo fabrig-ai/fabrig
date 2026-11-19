@@ -6,7 +6,11 @@ use crate::startup::{Problems, What, checks, lines};
 use jig_protocol_config::{self as config, Path};
 use temper_protocol_worker_wire as payload;
 
-fn started(input: &[u8], files: &crate::settings::Files, agent: &crate::settings::Agent) -> Problems {
+fn started(
+    input: &(impl fixtures::Input + ?Sized),
+    files: &crate::settings::Files,
+    agent: &crate::settings::Agent,
+) -> Problems {
     match fixtures::start(
         input,
         &jig_protocol_config::Directories::working(),
@@ -199,13 +203,12 @@ fn checkout_capacity_names_stdout_and_both_link_rooms() {
         b"application.limits.overrides",
         br#"{"checkout.name_bytes":600,"checkout.repositories":2,"checkout.conflicts":1024,"checkout.path_bytes":4096,"git_component.stdout_bytes":262144}"#,
     );
-    let mut document: serde_json::Value = serde_json::from_slice(&document).unwrap();
-    document["engine"]["limits"]["overrides"]["io.output"] = 1_048_576_u32.into();
-    document["engine"]["limits"]["overrides"]["io.output"] = 1_048_576_u32.into();
+    let mut input = document;
+    input.jig.io.output = 1_048_576;
     let mut agent = fixtures::startup_agent();
     agent.host_limits.conflicts = 1024;
     agent.host_limits.path_bytes = 4096;
-    let found = started(&serde_json::to_vec(&document).unwrap(), &fixtures::files(), &agent);
+    let found = started(&input, &fixtures::files(), &agent);
     assert_eq!(found.problems.len(), 1);
     assert_eq!(
         String::from_utf8_lossy(&lines(&found)),
@@ -767,11 +770,13 @@ fn missing_and_small_charter_models_warn_at_their_configuration_path() {
 #[test]
 fn each_document_shape_is_read_from_its_members() {
     use crate::startup::{Shape, shape};
-    for (document, expected) in [
+    for (document, expected) in vec![
         (fixtures::document(), Shape::Standalone),
         (fixtures::engine_alone_document(), Shape::EngineAlone),
         (fixtures::worker_alone_document(), Shape::WorkerAlone),
-    ] {
+    ]
+    .into_boxed_slice()
+    {
         assert_eq!(shape(&document, &config::Directories::working()), Ok(expected));
     }
 }

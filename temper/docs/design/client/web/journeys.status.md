@@ -1,7 +1,11 @@
 # journeys: status
 
-2026-11-17. Where temper's code lags or departs from [journeys.md](journeys.md).
+2026-11-18. Where temper's code lags or departs from [journeys.md](journeys.md).
 
+- **Not yet:** 5.1: no `pages` command [in flight: change 8894].
+- **Not yet:** 6: the print's test reprints every committed journey and holds its recording to its normalisation, and redaction and the scan read the committed recordings [in flight: change 8893].
+- **Not yet:** 7: `scripts/look-refresh.sh` drops a request once main carries its trailer, whatever `Printed:` says [in flight: change 8896].
+- **Not yet:** 7: the delivery check refuses no request's pages and no overlay [in flight: change 8897].
 
 
 Section 9 has the `ask-temper-start` account (`b14f146fc5`), the
@@ -99,4 +103,5 @@ template, where a box now starts a design session
   - 8.1: a typed secret's act holds its `x`s once added, so `again` types those. No committed journey types a secret, so no run has shown it.
 - **Departs:**
   - 5.1: a `--redact` TEXT that is empty or starts `--` is a table refusal with usage, exit 2, so such a text can't be named, because a TEXT left out must not take the next flag for one.
-  - 6: the refusal's process tests (`temper/bin/temper-client-journeys/tests/suite/refusals.rs`) compare the listings of the journeys' root and of `crates/temper-client-journeys-tool`, a level each, and the print's test compares a whole root, where the section has nothing written on any path. No test traces a process's every write, so that `add`'s writes all stand after its last scan is seen by reading `add`.
+  - 6: the refusal's process tests (`temper/bin/temper-client-journeys/tests/suite/refusals.rs`) compare the listings of the journeys' root and of `crates/temper-client-journeys-tool`, a level each, where the section has nothing written on any path. No test traces a process's every write, so that `add`'s writes all stand after its last scan is seen by reading `add`.
+  - 5.2, 6: `project-landing`, `welcome-playground` and `welcome-set-up` are stale. Their recordings predate the client wire that limits as settings moved and its `limits` and `limit-holds` reads (`../../protocol/configuration/limit-settings.md`, 7), so the print's test fails on them. The change landed without waiting for them to be recorded again, because `again` couldn't fetch the owned Forgejo's pinned download (8.1): codeberg.org didn't resolve anywhere on 2026-11-18. Free decided this on 2026-11-18, through temper/dev. temper/tiers records them again after landing, with the TUI's four (`../tui/journeys.status.md`), and deletes this entry.

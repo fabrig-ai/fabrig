@@ -76,18 +76,6 @@ cpu_s = 0.27
 why = "Two goals' changes, each approved by its review behind a person's latch, form one turn landing of two on one green gate run, with one fast-forward, member pulls merged at their candidates, and the landing's panel checked. Two goals forming one turn cannot be shown with fewer."
 
 [[gate.default.reasons]]
-binary = "temper-client-journeys-tool"
-test = "tests::the_committed_journey_redacted_prints_the_same_pages"
-cpu_s = 0.25
-why = "Redaction must preserve every printed page of the whole committed welcome-set-up recording, the only web recording until the journeys are recorded again after R4 lands (temper/docs/design/client/web/journeys.md, 9); landing run 1593 measured 0.181 CPU s alone."
-
-[[gate.default.reasons]]
-binary = "temper-client-shell-web"
-test = "journey::normalise::tests::committed_welcome_set_up_normalises_and_replays_to_the_end"
-cpu_s = 0.30
-why = "Normalisation must preserve and replay the whole committed welcome-set-up recording through the shipped host to its end, the only web recording until the journeys are recorded again after R4 lands (temper/docs/design/client/web/journeys.md, 9); landing run 1593 measured 0.210 CPU s alone."
-
-[[gate.default.reasons]]
 binary = "temper-client-shell-tui"
 test = "journey::normalise::tests::an_approved_sign_in_normalises_and_replays_to_the_end"
 cpu_s = 0.14
@@ -99,12 +87,6 @@ binary = "temper-engine-shell"
 test = "forge_sign_in::tests::credentials_are_private_whole_and_left_in_place_on_a_second_run"
 cpu_s = 0.21
 why = "Same-work backlog (the user, 11-18): its CPU alone swings 2.0 times on the same code (main's figures 0.068, 0.098, 0.071 s; 0.135 s at a docs-only candidate, 11-18 13:39Z), so a gate can flag it on noise. The line is half again its largest figure; the repair that makes its work the same at every run drops it (skein/docs/foundation/testing-strategy.md, 10)."
-
-[[gate.default.reasons]]
-binary = "temper-client-journeys-tool"
-test = "tests::the_committed_journeys_are_their_print"
-cpu_s = 3.9
-why = "Same-work backlog (the user, 11-18): its CPU alone swung 1.7 times (1.534 s at the base, 2.572 s at the head, w1's run of 11-18 15:29Z), so a gate can flag it on noise. The line is half again its largest figure; the repair that makes its work the same at every run drops it (skein/docs/foundation/testing-strategy.md, 10)."
 
 [[gate.default.reasons]]
 binary = "temper-service"

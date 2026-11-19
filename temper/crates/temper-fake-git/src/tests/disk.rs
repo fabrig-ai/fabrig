@@ -6,6 +6,7 @@ use std::collections::BTreeSet;
 pub(super) struct Disk {
     pub machine: Machine,
     pub written: Vec<Vec<u8>>,
+    pub opened: Vec<Vec<u8>>,
     root: Opened,
 }
 impl Disk {
@@ -24,7 +25,7 @@ impl Disk {
         all.extend(items);
         let mut machine = Machine::new();
         let root = machine.lay(&all);
-        Self { machine, root, written: Vec::new() }
+        Self { machine, root, written: Vec::new(), opened: Vec::new() }
     }
     pub fn read(&mut self, path: &[u8]) -> Option<Vec<u8>> {
         let fd = self.machine.open(self.root, path, How::ReadNoFollow).ok()?;
@@ -115,6 +116,7 @@ impl Disk {
     fn file(&mut self, op: &mut Op) -> Result<Done, skein_fake_machine::Refusal> {
         match op {
             Op::Open { root, path, how } => {
+                self.opened.push(path.to_vec());
                 if matches!(how, OpenHow::WriteNoFollow | OpenHow::CreateNoFollow { .. }) {
                     self.written.push(path.to_vec());
                 }

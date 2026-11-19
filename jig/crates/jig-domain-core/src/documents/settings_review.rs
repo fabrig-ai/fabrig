@@ -27,6 +27,7 @@ pub(super) fn review(
             | s::Setting::Worker(_)
             | s::Setting::Model(_)
             | s::Setting::Rules
+            | s::Setting::Limits
             | s::Setting::Application { .. } => {
                 let (now, origin) = core.current.lookup(item.setting);
                 (now.cloned(), if now.is_some() { origin } else { None })

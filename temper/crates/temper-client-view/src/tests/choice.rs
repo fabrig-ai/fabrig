@@ -699,28 +699,21 @@ fn the_inactive_playground_has_no_connect_line() {
 }
 
 #[test]
-fn an_accounts_models_are_the_rows_that_name_its_number() {
+fn an_accounts_models_stay_out_of_its_summary() {
     let (mut root, watch, _, _) =
         line_fixture(None, accounts(&[account(3, c::AccountKind::Key, None)]), None, None, None, true);
     let mut me = d::pages::accounts::current_me(root.client()).unwrap().clone();
     let project = me.projects.get_mut(0).unwrap();
-    project.models = List::with_capacity(2);
-    let mut same_provider = offer_row(b"wrong-account", Some(17));
-    same_provider.accounts = List::with_capacity(1);
-    same_provider.accounts.push(7).unwrap();
-    project.models.push(same_provider).unwrap();
-    let mut different_provider = offer_row(b"right-account", None);
-    different_provider.accounts = List::with_capacity(1);
-    different_provider.accounts.push(3).unwrap();
-    project.models.push(different_provider).unwrap();
+    let mut model = offer_row(b"available-model", Some(17));
+    model.accounts = List::from_boxed(Box::new([3]));
+    project.models = List::from_boxed(Box::new([model]));
     delivered(&mut root, watch, c::Delivery::Me(Box::new(me)));
     fixtures::root_event(&mut root, d::Event::Went { place: d::Place::Address(Address::Accounts) });
     let view = fixtures::page_view(&root);
     let nodes = view.tree().nodes();
     let row = nodes.iter().position(|node| node.styles.as_slice().contains(&crate::look::SETTINGS_ROW)).unwrap();
     let summary = core::str::from_utf8(nodes[row].description.as_deref().unwrap()).unwrap();
-    assert!(summary.contains("right-account"), "{summary}");
-    assert!(!summary.contains("wrong-account"), "{summary}");
+    assert_eq!(summary, "Granted · Your own work");
 }
 
 fn picker_line(view: &crate::View) -> &[u8] {

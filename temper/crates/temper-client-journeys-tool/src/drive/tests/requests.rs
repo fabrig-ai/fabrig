@@ -67,6 +67,39 @@ fn recorded_load_filters_and_counts_stream_first_answer() {
 }
 
 #[test]
+fn cold_open_omits_icon_before_stream_and_batch() {
+    let mut m = loaded();
+    at(&mut m, request("icon", "GET", "/favicon.ico"), 100);
+    at(&mut m, answered("icon"), 200);
+    at(&mut m, request("stream", "GET", "/jig/v1/stream"), 300);
+    at(&mut m, answered("stream"), 400);
+    at(&mut m, request("batch", "POST", "/jig/v1/batch"), 500);
+    at(&mut m, answered("batch"), 600);
+    assert_eq!(
+        answer(&ask(&mut m, 2600)).print(),
+        "| GET /jig/v1/stream, wave 1\n| POST /jig/v1/batch, wave 2\n| 2 requests in 2 waves\nok\n"
+    );
+}
+
+#[test]
+fn unlisted_icon_waits_for_answer_and_quiet_spell() {
+    let mut m = loaded();
+    at(&mut m, request("icon", "GET", "/favicon.ico?x=y#part"), 100);
+    assert!(ask(&mut m, 2200).is_empty(), "the icon is still unanswered");
+    assert!(at(&mut m, answered("icon"), 2300).is_empty());
+    assert!(at(&mut m, Event::Deadline, 4299).is_empty());
+    assert_eq!(answer(&at(&mut m, Event::Deadline, 4300)).print(), "| 0 requests in 0 waves\nok\n");
+}
+
+#[test]
+fn post_to_icon_stays_listed_in_its_wave() {
+    let mut m = loaded();
+    at(&mut m, request("icon", "POST", "/favicon.ico"), 100);
+    at(&mut m, answered("icon"), 200);
+    assert_eq!(answer(&ask(&mut m, 2200)).print(), "| POST /favicon.ico, wave 1\n| 1 requests in 1 waves\nok\n");
+}
+
+#[test]
 fn waves_follow_greatest_answered_wave_when_answers_come_apart() {
     let mut m = loaded();
     at(&mut m, request("A", "GET", "/a"), 100);

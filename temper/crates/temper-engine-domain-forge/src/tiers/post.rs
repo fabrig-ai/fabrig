@@ -54,6 +54,7 @@ pub(super) fn comment(
     kind: CommentKind,
     link: &[u8],
     room: usize,
+    many: Option<&p::ManyTests>,
 ) -> Box<[u8]> {
     let run = joined(&[tier, b" run ", skein_lib::Decimal::of(number).as_bytes()]);
     let suffix = if link.is_empty() { Box::from(b".".as_slice()) } else { joined(&[b".\n\nRun: ", link]) };
@@ -71,7 +72,9 @@ pub(super) fn comment(
             p::Blame::Suspect(tests) => (joined(&[b"Suspected: ", &run, b" suspects this landing of "]), tests),
         },
     };
-    let p::Failures::Tests(tests) = tests else { return joined(&[&prefix, b"many tests", &suffix]) };
+    let p::Failures::Tests(tests) = tests else {
+        return many_comment(&prefix, &suffix, many, room);
+    };
     let mut complete = Box::from(b"".as_slice());
     for (at, test) in tests.iter().enumerate() {
         complete = joined(&[&complete, if at == 0 { b"" } else { b", " }, test]);
@@ -95,6 +98,29 @@ pub(super) fn comment(
     }
     joined(&[&prefix, &ids, &suffix])
 }
+fn many_comment(prefix: &[u8], suffix: &[u8], many: Option<&p::ManyTests>, room: usize) -> Box<[u8]> {
+    let fallback = joined(&[prefix, b"many tests", suffix]);
+    let Some(many) = many else { return fallback };
+    let prefix = joined(&[prefix, b"many tests; its report names "]);
+    let count = u32::try_from(many.tests.len()).expect("bounded many names");
+    let mut ids = Box::from(b"".as_slice());
+    let mut fitted = fallback;
+    // The last id may remove the remainder, so inspect every whole prefix.
+    for (at, test) in many.tests.iter().enumerate() {
+        ids = joined(&[&ids, if at == 0 { b"" } else { b", " }, test]);
+        let kept = u32::try_from(at).expect("bounded name index").checked_add(1).expect("one more name");
+        let tail = match crate::many_remainder(many, count.checked_sub(kept).expect("names left out")) {
+            Some(tail) => joined(&[b", ", &tail]),
+            None => Box::new([]),
+        };
+        let next = joined(&[&prefix, &ids, &tail, suffix]);
+        if next.len() <= room {
+            fitted = next;
+        }
+    }
+    fitted
+}
+
 fn remainder(count: u32, preceding: bool) -> Box<[u8]> {
     if count == 0 {
         return Box::new([]);
@@ -263,7 +289,7 @@ fn write(d: &Domain, row: &TierRow, posting: &Posting) -> Write {
     Write::Post {
         number: comment_row.pull,
         key,
-        body: comment(&row.tier, posting.number, blame, comment_row.kind, &posting.link, room),
+        body: comment(&row.tier, posting.number, blame, comment_row.kind, &posting.link, room, row.many.as_ref()),
     }
 }
 pub(super) fn active(row: &TierRow) -> bool {
@@ -295,7 +321,7 @@ pub(super) fn step(d: &mut Domain, env: &Env<Limits>, row: &mut TierRow, entry: 
                 landings: blames.into_boxed(),
                 flakes: Box::new([]),
             };
-            let words = super::posted_words(&row.tier, &verdict, &posting.landings);
+            let words = super::posted_words(&row.tier, &verdict, &posting.landings, row.many.as_ref());
             super::done(d, row, words, out);
         } else {
             row.posting = Some(posting);

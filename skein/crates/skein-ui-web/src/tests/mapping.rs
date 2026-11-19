@@ -539,3 +539,22 @@ fn a_primary_backslash_names_the_platform_modifier() {
         assert_eq!(dom::print(&mapping::element(&made, &fixtures::look(), b"/", primary, &Words::ENGLISH)), expected);
     }
 }
+
+#[test]
+fn a_meter_maps_its_range_and_words_on_default_and_override_tags() {
+    let mut made = fixtures::made(Role::Progress);
+    made.attribute.role = Role::Meter;
+    made.attribute.name = Some(b"Week".as_slice().into());
+    made.attribute.fraction = Some(Fraction { done: 2900, total: 10000 });
+    made.text = vec![TextRun { run: Run::Plain, text: b"29% used".as_slice().into() }].into();
+    let element = mapping::element(&made, &fixtures::look(), b"/", Primary::Control, &Words::ENGLISH);
+    assert_eq!(dom::print(&element), include_str!("golden/meter.html").trim_end());
+    assert_eq!(mapping::accessible(Role::Meter), &[b"meter".as_slice()]);
+    made.attribute.styles.push(Style { owner: OWNER, token: 0 }).expect("fixture style fits");
+    let look =
+        crate::Look { elements: &[(OWNER, Role::Meter, Style { owner: OWNER, token: 0 }, "span")], ..fixtures::look() };
+    let element = mapping::element(&made, &look, b"/", Primary::Control, &Words::ENGLISH);
+    assert_eq!(element.tag, "span");
+    assert_eq!(element.attribute("role"), Some("meter"));
+    assert_eq!(element.attribute("aria-valuetext"), Some("29% used"));
+}

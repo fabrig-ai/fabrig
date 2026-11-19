@@ -11,7 +11,7 @@ fn model(value: &jig_domain_core::Model) -> Value {
 }
 /// Use the binary's defaults, with this deployment's models.
 #[must_use]
-pub fn stock(deployment: &Value) -> Value {
+pub fn stock(deployment: &temper_playground::documents::Configuration) -> Value {
     let engine = configuration(deployment);
     let defaults = temper_service::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     let c = &defaults.charters[0];
@@ -41,7 +41,7 @@ pub fn item(kind: &str, number: u32, value: Value) -> Value {
 
 /// Parse only startup configuration; the caller supplies typed defaults afterwards.
 #[must_use]
-pub fn configuration(deployment: &Value) -> jig_protocol_config::Engine {
+pub fn configuration(deployment: &temper_playground::documents::Configuration) -> jig_protocol_config::Engine {
     temper_playground::documents::settings::configuration(deployment)
 }
 

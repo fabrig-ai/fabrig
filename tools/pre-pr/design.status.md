@@ -4,6 +4,7 @@
 
 - **Not yet:** 1, 4: the check runs no check 7: a delivery that raises a figure of `tools/tiers/budgets.toml` or adds a reason's line passes [in flight: change 8161].
 - **Not yet:** 8: a run's new and flagged tests run alone once each, none twice more past its limit (`tools/tiers/references.md`, 4) [in flight: change 8831].
+- **Not yet:** 1, 4 and 9.2: the check runs no check 8: a delivery that changes a journey's recording or page beside any other file, or fills an `overlay.css`, passes [in flight: change 8897].
 
 No other gap in sections 1–9. Section 10's later work remains outside the
 delivery check.

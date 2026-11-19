@@ -130,11 +130,23 @@ clock saturates; at the end of it, equal uses still fall to the least key.
 
 `List::from_boxed` makes a list of owned items, its capacity their count,
 and `List::into_boxed` moves them into a box of exactly their number.
+`List::allocated(capacity)` allocates its storage once, at its capacity,
+and never grows: a decoder's list, whose count has passed its limit and
+what is left (`skein/docs/design/data/codec/README.md`, 4).
 `List::swap_remove` takes one item out, the last taking its place, and
 `List::iter_mut` hands each item to change in place.
 
 **`Queue::clear(&mut self)`** drops every item, keeping the capacity and
 the grown buffer: refilling to the previous length allocates nothing.
+
+**`raise(&mut self, capacity: u32)`** on `Queue`, `List`, `Map`, `Set`,
+`Lru`, `Slab` and `Deadlines` raises the container's capacity to `capacity` in place,
+allocating nothing: what it holds stays, storage still grows by the
+shared rule as it fills, and a slab's spent slots stay spent and its
+handles valid. A capacity below the current one is a bug, asserted, as
+a capacity never falls; an equal one changes nothing. It is how a
+limit's raise reaches a table already made (temper's
+`protocol/configuration/limit-settings.md`, 5).
 
 **`Stack::clear(&mut self)`** drops every item, keeping the capacity and
 the grown buffer: refilling to the previous depth allocates nothing.
@@ -765,7 +777,7 @@ price depends on both. An input moved into a step is accounted for as
 out (an item taken, a delivery, a list moved into a box) is no longer
 the container's, and the meter takes it off.
 
-- **A slab, a queue, a list, a stack and an intake** grow as they fill;
+- **A slab, a queue, a list, a stack and an intake** grow as they fill (an allocated list excepted);
   capped queues and intakes grow exactly, never past their cap. The
   counting allocator checks each byte price against what is allocated,
   and scenarios hold measured peaks under named ceilings with headroom

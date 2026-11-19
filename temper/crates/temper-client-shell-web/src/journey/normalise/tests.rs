@@ -1,5 +1,5 @@
 use super::*;
-use crate::journey::{Line, Replay, lines, redact};
+use crate::journey::{Line, lines, redact};
 use jig_client_shell_web::adapter::Heard;
 use skein_lib::{
     Writer,
@@ -179,33 +179,4 @@ fn only_ports_are_sought_and_redactions_refusals_are_preserved() {
         let expected = redact(bad, &[]).err().expect("redact refuses");
         assert_eq!(normalise(bad).err(), Some(expected));
     }
-}
-
-#[test]
-fn committed_welcome_set_up_normalises_and_replays_to_the_end() {
-    let file = include_bytes!("../../../../../docs/design/client/web/journeys/welcome-set-up/recording");
-    let result = normalise(file).expect("committed recording");
-    assert_eq!(result.recording.as_ref(), file, "committed recording is its own normalisation");
-    assert_eq!((result.build, result.port, result.code, result.places, result.stood), (0, 0, 0, 0, 0));
-    let recorded = lines(&result.recording).expect("normalised lines");
-    assert!(
-        recorded
-            .iter()
-            .any(|line| matches!(line, Line::Ways { origin, .. } if origin.as_ref() == b"http://127.0.0.1:10001")),
-        "the committed origin takes its first port placeholder"
-    );
-    let mut replay = Replay::new(&result.recording).expect("normalised replay");
-    let mut ended = false;
-    loop {
-        match replay.next() {
-            Ok(Some(mark)) => ended = mark.end,
-            Ok(None) => break,
-            Err(stale) => {
-                let kind =
-                    recorded.get(usize::try_from(stale.line - 1).expect("line fits")).expect("stale line").kind();
-                panic!("welcome-set-up: turn {} kind {kind}", stale.turn);
-            }
-        }
-    }
-    assert!(ended, "replayed the final end");
 }

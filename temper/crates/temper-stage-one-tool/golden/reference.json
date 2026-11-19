@@ -924,8 +924,8 @@
       "id": "box.limits",
       "row": "the profile's limits",
       "kind": "box",
-      "confirm": "document",
-      "prerequisite": "`docs/examples/reference/limits.json`'s overrides in the box's document"
+      "confirm": "ctl",
+      "prerequisite": "the reference's figures as `limits` and `temper-limits` settings, over the stock"
     },
     {
       "id": "box.questions",

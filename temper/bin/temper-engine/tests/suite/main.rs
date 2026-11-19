@@ -16,12 +16,13 @@ fn upgrade_check_names_the_record_a_start_refuses_without_switching_generation()
     let config = scratch.path().join("config");
     let data = scratch.path().join("data");
     let cache = scratch.path().join("cache");
-    let configuration = config.join("temper.json");
-    let mut document: serde_json::Value =
-        serde_json::from_slice(&std::fs::read(&configuration).expect("configuration")).expect("document");
     // The owner's subject fits; the kept person's full identity does not.
-    document["engine"]["limits"]["overrides"]["people.identity_bytes"] = 7.into();
-    std::fs::write(configuration, serde_json::to_vec(&document).expect("document bytes")).expect("configuration");
+    let held = data.join("limits-held");
+    std::fs::write(&held, b"people.identity_bytes 7\n").expect("held startup figures");
+    let held_line = format!(
+        "limits held: {}; the limit settings are not taken; remove it and restart to take them",
+        held.display()
+    );
     let active_path = data.join("state/active");
     let active = std::fs::read(&active_path).expect("active generation");
     let refusal = "restart refused during core restore: PeopleBound(IdentityBytes), key People(Person(1))";
@@ -47,7 +48,8 @@ fn upgrade_check_names_the_record_a_start_refuses_without_switching_generation()
         let line = text.lines().find(|line| line.contains(refusal)).expect(&text).to_owned();
         if checking {
             // Only wall-time warnings may accompany a refusal; the refusal itself belongs on stdout.
-            assert!(err.lines().all(engine_long_pass), "{err}");
+            assert!(err.lines().all(|line| engine_long_pass(line) || line == held_line), "{err}");
+            assert_eq!(err.lines().filter(|line| *line == held_line).count(), 1);
             assert!(out.contains(refusal), "{out}");
             assert_eq!(std::fs::read(&active_path).expect("active after refused check"), active);
             check_refusal = Some(line);
@@ -160,7 +162,7 @@ fn help(text: &str) -> bool {
             .split_whitespace()
             .collect::<Vec<_>>()
             .join(" ")
-            .contains("Judges the workers alone over a copy; switches nothing.")
+            .contains("Judges the workers alone over links and small copies; switches nothing.")
         && ["serve", "versions", "upgrade", "checkpoint", "help"].iter().all(|word| rows.contains(word))
         && ["forge", "box", "program-login"].iter().all(|word| !rows.contains(word))
 }

@@ -1,5 +1,6 @@
 //! A landing's red wakes its subscribed goals (temper/docs/design/domain/after-landing.md, 7).
 use super::*;
+use core::fmt::Write;
 
 const GOAL: u64 = 91;
 const OTHER_GOAL: u64 = 92;
@@ -140,6 +141,7 @@ fn expected(goal: u64, subscription: u64, commit: api::Commit, failing: p::Failu
         subscription,
         topic: Topic::Landings { repository: REPO, branch: b"main".as_slice().into() },
         news: News::Red(RedNews {
+            many: None,
             tier: TIER.into(),
             run: 1,
             url: Some(URL.into()),
@@ -359,6 +361,59 @@ fn failed_jobs_share_the_log_budget_and_keep_ends() {
             ])
         )]
     );
+}
+
+fn many_report() -> Domain {
+    let mut d = reports::one();
+    verification(&mut d, NEXT_TIP, &[CHANGE]);
+    completed(&mut d, api::Conclusion::Failure, Some(1));
+    // Multiplication by 13 permutes the 37 distinct ids.
+    let mut report = String::new();
+    for i in 0_u32..37 {
+        writeln!(report, "suite::t{:02}", i.checked_mul(13).unwrap() % 37).unwrap();
+    }
+    reports::report(&mut d, report.as_bytes(), false);
+    d
+}
+fn many_words() -> Vec<u8> {
+    let mut words = format!(
+        "Red after landing: tier browser run 1 blames landing {} on main: many failing.\nmany; its report names:\n",
+        core::str::from_utf8(&commit_text(&NEXT_TIP)).unwrap()
+    );
+    for i in 0_u32..16 {
+        writeln!(words, "suite::t{i:02}").unwrap();
+    }
+    words.push_str("and 21 more\nRun: https://forge.example/run/71");
+    words.into_bytes()
+}
+#[test]
+fn a_many_report_names_its_tests_in_a_finding() {
+    let mut d = many_report();
+    let out = finish(&mut d);
+    assert_eq!(news(&out).len(), 0);
+    assert_eq!(filings(&out)[0].body.as_ref(), many_words());
+}
+#[test]
+fn a_many_report_names_its_tests_in_goal_news() {
+    let mut d = many_report();
+    subscribe(&mut d, GOAL, SUBSCRIPTION, b"main", &[CHANGE]);
+    let out = finish(&mut d);
+    let news = news(&out);
+    let Request::News { news: News::Red(red), .. } = &news[0] else { panic!("red news") };
+    assert_eq!(red_news_words(red, 4096).as_ref(), many_words());
+}
+#[test]
+fn a_new_run_drops_many_names_even_when_a_receipt_is_reused() {
+    let mut d = many_report();
+    finish(&mut d);
+    assert!(row(&d).many.is_some());
+    d.tiers.get_mut(&(REPO, TIER.into())).unwrap().pending =
+        Box::new([TierLanding { commit: LAST_TIP, key: Some(NEXT_TIP) }]);
+    let mut out = Queue::uncapped();
+    crate::tiers::start_due(&mut d, &env(), REPO, &mut out);
+    assert_eq!(row(&d).many, None);
+    assert!(row(&d).received);
+    assert_eq!(row(&d).result.as_ref().unwrap().failures, Some(p::Failures::Many));
 }
 
 #[test]

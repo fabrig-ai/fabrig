@@ -122,7 +122,7 @@ fn state_words(n: &Node, paint: Paint, out: &mut Canvas, frame: &mut Frame, opti
                     b""
                 }
             }
-            State::FoldsAway | State::Continues | State::ToLogEnd | State::Options => b"",
+            State::ShownFolded | State::FoldsAway | State::Continues | State::ToLogEnd | State::Options => b"",
         };
         out.safe(word, paint, false, frame);
     }

@@ -69,6 +69,7 @@ fn a_closing_tasks_saved_work_is_deleted() {
             saved(&mut d, TASK).as_ref(),
             &[Request::Save {
                 record: Stored::Hold(Hold {
+                    beside: None,
                     design_writers: Box::new([]),
                     name: name(),
                     task: TASK,

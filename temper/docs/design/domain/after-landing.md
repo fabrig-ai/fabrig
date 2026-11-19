@@ -38,7 +38,9 @@ what waits, `after-landing.md`, section 14.
   the newest tip.
 - **A run reports** pass or fail, and its failing tests by id, read from
   its artifact (section 4). A run that names no tests when it fails, or
-  never ends, is a fault, never a red.
+  never ends, is a fault, never a red. Past `failing_tests` its failures
+  are many, judged by landing alone, and still named: the lowest ids it
+  read, and how many more.
 - **The verdict** (section 5): a green run clears every landing in its
   range. A red one runs its failed tests once more, alone; tests that
   pass then are a flake. Failures the previous run had are inherited,
@@ -263,6 +265,31 @@ branches never run, are ordered by goal number, lowest first (2026-11-04).
   `test_id_bytes`, at most `failing_tests` per run; past it, the run's
   failures are "many", and its verdict blames by landing alone, never by
   test.
+- **A many report's names,** what a report read as many still names, so
+  that whoever repairs it reads its tests (2026-11-19):
+  - **its tests:** the failed ids it read whole within `test_id_bytes`,
+    unique, the lowest `failing_tests` of them in byte order;
+  - **its more:** a count of the report's other failed cases or lines,
+    each counted once as the report lists them: an id past
+    `test_id_bytes` among them, and one a lower id took the place of;
+  - **cut or not:** a read cut at its bound (section 10, *Reads*) reads
+    what it holds whole before the cut, a `lines` file's complete lines
+    and a JUnit file's cases closed before it, and ends there with no
+    fault; its more is then a floor. Where the part before the cut is
+    one its format cannot read, the names are none: the run is many as
+    before.
+
+  The names are shown, never judged: a many run is judged as many
+  (5.2) whatever it names, and its reruns, probes and receipts read
+  none. They come from the judged run's whole part alone, at its tip,
+  or at a goal's branch's tip for a tier following goal branches (5.4);
+  a tip judged by its receipt (section 3) has none and says `many`, as
+  does a many with no names. Wherever they are shown, the ids come
+  first, then the remainder: `and K more`, K the more and the ids the
+  room left out; for a cut report, `and K more, its report cut at the
+  read's bound`, or `and more, its report cut at the read's bound`
+  where K is 0. A report read as many by a gate (`landing-search-by-test.md`,
+  2) keeps no names.
 - **A failed run that names no test,** or whose artifact is absent or
   unreadable, is a fault: the run is retried, never blamed.
 - **A landing gate's report** is read otherwise, its errored cases left
@@ -467,7 +494,7 @@ those IDs is known to be still failing; each is new (2026-11-04).
 - **The news's words:** `Red after landing: tier NAME run N blames
   landing COMMIT on BRANCH: K failing.`, the landing's commit whole,
   then each failing test blamed on it, one per line ("many" past
-  `failing_tests`), then `Run: URL`, then each failed job's log's end,
+  `failing_tests`, then its names, below), then `Run: URL`, then each failed job's log's end,
   headed `End of job NAME's log:`. The failed jobs are those of the
   run's last part that failed; their logs' ends share the forge's
   `brief_bytes`, and a job whose log cannot be read is named with
@@ -520,6 +547,26 @@ read yields `[no log]` (2026-11-04).
 The commit in `Red on BRANCH: tier NAME run N at COMMIT` is the tested tip's
 first twelve hexadecimal digits; an after-landing red continues to name its
 blamed landing's full commit (2026-11-04).
+
+**A many red's names** (section 4): where a red's news says `many` and its
+run's report kept names, its `many` line reads `many; its report names:`,
+then each kept id follows on a line of its own, then the remainder on
+one line, each line with the prefix the `many` line has (`new: ` or
+`still failing: ` on a goal's branch). The ids are whole lines, taken
+while the remainder's line and the `Run:` line still fit after them;
+those left out join the remainder's K. A red of no goal's, filed as a
+finding, carries these words in its body, so a goal it is routed to, a
+repair's among them, reads them there (2026-11-19). For example, a run
+whose report names 37 failing tests:
+
+```text
+Red after landing: tier main run 1460 blames landing COMMIT on main: many failing.
+many; its report names:
+suite::a
+(fifteen more ids, one per line)
+and 21 more
+Run: URL
+```
 
 ## 8. What a landing tells
 
@@ -591,9 +638,12 @@ blamed landing's full commit (2026-11-04).
   request is skipped. A comment's first line, TIER the tier's name:
   - `Cleared by TIER run N.` for a landing the verdict blames nothing;
   - `Red: TIER run N blames this landing for X, Y.` for one that owns
-    failures, `for many tests` where they are many;
+    failures, `for many tests` where they are many, and `for many tests;
+    its report names X, Y and K more.` where its run's report kept names
+    (section 4);
   - `Suspected: TIER run N suspects this landing of X, Y.` under "tell
-    all" (5.2, 4);
+    all" (5.2, 4), `of many tests` and `of many tests; its report names
+    X, Y and K more.` as above;
   - `Repaired by #M: TIER run N passed the failures blamed on this
     landing.`, M the pull request of the change in the run's range
     that names the red landing, the newest's (section 7), or
@@ -603,7 +653,8 @@ blamed landing's full commit (2026-11-04).
   Then, after a blank line, `Run: URL`, the status's link, where there
   is one. Test ids are written whole, in order, while the comment and
   its key fit the forge client's `op_bytes` (skein's
-  `forge/client.md`), then `and K more`.
+  `forge/client.md`), then `and K more`; for a many's names, the
+  remainder is section 4's, K counting its more too.
 - **Keys:** each write a keyed effect of the run's task (section 10):
   purpose tag 8, operation 6 for the status, its part 0 for the
   verdict's and, for a pending one, the count of the run's holds on
@@ -624,6 +675,24 @@ blamed landing's full commit (2026-11-04).
 - **Nothing is posted** for a run with no verdict: a run of a tier
   following goal branches (5.4), a run dropped (section 3), or a
   person's hold (section 3).
+- **`read_ci` reads a logged landing's red** (2026-11-19): the host
+  tool's `read_ci what=checks` at a commit its repository's landing log
+  holds (section 10) answers the forge's checks, then one row for each
+  tier whose entry there is red: its context `temper/verdict/<tier>`,
+  failed, its description `TIER run N found this landing red: X, Y.`,
+  the ids its entry keeps, owned or suspected alike, or `TIER run N
+  found this landing red: many tests; its report names X, Y and K
+  more.` for a many with names (`many tests.` with none); its ids
+  written whole while the description fits the forge client's
+  `op_bytes`, then `and K more` (section 4's remainder for a many); its
+  link empty and no job, since a tier's job logs are its runner's. Any
+  caller reads them, not a repair alone. They are kept
+  before the forge's own rows within the client's `rows`, after a
+  landing repair's gate rows (`forge/change/repairs.md`, *A landing's
+  repair*), so that the forge's rows give way first, as they do to the
+  gate's. Inherited failures are not the tip's to show: they are the red
+  of the landing that first failed them, read at its commit while the
+  log keeps it.
 - **Not CI:** temper reads none of its `temper/verdict/<tier>`
   statuses back as a commit's CI unless the landing branch's rule
   requires one (`forge/keeping-up.md`, section 3), so a red verdict on
@@ -677,6 +746,12 @@ blamed landing's full commit (2026-11-04).
   If any omitted attribution is `many`, the
   remainder says `many` too. Full IDs remain in the change read's retained
   `Verification`; no separate record or larger task result is needed.
+  Where the run's failures are many and its report kept names (section
+  4), a line `Its report names: "ID", "ID" and K more.` follows the
+  attribution lines the report holds, before its remainder, each id
+  quoted as an attribution's is and taken whole in the room the
+  attributions and the remainder leave, those left out joining its K
+  (2026-11-19).
 - **Effects:** the tiers' dispatches and reruns are `landing.md`, 11's
   kinds 16 and 17, their branches' creation kind 9, released at the
   task's close; statuses and comments are kinds 6 and 7; each its run's
@@ -690,7 +765,9 @@ blamed landing's full commit (2026-11-04).
   operation's state, so a restart settles what was in flight.
 - **Reads:** skein's `Read::Artifact { run, name, max_bytes }`, a run's
   artifact by name, unzipped (one file, stored or deflated), cut to
-  `max_bytes`; and `Read::Commits { before, after, page }`, the commits
+  `max_bytes`, for a tier's report the room of `failing_tests` ids of
+  `test_id_bytes` each in its format, within the forge client's
+  `answer_bytes`; and `Read::Commits { before, after, page }`, the commits
   of a range with their messages, oldest first.
 - **In the store:** `Tier`, keyed by repository and tier, its run in
   flight, its last judged tip and failures, its flakes, the reds of no
@@ -707,7 +784,9 @@ blamed landing's full commit (2026-11-04).
   landing of the range, and each comment's pull request with the
   landing it is for, or the red landing it repairs and the repairing
   pull request, and the index of the next write, erased by the task's
-  last post or its close;
+  last post or its close; the judged run's many names (section 4), set
+  at its whole part's read and taken by the next run's start, so that
+  its posting, done before that start, reads them there;
   for a tier following goal branches, each goal branch it follows,
   with its goal, its last run's tip, failures and start, and the branch
   its run in flight is for, within the forge's `holds`;
@@ -741,7 +820,8 @@ blamed landing's full commit (2026-11-04).
   following its branch, by the project's settings in force as it is
   logged, `verifying`, set at that tier's verdict to cleared by run N,
   or red by run N with the count of distinct tests blamed on it, owned
-  or suspected, or many; a ring, written at each move of a watched landing
+  or suspected, and their ids, or many with its run's names where it has
+  them (section 4), for `read_ci` (section 9); a ring, written at each move of a watched landing
   branch (section 8), at each merge of temper's, when a change sees its
   pull request merged by someone else or by the forge's own queue, and at
   each verdict, so that a landing's record outlives its changes' close and
@@ -768,15 +848,44 @@ blamed landing's full commit (2026-11-04).
     start drops each `verifying` entry of a tier its repository's
     settings no longer name; a verdict that tier's run in flight still
     gives sets its entry as any verdict does.
+  - *A landing's entries* are at most the forge's `tiers`, as a
+    verification's are (2026-11-19). A verdict that would add one past
+    it first drops a judged entry of a tier the repository's settings
+    no longer name; where there is none, it writes nothing there. A log
+    read from before that holds more is brought within the bound the
+    same way at its restore.
 - **Limits,** the forge's: `landings_kept` per repository (16) and
   `landings_pending` per repository (64), their sum at most the store's
   256 (`../protocol/configuration/limits.md`); `trailers` per landing (8) and `trailer_bytes` per line
   (200); `tiers` per repository (2 in `small`),
-  `failing_tests` per run (16), `test_id_bytes` (512, at most the
-  store's 1,024, `../protocol/store.md`, 4), and a tier's
-  name at most 32 bytes.
+  `failing_tests` per run (64, 16 in `small`) and `test_id_bytes` (512),
+  each at most what a finding's signature holds, 64 ids of at most 512
+  bytes (`findings.md`, section 4), which a start checks
+  (`../protocol/configuration/limits.md`), and within the store's 1,024
+  bytes of an id (`../protocol/store.md`, 4); and a tier's name at most
+  32 bytes. A many's names, wherever kept, hold at most
+  `failing_tests` ids. A tier row's `many` and a landing log's red
+  entry keep at most 64 of them, the store's ceiling (2026-11-19).
+  A tier row's `many` uses `list 64 ShownTest`,
+  `ShownTest { test_id: bytes 1024 }`, which the store's wide text
+  (`../protocol/store.md`, 4) leaves alone: no older layout holds them.
+  A tier row is within 223 KB of the store codec's `u32` worst case at 759 landings,
+  which 1,024 names of 1,024 bytes pass; 256 landings of 32 tiers each
+  keeping 1,024 ids of 1,024 bytes pass the store codec's `u32` worst
+  case, and 64 is the stock `failing_tests` and a finding's signature's
+  (`findings.md`, section 4). Past it the row or entry keeps the lowest 64 in
+  byte order; its count still counts every blamed test, and a many's
+  names add the ids left out to their `more`, so `read_ci`'s remainder
+  (section 9) says how many more there are. The entry keeps its ids, or
+  a many's names, in one list of at most 64 in the store, a many adding
+  only its `more` and `cut`. With the entries bound by `tiers`, the log's
+  derived worst case stays within the store's admitted value at the
+  stock limits; 32 entries of two lists each would not (169 MB against
+  103 MB, 2026-11-19).
 
-A tier's record keeps at most `failing_tests` distinct flake IDs. Once full
+A tier's record keeps at most `failing_tests` ids of its last judged
+failures, each within `test_id_bytes`; a run past either is many, as
+section 4 says. It keeps at most `failing_tests` distinct flake IDs. Once full
 it keeps counting the IDs already retained and drops newly seen flake IDs,
 without holding the tier (2026-11-04).
 
@@ -857,6 +966,13 @@ with failing tests by id and uploading their artifacts:
 - **a red to its goal:** a red of main's tier blamed on a goal's
   landing reaches that goal as news, waking it, with the failing tests,
   the run and each failed job's log's end;
+- **a many red's names:** a run whose report names 37 failing tests,
+  one landing in its range: its news and its finding name the lowest 16
+  in byte order and `and 21 more`, as do its comment and its task's
+  report; `read_ci what=checks` at the landing's commit answers a
+  `temper/verdict/<tier>` row naming them; a report cut at the read's
+  bound names what it read whole and says it was cut; a tip judged by
+  its receipt still says `many`; a gate's report is read as before;
 - **ending at landing,** under `wait: landed`: a change into main ends
   at landed with no `Verification` row, its result naming its landing's
   commit and saying after landing judges it later, its branch deleted
@@ -909,3 +1025,10 @@ with failing tests by id and uploading their artifacts:
   closing task makes no effect, and no later run takes its name, its
   number being spent. Deleting it, by the tier's next run or by a sweep
   of temper's tier branches, waits; meanwhile a person deletes it.
+- **A many's names elsewhere:** a change's panel, the status writer's
+  words and the forge's `temper/verdict/<tier>` status still say `many`
+  with no names, a receipt keeps none (so a tip judged by its receipt
+  says `many`), and `read_ci` at a tip whose run failed only inherited
+  tests shows none of them (section 9). Each waits for a want; the
+  repairer reads the names in its red's news or finding and at the red
+  landing's commit (sections 7 and 9).

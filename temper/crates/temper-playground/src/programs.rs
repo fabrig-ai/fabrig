@@ -23,9 +23,9 @@ pub trait Harness: 'static {
     fn github() -> bool {
         false
     }
-    fn configure(_document: &mut serde_json::Value) {}
+    fn configure(_document: &mut documents::Configuration) {}
     /// Worlds may build typed seed configuration after the document's fixed-member checks.
-    fn configure_engine(engine: &mut jig_protocol_config::Engine, document: &serde_json::Value) {
+    fn configure_engine(engine: &mut jig_protocol_config::Engine, document: &documents::Configuration) {
         documents::settings::seed_configuration(engine, document);
     }
     #[must_use]
@@ -77,7 +77,7 @@ pub trait Harness: 'static {
         documents::files()
     }
     #[must_use]
-    fn given(document: &serde_json::Value) -> temper_service::stock::Given {
+    fn given(document: &documents::Configuration) -> temper_service::stock::Given {
         documents::given(document)
     }
 }
@@ -129,7 +129,7 @@ pub enum Role {
 /// Parameters shared by function-pointer factories during one world's steps.
 #[derive(Clone)]
 pub struct Parameters {
-    pub deployment: Box<[u8]>,
+    pub deployment: Rc<documents::Configuration>,
     pub seed: u64,
     pub links: Links,
     pub forge: temper_fake_git::Typed,
@@ -268,7 +268,7 @@ pub fn service<H: Harness>(inherited: &Inherited) -> Process<H> {
     let root = inherited.roots.iter().find(|(name, _)| name.as_ref() == b"state").expect("state root").1;
     let worker = inherited.roots.iter().find(|(name, _)| name.as_ref() == b"worker").expect("worker root").1;
     H::spawned(Role::Service, inherited, b"state");
-    let mut document: serde_json::Value = serde_json::from_slice(&parameters.deployment).expect("deployment JSON");
+    let mut document = parameters.deployment.as_ref().clone();
     H::configure(&mut document);
     let given = H::given(&document);
     let typed_document = document.clone();
@@ -278,7 +278,7 @@ pub fn service<H: Harness>(inherited: &Inherited) -> Process<H> {
     let seeds = H::seeds(parameters.seed);
     let files = H::files();
     let agent = H::agent_settings();
-    let mut checked = temper_service::startup::checked_start_with(
+    let mut checked = temper_service::startup::checked_start_with_limits(
         &bytes,
         &jig_protocol_config::Directories::working(),
         &files,
@@ -288,6 +288,8 @@ pub fn service<H: Harness>(inherited: &Inherited) -> Process<H> {
         None,
         &given,
         Some(b"/usr/bin/git"),
+        &document.jig,
+        &document.limits,
     )
     .unwrap_or_else(|problems| panic!("{}", String::from_utf8_lossy(&temper_service::startup::lines(&problems))));
     checked.engine_mut().demo = documents::playground(&typed_document);

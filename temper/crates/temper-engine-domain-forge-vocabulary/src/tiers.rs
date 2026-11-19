@@ -39,6 +39,9 @@ pub fn row_bytes(row: &TierRow) -> Option<u64> {
         .checked_add(
             skein_lib::len_u64(row.record.flakes.len()).checked_mul(u64::try_from(size_of::<p::Flake>()).ok()?)?,
         )?;
+    if let Some(many) = &row.many {
+        held = held.checked_add(tests_bytes(&many.tests)?)?;
+    }
     for flake in &row.record.flakes {
         held = held.checked_add(skein_lib::len_u64(flake.test.len()))?;
     }

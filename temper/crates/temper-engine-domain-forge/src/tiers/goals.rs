@@ -174,6 +174,7 @@ pub(super) fn start_due(
                 row.flight = None;
                 row.held = None;
                 row.result = None;
+                row.many = None;
                 row.received = false;
                 entry.started = Some(env.now);
             }
@@ -280,6 +281,7 @@ pub(super) fn finish(
             };
             let result = row.result.as_ref().expect("goal run result");
             let news = News::Red(RedNews {
+                many: row.many.clone(),
                 tier: row.tier.clone(),
                 run: verdict.number,
                 url: if result.run.url.is_empty() { None } else { Some(result.run.url.clone()) },

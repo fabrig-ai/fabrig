@@ -3,6 +3,10 @@ use jig_domain_link::{Bounds, EndpointBound};
 use skein_lib::{Secret, Time, Token};
 use temper_protocol_records_forge as forge_records;
 
+#[path = "../../../../testing/engine_limit_figures.rs"]
+mod engine_figures;
+use engine_figures::over as jig_limits_over;
+
 // An inline project policy is refused with its enclosing moved member.
 pub const INLINE_PROJECTS: &[u8] = br#"[{"number": 1, "roles": [{"connector": 1, "permission": 1, "role": 0}],
 "policy": {"templates": [], "escalation_role": 0, "period_spend": 100, "projections": [], "requirements": [],
@@ -149,7 +153,7 @@ pub fn application_request(number: u64, value: Secret) -> jig_protocol_store::Se
     }
 }
 
-pub fn stock_document() -> Box<[u8]> {
+pub fn stock_document() -> Start {
     super::stock::generated()
 }
 pub fn stock_files() -> settings::Files {
@@ -257,8 +261,8 @@ pub fn worker_digests(_settings: &settings::Engine) -> settings::Files {
 }
 
 pub use link_setup::{
-    DIALECT, ENGINE, assignment_with_settings, encoding, forges, parse_engine, repository, small_model, wire_limits,
-    worker_runtime,
+    DIALECT, ENGINE, assignment_with_settings, encoding, forges, parse_engine, parse_engine_over, repository,
+    small_model, wire_limits, worker_runtime,
 };
 pub(crate) use temper_service_link_fixtures::link_setup;
 
@@ -740,7 +744,7 @@ pub fn unopened_store() -> crate::store::Store {
 }
 
 /// The prepare job's declared request and result must fit a turn fixture.
-pub fn turn_document() -> Box<[u8]> {
+pub fn turn_document() -> Start {
     let document = document();
     let mut overrides: serde_json::Value =
         serde_json::from_slice(&value(&document, b"engine.limits.overrides")).unwrap();
@@ -756,4 +760,25 @@ pub fn turn_document() -> Box<[u8]> {
         serde_json::from_slice(&value(&document, b"engine.limits.overrides")).unwrap();
     overrides["hub.event_bytes"] = 4_096_u32.into();
     with(&document, b"engine.limits.overrides", &serde_json::to_vec(&overrides).unwrap())
+}
+
+#[path = "../../../../testing/startup_fixture.rs"]
+mod typed;
+pub use typed::{Input, Start};
+
+pub fn named_with(
+    input: &(impl Input + ?Sized),
+    directories: &jig_protocol_config::Directories,
+    given: &crate::stock::Given,
+) -> Result<crate::startup::Named, crate::startup::Problems> {
+    input.configured().named_with(directories, given)
+}
+
+pub fn document_store_limits(
+    input: &(impl Input + ?Sized),
+    directories: &jig_protocol_config::Directories,
+    agent: Option<&temper_service_core::agent::Declaration>,
+) -> Result<crate::startup::StoreLimits, crate::startup::Problems> {
+    let input = input.configured();
+    crate::startup::store_limits_with_limits(&input.document, directories, agent, &input.jig, &input.own)
 }

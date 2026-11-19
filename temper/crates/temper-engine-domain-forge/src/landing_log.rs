@@ -13,6 +13,18 @@ impl Domain {
     pub fn landing_log(&self, repository: Repository) -> Option<&LandingLog> {
         self.landing_logs.get(&repository)
     }
+
+    /// The retained verdict entries at a commit, or none outside the log.
+    #[must_use]
+    pub fn logged_tiers(&self, repository: Repository, commit: Commit) -> &[LoggedTier] {
+        let Some(log) = self.landing_log(repository) else { return &[] };
+        for landing in &log.landings {
+            if landing.commit == commit {
+                return &landing.tiers;
+            }
+        }
+        &[]
+    }
 }
 
 /// Log `task`'s landing at `commit`, in the decision that saw it.
@@ -158,9 +170,12 @@ pub(crate) fn judged(
     tier: &[u8],
     verdict: &temper_engine_domain_forge_tiers::Verdict,
     landings: &[temper_engine_domain_forge_tiers::Landing],
+    many: Option<&temper_engine_domain_forge_tiers::ManyTests>,
     out: &mut Queue<Request>,
 ) {
     use temper_engine_domain_forge_tiers::{Blame, Failures};
+    let configured = Box::from(crate::tiers::configured_all(d, repository));
+    let bound = d.landing.limits.tiers.tiers;
     let Some(row) = d.landing_logs.get_mut(&repository) else { return };
     let mut changed = false;
     for (landing, blame) in landings.iter().zip(&verdict.landings) {
@@ -171,36 +186,32 @@ pub(crate) fn judged(
             let verdict = match blame {
                 Blame::Cleared => LoggedVerdict::Cleared { run: verdict.number },
                 Blame::Owns(failures) | Blame::Suspect(failures) => {
+                    let mut ids: Box<[temper_engine_domain_forge_tiers::TestId]> = Box::new([]);
                     let failing = match failures {
                         Failures::Many => None,
                         Failures::Tests(tests) => {
                             let mut distinct = List::with_capacity(u32::try_from(tests.len()).expect("bounded tests"));
                             for test in tests {
-                                if !distinct.as_slice().contains(&test.as_ref()) {
-                                    distinct.push(test.as_ref()).expect("distinct subset");
+                                if !distinct.as_slice().contains(test) {
+                                    distinct.push(test.clone()).expect("distinct subset");
                                 }
                             }
-                            Some(distinct.len())
+                            let count = distinct.len();
+                            let mut sorted = distinct.into_boxed();
+                            sorted.sort();
+                            ids = kept_tests(&sorted);
+                            Some(count)
                         }
                     };
-                    LoggedVerdict::Red { run: verdict.number, failing }
+                    LoggedVerdict::Red {
+                        run: verdict.number,
+                        failing,
+                        tests: ids,
+                        many: if failing.is_none() { kept_many(many) } else { None },
+                    }
                 }
             };
-            let mut entries = List::with_capacity(32);
-            let mut found = false;
-            for entry in &logged.tiers {
-                let mut entry = entry.clone();
-                if entry.tier.as_ref() == tier {
-                    entry.verdict = verdict.clone();
-                    found = true;
-                }
-                entries.push(entry).expect("logged tier bound");
-            }
-            if !found {
-                entries.push(LoggedTier { tier: tier.into(), verdict }).expect("logged tier bound");
-            }
-            logged.tiers = entries.into_boxed();
-            changed = true;
+            changed |= set_entry(logged, tier, verdict, &configured, bound);
         }
     }
     if changed {
@@ -211,6 +222,77 @@ pub(crate) fn judged(
         }
         out.push(Request::Save { read_afresh: None, release: None, record: Stored::LandingLog(row) });
     }
+}
+
+fn named(configured: &[crate::Tier], name: &[u8]) -> bool {
+    for tier in configured {
+        if tier.name.as_ref() == name {
+            return true;
+        }
+    }
+    false
+}
+
+fn set_entry(
+    logged: &mut LoggedLanding,
+    tier: &[u8],
+    verdict: LoggedVerdict,
+    configured: &[crate::Tier],
+    bound: u32,
+) -> bool {
+    let mut found = false;
+    let mut removed = None;
+    for (at, entry) in logged.tiers.iter().enumerate() {
+        found |= entry.tier.as_ref() == tier;
+        if removed.is_none() && entry.verdict != LoggedVerdict::Verifying && !named(configured, &entry.tier) {
+            removed = Some(at);
+        }
+    }
+    let drop = if !found && logged.tiers.len() >= skein_lib::usize_of(bound) {
+        let Some(at) = removed else { return false };
+        Some(at)
+    } else {
+        None
+    };
+    let mut entries = List::with_capacity(bound);
+    for (at, entry) in logged.tiers.iter().enumerate() {
+        if Some(at) == drop {
+            continue;
+        }
+        let mut entry = entry.clone();
+        if entry.tier.as_ref() == tier {
+            entry.verdict = verdict.clone();
+        }
+        entries.push(entry).expect("retained logged tiers");
+    }
+    if !found {
+        entries.push(LoggedTier { tier: tier.into(), verdict }).expect("room for judged tier");
+    }
+    logged.tiers = entries.into_boxed();
+    true
+}
+
+fn kept_tests(tests: &[temper_engine_domain_forge_tiers::TestId]) -> Box<[temper_engine_domain_forge_tiers::TestId]> {
+    let mut kept = List::with_capacity(crate::LOGGED_TESTS);
+    for test in tests.iter().take(skein_lib::usize_of(crate::LOGGED_TESTS)) {
+        kept.push(test.clone()).expect("logged id ceiling");
+    }
+    kept.into_boxed()
+}
+
+fn kept_many(
+    many: Option<&temper_engine_domain_forge_tiers::ManyTests>,
+) -> Option<temper_engine_domain_forge_tiers::ManyTests> {
+    let many = many?;
+    let mut sorted = many.tests.clone();
+    sorted.sort();
+    let tests = kept_tests(&sorted);
+    let left = sorted.len().checked_sub(tests.len()).expect("kept prefix");
+    Some(temper_engine_domain_forge_tiers::ManyTests {
+        tests,
+        more: many.more.saturating_add(u32::try_from(left).expect("bounded run names")),
+        cut: many.cut,
+    })
 }
 
 /// Earlier logs infer verifying entries from the tier records; removed tiers no longer keep them pending.
@@ -253,15 +335,22 @@ pub(crate) fn restored(d: &mut Domain, out: &mut Queue<Request>) {
                     entries.push(entry.clone()).expect("logged tier bound");
                 }
             }
-            let mut kept = List::with_capacity(32);
+            let configured = crate::tiers::configured_all(d, repository);
+            let mut active = List::with_capacity(32);
             for entry in entries.into_boxed() {
-                let mut configured = false;
-                for tier in crate::tiers::configured_all(d, repository) {
-                    configured |= tier.name == entry.tier;
+                if entry.verdict != LoggedVerdict::Verifying || named(configured, &entry.tier) {
+                    active.push(entry).expect("retained tier entries");
                 }
-                if entry.verdict != LoggedVerdict::Verifying || configured {
-                    kept.push(entry).expect("retained tier entries");
+            }
+            let bound = d.landing.limits.tiers.tiers;
+            let mut drop = active.len().saturating_sub(bound);
+            let mut kept = List::with_capacity(bound);
+            for entry in active.into_boxed() {
+                if drop > 0 && entry.verdict != LoggedVerdict::Verifying && !named(configured, &entry.tier) {
+                    drop = drop.checked_sub(1).expect("positive excess entries");
+                    continue;
                 }
+                kept.push(entry).expect("restored logged tiers within their bound");
             }
             landing.tiers = kept.into_boxed();
         }
