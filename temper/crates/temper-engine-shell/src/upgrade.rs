@@ -85,6 +85,9 @@ fn run_inner(
             let held = match file.try_clone().map_err(|why| scratch::failure(&why)) {
                 Ok(held) => held,
                 Err(why) => {
+                    if let Some(line) = scratch::remove(binary, &scratch, file) {
+                        println!("{line}");
+                    }
                     close(owned);
                     return Err(why);
                 }
@@ -119,9 +122,10 @@ fn run_inner(
         Request::Back => true,
     };
     let exit = stopped::drive(binary, directories, service, source, report, copy_providers);
-    if let Some((scratch, held)) = scratch {
-        let _removed = std::fs::remove_dir(scratch);
-        drop(held);
+    if let Some((scratch, held)) = scratch
+        && let Some(line) = scratch::remove(binary, &scratch, held)
+    {
+        println!("{line}");
     }
     if exit.is_err() {
         close(owned);
