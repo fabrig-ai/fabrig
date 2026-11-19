@@ -48,17 +48,17 @@ pub fn start_context(
     charter: run::Charter,
     transcript: Option<smith_domain_session::record::Transcript>,
 ) -> Result<DecodedStart, Error> {
-    let parts = start.into_parts();
+    let parts = start;
     let mounts = match parts.workspace {
         Some(workspace) => {
-            let mut mounts = List::with_capacity(workspace.directories().len());
-            for directory in workspace.directories() {
+            let mut mounts = List::with_capacity(workspace.directories.len());
+            for directory in &workspace.directories {
                 let mount = Mount {
-                    name: Box::from(directory.name()),
-                    path: Box::from(directory.path()),
-                    writable: directory.writable(),
-                    git: directory.git(),
-                    conflicts: directory.conflicts().to_boxed(),
+                    name: Box::from(directory.name.as_ref()),
+                    path: Box::from(directory.path.as_ref()),
+                    writable: directory.writable,
+                    git: directory.git,
+                    conflicts: directory.conflicts.to_boxed(),
                 };
                 if mounts.push(mount).is_err() {
                     return Err(Error::Capacity);
@@ -71,9 +71,9 @@ pub fn start_context(
     let mut grants = List::with_capacity(parts.grants.len());
     for grant in &parts.grants {
         let item = Grant {
-            name: smith_domain::GrantName { account: grant.account(), generation: grant.generation() },
-            valid: grant.valid(),
-            renewable: renewable(grant.value()),
+            name: smith_domain::GrantName { account: grant.account, generation: grant.generation },
+            valid: grant.valid,
+            renewable: renewable(&grant.value),
         };
         if grants.push(item).is_err() {
             return Err(Error::Capacity);
@@ -81,7 +81,7 @@ pub fn start_context(
     }
     let mut messages = List::with_capacity(parts.messages.len());
     for message in parts.messages.into_boxed() {
-        let parts = message.into_parts();
+        let parts = message;
         if messages
             .push(run::Message {
                 finish_requested: parts.finish_requested,
@@ -107,7 +107,7 @@ pub fn start_context(
         transcript,
         answered: saved_answers(parts.answered.as_slice())?,
         grants: grants.into_boxed(),
-        window: smith_domain::Window { turns: parts.window.turns(), bytes: parts.window.bytes() },
+        window: smith_domain::Window { turns: parts.window.turns, bytes: parts.window.bytes },
     })
 }
 
@@ -118,25 +118,20 @@ fn saved_answers(source: &[channel::AnsweredCall]) -> Result<Box<[smith_domain::
     };
     let mut answered = List::with_capacity(count);
     for call in source {
-        let name = call.name();
-        let reply = match call.reply() {
+        let name = &call.name;
+        let reply = match &call.reply {
             channel::SavedReply::Host(host) => {
-                let answer =
-                    run::HostAnswer::new(Box::from(host.text()), host.error()).ok_or(Error::InvalidSavedAnswer)?;
+                let answer = run::HostAnswer::new(host.text.clone(), host.error).ok_or(Error::InvalidSavedAnswer)?;
                 smith_domain::Answered::Host(answer)
             }
             channel::SavedReply::Delivery(delivery) => {
-                smith_domain::Answered::Delivery(Box::new(saved_delivery(delivery.value())?))
+                smith_domain::Answered::Delivery(Box::new(saved_delivery(&delivery.value)?))
             }
             channel::SavedReply::TooLarge => smith_domain::Answered::TooLarge,
         };
         let item = smith_domain::AnsweredCall {
-            name: run::CallName {
-                activation: name.activation(),
-                completion: name.completion(),
-                position: name.position(),
-            },
-            tool: Box::from(call.tool()),
+            name: run::CallName { activation: name.activation, completion: name.completion, position: name.position },
+            tool: call.tool.clone(),
             answer: reply,
         };
         if answered.push(item).is_err() {

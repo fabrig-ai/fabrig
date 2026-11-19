@@ -1,20 +1,16 @@
 use jig_domain_core as core;
 use jig_domain_host as host;
-use skein_lib::{ReplyTo, Token, Writer};
+use skein_lib::{ReplyTo, Token};
+use smith_channel::Record;
 use temper_engine_domain as root;
 
 const TO: ReplyTo = ReplyTo::new(Token::new(9));
 fn call(activation: u64, tool: &[u8], input: &[u8]) -> jig_domain_fleet::Call {
-    let name = smith_channel::CallName::new(
-        &smith_channel::CEILINGS,
-        smith_channel::CallNameParts { activation, completion: 2, position: 1 },
-    )
-    .unwrap();
-    let mut writer = Writer::new(16);
-    name.encode(&mut writer).unwrap();
+    let name = smith_channel::CallName { activation, completion: 2, position: 1 };
+    let name = name.encode(&smith_channel::CEILINGS).expect("fixed call name");
     jig_domain_fleet::Call {
         contract: 1,
-        name: writer.finish(),
+        name,
         tool: tool.into(),
         input: input.into(),
         writes: false,
@@ -42,14 +38,8 @@ fn a_call_of_another_activation_is_answered_an_error() {
 }
 #[test]
 fn the_largest_smith_call_name_fits_the_documentation_allowance() {
-    let name = smith_channel::CallName::new(
-        &smith_channel::CEILINGS,
-        smith_channel::CallNameParts { activation: u64::MAX, completion: u32::MAX, position: u32::MAX },
-    )
-    .unwrap();
-    let mut writer = Writer::new(usize::try_from(temper_engine_smith::CALL_NAME_BYTES).unwrap());
-    name.encode(&mut writer).unwrap();
-    let encoded = writer.finish();
+    let name = smith_channel::CallName { activation: u64::MAX, completion: u32::MAX, position: u32::MAX };
+    let encoded = name.encode(&smith_channel::CEILINGS).expect("fixed call name");
     assert_eq!(encoded.len(), 16);
     assert!(encoded.len() <= usize::try_from(temper_engine_smith::CALL_NAME_BYTES).unwrap());
     let mut reader = skein_lib::Reader::new(&encoded);

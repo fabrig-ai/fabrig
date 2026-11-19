@@ -177,16 +177,10 @@ fn list_reads_without_a_launch_or_value_fail_without_io() {
         }
         let mut below = Queue::uncapped();
         let credential = if configured < 2 {
-            Some(
-                smith_channel::CredentialValue::new(
-                    &smith_channel::CEILINGS,
-                    smith_channel::CredentialValueParts {
-                        scheme: smith_channel::Scheme::Key,
-                        bytes: skein_lib::Secret::new(b"fixture".as_slice().into()),
-                    },
-                )
-                .expect("fixture credential"),
-            )
+            Some(smith_channel::CredentialValue {
+                scheme: smith_channel::Scheme::Key,
+                bytes: skein_lib::Secret::new(b"fixture".as_slice().into()),
+            })
         } else {
             None
         };

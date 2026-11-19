@@ -32,7 +32,7 @@ fn seeded_cancelled_runs_answer_once_and_release_inherited_descriptors() {
             settle(&mut world);
             let answer = world.answer().expect("terminal answer");
             assert!(
-                matches!(answer.result(), RunResult::Failed(failed) if failed.reason() == &RunFailure::Cancelled),
+                matches!( &answer.result, RunResult::Failed(failed) if failed.reason == RunFailure::Cancelled),
                 "seed {seed} cancelled"
             );
             (world.trace(), world.answer())

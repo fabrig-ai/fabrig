@@ -9,10 +9,10 @@ use crate::{
 };
 use jig_domain_core as core;
 use jig_protocol_worker_wire as wire;
-use jig_protocol_worker_wire::Record;
 use skein_fake_machine::How;
 use skein_lib::{Duration, List, Reader, Time};
 use skein_world::{HostedProgram, Inherited, StartupRoot};
+use smith_charter::Record;
 use std::{
     cell::{Cell, RefCell},
     rc::Rc,
@@ -251,7 +251,7 @@ fn assignments(observed: &processes::Wire) -> Result<Vec<Assignment>, String> {
             let charter =
                 smith_charter::Charter::decode(&smith_charter::CEILINGS, &mut Reader::new(assignment.charter.as_ref()))
                     .map_err(|why| format!("charter: {why:?}"))?;
-            let source = charter.main().account().ok_or("selected source")?;
+            let source = charter.main.account.ok_or("selected source")?;
             let grant = assignment.grants.iter().find(|grant| grant.number == source).ok_or("main's grant")?;
             let grant = match &grant.value {
                 wire::GrantValue::Credential(value) => {
@@ -289,8 +289,8 @@ fn assignments(observed: &processes::Wire) -> Result<Vec<Assignment>, String> {
             Ok(Assignment {
                 task: assignment.task,
                 attempt: assignment.attempt,
-                endpoint: charter.main().endpoint().to_vec(),
-                model: charter.main().model().to_vec(),
+                endpoint: charter.main.endpoint.to_vec(),
+                model: charter.main.model.to_vec(),
                 source,
                 grant,
             })

@@ -2,6 +2,7 @@
 use jig_conformance::referee::Observed;
 use skein_io::kernel::{Complete, Done, Op};
 use skein_lib::Reader;
+use smith_channel::Record as _;
 use std::collections::BTreeMap;
 
 pub(crate) enum Record {
@@ -137,23 +138,23 @@ impl Wire {
                 .find_map(|row| match row {
                     temper_engine_domain::Record::Core(jig_domain_core::Record::Core(
                         jig_domain_core::CoreRecord::RunProof(proof),
-                    )) if proof.attempt == start.activation()
-                        && Some(identity(proof.task, proof.conversation)) == *start.identity() =>
+                    )) if proof.attempt == start.activation
+                        && Some(identity(proof.task, proof.conversation)) == start.identity =>
                     {
                         Some(proof)
                     }
                     temper_engine_domain::Record::Core(_) | temper_engine_domain::Record::Forge { .. } => None,
                 })
                 .ok_or_else(|| String::from("agent identity names a durable claim"))?;
-            self.runs.insert(identity_fd, (proof.task, start.activation()));
-            let charter = smith_charter::Charter::decode(&smith_charter::CEILINGS, &mut Reader::new(start.charter()))
+            self.runs.insert(identity_fd, (proof.task, start.activation));
+            let charter = smith_charter::Charter::decode(&smith_charter::CEILINGS, &mut Reader::new(&start.charter))
                 .map_err(|why| format!("agent charter bytes: {why:?}"))?;
             self.events.push(Observed::Assigned {
                 conversation: proof.conversation,
                 task: proof.task,
-                attempt: start.activation(),
-                resumed: !start.transcript().is_empty(),
-                budget: charter.budget().spend(),
+                attempt: start.activation,
+                resumed: !start.transcript.is_empty(),
+                budget: charter.budget.spend,
                 // Only the drain/restart story changes revision 1 through ctl.
                 // Other stories start work on their own defaults at revision 1.
                 // Smith's Start carries no settings-revision metadata.
@@ -163,26 +164,22 @@ impl Wire {
             drop(store);
             self.store.borrow_mut().agent_records.push(Record::Start {
                 task,
-                attempt: start.activation(),
-                workspace: start.workspace().clone(),
+                attempt: start.activation,
+                workspace: start.workspace.clone(),
                 input: self.keep_starts.then(|| Box::new(start)),
             });
         } else if !down && kind == 0x0109 {
             let (task, attempt) = *self.runs.get(&identity_fd).ok_or_else(|| String::from("turn after agent Start"))?;
             let turn = smith_channel::Turn::decode(limits, &mut Reader::new(bytes))
                 .map_err(|why| format!("agent Turn bytes: {why:?}"))?;
-            self.events.push(Observed::Completion { task, attempt, cumulative: turn.spent() });
+            self.events.push(Observed::Completion { task, attempt, cumulative: turn.spent });
         } else if !down && kind == 0x0110 {
             let answer = smith_channel::Answer::decode(limits, &mut Reader::new(bytes))
                 .map_err(|why| format!("agent Answer bytes: {why:?}"))?;
-            if matches!(answer.result(), smith_channel::RunResult::Failed(_) | smith_channel::RunResult::Refused(_)) {
+            if matches!(&answer.result, smith_channel::RunResult::Failed(_) | smith_channel::RunResult::Refused(_)) {
                 let (task, attempt) =
                     *self.runs.get(&identity_fd).ok_or_else(|| String::from("answer after agent Start"))?;
-                self.store.borrow_mut().agent_records.push(Record::Answer {
-                    task,
-                    attempt,
-                    result: answer.result().clone(),
-                });
+                self.store.borrow_mut().agent_records.push(Record::Answer { task, attempt, result: answer.result });
             }
         }
         // The worker's agent ACK grants retention credit, not durable engine commitment.

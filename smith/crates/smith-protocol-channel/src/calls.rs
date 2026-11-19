@@ -8,6 +8,7 @@ use alloc::boxed::Box;
 use skein_channel::Frame;
 use skein_lib::{Duration, List};
 use smith_channel as wire;
+use smith_channel::Record;
 use smith_domain::run;
 
 use crate::Error;
@@ -21,12 +22,7 @@ pub(crate) fn host_call(
     deadline: Duration,
     limits: &wire::Limits,
 ) -> Result<Frame, Error> {
-    let ask = wire::Ask::Host(
-        match wire::HostAsk::new(limits, wire::HostAskParts { tool, input: Box::from(input.bytes()) }) {
-            Ok(value) => value,
-            Err(problem) => return Err(Error::ChannelBody(problem)),
-        },
-    );
+    let ask = wire::Ask::Host(wire::HostAsk { tool, input: Box::from(input.bytes()) });
     call(name, effect, ask, deadline, limits)
 }
 
@@ -42,18 +38,12 @@ pub(crate) fn delivery_call(
     };
     let mut fields = List::with_capacity(count);
     for field in change.fields {
-        let value = match wire::Field::new(limits, wire::FieldParts { name: field.name, text: field.value }) {
-            Ok(value) => value,
-            Err(problem) => return Err(Error::ChannelBody(problem)),
-        };
+        let value = wire::Field { name: field.name, text: field.value };
         if fields.push(value).is_err() {
             return Err(Error::Capacity);
         }
     }
-    let ask = wire::Ask::Deliver(match wire::DeliverAsk::new(limits, wire::DeliverAskParts { fields }) {
-        Ok(value) => value,
-        Err(problem) => return Err(Error::ChannelBody(problem)),
-    });
+    let ask = wire::Ask::Deliver(wire::DeliverAsk { fields });
     call(name, run::HostEffect::Write, ask, deadline, limits)
 }
 
@@ -69,21 +59,16 @@ fn call(
     deadline: Duration,
     limits: &wire::Limits,
 ) -> Result<Frame, Error> {
-    let name = match wire::CallName::new(
-        limits,
-        wire::CallNameParts { activation: name.activation, completion: name.completion, position: name.position },
-    ) {
-        Ok(value) => value,
-        Err(problem) => return Err(Error::ChannelBody(problem)),
-    };
+    let name = wire::CallName { activation: name.activation, completion: name.completion, position: name.position };
     let effect = match effect {
         run::HostEffect::Read => wire::Effect::Read,
         run::HostEffect::Write => wire::Effect::Write,
     };
-    let record = match wire::Call::new(limits, wire::CallParts { name, effect, deadline, ask }) {
-        Ok(value) => value,
+    let record = wire::Call { name, effect, deadline, ask };
+    match record.measure(limits) {
+        Ok(_) => (),
         Err(problem) => return Err(Error::ChannelBody(problem)),
-    };
+    }
     let frame = match smith_channel::frame(smith_channel::Body::Call(record)) {
         Ok(value) => value,
         Err(problem) => return Err(Error::Frame(problem)),
@@ -93,17 +78,12 @@ fn call(
 
 /// Ask the host to settle one relay without releasing its durable name.
 pub(crate) fn withdraw(name: run::CallName, limits: &wire::Limits) -> Result<Frame, Error> {
-    let name = match wire::CallName::new(
-        limits,
-        wire::CallNameParts { activation: name.activation, completion: name.completion, position: name.position },
-    ) {
-        Ok(value) => value,
+    let name = wire::CallName { activation: name.activation, completion: name.completion, position: name.position };
+    let record = wire::Withdraw { name };
+    match record.measure(limits) {
+        Ok(_) => (),
         Err(problem) => return Err(Error::ChannelBody(problem)),
-    };
-    let record = match wire::Withdraw::new(limits, wire::WithdrawParts { name }) {
-        Ok(value) => value,
-        Err(problem) => return Err(Error::ChannelBody(problem)),
-    };
+    }
     let frame = match smith_channel::frame(smith_channel::Body::Withdraw(record)) {
         Ok(value) => value,
         Err(problem) => return Err(Error::Frame(problem)),
@@ -114,7 +94,7 @@ pub(crate) fn withdraw(name: run::CallName, limits: &wire::Limits) -> Result<Fra
 /// Interpret one host terminal for a declared tool; temporary refusals stay distinct.
 pub(crate) fn host_reply(reply: &wire::Reply) -> Option<run::HostReply> {
     let value = match reply {
-        wire::Reply::Host(host) => match run::HostAnswer::new(Box::from(host.text()), host.error()) {
+        wire::Reply::Host(host) => match run::HostAnswer::new(Box::from(host.text.as_ref()), host.error) {
             Some(answer) => run::HostReply::Answered(answer),
             None => run::HostReply::TooLarge,
         },

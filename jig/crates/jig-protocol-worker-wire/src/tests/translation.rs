@@ -105,15 +105,10 @@ fn golden(text: &'static str, name: &str) -> Box<[u8]> {
 }
 fn charter(contract: u16) -> Box<[u8]> {
     let bytes = golden(smith_charter::patches::kept::smith_charter::TEXTS.last().unwrap(), "record_charter_smallest");
-    let mut parts =
-        smith_charter::Charter::decode(&smith_charter::CEILINGS, &mut Reader::new(&bytes)).unwrap().into_parts();
-    let mut tools = parts.tools.into_parts();
-    tools.contract = contract;
-    parts.tools = smith_charter::Tools::new(&smith_charter::CEILINGS, tools).unwrap();
-    let record = smith_charter::Charter::new(&smith_charter::CEILINGS, parts).unwrap();
-    let mut writer = Writer::new(skein_lib::length::usize_of(record.measure()));
-    record.encode(&mut writer).unwrap();
-    writer.finish()
+    let mut parts = smith_charter::Charter::decode(&smith_charter::CEILINGS, &mut Reader::new(&bytes)).unwrap();
+    parts.tools.contract = contract;
+    let record = parts;
+    record.encode(&smith_charter::CEILINGS).expect("bounded charter")
 }
 fn assignment(charter: Box<[u8]>) -> wire::Assignment {
     let mut parts = super::fixtures::assignment_resumed();

@@ -1530,15 +1530,11 @@ fn list_credential(table: &Table, grant: jig_domain_link::Grant, now: Time) -> O
     if value.scheme != scheme {
         return None;
     }
-    smith_channel::CredentialValue::new(
-        &smith_channel::CEILINGS,
-        smith_channel::CredentialValueParts {
-            scheme: match scheme {
-                Scheme::Bearer => smith_channel::Scheme::Bearer,
-                Scheme::Key => smith_channel::Scheme::Key,
-            },
-            bytes: value.token.clone(),
+    Some(smith_channel::CredentialValue {
+        scheme: match scheme {
+            Scheme::Bearer => smith_channel::Scheme::Bearer,
+            Scheme::Key => smith_channel::Scheme::Key,
         },
-    )
-    .ok()
+        bytes: value.token.clone(),
+    })
 }

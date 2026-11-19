@@ -247,7 +247,10 @@ fn encode_charter(charter: &smith_domain_run::Charter, encoding: &Encoding) -> R
     };
     let field = match error {
         Error::CharterBody(problem) => {
-            return Err(kit::Unencoded { reason: Some(problem.reason), ..unencoded(problem.path.name()) });
+            return Err(kit::Unencoded {
+                reason: Some(problem.reason),
+                ..unencoded(smith_charter::v5::name(problem.path).expect("charter problem path"))
+            });
         }
         Error::Endpoints => "charter.endpoints",
         Error::Capacity => "charter.capacity",

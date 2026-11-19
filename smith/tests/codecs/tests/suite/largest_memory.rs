@@ -2,7 +2,7 @@
 //! Decoded-bound literals use the generated types' sizes on a 64-bit target.
 
 use super::codec_memory::family;
-use smith_transcript::Record;
+use skein_codec::Record;
 
 const CAP: u64 = 64 * 1024 * 1024;
 
@@ -12,7 +12,7 @@ fn largest_roots_stay_within_decoded_bounds() {
     family!(
         CAP,
         smith_channel::CHANNEL_SCHEMA,
-        smith_channel::v11, sealed,
+        smith_channel::v11, lean,
         limits [
             directory_name,
             directory_path,
@@ -88,7 +88,7 @@ fn largest_roots_stay_within_decoded_bounds() {
     family!(
         CAP,
         smith_charter::SCHEMA,
-        smith_charter::v5, sealed,
+        smith_charter::v5, lean,
         limits [
             section_title,
             section_body,
@@ -130,7 +130,7 @@ fn largest_roots_stay_within_decoded_bounds() {
     family!(
         CAP,
         smith_local_protocol::SCHEMA,
-        smith_local_protocol::local_store_v1, sealed,
+        smith_local_protocol::local_store_v1, lean,
         limits [
             turn_body,
             push_target_remote,
