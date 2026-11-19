@@ -44,22 +44,6 @@ pub(crate) fn facts(directories: &Directories) -> Result<Facts, Refusal> {
     Ok(Facts { login, hostname, provider_key })
 }
 fn login(user: u32) -> Result<String, String> {
-    let bytes = if cfg!(target_os = "macos") {
-        temper_forge_setup_shell::process::login_id()?
-    } else {
-        let passwd = skein_shell::read_file(Path::new("/etc/passwd"), 1 << 20)
-            .map_err(|why| format!("user: {}", unread(why)))?;
-        let found = passwd.split(|b| *b == b'\n').find_map(|line| {
-            let fields: Vec<_> = line.split(|b| *b == b':').collect();
-            if fields.get(2).and_then(|id| std::str::from_utf8(id).ok()).and_then(|id| id.parse::<u32>().ok())
-                == Some(user)
-            {
-                fields.first().copied().map(Box::<[u8]>::from)
-            } else {
-                None
-            }
-        });
-        found.ok_or_else(|| format!("user {user}: no login in /etc/passwd"))?
-    };
+    let bytes = skein_shell::login(user)?;
     String::from_utf8(bytes.into_vec()).map_err(|why| format!("user: {why}"))
 }

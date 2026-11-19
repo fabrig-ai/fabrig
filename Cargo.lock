@@ -6395,8 +6395,6 @@ dependencies = [
  "skein-scratch",
  "skein-shell",
  "temper-engine-service",
- "temper-engine-service-vocabulary",
- "temper-forge-setup-shell",
  "temper-service",
  "temper-service-core",
  "temper-shell",

@@ -1,6 +1,8 @@
 //! The document's shape (protocol/services.md, 3).
 use jig_protocol_config::{self as config, read};
 
+pub mod url;
+
 /// The services selected by the document's members (protocol/cluster.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Shape {

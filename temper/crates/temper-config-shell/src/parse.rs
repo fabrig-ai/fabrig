@@ -190,7 +190,7 @@ fn address(s: &str) -> bool {
 }
 fn endpoint(s: &str, max: usize, origin: bool) -> bool {
     s.len() <= max
-        && temper_engine_service_vocabulary::startup::application::sign_in::url(s.as_bytes())
+        && temper_service_core::startup::url::url(s.as_bytes())
             .is_some_and(|(base, _, _, _)| !origin || base == s.as_bytes())
 }
 fn valid(value: &Value, form: Form) -> bool {

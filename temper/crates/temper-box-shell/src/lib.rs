@@ -28,7 +28,7 @@ pub mod fake;
 mod fake_backends;
 use fake_backends::json;
 pub mod forge;
-use temper_engine_shell::{address, forge_sign_in, login_passwd};
+use temper_engine_shell::{address, forge_sign_in};
 use temper_forge_setup_shell::process as forge_exec;
 pub mod help;
 mod init;
@@ -537,7 +537,7 @@ pub fn operations_in_with(
 }
 /// The effective user's login (protocol/setup/init.md, 2); macOS users need not appear in passwd.
 pub(crate) fn login(user: u32) -> Result<Box<[u8]>, String> {
-    if cfg!(target_os = "macos") { forge_exec::login_id() } else { login_passwd(user) }
+    skein_shell::login(user)
 }
 
 #[cfg(test)]

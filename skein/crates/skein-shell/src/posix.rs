@@ -70,6 +70,82 @@ pub fn effective_user() -> u32 {
     unsafe { libc::geteuid() }
 }
 
+/// A user's login at startup (runtime/shell.md, 6). macOS's directory
+/// service need not list the effective user in `/etc/passwd`.
+pub fn login(user: u32) -> Result<Box<[u8]>, String> {
+    if cfg!(target_os = "macos") { crate::login_id() } else { login_passwd(user) }
+}
+
+/// A user's login from `/etc/passwd`, also used to check the command lookup.
+pub fn login_passwd(user: u32) -> Result<Box<[u8]>, String> {
+    let passwd = crate::read_file(std::path::Path::new("/etc/passwd"), 1 << 20).map_err(login_read_error)?;
+    passwd_login(&passwd, user)
+}
+
+fn passwd_login(passwd: &[u8], user: u32) -> Result<Box<[u8]>, String> {
+    for line in passwd.split(|byte| *byte == b'\n') {
+        let mut fields = line.split(|byte| *byte == b':');
+        let name = fields.next();
+        let uid = fields.nth(1).and_then(|id| std::str::from_utf8(id).ok()).and_then(|id| id.parse::<u32>().ok());
+        if uid == Some(user) {
+            return Ok(name.expect("a split has a first field").into());
+        }
+    }
+    Err(format!("user {user}: no login in /etc/passwd"))
+}
+
+fn login_read_error(why: crate::Unread) -> String {
+    use crate::Unread;
+    use skein_io::kernel::Error;
+    match why {
+        Unread::Absent => "user: absent".into(),
+        Unread::NotAFile => "user: not a file".into(),
+        Unread::TooLarge { max } => format!("user: past {max} bytes"),
+        Unread::Unsafe(_) => "user: readable by others or reached through a link".into(),
+        Unread::Kernel(error) => {
+            let errno = match error {
+                Error::Refused => 111,
+                Error::Busy => 11,
+                Error::Reset => 104,
+                Error::BrokenPipe => 32,
+                Error::NotConnected => 107,
+                Error::AddressInUse => 98,
+                Error::AddressNotAvailable => 99,
+                Error::Unreachable => 101,
+                Error::TimedOut => 110,
+                Error::TooManyOpenFiles => 24,
+                Error::NoBufferSpace => 12,
+                Error::Cancelled => 125,
+                Error::TooLate | Error::NotFound => 2,
+                Error::Exists => 17,
+                Error::NotADirectory => 20,
+                Error::IsADirectory => 21,
+                Error::NotEmpty => 39,
+                Error::Permission => 13,
+                Error::NoSpace => 28,
+                Error::ReadOnly => 30,
+                Error::TooManyLinks => 40,
+                Error::NameTooLong => 36,
+                Error::Escape => 18,
+                Error::NotAFile => 6,
+                Error::InvalidArgument => 22,
+                Error::Other(number) => number,
+            };
+            format!("user: errno {errno}")
+        }
+    }
+}
+
+#[cfg(test)]
+mod login_tests {
+    #[test]
+    fn passwd_login_matches_numeric_uid_and_refuses_missing_user() {
+        let passwd = b"root:x:0:0:root:/root:/bin/sh\nmalformed\nbad:x:not-a-uid:42\nalice:x:1042:42::/home/alice:/bin/sh\nbob:x:2042:42::/home/bob:/bin/sh\n";
+        assert_eq!(super::passwd_login(passwd, 1042), Ok(Box::from(b"alice".as_slice())));
+        assert_eq!(super::passwd_login(passwd, 42), Err("user 42: no login in /etc/passwd".into()));
+    }
+}
+
 /// An `EINTR` is returned, not retried (runtime/readiness.md, 4).
 pub(crate) fn shutdown(fd: Fd) -> Result<(), i32> {
     // SAFETY: shutdown takes only integers.
