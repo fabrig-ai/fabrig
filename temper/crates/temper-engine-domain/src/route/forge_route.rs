@@ -800,34 +800,7 @@ fn tree_branch(
     Some(branch)
 }
 
-/// The hub sees an opaque, bounded name for a forge branch. Forge path syntax
-/// stays here; the task child only compares these literal bytes.
-pub(crate) fn hub_name(connector: u16, name: &forge::Name, limits: &tasks::Limits) -> Option<tasks::Name> {
-    let forge::What::Branch(parts) = &name.what else { return None };
-    if limits.hold_segments < 3 {
-        return None;
-    }
-    let mut branch = List::with_capacity(limits.hold_bytes);
-    for (at, part) in parts.iter().enumerate() {
-        if at != 0 {
-            branch.push(b'/').ok()?;
-        }
-        for byte in part.iter().copied() {
-            branch.push(byte).ok()?;
-        }
-    }
-    if branch.len().checked_add(6)? > limits.hold_bytes {
-        return None;
-    }
-    Some(tasks::Name {
-        connector,
-        path: Box::new([
-            Box::from(name.forge.to_be_bytes()),
-            Box::from(name.repository.to_be_bytes()),
-            branch.into_boxed(),
-        ]),
-    })
-}
+pub(crate) use forge::resources::hub_name;
 
 /// Decode only this connector's branch names when projecting a hub hold.
 pub(crate) fn forge_name(connector: u16, resource: &tasks::Name, limit: u32) -> Option<forge::Name> {

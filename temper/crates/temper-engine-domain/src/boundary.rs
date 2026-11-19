@@ -248,9 +248,18 @@ pub enum Tool {
     },
     /// A host read resolved in its project before resource authority admission.
     /// A zero file/job `max_bytes` asks for the configured read limit.
+    /// An empty `Branch` or `Protection` branch asks for the default branch.
     ReadNamed {
         repository: Option<Box<[u8]>>,
         read: skein_forge::api::Read,
+    },
+    /// A file at a branch's head: the branch, then the file at the head it answered.
+    /// An empty `branch` asks for the default branch; a zero `max_bytes` the configured read limit.
+    ReadBranchFile {
+        repository: Option<Box<[u8]>>,
+        branch: Box<[u8]>,
+        path: Box<[u8]>,
+        max_bytes: u32,
     },
     /// Read one adopted forge resource through the connector's bounded fresh lane.
     ReadForge {
