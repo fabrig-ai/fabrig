@@ -188,21 +188,19 @@ impl Component {
                 }
                 let admissible = crate::files::check(&self.roots, &env.limits, program.root, &program.path, false);
                 match admissible {
-                    Ok(()) => {
-                        match crate::process::check(
-                            env.now,
-                            owner,
-                            program,
-                            &self.environment,
-                            tail,
-                            bound,
-                            cap,
-                            &env.limits,
-                        ) {
-                            Some((process, request)) => self.start_process(owner, process, request, below, to_domain),
-                            None => failed_check(owner, to_domain),
-                        }
-                    }
+                    Ok(()) => match crate::process::check(
+                        env.now,
+                        owner,
+                        program,
+                        &self.environment,
+                        tail,
+                        bound,
+                        cap,
+                        &env.limits,
+                    ) {
+                        Some((process, request)) => self.start_process(owner, process, request, below, to_domain),
+                        None => failed_check(owner, to_domain),
+                    },
                     Err(_) => failed_check(owner, to_domain),
                 }
             }
