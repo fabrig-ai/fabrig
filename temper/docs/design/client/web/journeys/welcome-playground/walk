@@ -1,0 +1,6 @@
+walk 2
+web see "Try the playground"
+web mark
+web press button "Try the playground"
+web see "Add CSV export to widget"
+web mark
