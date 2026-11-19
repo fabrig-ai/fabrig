@@ -293,6 +293,23 @@ fn setup(root: &Path, restarted: bool) -> Vec<ctl::Step> {
     steps
 }
 
+/// Stage the fixture's whole provider in the data directory and include it in ctl's landing-settings change.
+/// The second life uses the store's kept copy without restaging these inputs.
+pub fn configure_llm(root: &Path, peer: &super::llm::Listening) {
+    let config = root.join("config");
+    let data = root.join("data");
+    let providers = temper_agent_fixtures::providers::read(&config);
+    temper_agent_fixtures::providers::write(&data, &providers);
+    peer.configure(&config);
+    let providers = temper_agent_fixtures::providers::read(&data);
+    let mut settings = landing_settings(root);
+    settings["items"].as_array_mut().expect("settings items").extend(super::provider_setup::items(&providers));
+    write_private(
+        &config.join("native-landing-settings.json"),
+        &serde_json::to_vec(&settings).expect("landing, agents and provider settings"),
+    );
+}
+
 fn life(root: &Path, restarted: bool) {
     let clock = Clock::new();
     let began = clock.now().now;
@@ -300,7 +317,7 @@ fn life(root: &Path, restarted: bool) {
     let peer =
         (!restarted).then(|| super::fake_llm_played(super::llm::requested(scripts("elsewhere/first", b"# first"))));
     if let Some(peer) = &peer {
-        peer.configure(&config);
+        configure_llm(root, peer);
     }
     let command = Command {
         program: skein_scratch::paths::binary("temper-box"),

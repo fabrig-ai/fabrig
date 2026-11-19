@@ -5816,6 +5816,7 @@ dependencies = [
  "temper-playground-world",
  "temper-service",
  "temper-service-core",
+ "temper-settings-form",
  "temper-shell",
  "temper-test-env",
 ]
