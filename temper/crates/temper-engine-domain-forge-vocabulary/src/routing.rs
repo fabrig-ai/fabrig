@@ -442,7 +442,10 @@ pub fn initial_change_title(parameters: &[tasks::Parameter]) -> Box<[u8]> {
 /// Register the connector's procedure beside the task's first due step.
 /// Parameter 1 names a project-unique repository tag, 2 the base,
 /// 3 an optional already-pushed branch, 4 the pull body, 5 priority, and 10 the pull title.
-pub fn change_delegate_status(kind: &tasks::MessageKind) -> Option<(forge_change::Status, bool, bool)> {
+pub fn change_delegate_status(
+    kind: &tasks::MessageKind,
+    delegate: forge_change::Delegate,
+) -> Option<(forge_change::Status, bool, bool)> {
     match kind {
         tasks::MessageKind::Result(
             tasks::ResultKind::NoChange
@@ -451,6 +454,11 @@ pub fn change_delegate_status(kind: &tasks::MessageKind) -> Option<(forge_change
             | tasks::ResultKind::Verdict { code: 1, .. }
             | tasks::ResultKind::Job,
         ) => Some((forge_change::Status::Passed, false, false)),
+        tasks::MessageKind::Result(tasks::ResultKind::Verdict { code: forge::REPAIR_NO_TEST, .. })
+            if repair_verdict(delegate, forge::REPAIR_NO_TEST) =>
+        {
+            Some((forge_change::Status::Passed, false, false))
+        }
         tasks::MessageKind::Result(tasks::ResultKind::Failed) => Some((forge_change::Status::Failed, true, false)),
         tasks::MessageKind::Result(tasks::ResultKind::Cancelled) => Some((forge_change::Status::Failed, false, true)),
         tasks::MessageKind::Result(tasks::ResultKind::Verdict { .. } | tasks::ResultKind::Approved { .. }) => {
@@ -481,7 +489,22 @@ pub fn change_delegate_status(kind: &tasks::MessageKind) -> Option<(forge_change
 // Every live pushing child counts, even after a gate takes the current delegate slot
 // (temper/docs/design/domain/forge/change/repairs.md). Jig keeps these through their terminals.
 pub fn repair_verdict(kind: forge_change::Delegate, code: u32) -> bool {
-    if let forge_change::Delegate::Repair(_) = kind { code == forge::REPAIR_FLAKE } else { false }
+    match kind {
+        forge_change::Delegate::Repair(
+            forge_change::Repair::Landing { .. } | forge_change::Repair::LandingAt { .. },
+        ) => code == forge::REPAIR_FLAKE || code == forge::REPAIR_NO_TEST,
+        forge_change::Delegate::Repair(
+            forge_change::Repair::Ci
+            | forge_change::Repair::Semantic
+            | forge_change::Repair::Gate(_)
+            | forge_change::Repair::Review { .. },
+        ) => code == forge::REPAIR_FLAKE,
+        forge_change::Delegate::Produce
+        | forge_change::Delegate::Close
+        | forge_change::Delegate::Gate { .. }
+        | forge_change::Delegate::Resolve { .. }
+        | forge_change::Delegate::Merge { .. } => false,
+    }
 }
 
 // Only a procedure's own hold can be released by the deployment (jig's domain/tasks/changes.md).

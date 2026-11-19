@@ -158,6 +158,8 @@ pub enum Hold {
     Failed,
     /// A landing repair found only flakes; release runs its gate once more.
     Flake,
+    /// A landing repair found no failed test; release runs its gate once more.
+    NoTest,
     /// A person rejected a required gate.
     Rejected,
     /// The next delegate is beyond the change's remaining authority.
@@ -500,6 +502,8 @@ pub struct Heard {
     pub delegate: Status,
     /// The repair's successful ending was the flake verdict.
     pub flake: bool,
+    /// The repair found no failed test.
+    pub no_test: bool,
     /// Its delegate has a claimed or running attempt, or is closing: it finishes
     /// as a run does (temper/docs/design/domain/forge/change/repairs.md).
     pub delegate_running: bool,

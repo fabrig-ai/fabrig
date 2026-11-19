@@ -106,6 +106,7 @@ fn heard() -> Heard {
         delegate: Status::Pending,
         delegate_running: false,
         flake: false,
+        no_test: false,
         delegate_live: false,
         effect: EffectResult::None,
         released: false,

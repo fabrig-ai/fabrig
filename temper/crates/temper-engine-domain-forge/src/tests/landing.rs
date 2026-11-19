@@ -2080,7 +2080,7 @@ fn connected_member_landing() -> Domain {
     d
 }
 
-fn clocked_gate() -> (Domain, ReceiptKey, skein_forge::api::Run) {
+pub(super) fn clocked_gate() -> (Domain, ReceiptKey, skein_forge::api::Run) {
     use skein_forge::api as a;
     let mut d = connected_member_landing();
     let after = d.after_landing(5).expect("project");

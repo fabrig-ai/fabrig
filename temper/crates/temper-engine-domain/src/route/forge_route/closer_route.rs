@@ -303,6 +303,7 @@ fn branch_reason(held: Option<super::forge_change::Hold>) -> Option<&'static [u8
             | Hold::Retargeted
             | Hold::Failed
             | Hold::Flake
+            | Hold::NoTest
             | Hold::Authority(_)
             | Hold::Questions,
         )

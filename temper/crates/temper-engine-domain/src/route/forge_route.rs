@@ -11,7 +11,7 @@ use crate::commit_text;
 use forge::change_words::REPAIR_PRESERVATION;
 use forge::change_words::{
     asked_now, landing_words, news_words, parameter_word_room, produce_words, producer_amendment_words, repair_flake,
-    repair_words, resolution_words, review_words, started_from,
+    repair_no_test, repair_words, resolution_words, review_words, started_from,
 };
 
 use alloc::boxed::Box;
@@ -2059,6 +2059,7 @@ pub(super) fn start_recovered_change(
                 delegate: None,
                 delegate_status: forge_change::Status::Unknown,
                 delegate_flake: false,
+                delegate_no_test: false,
                 delegate_head: None,
                 verdicts: Box::new([]),
                 goal,
@@ -2186,8 +2187,11 @@ fn change_results(domain: &mut Domain, context: &tasks::RunContext, recovered: O
         let closing = domain.forge.change(task).expect("registered change").delegate
             == Some((child, forge_change::Delegate::Close));
         let held = closing && close::failed(domain, child, &word.kind);
-        let status =
-            if held { Some((forge_change::Status::Failed, true, false)) } else { change_delegate_status(&word.kind) };
+        let status = if held {
+            Some((forge_change::Status::Failed, true, false))
+        } else {
+            change_delegate_status(&word.kind, kind)
+        };
         if let Some((status, failed, cancelled)) = status {
             domain.work.push(Work::Forge(forge::Event::DelegateResult {
                 ended_at: match recovered {
@@ -2199,7 +2203,12 @@ fn change_results(domain: &mut Domain, context: &tasks::RunContext, recovered: O
                 status,
                 no_change: word.kind == tasks::MessageKind::Result(tasks::ResultKind::NoChange),
                 flake: if let tasks::MessageKind::Result(tasks::ResultKind::Verdict { code, .. }) = word.kind {
-                    repair_verdict(kind, code)
+                    code == forge::REPAIR_FLAKE && repair_verdict(kind, code)
+                } else {
+                    false
+                },
+                no_test: if let tasks::MessageKind::Result(tasks::ResultKind::Verdict { code, .. }) = word.kind {
+                    code == forge::REPAIR_NO_TEST && repair_verdict(kind, code)
                 } else {
                     false
                 },
@@ -2245,6 +2254,7 @@ fn change_step(
             delegate: forge_change::Status::Unknown,
             delegate_running: change_delegate_running(domain, task),
             flake: false,
+            no_test: false,
             delegate_live: change_delegate_live(domain, task),
             effect: forge_change::EffectResult::None,
             // A held read is no release, even if a past release remains the task's due reason.
@@ -3160,6 +3170,15 @@ fn change_delegate(
             followups: 0,
             fields: Box::new([]),
         }])
+    } else if let forge_change::Delegate::Repair(why) = kind
+        && repair_no_test(why, failure.as_ref())
+    {
+        Box::from([tasks::Verdict {
+            code: forge::REPAIR_NO_TEST,
+            words: env.limits.tasks.result_bytes,
+            followups: 0,
+            fields: Box::new([]),
+        }])
     } else {
         Box::new([])
     };
@@ -3616,7 +3635,8 @@ fn hold_change_decision(
         | forge_change::Hold::Resolutions
         | forge_change::Hold::Updates
         | forge_change::Hold::Questions
-        | forge_change::Hold::Flake => tasks::Hold::Procedure,
+        | forge_change::Hold::Flake
+        | forge_change::Hold::NoTest => tasks::Hold::Procedure,
         forge_change::Hold::Failed | forge_change::Hold::Rejected => tasks::Hold::EffectFailed,
     };
     let end = if let Some(words) = account

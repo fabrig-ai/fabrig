@@ -1076,6 +1076,8 @@ pub struct ChangeRow {
     pub delegate_status: change::Status,
     /// A flake terminal awaiting the branch read after its end.
     pub delegate_flake: bool,
+    /// A no-test terminal awaiting the branch read after its end.
+    pub delegate_no_test: bool,
     /// The branch head when this delegate was asked.
     pub delegate_head: Option<skein_forge::api::Commit>,
     /// Bounded current verdict per gate, retained through clean updates.
@@ -1168,6 +1170,8 @@ pub struct ChangeHot {
     pub delegate_status: change::Status,
     /// A flake terminal awaiting the branch read after its end.
     pub delegate_flake: bool,
+    /// A no-test terminal awaiting the branch read after its end.
+    pub delegate_no_test: bool,
     /// The branch head when this delegate was asked.
     pub delegate_head: Option<skein_forge::api::Commit>,
     pub verdicts: Box<[change::GateReport]>,
@@ -1216,6 +1220,7 @@ impl ChangeRow {
             delegate,
             delegate_status,
             delegate_flake,
+            delegate_no_test,
             delegate_head,
             verdicts,
             gate_remarks,
@@ -1282,6 +1287,7 @@ impl ChangeRow {
                 delegate,
                 delegate_status,
                 delegate_flake,
+                delegate_no_test,
                 delegate_head,
                 verdicts,
                 gate_remarks,
@@ -1343,6 +1349,7 @@ impl ChangeRow {
             delegate,
             delegate_status,
             delegate_flake,
+            delegate_no_test,
             delegate_head,
             verdicts,
             gate_remarks,
@@ -1386,6 +1393,7 @@ impl ChangeRow {
             delegate,
             delegate_status,
             delegate_flake,
+            delegate_no_test,
             delegate_head,
             verdicts,
             gate_remarks,
@@ -2504,6 +2512,7 @@ pub enum Event {
         no_change: bool,
         /// A repair concluded with the flake verdict.
         flake: bool,
+        no_test: bool,
         /// The child failed to produce a result, rather than returning a negative verdict.
         failed: bool,
         /// The delegate was cancelled; it supplied no verdict and used no review retry.

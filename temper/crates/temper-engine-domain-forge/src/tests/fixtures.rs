@@ -159,6 +159,7 @@ pub fn opening_row() -> ChangeRow {
         delegate: None,
         delegate_status: change::Status::Passed,
         delegate_flake: false,
+        delegate_no_test: false,
         delegate_head: None,
         verdicts: Box::new([]),
         milestone: None,
@@ -385,6 +386,7 @@ pub fn change_step() -> Event {
         heard: change::Heard {
             delegate_running: false,
             flake: false,
+            no_test: false,
             delegate_live: false,
             review_request: None,
             start_conflict: None,

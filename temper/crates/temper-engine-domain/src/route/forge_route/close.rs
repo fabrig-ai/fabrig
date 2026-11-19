@@ -138,6 +138,7 @@ pub(crate) fn saved(domain: &mut Domain, record: &jig_domain_core::Record) {
             status: forge_change::Status::Failed,
             no_change: false,
             flake: false,
+            no_test: false,
             failed: true,
             cancelled: false,
             words: words.into(),

@@ -33,7 +33,7 @@ fn a_nested_field_added_changes_the_golden() {
     let step = SCHEMA.replace("enum PublicStep {", "enum PublicStep { extra,");
     assert_ne!(shape::listing(&step), FIELDS);
     let unreachable =
-        SCHEMA.replace("family temper-public-wire 3", "family temper-public-wire 3\nrecord Unreachable { extra: u32 }");
+        SCHEMA.replace("family temper-public-wire 4", "family temper-public-wire 4\nrecord Unreachable { extra: u32 }");
     assert_eq!(shape::listing(&unreachable), FIELDS);
 }
 

@@ -1016,6 +1016,7 @@ fn panel_hold(value: Option<change::Hold>) -> Option<w::Hold> {
         change::Hold::Retargeted => w::Hold::Retargeted,
         change::Hold::Failed => w::Hold::Failed,
         change::Hold::Flake => w::Hold::Flake,
+        change::Hold::NoTest => w::Hold::NoTest,
         change::Hold::Rejected => w::Hold::Rejected,
         change::Hold::Authority(cause) => w::Hold::Authority(
             w::AuthorityHold::new(&w::CEILINGS, w::AuthorityHoldParts { reason: change::authority_words(cause) })

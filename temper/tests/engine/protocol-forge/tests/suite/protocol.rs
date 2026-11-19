@@ -56,6 +56,7 @@ fn change_row() -> top::ChangeRow {
         delegate: None,
         delegate_status: change::Status::Unknown,
         delegate_flake: false,
+        delegate_no_test: false,
         delegate_head: None,
         verdicts: Box::new([]),
         milestone: None,
@@ -123,6 +124,7 @@ fn change_step_task(
         heard: change::Heard {
             delegate_running: false,
             flake: false,
+            no_test: false,
             delegate_live: false,
             review_request: None,
             start_conflict: None,
@@ -498,6 +500,7 @@ fn step_change(world: &mut Protocol, entry: u64, delegate: change::Status, relea
         heard: change::Heard {
             delegate_running: false,
             flake: false,
+            no_test: false,
             delegate_live: false,
             review_request: None,
             start_conflict: None,
@@ -949,6 +952,7 @@ fn a_github_change_waits_out_a_ninety_second_ci_and_merges_on_its_verdict() {
                 heard: change::Heard {
                     delegate_running: false,
                     flake: false,
+                    no_test: false,
                     delegate_live: false,
                     review_request: None,
                     start_conflict: None,
@@ -1239,6 +1243,7 @@ fn a_landing_merges_on_its_own_wakes_before_any_resource_poll() {
                                 status: change::Status::Passed,
                                 no_change: false,
                                 flake: false,
+                                no_test: false,
                                 failed: false,
                                 cancelled: false,
                                 words: b"passed".as_slice().into(),

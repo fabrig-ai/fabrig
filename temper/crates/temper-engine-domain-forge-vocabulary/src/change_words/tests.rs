@@ -496,6 +496,7 @@ fn a_blamed_landing_repairs_words_keep_the_boundary_before_the_bounded_list() {
     let ci = b" The CI section gives its run, base and failed jobs.";
     let failure = repair_failure(red, Some(green));
     let lines = concat(&[
+        super::REPAIR_NO_TEST_LINE,
         b"\nGate run: 4211 at ",
         &commit_text(&red),
         b", base ",
@@ -560,11 +561,12 @@ fn landing_repair_words_keep_whole_failure_lines_and_name_missing_facts() {
     let opening = b"Repair landing gate 1 at abcdef012345: failed at landing candidate\nRepair the failed landing gate at its candidate. The CI section gives its run, base and failed jobs.";
     let required = skein_lib::bytes::concat(&[opening, super::REPAIR_PRESERVATION]);
     let report = b"\nFailed tests: not known (the gate names no report)";
-    let full = skein_lib::bytes::concat(&[&required, &gate, report, &job, &lint]);
+    let full = skein_lib::bytes::concat(&[&required, super::REPAIR_NO_TEST_LINE, &gate, report, &job, &lint]);
     assert_eq!(super::repair_words(&row, why, Some(&failure), &[], 4096).unwrap(), full);
     for (kept, omitted) in [(b"".as_slice(), 2), (job.as_ref(), 1)] {
         let expected = skein_lib::bytes::concat(&[
             &required,
+            super::REPAIR_NO_TEST_LINE,
             &gate,
             report,
             kept,
@@ -969,6 +971,7 @@ fn change_row(pull: Option<u64>) -> super::forge::ChangeRow {
         delegate: None,
         delegate_status: change::Status::Unknown,
         delegate_flake: false,
+        delegate_no_test: false,
         delegate_head: None,
         verdicts: Box::new([]),
         milestone: None,

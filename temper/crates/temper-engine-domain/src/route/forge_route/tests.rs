@@ -1195,6 +1195,7 @@ fn change_row(pull: Option<u64>) -> super::forge::ChangeRow {
         delegate: None,
         delegate_status: change::Status::Unknown,
         delegate_flake: false,
+        delegate_no_test: false,
         delegate_head: None,
         verdicts: Box::new([]),
         milestone: None,
@@ -2041,6 +2042,7 @@ fn cancelled_resolutions_and_merge_jobs_keep_bounded_procedure_accounts() {
                     status: forge_change::Status::Failed,
                     no_change: false,
                     flake: false,
+                    no_test: false,
                     failed: false,
                     cancelled: true,
                     words: reason.into(),
@@ -3183,11 +3185,17 @@ fn a_resolution_after_a_merge_job_carries_its_result() {
         }
     }
     assert_eq!(
-        super::change_delegate_status(&super::tasks::MessageKind::Result(super::tasks::ResultKind::Job)),
+        super::change_delegate_status(
+            &super::tasks::MessageKind::Result(super::tasks::ResultKind::Job),
+            super::forge_change::Delegate::Close
+        ),
         Some((super::forge_change::Status::Passed, false, false))
     );
     assert_eq!(
-        super::change_delegate_status(&super::tasks::MessageKind::Result(super::tasks::ResultKind::Failed)),
+        super::change_delegate_status(
+            &super::tasks::MessageKind::Result(super::tasks::ResultKind::Failed),
+            super::forge_change::Delegate::Close
+        ),
         Some((super::forge_change::Status::Failed, true, false))
     );
 }

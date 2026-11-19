@@ -267,6 +267,7 @@ fn change_row() -> ChangeRow {
         delegate: None,
         delegate_status: change::Status::Passed,
         delegate_flake: false,
+        delegate_no_test: false,
         delegate_head: None,
         verdicts: Box::new([]),
         milestone: None,

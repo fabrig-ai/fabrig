@@ -225,6 +225,7 @@ pub const fn hold(hold: &w::Hold) -> W {
         w::Hold::Retargeted => W::Retargeted,
         w::Hold::Failed => W::FailedHold,
         w::Hold::Flake => W::FlakeHold,
+        w::Hold::NoTest => W::NoTestHold,
         w::Hold::Rejected => W::Rejected,
         w::Hold::Authority(_) => W::AuthorityHold,
     }

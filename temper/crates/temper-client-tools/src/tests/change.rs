@@ -1255,3 +1255,21 @@ fn opened_panels_print_the_source_and_the_head_taking_kept() {
         }
     }
 }
+
+#[test]
+fn a_no_test_hold_has_its_machine_word() {
+    for json in [false, true] {
+        let mut root = f::signed_in(f::PARTY);
+        let words = f::extended(
+            &["change", "show", "2", "--project", "1", "--until", "held"],
+            if json { &["--json"] } else { &[] },
+        );
+        let call = root.submit(words.as_slice());
+        let mut parts = panel(w::Step::Checking).into_parts();
+        parts.hold = Some(w::Hold::NoTest);
+        deliver(&mut root, w::ChangePanel::new(&w::CEILINGS, parts).unwrap());
+        let answer = root.answer(call).unwrap();
+        assert_eq!(answer.status, 0);
+        contains(&answer.stdout, if json { b"no_test" } else { b"its repair found no failed test" });
+    }
+}
