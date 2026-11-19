@@ -72,6 +72,15 @@ built by a workflow of its own, which tests nothing (`../release.md`, 5.1).
   The workflow prints each one's version first, so that a binary that
   does not run shows apart from the stories. The `process` and `live`
   parts each fetch them so.
+- **The `temper` part fetches them too,** the same way and with the same
+  set-up, after its build and before its suites, since temper's suites
+  hold tests that run the pinned Forgejo, the box's owned forge's
+  (`temper-box-kit`'s `owned`) and a real checkout's delivery, and read
+  `TEMPER_TEST_FORGEJO` and `TEMPER_TEST_FORGEJO_RUNNER` as Linux's
+  builders give them (`../cli/test-env.md`). Its cache is not empty:
+  it is kept between runs as the part's other downloads are (section 6),
+  since what the suites test is the binaries, and the addresses are
+  `process`'s and `live`'s to show.
 - **Its set-up before the fetch** is what the forge commands ask of a
   host with no box (`../protocol/setup/box.md`, 4), on the scratch
   directories the workflow makes, each empty and private:
@@ -318,6 +327,29 @@ built by a workflow of its own, which tests nothing (`../release.md`, 5.1).
   Homebrew as a URL alone (`../draft/macos.md`, 4.3).
 - **`process`'s and `live`'s:** Forgejo and its runner, fetched as section
   2 has it.
+- **`temper`'s:** Forgejo and its runner, fetched as section 2 has it,
+  into a fetch cache that `actions/cache` restores before the fetch and
+  saves once per key, as the registry is: its key is
+  `forge-macos-26-`, then the hash of the files that pin the binaries,
+  `skein/crates/skein-forge/src/forgejo/pin.rs` (versions and digests)
+  and `temper/crates/temper-forge-setup/src/fetch.rs` (their addresses),
+  so that a moved pin fetches afresh. The box's fetch holds what it finds
+  in place to the pins' digests and fetches nothing more
+  (`../protocol/setup/owned.md`, 6). The configuration and data
+  directories of the fetch's set-up start empty each run; only the cache
+  is kept.
+- **`smith`'s:** ripgrep 14.1.1, the release Linux's machines carry at
+  `/usr/bin/rg`, from its GitHub release, the `aarch64-apple-darwin`
+  archive. Its version and the archive's SHA-256 are pinned in the
+  workflow, and the archive is checked against the digest before it is
+  unpacked, as Chrome for Testing's is. The directory holding its `rg`
+  goes on the job's `PATH`, so that smith's suites find it on the test
+  process's `PATH`, as smith finds `rg` on the commands' `PATH`
+  (`smith/docs/design/protocol/agent.md`, section 2;
+  `smith/docs/design/testing.md`, 2.2). The workflow prints
+  `rg --version` through the runner of checks first, so that a binary
+  that does not run shows apart from the suites. A download refused or
+  not its digest is a fault (5.4).
 - **Each part's disk and wall time:** a last step, whatever the part ended
   in, prints the disk (`df`, and `du` of `target` and the registry) and the
   job's wall time since its first step.
