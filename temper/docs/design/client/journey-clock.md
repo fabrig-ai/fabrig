@@ -222,8 +222,8 @@ decide, each named here:
   set-up's pause) the times after it may differ by such periods.
 - **The parts that keep the host's time:** an owned Forgejo's times, and
   the box's own, its set-up's steps and the fetch whose bytes come from
-  the network (`welcome-set-up`'s and the setups' Forgejo, when the
-  cache doesn't hold it), wherever a page draws one of them.
+  the network (the setups' Forgejo, when the cache doesn't hold it),
+  wherever a page draws one of them.
 - **The kernel's ports and the build** are placeholders already
   (`journey-placeholders.md`, 2.1 and 2.2).
 
