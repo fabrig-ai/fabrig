@@ -2,14 +2,6 @@
 
 2026-11-19. Where temper's code lags or departs from [landing.md](landing.md).
 
-- **Not yet:** 8: a merge not made read again (the train's tip, whether
-  it holds the candidate, the round's pull request) rather than held,
-  an unknown merge (withdrawn, held, lost past the client's tries)
-  asked again within `forge.client.write_attempts` merges a round, and
-  readback at a tip containing the candidate; 4.2: no merge outcome
-  holding the task for its effect, and the turn's hold naming what it
-  read; 9: a held landing's own train alone, pinned; 16: the domain's
-  stories of a turn's merge not made. [in flight: change 8935]
 
 
 
