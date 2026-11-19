@@ -51,7 +51,7 @@ pub fn assert_change(supplied: u64) {
     let bytes = codec::family::request_record(project, value);
     let bounds = jig_test_profile::limits().connector;
     let decoded = codec::family::request_value(&bytes, &bounds).expect("family request");
-    let decoded_value = decoded.value.into_parts();
+    let decoded_value = decoded.value;
     assert_eq!(decoded.project, PROJECT);
     assert_eq!(
         (decoded_value.object, decoded_value.revision, decoded_value.value),
