@@ -5,6 +5,7 @@ use temper_config_shell::{Keys, Shape};
 use temper_shell::directories::Directories;
 
 pub struct Read {
+    pub file: Option<temper_config_shell::File>,
     pub document: Box<[u8]>,
     pub keys: Option<Keys>,
 }
@@ -28,11 +29,11 @@ pub fn read_with_legacy(
     if let Err(why) = std::fs::symlink_metadata(file)
         && why.kind() == ErrorKind::NotFound
     {
-        return legacy().map(|document| Read { document, keys: None });
+        return legacy().map(|document| Read { file: None, document, keys: None });
     }
-    let temper_config_shell::Read { document, keys, .. } =
+    let temper_config_shell::Read { file, document, keys } =
         temper_config_shell::read(directories, shape).map_err(|why| why.to_string())?;
-    Ok(Read { document, keys: Some(keys) })
+    Ok(Read { file: Some(file), document, keys: Some(keys) })
 }
 
 /// Program-login keeps its legacy single-line output, but file refusals are one per line.
@@ -49,6 +50,31 @@ pub fn login_problems(command: &str, lines: &str) -> String {
 }
 
 impl Read {
+    /// Programs are process inputs, not members of the start's document (file.md, 4).
+    pub fn programs(&self) -> Result<temper_config_shell::Programs, String> {
+        let programs = self.file.as_ref().map(|file| file.programs.clone()).unwrap_or_default();
+        let mut problems = Vec::new();
+        for (key, path) in [
+            ("programs.git", &programs.git),
+            ("programs.claude", &programs.claude),
+            ("programs.forgejo", &programs.forgejo),
+            ("programs.runner", &programs.runner),
+        ] {
+            let Some(path) = path else { continue };
+            let words = if !path.is_absolute() {
+                Some(format!("{}: must be an absolute path", path.display()))
+            } else if !temper_shell::lookup::is_executable(path) {
+                Some(format!("{}: must be an executable regular file", path.display()))
+            } else {
+                None
+            };
+            if let Some(words) = words {
+                problems.push(self.keys.as_ref().expect("TOML programs").render_key(key, &words));
+            }
+        }
+        if problems.is_empty() { Ok(programs) } else { Err(problems.join("\n")) }
+    }
+
     /// The shells already render member paths and the start's words. Translate at the
     /// output boundary, leaving lines outside the configuration and their endings intact.
     #[must_use]

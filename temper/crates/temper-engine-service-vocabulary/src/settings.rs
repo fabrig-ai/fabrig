@@ -109,6 +109,9 @@ pub struct Engine {
     pub host_part: temper_engine_domain::room::HostPart,
     /// Kept setup files supplied by a world; a shell reads them through `PlaceIo`.
     pub setups: Box<[(u16, temper_forge_setup::setup_file::SetupFile)]>,
+    /// Checked file-only paths for new owned forges (protocol/setup/place.md, 2).
+    pub owned_forgejo: Option<Box<[u8]>>,
+    pub owned_runner: Option<Box<[u8]>>,
     pub test_github: Option<temper_forge_setup::machine::GitHubMachine>,
     pub directories: jig_protocol_config::Directories,
     pub jig: jig_protocol_config::Engine,

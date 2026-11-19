@@ -18,9 +18,12 @@ pub fn prepare(
     directories: &Directories,
     bytes: &[u8],
     owned: &mut Vec<Fd>,
+    programs: &temper_config_shell::Programs,
 ) -> Result<Service, String> {
-    prepare_with_store(binary, environment, working, directories, bytes, owned, false).map(|(service, _)| service)
+    prepare_with_store(binary, environment, working, directories, bytes, owned, false, programs)
+        .map(|(service, _)| service)
 }
+#[expect(clippy::too_many_arguments, reason = "the start carries file-only program paths beside its document")]
 pub fn prepare_with_store(
     binary: &str,
     environment: &[EnvironmentEntry],
@@ -29,6 +32,7 @@ pub fn prepare_with_store(
     bytes: &[u8],
     owned: &mut Vec<Fd>,
     sizing: bool,
+    programs: &temper_config_shell::Programs,
 ) -> Result<(Service, Box<[u8]>), String> {
     prepare_with_limits(
         binary,
@@ -47,6 +51,7 @@ pub fn prepare_with_store(
         &[],
         None,
         None,
+        programs,
     )
     .map(|(service, store, _)| (service, store))
 }
@@ -72,6 +77,7 @@ pub(crate) fn prepare_with_limits(
     projects: &[jig_protocol_config::Project],
     limits: Option<(&jig_protocol_config::Limits, &service::limits::Limits)>,
     fixed_start: Option<&skein_shell::FixedStart>,
+    programs: &temper_config_shell::Programs,
 ) -> Result<(Service, Box<[u8]>, u32), String> {
     let shape = service::startup::shape_with(bytes, &jig_directories(directories), given)
         .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
@@ -118,7 +124,7 @@ pub(crate) fn prepare_with_limits(
     let agent = part
         .as_mut()
         .map(|part| -> Result<_, String> {
-            let prepared = prepare_agent(part, directories, environment)?;
+            let prepared = prepare_agent(part, directories, environment, programs)?;
             let declaration = prepared.agent.declaration();
             *part = match limits {
                 Some(limits) => service::startup::box_worker_with_limits(
@@ -179,7 +185,7 @@ pub(crate) fn prepare_with_limits(
         Some(start) => engine::seeds_from(start, link_secret, local_secret),
         None => engine::seeds(link_secret, local_secret)?,
     };
-    let git = temper_shell::lookup::find(environment, b"git");
+    let git = programs.git.clone().or_else(|| temper_shell::lookup::find(environment, b"git"));
     let landing = engine::landing_hold(path(&directories.data))?;
     let sources = agent
         .as_ref()
@@ -256,6 +262,8 @@ pub(crate) fn prepare_with_limits(
         }
     };
     start.engine_mut().demo = demo.as_ref().map(setup::playground);
+    start.engine_mut().owned_forgejo = programs.forgejo.as_ref().map(|path| path.as_os_str().as_bytes().into());
+    start.engine_mut().owned_runner = programs.runner.as_ref().map(|path| path.as_os_str().as_bytes().into());
     if !projects.is_empty() {
         let engine = start.engine_mut();
         engine.jig.owners = engine
@@ -323,6 +331,7 @@ pub(crate) fn configured_agent(
     bytes: &[u8],
     directories: &Directories,
     environment: &[EnvironmentEntry],
+    programs: &temper_config_shell::Programs,
 ) -> Result<Option<agent::Prepared>, String> {
     let initial = agents_setting(&path(&directories.data).join("agents.setting"), &mut std::io::stderr())
         .unwrap_or_else(service::stock::agents);
@@ -333,15 +342,20 @@ pub(crate) fn configured_agent(
     let mut part =
         service::startup::box_worker(bytes, &jig_directories(directories), &given, &initial, places, environment)
             .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
-    part.as_mut().map(|part| prepare_agent(part, directories, environment)).transpose()
+    part.as_mut().map(|part| prepare_agent(part, directories, environment, programs)).transpose()
 }
 fn prepare_agent(
     part: &mut service::startup::WorkerPart,
     directories: &Directories,
     environment: &[EnvironmentEntry],
+    programs: &temper_config_shell::Programs,
 ) -> Result<agent::Prepared, String> {
     box_inputs_worker(part, directories)?;
-    let claude = match crate::fake_backends::configured_claude(directories)? {
+    let configured = match &programs.claude {
+        Some(claude) => Some(claude.clone()),
+        None => crate::fake_backends::configured_claude(directories)?,
+    };
+    let claude = match configured {
         Some(claude) => Some(claude),
         None => part
             .claude
@@ -492,7 +506,9 @@ pub fn prepare_in(
         .map_err(|why| prefixed(&format!("{binary} serve"), &why))?;
     let bytes = &read.document;
     let mut owned = Vec::new();
-    let result = prepare(binary, environment, working, directories, bytes, &mut owned);
+    let result = read
+        .programs()
+        .and_then(|programs| prepare(binary, environment, working, directories, bytes, &mut owned, &programs));
     if result.is_err() {
         close(owned);
     }
@@ -577,6 +593,7 @@ pub fn prepare_in_with_inputs_and_limits(
     let read = temper_service_shell::configuration::read(directories, temper_config_shell::Shape::Standalone)
         .map_err(|why| prefixed(&format!("{binary} serve"), &why))?;
     let bytes = &read.document;
+    let programs = read.programs().map_err(|why| prefixed(&format!("{binary} serve"), &why))?;
     let mut owned = Vec::new();
     let result = prepare_with_limits(
         binary,
@@ -595,6 +612,7 @@ pub fn prepare_in_with_inputs_and_limits(
         projects,
         limits,
         None,
+        &programs,
     )
     .map(|(service, _, _)| service);
     if result.is_err() {
@@ -670,7 +688,7 @@ pub fn run(
         crate::served::SERVED,
         &fixed_start.map_or_else(skein_shell::Clock::new, skein_shell::Clock::fixed),
         |listeners| box_inputs(boxed, listeners),
-        |bytes, owned, input| {
+        |bytes, programs, owned, input| {
             prepare_with_limits(
                 binary,
                 environment,
@@ -688,6 +706,7 @@ pub fn run(
                 &[],
                 None,
                 fixed_start,
+                programs,
             )
             .map(|(service, store, line_bytes)| temper_service_shell::Prepared {
                 service,

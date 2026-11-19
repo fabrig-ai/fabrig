@@ -65,6 +65,8 @@ fn generated_with_test(test: Option<&[u8]>) -> (engine::Config, engine::Limits) 
         host_reply_bytes: None,
         agent_charter_bytes: None,
         setups: Box::new([]),
+        owned_forgejo: None,
+        owned_runner: None,
         test_github: parsed.application.test_github,
         directories: directories.clone(),
         jig: parsed.engine,

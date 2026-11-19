@@ -127,10 +127,13 @@ fn dispatch(command: &Command, arguments: &[Box<[u8]>], captured: &Capture) -> R
                     crate::served::SERVED,
                     &skein_shell::Clock::new(),
                     |_| Ok(()),
-                    |bytes, owned, ()| {
-                        crate::worker::alone(&directories, bytes, owned, &captured.environment).map(|service| {
-                            temper_service_shell::Prepared { service, store: Box::new([]), adoption: () }
-                        })
+                    |bytes, programs, owned, ()| {
+                        crate::worker::alone_with_programs(&directories, bytes, owned, &captured.environment, programs)
+                            .map(|service| temper_service_shell::Prepared {
+                                service,
+                                store: Box::new([]),
+                                adoption: (),
+                            })
                     },
                     |_, _, ()| Ok(()),
                 )

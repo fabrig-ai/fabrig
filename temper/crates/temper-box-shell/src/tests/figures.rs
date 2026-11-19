@@ -140,6 +140,7 @@ fn startup_pins_composed_default_file_and_fallback_figures() {
             &[],
             None,
             None,
+            &temper_config_shell::Programs::default(),
         )
         .map(|(service, _, _)| service.operations());
         crate::close(owned);
@@ -261,6 +262,7 @@ fn local_copy_builds_the_next_start_at_its_places_and_bad_bytes_log_once() {
                 &[],
                 None,
                 None,
+                &temper_config_shell::Programs::default(),
             )
             .map(|(service, _, _)| service.operations());
             crate::close(owned);
@@ -296,10 +298,17 @@ fn box_refuses_moved_worker_members_and_agent_file_by_name() {
         );
     }
     fs::write(scratch.path().join("agent.json"), b"never read").expect("old file");
-    let why =
-        serve::prepare("temper-box", &[], b"/", &dirs, &serde_json::to_vec(&original).expect("JSON"), &mut Vec::new())
-            .err()
-            .expect("old file refused");
+    let why = serve::prepare(
+        "temper-box",
+        &[],
+        b"/",
+        &dirs,
+        &serde_json::to_vec(&original).expect("JSON"),
+        &mut Vec::new(),
+        &temper_config_shell::Programs::default(),
+    )
+    .err()
+    .expect("old file refused");
     assert_eq!(why, "agent.json: moved: temper writes the agent's configuration under the worker's root; remove it");
 }
 #[test]

@@ -29,6 +29,78 @@ fn configured_figures_with(
     temper_engine_service_vocabulary::figures::Composer::new(&engine, &own).compose(&temper_service::stock::agents())
 }
 #[test]
+fn toml_worker_git_wins_over_path_and_absent_key_uses_path() {
+    let scratch = skein_scratch::Scratch::new("worker-program-git");
+    let root = scratch.path();
+    let directories = super::configuration::directories(root);
+    let named = root.join("named-git");
+    let found = root.join("git");
+    fs::copy("/bin/sh", &named).expect("named executable");
+    fs::copy("/bin/sh", &found).expect("PATH executable");
+    for explicit in [true, false] {
+        let text = if explicit {
+            format!("engine = \"127.0.0.1:7200\"\n[programs]\ngit = {named:?}\n")
+        } else {
+            "engine = \"127.0.0.1:7200\"\n".into()
+        };
+        fs::write(root.join(temper_config_shell::FILE), text).expect("worker file");
+        for environment in [Vec::new(), vec![(Box::from(b"PATH".as_slice()), Box::from(root.as_os_str().as_bytes()))]] {
+            let read = temper_service_shell::configuration::read(&directories, temper_config_shell::Shape::WorkerAlone)
+                .expect("worker read");
+            let part =
+                worker::part(&directories, &read.document, &environment, &read.programs().expect("checked programs"))
+                    .expect("worker part");
+            let expected = if explicit {
+                Some(&named)
+            } else if environment.is_empty() {
+                None
+            } else {
+                Some(&found)
+            };
+            assert_eq!(part.worker.git.as_deref(), expected.map(|path| path.as_os_str().as_bytes()));
+        }
+    }
+}
+
+#[test]
+fn toml_worker_claude_wins_then_path_then_fetched_in_written_configuration() {
+    let scratch = skein_scratch::Scratch::new("worker-program-claude");
+    let root = scratch.path();
+    let directories = super::configuration::directories(root);
+    let named = root.join("named-claude");
+    let found = root.join("claude");
+    fs::copy("/bin/sh", &named).expect("named executable");
+    fs::copy("/bin/sh", &found).expect("PATH executable");
+    for explicit in [true, false] {
+        let text = if explicit {
+            format!("engine = \"127.0.0.1:7200\"\n[programs]\nclaude = {named:?}\n")
+        } else {
+            "engine = \"127.0.0.1:7200\"\n".into()
+        };
+        fs::write(root.join(temper_config_shell::FILE), text).expect("worker file");
+        for environment in [Vec::new(), vec![(Box::from(b"PATH".as_slice()), Box::from(root.as_os_str().as_bytes()))]] {
+            let read = temper_service_shell::configuration::read(&directories, temper_config_shell::Shape::WorkerAlone)
+                .expect("worker read");
+            let mut part =
+                worker::part(&directories, &read.document, &environment, &read.programs().expect("checked programs"))
+                    .expect("worker part");
+            let unknown = temper_worker_service::figures::apply(&mut part, stock_figures()).expect("applied figures");
+            assert!(unknown.is_empty());
+            let bytes = worker::configuration(&part, &directories, &environment).expect("agent configuration");
+            let written: serde_json::Value = serde_json::from_slice(&bytes).expect("agent JSON");
+            let expected = if explicit {
+                named.to_str().expect("named path")
+            } else if environment.is_empty() {
+                "fetched"
+            } else {
+                found.to_str().expect("PATH program")
+            };
+            assert_eq!(written["programs"]["claude_code"]["path"], expected);
+        }
+    }
+}
+
+#[test]
 fn the_workers_watchdog_covers_stock_agent_figures_and_a_sixty_minute_tool() {
     use jig_protocol_worker_wire as w;
     use skein_lib::Duration;

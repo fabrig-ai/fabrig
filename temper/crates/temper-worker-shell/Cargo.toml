@@ -16,7 +16,6 @@ temper-service-core.workspace = true
 temper-worker-service.workspace = true
 temper-service-shell.workspace = true
 temper-shell.workspace = true
-temper-config-shell.workspace = true
 temper-launcher.workspace = true
 smith-agent-document.workspace = true
 smith-host-protocol.workspace = true

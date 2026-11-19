@@ -310,7 +310,7 @@ pub fn run(
         crate::served::SERVED,
         &skein_shell::Clock::new(),
         |_| Ok(()),
-        |bytes, owned, ()| {
+        |bytes, _programs, owned, ()| {
             prepare_given(
                 binary,
                 environment,

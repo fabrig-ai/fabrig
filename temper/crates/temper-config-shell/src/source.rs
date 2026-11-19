@@ -58,6 +58,12 @@ impl Keys {
     pub(crate) fn line(&self, key: &str) -> Option<usize> {
         self.sources.iter().find(|(found, _)| found == key).map(|(_, line)| *line)
     }
+    /// A file-only key, such as a program path, has no member in the start's document.
+    #[must_use]
+    pub fn render_key(&self, key: &str, words: &str) -> String {
+        let line = self.line(key);
+        diagnostic(key, line, words, line.is_none())
+    }
     /// A member's path and the start's own words, without a final newline.
     #[must_use]
     pub fn render(&self, path: &Path, words: &str) -> String {

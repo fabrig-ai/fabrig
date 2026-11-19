@@ -41,7 +41,7 @@ fn a_refused_start_is_its_binarys_serve_line() {
             super::host::adapter_tests::SERVED,
             &skein_shell::Clock::new(),
             |_| Ok(()),
-            |_, _, ()| Err::<super::Prepared<_, ()>, _>("refused".into()),
+            |_, _, _, ()| Err::<super::Prepared<_, ()>, _>("refused".into()),
             |_, _, ()| Ok(())
         ),
         Err("temper-worker serve: refused\n".into())
@@ -76,7 +76,7 @@ fn toml_serve_maps_member_lines_and_keeps_other_problems() {
             super::host::adapter_tests::SERVED,
             &skein_shell::Clock::new(),
             |_| Ok(()),
-            |_, _, ()| {
+            |_, _, _, ()| {
                 Err::<super::Prepared<_, ()>, _>("application.clients.public: start's words\napplication.webhooks.listener: listener words\nagents.setting: unchanged\n".into())
             },
             |_, _, ()| Ok(())
@@ -86,6 +86,51 @@ fn toml_serve_maps_member_lines_and_keeps_other_problems() {
             temper_config_shell::FILE,
             temper_config_shell::FILE
         ))
+    );
+}
+
+#[test]
+fn toml_serve_passes_checked_programs_beside_the_document() {
+    use std::os::unix::ffi::OsStrExt;
+    let scratch = skein_scratch::Scratch::new("serve-file-programs");
+    let args = [
+        b"--config".as_slice(),
+        scratch.path().as_os_str().as_bytes(),
+        b"--data",
+        scratch.path().as_os_str().as_bytes(),
+        b"--cache",
+        scratch.path().as_os_str().as_bytes(),
+    ]
+    .map(Box::from);
+    let (directories, _) = temper_shell::directories::resolve(&args, &[], b"/").expect("directories");
+    let program = scratch.path().join("program");
+    std::fs::copy("/bin/sh", &program).expect("scratch executable");
+    std::fs::write(scratch.path().join(temper_config_shell::FILE), format!(
+        "listen = \"127.0.0.1:7100\"\n[programs]\ngit = {program:?}\nclaude = {program:?}\nforgejo = {program:?}\nrunner = {program:?}\n"
+    )).expect("box file");
+    assert_eq!(
+        super::run(
+            "temper-box",
+            &directories,
+            temper_config_shell::Shape::Standalone,
+            &[],
+            super::host::adapter_tests::SERVED,
+            &skein_shell::Clock::new(),
+            |_| Ok(()),
+            |bytes, programs, _, ()| {
+                assert_eq!(programs.git.as_deref(), Some(program.as_path()));
+                assert_eq!(programs.claude.as_deref(), Some(program.as_path()));
+                assert_eq!(programs.forgejo.as_deref(), Some(program.as_path()));
+                assert_eq!(programs.runner.as_deref(), Some(program.as_path()));
+                assert!(
+                    !bytes.windows(b"\"programs\"".len()).any(|word| word == b"\"programs\""),
+                    "file-only paths stay out of the document"
+                );
+                Err::<super::Prepared<_, ()>, _>("checked programs reached preparation".into())
+            },
+            |_, _, ()| Ok(()),
+        ),
+        Err("temper-box serve: checked programs reached preparation\n".into())
     );
 }
 

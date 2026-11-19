@@ -17,7 +17,6 @@ temper-agent-shell.workspace = true
 temper-worker-shell.workspace = true
 temper-launcher.workspace = true
 temper-shell.workspace = true
-temper-config-shell.workspace = true
 settings-form.workspace = true
 temper-docs.workspace = true
 skein-fail-stop.workspace = true

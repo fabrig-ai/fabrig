@@ -468,7 +468,16 @@ fn prepare_with_store(
     bytes: &[u8],
     owned: &mut Vec<Fd>,
 ) -> Result<(Service, Box<[u8]>), String> {
-    serve::prepare_with_store("temper", environment, working, directories, bytes, owned, true)
+    serve::prepare_with_store(
+        "temper",
+        environment,
+        working,
+        directories,
+        bytes,
+        owned,
+        true,
+        &temper_config_shell::Programs::default(),
+    )
 }
 /// The kernel operations a standalone start keeps in flight at most (its ring's size),
 /// derived without retaining its descriptors.

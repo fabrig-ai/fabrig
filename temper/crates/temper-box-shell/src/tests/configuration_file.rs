@@ -63,6 +63,23 @@ fn toml_box_program_login_reads_the_file() {
 }
 
 #[test]
+fn toml_box_program_login_uses_the_named_claude() {
+    let (scratch, directories) = fixture("listen = \"127.0.0.1:7100\"\n");
+    let program = scratch.path().join("named-claude");
+    fs::copy("/bin/sh", &program).expect("named executable");
+    fs::copy("/bin/sh", scratch.path().join("claude")).expect("PATH executable");
+    fs::write(scratch.path().join(FILE), format!("listen = \"127.0.0.1:7100\"\n[programs]\nclaude = {program:?}\n"))
+        .expect("box file");
+    let command = crate::program_login::command(
+        &directories,
+        OsStr::new("source"),
+        [("PATH".into(), scratch.path().as_os_str().to_owned())],
+    )
+    .expect("named login");
+    assert_eq!(command.get_program(), program.as_os_str());
+}
+
+#[test]
 fn toml_box_upgrade_reads_the_file() {
     let (scratch, directories) = fixture("listen = \"127.0.0.1:7100\"\n");
     fs::write(scratch.path().join("worker.secret"), b"fixture-worker-secret").expect("fixture secret");
@@ -70,6 +87,189 @@ fn toml_box_upgrade_reads_the_file() {
     let (service, deployment) = crate::upgrade::prepare(&directories).unwrap_or_else(|why| panic!("{why}"));
     assert!(service.operations() > 0);
     assert_eq!(deployment.as_ref(), scratch.path().join("state").as_os_str().as_bytes());
+}
+
+#[test]
+fn toml_box_git_wins_over_path_and_absent_key_uses_path() {
+    use skein_io::kernel::{Complete, Done, Fd, Op};
+    use skein_lib::{Time, Wall};
+    for (explicit, on_path) in [(true, true), (true, false), (false, true)] {
+        let scratch = skein_scratch::Scratch::new("box-program-git");
+        let root = scratch.path();
+        let directories = super::configuration::directories(root);
+        let named = root.join("named-git");
+        let found = root.join("git");
+        fs::copy("/bin/sh", &named).expect("named executable");
+        fs::copy("/bin/sh", &found).expect("PATH executable");
+        fs::write(root.join("worker.secret"), b"fixture-worker-secret").expect("fixture secret");
+        fs::set_permissions(root.join("worker.secret"), fs::Permissions::from_mode(0o600)).expect("private");
+        let text = if explicit {
+            format!("listen = \"127.0.0.1:7100\"\n[programs]\ngit = {named:?}\n")
+        } else {
+            "listen = \"127.0.0.1:7100\"\n".into()
+        };
+        fs::write(root.join(FILE), text).expect("box file");
+        let environment = if on_path {
+            vec![(Box::from(b"PATH".as_slice()), Box::from(root.as_os_str().as_bytes()))]
+        } else {
+            Vec::new()
+        };
+        let crate::Service::Joined(mut service) =
+            crate::serve::prepare_in("temper-box", &environment, b"/", &directories).expect("prepared box")
+        else {
+            panic!("standalone")
+        };
+        let mut program = None;
+        let mut descriptor = 1000_i32;
+        for _ in 0..32 {
+            temper_service::iterate(&mut service, Time::ZERO, Wall::EPOCH);
+            for _ in 0..service.submissions().len() {
+                let submit = service.submissions().pop().expect("counted submissions");
+                let result = match &submit.kind {
+                    Op::Socket { .. } => {
+                        descriptor += 1;
+                        Some(Done::Fd(Fd::new(descriptor)))
+                    }
+                    Op::Bind { addr, .. } => Some(Done::Bound(*addr)),
+                    Op::Listen { .. } => Some(Done::Nothing),
+                    Op::Spawn { spawn } => {
+                        assert_eq!(spawn.args.last().expect("version argument").as_ref(), b"version");
+                        program = Some(spawn.program.clone());
+                        None
+                    }
+                    Op::Accept { .. }
+                    | Op::Connect { .. }
+                    | Op::Recv { .. }
+                    | Op::Send { .. }
+                    | Op::Shutdown { .. }
+                    | Op::Close { .. }
+                    | Op::Open { .. }
+                    | Op::Read { .. }
+                    | Op::Write { .. }
+                    | Op::Append { .. }
+                    | Op::Truncate { .. }
+                    | Op::Sync { .. }
+                    | Op::Lock { .. }
+                    | Op::Stat { .. }
+                    | Op::Rename { .. }
+                    | Op::HardLink { .. }
+                    | Op::Remove { .. }
+                    | Op::MakeDirectory { .. }
+                    | Op::List { .. }
+                    | Op::Wait { .. }
+                    | Op::Signal { .. }
+                    | Op::Usage
+                    | Op::Window { .. }
+                    | Op::ReadSignal { .. }
+                    | Op::PipeRead { .. }
+                    | Op::PipeWrite { .. }
+                    | Op::Cancel { .. } => None,
+                };
+                if let Some(result) = result {
+                    service.completions().push(Complete { op: submit.op, kind: submit.kind, result: Ok(result) });
+                }
+            }
+            if program.is_some() {
+                break;
+            }
+        }
+        let expected = if explicit { &named } else { &found };
+        assert_eq!(program.as_deref(), Some(expected.as_os_str().as_bytes()));
+        temper_engine_shell::serve::close_limits_store(service.engine_component().store()).expect("close store");
+    }
+}
+
+#[test]
+fn toml_box_claude_wins_then_path_then_fetched_in_pinned_configuration() {
+    let scratch = skein_scratch::Scratch::new("box-program-claude");
+    let root = scratch.path();
+    let directories = super::configuration::directories(root);
+    let named = root.join("named-claude");
+    let found = root.join("claude");
+    fs::copy("/bin/sh", &named).expect("named executable");
+    fs::copy("/bin/sh", &found).expect("PATH executable");
+    fs::write(root.join("worker.secret"), b"fixture-worker-secret").expect("fixture secret");
+    fs::set_permissions(root.join("worker.secret"), fs::Permissions::from_mode(0o600)).expect("private");
+    for (explicit, on_path) in [(true, true), (true, false), (false, true), (false, false)] {
+        let text = if explicit {
+            format!("listen = \"127.0.0.1:7100\"\n[programs]\nclaude = {named:?}\n")
+        } else {
+            "listen = \"127.0.0.1:7100\"\n".into()
+        };
+        fs::write(root.join(FILE), text).expect("box file");
+        let environment = if on_path {
+            vec![(Box::from(b"PATH".as_slice()), Box::from(root.as_os_str().as_bytes()))]
+        } else {
+            Vec::new()
+        };
+        let mut owned = Vec::new();
+        let read = temper_service_shell::configuration::read(&directories, temper_config_shell::Shape::Standalone)
+            .expect("box read");
+        let programs = read.programs().expect("checked programs");
+        let (service, _) = crate::serve::prepare_with_store(
+            "temper-box",
+            &environment,
+            b"/",
+            &directories,
+            &read.document,
+            &mut owned,
+            false,
+            &programs,
+        )
+        .expect("prepared box");
+        let crate::Service::Joined(mut service) = service else { panic!("standalone") };
+        let bytes = fs::read(root.join("workspaces/agent/agent.json")).expect("pinned agent");
+        let written: serde_json::Value = serde_json::from_slice(&bytes).expect("agent JSON");
+        let expected = if explicit {
+            named.to_str().expect("named path")
+        } else if on_path {
+            found.to_str().expect("PATH path")
+        } else {
+            "fetched"
+        };
+        assert_eq!(written["programs"]["claude_code"]["path"], expected);
+        temper_engine_shell::serve::close_limits_store(service.engine_component().store()).expect("close store");
+        drop(service);
+        crate::close(owned);
+    }
+}
+
+#[test]
+fn toml_box_program_paths_refuse_at_the_keys_line_before_preparation() {
+    let (scratch, directories) = fixture("listen = \"127.0.0.1:7100\"\n");
+    let missing = scratch.path().join("missing");
+    let file = scratch.path().join("not-executable");
+    fs::write(&file, b"inert").expect("nonexecutable file");
+    fs::set_permissions(&file, fs::Permissions::from_mode(0o600)).expect("not executable");
+    for key in ["git", "claude", "forgejo", "runner"] {
+        for path in [missing.as_path(), file.as_path(), scratch.path()] {
+            fs::write(
+                scratch.path().join(FILE),
+                format!("listen = \"127.0.0.1:7100\"\n[programs]\n{key} = {path:?}\n"),
+            )
+            .expect("box file");
+            let Err(why) = crate::serve::prepare_in("temper-box", &[], b"/", &directories) else {
+                panic!("bad program refused")
+            };
+            assert_eq!(
+                why,
+                format!(
+                    "temper-box serve: {FILE}:3: programs.{key}: {}: must be an executable regular file\n",
+                    path.display()
+                )
+            );
+        }
+        fs::write(
+            scratch.path().join(FILE),
+            format!("listen = \"127.0.0.1:7100\"\n[programs]\n{key} = \"relative/tool\"\n"),
+        )
+        .expect("box file");
+        let Err(why) = crate::serve::prepare_in("temper-box", &[], b"/", &directories) else {
+            panic!("relative program refused")
+        };
+        assert!(why.starts_with(&format!("temper-box serve: {FILE}:3: programs.{key}: ")), "{why}");
+        assert!(why.contains("absolute"), "{why}");
+    }
 }
 
 #[test]

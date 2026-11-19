@@ -44,6 +44,8 @@ pub fn engine() -> settings::Engine {
         host_reply_bytes: None,
         agent_charter_bytes: None,
         setups: Box::new([]),
+        owned_forgejo: None,
+        owned_runner: None,
         test_github: None,
         directories: jig_protocol_config::Directories::working(),
         jig,

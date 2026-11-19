@@ -10,12 +10,13 @@ pub(crate) fn run(directories: &Directories, request: &Request) -> Result<u8, St
 }
 pub(crate) fn prepare(directories: &Directories) -> Result<(temper_engine_service::Service, Box<[u8]>), String> {
     let read = temper_service_shell::configuration::read(directories, temper_config_shell::Shape::Standalone)?;
+    let programs = read.programs()?;
     read.prepare(|bytes| {
         let address = crate::scripted::address(&[])?;
         let given = crate::scripted::given(directories, &service::stock::Given::Stock, address);
         let mut named = crate::setup::check_with(bytes, &jig_directories(directories), &given)?.named;
         let environment = [(Box::from(crate::scripted::ADDRESS), address.to_string().into_bytes().into_boxed_slice())];
-        let agent = crate::serve::configured_agent(bytes, directories, &environment)?;
+        let agent = crate::serve::configured_agent(bytes, directories, &environment, &programs)?;
         let engine::Inputs { files, google, bundle } = engine::before_root(
             &mut named.files,
             &mut named.asked_files,

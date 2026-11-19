@@ -227,6 +227,7 @@ fn the_standalone_operations_check_retains_no_descriptors() {
         &[],
         Some((&config.jig, &config.limits)),
         None,
+        &temper_config_shell::Programs::default(),
     )
     .expect("same standalone preparation");
     assert_eq!(operations, service.operations());
@@ -243,9 +244,14 @@ fn the_standalone_operations_check_retains_no_descriptors() {
             .len(),
         fs::metadata(&binary).expect("running program").len()
     );
-    let prepared = super::serve::configured_agent(&document, &configuration::directories(&directory), &environment)
-        .expect("derived agent")
-        .expect("local agent");
+    let prepared = super::serve::configured_agent(
+        &document,
+        &configuration::directories(&directory),
+        &environment,
+        &temper_config_shell::Programs::default(),
+    )
+    .expect("derived agent")
+    .expect("local agent");
     assert_eq!(
         fs::read(directory.join("workspaces/agent/agent.json")).expect("pinned configuration"),
         prepared.bytes.as_ref()

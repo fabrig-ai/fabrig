@@ -1052,6 +1052,8 @@ fn checked_start_over(
     let mut engine = settings::Engine {
         landing_held: false,
         setups: Box::new([]),
+        owned_forgejo: None,
+        owned_runner: None,
         host_reply_bytes: match &declaration {
             Some(agent) => Some(agent.host_reply_text),
             None => None,

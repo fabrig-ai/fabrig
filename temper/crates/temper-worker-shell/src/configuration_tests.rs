@@ -43,6 +43,25 @@ fn toml_worker_program_login_reads_the_file() {
 }
 
 #[test]
+fn toml_worker_program_login_uses_the_named_claude() {
+    let scratch = skein_scratch::Scratch::new("worker-login-program");
+    let directories = crate::tests::configuration::directories(scratch.path());
+    let program = scratch.path().join("named-claude");
+    fs::copy("/bin/sh", &program).expect("named executable");
+    fs::copy("/bin/sh", scratch.path().join("claude")).expect("PATH executable");
+    fs::write(scratch.path().join(FILE), format!("engine = \"127.0.0.1:7200\"\n[programs]\nclaude = {program:?}\n"))
+        .expect("worker file");
+    let command = crate::program_login::command(
+        &directories,
+        OsStr::new("source"),
+        [("PATH".into(), scratch.path().as_os_str().to_owned())],
+        None,
+    )
+    .expect("named login");
+    assert_eq!(command.get_program(), program.as_os_str());
+}
+
+#[test]
 fn toml_worker_login_refuses_both_files() {
     let scratch = skein_scratch::Scratch::new("worker-both-files");
     let directories = crate::tests::configuration::directories(scratch.path());

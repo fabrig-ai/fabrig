@@ -10,6 +10,7 @@ pub(crate) fn command(
     let own: Vec<super::EnvironmentEntry> =
         environment.iter().map(|(name, value)| (name.as_bytes().into(), value.as_bytes().into())).collect();
     let read = temper_service_shell::configuration::read(directories, temper_config_shell::Shape::Standalone)?;
+    let programs = read.programs()?;
     read.prepare(|bytes| {
         let local =
             crate::serve::local_setting(&crate::path(&directories.data).join("local.setting"), &mut std::io::stderr());
@@ -24,7 +25,11 @@ pub(crate) fn command(
         )
         .map_err(|why| String::from_utf8_lossy(&temper_service::startup::lines(&why)).into_owned())?
         .ok_or("workers: standalone takes one worker")?;
-        if let Some(claude) = crate::fake_backends::configured_claude(directories)? {
+        let claude = match &programs.claude {
+            Some(claude) => Some(claude.clone()),
+            None => crate::fake_backends::configured_claude(directories)?,
+        };
+        if let Some(claude) = claude {
             part.claude = Some(claude.as_os_str().as_bytes().into());
         }
         let executable = std::env::current_exe().map_err(|why| why.to_string())?;

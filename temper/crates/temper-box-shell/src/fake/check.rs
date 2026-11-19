@@ -85,9 +85,10 @@ fn configuration(directories: &Directories) -> Result<temper_service::startup::S
                 .map_err(|why| format!("configuration {}: {}", document.display(), crate::unread(why)))
         },
     )?;
+    let programs = read.programs()?;
     read.prepare(|bytes| {
         let jig = jig_directories(directories);
-        let agent = crate::serve::configured_agent(bytes, directories, &[])?;
+        let agent = crate::serve::configured_agent(bytes, directories, &[], &programs)?;
         let declaration = agent.as_ref().map(|prepared| prepared.agent.declaration());
         let limits = temper_service::startup::store_limits(bytes, &jig, declaration.as_ref())
             .map_err(|why| String::from_utf8_lossy(&temper_service::startup::lines(&why)).into_owned())?;
