@@ -292,6 +292,8 @@ pub enum Request {
     /// Provider authentication rejected this exact credential generation; a notice
     /// to the host, with no terminal owed. Repeated rejection of that generation is suppressed.
     Unauthorized { grant: GrantName },
+    /// One program allowance observation for its account; no terminal is owed.
+    Usage { account: u32, window: crate::UsageWindow },
     /// The provider reports its account allowance spent.
     Limited {
         account: u32,
@@ -322,6 +324,8 @@ pub enum Operation {
 /// Provider and machine terminals returned to the root or its inline owner.
 #[derive(PartialEq, Eq, Debug)]
 pub enum Below {
+    /// One program allowance observation for the owning completion.
+    Usage { owner: Token, window: crate::UsageWindow },
     /// The program observed this whole file version for the addressed session (smith/docs/design/domain/tools.md, 10).
     ReadVersion { owner: Token, place: tools::Place, version: tools::Version },
     /// The program reports a built-in call's result after its completion (smith/docs/design/protocol/programs.md, 5.5).

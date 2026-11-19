@@ -176,6 +176,7 @@ fn a_yield_interrupts_and_returns_the_held_completion() {
             ToDomain::Completed { owner, completion } => Some((*owner, completion)),
             ToDomain::BuiltinResult { .. }
             | ToDomain::ReadVersion { .. }
+            | ToDomain::Usage { .. }
             | ToDomain::Failed { .. }
             | ToDomain::Cancelled { .. }
             | ToDomain::Text { .. } => None,

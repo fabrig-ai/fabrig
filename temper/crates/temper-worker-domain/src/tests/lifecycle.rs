@@ -189,6 +189,7 @@ fn notices_keep_the_source_and_reset_and_do_not_replace_the_terminal() {
             | agent::Up::Long { .. }
             | agent::Up::LongDone
             | agent::Up::Waiting { .. }
+            | agent::Up::Usage { .. }
             | agent::Up::Answer { .. } => unreachable!(),
         };
         let mut h = Harness::new();
@@ -213,6 +214,7 @@ fn notices_keep_the_source_and_reset_and_do_not_replace_the_terminal() {
             | agent::Up::Long { .. }
             | agent::Up::LongDone
             | agent::Up::Waiting { .. }
+            | agent::Up::Usage { .. }
             | agent::Up::Answer { .. } => unreachable!(),
         };
         assert!(h.say(again).contains(&Request::Link(expected)), "{notice:?}");

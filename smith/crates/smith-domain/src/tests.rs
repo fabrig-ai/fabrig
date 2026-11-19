@@ -272,6 +272,7 @@ impl Harness {
                 | Request::Deliver { .. }
                 | Request::Unauthorized { .. }
                 | Request::Refused { .. }
+                | Request::Usage { .. }
                 | Request::Limited { .. }
                 | Request::Lower(
                     crate::Lower::Complete { .. }
@@ -1059,6 +1060,7 @@ fn assert_no_provider_completion(emitted: &[Request]) {
             | Request::Deliver { .. }
             | Request::Unauthorized { .. }
             | Request::Refused { .. }
+            | Request::Usage { .. }
             | Request::Limited { .. }
             | Request::Lower(
                 crate::Lower::Cancel { .. }
@@ -2266,7 +2268,11 @@ fn an_unsupported_request_raises_no_notice() {
 fn account_notices(requests: &[Request]) -> List<&Request> {
     let mut notices = List::with_capacity(3);
     for request in requests {
-        if let Request::Unauthorized { .. } | Request::Limited { .. } | Request::Refused { .. } = request {
+        if let Request::Unauthorized { .. }
+        | Request::Usage { .. }
+        | Request::Limited { .. }
+        | Request::Refused { .. } = request
+        {
             notices.push(request).expect("bounded notices");
         }
     }

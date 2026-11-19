@@ -41,7 +41,9 @@ mod limits;
 
 mod long;
 
+mod usage;
 mod values;
+pub use usage::{UsageState, UsageWindow};
 
 mod source_name;
 

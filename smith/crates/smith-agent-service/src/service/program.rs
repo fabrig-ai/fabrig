@@ -829,6 +829,7 @@ fn answer_head(service: &Stages) -> bool {
             | domain::Request::Deliver { .. }
             | domain::Request::Unauthorized { .. }
             | domain::Request::Refused { .. }
+            | domain::Request::Usage { .. }
             | domain::Request::Limited { .. },
         )
         | None => false,

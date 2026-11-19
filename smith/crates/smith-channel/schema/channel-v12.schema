@@ -1,4 +1,4 @@
-family smith-channel 11
+family smith-channel 12
 
 # The receiving host/agent additionally checks aggregate ownership and counts
 # against its configured domain Limits. Bytes carried from other codec families
@@ -107,6 +107,15 @@ record Long { operation: Operation span: duration }
 record LongDone {}
 record Unauthorized { account: u32 generation: u64 }
 record Limited { account: u32 reset: option duration }
+enum UsageState { open, warned, limited }
+record UsageWindow {
+    label: text 32
+    length: option duration
+    used: option u16
+    resets: option u64
+    state: UsageState
+}
+record Usage { account: u32 window: UsageWindow }
 record AccountRefused { account: u32 code: text 128 reason: text 512 }
 
 # Facts contain no text or credential values. The kind and count identify

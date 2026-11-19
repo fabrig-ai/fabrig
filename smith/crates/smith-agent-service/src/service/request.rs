@@ -128,6 +128,7 @@ pub(super) fn domain_request(service: &mut Stages, mut frame: Option<&mut Frame>
         | domain::Request::Save { .. }
         | domain::Request::Deliver { .. }
         | domain::Request::Unauthorized { .. }
+        | domain::Request::Usage { .. }
         | domain::Request::Limited { .. }
         | domain::Request::Refused { .. }) => {
             let Some(frame) = frame else { unreachable!("Effects admits only lower requests") };

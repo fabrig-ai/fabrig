@@ -1,5 +1,5 @@
 //! Encode and frame typed channel bodies (smith/docs/design/protocol/channel.md, sections 3–4).
-use crate::{kind, v11};
+use crate::{kind, v12};
 use skein_channel::{Frame, FrameError, frame_writer};
 use skein_lib::Writer;
 
@@ -7,49 +7,51 @@ use skein_lib::Writer;
 #[derive(Debug)]
 pub enum Body {
     /// The `Start` wire body.
-    Start(v11::Start),
+    Start(v12::Start),
     /// The `Message` wire body.
-    Message(v11::Message),
+    Message(v12::Message),
     /// The `HostAnswer` wire body.
-    HostAnswer(v11::HostAnswer),
+    HostAnswer(v12::HostAnswer),
     /// The `Acknowledge` wire body.
-    Acknowledge(v11::Acknowledge),
+    Acknowledge(v12::Acknowledge),
     /// The `GrantRefresh` wire body.
-    GrantRefresh(v11::GrantRefresh),
+    GrantRefresh(v12::GrantRefresh),
     /// The `Cancel` wire body.
-    Cancel(v11::Cancel),
+    Cancel(v12::Cancel),
     /// The `Drain` wire body.
-    Drain(v11::Drain),
+    Drain(v12::Drain),
     /// The `Renewals` wire body.
-    Renewals(v11::Renewals),
+    Renewals(v12::Renewals),
     /// The `Admitted` wire body.
-    Admitted(v11::Admitted),
+    Admitted(v12::Admitted),
     /// The `Call` wire body.
-    Call(v11::Call),
+    Call(v12::Call),
     /// The `Withdraw` wire body.
-    Withdraw(v11::Withdraw),
+    Withdraw(v12::Withdraw),
     /// The `Turn` wire body.
-    Turn(v11::Turn),
+    Turn(v12::Turn),
     /// The `Waiting` wire body.
-    Waiting(v11::Waiting),
+    Waiting(v12::Waiting),
     /// The `Long` wire body.
-    Long(v11::Long),
+    Long(v12::Long),
     /// The `LongDone` wire body.
-    LongDone(v11::LongDone),
+    LongDone(v12::LongDone),
     /// The `Unauthorized` wire body.
-    Unauthorized(v11::Unauthorized),
+    Unauthorized(v12::Unauthorized),
     /// The `Limited` wire body.
-    Limited(v11::Limited),
+    Limited(v12::Limited),
+    /// One account allowance window.
+    Usage(v12::Usage),
     /// The `Fact` wire body.
-    Fact(v11::Fact),
+    Fact(v12::Fact),
     /// The `Answer` wire body.
-    Answer(v11::Answer),
+    Answer(v12::Answer),
     /// The `MessageRefused` wire body.
-    MessageRefused(v11::MessageRefused),
+    MessageRefused(v12::MessageRefused),
     /// The `Live` wire body.
-    Live(v11::Live),
+    Live(v12::Live),
     /// The `AccountRefused` wire body.
-    AccountRefused(v11::AccountRefused),
+    AccountRefused(v12::AccountRefused),
 }
 
 /// Encode a body with its matching kind and exactly measured frame length.
@@ -72,6 +74,7 @@ pub fn frame(body: Body) -> Result<Frame, FrameError> {
         Body::LongDone(record) => (kind::LONG_DONE, record.measure()),
         Body::Unauthorized(record) => (kind::UNAUTHORIZED, record.measure()),
         Body::Limited(record) => (kind::LIMITED, record.measure()),
+        Body::Usage(record) => (kind::USAGE, record.measure()),
         Body::Fact(record) => (kind::FACT, record.measure()),
         Body::Answer(record) => (kind::ANSWER, record.measure()),
         Body::MessageRefused(record) => (kind::MESSAGE_REFUSED, record.measure()),
@@ -97,6 +100,7 @@ pub fn frame(body: Body) -> Result<Frame, FrameError> {
         Body::LongDone(record) => record.encode(&mut writer),
         Body::Unauthorized(record) => record.encode(&mut writer),
         Body::Limited(record) => record.encode(&mut writer),
+        Body::Usage(record) => record.encode(&mut writer),
         Body::Fact(record) => record.encode(&mut writer),
         Body::Answer(record) => record.encode(&mut writer),
         Body::MessageRefused(record) => record.encode(&mut writer),

@@ -4,7 +4,7 @@ use crate::support::goldens::assert_measured;
 
 use skein_channel::Direction;
 use skein_lib::Reader;
-use smith_channel::{Answer, CEILINGS, Start, V11, schema};
+use smith_channel::{Answer, CEILINGS, Start, V12, schema};
 
 #[test]
 fn channel_goldens_decode_at_their_measured_length() {
@@ -26,14 +26,40 @@ fn channel_goldens_decode_at_their_measured_length() {
 }
 
 #[test]
+fn usage_round_trips_present_and_absent_window_fields() {
+    for state in
+        [smith_channel::UsageState::Open, smith_channel::UsageState::Warned, smith_channel::UsageState::Limited]
+    {
+        for mask in 0..8 {
+            let parts = smith_channel::UsageWindowParts {
+                label: b"seven_day".as_slice().into(),
+                length: (mask & 1 != 0).then_some(skein_lib::Duration::from_secs(604_800)),
+                used: (mask & 2 != 0).then_some(8123),
+                resets: (mask & 4 != 0).then_some(1_781_845_200),
+                state: state.clone(),
+            };
+            let window = smith_channel::UsageWindow::new(&CEILINGS, parts).expect("window");
+            let record =
+                smith_channel::Usage::new(&CEILINGS, smith_channel::UsageParts { account: 7, window }).expect("usage");
+            let frame = smith_channel::frame(smith_channel::Body::Usage(record.clone())).expect("usage frame");
+            assert_eq!(frame.kind(), smith_channel::kind::USAGE);
+            let body = &frame.bytes()[8..];
+            let read = smith_channel::Usage::decode(&CEILINGS, &mut Reader::new(body)).expect("usage decodes");
+            assert_eq!(read, record, "{state:?}, field mask {mask}");
+            assert_eq!(usize::try_from(read.measure()).expect("measure"), body.len());
+        }
+    }
+}
+
+#[test]
 fn every_required_kind_has_its_direction_and_bound_in_the_schema() {
     let table = schema(&CEILINGS).expect("schema bounds fit");
     assert_eq!(table.magic, *b"smth");
     assert_eq!(smith_channel::KindRule::FORMAT_VERSION, u64::from(smith_channel::wire::VERSION));
     assert_eq!(table.versions.len(), 1);
     let version = table.version(smith_channel::wire::VERSION).expect("current version");
-    assert_eq!(version.kinds.len(), 22);
-    for (index, rule) in V11.iter().enumerate() {
+    assert_eq!(version.kinds.len(), 23);
+    for (index, rule) in V12.iter().enumerate() {
         assert!(rule.required, "all initial kinds are required");
         let kind = version.kind(rule.kind).expect("required kind is listed");
         assert_eq!(kind.direction, rule.direction);
@@ -128,7 +154,7 @@ fn credential_value(scheme: smith_channel::Scheme) -> smith_channel::GrantValue 
     )
 }
 
-fn program_value(name: &[u8]) -> Result<smith_channel::GrantValue, smith_channel::v11::Problem> {
+fn program_value(name: &[u8]) -> Result<smith_channel::GrantValue, smith_channel::v12::Problem> {
     smith_channel::ProgramValue::new(&CEILINGS, smith_channel::ProgramValueParts { name: Box::from(name) })
         .map(smith_channel::GrantValue::Program)
 }

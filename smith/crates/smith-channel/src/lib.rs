@@ -1,4 +1,4 @@
-//! Bounded channel records and the version-eleven kind table. This crate keeps no
+//! Bounded channel records and the version-twelve kind table. This crate keeps no
 //! runtime state and knows no domain, credentials or host policy. Generated
 //! constructors, encoders and decoders handle bodies; [`schema`] advertises
 //! their largest permitted encodings. Contracts: `protocol/channel.md`,
@@ -11,12 +11,13 @@ extern crate alloc;
 
 #[rustfmt::skip]
 mod generated {
-    pub mod v11 {
+    pub mod v12 {
         include!("generated/channel.rs");
     }
 }
 
-pub use generated::v11;
+pub use generated::v12;
+pub use v12::{Usage, UsageParts, UsageState, UsageWindow, UsageWindowParts};
 
 mod frame;
 pub mod kind;
@@ -26,14 +27,14 @@ pub mod reason;
 
 pub use frame::{Body, frame};
 
-pub use kinds::{KindRule, Overflow, V11, peer_terms_gap, schema};
-pub use v11::{
+pub use kinds::{KindRule, Overflow, V12, peer_terms_gap, schema};
+pub use v12::{
     Cap, CompletionLimit, CompletionPhase, LimitFailure, LimitFailureParts, PathCap, PathCapParts, PoolLimit,
     PoolLimitParts, Renewals, RenewalsParts, ResponseEvidence, ResponseEvidenceParts, TimeoutFailure,
     TimeoutFailureParts,
 };
 
-pub use v11::{
+pub use v12::{
     Accepted, AcceptedParts, AccountRefused, AccountRefusedParts, Acknowledge, AcknowledgeParts, Admitted,
     AdmittedParts, Answer, AnswerParts, AnsweredCall, AnsweredCallParts, Ask, BudgetCeiling, BudgetCeilingValue,
     BudgetCeilingValueParts, BudgetChecks, BudgetChecksParts, BudgetCompletion, BudgetCompletionParts, BudgetFailure,
@@ -58,7 +59,7 @@ pub use v11::{
     WindowBoundParts, WindowParts, Withdraw, WithdrawParts, Workspace, WorkspaceParts,
 };
 
-pub use v11::{
+pub use v12::{
     ListAnswer, ListAsk, ListAskParts, ListFailed, ListFailure, ListFailureParts, ListRefused, ListRefusedParts,
     ListRow, ListRowParts, ListRows, ListRowsParts,
 };
@@ -69,13 +70,13 @@ pub mod wire {
     pub const FAMILY: &str = "smith-channel";
 
     /// The version named by the current schema's header.
-    pub const VERSION: u16 = crate::v11::VERSION;
+    pub const VERSION: u16 = crate::v12::VERSION;
 
     /// The lowest version this build speaks.
     pub const FLOOR: u16 = crate::patches::kept::smith_channel::FLOOR;
 
     #[expect(clippy::disallowed_macros, reason = "the wire identity embeds its current schema")]
-    pub(crate) const TEXT: &str = include_str!("../schema/channel-v11.schema");
+    pub(crate) const TEXT: &str = include_str!("../schema/channel-v12.schema");
 
     /// The current schema's family fingerprint.
     #[must_use]

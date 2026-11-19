@@ -9,6 +9,22 @@ use std::{
 
 use smith_agent_process_world::probe::Probe;
 
+// Observe fields only when an event arrives; never spend to force a window.
+fn probe_usage_fields(info: &serde_json::Value) {
+    assert!(["allowed", "allowed_warning", "rejected"].contains(&info["status"].as_str().expect("usage status")));
+    if let Some(label) = info.get("rateLimitType").filter(|value| !value.is_null()) {
+        let label = label.as_str().expect("usage window label");
+        assert!(!label.is_empty() && label.len() <= 32, "bounded usage label");
+        assert!(label.bytes().all(|byte| (b' '..=b'~').contains(&byte)), "printable ASCII usage label");
+    }
+    if let Some(reset) = info.get("resetsAt").filter(|value| !value.is_null()) {
+        assert!(reset.as_u64().is_some(), "a window reset is non-negative integer Unix seconds");
+    }
+    if let Some(used) = info.get("utilization").filter(|value| !value.is_null()) {
+        assert!(used.is_number(), "the provider reports a numeric fraction");
+    }
+}
+
 struct Live {
     child: Child,
     probe: Probe,
@@ -184,9 +200,7 @@ impl Live {
         // Check a limit's wire only when one arrives; never spend to force one.
         if message["type"] == "rate_limit_event" {
             assert!(message["rate_limit_info"]["status"].is_string(), "a limit reports its status");
-            if let Some(reset) = message["rate_limit_info"].get("resetsAt") {
-                assert!(reset.is_null() || reset.is_number(), "a limit reset has the fake's numeric shape");
-            }
+            probe_usage_fields(&message["rate_limit_info"]);
         }
         message
     }

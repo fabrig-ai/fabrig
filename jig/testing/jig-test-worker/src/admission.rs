@@ -45,6 +45,8 @@ pub fn class(event: &Event) -> Class {
                 | Up::LongDone
                 | Up::Fact { .. }
                 | Up::Unauthorized { .. }
+                // A later change of this goal relays usage; it is admitted work.
+                | Up::Usage { .. }
                 | Up::Limited { .. }
                 | Up::Refused { .. }
                 | Up::Withdraw { .. } => Class::Admitted,

@@ -214,6 +214,13 @@ pub enum Step {
     Partial(String),
     /// Reports a rejected usage limit with an optional Unix-seconds reset.
     RateLimit { resets_at: Option<u64> },
+    /// Reports one allowance observation with the supplied provider fields.
+    RateLimitWindow {
+        status: String,
+        rate_limit_type: Option<String>,
+        resets_at: Option<u64>,
+        utilization: Option<serde_json::Value>,
+    },
     /// Reports the program's own retry to its parent.
     Retry { attempt: u32, status: u16, delay_ms: Option<u64> },
     /// Removes the login before the next turn checks it.

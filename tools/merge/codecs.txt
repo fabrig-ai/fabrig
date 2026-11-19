@@ -21,7 +21,7 @@ jig/testing/jig-test-store-codec/src/generated/test_connector.rs jig/testing/jig
 skein/crates/skein-oauth-codec/src/generated/oauth.rs skein/crates/skein-oauth/schema/oauth-v3.schema
 skein/examples/ui/view-codec/src/generated/notes.rs skein/examples/ui/view/schema/notes-v1.schema
 skein/tests/codec/src/generated/sample.rs skein/tests/codec/schema/sample-v1.schema
-smith/crates/smith-channel/src/generated/channel.rs smith/crates/smith-channel/schema/channel-v11.schema
+smith/crates/smith-channel/src/generated/channel.rs smith/crates/smith-channel/schema/channel-v12.schema
 smith/crates/smith-charter/src/generated/charter.rs smith/crates/smith-charter/schema/charter-v5.schema
 smith/crates/smith-local-protocol-codec/src/generated/local_store.rs smith/crates/smith-local-protocol/schema/local-store-v1.schema
 smith/crates/smith-transcript/src/generated/transcript.rs smith/crates/smith-transcript/schema/transcript-v7.schema

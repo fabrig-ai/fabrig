@@ -107,6 +107,7 @@ pub(crate) fn event(domain: &mut Domain, env: &Env<Limits>, event: Event) {
         Event::Below(Below::Completed { owner, completion }) => {
             return completed(domain, env, owner, completion);
         }
+        Event::Below(Below::Usage { owner, window }) => return usage(domain, owner, window),
         Event::Below(Below::Failed { owner, failure, evidence, detail, report }) => {
             return failed(domain, env, owner, failure, evidence, detail, report);
         }
@@ -129,6 +130,15 @@ pub(crate) fn event(domain: &mut Domain, env: &Env<Limits>, event: Event) {
         }
     };
     run_step(domain, env, event);
+}
+
+fn usage(domain: &mut Domain, owner: Token, window: crate::UsageWindow) {
+    if let Some(id) = domain.sessions.get(&owner)
+        && let Some(peer) = domain.peers.get(*id)
+        && let Some(account) = peer.account
+    {
+        domain.notices.push(Request::Usage { account, window });
+    }
 }
 
 /// Settle a failed completion's lease and zero charge before applying failure policy.

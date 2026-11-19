@@ -53,6 +53,7 @@ pub fn turn(request: smith::Request, transcript: Box<[u8]>) -> Result<host::Turn
         | smith::Request::Save { .. }
         | smith::Request::Deliver { .. }
         | smith::Request::Unauthorized { .. }
+        | smith::Request::Usage { .. }
         | smith::Request::Limited { .. }
         | smith::Request::Refused { .. }
         | smith::Request::Lower(..) => Err(Problem::Type(b"request")),

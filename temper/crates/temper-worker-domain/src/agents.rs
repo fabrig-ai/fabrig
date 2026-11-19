@@ -106,6 +106,7 @@ pub(crate) fn to_agent(domain: &mut Domain, env: &Env<Limits>, request: host::To
 }
 
 /// One of smith's notices: to the hub, or out by hand-out.
+#[expect(clippy::too_many_lines, reason = "exhaustive agent notice routing; usage relay belongs to a later change")]
 pub(crate) fn up(domain: &mut Domain, env: &Env<Limits>, request: smith::parent::Request, out: &mut Queue<Request>) {
     let event = match request {
         smith::parent::Request::Started { client, agent } => {
@@ -179,6 +180,8 @@ pub(crate) fn up(domain: &mut Domain, env: &Env<Limits>, request: smith::parent:
         smith::parent::Request::Unauthorized { client, account, generation } => {
             host::Event::Agent(host::FromAgent::Unauthorized { owner: client, account, generation })
         }
+        // Jig's hub has no usage notice yet; a later goal change relays it.
+        smith::parent::Request::Usage { .. } => return,
         smith::parent::Request::Limited { client, account, reset } => {
             host::Event::Agent(host::FromAgent::Limited { owner: client, account, reset })
         }

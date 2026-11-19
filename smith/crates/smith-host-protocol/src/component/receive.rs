@@ -10,7 +10,7 @@ use smith_host_domain::channel;
 
 use smith_channel::kind::{
     ACCOUNT_REFUSED, ADMITTED, ANSWER, CALL, FACT, LIMITED, LIVE, LONG, LONG_DONE, MESSAGE_REFUSED, TURN, UNAUTHORIZED,
-    WAITING, WITHDRAW,
+    USAGE, WAITING, WITHDRAW,
 };
 
 /// What a refusal says of a record it could not take: its order, its call, or its kind.
@@ -35,7 +35,7 @@ pub(super) fn refusal_text(kind: u16, error: Error) -> &'static [u8] {
         TURN => b"invalid turn",
         WAITING => b"invalid waiting record",
         LONG | LONG_DONE => b"invalid long operation",
-        UNAUTHORIZED | LIMITED | ACCOUNT_REFUSED => b"invalid account notice",
+        UNAUTHORIZED | LIMITED | ACCOUNT_REFUSED | USAGE => b"invalid account notice",
         FACT => b"invalid fact",
         ANSWER => b"invalid answer",
         MESSAGE_REFUSED => b"invalid message refusal",
@@ -60,7 +60,9 @@ impl Component {
                     WAITING => self.waiting(&body)?,
                     LONG => self.long(&body)?,
                     LONG_DONE => self.long_done(&body)?,
-                    UNAUTHORIZED | LIMITED | ACCOUNT_REFUSED => super::notices::decode(&self.bodies, kind, &body)?,
+                    UNAUTHORIZED | LIMITED | ACCOUNT_REFUSED | USAGE => {
+                        super::notices::decode(&self.bodies, kind, &body)?
+                    }
                     FACT => {
                         match smith_channel::Fact::decode(&self.bodies, &mut Reader::new(&body)) {
                             Ok(_) => (),

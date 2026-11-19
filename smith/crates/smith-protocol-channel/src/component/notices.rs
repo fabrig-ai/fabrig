@@ -34,6 +34,50 @@ impl Component {
         Ok(())
     }
 
+    /// Tell the host one program allowance observation, before any resulting limit.
+    pub fn send_usage(
+        &mut self,
+        account: u32,
+        window: smith_domain::UsageWindow,
+        token: Token,
+        to_service: &mut Queue<Heard>,
+        below: &mut Queue<Lower>,
+    ) -> Result<(), Error> {
+        if !self.state.admitted() {
+            return Err(Error::Order);
+        }
+        let state = match window.state {
+            smith_domain::UsageState::Open => smith_channel::UsageState::Open,
+            smith_domain::UsageState::Warned => smith_channel::UsageState::Warned,
+            smith_domain::UsageState::Limited => smith_channel::UsageState::Limited,
+        };
+        let window = match smith_channel::UsageWindow::new(
+            &self.bodies,
+            smith_channel::UsageWindowParts {
+                label: window.label,
+                length: window.length,
+                used: window.used,
+                resets: window.resets,
+                state,
+            },
+        ) {
+            Ok(value) => value,
+            Err(problem) => return Err(Error::ChannelBody(problem)),
+        };
+        let record = match smith_channel::Usage::new(&self.bodies, smith_channel::UsageParts { account, window }) {
+            Ok(value) => value,
+            Err(problem) => return Err(Error::ChannelBody(problem)),
+        };
+        let frame = match smith_channel::frame(smith_channel::Body::Usage(record)) {
+            Ok(value) => value,
+            Err(problem) => return Err(Error::Frame(problem)),
+        };
+        self.machine.down(Request::Send { token, frame }, &mut self.events, below);
+        self.drain(to_service, below);
+        self.fire(to_service, below);
+        Ok(())
+    }
+
     /// Tell the host an account reached its usage limit, with an optional reset.
     pub fn send_limited(
         &mut self,
