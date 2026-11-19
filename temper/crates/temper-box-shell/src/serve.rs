@@ -1,6 +1,7 @@
 //! The standalone start, composed from the engine and worker shells (protocol/services.md, 7).
 //! Fixed starts follow temper/docs/design/protocol/setup/box.md, 5 and
 //! temper/docs/design/client/journey-clock.md, 4.1.
+use jig_client_protocol_wire::Record as _;
 use crate::{Service, path, prefixed, program_login, setup};
 use skein_io::kernel::{Exit, Fd};
 use skein_lib::{List, Secret};
@@ -90,7 +91,7 @@ pub(crate) fn prepare_with_limits(
     let initial = if named.worker.is_some() { agents_setting(&copy, &mut std::io::stderr()) } else { None };
     let local_copy = path(&directories.data).join("local.setting");
     let local = if named.worker.is_some() { local_setting(&local_copy, &mut std::io::stderr()) } else { None };
-    let places = local.as_ref().map_or(4, jig_client_protocol_wire::WorkerSetting::places);
+    let places = local.as_ref().map_or(4, |value| value.places);
     let agents = initial.clone().unwrap_or_else(service::stock::agents);
     let mut part = match limits {
         Some(limits) => service::startup::box_worker_with_limits(
@@ -323,7 +324,7 @@ pub(crate) fn configured_agent(
     let given =
         crate::scripted::given(directories, &service::stock::Given::Stock, crate::scripted::address(environment)?);
     let local = local_setting(&path(&directories.data).join("local.setting"), &mut std::io::stderr());
-    let places = local.as_ref().map_or(4, jig_client_protocol_wire::WorkerSetting::places);
+    let places = local.as_ref().map_or(4, |value| value.places);
     let mut part =
         service::startup::box_worker(bytes, &jig_directories(directories), &given, &initial, places, environment)
             .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
@@ -412,11 +413,11 @@ pub(crate) fn local_setting(
     match WorkerSetting::decode(&CEILINGS, &mut reader) {
         Ok(value)
             if reader.is_empty()
-                && value.number() == 1
-                && value.name() == b"local"
-                && !value.withdrawn()
-                && value.digest().is_none()
-                && value.places() > 0 =>
+                && value.number == 1
+                && value.name.as_ref() == b"local"
+                && !value.withdrawn
+                && value.digest.is_none()
+                && value.places > 0 =>
         {
             Some(value)
         }
@@ -641,7 +642,7 @@ fn operations_over(
     let convert = |why| prefixed(&format!("{binary} serve"), &String::from_utf8_lossy(&service::startup::lines(&why)));
     // Startup reports bad copies once; reserving the ring uses the same fallback silently.
     let local = local_setting(&path(&directories.data).join("local.setting"), &mut std::io::sink());
-    let places = local.as_ref().map_or(4, jig_client_protocol_wire::WorkerSetting::places);
+    let places = local.as_ref().map_or(4, |value| value.places);
     let agents = agents_setting(&path(&directories.data).join("agents.setting"), &mut std::io::sink())
         .unwrap_or_else(service::stock::agents);
     let part = match limits {

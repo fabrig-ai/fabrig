@@ -1,4 +1,5 @@
 //! A box's own issuer and its real owned Forgejo (protocol/openid-provider.md, 9).
+use jig_client_protocol_wire::Record as _;
 use super::{
     configuration,
     forge_sign_in::success,
@@ -215,13 +216,12 @@ fn auth_list(root: &Path) -> String {
 }
 
 fn link_sign_in(browser: &mut Browser, temper: SocketAddr, link: &[u8]) -> io::Result<super::forgejo_sign_in::Answer> {
-    let limits = jig_protocol_config_fixtures::small().clients.wire;
     let link = std::str::from_utf8(link).expect("link text").trim();
     let secret = base64::decode(Alphabet::Url, link.split_once("secret=").expect("printed secret").1.as_bytes(), 32)
         .expect("link encoding");
     let record = wire::LinkSignIn { secret: skein_lib::Secret::new(secret) };
-    let mut out = Writer::new(usize::try_from(record.measure()).expect("record size"));
-    record.encode(&mut out).expect("link wire");
+    let mut out = Writer::new(usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("record size"));
+    record.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("link wire");
     browser.call(&format!("http://{temper}/jig/v1/sign-in/link"), Some(&out.finish()))
 }
 
@@ -235,8 +235,8 @@ fn repository(browser: &mut Browser, temper: SocketAddr, forge: SocketAddr) -> i
     assert_eq!(browser.call(&authorization, None)?.status, 200);
     let limits = jig_protocol_config_fixtures::small().clients.wire;
     let record = wire::Authorize { query: authorization.split_once('?').expect("query").1.as_bytes().into() };
-    let mut out = Writer::new(usize::try_from(record.measure()).expect("record size"));
-    record.encode(&mut out).expect("authorize wire");
+    let mut out = Writer::new(usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("record size"));
+    record.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("authorize wire");
     let authorized = browser.call(&format!("http://{temper}/jig/v1/authorize"), Some(&out.finish()))?;
     assert_eq!(authorized.status, 200);
     let wire::AuthorizeAnswer::Go(go) =
@@ -245,7 +245,7 @@ fn repository(browser: &mut Browser, temper: SocketAddr, forge: SocketAddr) -> i
         panic!("owner receives go")
     };
     redirects += 1; // The client replaces the issuer page with its answer.
-    let callback = std::str::from_utf8(go.location()).expect("callback URL");
+    let callback = std::str::from_utf8(go.location.as_ref()).expect("callback URL");
     assert!(callback.starts_with(&format!("http://{forge}/user/oauth2/temper/callback?")));
     let answer = browser.call(callback, None)?;
     assert_eq!(answer.status, 303);

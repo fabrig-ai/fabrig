@@ -1,4 +1,5 @@
 //! Signed-in control requests beside public reads (jig/docs/design/protocol/client/README.md, 3–4).
+use jig_client_protocol_wire::Record as _;
 use super::{service, visitor::Visitor};
 use crate::fixtures;
 use jig_client::contract as c;
@@ -6,20 +7,20 @@ use jig_client_protocol_wire as w;
 use skein_lib::{Reader, Writer};
 
 pub(super) fn owned(read: &w::Read) -> w::Owned {
-    let mut writer = Writer::new(usize::try_from(read.measure()).expect("read size"));
-    read.encode(&mut writer).expect("read encoding");
+    let mut writer = Writer::new(usize::try_from(read.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("read size"));
+    read.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("read encoding");
     w::Owned { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: writer.finish() }
 }
 pub(super) fn read_body(read: &w::Read) -> Box<[u8]> {
     let record = owned(read);
-    let mut writer = Writer::new(usize::try_from(record.measure()).expect("envelope size"));
-    record.encode(&mut writer).expect("envelope encoding");
+    let mut writer = Writer::new(usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("envelope size"));
+    record.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("envelope encoding");
     writer.finish()
 }
 pub(super) fn keyed(ask: &c::Ask, key: u8) -> Box<[u8]> {
     let ask = jig_client_protocol_link::translate::asks::ask(ask, &w::CEILINGS).expect("fixture ask");
-    let mut writer = Writer::new(usize::try_from(ask.measure()).expect("ask size"));
-    ask.encode(&mut writer).expect("ask encoding");
+    let mut writer = Writer::new(usize::try_from(ask.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("ask size"));
+    ask.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("ask encoding");
     let record = w::Keyed {
             owner: w::Owner::Jig,
             version: jig_client_protocol_wire::VERSION,
@@ -27,8 +28,8 @@ pub(super) fn keyed(ask: &c::Ask, key: u8) -> Box<[u8]> {
             key: [key; 16],
             value: None,
         };
-    let mut writer = Writer::new(usize::try_from(record.measure()).expect("request size"));
-    record.encode(&mut writer).expect("request encoding");
+    let mut writer = Writer::new(usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("request size"));
+    record.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("request encoding");
     writer.finish()
 }
 pub(super) fn ask(visitor: &mut Visitor, ask: &c::Ask, key: u8) -> u64 {

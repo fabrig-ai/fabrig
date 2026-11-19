@@ -1,4 +1,5 @@
 //! Service answers observed through HTTP (temper/docs/design/protocol/sign-in.md, 2.5).
+use jig_client_protocol_wire::Record as _;
 use super::{
     checks,
     http::Answer,
@@ -191,7 +192,7 @@ impl Judge {
                 policy(answer, false)?;
                 let projects = public::PublicProjects::decode(&public::CEILINGS, &mut Reader::new(&answer.body))
                     .map_err(|why| format!("public projects record: {why:?}"))?;
-                match (&(projects.projects().len()), &(1)) {
+                match (&(projects.projects.len()), &(1)) {
                     (left, right) if left != right => {
                         let finding = String::from("only the opened project");
                         return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
@@ -199,7 +200,7 @@ impl Judge {
                     _ => {}
                 }
                 self.project =
-                    Some(projects.projects().iter().next().ok_or_else(|| String::from("one project"))?.project());
+                    Some(projects.projects.iter().next().ok_or_else(|| String::from("one project"))?.project);
             }
             if self.stage != usize::MAX {
                 match self.name.as_str() {

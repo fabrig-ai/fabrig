@@ -1,4 +1,5 @@
 //! Refusals expose positions and kinds alone (client/web/journeys.md, 3.7 and 6).
+use jig_client_protocol_wire::Record as _;
 use jig_client_protocol_wire as w;
 use skein_lib::{
     Time, Wall, Writer,
@@ -138,8 +139,8 @@ fn data(value: &[u8], from: u32) -> Vec<u8> {
     let event = w::StreamEvent::Text(
         w::StreamText { watch: 1, value },
     );
-    let mut writer = Writer::new(usize::try_from(event.measure()).expect("event length"));
-    event.encode(&mut writer).expect("event encoding");
+    let mut writer = Writer::new(usize::try_from(event.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("event length"));
+    event.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("event encoding");
     let record = writer.finish();
     let size = base64::encoded_len(Alphabet::Standard, u32::try_from(record.len()).expect("record length"))
         .expect("base64 length");

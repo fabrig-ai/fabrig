@@ -1,4 +1,5 @@
 //! GitHub service composition (temper/docs/design/protocol/setup/github.md).
+use jig_client_protocol_wire::Record as _;
 use super::*;
 use jig_domain_people as people;
 use jig_protocol_engine_clients as clients;
@@ -255,7 +256,7 @@ fn http_owner() -> (Box<crate::Service>, Box<[u8]>) {
     let mut peer = fixtures::http::Peer::new(engine, b"POST", b"/jig/v1/sign-in/link", &body, None);
     peer.pump(engine, true);
     let j::SignInAnswer::SignedIn(answer) = peer.sign_in_answer(engine) else { panic!("owner sign in") };
-    let bearer = fixtures::http::bearer(answer.token().as_ref().unwrap().expose());
+    let bearer = fixtures::http::bearer(answer.token.as_ref().unwrap().expose());
     (service, bearer)
 }
 
@@ -272,14 +273,13 @@ fn http_paste_with_policy(
     use jig_client_protocol_wire as j;
     let (_, bundle) = carried_pem();
     let engine = service.engine.as_mut().unwrap();
-    let limits = &engine.clients.env.limits.wire;
     let record = wire::requesting(
         &w::Requesting::new(&w::CEILINGS, w::RequestingParts { request: connect_request_with_policy(app, read_only) })
             .unwrap(),
     );
     let family = j::FamilyRequest { scope: j::Scope::Deployment, record };
-    let mut bytes = skein_lib::Writer::new(usize::try_from(family.measure()).unwrap());
-    family.encode(&mut bytes).unwrap();
+    let mut bytes = skein_lib::Writer::new(usize::try_from(family.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    family.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
     let request = j::Keyed {
             key: [key; 16],
             owner: j::Owner::Family(j::Family { number: wire::FORGE }),
@@ -287,8 +287,8 @@ fn http_paste_with_policy(
             request: bytes.finish(),
             value: Some(bundle),
         };
-    let mut bytes = skein_lib::Writer::new(usize::try_from(request.measure()).unwrap());
-    request.encode(&mut bytes).unwrap();
+    let mut bytes = skein_lib::Writer::new(usize::try_from(request.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    request.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
     let mut peer = fixtures::http::Peer::new(engine, b"POST", b"/jig/v1/request", &bytes.finish(), Some(bearer));
     peer.pump(engine, true);
     let at = skein_lib::bytes::find(peer.received(), b"\r\n\r\n").unwrap().checked_add(4).unwrap();
@@ -298,7 +298,7 @@ fn http_paste_with_policy(
     else {
         panic!("family terminal")
     };
-    w::Answer::decode(&w::CEILINGS, &mut Reader::new(answer.record())).unwrap().into_parts().outcome
+    w::Answer::decode(&w::CEILINGS, &mut Reader::new(answer.record.as_ref())).unwrap().into_parts().outcome
 }
 
 #[test]

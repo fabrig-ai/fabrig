@@ -1,4 +1,5 @@
 //! A running engine gives restored and changed figures (protocol/configuration/figures.md, 9).
+use jig_client_protocol_wire::Record as _;
 use super::fixtures;
 use crate::engine::Engine;
 use jig_domain_core::settings;
@@ -392,7 +393,7 @@ fn started(stored: Option<crate::store::Store>) -> crate::Service {
 }
 
 fn local_value(places: u32) -> jig_client_protocol_wire::WorkerSetting {
-    use jig_client_protocol_wire::{CEILINGS, WorkerSetting};
+    use jig_client_protocol_wire::WorkerSetting;
     WorkerSetting { number: 1, name: b"local".as_slice().into(), places, digest: None, withdrawn: false }
 }
 

@@ -141,7 +141,7 @@ pub(super) fn owner() -> (crate::Service, Box<[u8]>) {
     let mut peer = fixtures::http::Peer::new(engine, b"POST", b"/jig/v1/sign-in/link", &body, None);
     peer.pump(engine, true);
     let j::SignInAnswer::SignedIn(answer) = peer.sign_in_answer(engine) else { panic!("owner sign in") };
-    (service, fixtures::http::bearer(answer.token().as_ref().unwrap().expose()))
+    (service, fixtures::http::bearer(answer.token.as_ref().unwrap().expose()))
 }
 fn making(new: bool) -> w::Making {
     if !new {

@@ -1,6 +1,7 @@
 //! Owned Forgejo signing in a Google member or its box owner through temper.
 //! temper/docs/design/protocol/openid-provider.md, 9.
 //! temper/docs/design/testing/process-tier.md.
+use jig_client_protocol_wire::Record as _;
 use super::{
     configuration,
     forge_sign_in::{command, configure, success},
@@ -372,12 +373,11 @@ fn sign_in(
     forge: std::net::SocketAddr,
     link: &str,
 ) -> io::Result<()> {
-    let limits = jig_protocol_config_fixtures::small().clients.wire;
     let secret = base64::decode(Alphabet::Url, link.split_once("secret=").expect("link secret").1.as_bytes(), 32)
         .expect("link encoding");
     let record = wire::LinkSignIn { secret: skein_lib::Secret::new(secret) };
-    let mut out = Writer::new(usize::try_from(record.measure()).expect("record size"));
-    record.encode(&mut out).expect("link wire");
+    let mut out = Writer::new(usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("record size"));
+    record.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("link wire");
     let page = browser.call(&format!("http://{temper}/"), None)?;
     assert_eq!(page.status, 200);
     assert!(
@@ -412,8 +412,8 @@ fn through_temper(
     assert_eq!(page.status, 200);
     let query = authorization.split_once('?').expect("authorization query").1;
     let record = wire::Authorize { query: query.as_bytes().into() };
-    let mut out = Writer::new(usize::try_from(record.measure()).expect("record size"));
-    record.encode(&mut out).expect("authorize wire");
+    let mut out = Writer::new(usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("record size"));
+    record.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("authorize wire");
     let authorized = browser.call(&format!("http://{temper}/jig/v1/authorize"), Some(&out.finish()))?;
     assert_eq!(authorized.status, 200);
     let wire::AuthorizeAnswer::Go(go) =
@@ -421,7 +421,7 @@ fn through_temper(
     else {
         panic!("signed-in page must receive go")
     };
-    let address = std::str::from_utf8(go.location()).expect("callback URL");
+    let address = std::str::from_utf8(go.location.as_ref()).expect("callback URL");
     let callback = browser.call(address, None)?;
     browser.follow(address.into(), callback)
 }

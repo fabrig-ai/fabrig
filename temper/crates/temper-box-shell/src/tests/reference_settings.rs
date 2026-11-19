@@ -1,4 +1,5 @@
 //! The reference's settings file (temper/docs/design/protocol/configuration/reference.md).
+use jig_client_protocol_wire::Record as _;
 use settings_form::view::{
     CharterDocument, Setting, SettingEdit, SettingItem, SettingNumber, SettingValue, Symbol, TaskContractDocument,
     TemplateExecutor,
@@ -315,10 +316,10 @@ fn core_item(item: &jig_client::contract::SettingItem) -> jig_domain_core::setti
     let link = jig_client_protocol_link::Limits::new(preset.domain, preset.exchanges).expect("ctl limits");
     let wire = jig_client_protocol_link::translate::settings::wire_setting_item(item, link.wire())
         .expect("reference item fits ctl");
-    let size = wire.measure();
+    let size = wire.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture");
     let mut bytes = skein_lib::Writer::new(usize::try_from(size).expect("item size") + 4);
     bytes.put(&size.to_be_bytes()).expect("length prefix");
-    wire.encode(&mut bytes).expect("reference item encoding");
+    wire.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("reference item encoding");
     jig_protocol_engine_clients::translate::settings::items(bytes.finish(), &[], link.wire())
         .expect("reference item translation")
         .into_iter()
@@ -544,8 +545,8 @@ fn the_stock_settings_document_decodes_in_every_client() {
         let link = jig_client_protocol_link::Limits::new(preset.domain, preset.exchanges).expect("client limits");
         let wire = jig_protocol_engine_clients::translate::settings::setting_document(&source, &[], link.wire())
             .unwrap_or_else(|why| panic!("{name} receives stock settings: {why:?}"));
-        let mut bytes = skein_lib::Writer::new(usize::try_from(wire.measure()).unwrap());
-        wire.encode(&mut bytes).unwrap();
+        let mut bytes = skein_lib::Writer::new(usize::try_from(wire.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+        wire.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
         let bytes = bytes.finish();
         let mut reader = skein_lib::Reader::new(&bytes);
         let decoded = jig_client_protocol_wire::SettingDocument::decode(link.wire(), &mut reader).unwrap();

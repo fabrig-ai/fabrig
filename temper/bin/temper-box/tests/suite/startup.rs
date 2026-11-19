@@ -1,3 +1,4 @@
+use jig_client_protocol_wire::Record as _;
 use crate::{listeners, support};
 use std::{
     fmt::Write,
@@ -631,7 +632,7 @@ fn serve_sizes_its_worker_from_eight_setting_places_not_document_slots() {
         support::admission(scratch.path(), &document).expect("complete figures");
         let local = fs::read(scratch.path().join("local.setting")).expect("local setting");
         let local = WorkerSetting::decode(&CEILINGS, &mut skein_lib::Reader::new(&local)).expect("worker setting");
-        assert_eq!(local.places(), 8);
+        assert_eq!(local.places, 8);
         assert_eq!(document["workers"][0]["slots"], 1, "the file carries no places");
         document.jig_over("hub.slots", 7);
         document.temper_over("checkout.workspaces", 7);
@@ -641,7 +642,7 @@ fn serve_sizes_its_worker_from_eight_setting_places_not_document_slots() {
             &jig_protocol_config::Directories::working(),
             &temper_service::stock::Given::Stock,
             &temper_service::stock::agents(),
-            local.places(),
+            local.places,
             &[],
             None,
             (&document.jig, &document.limits),

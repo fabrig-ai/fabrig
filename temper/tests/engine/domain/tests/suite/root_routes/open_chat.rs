@@ -1,4 +1,5 @@
 //! temper's Open chat wiring; jig owns the lifecycle's exhaustive proofs.
+use jig_client_protocol_wire::Record as _;
 use super::*;
 use jig_client::{contract as c, shapes};
 use jig_client_protocol_wire as w;
@@ -215,8 +216,8 @@ pub(crate) fn client_request_with_models(
     let ask = jig_client_protocol_link::translate::asks::ask(ask, &w::CEILINGS).expect("encoded client ask");
     let mut settings = jig_engine_clients_kit::fixtures::settings();
     settings.models = models;
-    let mut out = skein_lib::Writer::new(usize::try_from(ask.measure()).expect("ask size"));
-    ask.encode(&mut out).expect("ask bytes");
+    let mut out = skein_lib::Writer::new(usize::try_from(ask.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("ask size"));
+    ask.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("ask bytes");
     let keyed = w::Keyed {
             key: [1; 16],
             owner: w::Owner::Jig,
@@ -224,8 +225,8 @@ pub(crate) fn client_request_with_models(
             request: out.finish(),
             value: None,
         };
-    let mut out = skein_lib::Writer::new(usize::try_from(keyed.measure()).expect("request size"));
-    keyed.encode(&mut out).expect("keyed bytes");
+    let mut out = skein_lib::Writer::new(usize::try_from(keyed.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("request size"));
+    keyed.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("keyed bytes");
     let mut bounds = jig_engine_clients_kit::fixtures::limits();
     bounds.message_bytes = 1_048_576;
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: bounds };

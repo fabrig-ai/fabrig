@@ -1,8 +1,9 @@
 //! Native browser reports and managed-forge captures for journey tests.
+use jig_client_protocol_wire::Record as _;
 use jig_client_protocol_wire as w;
 use jig_client_shell_web::adapter::{Asked, Heard};
 use skein_lib::{
-    Duration, FixedClock, FixedStart, List, Overflow, Time, Wall, Writer,
+    Duration, FixedClock, FixedStart, List, Time, Wall, Writer,
     base64::{self, Alphabet},
 };
 use skein_ui::{Act, Role};
@@ -69,7 +70,7 @@ impl Capture {
         duties.asked
     }
     fn stream(&mut self, event: &w::StreamEvent) -> Vec<Asked> {
-        let bytes = encoded(event.measure(), |writer| event.encode(writer));
+        let bytes = event.encode(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture encoding");
         let size = base64::encoded_len(Alphabet::Standard, u32::try_from(bytes.len()).expect("fixture size"))
             .expect("base64 size");
         let mut writer = Writer::new(usize::try_from(size).expect("fixture size"));
@@ -94,11 +95,6 @@ impl Capture {
         self.recorder.save(&self.page)
     }
 }
-fn encoded(size: u32, write: impl FnOnce(&mut Writer) -> Result<(), Overflow>) -> Box<[u8]> {
-    let mut writer = Writer::new(usize::try_from(size).expect("fixture size"));
-    write(&mut writer).expect("sized fixture");
-    writer.finish()
-}
 #[must_use]
 pub fn managed_capture(mut capture: Capture) -> Capture {
     capture.report(Report::Start);
@@ -109,7 +105,7 @@ pub fn managed_capture(mut capture: Capture) -> Capture {
             w::Served { owner: w::Owner::Jig, first: w::VERSION, last: w::VERSION },
         )
         .expect("one owner");
-    let mut me = jig_client_test_records::frame_two_projects_record().into_parts();
+    let mut me = jig_client_test_records::frame_two_projects_record();
     me.deployment_role = Some(w::HeldRole::Owner);
     capture.stream(&jig_client_test_records::opened(
         w::Hello { stream: [7; 16], served, heartbeat: Duration::from_secs(30) },

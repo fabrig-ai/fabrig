@@ -1,4 +1,5 @@
 //! Client receipts decoded from the kernel's HTTP and SSE bytes.
+use jig_client_protocol_wire::Record as _;
 pub(crate) mod cache;
 #[cfg(test)]
 mod tests;
@@ -74,13 +75,13 @@ impl Wire {
 }
 pub(super) fn picker(owner: &wire::Owner, request: &[u8]) -> bool {
     use temper_client_protocol_wire::{self as forge, v1 as w};
-    if !matches!(owner, wire::Owner::Family(family) if family.number() == forge::FORGE) {
+    if !matches!(owner, wire::Owner::Family(family) if family.number == forge::FORGE) {
         return false;
     }
     let Ok(envelope) = wire::FamilyRequest::decode(native_link_limits().wire(), &mut Reader::new(request)) else {
         return false;
     };
-    forge::decode_requesting(envelope.record(), &w::CEILINGS)
+    forge::decode_requesting(envelope.record.as_ref(), &w::CEILINGS)
         .is_some_and(|request| matches!(request.request(), w::Request::Reachable(_)))
 }
 impl Connection {
@@ -108,8 +109,8 @@ impl Connection {
         let keyed =
             wire::Keyed::decode(limits.wire(), &mut Reader::new(&self.sent[end + 4..])).expect("sent keyed request");
         self.sent_application = Some(());
-        if matches!(keyed.owner(), wire::Owner::Family(_)) && !picker(keyed.owner(), keyed.request()) {
-            received.push(Received::ApplicationSent { key: *keyed.key() });
+        if matches!( &keyed.owner, wire::Owner::Family(_)) && !picker(&keyed.owner, keyed.request.as_ref()) {
+            received.push(Received::ApplicationSent { key: keyed.key });
         }
     }
     fn progress(&mut self, received: &mut Vec<Received>, capture_only: bool) {
@@ -164,31 +165,31 @@ impl Connection {
                     return;
                 }
                 let wire::SignInAnswer::SignedIn(value) = answer else { panic!("sign-in accepted: {answer:?}") };
-                received.push(Received::SignedIn(value.party()));
+                received.push(Received::SignedIn(value.party));
             }
             b"/jig/v1/request" => {
                 let keyed =
                     wire::Keyed::decode(limits.wire(), &mut Reader::new(&self.sent[end + 4..])).expect("request bytes");
                 let value = wire::KeyedAnswer::decode(limits.wire(), &mut Reader::new(bytes)).expect("answer bytes");
-                if picker(keyed.owner(), keyed.request()) {
+                if picker(&keyed.owner, keyed.request.as_ref()) {
                     return;
                 }
-                if matches!(&value, wire::KeyedAnswer::FinalAnswer(document) if document.owner() == &wire::Owner::Jig) {
+                if matches!(&value, wire::KeyedAnswer::FinalAnswer(document) if document.owner == wire::Owner::Jig) {
                     let answer = translate::answers::answer(value, &limits).expect("jig answer document");
-                    received.push(Received::Answer { key: *keyed.key(), answer });
+                    received.push(Received::Answer { key: keyed.key, answer });
                 } else if let wire::KeyedAnswer::FinalAnswer(document) = value {
-                    let wire::Owner::Family(family) = document.owner() else { panic!("application family owner") };
+                    let wire::Owner::Family(family) = &document.owner else { panic!("application family owner") };
                     let record = jig_client::Family {
-                        family: family.number(),
-                        version: document.version(),
-                        bytes: document.record().into(),
+                        family: family.number,
+                        version: document.version,
+                        bytes: document.record.as_ref().into(),
                     };
                     let bounds = temper_client_domain::forge::wire_limits(
                         &temper_client_shell_terminal::limits::native().client.forge,
                     )
                     .expect("family bounds");
                     if let Some(answer) = temper_client_domain::forge::family::answer(&record, &bounds, &limits) {
-                        received.push(Received::Application { key: *keyed.key(), answer });
+                        received.push(Received::Application { key: keyed.key, answer });
                     } else {
                         let answer = temper_client_domain::forge::playground::answer(
                             &jig_client::Answered::Family(record),
@@ -196,17 +197,17 @@ impl Connection {
                         )
                         .expect("playground start answer");
                         assert_eq!(answer, temper_client_domain::forge::playground::StartAnswer::Running);
-                        received.push(Received::PlaygroundStarted { key: *keyed.key() });
+                        received.push(Received::PlaygroundStarted { key: keyed.key });
                     }
                 }
             }
             b"/jig/v1/read" => {
                 if let wire::ReadAnswer::Value(value) =
                     wire::ReadAnswer::decode(limits.wire(), &mut Reader::new(bytes)).expect("read reply bytes")
-                    && value.owner() == &wire::Owner::Jig
+                    && value.owner == wire::Owner::Jig
                 {
                     received
-                        .push(Received::Read(translate::reads::value(value.record(), &limits).expect("read document")));
+                        .push(Received::Read(translate::reads::value(value.record.as_ref(), &limits).expect("read document")));
                 }
             }
             b"/jig/v1/watch" | b"/jig/v1/unwatch" | b"/jig/v1/stream-gone" => {}
@@ -234,15 +235,15 @@ impl Connection {
             let document = match wire::StreamEvent::decode(&wire::CEILINGS, &mut Reader::new(&decoded))
                 .expect("SSE record bytes")
             {
-                wire::StreamEvent::Opened(value) => Some(value.into_parts().me),
-                wire::StreamEvent::Delivery(value) => Some(value.into_parts().document),
+                wire::StreamEvent::Opened(value) => Some(value.me),
+                wire::StreamEvent::Delivery(value) => Some(value.document),
                 wire::StreamEvent::Hello(_) | wire::StreamEvent::Text(_) | wire::StreamEvent::Ended(_) => None,
             };
             if let Some(document) = document
-                && document.owner() == &wire::Owner::Jig
+                && document.owner == wire::Owner::Jig
             {
                 received.push(Received::Delivery(
-                    translate::watches::delivery(document.record(), &limits).expect("delivery document"),
+                    translate::watches::delivery(document.record.as_ref(), &limits).expect("delivery document"),
                 ));
             }
         }

@@ -1,4 +1,5 @@
 //! A task delivery sent on a connection accepted after the watch cue.
+use jig_client_protocol_wire::Record as _;
 use jig_client_protocol_wire as wire;
 use skein_io::kernel::{Complete, Done, Op};
 use skein_lib::{
@@ -95,9 +96,9 @@ impl Connection {
                 .expect("SSE record encoding");
             if let wire::StreamEvent::Delivery(value) =
                 wire::StreamEvent::decode(&wire::CEILINGS, &mut Reader::new(&decoded)).expect("SSE record")
-                && value.document().owner() == &wire::Owner::Jig
+                && value.document.owner == wire::Owner::Jig
                 && matches!(
-                    wire::DeliveryValue::decode(&wire::CEILINGS, &mut Reader::new(value.document().record()))
+                    wire::DeliveryValue::decode(&wire::CEILINGS, &mut Reader::new(value.document.record.as_ref()))
                         .expect("delivery document"),
                     wire::DeliveryValue::Task(_)
                 )

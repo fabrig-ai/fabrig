@@ -1,4 +1,5 @@
 //! The root composes milestone totals, without reservations (domain/milestones.md, 7).
+use jig_client_protocol_wire::Record as _;
 use super::*;
 use temper_engine_domain_forge as forge;
 
@@ -196,7 +197,7 @@ fn goal_numbers(part: &temper_client_protocol_wire::v1::MilestonePart) -> Vec<u6
             let preset = temper_client_tools::limits::client().client;
             let limits =
                 jig_client_protocol_link::Limits::new(preset.domain, preset.exchanges).expect("milestone part fixture");
-            jig_client_protocol_link::translate::documents::chip(line.chip().clone(), &limits)
+            jig_client_protocol_link::translate::documents::chip(line.chip.clone(), &limits)
                 .expect("milestone part fixture")
                 .task
         })

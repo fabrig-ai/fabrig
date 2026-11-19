@@ -3,6 +3,7 @@
 #![expect(clippy::disallowed_types, reason = "ordinary tests assemble fake JSON documents")]
 #![expect(clippy::disallowed_methods, reason = "ordinary test assertions and fixture assembly")]
 
+use jig_client_protocol_wire::Record as _;
 use super::lifecycle_tests::{accepted, app};
 use super::*;
 
@@ -113,7 +114,6 @@ fn picker_client(service: &mut crate::Service, bearer: &[u8]) -> fixtures::http:
     use jig_client_protocol_wire as j;
     use temper_client_protocol_wire::{self as wire, v1 as w};
     let engine = service.engine.as_mut().unwrap();
-    let limits = &engine.clients.env.limits.wire;
     let request = w::Requesting::new(
         &w::CEILINGS,
         w::RequestingParts {
@@ -124,8 +124,8 @@ fn picker_client(service: &mut crate::Service, bearer: &[u8]) -> fixtures::http:
     )
     .unwrap();
     let family = j::FamilyRequest { scope: j::Scope::Deployment, record: wire::requesting(&request) };
-    let mut bytes = skein_lib::Writer::new(usize::try_from(family.measure()).unwrap());
-    family.encode(&mut bytes).unwrap();
+    let mut bytes = skein_lib::Writer::new(usize::try_from(family.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    family.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
     let request = j::Keyed {
             key: [90; 16],
             owner: j::Owner::Family(j::Family { number: wire::FORGE }),
@@ -133,8 +133,8 @@ fn picker_client(service: &mut crate::Service, bearer: &[u8]) -> fixtures::http:
             request: bytes.finish(),
             value: None,
         };
-    let mut bytes = skein_lib::Writer::new(usize::try_from(request.measure()).unwrap());
-    request.encode(&mut bytes).unwrap();
+    let mut bytes = skein_lib::Writer::new(usize::try_from(request.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    request.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
     let mut client = fixtures::http::Peer::new(engine, b"POST", b"/jig/v1/request", &bytes.finish(), Some(bearer));
     client.pump(engine, true);
     client
@@ -151,12 +151,12 @@ fn picker_outcome(service: &crate::Service, client: &fixtures::http::Peer) -> te
         panic!("final answer")
     };
     assert_eq!(
-        answer.version(),
+        answer.version,
         temper_client_protocol_wire::CLIENT_VERSION,
         "core terminal: {:?}",
-        j::Final::decode(&engine.clients.env.limits.wire, &mut skein_lib::Reader::new(answer.record()))
+        j::Final::decode(&engine.clients.env.limits.wire, &mut skein_lib::Reader::new(answer.record.as_ref()))
     );
-    let answer = w::Answer::decode(&w::CEILINGS, &mut skein_lib::Reader::new(answer.record())).unwrap();
+    let answer = w::Answer::decode(&w::CEILINGS, &mut skein_lib::Reader::new(answer.record.as_ref())).unwrap();
     answer.into_parts().outcome
 }
 #[test]
@@ -172,7 +172,7 @@ fn the_same_key_answers_the_same_page_without_a_run_and_is_unknown_after_store_r
     let mut sign_in = peer::Peer::new(engine, b"POST", b"/jig/v1/sign-in/link", &body, None);
     sign_in.pump(engine, true);
     let j::SignInAnswer::SignedIn(answer) = sign_in.sign_in_answer(engine) else { panic!("owner sign in") };
-    let bearer = peer::bearer(answer.token().as_ref().unwrap().expose());
+    let bearer = peer::bearer(answer.token.as_ref().unwrap().expose());
     // This small store fixture gives the first link only its project role. Seed
     // its deployment role explicitly, as the root's public-forge fixtures do.
     let mut header = engine.domain.deployment();

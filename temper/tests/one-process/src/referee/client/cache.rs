@@ -1,4 +1,5 @@
 //! Failure-only metadata of the native client's real private-store operations.
+use jig_client_protocol_wire::Record as _;
 use jig_client_protocol_wire as wire;
 use skein_io::kernel::{Complete, Done, Fd, Op};
 use skein_lib::Reader;
@@ -154,16 +155,16 @@ fn tables(bytes: &[u8], limits: &wire::Limits) -> Option<Vec<Table>> {
         if key == jig_client::STREAM_KEY {
             continue;
         }
-        let entry = wire::TableEntry::decode(limits, &mut Reader::new(kept.record())).ok()?;
-        if key != entry.key().as_slice() {
+        let entry = wire::TableEntry::decode(limits, &mut Reader::new(kept.record.as_ref())).ok()?;
+        if key != entry.key.as_slice() {
             return None;
         }
         table.push(Table {
-            key: *entry.key(),
-            scope: entry.scope(),
-            first_sent: entry.first_sent().is_some(),
-            version: kept.store_version(),
-            picker: super::picker(entry.owner(), entry.request()),
+            key: entry.key,
+            scope: entry.scope,
+            first_sent: entry.first_sent.is_some(),
+            version: kept.store_version,
+            picker: super::picker(&entry.owner, entry.request.as_ref()),
         });
     }
     reader.is_empty().then_some(table)

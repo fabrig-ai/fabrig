@@ -4,6 +4,7 @@
     clippy::disallowed_methods,
     reason = "ordinary protocol world fixtures use textual HTTP"
 )]
+use jig_client_protocol_wire::Record as _;
 use super::{fixtures::http::Peer, sign_in};
 use jig_client_protocol_wire as wire;
 use jig_protocol_config::clients::{Provider, ProviderClient};
@@ -83,8 +84,8 @@ pub(super) fn authorize(service: &mut crate::Service, cookie: &[u8]) -> Box<[u8]
     );
     let limits = service.engine.as_ref().unwrap().clients.env.limits.wire;
     let record = wire::Authorize { query: query.into_bytes().into() };
-    let mut out = Writer::new(usize::try_from(record.measure()).unwrap());
-    record.encode(&mut out).unwrap();
+    let mut out = Writer::new(usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    record.write(&jig_client_protocol_wire::CEILINGS, &mut out).unwrap();
     let fields = format!(
         "Content-Type: application/octet-stream\r\nJig-Client: browser\r\nCookie: {}\r\n",
         core::str::from_utf8(cookie).unwrap()
@@ -95,7 +96,7 @@ pub(super) fn authorize(service: &mut crate::Service, cookie: &[u8]) -> Box<[u8]
     else {
         panic!("the signed-in page receives go")
     };
-    let location = go.location();
+    let location = go.location.as_ref();
     assert!(location.starts_with(CALLBACK.as_bytes()));
     let text = core::str::from_utf8(location).unwrap();
     text.split_once("code=").unwrap().1.split('&').next().unwrap().as_bytes().into()
@@ -226,8 +227,8 @@ fn refused_authorizations(service: &mut crate::Service, cookie: &[u8]) {
             "response_type=code&client_id={client}&redirect_uri=http%3A%2F%2F127.0.0.1%3A9%2Fescape&scope=openid&state=refusal&code_challenge=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA&code_challenge_method=S256"
         );
         let record = wire::Authorize { query: query.into_bytes().into() };
-        let mut out = Writer::new(usize::try_from(record.measure()).unwrap());
-        record.encode(&mut out).unwrap();
+        let mut out = Writer::new(usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+        record.write(&jig_client_protocol_wire::CEILINGS, &mut out).unwrap();
         let peer = request(service, "POST", "/jig/v1/authorize", &fields, &out.finish());
         assert!(peer.received().starts_with(b"HTTP/1.1 200"));
         let wire::AuthorizeAnswer::Refused(answer) =
@@ -235,6 +236,6 @@ fn refused_authorizations(service: &mut crate::Service, cookie: &[u8]) {
         else {
             panic!("hostile authorization yields no destination")
         };
-        assert_eq!(answer.why(), &why);
+        assert_eq!((&answer.why), &why);
     }
 }

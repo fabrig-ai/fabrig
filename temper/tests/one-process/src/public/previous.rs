@@ -1,4 +1,5 @@
 //! A private store survives opening public reading (jig/docs/design/domain/people/public-reading.md, 2).
+use jig_client_protocol_wire::Record as _;
 use super::{checks::PROXY, proxy::Proxy, requests, service, service_checks, visitor::Visitor};
 use crate::{
     ctl::{Caller, Command},
@@ -164,14 +165,14 @@ impl Walk {
                 }
                 let projects = p::PublicProjects::decode(&p::CEILINGS, &mut Reader::new(&answer.body))
                     .map_err(|why| format!("projects: {why:?}"))?;
-                match (&(projects.projects().len()), &(2)) {
+                match (&(projects.projects.len()), &(2)) {
                     (left, right) if left != right => {
                         let finding = String::from("calibration exposes each real project's identifier");
                         return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
                     }
                     _ => {}
                 }
-                IDS.with(|ids| *ids.borrow_mut() = projects.projects().iter().map(p::PublicProject::project).collect());
+                IDS.with(|ids| *ids.borrow_mut() = projects.projects.iter().map(|value| value.project).collect());
                 return Ok(true);
             }
             other => return Err(format!("previous store stage {other}")),
@@ -199,7 +200,7 @@ impl Walk {
             service_checks::policy(answer, false)?;
             let projects = p::PublicProjects::decode(&p::CEILINGS, &mut Reader::new(&answer.body))
                 .map_err(|why| format!("projects: {why:?}"))?;
-            if !(projects.projects().is_empty()) {
+            if !(projects.projects.is_empty()) {
                 return Err(String::from("opening an old store opens no project"));
             }
             for project in IDS.with(|ids| ids.borrow().clone()) {

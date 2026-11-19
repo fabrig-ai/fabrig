@@ -1,4 +1,5 @@
 //! The service passes on the approval setting (temper/docs/design/protocol/configuration/engine.md).
+use jig_client_protocol_wire::Record as _;
 use super::fixtures;
 use jig_client_protocol_wire as w;
 use jig_client_protocol_wire::{ApprovalCode, CODE_ALPHABET, CODE_LETTERS};
@@ -17,10 +18,9 @@ fn an_ask_is_answered_as_the_typed_configuration_enables_the_approval() {
         };
         fixtures::listening(&mut service);
         let engine = service.engine.as_mut().expect("engine");
-        let limits = &engine.clients.env.limits.wire;
         let ask = w::ApprovalAsk {};
-        let mut body = Writer::new(usize::try_from(ask.measure()).unwrap());
-        ask.encode(&mut body).unwrap();
+        let mut body = Writer::new(usize::try_from(ask.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+        ask.write(&jig_client_protocol_wire::CEILINGS, &mut body).unwrap();
         let mut peer = fixtures::http::Peer::new(engine, b"POST", b"/jig/v1/approval/ask", &body.finish(), None);
         let wall = Wall::from_nanos(123_000_000_000);
         peer.pump_at(engine, false, Time::from_nanos(1), wall);
@@ -31,13 +31,13 @@ fn an_ask_is_answered_as_the_typed_configuration_enables_the_approval() {
         match answer {
             w::ApprovalAskAnswer::Asked(value) => {
                 assert!(asked, "approval {approval:?}");
-                assert_eq!(value.secret().len(), SECRET_BYTES);
-                assert_eq!(value.code().len(), CODE_LETTERS);
-                for letter in value.code() {
+                assert_eq!(value.secret.len(), SECRET_BYTES);
+                assert_eq!(value.code.len(), CODE_LETTERS);
+                for letter in &value.code {
                     assert!(CODE_ALPHABET.contains(letter));
                 }
-                assert!(ApprovalCode::parse(value.code()).is_some());
-                assert_eq!(value.expires(), wall.as_nanos().checked_add(SPAN_NANOS).unwrap());
+                assert!(ApprovalCode::parse(&value.code).is_some());
+                assert_eq!(value.expires, wall.as_nanos().checked_add(SPAN_NANOS).unwrap());
             }
             w::ApprovalAskAnswer::Refused => assert!(!asked, "approval {approval:?}"),
             w::ApprovalAskAnswer::NotReady | w::ApprovalAskAnswer::Busy => panic!("the ask can be answered"),

@@ -5,6 +5,7 @@
     clippy::disallowed_methods,
     reason = "ordinary host tests construct and inspect scripted protocol streams"
 )]
+use jig_client_protocol_wire::Record as _;
 use super::*;
 use crate::tests::fixtures;
 use alloc::boxed::Box;
@@ -921,8 +922,8 @@ fn moved_answer(engine: &mut crate::engine::Engine, bearer: &[u8], attempt: u8) 
     let ask = w::Ask::AccountChange(
         w::AskAccountChange { holder: w::AskAccountHolder::Own, change },
     );
-    let mut bytes = Writer::new(usize::try_from(ask.measure()).unwrap());
-    ask.encode(&mut bytes).unwrap();
+    let mut bytes = Writer::new(usize::try_from(ask.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    ask.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
     let keyed = w::Keyed {
             key: [attempt; 16],
             owner: w::Owner::Jig,
@@ -930,8 +931,8 @@ fn moved_answer(engine: &mut crate::engine::Engine, bearer: &[u8], attempt: u8) 
             request: bytes.finish(),
             value: None,
         };
-    let mut bytes = Writer::new(usize::try_from(keyed.measure()).unwrap());
-    keyed.encode(&mut bytes).unwrap();
+    let mut bytes = Writer::new(usize::try_from(keyed.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    keyed.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
     let mut call = peer::Peer::new(engine, b"POST", b"/jig/v1/request", &bytes.finish(), Some(bearer));
     call.pump(engine, false);
     let Some(root::Event::Party(root::PartyInput::Ask { reply_to, .. })) = engine.events.pop() else {
@@ -952,13 +953,13 @@ fn moved_answer(engine: &mut crate::engine::Engine, bearer: &[u8], attempt: u8) 
     else {
         panic!("terminal move-out answer")
     };
-    let w::Final::Done(done) = w::Final::decode(&limits, &mut Reader::new(answer.record())).unwrap() else {
+    let w::Final::Done(done) = w::Final::decode(&limits, &mut Reader::new(answer.record.as_ref())).unwrap() else {
         panic!("move-out done")
     };
-    let w::Outcome::Made(made) = done.outcome() else { panic!("made") };
-    let w::Made::MovingOut(moving) = made.what() else { panic!("moving out") };
-    assert_eq!((moving.account(), moving.number()), (19, 23));
-    moving.record().clone()
+    let w::Outcome::Made(made) = &done.outcome else { panic!("made") };
+    let w::Made::MovingOut(moving) = &made.what else { panic!("moving out") };
+    assert_eq!((moving.account, moving.number), (19, 23));
+    moving.record.clone()
 }
 
 #[test]
@@ -973,7 +974,7 @@ fn a_move_out_answers_with_its_record_once_and_a_move_in_is_adopted() {
     let mut login = peer::Peer::new(engine, b"POST", b"/jig/v1/sign-in/link", &body, None);
     login.pump(engine, true);
     let w::SignInAnswer::SignedIn(answer) = login.sign_in_answer(engine) else { panic!("signed in") };
-    let bearer = peer::bearer(answer.token().as_ref().expect("credential").expose());
+    let bearer = peer::bearer(answer.token.as_ref().expect("credential").expose());
 
     let (config, runtime) = registered();
     let mut accounts = host(&config, runtime);

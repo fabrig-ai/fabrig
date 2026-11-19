@@ -1,4 +1,5 @@
 //! Chosen and restored places cross the routing's port and file effects (protocol/setup/place.md, 2–6).
+use jig_client_protocol_wire::Record as _;
 use super::*;
 use crate::PlaceIo;
 use temper_forge_setup::setup_file::SetupFile;
@@ -129,7 +130,7 @@ fn owned_setup_chooses_then_keeps_one_place_and_registers_its_public_client() {
     let jig_client_protocol_wire::AuthorizeAnswer::Refused(why) = authorize(&mut service, 4567) else {
         panic!("removed client is refused")
     };
-    assert_eq!(why.why(), &jig_client_protocol_wire::AuthorizeWhy::UnknownClient);
+    assert_eq!((&why.why), &jig_client_protocol_wire::AuthorizeWhy::UnknownClient);
     let mut restarted = fresh_with_places(true, false);
     fixtures::keep_forge(&mut restarted, record);
     let engine = restarted.engine.as_mut().unwrap();
@@ -156,8 +157,8 @@ fn authorize(service: &mut crate::Service, port: u16) -> jig_client_protocol_wir
         "response_type=code&client_id=forgejo&redirect_uri=http%3A%2F%2F127.0.0.1%3A{port}%2Fuser%2Foauth2%2Ftemper%2Fcallback&scope=openid&code_challenge=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA&code_challenge_method=S256"
     );
     let record = wire::Authorize { query: query.into_bytes().into() };
-    let mut bytes = skein_lib::Writer::new(usize::try_from(record.measure()).unwrap());
-    record.encode(&mut bytes).unwrap();
+    let mut bytes = skein_lib::Writer::new(usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    record.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
     let peer = crate::tests::provider::request(
         service,
         "POST",

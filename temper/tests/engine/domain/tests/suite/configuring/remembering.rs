@@ -1,5 +1,6 @@
 //! Remembered preferences across chats, person reads and private turns
 //! (temper/docs/design/domain/agent/ask-temper.md, 4; jig/docs/design/domain/engine/briefs.md, 2.1).
+use jig_client_protocol_wire::Record as _;
 use super::*;
 use jig_client::contract as c;
 use jig_domain_core::reads;
@@ -194,8 +195,8 @@ fn projected(answer: &reads::Answer, query: &reads::Read) -> c::ReadValue {
         ),
     }
     .expect("client projection");
-    let mut bytes = Writer::new(usize::try_from(wire.measure()).expect("bounded client document"));
-    wire.encode(&mut bytes).expect("measured client document");
+    let mut bytes = Writer::new(usize::try_from(wire.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("bounded client document"));
+    wire.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("measured client document");
     let preset = temper_client_tools::limits::client().client;
     let limits =
         jig_client_protocol_link::Limits::new(preset.domain, preset.exchanges).expect("client receiving limits");
