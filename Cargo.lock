@@ -162,7 +162,6 @@ name = "fabrig-boundary"
 version = "0.0.0"
 dependencies = [
  "aho-corasick",
- "proc-macro2",
  "serde_json",
  "skein-codec",
  "skein-codegen",
@@ -3162,7 +3161,6 @@ name = "skein-codegen"
 version = "0.0.0"
 dependencies = [
  "skein-codec",
- "skein-codec-tests",
  "skein-fail-stop",
  "skein-scratch",
 ]
@@ -6317,6 +6315,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "temper-client-walk"
+version = "0.0.0"
+dependencies = [
+ "skein-fail-stop",
+ "skein-scratch",
+ "temper-client-walk-tool",
+ "temper-version",
+]
+
+[[package]]
 name = "temper-client-walk-lines"
 version = "0.0.0"
 dependencies = [
@@ -6329,6 +6337,17 @@ dependencies = [
  "temper-client-shell-tui",
  "temper-client-shell-web",
  "temper-client-tui",
+]
+
+[[package]]
+name = "temper-client-walk-tool"
+version = "0.0.0"
+dependencies = [
+ "skein-scratch",
+ "skein-shell",
+ "temper-client-walk-lines",
+ "temper-client-walk-world",
+ "tempfile",
 ]
 
 [[package]]
@@ -6345,6 +6364,7 @@ dependencies = [
  "temper-client-domain",
  "temper-client-shell-web",
  "temper-client-view",
+ "temper-client-walk-lines",
  "temper-fake",
  "temper-playground",
 ]

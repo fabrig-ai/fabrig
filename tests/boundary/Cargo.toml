@@ -16,7 +16,6 @@ serde_json.workspace = true
 syn.workspace = true
 
 [dev-dependencies]
-proc-macro2 = { version = "1", features = ["span-locations"] }
 aho-corasick.workspace = true
 skein-codec.workspace = true
 skein-codegen.workspace = true

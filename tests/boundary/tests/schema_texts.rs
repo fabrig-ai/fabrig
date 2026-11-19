@@ -6,8 +6,7 @@ use std::fs;
 use std::path::{Component, Path, PathBuf};
 use std::process::Command;
 
-use proc_macro2::{TokenStream, TokenTree};
-use syn::spanned::Spanned;
+use syn::buffer::{Cursor, TokenBuffer};
 use syn::visit::Visit;
 
 fn normalized(path: &Path) -> PathBuf {
@@ -47,6 +46,8 @@ fn owners(list: &str) -> BTreeMap<PathBuf, Vec<PathBuf>> {
 struct Embeds<'a> {
     file: &'a Path,
     owners: &'a BTreeMap<PathBuf, Vec<PathBuf>>,
+    source: &'a str,
+    inputs: std::vec::IntoIter<(&'a str, usize)>,
     constant: Option<String>,
     at_root: bool,
     seen: Vec<PathBuf>,
@@ -54,8 +55,10 @@ struct Embeds<'a> {
 }
 
 impl Embeds<'_> {
-    fn include(&mut self, tokens: TokenStream, line: usize) {
-        let Ok(literal) = syn::parse2::<syn::LitStr>(tokens) else { return };
+    fn include(&mut self) {
+        let (input, offset) = self.inputs.next().expect("token and syntax walks see the same literal include");
+        let literal = syn::parse_str::<syn::LitStr>(input).expect("a string token");
+        let line = self.source[..offset].bytes().filter(|byte| *byte == b'\n').count() + 1;
         let schema = normalized(&self.file.parent().expect("source parent").join(literal.value()));
         let Some(owners) = self.owners.get(&schema) else { return };
         let allowed = self.constant.as_deref().is_some_and(|name| {
@@ -78,20 +81,25 @@ impl Embeds<'_> {
 
     // Visit tokens too: includes inside concat!, family! and macro_rules! are
     // not expressions in syn's tree. Comments and string contents are not tokens.
-    fn tokens(&mut self, tokens: TokenStream) {
-        let mut tokens = tokens.into_iter().peekable();
-        while let Some(token) = tokens.next() {
-            match token {
-                TokenTree::Ident(name) if name == "include_str" => {
-                    if tokens.peek().is_some_and(|token| matches!(token, TokenTree::Punct(p) if p.as_char() == '!')) {
-                        tokens.next();
-                        if let Some(TokenTree::Group(group)) = tokens.next() {
-                            self.include(group.stream(), name.span().start().line);
-                        }
-                    }
+    fn tokens(&mut self, mut tokens: Cursor<'_>) {
+        while !tokens.eof() {
+            if let Some((name, after_name)) = tokens.ident()
+                && name == "include_str"
+                && let Some((punctuation, after_bang)) = after_name.punct()
+                && punctuation.as_char() == '!'
+                && let Some((group, _, _, after_group)) = after_bang.any_group()
+            {
+                if syn::parse2::<syn::LitStr>(group.token_stream()).is_ok() {
+                    self.include();
+                } else {
+                    self.tokens(group);
                 }
-                TokenTree::Group(group) => self.tokens(group.stream()),
-                TokenTree::Ident(_) | TokenTree::Punct(_) | TokenTree::Literal(_) => (),
+                tokens = after_group;
+            } else if let Some((group, _, _, after_group)) = tokens.any_group() {
+                self.tokens(group);
+                tokens = after_group;
+            } else {
+                tokens = tokens.token_tree().expect("nonempty cursor").1;
             }
         }
     }
@@ -122,17 +130,27 @@ impl<'ast> Visit<'ast> for Embeds<'_> {
     }
 
     fn visit_macro(&mut self, mac: &'ast syn::Macro) {
-        if mac.path.is_ident("include_str") {
-            self.include(mac.tokens.clone(), mac.path.span().start().line);
+        if mac.path.is_ident("include_str") && syn::parse2::<syn::LitStr>(mac.tokens.clone()).is_ok() {
+            self.include();
         } else {
-            self.tokens(mac.tokens.clone());
+            let tokens = TokenBuffer::new2(mac.tokens.clone());
+            self.tokens(tokens.begin());
         }
     }
 }
 
 fn inspect(file: &Path, source: &str, owners: &BTreeMap<PathBuf, Vec<PathBuf>>) -> (Vec<PathBuf>, Vec<String>) {
     let syntax = syn::parse_file(source).unwrap_or_else(|why| panic!("{}: {why}", file.display()));
-    let mut embeds = Embeds { file, owners, constant: None, at_root: true, seen: Vec::new(), failures: Vec::new() };
+    let mut embeds = Embeds {
+        file,
+        owners,
+        source,
+        inputs: fabrig_boundary::schema_includes(source).into_iter(),
+        constant: None,
+        at_root: true,
+        seen: Vec::new(),
+        failures: Vec::new(),
+    };
     embeds.visit_file(&syntax);
     (embeds.seen, embeds.failures)
 }
@@ -146,10 +164,13 @@ fn schema_includes_are_confined_to_the_owner_constant() {
     let (seen, failures) = inspect(owner, good, &owners);
     assert_eq!(seen.len(), 2);
     assert!(failures.is_empty(), "{failures:?}");
-    let bad = "fn fixture() { family!(\n include_str! {\"../owner/schema/current-v1.schema\"}); }";
+    let bad = r##"// include_str!("../owner/schema/current-v1.schema")
+const TEXT: &str = r#"include_str!("../owner/schema/current-v1.schema")"#;
+fn fixture() { family!(
+ include_str! {"../owner/schema/current-v1.schema"}); }"##;
     let (_, failures) = inspect(Path::new("tests/fixture.rs"), bad, &owners);
     assert_eq!(failures.len(), 1, "{failures:?}");
-    assert!(failures[0].starts_with("tests/fixture.rs:2:"), "{failures:?}");
+    assert!(failures[0].starts_with("tests/fixture.rs:4:"), "{failures:?}");
     for source in [
         "const SCHEMA: &str = include_str!(\"../schema/current-v1.schema\");",
         "pub const WRONG: &str = include_str!(\"../schema/current-v1.schema\");",

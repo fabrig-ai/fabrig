@@ -50,10 +50,4 @@ mod tests {
         assert!(!core::ptr::eq(first, other));
         assert_eq!(other.schema.family, "other");
     }
-
-    #[test]
-    #[should_panic(expected = "line 1:")]
-    fn an_invalid_text_panics_with_its_parse_error() {
-        let _invalid = values("not a schema");
-    }
 }

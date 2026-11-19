@@ -88,6 +88,10 @@ enum Token<'a> {
 
 /// A byte scan, not a Rust parse. Only path and include strings are decoded.
 fn tokens(source: &str) -> Vec<Token<'_>> {
+    tokens_at(source).into_iter().map(|(_, token)| token).collect()
+}
+
+fn tokens_at(source: &str) -> Vec<(usize, Token<'_>)> {
     let bytes = source.as_bytes();
     let mut result = Vec::new();
     let mut at = 0;
@@ -112,21 +116,40 @@ fn tokens(source: &str) -> Vec<Token<'_>> {
                 }
             }
         } else if let Some((length, string)) = literal(rest) {
-            result.push(if string { Token::String(&source[at..at + length]) } else { Token::Literal });
+            result.push((at, if string { Token::String(&source[at..at + length]) } else { Token::Literal }));
             at += length;
         } else if rest[0].is_ascii_alphabetic() || rest[0] == b'_' || rest[0] >= 128 {
             let length = rest
                 .iter()
                 .position(|byte| !byte.is_ascii_alphanumeric() && *byte != b'_' && *byte < 128)
                 .unwrap_or(rest.len());
-            result.push(Token::Word(&source[at..at + length]));
+            result.push((at, Token::Word(&source[at..at + length])));
             at += length;
         } else {
-            result.push(Token::Symbol(rest[0]));
+            result.push((at, Token::Symbol(rest[0])));
             at += 1;
         }
     }
     result
+}
+
+/// Literal `include_str!` inputs and their byte offsets, excluding comments and string contents.
+#[must_use]
+pub fn schema_includes(source: &str) -> Vec<(&str, usize)> {
+    let tokens = tokens_at(source);
+    tokens
+        .windows(5)
+        .filter_map(|tokens| match tokens {
+            [
+                (at, Token::Word("include_str")),
+                (_, Token::Symbol(b'!')),
+                (_, Token::Symbol(open)),
+                (_, Token::String(input)),
+                (_, Token::Symbol(close)),
+            ] if [(b'(', b')'), (b'[', b']'), (b'{', b'}')].contains(&(*open, *close)) => Some((*input, *at)),
+            _ => None,
+        })
+        .collect()
 }
 
 /// Returns the entire literal's length, distinguishing strings from byte/C strings
