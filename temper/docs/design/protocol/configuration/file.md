@@ -256,6 +256,17 @@ pub fn reference() -> Box<[u8]>;                       // the `configuration` pa
   `OpenIdClient`).
 - **`read`** is `parse` over the configuration directory's file, with
   the machine's facts, after `temper.json`'s refusal (section 6).
+- **The machine's facts** are the shell kit's answers, read as `read`
+  runs, on Linux and macOS alike: the login is `skein_shell::login` of
+  the effective user; the host's name is `skein_shell::host_name()`,
+  the kernel's node name through `uname`
+  (`skein/docs/design/runtime/shell.md`, 6.1), which on Linux is the
+  bytes `/proc/sys/kernel/hostname` gives before its line feed, and on
+  macOS, which has no `/proc`, `kern.hostname`, the name `hostname`
+  prints; `provider.key`'s presence is the data directory's entry, a
+  link counting, its target unread. A host's name the kernel doesn't
+  give refuses the read `hostname: errno N`, its error number, and one
+  that isn't UTF-8 `hostname: ` and the decoder's words.
 - **`Keys`** renders a start's problem, a member's path and its words,
   as section 2's line: the key that gave the member, or its nearest
   ancestor, and its line.
@@ -415,6 +426,9 @@ are written and compiled, and run after landing.
   section 2's line; a start's problem at a member a key gave names the
   key and its line; `temper.json` is refused by name with or without a
   `temper.toml`.
+- **The machine's facts:** the host's name is the shell kit's, read
+  with no `/proc`, so the same test holds on macOS; on Linux it is
+  also `/proc/sys/kernel/hostname`'s answer before its line feed.
 - **The renderer, fuzzy:** for any `File` of a shape within its bounds,
   `parse` of `render` gives it back.
 - **The pages:** `help` of each shape and `reference` equal the
