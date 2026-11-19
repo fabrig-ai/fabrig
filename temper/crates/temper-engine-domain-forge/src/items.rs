@@ -42,6 +42,7 @@ impl Domain {
             start: Start::Commit(base),
             push: Some(branch),
             landing: None,
+            pin: None,
             delivered: None,
             holder: Some(holder),
             credential,
@@ -227,6 +228,13 @@ impl Domain {
                 | Start::Merged { .. } => None,
             },
         };
+        let pin = match inherited {
+            Some((row, change::Delegate::Repair(why))) if push.is_some() => match self.landing_failure(row.task, why) {
+                Some(failure) => failure.base,
+                None => None,
+            },
+            Some(_) | None => None,
+        };
         let name = repository.name.clone();
         let mut bytes = u64::try_from(size_of::<Item>())
             .ok()?
@@ -262,6 +270,7 @@ impl Domain {
             start,
             push,
             landing,
+            pin,
             delivered,
             holder,
             credential: match self.records.get(&repository.provider.forge) {
