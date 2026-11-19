@@ -85,6 +85,12 @@ pub fn world(start: Start) -> World<Process<()>, Machine> {
 /// Make a harness-free world with a meter installed before admitting any process.
 #[must_use]
 pub fn world_metered<N: Meter>(start: Start, meter: N) -> World<Process<()>, Machine, N> {
+    world_with::<(), N>(start, meter)
+}
+
+/// Make the composition with the caller's harness, preserving process order.
+#[must_use]
+pub fn world_with<H: Harness, N: Meter>(start: Start, meter: N) -> World<Process<H>, Machine, N> {
     let Start { seed, wall, deployment, fakes, links } = start;
     let mut disk = machine::fresh();
     prepare(&mut disk, &deployment, seed);
@@ -102,11 +108,11 @@ pub fn world_metered<N: Meter>(start: Start, meter: N) -> World<Process<()>, Mac
     config.wall = wall;
     config.trace = skein_sim::Trace::Off;
     let mut world = World::new(seed, config).with_machine(machine).with_meter(meter);
-    for (program, roots) in programs::programs::<()>() {
+    for (program, roots) in programs::programs::<H>() {
         world.host_roots(program, roots);
     }
     programs::with(parameters, || {
-        world.spawn_restartable(programs::service_roots(), programs::service::<()>);
+        world.spawn_restartable(programs::service_roots(), programs::service::<H>);
     });
     let printer = world.printer(b"temper serve", Stream::Output);
     let (_, _, processes) = world.parts();
@@ -175,7 +181,13 @@ pub const SLICE_STEPS: u32 = 256;
 /// A story's world in skein's slices, its visitor reached, at 1× from `browser`.
 #[must_use]
 pub fn slices(start: Start, budget: u32, browser: Time) -> Slices<Process<()>, Machine> {
-    Slices::new(world(start), reach(), budget, browser)
+    slices_with::<()>(start, budget, browser)
+}
+
+/// The caller's harness on the composition's slices, with the same visitor and pace.
+#[must_use]
+pub fn slices_with<H: Harness>(start: Start, budget: u32, browser: Time) -> Slices<Process<H>, Machine> {
+    Slices::new(world_with::<H, Bare>(start, Bare), reach(), budget, browser)
 }
 
 /// Make slices from a worker start message; an unknown story has no world.
