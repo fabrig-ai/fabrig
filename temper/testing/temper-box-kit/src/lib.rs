@@ -104,13 +104,35 @@ pub fn own_listeners(document: &mut serde_json::Value) {
     replace(document, &moves);
 }
 
-/// Move an initialized deployment's listeners and its agent's matching demo endpoint together.
+/// Move both initialized listeners; their defaults continue to resolve at startup.
 pub fn own_listener_files(directory: &Path) {
-    let path = directory.join("temper.json");
-    let mut document: serde_json::Value =
-        serde_json::from_slice(&std::fs::read(&path).expect("init document")).expect("JSON");
-    own_listeners(&mut document);
-    write_private(&path, &serde_json::to_vec(&document).expect("deployment JSON"));
+    let path = directory.join(temper_config_shell::FILE);
+    if path.exists() {
+        let mut document = temper_agent_fixtures::start(directory);
+        own_listeners(&mut document);
+        let read = |key: &str| {
+            document["application"][key]["listener"]["socket"].as_str().expect("socket").parse().expect("address")
+        };
+        let file = temper_config_shell::File {
+            listen: Some(read("clients")),
+            webhooks: Some(read("webhooks")),
+            ..Default::default()
+        };
+        // Preserve explicit fields such as the source bundle when moving the listeners.
+        let arguments: Vec<Box<[u8]>> =
+            configuration::flags(directory).iter().map(|word| word.as_encoded_bytes().into()).collect();
+        let (dirs, _) = temper_shell::directories::resolve(&arguments, &[], b"/").expect("directories");
+        let mut kept =
+            temper_config_shell::read(&dirs, temper_config_shell::Shape::Standalone).expect("init file").file;
+        kept.listen = file.listen;
+        kept.webhooks = file.webhooks;
+        write_private(&path, &temper_config_shell::render(&kept, temper_config_shell::Shape::Standalone));
+    } else {
+        let path = directory.join(temper_config_shell::FORMER);
+        let mut document = temper_agent_fixtures::start(directory);
+        own_listeners(&mut document);
+        write_private(&path, &serde_json::to_vec(&document).expect("deployment JSON"));
+    }
 }
 
 pub enum Forge<'a> {

@@ -29,7 +29,7 @@ pub fn read(directories: &Directories, shape: Shape) -> Result<Read, Refusal> {
     };
     parse(&text, shape, &facts(directories)?)
 }
-pub(crate) fn facts(directories: &Directories) -> Result<Facts, Refusal> {
+pub fn facts(directories: &Directories) -> Result<Facts, Refusal> {
     let login = login(skein_shell::effective_user()).map_err(Refusal::one)?;
     let hostname = skein_shell::read_file(Path::new("/proc/sys/kernel/hostname"), 4096)
         .map_err(|why| Refusal::one(format!("hostname: {}", unread(why))))?;

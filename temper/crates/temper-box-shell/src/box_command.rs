@@ -240,7 +240,7 @@ fn open_listeners(
         {
             return Err(format!(
                 "{}: inherited listener fd {} at {address}: no step names this listener",
-                directories.document().display(),
+                configuration_path(directories).display(),
                 fd.raw()
             ));
         }
@@ -252,7 +252,7 @@ fn open_listeners(
             if listeners.iter().any(|(_, previous)| previous == addr) {
                 return Err(format!(
                     "{}: port {} ({addr}): two steps name the same listener",
-                    directories.document().display(),
+                    configuration_path(directories).display(),
                     addr.port()
                 ));
             }
@@ -263,7 +263,7 @@ fn open_listeners(
                     skein_shell::open_listener(*addr, jig_protocol_config::stock().io.backlog).map_err(|why| {
                         format!(
                             "{}: port {} ({addr}): cannot listen: {why:?}",
-                            directories.document().display(),
+                            configuration_path(directories).display(),
                             addr.port()
                         )
                     })?;
@@ -281,6 +281,11 @@ fn open_listeners(
         }
     }
     Ok(listeners)
+}
+
+fn configuration_path(directories: &super::Directories) -> std::path::PathBuf {
+    let file = super::path(&directories.config).join(temper_config_shell::FILE);
+    if file.exists() { file } else { directories.document() }
 }
 
 type Configuration = (Box<[u8]>, Vec<(Fd, std::num::NonZeroU16)>, Option<Box<[u8]>>);
@@ -313,7 +318,8 @@ fn configuration_read(
         held = written.listeners;
         let mut opening =
             written.no_sign_in.map_or_else(String::new, |why| format!("First run: no sign-in through temper: {why}\n"));
-        writeln!(opening, "First run: wrote the configuration, {}", directories.document().display()).expect("string");
+        writeln!(opening, "First run: wrote the configuration, {}", config.join(temper_config_shell::FILE).display())
+            .expect("string");
         Some(opening.into_bytes().into())
     } else {
         None

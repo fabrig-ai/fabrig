@@ -55,6 +55,7 @@ pub fn initialize(paths: &[PathBuf; 3]) {
         .output()
         .expect("initialize a fresh deployment");
     assert!(initialized.status.success(), "{}", String::from_utf8_lossy(&initialized.stderr));
+    temper_agent_fixtures::legacy_init(&paths[0]);
 }
 
 /// The person's request and the first repository's observed identity and contents.

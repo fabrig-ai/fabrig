@@ -2,31 +2,12 @@
 #[path = "../../../../testing/temper-box-kit/src/configuration.rs"]
 #[expect(dead_code, reason = "these shell tests use the shared startup documents, not the cluster's figures")]
 pub(crate) mod support;
-use core::num::NonZeroU16;
 use serde_json::Value;
 pub(crate) use support::{check_document, demo_document, directories, documents, flags, setup, typed_documents};
 use temper_service::startup::members;
 
 pub(super) fn init_document() -> Box<[u8]> {
-    // protocol/setup/init.md, 2: fixed starting ports and deterministic facts for the reference rendering.
-    let ports = [8367, 8368, 8369, 8370, 8371].map(|port| NonZeroU16::new(port).expect("fixed nonzero port"));
-    let facts = temper_init::Facts {
-        sign_in: true,
-        binary: b"/opt/temper/bin/temper-box",
-        git: Some(b"/usr/bin/git"),
-        claude: Some(b"/usr/bin/claude"),
-        ports: temper_init::Ports { clients: ports[0], webhooks: ports[4] },
-        login: Some(b"person"),
-    };
-    let directories = temper_init::Directories { config: b"/etc/temper", data: b"/var/lib/temper" };
-    let answer = temper_init::files(&facts, &directories, &[0; 32]).expect("init fixture");
-    for file in answer.files {
-        if file.name == b"temper.json" {
-            let temper_init::Content::Bytes { bytes, .. } = file.content else { panic!("document bytes") };
-            return bytes;
-        }
-    }
-    panic!("init writes temper.json")
+    temper_config_shell::init_document(true)
 }
 
 fn row(parent: &str, name: &str) -> Option<&'static members::Member> {

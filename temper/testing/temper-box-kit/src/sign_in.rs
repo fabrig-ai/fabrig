@@ -48,6 +48,7 @@ pub fn configuration(directory: &Path) -> oauth::Peer {
 /// Point an initialized config directory at the issuer and the existing TLS fake.
 #[must_use]
 pub fn patch_configuration(directory: &Path) -> oauth::Peer {
+    temper_agent_fixtures::legacy_init(directory);
     super::own_listener_files(directory);
     let path = directory.join("temper.json");
     let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("init document")).expect("JSON");

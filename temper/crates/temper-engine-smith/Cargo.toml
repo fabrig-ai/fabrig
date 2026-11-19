@@ -41,6 +41,7 @@ smith-domain-run.workspace = true
 smith-domain-session.workspace = true
 
 [dev-dependencies]
+temper-config-shell.workspace = true
 jig-protocol-config-fixtures.workspace = true
 temper-engine-service-stock.workspace = true
 jig-protocol-config.workspace = true

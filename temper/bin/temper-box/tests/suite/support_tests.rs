@@ -4,31 +4,11 @@ use temper_box_kit::cluster_turn as cluster_turn_setup;
 
 #[test]
 fn the_sign_in_fixture_reads_the_initialized_listeners_without_an_llm_member() {
-    use std::num::NonZeroU16;
     let scratch = support::Scratch::startup("sign-in-listeners");
-    let root = scratch.path().as_os_str().as_encoded_bytes();
-    let answer = temper_init::files(
-        &temper_init::Facts {
-            binary: b"/fixture/temper-box",
-            git: None,
-            claude: None,
-            ports: temper_init::Ports {
-                clients: NonZeroU16::new(8367).expect("clients port"),
-                webhooks: NonZeroU16::new(8371).expect("webhooks port"),
-            },
-            login: None,
-            sign_in: false,
-        },
-        &temper_init::Directories { config: root, data: root },
-        &[7; 32],
-    )
-    .expect("init files");
-    let temper_init::Content::Bytes { bytes, .. } =
-        &answer.files.iter().find(|file| file.name == b"temper.json").expect("deployment document").content
-    else {
-        panic!("deployment bytes")
-    };
-    support::write_private(&scratch.path().join("temper.json"), bytes);
+    support::write_private(
+        &scratch.path().join(temper_config_shell::FORMER),
+        &temper_config_shell::init_document(false),
+    );
     let _issuer = support::sign_in::patch_configuration(scratch.path());
     let providers = temper_agent_fixtures::providers::read(scratch.path());
     let issuer = providers["providers"][0]["sources"]["sign_in"]["issuer"].as_str().expect("patched issuer");

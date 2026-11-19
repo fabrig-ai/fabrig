@@ -6,12 +6,7 @@ use serde_json::Value;
 pub mod providers;
 #[must_use]
 pub fn stock(boxed: bool) -> Value {
-    let source = if boxed {
-        include_bytes!("../../../crates/temper-init/template/temper.json").as_slice()
-    } else {
-        include_bytes!("../../../crates/temper-init/template/bare.json").as_slice()
-    };
-    let mut document: Value = serde_json::from_slice(source).expect("init template");
+    let mut document: Value = serde_json::from_slice(&temper_config_shell::init_document(boxed)).expect("init start");
     document["engine"]["clients"]["provider"] = Value::Null;
     let mut agent = given_with(
         &document,
@@ -87,12 +82,70 @@ fn given_values(
     serde_json::from_slice(&bytes).expect("written agent JSON")
 }
 
+/// Resolve a fixture with shared roots, or a split config/data/cache layout.
+#[must_use]
+pub fn directories(directory: &std::path::Path) -> temper_shell::directories::Directories {
+    use std::os::unix::ffi::OsStrExt;
+    let data = data(directory);
+    let cache = if directory.ends_with("config") { directory.with_file_name("cache") } else { directory.into() };
+    let arguments: Vec<Box<[u8]>> = [
+        b"--config".as_slice(),
+        directory.as_os_str().as_bytes(),
+        b"--data",
+        data.as_os_str().as_bytes(),
+        b"--cache",
+        cache.as_os_str().as_bytes(),
+    ]
+    .into_iter()
+    .map(Box::from)
+    .collect();
+    temper_shell::directories::resolve(&arguments, &[], b"/").expect("fixture directories").0
+}
+
+/// Read a fixture's start, deriving it from the file when it came from init.
+#[must_use]
+pub fn start(directory: &std::path::Path) -> Value {
+    let file = directory.join(temper_config_shell::FILE);
+    let bytes = if file.exists() {
+        let dirs = directories(directory);
+        temper_config_shell::read(&dirs, temper_config_shell::Shape::Standalone).expect("init file").document
+    } else {
+        std::fs::read(directory.join(temper_config_shell::FORMER)).expect("fixture start").into()
+    };
+    serde_json::from_slice(&bytes).expect("fixture start document")
+}
+
+/// Transitional adapter for harnesses that edit whole legacy snapshots after
+/// running init. The harness migrations remove it; dedicated init tests keep
+/// the TOML file and never call this adapter.
+pub fn legacy_init(directory: &std::path::Path) {
+    use std::{io::Write, os::unix::fs::OpenOptionsExt};
+    let path = directory.join(temper_config_shell::FILE);
+    if !path.exists() {
+        return;
+    }
+    let dirs = directories(directory);
+    let facts = temper_config_shell::facts(&dirs).expect("fixture facts");
+    let read = temper_config_shell::parse(
+        &std::fs::read(&path).expect("init file"),
+        temper_config_shell::Shape::Standalone,
+        &facts,
+    )
+    .expect("init start");
+    std::fs::remove_file(path).expect("remove init file before selecting the legacy snapshot");
+    let mut snapshot = std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .mode(0o600)
+        .open(directory.join(temper_config_shell::FORMER))
+        .expect("fresh legacy snapshot");
+    snapshot.write_all(&read.document).expect("legacy snapshot bytes");
+}
+
 /// Read the agent's prospective configuration without retaining a configuration-directory agent file.
 #[must_use]
 pub fn read(directory: &std::path::Path) -> Value {
-    let document: Value =
-        serde_json::from_slice(&std::fs::read(directory.join("temper.json")).expect("temper fixture"))
-            .expect("temper JSON");
+    let document = start(directory);
     at(&document, &data(directory))
 }
 #[must_use]
@@ -115,10 +168,12 @@ pub fn data(config: &std::path::Path) -> std::path::PathBuf {
 }
 /// Apply a fixture's agent changes to the engine document and the kind-21 startup copy.
 pub fn install(directory: &std::path::Path, agent: &Value) {
-    let path = directory.join("temper.json");
-    let mut document = serde_json::from_slice(&std::fs::read(&path).expect("temper fixture")).expect("temper JSON");
+    let path = directory.join(temper_config_shell::FORMER);
+    let mut document = start(directory);
     apply(&mut document, &data(directory), agent);
-    std::fs::write(path, serde_json::to_vec_pretty(&document).expect("fixture JSON")).expect("engine fixture");
+    if !directory.join(temper_config_shell::FILE).exists() {
+        std::fs::write(path, serde_json::to_vec_pretty(&document).expect("fixture JSON")).expect("engine fixture");
+    }
 }
 /// Update a fixture already being edited, keeping the store copy beside its data.
 #[expect(

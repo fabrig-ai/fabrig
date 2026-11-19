@@ -235,28 +235,48 @@ pub(crate) fn demo(directory: &Path, program: &Path, bundle: &Path) {
         .output()
         .expect("initialize the demo");
     assert!(initialized.status.success(), "demo init: {}", String::from_utf8_lossy(&initialized.stderr));
-    let path = directory.join("temper.json");
-    let mut value = temper_playground::documents::Configuration::from_jig(
-        serde_json::from_slice(&fs::read(&path).expect("demo deployment")).expect("JSON"),
-    );
-    own_demo_listeners(&mut value);
-    value["application"]["clients"]["bundle"] = serde_json::json!(bundle);
-    private(&path, &serde_json::to_vec(&value).expect("demo JSON"));
+    let path = directory.join(temper_config_shell::FILE);
+    let mut file = read_init(directory).file;
+    own_demo_listeners(&mut file);
+    file.internal.bundle = Some(bundle.into());
+    private(&path, &temper_config_shell::render(&file, temper_config_shell::Shape::Standalone));
 }
 
-/// Reserve both init listeners and move their references in the engine's document together.
-fn own_demo_listeners(value: &mut serde_json::Value) {
-    let sockets = ["/application/clients/listener/socket", "/application/webhooks/listener/socket"].map(|pointer| {
-        value.pointer(pointer).expect("init listener").as_str().expect("socket string").parse().expect("socket")
-    });
-    let addresses = temper_fixtures::ports::addresses::<2>(&sockets);
-    let replacements: Vec<_> =
-        sockets.into_iter().zip(addresses).map(|(before, after)| (before.to_string(), after.to_string())).collect();
-    replace_sockets(value, &replacements);
+pub(crate) fn read_init(directory: &Path) -> temper_config_shell::Read {
+    use std::os::unix::ffi::OsStrExt;
+    let arguments: Vec<Box<[u8]>> = [
+        b"--config".as_slice(),
+        directory.as_os_str().as_bytes(),
+        b"--data",
+        directory.as_os_str().as_bytes(),
+        b"--cache",
+        directory.as_os_str().as_bytes(),
+    ]
+    .into_iter()
+    .map(Box::from)
+    .collect();
+    let (dirs, _) = temper_shell::directories::resolve(&arguments, &[], b"/").expect("demo directories");
+    temper_config_shell::read(&dirs, temper_config_shell::Shape::Standalone).expect("init file")
+}
+
+/// Reserve both init listeners, leaving every other explicit value unchanged.
+fn own_demo_listeners(file: &mut temper_config_shell::File) {
+    let sockets = [
+        file.listen.expect("init listener"),
+        file.webhooks.unwrap_or_else(|| {
+            let mut address = file.listen.expect("init listener");
+            address.set_port(address.port().checked_add(1).expect("init default webhook port"));
+            address
+        }),
+    ];
+    let [listen, webhooks] = temper_fixtures::ports::addresses::<2>(&sockets);
+    file.listen = Some(listen);
+    file.webhooks = Some(webhooks);
 }
 
 /// Replace the turns of exactly one request offered by the demo.
 pub(crate) fn demo_asked(directory: &Path, cue: &str, turns: serde_json::Value) {
+    temper_agent_fixtures::legacy_init(directory);
     let path = directory.join("temper.json");
     let mut value = temper_playground::documents::Configuration::from_jig(
         serde_json::from_slice(&fs::read(&path).expect("demo deployment")).expect("JSON"),
@@ -271,6 +291,7 @@ pub(crate) fn demo_asked(directory: &Path, cue: &str, turns: serde_json::Value) 
 /// jig/docs/design/domain/people/public-reading.md, 7). Its two-second freshness is the walk's subject.
 pub(crate) fn public_demo(directory: &Path, program: &Path, bundle: &Path) {
     demo(directory, program, bundle);
+    temper_agent_fixtures::legacy_init(directory);
     let path = directory.join("temper.json");
     let mut value = temper_playground::documents::Configuration::from_jig(
         serde_json::from_slice(&fs::read(&path).expect("public demo deployment")).expect("JSON"),
@@ -311,37 +332,6 @@ pub(crate) fn public_demo(directory: &Path, program: &Path, bundle: &Path) {
     }
     assert_eq!(delegates, 1, "one CSV delegate becomes a public goal");
     private(&path, &serde_json::to_vec(&value).expect("public demo JSON"));
-}
-
-/// Move socket strings and HTTP origins, preserving URL paths and leaving longer port numbers alone.
-fn replace_sockets(value: &mut serde_json::Value, replacements: &[(String, String)]) {
-    match value {
-        serde_json::Value::String(text) => {
-            for (before, after) in replacements {
-                if text == before {
-                    text.clone_from(after);
-                    break;
-                }
-                if let Some(tail) = text.strip_prefix("http://").and_then(|url| url.strip_prefix(before))
-                    && (tail.is_empty() || tail.starts_with('/'))
-                {
-                    *text = format!("http://{after}{tail}");
-                    break;
-                }
-            }
-        }
-        serde_json::Value::Array(items) => {
-            for item in items {
-                replace_sockets(item, replacements);
-            }
-        }
-        serde_json::Value::Object(items) => {
-            for item in items.values_mut() {
-                replace_sockets(item, replacements);
-            }
-        }
-        serde_json::Value::Null | serde_json::Value::Bool(_) | serde_json::Value::Number(_) => {}
-    }
 }
 
 /// Derive the stock charters and their model bounds from the edited deployment.
@@ -400,25 +390,17 @@ mod tests {
 
     #[test]
     fn demo_reserves_every_init_listener_and_moves_its_references() {
-        use std::num::NonZeroU16;
-        let facts = temper_init::Facts {
-            binary: b"/test/temper",
-            git: Some(b"/usr/bin/git"),
-            claude: None,
-            login: None,
-            sign_in: true,
-            ports: temper_init::Ports {
-                clients: NonZeroU16::new(8367).expect("clients port"),
-                webhooks: NonZeroU16::new(8371).expect("webhooks port"),
-            },
+        let mut file = temper_config_shell::File {
+            listen: Some("127.0.0.1:8367".parse().expect("listen")),
+            webhooks: Some("127.0.0.1:8371".parse().expect("webhooks")),
+            ..Default::default()
         };
-        let directories = temper_init::Directories { config: b"/test/config", data: b"/test/state" };
-        let answer = temper_init::files(&facts, &directories, &[0; 32]).expect("demo init");
-        assert!(!answer.files.iter().any(|file| file.name == b"agent.json"));
-        let file = answer.files.iter().find(|file| file.name == b"temper.json").expect("init file");
-        let temper_init::Content::Bytes { bytes, .. } = &file.content else { panic!("document bytes") };
-        let mut value = serde_json::from_slice(bytes).expect("init JSON");
-        super::own_demo_listeners(&mut value);
+        super::own_demo_listeners(&mut file);
+        let text = temper_config_shell::render(&file, temper_config_shell::Shape::Standalone);
+        let facts = temper_config_shell::Facts { login: "ada".into(), hostname: "fixture".into(), provider_key: true };
+        let read =
+            temper_config_shell::parse(&text, temper_config_shell::Shape::Standalone, &facts).expect("demo file");
+        let value: serde_json::Value = serde_json::from_slice(&read.document).expect("demo start");
         let text = serde_json::to_string(&value).expect("document JSON");
         for port in 8367..=8371 {
             let old = format!("127.0.0.1:{port}");
@@ -434,28 +416,6 @@ mod tests {
         }
         assert!(value["application"].get("machine").is_none());
         assert_eq!(value["engine"]["clients"]["provider"]["clients"], serde_json::json!([]));
-    }
-
-    #[test]
-    fn socket_references_move_only_at_an_origin_boundary() {
-        let mut value = serde_json::json!({"references": [
-            "127.0.0.1:8368",
-            "http://127.0.0.1:8368",
-            "http://127.0.0.1:8368/user/oauth2/temper/callback",
-            "127.0.0.1:83681",
-            "http://127.0.0.1:83681/user/oauth2/temper/callback"
-        ]});
-        super::replace_sockets(&mut value, &[("127.0.0.1:8368".into(), "127.0.0.1:10001".into())]);
-        assert_eq!(
-            value,
-            serde_json::json!({"references": [
-                "127.0.0.1:10001",
-                "http://127.0.0.1:10001",
-                "http://127.0.0.1:10001/user/oauth2/temper/callback",
-                "127.0.0.1:83681",
-                "http://127.0.0.1:83681/user/oauth2/temper/callback"
-            ]})
-        );
     }
 
     #[test]

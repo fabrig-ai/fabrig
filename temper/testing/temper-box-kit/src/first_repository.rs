@@ -6,7 +6,7 @@ use super::{
 };
 use serde_json::{Value, json};
 use skein_fake_llm_domain::api::{Finish, Line, Script, Turn};
-use std::{fs, num::NonZeroU16, os::unix::ffi::OsStrExt, path::Path};
+use std::{fs, os::unix::ffi::OsStrExt, path::Path};
 
 #[must_use]
 pub fn llm(config: &Path) -> CtlLlm {
@@ -112,9 +112,9 @@ pub(super) fn call(name: &[u8], value: &Value) -> Turn {
 /// Price a process story's purse from init's stock run cap.
 #[must_use]
 pub fn run_spend(runs: u64) -> u64 {
-    let bytes = include_bytes!("../../../crates/temper-init/template/bare.json");
+    let bytes = temper_config_shell::init_document(false);
     let document = jig_protocol_config::document(
-        bytes,
+        &bytes,
         &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 65_536, depth: 32 },
     )
     .expect("init document");
@@ -787,17 +787,14 @@ pub fn flags(root: &Path) -> Vec<String> {
     super::configuration::flags(root).into_iter().map(|flag| flag.into_string().expect("scratch UTF-8")).collect()
 }
 pub fn generated(root: &Path) {
-    use temper_init::{Content, Directories, Facts, Ports};
+    use temper_init::{Content, Directories, Facts};
     let addresses = super::free_addresses::<5>(&[]);
-    let ports = addresses.map(|address| NonZeroU16::new(address.port()).expect("ephemeral port"));
     let answer = temper_init::files(
         &Facts {
-            sign_in: false,
             binary: skein_scratch::paths::binary("temper-box").as_os_str().as_bytes(),
             git: Some(b"/usr/bin/git"),
             claude: None,
             login: Some(b"qa-person"),
-            ports: Ports { clients: ports[0], webhooks: ports[4] },
         },
         &Directories { config: root.as_os_str().as_bytes(), data: root.as_os_str().as_bytes() },
         &[7; 32],
@@ -810,6 +807,11 @@ pub fn generated(root: &Path) {
             super::write_private(&path, &bytes);
         }
     }
+    let mut value: Value = serde_json::from_slice(&temper_config_shell::init_document(false)).expect("init start");
+    value["application"]["clients"]["listener"]["socket"] = addresses[0].to_string().into();
+    value["application"]["webhooks"]["listener"]["socket"] = addresses[4].to_string().into();
+    value["engine"]["owners"][0]["subject"] = "qa-person@localhost".into();
+    super::write_private(&root.join(temper_config_shell::FORMER), &serde_json::to_vec(&value).expect("fixture start"));
 }
 pub fn stage_binaries(root: &Path) {
     use skein_forge::forgejo::pin::{RUNNER_VERSION, VERSION};

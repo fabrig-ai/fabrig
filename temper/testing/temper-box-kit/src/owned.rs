@@ -861,19 +861,13 @@ fn merge_profile(value: &mut serde_json::Value, overlay: serde_json::Value) {
 }
 
 fn bounded_template_profile(directory: &Path, room: Option<&[u8]>) -> Bounded {
-    use std::num::NonZeroU16;
-    use temper_init::{Content, Directories, Facts, Ports};
+    use temper_init::{Content, Directories, Facts};
     let answer = temper_init::files(
         &Facts {
-            sign_in: false,
             binary: b"/usr/local/bin/temper",
             git: Some(b"/usr/bin/git"),
             claude: Some(b"/usr/bin/claude"),
             login: Some(b"ada"),
-            ports: Ports {
-                clients: NonZeroU16::new(8367).expect("clients port"),
-                webhooks: NonZeroU16::new(8371).expect("webhooks port"),
-            },
         },
         &Directories { config: directory.as_os_str().as_bytes(), data: directory.as_os_str().as_bytes() },
         &[7; 32],
@@ -889,6 +883,7 @@ fn bounded_template_profile(directory: &Path, room: Option<&[u8]>) -> Bounded {
             Content::Link { .. } => {}
         }
     }
+    super::write_private(&directory.join(temper_config_shell::FORMER), &temper_config_shell::init_document(false));
     if let Some(room) = room {
         let room: serde_json::Value = serde_json::from_slice(room).expect("reference room");
         let mut agent = temper_agent_fixtures::read(directory);

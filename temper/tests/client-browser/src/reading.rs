@@ -119,23 +119,7 @@ mod tests {
     use super::*;
 
     fn demo_deployment() -> serde_json::Value {
-        use std::num::NonZeroU16;
-        let facts = temper_init::Facts {
-            binary: b"/test/temper",
-            git: Some(b"/usr/bin/git"),
-            claude: None,
-            login: None,
-            sign_in: false,
-            ports: temper_init::Ports {
-                clients: NonZeroU16::new(8367).expect("clients port"),
-                webhooks: NonZeroU16::new(8371).expect("webhooks port"),
-            },
-        };
-        let directories = temper_init::Directories { config: b"/test/config", data: b"/test/state" };
-        let answer = temper_init::files(&facts, &directories, &[0; 32]).expect("demo init");
-        let file = answer.files.iter().find(|file| file.name == b"temper.json").expect("deployment file");
-        let temper_init::Content::Bytes { bytes, .. } = &file.content else { panic!("deployment bytes") };
-        serde_json::from_slice(bytes).expect("demo deployment JSON")
+        serde_json::from_slice(&temper_config_shell::init_document(false)).expect("init start")
     }
 
     #[test]

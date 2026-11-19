@@ -8,7 +8,7 @@ mod render;
 pub mod rows;
 mod source;
 
-pub use machine::read;
+pub use machine::{facts, read};
 pub use pages::{help, reference};
 pub use parse::parse;
 pub use render::render;
@@ -122,6 +122,21 @@ pub struct Read {
     pub file: File,
     pub document: Box<[u8]>,
     pub keys: Keys,
+}
+
+/// A deterministic standalone start for shared test harnesses. The file goes
+/// through the same renderer and reader as init's output (file.md, 4 and 7).
+#[must_use]
+pub fn init_document(provider_key: bool) -> Box<[u8]> {
+    let file = File {
+        listen: Some(([127, 0, 0, 1], 8367).into()),
+        webhooks: Some(([127, 0, 0, 1], 8371).into()),
+        ..File::default()
+    };
+    let facts = Facts { login: "ada".into(), hostname: "fixture".into(), provider_key };
+    parse(&render(&file, Shape::Standalone), Shape::Standalone, &facts)
+        .expect("the fixture's init file is valid")
+        .document
 }
 
 pub(crate) const fn binary(shape: Shape) -> &'static str {

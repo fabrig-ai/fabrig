@@ -491,7 +491,19 @@ fn jigs_problems_keep_their_paths_under_engine() {
 fn a_box_without_document_limits_starts_at_the_stock_budget_and_worker_figures() {
     let document = super::stock::generated();
     let agent = fixtures::parsed_agent(fixtures::stock_configuration(63_740, 48_000).unwrap());
-    let mut checked = crate::startup::checked_start_with(
+    let part = crate::startup::box_worker_with_agent(
+        &document,
+        &config::Directories::working(),
+        &crate::stock::Given::Stock,
+        &crate::stock::agents(),
+        4,
+        &[],
+        &agent.declaration(),
+    )
+    .unwrap()
+    .expect("local worker from its default setting");
+    let git = part.limits.git_component;
+    let mut checked = crate::startup::checked_start_with_worker(
         &document,
         &config::Directories::working(),
         &super::stock::files(),
@@ -501,6 +513,7 @@ fn a_box_without_document_limits_starts_at_the_stock_budget_and_worker_figures()
         None,
         &crate::stock::Given::Stock,
         None,
+        Some(part),
     )
     .unwrap();
     let own = checked.engine.limits;
@@ -517,7 +530,7 @@ fn a_box_without_document_limits_starts_at_the_stock_budget_and_worker_figures()
     assert_eq!(settings.jig.limits.as_ref().unwrap().hub.run_calls, 48);
     assert_eq!(prepared.root.checkout, crate::worker_settings::checkout(worker.checkout));
     assert_eq!(prepared.payload, crate::worker_settings::payload_limits(&worker).unwrap());
-    assert_eq!(checked.engine.limits.git_component, stock.git_component);
+    assert_eq!(git, stock.git_component);
 }
 
 #[test]

@@ -188,6 +188,7 @@ fn front_refuses_a_fixed_link_member_before_starting_steps() {
     let initialized = box_link::command(scratch.path(), "init").arg("--box").output().expect("init box");
     assert!(initialized.status.success());
     support::own_listener_files(&scratch.path().join("config"));
+    temper_agent_fixtures::legacy_init(&scratch.path().join("config"));
     let path = scratch.path().join("config/temper.json");
     let mut document: serde_json::Value =
         serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("document");

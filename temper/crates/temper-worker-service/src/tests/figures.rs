@@ -1,8 +1,4 @@
-#![expect(
-    clippy::disallowed_methods,
-    clippy::disallowed_macros,
-    reason = "ordinary tests edit fixture text and inspect diagnostics"
-)]
+#![expect(clippy::disallowed_methods, reason = "ordinary tests edit fixture text and inspect diagnostics")]
 use super::fixtures;
 use crate::{figures, startup};
 use jig_protocol_config as config;
@@ -159,8 +155,7 @@ fn a_short_figure_names_the_engine_scalar_and_keeps_the_check() {
 /// its opening does (configuration/figures.md, 2–3).
 pub(super) fn stock_figures() -> w::Figures {
     use temper_engine_service_startup::{limits, stock};
-    let mut input: serde_json::Value =
-        serde_json::from_slice(include_bytes!("../../../temper-init/template/temper.json")).unwrap();
+    let mut input: serde_json::Value = serde_json::from_slice(&temper_config_shell::init_document(true)).unwrap();
     input["engine"]["clients"]["provider"] = serde_json::Value::Null;
     let input = serde_json::to_vec(&input["engine"]).unwrap();
     let document =

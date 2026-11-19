@@ -88,6 +88,21 @@ impl Io {
         }
         unreachable!("the last listen succeeds or refuses")
     }
+    fn deployment_ports(&mut self, preferred: &[u16]) -> Result<Vec<(Fd, NonZeroU16)>, String> {
+        let clients = self.port(preferred[0])?;
+        let next = clients.1.get().checked_add(1).unwrap_or(0);
+        // Zero asks init to use listen's next port. Tests and fake-backend starts
+        // may explicitly select a different webhook reservation.
+        let webhooks = match self.port(if preferred[1] == 0 { next } else { preferred[1] }) {
+            Ok(pair) => pair,
+            Err(why) => {
+                self.close(clients.0);
+                return Err(why);
+            }
+        };
+        Ok(vec![clients, webhooks])
+    }
+    #[cfg(test)]
     fn ports(&mut self, preferred: &[u16]) -> Result<Vec<(Fd, NonZeroU16)>, String> {
         let mut held = Vec::with_capacity(preferred.len());
         for port in preferred {
@@ -212,7 +227,11 @@ pub(crate) fn write_with_key(
     write_deployment(directories, environment, binary, &preferred, None, true, ProviderKey::Given(key))
 }
 fn check_destinations(directories: &Directories, boxed: bool) -> Result<(), String> {
-    let mut destinations = vec![directories.document(), path(&directories.data).join("worker.secret")];
+    let mut destinations = vec![
+        path(&directories.config).join(temper_config_shell::FILE),
+        path(&directories.config).join(temper_config_shell::FORMER),
+        path(&directories.data).join("worker.secret"),
+    ];
     if boxed {
         destinations.push(path(&directories.data).join("demo/bin/git"));
     }
@@ -241,7 +260,7 @@ fn write_deployment(
         None => find(environment, b"claude"),
     };
     let mut io = Io::open()?;
-    let listeners = io.ports(preferred)?;
+    let listeners = io.deployment_ports(preferred)?;
     let result = (|| {
         let secret = skein_shell::crypto_seed().map_err(|errno| format!("random secret: errno {errno}"))?;
         let directories_facts = temper_init::Directories { config: &directories.config, data: &directories.data };
@@ -249,23 +268,11 @@ fn write_deployment(
         let git = git.as_ref().map(|path| path.as_os_str().as_bytes());
         let claude = claude.as_ref().map(|path| path.as_os_str().as_bytes());
         directories.open(skein_shell::effective_user())?;
-        let no_sign_in = if boxed {
-            let key = path(&directories.data).join("provider.key");
-            provider_key.make_missing(&key, environment).err()
-        } else {
-            None
-        };
+        let mut no_sign_in = None;
         let (files, person, login) = if boxed {
             let login = crate::login(skein_shell::effective_user()).ok();
             let answer = temper_init::files(
-                &temper_init::Facts {
-                    binary,
-                    git,
-                    claude,
-                    login: login.as_deref(),
-                    sign_in: no_sign_in.is_none(),
-                    ports: temper_init::Ports { clients: listeners[0].1, webhooks: listeners[1].1 },
-                },
+                &temper_init::Facts { binary, git, claude, login: login.as_deref() },
                 &directories_facts,
                 secret.expose().try_into().expect("32-byte seed"),
             )
@@ -273,7 +280,7 @@ fn write_deployment(
             (answer.files, answer.person, login)
         } else {
             let files = temper_init::bare(
-                &temper_init::Bare { binary, git, claude, clients: listeners[0].1, webhooks: listeners[1].1 },
+                &temper_init::Bare { binary, git, claude },
                 &directories_facts,
                 secret.expose().try_into().expect("32-byte seed"),
             )
@@ -309,7 +316,20 @@ fn write_deployment(
             };
             result.map_err(|why| format!("{}: {why}", destination.display()))?;
             paths.push(destination);
+            if boxed && file.name == b"worker.secret" {
+                let key = data.join("provider.key");
+                let existed = key.exists();
+                no_sign_in = provider_key.make_missing(&key, environment).err();
+                if !existed && no_sign_in.is_none() {
+                    paths.push(key);
+                }
+            }
         }
+        let file = configuration(listeners[0].1, listeners[1].1);
+        let destination = config.join(temper_config_shell::FILE);
+        io.write(&destination, temper_config_shell::render(&file, temper_config_shell::Shape::Standalone), 0o644)
+            .map_err(|why| format!("{}: {why}", destination.display()))?;
+        paths.push(destination);
         Ok((paths, git.is_none(), person, login, no_sign_in))
     })();
     match result {
@@ -324,13 +344,23 @@ fn write_deployment(
         }
     }
 }
+/// The explicit values init writes; all other values come from the reader.
+pub(crate) fn configuration(clients: NonZeroU16, webhooks: NonZeroU16) -> temper_config_shell::File {
+    let listen = std::net::SocketAddr::from(([127, 0, 0, 1], clients.get()));
+    temper_config_shell::File {
+        listen: Some(listen),
+        webhooks: (clients.get().checked_add(1) != Some(webhooks.get()))
+            .then(|| ([127, 0, 0, 1], webhooks.get()).into()),
+        ..temper_config_shell::File::default()
+    }
+}
 pub(crate) fn core(directories: &Directories, environment: &[crate::EnvironmentEntry]) -> Result<Written, String> {
     let binary = std::env::current_exe().map_err(|why| why.to_string())?;
-    write(directories, environment, &binary, [8367, 8371])
+    write(directories, environment, &binary, [8367, 0])
 }
 pub(crate) fn bare(directories: &Directories, environment: &[crate::EnvironmentEntry]) -> Result<Written, String> {
     let binary = std::env::current_exe().map_err(|why| why.to_string())?;
-    write_bare(directories, environment, &binary, [8367, 8371])
+    write_bare(directories, environment, &binary, [8367, 0])
 }
 pub(crate) fn run(
     directories: &Directories,
@@ -350,7 +380,7 @@ pub(crate) fn run(
         eprintln!("init: no sign-in through temper: {why}");
     }
     if written.missing_git {
-        eprintln!("init: no git on PATH: a real forge's repositories need git 2.41 or later, set as workers[].git");
+        eprintln!("init: no git on PATH: a real forge's repositories need git 2.41 or later, set as [programs] git");
     }
     if let Some(line) = person_line(written.person, written.login.as_deref(), skein_shell::effective_user()) {
         eprintln!("{line}");
@@ -375,10 +405,10 @@ fn person_line(person: temper_init::Person, login: Option<&[u8]>, user: u32) -> 
         temper_init::Person::Found => None,
         temper_init::Person::FellBack => Some(match login {
             Some(login) => format!(
-                "init: {} cannot be a Forgejo login: forge 3's person is person",
+                "init: {} cannot be a Forgejo login: the owned Forgejo's person is person",
                 String::from_utf8_lossy(login)
             ),
-            None => format!("init: uid {user} has no login in /etc/passwd: forge 3's person is person"),
+            None => format!("init: uid {user} has no login in /etc/passwd: the owned Forgejo's person is person"),
         }),
     }
 }

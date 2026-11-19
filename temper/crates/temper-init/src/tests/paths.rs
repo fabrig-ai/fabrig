@@ -1,4 +1,4 @@
-use super::fixtures::{self, DIRECTORIES, content, parse};
+use super::fixtures::{self, DIRECTORIES};
 use crate::{Directories, Fact, Facts, Reason, Refusal, files};
 use alloc::boxed::Box;
 use skein_lib::bytes;
@@ -46,12 +46,9 @@ fn a_fact_is_refused_naming_it() {
             assert_eq!(files(&facts, &directories, &[0; 32]), Err(Refusal { fact, reason }), "{row}: {fact:?}");
         }
     }
-    let config = absolute(4085);
     let data = absolute(4083);
-    for (row, fact, path) in [
-        ("document joined past bound", Fact::Config, config.as_ref()),
-        ("digest joined past bound", Fact::Data, data.as_ref()),
-    ] {
+    {
+        let (row, fact, path) = ("secret joined past bound", Fact::Data, data.as_ref());
         let mut facts = fixtures::facts();
         let mut directories = DIRECTORIES;
         assign(&mut facts, &mut directories, fact, path);
@@ -87,7 +84,7 @@ fn paths_join_once_and_accept_the_bound() {
         files(&facts, &directories, &[0; 32]).expect("4096 bytes is within the bound");
     }
     for (row, config_length, data_length, slash) in
-        [("joined bound", 4084, 4082, false), ("joined bound, trailing slash", 4085, 4083, true)]
+        [("joined bound", 4096, 4082, false), ("joined bound, trailing slash", 4096, 4083, true)]
     {
         let mut config = absolute(config_length);
         let mut data = absolute(data_length);
@@ -97,7 +94,7 @@ fn paths_join_once_and_accept_the_bound() {
         }
         files(&fixtures::facts(), &Directories { config: &config, data: &data }, &[0; 32]).expect(row);
     }
-    // The encoder's worst expansion also fits: six JSON bytes per byte.
+    // Text paths retain their bytes, including control bytes.
     let mut controls = long;
     controls.get_mut(1..).expect("the path has 4096 bytes").fill(1);
     let facts = Facts { binary: &controls, git: Some(&controls), claude: Some(&controls), ..fixtures::facts() };
@@ -106,9 +103,7 @@ fn paths_join_once_and_accept_the_bound() {
     let mut data = absolute(4082);
     data.get_mut(1..).expect("the data directory has 4081 bytes").fill(1);
     let directories = Directories { config: &config, data: &data };
-    let answered = files(&facts, &directories, &[0; 32]).expect("bounded text can use JSON escapes throughout");
-    let document = parse(content(&answered, b"temper.json"));
-    assert!(document["application"].get("workers").is_none());
+    let answered = files(&facts, &directories, &[0; 32]).expect("bounded text paths are accepted");
     let crate::Content::Link { target } = &fixtures::file(&answered.files, b"demo/bin/git").content else {
         panic!("fake git launcher")
     };

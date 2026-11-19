@@ -260,17 +260,18 @@ impl Tier {
         compressed.truncate(length);
         fs::write(path.with_extension("css.gz"), compressed).expect("private compressed stylesheet");
         fs::write(path, css).expect("private stylesheet");
-        let path = tier.scratch.path().join("temper.json");
-        let mut value = temper_playground::documents::Configuration::from_jig(
-            serde_json::from_slice(&fs::read(&path).expect("deployment")).expect("JSON"),
+        let mut file = configuration::read_init(tier.scratch.path()).file;
+        file.internal.bundle = Some(private_bundle);
+        configuration::private(
+            &tier.scratch.path().join(temper_config_shell::FILE),
+            &temper_config_shell::render(&file, temper_config_shell::Shape::Standalone),
         );
-        value["application"]["clients"]["bundle"] = serde_json::json!(private_bundle);
-        configuration::private(&path, &serde_json::to_vec(&value).expect("private bundle JSON"));
         tier.with_replies(&reading::replies())
     }
     /// Script the demo model's replies, with each cue selecting one whole answer.
     #[must_use]
     fn with_replies(self, replies: &[(String, String)]) -> Self {
+        temper_agent_fixtures::legacy_init(self.scratch.path());
         let path = self.scratch.path().join("temper.json");
         let mut value = temper_playground::documents::Configuration::from_jig(
             serde_json::from_slice(&fs::read(&path).expect("deployment")).expect("JSON"),

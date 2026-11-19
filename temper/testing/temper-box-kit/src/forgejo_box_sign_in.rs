@@ -43,6 +43,7 @@ fn story(root: &Path) -> io::Result<()> {
         super::WITHIN,
     );
     success(&initialized);
+    temper_agent_fixtures::legacy_init(root);
     super::own_listener_files(root);
     fixture_bundle(root);
     let path = root.join("temper.json");

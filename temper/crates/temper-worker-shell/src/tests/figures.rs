@@ -6,7 +6,7 @@ use std::{
 };
 fn stock_figures() -> jig_protocol_worker_wire::Figures {
     let input: serde_json::Value =
-        serde_json::from_slice(include_bytes!("../../../temper-init/template/bare.json")).expect("stock document");
+        serde_json::from_slice(&temper_config_shell::init_document(false)).expect("stock document");
     configured_figures(&input)
 }
 fn configured_figures(input: &serde_json::Value) -> jig_protocol_worker_wire::Figures {
@@ -106,8 +106,7 @@ fn the_workers_watchdog_covers_stock_agent_figures_and_a_sixty_minute_tool() {
     use skein_lib::Duration;
     let scratch = skein_scratch::Scratch::new("derived-agent-watchdog");
     let mut input: serde_json::Value =
-        serde_json::from_slice(include_bytes!("../../../temper-init/template/temper.json"))
-            .expect("stock box document");
+        serde_json::from_slice(&temper_config_shell::init_document(true)).expect("stock box document");
     input["engine"]["clients"]["provider"] = serde_json::Value::Null;
     let given = temper_service::stock::Given::Stock.with_providers(
         temper_service::stock::providers(),
@@ -156,7 +155,7 @@ fn the_workers_watchdog_covers_stock_agent_figures_and_a_sixty_minute_tool() {
 #[test]
 fn a_boxs_demo_endpoint_keeps_its_name_and_uses_smiths_openai_provider() {
     let mut input: serde_json::Value =
-        serde_json::from_slice(include_bytes!("../../../temper-init/template/temper.json")).expect("box document");
+        serde_json::from_slice(&temper_config_shell::init_document(true)).expect("box document");
     input["engine"]["clients"]["provider"] = serde_json::Value::Null;
     let given = temper_service::stock::Given::Stock.with_providers(
         temper_service::stock::providers(),

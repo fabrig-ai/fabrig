@@ -9,30 +9,19 @@ fn document(root: &std::path::Path) -> (crate::Directories, serde_json::Value) {
     fs::set_permissions(root, fs::Permissions::from_mode(0o700)).expect("private fixture root");
     let dirs = super::configuration::directories(root);
     let files = temper_init::bare(
-        &temper_init::Bare {
-            binary: b"/fixture/temper-box",
-            git: None,
-            claude: None,
-            clients: core::num::NonZeroU16::new(8367).expect("port"),
-            webhooks: core::num::NonZeroU16::new(8371).expect("port"),
-        },
+        &temper_init::Bare { binary: b"/fixture/temper-box", git: None, claude: None },
         &temper_init::Directories { config: root.as_os_str().as_bytes(), data: root.as_os_str().as_bytes() },
         &[0; 32],
     )
     .expect("init files");
-    let mut document = None;
     for file in files {
         assert_ne!(file.name, b"agent.json");
         let temper_init::Content::Bytes { bytes, .. } = file.content else { panic!("bare bytes") };
-        if file.name == b"temper.json" {
-            document = Some(serde_json::from_slice::<serde_json::Value>(&bytes).expect("init JSON"));
-        } else {
-            let path = root.join(std::ffi::OsStr::from_bytes(file.name));
-            fs::write(&path, bytes).expect("private fixture");
-            fs::set_permissions(path, fs::Permissions::from_mode(0o600)).expect("private");
-        }
+        let path = root.join(std::ffi::OsStr::from_bytes(file.name));
+        fs::write(&path, bytes).expect("private fixture");
+        fs::set_permissions(path, fs::Permissions::from_mode(0o600)).expect("private");
     }
-    let document = document.expect("init document");
+    let document = serde_json::from_slice(&temper_config_shell::init_document(false)).expect("init start");
     let mut providers = temper_service::stock::providers();
     for value in &mut providers {
         value.provider.signed_in_plan = false;

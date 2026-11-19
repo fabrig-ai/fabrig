@@ -613,7 +613,8 @@ fn a_csv_change_passes_ci_and_a_blocking_agent_review_on_the_owned_forge_then_la
         if run == "first" {
             replace_admin_handover(&paths);
         }
-        let wrote = format!("First run: wrote the configuration, {}\n", paths[0].join("temper.json").display());
+        let wrote =
+            format!("First run: wrote the configuration, {}\n", paths[0].join(temper_config_shell::FILE).display());
         assert!(
             !support::boxed::box_log(&paths[1]).contains(&wrote),
             "init wrote the configuration before either box started"
@@ -738,7 +739,8 @@ fn a_persons_plan_change_lands_on_the_owned_forge_and_is_found_after_a_restart()
             evidence.version.expect("live Forgejo")["version"].as_str().expect("version").split('+').next(),
             Some(skein_forge::forgejo::pin::VERSION)
         );
-        let wrote = format!("First run: wrote the configuration, {}\n", paths[0].join("temper.json").display());
+        let wrote =
+            format!("First run: wrote the configuration, {}\n", paths[0].join(temper_config_shell::FILE).display());
         assert!(!support::boxed::box_log(&paths[1]).contains(&wrote), "init wrote configuration before either box");
         assert_cache_untouched(&cached, &sources);
     }
@@ -2429,12 +2431,6 @@ fn a_default_box_with_a_sign_in_registration_starts_without_dns() {
     }
     temper_agent_fixtures::install(&paths[0], &agent);
     // The default registration reaches the sign-in startup resolver.
-    let document_path = paths[0].join("temper.json");
-    let mut document = temper_playground::documents::Configuration::from_jig(
-        serde_json::from_slice(&fs::read(&document_path).expect("default document")).expect("JSON"),
-    );
-    document["workers"][0]["slots"] = 1.into();
-    fs::write(document_path, serde_json::to_vec(&document).expect("sign-in fixture")).expect("registered sign-in");
     // The private network has only loopback. Files-only name lookup and a private /run
     // exclude DNS and host resolver daemons; the demo peers alone use its sockets.
     let script = r#"set -eu

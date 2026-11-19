@@ -26,7 +26,6 @@ pub use table::TABLE;
 pub mod ctl;
 pub mod fake;
 mod fake_backends;
-use fake_backends::json;
 pub mod forge;
 use temper_engine_shell::{address, forge_sign_in};
 use temper_forge_setup_shell::process as forge_exec;
@@ -43,7 +42,7 @@ pub mod setup;
 pub use serve::{operations_in_with_limits, prepare_in_with_inputs_and_limits, prepare_in_with_limits};
 pub use served::Service;
 mod upgrade;
-use json::CONFIG_BYTES;
+const CONFIG_BYTES: u32 = 1 << 20;
 #[cfg(test)]
 pub(crate) use lines as host;
 use temper_shell::directories::{errno, unread};

@@ -29,7 +29,6 @@ fn the_files_are_named_in_order() {
     let expected = [
         ("secret", b"worker.secret".as_slice(), Directory::Data, Some(true)),
         ("demo git", b"demo/bin/git".as_slice(), Directory::Data, None),
-        ("document last", b"temper.json".as_slice(), Directory::Config, Some(false)),
     ];
     assert_eq!(answered.files.len(), expected.len());
     for (actual, (row, name, directory, private)) in answered.files.iter().zip(expected) {
