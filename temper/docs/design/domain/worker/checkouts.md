@@ -70,8 +70,8 @@ runs as contained processes and whose output it parses.
   (`../../protocol/git.md`, 4.13), so a place holds about 75 packs at
   most between two counts. A prepare, a run's or a job's, that would end
   ready asks first, in the spec's order, one `Pack` for each repository
-  whose store or itself is due, naming the store only where it is due and
-  no other held workspace borrows it. Its repository is its own
+  that is due, or whose store is due while no other held workspace
+  borrows it, naming the store only in the second case. Its repository is its own
   workspace's, which no job uses while it prepares; a store another hold
   borrows stays due for a later prepare that finds it free, so that no
   repack runs while a job in any workspace reads the store. A `Pack`'s end,
