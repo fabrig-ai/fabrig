@@ -158,6 +158,7 @@ fn a_landing_ended_before_verification_posts_red_from_the_log_and_files_once_wit
     assert_eq!(
         finding.blame,
         Some(forge_top::FindingBlame {
+            moved: None,
             strength: forge_top::BlameStrength::Owned,
             landings: Box::new([forge_top::BlamedLanding {
                 commit,

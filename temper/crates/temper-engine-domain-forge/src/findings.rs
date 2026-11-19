@@ -156,6 +156,7 @@ impl Domain {
                 signature: None,
                 seen: None,
                 blame: None,
+                repair: None,
                 cleared: None,
             },
             erase,

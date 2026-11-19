@@ -332,6 +332,50 @@ fn an_earlier_finding_defaults_blame_clearing_and_many() {
     assert_eq!(decoded, Stored::Finding(row), "an old finding keeps its signature, without blame or clearing");
 }
 
+#[test]
+fn an_earlier_finding_defaults_repair_and_blame_move() {
+    use super::fixtures;
+    use crate::records;
+    use skein_codec::{
+        layout::{Plan, Workspace},
+        schema,
+    };
+    use temper_engine_domain_forge_vocabulary::{BlameStrength, Stored};
+
+    let family = crate::OWNER_SET.families.iter().find(|family| family.name == "temper-store").expect("store family");
+    let mut before = family.current.to_owned();
+    for field in [" repair: option FindingRepair = none", " moved: option BlameMove = none"] {
+        assert!(before.contains(field));
+        before = before.replacen(field, "", 1);
+    }
+    before = before.replace(
+        "enum BlameStrength { owned, suspected, none, moved }",
+        "enum BlameStrength { owned, suspected, none }",
+    );
+    let old = schema::parse(before.as_bytes()).expect("earlier finding schema");
+    let new = schema::parse(family.current.as_bytes()).expect("current schema");
+    let old_root = old.root(b"Row", Some(b"finding")).expect("earlier finding root");
+    let new_root = new.root(b"Row", Some(b"finding")).expect("current finding root");
+    let write_old = Plan::derive_dropping(&new, new_root, &[], &old, old_root, &[]).expect("drop additions");
+    let mut work = Workspace::new();
+    assert!(work.fit(&write_old));
+    let mut row = fixtures::finding();
+    row.blame.as_mut().expect("blame").strength = BlameStrength::Owned;
+    let mut earlier = skein_lib::Buffer::with_capacity(1_048_576);
+    write_old.convert(&records::encode(&Stored::Finding(row.clone())), &mut earlier, &mut work).expect("earlier bytes");
+    let read_old = Plan::derive(&old, old_root, &[], &new, new_root, &[]).expect("repair and move default to none");
+    assert!(work.fit(&read_old));
+    let mut current = skein_lib::Buffer::with_capacity(1_048_576);
+    read_old.convert(earlier.as_slice(), &mut current, &mut work).expect("default additions");
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("store bounds");
+    row.repair = None;
+    row.blame.as_mut().expect("blame").moved = None;
+    assert!(
+        records::decode(current.as_slice(), &bounds) == Ok(Stored::Finding(row)),
+        "an earlier finding reads with no repair or move"
+    );
+}
+
 fn golden(text: &'static str, name: &str) -> Box<[u8]> {
     skein_codegen::values(text)
         .goldens

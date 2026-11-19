@@ -1,5 +1,5 @@
 //! Findings (temper/docs/design/domain/findings.md, 2, 6, 9; domain/areas.md, 3 to 7;
-//! domain/red-findings.md, 3, 6, 7, 9).
+//! domain/red-findings.md, 3, 6, 7, 9; domain/red-repairs.md, 3, 8).
 use crate::{
     Request,
     settings::{AreaOwner, ProjectAreas},
@@ -72,6 +72,7 @@ pub struct Finding {
     pub seen: Option<u32>,
     pub blame: Option<FindingBlame>,
     pub cleared: Option<FindingCleared>,
+    pub repair: Option<FindingRepair>,
 }
 impl Finding {
     #[must_use]
@@ -92,12 +93,37 @@ impl Finding {
 pub struct FindingBlame {
     pub strength: BlameStrength,
     pub landings: Box<[BlamedLanding]>,
+    pub moved: Option<BlameMove>,
+}
+/// Repair state kept on a finding (domain/red-repairs.md, 8).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct FindingRepair {
+    pub goal: u64,
+    pub made: bool,
+    pub attempts: u8,
+    pub cancelled: bool,
+    pub failing: Box<[Box<[u8]>]>,
+    pub until: Option<Wall>,
+    pub judging: Option<RepairJudging>,
+}
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum RepairJudging {
+    Landing(skein_forge::api::Commit),
+    After(u64),
+    Release,
+}
+/// The author and words of a blame move (domain/red-repairs.md, 3).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct BlameMove {
+    pub by: Filer,
+    pub why: Box<[u8]>,
 }
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum BlameStrength {
     Owned,
     Suspected,
     Unblamed,
+    Moved,
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct BlamedLanding {
@@ -473,9 +499,15 @@ pub(crate) fn signature_bytes(signature: &FindingSignature) -> Option<u64> {
         .checked_add(skein_lib::len_u64(signature.first.len()))?
         .checked_add(crate::tiers::tests_bytes(&signature.ids)?)
 }
+pub(crate) fn repair_bytes(repair: &FindingRepair) -> Option<u64> {
+    crate::tiers::tests_bytes(&repair.failing)
+}
 pub(crate) fn blame_bytes(blame: &FindingBlame) -> Option<u64> {
     let mut held =
         skein_lib::len_u64(blame.landings.len()).checked_mul(u64::try_from(size_of::<BlamedLanding>()).ok()?)?;
+    if let Some(moved) = &blame.moved {
+        held = held.checked_add(skein_lib::len_u64(moved.why.len()))?;
+    }
     for landing in &blame.landings {
         held = held.checked_add(
             skein_lib::len_u64(landing.goals.len()).checked_mul(u64::try_from(size_of::<BlamedGoal>()).ok()?)?,

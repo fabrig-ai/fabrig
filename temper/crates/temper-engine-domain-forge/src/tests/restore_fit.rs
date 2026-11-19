@@ -255,6 +255,7 @@ pub(crate) fn row(kind: RecordKind, number: u32) -> Stored {
             signature: None,
             seen: None,
             blame: None,
+            repair: None,
             cleared: None,
         }),
         RecordKind::Red => Stored::Red(Red {

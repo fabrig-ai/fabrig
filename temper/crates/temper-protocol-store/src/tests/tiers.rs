@@ -460,7 +460,7 @@ fn tier_family_bounds_follow_the_forge_and_full_row_measure() {
     full.unkept = u32::MAX;
     let row = records::encode(&d::Stored::Tier(full));
     assert_eq!(skein_lib::len_u64(row.len()), crate::v25::TierRow::encoded_bound(l).unwrap() + 3);
-    assert_eq!(row.len(), 3_993_742);
+    assert_eq!(row.len(), 3_995_454);
 }
 
 #[test]

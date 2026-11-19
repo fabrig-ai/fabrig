@@ -189,6 +189,10 @@ pub(super) fn encode(row: &d::Finding) -> w::Finding {
             Some(blame) => Some(encode_blame(blame)),
             None => None,
         },
+        repair: match &row.repair {
+            Some(repair) => Some(encode_repair(repair)),
+            None => None,
+        },
         cleared: match row.cleared {
             Some(cleared) => Some(w::FindingCleared { run: cleared.run, at: cleared.at.as_nanos() }),
             None => None,
@@ -215,6 +219,7 @@ pub(super) fn decode(row: w::Finding) -> Result<d::Finding, Undecodable> {
         seen,
         blame,
         cleared,
+        repair,
     } = row;
     if number == 0 || !d::settings::words_fit(&title, 200) || !d::findings::body_fits(&body) {
         return Err(Undecodable::Malformed);
@@ -263,6 +268,10 @@ pub(super) fn decode(row: w::Finding) -> Result<d::Finding, Undecodable> {
             Some(blame) => Some(decode_blame(blame)),
             None => None,
         },
+        repair: match repair {
+            Some(repair) => Some(decode_repair(repair)),
+            None => None,
+        },
         cleared: match cleared {
             Some(cleared) => Some(d::FindingCleared { run: cleared.run, at: Wall::from_nanos(cleared.at) }),
             None => None,
@@ -275,6 +284,7 @@ fn encode_blame(blame: &d::FindingBlame) -> w::FindingBlame {
         d::BlameStrength::Owned => w::BlameStrength::Owned,
         d::BlameStrength::Suspected => w::BlameStrength::Suspected,
         d::BlameStrength::Unblamed => w::BlameStrength::None,
+        d::BlameStrength::Moved => w::BlameStrength::Moved,
     };
     let mut landings = skein_lib::List::with_capacity(256);
     for landing in &blame.landings {
@@ -284,13 +294,18 @@ fn encode_blame(blame: &d::FindingBlame) -> w::FindingBlame {
         }
         landings.push(w::BlamedLanding { commit: landing.commit, goals }).expect(FITS);
     }
-    w::FindingBlame { strength, landings }
+    let moved = match &blame.moved {
+        Some(moved) => Some(w::BlameMove { by: encode_filer(moved.by), why: moved.why.clone() }),
+        None => None,
+    };
+    w::FindingBlame { strength, landings, moved }
 }
 fn decode_blame(blame: w::FindingBlame) -> d::FindingBlame {
     let strength = match blame.strength {
         w::BlameStrength::Owned => d::BlameStrength::Owned,
         w::BlameStrength::Suspected => d::BlameStrength::Suspected,
         w::BlameStrength::None => d::BlameStrength::Unblamed,
+        w::BlameStrength::Moved => d::BlameStrength::Moved,
     };
     let mut landings = skein_lib::List::with_capacity(256);
     for landing in blame.landings.into_boxed() {
@@ -300,7 +315,56 @@ fn decode_blame(blame: w::FindingBlame) -> d::FindingBlame {
         }
         landings.push(d::BlamedLanding { commit: landing.commit, goals: goals.into_boxed() }).expect(FITS);
     }
-    d::FindingBlame { strength, landings: landings.into_boxed() }
+    let moved = match blame.moved {
+        Some(moved) => Some(d::BlameMove { by: decode_filer(moved.by), why: moved.why }),
+        None => None,
+    };
+    d::FindingBlame { strength, landings: landings.into_boxed(), moved }
+}
+
+fn encode_repair(repair: &d::FindingRepair) -> w::FindingRepair {
+    let mut failing = skein_lib::List::with_capacity(d::FindingSignature::IDS);
+    for id in &repair.failing {
+        failing.push(id.clone()).expect(FITS);
+    }
+    let judging = match repair.judging {
+        Some(d::RepairJudging::Landing(commit)) => Some(w::RepairJudging::Landing(w::RepairLanding { commit })),
+        Some(d::RepairJudging::After(goal)) => Some(w::RepairJudging::After(w::RepairAfter { goal })),
+        Some(d::RepairJudging::Release) => Some(w::RepairJudging::Release),
+        None => None,
+    };
+    w::FindingRepair {
+        goal: repair.goal,
+        made: repair.made,
+        attempts: repair.attempts,
+        cancelled: repair.cancelled,
+        failing,
+        until: match repair.until {
+            Some(until) => Some(until.as_nanos()),
+            None => None,
+        },
+        judging,
+    }
+}
+fn decode_repair(repair: w::FindingRepair) -> d::FindingRepair {
+    let judging = match repair.judging {
+        Some(w::RepairJudging::Landing(landing)) => Some(d::RepairJudging::Landing(landing.commit)),
+        Some(w::RepairJudging::After(after)) => Some(d::RepairJudging::After(after.goal)),
+        Some(w::RepairJudging::Release) => Some(d::RepairJudging::Release),
+        None => None,
+    };
+    d::FindingRepair {
+        goal: repair.goal,
+        made: repair.made,
+        attempts: repair.attempts,
+        cancelled: repair.cancelled,
+        failing: repair.failing.into_boxed(),
+        until: match repair.until {
+            Some(until) => Some(Wall::from_nanos(until)),
+            None => None,
+        },
+        judging,
+    }
 }
 
 /// Waiting filings preserve their words and blame without passing through a Finding.

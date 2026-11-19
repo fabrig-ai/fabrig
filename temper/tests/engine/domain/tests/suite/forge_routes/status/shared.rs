@@ -142,6 +142,7 @@ fn shared(project_key: bool) -> Shared {
                 signature: None,
                 seen: None,
                 blame: None,
+                repair: None,
                 cleared: None,
             })),
         });

@@ -806,6 +806,7 @@ fn status_findings_follow_signers_precede_roles_and_trim_from_the_end() {
                     signature: None,
                     seen: None,
                     blame: None,
+                    repair: None,
                     cleared: None,
                 })),
             });

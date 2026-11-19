@@ -87,10 +87,11 @@ pub use drafts::{
     draft_path, drafts_subject,
 };
 pub use findings::{
-    AreaRow, BlameStrength, BlamedGoal, BlamedLanding, CheckFlake, FileFinding, FileFindingAnswer, Filer, Finding,
-    FindingAnswer, FindingBlame, FindingCleared, FindingDone, FindingKind, FindingRefusal, FindingReply, FindingRow,
-    FindingSignature, FindingState, FindingWrite, Findings, HandFinding, HandFindingAnswer, Holder, Severity, Triage,
-    TriageFinding, TriageFindingAnswer, VerdictFiling, findings_subject, owner,
+    AreaRow, BlameMove, BlameStrength, BlamedGoal, BlamedLanding, CheckFlake, FileFinding, FileFindingAnswer, Filer,
+    Finding, FindingAnswer, FindingBlame, FindingCleared, FindingDone, FindingKind, FindingRefusal, FindingRepair,
+    FindingReply, FindingRow, FindingSignature, FindingState, FindingWrite, Findings, HandFinding, HandFindingAnswer,
+    Holder, RepairJudging, Severity, Triage, TriageFinding, TriageFindingAnswer, VerdictFiling, findings_subject,
+    owner,
 };
 pub use follows::{
     FollowAct, FollowCommit, FollowEntry, FollowLag, FollowParity, FollowQuestion, FollowRefusal, FollowRow,
@@ -665,6 +666,9 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
             }
             if let Some(blame) = &row.blame {
                 bytes = bytes.checked_add(findings::blame_bytes(blame)?)?;
+            }
+            if let Some(repair) = &row.repair {
+                bytes = bytes.checked_add(findings::repair_bytes(repair)?)?;
             }
             for field in [&row.area, &row.why, &row.reason].into_iter().flatten() {
                 bytes = bytes.checked_add(skein_lib::len_u64(field.len()))?;

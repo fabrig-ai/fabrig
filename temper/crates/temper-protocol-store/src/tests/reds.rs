@@ -225,6 +225,7 @@ fn finding() -> d::Finding {
         signature: None,
         seen: None,
         blame: None,
+        repair: None,
         cleared: None,
     }
 }
@@ -261,7 +262,7 @@ fn finding_options_have_golden_bytes_validate_signatures_and_charge_their_owned_
         } else {
             b"\0\0"
         };
-        let golden = skein_lib::bytes::concat(&[b"\0\x19\x25", &finding_prefix(), options, b"\0\0"]);
+        let golden = skein_lib::bytes::concat(&[b"\0\x19\x25", &finding_prefix(), options, b"\0\0\0"]);
         let stored = d::Stored::Finding(row.clone());
         assert_eq!(records::encode(&stored), golden);
         assert_eq!(records::decode(&golden, &bounds), Ok(stored));

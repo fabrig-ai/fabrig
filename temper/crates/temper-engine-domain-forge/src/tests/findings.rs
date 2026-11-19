@@ -98,7 +98,7 @@ fn blamed_red(number: u32, state: FindingState) -> Finding {
     row.number = number;
     row.kind = FindingKind::Red;
     row.state = state;
-    row.blame = Some(FindingBlame { strength: BlameStrength::Unblamed, landings: Box::new([]) });
+    row.blame = Some(FindingBlame { moved: None, strength: BlameStrength::Unblamed, landings: Box::new([]) });
     row
 }
 #[test]
@@ -107,7 +107,7 @@ fn uncleared_red_requires_red_kind_blame_and_no_clearing() {
     assert!(row.uncleared_red());
     row.blame = None;
     assert!(!row.uncleared_red());
-    row.blame = Some(FindingBlame { strength: BlameStrength::Owned, landings: Box::new([]) });
+    row.blame = Some(FindingBlame { moved: None, strength: BlameStrength::Owned, landings: Box::new([]) });
     row.cleared = Some(FindingCleared { run: 8, at: Wall::from_nanos(9) });
     assert!(!row.uncleared_red());
     row.cleared = None;

@@ -439,6 +439,7 @@ fn tier_rows(rng: &mut Rng, bounds: &Bounds) {
                 many,
             },
             blame: Some(forge::FindingBlame {
+                moved: None,
                 strength: match rng.below(3) {
                     0 => forge::BlameStrength::Owned,
                     1 => forge::BlameStrength::Suspected,
@@ -762,6 +763,7 @@ fn finding_rows(rng: &mut Rng, bounds: &Bounds) {
             });
         }
         Some(forge::FindingBlame {
+            moved: None,
             strength: match rng.below(3) {
                 0 => forge::BlameStrength::Owned,
                 1 => forge::BlameStrength::Suspected,
@@ -816,6 +818,7 @@ fn finding_rows(rng: &mut Rng, bounds: &Bounds) {
         },
         seen: if rng.below(2) == 0 { None } else { Some(u32::try_from(rng.below(100) + 1).expect("count")) },
         blame,
+        repair: None,
         cleared: if rng.below(2) == 0 {
             None
         } else {

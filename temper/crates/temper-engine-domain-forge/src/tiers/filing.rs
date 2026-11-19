@@ -86,6 +86,7 @@ pub(crate) fn switched(d: &mut Domain, task: u64, verification: &crate::Verifica
         let (held, many_held) = held(d, &row, project);
         if let Some(failures) = remaining(failures, held.as_slice(), many_held) {
             let blame = FindingBlame {
+                moved: None,
                 strength,
                 landings: Box::new([landing(d, &row, verification.commit, &d.landing.limits)]),
             };
@@ -203,6 +204,7 @@ fn prepare(d: &Domain, row: &TierRow, verdict: &p::Verdict, limits: &Limits, log
             p::Blame::Owns(_) => {
                 if let Some(failing) = remaining(failing, held.as_slice(), many_held) {
                     let blame = FindingBlame {
+                        moved: None,
                         strength: BlameStrength::Owned,
                         landings: Box::new([landing(d, row, candidate.commit, limits)]),
                     };
@@ -231,7 +233,7 @@ fn prepare(d: &Domain, row: &TierRow, verdict: &p::Verdict, limits: &Limits, log
     suspected.sort();
     let suspected = if suspect_many { p::Failures::Many } else { p::Failures::Tests(suspected) };
     if let Some(failing) = remaining(&suspected, held.as_slice(), many_held) {
-        let blame = FindingBlame { strength: BlameStrength::Suspected, landings: suspects.into_boxed() };
+        let blame = FindingBlame { moved: None, strength: BlameStrength::Suspected, landings: suspects.into_boxed() };
         filings.rows.push(words::red(d, row, verdict, failing, blame, logs)).expect("one suspected filing");
     }
     let mut excluded = held;
@@ -239,7 +241,7 @@ fn prepare(d: &Domain, row: &TierRow, verdict: &p::Verdict, limits: &Limits, log
         excluded.push(id).expect("held and blamed ids");
     }
     if let Some(failing) = remaining(&verdict.failing, excluded.as_slice(), many_held || blamed_many) {
-        let blame = FindingBlame { strength: BlameStrength::Unblamed, landings: Box::new([]) };
+        let blame = FindingBlame { moved: None, strength: BlameStrength::Unblamed, landings: Box::new([]) };
         filings.rows.push(words::red(d, row, verdict, failing, blame, logs)).expect("one unblamed filing");
     }
     flakes(d, row, verdict, project, &mut filings);
