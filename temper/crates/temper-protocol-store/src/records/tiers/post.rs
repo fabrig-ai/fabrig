@@ -5,60 +5,38 @@ pub(super) fn encode(posting: &d::TierPosting, failing: &p::Failures) -> w::Tier
     let mut landings = List::with_capacity(u32::try_from(posting.landings.len()).expect(FITS));
     for landing in &posting.landings {
         landings
-            .push(
-                w::TierPostedLanding::new(
-                    &w::CEILINGS,
-                    w::TierPostedLandingParts {
-                        commit: landing.commit,
-                        blame: encode_blame(&landing.blame, failing),
-                        change: landing.change,
-                    },
-                )
-                .expect(FITS),
-            )
+            .push(w::TierPostedLanding {
+                commit: landing.commit,
+                blame: encode_blame(&landing.blame, failing),
+                change: landing.change,
+            })
             .expect(FITS);
     }
     let mut comments = List::with_capacity(u32::try_from(posting.comments.len()).expect(FITS));
     for comment in &posting.comments {
         let kind = match comment.kind {
-            d::TierCommentKind::Verdict { at } => w::TierCommentKind::Verdict(
-                w::TierCommentVerdict::new(&w::CEILINGS, w::TierCommentVerdictParts { at }).expect(FITS),
-            ),
-            d::TierCommentKind::Repaired { by } => w::TierCommentKind::Repaired(
-                w::TierCommentRepair::new(&w::CEILINGS, w::TierCommentRepairParts { by }).expect(FITS),
-            ),
+            d::TierCommentKind::Verdict { at } => w::TierCommentKind::Verdict(w::TierCommentVerdict { at }),
+            d::TierCommentKind::Repaired { by } => w::TierCommentKind::Repaired(w::TierCommentRepair { by }),
         };
-        comments
-            .push(
-                w::TierComment::new(
-                    &w::CEILINGS,
-                    w::TierCommentParts { pull: comment.pull, landing: comment.landing, kind },
-                )
-                .expect(FITS),
-            )
-            .expect(FITS);
+        comments.push(w::TierComment { pull: comment.pull, landing: comment.landing, kind }).expect(FITS);
     }
-    w::TierPosting::new(
-        &w::CEILINGS,
-        w::TierPostingParts {
-            number: posting.number,
-            tip: posting.tip,
-            link: posting.link.clone(),
-            status: match posting.check {
-                skein_forge::api::Check::Pending => w::Check::Pending,
-                skein_forge::api::Check::Passed => w::Check::Passed,
-                skein_forge::api::Check::Failed => w::Check::Failed,
-            },
-            description: posting.description.clone(),
-            landings,
-            comments,
-            next: posting.next,
-            entry: posting.entry,
-            part: posting.part,
-            op_bytes: posting.op_bytes,
+    w::TierPosting {
+        number: posting.number,
+        tip: posting.tip,
+        link: posting.link.clone(),
+        status: match posting.check {
+            skein_forge::api::Check::Pending => w::Check::Pending,
+            skein_forge::api::Check::Passed => w::Check::Passed,
+            skein_forge::api::Check::Failed => w::Check::Failed,
         },
-    )
-    .expect(FITS)
+        description: posting.description.clone(),
+        landings,
+        comments,
+        next: posting.next,
+        entry: posting.entry,
+        part: posting.part,
+        op_bytes: posting.op_bytes,
+    }
 }
 fn encode_blame(blame: &p::Blame, failing: &p::Failures) -> w::TierPostedBlame {
     let (tests, suspect) = match blame {
@@ -80,30 +58,30 @@ fn encode_blame(blame: &p::Blame, failing: &p::Failures) -> w::TierPostedBlame {
         }
         positions.push(position.expect("blame belongs to the judged failures")).expect(FITS);
     }
-    let tests = w::TierPostedTests::new(&w::CEILINGS, w::TierPostedTestsParts { tests: positions }).expect(FITS);
+    let tests = w::TierPostedTests { tests: positions };
     if suspect { w::TierPostedBlame::Suspect(tests) } else { w::TierPostedBlame::Owns(tests) }
 }
 pub(super) fn decode(posting: w::TierPosting, failing: &p::Failures) -> Result<d::TierPosting, Undecodable> {
-    let w::TierPostingParts { number, tip, link, status, description, landings, comments, next, entry, part, op_bytes } =
-        posting.into_parts();
+    let w::TierPosting { number, tip, link, status, description, landings, comments, next, entry, part, op_bytes } =
+        posting;
     let mut decoded = List::with_capacity(landings.len());
     for landing in landings.into_boxed() {
-        let w::TierPostedLandingParts { commit, blame, change } = landing.into_parts();
+        let w::TierPostedLanding { commit, blame, change } = landing;
         decoded.push(d::TierPostedLanding { commit, blame: decode_blame(blame, failing)?, change }).expect(FITS);
     }
     let landings = decoded.into_boxed();
     let mut decoded = List::with_capacity(comments.len());
     for comment in comments.into_boxed() {
-        let w::TierCommentParts { pull, landing, kind } = comment.into_parts();
+        let w::TierComment { pull, landing, kind } = comment;
         let kind = match kind {
             w::TierCommentKind::Verdict(value) => {
-                let at = value.into_parts().at;
+                let at = value.at;
                 if landings.get(usize::from(at)).ok_or(Undecodable::Malformed)?.commit != landing {
                     return Err(Undecodable::Malformed);
                 }
                 d::TierCommentKind::Verdict { at }
             }
-            w::TierCommentKind::Repaired(value) => d::TierCommentKind::Repaired { by: value.into_parts().by },
+            w::TierCommentKind::Repaired(value) => d::TierCommentKind::Repaired { by: value.by },
         };
         decoded.push(d::TierComment { pull, landing, kind }).expect(FITS);
     }
@@ -133,9 +111,9 @@ fn decode_blame(blame: w::TierPostedBlame, failing: &p::Failures) -> Result<p::B
         w::TierPostedBlame::Suspect(tests) => (tests, true),
     };
     let p::Failures::Tests(all) = failing else { return Err(Undecodable::Malformed) };
-    let mut decoded = List::with_capacity(tests.tests().len());
+    let mut decoded = List::with_capacity(tests.tests.len());
     let mut previous = None;
-    for at in tests.into_parts().tests.into_boxed() {
+    for at in tests.tests.into_boxed() {
         if previous >= Some(at) {
             return Err(Undecodable::Malformed);
         }

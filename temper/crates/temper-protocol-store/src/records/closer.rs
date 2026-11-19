@@ -19,21 +19,15 @@ fn decode_step(step: w::ClosingStep) -> c::Step {
 }
 fn encode_run(run: Option<c::Running>) -> Option<w::ClosingRun> {
     let run = run?;
-    Some(
-        w::ClosingRun::new(&w::CEILINGS, w::ClosingRunParts { step: encode_step(run.step), change: run.change })
-            .expect(FITS),
-    )
+    Some(w::ClosingRun { step: encode_step(run.step), change: run.change })
 }
 fn decode_run(run: Option<w::ClosingRun>) -> Option<c::Running> {
-    let w::ClosingRunParts { step, change } = run?.into_parts();
+    let w::ClosingRun { step, change } = run?;
     Some(c::Running { step: decode_step(step), change })
 }
 pub(super) fn encode(row: &CloserRow) -> w::Closer {
     let closed = match &row.closer.closed {
-        Some(tasks) => Some(
-            w::ClosingTasks::new(&w::CEILINGS, w::ClosingTasksParts { tasks: List::from_boxed(tasks.clone()) })
-                .expect(FITS),
-        ),
+        Some(tasks) => Some(w::ClosingTasks { tasks: List::from_boxed(tasks.clone()) }),
         None => None,
     };
     let hold = match row.closer.hold {
@@ -48,28 +42,24 @@ pub(super) fn encode(row: &CloserRow) -> w::Closer {
         Some(step) => Some(encode_step(step)),
         None => None,
     };
-    w::Closer::new(
-        &w::CEILINGS,
-        w::CloserParts {
-            task: row.task,
-            goal: row.goal,
-            closed,
-            running: encode_run(row.closer.running),
-            landing: row.closer.landing,
-            hold,
-            retry,
-            making,
-            close_changes: List::from_boxed(row.close_changes.clone()),
-            landing_changes: List::from_boxed(row.landing_changes.clone()),
-            selections: encode_selections(&row.closer.selections),
-            done: row.done,
-            relay: encode_relay(&row.relay),
-        },
-    )
-    .expect(FITS)
+    w::Closer {
+        task: row.task,
+        goal: row.goal,
+        closed,
+        running: encode_run(row.closer.running),
+        landing: row.closer.landing,
+        hold,
+        retry,
+        making,
+        close_changes: List::from_boxed(row.close_changes.clone()),
+        landing_changes: List::from_boxed(row.landing_changes.clone()),
+        selections: encode_selections(&row.closer.selections),
+        done: row.done,
+        relay: encode_relay(&row.relay),
+    }
 }
 pub(super) fn decode(row: w::Closer) -> CloserRow {
-    let w::CloserParts {
+    let w::Closer {
         task,
         goal,
         closed,
@@ -83,9 +73,9 @@ pub(super) fn decode(row: w::Closer) -> CloserRow {
         selections,
         done,
         relay,
-    } = row.into_parts();
+    } = row;
     let closed = match closed {
-        Some(tasks) => Some(tasks.into_parts().tasks.into_boxed()),
+        Some(tasks) => Some(tasks.tasks.into_boxed()),
         None => None,
     };
     let hold = match decode_run(hold) {
@@ -129,27 +119,17 @@ fn encode_relay(relay: &c::relay::Relay) -> Option<w::ClosingRelay> {
         Some(open) => {
             let stands = match &open.stands {
                 Stands::Taken => w::ClosingStands::Taken,
-                Stands::Asked { question, answer } => w::ClosingStands::Asked(
-                    w::ClosingAsked::new(
-                        &w::CEILINGS,
-                        w::ClosingAskedParts { question: *question, answer: answer.clone() },
-                    )
-                    .expect(FITS),
-                ),
+                Stands::Asked { question, answer } => {
+                    w::ClosingStands::Asked(w::ClosingAsked { question: *question, answer: answer.clone() })
+                }
             };
-            Some(
-                w::ClosingQuestion::new(
-                    &w::CEILINGS,
-                    w::ClosingQuestionParts {
-                        asker: open.asker,
-                        number: open.number,
-                        step: encode_step(open.step),
-                        words: open.words.clone(),
-                        stands,
-                    },
-                )
-                .expect(FITS),
-            )
+            Some(w::ClosingQuestion {
+                asker: open.asker,
+                number: open.number,
+                step: encode_step(open.step),
+                words: open.words.clone(),
+                stands,
+            })
         }
     };
     let mut replies = List::with_capacity(u32::try_from(relay.replies.len()).expect(FITS));
@@ -157,34 +137,24 @@ fn encode_relay(relay: &c::relay::Relay) -> Option<w::ClosingRelay> {
         let form = match message.form {
             Form::Words => w::ClosingForm::Words,
             Form::Question => w::ClosingForm::Question,
-            Form::Answer { question } => {
-                w::ClosingForm::Answer(w::Number::new(&w::CEILINGS, w::NumberParts { number: question }).expect(FITS))
-            }
+            Form::Answer { question } => w::ClosingForm::Answer(w::Number { number: question }),
         };
-        replies
-            .push(
-                w::ClosingMessage::new(
-                    &w::CEILINGS,
-                    w::ClosingMessageParts { target: message.target, form, words: message.words.clone() },
-                )
-                .expect(FITS),
-            )
-            .expect(FITS);
+        replies.push(w::ClosingMessage { target: message.target, form, words: message.words.clone() }).expect(FITS);
     }
-    Some(w::ClosingRelay::new(&w::CEILINGS, w::ClosingRelayParts { open, replies }).expect(FITS))
+    Some(w::ClosingRelay { open, replies })
 }
 fn decode_relay(relay: Option<w::ClosingRelay>) -> c::relay::Relay {
     use c::relay::{Form, Message, Question, Relay, Stands};
     let Some(relay) = relay else { return Relay::new() };
-    let w::ClosingRelayParts { open, replies } = relay.into_parts();
+    let w::ClosingRelay { open, replies } = relay;
     let open = match open {
         None => None,
         Some(open) => {
-            let w::ClosingQuestionParts { asker, number, step, words, stands } = open.into_parts();
+            let w::ClosingQuestion { asker, number, step, words, stands } = open;
             let stands = match stands {
                 w::ClosingStands::Taken => Stands::Taken,
                 w::ClosingStands::Asked(asked) => {
-                    let w::ClosingAskedParts { question, answer } = asked.into_parts();
+                    let w::ClosingAsked { question, answer } = asked;
                     Stands::Asked { question, answer }
                 }
             };
@@ -193,11 +163,11 @@ fn decode_relay(relay: Option<w::ClosingRelay>) -> c::relay::Relay {
     };
     let mut messages = List::with_capacity(replies.len());
     for message in replies.into_boxed() {
-        let w::ClosingMessageParts { target, form, words } = message.into_parts();
+        let w::ClosingMessage { target, form, words } = message;
         let form = match form {
             w::ClosingForm::Words => Form::Words,
             w::ClosingForm::Question => Form::Question,
-            w::ClosingForm::Answer(question) => Form::Answer { question: question.into_parts().number },
+            w::ClosingForm::Answer(question) => Form::Answer { question: question.number },
         };
         messages.push(Message { target, form, words }).expect(FITS);
     }
@@ -208,7 +178,7 @@ fn encode_selections(selections: &[c::PullSelection]) -> List<w::ClosingSelectio
     let mut rows = List::with_capacity(u32::try_from(selections.len()).expect(FITS));
     for selection in selections {
         let head = match selection.head {
-            Some(commit) => Some(w::Commit::new(&w::CEILINGS, w::CommitParts { commit }).expect(FITS)),
+            Some(commit) => Some(w::Commit { commit }),
             None => None,
         };
         let progress = match &selection.progress {
@@ -219,19 +189,13 @@ fn encode_selections(selections: &[c::PullSelection]) -> List<w::ClosingSelectio
                 for attempt in attempts {
                     jobs.push(super::answers::encode_job_attempt(attempt)).expect(FITS);
                 }
-                w::ClosingSelectionProgress::Jobs(
-                    w::ClosingJobs::new(&w::CEILINGS, w::ClosingJobsParts { attempts: jobs, next: *next }).expect(FITS),
-                )
+                w::ClosingSelectionProgress::Jobs(w::ClosingJobs { attempts: jobs, next: *next })
             }
-            c::SelectionProgress::Done { line } => w::ClosingSelectionProgress::Done(
-                w::ClosingLine::new(&w::CEILINGS, w::ClosingLineParts { line: line.clone() }).expect(FITS),
-            ),
+            c::SelectionProgress::Done { line } => {
+                w::ClosingSelectionProgress::Done(w::ClosingLine { line: line.clone() })
+            }
         };
-        rows.push(
-            w::ClosingSelection::new(&w::CEILINGS, w::ClosingSelectionParts { pull: selection.pull, head, progress })
-                .expect(FITS),
-        )
-        .expect(FITS);
+        rows.push(w::ClosingSelection { pull: selection.pull, head, progress }).expect(FITS);
     }
     rows
 }
@@ -239,23 +203,23 @@ fn encode_selections(selections: &[c::PullSelection]) -> List<w::ClosingSelectio
 fn decode_selections(selections: List<w::ClosingSelection>) -> Box<[c::PullSelection]> {
     let mut rows = List::with_capacity(selections.len());
     for selection in selections.into_boxed() {
-        let w::ClosingSelectionParts { pull, head, progress } = selection.into_parts();
+        let w::ClosingSelection { pull, head, progress } = selection;
         let head = match head {
-            Some(head) => Some(head.into_parts().commit),
+            Some(head) => Some(head.commit),
             None => None,
         };
         let progress = match progress {
             w::ClosingSelectionProgress::Pull => c::SelectionProgress::Pull,
             w::ClosingSelectionProgress::Checks => c::SelectionProgress::Checks,
             w::ClosingSelectionProgress::Jobs(jobs) => {
-                let w::ClosingJobsParts { attempts, next } = jobs.into_parts();
+                let w::ClosingJobs { attempts, next } = jobs;
                 let mut jobs = List::with_capacity(attempts.len());
                 for attempt in attempts.into_boxed() {
                     jobs.push(super::answers::decode_job_attempt(attempt)).expect(FITS);
                 }
                 c::SelectionProgress::Jobs { attempts: jobs.into_boxed(), next }
             }
-            w::ClosingSelectionProgress::Done(line) => c::SelectionProgress::Done { line: line.into_parts().line },
+            w::ClosingSelectionProgress::Done(line) => c::SelectionProgress::Done { line: line.line },
         };
         rows.push(c::PullSelection { pull, head, progress }).expect(FITS);
     }
