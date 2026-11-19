@@ -52,6 +52,8 @@ pub fn engine() -> settings::Engine {
         host_reply_bytes: None,
         agent_charter_bytes: None,
         setups: Box::new([]),
+        owned_forgejo: None,
+        owned_runner: None,
         test_github: None,
         directories: jig_protocol_config::Directories::working(),
         jig,
@@ -1236,7 +1238,7 @@ pub fn clients() -> crate::clients::Clients {
     .unwrap()
 }
 mod startup;
-pub use startup::{APPLICATION, Json, demo_service, document, files, value, with};
+pub use startup::{APPLICATION, Json, demo_service, document, files, value};
 pub fn forge_runtime() -> skein_lib::List<crate::ForgeRuntime> {
     let mut runtime = skein_lib::List::with_capacity(1);
     runtime

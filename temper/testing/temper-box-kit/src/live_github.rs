@@ -296,10 +296,19 @@ impl Judge<'_> {
         let host = hosts.last_mut().ok_or_else(|| "client".to_owned())?;
         if self.stage == Stage::Llm && self.members.is_up() {
             self.members.prepare("engine");
-            let path = self.members.dir("engine").join("config/temper.json");
+            let path = self.members.dir("engine").join("config").join(temper_config_shell::FILE);
             let mut value = super::limit_settings::configuration(&self.members.dir("engine").join("config"));
             configure_engine(&mut value, &self.inputs.owner, self.relay.api, self.relay.git, self.workers);
-            save(&path, &value)?;
+            let mut file = super::read_file(&path, temper_config_shell::Shape::EngineAlone);
+            file.workers = Some(self.workers);
+            file.test.github = Some(temper_config_shell::TestGitHub {
+                api: self.relay.api.to_string(),
+                transport: temper_config_shell::Transport::Plaintext,
+                remote: format!("http://{}", self.relay.git),
+                web: format!("http://{}", self.relay.git),
+                git: None,
+            });
+            super::write_file(&path, &file, temper_config_shell::Shape::EngineAlone);
             super::limit_settings::remember(&self.members.dir("engine").join("config"), &value);
             save(
                 &self.inputs.scratch.join("landing-settings.json"),

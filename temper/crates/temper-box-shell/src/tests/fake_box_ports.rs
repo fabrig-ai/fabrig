@@ -21,9 +21,12 @@ fn a_fresh_fake_box_writes_none_of_the_persons_preferred_ports() {
     fs::set_permissions(&adapter, fs::Permissions::from_mode(0o700)).expect("executable fixture adapter");
     let prepared = prepare(&source, &Options { bundle: Some(bundle), ..Options::default() }, &adapter, None, &[])
         .expect("fresh fake box");
-    let document: serde_json::Value =
-        serde_json::from_slice(&fs::read(prepared.directories.document()).expect("written deployment"))
-            .expect("deployment JSON");
+    let document: serde_json::Value = serde_json::from_slice(
+        &temper_config_shell::read(&prepared.directories, temper_config_shell::Shape::Standalone)
+            .expect("written file")
+            .document,
+    )
+    .expect("deployment JSON");
     for pointer in ["/application/clients/listener/socket", "/application/webhooks/listener/socket"] {
         let address: SocketAddr = document
             .pointer(pointer)

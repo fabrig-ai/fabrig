@@ -378,6 +378,7 @@ members = [
     "temper/crates/temper-launcher",
     "temper/crates/temper-init",
     "temper/crates/temper-shell",
+    "temper/crates/temper-config-shell",
     "temper/crates/temper-forge-setup-shell",
     "temper/crates/temper-engine-shell",
     "temper/crates/temper-worker-shell",
@@ -760,6 +761,7 @@ temper-client-journeys-kit = { path = "temper/testing/temper-client-journeys-kit
 temper-client-gallery-tool = { path = "temper/crates/temper-client-gallery-tool" }
 temper-client-walk-tool = { path = "temper/crates/temper-client-walk-tool" }
 temper-shell = { path = "temper/crates/temper-shell" }
+temper-config-shell = { path = "temper/crates/temper-config-shell" }
 temper-agent-shell = { path = "temper/crates/temper-agent-shell" }
 temper-client-tui = { path = "temper/crates/temper-client-tui" }
 temper-client-domain = { path = "temper/crates/temper-client-domain" }

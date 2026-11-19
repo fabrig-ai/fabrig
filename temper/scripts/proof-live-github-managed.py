@@ -248,13 +248,14 @@ class Sitting:
         self.retained = False
         self.last_request = None
         self.binary = Path(os.environ['CARGO_TARGET_DIR']) / 'debug/temper-box'
+        self.engine_binary = self.binary.with_name('temper-engine')
         artifacts = [json.loads(line) for line in (self.scratch/'build.jsonl').read_text().splitlines()
                      if line.startswith('{')]
         self.harness = next(row['executable'] for row in artifacts
                             if row.get('reason') == 'compiler-artifact'
                             and row.get('target', {}).get('name') == 'live_github_managed'
                             and row.get('executable'))
-        for attribute, name in (('binary', 'temper'), ('harness', 'managed-relay')):
+        for attribute, name in (('binary', 'temper'), ('engine_binary', 'temper-engine'), ('harness', 'managed-relay')):
             destination = self.scratch/name
             shutil.copyfile(getattr(self, attribute), destination)
             destination.chmod(0o700)
@@ -366,26 +367,27 @@ class Sitting:
         return address
 
     def configure(self, git, web):
-        template = (self.root/'bin/temper-box/tests/fixtures/github/engine.json').read_text()
+        template = (self.root/'bin/temper-box/tests/fixtures/github/engine/temper.toml').read_text()
         for name, value in {'proc.forge.ready.address': self.api, 'proc.llm.ready.address': '127.0.0.1:9',
                             'story.clients': '127.0.0.1:' + str(self.port)}.items():
             template = template.replace('{' + name + '}', value)
-        value = json.loads(template.replace('{{', '{').replace('}}', '}').replace('"acme"', json.dumps(OWNER)))
-        # Ready makes a project with policy 1, as a fresh temper init deployment does.
-        value['engine']['policies'] = value['engine']['projects'].copy()
-        # Deployment roster, seeded project 1, and Ready's new project.
-        value['engine']['limits']['overrides']['people.projects'] = 3
-        value['application']['forges'][0].update({'git': 'http://' + git, 'web': web})
+        # The retained fixture has one GitHub table. Replace its remote and web bases.
+        # JSON's quoted strings are TOML basic strings for these paths and URLs.
+        for key, value in {'remote': 'http://' + git, 'web': web}.items():
+            template, count = re.subn(r'^' + key + r' = .*$',
+                                      lambda _: key + ' = ' + json.dumps(value, ensure_ascii=False),
+                                      template, flags=re.MULTILINE)
+            require(count == 1)
         if self.mode == 'live':
-            value['application']['clients']['bundle'] = str(self.scratch/'bundle')
-        digests = self.scratch/'data/secrets'
-        digests.mkdir(parents=True, mode=0o700)
-        private(digests/'w1.digest', (self.root/'bin/temper-box/tests/fixtures/github/w1.digest').read_bytes())
+            template += '\n[internal]\nbundle = ' + json.dumps(str(self.scratch/'bundle'), ensure_ascii=False) + '\n'
+        data = self.scratch/'data'
+        data.mkdir(mode=0o700)
+        private(data/'limits-held', b'people.projects 3\n')
         directory = self.scratch/'config'
         (directory/'charters').mkdir(parents=True, mode=0o700)
         private(directory/'charters/chat.txt', b'No model calls in this sitting.\n')
-        private(directory/'temper.json', json.dumps(value).encode())
-        server = self.start([str(self.binary), 'serve', '--config', str(directory),
+        private(directory/'temper.toml', template.encode())
+        server = self.start([str(self.engine_binary), 'serve', '--config', str(directory),
                              '--data', str(self.scratch/'data'), '--cache', str(self.scratch/'cache')], 'engine')
         self.engine = server
         link = 'http://' + server.line('http://')

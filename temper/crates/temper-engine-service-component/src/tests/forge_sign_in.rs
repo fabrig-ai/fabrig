@@ -356,8 +356,9 @@ fn a_box_document_starts_and_its_printed_link_supplies_the_persons_verified_clai
     let mut configuration = provider::configuration();
     configuration.provider.addresses = Box::new([1]);
     configuration.provider.clients[0].secret = None;
-    let input = super::stock::generated();
-    let input = fixtures::with(&input, b"engine.clients.provider", br#"{"key":"provider.key","addresses":[1],"clients":[{"id":"forgejo","secret":null,"redirect_uri":"https://forge.example/user/oauth2/temper/callback"}]}"#);
+    let mut input: serde_json::Value = serde_json::from_slice(&super::stock::generated()).unwrap();
+    input["engine"]["clients"]["provider"] = serde_json::json!({"key":"provider.key","addresses":[1_u32],"clients":[{"id":"forgejo","secret":null,"redirect_uri":"https://forge.example/user/oauth2/temper/callback"}]});
+    let input = serde_json::to_vec(&input).unwrap();
     let named =
         crate::startup::named(&fixtures::engine_part(&input), &jig_protocol_config::Directories::working()).unwrap();
     assert!(named.sign_in.is_none());

@@ -35,7 +35,7 @@ Generated from temper's table (`skein/docs/design/runtime/shell.md`, 14.3): a te
 - **Set:** public
 - **Default:** $XDG_CONFIG_HOME/temper
 - **Twin:** `TEMPER_CONFIG`
-- Configuration, including temper.json.
+- Configuration files.
 
 ### `--data DATA`
 

@@ -536,8 +536,11 @@ impl Judge {
         let engine_dir = self.members.prepare("engine");
         let ws_dir = self.members.prepare("ws");
         let mut value = super::limit_settings::configuration(&engine_dir.join("config"));
-        let ws = read_document(&ws_dir.join("config/temper.json"))?;
-        let mut agent = read_document(&ws_dir.join("config/agent.json"))?;
+        let ws = super::start_document(
+            &ws_dir.join("config").join(temper_config_shell::FILE),
+            temper_config_shell::Shape::WorkerAlone,
+        );
+        let mut agent = temper_agent_fixtures::at(&value, &engine_dir.join("data"));
         // With a control listener, the fake's ready line names provider then control.
         let mut addresses = self.members.capture("llm", "address").ok_or("LLM addresses")?.split_whitespace();
         let llm: SocketAddr =
@@ -603,35 +606,25 @@ impl Judge {
         }
         for &name in &self.cast {
             let dir = if name == "ws" { ws_dir.clone() } else { self.members.prepare(name) };
-            let mut worker = read_document(&dir.join("config/temper.json"))?;
+            let path = dir.join("config").join(temper_config_shell::FILE);
+            let mut worker = super::read_file(&path, temper_config_shell::Shape::WorkerAlone);
             if name == "s2" {
-                // Copy keeps the source templates; give the new member its own paths and secret.
-                let source = self.members.dir("s1");
-                worker = serde_json::from_str(
-                    &serde_json::to_string(&worker)
-                        .map_err(|why| format!("worker: {why:?}"))?
-                        .replace(source.to_str().ok_or("source path")?, dir.to_str().ok_or("worker path")?),
-                )
-                .map_err(|why| format!("copied worker: {why:?}"))?;
-                fs::remove_file(dir.join("data/secrets/w2.secret"))
-                    .map_err(|why| format!("remove copied secret: {why:?}"))?;
-                worker["workers"][0]["secret"] = "secrets/s2.secret".into();
-                super::write_private(&dir.join("data/secrets/s2.secret"), secret);
+                // The copy has its own data directory and its own link secret.
+                super::write_private(&dir.join("data/secrets/worker.secret"), secret);
             }
-            let mut shaped = value["workers"][0].clone();
-            // Preserve this member's independent paths and secret, copying only fixture policy.
-            shaped["name"] = name.into();
-            shaped["secret"] = worker["workers"][0]["secret"].clone();
-            shaped["agent"] = worker["workers"][0]["agent"].clone();
-            worker["workers"] = json!([shaped]);
-            worker["application"] = json!({});
+            worker.name = Some(name.into());
+            worker.engine = Some(self.hosts);
             self.members.git_on_path(name, self.git.parent().ok_or("git directory")?);
-            write(&dir.join("config/temper.json"), &worker);
-            write(&dir.join("config/agent.json"), &agent);
+            super::write_file(&path, &worker, temper_config_shell::Shape::WorkerAlone);
         }
         value["workers"] = json!([]);
 
-        write(&engine_dir.join("config/temper.json"), &value);
+        let path = engine_dir.join("config").join(temper_config_shell::FILE);
+        let mut file = super::read_file(&path, temper_config_shell::Shape::EngineAlone);
+        file.workers = Some(self.hosts);
+        file.webhooks = Some("127.0.0.1:0".parse().expect("webhooks"));
+        super::write_file(&path, &file, temper_config_shell::Shape::EngineAlone);
+        temper_agent_fixtures::apply(&mut value, &engine_dir.join("data"), &agent);
         super::limit_settings::remember(&engine_dir.join("config"), &value);
         super::forgejo::bootstrap(&engine_dir.join("config"), &engine_dir.join("data"), &engine_dir.join("cache"));
         seed_forge(&engine_dir.join("data"), forge, &self.admin_token);
@@ -1321,9 +1314,11 @@ impl Judge {
         }
         for &name in &self.cast {
             let dir = self.members.dir(name);
-            let worker = read_document(&dir.join("config/temper.json"))?;
-            let secret = worker["workers"][0]["secret"].as_str().ok_or_else(|| "link secret".to_owned())?;
-            for path in [dir.join("config/temper.json"), dir.join("config/agent.json"), dir.join("data").join(secret)] {
+            for path in [
+                dir.join("config").join(temper_config_shell::FILE),
+                dir.join("data/workspaces/agent/agent.json"),
+                dir.join("data/secrets/worker.secret"),
+            ] {
                 let bytes = fs::read(&path).map_err(|why| format!("worker input: {why:?}"))?;
                 if bytes.windows(token.len()).any(|window| window == token) {
                     return Err(format!("{name}: forge admin token in {}", path.display()));

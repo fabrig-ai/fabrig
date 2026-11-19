@@ -52,6 +52,31 @@ fn workers_arguments_are_distinct_and_modes_exclude_each_other() {
 }
 
 #[test]
+fn agent_fixture_round_trip_keeps_the_engine_file_and_installs_figures() {
+    use temper_config_shell::{FILE, FORMER, Shape, parse, render};
+    let (_scratch, directories) = deployment();
+    let config = crate::path(&directories.config);
+    let path = config.join(FILE);
+    let facts = temper_config_shell::facts(&directories).expect("fixture facts");
+    let read = parse(&std::fs::read(&path).expect("engine file"), Shape::EngineAlone, &facts).expect("engine file");
+    let canonical = render(&read.file, Shape::EngineAlone);
+    let mut formatted = canonical.to_vec();
+    formatted.extend_from_slice(b"\n# fixture formatting\n");
+    std::fs::write(&path, formatted).expect("formatted engine file");
+    let mut agent = temper_agent_fixtures::read(config);
+    agent["profile"]["policy"]["max_turns"] = 17.into();
+    temper_agent_fixtures::install(config, &agent);
+    assert_eq!(std::fs::read(&path).expect("rewritten file"), canonical.as_ref());
+    assert!(!config.join(FORMER).exists());
+    let installed = temper_agent_fixtures::read(config);
+    assert_eq!(installed["profile"]["policy"]["max_turns"], 17);
+    assert_eq!(installed["endpoints"], agent["endpoints"]);
+    let start = temper_agent_fixtures::start(config);
+    assert_eq!(start["workers"], serde_json::json!([]));
+    assert_eq!(start["engine"]["hosts"]["listener"][0]["socket"], "127.0.0.1:7103");
+}
+
+#[test]
 fn deployment_rehearsal_with_accounts_workers_and_forge_reaches_its_report() {
     let (_scratch, directories) = deployment();
     let cache = crate::path(&directories.cache);

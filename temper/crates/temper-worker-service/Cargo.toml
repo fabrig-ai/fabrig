@@ -33,6 +33,7 @@ temper-worker-domain-checkout.workspace = true
 temper-worker-protocol-git.workspace = true
 
 [dev-dependencies]
+temper-config-shell.workspace = true
 temper-worker-shell.workspace = true
 temper-limits-fixtures.workspace = true
 temper-engine-service-startup.workspace = true

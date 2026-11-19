@@ -304,7 +304,7 @@ fn run_with_agent(
             },
         })))
     });
-    host(&mut world, scratch.path(), steps, direct_key, 1, agent);
+    host(&mut world, scratch.path(), steps, direct_key, fixtures::local_places(scratch.path()), agent);
     if let Some(listener) = reservation {
         use std::os::fd::{AsRawFd, IntoRawFd};
         let address = listener.local_addr().expect("issuer address");
@@ -453,15 +453,7 @@ pub(crate) fn run_forge(
             false,
         ))))
     });
-    let document: serde_json::Value =
-        serde_json::from_slice(&std::fs::read(scratch.path().join("temper.json")).expect("configured forge story"))
-            .expect("forge story JSON");
-    let agents = document["workers"]
-        .as_array()
-        .expect("workers")
-        .iter()
-        .map(|worker| u32::try_from(worker["slots"].as_u64().expect("worker slots")).expect("bounded slots"))
-        .sum();
+    let agents = fixtures::local_places(scratch.path());
     host(&mut world, scratch.path(), steps, false, agents, agent::agent);
     world.spawn(|| {
         let (forge, peer) = forge::State::new(fixture);
@@ -510,9 +502,12 @@ pub(crate) fn run_github(
         Proc::new(Kind::Service(Box::new(service)))
     });
     // This story provisions its account explicitly, retaining every ctl output.
-    host(&mut world, scratch.path(), steps, true, 1, agent::agent);
+    let agents = fixtures::local_places(scratch.path());
+    host(&mut world, scratch.path(), steps, true, agents, agent::agent);
     world.spawn(|| Proc::new(Kind::Forge(Box::new(ForgePeer::new(peer)))));
-    world.host_roots(crate::git::route_program(), crate::git::roots);
+    let mut git = crate::git::route_program();
+    git.instances = agents;
+    world.host_roots(git, crate::git::roots);
     world.run(&skein_shell::Clock::new(), patience)
 }
 fn host<R: Referee<Proc>>(
@@ -565,8 +560,10 @@ fn host_agent<R: Referee<Proc>>(
         if path.join("agent.json").exists() { path.join("agent.json") } else { path.join("world-agent.json") };
     let configuration = smith_agent_shell::config::read(&agent_path).expect("agent operation bound");
     if let Some(program) = configuration.program.as_ref() {
+        let mut claude = crate::claude::program(program.path.as_os_str().as_bytes());
+        claude.instances = agents + 1; // A status probe may run beside the conversations.
         world.host_startup(
-            crate::claude::program(program.path.as_os_str().as_bytes()),
+            claude,
             |spawn| {
                 let launch = crate::claude::launch(spawn);
                 smith_fake_claude::config_root(&launch)
@@ -576,7 +573,9 @@ fn host_agent<R: Referee<Proc>>(
             },
             |spawn| smith_fake_claude::observation_append(spawn).into_iter().collect(),
         );
-        world.host(crate::claude::relay(crate::claude::RELAY));
+        let mut relay = crate::claude::relay(crate::claude::RELAY);
+        relay.instances = agents;
+        world.host(relay);
     }
     world.host_roots(
         HostedProgram {

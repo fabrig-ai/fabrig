@@ -64,10 +64,8 @@ pub fn start(scratch: &super::Scratch) -> Throwaway {
 pub fn configure(root: &Path, repository: u64) -> temper_playground::documents::Configuration {
     let mut value = configure_batch(root, repository, 1);
     // The prepare job needs the standard engine profile and room for its result.
-    let path = root.join("temper.json");
     super::batch_landing::message_room(root, &mut value);
     staging_limits(&mut value);
-    write_private(&path, &serde_json::to_vec(&value).expect("configuration JSON"));
     super::limit_settings::remember(root, &value);
     value
 }
@@ -114,7 +112,6 @@ pub fn staging_limits(value: &mut temper_playground::documents::Configuration) {
 
 /// Share the owned turn setup while selecting the story's batch bound.
 pub(super) fn configure_batch(root: &Path, repository: u64, batch: u16) -> temper_playground::documents::Configuration {
-    let path = root.join("temper.json");
     let mut config = super::limit_settings::configuration(root);
     let settings = json!({"items":[
         {"setting":{"kind":"project-landing","project":1},"set":{"by":"turn","batch":batch}},
@@ -150,7 +147,6 @@ pub(super) fn configure_batch(root: &Path, repository: u64, batch: u16) -> tempe
     super::configuration::turn_bounds::apply(&mut config, super::configuration::turn_bounds::turn_body(&agent));
     temper_agent_fixtures::apply(&mut config, root, &agent);
     config.agent_bounds(&temper_agent_fixtures::prepared(root).agent);
-    write_private(&path, &serde_json::to_vec(&config).expect("configuration JSON"));
     super::limit_settings::remember(root, &config);
     let path = root.join("native-landing-settings.json");
     let mut settings: Value =
@@ -195,10 +191,7 @@ pub mod tests {
         };
         super::super::configuration(scratch.path(), &forge);
         super::configure_batch(scratch.path(), 1, 3);
-        let config = temper_playground::documents::Configuration::from_jig(
-            serde_json::from_slice(&std::fs::read(scratch.path().join("temper.json")).expect("configuration"))
-                .expect("configuration JSON"),
-        );
+        let config = super::super::limit_settings::configuration(scratch.path());
         let engine = temper_real_loop_world::settings::configuration(&config);
         let prepare = temper_service::limits::prepare_bound();
         assert!(

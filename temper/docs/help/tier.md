@@ -129,18 +129,18 @@ A tier is a slow check of a branch after changes land on it: each run covers eve
 - **The box's runner:** workflows using `temper-host` execute on the
   host. JavaScript `uses:` actions such as `actions/checkout@v4` and
   `actions/upload-artifact@v3` need compatible Node.js installed there
-  as `node`, on `application.machine.owned.runner.path` (default
+  as `node`, on `--runner-path` at forge preparation (default
   `/usr/local/bin:/usr/bin:/bin`). After changing that configuration,
   restart the box. Node.js only in an interactive shell is insufficient.
 - **Runner capacity:** CI and tiers using `temper-host` share a runner.
-  `application.machine.owned.runner.capacity` defaults to 1:
+  `--runner-capacity` at forge preparation defaults to 1:
   one job at a time, delaying CI and landings. Use
   2 for one single-job tier plus CI, or 3 for two such tiers plus CI.
   Count jobs in multi-job workflows and other repositories too.
   Stop the real-backend box with Ctrl-C or SIGTERM; wait for it to exit.
-  Edit only that setting in `CONFIG/temper.json`, then restart
-  `temper box --config CONFIG --data DATA --cache CACHE` with the same
-  directories. Prepared runners keep their registration and secrets.
+  A forge's place is chosen when it is set up, and kept with the forge,
+  not in `temper.toml`. Keep the same directories; prepared runners keep
+  their registration and secrets.
 - **ctl:** use `change show TASK --until landed` for such a change
   ending at landing. `change show TASK --until cleared` waits for `cleared` or
   ended landed and uncleared; `verifying` and `red` remain pending.

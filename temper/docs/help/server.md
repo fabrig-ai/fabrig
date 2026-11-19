@@ -37,47 +37,51 @@ Binaries are suffixless gzip; keep the checksum layout. Strip
 
 ## 1. Write the engine's configuration
 
-Copy `owned.json` to `CONFIG/temper.json`; change:
+`CONFIG/temper.toml`, from `temper-engine help config`:
 
-- `engine.hosts`: `{"listener":[{"socket":"127.0.0.1:8369"}]}`;
-  `workers`: `[]`, an engine alone;
-- `application.clients`: `listener` `{"socket":"127.0.0.1:8367"}`,
-  `public` `"https://temper.example.com"`;
-  `application.webhooks.listener`: `{"socket":"127.0.0.1:8368"}`;
-- `engine.owners`: `[{"provider":3,"subject":"sam@example.com"}]`;
-  provider 3 is Google's, fixed by temper;
-- `application.sign_in`: `{"google":{"provider":3,"client":
-  "CLIENT_ID","secret":"secrets/google-client.secret","endpoints":
-  null},"members":[{"address":"sam@example.com","login":"sam"}]}`.
+```toml
+# temper's engine. `temper-engine help config` says what each line does.
+# Everything else is changed by asking temper.
 
-Provider 3 owners must be members; edit and restart to add one.
+listen = "127.0.0.1:8367"   # the clients' listener, behind the proxy
+public = "https://temper.example.com"   # where people reach it
+workers = "127.0.0.1:8369"   # where workers connect, on loopback
+owner = "sam@example.com"   # the first owner, read at the first start alone
+webhooks = "127.0.0.1:8368"
 
-For Forgejo sign-in through temper, set
-`engine.clients.provider`: `{"key":"provider.key","clients":[{"id":
-"forgejo","secret":"forgejo-client.secret","redirect_uri":
-"https://git.example.com/user/oauth2/temper/callback"}],"addresses":
-[3]}`, and in `application.sign_in`, `"forges":[{"forge":1,"client":
-"forgejo"}]`. Step 3's forge preparation creates key and secret and prints this command;
-run once after step 4:
+[sign_in.google]
+client = "CLIENT_ID"
+secret = "secrets/google-client.secret"   # in the data directory, mode 0600
+
+[[sign_in.members]]   # one for each member
+address = "sam@example.com"
+login = "sam"
+```
+
+Google owners must be members; edit and restart to add one.
+
+Forgejo sign-in: `[openid]` with `key = "provider.key"`
+and `addresses = [3]`; add `[[openid.clients]]` with `id = "forgejo"`,
+`secret = "forgejo-client.secret"` and
+`redirect = "https://git.example.com/user/oauth2/temper/callback"`.
+`[[sign_in.forges]]`: `forge = 1`, `client = "forgejo"`.
+Step 3 creates key and secret, prints this command; run once after step 4:
 
 ```
 temper-engine forge sign-in --config CONFIG --data DATA --cache CACHE 1
 ```
 
-`engine.memory_bytes` budgets held transcripts/turns, not process memory
-(example: 1 GiB, `1073741824`). At the bound, due tasks await earlier turns'
-saves, even after restart. `0` alone refuses start:
-`engine.memory_bytes: past its bound` (temper help configuration).
+Held transcripts/turns, not process memory: `transcript_memory` in
+`temper-limits` (1 GiB: `1073741824`). At the bound, due tasks await
+earlier turns' saves, even after restart. Read: `temper ctl settings show`; apply: `temper ctl settings apply`.
 
-More runs: `temper ctl DIR worker places w1 PLACES --key KEY`;
-keep the worker's `workers[0].slots` at least that large. Places apply at
-its next start, from its engine's figures. Set engine limits;
-starts name short ones. Each slot is an agent process, up to `agents`'
-`declared.memory`.
+More runs: `temper ctl DIR worker places w1 PLACES --key KEY`.
+Places are the worker setting's, taken at next opening from engine figures. Engine limits: `limits`; starts name short ones. Each place is an agent
+process, up to `agents`' `declared.memory`.
 
-Expect: valid JSON; not running yet.
+Expect: valid TOML; not running.
 
-If not: step 3 names refused members.
+If not: step 3 names bad keys.
 
 ## 2. Keep the secrets
 
@@ -87,11 +91,11 @@ As `temper`, enter Google's client secret without echo, chat or copying:
 sudo -u temper bash -c 'umask 077; mkdir -p DATA/secrets; IFS= read -rsp "Google client secret: " s; echo; printf %s "$s" > DATA/secrets/google-client.secret; unset s'
 ```
 
-On `worker`, make data's `secrets/w1.secret`; copy SHA-256 of its digits
+On `worker`, make data's `secrets/worker.secret`; copy SHA-256 of its digits
 without the line end for the engine's worker setting:
 
 ```
-umask 077; s=$(od -An -N32 -tx1 /dev/urandom | tr -d ' \n'); printf '%s\n' "$s" > secrets/w1.secret; printf %s "$s" | sha256sum | cut -d' ' -f1 > w1.digest; unset s
+umask 077; s=$(od -An -N32 -tx1 /dev/urandom | tr -d ' \n'); printf '%s\n' "$s" > secrets/worker.secret; printf %s "$s" | sha256sum | cut -d' ' -f1 > w1.digest; unset s
 ```
 
 After engine sign-in, add without restart:
@@ -131,7 +135,7 @@ TOTAL bytes`, nothing if present, and exits 0. `run` prints Forgejo's
 output; `serve` prints its sign-in link,
 `https://temper.example.com/jig/v1/sign-in/link?secret=` and its
 secret, and on stderr `listening clients 127.0.0.1:8367`.
-With `application.sign_in.forges` on a new store, `serve`'s stderr says
+With `[[sign_in.forges]]` on a new store, `serve`'s stderr says
 `temper-engine serve: forge 1: no sign-in through temper-engine: no such forge is kept`
 until step 6 connects it.
 
@@ -178,25 +182,30 @@ If not: 502: engine down or listening elsewhere; read its journal.
   and `10.88.0.1:3000` to the same ports on 127.0.0.1, with
   `FreeBind=yes`, admitted from `10.88.0.5` alone; on `worker`,
   `127.0.0.1:8369` and `127.0.0.1:3000` to `10.88.0.1`.
-- `temper-worker serve`: three dirs. Example's `workers[0]`:
-  `engine` `{"socket":"127.0.0.1:8369"}`, `name` `"w1"`,
-  `secret` `"secrets/w1.secret"`; top-level only `workers` and
-  `application`. Remove
-  `application.workers`, worker `limits` and `agent`,
-  `application.limits` and config's `agent.json`: refused as moved.
-  Each start: fetch engine figures, apply limits, write private
-  `ROOT/agent/agent.json`, runs executable sibling `temper-agent`.
-  No `claude` member: worker PATH's `claude`, else fetched.
+- Worker `CONFIG/temper.toml` (`temper-worker help config`):
+
+```toml
+# temper's worker. `temper-worker help config` says what each line does.
+
+engine = "127.0.0.1:8369"   # where its engine listens for workers
+name = "w1"   # the name its engine knows it by, if not the host's
+
+[environment]   # one line for each variable
+PATH = "/usr/bin:/bin"
+```
+
+  Secret: data's `secrets/worker.secret`. No worker
+  `limits`, `agent` or configuration `agent.json`: starts fetch engine
+  figures, apply limits, write private `ROOT/agent/agent.json`, and run
+  sibling `temper-agent`. No `claude` member: worker PATH's `claude`, else
+  fetched; `[programs]` can name its absolute path.
   Step 3 unit: `KillMode=control-group` (no agent or command outlives it),
   `TimeoutStopSec=360s`: its 326-second stop bound plus 34 seconds.
   Raise this timeout with the worker's bound.
   `ReadWritePaths` its home; without `PrivateTmp=yes`, Claude Code fails
   `EROFS: read-only file system, mkdir '/tmp/claude-UID'`.
-  `application.environment`: optional list, not a map; unique names:
-  `[{"name":"PATH","value":"/usr/bin:/bin"}]` (temper help box).
-  Absent: the worker's own `HOME` and `PATH`. A list gives exactly
-  its entries, with the worker's own `HOME` and `PATH` added where it omits
-  them; no other process variables.
+  `[environment]`: optional table of strings; unique names (temper help box).
+  Absent: the worker's own `HOME` and `PATH`. Otherwise: exactly its entries, with the worker's own `HOME` and `PATH` added where it omits them; no other process variables.
 - Forgejo runner 13.2.1: separate user, `url` `http://127.0.0.1:3000`,
   `uuid`/secret: `DATA/forge-1/runner/`; rootless podman jobs.
 
@@ -208,9 +217,8 @@ Expect: stderr: `figures taken from ENGINE: P places, L limits, E endpoints`,
 then `linked w1` and engine address; Forgejo site administration: runner online.
 
 If not: short limits refuse before listening, naming limit, setting and
-required size: `engine.limits.overrides.core.policy_bytes:
-core.policy_bytes is 100; the stock's policy 1 needs 2390 bytes; raise
-it in engine.limits.overrides`; raise it and restart.
+required size: `core.policy_bytes` in `limits` needs enough bytes for the stock policy;
+raise that setting with `temper ctl settings apply` and restart.
 
 For `out of tries: run failures`, read the engine's journal,
 `temper-engine serve: task TASK run RUN attempt ATTEMPT failed CLASS: DETAIL`:
@@ -244,7 +252,7 @@ temper ctl DIR forge list --until connected:1
 
 Keep `DATA/forge-1/admin_token` for redeploy's connect.
 
-Expect: `party 1 · sam · ` and the first `engine.owners` party's name.
+Expect: `party 1 · sam · ` and the first `owner`'s party name.
 `connecting`; the wait prints forges, `1` `managed`, then `met`.
 The page's `temper-forge-sign-in` meta needs a kept `forge connect`
 record. If a fresh page lacks it, restart once to make it from that record.
