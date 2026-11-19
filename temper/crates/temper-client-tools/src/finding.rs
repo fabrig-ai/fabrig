@@ -253,8 +253,17 @@ fn reference(call: &Call, me: &c::Me) -> Result<(u32, u32), &'static [u8]> {
     }
 }
 pub(crate) fn subject(project: u32, state: Option<w::FindingState>, mine: bool) -> Watchable {
-    let subject =
-        w::FindingsSubject::new(&w::CEILINGS, w::FindingsSubjectParts { project, state, mine }).expect("subject");
+    let subject = w::FindingsSubject::new(
+        &w::CEILINGS,
+        w::FindingsSubjectParts {
+            project,
+            filter: w::FindingsFilter::Triage(
+                w::FindingsTriage::new(&w::CEILINGS, w::FindingsTriageParts { state: state.clone(), mine })
+                    .expect("triage filter"),
+            ),
+        },
+    )
+    .expect("subject");
     let watching =
         w::Watching::new(&w::CEILINGS, w::WatchingParts { watch: w::Watch::Findings(subject) }).expect("watch");
     Watchable::Family {

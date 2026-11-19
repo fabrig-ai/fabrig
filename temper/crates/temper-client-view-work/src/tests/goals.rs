@@ -968,6 +968,7 @@ fn each_filter_groups_only_its_shown_goals_at_the_first_goal() {
             ended: None,
             last_landing: None,
             spent: 0,
+            reds: 0,
         },
     )
     .unwrap();

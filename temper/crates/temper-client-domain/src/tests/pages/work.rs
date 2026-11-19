@@ -1304,6 +1304,7 @@ fn busy_live_goals_use_the_same_milestone_as_goals_groups() {
                 ended: None,
                 last_landing: None,
                 spent: 0,
+                reds: 0,
             },
         )
         .unwrap(),

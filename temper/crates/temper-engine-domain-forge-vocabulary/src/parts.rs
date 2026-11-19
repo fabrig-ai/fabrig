@@ -79,6 +79,7 @@ pub fn totals(value: &MilestoneTotals, limits: &w::Limits) -> Option<w::Mileston
             },
             last_landing,
             spent: value.spent,
+            reds: value.reds,
         },
     )
     .ok()

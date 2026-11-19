@@ -285,6 +285,7 @@ impl Project {
                         ended: ended.then_some(RECENT),
                         last_landing: None,
                         spent: 31,
+                        reds: 0,
                     },
                 )
                 .expect("totals");

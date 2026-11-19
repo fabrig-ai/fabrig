@@ -681,6 +681,9 @@ fn finding() -> temper_client_protocol_wire::v1::Findings {
             hander: Some(w::Filer::Task(
                 w::HolderTask::new(b, w::HolderTaskParts { number: 55 }).expect("finding sample within wire bounds"),
             )),
+            goal: None,
+            reason: None,
+            cleared: None,
         },
     )
     .expect("finding sample within wire bounds");

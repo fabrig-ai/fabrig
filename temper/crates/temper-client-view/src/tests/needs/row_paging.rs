@@ -173,11 +173,18 @@ fn settle(root: &mut d::Domain, out: &mut Queue<d::Request>) -> u32 {
                             &w::CEILINGS,
                             w::FindingsParts {
                                 project: subject.project(),
-                                rows: List::from_boxed(if subject.project() == f::PROJECT && !subject.mine() {
-                                    f::groups::bugs()
-                                } else {
-                                    Box::default()
-                                }),
+                                rows: List::from_boxed(
+                                    if subject.project() == f::PROJECT
+                                        && !(match subject.filter() {
+                                            w::FindingsFilter::Triage(filter) => filter.mine(),
+                                            w::FindingsFilter::Goal(_) | w::FindingsFilter::Milestone(_) => false,
+                                        })
+                                    {
+                                        f::groups::bugs()
+                                    } else {
+                                        Box::default()
+                                    },
+                                ),
                                 areas: List::with_capacity(0),
                                 triager: None,
                                 holder: w::Holder::Party(

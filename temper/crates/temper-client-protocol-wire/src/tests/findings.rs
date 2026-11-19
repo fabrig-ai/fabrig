@@ -122,7 +122,16 @@ fn finding_requests_subjects_and_reads_round_trip_with_bounded_words() {
                     watch: v1::Watch::Findings(
                         v1::FindingsSubject::new(
                             limits,
-                            v1::FindingsSubjectParts { project: 3, state: state.clone(), mine },
+                            v1::FindingsSubjectParts {
+                                project: 3,
+                                filter: v1::FindingsFilter::Triage(
+                                    v1::FindingsTriage::new(
+                                        limits,
+                                        v1::FindingsTriageParts { state: state.clone(), mine },
+                                    )
+                                    .expect("triage filter"),
+                                ),
+                            },
                         )
                         .unwrap(),
                     ),
@@ -151,6 +160,15 @@ fn row() -> v1::FindingRow {
     v1::FindingRow::new(
         &v1::CEILINGS,
         v1::FindingRowParts {
+            goal: Some(820),
+            reason: Some(filled(400)),
+            cleared: Some(
+                v1::FindingClearing::new(
+                    &v1::CEILINGS,
+                    v1::FindingClearingParts { tier: b"slow".as_slice().into(), run: 19, at: 23 },
+                )
+                .unwrap(),
+            ),
             number: u32::MAX,
             kind: v1::FindingKind::Feedback,
             severity: v1::Severity::High,
@@ -166,6 +184,31 @@ fn row() -> v1::FindingRow {
         },
     )
     .unwrap()
+}
+fn blame() -> v1::FindingBlame {
+    let limits = &v1::CEILINGS;
+    let mut landings = List::with_capacity(2);
+    for (commit, goal, milestone, person) in [([1; 32], 820, Some(812), Some(4)), ([2; 32], 821, None, None)] {
+        let mut goals = List::with_capacity(1);
+        goals.push(v1::BlamedGoal::new(limits, v1::BlamedGoalParts { goal, milestone, person }).unwrap()).unwrap();
+        landings.push(v1::BlamedLanding::new(limits, v1::BlamedLandingParts { commit, goals }).unwrap()).unwrap();
+    }
+    v1::FindingBlame::new(limits, v1::FindingBlameParts { strength: v1::BlameStrength::Owned, landings }).unwrap()
+}
+
+#[test]
+fn goal_and_milestone_findings_subjects_round_trip() {
+    let limits = &v1::CEILINGS;
+    for filter in [
+        v1::FindingsFilter::Goal(v1::FindingsGoal::new(limits, v1::FindingsGoalParts { goal: 820 }).unwrap()),
+        v1::FindingsFilter::Milestone(
+            v1::FindingsMilestone::new(limits, v1::FindingsMilestoneParts { milestone: 812 }).unwrap(),
+        ),
+    ] {
+        let subject = v1::FindingsSubject::new(limits, v1::FindingsSubjectParts { project: 3, filter }).unwrap();
+        let watching = v1::Watching::new(limits, v1::WatchingParts { watch: v1::Watch::Findings(subject) }).unwrap();
+        assert_eq!(crate::decode_watching(&crate::watching(&watching), limits), Some(watching));
+    }
 }
 fn owner() -> v1::AreaOwner {
     v1::AreaOwner::Charter(v1::AreaCharter::new(&v1::CEILINGS, v1::AreaCharterParts { number: u32::MAX }).unwrap())
@@ -237,7 +280,7 @@ fn findings_documents_and_details_round_trip_at_their_caps() {
     }
     for result in [
         v1::FindingResult::NoFinding,
-        v1::FindingResult::Finding(
+        v1::FindingResult::Finding(Box::new(
             v1::FindingDetail::new(
                 limits,
                 v1::FindingDetailParts {
@@ -246,12 +289,11 @@ fn findings_documents_and_details_round_trip_at_their_caps() {
                     filer: v1::Filer::Task(
                         v1::HolderTask::new(limits, v1::HolderTaskParts { number: u64::MAX }).unwrap(),
                     ),
-                    goal: Some(u64::MAX),
-                    reason: Some(filled(400)),
+                    blame: Some(blame()),
                 },
             )
             .unwrap(),
-        ),
+        )),
     ] {
         let answer = v1::FindingAnswer::new(limits, v1::FindingAnswerParts { result }).unwrap();
         assert_eq!(crate::decode_finding_answer(&crate::finding_answer(&answer), limits), Some(answer));

@@ -269,7 +269,8 @@ fn a_red_meets_the_triager_and_prover_then_clears() {
     call(&mut world, &prover_run, 308, b"finding", input.as_bytes());
     assert_eq!(engine::finding_holder(&world.root, 1, Some(b"tests")), forge_top::Holder::Task(prover.task));
     tiers::sign_in(&mut world);
-    let subject = forge_top::findings_subject(1, None, false);
+    let subject =
+        forge_top::findings_subject(1, forge_top::FindingsFilter::Triage { state: None, mine: false }).unwrap();
     let document = world.oracle_document(world.signed_in.expect("owner"), 1, subject).expect("findings subject");
     let forge_top::Document::Findings(document) = document else { panic!("findings document") };
     let [row] = document.rows.as_ref() else { panic!("one finding") };
@@ -279,7 +280,7 @@ fn a_red_meets_the_triager_and_prover_then_clears() {
     let answer = call(&mut world, &prover_run, 3081, b"finding", input.as_bytes());
     let engine::CallAnswer::Finding(answer) = answer else { panic!("dropped finding") };
     let engine::FindingToolAnswer::Show { finding: Some(shown), .. } = *answer else { panic!("finding detail") };
-    assert_eq!(shown.reason.as_deref(), Some(reason.as_bytes()));
+    assert_eq!(shown.row.reason.as_deref(), Some(reason.as_bytes()));
     let answer = call(&mut world, &prover_run, 309, b"finding", br#"{"act":"list","state":"new","mine":true}"#);
     let engine::CallAnswer::Finding(answer) = answer else { panic!("mine") };
     let engine::FindingToolAnswer::List(list) = *answer else { panic!("mine list") };

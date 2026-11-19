@@ -171,6 +171,7 @@ fn milestone_encoding_keeps_a_sixteen_goal_prefix_within_its_bytes() {
         ended: None,
         last_landing: None,
         spent: 0,
+        reds: 0,
     };
     let goals = vec![(line.clone(), None); 17];
     let encoded =

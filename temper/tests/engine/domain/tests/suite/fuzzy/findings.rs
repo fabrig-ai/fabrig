@@ -77,7 +77,7 @@ fn check(
     sent: &mut Vec<(u64, u64, Box<[u8]>)>,
     before_save: Option<&forge::Findings>,
 ) {
-    let doc = engine::findings_document(&driver.root, 1, 1, None, false);
+    let doc = engine::findings_document(&driver.root, 1, 1, forge::FindingsFilter::Triage { state: None, mine: false });
     let mut numbers = BTreeSet::new();
     for row in &doc.rows {
         assert!(numbers.insert(row.number), "a finding has one row and one holder");
@@ -133,7 +133,7 @@ fn check(
             let number: u32 = address.split(' ').next().expect("number").parse().expect("decimal finding number");
             let finding = engine::finding_read(&driver.root, 1, number).expect("news names a finding");
             if address.contains(" for you:") {
-                assert_eq!(finding.goal, Some(task.number));
+                assert_eq!(finding.row.goal, Some(task.number));
             } else {
                 assert_eq!(finding.row.holder, forge::Holder::Task(task.number), "news uses the rule in that step");
             }
@@ -213,7 +213,9 @@ fn run(seed: u64) -> Replay {
             _ => s::AreaOwner::Charter(1),
         };
         let step = rng.below(9);
-        let before_save = (step == 0 || step == 1).then(|| engine::findings_document(&driver.root, 1, 1, None, false));
+        let before_save = (step == 0 || step == 1).then(|| {
+            engine::findings_document(&driver.root, 1, 1, forge::FindingsFilter::Triage { state: None, mine: false })
+        });
         match step {
             0 => f::settings(
                 &mut driver,
@@ -243,7 +245,12 @@ fn run(seed: u64) -> Replay {
                 );
             }
             _ => {
-                let doc = engine::findings_document(&driver.root, 1, 1, None, false);
+                let doc = engine::findings_document(
+                    &driver.root,
+                    1,
+                    1,
+                    forge::FindingsFilter::Triage { state: None, mine: false },
+                );
                 if !doc.rows.is_empty() {
                     let row = &doc.rows[usize::try_from(rng.below(u64::try_from(doc.rows.len()).expect("row count")))
                         .expect("row index")];
@@ -271,7 +278,7 @@ fn run(seed: u64) -> Replay {
         }
         check(&driver, &mut heard, &mut sent, before_save.as_ref());
     }
-    let doc = engine::findings_document(&driver.root, 1, 1, None, false);
+    let doc = engine::findings_document(&driver.root, 1, 1, forge::FindingsFilter::Triage { state: None, mine: false });
     Replay {
         findings: doc
             .rows

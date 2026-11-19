@@ -173,6 +173,7 @@ fn milestone_parts_translate_goal_lines_and_count_undecodable_lines_as_more() {
             ended: None,
             last_landing: None,
             spent: 40,
+            reds: 0,
         },
     )
     .unwrap();
@@ -255,6 +256,7 @@ fn totals_answers_require_the_family_and_complete_versioned_bytes() {
                         .unwrap(),
                 ),
                 spent: 100,
+                reds: 0,
             },
         )
         .unwrap(),

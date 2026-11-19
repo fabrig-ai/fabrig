@@ -887,7 +887,17 @@ fn ended_page(rows: &[c::TaskLine]) -> c::ReadValue {
 fn milestone_totals(done: u32, failed: u32, live: u32) -> w::MilestoneTotals {
     w::MilestoneTotals::new(
         &w::CEILINGS,
-        w::MilestoneTotalsParts { task: M, done, failed, live, closed: 0, spent: 212, ended: None, last_landing: None },
+        w::MilestoneTotalsParts {
+            task: M,
+            done,
+            failed,
+            live,
+            closed: 0,
+            spent: 212,
+            ended: None,
+            last_landing: None,
+            reds: 0,
+        },
     )
     .unwrap()
 }

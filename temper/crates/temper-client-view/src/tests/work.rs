@@ -503,6 +503,7 @@ impl TurningWork {
                 ended: None,
                 last_landing: None,
                 spent: 0,
+                reds: 0,
             },
         )
         .unwrap();

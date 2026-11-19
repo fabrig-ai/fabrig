@@ -4861,10 +4861,26 @@ fn finding_row_pair() -> (forge::FindingRow, w::FindingRow) {
             at: skein_lib::Wall::from_nanos(91),
             why: Some(b"owns boot".as_slice().into()),
             hander: Some(forge::Filer::Task(42)),
+            goal: Some(820),
+            reason: Some(b"duplicate".as_slice().into()),
+            cleared: Some(forge::FindingClearing {
+                tier: b"slow".as_slice().into(),
+                run: 17,
+                at: skein_lib::Wall::from_nanos(19),
+            }),
         },
         w::FindingRow::new(
             &w::CEILINGS,
             w::FindingRowParts {
+                goal: Some(820),
+                reason: Some(b"duplicate".as_slice().into()),
+                cleared: Some(
+                    w::FindingClearing::new(
+                        &w::CEILINGS,
+                        w::FindingClearingParts { tier: b"slow".as_slice().into(), run: 17, at: 19 },
+                    )
+                    .unwrap(),
+                ),
                 number: 27,
                 kind: w::FindingKind::Red,
                 severity: w::Severity::Medium,
@@ -4883,6 +4899,10 @@ fn finding_row_pair() -> (forge::FindingRow, w::FindingRow) {
     )
 }
 #[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one boundary scenario keeps the findings filters, scope and document together"
+)]
 fn findings_watches_are_project_scoped_and_documents_keep_the_rows() {
     for (state, expected_state) in [
         (None, None),
@@ -4898,7 +4918,16 @@ fn findings_watches_are_project_scoped_and_documents_keep_the_rows() {
                     watch: w::Watch::Findings(
                         w::FindingsSubject::new(
                             &w::CEILINGS,
-                            w::FindingsSubjectParts { project: 3, state: state.clone(), mine },
+                            w::FindingsSubjectParts {
+                                project: 3,
+                                filter: w::FindingsFilter::Triage(
+                                    w::FindingsTriage::new(
+                                        &w::CEILINGS,
+                                        w::FindingsTriageParts { state: state.clone(), mine },
+                                    )
+                                    .expect("triage filter"),
+                                ),
+                            },
                         )
                         .unwrap(),
                     ),
@@ -4919,10 +4948,53 @@ fn findings_watches_are_project_scoped_and_documents_keep_the_rows() {
                 jig_domain_core::documents::Watched::Application {
                     scope: people::ApplicationScope::Project(3),
                     connector: wire::FORGE,
-                    subject: Token::new(forge::findings_subject(3, expected_state, mine))
+                    subject: Token::new(
+                        forge::findings_subject(3, forge::FindingsFilter::Triage { state: expected_state, mine })
+                            .unwrap()
+                    )
                 }
             );
         }
+    }
+    for (filter, expected_key) in [
+        (
+            w::FindingsFilter::Goal(w::FindingsGoal::new(&w::CEILINGS, w::FindingsGoalParts { goal: 820 }).unwrap()),
+            (1_u64 << 62_u32) | (1 << 41_u32) | 0x0334,
+        ),
+        (
+            w::FindingsFilter::Milestone(
+                w::FindingsMilestone::new(&w::CEILINGS, w::FindingsMilestoneParts { milestone: 812 }).unwrap(),
+            ),
+            (1_u64 << 62_u32) | (1 << 42_u32) | 0x032c,
+        ),
+        (
+            w::FindingsFilter::Goal(
+                w::FindingsGoal::new(&w::CEILINGS, w::FindingsGoalParts { goal: 1 << 41 }).unwrap(),
+            ),
+            u64::MAX,
+        ),
+        (
+            w::FindingsFilter::Milestone(
+                w::FindingsMilestone::new(&w::CEILINGS, w::FindingsMilestoneParts { milestone: u64::MAX }).unwrap(),
+            ),
+            u64::MAX,
+        ),
+    ] {
+        let subject = w::FindingsSubject::new(&w::CEILINGS, w::FindingsSubjectParts { project: 3, filter }).unwrap();
+        let watching = w::Watching::new(&w::CEILINGS, w::WatchingParts { watch: w::Watch::Findings(subject) }).unwrap();
+        let root::Event::Party(root::PartyInput::Watch { subject, .. }) =
+            away_family(watch_exchange(wire::FORGE, wire::CLIENT_VERSION, wire::watching(&watching)))
+        else {
+            panic!("findings watch")
+        };
+        assert_eq!(
+            subject,
+            jig_domain_core::documents::Watched::Application {
+                scope: people::ApplicationScope::Project(3),
+                connector: wire::FORGE,
+                subject: Token::new(expected_key)
+            }
+        );
     }
     let (row, expected_row) = finding_row_pair();
     let document = forge::Findings {
@@ -4974,7 +5046,44 @@ fn findings_watches_are_project_scoped_and_documents_keep_the_rows() {
 #[path = "milestones.rs"]
 mod milestones;
 
+fn finding_blame_pair(
+    strength: Option<forge::BlameStrength>,
+) -> (Option<forge::FindingBlame>, Option<w::FindingBlame>) {
+    let Some(strength) = strength else { return (None, None) };
+    let expected_strength = match strength {
+        forge::BlameStrength::Owned => w::BlameStrength::Owned,
+        forge::BlameStrength::Suspected => w::BlameStrength::Suspected,
+        forge::BlameStrength::Unblamed => w::BlameStrength::Unblamed,
+    };
+    let mut landings = List::with_capacity(2);
+    let mut expected_landings = List::with_capacity(2);
+    for (commit, goal, milestone, person) in [([1; 32], 820, Some(812), Some(4)), ([2; 32], 821, None, None)] {
+        landings
+            .push(forge::BlamedLanding { commit, goals: Box::new([forge::BlamedGoal { goal, milestone, person }]) })
+            .unwrap();
+        let mut goals = List::with_capacity(1);
+        goals.push(w::BlamedGoal::new(&w::CEILINGS, w::BlamedGoalParts { goal, milestone, person }).unwrap()).unwrap();
+        expected_landings
+            .push(w::BlamedLanding::new(&w::CEILINGS, w::BlamedLandingParts { commit, goals }).unwrap())
+            .unwrap();
+    }
+    (
+        Some(forge::FindingBlame { strength, landings: landings.into_boxed() }),
+        Some(
+            w::FindingBlame::new(
+                &w::CEILINGS,
+                w::FindingBlameParts { strength: expected_strength, landings: expected_landings },
+            )
+            .unwrap(),
+        ),
+    )
+}
+
 #[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one finding read scenario keeps its scope, blame, detail and absence together"
+)]
 fn finding_reads_keep_their_scope_detail_and_absence() {
     let reading = w::Reading::new(
         &w::CEILINGS,
@@ -5012,15 +5121,20 @@ fn finding_reads_keep_their_scope_detail_and_absence() {
             w::Filer::Party(w::HolderParty::new(&w::CEILINGS, w::HolderPartyParts { number: 19 }).unwrap()),
         ),
     ] {
-        for (goal, reason) in [(None, None), (Some(51), Some(repeated(b'r', 400)))] {
+        for strength in [
+            None,
+            Some(forge::BlameStrength::Owned),
+            Some(forge::BlameStrength::Suspected),
+            Some(forge::BlameStrength::Unblamed),
+        ] {
             let (row, expected_row) = finding_row_pair();
+            let (blame, expected_blame) = finding_blame_pair(strength);
             let bytes = family::forge_read(
                 root::ForgeReadAnswer::Finding(Some(forge::FindingAnswer {
                     row,
                     body: repeated(b'b', 4096),
                     filer,
-                    goal,
-                    reason: reason.clone(),
+                    blame,
                 })),
                 b"",
                 &w::CEILINGS,
@@ -5028,22 +5142,21 @@ fn finding_reads_keep_their_scope_detail_and_absence() {
             .unwrap();
             let answer = wire::decode_finding_answer(&bytes, &w::CEILINGS).unwrap();
             let w::FindingResult::Finding(detail) = answer.result() else { panic!("finding detail") };
-            assert_eq!(detail.goal(), &goal);
+            assert_eq!(detail.row().goal(), &Some(820));
             assert_eq!(
                 answer.into_parts().result,
-                w::FindingResult::Finding(
+                w::FindingResult::Finding(Box::new(
                     w::FindingDetail::new(
                         &w::CEILINGS,
                         w::FindingDetailParts {
                             row: expected_row,
                             body: repeated(b'b', 4096),
                             filer: expected.clone(),
-                            goal,
-                            reason
+                            blame: expected_blame,
                         }
                     )
                     .unwrap()
-                )
+                ))
             );
         }
     }

@@ -640,6 +640,9 @@ fn finding_root_with(count: u32, kind: temper_client_protocol_wire::v1::FindingK
                             hander: Some(w::Filer::Task(
                                 w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number: 55 }).unwrap(),
                             )),
+                            goal: None,
+                            reason: None,
+                            cleared: None,
                         },
                     )
                     .unwrap()

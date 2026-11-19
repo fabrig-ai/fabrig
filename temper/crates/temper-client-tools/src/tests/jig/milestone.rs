@@ -290,6 +290,7 @@ fn totals(ended: bool) -> w::MilestoneResult {
                     .unwrap(),
                 ),
                 spent: 212,
+                reds: 0,
             },
         )
         .unwrap(),

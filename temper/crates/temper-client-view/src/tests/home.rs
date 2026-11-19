@@ -2318,6 +2318,7 @@ fn home_groups_milestones_counts_goals_and_names_their_dependencies() {
             ended: None,
             last_landing: None,
             spent: 0,
+            reds: 0,
         },
     )
     .unwrap();
@@ -2546,6 +2547,7 @@ fn home_draws_the_same_when_unchanged_reads_answer_in_turns() {
                 ended: None,
                 last_landing: None,
                 spent: 0,
+                reds: 0,
             },
         )
         .unwrap(),
@@ -3614,6 +3616,9 @@ fn finding_home(address: Address, counts: [u32; 3], cut: bool, question: bool, a
                                     holder: holder.clone(),
                                     why: None,
                                     hander: None,
+                                    goal: None,
+                                    reason: None,
+                                    cleared: None,
                                 },
                             )
                             .unwrap(),

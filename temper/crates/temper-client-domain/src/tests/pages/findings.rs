@@ -80,8 +80,9 @@ fn setup_watches_with(
         {
             let watching = wire::decode_watching(&record.bytes, &w::CEILINGS).unwrap();
             if let w::Watch::Findings(subject) = watching.watch() {
-                assert_eq!(subject.state(), &Some(w::FindingState::New));
-                assert!(subject.mine());
+                let w::FindingsFilter::Triage(filter) = subject.filter() else { panic!("triage watch") };
+                assert_eq!(filter.state(), &Some(w::FindingState::New));
+                assert!(filter.mine());
                 watches.push((subject.project(), *watch)).unwrap();
             }
             if let w::Watch::Decided(subject) = watching.watch() {
@@ -109,6 +110,9 @@ fn row(number: u32, at: u64) -> w::FindingRow {
             ),
             why: Some(b"Your area owns the view".as_slice().into()),
             hander: Some(w::Filer::Task(w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number: 55 }).unwrap())),
+            goal: None,
+            reason: None,
+            cleared: None,
         },
     )
     .unwrap()
@@ -557,10 +561,11 @@ fn open_findings(out: &Queue<Request>) -> Option<Token> {
                 },
         } = request
             && let w::Watch::Findings(subject) = wire::decode_watching(&record.bytes, &w::CEILINGS).unwrap().watch()
-            && !subject.mine()
+            && let w::FindingsFilter::Triage(filter) = subject.filter()
+            && !filter.mine()
         {
             assert_eq!(subject.project(), 2);
-            assert_eq!(subject.state(), &Some(w::FindingState::New));
+            assert_eq!(filter.state(), &Some(w::FindingState::New));
             assert!(found.is_none(), "one open findings watch per project");
             found = Some(*watch);
         }

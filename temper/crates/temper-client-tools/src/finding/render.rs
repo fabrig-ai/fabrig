@@ -132,12 +132,12 @@ fn show_text(project: u32, detail: &w::FindingDetail, out: &mut Text) {
         out.put(why);
         out.put(b"\n");
     }
-    if let Some(goal) = detail.goal() {
+    if let Some(goal) = detail.row().goal() {
         out.put(b"goal: task ");
         out.number(*goal);
         out.put(b"\n");
     }
-    if let Some(reason) = detail.reason() {
+    if let Some(reason) = detail.row().reason() {
         out.put(b"dropped: ");
         out.put(reason);
         out.put(b"\n");
@@ -402,12 +402,12 @@ fn show_json(project: u32, detail: &w::FindingDetail, out: &mut Encoder) {
     }
     out.object_end();
     out.key(b"goal");
-    match detail.goal() {
+    match detail.row().goal() {
         Some(goal) => out.unsigned(*goal),
         None => out.null(),
     }
     out.key(b"reason");
-    optional(detail.reason().as_deref(), out);
+    optional(detail.row().reason().as_deref(), out);
     out.object_end();
 }
 fn acted_json(pending: &Pending, held: Option<&w::Holder>, out: &mut Encoder) {

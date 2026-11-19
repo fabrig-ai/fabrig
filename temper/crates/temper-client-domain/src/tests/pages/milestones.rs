@@ -112,7 +112,17 @@ fn closed(task: u64) -> c::TaskLine {
 fn totals(done: u32, failed: u32, live: u32) -> w::MilestoneTotals {
     w::MilestoneTotals::new(
         &w::CEILINGS,
-        w::MilestoneTotalsParts { task: M, done, failed, live, closed: 50, ended: None, last_landing: None, spent: 0 },
+        w::MilestoneTotalsParts {
+            task: M,
+            done,
+            failed,
+            live,
+            closed: 50,
+            ended: None,
+            last_landing: None,
+            spent: 0,
+            reds: 0,
+        },
     )
     .unwrap()
 }
@@ -1076,6 +1086,7 @@ fn a_milestone_page_keeps_its_document_totals_ended_rows_and_line_until_answers(
             ended: None,
             last_landing: None,
             spent: 0,
+            reds: 0,
         },
     )
     .unwrap();

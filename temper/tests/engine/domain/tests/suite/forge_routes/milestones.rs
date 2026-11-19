@@ -32,6 +32,9 @@ fn created(outcome: &people::Outcome) -> u64 {
     *first
 }
 pub(super) fn milestone(world: &mut World, words: &[u8]) -> u64 {
+    milestone_with_budget(world, 180, words, 400)
+}
+pub(super) fn milestone_with_budget(world: &mut World, key: u8, words: &[u8], budget: u64) -> u64 {
     let people::Ask::Create { project, mut batch } = world.chat(1, words) else { panic!("creation") };
     let member = &mut batch[0];
     member.executor =
@@ -41,8 +44,8 @@ pub(super) fn milestone(world: &mut World, words: &[u8]) -> u64 {
     member.tracked = Some(1);
     member.label = 4;
     member.authority.delegation.depth = 3;
-    member.budget = people::Budget::AsAllowed { cap: Some(400) };
-    created(&ask(world, 180, people::Ask::Create { project, batch }))
+    member.budget = people::Budget::AsAllowed { cap: Some(budget) };
+    created(&ask(world, key, people::Ask::Create { project, batch }))
 }
 fn stored(world: &World, task: u64) -> &forge_top::MilestoneRow {
     let Some(Record::Forge { row }) = world.store.rows.get(&Key::Forge(forge_top::Key::Milestone(task))) else {
@@ -59,6 +62,16 @@ fn goal(world: &mut World, milestone: u64, own_branch: bool) -> engine::Assignme
     goal_with_words(world, milestone, own_branch, b"Make a small fix on my branch")
 }
 pub(super) fn goal_with_words(world: &mut World, milestone: u64, own_branch: bool, words: &[u8]) -> engine::Assignment {
+    goal_with_budget(world, 181, milestone, own_branch, words, 300)
+}
+pub(super) fn goal_with_budget(
+    world: &mut World,
+    key: u8,
+    milestone: u64,
+    own_branch: bool,
+    words: &[u8],
+    budget: u64,
+) -> engine::Assignment {
     let people::Ask::Create { project, mut batch } = goal_branch::goal_request(world, true) else { panic!("goal") };
     if !own_branch {
         batch[0].symbols = Box::new([]);
@@ -66,8 +79,8 @@ pub(super) fn goal_with_words(world: &mut World, milestone: u64, own_branch: boo
     batch[0].words = words.into();
     batch[0].authority.delegation.depth = 2;
     batch[0].authority.delegation.tasks = 10;
-    batch[0].budget = people::Budget::AsAllowed { cap: Some(300) };
-    let task = created(&ask(world, 181, people::Ask::Delegate { project, task: milestone, batch }));
+    batch[0].budget = people::Budget::AsAllowed { cap: Some(budget) };
+    let task = created(&ask(world, key, people::Ask::Delegate { project, task: milestone, batch }));
     world.assigned.iter().find(|run| run.task == task).expect("goal assigned").clone()
 }
 fn world() -> World {

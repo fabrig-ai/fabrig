@@ -1,5 +1,6 @@
 //! The owner chain and bounded retained findings (domain/areas.md, 4; findings.md, 9).
 use super::*;
+use crate::findings::findings_filter;
 use crate::settings::{Area, AreaOwner, ProjectAreas};
 
 #[test]
@@ -23,6 +24,108 @@ fn the_owner_chain_uses_standing_then_triager_then_project_owners() {
     assert_eq!(owner(Some(b"tests"), &areas, Some(AreaOwner::Party(8)), &[]), Holder::Role(0));
     assert_eq!(owner(None, &areas, Some(AreaOwner::Role(9)), &[]), Holder::Role(9));
 }
+#[test]
+fn findings_filter_keys_are_bounded_invertible_and_apart_from_other_subjects() {
+    let goal = FindingsFilter::Goal(820);
+    let milestone = FindingsFilter::Milestone(812);
+    assert_eq!(findings_subject(3, goal), Some((1_u64 << 62_u32) | (1 << 41_u32) | 0x0334));
+    assert_eq!(findings_subject(3, milestone), Some((1_u64 << 62_u32) | (1 << 42_u32) | 0x032c));
+    for project in [1, u32::MAX] {
+        let mut keys = skein_lib::List::uncapped();
+        for filter in [
+            goal,
+            milestone,
+            FindingsFilter::Goal(0),
+            FindingsFilter::Milestone(0),
+            FindingsFilter::Goal((1_u64 << 41_u32) - 1),
+            FindingsFilter::Milestone((1_u64 << 41_u32) - 1),
+        ] {
+            let key = findings_subject(project, filter).unwrap();
+            assert_eq!(findings_filter(key, project), Some(filter));
+            assert_eq!(findings_filter(key, 2), Some(filter), "task numbers are deployment-wide");
+            assert!(!keys.as_slice().contains(&key));
+            keys.push(key).unwrap();
+        }
+        for (state, code) in [
+            (None, 0_u64),
+            (Some(FindingState::New), 1),
+            (Some(FindingState::Routed), 2),
+            (Some(FindingState::Backlog), 3),
+            (Some(FindingState::Dropped), 4),
+        ] {
+            for mine in [false, true] {
+                let filter = FindingsFilter::Triage { state, mine };
+                let key = findings_subject(project, filter).unwrap();
+                assert_eq!(
+                    key,
+                    (1_u64 << 59_u32) | (code << 33_u32) | (u64::from(mine) << 32_u32) | u64::from(project)
+                );
+                assert_eq!(findings_filter(key, project), Some(filter));
+                assert_eq!(findings_filter(key, 2), None);
+                assert!(!keys.as_slice().contains(&key));
+                keys.push(key).unwrap();
+            }
+        }
+        for other in [
+            0,
+            820,
+            812,
+            (1_u64 << 63_u32) | 0x0334,
+            AWAY_SUBJECT,
+            DEVICES_SUBJECT,
+            DISMISSED_SUBJECT,
+            APPROVALS_SUBJECT,
+            decided_subject(project),
+            drafts_subject(project),
+            status_subject(project),
+            changes_subject(project),
+            landings_subject(project, false),
+            landings_subject(project, true),
+            follows_subject(project),
+            temper_engine_domain_trials::TRIALS_SUBJECT,
+            temper_engine_domain_ways::subject(project),
+        ] {
+            assert!(!keys.as_slice().contains(&other), "collision with {other:x}");
+            assert_eq!(findings_filter(other, project), None);
+        }
+    }
+    for number in [1_u64 << 41_u32, (1_u64 << 41_u32) + 1, u64::MAX] {
+        assert_eq!(findings_subject(3, FindingsFilter::Goal(number)), None);
+        assert_eq!(findings_subject(3, FindingsFilter::Milestone(number)), None);
+    }
+    assert_eq!(findings_filter(u64::MAX, 3), None);
+    assert_eq!(findings_filter((1_u64 << 62_u32) | (1 << 41_u32) | (1 << 42_u32), 3), None);
+}
+
+#[test]
+fn finding_rows_keep_routing_drops_and_clearing_with_or_without_a_signature() {
+    let mut row = blamed_red(1, FindingState::Dropped);
+    row.goal = Some(820);
+    row.reason = Some(b"duplicate".as_slice().into());
+    row.cleared = Some(FindingCleared { run: 17, at: Wall::from_nanos(19) });
+    for source in [None, Some(b"slow".as_slice())] {
+        row.signature = match source {
+            Some(source) => Some(FindingSignature {
+                repository: REPO,
+                source: source.into(),
+                ids: Box::new([b"a::one".as_slice().into()]),
+                first: Box::new([]),
+                many: false,
+            }),
+            None => None,
+        };
+        let got = row.row(Holder::Party(4));
+        assert_eq!(got.goal, Some(820));
+        assert_eq!(got.reason.as_deref(), Some(b"duplicate".as_slice()));
+        assert_eq!(
+            got.cleared,
+            Some(FindingClearing { tier: source.unwrap_or_default().into(), run: 17, at: Wall::from_nanos(19) })
+        );
+    }
+    row.cleared = None;
+    assert_eq!(row.row(Holder::Role(0)).cleared, None);
+}
+
 fn call() -> FileFinding {
     FileFinding {
         project: 1,
@@ -82,7 +185,9 @@ fn a_full_project_erases_only_its_oldest_ended_finding_and_restore_keeps_the_bou
     let mut marked = false;
     for request in &out {
         if let Request::Marked { tasks } = request {
-            marked |= tasks.contains(&findings_subject(1, Some(FindingState::New), true));
+            marked |= tasks.contains(
+                &findings_subject(1, FindingsFilter::Triage { state: Some(FindingState::New), mine: true }).unwrap(),
+            );
         }
     }
     assert!(marked);

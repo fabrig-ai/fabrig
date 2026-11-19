@@ -60,6 +60,7 @@ fn milestone_reads_keep_their_scope_totals_and_absence() {
         ended: Some(skein_lib::Wall::from_nanos(89)),
         last_landing: Some(forge::MilestoneLanding { at: skein_lib::Wall::from_nanos(87), goal: 815, change: 816 }),
         spent: 100,
+        reds: 0,
     };
     let bytes = family::forge_read(root::ForgeReadAnswer::Milestone(Some(totals)), b"", &w::CEILINGS).unwrap();
     let result = wire::decode_milestone_answer(&bytes, &w::CEILINGS).unwrap().into_parts().result;

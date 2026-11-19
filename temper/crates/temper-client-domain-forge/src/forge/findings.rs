@@ -19,7 +19,16 @@ pub fn watch(project: u32, limits: &Limits) -> Option<Watchable> {
 #[must_use]
 pub fn watching(project: u32, state: Option<w::FindingState>, mine: bool, limits: &Limits) -> Option<Watchable> {
     let bounds = wire_limits(limits)?;
-    let subject = w::FindingsSubject::new(&bounds, w::FindingsSubjectParts { project, state, mine }).ok()?;
+    let subject = w::FindingsSubject::new(
+        &bounds,
+        w::FindingsSubjectParts {
+            project,
+            filter: w::FindingsFilter::Triage(
+                w::FindingsTriage::new(&bounds, w::FindingsTriageParts { state, mine }).ok()?,
+            ),
+        },
+    )
+    .ok()?;
     let watching = w::Watching::new(&bounds, w::WatchingParts { watch: w::Watch::Findings(subject) }).ok()?;
     Some(Watchable::Family {
         scope: c::Scope::Project(project),

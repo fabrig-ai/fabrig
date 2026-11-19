@@ -40,6 +40,9 @@ fn row() -> w::FindingRow {
             at: 77,
             why: Some(b"words, not code".as_slice().into()),
             hander: Some(w::Filer::Task(w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number: 39 }).unwrap())),
+            goal: None,
+            reason: None,
+            cleared: None,
         },
     )
     .unwrap()
@@ -89,14 +92,15 @@ fn serve(root: &mut f::Harness, call: u32) {
             row: row(),
             body: b"Boot twice".as_slice().into(),
             filer: w::Filer::Party(w::HolderParty::new(&w::CEILINGS, w::HolderPartyParts { number: 8 }).unwrap()),
-            goal: None,
-            reason: None,
+            blame: None,
         },
     )
     .unwrap();
-    let answer =
-        w::FindingAnswer::new(&w::CEILINGS, w::FindingAnswerParts { result: w::FindingResult::Finding(detail) })
-            .unwrap();
+    let answer = w::FindingAnswer::new(
+        &w::CEILINGS,
+        w::FindingAnswerParts { result: w::FindingResult::Finding(Box::new(detail)) },
+    )
+    .unwrap();
     root.serve_readout(
         call,
         client::Readout::Family { family: wire::FORGE, record: Some(wire::finding_answer(&answer)) },
@@ -205,17 +209,23 @@ fn finding_reads_print_areas_triager_and_the_whole_finding() {
         let detail = w::FindingDetail::new(
             &w::CEILINGS,
             w::FindingDetailParts {
-                row: row(),
+                row: {
+                    let mut parts = row().into_parts();
+                    parts.goal = Some(90);
+                    parts.reason = Some(b"duplicate".as_slice().into());
+                    w::FindingRow::new(&w::CEILINGS, parts).unwrap()
+                },
                 body: b"Boot twice".as_slice().into(),
                 filer: w::Filer::Party(w::HolderParty::new(&w::CEILINGS, w::HolderPartyParts { number: 8 }).unwrap()),
-                goal: Some(90),
-                reason: Some(b"duplicate".as_slice().into()),
+                blame: None,
             },
         )
         .unwrap();
-        let answer =
-            w::FindingAnswer::new(&w::CEILINGS, w::FindingAnswerParts { result: w::FindingResult::Finding(detail) })
-                .unwrap();
+        let answer = w::FindingAnswer::new(
+            &w::CEILINGS,
+            w::FindingAnswerParts { result: w::FindingResult::Finding(Box::new(detail)) },
+        )
+        .unwrap();
         root.serve_readout(
             show,
             client::Readout::Family { family: wire::FORGE, record: Some(wire::finding_answer(&answer)) },

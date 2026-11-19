@@ -63,6 +63,7 @@ fn milestone(goals: List<v1::MilestoneGoal>) -> v1::MilestonePartParts {
             ended: None,
             last_landing: None,
             spent: 700,
+            reds: 3,
         },
     )
     .expect("totals");
@@ -80,6 +81,12 @@ fn milestone_part_keeps_sixteen_goals_at_their_byte_bounds() {
         goals.push(goal.clone()).expect("sixteen slots");
     }
     let part = v1::MilestonePart::new(&limits, milestone(goals)).expect("sixteen goals");
+    let answer = v1::MilestoneAnswer::new(
+        &limits,
+        v1::MilestoneAnswerParts { result: v1::MilestoneResult::Totals(part.totals().clone()) },
+    )
+    .unwrap();
+    assert_eq!(crate::decode_milestone_answer(&crate::milestone_answer(&answer), &limits), Some(answer));
     let mut writer = Writer::new(usize::try_from(part.measure()).expect("size fits"));
     part.encode(&mut writer).expect("encode milestone");
     let encoded = writer.finish();

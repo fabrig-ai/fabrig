@@ -35,7 +35,17 @@ fn done(task: u64, title: &[u8]) -> c::TaskLine {
 fn totals(done: u32, failed: u32, live: u32) -> w::MilestoneTotals {
     w::MilestoneTotals::new(
         &w::CEILINGS,
-        w::MilestoneTotalsParts { task: 99, done, failed, live, closed: 0, ended: None, last_landing: None, spent: 0 },
+        w::MilestoneTotalsParts {
+            task: 99,
+            done,
+            failed,
+            live,
+            closed: 0,
+            ended: None,
+            last_landing: None,
+            spent: 0,
+            reds: 0,
+        },
     )
     .unwrap()
 }

@@ -101,6 +101,7 @@ fn totals() -> Readout {
             ended: None,
             last_landing: None,
             spent: 212,
+            reds: 0,
         },
     )
     .unwrap();

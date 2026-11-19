@@ -6677,6 +6677,8 @@ dependencies = [
  "temper-engine-domain-forge-landing",
  "temper-engine-domain-forge-tiers",
  "temper-engine-domain-forge-vocabulary",
+ "temper-engine-domain-trials",
+ "temper-engine-domain-ways",
  "temper-protocol-reaches",
 ]
 

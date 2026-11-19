@@ -64,10 +64,17 @@ pub(super) fn request(value: w::Request) -> Option<root::Application> {
     }
 }
 
-pub(super) fn state(value: Option<&w::FindingState>) -> Option<forge::FindingState> {
+pub(super) fn filter(value: &w::FindingsFilter) -> forge::FindingsFilter {
     match value {
-        Some(value) => Some(state_from(value.clone())),
-        None => None,
+        w::FindingsFilter::Triage(value) => forge::FindingsFilter::Triage {
+            state: match value.state() {
+                Some(state) => Some(state_from(state.clone())),
+                None => None,
+            },
+            mine: value.mine(),
+        },
+        w::FindingsFilter::Goal(value) => forge::FindingsFilter::Goal(value.goal()),
+        w::FindingsFilter::Milestone(value) => forge::FindingsFilter::Milestone(value.milestone()),
     }
 }
 
@@ -206,6 +213,18 @@ fn row(value: forge::FindingRow, limits: &w::Limits) -> Option<w::FindingRow> {
             holder: holder(value.holder, limits)?,
             at: value.at.as_nanos(),
             why: value.why,
+            goal: value.goal,
+            reason: value.reason,
+            cleared: match value.cleared {
+                Some(value) => Some(
+                    w::FindingClearing::new(
+                        limits,
+                        w::FindingClearingParts { tier: value.tier, run: value.run, at: value.at.as_nanos() },
+                    )
+                    .ok()?,
+                ),
+                None => None,
+            },
             hander: match value.hander {
                 Some(value) => Some(filer(value, limits)?),
                 None => None,
@@ -265,23 +284,52 @@ pub(super) fn read_answer(value: Option<forge::FindingAnswer>, limits: &w::Limit
         None => w::FindingResult::NoFinding,
         Some(value) => {
             let filer = filer(value.filer, limits)?;
-            w::FindingResult::Finding(
+            w::FindingResult::Finding(Box::new(
                 w::FindingDetail::new(
                     limits,
                     w::FindingDetailParts {
                         row: row(value.row, limits)?,
                         body: value.body,
                         filer,
-                        goal: value.goal,
-                        reason: value.reason,
+                        blame: match value.blame {
+                            Some(value) => Some(blame(value, limits)?),
+                            None => None,
+                        },
                     },
                 )
                 .ok()?,
-            )
+            ))
         }
     };
     let record = w::FindingAnswer::new(limits, w::FindingAnswerParts { result }).ok()?;
     Some(wire::finding_answer(&record))
+}
+
+fn blame(value: forge::FindingBlame, limits: &w::Limits) -> Option<w::FindingBlame> {
+    let strength = match value.strength {
+        forge::BlameStrength::Owned => w::BlameStrength::Owned,
+        forge::BlameStrength::Suspected => w::BlameStrength::Suspected,
+        forge::BlameStrength::Unblamed => w::BlameStrength::Unblamed,
+    };
+    let mut landings = List::with_capacity(limits.finding_blame_landings);
+    for landing in value.landings {
+        let mut goals = List::with_capacity(limits.blamed_landing_goals);
+        for goal in landing.goals {
+            goals
+                .push(
+                    w::BlamedGoal::new(
+                        limits,
+                        w::BlamedGoalParts { goal: goal.goal, milestone: goal.milestone, person: goal.person },
+                    )
+                    .ok()?,
+                )
+                .ok()?;
+        }
+        landings
+            .push(w::BlamedLanding::new(limits, w::BlamedLandingParts { commit: landing.commit, goals }).ok()?)
+            .ok()?;
+    }
+    w::FindingBlame::new(limits, w::FindingBlameParts { strength, landings }).ok()
 }
 
 fn filer(value: forge::Filer, limits: &w::Limits) -> Option<w::Filer> {
