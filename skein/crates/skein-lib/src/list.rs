@@ -11,7 +11,7 @@ use core::slice;
 
 use crate::growth::grown;
 
-/// A sequence that grows up to a capacity fixed when it is made, and refuses
+/// A sequence that grows up to its capacity, and refuses
 /// past it. It allocates as it fills or once at its capacity, never shrinking.
 #[derive(Debug)]
 pub struct List<T> {
@@ -57,6 +57,12 @@ impl<T> List<T> {
     #[must_use]
     pub const fn capacity(&self) -> u32 {
         self.capacity
+    }
+
+    /// Raises the capacity in place, allocating nothing (runtime/lib.md, 5).
+    pub fn raise(&mut self, capacity: u32) {
+        assert!(capacity >= self.capacity(), "a capacity never falls");
+        self.capacity = capacity;
     }
 
     #[must_use]

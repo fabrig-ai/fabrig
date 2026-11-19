@@ -15,7 +15,7 @@ use skein_sim_world::{Bare, Inherited, Meter, Stream, World};
 pub struct Start {
     pub seed: u64,
     pub wall: Wall,
-    pub deployment: Box<[u8]>,
+    pub deployment: documents::Configuration,
     pub fakes: Fakes,
     pub links: Links,
 }
@@ -43,9 +43,9 @@ pub enum Links {
 /// Lay a story's fake disk before its first start: the machine's
 /// files, then every handover its deployment names
 /// (temper/docs/design/playground.md, 4).
-pub fn prepare(disk: &mut skein_fake_machine::Machine, deployment: &[u8], seed: u64) {
+pub fn prepare(disk: &mut skein_fake_machine::Machine, deployment: &documents::Configuration, seed: u64) {
     machine::setup(disk);
-    let document: serde_json::Value = serde_json::from_slice(deployment).expect("deployment JSON");
+    let document = deployment;
     if let Some(setup) = document["setup"].as_array() {
         for entry in setup {
             if let Some(directory) = entry["directory"].as_str() {
@@ -88,10 +88,10 @@ pub fn world_metered<N: Meter>(start: Start, meter: N) -> World<Process<()>, Mac
     let Start { seed, wall, deployment, fakes, links } = start;
     let mut disk = machine::fresh();
     prepare(&mut disk, &deployment, seed);
-    let document: serde_json::Value = serde_json::from_slice(&deployment).expect("deployment JSON");
+    let document = deployment.clone();
     let machine = Machine::new(disk);
     let parameters = programs::Parameters {
-        deployment,
+        deployment: deployment.into(),
         seed,
         links,
         forge: fakes.forge,

@@ -300,18 +300,48 @@ pub(super) fn lost_words(domain: &Domain, task: u64, attempt: u64, resource: &fo
 
 pub(super) fn refused_words(
     domain: &Domain,
+    task: Option<u64>,
     operation: &[u8],
     resource: Option<&forge::Name>,
     cause: forge::RefusalCause,
 ) -> Box<[u8]> {
+    let mut context = None;
+    if let forge::RefusalCause::Limit { .. } = cause
+        && let Some(task) = task
+        && let Some(row) = domain.forge.change(task)
+    {
+        let use_branch = match resource {
+            None => true,
+            Some(name) => match name.what {
+                forge::What::Repository => {
+                    name.forge == row.repository.forge && name.repository == row.repository.repository
+                }
+                forge::What::Branch(_) | forge::What::Pull(_) | forge::What::Issue(_) => false,
+            },
+        };
+        if use_branch {
+            context = Some(forge::branch_name(row.repository, &row.branch));
+        }
+    }
+    let resource = context.as_ref().or(resource);
     let mut words = List::with_capacity(tasks::HOLD_ACCOUNT_BYTES);
     append(&mut words, operation);
     if let Some(resource) = resource {
         append(&mut words, b" on ");
         resource_words(domain, resource, &mut words);
     }
+    let reason = cause.words();
+    if let forge::RefusalCause::Limit { .. } = cause {
+        let room = tasks::HOLD_ACCOUNT_BYTES
+            .saturating_sub(u32::try_from(reason.len()).expect("bounded refusal words"))
+            .saturating_sub(2);
+        if words.len() > room {
+            words.truncate(room.saturating_sub(3));
+            append(&mut words, b"...");
+        }
+    }
     append(&mut words, b": ");
-    append(&mut words, &cause.words());
+    append(&mut words, &reason);
     words.into_boxed()
 }
 

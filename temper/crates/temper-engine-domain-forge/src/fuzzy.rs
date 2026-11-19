@@ -36,7 +36,14 @@ fn branch_head_records_respect_capacity_and_refuse_only_new_names() {
                 d.holds
                     .insert(
                         name.clone(),
-                        Hold { name: name.clone(), task: 7, writer: None, drift: None, design_writers: Box::new([]) },
+                        Hold {
+                            name: name.clone(),
+                            task: 7,
+                            writer: None,
+                            drift: None,
+                            beside: None,
+                            design_writers: Box::new([]),
+                        },
                     )
                     .unwrap();
                 assert_eq!(d.heads.get(&name), Some(&head), "seed {seed}");
@@ -183,7 +190,14 @@ fn branch_heads_free_exactly_the_unneeded_subset() {
                         d.holds
                             .insert(
                                 name.clone(),
-                                Hold { name, task: number, writer: None, drift: None, design_writers: Box::new([]) },
+                                Hold {
+                                    name,
+                                    task: number,
+                                    writer: None,
+                                    drift: None,
+                                    beside: None,
+                                    design_writers: Box::new([]),
+                                },
                             )
                             .unwrap();
                     }

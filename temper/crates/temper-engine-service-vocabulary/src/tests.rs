@@ -5,5 +5,7 @@ mod derived;
 mod family;
 mod figures;
 pub(crate) mod fixtures;
+mod limit_settings;
+mod scaled;
 mod store_route;
 mod tools;

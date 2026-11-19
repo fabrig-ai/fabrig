@@ -49,7 +49,9 @@ fn assignment(charter: &engine::Charter, ended_by: tasks::EndedBy) -> engine::As
 fn process_producers_can_write_and_deliver_while_open_chats_cannot() {
     const NUMBER: u64 = 2; // protocol/configuration/stock.md: stock producer charter.
     let (_, bytes) = crate::support::configuration::documents(std::path::Path::new("/fixture"), "/fixture/temper");
-    let deployment: serde_json::Value = serde_json::from_slice(&bytes).expect("process configuration");
+    let deployment = temper_playground::documents::Configuration::from_jig(
+        serde_json::from_slice(&bytes).expect("process configuration"),
+    );
     let configured = temper_real_loop_world::settings::configuration(&deployment);
     let defaults =
         temper_service::stock::with_models(configured.llm.models.clone(), configured.limits.core.tasks.result_bytes);

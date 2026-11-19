@@ -20,6 +20,7 @@ section 17; the records are `../../protocol/store/README.md`, 4.4.
   | template | the template's, 1 to 64, the defaults' 1 to 32 (below) | a template whole (`../../protocol/configuration.md`, 3.1) | when `me` is served (`views.md`, 1): the newest |
   | policy | the policy's, 1 to 64, the defaults' 1 to 32 (below) | a whole policy in a seed's format, a project made from it copying it (../model.md, 6.1) | at each `MakeProject`: the newest |
   | rules | none: one setting | the deployment's rules, whole (../authority.md, section 6) | at every decision: the newest |
+  | limits | none: one setting | overrides of jig's limits, at most 256, each a limit's dotted name, a value and a reason of at most 120 bytes, ascending by name; none is the application's stock (`../../protocol/limits.md`, limits as settings) | by the application, at its start, never by the core |
   | model | the model's, 1 to 64, the defaults' 1 to 32 (below), never given to another name (11) | a model whole: its name, shown name, LLM provider, endpoint, window, output, efforts and default effort, prices, description, whether a picker shows it, whether it is withdrawn, where it came from (the binary, a provider's list or a person), whether its prices are estimated and when a list first gave it | at each decision and when `me` is served: the newest; a run reads it from its charter (11) |
   | worker | the worker's, 1 to the fleet's configured workers, never given to another name (`workers.md`, 2) | a worker whole: its name, its places, its secret's digest, whether it is withdrawn (`workers.md`, 1) | at each opening and each hello, and when a deployment document is built: the newest (`workers.md`, 4) |
   | provider | the LLM provider's, 1 to 16, never given to another name (`llm-providers.md`, 3) | a provider whole: its name, its sources, its list's patterns, its terms and its endpoints, whether it is withdrawn (`llm-providers.md`, 1 and 2) | by the check and the keeping ask: the newest; by what dials, signs in and lists: the providers the start ran, so a change applies at the next start (`llm-providers.md`, 5) |
@@ -99,8 +100,13 @@ section 17; the records are `../../protocol/store/README.md`, 4.4.
   stock's take 1 to 32, your own 33 to 64"). Within the check the range
   is judged first, so that a set out of its range is refused as *range*
   whatever else it breaks.
-- **What is not a setting:** the limits, which size memory at the
-  start; the hosts but the workers (`workers.md`), the connectors, the
+- **The limits are a setting the core keeps and never applies:** they
+  size the core's tables at the start, so the core checks the limits
+  setting's shape alone (each name's bytes, the order, each reason,
+  their count; fault *shape*), keeps it, shows it, and the application
+  reads it at its next start (`../../protocol/limits.md`, limits as
+  settings).
+- **What is not a setting:** the hosts but the workers (`workers.md`), the connectors, the
   clients and the first owners, the document's; and each project's own
   policy, which its owners change (../people/acts.md, 2).
 

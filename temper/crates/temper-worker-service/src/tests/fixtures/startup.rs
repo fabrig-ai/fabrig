@@ -8,8 +8,8 @@ use jig_domain_link::{Bounds, EndpointBound};
 use skein_lib::{List, Secret};
 pub fn worker_alone_document() -> Box<[u8]> {
     let document = br#"{"workers":[{
-"engine":{"socket":"127.0.0.1:7100"},"name":"worker-a","secret":"worker-secret","slots":1,
-"memory_bytes":1152921504606846976}],"application":{}}"#;
+"engine":{"socket":"127.0.0.1:7100"},"name":"worker-a","secret":"worker-secret","slots":1
+}],"application":{}}"#;
     document.as_slice().into()
 }
 pub fn with(input: &[u8], path: &[u8], json: &[u8]) -> Box<[u8]> {
@@ -116,7 +116,7 @@ fn turn_limits(path: &[u8], json: &[u8]) -> Box<[u8]> {
     text.push('}');
     text.into_bytes().into_boxed_slice()
 }
-/// The owned example's worker and application limits, in the worker-only shape.
+/// The owned example's worker, with the worker-only fixture's application limits.
 #[expect(clippy::disallowed_macros, reason = "the regression reads the shipped example as fixture data")]
 pub fn owned_worker_alone_document() -> Box<[u8]> {
     let owned = include_bytes!("../../../../../docs/examples/owned.json");

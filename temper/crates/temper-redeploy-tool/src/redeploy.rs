@@ -96,6 +96,7 @@ const SERVING_VERDICT_UNSUPPORTED: &str =
     "serving verdict: a build without upgrade --workers is redeployed with --together";
 const SERVING_VERDICT_REFUSED: &str = "serving verdict: refused by the staged build; its lines above say why";
 const REHEARSAL_LINKED: &str = "rehearsal linked ";
+const REHEARSAL_PREFIX: &str = "temper-engine upgrade: rehearsal linked ";
 const REHEARSAL_UNKNOWN: &str = "rehearsal linked: unknown; the staged build may copy the whole checkpoint at the stop";
 
 #[derive(Clone, Copy)]
@@ -527,8 +528,7 @@ impl Run<'_> {
     }
 }
 fn rehearsal_counts(lines: &[String]) -> Option<(&str, &str)> {
-    let counts =
-        lines.iter().rev().find_map(|line| line.split_once("upgrade: rehearsal linked ").map(|(_, rest)| rest))?;
+    let counts = lines.iter().find_map(|line| line.strip_prefix(REHEARSAL_PREFIX))?;
     let (linked, copied) = counts.split_once(" files, copied ")?;
     if linked.is_empty()
         || copied.is_empty()

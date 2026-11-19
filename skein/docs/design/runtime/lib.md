@@ -139,6 +139,15 @@ what is left (`skein/docs/design/data/codec/README.md`, 4).
 **`Queue::clear(&mut self)`** drops every item, keeping the capacity and
 the grown buffer: refilling to the previous length allocates nothing.
 
+**`raise(&mut self, capacity: u32)`** on `Queue`, `List`, `Map`, `Set`,
+`Lru`, `Slab` and `Deadlines` raises the container's capacity to `capacity` in place,
+allocating nothing: what it holds stays, storage still grows by the
+shared rule as it fills, and a slab's spent slots stay spent and its
+handles valid. A capacity below the current one is a bug, asserted, as
+a capacity never falls; an equal one changes nothing. It is how a
+limit's raise reaches a table already made (temper's
+`protocol/configuration/limit-settings.md`, 5).
+
 **`Stack::clear(&mut self)`** drops every item, keeping the capacity and
 the grown buffer: refilling to the previous depth allocates nothing.
 

@@ -50,6 +50,7 @@ pub struct Engine {
 
 #[derive(Debug)]
 pub enum EngineEvent {
+    LimitsRaised,
     Setup,
     Store,
     Worker,

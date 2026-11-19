@@ -79,6 +79,17 @@ fn engine_alone_keeps_workers_and_records_the_first_opening_window() {
     hosts.opening(1, Opening::After { nanoseconds: 5 * SECOND, wires: WIRES.into() });
     let (outcome, record) = execute(&mut hosts, Mode::Engine);
     assert_eq!(outcome, Outcome::Done);
+    for step in ["serving verdict", "verdict"] {
+        let exit = record
+            .lines
+            .iter()
+            .position(|line| line.line == format!("temper-redeploy run: {step} exit Some(0)"))
+            .unwrap();
+        assert_eq!(
+            record.lines[exit + 1].line,
+            format!("temper-redeploy run: {step} rehearsal linked 12 files, copied 3")
+        );
+    }
     assert_eq!(hosts.engine.installed.values().collect::<Vec<_>>(), [&NEW, &NEW]);
     for binary in ["temper-engine", "temper"] {
         assert_eq!(hosts.engine.staged[&format!("/builds/{OLD}/{binary}")], OLD);
@@ -499,12 +510,26 @@ fn a_current_builds_serving_refusal_points_at_its_lines_without_a_together_hint(
 }
 
 #[test]
-fn each_successful_verdict_notes_the_last_rehearsal_count_between_exit_and_decision() {
-    for (stdout, stderr) in [
-        ("temper-engine upgrade: rehearsal linked 12 files, copied 3\nworkers may stay: yes", ""),
+fn each_successful_verdict_notes_the_first_rehearsal_count_between_exit_and_decision() {
+    for (stdout, stderr, linked, copied) in [
+        ("temper-engine upgrade: rehearsal linked 12 files, copied 3\nworkers may stay: yes", "", 12, 3),
         (
             "temper-engine upgrade: rehearsal linked 99 files, copied 88\nworkers may stay: yes",
             "temper-engine upgrade: rehearsal linked 12 files, copied 3",
+            99,
+            88,
+        ),
+        (
+            "temper-engine upgrade: rehearsal linked 12 files, copied 3\ntemper-engine upgrade: rehearsal linked malformed\nworkers may stay: yes",
+            "",
+            12,
+            3,
+        ),
+        (
+            "temper-engine upgrade: rehearsal linked 12 files, copied 3\nnote: temper-engine upgrade: rehearsal linked 99 files, copied 88\nworkers may stay: yes",
+            "",
+            12,
+            3,
         ),
     ] {
         let mut hosts = staged(1);
@@ -516,7 +541,10 @@ fn each_successful_verdict_notes_the_last_rehearsal_count_between_exit_and_decis
         for step in ["serving verdict", "verdict"] {
             let exit =
                 lines.iter().position(|line| *line == format!("temper-redeploy run: {step} exit Some(0)")).unwrap();
-            assert_eq!(lines[exit + 1], format!("temper-redeploy run: {step} rehearsal linked 12 files, copied 3"));
+            assert_eq!(
+                lines[exit + 1],
+                format!("temper-redeploy run: {step} rehearsal linked {linked} files, copied {copied}")
+            );
             assert_eq!(lines[exit + 2], format!("temper-redeploy run: {step} workers may stay: yes"));
         }
         assert!(!lines.iter().any(|line| line.starts_with("temper-redeploy run: check rehearsal")));
@@ -536,7 +564,8 @@ fn missing_or_malformed_rehearsal_counts_are_unknown_without_refusing() {
         "temper-engine upgrade: rehearsal linked  files, copied 3",
         "temper-engine upgrade: rehearsal linked 12 files, copied ",
         "temper-engine upgrade: rehearsal linked 12 files, copied 3 extra",
-        "temper-engine upgrade: rehearsal linked 12 files, copied 3\ntemper-engine upgrade: rehearsal linked malformed",
+        "temper-engine upgrade: rehearsal linked malformed\ntemper-engine upgrade: rehearsal linked 12 files, copied 3",
+        "note: temper-engine upgrade: rehearsal linked 12 files, copied 3",
     ] {
         let mut hosts = staged(1);
         hosts.verdict_answer(0, &format!("{count}\nworkers may stay: yes"));

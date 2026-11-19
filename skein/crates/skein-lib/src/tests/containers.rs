@@ -3,10 +3,273 @@
 //! grows by one rule.
 
 use alloc::boxed::Box;
+use skein_heap::{Grown, Meter, Span};
 
 use crate::btree::price;
 use crate::growth::grown;
-use crate::{Bisection, Buffer, Intake, Joined, List, Lru, Map, Queue, Rng, Set, Stack, state_digest};
+use crate::{
+    Bisection, Buffer, Deadlines, Intake, Joined, List, Lru, Map, Queue, Rng, Set, Slab, Stack, Time, state_digest,
+};
+
+fn no_allocation(span: Span) {
+    assert_eq!(span.made(), 0, "raising makes no allocation, even temporarily");
+    assert_eq!(span.end(), Grown { peak: 0, net: 0 }, "raising keeps storage untouched");
+}
+
+#[test]
+fn raising_a_queue_keeps_fifo_and_grows_only_when_filled() {
+    let meter = Meter::new();
+    let mut queue = Queue::with_capacity(4);
+    for value in 1_u64..=4 {
+        assert_eq!(queue.try_push(value), Ok(()));
+    }
+    assert_eq!(queue.try_push(5), Err(5));
+    assert_eq!(Some(meter.held()), Queue::<u64>::price(4));
+    let before = state_digest(&queue);
+    let span = Span::start();
+    queue.raise(4);
+    no_allocation(span);
+    assert_eq!(queue.capacity(), 4, "an equal capacity keeps the bound");
+    assert_eq!(state_digest(&queue), before, "an equal capacity changes no state");
+    let span = Span::start();
+    queue.raise(8);
+    no_allocation(span);
+    assert_eq!((queue.capacity(), queue.len()), (8, 4));
+    assert_eq!(state_digest(&queue), before);
+    assert_eq!(Some(meter.held()), Queue::<u64>::price(4));
+    for value in 5..=8 {
+        queue.push(value);
+        assert_eq!(Some(meter.held()), Queue::<u64>::price(8), "the first new item doubles storage");
+    }
+    assert_eq!(queue.try_push(9), Err(9));
+    for value in 1..=8 {
+        assert_eq!(queue.pop(), Some(value));
+    }
+    assert_eq!(queue.pop(), None);
+}
+
+#[test]
+fn raising_a_list_keeps_push_order_and_grows_only_when_filled() {
+    let meter = Meter::new();
+    let mut list = List::with_capacity(4);
+    for value in 1_u64..=4 {
+        assert_eq!(list.push(value), Ok(()));
+    }
+    assert_eq!(list.push(5), Err(5));
+    assert_eq!(Some(meter.held()), List::<u64>::price(4));
+    let before = state_digest(&list);
+    let span = Span::start();
+    list.raise(4);
+    no_allocation(span);
+    assert_eq!(list.capacity(), 4, "an equal capacity keeps the bound");
+    assert_eq!(state_digest(&list), before, "an equal capacity changes no state");
+    let span = Span::start();
+    list.raise(8);
+    no_allocation(span);
+    assert_eq!((list.capacity(), list.len()), (8, 4));
+    assert_eq!(state_digest(&list), before);
+    assert_eq!(Some(meter.held()), List::<u64>::price(4));
+    for value in 5..=8 {
+        assert_eq!(list.push(value), Ok(()));
+        assert_eq!(Some(meter.held()), List::<u64>::price(8), "the first new item doubles storage");
+    }
+    assert_eq!(list.push(9), Err(9));
+    assert!(list.iter().copied().eq(1..=8));
+}
+
+#[test]
+fn raising_a_map_keeps_entries_in_key_order() {
+    let meter = Meter::new();
+    let mut map = Map::with_capacity(4);
+    for key in (1_u64..=4).rev() {
+        assert_eq!(map.insert(key, key), Ok(None));
+    }
+    assert_eq!(map.insert(5, 5), Err((5, 5)));
+    let before = state_digest(&map);
+    let span = Span::start();
+    map.raise(4);
+    no_allocation(span);
+    assert_eq!(map.capacity(), 4, "an equal capacity keeps the bound");
+    assert_eq!(state_digest(&map), before, "an equal capacity changes no state");
+    let span = Span::start();
+    map.raise(8);
+    no_allocation(span);
+    assert_eq!((map.capacity(), map.len()), (8, 4));
+    assert_eq!(state_digest(&map), before);
+    for key in (5..=8).rev() {
+        assert_eq!(map.insert(key, key), Ok(None));
+    }
+    assert_eq!(map.insert(9, 9), Err((9, 9)));
+    assert_eq!(map.len(), 8);
+    for (expected, (key, value)) in (1..=8).zip(map.iter()) {
+        assert_eq!((*key, *value), (expected, expected));
+    }
+    assert!(meter.held() <= Map::<u64, u64>::price(8).expect("priced"));
+}
+
+#[test]
+fn raising_a_set_keeps_keys_in_order() {
+    let meter = Meter::new();
+    let mut set = Set::with_capacity(4);
+    for key in (1_u64..=4).rev() {
+        assert_eq!(set.insert(key), Ok(true));
+    }
+    assert_eq!(set.insert(5), Err(5));
+    let before = state_digest(&set);
+    let span = Span::start();
+    set.raise(4);
+    no_allocation(span);
+    assert_eq!(set.capacity(), 4, "an equal capacity keeps the bound");
+    assert_eq!(state_digest(&set), before, "an equal capacity changes no state");
+    let span = Span::start();
+    set.raise(8);
+    no_allocation(span);
+    assert_eq!((set.capacity(), set.len()), (8, 4));
+    assert_eq!(state_digest(&set), before);
+    for key in (5..=8).rev() {
+        assert_eq!(set.insert(key), Ok(true));
+    }
+    assert_eq!(set.insert(9), Err(9));
+    assert!(set.iter().copied().eq(1..=8));
+    assert!(meter.held() <= Set::<u64>::price(8).expect("priced"));
+}
+
+#[test]
+fn raising_an_lru_keeps_entries_and_use_order_until_the_new_bound() {
+    let meter = Meter::new();
+    let mut table = Lru::with_capacity(4);
+    for key in 1_u64..=4 {
+        assert_eq!(table.insert(key, key), None);
+    }
+    assert_eq!(table.insert(5, 5), Some((1, 1)), "a full Lru evicts rather than refusing");
+    assert_eq!(table.get(3), Some(&3), "refresh an entry before raising");
+    let before = state_digest(&table);
+    let span = Span::start();
+    table.raise(4);
+    no_allocation(span);
+    assert_eq!(state_digest(&table), before, "an equal capacity changes no state");
+    let span = Span::start();
+    table.raise(8);
+    no_allocation(span);
+    assert_eq!(table.len(), 4);
+    assert_eq!(state_digest(&table), before);
+    for key in 6..=9 {
+        assert_eq!(table.insert(key, key), None, "neither inner table stays capped at four");
+    }
+    assert_eq!(table.len(), 8);
+    assert!(meter.held() <= Lru::<u64, u64>::price(8).expect("priced"));
+    assert_eq!(table.insert(10, 10), Some((2, 2)), "the least use before raising is still the least");
+    assert_eq!(table.len(), 8);
+    for key in 3..=10 {
+        assert_eq!(table.get(key), Some(&key));
+    }
+}
+
+#[test]
+fn raising_a_slab_keeps_handles_and_grows_only_when_filled() {
+    let meter = Meter::new();
+    let mut slab = Slab::with_capacity(4);
+    let mut handles = [None; 8];
+    for value in 0_u64..4 {
+        let id = slab.insert(value).expect("room");
+        *handles.get_mut(usize::try_from(value).expect("tiny value")).expect("in range") = Some(id);
+    }
+    assert_eq!(slab.insert(4), Err(4));
+    let slots = meter.held();
+    let old = handles.first().copied().flatten().expect("first handle");
+    slab.retire(old);
+    slab.reclaim();
+    let reused = slab.insert(0).expect("reclaimed slot");
+    *handles.first_mut().expect("first handle") = Some(reused);
+    let before = state_digest(&slab);
+    let held = meter.held();
+    let span = Span::start();
+    slab.raise(4);
+    no_allocation(span);
+    assert_eq!(slab.capacity(), 4, "an equal capacity keeps the bound");
+    assert_eq!(state_digest(&slab), before, "an equal capacity changes no state");
+    let span = Span::start();
+    slab.raise(8);
+    no_allocation(span);
+    assert_eq!((slab.capacity(), slab.len()), (8, 4));
+    assert_eq!(state_digest(&slab), before);
+    assert_eq!(slab.get(old), None, "the replaced generation stays stale");
+    assert_eq!(slab.get(reused), Some(&0));
+    for value in 4_u64..8 {
+        let id = slab.insert(value).expect("raised room");
+        *handles.get_mut(usize::try_from(value).expect("tiny value")).expect("in range") = Some(id);
+    }
+    assert_eq!(meter.held(), held.checked_add(slots).expect("tiny storage"), "the full slot buffer doubles");
+    assert!(meter.held() <= Slab::<u64>::price(8).expect("priced"));
+    assert_eq!(slab.insert(8), Err(8));
+    for (value, handle) in (0_u64..8).zip(handles) {
+        assert_eq!(slab.get(handle.expect("inserted")), Some(&value));
+    }
+    assert_eq!(slab.len(), 8);
+    for (expected, (_, value)) in (0..8).zip(slab.iter()) {
+        assert_eq!(*value, expected);
+    }
+}
+
+#[test]
+fn raising_a_slab_does_not_reuse_a_spent_slot() {
+    let mut slab = crate::slab::with_spent_slot(4);
+    let held = slab.insert(1_u64).expect("first usable slot");
+    for value in 2..=3 {
+        slab.insert(value).expect("room");
+    }
+    assert_eq!(slab.insert(4), Err(4));
+    let before = state_digest(&slab);
+    let span = Span::start();
+    slab.raise(4);
+    no_allocation(span);
+    assert_eq!(slab.capacity(), 4, "an equal capacity keeps the bound");
+    assert_eq!(state_digest(&slab), before, "an equal capacity changes no state");
+    let span = Span::start();
+    slab.raise(8);
+    no_allocation(span);
+    assert_eq!(state_digest(&slab), before);
+    assert_eq!(slab.get(held), Some(&1));
+    for value in 4..=7 {
+        let id = slab.insert(value).expect("raised room");
+        assert_ne!(id.slot(), 0, "the spent slot is never handed out");
+    }
+    assert_eq!(slab.insert(8), Err(8), "one of the eight slots remains spent");
+    assert_eq!(slab.len(), 7);
+    for (expected, (_, value)) in (1..=7).zip(slab.iter()) {
+        assert_eq!(*value, expected);
+    }
+}
+
+#[test]
+fn raising_deadlines_keeps_time_then_key_order() {
+    let meter = Meter::new();
+    let mut deadlines = Deadlines::with_capacity(4);
+    let at = Time::from_nanos(10);
+    for key in (1_u64..=4).rev() {
+        assert_eq!(deadlines.arm(key, at), Ok(()));
+    }
+    assert_eq!(deadlines.arm(5, at), Err(5));
+    let before = state_digest(&deadlines);
+    let span = Span::start();
+    deadlines.raise(4);
+    no_allocation(span);
+    assert_eq!(state_digest(&deadlines), before, "an equal capacity changes no state");
+    let span = Span::start();
+    deadlines.raise(8);
+    no_allocation(span);
+    assert_eq!(deadlines.len(), 4);
+    assert_eq!(state_digest(&deadlines), before);
+    for key in (5..=8).rev() {
+        assert_eq!(deadlines.arm(key, Time::ZERO), Ok(()));
+    }
+    assert_eq!(deadlines.arm(9, at), Err(9));
+    assert!(meter.held() <= Deadlines::<u64>::price(8).expect("priced"));
+    for key in (5..=8).chain(1..=4) {
+        assert_eq!(deadlines.expire(at), Some(key));
+    }
+    assert_eq!(deadlines.expire(at), None);
+}
 
 #[test]
 fn a_full_buffer_doubles_from_the_floor_to_what_it_needs_under_its_cap() {
