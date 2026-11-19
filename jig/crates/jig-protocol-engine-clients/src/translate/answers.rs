@@ -1,4 +1,5 @@
 //! Durable keyed answers (protocol/client/README.md, section 3; client/domain/contract/README.md, 3).
+use jig_client_protocol_wire::Record as _;
 use super::refusals;
 use alloc::boxed::Box;
 use jig_client_protocol_wire as w;
@@ -45,8 +46,8 @@ pub(crate) fn answer(
         }
         p::Reply::Signer(_) | p::Reply::Full { .. } | p::Reply::SignedIn { .. } => return Err(problem()),
     };
-    let mut out = Writer::new(skein_lib::length::usize_of(final_answer.measure()));
-    final_answer.encode(&mut out).expect("measured final answer");
+    let mut out = Writer::new(skein_lib::length::usize_of(final_answer.measure(limits)?));
+    final_answer.write(limits, &mut out).expect("measured final answer");
     owned(w::Owner::Jig, jig_client_protocol_wire::VERSION, out.finish(), limits)
 }
 /// A refusal, a refused model by its configured name.
@@ -64,8 +65,8 @@ pub(crate) fn service(
     let what = w::Made::Service(w::MadeService { party, credential });
     let outcome = w::Outcome::Made(w::OutcomeMade { what });
     let answer = w::Final::Done(w::Done { outcome });
-    let mut out = Writer::new(skein_lib::length::usize_of(answer.measure()));
-    answer.encode(&mut out).expect("measured final answer");
+    let mut out = Writer::new(skein_lib::length::usize_of(answer.measure(limits)?));
+    answer.write(limits, &mut out).expect("measured final answer");
     owned(w::Owner::Jig, jig_client_protocol_wire::VERSION, out.finish(), limits)
 }
 pub(crate) fn moving_out(
@@ -77,19 +78,21 @@ pub(crate) fn moving_out(
     let what = w::Made::MovingOut(w::MadeMovingOut { account, number, record });
     let outcome = w::Outcome::Made(w::OutcomeMade { what });
     let answer = w::Final::Done(w::Done { outcome });
-    let mut out = Writer::new(skein_lib::length::usize_of(answer.measure()));
-    answer.encode(&mut out).expect("measured final answer");
+    let mut out = Writer::new(skein_lib::length::usize_of(answer.measure(limits)?));
+    answer.write(limits, &mut out).expect("measured final answer");
     owned(w::Owner::Jig, jig_client_protocol_wire::VERSION, out.finish(), limits)
 }
+#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
 pub(crate) fn owned(
     owner: w::Owner,
     version: u32,
     record: Box<[u8]>,
-    limits: &w::Limits,
+    _limits: &w::Limits,
 ) -> Result<w::KeyedAnswer, w::Problem> {
     Ok(w::KeyedAnswer::FinalAnswer(w::Owned { owner, version, record }))
 }
-fn again(value: p::Again, limits: &w::Limits) -> Result<w::KeyedAnswer, w::Problem> {
+#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
+fn again(value: p::Again, _limits: &w::Limits) -> Result<w::KeyedAnswer, w::Problem> {
     Ok(match value {
         p::Again::Busy => w::KeyedAnswer::Busy,
         p::Again::Full { held, room_at } => w::KeyedAnswer::AnswersFull(w::AnswersFull { held, room_at: room_at.as_nanos() }),
@@ -234,7 +237,8 @@ fn owner(value: &p::Outcome, limits: &w::Limits) -> Result<w::DocumentOutcome, w
         }
     })
 }
-fn seen(value: p::Seen, limits: &w::Limits) -> Result<w::SeenThrough, w::Problem> {
+#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
+fn seen(value: p::Seen, _limits: &w::Limits) -> Result<w::SeenThrough, w::Problem> {
     Ok(match value {
         p::Seen::Results { through } => {
             w::SeenThrough::Results(w::SeenResults { through })

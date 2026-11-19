@@ -1,4 +1,5 @@
 //! A task's LLM choice and `me`'s models by their configured names (client/domain/contract/requests.md, 2, and client/domain/contract/documents.md, 1).
+use jig_client_protocol_wire::Record as _;
 use super::fixtures;
 use crate::{Component, Unusable, translate};
 use alloc::boxed::Box;
@@ -24,14 +25,14 @@ fn choice() -> t::LlmChoice {
 }
 /// The choice as `choice()` names it: `careful` at `high`, with `quick` for sub-agents.
 fn assert_named(choice: &w::LlmChoice) {
-    assert_eq!(choice.main().model(), b"careful");
-    assert_eq!(choice.main().effort().as_deref(), Some(b"high".as_slice()));
-    assert_eq!(choice.subagents().len(), 1);
-    let subagent = choice.subagents().get(0).unwrap();
-    assert_eq!((subagent.model(), subagent.effort()), (b"quick".as_slice(), &None));
+    assert_eq!(choice.main.model.as_ref(), b"careful");
+    assert_eq!(choice.main.effort.as_deref(), Some(b"high".as_slice()));
+    assert_eq!(choice.subagents.len(), 1);
+    let subagent = choice.subagents.get(0).unwrap();
+    assert_eq!((subagent.model.as_ref(), (&subagent.effort)), (b"quick".as_slice(), &None));
 }
 fn project(record: &w::Me, at: usize) -> w::MeProject {
-    let mut reader = Reader::new(record.projects());
+    let mut reader = Reader::new(record.projects.as_ref());
     for _ in 0..at {
         skein_codec::piece::split(&mut reader).unwrap().unwrap();
     }
@@ -57,33 +58,33 @@ fn me_lists_the_cores_offer_with_its_accounts_in_order() {
     careful.picker = false;
     let record = translate::owner::frame(&frame, &models, &w::CEILINGS).unwrap();
     let some = project(&record, 0);
-    assert_eq!(some.models().len(), 1);
-    assert_eq!(some.models().get(0).unwrap().name(), b"quick");
-    assert_eq!(some.models().get(0).unwrap().accounts().as_slice(), [9, 7]);
+    assert_eq!(some.models.len(), 1);
+    assert_eq!(some.models.get(0).unwrap().name.as_ref(), b"quick");
+    assert_eq!(some.models.get(0).unwrap().accounts.as_slice(), [9, 7]);
     let all = project(&record, 1);
-    assert_eq!(all.models().len(), 2);
-    let careful = all.models().get(0).unwrap();
-    assert_eq!(careful.name(), b"careful");
-    assert_eq!(careful.accounts().as_slice(), [7]);
-    assert_eq!((careful.provider(), careful.window(), careful.output()), (&Some(3), 200_000, 32_000));
-    assert_eq!(careful.efforts().len(), 2);
-    assert_eq!(careful.efforts().get(0).unwrap().as_ref(), b"low");
-    assert_eq!(careful.efforts().get(1).unwrap().as_ref(), b"high");
-    assert_eq!(careful.effort().as_deref(), Some(b"low".as_slice()));
-    assert_eq!(careful.shown().as_deref(), Some(b"Careful work".as_slice()));
-    assert!(!careful.picker());
+    assert_eq!(all.models.len(), 2);
+    let careful = all.models.get(0).unwrap();
+    assert_eq!(careful.name.as_ref(), b"careful");
+    assert_eq!(careful.accounts.as_slice(), [7]);
+    assert_eq!(((&careful.provider), careful.window, careful.output), (&Some(3), 200_000, 32_000));
+    assert_eq!(careful.efforts.len(), 2);
+    assert_eq!(careful.efforts.get(0).unwrap().as_ref(), b"low");
+    assert_eq!(careful.efforts.get(1).unwrap().as_ref(), b"high");
+    assert_eq!(careful.effort.as_deref(), Some(b"low".as_slice()));
+    assert_eq!(careful.shown.as_deref(), Some(b"Careful work".as_slice()));
+    assert!(!careful.picker);
     assert_eq!(
-        careful.prices().clone().into_parts(),
+        careful.prices.clone(),
         w::MePrices { input: 3, cached: 1, cache_write: Some(5), output: 15, unit: 1_000_000 }
     );
-    assert_eq!(careful.description().as_deref(), Some(b"For careful work".as_slice()));
-    let quick = all.models().get(1).unwrap();
-    assert_eq!((quick.name(), quick.provider(), quick.efforts().len()), (b"quick".as_slice(), &None, 0));
+    assert_eq!(careful.description.as_deref(), Some(b"For careful work".as_slice()));
+    let quick = all.models.get(1).unwrap();
+    assert_eq!((quick.name.as_ref(), (&quick.provider), quick.efforts.len()), (b"quick".as_slice(), &None, 0));
     assert_eq!(
-        quick.prices().clone().into_parts(),
+        quick.prices.clone(),
         w::MePrices { input: 1, cached: 1, cache_write: None, output: 2, unit: 1000 }
     );
-    assert_eq!(quick.description(), &None);
+    assert_eq!((&quick.description), &None);
 }
 
 #[test]
@@ -96,19 +97,19 @@ fn a_template_s_and_a_task_s_choice_are_named_by_configuration() {
     frame.projects.get_mut(0).unwrap().defaults = skein_lib::List::from_boxed(Box::new([(3, choice())]));
     let record = translate::owner::frame(&frame, &models, &w::CEILINGS).unwrap();
     let first = project(&record, 0);
-    let preview = first.defaults().get(0).unwrap();
-    assert_eq!(preview.template(), 3);
-    assert_named(preview.choice());
-    let bytes = skein_codec::piece::split(&mut Reader::new(first.templates())).unwrap().unwrap();
+    let preview = first.defaults.get(0).unwrap();
+    assert_eq!(preview.template, 3);
+    assert_named(&preview.choice);
+    let bytes = skein_codec::piece::split(&mut Reader::new(first.templates.as_ref())).unwrap().unwrap();
     let template = w::Template::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap();
-    assert_named(template.llm().as_ref().unwrap());
+    assert_named(template.llm.as_ref().unwrap());
 
     let mut task = fixtures::task_with_hold();
     task.llm = Some(choice());
     let record = translate::task::document(&task, &models, &w::CEILINGS).unwrap();
-    assert_named(record.llm().as_ref().unwrap());
+    assert_named(record.llm.as_ref().unwrap());
     task.llm = None;
-    assert_eq!(translate::task::document(&task, &models, &w::CEILINGS).unwrap().llm(), &None);
+    assert_eq!((&translate::task::document(&task, &models, &w::CEILINGS).unwrap().llm), &None);
 }
 
 #[test]
@@ -178,25 +179,24 @@ fn configured_prices_and_bounded_descriptions_can_start_the_component() {
 fn create(choice: w::LlmChoice) -> w::Ask {
     let limits = fixtures::wire();
     let (w::Ask::Create(create), _) = fixtures::create_ask() else { panic!("create fixture") };
-    let bytes = skein_codec::piece::split(&mut Reader::new(create.tasks())).unwrap().unwrap();
-    let mut parts = w::NewTask::decode(&limits, &mut Reader::new(&bytes)).unwrap().into_parts();
+    let bytes = skein_codec::piece::split(&mut Reader::new(create.tasks.as_ref())).unwrap().unwrap();
+    let mut parts = w::NewTask::decode(&limits, &mut Reader::new(&bytes)).unwrap();
     parts.llm = Some(choice);
     let task = parts;
-    let mut out = Writer::new(usize::try_from(task.measure()).unwrap());
-    task.encode(&mut out).unwrap();
+    let mut out = Writer::new(usize::try_from(task.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    task.write(&jig_client_protocol_wire::CEILINGS, &mut out).unwrap();
     let tasks = fixtures::pieces(&[out.finish()]);
     w::Ask::Create(w::Create { project: fixtures::PROJECT, tasks })
 }
 /// An amendment changing only the task's choice.
 fn amend(choice: w::LlmChoice) -> Box<w::Amend> {
-    let limits = fixtures::wire();
-    let mut change = fixtures::empty_amendment(None).into_parts();
+    let mut change = fixtures::empty_amendment(None);
     change.llm = Some(choice);
     let parts = w::Amend {
         project: fixtures::PROJECT,
         task: 8,
         revision: None,
-        change: change,
+        change,
         reason: Box::new([]),
     };
     Box::new(parts)
@@ -206,7 +206,7 @@ fn refused(ask: &w::Ask) -> (Option<u32>, w::Refusal) {
     let limits = fixtures::wire();
     let answer = translate::llm::refused(ask, &fixtures::models(), &limits).unwrap().unwrap();
     let w::Final::Refused(value) = fixtures::final_record(answer, &limits) else { panic!("refusal") };
-    (*value.at(), value.refusal().clone())
+    (value.at, value.refusal.clone())
 }
 fn named(model: &[u8], why: w::LlmWhy) -> w::Refusal {
     w::Refusal::Llm(w::RefusalLlm { model: model.into(), why })
@@ -267,7 +267,7 @@ fn settings_requests(items: Box<[c::SettingItem]>) -> [w::Ask; 2] {
     let proposal = w::Propose {
             project: 0,
             action: w::ProposeAction::Settings(
-                w::ProposeSettings { against: 5, items: change.items().into() },
+                w::ProposeSettings { against: 5, items: change.items.as_ref().into() },
             ),
             reason: b"review settings".as_slice().into(),
         };
@@ -355,7 +355,7 @@ fn a_model_the_core_refuses_is_named_by_configuration() {
     let l = fixtures::wire();
     let reply = p::Reply::Outcome(p::Outcome::Refused(p::Refusal::Llm { model: 1, why: p::LlmWhy::Charter }));
     let w::Final::Refused(value) = fixtures::translated(&reply, &l) else { panic!("refusal") };
-    assert_eq!(value.refusal(), &named(b"quick", w::LlmWhy::Charter));
+    assert_eq!((&value.refusal), &named(b"quick", w::LlmWhy::Charter));
     let past = p::Reply::Outcome(p::Outcome::Refused(p::Refusal::Llm { model: 2, why: p::LlmWhy::Authority }));
     assert_eq!(
         translate::answers::answer(&past, &fixtures::models(), &l),
@@ -364,13 +364,12 @@ fn a_model_the_core_refuses_is_named_by_configuration() {
 }
 
 fn selector_ask(names: &[&[u8]]) -> w::Ask {
-    let limits = w::CEILINGS;
     let (w::Ask::ChangePolicy(ask), _) = fixtures::authority_ask() else { panic!("role edit") };
-    let mut ask = ask.into_parts();
+    let mut ask = ask;
     let w::PolicyEdit::Role(role) = ask.edit else { panic!("role") };
-    let mut role = role.into_parts();
-    let mut value = role.value.into_parts();
-    let mut authority = value.authority.into_parts();
+    let mut role = role;
+    let mut value = role.value;
+    let mut authority = value.authority;
     let mut rows = skein_lib::List::with_capacity(u32::try_from(names.len()).unwrap());
     for name in names {
         rows.push(Box::from(*name)).unwrap();
@@ -399,7 +398,7 @@ fn original_selector_names_are_canonical_and_unknowns_reach_retained_key_lookup(
 #[test]
 fn an_explicit_account_reaches_the_people_child() {
     let l = fixtures::wire();
-    let mut choice = fixtures::careful_and_quick(&l).into_parts();
+    let mut choice = fixtures::careful_and_quick(&l);
     choice.account = Some(42);
     let ask = w::Ask::Amend(amend(choice));
     let Ok(p::Ask::Amend { amendment, .. }) = translate::asks::ask(ask, &fixtures::models(), &l) else {
@@ -424,13 +423,13 @@ fn task_documents_keep_the_claimed_account_separate_from_the_preference() {
         ),
     });
     let record = translate::task::document(&task, &fixtures::models(), &l).unwrap();
-    assert_eq!(*record.llm().as_ref().unwrap().account(), Some(42));
-    assert_eq!(*record.kept_account(), Some(41));
-    let Some(w::TaskRunWait::Account(wait)) = record.run_wait() else { panic!("account wait") };
-    assert_eq!((*wait.account(), *wait.source()), (Some(41), Some(91)));
-    let w::TaskWaitWhy::Source(reason) = wait.why() else { panic!("source wait") };
-    let w::TaskSourceState::Limited(limited) = reason.state() else { panic!("limited") };
-    assert_eq!(*limited.until(), None);
+    assert_eq!(record.llm.as_ref().unwrap().account, Some(42));
+    assert_eq!(record.kept_account, Some(41));
+    let Some(w::TaskRunWait::Account(wait)) = &record.run_wait else { panic!("account wait") };
+    assert_eq!((wait.account, wait.source), (Some(41), Some(91)));
+    let w::TaskWaitWhy::Source(reason) = &wait.why else { panic!("source wait") };
+    let w::TaskSourceState::Limited(limited) = &reason.state else { panic!("limited") };
+    assert_eq!(limited.until, None);
 }
 
 #[test]
@@ -442,9 +441,9 @@ fn an_untooled_wait_keeps_its_account_source_and_worker() {
     let wire = translate::task_wait::waiting(Some(wait), &limits).unwrap().unwrap();
     assert_eq!(w::VERSION, 37);
     let w::TaskRunWait::Account(row) = wire else { panic!("account wait") };
-    assert_eq!((*row.account(), *row.source()), (Some(4), Some(7)));
-    let w::TaskWaitWhy::Untooled(why) = row.why() else { panic!("untooled wait") };
-    assert_eq!(why.worker(), 2);
+    assert_eq!((row.account, row.source), (Some(4), Some(7)));
+    let w::TaskWaitWhy::Untooled(why) = &row.why else { panic!("untooled wait") };
+    assert_eq!(why.worker, 2);
 }
 
 #[test]
@@ -453,8 +452,8 @@ fn an_account_refusal_preserves_its_number() {
     for why in [p::AccountWhy::Unknown, p::AccountWhy::Provider, p::AccountWhy::Uses, p::AccountWhy::Limited] {
         let reply = p::Reply::Outcome(p::Outcome::Refused(p::Refusal::Account { account: 42, why }));
         let w::Final::Refused(value) = fixtures::translated(&reply, &l) else { panic!("refusal") };
-        let w::Refusal::Account(account) = value.refusal() else { panic!("typed account refusal") };
-        assert_eq!(account.account(), 42);
+        let w::Refusal::Account(account) = &value.refusal else { panic!("typed account refusal") };
+        assert_eq!(account.account, 42);
     }
 }
 
@@ -473,8 +472,8 @@ fn assert_task_refusal_round_trip(
             let mut deployment = fixtures::deployment_document();
             deployment.hello_refusals.get_mut(0).unwrap().why = why;
             let record = translate::deployment::document(&deployment, &limits).unwrap();
-            let mut writer = Writer::new(usize::try_from(record.measure()).unwrap());
-            record.encode(&mut writer).unwrap();
+            let mut writer = Writer::new(usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+            record.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
             let bytes = writer.finish();
             let decoded = w::Deployment::decode(&limits, &mut Reader::new(&bytes)).unwrap();
             let client = jig_client_protocol_link::translate::documents::deployment(decoded, &client_limits).unwrap();
@@ -484,10 +483,10 @@ fn assert_task_refusal_round_trip(
         _ => panic!("matching refusal shapes"),
     }
     let record = translate::task::document(&task, &[], &limits).unwrap();
-    let mut writer = Writer::new(usize::try_from(record.measure()).unwrap());
-    record.encode(&mut writer).unwrap();
+    let mut writer = Writer::new(usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    record.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
     let bytes = writer.finish();
-    assert!(u64::from(record.measure()) <= w::Task::encoded_bound(&limits).unwrap());
+    assert!(u64::from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")) <= w::Task::encoded_bound(&limits).unwrap());
     let decoded = w::Task::decode(&limits, &mut Reader::new(&bytes)).unwrap();
     assert_eq!(decoded, record);
     let client = jig_client_protocol_link::translate::documents::task(decoded, &client_limits).unwrap();

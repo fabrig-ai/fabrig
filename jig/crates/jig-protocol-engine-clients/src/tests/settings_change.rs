@@ -1,4 +1,5 @@
 //! Settings cross the clients' component as one value and one keyed digest.
+use jig_client_protocol_wire::Record as _;
 use super::fixtures::{self as f, Exchange};
 use crate::{Request, translate};
 use jig_client_protocol_wire as w;
@@ -39,8 +40,8 @@ fn all_four_whole_values_translate_and_the_component_passes_the_exact_asks_diges
             request: encoded,
             value: None,
         };
-    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(keyed.measure()));
-    keyed.encode(&mut writer).expect("settings envelope");
+    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(keyed.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+    keyed.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("settings envelope");
     exchange.send(crate::Message::Request(writer.finish()));
     exchange.authenticate();
     let Some(Request::Core(event)) = exchange.out.pop() else { panic!("core entrance") };
@@ -79,8 +80,8 @@ fn resets_and_removals_translate_and_bad_pieces_reach_no_core() {
     let mut rows = List::with_capacity(2);
     for edit in [w::SettingEdit::Reset, w::SettingEdit::Removed] {
         let item = w::SettingItem { setting: w::Setting::Rules, edit };
-        let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(item.measure()));
-        item.encode(&mut writer).expect("settings fixture");
+        let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(item.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+        item.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("settings fixture");
         rows.push(writer.finish()).expect("settings fixture");
     }
     let request = w::ChangeSettings { against: 3, items: f::pieces(rows.as_slice()), running: w::Running::Stays };
@@ -112,8 +113,8 @@ fn settings_answers_and_each_fault_keep_their_facts() {
     let limits = f::wire();
     let answer = f::translated(&p::Reply::Outcome(p::Outcome::SettingsChanged { revision: 8 }), &limits);
     let w::Final::Done(value) = answer else { panic!("done settings") };
-    let w::Outcome::SettingsChanged(value) = value.outcome() else { panic!("settings changed") };
-    assert_eq!(value.revision(), 8);
+    let w::Outcome::SettingsChanged(value) = &value.outcome else { panic!("settings changed") };
+    assert_eq!(value.revision, 8);
     for why in [
         p::Refusal::Stale { newest: 8 },
         p::Refusal::Full { revision: 8, tasks: Box::new([3, 5]), more: 2 },
@@ -121,14 +122,14 @@ fn settings_answers_and_each_fault_keep_their_facts() {
     ] {
         let value = translate::refusals::refusal(why.clone(), &limits).expect("settings fixture");
         match (why, value) {
-            (p::Refusal::Stale { newest }, w::Refusal::Stale(value)) => assert_eq!(value.newest(), newest),
+            (p::Refusal::Stale { newest }, w::Refusal::Stale(value)) => assert_eq!(value.newest, newest),
             (p::Refusal::Full { revision, tasks, more }, w::Refusal::Full(value)) => {
-                assert_eq!(value.revision(), revision);
-                assert_eq!(value.tasks().as_slice(), tasks.as_ref());
-                assert_eq!(value.more(), more);
+                assert_eq!(value.revision, revision);
+                assert_eq!(value.tasks.as_slice(), tasks.as_ref());
+                assert_eq!(value.more, more);
             }
             (p::Refusal::NotWellFormed { .. }, w::Refusal::Malformed(value)) => {
-                assert_eq!(value.why(), &w::Malformed::SettingsUnchanged);
+                assert_eq!((&value.why), &w::Malformed::SettingsUnchanged);
             }
             value => panic!("settings refusal {value:?}"),
         }
@@ -152,10 +153,10 @@ fn settings_answers_and_each_fault_keep_their_facts() {
             )
             .expect("settings fixture");
             let w::Refusal::Malformed(value) = value else { panic!("malformed settings") };
-            let w::Malformed::Settings(facts) = value.why() else { panic!("settings facts") };
-            assert_eq!(facts.fault(), &expected);
+            let w::Malformed::Settings(facts) = &value.why else { panic!("settings facts") };
+            assert_eq!((&facts.fault), &expected);
             assert_eq!(
-                facts.setting(),
+                (&facts.setting),
                 &match setting {
                     jig_domain_people::Setting::ProjectPolicy { project } => w::Setting::ProjectPolicy(
                         w::ProjectPolicySetting { project }
@@ -194,8 +195,6 @@ fn proposal_ask() -> w::Ask {
     proposed_settings(value)
 }
 fn proposed_settings(value: w::ChangeSettings) -> w::Ask {
-    let value = value.into_parts();
-    let limits = f::wire();
     w::Ask::Propose(
         w::Propose {
                 project: 0,
@@ -270,10 +269,10 @@ fn unsupported_template_efforts_receive_a_final_refusal() {
             let (exchange, owner) = send_template(&ask);
             assert!(exchange.out.is_empty(), "invalid settings reached the core: {ask:?}");
             let w::Final::Refused(value) = exchange.final_answer(owner) else { panic!("final refusal: {ask:?}") };
-            let w::Refusal::Llm(refusal) = value.refusal() else { panic!("named LLM refusal: {ask:?}") };
-            assert_eq!(refusal.model(), model);
-            assert_eq!(*refusal.why(), why);
-            assert_eq!(*value.at(), None);
+            let w::Refusal::Llm(refusal) = &value.refusal else { panic!("named LLM refusal: {ask:?}") };
+            assert_eq!(refusal.model.as_ref(), model);
+            assert_eq!(refusal.why, why);
+            assert_eq!(value.at, None);
         }
     }
 }
@@ -365,12 +364,12 @@ fn unknown_models_in_settings_proposals_are_named_before_decoding_the_set() {
     exchange.authenticate();
     assert!(exchange.out.is_empty());
     let w::Final::Refused(value) = exchange.final_answer(owner) else { panic!("named model refusal") };
-    let w::Refusal::Llm(refusal) = value.refusal() else { panic!("LLM refusal") };
-    assert_eq!(refusal.model(), b"model");
-    assert_eq!(*refusal.why(), w::LlmWhy::Unconfigured);
+    let w::Refusal::Llm(refusal) = &value.refusal else { panic!("LLM refusal") };
+    assert_eq!(refusal.model.as_ref(), b"model");
+    assert_eq!(refusal.why, w::LlmWhy::Unconfigured);
 }
 
-fn proposal_envelope(request: Box<[u8]>, limits: &w::Limits) -> Box<[u8]> {
+fn proposal_envelope(request: Box<[u8]>, _limits: &w::Limits) -> Box<[u8]> {
     let keyed = w::Keyed {
             key: [5; 16],
             owner: w::Owner::Jig,
@@ -378,8 +377,8 @@ fn proposal_envelope(request: Box<[u8]>, limits: &w::Limits) -> Box<[u8]> {
             request,
             value: None,
         };
-    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(keyed.measure()));
-    keyed.encode(&mut writer).expect("measured envelope");
+    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(keyed.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+    keyed.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("measured envelope");
     writer.finish()
 }
 
@@ -395,10 +394,10 @@ fn move_to_newest_translates_the_revision_and_both_counts() {
     )
     .expect("answer");
     let w::KeyedAnswer::FinalAnswer(answer) = answer else { panic!("final answer") };
-    let answer = w::Final::decode(&limits, &mut skein_lib::Reader::new(answer.record())).expect("final");
+    let answer = w::Final::decode(&limits, &mut skein_lib::Reader::new(answer.record.as_ref())).expect("final");
     let w::Final::Done(answer) = answer else { panic!("done") };
-    let w::Outcome::MovedToNewest(value) = answer.outcome() else { panic!("counts") };
-    assert_eq!((value.newest(), value.moved(), value.stayed()), (9, 3, 1));
+    let w::Outcome::MovedToNewest(value) = &answer.outcome else { panic!("counts") };
+    assert_eq!((value.newest, value.moved, value.stayed), (9, 3, 1));
 }
 
 #[test]
@@ -411,14 +410,14 @@ fn public_settings_items_share_model_resolution_and_name_invalid_fields() {
     let (first, rest) = models.split_at_mut_checked(1).expect("two models");
     ::core::mem::swap(first.first_mut().expect("first model"), rest.first_mut().expect("second model"));
     let expected = translate::settings::change(request.clone(), &models, &limits).expect("existing translation");
-    let decoded = translate::settings::items(request.items().into(), &models, &limits).expect("public entrance");
+    let decoded = translate::settings::items(request.items.as_ref().into(), &models, &limits).expect("public entrance");
     assert_eq!(decoded, expected.items);
     assert_eq!(decoded.len(), 4);
     let s::Edit::Set(s::Value::Template(template)) = &decoded[1].edit else { panic!("template") };
     assert_eq!(template.llm.as_ref().expect("model selection").main.model, 1);
     let bad = translate::settings::items(Box::new([0]), &models, &limits).expect_err("truncated item length");
     assert_eq!(bad.field, w::paths::CHANGE_SETTINGS_ITEMS);
-    let bad = translate::settings::items(request.items().into(), &[], &limits).expect_err("unconfigured model");
+    let bad = translate::settings::items(request.items.as_ref().into(), &[], &limits).expect_err("unconfigured model");
     assert_eq!(bad.field, w::paths::TEMPLATE_LLM);
 }
 
@@ -437,7 +436,7 @@ fn a_changed_template_keeps_its_resources() {
     let wire = jig_client_protocol_link::translate::settings::wire_change_settings(&change, &limits).unwrap();
     let mut models = f::models();
     models[0].name = Box::from(b"model".as_slice());
-    let translated = translate::settings::items(wire.into_parts().items, &models, &limits).unwrap();
+    let translated = translate::settings::items(wire.items, &models, &limits).unwrap();
     let s::Edit::Set(s::Value::Template(template)) = &translated[1].edit else { panic!("template") };
     assert_eq!(template.resources.as_ref(), &resources);
 }
@@ -468,7 +467,7 @@ fn application_edits_round_trip_from_client_bytes_into_changes_and_proposals() {
         let change = translate::settings::change(wire.clone(), &f::models(), &limits).unwrap();
         let expected = s::Item { setting: s::Setting::Application { kind: 17, scope: 4, number: 9 }, edit: expected };
         assert_eq!(change.items.as_ref(), ::core::slice::from_ref(&expected));
-        let parts = wire.into_parts();
+        let parts = wire;
         let proposed = w::Propose {
                 project: 0,
                 action: w::ProposeAction::Settings(
@@ -529,12 +528,12 @@ fn document_refusal_details_cross_the_client_wire() {
                 },
             };
             let wire = translate::refusals::refusal(refusal, &limits).expect("document refusal");
-            let mut bytes = skein_lib::Writer::new(usize::try_from(wire.measure()).unwrap());
-            wire.encode(&mut bytes).unwrap();
+            let mut bytes = skein_lib::Writer::new(usize::try_from(wire.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+            wire.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
             let wire = w::Refusal::decode(&limits, &mut skein_lib::Reader::new(&bytes.finish())).unwrap();
             let w::Refusal::Malformed(wire) = wire else { panic!("malformed") };
-            assert_eq!(wire.at(), 2);
-            let w::Malformed::Settings(facts) = wire.why() else { panic!("settings facts") };
+            assert_eq!(wire.at, 2);
+            let w::Malformed::Settings(facts) = &wire.why else { panic!("settings facts") };
             let client = jig_client_protocol_link::translate::settings::restore_malformed_settings(facts).unwrap();
             assert_eq!(
                 client,

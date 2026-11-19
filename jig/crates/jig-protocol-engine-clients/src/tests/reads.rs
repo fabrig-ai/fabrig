@@ -1,6 +1,5 @@
 use super::super::*;
 use super::fixtures as f;
-use crate::cursor_v2::Record as _;
 use jig_domain_core_vocabulary::reads;
 #[test]
 fn pending_amendments_answer_their_value_over_the_exchange() {
@@ -86,7 +85,6 @@ fn a_cursor_round_trips_to_the_same_position() {
 }
 #[test]
 fn a_cursor_that_does_not_decode_is_answered_unknown() {
-    let limits = f::wire();
     for (label, bytes) in [
         ("unknown format", &[0, 3][..]),
         ("unknown variant", &[0, 2, 2][..]),
@@ -118,7 +116,6 @@ fn a_cursor_from_another_version_is_answered_unknown() {
     let mut reader = skein_lib::Reader::new(&encoded);
     reader.u16().unwrap();
     bytes.put(reader.bytes(reader.remaining()).unwrap()).unwrap();
-    let limits = f::wire();
     let after = w::Cursor { value: bytes.finish() };
     let read =
         w::Read::Spend(w::ReadSpend { project: 3, after: Some(after) });
@@ -306,34 +303,33 @@ fn a_single_turn_read_carries_the_same_archive_as_activity() {
         );
         let w::ReadAnswer::Value(envelope) = exchange.read_answer(owner) else { panic!("turn answer") };
         let w::ReadValue::Turn(archive) =
-            w::ReadValue::decode(&limits, &mut skein_lib::Reader::new(envelope.record())).unwrap()
+            w::ReadValue::decode(&limits, &mut skein_lib::Reader::new(envelope.record.as_ref())).unwrap()
         else {
             panic!("archive")
         };
         assert_eq!(
-            (archive.task(), archive.name().attempt(), archive.name().number()),
+            (archive.task, archive.name.attempt, archive.name.number),
             (record.task, record.attempt, record.turn)
         );
         assert_eq!(
-            (archive.cumulative(), *archive.read(), archive.at()),
+            (archive.cumulative, archive.read, archive.at),
             (record.spent, record.read, record.at.as_nanos())
         );
-        let w::TurnBytes::Carried(turn) = archive.turn() else { panic!("carried") };
-        assert_eq!(turn.bytes(), f::private_transcript(withheld).as_ref(), "withheld {withheld}");
+        let w::TurnBytes::Carried(turn) = &archive.turn else { panic!("carried") };
+        assert_eq!(turn.bytes.as_ref(), f::private_transcript(withheld).as_ref(), "withheld {withheld}");
     }
 }
 
 #[test]
 fn a_client_reading_a_too_linked_task_is_told_its_join_bound() {
     let mut exchange = f::read_exchange();
-    let limits = f::wire();
     let task = w::Read::Task(w::ReadTask { task: 1 });
     let (owner, reply, _) = exchange.read(&task);
     exchange.release_read(reply, reads::Answer::None(reads::Why::TooLinked { joins: 4 }));
     // read_answer decodes the real engine response bytes with the client codec.
     let w::ReadAnswer::None(reason) = exchange.read_answer(owner) else { panic!("read refusal") };
     assert_eq!(
-        jig_client_protocol_link::translate::reads::none(reason.value()),
+        jig_client_protocol_link::translate::reads::none(&reason.value),
         jig_client_domain::contract::ReadNone::TooLinked { joins: 4 },
     );
 }
@@ -380,7 +376,6 @@ fn cursor_boundaries_refuse_unrepresentable_scopes_oversized_values_and_other_fo
 }
 
 fn tasks_read(description: Option<Box<[u8]>>, after: Option<w::Cursor>) -> w::Read {
-    let limits = f::wire();
     w::Read::Notes(
         w::ReadNotes {
                 scope: w::NoteScope::Tasks(
@@ -466,9 +461,9 @@ fn a_later_page_says_more_by_its_after() {
     else {
         panic!("activity page")
     };
-    assert_eq!(value.before(), &None);
-    let after = value.after().as_ref().expect("more later lines");
-    assert_eq!(crate::translate::cursor::decode(after.value()), Some(next));
+    assert_eq!((&value.before), &None);
+    let after = value.after.as_ref().expect("more later lines");
+    assert_eq!(crate::translate::cursor::decode(after.value.as_ref()), Some(next));
 }
 
 #[test]

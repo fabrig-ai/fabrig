@@ -1,5 +1,6 @@
 //! A task's LLM choice and `me`'s models: the core names a model and its effort by index in
 //! configuration's order, the client by name (client/domain/contract/requests.md, 2, and client/domain/contract/documents.md, 1; domain/tasks/README.md, 3).
+use jig_client_protocol_wire::Record as _;
 use super::w;
 use crate::Model;
 use alloc::boxed::Box;
@@ -77,7 +78,7 @@ pub fn catalogue(models: &[jig_domain_core_vocabulary::settings::CatalogueModel]
 }
 
 /// A complete permission selector by names, preserving literal ALL even with 64 models.
-pub fn authority(value: Models, models: &[Model], limits: &w::Limits) -> Result<Option<w::ModelSet>, w::Problem> {
+pub fn authority(value: Models, models: &[Model], _limits: &w::Limits) -> Result<Option<w::ModelSet>, w::Problem> {
     if value.is_all() {
         return Ok(Some(w::ModelSet::All));
     }
@@ -109,7 +110,7 @@ pub(super) fn requested(
         Some(w::ModelSet::All) => Some(p::Models::All),
         Some(w::ModelSet::Names(value)) => {
             let mut mask = 0_u64;
-            for name in value.into_parts().names.into_boxed() {
+            for name in value.names.into_boxed() {
                 if name.is_empty() {
                     return Err(bad);
                 }
@@ -222,7 +223,7 @@ pub(crate) fn fits(models: &[Model], limits: &w::Limits) -> bool {
 pub fn models(
     offer: &[jig_domain_core_vocabulary::Offered],
     models: &[Model],
-    limits: &w::Limits,
+    _limits: &w::Limits,
 ) -> Result<List<w::MeModel>, w::Problem> {
     let mut rows = List::with_capacity(u32::try_from(offer.len()).expect("checked models"));
     for offered in offer {
@@ -302,7 +303,7 @@ fn later_choice(value: &t::LlmLater, models: &[Model], limits: &w::Limits) -> Re
     }
     Ok(w::LlmLater { main: model_effort(value.main, models, limits)?, subagents })
 }
-fn model_effort(value: t::ModelEffort, models: &[Model], limits: &w::Limits) -> Result<w::ModelEffort, w::Problem> {
+fn model_effort(value: t::ModelEffort, models: &[Model], _limits: &w::Limits) -> Result<w::ModelEffort, w::Problem> {
     let unknown = w::Problem { path: w::paths::MODEL_EFFORT_MODEL, reason: skein_codec::Reason::Bound };
     let Some(model) = models.get(usize::from(value.model)) else {
         return Err(unknown);
@@ -329,16 +330,16 @@ pub(crate) fn refused(
     limits: &w::Limits,
 ) -> Result<Option<w::KeyedAnswer>, w::Problem> {
     let (at, found) = match record {
-        w::Ask::Delegate(value) => (None, batch(value.tasks(), models, limits)?),
-        w::Ask::Create(value) => (None, batch(value.tasks(), models, limits)?),
-        w::Ask::Propose(value) => match value.action() {
-            w::ProposeAction::Settings(value) => (None, settings_items(value.items(), models, limits)?),
-            w::ProposeAction::Batch(value) => (None, batch(value.tasks(), models, limits)?),
-            w::ProposeAction::Amendment(value) => (None, lacking(value.change().llm().as_ref(), models)),
+        w::Ask::Delegate(value) => (None, batch(value.tasks.as_ref(), models, limits)?),
+        w::Ask::Create(value) => (None, batch(value.tasks.as_ref(), models, limits)?),
+        w::Ask::Propose(value) => match &value.action {
+            w::ProposeAction::Settings(value) => (None, settings_items(value.items.as_ref(), models, limits)?),
+            w::ProposeAction::Batch(value) => (None, batch(value.tasks.as_ref(), models, limits)?),
+            w::ProposeAction::Amendment(value) => (None, lacking(value.change.llm.as_ref(), models)),
         },
-        w::Ask::Amend(value) => (None, lacking(value.change().llm().as_ref(), models)),
-        w::Ask::Compound(value) => operations(value.operations(), models, limits)?,
-        w::Ask::ChangeSettings(value) => (None, settings_items(value.items(), models, limits)?),
+        w::Ask::Amend(value) => (None, lacking(value.change.llm.as_ref(), models)),
+        w::Ask::Compound(value) => operations(value.operations.as_ref(), models, limits)?,
+        w::Ask::ChangeSettings(value) => (None, settings_items(value.items.as_ref(), models, limits)?),
         w::Ask::ReadLists(_)
         | w::Ask::ChangeModel(_)
         | w::Ask::RemoveProject(_)
@@ -377,8 +378,8 @@ pub(crate) fn refused(
     };
     let refusal = w::Refusal::Llm(w::RefusalLlm { model, why });
     let answer = w::Final::Refused(w::Refused { refusal, at });
-    let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(answer.measure()));
-    answer.encode(&mut out).expect("measured answer");
+    let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(answer.measure(limits)?));
+    answer.write(limits, &mut out).expect("measured answer");
     match super::answers::owned(w::Owner::Jig, jig_client_protocol_wire::VERSION, out.finish(), limits) {
         Ok(value) => Ok(Some(value)),
         Err(problem) => Err(problem),
@@ -393,7 +394,7 @@ fn batch(bytes: &[u8], models: &[Model], limits: &w::Limits) -> Result<Option<La
     let mut reader = Reader::new(bytes);
     while let Some(piece) = piece(&mut reader)? {
         let task = w::NewTask::decode(limits, &mut Reader::new(&piece))?;
-        if let Some(found) = lacking(task.llm().as_ref(), models) {
+        if let Some(found) = lacking(task.llm.as_ref(), models) {
             return Ok(Some(found));
         }
     }
@@ -408,7 +409,7 @@ fn operations(
     let mut at = 0_u32;
     while let Some(piece) = piece(&mut reader)? {
         if let w::Operation::Amend(value) = w::Operation::decode(limits, &mut Reader::new(&piece))?
-            && let Some(found) = lacking(value.change().llm().as_ref(), models)
+            && let Some(found) = lacking(value.change.llm.as_ref(), models)
         {
             return Ok((Some(at), Some(found)));
         }
@@ -425,21 +426,21 @@ fn piece(reader: &mut Reader<'_>) -> Result<Option<Box<[u8]>>, w::Problem> {
 /// The first model of a choice that configuration lacks, or whose effort its model lacks.
 fn lacking(choice: Option<&w::LlmChoice>, models: &[Model]) -> Option<Lacking> {
     let choice = choice?;
-    if let Err(why) = indices(choice.main(), models) {
-        return Some(Lacking { model: bytes::copy_of(choice.main().model()), why });
+    if let Err(why) = indices(&choice.main, models) {
+        return Some(Lacking { model: bytes::copy_of(choice.main.model.as_ref()), why });
     }
-    for item in choice.subagents() {
+    for item in &choice.subagents {
         if let Err(why) = indices(item, models) {
-            return Some(Lacking { model: bytes::copy_of(item.model()), why });
+            return Some(Lacking { model: bytes::copy_of(item.model.as_ref()), why });
         }
     }
-    if let Some(later) = choice.later() {
-        if let Err(why) = indices(later.main(), models) {
-            return Some(Lacking { model: bytes::copy_of(later.main().model()), why });
+    if let Some(later) = &choice.later {
+        if let Err(why) = indices(&later.main, models) {
+            return Some(Lacking { model: bytes::copy_of(later.main.model.as_ref()), why });
         }
-        for item in later.subagents() {
+        for item in &later.subagents {
             if let Err(why) = indices(item, models) {
-                return Some(Lacking { model: bytes::copy_of(item.model()), why });
+                return Some(Lacking { model: bytes::copy_of(item.model.as_ref()), why });
             }
         }
     }
@@ -456,32 +457,32 @@ pub(crate) fn people(
     let Some(value) = value else {
         return Ok(None);
     };
-    let Ok(main) = indices(value.main(), models) else {
+    let Ok(main) = indices(&value.main, models) else {
         return Err(super::Untranslatable { path });
     };
-    let mut subagents = List::with_capacity(value.subagents().len());
-    for item in value.subagents() {
+    let mut subagents = List::with_capacity(value.subagents.len());
+    for item in &value.subagents {
         let Ok(item) = indices(item, models) else {
             return Err(super::Untranslatable { path });
         };
         subagents.push(item).expect("same capacity");
     }
     Ok(Some(p::LlmChoice {
-        later: match value.later() {
+        later: match &value.later {
             Some(later) => Some(people_later(later, models, path)?),
             None => None,
         },
-        account: *value.account(),
+        account: value.account,
         main,
         subagents: subagents.into_boxed(),
     }))
 }
 fn people_later(value: &w::LlmLater, models: &[Model], path: w::Path) -> Result<p::LlmLater, super::Untranslatable> {
-    let Ok(main) = indices(value.main(), models) else {
+    let Ok(main) = indices(&value.main, models) else {
         return Err(super::Untranslatable { path });
     };
-    let mut subagents = List::with_capacity(value.subagents().len());
-    for item in value.subagents() {
+    let mut subagents = List::with_capacity(value.subagents.len());
+    for item in &value.subagents {
         let Ok(item) = indices(item, models) else {
             return Err(super::Untranslatable { path });
         };
@@ -492,7 +493,7 @@ fn people_later(value: &w::LlmLater, models: &[Model], path: w::Path) -> Result<
 fn indices(value: &w::ModelEffort, models: &[Model]) -> Result<p::ModelEffort, w::LlmWhy> {
     let mut found = None;
     for (at, model) in models.iter().enumerate() {
-        if !model.name.is_empty() && *model.name == *value.model() {
+        if !model.name.is_empty() && *model.name == *value.model.as_ref() {
             found = Some((at, model));
             break;
         }
@@ -500,7 +501,7 @@ fn indices(value: &w::ModelEffort, models: &[Model]) -> Result<p::ModelEffort, w
     let Some((at, model)) = found else {
         return Err(w::LlmWhy::Unconfigured);
     };
-    let effort = match value.effort() {
+    let effort = match &value.effort {
         Some(name) => {
             let mut effort = None;
             for (index, item) in model.efforts.iter().enumerate() {
@@ -525,7 +526,7 @@ pub(crate) fn refusal(
     model: u8,
     why: p::LlmWhy,
     models: &[Model],
-    limits: &w::Limits,
+    _limits: &w::Limits,
 ) -> Result<w::Refusal, w::Problem> {
     let Some(model) = models.get(usize::from(model)) else {
         return Err(w::Problem { path: w::paths::REFUSAL_LLM_MODEL, reason: skein_codec::Reason::Bound });
@@ -555,13 +556,13 @@ fn settings_items(bytes: &[u8], models: &[Model], limits: &w::Limits) -> Result<
         if !row.is_empty() {
             return Err(super::problem(skein_codec::Reason::Malformed));
         }
-        let found = match item.edit() {
+        let found = match &item.edit {
             w::SettingEdit::Removed | w::SettingEdit::Reset => None,
-            w::SettingEdit::Set(value) => match value.value() {
-                w::SettingValue::Template(value) => lacking(value.llm().as_ref(), models),
+            w::SettingEdit::Set(value) => match &value.value {
+                w::SettingValue::Template(value) => lacking(value.llm.as_ref(), models),
                 w::SettingValue::Charter(value) => {
-                    let mut found = settings_model(value.model(), models);
-                    for alternative in value.alternatives() {
+                    let mut found = settings_model(&value.model, models);
+                    for alternative in &value.alternatives {
                         if found.is_none() {
                             found = settings_model(alternative, models);
                         }
@@ -570,10 +571,10 @@ fn settings_items(bytes: &[u8], models: &[Model], limits: &w::Limits) -> Result<
                 }
                 w::SettingValue::Overlay(value) => {
                     let mut found = None;
-                    if let Some(model) = value.model() {
+                    if let Some(model) = &value.model {
                         found = settings_model(model, models);
                     }
-                    if let Some(alternatives) = value.alternatives() {
+                    if let Some(alternatives) = &value.alternatives {
                         for model in alternatives {
                             if found.is_none() {
                                 found = settings_model(model, models);
@@ -583,10 +584,10 @@ fn settings_items(bytes: &[u8], models: &[Model], limits: &w::Limits) -> Result<
                     found
                 }
                 w::SettingValue::Policy(value) => {
-                    let mut found = settings_selector(value.ceiling().models().as_ref(), models);
-                    for role in value.roles() {
+                    let mut found = settings_selector(value.ceiling.models.as_ref(), models);
+                    for role in &value.roles {
                         if found.is_none() {
-                            found = settings_selector(role.authority().models().as_ref(), models);
+                            found = settings_selector(role.authority.models.as_ref(), models);
                         }
                     }
                     found
@@ -596,7 +597,7 @@ fn settings_items(bytes: &[u8], models: &[Model], limits: &w::Limits) -> Result<
                 | w::SettingValue::Worker(_)
                 | w::SettingValue::Application(_)
                 | w::SettingValue::Limits(_) => None,
-                w::SettingValue::Rules(value) => settings_selector(value.ceiling().models().as_ref(), models),
+                w::SettingValue::Rules(value) => settings_selector(value.ceiling.models.as_ref(), models),
             },
         };
         if found.is_some() {
@@ -611,7 +612,7 @@ fn settings_items(bytes: &[u8], models: &[Model], limits: &w::Limits) -> Result<
 fn settings_selector(selector: Option<&w::ModelSet>, models: &[Model]) -> Option<Lacking> {
     match selector {
         Some(w::ModelSet::Names(names)) => {
-            for name in names.names() {
+            for name in &names.names {
                 let mut configured = false;
                 for model in models {
                     configured |= model.name.as_ref() == name.as_ref();
@@ -627,18 +628,18 @@ fn settings_selector(selector: Option<&w::ModelSet>, models: &[Model]) -> Option
 }
 fn settings_model(model: &w::SettingModel, models: &[Model]) -> Option<Lacking> {
     for configured in models {
-        if configured.name.as_ref() == model.name() {
-            if let Some(effort) = model.effort() {
+        if configured.name.as_ref() == model.name.as_ref() {
+            if let Some(effort) = &model.effort {
                 let mut offered = false;
                 for name in &configured.efforts {
                     offered |= name.as_ref() == effort.as_ref();
                 }
                 if !offered {
-                    return Some(Lacking { model: bytes::copy_of(model.name()), why: w::LlmWhy::Effort });
+                    return Some(Lacking { model: bytes::copy_of(model.name.as_ref()), why: w::LlmWhy::Effort });
                 }
             }
             return None;
         }
     }
-    Some(Lacking { model: bytes::copy_of(model.name()), why: w::LlmWhy::Unconfigured })
+    Some(Lacking { model: bytes::copy_of(model.name.as_ref()), why: w::LlmWhy::Unconfigured })
 }

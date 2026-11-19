@@ -1,4 +1,5 @@
 //! Whole selected page rows and their owner continuations (protocol/client/wire.md, 1, and protocol/client/README.md, 4).
+use jig_client_protocol_wire::Record as _;
 use super::{cursor, w};
 use alloc::boxed::Box;
 use jig_domain_core_vocabulary::reads;
@@ -150,8 +151,8 @@ fn task_pieces(
     let mut pieces = skein_lib::List::with_capacity(lines.len());
     for line in lines {
         let line = super::queries::line_parts(line, slots, limits)?;
-        let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(line.measure()));
-        line.encode(&mut writer).expect("measured line");
+        let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(line.measure(limits)?));
+        line.write(limits, &mut writer).expect("measured line");
         pieces.push(writer.finish()).expect("same line count");
     }
     super::pieces(&pieces, bound, path)

@@ -69,8 +69,8 @@ pub fn person_unchanged(reason: &[u8]) -> jig_domain_people::Amendment {
 pub fn compound(project: u32, values: &[w::Operation]) -> w::Ask {
     let mut encoded = List::with_capacity(u32::try_from(values.len()).unwrap());
     for value in values {
-        let mut out = Writer::new(usize::try_from(value.measure()).unwrap());
-        value.encode(&mut out).unwrap();
+        let mut out = Writer::new(usize::try_from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+        value.write(&jig_client_protocol_wire::CEILINGS, &mut out).unwrap();
         encoded.push(out.finish()).unwrap();
     }
     w::Ask::Compound(
@@ -79,8 +79,8 @@ pub fn compound(project: u32, values: &[w::Operation]) -> w::Ask {
 }
 
 pub fn encode_ask(ask: &w::Ask) -> Box<[u8]> {
-    let mut out = Writer::new(skein_lib::length::usize_of(ask.measure()));
-    ask.encode(&mut out).expect("bounded ask");
+    let mut out = Writer::new(skein_lib::length::usize_of(ask.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+    ask.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("bounded ask");
     out.finish()
 }
 pub fn keyed(owner: w::Owner, version: u32, request: Box<[u8]>) -> Box<[u8]> {
@@ -90,8 +90,8 @@ pub fn keyed(owner: w::Owner, version: u32, request: Box<[u8]>) -> Box<[u8]> {
     };
     let value =
         w::Keyed { key: [5; 16], owner, version, request, value: None };
-    let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
-    value.encode(&mut out).expect("bounded keyed");
+    let mut out = Writer::new(skein_lib::length::usize_of(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+    value.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("bounded keyed");
     out.finish()
 }
 

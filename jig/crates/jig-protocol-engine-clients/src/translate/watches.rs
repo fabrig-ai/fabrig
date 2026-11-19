@@ -1,4 +1,5 @@
 //! Watches retain their whole subject and stream record (protocol/client/README.md, 5).
+use jig_client_protocol_wire::Record as _;
 use super::{chips, cursor, deployment, inbox, live, objects, owner, task, w};
 use alloc::boxed::Box;
 use jig_domain_core_vocabulary::{self as core, documents as d};
@@ -7,10 +8,9 @@ use skein_lib::{List, Reader, Token, Writer};
 
 pub(crate) fn watch(watcher: Token, sign_in: u64, value: w::Subject, rows: u32) -> Option<core::Event> {
     if let w::Subject::Run(value) = value {
-        let value = value.into_parts();
         let turn = match value.turn {
             Some(value) => {
-                Some(views::TurnName { attempt: value.attempt(), turn: value.number(), retry: value.retry() })
+                Some(views::TurnName { attempt: value.attempt, turn: value.number, retry: value.retry })
             }
             None => None,
         };
@@ -18,18 +18,17 @@ pub(crate) fn watch(watcher: Token, sign_in: u64, value: w::Subject, rows: u32) 
     }
     let (subject, rows) = match value {
         w::Subject::Me => (d::Watched::Frame, rows),
-        w::Subject::Inbox(value) => (d::Watched::Inbox, value.window()),
-        w::Subject::Task(value) => (d::Watched::Task { task: value.task() }, rows),
-        w::Subject::Tree(value) => (d::Watched::Tree { task: value.task() }, value.window()),
-        w::Subject::Chips(value) => (d::Watched::Chips { tasks: value.into_parts().tasks }, rows),
+        w::Subject::Inbox(value) => (d::Watched::Inbox, value.window),
+        w::Subject::Task(value) => (d::Watched::Task { task: value.task }, rows),
+        w::Subject::Tree(value) => (d::Watched::Tree { task: value.task }, value.window),
+        w::Subject::Chips(value) => (d::Watched::Chips { tasks: value.tasks }, rows),
         w::Subject::Tasks(value) => {
-            let value = value.into_parts();
             (d::Watched::Query { query: super::queries::query(value.query)? }, value.window)
         }
         w::Subject::Accounts => (d::Watched::Accounts, rows),
         w::Subject::Deployment => (d::Watched::Deployment, rows),
         w::Subject::Settings => (d::Watched::Settings, rows),
-        w::Subject::Terminal(value) => (d::Watched::Terminal { terminal: value.terminal() }, rows),
+        w::Subject::Terminal(value) => (d::Watched::Terminal { terminal: value.terminal }, rows),
         w::Subject::Run(_) => return None,
     };
     Some(core::Event::Watch { watcher, sign_in, subject, window: d::Window { rows, after: None } })
@@ -59,7 +58,8 @@ pub(crate) fn refused(why: core::WatchRefusal) -> w::WatchRefusal {
         core::WatchRefusal::SignedOut => w::WatchRefusal::SignedOut,
     }
 }
-pub(crate) fn hello(name: [u8; 16], settings: &crate::Settings, limits: &w::Limits) -> Result<w::Hello, w::Problem> {
+#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
+pub(crate) fn hello(name: [u8; 16], settings: &crate::Settings, _limits: &w::Limits) -> Result<w::Hello, w::Problem> {
     let mut served = List::with_capacity(settings.served.len());
     for range in &settings.served {
         let owner = match range.family {
@@ -103,8 +103,8 @@ pub(crate) fn delivery(
             }
             let mut pieces = List::with_capacity(rows.len());
             for row in rows.into_boxed() {
-                let mut bytes = Writer::new(skein_lib::length::usize_of(row.measure()));
-                row.encode(&mut bytes).expect("measured chip");
+                let mut bytes = Writer::new(skein_lib::length::usize_of(row.measure(limits)?));
+                row.write(limits, &mut bytes).expect("measured chip");
                 pieces.push(bytes.finish()).expect("chip pieces fit");
             }
             let rows = super::pieces(&pieces, limits.chips_rows, w::paths::CHIPS_ROWS)?;
@@ -126,13 +126,13 @@ pub(crate) fn delivery(
     })
 }
 pub(crate) fn owned(value: w::DeliveryValue, version: u32, limits: &w::Limits) -> Result<w::Owned, w::Problem> {
-    let mut record = Writer::new(skein_lib::length::usize_of(value.measure()));
-    value.encode(&mut record).expect("measured delivery");
+    let mut record = Writer::new(skein_lib::length::usize_of(value.measure(limits)?));
+    value.write(limits, &mut record).expect("measured delivery");
     Ok(w::Owned { owner: w::Owner::Jig, version, record: record.finish() })
 }
 pub(crate) fn packet(value: &w::StreamEvent) -> Box<[u8]> {
-    let mut record = Writer::new(skein_lib::length::usize_of(value.measure()));
-    value.encode(&mut record).expect("measured stream record");
+    let mut record = Writer::new(skein_lib::length::usize_of(value.measure(&w::CEILINGS).expect("bounded client record")));
+    value.write(&w::CEILINGS, &mut record).expect("measured stream record");
     record.finish()
 }
 
@@ -151,12 +151,13 @@ pub(crate) fn document_packet(
     let document = owned(value, version, limits)?;
     Ok(w::StreamEvent::Delivery(w::Delivery { watch, document }))
 }
+#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
 pub(crate) fn application_packet(
     family: u16,
     version: u32,
     record: Box<[u8]>,
     watch: u64,
-    limits: &w::Limits,
+    _limits: &w::Limits,
 ) -> Result<w::StreamEvent, w::Problem> {
     let family = w::Family { number: family };
     let document = w::Owned { owner: w::Owner::Family(family), version, record };
@@ -170,6 +171,7 @@ pub(crate) fn text_packet(
     let value = live::writing(writing, limits)?;
     Ok(w::StreamEvent::Text(w::StreamText { watch, value }))
 }
-pub(crate) fn end_packet(why: views::End, watch: u64, limits: &w::Limits) -> Result<w::StreamEvent, w::Problem> {
+#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
+pub(crate) fn end_packet(why: views::End, watch: u64, _limits: &w::Limits) -> Result<w::StreamEvent, w::Problem> {
     Ok(w::StreamEvent::Ended(w::WatchEnded { watch, why: ended(why) }))
 }

@@ -1,6 +1,7 @@
 //! A keyed request's carried value: kept before the application sees the
 //! request, which names it by number and digest only (protocol/client/README.md, 3;
 //! protocol/store/secrets.md).
+use jig_client_protocol_wire::Record as _;
 use super::fixtures::{self as f, Exchange};
 use crate::{Event, FromApplication, Request, SecretOwner, SecretsAnswer, SecretsRequest, ToApplication};
 use jig_client_protocol_wire as w;
@@ -19,8 +20,8 @@ fn carrying(owner: w::Owner, value: &[u8]) -> Box<[u8]> {
 }
 fn keyed_value(owner: w::Owner, version: u32, request: Box<[u8]>, value: &[u8]) -> Box<[u8]> {
     let record = w::Keyed { key: [5; 16], owner, version, request, value: Some(Secret::new(Box::from(value))) };
-    let mut out = Writer::new(skein_lib::length::usize_of(record.measure()));
-    record.encode(&mut out).expect("bounded keyed");
+    let mut out = Writer::new(skein_lib::length::usize_of(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+    record.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("bounded keyed");
     out.finish()
 }
 fn family() -> w::Owner {
@@ -101,7 +102,7 @@ fn a_value_the_core_leaves_unused_is_erased_once_its_number_is_named() {
     assert_eq!(erased(&mut exchange), SecretOwner::Carried(FIRST));
     exchange.reply(to, p::Reply::Outcome(p::Outcome::Refused(p::Refusal::KeyConflict)));
     let w::Final::Refused(refused) = exchange.final_answer(owner) else { panic!("refused") };
-    assert_eq!(refused.refusal(), &w::Refusal::KeyConflict);
+    assert_eq!((&refused.refusal), &w::Refusal::KeyConflict);
     down(&mut exchange, Event::Application(FromApplication::Unused { number: FIRST }));
     assert!(exchange.out.is_empty(), "erased once");
     assert!(exchange.component.pending.carried.is_empty());
@@ -152,7 +153,6 @@ fn a_value_on_an_ordinary_jig_ask_is_not_a_record() {
 fn every_carrying_request_names_its_values_kind() {
     // One application request and the three account requests that persist a value.
     const CARRYING_REQUESTS: u32 = 1 + 3;
-    let limits = f::wire();
     let value = b"carried request payload";
     let digest = skein_lib::sha256::digest(value);
     let changes = [

@@ -43,7 +43,6 @@ pub use admission::*;
 pub use lacks::*;
 
 pub fn response_bounds() -> [(u32, Option<w::KeyedAnswer>); 2] {
-    let limits = w::Limits { owned_record: 512, ..wire() };
     let owner = w::Owner::Family(w::Family { number: 9 });
     let answer = w::KeyedAnswer::FinalAnswer(
         w::Owned { owner, version: 2, record: Box::new([3; 257]) },

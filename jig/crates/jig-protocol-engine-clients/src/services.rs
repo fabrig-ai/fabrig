@@ -52,7 +52,7 @@ impl Component {
                             out.push(Request::Minted { exchange, credential, expires });
                         }
                         Answer::Service(value) => {
-                            self.answer(exchange, Ok(value));
+                            self.answer(exchange, Ok(value), &env.limits.wire);
                             self.replayed(env, owner);
                         }
                     }
@@ -272,8 +272,7 @@ impl Component {
         if kept.is_some() {
             self.answer(
                 exchange,
-                crate::translate::answers::service(party, Secret::new(Box::new([])), &env.limits.wire),
-            );
+                crate::translate::answers::service(party, Secret::new(Box::new([])), &env.limits.wire), &env.limits.wire);
             return;
         }
         let credential = sign_in::token(&mut self.rng, party);
@@ -290,7 +289,7 @@ impl Component {
                     value: Kept { digest, expires: Wall::from_nanos(u64::MAX) },
                 }));
             }
-            Err(problem) => self.answer(exchange, Err(problem)),
+            Err(problem) => self.answer(exchange, Err(problem), &env.limits.wire),
         }
     }
     fn replayed(&mut self, env: &Env<Limits>, owner: SecretOwner) {
@@ -308,8 +307,7 @@ impl Component {
             self.pending.exchanges.remove(&exchange);
             self.answer(
                 exchange,
-                crate::translate::answers::service(party, Secret::new(Box::new([])), &env.limits.wire),
-            );
+                crate::translate::answers::service(party, Secret::new(Box::new([])), &env.limits.wire), &env.limits.wire);
         }
     }
 }

@@ -34,8 +34,7 @@ pub(super) fn activity(
             rows: rows::activity_pieces(
                 &rows,
                 limits.activity_page_rows.min(w::CEILINGS.activity_page_rows),
-                w::paths::ACTIVITY_PAGE_ROWS,
-            )?,
+                w::paths::ACTIVITY_PAGE_ROWS, limits)?,
             before: after,
             after: before,
         }))
@@ -81,8 +80,7 @@ pub(super) fn history(
             rows: rows::history_pieces(
                 &rows,
                 limits.history_page_rows.min(w::CEILINGS.history_page_rows),
-                w::paths::HISTORY_PAGE_ROWS,
-            )?,
+                w::paths::HISTORY_PAGE_ROWS, limits)?,
             before,
             after,
         }))
@@ -116,8 +114,7 @@ pub(super) fn inbox(
             rows: rows::inbox_pieces(
                 &rows,
                 limits.inbox_page_rows.min(w::CEILINGS.inbox_page_rows),
-                w::paths::INBOX_PAGE_ROWS,
-            )?,
+                w::paths::INBOX_PAGE_ROWS, limits)?,
             before,
             after,
             selection: inbox::selection(
@@ -165,8 +162,7 @@ pub(super) fn ended(
             rows: rows::ended_pieces(
                 &rows,
                 limits.ended_page_rows.min(w::CEILINGS.ended_page_rows),
-                w::paths::ENDED_PAGE_ROWS,
-            )?,
+                w::paths::ENDED_PAGE_ROWS, limits)?,
             before,
             after,
         }))
@@ -240,8 +236,7 @@ pub(super) fn notes(
             rows: rows::note_pieces(
                 &rows,
                 limits.note_page_rows.min(w::CEILINGS.note_page_rows),
-                w::paths::NOTE_PAGE_ROWS,
-            )?,
+                w::paths::NOTE_PAGE_ROWS, limits)?,
             before,
             after,
         }))

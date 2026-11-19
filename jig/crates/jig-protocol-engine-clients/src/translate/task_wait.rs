@@ -53,7 +53,8 @@ pub fn waiting(value: Option<d::TaskRunWait>, limits: &w::Limits) -> Result<Opti
             }),
     }))
 }
-fn source_state(value: d::TaskSourceState, limits: &w::Limits) -> Result<w::TaskSourceState, w::Problem> {
+#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
+fn source_state(value: d::TaskSourceState, _limits: &w::Limits) -> Result<w::TaskSourceState, w::Problem> {
     use jig_domain_accounts::{Place, Unread};
     Ok(match value {
         d::TaskSourceState::Asking => w::TaskSourceState::Asking,
@@ -88,9 +89,10 @@ fn wall(value: Option<skein_lib::Wall>) -> Option<u64> {
     }
 }
 
+#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
 fn shortfall_figures(
     value: Option<jig_domain_fleet::Figures>,
-    limits: &w::Limits,
+    _limits: &w::Limits,
 ) -> Result<Option<w::ShortfallFigures>, w::Problem> {
     match value {
         Some(value) => Ok(Some(w::ShortfallFigures { required: value.required, offered: value.offered })),

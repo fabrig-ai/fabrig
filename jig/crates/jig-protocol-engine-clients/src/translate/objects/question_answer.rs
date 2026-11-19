@@ -55,7 +55,7 @@ pub fn message_kind(value: &t::MessageKind, limits: &w::Limits) -> Result<w::Mes
         t::MessageKind::Result(value) => w::MessageKind::Result(w::MessageKindResult { value: word_result(value, limits)? }),
     })
 }
-pub fn word_result(value: &t::ResultKind, limits: &w::Limits) -> Result<w::WordResult, w::Problem> {
+pub fn word_result(value: &t::ResultKind, _limits: &w::Limits) -> Result<w::WordResult, w::Problem> {
     Ok(match value {
         t::ResultKind::Job => w::WordResult::Job,
         t::ResultKind::NoChange | t::ResultKind::Report => w::WordResult::Report,
@@ -117,7 +117,8 @@ pub fn answer(value: &t::ActivityLine, limits: &w::Limits) -> Result<w::Activity
     Ok(w::ActivityLine { task: value.task, position: value.position, at: value.at.as_nanos(), line })
 }
 
-fn settings_outcome(value: t::SettingsOutcome, limits: &w::Limits) -> Result<w::SettingsOutcome, w::Problem> {
+#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
+fn settings_outcome(value: t::SettingsOutcome, _limits: &w::Limits) -> Result<w::SettingsOutcome, w::Problem> {
     Ok(match value {
         t::SettingsOutcome::Accepted { revision } => {
             w::SettingsOutcome::Accepted(w::SettingsAccepted { revision })

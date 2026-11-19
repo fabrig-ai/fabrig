@@ -1,3 +1,4 @@
+use jig_client_protocol_wire::Record as _;
 use alloc::boxed::Box;
 use jig_client_protocol_wire as w;
 use jig_domain_core_vocabulary::documents as d;
@@ -205,18 +206,18 @@ pub fn task_with_hold() -> d::Task {
 /// The shared v21 fixture with each engine-supplied project's required name.
 pub fn frame_two_projects_record() -> jig_client_protocol_wire::Me {
     let limits = w::CEILINGS;
-    let mut parts = jig_client_test_records::frame_two_projects_record().into_parts();
+    let mut parts = jig_client_test_records::frame_two_projects_record();
     let mut reader = skein_lib::Reader::new(&parts.projects);
     let mut projects = List::with_capacity(2);
     let mut size = 0_usize;
     while let Some(bytes) = skein_codec::piece::split(&mut reader).expect("fixture pieces") {
         let project = w::MeProject::decode(&limits, &mut skein_lib::Reader::new(&bytes)).expect("fixture project");
-        let mut project = project.into_parts();
+        let mut project = project;
         project.name =
             w::DocumentText { bytes: Box::from(&b"Tally"[..]), cut: false };
         let project = project;
         size = size
-            .checked_add(skein_lib::length::usize_of(project.measure()))
+            .checked_add(skein_lib::length::usize_of(project.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")))
             .expect("fixture size")
             .checked_add(size_of::<u32>())
             .expect("piece header");
@@ -224,8 +225,8 @@ pub fn frame_two_projects_record() -> jig_client_protocol_wire::Me {
     }
     let mut writer = skein_lib::Writer::new(size);
     for project in projects.into_boxed() {
-        let mut encoded = skein_lib::Writer::new(skein_lib::length::usize_of(project.measure()));
-        project.encode(&mut encoded).expect("measured project");
+        let mut encoded = skein_lib::Writer::new(skein_lib::length::usize_of(project.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+        project.write(&jig_client_protocol_wire::CEILINGS, &mut encoded).expect("measured project");
         skein_codec::piece::write(&mut writer, &encoded.finish()).expect("measured piece");
     }
     parts.projects = writer.finish();

@@ -1,4 +1,5 @@
 //! Public identifiers, admission and records (jig/docs/design/protocol/client/public-reads.md).
+use jig_client_protocol_wire::Record as _;
 use super::fixtures as f;
 use crate::{
     Component, Event, FromTransport, Kept, Limits, PublicRead, PublicReply, Request, SecretOwner, SecretsAnswer,
@@ -130,9 +131,9 @@ fn an_unknown_kind_a_wrong_id_count_and_an_unserved_version_reach_no_engine() {
             panic!("not served");
         };
         let record = wire::NotServed::decode(&step.env.limits.wire, &mut Reader::new(&record)).unwrap();
-        assert_eq!(record.served().len(), 1);
-        let served = record.served().get(0).unwrap();
-        assert_eq!((served.first(), served.last()), (1, 1));
+        assert_eq!(record.served.len(), 1);
+        let served = record.served.get(0).unwrap();
+        assert_eq!((served.first, served.last), (1, 1));
     }
     assert_eq!(step.bytes(), BURST);
 }
@@ -237,26 +238,26 @@ fn a_document_crosses_as_public_records_with_identifiers_alone() {
             1 => {
                 let record =
                     w::PublicProjects::decode(&wire::public_limits(&INDEX).unwrap(), &mut Reader::new(&bytes)).unwrap();
-                assert_eq!(record.max_age(), 5);
-                assert_eq!(record.projects().get(0).unwrap().project(), names.project(PROJECT));
-                assert_eq!(record.projects().get(0).unwrap().name(), b"Public project");
+                assert_eq!(record.max_age, 5);
+                assert_eq!(record.projects.get(0).unwrap().project, names.project(PROJECT));
+                assert_eq!(record.projects.get(0).unwrap().name.as_ref(), b"Public project");
             }
             2 => {
                 let record =
                     w::PublicBoard::decode(&wire::public_limits(&INDEX).unwrap(), &mut Reader::new(&bytes)).unwrap();
-                assert_eq!(record.project(), names.project(PROJECT));
-                assert_eq!(record.name(), b"Public project");
-                assert_eq!(record.live().get(0).unwrap().line().task(), names.task(TASK));
-                assert_eq!(record.live().get(0).unwrap().tree().get(0).unwrap().task(), names.task(PARENT));
+                assert_eq!(record.project, names.project(PROJECT));
+                assert_eq!(record.name.as_ref(), b"Public project");
+                assert_eq!(record.live.get(0).unwrap().line.task, names.task(TASK));
+                assert_eq!(record.live.get(0).unwrap().tree.get(0).unwrap().task, names.task(PARENT));
             }
             3 => {
                 let record =
                     w::PublicCard::decode(&wire::public_limits(&INDEX).unwrap(), &mut Reader::new(&bytes)).unwrap();
-                assert_eq!(record.line().task(), names.task(TASK));
-                assert_eq!(*record.line().parent(), Some(names.task(PARENT)));
-                assert_eq!(record.lineage().get(0), Some(&names.task(PARENT)));
-                assert_eq!(record.delegates().get(0).unwrap().task(), names.task(PARENT));
-                assert_eq!(record.line().title(), b"Public task");
+                assert_eq!(record.line.task, names.task(TASK));
+                assert_eq!(record.line.parent, Some(names.task(PARENT)));
+                assert_eq!(record.lineage.get(0), Some(&names.task(PARENT)));
+                assert_eq!(record.delegates.get(0).unwrap().task, names.task(PARENT));
+                assert_eq!(record.line.title.as_ref(), b"Public task");
             }
             _ => unreachable!(),
         }
@@ -285,8 +286,8 @@ fn an_application_document_crosses_in_jigs_envelope() {
         &mut Reader::new(&bytes(step.reply(exchange))),
     )
     .unwrap();
-    assert_eq!(record.tasks().as_slice(), &[names().task(TASK), names().task(PARENT), names().task(TASK)]);
-    assert_eq!(record.record(), b"application");
+    assert_eq!(record.tasks.as_slice(), &[names().task(TASK), names().task(PARENT), names().task(TASK)]);
+    assert_eq!(record.record.as_ref(), b"application");
 }
 #[test]
 fn me_gives_a_public_projects_identifier_and_none_for_a_private_one() {
@@ -308,7 +309,7 @@ fn me_gives_a_public_projects_identifier_and_none_for_a_private_one() {
             panic!("me value");
         };
         let wire::ReadValue::Me(value) =
-            wire::ReadValue::decode(&exchange.env.limits.wire, &mut Reader::new(value.record())).unwrap()
+            wire::ReadValue::decode(&exchange.env.limits.wire, &mut Reader::new(value.record.as_ref())).unwrap()
         else {
             panic!("me");
         };
@@ -344,8 +345,8 @@ fn titles_are_cut_on_a_character_boundary_and_keep_the_sources_cut() {
         );
         let bytes = bytes(step.reply(exchange));
         let card = w::PublicCard::decode(&wire::public_limits(&INDEX).unwrap(), &mut Reader::new(&bytes)).unwrap();
-        assert_eq!(card.line().title().len(), length);
-        assert_eq!(card.line().title_cut(), expected_cut);
+        assert_eq!(card.line.title.as_ref().len(), length);
+        assert_eq!(card.line.title_cut, expected_cut);
     }
 }
 #[test]
@@ -399,7 +400,7 @@ fn a_me_watch_maps_its_public_project_identifier() {
         panic!("me delivery");
     };
     let wire::DeliveryValue::Me(value) =
-        wire::DeliveryValue::decode(&exchange.env.limits.wire, &mut Reader::new(value.document().record())).unwrap()
+        wire::DeliveryValue::decode(&exchange.env.limits.wire, &mut Reader::new(value.document.record.as_ref())).unwrap()
     else {
         panic!("me value");
     };

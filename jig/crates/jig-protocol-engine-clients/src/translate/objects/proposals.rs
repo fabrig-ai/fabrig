@@ -1,4 +1,5 @@
 //! Whole single-read owner documents (protocol/client/wire.md, 1, and protocol/client/README.md, 4).
+use jig_client_protocol_wire::Record as _;
 use super::super::{chips, owner, task, w};
 use alloc::boxed::Box;
 use jig_domain_core_vocabulary::documents as d;
@@ -41,7 +42,8 @@ pub fn kind(value: t::ProposalKind) -> w::MessageProposalKind {
         t::ProposalKind::Release => w::MessageProposalKind::Release,
     }
 }
-pub fn holder(value: t::ProposalHolder, limits: &w::Limits) -> Result<w::HistoryHolder, w::Problem> {
+#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
+pub fn holder(value: t::ProposalHolder, _limits: &w::Limits) -> Result<w::HistoryHolder, w::Problem> {
     Ok(match value {
         t::ProposalHolder::Task(value) => {
             w::HistoryHolder::Task(w::HistoryHolderTask { value })
@@ -65,7 +67,7 @@ pub fn proposed(
     for row in &value.resources {
         resources.push(owner::part(row, limits)?).expect("supplied rows fit");
     }
-    let resources = part_pieces(&resources, limits.proposed_task_resources, w::paths::PROPOSED_TASK_RESOURCES)?;
+    let resources = part_pieces(&resources, limits.proposed_task_resources, w::paths::PROPOSED_TASK_RESOURCES, limits)?;
 
     Ok(w::ProposedTask {
             deadline: match value.deadline {
@@ -111,7 +113,7 @@ pub fn action(
                 rows.push(proposed(models, row, limits)?).expect("supplied rows fit");
             }
             let rows =
-                proposed_task_pieces(&rows, limits.proposal_action_batch_value, w::paths::PROPOSAL_ACTION_BATCH_VALUE)?;
+                proposed_task_pieces(&rows, limits.proposal_action_batch_value, w::paths::PROPOSAL_ACTION_BATCH_VALUE, limits)?;
             w::ProposalAction::Batch(w::ProposalActionBatch { value: rows })
         }
         d::ProposalAction::Effect { part, authority, attempt, completion, position, purpose } => {
@@ -195,12 +197,11 @@ pub fn proposal(models: &[crate::Model], value: &d::Proposal, limits: &w::Limits
 pub(super) fn proposed_task_pieces(
     rows: &List<w::ProposedTask>,
     bound: u32,
-    path: w::Path,
-) -> Result<Box<[u8]>, w::Problem> {
+    path: w::Path, limits: &w::Limits) -> Result<Box<[u8]>, w::Problem> {
     let mut encoded = List::with_capacity(rows.len());
     for row in rows {
-        let mut out = Writer::new(skein_lib::length::usize_of(row.measure()));
-        match row.encode(&mut out) {
+        let mut out = Writer::new(skein_lib::length::usize_of(row.measure(limits)?));
+        match row.write(limits, &mut out) {
             Ok(()) => (),
             Err(_) => return Err(w::Problem { path, reason: skein_codec::Reason::Bound }),
         }
@@ -208,11 +209,11 @@ pub(super) fn proposed_task_pieces(
     }
     super::super::pieces(&encoded, bound, path)
 }
-pub(super) fn part_pieces(rows: &List<w::Part>, bound: u32, path: w::Path) -> Result<Box<[u8]>, w::Problem> {
+pub(super) fn part_pieces(rows: &List<w::Part>, bound: u32, path: w::Path, limits: &w::Limits) -> Result<Box<[u8]>, w::Problem> {
     let mut encoded = List::with_capacity(rows.len());
     for row in rows {
-        let mut out = Writer::new(skein_lib::length::usize_of(row.measure()));
-        match row.encode(&mut out) {
+        let mut out = Writer::new(skein_lib::length::usize_of(row.measure(limits)?));
+        match row.write(limits, &mut out) {
             Ok(()) => (),
             Err(_) => return Err(w::Problem { path, reason: skein_codec::Reason::Bound }),
         }

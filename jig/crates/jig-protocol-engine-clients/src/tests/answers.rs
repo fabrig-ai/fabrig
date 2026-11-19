@@ -1,3 +1,4 @@
+use jig_client_protocol_wire::Record as _;
 use super::fixtures::{self as f, Exchange};
 use crate::{Event, Request, SecretsRequest};
 use jig_client_protocol_wire as w;
@@ -87,9 +88,9 @@ fn outcomes_keep_every_supplied_fact() {
     for to in [7, 91] {
         let final_answer = f::translated(&p::Reply::Outcome(p::Outcome::Proposed { proposal: 31, to }), &f::wire());
         let w::Final::Done(done) = final_answer else { panic!("done") };
-        let w::Outcome::Document(owner) = done.outcome() else { panic!("owner outcome") };
-        let w::DocumentOutcome::Proposed(row) = owner.value() else { panic!("proposal") };
-        assert_eq!((row.proposal(), row.to()), (31, to));
+        let w::Outcome::Document(owner) = &done.outcome else { panic!("owner outcome") };
+        let w::DocumentOutcome::Proposed(row) = &owner.value else { panic!("proposal") };
+        assert_eq!((row.proposal, row.to), (31, to));
     }
     let limits = f::wire();
     for cases in [f::outcomes().as_slice(), f::decision_outcomes().as_slice(), f::seen_outcomes().as_slice()] {
@@ -108,7 +109,7 @@ fn a_service_result_contains_its_party_and_no_credential() {
     )
     .expect("service answer");
     let mut out = skein_lib::Writer::new(25);
-    answer.encode(&mut out).expect("25-byte party-only answer");
+    answer.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("25-byte party-only answer");
     assert_eq!(out.finish().as_ref(), &f::SERVICE_ANSWER);
 }
 #[test]
@@ -190,8 +191,8 @@ fn done_ending_round_trips(limits: &w::Limits) {
     let refusal =
         crate::translate::refusals::refusal(p::Refusal::Ended { how: p::Ending::Done }, limits).expect("ending fits");
     let value = w::Final::Refused(w::Refused { at: None, refusal });
-    let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(value.measure()));
-    value.encode(&mut out).expect("final answer");
+    let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+    value.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("final answer");
     let owned = w::Owned { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: out.finish() };
     assert_eq!(
         jig_client_protocol_link::translate::answers::answer(w::KeyedAnswer::FinalAnswer(owned), &f::client_limits()),
@@ -315,7 +316,7 @@ fn an_opening_outside_its_owners_range_is_answered_not_served() {
     assert!(exchange.out.is_empty());
 }
 
-fn account_sign_in_done(value: w::DocumentOutcome, limits: &w::Limits) -> w::Final {
+fn account_sign_in_done(value: w::DocumentOutcome, _limits: &w::Limits) -> w::Final {
     let outcome = w::Outcome::Document(w::OutcomeDocument { value });
     w::Final::Done(w::Done { outcome })
 }
@@ -368,8 +369,8 @@ fn live_task_refusals_round_trip_the_client_wire() {
     let limits = f::wire();
     let reply = p::Reply::Outcome(p::Outcome::Refused(p::Refusal::LiveTasks { tasks: Box::new([12, 15]), more: 2 }));
     let record = crate::translate::answers::answer(&reply, &[], &limits).unwrap();
-    let mut writer = Writer::new(usize::try_from(record.measure()).unwrap());
-    record.encode(&mut writer).unwrap();
+    let mut writer = Writer::new(usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    record.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
     let bytes = writer.finish();
     let record = w::KeyedAnswer::decode(&limits, &mut Reader::new(&bytes)).unwrap();
     let mut tasks = List::with_capacity(2);
@@ -447,7 +448,7 @@ fn project_refusals_keep_their_facts() {
     }
     for (why, expected) in cases {
         let w::Final::Refused(value) = f::translated(&p::Reply::Refused(why), &limits) else { panic!("refused") };
-        assert_eq!(value.refusal(), &expected);
+        assert_eq!((&value.refusal), &expected);
     }
 }
 
@@ -460,12 +461,11 @@ fn answers_full_carries_its_facts_on_the_current_wire() {
     let (owner, to) = exchange.ask();
     exchange.reply(to, p::Reply::Again(p::Again::Full { held: FULL_HELD, room_at: FULL_ROOM }));
     let w::KeyedAnswer::AnswersFull(value) = exchange.answer(owner) else { panic!("answers full") };
-    assert_eq!((value.held(), value.room_at()), (FULL_HELD, FULL_ROOM.as_nanos()));
+    assert_eq!((value.held, value.room_at), (FULL_HELD, FULL_ROOM.as_nanos()));
 }
 
 #[test]
 fn project_removed_encodes_as_its_owner_outcome() {
-    let limits = f::wire();
     for project in [0, 3, u32::MAX] {
         let mut exchange = Exchange::new();
         let (owner, to) = exchange.ask();
@@ -490,7 +490,6 @@ fn project_removed_encodes_as_its_owner_outcome() {
 
 #[test]
 fn visibility_set_answers_as_its_document_outcome() {
-    let limits = f::wire();
     for public in [false, true] {
         let project = u32::MAX;
         let mut exchange = Exchange::new();

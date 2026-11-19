@@ -1,3 +1,4 @@
+use jig_client_protocol_wire::Record as _;
 use super::fixtures::{self as f, Exchange};
 use crate::{
     Request, ToApplication,
@@ -60,7 +61,6 @@ fn an_amendment_record_keeps_its_release_and_reason() {
     }
 }
 fn invalid() -> w::Ask {
-    let limits = f::wire();
     f::decide(w::DecideOn::Escalation(
         w::DecideEscalation { task: 8, revision: f::revision(6), decision: w::Decision::Accepted },
     ))
@@ -378,8 +378,8 @@ fn talk_and_leave_from_the_link_decode_to_the_people_acts() {
         (c::Ask::Leave { project: 3, task: 8 }, p::Ask::Leave { project: 3, task: 8 }),
     ] {
         let record = jig_client_protocol_link::translate::asks::ask(&source, &limits).unwrap();
-        let mut bytes = Writer::new(usize::try_from(record.measure()).unwrap());
-        record.encode(&mut bytes).unwrap();
+        let mut bytes = Writer::new(usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+        record.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
         let record = w::Ask::decode(&limits, &mut Reader::new(&bytes.finish())).unwrap();
         assert_eq!(ask(record.clone(), &f::models(), &limits), Ok(expected));
     }

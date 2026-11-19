@@ -1,4 +1,5 @@
 //! Whole owner facts encoded without clipping (protocol/client/wire.md, 1).
+use jig_client_protocol_wire::Record as _;
 use super::{chips, owner, refusals};
 use super::{pieces, problem, w};
 use alloc::boxed::Box;
@@ -27,7 +28,7 @@ pub fn link(value: &d::TaskLink, limits: &w::Limits) -> Result<w::TaskLink, w::P
             }),
     })
 }
-pub fn proposal(value: &d::ProposalRef, limits: &w::Limits) -> Result<w::ProposalKey, w::Problem> {
+pub fn proposal(value: &d::ProposalRef, _limits: &w::Limits) -> Result<w::ProposalKey, w::Problem> {
     Ok(w::ProposalKey {
             proposer: match value.proposer {
                 jig_domain_people::Proposer::Task(number) => {
@@ -71,7 +72,7 @@ pub fn act(value: acts::Act) -> Result<w::ActKind, w::Problem> {
         acts::Act::SetPool => w::ActKind::SetPool,
     })
 }
-pub fn recipient(value: &acts::Recipient, limits: &w::Limits) -> Result<w::Recipient, w::Problem> {
+pub fn recipient(value: &acts::Recipient, _limits: &w::Limits) -> Result<w::Recipient, w::Problem> {
     Ok(match value {
         acts::Recipient::Task(number) => {
             w::Recipient::Task(w::RecipientTask { value: *number })
@@ -131,8 +132,7 @@ pub(super) fn bounds(
             let grants = owner::grants_pieces(
                 &rows,
                 limits.bounds_amend_grants.min(w::CEILINGS.bounds_amend_grants),
-                w::paths::BOUNDS_AMEND_GRANTS,
-            )?;
+                w::paths::BOUNDS_AMEND_GRANTS, limits)?;
             let mut pairs = List::with_capacity(implications.capacity());
             for item in implications {
                 pairs
@@ -185,14 +185,14 @@ pub fn offered(
             })
         .expect("supplied offered acts");
     }
-    offered_pieces(&rows, bound.min(16_777_216), path)
+    offered_pieces(&rows, bound.min(16_777_216), path, limits)
 }
 
-pub fn offered_pieces(rows: &List<w::Offered>, bound: u32, path: w::Path) -> Result<Box<[u8]>, w::Problem> {
+pub fn offered_pieces(rows: &List<w::Offered>, bound: u32, path: w::Path, limits: &w::Limits) -> Result<Box<[u8]>, w::Problem> {
     let mut encoded = List::with_capacity(rows.len());
     for row in rows {
-        let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(row.measure()));
-        match row.encode(&mut out) {
+        let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(row.measure(limits)?));
+        match row.write(limits, &mut out) {
             Ok(()) => (),
             Err(_) => return Err(problem(skein_codec::Reason::Bound)),
         }
@@ -200,11 +200,11 @@ pub fn offered_pieces(rows: &List<w::Offered>, bound: u32, path: w::Path) -> Res
     }
     pieces(&encoded, bound, path)
 }
-pub fn chips_pieces(rows: &List<w::Chip>, bound: u32, path: w::Path) -> Result<Box<[u8]>, w::Problem> {
+pub fn chips_pieces(rows: &List<w::Chip>, bound: u32, path: w::Path, limits: &w::Limits) -> Result<Box<[u8]>, w::Problem> {
     let mut encoded = List::with_capacity(rows.len());
     for row in rows {
-        let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(row.measure()));
-        match row.encode(&mut out) {
+        let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(row.measure(limits)?));
+        match row.write(limits, &mut out) {
             Ok(()) => (),
             Err(_) => return Err(problem(skein_codec::Reason::Bound)),
         }
@@ -212,11 +212,11 @@ pub fn chips_pieces(rows: &List<w::Chip>, bound: u32, path: w::Path) -> Result<B
     }
     pieces(&encoded, bound, path)
 }
-pub fn links_pieces(rows: &List<w::TaskLink>, bound: u32, path: w::Path) -> Result<Box<[u8]>, w::Problem> {
+pub fn links_pieces(rows: &List<w::TaskLink>, bound: u32, path: w::Path, limits: &w::Limits) -> Result<Box<[u8]>, w::Problem> {
     let mut encoded = List::with_capacity(rows.len());
     for row in rows {
-        let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(row.measure()));
-        match row.encode(&mut out) {
+        let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(row.measure(limits)?));
+        match row.write(limits, &mut out) {
             Ok(()) => (),
             Err(_) => return Err(problem(skein_codec::Reason::Bound)),
         }
@@ -224,11 +224,11 @@ pub fn links_pieces(rows: &List<w::TaskLink>, bound: u32, path: w::Path) -> Resu
     }
     pieces(&encoded, bound, path)
 }
-pub fn task_resources_pieces(rows: &List<w::ResourceLine>, bound: u32, path: w::Path) -> Result<Box<[u8]>, w::Problem> {
+pub fn task_resources_pieces(rows: &List<w::ResourceLine>, bound: u32, path: w::Path, limits: &w::Limits) -> Result<Box<[u8]>, w::Problem> {
     let mut encoded = List::with_capacity(rows.len());
     for row in rows {
-        let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(row.measure()));
-        match row.encode(&mut out) {
+        let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(row.measure(limits)?));
+        match row.write(limits, &mut out) {
             Ok(()) => (),
             Err(_) => return Err(problem(skein_codec::Reason::Bound)),
         }
@@ -236,11 +236,11 @@ pub fn task_resources_pieces(rows: &List<w::ResourceLine>, bound: u32, path: w::
     }
     pieces(&encoded, bound, path)
 }
-pub fn delegates_pieces(rows: &List<w::LiveDelegate>, bound: u32, path: w::Path) -> Result<Box<[u8]>, w::Problem> {
+pub fn delegates_pieces(rows: &List<w::LiveDelegate>, bound: u32, path: w::Path, limits: &w::Limits) -> Result<Box<[u8]>, w::Problem> {
     let mut encoded = List::with_capacity(rows.len());
     for row in rows {
-        let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(row.measure()));
-        match row.encode(&mut out) {
+        let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(row.measure(limits)?));
+        match row.write(limits, &mut out) {
             Ok(()) => (),
             Err(_) => return Err(problem(skein_codec::Reason::Bound)),
         }
@@ -268,8 +268,7 @@ pub fn document(value: &d::Task, models: &[crate::Model], limits: &w::Limits) ->
     let lineage_chips = chips_pieces(
         &lineage_rows,
         limits.task_lineage_chips.min(w::CEILINGS.task_lineage_chips),
-        w::paths::TASK_LINEAGE_CHIPS,
-    )?;
+        w::paths::TASK_LINEAGE_CHIPS, limits)?;
     let inputs =
         link_list(&value.inputs, limits, limits.task_inputs.min(w::CEILINGS.task_inputs), w::paths::TASK_INPUTS)?;
     let dependencies = link_list(
@@ -370,7 +369,7 @@ fn link_list(
     for item in value {
         rows.push(link(item, limits)?).expect("supplied task links");
     }
-    links_pieces(&rows, bound, path)
+    links_pieces(&rows, bound, path, limits)
 }
 
 fn resources(value: &List<d::ResourceLine>, limits: &w::Limits) -> Result<Box<[u8]>, w::Problem> {
@@ -378,7 +377,7 @@ fn resources(value: &List<d::ResourceLine>, limits: &w::Limits) -> Result<Box<[u
     for item in value {
         resource_rows.push(chips::resource(item, limits)?).expect("supplied resources");
     }
-    task_resources_pieces(&resource_rows, limits.task_resources.min(w::CEILINGS.task_resources), w::paths::TASK_RESOURCES)
+    task_resources_pieces(&resource_rows, limits.task_resources.min(w::CEILINGS.task_resources), w::paths::TASK_RESOURCES, limits)
 }
 
 fn delegates(value: &List<d::LiveDelegate>, limits: &w::Limits) -> Result<Box<[u8]>, w::Problem> {
@@ -388,10 +387,10 @@ fn delegates(value: &List<d::LiveDelegate>, limits: &w::Limits) -> Result<Box<[u
             .push(w::LiveDelegate { chip: chips::chip(&item.chip, limits)?, takeover_budget: item.takeover_budget })
             .expect("supplied delegates");
     }
-    delegates_pieces(&delegate_rows, limits.task_delegates.min(w::CEILINGS.task_delegates), w::paths::TASK_DELEGATES)
+    delegates_pieces(&delegate_rows, limits.task_delegates.min(w::CEILINGS.task_delegates), w::paths::TASK_DELEGATES, limits)
 }
 
-pub fn effect(value: &acts::Effect, limits: &w::Limits) -> Result<w::Effect, w::Problem> {
+pub fn effect(value: &acts::Effect, _limits: &w::Limits) -> Result<w::Effect, w::Problem> {
     Ok(match value {
         acts::Effect::Release(value) => w::Effect::Release(w::EffectRelease {
                 what: match value {
@@ -428,7 +427,8 @@ pub fn effect(value: &acts::Effect, limits: &w::Limits) -> Result<w::Effect, w::
     })
 }
 
-fn settings(value: Option<d::TaskSettings>, limits: &w::Limits) -> Result<Option<w::TaskSettings>, w::Problem> {
+#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
+fn settings(value: Option<d::TaskSettings>, _limits: &w::Limits) -> Result<Option<w::TaskSettings>, w::Problem> {
     match value {
         Some(value) => Ok(Some(w::TaskSettings { task: value.task, run: value.run, newest: value.newest })),
         None => Ok(None),

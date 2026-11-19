@@ -139,7 +139,6 @@ pub fn outcomes() -> [(p::Reply, w::Final); 15] {
     ]
 }
 pub fn decision_outcomes() -> [(p::Reply, w::Final); 2] {
-    let limits = wire();
     let proposal = w::ProposalKey {
             proposer: w::Proposer::Party(
                 w::ProposerParty { value: 7 },
@@ -187,7 +186,6 @@ pub fn decision_outcomes() -> [(p::Reply, w::Final); 2] {
     ]
 }
 pub fn seen_outcomes() -> [(p::Reply, w::Final); 2] {
-    let limits = wire();
     [
         (
             p::Reply::Outcome(p::Outcome::MarkedSeen { seen: p::Seen::Results { through: 15 } }),

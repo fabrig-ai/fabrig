@@ -1,3 +1,4 @@
+use jig_client_protocol_wire::Record as _;
 use super::fixtures;
 use crate::{Event, FromApplication, Request, ToApplication, translate::watches};
 use jig_client_protocol_wire as w;
@@ -175,7 +176,7 @@ fn an_application_watch_keeps_its_owner_and_rejects_foreign_deliveries() {
     else {
         panic!("delivery");
     };
-    assert_eq!((value.watch(), value.document().version(), value.document().record()), (17, 2, &[88][..]));
+    assert_eq!((value.watch, value.document.version, value.document.record.as_ref()), (17, 2, &[88][..]));
 }
 #[test]
 fn a_watch_admission_or_refusal_cannot_answer_another_exchange() {
@@ -330,7 +331,6 @@ fn an_ended_watch_closes_once_when_its_ending_leaves() {
 }
 #[test]
 fn a_run_watch_keeps_the_complete_provisional_position() {
-    let limits = fixtures::wire();
     let rows = [
         ("Absent", None, None),
         (
@@ -477,7 +477,7 @@ fn a_stream_queue_includes_the_in_flight_record_at_its_exact_bound() {
         let (mut world, stream) = stream_world();
         let watcher = application_watch(&mut world, stream, 1);
         let packet = watches::application_packet(9, 2, Box::new([77; 128]), 1, &world.env.limits.wire).expect("packet");
-        let exact = world.stream().bytes + packet.measure();
+        let exact = world.stream().bytes + packet.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture");
         world.env.limits.queued_bytes = exact - u32::from(short);
         world.component.down(&world.env, family_delivery(watcher, 128), &mut world.out);
         assert_eq!(world.stream().closing(), short);
@@ -555,7 +555,7 @@ fn a_streams_zero_name_cannot_be_opened_or_closed_by_its_client() {
     else {
         panic!("held name refused");
     };
-    assert_eq!(why.why(), &w::WatchRefusal::Busy);
+    assert_eq!((&why.why), &w::WatchRefusal::Busy);
     assert!(world.out.is_empty(), "held name emits no core opening");
     let exchange = world.unwatch(stream, 0);
     assert_eq!(
@@ -613,7 +613,7 @@ fn a_streams_zero_name_cannot_be_opened_or_closed_by_its_client() {
             else {
                 panic!("delivery");
             };
-            assert_eq!(value.watch(), 0);
+            assert_eq!(value.watch, 0);
             delivered = true;
         }
     }

@@ -1,4 +1,5 @@
 //! Model offers across engine, wire and client link (jig/docs/design/client/domain/contract/documents.md, 1).
+use jig_client_protocol_wire::Record as _;
 use super::fixtures;
 use jig_client_domain::contract as c;
 use jig_client_protocol_wire as w;
@@ -13,21 +14,21 @@ fn me_with_offer(model: w::MeModel, defaults: List<w::MeDefault>) -> w::Me {
     let mut frame = fixtures::frame_two_projects();
     frame.projects.get_mut(0).unwrap().left_out = 7;
     let frame = crate::translate::owner::frame(&frame, &[], limits.wire()).unwrap();
-    let first = skein_codec::piece::split(&mut Reader::new(frame.projects())).unwrap().unwrap();
-    let mut project = w::MeProject::decode(limits.wire(), &mut Reader::new(&first)).unwrap().into_parts();
+    let first = skein_codec::piece::split(&mut Reader::new(frame.projects.as_ref())).unwrap().unwrap();
+    let mut project = w::MeProject::decode(limits.wire(), &mut Reader::new(&first)).unwrap();
     project.defaults = defaults;
     project.models = list([model]);
     let project = project;
-    let mut encoded = skein_lib::Writer::new(usize::try_from(project.measure()).unwrap());
-    project.encode(&mut encoded).unwrap();
+    let mut encoded = skein_lib::Writer::new(usize::try_from(project.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    project.write(&jig_client_protocol_wire::CEILINGS, &mut encoded).unwrap();
     let encoded = encoded.finish();
     let mut pieces = skein_lib::Writer::new(encoded.len().checked_add(4).unwrap());
     skein_codec::piece::write(&mut pieces, &encoded).unwrap();
-    let mut me = frame.into_parts();
+    let mut me = frame;
     me.projects = pieces.finish();
     let me = me;
-    let mut encoded = skein_lib::Writer::new(usize::try_from(me.measure()).unwrap());
-    me.encode(&mut encoded).unwrap();
+    let mut encoded = skein_lib::Writer::new(usize::try_from(me.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    me.write(&jig_client_protocol_wire::CEILINGS, &mut encoded).unwrap();
     w::Me::decode(limits.wire(), &mut Reader::new(&encoded.finish())).unwrap()
 }
 
@@ -67,7 +68,7 @@ fn model_offers_and_template_previews_cross_engine_wire_and_link_whole() {
             limits.wire(),
         )
         .unwrap();
-        let mut wire = wire.get(0).unwrap().clone().into_parts();
+        let mut wire = wire.get(0).unwrap().clone();
         assert!(wire.accounts.is_empty(), "surface leaves accounts empty");
         wire.accounts = if populated { list([42, 7]) } else { List::with_capacity(0) };
         let mut defaults = List::with_capacity(1);
@@ -156,7 +157,7 @@ fn model_acts_cross_link_and_wire_with_their_keyed_digest() {
         let encoded = fixtures::encode_ask(&wire);
         let decoded = w::Ask::decode(limits.wire(), &mut Reader::new(&encoded)).unwrap();
         let restored = if let w::Ask::ReadLists(row) = decoded {
-            c::Ask::ReadLists { provider: row.provider() }
+            c::Ask::ReadLists { provider: row.provider }
         } else {
             let w::Ask::ChangeModel(row) = decoded else { panic!("model request") };
             c::Ask::ChangeModel(
@@ -172,8 +173,8 @@ fn model_acts_cross_link_and_wire_with_their_keyed_digest() {
                 request: encoded.clone(),
                 value: None,
             };
-        let mut bytes = skein_lib::Writer::new(usize::try_from(keyed.measure()).unwrap());
-        keyed.encode(&mut bytes).unwrap();
+        let mut bytes = skein_lib::Writer::new(usize::try_from(keyed.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+        keyed.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
         let mut exchange = fixtures::Exchange::new();
         exchange.send(Message::Request(bytes.finish()));
         exchange.authenticate();

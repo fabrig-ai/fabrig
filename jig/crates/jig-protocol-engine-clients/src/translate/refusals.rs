@@ -1,4 +1,5 @@
 //! Sparse entrance facts without invented names, words or bounds (client/domain/contract/README.md, 3).
+use jig_client_protocol_wire::Record as _;
 use jig_client_protocol_wire as w;
 use jig_domain_people as p;
 use skein_lib::Writer;
@@ -124,7 +125,8 @@ pub(crate) fn refusal(value: p::Refusal, limits: &w::Limits) -> Result<w::Refusa
         }
     })
 }
-pub(super) fn hold_owner(value: p::HoldOwner, limits: &w::Limits) -> Result<w::HoldOwner, w::Problem> {
+#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
+pub(super) fn hold_owner(value: p::HoldOwner, _limits: &w::Limits) -> Result<w::HoldOwner, w::Problem> {
     Ok(match value {
         p::HoldOwner::Party { person } => {
             w::HoldOwner::Party(w::HoldOwnerParty { person })
@@ -134,7 +136,8 @@ pub(super) fn hold_owner(value: p::HoldOwner, limits: &w::Limits) -> Result<w::H
         }
     })
 }
-fn role(value: p::Role, limits: &w::Limits) -> Result<w::HeldRole, w::Problem> {
+#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
+fn role(value: p::Role, _limits: &w::Limits) -> Result<w::HeldRole, w::Problem> {
     Ok(match value {
         p::Role::Owner => w::HeldRole::Owner,
         p::Role::Maintainer => w::HeldRole::Maintainer,
@@ -265,7 +268,8 @@ fn moved(value: p::Moved, limits: &w::Limits) -> Result<w::Refusal, w::Problem> 
     let now = w::Revision { value: revision };
     Ok(w::Refusal::Moved(w::RefusalMoved { now, what }))
 }
-fn hold(value: p::HoldReason, limits: &w::Limits) -> Result<w::HoldCategory, w::Problem> {
+#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
+fn hold(value: p::HoldReason, _limits: &w::Limits) -> Result<w::HoldCategory, w::Problem> {
     Ok(match value {
         p::HoldReason::Stalled => w::HoldCategory::Stalled,
         p::HoldReason::Stopped => w::HoldCategory::Stopped,
@@ -317,7 +321,8 @@ fn hold(value: p::HoldReason, limits: &w::Limits) -> Result<w::HoldCategory, w::
         }
     })
 }
-fn actor(value: p::Party, limits: &w::Limits) -> Result<w::Actor, w::Problem> {
+#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
+fn actor(value: p::Party, _limits: &w::Limits) -> Result<w::Actor, w::Problem> {
     Ok(match value {
         p::Party::Person(value) => w::Actor::Party(w::ActorParty { value }),
         p::Party::Task(value) => w::Actor::Task(w::ActorTask { value }),
@@ -336,15 +341,15 @@ fn ending(value: p::Ending, limits: &w::Limits) -> Result<w::Ending, w::Problem>
     };
     let row = w::Fact::Ending(w::EndingRow { parent: None, value });
     let size = row
-        .measure()
+        .measure(limits)?
         .checked_add(4)
         .ok_or(w::Problem { path: w::paths::ENDING_ROWS, reason: skein_codec::Reason::Bound })?;
     if size > limits.ending_rows {
         return Err(w::Problem { path: w::paths::ENDING_ROWS, reason: skein_codec::Reason::Bound });
     }
     let mut rows = Writer::new(skein_lib::length::usize_of(size));
-    rows.put(&row.measure().to_be_bytes()).expect("measured piece length");
-    row.encode(&mut rows).expect("measured ending row");
+    rows.put(&row.measure(limits)?.to_be_bytes()).expect("measured piece length");
+    row.write(limits, &mut rows).expect("measured ending row");
     Ok(w::Ending { rows: rows.finish() })
 }
 
@@ -368,7 +373,8 @@ fn name_rule(rule: p::NameRule) -> w::NameRule {
     }
 }
 
-fn encode_setting(value: p::Setting, limits: &w::Limits) -> Result<w::Setting, w::Problem> {
+#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
+fn encode_setting(value: p::Setting, _limits: &w::Limits) -> Result<w::Setting, w::Problem> {
     Ok(match value {
         jig_domain_people::Setting::ProjectPolicy { project } => {
             w::Setting::ProjectPolicy(w::ProjectPolicySetting { project })
@@ -412,7 +418,8 @@ fn encode_setting_fault(value: p::SettingFault) -> w::SettingFault {
     }
 }
 
-fn ceiling_holder(value: p::CeilingHolder, limits: &w::Limits) -> Result<w::CeilingHolder, w::Problem> {
+#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
+fn ceiling_holder(value: p::CeilingHolder, _limits: &w::Limits) -> Result<w::CeilingHolder, w::Problem> {
     Ok(match value {
         p::CeilingHolder::Rules => w::CeilingHolder::Rules,
         p::CeilingHolder::Policy => w::CeilingHolder::Policy,
@@ -436,7 +443,8 @@ fn ceiling_dimension(value: p::CeilingDimension) -> w::CeilingDimension {
 }
 
 /// Translate the document refusal facts without checking the settings again.
-fn encode_setting_detail(value: p::SettingDetail, limits: &w::Limits) -> Result<w::SettingDetail, w::Problem> {
+#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
+fn encode_setting_detail(value: p::SettingDetail, _limits: &w::Limits) -> Result<w::SettingDetail, w::Problem> {
     Ok(w::SettingDetail {
             member: match value.member {
                 p::SettingMember::Documents => w::SettingMember::Documents,

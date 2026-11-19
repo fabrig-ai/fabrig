@@ -7,7 +7,6 @@ pub fn hold_refusal(value: w::HoldCategory) -> w::Refusal {
     w::Refusal::Moved(w::RefusalMoved { now: revision(31), what })
 }
 pub fn holds() -> [(p::HoldReason, w::HoldCategory); 22] {
-    let limits = wire();
     [
         (p::HoldReason::Stalled, w::HoldCategory::Stalled),
         (p::HoldReason::Stopped, w::HoldCategory::Stopped),
@@ -89,7 +88,6 @@ pub fn holds() -> [(p::HoldReason, w::HoldCategory); 22] {
     ]
 }
 pub fn refusals() -> [(p::Refusal, w::Refusal); 9] {
-    let limits = wire();
     [
         (p::Refusal::NotWaiting, w::Refusal::NotWaiting),
         (p::Refusal::NoFurther, w::Refusal::NoFurther),
@@ -118,17 +116,15 @@ pub fn refusals() -> [(p::Refusal, w::Refusal); 9] {
     ]
 }
 pub fn ending_refusal(value: w::EndingFields) -> w::Refusal {
-    let limits = wire();
     let row =
         w::Fact::Ending(w::EndingRow { parent: None, value });
-    let mut out = Writer::new(skein_lib::length::usize_of(row.measure().checked_add(4).expect("length")));
-    out.put(&row.measure().to_be_bytes()).expect("row length");
-    row.encode(&mut out).expect("row");
+    let mut out = Writer::new(skein_lib::length::usize_of(row.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture").checked_add(4).expect("length")));
+    out.put(&row.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture").to_be_bytes()).expect("row length");
+    row.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("row");
     let how = w::Ending { rows: out.finish() };
     w::Refusal::Ended(w::RefusalEnded { how })
 }
 pub fn endings() -> [(p::Ending, w::Refusal); 7] {
-    let limits = wire();
     [
         (p::Ending::Done, ending_refusal(w::EndingFields::Done)),
         (
@@ -181,7 +177,6 @@ pub fn endings() -> [(p::Ending, w::Refusal); 7] {
     ]
 }
 pub fn extra_refusals() -> [(p::Refusal, w::Refusal); 7] {
-    let limits = wire();
     [
         (
             p::Refusal::Role { held: Some(p::Role::Owner) },

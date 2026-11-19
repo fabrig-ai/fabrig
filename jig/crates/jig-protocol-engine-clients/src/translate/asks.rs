@@ -1,4 +1,5 @@
 //! Wire asks into the people vocabulary (client/domain/contract/requests.md).
+use jig_client_protocol_wire::Record as _;
 use super::Untranslatable;
 use alloc::boxed::Box;
 use jig_client_protocol_wire as w;
@@ -47,19 +48,18 @@ fn decode(
     Ok(match record {
         w::Ask::ReadLists(value) => p::Ask::AccountChange {
             holder: p::AccountHolder::Own,
-            change: p::AccountChange::ReadLists { provider: value.provider() },
+            change: p::AccountChange::ReadLists { provider: value.provider },
         },
         w::Ask::Restore(value) => {
-            let value = value.into_parts();
             p::Ask::Restore { revision: value.revision, reason: value.reason }
         }
-        w::Ask::MoveToNewest(value) => p::Ask::MoveToNewest { revision: value.revision() },
+        w::Ask::MoveToNewest(value) => p::Ask::MoveToNewest { revision: value.revision },
         w::Ask::ChangeModel(_) => return Err(Untranslatable { path: w::paths::CHANGE_MODEL_ACT }),
         w::Ask::ChangeSettings(value) => {
-            let against = value.against();
+            let against = value.against;
             let record = w::Ask::ChangeSettings(value);
-            let mut bytes = skein_lib::Writer::new(skein_lib::length::usize_of(record.measure()));
-            record.encode(&mut bytes).expect("measured ask");
+            let mut bytes = skein_lib::Writer::new(skein_lib::length::usize_of(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+            record.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("measured ask");
             p::Ask::ChangeSettings {
                 projects: Box::default(),
                 against,
@@ -67,45 +67,45 @@ fn decode(
             }
         }
         w::Ask::Propose(value) => super::operations::propose(value, models, limits, names)?,
-        w::Ask::Withdraw(value) => p::Ask::Withdraw { project: value.project(), proposal: value.proposal() },
+        w::Ask::Withdraw(value) => p::Ask::Withdraw { project: value.project, proposal: value.proposal },
         w::Ask::Delegate(value) => super::operations::delegate(value, models, limits, names)?,
         w::Ask::Create(value) => super::operations::create(value, models, limits, names)?,
         w::Ask::Compound(value) => super::operations::compound(value, models, limits, names)?,
         w::Ask::Talk(value) => {
-            let v = value.into_parts();
+            let v = value;
             p::Ask::Talk { project: v.project, task: v.task, words: v.words }
         }
-        w::Ask::Leave(value) => p::Ask::Leave { project: value.project(), task: value.task() },
+        w::Ask::Leave(value) => p::Ask::Leave { project: value.project, task: value.task },
         w::Ask::Message(value) => {
-            let v = value.into_parts();
+            let v = value;
             p::Ask::Say { project: v.project, task: v.task, words: v.words }
         }
         w::Ask::Answer(value) => {
-            let v = value.into_parts();
+            let v = value;
             super::operations::answer(v.project, v.on)
         }
         w::Ask::Take(value) => {
-            let v = value.into_parts();
+            let v = value;
             p::Ask::TakePerson { project: v.project, task: v.task }
         }
         w::Ask::HandBack(value) => {
-            let v = value.into_parts();
+            let v = value;
             p::Ask::HandBackPerson { project: v.project, task: v.task }
         }
         w::Ask::Decide(value) => {
-            let v = value.into_parts();
+            let v = value;
             super::operations::decide(v.project, v.on)?
         }
         w::Ask::Lift(value) => {
-            let v = value.into_parts();
+            let v = value;
             p::Ask::Lift { hold: v.hold, revision: v.revision, with_tasks: v.with_tasks }
         }
         w::Ask::Release(value) => {
-            let v = value.into_parts();
-            p::Ask::Release { project: v.project, task: v.task, revision: v.revision.value(), again: v.again }
+            let v = value;
+            p::Ask::Release { project: v.project, task: v.task, revision: v.revision.value, again: v.again }
         }
         w::Ask::Amend(value) => {
-            let v = value.into_parts();
+            let v = value;
             p::Ask::Amend {
                 release: None,
                 project: v.project,
@@ -118,51 +118,51 @@ fn decode(
             }
         }
         w::Ask::Stop(value) => {
-            let v = value.into_parts();
+            let v = value;
             p::Ask::Stop { project: v.project, task: v.task }
         }
-        w::Ask::Conclude(value) => p::Ask::Conclude { project: value.project(), task: value.task() },
+        w::Ask::Conclude(value) => p::Ask::Conclude { project: value.project, task: value.task },
         w::Ask::Cancel(value) => {
-            let v = value.into_parts();
+            let v = value;
             p::Ask::Cancel { project: v.project, task: v.task, reason: v.reason, grace: v.grace }
         }
         w::Ask::MoveTask(value) => {
-            let v = value.into_parts();
+            let v = value;
             p::Ask::Move { project: v.project, task: v.task, reason: v.reason }
         }
         w::Ask::Seen(value) => {
-            let v = value.into_parts();
+            let v = value;
             p::Ask::MarkSeen { seen: seen(v.through) }
         }
         w::Ask::MakeService(value) => {
-            let v = value.into_parts();
+            let v = value;
             p::Ask::MakeService { project: v.project, name: v.name, role: role(v.role) }
         }
         w::Ask::AccountChange(value) => {
-            p::Ask::AccountChange { holder: account_holder(value.holder()), change: account_change(value.change())? }
+            p::Ask::AccountChange { holder: account_holder(&value.holder), change: account_change(&value.change)? }
         }
         w::Ask::SignIn(value) => {
-            p::Ask::AccountSignIn { holder: account_holder(value.holder()), provider: value.provider() }
+            p::Ask::AccountSignIn { holder: account_holder(&value.holder), provider: value.provider }
         }
         w::Ask::SignOut(value) => {
-            p::Ask::AccountSignOut { holder: account_holder(value.holder()), source: value.source() }
+            p::Ask::AccountSignOut { holder: account_holder(&value.holder), source: value.source }
         }
-        w::Ask::SetVisibility(value) => p::Ask::SetVisibility { project: value.project(), public: value.public() },
-        w::Ask::RemoveProject(value) => p::Ask::RemoveProject { project: value.project(), grace: *value.grace() },
+        w::Ask::SetVisibility(value) => p::Ask::SetVisibility { project: value.project, public: value.public },
+        w::Ask::RemoveProject(value) => p::Ask::RemoveProject { project: value.project, grace: value.grace },
         w::Ask::Rename(value) => {
-            let v = value.into_parts();
+            let v = value;
             p::Ask::Rename { project: v.project, name: project_name(&v.name, w::paths::RENAME_NAME)? }
         }
         w::Ask::MakeProject(value) => {
-            let v = value.into_parts();
+            let v = value;
             p::Ask::MakeProject { name: project_name(&v.name, w::paths::MAKE_PROJECT_NAME)?, policy: v.policy }
         }
         w::Ask::SetPool(value) => {
-            let v = value.into_parts();
+            let v = value;
             p::Ask::SetPool { project: v.project, person: v.party, budget: v.budget }
         }
         w::Ask::EditNote(value) => {
-            let v = value.into_parts();
+            let v = value;
             p::Ask::EditNote {
                 project: v.project,
                 name: v.note,
@@ -176,7 +176,7 @@ fn decode(
             }
         }
         w::Ask::DeleteNote(value) => {
-            let v = value.into_parts();
+            let v = value;
             p::Ask::EditNote {
                 project: v.project,
                 name: v.note,
@@ -187,14 +187,13 @@ fn decode(
             }
         }
         w::Ask::ChangePolicy(value) => {
-            let v = value.into_parts();
+            let v = value;
             p::Ask::ChangePolicy { project: v.project, change: policy(v.edit, limits, names)? }
         }
         w::Ask::SetRoles(value) => {
-            let v = value.into_parts();
+            let v = value;
             let mut holdings = List::with_capacity(v.holdings.capacity());
             for item in v.holdings.into_boxed() {
-                let item = item.into_parts();
                 holdings.push(p::Holding { person: item.party, role: role(item.role) }).expect("same capacity");
             }
             p::Ask::SetRoles { project: v.project, holdings: holdings.into_boxed() }
@@ -202,24 +201,24 @@ fn decode(
     })
 }
 fn revision(value: w::Revision) -> u64 {
-    value.value()
+    value.value
 }
 fn recalled(value: w::Revision, path: w::Path) -> Result<u32, Untranslatable> {
-    match u32::try_from(value.value()) {
+    match u32::try_from(value.value) {
         Ok(value) => Ok(value),
         Err(_) => Err(Untranslatable { path }),
     }
 }
 pub(super) fn proposer(value: &w::Proposer) -> p::Proposer {
     match value {
-        w::Proposer::Task(v) => p::Proposer::Task(v.value()),
-        w::Proposer::Party(v) => p::Proposer::Party(v.value()),
+        w::Proposer::Task(v) => p::Proposer::Task(v.value),
+        w::Proposer::Party(v) => p::Proposer::Party(v.value),
     }
 }
 pub(super) fn proposal_decision(value: w::Decision) -> Result<p::ProposalDecision, Untranslatable> {
     match value {
         w::Decision::Accepted => Ok(p::ProposalDecision::Accept),
-        w::Decision::Rejected(v) => Ok(p::ProposalDecision::Reject { reason: v.into_parts().reason }),
+        w::Decision::Rejected(v) => Ok(p::ProposalDecision::Reject { reason: v.reason }),
         w::Decision::PassedUp => Ok(p::ProposalDecision::Pass),
         w::Decision::Released(_) | w::Decision::LeftHeld(_) => {
             Err(Untranslatable { path: w::paths::DECIDE_PROPOSAL_DECISION })
@@ -228,12 +227,12 @@ pub(super) fn proposal_decision(value: w::Decision) -> Result<p::ProposalDecisio
 }
 pub(super) fn escalation_decision(value: w::Decision) -> Result<p::EscalationDecision, Untranslatable> {
     match value {
-        w::Decision::Released(v) => match v.again() {
+        w::Decision::Released(v) => match &v.again {
             None => Ok(p::EscalationDecision::Release),
             Some(_) => Err(Untranslatable { path: w::paths::DECIDE_ESCALATION_DECISION }),
         },
-        w::Decision::Rejected(v) => Ok(p::EscalationDecision::Reject { reason: v.into_parts().reason }),
-        w::Decision::LeftHeld(v) => Ok(p::EscalationDecision::Reject { reason: v.into_parts().reason }),
+        w::Decision::Rejected(v) => Ok(p::EscalationDecision::Reject { reason: v.reason }),
+        w::Decision::LeftHeld(v) => Ok(p::EscalationDecision::Reject { reason: v.reason }),
         w::Decision::PassedUp => Ok(p::EscalationDecision::Pass),
         w::Decision::Accepted => Err(Untranslatable { path: w::paths::DECIDE_ESCALATION_DECISION }),
     }
@@ -241,21 +240,19 @@ pub(super) fn escalation_decision(value: w::Decision) -> Result<p::EscalationDec
 pub(super) fn person_answer(value: w::PersonAnswer) -> p::PersonResult {
     match value {
         w::PersonAnswer::Choice(v) => {
-            let v = v.into_parts();
             p::PersonResult::Verdict { code: v.option, words: v.reason }
         }
         w::PersonAnswer::Approved(v) => {
-            let v = v.into_parts();
             p::PersonResult::Approved { state: v.state, words: v.words }
         }
-        w::PersonAnswer::Words(v) => p::PersonResult::Report { words: v.into_parts().value },
-        w::PersonAnswer::Cannot(v) => p::PersonResult::Failure { reason: v.into_parts().reason },
+        w::PersonAnswer::Words(v) => p::PersonResult::Report { words: v.value },
+        w::PersonAnswer::Cannot(v) => p::PersonResult::Failure { reason: v.reason },
     }
 }
 fn seen(value: w::SeenThrough) -> p::Seen {
     match value {
-        w::SeenThrough::Results(v) => p::Seen::Results { through: v.through() },
-        w::SeenThrough::Conversation(v) => p::Seen::Conversation { task: v.task(), through: v.through() },
+        w::SeenThrough::Results(v) => p::Seen::Results { through: v.through },
+        w::SeenThrough::Conversation(v) => p::Seen::Conversation { task: v.task, through: v.through },
     }
 }
 fn role(value: w::HeldRole) -> p::Role {
@@ -264,38 +261,37 @@ fn role(value: w::HeldRole) -> p::Role {
         w::HeldRole::Maintainer => p::Role::Maintainer,
         w::HeldRole::Member => p::Role::Member,
         w::HeldRole::Observer => p::Role::Observer,
-        w::HeldRole::Policy(v) => p::Role::Policy { role: v.role() },
+        w::HeldRole::Policy(v) => p::Role::Policy { role: v.role },
     }
 }
 fn pattern(value: w::Pattern) -> p::Pattern {
-    let v = value.into_parts();
+    let v = value;
     p::Pattern {
         segments: v.segments.into_boxed(),
         last: match v.last {
-            w::PatternEnd::Exact(v) => p::Last::Exact(v.into_parts().value),
-            w::PatternEnd::Open(v) => p::Last::Open(v.into_parts().value),
+            w::PatternEnd::Exact(v) => p::Last::Exact(v.value),
+            w::PatternEnd::Open(v) => p::Last::Open(v.value),
         },
     }
 }
 fn note_scope(value: w::NoteScope, project: u32, path: w::Path) -> Result<p::NoteScope, Untranslatable> {
     Ok(match value {
         w::NoteScope::Tasks(_) => return Err(Untranslatable { path }),
-        w::NoteScope::Party(value) => p::NoteScope::Party { party: value.party() },
+        w::NoteScope::Party(value) => p::NoteScope::Party { party: value.party },
         w::NoteScope::Deployment => p::NoteScope::Deployment,
         w::NoteScope::Project(v) => {
-            if v.value() != project {
+            if v.value != project {
                 return Err(Untranslatable { path });
             }
             p::NoteScope::Project
         }
         w::NoteScope::Task(v) => {
-            if v.project() != project {
+            if v.project != project {
                 return Err(Untranslatable { path });
             }
-            p::NoteScope::Goal { goal: v.task() }
+            p::NoteScope::Goal { goal: v.task }
         }
         w::NoteScope::Resource(v) => {
-            let v = v.into_parts();
             if v.project != project {
                 return Err(Untranslatable { path });
             }
@@ -304,17 +300,16 @@ fn note_scope(value: w::NoteScope, project: u32, path: w::Path) -> Result<p::Not
     })
 }
 pub(super) fn spec(value: w::Specification) -> p::Spec {
-    let v = value.into_parts();
+    let v = value;
     let mut parameters = List::with_capacity(v.parameters.capacity());
     for item in v.parameters.into_boxed() {
         let item = match item {
-            w::Parameter::Number(v) => p::Parameter::Number { name: v.name(), value: v.value() },
+            w::Parameter::Number(v) => p::Parameter::Number { name: v.name, value: v.value },
             w::Parameter::Bytes(v) => {
-                let v = v.into_parts();
                 p::Parameter::Bytes { name: v.name, value: v.value }
             }
             w::Parameter::Resource(v) => {
-                p::Parameter::Resource { name: v.name(), connector: v.connector(), resource: v.resource() }
+                p::Parameter::Resource { name: v.name, connector: v.connector, resource: v.resource }
             }
         };
         parameters.push(item).expect("same capacity");
@@ -325,12 +320,12 @@ fn wake_rule(value: w::WakeRule) -> p::WakeRule {
     match value {
         w::WakeRule::Never => p::WakeRule::Never,
         w::WakeRule::Immediate => p::WakeRule::Immediate,
-        w::WakeRule::Batch(v) => p::WakeRule::Batch { count: v.count(), age: v.age() },
-        w::WakeRule::Paced(v) => p::WakeRule::Paced { span: v.span() },
+        w::WakeRule::Batch(v) => p::WakeRule::Batch { count: v.count, age: v.age },
+        w::WakeRule::Paced(v) => p::WakeRule::Paced { span: v.span },
     }
 }
 pub(super) fn wake(value: w::WakePolicy) -> p::WakePolicy {
-    let v = value.into_parts();
+    let v = value;
     p::WakePolicy {
         words: wake_rule(v.words),
         notices: wake_rule(v.notices),
@@ -346,12 +341,12 @@ pub(super) fn wake(value: w::WakePolicy) -> p::WakePolicy {
     }
 }
 fn address(value: w::AddressChange) -> p::AddressChange {
-    let v = value.into_parts();
+    let v = value;
     p::AddressChange {
-        revision: v.revision.value(),
+        revision: v.revision.value,
         address: match v.address {
-            w::PersonAddress::Party(v) => p::PersonAddress::Person(v.value()),
-            w::PersonAddress::Role(v) => p::PersonAddress::Role(v.value()),
+            w::PersonAddress::Party(v) => p::PersonAddress::Person(v.value),
+            w::PersonAddress::Role(v) => p::PersonAddress::Role(v.value),
         },
     }
 }
@@ -362,7 +357,7 @@ pub(super) fn amendment(
     limits: &w::Limits,
     names: &mut List<Box<[u8]>>,
 ) -> Result<p::Amendment, Untranslatable> {
-    let v = value.into_parts();
+    let v = value;
     let authority = match v.authority {
         Some(value) => Some(authority(value, limits, names)?),
         None => None,
@@ -414,7 +409,7 @@ fn sum(total: &mut u64, bytes: Option<u64>, ceiling: u32, path: w::Path) -> Resu
     Ok(())
 }
 pub(super) fn grant(value: w::Grant) -> p::Grant {
-    let v = value.into_parts();
+    let v = value;
     p::Grant { connector: v.connector, kind: v.kind, pattern: pattern(v.pattern) }
 }
 pub(super) fn grants(
@@ -443,16 +438,16 @@ pub(super) fn authority(
     limits: &w::Limits,
     names: &mut List<Box<[u8]>>,
 ) -> Result<p::Authority, Untranslatable> {
-    let v = value.into_parts();
-    let delegation = v.delegation.into_parts();
+    let v = value;
+    let delegation = v.delegation;
     let mut kinds = List::with_capacity(delegation.kinds.capacity());
     for kind in delegation.kinds.into_boxed() {
         kinds
             .push(match kind {
-                w::AuthorityExecutor::Job(v) => p::Executor::Job(v.value()),
-                w::AuthorityExecutor::Charter(v) => p::Executor::Charter(v.value()),
-                w::AuthorityExecutor::Procedure(v) => p::Executor::Procedure(v.value()),
-                w::AuthorityExecutor::Role(v) => p::Executor::Role(v.value()),
+                w::AuthorityExecutor::Job(v) => p::Executor::Job(v.value),
+                w::AuthorityExecutor::Charter(v) => p::Executor::Charter(v.value),
+                w::AuthorityExecutor::Procedure(v) => p::Executor::Procedure(v.value),
+                w::AuthorityExecutor::Role(v) => p::Executor::Role(v.value),
             })
             .expect("same capacity");
     }
@@ -463,10 +458,7 @@ pub(super) fn authority(
     let mut total = 0;
     for _ in 0..count {
         let bytes = skein_codec::piece::counted(&mut reader);
-        let value = match w::ResourceScope::decode(limits, &mut Reader::new(&bytes)) {
-            Ok(value) => value.into_parts(),
-            Err(_) => return Err(Untranslatable { path }),
-        };
+        let Ok(value) = w::ResourceScope::decode(limits, &mut Reader::new(&bytes)) else { return Err(Untranslatable { path }) };
         let pattern = pattern(value.pattern);
         let size = pattern_bytes(&pattern, size_of::<p::ResourceScope>());
         sum(&mut total, size, limits.authority_note_resources, path)?;
@@ -487,19 +479,19 @@ pub(super) fn authority(
     })
 }
 pub(super) fn requirement(value: w::PolicyRequirement) -> p::Requirement {
-    let v = value.into_parts();
+    let v = value;
     p::Requirement {
         connector: v.connector,
         kind: v.kind,
         pattern: pattern(v.pattern),
         judge: p::Judge {
-            connector: v.judge.connector(),
-            requirement: v.judge.requirement(),
-            parameters: v.judge.parameters(),
+            connector: v.judge.connector,
+            requirement: v.judge.requirement,
+            parameters: v.judge.parameters,
         },
         guard: match v.guard {
             w::PolicyGuard::Guarded => p::Guard::Guarded,
-            w::PolicyGuard::Observed(v) => p::Guard::Observed { freshness: v.freshness() },
+            w::PolicyGuard::Observed(v) => p::Guard::Observed { freshness: v.freshness },
         },
         must_be_guarded: v.must_be_guarded,
     }
@@ -511,10 +503,10 @@ fn policy(
 ) -> Result<p::PolicyChange, Untranslatable> {
     Ok(match value {
         w::PolicyEdit::Templates(v) => super::operations::templates(v),
-        w::PolicyEdit::RoleSpend(v) => p::PolicyChange::RoleSpend { role: v.role(), period_spend: v.period_spend() },
-        w::PolicyEdit::ProjectSpend(v) => p::PolicyChange::ProjectSpend { period_spend: v.period_spend() },
+        w::PolicyEdit::RoleSpend(v) => p::PolicyChange::RoleSpend { role: v.role, period_spend: v.period_spend },
+        w::PolicyEdit::ProjectSpend(v) => p::PolicyChange::ProjectSpend { period_spend: v.period_spend },
         w::PolicyEdit::Role(v) => {
-            let v = v.into_parts().value.into_parts();
+            let v = v.value;
             p::PolicyChange::Role(p::PolicyRole {
                 number: v.number,
                 authority: authority(v.authority, limits, names)?,
@@ -525,9 +517,9 @@ fn policy(
         }
         w::PolicyEdit::Requirements(v) => {
             let path = w::paths::POLICY_EDIT_REQUIREMENTS_REQUIREMENTS;
-            let count = count(v.requirements(), path)?;
+            let count = count(v.requirements.as_ref(), path)?;
             let mut values = List::with_capacity(count);
-            let mut reader = Reader::new(v.requirements());
+            let mut reader = Reader::new(v.requirements.as_ref());
             let mut total = 0;
             for _ in 0..count {
                 let bytes = skein_codec::piece::counted(&mut reader);
@@ -547,21 +539,20 @@ fn policy(
         }
         w::PolicyEdit::Projections(v) => p::PolicyChange::Projections {
             grants: grants(
-                v.grants(),
+                v.grants.as_ref(),
                 limits.policy_edit_projections_grants,
                 w::paths::POLICY_EDIT_PROJECTIONS_GRANTS,
                 limits,
             )?,
         },
         w::PolicyEdit::Permissions(v) => {
-            let v = v.into_parts();
             let mut mappings = List::with_capacity(v.mappings.capacity());
             for value in v.mappings.into_boxed() {
                 mappings
                     .push(p::PermissionRole {
-                        connector: value.connector(),
-                        permission: value.permission(),
-                        role: value.role(),
+                        connector: value.connector,
+                        permission: value.permission,
+                        role: value.role,
                     })
                     .expect("same capacity");
             }
@@ -593,59 +584,59 @@ fn account_change(value: &w::AccountChange) -> Result<p::AccountChange, Untransl
     Ok(match value {
         // These receive typed interim refusals before core translation (domain/terminal-login.md, 5).
         w::AccountChange::LoginProgram(row) => {
-            p::AccountChange::LoginProgram { provider: row.provider(), name: skein_lib::bytes::copy_of(row.name()) }
+            p::AccountChange::LoginProgram { provider: row.provider, name: skein_lib::bytes::copy_of(row.name.as_ref()) }
         }
-        w::AccountChange::CancelLogin(row) => p::AccountChange::CancelLogin { number: row.number() },
+        w::AccountChange::CancelLogin(row) => p::AccountChange::CancelLogin { number: row.number },
         w::AccountChange::LoginEnded(row) => p::AccountChange::LoginEnded {
-            number: row.number(),
-            exit: match row.exit() {
-                w::LoginExit::Exited(value) => p::LoginExit::Exited { code: value.code() },
-                w::LoginExit::Killed(value) => p::LoginExit::Killed { signal: value.signal() },
+            number: row.number,
+            exit: match &row.exit {
+                w::LoginExit::Exited(value) => p::LoginExit::Exited { code: value.code },
+                w::LoginExit::Killed(value) => p::LoginExit::Killed { signal: value.signal },
                 w::LoginExit::NotStarted => p::LoginExit::NotStarted,
             },
         },
         w::AccountChange::DeclareProgram(row) => {
-            if jig_domain_link::SourceName::new(row.name()).is_none() {
+            if jig_domain_link::SourceName::new(row.name.as_ref()).is_none() {
                 return Err(Untranslatable { path: w::paths::ACCOUNT_CHANGE_DECLARE_PROGRAM_NAME });
             }
             p::AccountChange::DeclareProgram {
-                provider: row.provider(),
-                join: *row.join(),
-                name: skein_lib::bytes::copy_of(row.name()),
+                provider: row.provider,
+                join: row.join,
+                name: skein_lib::bytes::copy_of(row.name.as_ref()),
             }
         }
-        w::AccountChange::CheckProgram(row) => p::AccountChange::CheckProgram { source: row.source() },
-        w::AccountChange::MoveOut(row) => p::AccountChange::MoveOut { account: row.account() },
-        w::AccountChange::Written(row) => p::AccountChange::Written { number: row.number() },
+        w::AccountChange::CheckProgram(row) => p::AccountChange::CheckProgram { source: row.source },
+        w::AccountChange::MoveOut(row) => p::AccountChange::MoveOut { account: row.account },
+        w::AccountChange::Written(row) => p::AccountChange::Written { number: row.number },
         w::AccountChange::FinishSignIn(row) => {
-            p::AccountChange::FinishSignIn { source: row.source(), digest: *row.digest() }
+            p::AccountChange::FinishSignIn { source: row.source, digest: row.digest }
         }
-        w::AccountChange::MoveIn(row) => p::AccountChange::MoveIn { digest: *row.digest() },
+        w::AccountChange::MoveIn(row) => p::AccountChange::MoveIn { digest: row.digest },
         w::AccountChange::AddKey(row) => {
-            p::AccountChange::AddKey { provider: row.provider(), join: *row.join(), digest: *row.digest() }
+            p::AccountChange::AddKey { provider: row.provider, join: row.join, digest: row.digest }
         }
         w::AccountChange::ReplaceKey(row) => {
-            p::AccountChange::ReplaceKey { source: row.source(), digest: *row.digest() }
+            p::AccountChange::ReplaceKey { source: row.source, digest: row.digest }
         }
-        w::AccountChange::RemoveKey(row) => p::AccountChange::RemoveKey { source: row.source() },
-        w::AccountChange::Resume(row) => p::AccountChange::Resume { source: row.source() },
-        w::AccountChange::Remove(row) => p::AccountChange::Remove { account: row.account() },
+        w::AccountChange::RemoveKey(row) => p::AccountChange::RemoveKey { source: row.source },
+        w::AccountChange::Resume(row) => p::AccountChange::Resume { source: row.source },
+        w::AccountChange::Remove(row) => p::AccountChange::Remove { account: row.account },
         w::AccountChange::MoveAccount(row) => {
-            p::AccountChange::MoveAccount { account: row.account(), place: row.place() }
+            p::AccountChange::MoveAccount { account: row.account, place: row.place }
         }
         w::AccountChange::MoveSource(row) => {
-            p::AccountChange::MoveSource { account: row.account(), source: row.source(), place: row.place() }
+            p::AccountChange::MoveSource { account: row.account, source: row.source, place: row.place }
         }
         w::AccountChange::SetUses(row) => p::AccountChange::SetUses {
-            account: row.account(),
-            uses: match row.uses() {
+            account: row.account,
+            uses: match &row.uses {
                 None => None,
                 Some(uses) => {
                     let mut rows = List::with_capacity(uses.len());
                     for use_ in uses {
                         rows.push(match use_ {
-                            w::AccountUse::Party(value) => p::Use::Party(value.party()),
-                            w::AccountUse::Project(value) => p::Use::Project(value.project()),
+                            w::AccountUse::Party(value) => p::Use::Party(value.party),
+                            w::AccountUse::Project(value) => p::Use::Project(value.project),
                         })
                         .expect("reserved uses");
                     }

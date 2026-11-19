@@ -1,4 +1,5 @@
 //! Bounded owner page pieces (protocol/client/wire.md, 1).
+use jig_client_protocol_wire::Record as _;
 use super::super::{owner, pieces, task, w};
 use alloc::boxed::Box;
 use jig_domain_core_vocabulary::documents as d;
@@ -16,68 +17,67 @@ fn charge(size: u32, measure: u32, bound: u32, path: w::Path) -> Result<u32, w::
 pub(super) fn activity_pieces(
     rows: &List<w::DecodedActivityLine>,
     bound: u32,
-    path: w::Path,
-) -> Result<Box<[u8]>, w::Problem> {
+    path: w::Path, limits: &w::Limits) -> Result<Box<[u8]>, w::Problem> {
     let mut size = 0;
     for row in rows {
-        size = charge(size, row.measure(), bound, path)?;
+        size = charge(size, row.measure(limits)?, bound, path)?;
     }
     let mut encoded = List::with_capacity(rows.len());
     for row in rows {
-        let mut out = Writer::new(skein_lib::length::usize_of(row.measure()));
-        row.encode(&mut out).or(Err(w::Problem { path, reason: skein_codec::Reason::Bound }))?;
+        let mut out = Writer::new(skein_lib::length::usize_of(row.measure(limits)?));
+        row.write(limits, &mut out).or(Err(w::Problem { path, reason: skein_codec::Reason::Bound }))?;
         encoded.push(out.finish()).expect("selected rows fit");
     }
     pieces(&encoded, bound, path)
 }
-pub(super) fn history_pieces(rows: &List<w::HistoryRow>, bound: u32, path: w::Path) -> Result<Box<[u8]>, w::Problem> {
+pub(super) fn history_pieces(rows: &List<w::HistoryRow>, bound: u32, path: w::Path, limits: &w::Limits) -> Result<Box<[u8]>, w::Problem> {
     let mut size = 0;
     for row in rows {
-        size = charge(size, row.measure(), bound, path)?;
+        size = charge(size, row.measure(limits)?, bound, path)?;
     }
     let mut encoded = List::with_capacity(rows.len());
     for row in rows {
-        let mut out = Writer::new(skein_lib::length::usize_of(row.measure()));
-        row.encode(&mut out).or(Err(w::Problem { path, reason: skein_codec::Reason::Bound }))?;
+        let mut out = Writer::new(skein_lib::length::usize_of(row.measure(limits)?));
+        row.write(limits, &mut out).or(Err(w::Problem { path, reason: skein_codec::Reason::Bound }))?;
         encoded.push(out.finish()).expect("selected rows fit");
     }
     pieces(&encoded, bound, path)
 }
-pub(super) fn inbox_pieces(rows: &List<w::InboxEntry>, bound: u32, path: w::Path) -> Result<Box<[u8]>, w::Problem> {
+pub(super) fn inbox_pieces(rows: &List<w::InboxEntry>, bound: u32, path: w::Path, limits: &w::Limits) -> Result<Box<[u8]>, w::Problem> {
     let mut size = 0;
     for row in rows {
-        size = charge(size, row.measure(), bound, path)?;
+        size = charge(size, row.measure(limits)?, bound, path)?;
     }
     let mut encoded = List::with_capacity(rows.len());
     for row in rows {
-        let mut out = Writer::new(skein_lib::length::usize_of(row.measure()));
-        row.encode(&mut out).or(Err(w::Problem { path, reason: skein_codec::Reason::Bound }))?;
+        let mut out = Writer::new(skein_lib::length::usize_of(row.measure(limits)?));
+        row.write(limits, &mut out).or(Err(w::Problem { path, reason: skein_codec::Reason::Bound }))?;
         encoded.push(out.finish()).expect("selected rows fit");
     }
     pieces(&encoded, bound, path)
 }
-pub(super) fn ended_pieces(rows: &List<w::EndedDelegate>, bound: u32, path: w::Path) -> Result<Box<[u8]>, w::Problem> {
+pub(super) fn ended_pieces(rows: &List<w::EndedDelegate>, bound: u32, path: w::Path, limits: &w::Limits) -> Result<Box<[u8]>, w::Problem> {
     let mut size = 0;
     for row in rows {
-        size = charge(size, row.measure(), bound, path)?;
+        size = charge(size, row.measure(limits)?, bound, path)?;
     }
     let mut encoded = List::with_capacity(rows.len());
     for row in rows {
-        let mut out = Writer::new(skein_lib::length::usize_of(row.measure()));
-        row.encode(&mut out).or(Err(w::Problem { path, reason: skein_codec::Reason::Bound }))?;
+        let mut out = Writer::new(skein_lib::length::usize_of(row.measure(limits)?));
+        row.write(limits, &mut out).or(Err(w::Problem { path, reason: skein_codec::Reason::Bound }))?;
         encoded.push(out.finish()).expect("selected rows fit");
     }
     pieces(&encoded, bound, path)
 }
-pub(super) fn note_pieces(rows: &List<w::Note>, bound: u32, path: w::Path) -> Result<Box<[u8]>, w::Problem> {
+pub(super) fn note_pieces(rows: &List<w::Note>, bound: u32, path: w::Path, limits: &w::Limits) -> Result<Box<[u8]>, w::Problem> {
     let mut size = 0;
     for row in rows {
-        size = charge(size, row.measure(), bound, path)?;
+        size = charge(size, row.measure(limits)?, bound, path)?;
     }
     let mut encoded = List::with_capacity(rows.len());
     for row in rows {
-        let mut out = Writer::new(skein_lib::length::usize_of(row.measure()));
-        row.encode(&mut out).or(Err(w::Problem { path, reason: skein_codec::Reason::Bound }))?;
+        let mut out = Writer::new(skein_lib::length::usize_of(row.measure(limits)?));
+        row.write(limits, &mut out).or(Err(w::Problem { path, reason: skein_codec::Reason::Bound }))?;
         encoded.push(out.finish()).expect("selected rows fit");
     }
     pieces(&encoded, bound, path)

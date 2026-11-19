@@ -1,3 +1,4 @@
+use jig_client_protocol_wire::Record as _;
 use super::fixtures;
 use crate::translate::watches;
 use jig_client_protocol_wire as w;
@@ -12,7 +13,6 @@ const QUERY_WATCHER: Token = Token::new(11);
 const QUERY_SIGN_IN: u64 = 41;
 #[test]
 fn a_task_query_subject_reaches_the_core_with_its_keys() {
-    let limits = fixtures::wire();
     let query = w::TaskQuery {
             parts: skein_lib::List::with_capacity(0),
             project: Some(QUERY_PROJECT),
@@ -145,41 +145,41 @@ fn task_parts_keep_their_places_across_pages_deliveries_and_continuations() {
             })),
         );
         let w::ReadAnswer::Value(answer) = exchange.read_answer(owner) else { panic!("value") };
-        let w::ReadValue::Tasks(page) = w::ReadValue::decode(&limits, &mut Reader::new(answer.record())).unwrap()
+        let w::ReadValue::Tasks(page) = w::ReadValue::decode(&limits, &mut Reader::new(answer.record.as_ref())).unwrap()
         else {
             panic!("tasks")
         };
-        assert_eq!(page.ended_mark(), 73);
-        let w::EndedGroup::Rows(ended) = page.ended() else { panic!("ended group") };
+        assert_eq!(page.ended_mark, 73);
+        let w::EndedGroup::Rows(ended) = &page.ended else { panic!("ended group") };
         let slots = translate::parts::plan(&asks, &fixtures::settings(), &limits);
         let w::DeliveryValue::Tasks(delivery) =
             watches::delivery(&d::Document::Lines(lines), 0, 2, &[], &slots, &limits).unwrap()
         else {
             panic!("delivery")
         };
-        assert_eq!(delivery.ended_mark(), 73);
-        for bytes in [page.live(), ended.rows(), delivery.rows()] {
+        assert_eq!(delivery.ended_mark, 73);
+        for bytes in [page.live.as_ref(), ended.rows.as_ref(), delivery.rows.as_ref()] {
             let mut reader = Reader::new(bytes);
             let bytes = skein_codec::piece::split(&mut reader).unwrap().unwrap();
             let row = w::TaskLine::decode(&limits, &mut Reader::new(&bytes)).unwrap();
-            let [w::RowPart::NotServed(first), a, b, w::RowPart::NotServed(last)] = row.parts().as_slice() else {
+            let [w::RowPart::NotServed(first), a, b, w::RowPart::NotServed(last)] = row.parts.as_slice() else {
                 panic!("parts in order")
             };
             assert_eq!([a, b], [&expected_parts[0], &expected_parts[1]]);
             assert_eq!(
-                first.owner(),
+                (&first.owner),
                 &w::Owner::Family(w::Family { number: 99 })
             );
-            assert_eq!(last.owner(), &w::Owner::Family(w::Family { number: 9 }));
-            let ranges = first.served();
-            assert_eq!(ranges, last.served());
+            assert_eq!((&last.owner), &w::Owner::Family(w::Family { number: 9 }));
+            let ranges = &first.served;
+            assert_eq!(ranges, (&last.served));
             assert_eq!(ranges.len(), 2);
             let family = ranges.get(1).unwrap();
-            assert_eq!((family.owner(), family.first(), family.last()), (last.owner(), 2, 2));
+            assert_eq!(((&family.owner), family.first, family.last), ((&last.owner), 2, 2));
         }
-        let continuation = page.live_after().as_ref().unwrap().clone();
+        let continuation = page.live_after.as_ref().unwrap().clone();
         let reads::Cursor::Live { scope: reads::Scope::Tasks { query: held }, .. } =
-            translate::cursor::decode(continuation.value()).unwrap()
+            translate::cursor::decode(continuation.value.as_ref()).unwrap()
         else {
             panic!("query cursor")
         };
@@ -223,16 +223,16 @@ fn a_task_document_carries_its_label_flags_activity_and_oldest_waiting_entry() {
     let value = crate::translate::task::document(&source, &[], &limits).unwrap();
     assert_eq!(
         (
-            value.label(),
-            value.flags().conversation(),
-            value.flags().listed(),
-            value.flags().retention(),
-            value.last_activity()
+            value.label,
+            value.flags.conversation,
+            value.flags.listed,
+            (&value.flags.retention),
+            value.last_activity
         ),
         (5, true, true, &w::Retention::ForgottenOnceRead, 13)
     );
-    let w::WaitsOn::Party(wait) = value.waits_on() else { panic!("party") };
-    let w::Whom::Role(whom) = wait.whom() else { panic!("role") };
-    assert_eq!((whom.project(), whom.role()), (QUERY_PROJECT, WAITING_ROLE));
-    assert_eq!((wait.entries(), wait.task(), wait.kind()), (3, QUERY_ROOT, &w::WaitedFor::Question));
+    let w::WaitsOn::Party(wait) = &value.waits_on else { panic!("party") };
+    let w::Whom::Role(whom) = &wait.whom else { panic!("role") };
+    assert_eq!((whom.project, whom.role), (QUERY_PROJECT, WAITING_ROLE));
+    assert_eq!((wait.entries, wait.task, (&wait.kind)), (3, QUERY_ROOT, &w::WaitedFor::Question));
 }

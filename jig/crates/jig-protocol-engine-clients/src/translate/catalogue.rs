@@ -1,4 +1,5 @@
 //! Public configured offers and volatile payer facts (client/domain/contract/documents.md, 1).
+use jig_client_protocol_wire::Record as _;
 use super::{accounts, owner, pieces, w};
 use alloc::boxed::Box;
 use jig_domain_core_vocabulary::documents as d;
@@ -19,8 +20,8 @@ pub(super) fn offers(values: &List<d::ProviderOffer>, bound: u32, limits: &w::Li
                 programs: value.programs.clone(),
                 manage_usage: value.manage_usage.clone(),
             };
-        let mut out = Writer::new(usize::try_from(row.measure()).or(Err(super::problem(skein_codec::Reason::Bound)))?);
-        row.encode(&mut out).or(Err(super::problem(skein_codec::Reason::Bound)))?;
+        let mut out = Writer::new(usize::try_from(row.measure(limits)?).or(Err(super::problem(skein_codec::Reason::Bound)))?);
+        row.write(limits, &mut out).or(Err(super::problem(skein_codec::Reason::Bound)))?;
         rows.push(out.finish()).or(Err(super::problem(skein_codec::Reason::Bound)))?;
     }
     pieces(&rows, bound, w::paths::ME_PROVIDERS)
@@ -42,8 +43,8 @@ pub(super) fn readiness(
                 },
                 settled: value.settled,
             };
-        let mut out = Writer::new(usize::try_from(row.measure()).or(Err(super::problem(skein_codec::Reason::Bound)))?);
-        row.encode(&mut out).or(Err(super::problem(skein_codec::Reason::Bound)))?;
+        let mut out = Writer::new(usize::try_from(row.measure(limits)?).or(Err(super::problem(skein_codec::Reason::Bound)))?);
+        row.write(limits, &mut out).or(Err(super::problem(skein_codec::Reason::Bound)))?;
         rows.push(out.finish()).or(Err(super::problem(skein_codec::Reason::Bound)))?;
     }
     pieces(&rows, bound, w::paths::ACCOUNTS_READINESS)

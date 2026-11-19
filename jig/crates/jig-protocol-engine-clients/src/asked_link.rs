@@ -1,4 +1,5 @@
 //! Volatile links for the asking person's party (protocol/client/sign-in.md, The asked link).
+use jig_client_protocol_wire::Record as _;
 use super::{Component, Env, Limits, Queue, ReplyTo, Request, Token, Waiting, core, people, routes, sign_in, w};
 use crate::sign_in::{AskedLink, LinkKind, Past, Reservation};
 use alloc::boxed::Box;

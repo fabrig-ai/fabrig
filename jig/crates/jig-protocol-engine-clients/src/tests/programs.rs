@@ -27,14 +27,14 @@ fn host() -> d::Host {
 #[test]
 fn configured_names_cross_as_whole_bytes() {
     let wire = crate::translate::deployment::host(&host(), &w::CEILINGS).expect("host");
-    assert_eq!(wire.name().as_deref(), Some(b"configured-worker".as_slice()));
+    assert_eq!(wire.name.as_deref(), Some(b"configured-worker".as_slice()));
 }
 #[test]
 fn login_readiness_crosses_the_wire() {
     let wire = crate::translate::deployment::host(&host(), &w::CEILINGS).expect("host");
-    assert!(wire.awaiting_logins());
-    assert!(wire.connected());
-    assert!(!wire.draining());
+    assert!(wire.awaiting_logins);
+    assert!(wire.connected);
+    assert!(!wire.draining);
 }
 #[test]
 fn program_details_past_the_wire_bound_are_refused() {
@@ -64,10 +64,10 @@ fn a_refused_worker_position_reaches_the_wire_record() {
     let mut value = super::fixtures::deployment_document();
     value.hello_refusals.get_mut(0).expect("fixture refusal").why = fleet::HelloRefusal::Position { worker: u32::MAX };
     let record = crate::translate::deployment::document(&value, &w::CEILINGS).expect("deployment record");
-    let w::HelloRefusal::Position(row) = record.hello_refusals().get(0).expect("wire refusal").why() else {
+    let w::HelloRefusal::Position(row) = &record.hello_refusals.get(0).expect("wire refusal").why else {
         panic!("position refusal");
     };
-    assert_eq!(row.worker(), u32::MAX);
+    assert_eq!(row.worker, u32::MAX);
 }
 
 #[test]
@@ -85,6 +85,6 @@ fn a_host_rule_reaches_the_wire() {
         let mut value = host();
         value.rule = rule;
         let wire = crate::translate::deployment::host(&value, &w::CEILINGS).expect("host");
-        assert_eq!(wire.rule(), &expected);
+        assert_eq!((&wire.rule), &expected);
     }
 }

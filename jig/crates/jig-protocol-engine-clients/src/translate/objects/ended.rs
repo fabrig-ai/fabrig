@@ -72,8 +72,7 @@ pub fn retained_action(
             let copied = super::proposals::proposed_task_pieces(
                 &copied,
                 limits.retained_action_batch_value,
-                w::paths::RETAINED_ACTION_BATCH_VALUE,
-            )?;
+                w::paths::RETAINED_ACTION_BATCH_VALUE, limits)?;
             w::RetainedAction::Batch(w::RetainedActionBatch { value: copied })
         }
         d::RetainedAction::Effect { part, authority, attempt, completion, position, purpose } => {
@@ -171,9 +170,10 @@ pub fn hold(value: &d::HoldLine, limits: &w::Limits) -> Result<w::HoldLine, w::P
             },
         })
 }
+#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
 pub fn escalation_decision(
     value: &jig_domain_core_vocabulary::EscalationDecisionRecord,
-    limits: &w::Limits,
+    _limits: &w::Limits,
 ) -> Result<w::EscalationDecisionRecord, w::Problem> {
     Ok(w::EscalationDecisionRecord {
             project: value.project,
@@ -197,9 +197,7 @@ pub fn proposal_decision(
 ) -> Result<w::ProposalDecision, w::Problem> {
     Ok(w::ProposalDecision {
             project: value.project,
-            proposer: task::proposal(&d::ProposalRef { proposer: value.proposer, number: value.proposal }, limits)?
-                .proposer()
-                .clone(),
+            proposer: task::proposal(&d::ProposalRef { proposer: value.proposer, number: value.proposal }, limits)?.proposer,
             proposal: value.proposal,
             kind: super::proposals::kind(value.kind),
             by: value.by,

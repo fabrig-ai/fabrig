@@ -11,8 +11,8 @@ pub fn read_exchange_with(settings: Settings) -> Exchange {
     Exchange::configured(limits, settings)
 }
 pub fn encoded_read(value: &w::Read) -> Box<[u8]> {
-    let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
-    value.encode(&mut out).expect("read bytes");
+    let mut out = Writer::new(skein_lib::length::usize_of(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+    value.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("read bytes");
     out.finish()
 }
 pub fn owned_read(owner: w::Owner, version: u32, record: Box<[u8]>) -> Box<[u8]> {
@@ -21,14 +21,13 @@ pub fn owned_read(owner: w::Owner, version: u32, record: Box<[u8]>) -> Box<[u8]>
         w::Owner::Family(_) => family_record(record),
     };
     let value = w::Owned { owner, version, record };
-    let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
-    value.encode(&mut out).expect("envelope bytes");
+    let mut out = Writer::new(skein_lib::length::usize_of(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+    value.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("envelope bytes");
     out.finish()
 }
 pub fn value_answer(value: &w::ReadValue) -> w::ReadAnswer {
-    let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
-    value.encode(&mut out).expect("value bytes");
-    let limits = w::Limits { owned_record: 4096, ..wire() };
+    let mut out = Writer::new(skein_lib::length::usize_of(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+    value.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("value bytes");
     w::ReadAnswer::Value(
         w::Owned { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: out.finish() },
     )
@@ -37,7 +36,6 @@ pub fn read_none(value: w::ReadNone) -> w::ReadAnswer {
     w::ReadAnswer::None(w::ReadAnswerNone { value })
 }
 pub fn held_reads() -> [(&'static str, w::Read, reads::Read, reads::Answer, w::ReadAnswer); 5] {
-    let limits = wire();
     [
         task_text_read(),
         (
@@ -267,7 +265,6 @@ fn note_cursors(rows: &mut List<(&'static str, reads::Cursor)>) {
 }
 
 fn task_text_read() -> (&'static str, w::Read, reads::Read, reads::Answer, w::ReadAnswer) {
-    let limits = wire();
     let bytes = "é CI failed: missing artifact".as_bytes();
     let from = 127_u64;
     let total = from.checked_add(len_u64(bytes.len())).unwrap();

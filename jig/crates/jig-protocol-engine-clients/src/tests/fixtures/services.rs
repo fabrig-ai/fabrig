@@ -53,9 +53,9 @@ impl Exchange {
     }
     pub fn service_credential(&self, owner: Token) -> Secret {
         let w::Final::Done(value) = self.final_answer(owner) else { panic!("done") };
-        let w::Outcome::Made(value) = value.into_parts().outcome else { panic!("made") };
-        let w::Made::Service(value) = value.into_parts().what else { panic!("service") };
-        let parts = value.into_parts();
+        let w::Outcome::Made(value) = value.outcome else { panic!("made") };
+        let w::Made::Service(value) = value.what else { panic!("service") };
+        let parts = value;
         assert_eq!(parts.party, SERVICE);
         parts.credential
     }

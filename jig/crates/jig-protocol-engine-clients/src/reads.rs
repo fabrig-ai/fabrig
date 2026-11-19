@@ -1,6 +1,7 @@
 //! Read exchanges remain pending until the core's held answer is released (protocol/client/README.md, 4).
+use jig_client_protocol_wire::Record as _;
 use super::{Box, Component, Env, Limits, Queue, ReplyTo, Request, Token, Waiting, core, routes, w};
-use skein_lib::{Reader, Writer};
+use skein_lib::Reader;
 impl Component {
     pub(super) fn serves(&self, family: Option<u16>, version: u32) -> bool {
         crate::served::serves(&self.settings, family, version)
@@ -24,7 +25,7 @@ impl Component {
         }
         let mut reader = Reader::new(body);
         let record = match w::Owned::decode(&env.limits.wire, &mut reader) {
-            Ok(value) if reader.is_empty() => value.into_parts(),
+            Ok(value) if reader.is_empty() => value,
             Ok(_) | Err(_) => {
                 self.response(exchange, crate::Reply::NotARecord);
                 return;
@@ -32,7 +33,7 @@ impl Component {
         };
         let family = match &record.owner {
             w::Owner::Jig => None,
-            w::Owner::Family(value) => Some(value.number()),
+            w::Owner::Family(value) => Some(value.number),
         };
         if !self.serves(family, record.version) {
             let answer =
@@ -66,12 +67,12 @@ impl Component {
                     self.response(exchange, crate::Reply::NotARecord);
                     return;
                 };
-                let Some(window) = crate::served::window(body.window()) else {
+                let Some(window) = crate::served::window(&body.window) else {
                     self.response(exchange, crate::Reply::NotARecord);
                     return;
                 };
-                let scope = crate::served::scope(body.scope());
-                let family = value.number();
+                let scope = crate::served::scope(&body.scope);
+                let family = value.number;
                 self.pending
                     .exchanges
                     .insert(exchange, Waiting::ApplicationRead { sign_in, family, version: record.version })
@@ -83,7 +84,7 @@ impl Component {
                     version: record.version,
                     scope,
                     window,
-                    record: body.into_parts().record,
+                    record: body.record,
                 })
             }
         };
@@ -185,13 +186,7 @@ impl Component {
         }
     }
     fn read_response(&mut self, exchange: Token, answer: Result<w::ReadAnswer, w::Problem>, limits: &w::Limits) {
-        match answer {
-            Ok(value) => {
-                let mut bytes = Writer::new(skein_lib::length::usize_of(value.measure()));
-                value.encode(&mut bytes).expect("measured read answer");
-                self.respond(exchange, bytes.finish());
-            }
-            Err(_) => self.respond(exchange, routes::read_none(core::reads::Why::Malformed, limits)),
-        }
+        let bytes = match answer { Ok(value) => value.encode(limits), Err(problem) => Err(problem) };
+        match bytes { Ok(bytes) => self.respond(exchange, bytes), Err(_) => self.respond(exchange, routes::read_none(core::reads::Why::Malformed, limits)) }
     }
 }

@@ -1,4 +1,5 @@
 //! Fixed version refusals and family admission envelopes (protocol/client/README.md, 6 and 8).
+use jig_client_protocol_wire::Record as _;
 use crate::{Settings, boundary::Served, translate};
 use alloc::boxed::Box;
 use jig_client_protocol_wire as w;
@@ -13,7 +14,7 @@ pub(crate) fn serves(settings: &Settings, family: Option<u16>, version: u32) -> 
     }
     false
 }
-pub(crate) fn not_served(settings: &Settings, owner: w::Owner, limits: &w::Limits) -> w::NotServed {
+pub(crate) fn not_served(settings: &Settings, owner: w::Owner, _limits: &w::Limits) -> w::NotServed {
     let mut served = List::with_capacity(settings.served.len());
     for Served { family, first, last } in &settings.served {
         let owner = match family {
@@ -30,17 +31,17 @@ pub(crate) fn not_served(settings: &Settings, owner: w::Owner, limits: &w::Limit
 }
 pub(crate) fn scope(scope: &w::Scope) -> ApplicationScope {
     match scope {
-        w::Scope::Project(project) => ApplicationScope::Project(project.value()),
+        w::Scope::Project(project) => ApplicationScope::Project(project.value),
         w::Scope::Deployment => ApplicationScope::Deployment,
         w::Scope::Own => ApplicationScope::Own,
     }
 }
 pub(crate) fn window(window: &w::Window) -> Option<documents::Window> {
-    let after = match window.after() {
-        Some(cursor) => Some(translate::cursor::decode_window(cursor.value())?),
+    let after = match &window.after {
+        Some(cursor) => Some(translate::cursor::decode_window(cursor.value.as_ref())?),
         None => None,
     };
-    Some(documents::Window { rows: window.rows(), after })
+    Some(documents::Window { rows: window.rows, after })
 }
 
 pub(crate) struct Opening {
@@ -77,15 +78,15 @@ pub(crate) fn watch(
         }
         w::Owner::Family(value) => {
             let record = w::FamilyRecord::decode(limits, &mut skein_lib::Reader::new(&subject.record)).ok()?;
-            let window = window(record.window())?;
+            let window = window(&record.window)?;
             let request = crate::Request::Application(crate::ToApplication::Watch {
                 watcher,
                 sign_in,
-                family: value.number(),
+                family: value.number,
                 version: subject.version,
-                scope: scope(record.scope()),
+                scope: scope(&record.scope),
                 window,
-                record: record.into_parts().record,
+                record: record.record,
             });
             Some(Opening { request, project: 0, rows: window.rows, parts: List::with_capacity(0) })
         }

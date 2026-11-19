@@ -1,4 +1,5 @@
 //! Browser approvals, their refusals and durable takes (jig/docs/design/protocol/client/sign-in.md).
+use jig_client_protocol_wire::Record as _;
 use super::fixtures::{self as f, Exchange};
 use crate::{Event, Message, Request, SecretOwner, SecretsAnswer, SecretsRequest, Settings};
 use jig_client_protocol_wire as w;
@@ -12,26 +13,26 @@ fn new() -> Exchange {
 }
 fn ask_message() -> Message {
     let value = w::ApprovalAsk {};
-    let mut bytes = Writer::new(usize_of(value.measure()));
-    value.encode(&mut bytes).expect("ask bytes");
+    let mut bytes = Writer::new(usize_of(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+    value.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("ask bytes");
     Message::ApprovalAsk(bytes.finish())
 }
 fn read_message(code: [u8; 8]) -> Message {
     let value = w::ApprovalRead { code };
-    let mut bytes = Writer::new(usize_of(value.measure()));
-    value.encode(&mut bytes).expect("read bytes");
+    let mut bytes = Writer::new(usize_of(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+    value.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("read bytes");
     Message::ApprovalRead(bytes.finish())
 }
 fn decide_message(code: [u8; 8], approve: bool) -> Message {
     let value = w::ApprovalDecide { code, approve };
-    let mut bytes = Writer::new(usize_of(value.measure()));
-    value.encode(&mut bytes).expect("decision bytes");
+    let mut bytes = Writer::new(usize_of(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+    value.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("decision bytes");
     Message::ApprovalDecide(bytes.finish())
 }
 fn take_message(secret: &[u8]) -> Message {
     let value = w::ApprovalSignIn { secret: Secret::new(secret.into()) };
-    let mut bytes = Writer::new(usize_of(value.measure()));
-    value.encode(&mut bytes).expect("take bytes");
+    let mut bytes = Writer::new(usize_of(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+    value.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("take bytes");
     Message::SignInApproval(bytes.finish())
 }
 fn finish(e: &mut Exchange, owner: Token) {
@@ -46,9 +47,9 @@ fn asked(e: &mut Exchange) -> w::ApprovalAsked {
     let owner = e.send(ask_message());
     let value = w::ApprovalAskAnswer::decode(&f::wire(), &mut Reader::new(e.response(owner).1)).expect("ask answer");
     let w::ApprovalAskAnswer::Asked(value) = value else { panic!("approval asked: {value:?}") };
-    assert_eq!(value.secret().expose().len(), 32);
-    assert!(ApprovalCode::parse(value.code()).is_some());
-    assert_eq!(value.expires(), e.env.wall.as_nanos().saturating_add(SPAN.as_nanos()));
+    assert_eq!(value.secret.expose().len(), 32);
+    assert!(ApprovalCode::parse(&value.code).is_some());
+    assert_eq!(value.expires, e.env.wall.as_nanos().saturating_add(SPAN.as_nanos()));
     assert!(e.out.is_empty(), "ask sends nothing to core or store");
     finish(e, owner);
     value
@@ -98,17 +99,17 @@ fn signed_in(e: &mut Exchange, to: ReplyTo, owner: Token) -> w::SignedIn {
     e.component.down(&e.env, Event::Secrets(SecretsAnswer::Kept { owner: kept_owner }), &mut e.out);
     let answer = w::ApprovalSignInAnswer::decode(&f::wire(), &mut Reader::new(e.response(owner).1)).expect("answer");
     let w::ApprovalSignInAnswer::SignedIn(answer) = answer else { panic!("signed in") };
-    let token = answer.token().as_ref().expect("fresh token");
+    let token = answer.token.as_ref().expect("fresh token");
     assert_eq!(token.expose().len(), 40);
-    assert_eq!(answer.party(), 72);
-    assert_eq!(answer.expires(), value.expires.as_nanos());
+    assert_eq!(answer.party, 72);
+    assert_eq!(answer.expires, value.expires.as_nanos());
     assert_eq!(crate::sign_in::digest(token.expose()), value.digest);
     finish(e, owner);
     answer
 }
 fn approved(e: &mut Exchange) -> w::ApprovalAsked {
     let value = asked(e);
-    assert_eq!(decide(e, *value.code(), true), w::ApprovalDecided::Approved);
+    assert_eq!(decide(e, value.code, true), w::ApprovalDecided::Approved);
     value
 }
 
@@ -139,7 +140,7 @@ fn an_ask_is_answered_by_the_room_and_the_engine() {
                 let first = asked(&mut e);
                 for _ in 0_u32..3 {
                     let other = asked(&mut e);
-                    assert_ne!(first.code(), other.code());
+                    assert_ne!((&first.code), (&other.code));
                 }
                 let owner = e.send(ask_message());
                 assert_eq!(
@@ -151,7 +152,7 @@ fn an_ask_is_answered_by_the_room_and_the_engine() {
                     e.env.now = e.env.now.saturating_add(SPAN);
                     asked(&mut e);
                 } else if case == "refused frees room" {
-                    assert_eq!(decide(&mut e, *first.code(), false), w::ApprovalDecided::Refused);
+                    assert_eq!(decide(&mut e, first.code, false), w::ApprovalDecided::Refused);
                     asked(&mut e);
                 }
             }
@@ -205,7 +206,7 @@ fn a_read_says_what_the_approval_is() {
         let mut e = new();
         e.env.wall = Wall::from_nanos(123);
         let a = asked(&mut e);
-        let code = *a.code();
+        let code = a.code;
         let expected = match case {
             "waiting" => w::ApprovalState::Waiting(
                 w::ApprovalWaiting { asked: 123 },
@@ -216,7 +217,7 @@ fn a_read_says_what_the_approval_is() {
             }
             "taken" => {
                 decide(&mut e, code, true);
-                let owner = e.send(take_message(a.secret().expose()));
+                let owner = e.send(take_message(a.secret.expose()));
                 let to = signer(&mut e);
                 signed_in(&mut e, to, owner);
                 w::ApprovalState::Taken
@@ -237,7 +238,7 @@ fn a_read_says_what_the_approval_is() {
                 decide(&mut e, code, false);
                 for _ in 0_u32..8 {
                     let next = asked(&mut e);
-                    decide(&mut e, *next.code(), false);
+                    decide(&mut e, next.code, false);
                 }
                 w::ApprovalState::Unknown
             }
@@ -256,10 +257,10 @@ fn the_first_decision_spends_the_approval() {
         let mut e = new();
         let a = asked(&mut e);
         assert_eq!(
-            decide(&mut e, *a.code(), first),
+            decide(&mut e, a.code, first),
             if first { w::ApprovalDecided::Approved } else { w::ApprovalDecided::Refused }
         );
-        assert_eq!(decide(&mut e, *a.code(), next), expected);
+        assert_eq!(decide(&mut e, a.code, next), expected);
     }
     for expired in [true, false] {
         let mut e = new();
@@ -268,7 +269,7 @@ fn the_first_decision_spends_the_approval() {
             e.env.now = e.env.now.saturating_add(SPAN);
         }
         assert_eq!(
-            decide(&mut e, if expired { *a.code() } else { *b"BBBBBBBB" }, true),
+            decide(&mut e, if expired { a.code } else { *b"BBBBBBBB" }, true),
             if expired { w::ApprovalDecided::Expired } else { w::ApprovalDecided::Unknown }
         );
     }
@@ -294,7 +295,7 @@ fn a_take_says_why_it_signs_no_one_in() {
         let expected = match case {
             "waiting" => w::ApprovalSignInAnswer::Waiting,
             "refused" => {
-                decide(&mut e, *a.code(), false);
+                decide(&mut e, a.code, false);
                 w::ApprovalSignInAnswer::Refused
             }
             "expired" => {
@@ -302,8 +303,8 @@ fn a_take_says_why_it_signs_no_one_in() {
                 w::ApprovalSignInAnswer::Expired
             }
             "used" | "busy" | "ended" | "core refused" => {
-                decide(&mut e, *a.code(), true);
-                let owner = e.send(take_message(a.secret().expose()));
+                decide(&mut e, a.code, true);
+                let owner = e.send(take_message(a.secret.expose()));
                 if case == "busy" {
                     w::ApprovalSignInAnswer::Busy
                 } else if case == "ended" || case == "core refused" {
@@ -323,15 +324,15 @@ fn a_take_says_why_it_signs_no_one_in() {
                 }
             }
             "stopped" => {
-                decide(&mut e, *a.code(), true);
+                decide(&mut e, a.code, true);
                 e.component.down(&e.env, Event::Stop, &mut e.out);
                 w::ApprovalSignInAnswer::NotReady
             }
             "forgotten" => {
-                decide(&mut e, *a.code(), false);
+                decide(&mut e, a.code, false);
                 for _ in 0_u32..8 {
                     let next = asked(&mut e);
-                    decide(&mut e, *next.code(), false);
+                    decide(&mut e, next.code, false);
                 }
                 w::ApprovalSignInAnswer::Unknown
             }
@@ -342,7 +343,7 @@ fn a_take_says_why_it_signs_no_one_in() {
             "unknown" => &[8; 32][..],
             "short" => &[7; 13][..],
             "empty" => &[],
-            _ => a.secret().expose(),
+            _ => a.secret.expose(),
         };
         if case == "busy" {
             let _waiting = e.approval_whose();
@@ -359,13 +360,13 @@ fn busy_not_ready_and_full_spend_nothing() {
     ] {
         let mut e = new();
         let a = approved(&mut e);
-        let owner = e.send(take_message(a.secret().expose()));
+        let owner = e.send(take_message(a.secret.expose()));
         let to = signer(&mut e);
         let expected = match &reply {
             people::Reply::Again(people::Again::Busy) => w::ApprovalSignInAnswer::Busy,
             people::Reply::Again(people::Again::NotReady) => w::ApprovalSignInAnswer::NotReady,
             people::Reply::Full { .. } => w::ApprovalSignInAnswer::Full(
-                w::ApprovalFull { sign_ins: 4, earliest: 700, until: a.expires() },
+                w::ApprovalFull { sign_ins: 4, earliest: 700, until: a.expires },
             ),
             people::Reply::Signer(_)
             | people::Reply::SignedIn { .. }
@@ -380,8 +381,8 @@ fn busy_not_ready_and_full_spend_nothing() {
             expected
         );
         finish(&mut e, owner);
-        assert_eq!(read(&mut e, *a.code()), w::ApprovalState::Approved);
-        let owner = e.send(take_message(a.secret().expose()));
+        assert_eq!(read(&mut e, a.code), w::ApprovalState::Approved);
+        let owner = e.send(take_message(a.secret.expose()));
         let to = signer(&mut e);
         signed_in(&mut e, to, owner);
     }
@@ -391,23 +392,23 @@ fn an_approved_take_signs_in_the_approvers_party_once() {
     let mut e = new();
     let a = asked(&mut e);
     assert_eq!(
-        read(&mut e, *a.code()),
+        read(&mut e, a.code),
         w::ApprovalState::Waiting(
             w::ApprovalWaiting { asked: 0 }
         )
     );
-    assert_eq!(decide(&mut e, *a.code(), true), w::ApprovalDecided::Approved);
-    let owner = e.send(take_message(a.secret().expose()));
+    assert_eq!(decide(&mut e, a.code, true), w::ApprovalDecided::Approved);
+    let owner = e.send(take_message(a.secret.expose()));
     let to = signer(&mut e);
     let first = signed_in(&mut e, to, owner);
-    assert_eq!(take_answer(&mut e, a.secret().expose()), w::ApprovalSignInAnswer::Used);
-    assert_eq!(read(&mut e, *a.code()), w::ApprovalState::Taken);
-    assert_eq!(decide(&mut e, *a.code(), true), w::ApprovalDecided::Used);
+    assert_eq!(take_answer(&mut e, a.secret.expose()), w::ApprovalSignInAnswer::Used);
+    assert_eq!(read(&mut e, a.code), w::ApprovalState::Taken);
+    assert_eq!(decide(&mut e, a.code, true), w::ApprovalDecided::Used);
     let next = approved(&mut e);
-    let owner = e.send(take_message(next.secret().expose()));
+    let owner = e.send(take_message(next.secret.expose()));
     let to = signer(&mut e);
     let second = signed_in(&mut e, to, owner);
-    assert_ne!(first.token(), second.token(), "a fresh random credential");
+    assert_ne!((&first.token), (&second.token), "a fresh random credential");
 }
 #[test]
 fn an_approval_never_taken_makes_no_sign_in() {
@@ -418,8 +419,8 @@ fn an_approval_never_taken_makes_no_sign_in() {
     e.component.fire(&e.env);
     assert_eq!(e.component.next_deadline(), None);
     assert!(e.out.is_empty());
-    assert_eq!(take_answer(&mut e, a.secret().expose()), w::ApprovalSignInAnswer::Expired);
-    assert_eq!(read(&mut e, *a.code()), w::ApprovalState::Expired);
+    assert_eq!(take_answer(&mut e, a.secret.expose()), w::ApprovalSignInAnswer::Expired);
+    assert_eq!(read(&mut e, a.code), w::ApprovalState::Expired);
     let first = approved(&mut e);
     let first_end = e.env.now.saturating_add(SPAN);
     e.env.now = e.env.now.saturating_add(Duration::from_secs(1));
@@ -429,8 +430,8 @@ fn an_approval_never_taken_makes_no_sign_in() {
     e.env.now = first_end;
     e.component.fire(&e.env);
     assert_eq!(e.component.next_deadline(), Some(second_end));
-    assert_eq!(read(&mut e, *first.code()), w::ApprovalState::Expired);
-    assert_eq!(read(&mut e, *second.code()), w::ApprovalState::Approved);
+    assert_eq!(read(&mut e, first.code), w::ApprovalState::Expired);
+    assert_eq!(read(&mut e, second.code), w::ApprovalState::Approved);
     assert!(e.out.is_empty());
 }
 #[test]
@@ -443,19 +444,19 @@ fn no_print_of_the_component_shows_a_secret() {
     else {
         panic!("asked")
     };
-    assert_hidden(&format!("{:?} {:?}", e.component, e.out), a.secret().expose());
+    assert_hidden(&format!("{:?} {:?}", e.component, e.out), a.secret.expose());
     e.component.up(&e.env, &mut e.out);
-    assert_hidden(&format!("{:?}", e.out), a.secret().expose());
+    assert_hidden(&format!("{:?}", e.out), a.secret.expose());
     e.out.pop().expect("asked answer");
-    assert_hidden(&format!("{:?} {:?}", e.component, e.out), a.secret().expose());
-    decide(&mut e, *a.code(), true);
-    let owner = e.send(take_message(a.secret().expose()));
-    assert_hidden(&format!("{:?} {:?}", e.component, e.out), a.secret().expose());
+    assert_hidden(&format!("{:?} {:?}", e.component, e.out), a.secret.expose());
+    decide(&mut e, a.code, true);
+    let owner = e.send(take_message(a.secret.expose()));
+    assert_hidden(&format!("{:?} {:?}", e.component, e.out), a.secret.expose());
     let whose = e.approval_whose();
     e.reply(whose, people::Reply::Signer(Some(people::Signer { kind: people::Kind::Person, identity: identity() })));
-    assert_hidden(&format!("{:?} {:?}", e.component, e.out), a.secret().expose());
+    assert_hidden(&format!("{:?} {:?}", e.component, e.out), a.secret.expose());
     let to = e.approval_sign_in(&identity());
-    assert_hidden(&format!("{:?} {:?}", e.component, e.out), a.secret().expose());
+    assert_hidden(&format!("{:?} {:?}", e.component, e.out), a.secret.expose());
     e.reply(to, people::Reply::SignedIn { person: 72, sign_in: 91, expires: Wall::from_nanos(900_000_000_000) });
     let Some(Request::Secrets(SecretsRequest::Keep { owner: kept_owner, .. })) = e.out.pop() else { panic!("Keep") };
     let before = format!("{:?} {:?}", e.component, e.out);
@@ -467,12 +468,12 @@ fn no_print_of_the_component_shows_a_secret() {
         panic!("signed in")
     };
     for printed in [before, after] {
-        assert_hidden(&printed, a.secret().expose());
-        assert_hidden(&printed, value.token().as_ref().expect("token").expose());
+        assert_hidden(&printed, a.secret.expose());
+        assert_hidden(&printed, value.token.as_ref().expect("token").expose());
     }
     e.component.up(&e.env, &mut e.out);
-    assert_hidden(&format!("{:?}", e.out), value.token().as_ref().expect("token").expose());
-    assert_hidden(&format!("{:?}", e.out), a.secret().expose());
+    assert_hidden(&format!("{:?}", e.out), value.token.as_ref().expect("token").expose());
+    assert_hidden(&format!("{:?}", e.out), a.secret.expose());
     assert_ne!(owner, Token::new(0));
 }
 #[expect(clippy::disallowed_macros, reason = "ordinary canary test searches Debug byte lists")]
@@ -488,8 +489,8 @@ fn assert_hidden(printed: &str, secret: &[u8]) {
 fn a_restart_forgets_every_approval() {
     let a = approved(&mut new());
     let mut fresh = new();
-    assert_eq!(take_answer(&mut fresh, a.secret().expose()), w::ApprovalSignInAnswer::Unknown);
-    assert_eq!(read(&mut fresh, *a.code()), w::ApprovalState::Unknown);
+    assert_eq!(take_answer(&mut fresh, a.secret.expose()), w::ApprovalSignInAnswer::Unknown);
+    assert_eq!(read(&mut fresh, a.code), w::ApprovalState::Unknown);
 }
 
 #[test]
@@ -517,10 +518,10 @@ fn admission_refusals_leave_approvals_alone() {
             e.component.down(&e.env, Event::Stop, &mut e.out);
         }
         if case.starts_with("take") {
-            assert_eq!(take_answer(&mut e, a.secret().expose()), w::ApprovalSignInAnswer::Busy);
+            assert_eq!(take_answer(&mut e, a.secret.expose()), w::ApprovalSignInAnswer::Busy);
         } else {
             let message =
-                if case.starts_with("read") { read_message(*a.code()) } else { decide_message(*a.code(), false) };
+                if case.starts_with("read") { read_message(a.code) } else { decide_message(a.code, false) };
             let owner = e.send_as(message, true, Some(Secret::new(e.token.clone())));
             if case.ends_with("busy") {
                 e.authenticate();
@@ -541,8 +542,8 @@ fn admission_refusals_leave_approvals_alone() {
         if let Some((owner, to)) = pending {
             e.reply(to, people::Reply::Again(people::Again::Busy));
             finish(&mut e, owner);
-            assert_eq!(read(&mut e, *a.code()), w::ApprovalState::Approved);
-            let owner = e.send(take_message(a.secret().expose()));
+            assert_eq!(read(&mut e, a.code), w::ApprovalState::Approved);
+            let owner = e.send(take_message(a.secret.expose()));
             let to = signer(&mut e);
             signed_in(&mut e, to, owner);
         }
@@ -554,7 +555,7 @@ fn a_take_drains_on_stop_close_or_abort() {
         for action in ["stop", "close", "abort", "refuse", "close refused"] {
             let mut e = new();
             let a = approved(&mut e);
-            let owner = e.send(take_message(a.secret().expose()));
+            let owner = e.send(take_message(a.secret.expose()));
             let to = if stage == "whose" { Some(e.approval_whose()) } else { Some(signer(&mut e)) };
             let to = if stage == "keep" {
                 e.reply(
@@ -579,7 +580,7 @@ fn a_take_drains_on_stop_close_or_abort() {
                     );
                     finish(&mut e, owner);
                     if action != "close refused" {
-                        assert_eq!(take_answer(&mut e, a.secret().expose()), w::ApprovalSignInAnswer::Refused);
+                        assert_eq!(take_answer(&mut e, a.secret.expose()), w::ApprovalSignInAnswer::Refused);
                     }
                 } else {
                     e.component.down(&e.env, Event::SignInEnded { sign_in: 91 }, &mut e.out);
@@ -636,7 +637,7 @@ fn a_take_drains_on_stop_close_or_abort() {
                     answer,
                     if action == "stop" && stage == "core" {
                         w::ApprovalSignInAnswer::Full(
-                            w::ApprovalFull { sign_ins: 4, earliest: 700, until: a.expires() },
+                            w::ApprovalFull { sign_ins: 4, earliest: 700, until: a.expires },
                         )
                     } else {
                         w::ApprovalSignInAnswer::NotReady

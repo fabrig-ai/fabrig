@@ -1,4 +1,5 @@
 //! Secret-free program facts (accounts.md, 3.4; client/domain/contract/documents.md, 1).
+use jig_client_protocol_wire::Record as _;
 use super::{pieces, w};
 use alloc::boxed::Box;
 use jig_domain_core_vocabulary::documents as d;
@@ -15,7 +16,8 @@ fn failure(value: SourceFailure) -> w::ProgramFailure {
         SourceFailure::Closed => w::ProgramFailure::Closed,
     }
 }
-fn state(value: &LoginState, limits: &w::Limits) -> Result<w::ProgramState, w::Problem> {
+#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
+fn state(value: &LoginState, _limits: &w::Limits) -> Result<w::ProgramState, w::Problem> {
     Ok(match value {
         LoginState::Usable => w::ProgramState::Usable,
         LoginState::NotSignedIn => w::ProgramState::NotSignedIn,
@@ -44,8 +46,8 @@ pub fn logins(
     let mut rows = List::with_capacity(value.len());
     for row in value {
         let row = login(row, limits)?;
-        let mut out = Writer::new(skein_lib::length::usize_of(row.measure()));
-        row.encode(&mut out).expect("measured login row");
+        let mut out = Writer::new(skein_lib::length::usize_of(row.measure(limits)?));
+        row.write(limits, &mut out).expect("measured login row");
         rows.push(out.finish()).expect("one piece per supplied row");
     }
     pieces(&rows, bound, path)
@@ -64,8 +66,8 @@ pub fn hosts(value: &List<d::ProgramHost>, limits: &w::Limits) -> Result<Box<[u8
     let mut rows = List::with_capacity(value.len());
     for row in value {
         let row = host(row, limits)?;
-        let mut out = Writer::new(skein_lib::length::usize_of(row.measure()));
-        row.encode(&mut out).expect("measured program host");
+        let mut out = Writer::new(skein_lib::length::usize_of(row.measure(limits)?));
+        row.write(limits, &mut out).expect("measured program host");
         rows.push(out.finish()).expect("one piece per supplied row");
     }
     pieces(&rows, limits.accounts_program_hosts, w::paths::ACCOUNTS_PROGRAM_HOSTS)

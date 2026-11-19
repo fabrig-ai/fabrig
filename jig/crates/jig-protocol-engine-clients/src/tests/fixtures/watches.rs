@@ -1,4 +1,5 @@
-use super::{Exchange, family_record, wire};
+use jig_client_protocol_wire::Record as _;
+use super::{Exchange, family_record};
 use crate::{Request, stream::Stream};
 use jig_client_protocol_wire as w;
 use jig_domain_core_vocabulary as core;
@@ -11,16 +12,16 @@ impl Exchange {
     }
     pub fn open_record(&mut self, stream: [u8; 16], name: u64, subject: w::Owned) -> Token {
         let value = w::Open { stream, watch: name, subject };
-        let mut bytes = Writer::new(skein_lib::length::usize_of(value.measure()));
-        value.encode(&mut bytes).expect("open");
+        let mut bytes = Writer::new(skein_lib::length::usize_of(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+        value.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("open");
         let owner = self.send(crate::Message::Watch(bytes.finish()));
         self.authenticate();
         owner
     }
     pub fn unwatch(&mut self, stream: [u8; 16], watch: u64) -> Token {
         let value = w::WatchClose { stream, watch };
-        let mut body = Writer::new(skein_lib::length::usize_of(value.measure()));
-        value.encode(&mut body).expect("close");
+        let mut body = Writer::new(skein_lib::length::usize_of(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+        value.write(&jig_client_protocol_wire::CEILINGS, &mut body).expect("close");
         let owner = self.send(crate::Message::Unwatch(body.finish()));
         self.authenticate();
         owner
@@ -39,8 +40,8 @@ impl Exchange {
     }
 }
 pub fn owned_subject(value: &w::Subject) -> w::Owned {
-    let mut bytes = Writer::new(skein_lib::length::usize_of(value.measure()));
-    value.encode(&mut bytes).expect("subject");
+    let mut bytes = Writer::new(skein_lib::length::usize_of(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+    value.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("subject");
     w::Owned { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: bytes.finish() }
 }
 pub fn family_subject() -> w::Owned {
@@ -52,7 +53,6 @@ pub fn task_subject() -> w::Subject {
 }
 pub fn subject_cases() -> [(&'static str, w::Subject, core::documents::Watched, u32); 7] {
     use core::documents as d;
-    let limits = wire();
     [
         ("Frame", w::Subject::Me, d::Watched::Frame, 32),
         (

@@ -8,15 +8,15 @@ pub const LAST_TASK: u64 = 8;
 pub fn create_ask() -> (w::Ask, p::Ask) {
     let (wire, people) = authority_ask();
     let w::Ask::ChangePolicy(wire) = wire else { panic!("policy fixture") };
-    let w::PolicyEdit::Role(wire) = wire.into_parts().edit else { panic!("role fixture") };
-    let authority = wire.into_parts().value.into_parts().authority;
+    let w::PolicyEdit::Role(wire) = wire.edit else { panic!("role fixture") };
+    let authority = wire.value.authority;
     let p::Ask::ChangePolicy { change: p::PolicyChange::Role(expected_role), .. } = people else {
         panic!("authority fixture")
     };
     let mut tasks = List::with_capacity(2);
     let mut batch = List::with_capacity(2);
     for (role, deadline) in [(false, None), (true, Some(DEADLINE))] {
-        let mut wire = authority.clone().into_parts();
+        let mut wire = authority.clone();
         wire.deadline = None;
         if let Some(wall) = deadline {
             wire.deadline = Some(wall.as_nanos());
@@ -29,8 +29,8 @@ pub fn create_ask() -> (w::Ask, p::Ask) {
     }
     let mut encoded = List::with_capacity(tasks.len());
     for task in &tasks {
-        let mut out = Writer::new(usize::try_from(task.measure()).unwrap());
-        task.encode(&mut out).unwrap();
+        let mut out = Writer::new(usize::try_from(task.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+        task.write(&jig_client_protocol_wire::CEILINGS, &mut out).unwrap();
         encoded.push(out.finish()).unwrap();
     }
     let bytes = pieces(encoded.as_slice());
@@ -82,7 +82,7 @@ fn member(role: bool, authority: w::Authority, expected: p::Authority) -> (w::Ne
             ),
             wake: None,
             dependencies,
-            named: authority.grants().into(),
+            named: authority.grants.as_ref().into(),
             tracked: Some(14),
             label: 15,
             flags: w::TaskFlags {
@@ -144,7 +144,7 @@ pub fn careful_and_quick(l: &w::Limits) -> w::LlmChoice {
     llm_choice(l, b"careful", Some(b"high"), b"quick")
 }
 /// A main model and effort, and one sub-agent model at its default effort, by name.
-pub fn llm_choice(l: &w::Limits, main: &[u8], effort: Option<&[u8]>, subagent: &[u8]) -> w::LlmChoice {
+pub fn llm_choice(_l: &w::Limits, main: &[u8], effort: Option<&[u8]>, subagent: &[u8]) -> w::LlmChoice {
     let main = w::ModelEffort {
             model: main.into(),
             effort: match effort {
@@ -157,7 +157,6 @@ pub fn llm_choice(l: &w::Limits, main: &[u8], effort: Option<&[u8]>, subagent: &
 }
 
 pub fn create_refusals() -> [(&'static str, p::Refusal, w::Refusal); 5] {
-    let l = wire();
     [
         (
             "two budgets",
@@ -201,7 +200,6 @@ pub fn create_refusals() -> [(&'static str, p::Refusal, w::Refusal); 5] {
     ]
 }
 pub fn created_outcome() -> w::Outcome {
-    let l = wire();
     w::Outcome::Document(
         w::OutcomeDocument {
                 value: w::DocumentOutcome::Created(

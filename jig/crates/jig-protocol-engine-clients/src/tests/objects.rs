@@ -1,3 +1,4 @@
+use jig_client_protocol_wire::Record as _;
 use super::fixtures;
 use crate::translate;
 use alloc::boxed::Box;
@@ -50,14 +51,14 @@ fn pending_party_and_task_actions_cross_whole_for_maker_and_holder() {
                 )
                 .unwrap();
                 let w::ReadValue::Proposal(wire) = &value else { panic!("proposal wire") };
-                assert_eq!(wire.key().number(), 13);
-                match wire.key().proposer() {
+                assert_eq!(wire.key.number, 13);
+                match &wire.key.proposer {
                     w::Proposer::Party(party) => {
-                        assert_eq!(party.value(), 11);
+                        assert_eq!(party.value, 11);
                         assert_eq!(proposer, d::Proposer::Party(11));
                     }
                     w::Proposer::Task(task) => {
-                        assert_eq!(task.value(), 17);
+                        assert_eq!(task.value, 17);
                         assert_eq!(proposer, d::Proposer::Task(17));
                     }
                 }
@@ -147,8 +148,8 @@ fn pending_party_and_task_actions_cross_whole_for_maker_and_holder() {
 }
 
 fn client_value(value: &w::ReadValue) -> jig_client_domain::contract::ReadValue {
-    let mut out = skein_lib::Writer::new(usize::try_from(value.measure()).unwrap());
-    value.encode(&mut out).unwrap();
+    let mut out = skein_lib::Writer::new(usize::try_from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    value.write(&jig_client_protocol_wire::CEILINGS, &mut out).unwrap();
     jig_client_protocol_link::translate::reads::value(&out.finish(), &fixtures::client_limits()).unwrap()
 }
 
@@ -215,15 +216,15 @@ fn an_escalations_hold_keeps_its_lifecycle_facts() {
     else {
         panic!("ended")
     };
-    let w::EndedValue::Escalation(value) = value.value() else { panic!("escalation") };
-    let hold = value.hold().as_ref().unwrap();
-    assert_eq!(hold.task(), 7);
-    assert_eq!(hold.position(), 31);
-    assert_eq!(hold.at(), 37);
-    assert_eq!(hold.why(), &w::HoldCategory::Stopped);
-    let w::PriorPhase::Active(active) = hold.before() else { panic!("running before hold") };
+    let w::EndedValue::Escalation(value) = &value.value else { panic!("escalation") };
+    let hold = value.hold.as_ref().unwrap();
+    assert_eq!(hold.task, 7);
+    assert_eq!(hold.position, 31);
+    assert_eq!(hold.at, 37);
+    assert_eq!((&hold.why), &w::HoldCategory::Stopped);
+    let w::PriorPhase::Active(active) = &hold.before else { panic!("running before hold") };
     assert_eq!(
-        active.value(),
+        (&active.value),
         &w::RunStage::Running(w::RunStageRunning { attempt: 3 })
     );
 }
@@ -237,11 +238,10 @@ fn with_decision(source: &reads::Ended, decision: p::EscalationDecision) -> read
     reads::Answer::Ended(Box::new(source))
 }
 fn record_with_decision(source: &w::Ended, decision: w::EscalationDecision) -> w::ReadValue {
-    let limits = fixtures::wire_limits();
-    let mut parts = source.clone().into_parts();
+    let mut parts = source.clone();
     let w::EndedValue::Escalation(value) = parts.value else { unreachable!("wire literal is an escalation") };
-    let mut value = value.into_parts();
-    let mut kept = value.decision.into_parts();
+    let mut value = value;
+    let mut kept = value.decision;
     kept.decision = decision;
     value.decision = kept;
     parts.value = w::EndedValue::Escalation(value);
@@ -332,11 +332,11 @@ fn retained_party_histories_cross_under_the_party_key() {
             }));
             let wire = translate::document(&source, &[], &crate::Private::none(), &limits).unwrap();
             let w::ReadValue::Ended(ended) = &wire else { panic!("ended wire") };
-            let w::ObjectKey::Proposal(key) = ended.key() else { panic!("proposal wire key") };
-            assert_eq!(key.value().number(), 13);
-            let w::Proposer::Party(party) = key.value().proposer() else { panic!("party wire key") };
-            assert_eq!(party.value(), 11);
-            let w::EndedValue::Proposal(_) = ended.value() else { panic!("retained wire proposal") };
+            let w::ObjectKey::Proposal(key) = &ended.key else { panic!("proposal wire key") };
+            assert_eq!(key.value.number, 13);
+            let w::Proposer::Party(party) = &key.value.proposer else { panic!("party wire key") };
+            assert_eq!(party.value, 11);
+            let w::EndedValue::Proposal(_) = &ended.value else { panic!("retained wire proposal") };
             let c::ReadValue::Ended(ended) = client_value(&wire) else { panic!("ended") };
             let key = c::ObjectKey::Proposal(c::ProposalKey { proposer: c::Proposer::Party(11), number: 13 });
             assert_eq!(ended.key, key);
@@ -415,16 +415,16 @@ fn decided_single_goal_party_batches_keep_the_person_form() {
         )
         .unwrap();
         let w::ReadValue::Ended(ended) = wire else { panic!("ended") };
-        let w::EndedValue::PersonProposal(value) = ended.value() else { panic!("person proposal") };
-        assert_eq!(value.proposal().proposer(), 11);
-        assert_eq!(value.proposal().number(), 13);
-        assert_eq!(value.proposal().goal().number(), 37);
+        let w::EndedValue::PersonProposal(value) = &ended.value else { panic!("person proposal") };
+        assert_eq!(value.proposal.proposer, 11);
+        assert_eq!(value.proposal.number, 13);
+        assert_eq!(value.proposal.goal.number, 37);
         match state {
             t::PersonProposalState::Accepted { .. } => {
-                let w::PersonProposalState::Accepted(_) = value.proposal().state() else { panic!("accepted") };
+                let w::PersonProposalState::Accepted(_) = &value.proposal.state else { panic!("accepted") };
             }
             t::PersonProposalState::Rejected { .. } => {
-                let w::PersonProposalState::Rejected(_) = value.proposal().state() else { panic!("rejected") };
+                let w::PersonProposalState::Rejected(_) = &value.proposal.state else { panic!("rejected") };
             }
             state @ (t::PersonProposalState::Pending { .. }
             | t::PersonProposalState::Withdrawn { .. }
@@ -458,8 +458,8 @@ fn ended_settings_facts_reach_the_client_whole() {
         }),
     }));
     let record = translate::document(&source, &[], &crate::Private::none(), &limits).unwrap();
-    let mut out = Writer::new(usize::try_from(record.measure()).unwrap());
-    record.encode(&mut out).unwrap();
+    let mut out = Writer::new(usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    record.write(&jig_client_protocol_wire::CEILINGS, &mut out).unwrap();
     let c::ReadValue::Ended(ended) =
         jig_client_protocol_link::translate::reads::value(&out.finish(), &fixtures::client_limits()).unwrap()
     else {

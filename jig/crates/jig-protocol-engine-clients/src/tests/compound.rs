@@ -8,7 +8,6 @@ const OTHER_PROJECT: u32 = 4;
 const TASK: u64 = 8;
 const FIRST_MESSAGE: u64 = 19;
 fn compound(project: u32, stop_project: u32) -> w::Ask {
-    let limits = f::wire();
     let values = [
         w::Operation::Message(
             w::Message { project, task: TASK, words: b"words".as_slice().into() },
@@ -32,9 +31,9 @@ fn a_compound_operation_naming_another_project_is_refused_at_its_place() {
     let limits = f::wire();
     let answer = operations::refused(&compound(PROJECT, OTHER_PROJECT), &limits).unwrap().unwrap();
     let w::Final::Refused(value) = f::final_record(answer, &limits) else { panic!("refusal") };
-    assert_eq!(*value.at(), Some(1));
+    assert_eq!(value.at, Some(1));
     assert_eq!(
-        value.refusal(),
+        (&value.refusal),
         &w::Refusal::Malformed(
             w::RefusalMalformed { at: 1, why: w::Malformed::ProjectMismatch }
         )
@@ -48,8 +47,8 @@ fn a_compound_refusal_names_its_first_failing_place() {
     else {
         panic!("refusal")
     };
-    assert_eq!(*value.at(), Some(1));
-    assert_eq!(value.refusal(), &w::Refusal::Unknown);
+    assert_eq!(value.at, Some(1));
+    assert_eq!((&value.refusal), &w::Refusal::Unknown);
 }
 #[test]
 fn a_compound_answer_keeps_its_message_and_operation_count() {
@@ -65,7 +64,7 @@ fn a_compound_answer_keeps_its_message_and_operation_count() {
         panic!("done");
     };
     assert_eq!(
-        value.outcome(),
+        (&value.outcome),
         &w::Outcome::Document(w::OutcomeDocument { value: expected })
     );
 }

@@ -1,9 +1,10 @@
 //! Whole single-read owner documents (protocol/client/wire.md, 1, and protocol/client/README.md, 4).
+use jig_client_protocol_wire::Record as _;
 use super::super::{owner, w};
 use alloc::boxed::Box;
 use jig_domain_tasks as t;
 use skein_lib::{List, Writer, bytes};
-pub fn pattern(value: &t::Pattern, limits: &w::Limits) -> Result<w::Pattern, w::Problem> {
+pub fn pattern(value: &t::Pattern, _limits: &w::Limits) -> Result<w::Pattern, w::Problem> {
     let mut segments = List::with_capacity(super::super::count(value.segments.len())?);
     for row in &value.segments {
         segments.push(bytes::copy_of(row)).expect("supplied rows fit");
@@ -28,7 +29,7 @@ pub fn authority(
             .push(w::Grant { connector: row.connector, kind: row.kind, pattern: pattern(&row.pattern, limits)? })
             .expect("supplied rows fit");
     }
-    let grants = owner::grants_pieces(&grants, limits.authority_grants, w::paths::AUTHORITY_GRANTS)?;
+    let grants = owner::grants_pieces(&grants, limits.authority_grants, w::paths::AUTHORITY_GRANTS, limits)?;
     let mut kinds = List::with_capacity(super::super::count(value.delegation.kinds.len())?);
     for row in &value.delegation.kinds {
         kinds.push(owner::authority_executor(*row, limits)?).expect("supplied rows fit");
@@ -39,7 +40,7 @@ pub fn authority(
             .push(w::ResourceScope { connector: row.connector, pattern: pattern(&row.pattern, limits)? })
             .expect("supplied rows fit");
     }
-    let scopes = owner::scopes_pieces(&scopes, limits.authority_note_resources, w::paths::AUTHORITY_NOTE_RESOURCES)?;
+    let scopes = owner::scopes_pieces(&scopes, limits.authority_note_resources, w::paths::AUTHORITY_NOTE_RESOURCES, limits)?;
 
     Ok(w::Authority {
             models: super::super::llm::authority(
@@ -59,7 +60,7 @@ pub fn authority(
             note_resources: scopes,
         })
 }
-pub fn spec(value: &t::Spec, limits: &w::Limits) -> Result<w::Specification, w::Problem> {
+pub fn spec(value: &t::Spec, _limits: &w::Limits) -> Result<w::Specification, w::Problem> {
     let mut parameters = List::with_capacity(super::super::count(value.parameters.len())?);
     for row in &value.parameters {
         parameters
@@ -106,8 +107,7 @@ pub fn contract(value: &t::Contract, limits: &w::Limits) -> Result<w::TaskContra
                     choices: owner::choices_pieces(
                         &copied,
                         limits.task_contract_document_verdict_choices,
-                        w::paths::TASK_CONTRACT_DOCUMENT_VERDICT_CHOICES,
-                    )?,
+                        w::paths::TASK_CONTRACT_DOCUMENT_VERDICT_CHOICES, limits)?,
                     cut: false,
                 })
         }
@@ -139,7 +139,7 @@ pub fn goal(models: &[crate::Model], value: &t::New, limits: &w::Limits) -> Resu
             .expect("supplied holdings fit");
     }
     let holdings =
-        goal_holding_pieces(&holdings, limits.person_proposal_goal_holdings, w::paths::PERSON_PROPOSAL_GOAL_HOLDINGS)?;
+        goal_holding_pieces(&holdings, limits.person_proposal_goal_holdings, w::paths::PERSON_PROPOSAL_GOAL_HOLDINGS, limits)?;
 
     Ok(w::PersonProposalGoal {
             number: value.number,
@@ -159,12 +159,11 @@ pub fn goal(models: &[crate::Model], value: &t::New, limits: &w::Limits) -> Resu
 pub(super) fn goal_holding_pieces(
     rows: &List<w::GoalHolding>,
     bound: u32,
-    path: w::Path,
-) -> Result<Box<[u8]>, w::Problem> {
+    path: w::Path, limits: &w::Limits) -> Result<Box<[u8]>, w::Problem> {
     let mut encoded = List::with_capacity(rows.len());
     for row in rows {
-        let mut out = Writer::new(skein_lib::length::usize_of(row.measure()));
-        match row.encode(&mut out) {
+        let mut out = Writer::new(skein_lib::length::usize_of(row.measure(limits)?));
+        match row.write(limits, &mut out) {
             Ok(()) => (),
             Err(_) => return Err(w::Problem { path, reason: skein_codec::Reason::Bound }),
         }

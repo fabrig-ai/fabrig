@@ -1,4 +1,5 @@
 //! Whole single-read owner documents (protocol/client/wire.md, 1, and protocol/client/README.md, 4).
+use jig_client_protocol_wire::Record as _;
 use super::super::{chips, owner, task, w};
 use alloc::boxed::Box;
 use jig_domain_core_vocabulary::documents as d;
@@ -21,7 +22,7 @@ pub fn project(models: &[crate::Model], value: &d::Project, limits: &w::Limits) 
                 })
             .expect("supplied rows fit");
     }
-    let resources = project_resource_pieces(&resources, limits.project_resources, w::paths::PROJECT_RESOURCES)?;
+    let resources = project_resource_pieces(&resources, limits.project_resources, w::paths::PROJECT_RESOURCES, limits)?;
     let mut members = List::with_capacity(value.members.len());
     for row in &value.members {
         members
@@ -55,12 +56,12 @@ pub fn project(models: &[crate::Model], value: &d::Project, limits: &w::Limits) 
                 })
             .expect("supplied rows fit");
     }
-    let spend = project_spend_pieces(&spend, limits.project_spend, w::paths::PROJECT_SPEND)?;
+    let spend = project_spend_pieces(&spend, limits.project_spend, w::paths::PROJECT_SPEND, limits)?;
     let mut recurring = List::with_capacity(value.recurring.len());
     for row in &value.recurring {
         recurring.push(recurrence(models, row, limits)?).expect("supplied rows fit");
     }
-    let recurring = recurring_pieces(&recurring, limits.project_recurring, w::paths::PROJECT_RECURRING)?;
+    let recurring = recurring_pieces(&recurring, limits.project_recurring, w::paths::PROJECT_RECURRING, limits)?;
 
     Ok(w::Project {
             acts: task::offered(models, &value.acts, limits, limits.project_acts, w::paths::PROJECT_ACTS)?,
@@ -87,7 +88,7 @@ pub fn policy(models: &[crate::Model], value: &d::Policy, limits: &w::Limits) ->
     for row in &value.projections {
         projections.push(owner::grant(row, limits)?).expect("supplied rows fit");
     }
-    let projections = grant_pieces(&projections, limits.project_policy_projections, w::paths::PROJECT_POLICY_PROJECTIONS)?;
+    let projections = grant_pieces(&projections, limits.project_policy_projections, w::paths::PROJECT_POLICY_PROJECTIONS, limits)?;
     let mut roles = List::with_capacity(value.roles.len());
     for row in &value.roles {
         roles
@@ -100,7 +101,7 @@ pub fn policy(models: &[crate::Model], value: &d::Policy, limits: &w::Limits) ->
                 })
             .expect("supplied rows fit");
     }
-    let roles = project_policy_role_pieces(&roles, limits.project_policy_roles, w::paths::PROJECT_POLICY_ROLES)?;
+    let roles = project_policy_role_pieces(&roles, limits.project_policy_roles, w::paths::PROJECT_POLICY_ROLES, limits)?;
     let mut requirements = List::with_capacity(value.requirements.len());
     for row in &value.requirements {
         requirements
@@ -126,8 +127,7 @@ pub fn policy(models: &[crate::Model], value: &d::Policy, limits: &w::Limits) ->
     let requirements = policy_requirement_pieces(
         &requirements,
         limits.project_policy_requirements,
-        w::paths::PROJECT_POLICY_REQUIREMENTS,
-    )?;
+        w::paths::PROJECT_POLICY_REQUIREMENTS, limits)?;
     let permissions = match &value.permissions {
         Some(rows) => {
             let mut copied = List::with_capacity(rows.len());
@@ -166,7 +166,7 @@ pub fn recurrence(
     for row in &value.batch {
         batch.push(super::proposals::proposed(models, row, limits)?).expect("supplied rows fit");
     }
-    let batch = super::proposals::proposed_task_pieces(&batch, limits.recurring_batch, w::paths::RECURRING_BATCH)?;
+    let batch = super::proposals::proposed_task_pieces(&batch, limits.recurring_batch, w::paths::RECURRING_BATCH, limits)?;
     let mut last_batch = List::with_capacity(value.last_batch.len());
     for row in &value.last_batch {
         last_batch.push(*row).expect("supplied rows fit");
@@ -199,12 +199,11 @@ pub fn recurrence(
 pub(super) fn project_resource_pieces(
     rows: &List<w::ProjectResource>,
     bound: u32,
-    path: w::Path,
-) -> Result<Box<[u8]>, w::Problem> {
+    path: w::Path, limits: &w::Limits) -> Result<Box<[u8]>, w::Problem> {
     let mut encoded = List::with_capacity(rows.len());
     for row in rows {
-        let mut out = Writer::new(skein_lib::length::usize_of(row.measure()));
-        match row.encode(&mut out) {
+        let mut out = Writer::new(skein_lib::length::usize_of(row.measure(limits)?));
+        match row.write(limits, &mut out) {
             Ok(()) => (),
             Err(_) => return Err(w::Problem { path, reason: skein_codec::Reason::Bound }),
         }
@@ -215,12 +214,11 @@ pub(super) fn project_resource_pieces(
 pub(super) fn project_spend_pieces(
     rows: &List<w::ProjectSpend>,
     bound: u32,
-    path: w::Path,
-) -> Result<Box<[u8]>, w::Problem> {
+    path: w::Path, limits: &w::Limits) -> Result<Box<[u8]>, w::Problem> {
     let mut encoded = List::with_capacity(rows.len());
     for row in rows {
-        let mut out = Writer::new(skein_lib::length::usize_of(row.measure()));
-        match row.encode(&mut out) {
+        let mut out = Writer::new(skein_lib::length::usize_of(row.measure(limits)?));
+        match row.write(limits, &mut out) {
             Ok(()) => (),
             Err(_) => return Err(w::Problem { path, reason: skein_codec::Reason::Bound }),
         }
@@ -228,11 +226,11 @@ pub(super) fn project_spend_pieces(
     }
     super::super::pieces(&encoded, bound, path)
 }
-pub(super) fn recurring_pieces(rows: &List<w::Recurring>, bound: u32, path: w::Path) -> Result<Box<[u8]>, w::Problem> {
+pub(super) fn recurring_pieces(rows: &List<w::Recurring>, bound: u32, path: w::Path, limits: &w::Limits) -> Result<Box<[u8]>, w::Problem> {
     let mut encoded = List::with_capacity(rows.len());
     for row in rows {
-        let mut out = Writer::new(skein_lib::length::usize_of(row.measure()));
-        match row.encode(&mut out) {
+        let mut out = Writer::new(skein_lib::length::usize_of(row.measure(limits)?));
+        match row.write(limits, &mut out) {
             Ok(()) => (),
             Err(_) => return Err(w::Problem { path, reason: skein_codec::Reason::Bound }),
         }
@@ -240,11 +238,11 @@ pub(super) fn recurring_pieces(rows: &List<w::Recurring>, bound: u32, path: w::P
     }
     super::super::pieces(&encoded, bound, path)
 }
-pub(super) fn grant_pieces(rows: &List<w::Grant>, bound: u32, path: w::Path) -> Result<Box<[u8]>, w::Problem> {
+pub(super) fn grant_pieces(rows: &List<w::Grant>, bound: u32, path: w::Path, limits: &w::Limits) -> Result<Box<[u8]>, w::Problem> {
     let mut encoded = List::with_capacity(rows.len());
     for row in rows {
-        let mut out = Writer::new(skein_lib::length::usize_of(row.measure()));
-        match row.encode(&mut out) {
+        let mut out = Writer::new(skein_lib::length::usize_of(row.measure(limits)?));
+        match row.write(limits, &mut out) {
             Ok(()) => (),
             Err(_) => return Err(w::Problem { path, reason: skein_codec::Reason::Bound }),
         }
@@ -255,12 +253,11 @@ pub(super) fn grant_pieces(rows: &List<w::Grant>, bound: u32, path: w::Path) -> 
 pub(super) fn project_policy_role_pieces(
     rows: &List<w::ProjectPolicyRole>,
     bound: u32,
-    path: w::Path,
-) -> Result<Box<[u8]>, w::Problem> {
+    path: w::Path, limits: &w::Limits) -> Result<Box<[u8]>, w::Problem> {
     let mut encoded = List::with_capacity(rows.len());
     for row in rows {
-        let mut out = Writer::new(skein_lib::length::usize_of(row.measure()));
-        match row.encode(&mut out) {
+        let mut out = Writer::new(skein_lib::length::usize_of(row.measure(limits)?));
+        match row.write(limits, &mut out) {
             Ok(()) => (),
             Err(_) => return Err(w::Problem { path, reason: skein_codec::Reason::Bound }),
         }
@@ -271,12 +268,11 @@ pub(super) fn project_policy_role_pieces(
 pub(super) fn policy_requirement_pieces(
     rows: &List<w::PolicyRequirement>,
     bound: u32,
-    path: w::Path,
-) -> Result<Box<[u8]>, w::Problem> {
+    path: w::Path, limits: &w::Limits) -> Result<Box<[u8]>, w::Problem> {
     let mut encoded = List::with_capacity(rows.len());
     for row in rows {
-        let mut out = Writer::new(skein_lib::length::usize_of(row.measure()));
-        match row.encode(&mut out) {
+        let mut out = Writer::new(skein_lib::length::usize_of(row.measure(limits)?));
+        match row.write(limits, &mut out) {
             Ok(()) => (),
             Err(_) => return Err(w::Problem { path, reason: skein_codec::Reason::Bound }),
         }

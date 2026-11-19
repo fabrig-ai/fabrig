@@ -1,4 +1,5 @@
 //! Volatile browser approvals and reserved takes (jig/docs/design/protocol/client/sign-in.md).
+use jig_client_protocol_wire::Record as _;
 use super::{Component, Env, Limits, Queue, ReplyTo, Request, Token, Waiting, core, people, routes, sign_in, w};
 use crate::{Reply, exchange::Exchange, routes::Route};
 use alloc::boxed::Box;
@@ -233,14 +234,14 @@ impl Component {
         let answer = if route == Route::ApprovalRead {
             match w::ApprovalRead::decode(&env.limits.wire, &mut reader) {
                 Ok(record) if reader.is_empty() => {
-                    Some(routes::approval_state(self.approval_read(env, *record.code())))
+                    Some(routes::approval_state(self.approval_read(env, record.code)))
                 }
                 Ok(_) | Err(_) => None,
             }
         } else {
             match w::ApprovalDecide::decode(&env.limits.wire, &mut reader) {
                 Ok(record) if reader.is_empty() => {
-                    Some(routes::approval_decided(self.approval_decide(*record.code(), record.approve(), sign_in)))
+                    Some(routes::approval_decided(self.approval_decide(record.code, record.approve, sign_in)))
                 }
                 Ok(_) | Err(_) => None,
             }
@@ -254,7 +255,7 @@ impl Component {
             }
         }
     }
-    fn approval_read(&self, env: &Env<Limits>, code: [u8; 8]) -> w::ApprovalState {
+    fn approval_read(&self, _env: &Env<Limits>, code: [u8; 8]) -> w::ApprovalState {
         if let Some(digest) = self.approval.code(code) {
             let approval = self.approval.live.get(&digest).expect("live approval");
             return match approval.decision {
@@ -310,7 +311,7 @@ impl Component {
             return;
         }
         self.approval.sweep(env.now);
-        let digest = sha256::digest(record.secret().expose());
+        let digest = sha256::digest(record.secret.expose());
         let answer = match self.approval.digest(&digest) {
             Some(digest) => {
                 let approval = self.approval.live.get_mut(&digest).expect("live approval");

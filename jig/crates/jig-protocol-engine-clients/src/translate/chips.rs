@@ -1,4 +1,5 @@
 //! Whole owner facts encoded without clipping (protocol/client/wire.md, 1).
+use jig_client_protocol_wire::Record as _;
 use super::owner;
 use super::{pieces, problem, w};
 use alloc::boxed::Box;
@@ -16,7 +17,7 @@ pub fn class(value: t::Class) -> Result<w::HoldFailure, w::Problem> {
         t::Class::Infrastructure => w::HoldFailure::Infrastructure,
     })
 }
-pub fn retry(value: &t::RetryNotice, limits: &w::Limits) -> Result<w::RetryNotice, w::Problem> {
+pub fn retry(value: &t::RetryNotice, _limits: &w::Limits) -> Result<w::RetryNotice, w::Problem> {
     Ok(match value {
         t::RetryNotice::Failed { class: value, count, allowance, reason } => {
             w::RetryNotice::OwnerFailed(w::RetryNoticeOwnerFailed {
@@ -29,7 +30,7 @@ pub fn retry(value: &t::RetryNotice, limits: &w::Limits) -> Result<w::RetryNotic
         t::RetryNotice::Refused { count, reason } => w::RetryNotice::Refused(w::RetryNoticeRefused { count: *count, reason: reason.clone() }),
     })
 }
-pub fn hold(value: t::Hold, limits: &w::Limits) -> Result<w::HoldCategory, w::Problem> {
+pub fn hold(value: t::Hold, _limits: &w::Limits) -> Result<w::HoldCategory, w::Problem> {
     Ok(match value {
         t::Hold::Exceeded(value) => w::HoldCategory::Exceeded(w::Exceeded {
                 bound: match value.bound {
@@ -70,7 +71,7 @@ pub fn hold(value: t::Hold, limits: &w::Limits) -> Result<w::HoldCategory, w::Pr
         t::Hold::Circle => w::HoldCategory::Circle,
     })
 }
-pub fn active(value: t::Active, limits: &w::Limits) -> Result<w::RunStage, w::Problem> {
+pub fn active(value: t::Active, _limits: &w::Limits) -> Result<w::RunStage, w::Problem> {
     Ok(match value {
         t::Active::Idle => w::RunStage::Idle,
         t::Active::Due => w::RunStage::Due,
@@ -84,7 +85,7 @@ pub fn active(value: t::Active, limits: &w::Limits) -> Result<w::RunStage, w::Pr
         t::Active::BackingOff { until } => w::RunStage::BackingOff(w::RunStageBackingOff { until: until.as_nanos() }),
     })
 }
-pub fn stage(value: t::Stage, limits: &w::Limits) -> Result<w::ClosingStage, w::Problem> {
+pub fn stage(value: t::Stage, _limits: &w::Limits) -> Result<w::ClosingStage, w::Problem> {
     Ok(match value {
         t::Stage::Run { attempt } => {
             w::ClosingStage::Run(w::ClosingStageRun { attempt })
@@ -95,7 +96,7 @@ pub fn stage(value: t::Stage, limits: &w::Limits) -> Result<w::ClosingStage, w::
         t::Stage::Settled => w::ClosingStage::Settled,
     })
 }
-pub fn address(value: t::PersonAddress, limits: &w::Limits) -> Result<w::PersonAddress, w::Problem> {
+pub fn address(value: t::PersonAddress, _limits: &w::Limits) -> Result<w::PersonAddress, w::Problem> {
     Ok(match value {
         t::PersonAddress::Person(number) => {
             w::PersonAddress::Party(w::PersonAddressParty { value: number })
@@ -129,7 +130,7 @@ pub fn prior(value: d::PriorPhase, limits: &w::Limits) -> Result<w::PriorPhase, 
         d::PriorPhase::Closing(value) => w::PriorPhase::Closing(w::PriorPhaseClosing { value: stage(value, limits)? }),
     })
 }
-pub fn holder(value: t::EscalationHolder, limits: &w::Limits) -> Result<w::EscalationHolder, w::Problem> {
+pub fn holder(value: t::EscalationHolder, _limits: &w::Limits) -> Result<w::EscalationHolder, w::Problem> {
     Ok(match value {
         t::EscalationHolder::Task(number) => w::EscalationHolder::Task(w::EscalationHolderTask { value: number }),
         t::EscalationHolder::Person(number) => w::EscalationHolder::Person(w::EscalationHolderPerson { value: number }),
@@ -147,20 +148,16 @@ pub fn escalation(value: &d::EscalationState, limits: &w::Limits) -> Result<w::H
                     since: since.as_nanos(),
                 })
         }
-        d::EscalationState::Rejected { by, reason } => w::HoldEscalation::Rejected(w::HoldEscalationRejected::new(
-            limits,
-            // client/domain/contract/documents.md, 1: the next wire carries the decider's kind.
-            w::HoldEscalationRejected {
+        d::EscalationState::Rejected { by, reason } => w::HoldEscalation::Rejected(w::HoldEscalationRejected {
                 by: match by {
                     t::EscalationDecider::Task(number) => *number,
                     t::EscalationDecider::Person(number) => *number,
                 },
                 reason: owner::text(reason, limits)?,
-            },
-        )?),
+            }),
     })
 }
-pub fn tries(value: t::Tries, limits: &w::Limits) -> Result<w::FailureTries, w::Problem> {
+pub fn tries(value: t::Tries, _limits: &w::Limits) -> Result<w::FailureTries, w::Problem> {
     Ok(w::FailureTries {
             transient: value.transient,
             permanent: value.permanent,
@@ -225,7 +222,7 @@ fn placed(value: &d::PlacedLine, limits: &w::Limits) -> Result<w::PlacedLine, w:
             may_lift: value.may_lift,
         })
 }
-pub fn writer(value: t::Writer, limits: &w::Limits) -> Result<w::ResourceWriter, w::Problem> {
+pub fn writer(value: t::Writer, _limits: &w::Limits) -> Result<w::ResourceWriter, w::Problem> {
     Ok(match value {
         t::Writer::Run { task, attempt } => {
             w::ResourceWriter::Run(w::ResourceWriterRun { task, attempt })
@@ -248,11 +245,11 @@ pub fn resource(value: &d::ResourceLine, limits: &w::Limits) -> Result<w::Resour
             writer_lost: value.writer_lost,
         })
 }
-pub fn resources_pieces(rows: &List<w::ResourceLine>, bound: u32, path: w::Path) -> Result<Box<[u8]>, w::Problem> {
+pub fn resources_pieces(rows: &List<w::ResourceLine>, bound: u32, path: w::Path, limits: &w::Limits) -> Result<Box<[u8]>, w::Problem> {
     let mut encoded = List::with_capacity(rows.len());
     for row in rows {
-        let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(row.measure()));
-        match row.encode(&mut out) {
+        let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(row.measure(limits)?));
+        match row.write(limits, &mut out) {
             Ok(()) => (),
             Err(_) => return Err(problem(skein_codec::Reason::Bound)),
         }
@@ -260,7 +257,7 @@ pub fn resources_pieces(rows: &List<w::ResourceLine>, bound: u32, path: w::Path)
     }
     pieces(&encoded, bound, path)
 }
-pub fn work(value: &d::ChipWork, limits: &w::Limits) -> Result<w::ChipWork, w::Problem> {
+pub fn work(value: &d::ChipWork, _limits: &w::Limits) -> Result<w::ChipWork, w::Problem> {
     Ok(match value {
         d::ChipWork::Preparing => w::ChipWork::Preparing,
         d::ChipWork::Starting => w::ChipWork::Starting,
@@ -283,7 +280,7 @@ pub fn observation(value: &d::ChipObservation, limits: &w::Limits) -> Result<w::
             },
         })
 }
-pub fn person_notice(value: t::PersonStallNotice, limits: &w::Limits) -> Result<w::PersonStallNotice, w::Problem> {
+pub fn person_notice(value: t::PersonStallNotice, _limits: &w::Limits) -> Result<w::PersonStallNotice, w::Problem> {
     Ok(w::PersonStallNotice { message: value.message, at: value.at.as_nanos(), activity: value.activity })
 }
 pub fn person_wait(value: t::PersonWait, limits: &w::Limits) -> Result<w::PersonWait, w::Problem> {
@@ -314,7 +311,7 @@ fn compact(value: &d::PhaseLine) -> w::Phase {
         d::PhaseLine::Ended => w::Phase::Ended,
     }
 }
-fn chip_executor(value: &d::Chip, limits: &w::Limits) -> Result<w::ChipExecutor, w::Problem> {
+fn chip_executor(value: &d::Chip, _limits: &w::Limits) -> Result<w::ChipExecutor, w::Problem> {
     Ok(match value.details.executor {
         t::Executor::Job { kind } => {
             if value.executor != d::ExecutorKind::Job {
@@ -377,7 +374,7 @@ pub fn chip(value: &d::Chip, limits: &w::Limits) -> Result<w::Chip, w::Problem> 
     if let Some(ending) = &value.details.ending {
         append_ending(ending, Some(2), &mut facts, limits)?;
     }
-    Ok(w::Chip { rows: fact_pieces(&facts, limits.chip_rows.min(w::CEILINGS.chip_rows), w::paths::CHIP_ROWS)? })
+    Ok(w::Chip { rows: fact_pieces(&facts, limits.chip_rows.min(w::CEILINGS.chip_rows), w::paths::CHIP_ROWS, limits)? })
 }
 fn details_fields(
     value: &d::ChipDetails,
@@ -416,8 +413,7 @@ fn details_fields(
             resources: resources_pieces(
                 &resources,
                 limits.chip_details_fields_resources.min(w::CEILINGS.chip_details_fields_resources),
-                w::paths::CHIP_DETAILS_FIELDS_RESOURCES,
-            )?,
+                w::paths::CHIP_DETAILS_FIELDS_RESOURCES, limits)?,
             resources_cut: value.resources_cut,
             resources_observed: value.resources_observed,
             procedure: match &value.procedure {
@@ -445,8 +441,7 @@ pub fn ending(value: &d::Ending, limits: &w::Limits) -> Result<w::ChipEnding, w:
             rows: fact_pieces(
                 &facts,
                 limits.chip_ending_rows.min(w::CEILINGS.chip_ending_rows),
-                w::paths::CHIP_ENDING_ROWS,
-            )?,
+                w::paths::CHIP_ENDING_ROWS, limits)?,
         })
 }
 pub(super) fn append_ending(
@@ -519,11 +514,11 @@ pub(super) fn result_fields(value: &d::ResultValue, limits: &w::Limits) -> Resul
     })
 }
 
-pub fn fact_pieces(rows: &List<w::Fact>, bound: u32, path: w::Path) -> Result<Box<[u8]>, w::Problem> {
+pub fn fact_pieces(rows: &List<w::Fact>, bound: u32, path: w::Path, limits: &w::Limits) -> Result<Box<[u8]>, w::Problem> {
     let mut encoded = List::with_capacity(rows.len());
     for row in rows {
-        let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(row.measure()));
-        match row.encode(&mut out) {
+        let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(row.measure(limits)?));
+        match row.write(limits, &mut out) {
             Ok(()) => (),
             Err(_) => return Err(problem(skein_codec::Reason::Bound)),
         }
@@ -532,7 +527,8 @@ pub fn fact_pieces(rows: &List<w::Fact>, bound: u32, path: w::Path) -> Result<Bo
     pieces(&encoded, bound, path)
 }
 
-fn circle(value: Option<&t::Circle>, limits: &w::Limits) -> Result<Option<w::Circle>, w::Problem> {
+#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
+fn circle(value: Option<&t::Circle>, _limits: &w::Limits) -> Result<Option<w::Circle>, w::Problem> {
     let Some(value) = value else { return Ok(None) };
     let mut tasks = List::with_capacity(u32::try_from(value.tasks.len()).expect("bounded circle"));
     for task in &value.tasks {

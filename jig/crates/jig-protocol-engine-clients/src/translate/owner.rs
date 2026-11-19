@@ -1,13 +1,14 @@
 //! Whole owner facts encoded without clipping (protocol/client/wire.md, 1).
+use jig_client_protocol_wire::Record as _;
 use super::{pieces, problem, w};
 use alloc::boxed::Box;
 use jig_domain_core_vocabulary::documents as d;
 use jig_domain_tasks as t;
 use skein_lib::{List, bytes};
-pub fn text(value: &d::Text, limits: &w::Limits) -> Result<w::DocumentText, w::Problem> {
+pub fn text(value: &d::Text, _limits: &w::Limits) -> Result<w::DocumentText, w::Problem> {
     Ok(w::DocumentText { bytes: bytes::copy_of(&value.bytes), cut: value.cut })
 }
-pub fn held_role(value: jig_domain_people::Role, limits: &w::Limits) -> Result<w::HeldRole, w::Problem> {
+pub fn held_role(value: jig_domain_people::Role, _limits: &w::Limits) -> Result<w::HeldRole, w::Problem> {
     Ok(match value {
         jig_domain_people::Role::Owner => w::HeldRole::Owner,
         jig_domain_people::Role::Maintainer => w::HeldRole::Maintainer,
@@ -18,7 +19,7 @@ pub fn held_role(value: jig_domain_people::Role, limits: &w::Limits) -> Result<w
         }
     })
 }
-pub fn funder(value: t::Funder, limits: &w::Limits) -> Result<w::Funder, w::Problem> {
+pub fn funder(value: t::Funder, _limits: &w::Limits) -> Result<w::Funder, w::Problem> {
     Ok(match value {
         t::Funder::Task(number) => w::Funder::Task(w::FunderTask { value: number }),
         t::Funder::Pool { project, person, period } => {
@@ -32,7 +33,7 @@ pub fn funder(value: t::Funder, limits: &w::Limits) -> Result<w::Funder, w::Prob
         }
     })
 }
-pub fn numbers(value: t::Numbers, limits: &w::Limits) -> Result<w::Numbers, w::Problem> {
+pub fn numbers(value: t::Numbers, _limits: &w::Limits) -> Result<w::Numbers, w::Problem> {
     Ok(w::Numbers {
             budget: value.budget,
             spent: value.spent,
@@ -83,7 +84,7 @@ pub fn executor(value: t::Executor, limits: &w::Limits) -> Result<w::Executor, w
         t::Executor::Person(address) => w::Executor::Person(w::ExecutorPerson { value: super::chips::address(address, limits)? }),
     })
 }
-pub fn requester(value: t::Party, limits: &w::Limits) -> Result<w::Requester, w::Problem> {
+pub fn requester(value: t::Party, _limits: &w::Limits) -> Result<w::Requester, w::Problem> {
     Ok(match value {
         t::Party::Task(number) => {
             w::Requester::Task(w::RequesterTask { value: number })
@@ -96,7 +97,7 @@ pub fn requester(value: t::Party, limits: &w::Limits) -> Result<w::Requester, w:
         }
     })
 }
-pub fn wake_rule(value: t::WakeRule, limits: &w::Limits) -> Result<w::WakeRule, w::Problem> {
+pub fn wake_rule(value: t::WakeRule, _limits: &w::Limits) -> Result<w::WakeRule, w::Problem> {
     Ok(match value {
         t::WakeRule::Never => w::WakeRule::Never,
         t::WakeRule::Immediate => w::WakeRule::Immediate,
@@ -191,7 +192,7 @@ pub(crate) fn frame_named(
                     login: text(&value.login, limits)?,
                     name: text(&value.name, limits)?,
                 },
-            projects: me_projects_pieces(&projects, limits.me_projects, w::paths::ME_PROJECTS)?,
+            projects: me_projects_pieces(&projects, limits.me_projects, w::paths::ME_PROJECTS, limits)?,
             needs: w::Needs {
                     questions: value.need_counts.questions,
                     proposals: value.need_counts.proposals,
@@ -221,7 +222,7 @@ pub fn part_kind(value: t::PartKind) -> Result<w::PartKind, w::Problem> {
         t::PartKind::Hold => w::PartKind::Hold,
     })
 }
-pub fn part(value: &t::Part, limits: &w::Limits) -> Result<w::Part, w::Problem> {
+pub fn part(value: &t::Part, _limits: &w::Limits) -> Result<w::Part, w::Problem> {
     let key = match &value.key {
         t::PartKey::Number(number) => {
             w::PartKey::Number(w::PartKeyNumber { value: *number })
@@ -232,7 +233,7 @@ pub fn part(value: &t::Part, limits: &w::Limits) -> Result<w::Part, w::Problem> 
     };
     Ok(w::Part { connector: value.connector, kind: part_kind(value.kind)?, key })
 }
-pub fn pattern(segments: &List<Box<[u8]>>, last: &d::PatternEnd, limits: &w::Limits) -> Result<w::Pattern, w::Problem> {
+pub fn pattern(segments: &List<Box<[u8]>>, last: &d::PatternEnd, _limits: &w::Limits) -> Result<w::Pattern, w::Problem> {
     let last = match last {
         d::PatternEnd::Exact(value) => w::PatternEnd::Exact(w::PatternEndExact { value: bytes::copy_of(value) }),
         d::PatternEnd::Open(value) => w::PatternEnd::Open(w::PatternEndOpen { value: bytes::copy_of(value) }),
@@ -256,7 +257,7 @@ pub fn authority(
         grants.push(grant(item, limits)?).expect("supplied grants");
     }
     let grants =
-        grants_pieces(&grants, limits.authority_grants.min(w::CEILINGS.authority_grants), w::paths::AUTHORITY_GRANTS)?;
+        grants_pieces(&grants, limits.authority_grants.min(w::CEILINGS.authority_grants), w::paths::AUTHORITY_GRANTS, limits)?;
     let mut scopes = List::with_capacity(value.note_resources.len());
     for item in &value.note_resources {
         scopes
@@ -269,8 +270,7 @@ pub fn authority(
     let note_resources = scopes_pieces(
         &scopes,
         limits.authority_note_resources.min(w::CEILINGS.authority_note_resources),
-        w::paths::AUTHORITY_NOTE_RESOURCES,
-    )?;
+        w::paths::AUTHORITY_NOTE_RESOURCES, limits)?;
     let mut kinds = List::with_capacity(value.executors.len());
     for item in &value.executors {
         kinds.push(authority_executor(*item, limits)?).expect("supplied executors");
@@ -297,7 +297,7 @@ pub fn authority(
         })
 }
 
-pub fn authority_executor(value: t::AuthorityExecutor, limits: &w::Limits) -> Result<w::AuthorityExecutor, w::Problem> {
+pub fn authority_executor(value: t::AuthorityExecutor, _limits: &w::Limits) -> Result<w::AuthorityExecutor, w::Problem> {
     Ok(match value {
         t::AuthorityExecutor::Job(value) => {
             w::AuthorityExecutor::Job(w::AuthorityExecutorJob { value })
@@ -307,11 +307,11 @@ pub fn authority_executor(value: t::AuthorityExecutor, limits: &w::Limits) -> Re
         t::AuthorityExecutor::Role(number) => w::AuthorityExecutor::Role(w::AuthorityExecutorRole { value: number }),
     })
 }
-pub fn grants_pieces(rows: &List<w::Grant>, bound: u32, path: w::Path) -> Result<Box<[u8]>, w::Problem> {
+pub fn grants_pieces(rows: &List<w::Grant>, bound: u32, path: w::Path, limits: &w::Limits) -> Result<Box<[u8]>, w::Problem> {
     let mut encoded = List::with_capacity(rows.len());
     for row in rows {
-        let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(row.measure()));
-        match row.encode(&mut out) {
+        let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(row.measure(limits)?));
+        match row.write(limits, &mut out) {
             Ok(()) => (),
             Err(_) => return Err(problem(skein_codec::Reason::Bound)),
         }
@@ -319,11 +319,11 @@ pub fn grants_pieces(rows: &List<w::Grant>, bound: u32, path: w::Path) -> Result
     }
     pieces(&encoded, bound, path)
 }
-pub fn scopes_pieces(rows: &List<w::ResourceScope>, bound: u32, path: w::Path) -> Result<Box<[u8]>, w::Problem> {
+pub fn scopes_pieces(rows: &List<w::ResourceScope>, bound: u32, path: w::Path, limits: &w::Limits) -> Result<Box<[u8]>, w::Problem> {
     let mut encoded = List::with_capacity(rows.len());
     for row in rows {
-        let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(row.measure()));
-        match row.encode(&mut out) {
+        let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(row.measure(limits)?));
+        match row.write(limits, &mut out) {
             Ok(()) => (),
             Err(_) => return Err(problem(skein_codec::Reason::Bound)),
         }
@@ -370,7 +370,7 @@ pub fn subscriptions(value: &List<t::Subscription>, limits: &w::Limits) -> Resul
     Ok(w::Subscriptions { entries })
 }
 
-pub fn subscription_kind(value: t::SubscriptionKind, limits: &w::Limits) -> Result<w::SubscriptionKind, w::Problem> {
+pub fn subscription_kind(value: t::SubscriptionKind, _limits: &w::Limits) -> Result<w::SubscriptionKind, w::Problem> {
     Ok(match value {
         t::SubscriptionKind::Task { target, held, result } => w::SubscriptionKind::Task(w::SubscriptionKindTask { target, held, result }),
         t::SubscriptionKind::Timer { at, period } => w::SubscriptionKind::Timer(w::SubscriptionKindTimer { at: at.as_nanos(), period }),
@@ -408,19 +408,18 @@ pub fn contract(value: &d::ContractLine, limits: &w::Limits) -> Result<w::TaskCo
                         limits
                             .task_contract_document_verdict_choices
                             .min(w::CEILINGS.task_contract_document_verdict_choices),
-                        w::paths::TASK_CONTRACT_DOCUMENT_VERDICT_CHOICES,
-                    )?,
+                        w::paths::TASK_CONTRACT_DOCUMENT_VERDICT_CHOICES, limits)?,
                     cut: *cut,
                 })
         }
     })
 }
 
-pub fn choices_pieces(rows: &List<w::VerdictChoice>, bound: u32, path: w::Path) -> Result<Box<[u8]>, w::Problem> {
+pub fn choices_pieces(rows: &List<w::VerdictChoice>, bound: u32, path: w::Path, limits: &w::Limits) -> Result<Box<[u8]>, w::Problem> {
     let mut encoded = List::with_capacity(rows.len());
     for row in rows {
-        let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(row.measure()));
-        match row.encode(&mut out) {
+        let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(row.measure(limits)?));
+        match row.write(limits, &mut out) {
             Ok(()) => (),
             Err(_) => return Err(problem(skein_codec::Reason::Bound)),
         }
@@ -429,11 +428,11 @@ pub fn choices_pieces(rows: &List<w::VerdictChoice>, bound: u32, path: w::Path) 
     pieces(&encoded, bound, path)
 }
 
-pub fn me_projects_pieces(rows: &List<w::MeProject>, bound: u32, path: w::Path) -> Result<Box<[u8]>, w::Problem> {
+pub fn me_projects_pieces(rows: &List<w::MeProject>, bound: u32, path: w::Path, limits: &w::Limits) -> Result<Box<[u8]>, w::Problem> {
     let mut encoded = List::with_capacity(rows.len());
     for row in rows {
-        let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(row.measure()));
-        match row.encode(&mut out) {
+        let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(row.measure(limits)?));
+        match row.write(limits, &mut out) {
             Ok(()) => (),
             Err(_) => return Err(problem(skein_codec::Reason::Bound)),
         }

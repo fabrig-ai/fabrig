@@ -1,4 +1,5 @@
 //! Public project identifiers in me (jig/docs/design/domain/people/public-reading.md, 8).
+use jig_client_protocol_wire::Record as _;
 use super::{Box, Component, Env, Limits, Queue, Request, Token, Waiting, core, routes, w};
 use crate::translate;
 use jig_domain_core_vocabulary::documents::{Document, Frame};
@@ -115,8 +116,8 @@ fn read(
     limits: &w::Limits,
 ) -> Result<w::ReadAnswer, w::Problem> {
     let value = w::ReadValue::Me(translate::owner::frame_named(frame, models, names, limits)?);
-    let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
-    value.encode(&mut out).expect("measured me");
+    let mut out = Writer::new(skein_lib::length::usize_of(value.measure(limits)?));
+    value.write(limits, &mut out).expect("measured me");
     translate::reads::owned(w::Owner::Jig, jig_client_protocol_wire::VERSION, out.finish(), limits)
 }
 fn delivery(

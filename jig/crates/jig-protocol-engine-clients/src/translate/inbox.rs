@@ -1,9 +1,10 @@
 //! Whole live document facts (protocol/client/wire.md, 1, and protocol/client/README.md, 5).
+use jig_client_protocol_wire::Record as _;
 use super::{live, pieces, task, w};
 use alloc::boxed::Box;
 use jig_domain_core_vocabulary::documents as d;
 use skein_lib::{List, Writer};
-pub fn object(value: d::InboxObject, limits: &w::Limits) -> Result<w::InboxObject, w::Problem> {
+pub fn object(value: d::InboxObject, _limits: &w::Limits) -> Result<w::InboxObject, w::Problem> {
     Ok(match value {
         d::InboxObject::Question { message } => {
             w::InboxObject::Question(w::InboxObjectQuestion { message })
@@ -79,19 +80,19 @@ pub fn selection(
         rows.push(w::InboxSelection { cursor: cursor(row.cursor, limits)?, goals })
         .expect("supplied selections fit");
     }
-    Ok(Some(selection_pieces(&rows, bound, path)?))
+    Ok(Some(selection_pieces(&rows, bound, path, limits)?))
 }
 pub fn document(value: &d::Inbox, limits: &w::Limits) -> Result<w::Inbox, w::Problem> {
     let mut needs = List::with_capacity(value.needs.len());
     for row in &value.needs {
         needs.push(entry(row, limits)?).expect("supplied rows fit");
     }
-    let needs = entry_pieces(&needs, limits.inbox_needs, w::paths::INBOX_NEEDS)?;
+    let needs = entry_pieces(&needs, limits.inbox_needs, w::paths::INBOX_NEEDS, limits)?;
     let mut updates = List::with_capacity(value.updates.len());
     for row in &value.updates {
         updates.push(entry(row, limits)?).expect("supplied rows fit");
     }
-    let updates = entry_pieces(&updates, limits.inbox_updates, w::paths::INBOX_UPDATES)?;
+    let updates = entry_pieces(&updates, limits.inbox_updates, w::paths::INBOX_UPDATES, limits)?;
 
     Ok(w::Inbox {
             party: value.party,
@@ -113,11 +114,11 @@ pub fn document(value: &d::Inbox, limits: &w::Limits) -> Result<w::Inbox, w::Pro
             )?,
         })
 }
-fn entry_pieces(rows: &List<w::InboxEntry>, bound: u32, path: w::Path) -> Result<Box<[u8]>, w::Problem> {
+fn entry_pieces(rows: &List<w::InboxEntry>, bound: u32, path: w::Path, limits: &w::Limits) -> Result<Box<[u8]>, w::Problem> {
     let mut encoded = List::with_capacity(rows.len());
     for row in rows {
-        let mut out = Writer::new(skein_lib::length::usize_of(row.measure()));
-        match row.encode(&mut out) {
+        let mut out = Writer::new(skein_lib::length::usize_of(row.measure(limits)?));
+        match row.write(limits, &mut out) {
             Ok(()) => (),
             Err(_) => return Err(w::Problem { path, reason: skein_codec::Reason::Bound }),
         }
@@ -125,11 +126,11 @@ fn entry_pieces(rows: &List<w::InboxEntry>, bound: u32, path: w::Path) -> Result
     }
     pieces(&encoded, bound, path)
 }
-fn selection_pieces(rows: &List<w::InboxSelection>, bound: u32, path: w::Path) -> Result<Box<[u8]>, w::Problem> {
+fn selection_pieces(rows: &List<w::InboxSelection>, bound: u32, path: w::Path, limits: &w::Limits) -> Result<Box<[u8]>, w::Problem> {
     let mut encoded = List::with_capacity(rows.len());
     for row in rows {
-        let mut out = Writer::new(skein_lib::length::usize_of(row.measure()));
-        match row.encode(&mut out) {
+        let mut out = Writer::new(skein_lib::length::usize_of(row.measure(limits)?));
+        match row.write(limits, &mut out) {
             Ok(()) => (),
             Err(_) => return Err(w::Problem { path, reason: skein_codec::Reason::Bound }),
         }

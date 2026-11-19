@@ -1,4 +1,5 @@
 //! Settings' whole values and bounded history on the client wire (client/domain/contract/README.md, 4).
+use jig_client_protocol_wire::Record as _;
 use super::{me, objects, owner, w};
 use alloc::boxed::Box;
 use jig_domain_authority as a;
@@ -18,10 +19,10 @@ pub struct InputError {
 /// Decode the length-prefixed settings items carried by `ChangeSettings` and
 /// `ProposeSettings`, sharing the client entrance's value and model translation.
 pub fn items(items: Box<[u8]>, models: &[crate::Model], limits: &w::Limits) -> Result<Box<[s::Item]>, InputError> {
-    let value = match Ok(w::ChangeSettings { against: 0, items, running: w::Running::Stays }) {
-        Ok(value) => value,
-        Err(problem) => return Err(InputError { field: problem.path }),
-    };
+    let value = w::ChangeSettings { against: 0, items, running: w::Running::Stays };
+    if let Err(problem) = value.measure(limits) {
+        return Err(InputError { field: problem.path });
+    }
     match change(value, models, limits) {
         Ok(value) => Ok(value.items),
         Err(problem) => Err(InputError { field: problem.path }),
@@ -31,19 +32,19 @@ pub fn items(items: Box<[u8]>, models: &[crate::Model], limits: &w::Limits) -> R
 #[must_use]
 pub fn setting(value: &w::Setting) -> s::Setting {
     match value {
-        w::Setting::Charter(v) => s::Setting::Charter(v.number()),
-        w::Setting::Template(v) => s::Setting::Template(v.number()),
-        w::Setting::Policy(v) => s::Setting::Policy(v.number()),
-        w::Setting::Model(v) => s::Setting::Model(v.number()),
-        w::Setting::Worker(v) => s::Setting::Worker(v.number()),
-        w::Setting::Provider(v) => s::Setting::Provider(v.number()),
+        w::Setting::Charter(v) => s::Setting::Charter(v.number),
+        w::Setting::Template(v) => s::Setting::Template(v.number),
+        w::Setting::Policy(v) => s::Setting::Policy(v.number),
+        w::Setting::Model(v) => s::Setting::Model(v.number),
+        w::Setting::Worker(v) => s::Setting::Worker(v.number),
+        w::Setting::Provider(v) => s::Setting::Provider(v.number),
         w::Setting::Rules => s::Setting::Rules,
         w::Setting::Limits => s::Setting::Limits,
-        w::Setting::ProjectPolicy(v) => s::Setting::ProjectPolicy { project: v.project() },
-        w::Setting::Application(v) => s::Setting::Application { kind: v.kind(), scope: v.scope(), number: v.number() },
+        w::Setting::ProjectPolicy(v) => s::Setting::ProjectPolicy { project: v.project },
+        w::Setting::Application(v) => s::Setting::Application { kind: v.kind, scope: v.scope, number: v.number },
     }
 }
-pub fn name(value: s::Setting, limits: &w::Limits) -> Result<w::Setting, w::Problem> {
+pub fn name(value: s::Setting, _limits: &w::Limits) -> Result<w::Setting, w::Problem> {
     Ok(match value {
         jig_domain_people::Setting::ProjectPolicy { project } => {
             w::Setting::ProjectPolicy(w::ProjectPolicySetting { project })
@@ -125,7 +126,7 @@ pub fn document(value: &d::Settings, limits: &w::Limits) -> Result<w::SettingsDo
     for row in &value.pending {
         let proposer =
             super::task::proposal(&d::ProposalRef { proposer: row.proposer, number: u64::from(row.number) }, limits)?
-                .into_parts()
+                
                 .proposer;
         pending
             .push(w::SettingsProposal { proposer, number: row.number })
@@ -133,7 +134,7 @@ pub fn document(value: &d::Settings, limits: &w::Limits) -> Result<w::SettingsDo
     }
     Ok(w::SettingsDocument { newest: value.newest, settings, held, pending })
 }
-fn model(value: &core::Model, limits: &w::Limits) -> Result<w::SettingModel, w::Problem> {
+fn model(value: &core::Model, _limits: &w::Limits) -> Result<w::SettingModel, w::Problem> {
     let mut efforts = List::with_capacity(super::count(value.efforts.len())?);
     for effort in &value.efforts {
         efforts.push(effort.clone()).expect("effort count");
@@ -372,7 +373,7 @@ pub fn revision(
                 let edit = match &item.edit {
                     s::Edit::Set(v) => {
                         let value = value(v, models, limits)?;
-                        let bytes = u64::from(value.measure());
+                        let bytes = u64::from(value.measure(limits)?);
                         if bytes > (*value_bytes).min(u64::from(limits.owned_record)) {
                             w::RevisionEdit::TooLarge(w::Size { bytes })
                         } else {
@@ -387,8 +388,8 @@ pub fn revision(
                         edit,
                         replaced: replaced(&item.replaced, *value_bytes, models, limits)?,
                     };
-                let mut out = Writer::new(skein_lib::length::usize_of(item.measure()));
-                item.encode(&mut out).expect("measured item");
+                let mut out = Writer::new(skein_lib::length::usize_of(item.measure(limits)?));
+                item.write(limits, &mut out).expect("measured item");
                 pieces.push(out.finish()).expect("item count");
             }
             for item in &revision.applications {
@@ -399,8 +400,8 @@ pub fn revision(
                         edit,
                         replaced: application_replaced(&item.replaced, limits)?,
                     };
-                let mut out = Writer::new(skein_lib::length::usize_of(row.measure()));
-                row.encode(&mut out).expect("measured application item");
+                let mut out = Writer::new(skein_lib::length::usize_of(row.measure(limits)?));
+                row.write(limits, &mut out).expect("measured application item");
                 pieces.push(out.finish()).expect("application item count");
             }
             w::RevisionAnswer::Revision(w::RevisionDocument {
@@ -461,7 +462,7 @@ fn review_value(
         None => w::ReviewValue::None,
         Some(v) => {
             let value = value(v, models, limits)?;
-            let bytes = u64::from(value.measure());
+            let bytes = u64::from(value.measure(limits)?);
             if bytes > bound.min(u64::from(limits.owned_record)) {
                 w::ReviewValue::TooLarge(w::Size { bytes })
             } else {
@@ -503,7 +504,7 @@ pub(crate) fn review(
                 },
             };
         used = used
-            .checked_add(u64::from(row.measure()))
+            .checked_add(u64::from(row.measure(limits)?))
             .expect("bounded review bytes")
             .checked_add(4)
             .expect("frame bytes");
@@ -511,8 +512,8 @@ pub(crate) fn review(
             cut = true;
             break;
         }
-        let mut bytes = Writer::new(skein_lib::length::usize_of(row.measure()));
-        row.encode(&mut bytes).expect("measured review item");
+        let mut bytes = Writer::new(skein_lib::length::usize_of(row.measure(limits)?));
+        row.write(limits, &mut bytes).expect("measured review item");
         pieces.push(bytes.finish()).expect("review count");
     }
     Ok(w::SettingsReview {
@@ -523,7 +524,7 @@ pub(crate) fn review(
         })
 }
 
-fn application_state(v: &s::application::State, limits: &w::Limits) -> Result<w::ApplicationState, w::Problem> {
+fn application_state(v: &s::application::State, _limits: &w::Limits) -> Result<w::ApplicationState, w::Problem> {
     let follows =
         match v.follows {
             s::application::Follows::Default => w::ApplicationFollows::Default,
@@ -540,7 +541,8 @@ fn application_state(v: &s::application::State, limits: &w::Limits) -> Result<w:
     }
     Ok(w::ApplicationState { follows, size: v.size, charters })
 }
-fn sized_edit(v: &s::application::SizedEdit, limits: &w::Limits) -> Result<w::SizedEdit, w::Problem> {
+#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
+fn sized_edit(v: &s::application::SizedEdit, _limits: &w::Limits) -> Result<w::SizedEdit, w::Problem> {
     Ok(match v {
         s::application::SizedEdit::Set { size } => {
             w::SizedEdit::Set(w::ApplicationSize { size: *size })
@@ -559,7 +561,7 @@ fn replaced(
     Ok(match v {
         s::Replaced::Value(v) => {
             let value = value(v, models, limits)?;
-            let bytes = u64::from(value.measure());
+            let bytes = u64::from(value.measure(limits)?);
             if bytes > value_bytes.min(u64::from(limits.owned_record)) {
                 w::RevisionReplaced::TooLarge(w::Size { bytes })
             } else {
@@ -571,7 +573,8 @@ fn replaced(
         s::Replaced::NotOffered => w::RevisionReplaced::NotOffered,
     })
 }
-fn application_replaced(v: &s::application::Replaced, limits: &w::Limits) -> Result<w::RevisionReplaced, w::Problem> {
+#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
+fn application_replaced(v: &s::application::Replaced, _limits: &w::Limits) -> Result<w::RevisionReplaced, w::Problem> {
     Ok(match v {
         s::application::Replaced::Changed { size } => {
             w::RevisionReplaced::Application(w::ApplicationSize { size: *size })
@@ -601,10 +604,9 @@ fn catalogue(value: &s::CatalogueModel, limits: &w::Limits) -> Result<w::Catalog
 
 #[must_use]
 pub fn model_act(value: w::ChangeModel) -> s::catalogue::ModelAct {
-    match value.into_parts().act {
-        w::ModelAct::Picker(value) => s::catalogue::ModelAct::Picker { number: value.number(), on: value.on() },
+    match value.act {
+        w::ModelAct::Picker(value) => s::catalogue::ModelAct::Picker { number: value.number, on: value.on },
         w::ModelAct::Add(value) => {
-            let value = value.into_parts();
             s::catalogue::ModelAct::Add { provider: value.provider, name: value.name }
         }
     }
@@ -683,7 +685,8 @@ fn overlay(value: &s::Overlay, limits: &w::Limits) -> Result<w::Overlay, w::Prob
         })
 }
 
-fn limits_value(values: &[s::Override], limits: &w::Limits) -> Result<w::LimitsValue, w::Problem> {
+#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
+fn limits_value(values: &[s::Override], _limits: &w::Limits) -> Result<w::LimitsValue, w::Problem> {
     let mut overrides = List::with_capacity(u32::try_from(values.len()).expect("bounded overrides"));
     for value in values {
         overrides

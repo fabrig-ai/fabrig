@@ -1,10 +1,12 @@
 //! Served template and creating facts (protocol/configuration.md, 3.1; client/domain/contract/documents.md, 1).
+use jig_client_protocol_wire::Record as _;
 use super::{objects, pieces, problem, task, w};
 use alloc::boxed::Box;
 use jig_domain_core_vocabulary::acts;
 use jig_domain_people as p;
 use skein_lib::{List, bytes};
-fn executor(value: p::TemplateExecutor, limits: &w::Limits) -> Result<w::TemplateExecutor, w::Problem> {
+#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
+fn executor(value: p::TemplateExecutor, _limits: &w::Limits) -> Result<w::TemplateExecutor, w::Problem> {
     Ok(match value {
         p::TemplateExecutor::Charter(value) => {
             w::TemplateExecutor::Charter(w::TemplateCharter { value })
@@ -12,7 +14,8 @@ fn executor(value: p::TemplateExecutor, limits: &w::Limits) -> Result<w::Templat
         p::TemplateExecutor::Chosen => w::TemplateExecutor::Chosen,
     })
 }
-fn budget(value: p::TemplateBudget, limits: &w::Limits) -> Result<w::TemplateBudget, w::Problem> {
+#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
+fn budget(value: p::TemplateBudget, _limits: &w::Limits) -> Result<w::TemplateBudget, w::Problem> {
     Ok(match value {
         p::TemplateBudget::Amount(value) => {
             w::TemplateBudget::Amount(w::TemplateAmount { value })
@@ -23,7 +26,8 @@ fn budget(value: p::TemplateBudget, limits: &w::Limits) -> Result<w::TemplateBud
         p::TemplateBudget::Given => w::TemplateBudget::Given,
     })
 }
-fn deadline(value: p::TemplateDeadline, limits: &w::Limits) -> Result<w::TemplateDeadline, w::Problem> {
+#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
+fn deadline(value: p::TemplateDeadline, _limits: &w::Limits) -> Result<w::TemplateDeadline, w::Problem> {
     Ok(match value {
         p::TemplateDeadline::None => w::TemplateDeadline::None,
         p::TemplateDeadline::Span(value) => {
@@ -44,8 +48,8 @@ pub fn templates(
     }
     let mut encoded = List::with_capacity(rows.len());
     for row in &rows {
-        let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(row.measure()));
-        if row.encode(&mut out).is_err() {
+        let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(row.measure(limits)?));
+        if row.write(limits, &mut out).is_err() {
             return Err(problem(skein_codec::Reason::Bound));
         }
         encoded.push(out.finish()).expect("same row count");
@@ -53,7 +57,8 @@ pub fn templates(
     pieces(&encoded, limits.me_project_templates, w::paths::ME_PROJECT_TEMPLATES)
 }
 
-pub(super) fn flags(value: jig_domain_tasks::Flags, limits: &w::Limits) -> Result<w::TaskFlags, w::Problem> {
+#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
+pub(super) fn flags(value: jig_domain_tasks::Flags, _limits: &w::Limits) -> Result<w::TaskFlags, w::Problem> {
     Ok(w::TaskFlags {
             ended_by: match value.ended_by {
                 jig_domain_tasks::EndedBy::Result => w::EndedBy::Result,

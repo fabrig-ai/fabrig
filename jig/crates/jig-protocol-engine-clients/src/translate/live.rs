@@ -1,10 +1,11 @@
 //! Whole live document facts (protocol/client/wire.md, 1, and protocol/client/README.md, 5).
+use jig_client_protocol_wire::Record as _;
 use super::{chips, pieces, task, w};
 use alloc::boxed::Box;
 use jig_domain_core_vocabulary::documents as d;
 use jig_domain_views as views;
 use skein_lib::{List, Writer, bytes};
-pub fn current_call(value: &views::Call, limits: &w::Limits) -> Result<w::CurrentCall, w::Problem> {
+pub fn current_call(value: &views::Call, _limits: &w::Limits) -> Result<w::CurrentCall, w::Problem> {
     Ok(w::CurrentCall {
             identity: w::CallIdentity {
                     owner: value.identity.owner.raw(),
@@ -48,7 +49,7 @@ pub fn writing(value: &views::Writing, limits: &w::Limits) -> Result<w::RunText,
     clippy::disallowed_methods,
     reason = "protocol/client/README.md 5: this protocol owner validates retained input UTF-8"
 )]
-pub fn writing_call(value: &views::WritingCall, limits: &w::Limits) -> Result<Option<w::WritingCall>, w::Problem> {
+pub fn writing_call(value: &views::WritingCall, _limits: &w::Limits) -> Result<Option<w::WritingCall>, w::Problem> {
     let mut skip: usize = 0;
     if value.from != 0 {
         for byte in &value.input {
@@ -97,14 +98,14 @@ pub fn run(value: &d::Run, limits: &w::Limits) -> Result<w::RunState, w::Problem
             },
         })
 }
-pub fn count(value: d::Count, limits: &w::Limits) -> Result<w::Count, w::Problem> {
+pub fn count(value: d::Count, _limits: &w::Limits) -> Result<w::Count, w::Problem> {
     let (number, limited) = match value {
         d::Count::Known(n) => (n, false),
         d::Count::AtLeast(n) => (n, true),
     };
     Ok(w::Count { value: number, limited })
 }
-pub fn phases(value: d::PhaseCounts, limits: &w::Limits) -> Result<w::PhaseCounts, w::Problem> {
+pub fn phases(value: d::PhaseCounts, _limits: &w::Limits) -> Result<w::PhaseCounts, w::Problem> {
     Ok(w::PhaseCounts {
             waiting: value.waiting,
             idle: value.idle,
@@ -128,7 +129,7 @@ pub fn tree_row(value: &d::TreeRow, limits: &w::Limits) -> Result<w::TreeRow, w:
     for row in &value.dependencies {
         dependencies.push(task::link(row, limits)?).expect("supplied dependencies fit");
     }
-    let dependencies = task::links_pieces(&dependencies, limits.tree_row_dependencies, w::paths::TREE_ROW_DEPENDENCIES)?;
+    let dependencies = task::links_pieces(&dependencies, limits.tree_row_dependencies, w::paths::TREE_ROW_DEPENDENCIES, limits)?;
     Ok(w::TreeRow {
             chip: chips::chip(&value.chip, limits)?,
             parent: value.parent,
@@ -144,7 +145,7 @@ pub fn tree(value: &d::Tree, next: Option<w::Cursor>, limits: &w::Limits) -> Res
     for row in &value.rows {
         rows.push(tree_row(row, limits)?).expect("supplied rows fit");
     }
-    let rows = tree_pieces(&rows, limits.tree_rows, w::paths::TREE_ROWS)?;
+    let rows = tree_pieces(&rows, limits.tree_rows, w::paths::TREE_ROWS, limits)?;
     let mut folded = List::with_capacity(value.folded.len());
     for row in &value.folded {
         folded
@@ -158,11 +159,11 @@ pub fn tree(value: &d::Tree, next: Option<w::Cursor>, limits: &w::Limits) -> Res
     Ok(w::Tree { root: chips::chip(&value.root, limits)?, rows, folded, held_below: value.held_below, next })
 }
 
-fn tree_pieces(rows: &List<w::TreeRow>, bound: u32, path: w::Path) -> Result<Box<[u8]>, w::Problem> {
+fn tree_pieces(rows: &List<w::TreeRow>, bound: u32, path: w::Path, limits: &w::Limits) -> Result<Box<[u8]>, w::Problem> {
     let mut encoded = List::with_capacity(rows.len());
     for row in rows {
-        let mut out = Writer::new(skein_lib::length::usize_of(row.measure()));
-        match row.encode(&mut out) {
+        let mut out = Writer::new(skein_lib::length::usize_of(row.measure(limits)?));
+        match row.write(limits, &mut out) {
             Ok(()) => (),
             Err(_) => return Err(w::Problem { path, reason: skein_codec::Reason::Bound }),
         }
@@ -187,14 +188,14 @@ mod tests {
     #[test]
     fn an_incomplete_character_waits_until_the_next_piece_completes_it() {
         let first = writing_call(&call(0, b"\xc3"), &w::CEILINGS).expect("wire").expect("identity");
-        assert_eq!((first.from(), first.through(), first.input()), (0, 0, b"".as_slice()));
+        assert_eq!((first.from, first.through, first.input.as_ref()), (0, 0, b"".as_slice()));
         let second = writing_call(&call(0, b"\xc3\xa9"), &w::CEILINGS).expect("wire").expect("whole character");
-        assert_eq!((second.from(), second.through(), second.input()), (0, 2, "é".as_bytes()));
+        assert_eq!((second.from, second.through, second.input.as_ref()), (0, 2, "é".as_bytes()));
     }
     #[test]
     fn a_trim_skips_continuation_bytes_and_invalid_utf8_omits_writing() {
         let value = writing_call(&call(1, b"\xa9x"), &w::CEILINGS).expect("wire").expect("suffix");
-        assert_eq!((value.from(), value.through(), value.input(), value.cut()), (2, 3, b"x".as_slice(), true));
+        assert_eq!((value.from, value.through, value.input.as_ref(), value.cut), (2, 3, b"x".as_slice(), true));
         assert!(writing_call(&call(0, b"\xff"), &w::CEILINGS).expect("wire").is_none());
     }
 }

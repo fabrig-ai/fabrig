@@ -1,4 +1,5 @@
 //! Identifier-only records (jig/docs/design/protocol/client/public-reads.md).
+use jig_client_protocol_wire::Record as _;
 use super::{Names, PublicKind};
 use alloc::boxed::Box;
 use jig_client_protocol_wire::{self as wire, public_v1 as w};
@@ -23,33 +24,31 @@ pub(super) fn encode(
             for item in &value.projects {
                 projects
                     .push(
-                        Ok(w::PublicProject {
+                        w::PublicProject {
                                 project: names.project(item.project),
                                 name: skein_lib::bytes::copy_of(item.name.as_bytes()),
-                            })
-                        .ok()?,
+                            },
                     )
                     .ok()?;
             }
-            let record = Ok(w::PublicProjects { projects, max_age }).ok()?;
-            let mut out = writer(record.measure(), bound)?;
-            record.encode(&mut out).ok()?;
+            let record = w::PublicProjects { projects, max_age };
+            let mut out = writer(record.measure(limits).ok()?, bound)?;
+            record.write(limits, &mut out).ok()?;
             Some(out.finish())
         }
         c::PublicDocument::Board(value) => {
             if kind.owner != 0 || kind.kind != wire::PUBLIC_BOARD {
                 return None;
             }
-            let record = Ok(w::PublicBoard {
+            let record = w::PublicBoard {
                     project: names.project(value.project),
                     name: skein_lib::bytes::copy_of(value.name.as_bytes()),
                     live: goals(&value.live, names, limits, limits.public_board_live)?,
                     live_folded: value.live_folded,
                     ended: goals(&value.ended, names, limits, limits.public_board_ended)?,
-                })
-            .ok()?;
-            let mut out = writer(record.measure(), bound)?;
-            record.encode(&mut out).ok()?;
+                };
+            let mut out = writer(record.measure(limits).ok()?, bound)?;
+            record.write(limits, &mut out).ok()?;
             Some(out.finish())
         }
         c::PublicDocument::Card(value) => {
@@ -60,15 +59,14 @@ pub(super) fn encode(
             for item in &value.lineage {
                 lineage.push(names.task(*item)).ok()?;
             }
-            let record = Ok(w::PublicCard {
+            let record = w::PublicCard {
                     line: line(&value.line, names, limits)?,
                     lineage,
                     delegates: lines(&value.delegates, names, limits, limits.public_card_delegates)?,
                     folded: value.folded,
-                })
-            .ok()?;
-            let mut out = writer(record.measure(), bound)?;
-            record.encode(&mut out).ok()?;
+                };
+            let mut out = writer(record.measure(limits).ok()?, bound)?;
+            record.write(limits, &mut out).ok()?;
             Some(out.finish())
         }
         c::PublicDocument::Application(value) => {
@@ -84,10 +82,9 @@ pub(super) fn encode(
                 tasks.push(names.task(*item)).ok()?;
             }
             let record =
-                Ok(w::PublicApplication { tasks, record: value.record.clone() })
-                    .ok()?;
-            let mut out = writer(record.measure(), bound)?;
-            record.encode(&mut out).ok()?;
+                w::PublicApplication { tasks, record: value.record.clone() };
+            let mut out = writer(record.measure(limits).ok()?, bound)?;
+            record.write(limits, &mut out).ok()?;
             Some(out.finish())
         }
     }
@@ -104,12 +101,11 @@ fn goals(values: &[c::PublicGoal], names: &Names, limits: &w::Limits, bound: u32
     for value in values {
         goals
             .push(
-                Ok(w::PublicGoal {
+                w::PublicGoal {
                         line: line(&value.line, names, limits)?,
                         tree: lines(&value.tree, names, limits, limits.public_goal_tree)?,
                         folded: value.folded,
-                    })
-                .ok()?,
+                    },
             )
             .ok()?;
     }
@@ -130,7 +126,7 @@ fn line(value: &c::PublicLine, names: &Names, limits: &w::Limits) -> Option<w::P
         skein_lib::bytes::utf8_prefix(&value.title.bytes, skein_lib::length::usize_of(limits.public_line_title));
     let title_cut = value.title.cut || title.len() < value.title.bytes.len();
     let title = skein_lib::bytes::copy_of(title);
-    Ok(w::PublicLine {
+    Some(w::PublicLine {
             task: names.task(value.task),
             title,
             title_cut,
@@ -151,16 +147,14 @@ fn line(value: &c::PublicLine, names: &Names, limits: &w::Limits) -> Option<w::P
             active: value.active,
             ended: value.ended,
             spent: value.spent,
-            delegates: Ok(w::PublicCounts {
+            delegates: w::PublicCounts {
                     working: value.delegates.working,
                     waiting: value.delegates.waiting,
                     held: value.delegates.held,
                     closing: value.delegates.closing,
                     ended: value.delegates.ended,
-                })
-            .ok()?,
+                },
         })
-    .ok()
 }
 fn executor(value: c::PublicExecutor) -> w::PublicExecutor {
     match value {

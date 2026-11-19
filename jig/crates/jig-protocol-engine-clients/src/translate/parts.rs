@@ -58,7 +58,7 @@ pub(crate) fn read(value: &reads::Read, settings: &crate::Settings, limits: &w::
 pub(crate) fn row(
     value: &List<d::RowPart>,
     slots: &List<Slot>,
-    limits: &w::Limits,
+    _limits: &w::Limits,
 ) -> Result<List<w::RowPart>, w::Problem> {
     let invalid = super::problem(skein_codec::Reason::Tag);
     let mut supplied = value.iter();

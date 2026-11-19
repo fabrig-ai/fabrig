@@ -1,4 +1,5 @@
 //! Task queries and lines preserve the engine's keys and supplied order.
+use jig_client_protocol_wire::Record as _;
 use super::{chips, live, me, owner, w};
 use jig_domain_core_vocabulary::documents::{self as d, WaitsOn};
 use jig_domain_people as p;
@@ -6,11 +7,10 @@ use jig_domain_tasks as t;
 use skein_lib::{List, Writer};
 
 pub(super) fn query(value: w::TaskQuery) -> Option<d::TaskQuery> {
-    let value = value.into_parts();
     let requester = match value.requester {
         None => None,
-        Some(w::Requester::Task(v)) => Some(t::Party::Task(v.value())),
-        Some(w::Requester::Person(v)) => Some(t::Party::Person(v.value())),
+        Some(w::Requester::Task(v)) => Some(t::Party::Task(v.value)),
+        Some(w::Requester::Person(v)) => Some(t::Party::Person(v.value)),
         Some(w::Requester::Deployment(_)) => return None,
     };
     Some(d::TaskQuery {
@@ -18,7 +18,7 @@ pub(super) fn query(value: w::TaskQuery) -> Option<d::TaskQuery> {
             let mut parts = List::with_capacity(value.parts.len());
             for ask in &value.parts {
                 parts
-                    .push(d::PartAsk { owner: ask.owner().number(), kind: ask.kind(), version: ask.version() })
+                    .push(d::PartAsk { owner: ask.owner.number, kind: ask.kind, version: ask.version })
                     .expect("bounded parts");
             }
             parts
@@ -57,7 +57,7 @@ pub(super) fn query(value: w::TaskQuery) -> Option<d::TaskQuery> {
         },
     })
 }
-pub(super) fn waits(value: WaitsOn, limits: &w::Limits) -> Result<w::WaitsOn, w::Problem> {
+pub(super) fn waits(value: WaitsOn, _limits: &w::Limits) -> Result<w::WaitsOn, w::Problem> {
     Ok(match value {
         WaitsOn::Party { whom, entries, task, kind } => w::WaitsOn::Party(w::WaitsOnParty {
                 whom: match whom {
@@ -131,8 +131,8 @@ pub(crate) fn lines(
     let mut rows = List::with_capacity(value.lines.len());
     for row in &value.lines {
         let row = line_parts(row, slots, limits)?;
-        let mut writer = Writer::new(skein_lib::length::usize_of(row.measure()));
-        row.encode(&mut writer).expect("measured task line");
+        let mut writer = Writer::new(skein_lib::length::usize_of(row.measure(limits)?));
+        row.write(limits, &mut writer).expect("measured task line");
         rows.push(writer.finish()).expect("same line count");
     }
     let rows = super::pieces(&rows, limits.tasks_rows, w::paths::TASKS_ROWS)?;

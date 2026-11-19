@@ -1,4 +1,5 @@
 //! Whole live document facts (protocol/client/wire.md, 1, and protocol/client/README.md, 5).
+use jig_client_protocol_wire::Record as _;
 use super::{chips, owner, pieces, refusals, task, w};
 use alloc::boxed::Box;
 use jig_domain_accounts as accounts;
@@ -27,7 +28,8 @@ fn attempt(value: fleet::AttemptState) -> w::AttemptState {
         fleet::AttemptState::Closed => w::AttemptState::Closed,
     }
 }
-pub(super) fn shortfall(value: fleet::AgentShortfall, limits: &w::Limits) -> Result<w::AgentShortfall, w::Problem> {
+#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
+pub(super) fn shortfall(value: fleet::AgentShortfall, _limits: &w::Limits) -> Result<w::AgentShortfall, w::Problem> {
     Ok(match value {
         fleet::AgentShortfall::Model { charter, model } => w::AgentShortfall::Model(w::AgentShortfallModel { charter, model }),
         fleet::AgentShortfall::Window { charter, model } => w::AgentShortfall::Window(w::AgentShortfallWindow { charter, model }),
@@ -79,7 +81,8 @@ pub(crate) fn account_unread(value: accounts::Unread) -> w::AccountUnread {
         accounts::Unread::TooLarge => w::AccountUnread::TooLarge,
     }
 }
-pub(crate) fn account_state(value: d::AccountState, limits: &w::Limits) -> Result<w::AccountState, w::Problem> {
+#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
+pub(crate) fn account_state(value: d::AccountState, _limits: &w::Limits) -> Result<w::AccountState, w::Problem> {
     Ok(match value {
         d::AccountState::Granted => w::AccountState::Granted,
         d::AccountState::Asking => w::AccountState::Asking,
@@ -142,7 +145,7 @@ fn person_action(value: people::CapacityAction, limits: &w::Limits) -> Result<w:
         ),
         people::CapacityAction::Proposal { proposer, number } => {
             w::PersonCapacityAction::Proposal(w::PersonCapacityActionProposal {
-                    proposer: task::proposal(&d::ProposalRef { proposer, number }, limits)?.proposer().clone(),
+                    proposer: task::proposal(&d::ProposalRef { proposer, number }, limits)?.proposer,
                     number,
                 })
         }
@@ -151,7 +154,8 @@ fn person_action(value: people::CapacityAction, limits: &w::Limits) -> Result<w:
         }
     })
 }
-fn seen_record(value: people::Seen, limits: &w::Limits) -> Result<w::SeenThrough, w::Problem> {
+#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
+fn seen_record(value: people::Seen, _limits: &w::Limits) -> Result<w::SeenThrough, w::Problem> {
     Ok(match value {
         people::Seen::Results { through } => {
             w::SeenThrough::Results(w::SeenResults { through })
@@ -161,7 +165,8 @@ fn seen_record(value: people::Seen, limits: &w::Limits) -> Result<w::SeenThrough
         }
     })
 }
-fn person_cause(value: people::CapacityCause, limits: &w::Limits) -> Result<w::PersonCapacityCause, w::Problem> {
+#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
+fn person_cause(value: people::CapacityCause, _limits: &w::Limits) -> Result<w::PersonCapacityCause, w::Problem> {
     Ok(match value {
         people::CapacityCause::Requests { limit } => w::PersonCapacityCause::Requests(
             w::PersonCapacityCauseRequests { limit },
@@ -203,7 +208,8 @@ fn task_action(value: tasks::CapacityAction, limits: &w::Limits) -> Result<w::Ta
         tasks::CapacityAction::Source { funder } => w::TaskCapacityAction::Source(w::TaskCapacityActionSource { funder: owner::funder(funder, limits)? }),
     })
 }
-fn task_cause(value: tasks::CapacityCause, limits: &w::Limits) -> Result<w::TaskCapacityCause, w::Problem> {
+#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
+fn task_cause(value: tasks::CapacityCause, _limits: &w::Limits) -> Result<w::TaskCapacityCause, w::Problem> {
     Ok(match value {
         tasks::CapacityCause::PlacedHolds { limit } => w::TaskCapacityCause::PlacedHolds(
             w::TaskCapacityCausePlacedHolds { limit },
@@ -253,10 +259,11 @@ fn task_cause(value: tasks::CapacityCause, limits: &w::Limits) -> Result<w::Task
         ),
     })
 }
-pub fn capacity(value: d::Capacity, limits: &w::Limits) -> Result<w::Capacity, w::Problem> {
+pub fn capacity(value: d::Capacity, _limits: &w::Limits) -> Result<w::Capacity, w::Problem> {
     Ok(w::Capacity { used: value.used, limit: value.limit })
 }
-fn location(value: d::RunLocation, limits: &w::Limits) -> Result<w::RunLocation, w::Problem> {
+#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
+fn location(value: d::RunLocation, _limits: &w::Limits) -> Result<w::RunLocation, w::Problem> {
     Ok(match value {
         d::RunLocation::None => w::RunLocation::None,
         d::RunLocation::Connected { channel, kind } => w::RunLocation::Connected(w::RunLocationConnected { channel, kind: host_kind(kind) }),
@@ -284,7 +291,8 @@ pub fn run(value: &d::HostRun, limits: &w::Limits) -> Result<w::HostRun, w::Prob
             },
         })
 }
-fn host_rule(value: jig_domain_core_vocabulary::HostRule, limits: &w::Limits) -> Result<w::HostRule, w::Problem> {
+#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
+fn host_rule(value: jig_domain_core_vocabulary::HostRule, _limits: &w::Limits) -> Result<w::HostRule, w::Problem> {
     use jig_domain_core_vocabulary::HostRule;
     Ok(match value {
         HostRule::Open => w::HostRule::Open,
@@ -298,7 +306,7 @@ pub fn host(value: &d::Host, limits: &w::Limits) -> Result<w::Host, w::Problem> 
     for row in &value.runs {
         runs.push(run(row, limits)?).expect("supplied rows fit");
     }
-    let runs = run_pieces(&runs, limits.host_runs, w::paths::HOST_RUNS)?;
+    let runs = run_pieces(&runs, limits.host_runs, w::paths::HOST_RUNS, limits)?;
 
     Ok(w::Host {
             awaiting_logins: value.awaiting_logins,
@@ -326,12 +334,12 @@ pub fn account(value: &d::Account, limits: &w::Limits) -> Result<w::Account, w::
     for row in &value.runs {
         runs.push(chips::chip(row, limits)?).expect("supplied rows fit");
     }
-    let runs = chip_pieces(&runs, limits.account_runs, w::paths::ACCOUNT_RUNS)?;
+    let runs = chip_pieces(&runs, limits.account_runs, w::paths::ACCOUNT_RUNS, limits)?;
     let mut waiting = List::with_capacity(value.waiting.len());
     for row in &value.waiting {
         waiting.push(chips::chip(row, limits)?).expect("supplied rows fit");
     }
-    let waiting = chip_pieces(&waiting, limits.account_waiting, w::paths::ACCOUNT_WAITING)?;
+    let waiting = chip_pieces(&waiting, limits.account_waiting, w::paths::ACCOUNT_WAITING, limits)?;
 
     Ok(w::Account {
             list: super::accounts::list(value.list.as_ref(), limits)?,
@@ -391,23 +399,22 @@ pub fn task_refusal(value: &tasks::CapacityRefusal, limits: &w::Limits) -> Resul
             at: value.at.as_nanos(),
         })
 }
-#[expect(clippy::too_many_lines, reason = "one deployment carries bounded host, account, capacity and worker facts")]
 pub fn document(value: &d::Deployment, limits: &w::Limits) -> Result<w::Deployment, w::Problem> {
     let mut hosts = List::with_capacity(value.hosts.len());
     for row in &value.hosts {
         hosts.push(host(row, limits)?).expect("supplied rows fit");
     }
-    let hosts = host_pieces(&hosts, limits.deployment_hosts, w::paths::DEPLOYMENT_HOSTS)?;
+    let hosts = host_pieces(&hosts, limits.deployment_hosts, w::paths::DEPLOYMENT_HOSTS, limits)?;
     let mut attempts = List::with_capacity(value.attempts.len());
     for row in &value.attempts {
         attempts.push(run(row, limits)?).expect("supplied rows fit");
     }
-    let attempts = run_pieces(&attempts, limits.deployment_attempts, w::paths::DEPLOYMENT_ATTEMPTS)?;
+    let attempts = run_pieces(&attempts, limits.deployment_attempts, w::paths::DEPLOYMENT_ATTEMPTS, limits)?;
     let mut accounts = List::with_capacity(value.accounts.len());
     for row in &value.accounts {
         accounts.push(account(row, limits)?).expect("supplied rows fit");
     }
-    let accounts = account_pieces(&accounts, limits.deployment_accounts, w::paths::DEPLOYMENT_ACCOUNTS)?;
+    let accounts = account_pieces(&accounts, limits.deployment_accounts, w::paths::DEPLOYMENT_ACCOUNTS, limits)?;
     let mut projects = List::with_capacity(value.projects.len());
     for row in &value.projects {
         projects
@@ -495,7 +502,8 @@ pub fn document(value: &d::Deployment, limits: &w::Limits) -> Result<w::Deployme
             connectors,
         })
 }
-fn store_census(value: &d::StoreCensus, limits: &w::Limits) -> Result<w::StoreCensus, w::Problem> {
+#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
+fn store_census(value: &d::StoreCensus, _limits: &w::Limits) -> Result<w::StoreCensus, w::Problem> {
     let mut keyspaces = List::with_capacity(value.keyspaces.len());
     for row in &value.keyspaces {
         let mut heads = List::with_capacity(row.heads.len());
@@ -520,11 +528,11 @@ fn store_census(value: &d::StoreCensus, limits: &w::Limits) -> Result<w::StoreCe
     }
     Ok(w::StoreCensus { commit: value.commit, since: value.since, keyspaces })
 }
-fn chip_pieces(rows: &List<w::Chip>, bound: u32, path: w::Path) -> Result<Box<[u8]>, w::Problem> {
+fn chip_pieces(rows: &List<w::Chip>, bound: u32, path: w::Path, limits: &w::Limits) -> Result<Box<[u8]>, w::Problem> {
     let mut encoded = List::with_capacity(rows.len());
     for row in rows {
-        let mut out = Writer::new(skein_lib::length::usize_of(row.measure()));
-        match row.encode(&mut out) {
+        let mut out = Writer::new(skein_lib::length::usize_of(row.measure(limits)?));
+        match row.write(limits, &mut out) {
             Ok(()) => (),
             Err(_) => return Err(w::Problem { path, reason: skein_codec::Reason::Bound }),
         }
@@ -532,11 +540,11 @@ fn chip_pieces(rows: &List<w::Chip>, bound: u32, path: w::Path) -> Result<Box<[u
     }
     pieces(&encoded, bound, path)
 }
-fn run_pieces(rows: &List<w::HostRun>, bound: u32, path: w::Path) -> Result<Box<[u8]>, w::Problem> {
+fn run_pieces(rows: &List<w::HostRun>, bound: u32, path: w::Path, limits: &w::Limits) -> Result<Box<[u8]>, w::Problem> {
     let mut encoded = List::with_capacity(rows.len());
     for row in rows {
-        let mut out = Writer::new(skein_lib::length::usize_of(row.measure()));
-        match row.encode(&mut out) {
+        let mut out = Writer::new(skein_lib::length::usize_of(row.measure(limits)?));
+        match row.write(limits, &mut out) {
             Ok(()) => (),
             Err(_) => return Err(w::Problem { path, reason: skein_codec::Reason::Bound }),
         }
@@ -544,11 +552,11 @@ fn run_pieces(rows: &List<w::HostRun>, bound: u32, path: w::Path) -> Result<Box<
     }
     pieces(&encoded, bound, path)
 }
-fn host_pieces(rows: &List<w::Host>, bound: u32, path: w::Path) -> Result<Box<[u8]>, w::Problem> {
+fn host_pieces(rows: &List<w::Host>, bound: u32, path: w::Path, limits: &w::Limits) -> Result<Box<[u8]>, w::Problem> {
     let mut encoded = List::with_capacity(rows.len());
     for row in rows {
-        let mut out = Writer::new(skein_lib::length::usize_of(row.measure()));
-        match row.encode(&mut out) {
+        let mut out = Writer::new(skein_lib::length::usize_of(row.measure(limits)?));
+        match row.write(limits, &mut out) {
             Ok(()) => (),
             Err(_) => return Err(w::Problem { path, reason: skein_codec::Reason::Bound }),
         }
@@ -556,11 +564,11 @@ fn host_pieces(rows: &List<w::Host>, bound: u32, path: w::Path) -> Result<Box<[u
     }
     pieces(&encoded, bound, path)
 }
-fn account_pieces(rows: &List<w::Account>, bound: u32, path: w::Path) -> Result<Box<[u8]>, w::Problem> {
+fn account_pieces(rows: &List<w::Account>, bound: u32, path: w::Path, limits: &w::Limits) -> Result<Box<[u8]>, w::Problem> {
     let mut encoded = List::with_capacity(rows.len());
     for row in rows {
-        let mut out = Writer::new(skein_lib::length::usize_of(row.measure()));
-        match row.encode(&mut out) {
+        let mut out = Writer::new(skein_lib::length::usize_of(row.measure(limits)?));
+        match row.write(limits, &mut out) {
             Ok(()) => (),
             Err(_) => return Err(w::Problem { path, reason: skein_codec::Reason::Bound }),
         }

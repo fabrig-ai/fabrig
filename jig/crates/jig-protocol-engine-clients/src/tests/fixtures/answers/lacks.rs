@@ -1,6 +1,5 @@
 use super::*;
 pub fn lacks() -> [(p::Lack, w::Lacking); 21] {
-    let limits = wire();
     [
         (p::Lack::Approver, w::Lacking::Approver),
         (p::Lack::Funding, w::Lacking::Funding),
@@ -153,7 +152,7 @@ pub fn ceiling_lacks() -> [(p::Lack, w::Lacking); 10] {
     ]
 }
 fn ceiling_case(
-    limits: &w::Limits,
+    _limits: &w::Limits,
     holder: (p::CeilingHolder, w::CeilingHolder),
     dimension: (p::CeilingDimension, w::CeilingDimension),
     value: Option<u64>,

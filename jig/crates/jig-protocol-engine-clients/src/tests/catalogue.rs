@@ -1,5 +1,6 @@
 //! Catalogue replacement and numbered holes (jig/docs/design/domain/engine/settings.md, 11).
 #![expect(clippy::disallowed_macros, reason = "ordinary tests make exact wire-bound byte fixtures")]
+use jig_client_protocol_wire::Record as _;
 use super::fixtures as f;
 use crate::{Event, Message, Request, translate};
 use alloc::boxed::Box;
@@ -56,8 +57,8 @@ fn catalogue() -> Box<[CatalogueModel]> {
 fn create() -> w::Ask {
     let limits = f::wire();
     let (w::Ask::Create(create), _) = f::create_ask() else { panic!("create fixture") };
-    let bytes = skein_codec::piece::split(&mut Reader::new(create.tasks())).unwrap().unwrap();
-    let mut task = w::NewTask::decode(&limits, &mut Reader::new(&bytes)).unwrap().into_parts();
+    let bytes = skein_codec::piece::split(&mut Reader::new(create.tasks.as_ref())).unwrap().unwrap();
+    let mut task = w::NewTask::decode(&limits, &mut Reader::new(&bytes)).unwrap();
     task.llm = Some(
         w::LlmChoice {
                 later: None,
@@ -67,8 +68,8 @@ fn create() -> w::Ask {
             },
     );
     let task = task;
-    let mut writer = Writer::new(usize::try_from(task.measure()).unwrap());
-    task.encode(&mut writer).unwrap();
+    let mut writer = Writer::new(usize::try_from(task.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    task.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
     w::Ask::Create(
         w::Create { project: f::PROJECT, tasks: f::pieces(&[writer.finish()]) },
     )
@@ -92,8 +93,8 @@ fn a_catalogue_replaces_the_models_a_request_names() {
                     request: f::encode_ask(&create()),
                     value: None,
                 };
-            let mut writer = Writer::new(usize::try_from(keyed.measure()).unwrap());
-            keyed.encode(&mut writer).unwrap();
+            let mut writer = Writer::new(usize::try_from(keyed.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+            keyed.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
             Message::Request(writer.finish())
         };
         let owner = exchange.send(message());
@@ -102,8 +103,8 @@ fn a_catalogue_replaces_the_models_a_request_names() {
         assert_eq!(status, 200);
         let answer = w::KeyedAnswer::decode(&f::wire(), &mut Reader::new(bytes)).unwrap();
         let w::Final::Refused(answer) = f::final_record(answer, &f::wire()) else { panic!("unconfigured refusal") };
-        let w::Refusal::Llm(refusal) = answer.refusal() else { panic!("LLM refusal") };
-        assert_eq!((refusal.model(), refusal.why()), (NEW, &w::LlmWhy::Unconfigured));
+        let w::Refusal::Llm(refusal) = &answer.refusal else { panic!("LLM refusal") };
+        assert_eq!((refusal.model.as_ref(), (&refusal.why)), (NEW, &w::LlmWhy::Unconfigured));
         exchange.component.up(&exchange.env, &mut exchange.out);
         while exchange.out.pop().is_some() {}
         exchange.component.down(
@@ -129,15 +130,15 @@ fn a_catalogue_replaces_the_models_a_request_names() {
         exchange.release_read(reply, core::reads::Answer::Document(Box::new(core::documents::Document::Frame(frame))));
         let w::ReadAnswer::Value(value) = exchange.read_answer(owner) else { panic!("me read") };
         let w::ReadValue::Me(me) =
-            w::ReadValue::decode(&exchange.env.limits.wire, &mut Reader::new(value.record())).unwrap()
+            w::ReadValue::decode(&exchange.env.limits.wire, &mut Reader::new(value.record.as_ref())).unwrap()
         else {
             panic!("me")
         };
-        let project = skein_codec::piece::split(&mut Reader::new(me.projects())).unwrap().unwrap();
+        let project = skein_codec::piece::split(&mut Reader::new(me.projects.as_ref())).unwrap().unwrap();
         let project = w::MeProject::decode(&exchange.env.limits.wire, &mut Reader::new(&project)).unwrap();
-        assert_eq!(project.models().get(0).unwrap().name(), NEW);
+        assert_eq!(project.models.get(0).unwrap().name.as_ref(), NEW);
         assert_eq!(
-            *project.models().get(0).unwrap().new_until(),
+            project.models.get(0).unwrap().new_until,
             Some(123 + core::settings::catalogue::NEW_FOR.as_nanos())
         );
     }
@@ -163,15 +164,15 @@ fn a_hole_is_no_model() {
     let names =
         translate::llm::authority(jig_domain_authority::Models::from_parts(0b111, false), &models, &f::wire()).unwrap();
     let Some(w::ModelSet::Names(names)) = names else { panic!("named authority") };
-    assert_eq!(names.names().as_slice(), &[Box::<[u8]>::from(b"careful".as_slice()), NEW.into()]);
+    assert_eq!(names.names.as_slice(), &[Box::<[u8]>::from(b"careful".as_slice()), NEW.into()]);
     let offer = [
         core::Offered { model: 1, accounts: List::with_capacity(0) },
         core::Offered { model: 2, accounts: List::from_boxed(Box::new([7])) },
     ];
     let shown = translate::llm::models(&offer, &models, &f::wire()).unwrap();
     assert_eq!(shown.len(), 1);
-    assert_eq!(shown.get(0).unwrap().name(), NEW);
-    assert_eq!(shown.get(0).unwrap().accounts().as_slice(), &[7]);
+    assert_eq!(shown.get(0).unwrap().name.as_ref(), NEW);
+    assert_eq!(shown.get(0).unwrap().accounts.as_slice(), &[7]);
     assert_eq!(
         translate::llm::refusal(1, p::LlmWhy::Charter, &models, &f::wire()),
         Err(w::Problem { path: w::paths::REFUSAL_LLM_MODEL, reason: skein_codec::Reason::Bound })
@@ -179,7 +180,7 @@ fn a_hole_is_no_model() {
     let w::Refusal::Llm(refusal) = translate::llm::refusal(2, p::LlmWhy::Charter, &models, &f::wire()).unwrap() else {
         panic!("named refusal")
     };
-    assert_eq!(refusal.model(), NEW);
+    assert_eq!(refusal.model.as_ref(), NEW);
 }
 
 #[test]

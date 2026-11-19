@@ -131,7 +131,7 @@ pub fn env() -> Env<Limits> {
         },
     }
 }
-pub fn start(limits: &w::Limits) -> w::Ask {
+pub fn start(_limits: &w::Limits) -> w::Ask {
     w::Ask::Message(
         w::Message { project: 3, task: 8, words: Box::from(b"hello".as_slice()) },
     )
@@ -293,7 +293,7 @@ pub fn other_asks() -> [(w::Ask, people::Ask); 17] {
         edit_note_case(&limits, references),
     ]
 }
-fn write_case(limits: &w::Limits) -> (w::Ask, people::Ask) {
+fn write_case(_limits: &w::Limits) -> (w::Ask, people::Ask) {
     use jig_domain_people as p;
     (
         w::Ask::Message(
@@ -302,7 +302,7 @@ fn write_case(limits: &w::Limits) -> (w::Ask, people::Ask) {
         p::Ask::Say { project: 3, task: 8, words: Box::from(b"say".as_slice()) },
     )
 }
-fn answer_question_case(limits: &w::Limits) -> (w::Ask, people::Ask) {
+fn answer_question_case(_limits: &w::Limits) -> (w::Ask, people::Ask) {
     use jig_domain_people as p;
     (
         answer(w::AnswerOn::Question(
@@ -311,21 +311,21 @@ fn answer_question_case(limits: &w::Limits) -> (w::Ask, people::Ask) {
         p::Ask::AnswerQuestion { project: 3, task: 8, question: 19, words: Box::from(b"answer".as_slice()) },
     )
 }
-fn take_case(limits: &w::Limits) -> (w::Ask, people::Ask) {
+fn take_case(_limits: &w::Limits) -> (w::Ask, people::Ask) {
     use jig_domain_people as p;
     (
         w::Ask::Take(w::Take { project: 3, task: 8 }),
         p::Ask::TakePerson { project: 3, task: 8 },
     )
 }
-fn hand_back_case(limits: &w::Limits) -> (w::Ask, people::Ask) {
+fn hand_back_case(_limits: &w::Limits) -> (w::Ask, people::Ask) {
     use jig_domain_people as p;
     (
         w::Ask::HandBack(w::HandBack { project: 3, task: 8 }),
         p::Ask::HandBackPerson { project: 3, task: 8 },
     )
 }
-fn release_case(limits: &w::Limits) -> (w::Ask, people::Ask) {
+fn release_case(_limits: &w::Limits) -> (w::Ask, people::Ask) {
     use jig_domain_people as p;
     (
         w::Ask::Release(
@@ -334,14 +334,14 @@ fn release_case(limits: &w::Limits) -> (w::Ask, people::Ask) {
         p::Ask::Release { project: 3, task: 8, revision: 6, again: Some(false) },
     )
 }
-fn stop_case(limits: &w::Limits) -> (w::Ask, people::Ask) {
+fn stop_case(_limits: &w::Limits) -> (w::Ask, people::Ask) {
     use jig_domain_people as p;
     (
         w::Ask::Stop(w::Stop { project: 3, task: 8 }),
         p::Ask::Stop { project: 3, task: 8 },
     )
 }
-fn cancel_case(limits: &w::Limits) -> (w::Ask, people::Ask) {
+fn cancel_case(_limits: &w::Limits) -> (w::Ask, people::Ask) {
     use jig_domain_people as p;
     (
         w::Ask::Cancel(
@@ -350,7 +350,7 @@ fn cancel_case(limits: &w::Limits) -> (w::Ask, people::Ask) {
         p::Ask::Cancel { project: 3, task: 8, reason: Box::from(b"cancel".as_slice()), grace: None },
     )
 }
-fn take_over_case(limits: &w::Limits) -> (w::Ask, people::Ask) {
+fn take_over_case(_limits: &w::Limits) -> (w::Ask, people::Ask) {
     use jig_domain_people as p;
     (
         w::Ask::MoveTask(
@@ -359,7 +359,7 @@ fn take_over_case(limits: &w::Limits) -> (w::Ask, people::Ask) {
         p::Ask::Move { project: 3, task: 8, reason: Box::from(b"take".as_slice()) },
     )
 }
-fn set_pool_case(limits: &w::Limits) -> (w::Ask, people::Ask) {
+fn set_pool_case(_limits: &w::Limits) -> (w::Ask, people::Ask) {
     use jig_domain_people as p;
     (
         w::Ask::SetPool(
@@ -368,7 +368,7 @@ fn set_pool_case(limits: &w::Limits) -> (w::Ask, people::Ask) {
         p::Ask::SetPool { project: 3, person: u64::MAX, budget: u64::MAX },
     )
 }
-fn mark_seen_case(limits: &w::Limits) -> (w::Ask, people::Ask) {
+fn mark_seen_case(_limits: &w::Limits) -> (w::Ask, people::Ask) {
     use jig_domain_people as p;
     (
         w::Ask::Seen(
@@ -381,7 +381,7 @@ fn mark_seen_case(limits: &w::Limits) -> (w::Ask, people::Ask) {
         p::Ask::MarkSeen { seen: p::Seen::Conversation { task: 8, through: u64::MAX } },
     )
 }
-fn answer_person_case(limits: &w::Limits) -> (w::Ask, people::Ask) {
+fn answer_person_case(_limits: &w::Limits) -> (w::Ask, people::Ask) {
     use jig_domain_people as p;
     (
         answer(w::AnswerOn::Person(
@@ -401,7 +401,7 @@ fn answer_person_case(limits: &w::Limits) -> (w::Ask, people::Ask) {
         },
     )
 }
-fn decide_proposal_case(limits: &w::Limits) -> (w::Ask, people::Ask) {
+fn decide_proposal_case(_limits: &w::Limits) -> (w::Ask, people::Ask) {
     use jig_domain_people as p;
     (
         decide(w::DecideOn::Proposal(
@@ -425,7 +425,7 @@ fn decide_proposal_case(limits: &w::Limits) -> (w::Ask, people::Ask) {
         },
     )
 }
-fn set_roles_case(limits: &w::Limits, holdings: List<w::Holding>) -> (w::Ask, people::Ask) {
+fn set_roles_case(_limits: &w::Limits, holdings: List<w::Holding>) -> (w::Ask, people::Ask) {
     use jig_domain_people as p;
     (
         w::Ask::SetRoles(w::SetRoles { project: 3, holdings }),
@@ -435,7 +435,7 @@ fn set_roles_case(limits: &w::Limits, holdings: List<w::Holding>) -> (w::Ask, pe
         },
     )
 }
-fn make_service_case(limits: &w::Limits) -> (w::Ask, people::Ask) {
+fn make_service_case(_limits: &w::Limits) -> (w::Ask, people::Ask) {
     use jig_domain_people as p;
     (
         w::Ask::MakeService(
@@ -444,7 +444,7 @@ fn make_service_case(limits: &w::Limits) -> (w::Ask, people::Ask) {
         p::Ask::MakeService { project: 3, name: Box::from(b"service".as_slice()), role: p::Role::Owner },
     )
 }
-fn change_policy_case(limits: &w::Limits) -> (w::Ask, people::Ask) {
+fn change_policy_case(_limits: &w::Limits) -> (w::Ask, people::Ask) {
     use jig_domain_people as p;
     (
         w::Ask::ChangePolicy(
@@ -458,7 +458,7 @@ fn change_policy_case(limits: &w::Limits) -> (w::Ask, people::Ask) {
         p::Ask::ChangePolicy { project: 3, change: p::PolicyChange::ProjectSpend { period_spend: u64::MAX } },
     )
 }
-fn delete_note_case(limits: &w::Limits) -> (w::Ask, people::Ask) {
+fn delete_note_case(_limits: &w::Limits) -> (w::Ask, people::Ask) {
     use jig_domain_people as p;
     (
         w::Ask::DeleteNote(
@@ -479,7 +479,7 @@ fn delete_note_case(limits: &w::Limits) -> (w::Ask, people::Ask) {
         },
     )
 }
-fn edit_note_case(limits: &w::Limits, references: List<u64>) -> (w::Ask, people::Ask) {
+fn edit_note_case(_limits: &w::Limits, references: List<u64>) -> (w::Ask, people::Ask) {
     use jig_domain_people as p;
     (
         w::Ask::EditNote(
@@ -508,7 +508,6 @@ fn edit_note_case(limits: &w::Limits, references: List<u64>) -> (w::Ask, people:
 }
 
 pub fn authority_ask() -> (w::Ask, people::Ask) {
-    let limits = wire();
     let pattern = w::Pattern {
             segments: List::with_capacity(0),
             last: w::PatternEnd::Open(
@@ -517,13 +516,13 @@ pub fn authority_ask() -> (w::Ask, people::Ask) {
         };
     let grant =
         w::Grant { connector: 5, kind: 6, pattern: pattern.clone() };
-    let mut writer = Writer::new(skein_lib::length::usize_of(grant.measure()));
-    grant.encode(&mut writer).expect("grant bytes");
+    let mut writer = Writer::new(skein_lib::length::usize_of(grant.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+    grant.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("grant bytes");
     let bytes = writer.finish();
     let grants = piece(&bytes);
     let resource = w::ResourceScope { connector: 7, pattern };
-    let mut writer = Writer::new(skein_lib::length::usize_of(resource.measure()));
-    resource.encode(&mut writer).expect("scope bytes");
+    let mut writer = Writer::new(skein_lib::length::usize_of(resource.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+    resource.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("scope bytes");
     let bytes = writer.finish();
     let note_resources = piece(&bytes);
     let mut kinds = List::with_capacity(1);
@@ -595,7 +594,6 @@ fn expected_authority() -> people::Ask {
     }
 }
 pub fn malformed_piece() -> w::Ask {
-    let limits = wire();
     w::Ask::ChangePolicy(
         w::ChangePolicy {
                 project: 3,
@@ -689,9 +687,9 @@ pub fn translated(reply: &people::Reply, limits: &w::Limits) -> w::Final {
 pub fn final_record(record: w::KeyedAnswer, limits: &w::Limits) -> w::Final {
     match record {
         w::KeyedAnswer::FinalAnswer(value) => {
-            assert_eq!(value.owner(), &w::Owner::Jig);
-            assert_eq!(value.version(), jig_client_protocol_wire::VERSION);
-            w::Final::decode(limits, &mut skein_lib::Reader::new(value.record())).expect("jig answer")
+            assert_eq!((&value.owner), &w::Owner::Jig);
+            assert_eq!(value.version, jig_client_protocol_wire::VERSION);
+            w::Final::decode(limits, &mut skein_lib::Reader::new(value.record.as_ref())).expect("jig answer")
         }
         other @ (w::KeyedAnswer::NotServed(_)
         | w::KeyedAnswer::Busy

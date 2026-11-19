@@ -1,3 +1,4 @@
+use jig_client_protocol_wire::Record as _;
 use super::fixtures as f;
 use crate::{Event, FromTransport, Message, Reply, Request, ToTransport};
 use jig_client_protocol_wire as w;
@@ -24,8 +25,8 @@ fn encoded(members: &[w::Member]) -> Box<[u8]> {
         list.push(member.clone()).expect("member");
     }
     let value = w::Batch { members: list };
-    let mut bytes = Writer::new(skein_lib::length::usize_of(value.measure()));
-    value.encode(&mut bytes).expect("batch bytes");
+    let mut bytes = Writer::new(skein_lib::length::usize_of(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+    value.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("batch bytes");
     bytes.finish()
 }
 fn send(world: &mut f::Exchange, members: &[w::Member]) -> Token {
@@ -46,8 +47,8 @@ fn part(world: &mut f::Exchange, owner: Token, member: u16) -> Option<Box<[u8]>>
     let Some(Request::Transport(ToTransport::Part { exchange, message })) = world.out.pop() else { panic!("part") };
     assert_eq!(exchange, owner);
     let value = w::BatchReply::decode(&f::wire(), &mut Reader::new(&message)).expect("batch reply");
-    assert_eq!(value.member(), member);
-    value.into_parts().reply
+    assert_eq!(value.member, member);
+    value.reply
 }
 fn done(world: &mut f::Exchange, owner: Token) {
     assert!(world.component.up(&world.env, &mut world.out));

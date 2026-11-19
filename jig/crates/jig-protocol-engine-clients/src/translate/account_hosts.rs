@@ -4,7 +4,7 @@ use jig_domain_people as p;
 use skein_lib::List;
 pub(super) fn encode(
     rows: &[p::AccountHostFailure],
-    limits: &w::Limits,
+    _limits: &w::Limits,
 ) -> Result<List<w::AccountHostFailure>, w::Problem> {
     let Ok(count) = u32::try_from(rows.len()) else { return Err(count_problem_value()) };
     if count > 128 {

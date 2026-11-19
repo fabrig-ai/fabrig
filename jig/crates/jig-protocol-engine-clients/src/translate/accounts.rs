@@ -1,10 +1,11 @@
 //! Whole secret-free accounts documents (client/domain/contract/documents.md, 1; domain/accounts.md, 3–5).
+use jig_client_protocol_wire::Record as _;
 use super::{deployment, owner, pieces, w};
 use alloc::boxed::Box;
 use jig_domain_accounts as a;
 use jig_domain_core_vocabulary::documents as d;
 use skein_lib::{List, Writer};
-pub fn facts(value: &List<a::AccountFact>, limits: &w::Limits) -> Result<List<w::AccountFact>, w::Problem> {
+pub fn facts(value: &List<a::AccountFact>, _limits: &w::Limits) -> Result<List<w::AccountFact>, w::Problem> {
     let mut rows = List::with_capacity(value.len());
     for fact in value {
         let value = match &fact.value {
@@ -37,7 +38,7 @@ pub fn facts(value: &List<a::AccountFact>, limits: &w::Limits) -> Result<List<w:
     }
     Ok(rows)
 }
-pub fn payer(value: a::Use, limits: &w::Limits) -> Result<w::AccountUse, w::Problem> {
+pub fn payer(value: a::Use, _limits: &w::Limits) -> Result<w::AccountUse, w::Problem> {
     Ok(match value {
         a::Use::Party(party) => {
             w::AccountUse::Party(w::AccountUseParty { party })
@@ -47,7 +48,7 @@ pub fn payer(value: a::Use, limits: &w::Limits) -> Result<w::AccountUse, w::Prob
         }
     })
 }
-pub fn holder(value: a::Holder, limits: &w::Limits) -> Result<w::AccountHolder, w::Problem> {
+pub fn holder(value: a::Holder, _limits: &w::Limits) -> Result<w::AccountHolder, w::Problem> {
     Ok(match value {
         a::Holder::Deployment => w::AccountHolder::Deployment,
         a::Holder::Party(party) => {
@@ -77,7 +78,7 @@ fn key_failure(value: a::KeyFailure) -> w::AccountKeyFailure {
         a::KeyFailure::NotStored => w::AccountKeyFailure::NotStored,
     }
 }
-pub fn refusal(value: a::Refusal, limits: &w::Limits) -> Result<w::AccountRefusal, w::Problem> {
+pub fn refusal(value: a::Refusal, _limits: &w::Limits) -> Result<w::AccountRefusal, w::Problem> {
     Ok(match value {
         // A finish refusal leaves the sign-in waiting, so it never ends an accounts watch's sign-in.
         a::Refusal::SignInRedirect { .. } => unreachable!("a redirect refusal is only a finish answer"),
@@ -105,7 +106,7 @@ pub fn refusal(value: a::Refusal, limits: &w::Limits) -> Result<w::AccountRefusa
         a::Refusal::NotStarted => w::AccountRefusal::NotStarted,
     })
 }
-pub fn failure(value: a::Failure, limits: &w::Limits) -> Result<w::AccountFailure, w::Problem> {
+pub fn failure(value: a::Failure, _limits: &w::Limits) -> Result<w::AccountFailure, w::Problem> {
     Ok(match value {
         a::Failure::Later { after } => {
             w::AccountFailure::Later(w::AccountFailureLater { after })
@@ -164,8 +165,8 @@ pub fn source_pieces(
     let mut encoded = List::with_capacity(value.len());
     for row in value {
         let row = source(row, limits)?;
-        let mut out = Writer::new(skein_lib::length::usize_of(row.measure()));
-        row.encode(&mut out).expect("measured account source");
+        let mut out = Writer::new(skein_lib::length::usize_of(row.measure(limits)?));
+        row.write(limits, &mut out).expect("measured account source");
         encoded.push(out.finish()).expect("supplied source pieces fit");
     }
     pieces(&encoded, bound, path)
@@ -194,16 +195,16 @@ pub fn document(value: &d::Accounts, limits: &w::Limits) -> Result<w::Accounts, 
     let mut accounts = List::with_capacity(value.accounts.len());
     for row in &value.accounts {
         let row = line(row, limits)?;
-        let mut out = Writer::new(skein_lib::length::usize_of(row.measure()));
-        row.encode(&mut out).expect("measured account line");
+        let mut out = Writer::new(skein_lib::length::usize_of(row.measure(limits)?));
+        row.write(limits, &mut out).expect("measured account line");
         accounts.push(out.finish()).expect("supplied account pieces fit");
     }
     let accounts = pieces(&accounts, limits.accounts_accounts, w::paths::ACCOUNTS_ACCOUNTS)?;
     let mut signing = List::with_capacity(value.signing.len());
     for row in &value.signing {
         let row = w::AccountSignIn { source: row.source, provider: row.provider, holder: holder(row.holder, limits)? };
-        let mut out = Writer::new(skein_lib::length::usize_of(row.measure()));
-        row.encode(&mut out).expect("measured sign-in line");
+        let mut out = Writer::new(skein_lib::length::usize_of(row.measure(limits)?));
+        row.write(limits, &mut out).expect("measured sign-in line");
         signing.push(out.finish()).expect("supplied sign-in pieces fit");
     }
     let signing = pieces(&signing, limits.accounts_signing, w::paths::ACCOUNTS_SIGNING)?;
@@ -234,7 +235,7 @@ pub fn document(value: &d::Accounts, limits: &w::Limits) -> Result<w::Accounts, 
 }
 
 /// Public history only, without the child's model-name bits.
-pub fn list(value: Option<&d::AccountList>, limits: &w::Limits) -> Result<Option<w::AccountList>, w::Problem> {
+pub fn list(value: Option<&d::AccountList>, _limits: &w::Limits) -> Result<Option<w::AccountList>, w::Problem> {
     let Some(value) = value else {
         return Ok(None);
     };
@@ -263,7 +264,8 @@ pub fn list(value: Option<&d::AccountList>, limits: &w::Limits) -> Result<Option
         }))
 }
 
-pub(crate) fn terminal_login(value: &a::TerminalLogin, limits: &w::Limits) -> Result<w::TerminalLogin, w::Problem> {
+#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
+pub(crate) fn terminal_login(value: &a::TerminalLogin, _limits: &w::Limits) -> Result<w::TerminalLogin, w::Problem> {
     Ok(w::TerminalLogin {
             number: value.number,
             provider: value.provider,
@@ -279,7 +281,8 @@ pub(crate) fn terminal(value: Option<&a::TerminalLogin>, limits: &w::Limits) -> 
             },
         })
 }
-fn login_exit(value: a::LoginExit, limits: &w::Limits) -> Result<w::LoginExit, w::Problem> {
+#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
+fn login_exit(value: a::LoginExit, _limits: &w::Limits) -> Result<w::LoginExit, w::Problem> {
     Ok(match value {
         a::LoginExit::Exited { code } => {
             w::LoginExit::Exited(w::LoginExitExited { code })
