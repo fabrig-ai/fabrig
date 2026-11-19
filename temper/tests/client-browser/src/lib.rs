@@ -21,6 +21,7 @@ mod history;
 mod issuer;
 mod public;
 pub mod reading;
+mod scripted;
 mod story;
 pub use history::{page_opens, reader_opens};
 pub use story::Stories;
@@ -153,10 +154,18 @@ pub fn first_chat_steps(words: &[u8]) -> Vec<Step> {
 /// Choose the playground at the printed link's welcome and await its ready project.
 #[must_use]
 pub fn playground_ready() -> Vec<Step> {
+    playground_button(b"Try the playground")
+}
+/// Choose the playground from Forge after the world's model account is connected.
+#[must_use]
+pub fn scripted_playground_ready() -> Vec<Step> {
+    playground_button(b"Try the playground instead")
+}
+fn playground_button(button: &[u8]) -> Vec<Step> {
     let see = |find| Step::Person(PersonStep::See { find, within: WITHIN });
     vec![
-        see(Find::exactly_named(Role::Button, b"Try the playground")),
-        Step::Person(PersonStep::Press { find: Find::exactly_named(Role::Button, b"Try the playground") }),
+        see(Find::exactly_named(Role::Button, button)),
+        Step::Person(PersonStep::Press { find: Find::exactly_named(Role::Button, button) }),
         see(Find::exactly_named(Role::Region, b"Playground")),
         Step::Person(PersonStep::Gone { find: Find::exactly_named(Role::Status, b"Starting"), within: WITHIN }),
         see(Find::exactly_named(Role::Status, b"Ready")),
@@ -265,18 +274,16 @@ impl Tier {
         configuration::private(&path, &serde_json::to_vec(&value).expect("private bundle JSON"));
         tier.with_replies(&reading::replies())
     }
-    /// Script the demo model's replies, with each cue selecting one whole answer.
+    /// Script the world's standalone model, with each cue selecting one whole answer.
     #[must_use]
     fn with_replies(self, replies: &[(String, String)]) -> Self {
-        let path = self.scratch.path().join("temper.json");
-        let mut value = temper_playground::documents::Configuration::from_jig(
-            serde_json::from_slice(&fs::read(&path).expect("deployment")).expect("JSON"),
-        );
-        reading::configure(&mut value, replies);
-        configuration::private(&path, &serde_json::to_vec(&value).expect("scripted demo JSON"));
+        // Two activity rows per page keep the earlier position reply out of the
+        // opening read, even though its whole history fits one retained window.
+        scripted::limits(self.scratch.path(), &[("documents.rows", 2)]);
+        scripted::write(self.scratch.path(), &reading::configure(replies));
         self
     }
-    /// The box's demo with one suggested request's scripted turns replaced.
+    /// The box's demo and a standalone model with one request's scripted turns replaced.
     #[must_use]
     pub fn demo_asked(name: &str, cue: &str, turns: serde_json::Value) -> Self {
         let tier = Self::demo(name);

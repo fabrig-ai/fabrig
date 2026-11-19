@@ -376,25 +376,18 @@ fn own_demo_listeners(value: &mut serde_json::Value) {
 
 /// Replace the turns of exactly one request offered by the demo.
 pub(crate) fn demo_asked(directory: &Path, cue: &str, turns: serde_json::Value) {
-    let path = directory.join("temper.json");
-    let mut value = temper_playground::documents::Configuration::from_jig(
-        serde_json::from_slice(&fs::read(&path).expect("demo deployment")).expect("JSON"),
-    );
-    let scripts = value["application"]["demo"]["llm"]["asked"].as_array_mut().expect("asked scripts");
+    let mut value: serde_json::Value = serde_json::from_slice(temper_fake::demo::SCRIPTS).expect("embedded scripts");
+    let scripts = value["asked"].as_array_mut().expect("asked scripts");
     let script = scripts.iter_mut().find(|script| script["cue"] == cue).expect("offered demo request");
     script["turns"] = turns;
-    private(&path, &serde_json::to_vec(&value).expect("scripted demo JSON"));
+    crate::scripted::write(directory, &value);
 }
 
 /// Public reading's demo alone (temper/docs/design/protocol/sign-in.md, 2.4;
 /// jig/docs/design/domain/people/public-reading.md, 7). Its two-second freshness is the walk's subject.
 pub(crate) fn public_demo(directory: &Path, program: &Path, bundle: &Path) {
     demo(directory, program, bundle);
-    let path = directory.join("temper.json");
-    let mut value = temper_playground::documents::Configuration::from_jig(
-        serde_json::from_slice(&fs::read(&path).expect("public demo deployment")).expect("JSON"),
-    );
-    for (name, figure) in [
+    let figures = [
         ("clients.public.rate", 20),
         ("clients.public.rate_burst", 20),
         ("clients.public.bytes", 2_097_152),
@@ -408,11 +401,11 @@ pub(crate) fn public_demo(directory: &Path, program: &Path, bundle: &Path) {
         ("core.public.ended", 20),
         ("core.public.lines", 50),
         ("core.public.depth", 16),
-    ] {
-        value.jig_over(name, figure);
-    }
+    ];
+    crate::scripted::limits(directory, &figures);
+    let mut value: serde_json::Value = serde_json::from_slice(temper_fake::demo::SCRIPTS).expect("embedded scripts");
     let mut delegates = 0_u32;
-    for script in value["application"]["demo"]["llm"]["asked"].as_array_mut().expect("asked scripts") {
+    for script in value["asked"].as_array_mut().expect("asked scripts") {
         if script["cue"] != "Add CSV export to widget" {
             continue;
         }
@@ -429,7 +422,7 @@ pub(crate) fn public_demo(directory: &Path, program: &Path, bundle: &Path) {
         }
     }
     assert_eq!(delegates, 1, "one CSV delegate becomes a public goal");
-    private(&path, &serde_json::to_vec(&value).expect("public demo JSON"));
+    crate::scripted::write(directory, &value);
 }
 
 /// Move socket strings and HTTP origins, preserving URL paths and leaving longer port numbers alone.
