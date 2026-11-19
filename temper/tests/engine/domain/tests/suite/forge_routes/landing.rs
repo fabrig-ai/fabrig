@@ -562,6 +562,32 @@ fn dependent_pair(same_repository: bool) -> (World, u64, u64) {
     (world, a, b)
 }
 
+// A full batch is these stories' setup: finish its restart reads before giving
+// the train room, so no waiting member is excluded (domain/landing.md, 9).
+fn restart_waiting_batch(world: &mut World, batch: u16, changes: &[u64]) {
+    world.restart_with_batch(batch);
+    world.root.hold_landings(true);
+    for _ in 0..PAIR_TICKS {
+        world.tick();
+        if batch_waiting(world, changes) {
+            break;
+        }
+    }
+    assert!(batch_waiting(world, changes), "the restored batch settles while forming is held");
+    world.root.hold_landings(false);
+}
+
+fn batch_waiting(world: &World, changes: &[u64]) -> bool {
+    world.root.ready()
+        && changes.iter().all(|change| {
+            world.root.tasks().task(*change).is_some()
+                && world.root.tasks().procedure_due(*change).is_none()
+                && world.store.change(*change).is_some_and(|row| {
+                    matches!(row.change.state, temper_engine_domain_forge_change::State::Ready { .. })
+                })
+        })
+}
+
 fn landing_rows(world: &World) -> Vec<&forge_top::LandingRow> {
     world
         .store

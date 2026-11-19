@@ -344,6 +344,42 @@ fn end_at_read_boundary(domain: &mut Domain, env: &Env<Limits>, task: u64) {
 }
 
 #[test]
+fn a_step_begun_before_readiness_settles_its_coalesced_wake_before_forming() {
+    let (mut domain, env) = ready_changes(&[7, 8], 3);
+    let mut row = domain.forge.change(8).unwrap().clone();
+    row.change.state = change::State::Gating { head: super::SHA1, asked: Box::new([]) };
+    forge::step(
+        &mut domain.forge,
+        &crate::translate::environment_forge(&env),
+        forge::Event::Restore { record: forge::Stored::Change(Box::new(row.clone())) },
+        &mut Queue::uncapped(),
+    );
+    wake(&mut domain, &env, 8);
+    let context = domain.core.tasks.run_context(8).unwrap();
+    assert!(super::super::start_change(&mut domain, &env, &context));
+    super::judge_trains(&mut domain, &env);
+    assert!(domain.forge.change(7).unwrap().change.landing.is_none());
+    // A second wake reaches the same step before its readiness read completes.
+    domain.work.push(Work::Tasks(tasks::Event::WakeProcedure { task: 8 }));
+    row.change.state = change::State::Ready { head: super::SHA1, ready_since: env.wall };
+    domain.work.push(Work::Forge(forge::Event::Restore { record: forge::Stored::Change(Box::new(row)) }));
+    ready_answer(&mut domain, 8);
+    super::judge_trains(&mut domain, &env);
+    assert!(domain.core.tasks.procedure_due(8).is_some(), "the readiness step has a coalesced wake");
+    assert!(domain.forge.change(7).unwrap().change.landing.is_none(), "the newly ready member still settles");
+    ready_answer(&mut domain, 8);
+    super::judge_trains(&mut domain, &env);
+    let formed = domain.forge.change(7).unwrap().change.landing.expect("both readiness reads settled");
+    assert_eq!(members(&domain, formed).as_ref(), [7, 8]);
+}
+
+fn ready_answer(domain: &mut Domain, task: u64) {
+    let mut out = Queue::uncapped();
+    out.push(forge::Request::ChangeDecision { task, decision: change::Decision::Ready, entry: None, evidence: None });
+    domain.work.push(Work::ForgeSettings(out));
+}
+
+#[test]
 fn due_ready_and_gating_changes_do_not_hold_another_branchs_train() {
     for due in [7, 8] {
         for gating in [false, true] {
