@@ -382,20 +382,15 @@ fn after_inbox(domain: &mut Domain, env: &Env<Limits>, number: u64, pause: bool,
 
 /// A park waking on leftover words or entries pauses before claiming again
 /// (jig/docs/design/domain/tasks/messages.md, 3). Other ends keep their wake handling.
-pub(crate) fn after_run(
-    domain: &mut Domain,
-    env: &Env<Limits>,
-    number: u64,
-    parked: bool,
-    out: &mut Queue<Request>,
-) {
+pub(crate) fn after_run(domain: &mut Domain, env: &Env<Limits>, number: u64, parked: bool, out: &mut Queue<Request>) {
     let task = task_mut(domain, number).expect("answered task live");
     let refused = core::mem::replace(&mut task.record.refused, Box::new([]));
     let offered = task.record.offered;
-    let pause = parked && match task.record.executor {
-        crate::Executor::Agent { .. } => true,
-        crate::Executor::Procedure { .. } | crate::Executor::Person(_) | crate::Executor::Job { .. } => false,
-    };
+    let pause = parked
+        && match task.record.executor {
+            crate::Executor::Agent { .. } => true,
+            crate::Executor::Procedure { .. } | crate::Executor::Person(_) | crate::Executor::Job { .. } => false,
+        };
     if record(domain, number).expect("answered task live").phase == Phase::Active(Active::Idle) {
         after_inbox(domain, env, number, pause, out);
     }

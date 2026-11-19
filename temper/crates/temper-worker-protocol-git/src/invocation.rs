@@ -56,20 +56,48 @@ pub enum Command {
         commit: git::Commit,
     },
     Version,
-    Origin { directory: Box<[u8]> },
-    Clone { directory: Box<[u8]>, format: Format, bare: bool },
-    Remote { remote: Box<[u8]>, format: Format },
-    Store { directory: Box<[u8]>, remote: Box<[u8]> },
-    UpdateRef { into: git::Into, commit: git::Commit },
-    Fetch { remote: Box<[u8]>, source: Source, into: git::Into, workspace: Token },
-    Create { remote: Box<[u8]>, branch: Box<[u8]>, commit: git::Commit },
-    CheckOut { commit: git::Commit },
+    Origin {
+        directory: Box<[u8]>,
+    },
+    Clone {
+        directory: Box<[u8]>,
+        format: Format,
+        bare: bool,
+    },
+    Remote {
+        remote: Box<[u8]>,
+        format: Format,
+    },
+    Store {
+        directory: Box<[u8]>,
+        remote: Box<[u8]>,
+    },
+    UpdateRef {
+        into: git::Into,
+        commit: git::Commit,
+    },
+    Fetch {
+        remote: Box<[u8]>,
+        source: Source,
+        into: git::Into,
+        workspace: Token,
+    },
+    Create {
+        remote: Box<[u8]>,
+        branch: Box<[u8]>,
+        commit: git::Commit,
+    },
+    CheckOut {
+        commit: git::Commit,
+    },
     Clean,
     Merge {
         theirs: git::Commit,
     },
     Unmerged,
-    UpdateIndex { paths: Box<[u8]> },
+    UpdateIndex {
+        paths: Box<[u8]>,
+    },
     Add,
     DiffIndex {
         parent: git::Commit,

@@ -11,6 +11,6 @@ mod stores;
 
 mod reds;
 
-mod view;
 mod pack;
 mod pack_locks;
+mod view;

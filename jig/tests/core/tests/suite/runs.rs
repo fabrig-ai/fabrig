@@ -46,10 +46,7 @@ fn a_chat_answers_parks_and_resumes() {
         [Box::<[u8]>::from(&b"first opaque turn"[..]), Box::<[u8]>::from(&b"second opaque turn"[..])]
     );
     let task = third.task;
-    assert!(matches!(
-        activity(&world).last(),
-        Some(tasks::Line::RunBegan { resumed: true, fresh: None, .. })
-    ));
+    assert!(matches!(activity(&world).last(), Some(tasks::Line::RunBegan { resumed: true, fresh: None, .. })));
     assert_eq!(world.spent(), 5, "each attempt's accepted spend is charged once");
     world.end(
         tasks::End::Finished {
@@ -462,8 +459,10 @@ fn a_refused_message_survives_a_later_fence_and_wakes_its_task_as_the_run_parks(
     world.turn_refusing(1, 1, Some(second), &[first], b"reads the second words only");
     park_chat(&mut world, 1);
     let task = assigned_chat(&world).task;
-    assert!(matches!(jig_core_world::fixtures::live_row(&world, task).phase,
-        tasks::Phase::Active(tasks::Active::BackingOff { .. })));
+    assert!(matches!(
+        jig_core_world::fixtures::live_row(&world, task).phase,
+        tasks::Phase::Active(tasks::Active::BackingOff { .. })
+    ));
     assert_eq!(assigned_chat(&world).attempt, attempt);
     world.retry_due();
     assert_eq!(jig_core_world::fixtures::live_row(&world, task).due_reason, tasks::Why::Message { message: first });
@@ -480,8 +479,10 @@ fn a_message_left_unread_wakes_its_task_as_the_run_parks() {
     let attempt = assigned_chat(&world).attempt;
     park_chat(&mut world, 1);
     let task = assigned_chat(&world).task;
-    assert!(matches!(jig_core_world::fixtures::live_row(&world, task).phase,
-        tasks::Phase::Active(tasks::Active::BackingOff { .. })));
+    assert!(matches!(
+        jig_core_world::fixtures::live_row(&world, task).phase,
+        tasks::Phase::Active(tasks::Active::BackingOff { .. })
+    ));
     assert_eq!(assigned_chat(&world).attempt, attempt);
     world.retry_due();
     assert_eq!(jig_core_world::fixtures::live_row(&world, task).due_reason, tasks::Why::Message { message: unread });
