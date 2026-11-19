@@ -2,7 +2,7 @@
 //! Git's earlier check defers stdout here, where both links' rooms are known.
 use crate::{settings, worker_settings::Limits};
 use jig_protocol_config::{self as config, Path};
-use temper_protocol_worker_wire::v1 as payload;
+use temper_protocol_worker_wire::v1::{self as payload, Record};
 use temper_service_core::derived::{checkout_answer as answer, checkout_payload as payload};
 use temper_service_core::startup::problems::{Problems, What};
 

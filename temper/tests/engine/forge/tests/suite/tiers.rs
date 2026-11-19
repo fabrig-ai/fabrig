@@ -625,6 +625,7 @@ fn assert_red_news(
             subscription: SUBSCRIPTION,
             topic: top::Topic::Landings { repository: REPO, branch },
             news: top::News::Red(top::RedNews {
+                many: None,
                 tier: b"browser".as_slice().into(),
                 run: 2,
                 url: red.url.clone(),

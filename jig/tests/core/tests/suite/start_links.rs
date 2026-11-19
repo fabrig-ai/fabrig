@@ -6,7 +6,7 @@ use jig_core_world::world::World;
 use jig_core_world::world::fixture;
 use jig_domain_core::{
     self as core,
-    start::{Action, Phase, SweepInput},
+    start::{Action, Phase},
 };
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
@@ -62,18 +62,8 @@ impl Harness {
         self.core.start_done(&self.env, Phase::Link, &mut self.out)
     }
 
-    fn open(&mut self, mut action: Action) {
-        for _ in 0..32 {
-            action = match action {
-                Action::Step(Phase::Sweep) => self.core.start_sweep(&self.env, SweepInput::Finished, &mut self.out),
-                Action::Step(done) => self.core.start_done(&self.env, done, &mut self.out),
-                Action::Commit(token) => self.core.start_resume(&self.env, token, &mut self.out),
-                Action::Idle => return,
-                Action::Refused(failure) => panic!("stored start fits: {failure:?}"),
-            };
-            self.out.clear();
-        }
-        panic!("bounded start opens");
+    fn open(&mut self, action: Action) {
+        crate::first_support::open(&mut self.core, &self.env, &mut self.out, action);
     }
 }
 
@@ -163,18 +153,6 @@ fn recurring_lifetime_count_past_live_capacity_survives_start_link() {
 pub(super) fn recovered(world: &World, config: core::Config, env: &Env<core::Limits>) -> core::Core {
     let mut harness = Harness::stored_with(world, config, env.with(env.limits));
     let action = harness.link();
-    harness.open(action);
-    assert!(harness.core.start_opened());
-    harness.core
-}
-
-pub(super) fn first(config: core::Config, env: &Env<core::Limits>) -> core::Core {
-    let mut harness = Harness {
-        core: core::Core::new(config, &env.limits).expect("configured core"),
-        env: env.with(env.limits),
-        out: Queue::uncapped(),
-    };
-    let action = harness.core.start_begin(false, harness.env.wall);
     harness.open(action);
     assert!(harness.core.start_opened());
     harness.core
@@ -277,3 +255,5 @@ fn a_store_that_fails_a_link_refuses_the_start_naming_both() {
         assert!(!world.restart_steps.contains(&Phase::Sweep), "{name}");
     }
 }
+
+pub(super) use crate::first_support::first;

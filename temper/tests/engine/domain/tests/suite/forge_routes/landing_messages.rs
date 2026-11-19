@@ -1,6 +1,7 @@
 //! The root delegates the producer's member messages, with Goal only on merges into main.
 use super::super::goal_landing::{producing_into_goal, row};
 use super::*;
+use temper_protocol_worker_wire::v1::Record as WorkerRecord;
 
 const TITLE: &[u8] = b"Add the squash trailers";
 const WORDS: &[u8] = b"Squashes each change.\n\nMore text.";
@@ -75,8 +76,8 @@ fn delegated_messages(into_main: bool) {
         &mut skein_lib::Reader::new(&job.spec),
     )
     .expect("delegated prepare spec");
-    assert_eq!(spec.command(), b"");
-    let request: serde_json::Value = serde_json::from_slice(spec.request()).expect("prepare request JSON");
+    assert_eq!(spec.command.as_ref(), b"");
+    let request: serde_json::Value = serde_json::from_slice(spec.request.as_ref()).expect("prepare request JSON");
     let pull = row(&world, change).pull.expect("member's pull request");
     assert_eq!(row(&world, change).goal, Some(goal.task));
     assert_eq!(row(&world, change).milestone, None, "a plain goal has no milestone");

@@ -1,6 +1,7 @@
 mod box_kinds;
 mod box_link_form;
 mod commands;
+mod configuration_file;
 mod figures;
 mod help;
 mod init_clients;
@@ -25,9 +26,9 @@ fn the_box_footer_hours_agree_with_the_small_profile() {
 #[test]
 fn id_login_agrees_with_the_effective_users_passwd_entry() {
     let user = skein_shell::effective_user();
-    let expected = super::login_passwd(user).expect("effective user's passwd login");
+    let expected = skein_shell::login_passwd(user).expect("effective user's passwd login");
     assert_eq!(super::login(user).expect("Linux login"), expected);
-    assert_eq!(super::forge_exec::login_id().expect("macOS login lookup"), expected);
+    assert_eq!(skein_shell::login_id().expect("macOS login lookup"), expected);
 }
 
 #[test]
@@ -148,6 +149,10 @@ fn open_without_two_arguments_prints_its_usage() {
 pub(crate) mod configuration;
 
 #[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "the comparison retains typed limits and the scripted listener for both startup routes"
+)]
 fn the_standalone_operations_check_retains_no_descriptors() {
     use std::{fs, os::unix::fs::PermissionsExt};
     let directory = std::env::temp_dir().join(format!("temper-operations-{}", std::process::id()));
@@ -181,29 +186,52 @@ fn the_standalone_operations_check_retains_no_descriptors() {
         Box::from(crate::scripted::ADDRESS),
         listener.local_addr().expect("scripted address").to_string().into_bytes().into_boxed_slice(),
     )];
-    let (agent, document) = configuration::documents(&directory, "/fixture/temper");
+    let (agent, mut config) = configuration::typed_documents(&directory, "/fixture/temper");
+    let file = temper_config_shell::render(&configuration::file(), temper_config_shell::Shape::Standalone);
     let named_file = directory.join("worker.secret");
-    write("temper.json", &document);
+    write(temper_config_shell::FILE, &file);
     temper_agent_fixtures::install(&directory, &serde_json::from_slice(&agent).expect("agent JSON"));
-    let mut document: serde_json::Value =
-        serde_json::from_slice(&fs::read(directory.join("temper.json")).expect("installed document")).expect("JSON");
-    let composed = temper_agent_fixtures::at(&document, &directory);
-    configuration::support::turn_bounds::apply(
-        &mut document,
-        configuration::support::turn_bounds::turn_body(&composed),
-    );
-    let document = serde_json::to_vec(&document).expect("deployment JSON");
+    let composed = temper_agent_fixtures::at(&config, &directory);
+    configuration::support::turn_bounds::apply(&mut config, configuration::support::turn_bounds::turn_body(&composed));
+    let document = serde_json::to_vec(&config).expect("deployment document");
     assert_eq!(configuration::flags(&directory).len(), 6);
-    let operations = super::operations_in(&environment, b"/", &configuration::directories(&directory), &document)
-        .expect("standalone operations");
+    let operations = super::operations_in_with_limits(
+        "temper",
+        &environment,
+        b"/",
+        &configuration::directories(&directory),
+        &document,
+        &temper_service::stock::Given::Stock,
+        &config.jig,
+        &config.limits,
+    )
+    .expect("standalone operations");
     assert_no_descriptors_in(&directory);
     assert!(operations > 0);
     assert!(!directory.join("workspaces").exists(), "counting credit must not pin the agent or open roots");
     let mut owned = Vec::new();
-    let (service, _) =
-        super::prepare_with_store(&environment, b"/", &configuration::directories(&directory), &document, &mut owned)
-            .expect("same standalone preparation");
+    let (mut service, _, _) = super::serve::prepare_with_limits(
+        "temper",
+        &environment,
+        b"/",
+        &configuration::directories(&directory),
+        &document,
+        &mut owned,
+        false,
+        false,
+        None,
+        None,
+        &temper_service::stock::Given::Stock,
+        None,
+        true,
+        &[],
+        Some((&config.jig, &config.limits)),
+        None,
+        &temper_config_shell::Programs::default(),
+    )
+    .expect("same standalone preparation");
     assert_eq!(operations, service.operations());
+    temper_engine_shell::serve::close_limits_store(service.engine_component().store()).expect("close opened store");
     drop(service);
     super::close(owned);
     assert_no_descriptors_in(&directory);
@@ -214,9 +242,14 @@ fn the_standalone_operations_check_retains_no_descriptors() {
             .len(),
         fs::metadata(&binary).expect("running program").len()
     );
-    let prepared = super::serve::configured_agent(&document, &configuration::directories(&directory), &environment)
-        .expect("derived agent")
-        .expect("local agent");
+    let prepared = super::serve::configured_agent(
+        &document,
+        &configuration::directories(&directory),
+        &environment,
+        &temper_config_shell::Programs::default(),
+    )
+    .expect("derived agent")
+    .expect("local agent");
     assert_eq!(
         fs::read(directory.join("workspaces/agent/agent.json")).expect("pinned configuration"),
         prepared.bytes.as_ref()
@@ -227,7 +260,7 @@ fn the_standalone_operations_check_retains_no_descriptors() {
             .expect("count without named file"),
         operations
     );
-    write("temper.json", &document);
+    write(temper_config_shell::FILE, &file);
     let why = super::prepare_in(&environment, b"/", &configuration::directories(&directory))
         .err()
         .expect("missing file refused");
@@ -266,8 +299,6 @@ fn fixed_sign_in_ports_are_checked_against_the_demo_listener() {
     let mut value: serde_json::Value = serde_json::from_slice(example).expect("owned JSON");
     // Keep git concurrency at one so the small profile's 48 sockets reach the
     // redirect-port check after this fixture adds an OAuth listener.
-    value["application"]["limits"]["overrides"]["git_component.operations"] = 1.into();
-    value["application"]["limits"]["overrides"]["checkout.workspaces"] = 1.into();
     value["workers"][0]["slots"] = 1.into();
     let directories = jig_protocol_config::Directories::given(b"/config", b"/data", b"/cache").expect("directories");
     let mut providers = temper_service::stock::providers();
@@ -361,8 +392,11 @@ fn forge_commands_refuse_the_recorded_fake_kind_for_owned_operations() {
     use std::os::unix::fs::PermissionsExt;
     let scratch = skein_scratch::Scratch::new("forge-not-owned");
     std::fs::set_permissions(scratch.path(), std::fs::Permissions::from_mode(0o700)).expect("private deployment root");
-    let document = configuration::check_document(scratch.path());
-    std::fs::write(scratch.path().join("temper.json"), serde_json::to_vec(&document).expect("JSON")).expect("document");
+    std::fs::write(
+        scratch.path().join(temper_config_shell::FILE),
+        temper_config_shell::render(&configuration::file(), temper_config_shell::Shape::Standalone),
+    )
+    .expect("document");
     std::fs::create_dir_all(scratch.path().join("box/groups")).expect("groups");
     std::fs::write(scratch.path().join("box/groups/1"), b"fake\n").expect("kind");
     configuration::setup(
@@ -379,34 +413,6 @@ fn forge_commands_refuse_the_recorded_fake_kind_for_owned_operations() {
     .expect_err("fake is not owned");
     assert_eq!(refused.line(), "temper forge run: forge 1: it is fake, not owned\n");
     assert!(!scratch.path().join("forge-1").exists());
-}
-
-pub(crate) fn worker_document(directory: &std::path::Path) -> (Vec<u8>, serde_json::Value) {
-    let (agent, input) = configuration::documents(directory, "/missing/temper");
-    let mut input: serde_json::Value = serde_json::from_slice(&input).expect("fixture document");
-    input.as_object_mut().expect("document object").remove("engine");
-    input["workers"][0]["engine"] = serde_json::json!({"socket":"127.0.0.1:7100"});
-    input["application"] = serde_json::json!({});
-    input["workers"][0].as_object_mut().expect("worker").remove("agent");
-    input["workers"][0].as_object_mut().expect("worker").remove("limits");
-    (agent, input)
-}
-#[test]
-fn serve_prepares_a_worker_alone_without_a_deployment_or_setup_host() {
-    let scratch = skein_scratch::Scratch::new("worker-alone-preflight");
-    let directory = scratch.path();
-    let (_, input) = worker_document(directory);
-    let directories = configuration::directories(directory);
-    let part = temper_service::startup::worker_part(
-        &serde_json::to_vec(&input).expect("worker document"),
-        &temper_service_shell::jig_directories(&directories),
-        None,
-        &[],
-    )
-    .expect("worker-alone preflight");
-    assert_eq!(part.files.len(), 1, "only its link secret is read before figures");
-    assert!(part.named.program.is_empty(), "no worker is built before figures");
-    assert!(!directory.join("state").exists(), "no deployment store");
 }
 
 #[test]

@@ -54,6 +54,7 @@ pub enum WalkFailure {
 pub enum DecodeFailure {
     Key,
     Value,
+    Lowered(crate::codec::Lowered),
     KeyValueDisagree,
 }
 

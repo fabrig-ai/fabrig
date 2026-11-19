@@ -1,5 +1,6 @@
 //! The root's typed settings routes (temper/docs/design/domain/routing.md, 6;
 //! temper/docs/design/protocol/configuration/settings.md, 2).
+mod limit_reads;
 use super::*;
 use crate::{Domain, KindValue, Limits as RootLimits, Work};
 use jig_domain_authority as authority;

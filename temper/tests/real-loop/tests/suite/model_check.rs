@@ -22,12 +22,11 @@ fn a_trial_runs_through_the_worker_and_the_fake_model() {
             configure: |document, _, _| {
                 // The trial's 64-byte report and the fixture's project and
                 // period/pool room fit this story.
-                let limits = &mut document["engine"]["limits"]["overrides"];
-                limits["tasks.result_bytes"] = 64.into();
-                limits["tasks.funders"] = 6.into();
-                limits["people.projects"] = 3.into();
-                limits["people.holdings"] = 2.into();
-                limits["authority.projects"] = 2.into();
+                document.jig_over("tasks.result_bytes", 64);
+                document.jig_over("tasks.funders", 6);
+                document.jig_over("people.projects", 3);
+                document.jig_over("people.holdings", 2);
+                document.jig_over("authority.projects", 2);
             },
             ..forge::fixture()
         },

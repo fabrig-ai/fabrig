@@ -11,6 +11,7 @@ skein-fail-stop.workspace = true
 temper-shell.workspace = true
 skein-io.workspace = true
 skein-shell.workspace = true
+skein-tls.workspace = true
 skein-ui.workspace = true
 skein-ui-screen.workspace = true
 skein-ui-screen-terminal.workspace = true

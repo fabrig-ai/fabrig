@@ -472,6 +472,7 @@ fn stopping_continues_projection_deferred_finishing_without_new_commits() {
                 Request::Restarting { .. } => panic!("an unsettled stop says no restart"),
                 Request::Party(crate::PartyRequest::Deliver(crate::Delivery::WebReply { .. })) => {}
                 other @ (Request::Setup { .. }
+                | Request::LimitSettingsCommitted { .. }
                 | Request::ForgeKept(_)
                 | Request::ForgeGone { .. }
                 | Request::ChoosePlace { .. }

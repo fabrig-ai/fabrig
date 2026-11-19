@@ -32,6 +32,7 @@ pub(crate) fn configuration(source: &root::Config) -> root::Config {
             grants: core.grants.clone(),
             kinds: core.kinds.clone(),
             defaults: core::settings::Defaults {
+                limits: core.defaults.limits.clone(),
                 providers: core.defaults.providers.clone(),
                 workers: core.defaults.workers.clone(),
                 models: core.defaults.models.clone(),

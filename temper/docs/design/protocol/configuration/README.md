@@ -15,6 +15,12 @@ document says what temper adds. What is open is listed in `README.md`, section 9
 
 ## 1. In one page
 
+- **A person writes `temper.toml`** (`file.md`): a few lines of TOML,
+  one file per binary, read through one table. The JSON document this
+  document gives is the start's document the file gives (`file.md`,
+  section 4), built by the code and never a file; `temper.json` is
+  refused by name. Where a section here says a person writes a member
+  or `temper.json`, `file.md` wins.
 - **One document per `temper-box serve`,** in jig's shape: three top-level
   members, `engine` (jig's engine part), `workers` (jig's worker parts)
   and `application` (temper's members). Nothing else at the top level.
@@ -77,7 +83,10 @@ document says what temper adds. What is open is listed in `README.md`, section 9
 - **One format rule** for temper's typed members: member names are the
   Rust field names, and the parser follows the types (section 8).
 - **Limits by name,** their numbers in `temper-service`'s limits module,
-  overridden by dotted name. The forge component's (`renew_before`,
+  overridden by dotted name: the engine's and the box's by two kinds of
+  settings, jig's `limits` and temper's `temper-limits`, which their
+  documents no longer hold (`limit-settings.md`), and a worker alone's
+  by its document until its figures come from the engine. The forge component's (`renew_before`,
   `log_poll`, `log_catch_up`, `log_pages` among them) are given once for
   every forge, never per forge; the forges kept, `forge.forges`, and the
   repositories, `forge.repositories`, are counts for the deployment

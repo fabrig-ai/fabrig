@@ -6,7 +6,7 @@ use std::{
 };
 fn stock_figures() -> jig_protocol_worker_wire::Figures {
     let input: serde_json::Value =
-        serde_json::from_slice(include_bytes!("../../../temper-init/template/bare.json")).expect("stock document");
+        serde_json::from_slice(&temper_config_shell::init_document(false)).expect("stock document");
     configured_figures(&input)
 }
 fn configured_figures(input: &serde_json::Value) -> jig_protocol_worker_wire::Figures {
@@ -29,13 +29,84 @@ fn configured_figures_with(
     temper_engine_service_vocabulary::figures::Composer::new(&engine, &own).compose(&temper_service::stock::agents())
 }
 #[test]
+fn toml_worker_git_wins_over_path_and_absent_key_uses_path() {
+    let scratch = skein_scratch::Scratch::new("worker-program-git");
+    let root = scratch.path();
+    let directories = super::configuration::directories(root);
+    let named = root.join("named-git");
+    let found = root.join("git");
+    fs::copy("/bin/sh", &named).expect("named executable");
+    fs::copy("/bin/sh", &found).expect("PATH executable");
+    for explicit in [true, false] {
+        let text = if explicit {
+            format!("engine = \"127.0.0.1:7200\"\n[programs]\ngit = {named:?}\n")
+        } else {
+            "engine = \"127.0.0.1:7200\"\n".into()
+        };
+        fs::write(root.join(temper_config_shell::FILE), text).expect("worker file");
+        for environment in [Vec::new(), vec![(Box::from(b"PATH".as_slice()), Box::from(root.as_os_str().as_bytes()))]] {
+            let read = temper_service_shell::configuration::read(&directories, temper_config_shell::Shape::WorkerAlone)
+                .expect("worker read");
+            let part =
+                worker::part(&directories, &read.document, &environment, &read.programs().expect("checked programs"))
+                    .expect("worker part");
+            let expected = if explicit {
+                Some(&named)
+            } else if environment.is_empty() {
+                None
+            } else {
+                Some(&found)
+            };
+            assert_eq!(part.worker.git.as_deref(), expected.map(|path| path.as_os_str().as_bytes()));
+        }
+    }
+}
+
+#[test]
+fn toml_worker_claude_wins_then_path_then_fetched_in_written_configuration() {
+    let scratch = skein_scratch::Scratch::new("worker-program-claude");
+    let root = scratch.path();
+    let directories = super::configuration::directories(root);
+    let named = root.join("named-claude");
+    let found = root.join("claude");
+    fs::copy("/bin/sh", &named).expect("named executable");
+    fs::copy("/bin/sh", &found).expect("PATH executable");
+    for explicit in [true, false] {
+        let text = if explicit {
+            format!("engine = \"127.0.0.1:7200\"\n[programs]\nclaude = {named:?}\n")
+        } else {
+            "engine = \"127.0.0.1:7200\"\n".into()
+        };
+        fs::write(root.join(temper_config_shell::FILE), text).expect("worker file");
+        for environment in [Vec::new(), vec![(Box::from(b"PATH".as_slice()), Box::from(root.as_os_str().as_bytes()))]] {
+            let read = temper_service_shell::configuration::read(&directories, temper_config_shell::Shape::WorkerAlone)
+                .expect("worker read");
+            let mut part =
+                worker::part(&directories, &read.document, &environment, &read.programs().expect("checked programs"))
+                    .expect("worker part");
+            let unknown = temper_worker_service::figures::apply(&mut part, stock_figures()).expect("applied figures");
+            assert!(unknown.is_empty());
+            let bytes = worker::configuration(&part, &directories, &environment).expect("agent configuration");
+            let written: serde_json::Value = serde_json::from_slice(&bytes).expect("agent JSON");
+            let expected = if explicit {
+                named.to_str().expect("named path")
+            } else if environment.is_empty() {
+                "fetched"
+            } else {
+                found.to_str().expect("PATH program")
+            };
+            assert_eq!(written["programs"]["claude_code"]["path"], expected);
+        }
+    }
+}
+
+#[test]
 fn the_workers_watchdog_covers_stock_agent_figures_and_a_sixty_minute_tool() {
     use jig_protocol_worker_wire as w;
     use skein_lib::Duration;
     let scratch = skein_scratch::Scratch::new("derived-agent-watchdog");
     let mut input: serde_json::Value =
-        serde_json::from_slice(include_bytes!("../../../temper-init/template/temper.json"))
-            .expect("stock box document");
+        serde_json::from_slice(&temper_config_shell::init_document(true)).expect("stock box document");
     input["engine"]["clients"]["provider"] = serde_json::Value::Null;
     let given = temper_service::stock::Given::Stock.with_providers(
         temper_service::stock::providers(),
@@ -84,7 +155,7 @@ fn the_workers_watchdog_covers_stock_agent_figures_and_a_sixty_minute_tool() {
 #[test]
 fn a_boxs_demo_endpoint_keeps_its_name_and_uses_smiths_openai_provider() {
     let mut input: serde_json::Value =
-        serde_json::from_slice(include_bytes!("../../../temper-init/template/temper.json")).expect("box document");
+        serde_json::from_slice(&temper_config_shell::init_document(true)).expect("box document");
     input["engine"]["clients"]["provider"] = serde_json::Value::Null;
     let given = temper_service::stock::Given::Stock.with_providers(
         temper_service::stock::providers(),
@@ -136,7 +207,7 @@ fn worker_inputs_refuse_the_old_file_and_validate_derived_program_and_claude() {
     let (_, document) = super::worker_document(data);
     let directories = super::configuration::directories(data);
     let mut part = temper_worker_service::startup::worker_part(
-        &serde_json::to_vec(&document).expect("JSON"),
+        &super::worker_start(&document),
         &temper_service_shell::jig_directories(&directories),
         None,
         &[],

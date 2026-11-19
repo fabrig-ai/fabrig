@@ -9,17 +9,12 @@ pub(crate) use temper_forge_setup::machine::MemberObject as Object;
 mod tests;
 
 /// Every application shape, including the test peer decoder’s rows.
-pub static SHAPES: [Shape; 18] = [
+pub static SHAPES: [Shape; 17] = [
     Shape { name: "document", paths: &[""], line: "The top-level members of the configuration document." },
     Shape {
         name: "application",
         paths: &["application"],
         line: "The application’s machine parts, read before startup.",
-    },
-    Shape {
-        name: "application-limits",
-        paths: &["application.limits"],
-        line: "The application’s limits profile and named overrides.",
     },
     Shape {
         name: "application-clients",
@@ -67,14 +62,14 @@ pub static SHAPES: [Shape; 18] = [
 ];
 
 /// Every member the application decoders take, including refused settings members.
-pub static MEMBERS: [Member; 55] = [
+pub static MEMBERS: [Member; 53] = [
     Member {
         shape: "document",
         name: "engine",
         kind: "engine",
         bound: "absent for a worker alone",
         required: false,
-        line: "The engine’s configuration; see temper help configuration-engine.",
+        line: "The engine’s configuration; see temper help configuration.",
         gone: None,
     },
     Member {
@@ -83,7 +78,7 @@ pub static MEMBERS: [Member; 55] = [
         kind: "list of worker",
         bound: "one in standalone or worker alone; empty for engine alone",
         required: true,
-        line: "The workers’ configurations; see temper help configuration-engine.",
+        line: "The workers’ configurations; see temper help configuration.",
         gone: None,
     },
     Member {
@@ -134,11 +129,13 @@ pub static MEMBERS: [Member; 55] = [
     Member {
         shape: "application",
         name: "limits",
-        kind: "application-limits",
+        kind: "object",
         bound: "",
-        required: true,
-        line: "The application limits profile and named overrides.",
-        gone: None,
+        required: false,
+        line: "The application limits are settings, not document members.",
+        gone: Some(
+            "moved: temper's limits are the setting temper-limits; ask temper, or use temper ctl settings apply",
+        ),
     },
     Member {
         shape: "application",
@@ -256,24 +253,6 @@ pub static MEMBERS: [Member; 55] = [
         required: false,
         line: "",
         gone: Some("the forge's charters live in the store; read them with temper ctl settings show forge-charter 1"),
-    },
-    Member {
-        shape: "application-limits",
-        name: "profile",
-        kind: "text",
-        bound: "standard",
-        required: false,
-        line: "May be absent or standard; either reads the stock before overrides.",
-        gone: None,
-    },
-    Member {
-        shape: "application-limits",
-        name: "overrides",
-        kind: "named limits",
-        bound: "see temper help limits",
-        required: true,
-        line: "The dotted limit names whose values replace the stock’s.",
-        gone: None,
     },
     Member {
         shape: "application-clients",

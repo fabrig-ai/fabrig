@@ -197,7 +197,8 @@ pub(crate) fn valid_settings(items: &[crate::SettingHead]) -> bool {
             | crate::Setting::Policy(_)
             | crate::Setting::Provider(_)
             | crate::Setting::Worker(_)
-            | crate::Setting::Rules => {}
+            | crate::Setting::Rules
+            | crate::Setting::Limits => {}
         }
         for earlier in items.iter().take(at) {
             if earlier.setting == item.setting {

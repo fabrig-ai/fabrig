@@ -754,6 +754,7 @@ impl Protocol {
                 | top::Request::TierRun { .. }
                 | top::Request::TierDecision { .. }
                 | top::Request::FileRedFinding { .. }
+                | top::Request::FileVerdict { .. }
                 | top::Request::ChangeDecision { .. }
                 | top::Request::Reviewed { .. }
                 | top::Request::News { .. }
@@ -899,6 +900,7 @@ fn key(row: &top::Stored) -> top::Key {
         top::Stored::Call { key, .. } => top::Key::Call(*key),
         top::Stored::Repository(row) => top::Key::Repository(row.provider),
         top::Stored::Hold(row) => top::Key::Hold(row.name.clone()),
+        top::Stored::LimitHold(row) => top::Key::LimitHold(row.task),
         top::Stored::Names { task, .. } => top::Key::Names(*task),
         top::Stored::Subscription(row) => top::Key::Subscription { task: row.task, topic: row.topic.clone() },
         top::Stored::BranchHead(row) => top::Key::BranchHead(row.name.clone()),

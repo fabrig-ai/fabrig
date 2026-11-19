@@ -33,8 +33,10 @@ fn flags(config: &Path, data: &Path, cache: &Path, bundle: Option<&Path>) -> Vec
     flags
 }
 
+// An executable's observation reads `parent::Guard`'s retained Linux process identities.
 #[cfg(target_os = "linux")]
 mod deployment;
+// An executable's observation reads `parent::Guard`'s retained Linux process identities.
 #[cfg(target_os = "linux")]
 mod newer_build;
 mod walk;

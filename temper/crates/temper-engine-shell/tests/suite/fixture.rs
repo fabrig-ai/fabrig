@@ -7,19 +7,15 @@ use temper_shell::directories::Directories;
 pub(super) fn upgrade_fixture(directories: &Directories) {
     use std::os::fd::IntoRawFd;
     let listeners = [0; 3].map(|_| std::net::TcpListener::bind("127.0.0.1:0").unwrap());
-    let document_path = directories.document();
-    let mut document: serde_json::Value = serde_json::from_slice(&std::fs::read(&document_path).unwrap()).unwrap();
-    for (pointer, listener) in [
-        "/application/clients/listener/socket",
-        "/engine/hosts/listener/0/socket",
-        "/application/webhooks/listener/socket",
-    ]
-    .iter()
-    .zip(&listeners)
+    let configuration = path(&directories.config).join(temper_config_shell::FILE);
+    let mut read = temper_config_shell::read(directories, temper_config_shell::Shape::EngineAlone).unwrap();
+    for (address, listener) in
+        [&mut read.file.listen, &mut read.file.workers, &mut read.file.webhooks].into_iter().zip(&listeners)
     {
-        *document.pointer_mut(pointer).unwrap() = listener.local_addr().unwrap().to_string().into();
+        *address = Some(listener.local_addr().unwrap());
     }
-    std::fs::write(document_path, serde_json::to_vec(&document).unwrap()).unwrap();
+    std::fs::write(configuration, temper_config_shell::render(&read.file, temper_config_shell::Shape::EngineAlone))
+        .unwrap();
     let (mut service, deployment) = stopped::prepare("temper-engine", directories).unwrap();
     for listener in listeners {
         let address = listener.local_addr().unwrap();

@@ -209,27 +209,23 @@ fn connected_cards_move_the_default_and_offer_forgejos_sign_in() {
     assert_eq!(open.external.as_deref(), Some(b"https://forgejo.example/user/oauth2/temper".as_slice()));
 }
 #[test]
-fn elsewhere_details_give_the_next_unused_number() {
+fn elsewhere_details_give_live_connection_commands_without_file_edits() {
     let view = f::page_view(&root(Some(Choice::Elsewhere), w::Connection::NotSetUp, w::Offer::Offered));
     words_in_order(
         view.tree(),
         &[
             "A Forgejo elsewhere",
-            "In ~/.config/temper/temper.json, with your host and unused numbers:",
-            "application.forges",
-            "\"number\": 4",
-            "\"kind\": \"forgejo\"",
-            "\"host\": \"forge.example\"",
-            "\"log_origins\": null",
-            "application.identities",
-            "\"number\": 4, \"forge\": 4",
-            "application.setup",
-            "Without it, temper takes its bot’s tokens only.",
-            "\"forge\": 4",
-            "\"mode\": \"managed\"",
-            "Restart temper box, then connect it from this page.",
+            "Choose how temper connects.",
+            "As its admin, use forge connect forgejo-admin",
+            "temper ctl DIR forge connect forgejo-admin FILE --api forge.example:443 --tls forge.example --git https://forge.example --key KEY",
+            "With its bot's tokens, use forge connect forgejo",
+            "temper ctl DIR forge connect forgejo FILE --api forge.example:443 --tls forge.example --git https://forge.example --key KEY",
         ],
     );
+    let text = f::node_text(view.tree(), 0);
+    for removed in [".json", "application.", "Restart temper box"] {
+        assert!(!text.windows(removed.len()).any(|part| part == removed.as_bytes()));
+    }
 }
 #[test]
 fn elsewhere_numbers_its_steps_and_copies_each_whole_command() {
@@ -238,7 +234,7 @@ fn elsewhere_numbers_its_steps_and_copies_each_whole_command() {
     let tree = view.tree();
     let list = tree.nodes().iter().find(|n| n.styles.as_slice().contains(&crate::look::CONNECT_STEPS)).unwrap();
     assert_eq!(list.ordered, Some(1));
-    assert_eq!(tree.nodes().iter().filter(|n| n.role == Role::Item).count(), 4);
+    assert_eq!(tree.nodes().iter().filter(|n| n.role == Role::Item).count(), 2);
     assert!(f::find(tree, Role::List, b"Steps").is_none());
     let codes: Vec<_> = tree
         .nodes()
@@ -253,8 +249,8 @@ fn elsewhere_numbers_its_steps_and_copies_each_whole_command() {
         .filter(|n| n.role == Role::Button && n.name.as_deref() == Some(b"Copy"))
         .map(|n| n.id)
         .collect();
-    assert_eq!(codes.len(), 3);
-    assert_eq!(copies.len(), 3);
+    assert_eq!(codes.len(), 2);
+    assert_eq!(copies.len(), 2);
     for (code, button) in codes.iter().zip(copies) {
         assert_eq!(crate::act(&mut view, button, Act::Press), Some(d::Action::Copy { words: code.clone() }));
     }

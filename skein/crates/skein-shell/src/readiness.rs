@@ -12,6 +12,7 @@ use crate::{Config, OpenError, Wait, calls, system};
 
 #[derive(Debug)]
 pub(crate) struct Readiness {
+    pub(crate) helper: crate::helper::Launcher,
     slots: Box<[Slot]>,
     free: Vec<u32>,
     tokens: BTreeMap<Token, u32>,
@@ -80,6 +81,7 @@ impl Readiness {
         let capacity = usize_of(config.operations);
         let slots = (0..config.operations).map(|_| Slot { generation: 0, record: None, result: None }).collect();
         Ok(Self {
+            helper: crate::helper::Launcher::new(),
             slots,
             free: (0..config.operations).rev().collect(),
             tokens: BTreeMap::new(),
@@ -274,6 +276,21 @@ impl Readiness {
 
     /// True once complete; false when the record still needs readiness.
     fn attempt(&mut self, index: u32, resumed: bool, waitable: bool) -> bool {
+        #[cfg(target_os = "linux")]
+        if let Op::Spawn { spawn } = &mut self
+            .slots
+            .get_mut(usize_of(index))
+            .expect("an allocated slot")
+            .record
+            .as_mut()
+            .expect("an in-flight record")
+            .kind
+            && spawn.reach.is_some()
+        {
+            let result = crate::linux::process::spawn_reached(spawn, &mut self.helper);
+            self.finish(index, result);
+            return true;
+        }
         self.attempt_with(index, resumed, waitable, perform)
     }
 

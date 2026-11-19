@@ -30,6 +30,13 @@ enum Stage {
     Contains,
 }
 impl State {
+    pub(crate) fn raise(&mut self, tasks: u32) {
+        self.rows.raise(tasks);
+        self.reads.raise(tasks);
+        self.selection_reads.raise(tasks);
+        self.checked.raise(tasks);
+        self.waits.raise(tasks);
+    }
     pub(crate) fn new(tasks: u32) -> Self {
         Self {
             rows: Map::with_capacity(tasks),

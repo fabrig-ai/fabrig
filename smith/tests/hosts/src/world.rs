@@ -233,6 +233,13 @@ struct Machine {
 
 impl skein_world::Machine for Machine {
     fn step(&mut self, call: skein_sim::Call, answers: &mut Queue<skein_sim::Answer>) {
+        if let skein_sim::Ask::Spawn { reach: Some(_), .. } = &call.ask {
+            answers.push(skein_sim::Answer {
+                ticket: call.ticket,
+                result: Err(kernel::Error::Reach(kernel::Unenforced::Unsupported)),
+            });
+            return;
+        }
         if matches!(&call.ask, skein_sim::Ask::Spawn { program, .. } if program.as_ref() == b"smith-agent") {
             let result = match self.program {
                 Program::Refused => Err(kernel::Error::NotFound),
@@ -490,6 +497,8 @@ impl World {
             reviewed: 0,
             meeting: referee::review(&[]),
         };
+        // Warm process-global charter values before a process's allocation meter starts.
+        drop(fixture::charter());
         let mut harness = skein_world::World::new(self.seed, config, referee, self.memory)
             .with_machine(Machine { files: machine, program: self.program });
         if self.program == Program::Service || self.program == Program::ErrorTail {

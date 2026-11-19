@@ -804,8 +804,17 @@ pub struct Hold {
     pub writer: Option<Writer>,
     /// Runs writing design beside the slot (domain/forge/branches.md, 3).
     pub design_writers: Box<[DesignWriter]>,
+    /// A design head recorded beside another write, and that write waiting on ancestry.
+    pub beside: Option<HeadBeside>,
     /// Last outside change requiring a person to release this hold.
     pub drift: Option<Drift>,
+}
+
+/// Heads ordered by containment before a late write is recorded (domain/forge/branches.md, 3).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct HeadBeside {
+    pub head: skein_forge::api::Commit,
+    pub waiting: Option<skein_forge::api::Commit>,
 }
 
 /// An outside change and its observation time, retained with the affected hold.
@@ -1041,6 +1050,9 @@ pub struct ChangeRow {
     /// The tracked goal served at admission.
     pub goal: Option<u64>,
     pub milestone: Option<u64>,
+    pub person: Option<u64>,
+    pub goal_title: Option<Box<[u8]>>,
+    pub draft: Option<Box<[u8]>>,
     pub ending: Option<Ending>,
     /// Whole-life delegate account; a release resets retry counts alone.
     pub repair_tasks: Box<[u64]>,
@@ -1122,6 +1134,9 @@ pub struct ChangeCold {
     pub base: Box<[u8]>,
     pub goal: Option<u64>,
     pub milestone: Option<u64>,
+    pub person: Option<u64>,
+    pub goal_title: Option<Box<[u8]>>,
+    pub draft: Option<Box<[u8]>>,
     pub base_repair: bool,
     pub producing_charter: u32,
     pub review_charter: u32,
@@ -1188,6 +1203,9 @@ impl ChangeRow {
             signed,
             goal,
             milestone,
+            person,
+            goal_title,
+            draft,
             ending,
             repair_tasks,
             resolution_tasks,
@@ -1239,6 +1257,9 @@ impl ChangeRow {
                 base,
                 goal,
                 milestone,
+                person,
+                goal_title,
+                draft,
                 base_repair,
                 producing_charter,
                 review_charter,
@@ -1300,6 +1321,9 @@ impl ChangeRow {
             base,
             goal,
             milestone,
+            person,
+            goal_title,
+            draft,
             base_repair,
             producing_charter,
             review_charter,
@@ -1358,6 +1382,9 @@ impl ChangeRow {
             signed,
             goal,
             milestone,
+            person,
+            goal_title,
+            draft,
             ending,
             repair_tasks,
             resolution_tasks,
@@ -1692,6 +1719,8 @@ pub enum Stored {
     ProposedEffect(ProposedEffect),
     /// One adopted repository.
     Repository(Repository),
+    /// A task held on a configured limit (protocol/configuration/limit-settings.md, 6).
+    LimitHold(LimitHold),
     /// One held resource.
     Hold(Hold),
     /// A live task's resources, or a kept task's repositories (temper/docs/design/domain/forge/adoption.md, 1).
@@ -1792,6 +1821,37 @@ pub enum Stored {
     HistoryLanding(crate::history::LandingIndex),
     HistoryLast(crate::history::Last),
 }
+/// One durable limit hold; `room` is the operation's additional occupancy
+/// (temper/docs/design/protocol/configuration/limit-settings.md, 6).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct LimitHold {
+    pub task: u64,
+    pub member: Box<[u8]>,
+    pub configured: u64,
+    pub needed: u64,
+    pub revision: u64,
+    pub at: skein_lib::Wall,
+    pub order: u64,
+    pub room: u64,
+    pub set: LimitSet,
+}
+
+/// The occupancy a refused operation would add to; a setting can bound several sets.
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+pub enum LimitSet {
+    Operation,
+    Entries,
+    Holds,
+    Tasks,
+    Changes,
+    Steps,
+    Subscriptions,
+    Watches,
+    Heads,
+    Repositories,
+    DesignWriters(Name),
+}
+
 /// A bounded connector payload awaiting an authority holder's decision.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ProposedEffect {
@@ -1808,6 +1868,7 @@ pub enum Key {
     ProposedEffect(u64),
     Repository(skein_forge::api::Repository),
     Hold(Name),
+    LimitHold(u64),
     Names(u64),
     Subscription { task: u64, topic: Topic },
     BranchHead(Name),
@@ -1945,6 +2006,8 @@ pub struct ChangeDependencies {
 #[derive(PartialEq, Eq, Hash, Debug)]
 #[expect(clippy::large_enum_variant, reason = "change admission carries a full row across the root procedure boundary")]
 pub enum Event {
+    /// Take the checked, raised environment's at-once limits in every holder.
+    LimitsRaised,
     /// Routing's chosen place, or busy after the bounded attempts (protocol/setup/place.md, 2).
     SetupPerson {
         forge: u16,
@@ -2747,6 +2810,11 @@ pub enum Request {
         follow: Option<u32>,
         finding: crate::FileFinding,
     },
+    /// File a landing tier's verdict in the decision keeping it (domain/red-findings.md, 9).
+    FileVerdict {
+        task: u64,
+        filing: crate::findings::VerdictFiling,
+    },
     TierDecision {
         task: u64,
         decision: TierDecision,
@@ -3139,8 +3207,12 @@ pub struct TierGoal {
 /// Family 28's policy and task (temper/docs/design/domain/after-landing.md, 10).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct TierRow {
+    /// The judged run's whole report's names, retained until the next run starts.
+    pub many: Option<temper_engine_domain_forge_tiers::ManyTests>,
     /// Observed execution identities awaiting or replaying the task projection across restart.
     pub observations: Box<[u8]>,
+    pub waiting: Box<[crate::findings::VerdictFiling]>,
+    pub unkept: u32,
     pub repository: skein_forge::api::Repository,
     pub tier: Box<[u8]>,
     pub record: temper_engine_domain_forge_tiers::Record,
@@ -3285,20 +3357,37 @@ pub struct LoggedTier {
     pub tier: Box<[u8]>,
     pub verdict: LoggedVerdict,
 }
+/// Maximum ids kept by one red log entry, matching the store's list ceiling.
+pub const LOGGED_TESTS: u32 = 64;
+
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum LoggedVerdict {
     Verifying,
-    Cleared { run: u64 },
-    Red { run: u64, failing: Option<u32> },
+    Cleared {
+        run: u64,
+    },
+    Red {
+        run: u64,
+        failing: Option<u32>,
+        /// Sorted distinct ids blamed on this landing, empty for many failures.
+        tests: Box<[temper_engine_domain_forge_tiers::TestId]>,
+        /// The judged run's report names for many failures.
+        many: Option<temper_engine_domain_forge_tiers::ManyTests>,
+    },
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct LoggedChange {
+    /// Sorted distinct finding numbers named by the pull request's body, at most eight.
+    pub fixes: Box<[u32]>,
     pub signed: Box<[SignOff]>,
     pub task: u64,
     pub pull: Option<u64>,
     pub title: Box<[u8]>,
     pub goal: Option<u64>,
     pub milestone: Option<u64>,
+    pub person: Option<u64>,
+    pub goal_title: Option<Box<[u8]>>,
+    pub draft: Option<Box<[u8]>>,
 }
 
 /// The landing transitions reported to its member's goal (domain/landing.md, 4.2).

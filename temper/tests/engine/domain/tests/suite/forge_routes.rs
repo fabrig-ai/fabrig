@@ -127,6 +127,7 @@ mod stall_hold;
 #[path = "forge_routes/result.rs"]
 mod result;
 
+mod findings_cleared;
 mod red_findings;
 #[path = "forge_routes/tiers.rs"]
 mod tiers;
@@ -2494,12 +2495,24 @@ fn a_goal_can_subscribe_to_main_without_guessing_repository_ids() {
 
 #[test]
 fn a_stock_goal_can_subscribe_to_main_with_its_held_branches() {
-    for repository in [r#", "repository":{"forge":1,"repository":2}"#, r#", "repository":"org/repo""#, ""] {
-        let (world, goal) = stock_subscription_goal();
-        let branch = format!("temper/{}/g{}", goal.task, goal.task);
-        let json = format!(r#"{{"topic":{{"kind":"landings","branch":"main"{repository}}},"paths":["file"]}}"#);
-        subscription_after_first_batch(world, &goal, branch.as_bytes(), json.as_bytes());
-    }
+    stock_subscription(r#", "repository":{"forge":1,"repository":2}"#);
+}
+
+#[test]
+fn a_stock_goal_can_subscribe_to_main_by_repository_name() {
+    stock_subscription(r#", "repository":"org/repo""#);
+}
+
+#[test]
+fn a_stock_goal_can_subscribe_to_main_by_implicit_repository() {
+    stock_subscription("");
+}
+
+fn stock_subscription(repository: &str) {
+    let (world, goal) = stock_subscription_goal();
+    let branch = format!("temper/{}/g{}", goal.task, goal.task);
+    let json = format!(r#"{{"topic":{{"kind":"landings","branch":"main"{repository}}},"paths":["file"]}}"#);
+    subscription_after_first_batch(world, &goal, branch.as_bytes(), json.as_bytes());
 }
 
 fn stock_subscription_goal() -> (World, engine::Assignment) {

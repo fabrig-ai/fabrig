@@ -52,12 +52,15 @@ fn references(declaration: &Declaration) -> BTreeSet<String> {
     names
 }
 
-pub(super) fn closed(source: &str, panels: &str) -> Result<(), String> {
+pub(super) fn closed(source: &str, panels: &Schema) -> Result<(), String> {
     let schema = match skein_codegen::parse(source) {
         Ok(schema) => schema,
         Err(error) => return Err(alloc::format!("{error}")),
     };
-    let panels = skein_codegen::parse(panels).expect("panel schema parses");
+    closed_schema(&schema, panels)
+}
+
+pub(super) fn closed_schema(schema: &Schema, panels: &Schema) -> Result<(), String> {
     let mut own = BTreeSet::new();
     for declaration in &schema.declarations {
         own.insert(name(declaration));
@@ -123,7 +126,11 @@ fn spelling(mut ty: &Type) -> String {
 
 pub(super) fn listing(source: &str) -> String {
     let schema = skein_codegen::parse(source).expect("schema parses");
-    let reached = reachable(&schema);
+    listing_schema(&schema)
+}
+
+pub(super) fn listing_schema(schema: &Schema) -> String {
+    let reached = reachable(schema);
     let mut text = alloc::format!("family {} {}\n", schema.family, schema.version);
     for declaration in &schema.declarations {
         if !reached.contains(name(declaration)) {
@@ -150,8 +157,7 @@ pub(super) fn listing(source: &str) -> String {
     text
 }
 
-pub(super) fn no_strings(source: &str) {
-    let schema = skein_codegen::parse(source).expect("schema parses");
+pub(super) fn no_strings(schema: &Schema) {
     for declaration in &schema.declarations {
         if let Declaration::Record(record) = declaration {
             for field in &record.fields {
@@ -177,5 +183,5 @@ pub(super) fn no_strings(source: &str) {
 
 #[test]
 fn the_public_schema_has_no_string_field() {
-    no_strings(super::SCHEMA);
+    no_strings(&skein_codegen::values(crate::PUBLIC_SCHEMA).schema);
 }

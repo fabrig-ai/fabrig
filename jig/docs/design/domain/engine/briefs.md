@@ -110,8 +110,10 @@ A brief fails whole: a required section is missing, the brief child
 refuses its plan, or the core or the root cannot make or put together
 its parts. Every such failure carries a **failure**: how it counts, and
 why, as a section's name and fixed words. Both name and words are
-`'static` in the code, so a reason cannot carry a run's words or a
-secret. A connector chooses its own, and names no more than the kind of
+fixed in the code, so a reason cannot carry a run's words or a
+secret; the one thing a reason may carry beside them is a task's
+number, where a `results` failure names the task it read (below). A
+connector chooses its own, and names no more than the kind of
 its section and of the error its system gave.
 
 How it counts decides what becomes of the task:
@@ -142,7 +144,10 @@ Which is which, by what `executors.md`, 1 prepares:
 | a required section whose cut is unanswered at the brief's deadline | infrastructure | `SECTION: not cut by its deadline` |
 | a connector says its system failed for now | infrastructure | the connector's |
 | a connector says its section is to be gathered again, what it reads having moved meanwhile | transient | the connector's |
-| a dependency's result the store no longer answers with | transient | `results: a dependency's result could not be read` |
+| a dependency's or input's result whose load failed: the root or the store could not serve it now | infrastructure | `results: task N's result could not be read: the store answered busy` |
+| a dependency's or input's result the store answered with no row | transient | `results: task N's result is missing: the store holds no ended record of it` |
+| a dependency's or input's result the store answered with another task's row, or with a row of another project | transient | `results: task N's result is missing: the store answered task M's record`, or `results: task N's result is missing: the store's record of it is another project's` |
+| a dependency's or input's result the store answered with its row not ended | transient | `results: task N's result is missing: the store's record of it has not ended` |
 | a transcript's window that does not load | transient | `transcript: its window could not be loaded`, or `transcript: its window could not be read` for an open window unread, which closes it (`executors.md`, 2) |
 | a required section that cannot fit, whole or cut | permanent | `SECTION: does not fit the brief's budget`, or `brief: its required sections do not fit its budget` |
 | a section a connector answered past its bound | permanent | `SECTION: answered past its bound` |
@@ -152,6 +157,28 @@ Which is which, by what `executors.md`, 1 prepares:
 | a core section the core cannot read within its bounds | permanent | `task: ...`, `results: ...`, `transcript: ...` |
 | a brief's notes index refused for any reason but room | permanent | `notes: the index could not be read` |
 | no attempt number left | permanent | `run: no attempt number is left` |
+
+**A dependency's result.** The core reads each of a run's dependencies'
+and inputs' results from the store, one task at a time (`executors.md`,
+1), and a failure names the task it was reading, `N` its number in
+decimal, and what the read found:
+
+- **Busy:** the load failed; the root or the store could not serve it.
+  A root that has no slot for the load yet is not failing: it keeps the
+  load until one frees (`README.md`, 5.3), so no preparation fails for
+  room. A busy answer counts as infrastructure, so a store that cannot
+  serve reads for minutes holds no task: the task backs off within that
+  class's spaced allowance, some 20 to 40 minutes at the defaults
+  (../tasks/lifecycle.md, 6), and is held only past it.
+- **No row, another task's or project's row, or a row not ended:** the
+  store answered, without task `N`'s ended record in the preparing
+  task's project; `M` is the number of the task whose row it gave. It
+  counts as transient, as the engine's own reads missing do
+  (../tasks/lifecycle.md, 6): a result that is truly gone holds past
+  that allowance, the hold's words naming the task and what was read.
+
+Each is at most 110 bytes with both numbers at their longest, inside
+`REASON_BYTES`, so no hold's words are cut.
 
 A stale preparation and a wait for an account (`executors.md`, 1) are neither: the task
 returns to due without a timer, as it does.

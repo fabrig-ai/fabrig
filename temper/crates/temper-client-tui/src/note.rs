@@ -12,25 +12,26 @@ pub enum Note {
     SignedOut,
 }
 impl Note {
-    pub const MOST: u32 = 64;
+    pub const MOST: u32 = 300;
 
-    /// `HOST:PORT until NANOS\n` or `HOST:PORT signed-out\n`.
+    /// `AUTHORITY until NANOS\n` or `AUTHORITY signed-out\n`.
     #[must_use]
-    pub fn print(self, address: &[u8]) -> Box<[u8]> {
+    pub fn print(self, origin: &crate::Origin) -> Box<[u8]> {
+        let address = origin.authority();
         match self {
-            Note::Until(wall) => concat(&[address, b" until ", Decimal::of(wall.as_nanos()).as_bytes(), b"\n"]),
-            Note::SignedOut => concat(&[address, b" signed-out\n"]),
+            Note::Until(wall) => concat(&[&address, b" until ", Decimal::of(wall.as_nanos()).as_bytes(), b"\n"]),
+            Note::SignedOut => concat(&[&address, b" signed-out\n"]),
         }
     }
 
     /// The address's note, or none for an unreadable or oversized line.
     #[must_use]
-    pub fn read(bytes: &[u8], address: &[u8]) -> Option<Note> {
+    pub fn read(bytes: &[u8], origin: &crate::Origin) -> Option<Note> {
         if bytes.len() > skein_lib::usize_of(Self::MOST) {
             return None;
         }
         let line = bytes.strip_suffix(b"\n").unwrap_or(bytes);
-        let rest = line.strip_prefix(address)?.strip_prefix(b" ")?;
+        let rest = line.strip_prefix(origin.authority().as_ref())?.strip_prefix(b" ")?;
         if rest == b"signed-out" {
             return Some(Note::SignedOut);
         }

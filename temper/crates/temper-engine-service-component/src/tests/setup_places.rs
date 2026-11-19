@@ -171,6 +171,39 @@ fn authorize(service: &mut crate::Service, port: u16) -> jig_client_protocol_wir
     wire::AuthorizeAnswer::decode(&limits, &mut skein_lib::Reader::new(&bytes[at..])).unwrap()
 }
 #[test]
+fn owned_setup_keeps_named_binaries_and_fetches_only_unnamed_ones() {
+    for (forgejo, runner) in [(false, false), (true, false), (false, true), (true, true)] {
+        let forgejo_path = b"/tools/forgejo".as_slice();
+        let runner_path = b"/tools/runner".as_slice();
+        let mut service = fresh_with_programs(
+            false,
+            false,
+            forgejo.then_some(Box::from(forgejo_path)),
+            runner.then_some(Box::from(runner_path)),
+        );
+        ask_owned(&mut service);
+        let engine = service.engine.as_mut().unwrap();
+        let request = choice(engine);
+        engine.place_port(request, Some(4567));
+        settle(engine);
+        let Some(PlaceIo::Write { setup, directories, .. }) = engine.take_place_io() else {
+            panic!("chosen setup is written")
+        };
+        let encoded = temper_forge_setup::setup_file::encode(&setup);
+        let file = temper_forge_setup::setup_file::decode(&encoded, &directories).expect("kept setup reads");
+        let SetupFile::Owned(owned) = file else { panic!("owned setup") };
+        assert_eq!(owned.fetch.forgejo, !forgejo);
+        assert_eq!(owned.fetch.runner, !runner);
+        if forgejo {
+            assert_eq!(owned.forgejo.as_ref(), forgejo_path);
+        }
+        if runner {
+            assert_eq!(owned.runner.as_ref().expect("stock runner").binary.as_ref(), runner_path);
+        }
+    }
+}
+
+#[test]
 fn eight_conflicting_choices_refuse_owned_setup_busy_without_a_record() {
     let mut service = fresh_with_places(true, false);
     ask_owned(&mut service);

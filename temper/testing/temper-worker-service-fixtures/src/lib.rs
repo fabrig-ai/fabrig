@@ -220,22 +220,14 @@ pub fn worker() -> temper_worker_service::Worker {
 #[must_use]
 pub fn application_value(number: u32, generation: u64, token: &[u8]) -> jig_protocol_worker_link::Request {
     let value = identity(token);
-    let record = temper_protocol_worker_wire::v1::Identity::new(
-        &wire_limits(),
-        temper_protocol_worker_wire::v1::IdentityParts {
-            kind: temper_protocol_worker_wire::v1::Kind::Forgejo(
-                temper_protocol_worker_wire::v1::Token::new(
-                    &wire_limits(),
-                    temper_protocol_worker_wire::v1::TokenParts { token: value.token },
-                )
-                .expect("token record"),
-            ),
-            login: value.login,
-            name: value.name,
-            email: value.email,
-        },
-    )
-    .expect("identity record");
+    let record = temper_protocol_worker_wire::v1::Identity {
+        kind: temper_protocol_worker_wire::v1::Kind::Forgejo(temper_protocol_worker_wire::v1::Token {
+            token: value.token,
+        }),
+        login: value.login,
+        name: value.name,
+        email: value.email,
+    };
     jig_protocol_worker_link::Request::Value {
         account: number,
         generation,

@@ -60,6 +60,7 @@ fn setting(value: w::Setting) -> s::Setting {
         w::Setting::Template(value) => s::Setting::Template(value.number()),
         w::Setting::Policy(value) => s::Setting::Policy(value.number()),
         w::Setting::Rules => s::Setting::Rules,
+        w::Setting::Limits => s::Setting::Limits,
         w::Setting::Model(value) => s::Setting::Model(value.number()),
         w::Setting::Worker(value) => s::Setting::Worker(value.number()),
         w::Setting::Provider(value) => s::Setting::Provider(value.number()),
@@ -73,6 +74,7 @@ fn setting_value(
     limits: &w::Limits,
 ) -> Result<s::Value, Untranslatable> {
     Ok(match value {
+        w::SettingValue::Limits(value) => s::Value::Limits(limit_overrides(value)),
         w::SettingValue::Worker(value) => s::Value::Worker(Box::new(s::WorkerSetting {
             number: value.number(),
             name: skein_lib::bytes::copy_of(value.name()),
@@ -554,4 +556,16 @@ fn overlay(value: w::Overlay) -> s::Overlay {
             None => None,
         },
     }
+}
+
+fn limit_overrides(value: w::LimitsValue) -> Box<[s::Override]> {
+    let values = value.into_parts().overrides;
+    let mut overrides = List::with_capacity(values.len());
+    for value in values.into_boxed() {
+        let value = value.into_parts();
+        overrides
+            .push(s::Override { name: value.name, value: value.value, reason: value.reason })
+            .expect("override count");
+    }
+    overrides.into_boxed()
 }

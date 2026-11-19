@@ -841,16 +841,16 @@ pub fn inbox_outputs() -> Vec<Edge> {
 }
 
 fn family_item(bytes: &[u8], read: bool) -> u64 {
-    use jig_client_test_protocol_wire::v2 as f;
+    use jig_client_test_protocol_wire::v2::{self as f, Record};
     let envelope = w::FamilyRecord::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("family envelope");
     let mut reader = Reader::new(envelope.record());
     let subject = if read {
-        f::Read::decode(&f::CEILINGS, &mut reader).expect("family read").into_parts().value
+        f::Read::decode(&f::CEILINGS, &mut reader).expect("family read").value
     } else {
-        f::Subject::decode(&f::CEILINGS, &mut reader).expect("family subject").into_parts().value
+        f::Subject::decode(&f::CEILINGS, &mut reader).expect("family subject").value
     };
-    let f::FamilyKind::Item(item) = subject.kind() else { panic!("family item") };
-    item.value()
+    let f::FamilyKind::Item(item) = subject.kind else { panic!("family item") };
+    item.value
 }
 
 fn frame() -> w::Me {

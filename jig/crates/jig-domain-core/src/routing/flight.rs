@@ -314,7 +314,9 @@ impl Core {
     pub(crate) fn creating_flights(&self) -> u32 {
         self.count_flights(Kind::Creating)
     }
-    pub(crate) fn awaiting_resources_flights(&self) -> u32 {
+    /// Uncommitted batches waiting for connector reports (domain/tasks/holds.md, 2).
+    #[must_use]
+    pub fn awaiting_resources_flights(&self) -> u32 {
         self.count_flights(Kind::AwaitingResources)
     }
     #[cfg(test)]

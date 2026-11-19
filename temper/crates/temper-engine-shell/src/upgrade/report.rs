@@ -59,11 +59,11 @@ pub fn lines(binary: &str, report: &Report, directories: &Directories, deploymen
         )
         .expect("string write");
     }
-    verdict(&mut text, binary, report);
+    verdict(&mut text, binary, report, false);
     (text, u8::from(!passed || !report.done))
 }
 
-/// Only the workers' verdict, or the same opening refusal as the whole check.
+/// Rehearsal file counts and the workers' verdict, or the whole check's opening refusal.
 #[must_use]
 pub fn workers_lines(binary: &str, report: &Report, directories: &Directories, deployment: &[u8]) -> (String, u8) {
     let mut text = String::new();
@@ -72,7 +72,7 @@ pub fn workers_lines(binary: &str, report: &Report, directories: &Directories, d
         passed = event_refusal(&mut text, binary, event, passed);
     }
     passed &= refusal(&mut text, binary, report, directories, deployment);
-    let rehearsal = verdict(&mut text, binary, report);
+    let rehearsal = verdict(&mut text, binary, report, true);
     (text, u8::from(!passed || !report.done || !rehearsal))
 }
 
@@ -157,21 +157,24 @@ fn refusal(text: &mut String, binary: &str, report: &Report, directories: &Direc
     report.open_failure.is_none() && report.end.is_none()
 }
 
-fn verdict(text: &mut String, binary: &str, report: &Report) -> bool {
+fn verdict(text: &mut String, binary: &str, report: &Report, count_files: bool) -> bool {
     let mut kept = None;
     let mut openings = &[][..];
-    let mut rehearsal = false;
+    let mut counts = None;
     for event in &report.events {
-        if let Event::Rehearsing { wires, openings: stated, .. } = event {
-            rehearsal = true;
+        if let Event::Rehearsing { wires, openings: stated, linked, copied, .. } = event {
+            counts = Some((*linked, *copied));
             kept = wires.as_deref();
             openings = stated;
         }
     }
-    if rehearsal || report.end.is_some() {
+    if count_files && let Some((linked, copied)) = counts {
+        writeln!(text, "{binary} upgrade: rehearsal linked {linked} files, copied {copied}").expect("string write");
+    }
+    if counts.is_some() || report.end.is_some() {
         workers(text, binary, kept, openings, &report.workers);
     }
-    rehearsal
+    counts.is_some()
 }
 
 fn place(text: &mut String, at: &Undecoded) {

@@ -1,16 +1,19 @@
 //! Records' drift and pinned constructs (skein's data/codec/README.md, 6).
-use skein_codegen::{generate, parse, unpinned};
+use skein_codegen::{form_of, generate_as, unpinned, values};
 use std::fs;
 
 #[test]
 #[expect(clippy::disallowed_methods, reason = "jig's round: reads SKEIN_CODEGEN_WRITE to refresh generated records")]
 fn moved_schema_matches_generated_records_and_is_pinned() {
-    let root = skein_scratch::paths::tree().join("crates/jig-protocol-accounts");
-    let source = fs::read_to_string(root.join("schema/moved-v1.schema")).expect("schema");
-    let unpinned = unpinned(&source).expect("schema valid");
+    let source = jig_protocol_accounts::SCHEMA;
+    let unpinned = unpinned(source).expect("schema valid");
     assert!(unpinned.is_empty(), "moved: unpinned constructs: {unpinned:?}");
-    let output = generate(&parse(&source).expect("schema valid"));
-    let path = skein_scratch::paths::tree().join("crates/jig-protocol-accounts-codec/src/generated/moved.rs");
+    let tree = skein_scratch::paths::tree();
+    let schema = &values(source).schema;
+    let form =
+        form_of(&tree.join("crates/jig-protocol-accounts/schema"), &schema.family).expect("family form readable");
+    let output = generate_as(schema, form);
+    let path = tree.join("crates/jig-protocol-accounts-codec/src/generated/moved.rs");
     let again =
         "run SKEIN_CODEGEN_WRITE=1 cargo nextest run -p jig-protocol-accounts-world --test suite -E 'test(drift::)'";
     if std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1") {

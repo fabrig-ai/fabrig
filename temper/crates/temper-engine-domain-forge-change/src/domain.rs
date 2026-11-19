@@ -1126,10 +1126,14 @@ fn valid(change: &Change, gate: Gate, report: crate::GateReport, head: [u8; 32])
 }
 
 fn verdict(change: &Change, gate: Gate, facts: &Facts, head: [u8; 32]) -> Status {
+    gate_verdict(change, gate, &facts.gates, head)
+}
+
+fn gate_verdict(change: &Change, gate: Gate, reports: &[crate::GateReport], head: [u8; 32]) -> Status {
     let mut passed = false;
     let mut pending = false;
     let mut failed = false;
-    for report in &facts.gates {
+    for report in reports {
         if !valid(change, gate, *report, head) {
             continue;
         }
@@ -1302,9 +1306,15 @@ fn queued(
     }
 }
 
-fn blocking_gates_pass(change: &Change, facts: &Facts, head: [u8; 32]) -> bool {
+pub(crate) fn blocking_gates_pass(change: &Change, facts: &Facts, head: [u8; 32]) -> bool {
+    gates_pass(change, &facts.gates, head)
+}
+
+/// Every blocking gate has a passing verdict valid at this head (domain/forge/change/gates.md, 1).
+#[must_use]
+pub fn gates_pass(change: &Change, reports: &[crate::GateReport], head: [u8; 32]) -> bool {
     for gate in &change.gates {
-        if gate.blocking && verdict(change, *gate, facts, head) != Status::Passed {
+        if gate.blocking && gate_verdict(change, *gate, reports, head) != Status::Passed {
             return false;
         }
     }

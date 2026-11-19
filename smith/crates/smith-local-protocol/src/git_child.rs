@@ -210,6 +210,7 @@ impl GitChild {
         below.push(io::Request::Spawn {
             owner: self.io_owner,
             spawn: kernel::Spawn {
+                reach: None,
                 program: Box::from(&b"/usr/bin/git"[..]),
                 args,
                 env: self.environment.clone(),

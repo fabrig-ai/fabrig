@@ -262,7 +262,7 @@ mod tests {
 
     #[test]
     fn retry_reasons_round_trip_through_wire_and_client_facts() {
-        const REASON_BYTES: usize = 128; // client-v28's retry reason bound (domain/engine/briefs.md, 1.1).
+        const REASON_BYTES: usize = 128; // client-v35's retry reason bound (domain/engine/briefs.md, 1.1).
         let limits = &w::CEILINGS;
         let reason = Some(bytes::copy_of(&[b'x'; REASON_BYTES]));
         let expected = Some(c::DocumentText::complete(

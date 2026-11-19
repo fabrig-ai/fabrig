@@ -117,8 +117,10 @@ fake person. What waits is in section 15, and what is open in section
   is the shell's, kept across patches because the diff keeps its id. Its
   description (3.2) is words beside its name, which a shell shows with
   the name while it is folded ("3 tool calls", described "read · grep ·
-  edit"). A fold that leaves content out of the tree is its owner's
-  state instead.
+  edit"). A child it holds *shown folded* (3.2) is part of its head, shown
+  with its name and description, folded or not, where words alone would not
+  say it: a meter under an account's name, its plan's usage. A fold that
+  leaves content out of the tree is its owner's state instead.
 - **A select** is a named control choosing one of its options, option
   nodes always in the tree, which a shell may show as a list that opens,
   with no step. Choosing an option is a `Press` on it, and the chosen
@@ -162,6 +164,7 @@ fake person. What waits is in section 15, and what is open in section
 | tree, tree item | a tree of items; one item, with its children |
 | tabs, tab | a set of tabs; one tab, current while its content shows |
 | progress | how far a piece of work has gone, its text saying it, and a fraction where its end is known (3.2) |
+| meter | how full a known range is, its text saying it, and a fraction, its value of the range (3.2): a disk's use, a plan's usage window |
 | time | a time or a span, its text in its owner's words |
 | code, quote, separator | text kept as written; quoted text; a break between groups |
 | figure | a named group shown together, as a picture and its caption |
@@ -185,6 +188,7 @@ fake person. What waits is in section 15, and what is open in section
 | completed | an item done: a step of a sequence finished, an entry of a checklist met |
 | continues | a log whose last entry is not its list's last: a shell does not follow it, and counts the person away from the list's end |
 | folds away | a disclosure a shell folds on a press outside it or on Escape, as a panel |
+| shown folded | a disclosure's child a shell shows in the disclosure's head, after its name and description, folded or not; a disclosure's children shown folded come before its others |
 | to log end | a button a shell answers, pressed, by taking the page's logs to their ends; its press still reaches its owner where bound |
 | options | a menu offering the choices of the nearest text field or text area before it in its innermost form, while the focus stays in the field: a list a person moves through from the field, a command's completions or a choice's values |
 
@@ -217,10 +221,12 @@ input. The builder asserts it on a menu alone, and the outline
 it. A shell with no focus, as the text shell, prints the menu as any
 menu.
 
-Folds away and to log end say nothing to a person, and no accessibility
-API has them. Each asks a shell for a behaviour over what the shell alone
-knows, a press's place or a log's scroll (web/README.md, section 5), and a
-shell with no such behaviour, as the text shell, ignores it.
+Folds away, to log end and shown folded say nothing to a person, and no
+accessibility API has them. Each asks a shell for a behaviour over what the
+shell alone knows, a press's place, a log's scroll or a fold's head
+(web/README.md, section 5; web/elements.md), and a shell with no such
+behaviour, as the text shell, which prints every disclosure unfolded,
+ignores it.
 
 | Property | On | Means |
 |---|---|---|
@@ -237,7 +243,7 @@ shell with no such behaviour, as the text shell, ignores it.
 | a position | item, row, tree item | its place in the whole collection, from 1 |
 | spans | cell, column header, row header | the rows and the columns it spans, 1 each by default |
 | a sort | column header | ascending or descending |
-| a fraction | progress | done of total, two whole numbers, done at most total and total above zero; with none, the work's end is not known |
+| a fraction | progress, meter | done of total, two whole numbers, done at most total and total above zero; a progress with none is work whose end is not known, and a meter always has one |
 | a source | image | a picture or an address (3.5) |
 | a drawing | drawing | its kind and its data (3.5) |
 
@@ -245,7 +251,8 @@ Each but completed and an order is found in the semantic or
 accessibility APIs of two platforms (4.1), a hint as HTML's `title` and
 Android's tooltip text; `shells.md` maps each onto the
 web, iOS and Android. A log's *continues* and its end request say what a
-shell does with its view, as *folds away* does, and no platform has them.
+shell does with its view, as *folds away* and *shown folded* do, and no
+platform has them.
 
 An order's numbers are the shell's to show, never an item's text: a
 screen reader and a person selecting words meet them as the platform's
@@ -260,9 +267,13 @@ work whose end is not known, and a shell draws or says it so. Its text
 stays the value's words, written by its owner from its phrasebook
 (`README.md`, section 9): the percentage, the bytes or the step. The fraction is the
 platform's number, never a person's only way to know, and the bar's
-width repeats the words for sight (`web/README.md`, section 10). A meter, a
-value in a known range (a disk's use), still waits (4.2): progress is
-how far a piece of work has gone toward its end.
+width repeats the words for sight (`web/README.md`, section 10). A meter
+is a value in a known range (a disk's use, a plan's usage window), its
+fraction the value of the range's total and its text the value's words,
+as a progress's are: progress is how far a piece of work has gone toward
+its end, a meter how full a range is. Both are drawn alike, and a
+platform tells them apart: ARIA's `meter`, the desktops' level indicator
+(NSAccessibility's, AT-SPI's level bar).
 
 ### 3.3 Owners
 
@@ -291,9 +302,10 @@ how far a piece of work has gone toward its end.
 
 - **Text runs:** plain, emphasis, strong, code and a link run; bytes a
   shell writes as text, never reads as markup, and shows as U+FFFD where
-  they are not UTF-8. A progress's text is runs of its own, as a text
-  node's are, and no text child: a platform's progress bar presents no
-  children, so a shell gives it to the platform as the value's words
+  they are not UTF-8. A progress's or a meter's text is runs of its own,
+  as a text node's are, and no text child: a platform's progress bar or
+  level indicator presents no children, so a shell gives it to the
+  platform as the value's words
   (`shells.md`, 1, 2 and 3).
 - **A value** is `Value { text, written }`: the field's text, and its
   owner's count of its own writes to it. A matched field whose count did
@@ -356,9 +368,9 @@ how far a piece of work has gone toward its end.
   them, as a numbered list of the platform's or before each item's words.
   Another such exception is a change to this design (4.3), never the
   light path.
-- **Two more, which say nothing:** folds away and to log end (3.2), in no
-  platform's API, ask a shell for what it alone can do. Another of these
-  is a change to this design as well.
+- **Three more, which say nothing:** folds away, to log end and shown
+  folded (3.2), in no platform's API, ask a shell for what it alone can
+  do. Another of these is a change to this design as well.
 - **The set converges,** because it mirrors accessibility semantics, not
   HTML's list of elements. Layout is never in the tree.
 
@@ -368,8 +380,8 @@ how far a piece of work has gone toward its end.
   of section 6. A text field with suggested options is a field and a
   menu with *options* (3.2), not a role of its own.
 - **What waits,** each when an application needs it, by the criterion,
-  through the light path where it maps one to one (4.3): a slider and a
-  meter (a value in a range); a switch; media, audio and video, with a source as
+  through the light path where it maps one to one (4.3): a slider (a
+  value a person sets in a range); a switch; media, audio and video, with a source as
   an image's; a feed and its act for an end reached (a windowed list
   asking for more when its last items come into view, a "more" button
   staying beside it); a list box choosing several; a tree grid;
@@ -401,10 +413,13 @@ how far a piece of work has gone toward its end.
   a drawing, a slot; one node a call, no macros. Each call changes the
   innermost open node, and an attribute off its roles (3.2) is an
   assertion. Runs belong to a text node or a progress.
-- **A fraction** is asserted as it is given: on a progress, done at most
-  total, total above zero. A progress closed with a fraction and no runs
-  of its own is an assertion too: a fraction with no words is its
-  owner's bug (3.2).
+- **A fraction** is asserted as it is given: on a progress or a meter,
+  done at most total, total above zero. A progress closed with a fraction
+  and no runs of its own, or a meter closed without its fraction or its
+  runs, is an assertion too: a fraction with no words is its owner's bug
+  (3.2).
+- **Shown folded** is asserted as it is given: on a child of a
+  disclosure, none of whose children before it lacks it (3.2).
 - **Building past the tree's capacity is an assertion:** the capacity
   comes from limits its owner derived (section 13), so overflowing it is
   the view's bug.
@@ -889,7 +904,7 @@ a world's loop and the browser tier's run it.
 Each waits for what is named, and adds without changing what `README.md`, sections 3 to 7 and `scenes.md`
  settle.
 
-- **The vocabulary of 4.2:** a slider and a meter, a switch,
+- **The vocabulary of 4.2:** a slider, a switch,
   media, a feed and its act for an end reached, a list box choosing
   several, a tree grid. Each waits for an application that needs it, and
   comes by the light path (4.3) where it maps one to one.

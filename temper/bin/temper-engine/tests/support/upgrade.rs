@@ -1,5 +1,6 @@
 //! The same empty-deployment boundary for the two upgrade binaries.
 pub fn empty_directory(binary: &str) {
+    use std::os::unix::fs::PermissionsExt;
     let scratch = skein_scratch::Scratch::new("upgrade-empty");
     let config = scratch.path().join("config");
     let data = scratch.path().join("data");
@@ -7,6 +8,9 @@ pub fn empty_directory(binary: &str) {
     std::fs::create_dir(&config).expect("configuration directory");
     std::fs::create_dir(&data).expect("data directory");
     std::fs::create_dir(data.join("state")).expect("empty stopped deployment directory");
+    for directory in [&config, &data, &data.join("state")] {
+        std::fs::set_permissions(directory, std::fs::Permissions::from_mode(0o700)).expect("private fixture directory");
+    }
     let mut document: serde_json::Value =
         serde_json::from_slice(include_bytes!("../../../../docs/examples/owned.json")).expect("example JSON");
     temper_agent_fixtures::providers::input(&mut document)["providers"][0]["sources"]
@@ -21,11 +25,23 @@ pub fn empty_directory(binary: &str) {
         serde_json::json!({"socket":"127.0.0.1:1"});
     temper_agent_fixtures::providers::input(&mut document)["endpoints"][0]["transport"] = "plaintext".into();
     temper_agent_fixtures::providers::input(&mut document)["providers"][0]["signed_in_plan"] = false.into();
-    document["workers"] = serde_json::json!([]);
-
-    document["engine"]["hosts"]["listener"] = serde_json::json!([{"socket":"127.0.0.1:7102"}]);
     temper_agent_fixtures::providers::keep(&mut document, &data);
-    std::fs::write(config.join("temper.json"), serde_json::to_vec(&document).expect("document bytes"))
+    let shape = if binary == "temper-engine" {
+        temper_config_shell::Shape::EngineAlone
+    } else {
+        temper_config_shell::Shape::Standalone
+    };
+    if shape == temper_config_shell::Shape::Standalone {
+        let secret = data.join("worker.secret");
+        std::fs::write(&secret, [1; 32]).expect("fixture worker secret");
+        std::fs::set_permissions(&secret, std::fs::Permissions::from_mode(0o600)).expect("private fixture secret");
+    }
+    let file = temper_config_shell::File {
+        workers: (shape == temper_config_shell::Shape::EngineAlone)
+            .then(|| "127.0.0.1:7102".parse().expect("workers listener")),
+        ..temper_config_shell::File::default()
+    };
+    std::fs::write(config.join(temper_config_shell::FILE), temper_config_shell::render(&file, shape))
         .expect("configuration");
     for mode in ["--check", "--back"] {
         let mut command = std::process::Command::new(skein_scratch::paths::binary(binary));

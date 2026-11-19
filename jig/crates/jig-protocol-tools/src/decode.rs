@@ -275,6 +275,7 @@ fn settings_read(value: json::Node<'_>) -> Result<core::SettingsRead, Problem> {
                 b"template" => core::settings::Setting::Template(value.required(b"number")?.small()?),
                 b"policy" => core::settings::Setting::Policy(value.required(b"number")?.small()?),
                 b"rules" => core::settings::Setting::Rules,
+                b"limits" => core::settings::Setting::Limits,
                 _ => return Err(Problem { field: b"setting", why: Why::Range }),
             };
             core::SettingsRead::Setting { setting, revision: value.required(b"revision")?.small()? }

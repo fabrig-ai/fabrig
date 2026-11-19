@@ -352,21 +352,23 @@ pub enum Request {
     /// `deadline`.
     Probe { owner: Token, at: Place, deadline: Time },
     /// Run the executable at `program`, in its repository's root, as a
-    /// contained process, stopping it at `deadline`; keep the last `tail`
+    /// contained process, given `bound` of held time within `cap`; keep the last `tail`
     /// bytes of what it writes.
     Check {
         owner: Token,
         /// IO-confined check executable, run as a contained process tree.
         program: Place,
-        deadline: Time,
+        bound: Duration,
+        cap: Time,
         /// Last output bytes retained under the caller's cap.
         tail: u32,
     },
     /// Stop the `Check` in flight for `owner`. Its terminal still comes:
     /// `Aborted`, or `Checked` if the checks ended first.
     Abort { owner: Token },
-    /// To the host: checks of the run it names `host_run` are running until
-    /// `deadline` at the latest, so its watchdog waits that long. A notice,
+    /// To the host: checks of the run it names `host_run` start with
+    /// `deadline`, so its watchdog waits that long. A check's reported wait
+    /// may extend this within the call's deadline (domain/run.md, 8.1). A notice,
     /// with no terminal. It is a request, not only a fact (`CheckStarted`),
     /// because the watchdog decides on it, and nothing may depend on whether
     /// a fact is kept.

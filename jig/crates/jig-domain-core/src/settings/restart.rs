@@ -543,6 +543,7 @@ impl Core {
                 | Setting::Template(_)
                 | Setting::Policy(_)
                 | Setting::Rules
+                | Setting::Limits
                 | Setting::Application { .. }
                 | Setting::ProjectPolicy { .. }
                 | Setting::Model(_) => {}

@@ -206,10 +206,7 @@ fn stock_charters() -> Box<[engine::Charter]> {
 
 pub(crate) fn stock_defaults() -> jig_domain_core::settings::Defaults {
     use jig_protocol_config as config;
-    let text = include_str!("../../../temper-init/template/temper.json")
-        .replace("$llm", "127.0.0.1:8370")
-        .replace("\"$provider\"", "null");
-    let mut document: serde_json::Value = serde_json::from_str(&text).unwrap();
+    let mut document: serde_json::Value = serde_json::from_slice(&temper_config_shell::init_document(false)).unwrap();
     // jig's unfixed parser takes the members that temper fixes outside its documents.
     let fixed: serde_json::Value = serde_json::from_str(
         r#"{

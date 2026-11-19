@@ -12,6 +12,8 @@ test = false
 doctest = false
 
 [dependencies]
+temper-shell.workspace = true
+temper-config-shell.workspace = true
 temper-service-shell.workspace = true
 serde_json.workspace = true
 jig-protocol-config.workspace = true

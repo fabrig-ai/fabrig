@@ -422,8 +422,10 @@ fn drained<T>(outcome: &boxed::CtlOutcome<T>, calls: usize) {
 }
 
 fn page(config: &Path) {
-    let document: Value = serde_json::from_slice(&fs::read(config.join("temper.json")).expect("configuration"))
-        .expect("configuration JSON");
+    let document: Value = serde_json::from_slice(
+        &support::read_start(&config.join(temper_config_shell::FILE), temper_config_shell::Shape::Standalone).document,
+    )
+    .expect("configuration JSON");
     let address = document["application"]["clients"]["listener"]["socket"]
         .as_str()
         .expect("clients address")

@@ -1307,6 +1307,8 @@ pub enum Timer {
     People,
     /// Task deadlines and standing work.
     Tasks,
+    /// Missing batch reports reach their bound (domain/tasks/holds.md, 2).
+    Resources,
     /// Host, call and attempt deadlines.
     Fleet,
     /// Brief gathering deadline.
@@ -1663,7 +1665,7 @@ impl Timer {
     pub const fn new_work(self) -> bool {
         match self {
             Self::Tasks => true,
-            Self::People | Self::Fleet | Self::Brief | Self::Account | Self::Retention => false,
+            Self::People | Self::Fleet | Self::Brief | Self::Account | Self::Retention | Self::Resources => false,
         }
     }
 }
@@ -1698,7 +1700,7 @@ impl Timer {
 pub fn waits(timer: Timer) -> bool {
     match timer {
         Timer::People | Timer::Tasks | Timer::Fleet | Timer::Brief | Timer::Retention => true,
-        Timer::Account => false,
+        Timer::Account | Timer::Resources => false,
     }
 }
 

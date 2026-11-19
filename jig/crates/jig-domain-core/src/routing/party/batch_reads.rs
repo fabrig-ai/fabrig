@@ -225,12 +225,14 @@ pub(crate) fn loaded(
 }
 
 pub(crate) fn terminal(core: &mut Core, work: &mut Queue<Work>, request: Token, outcome: people::Outcome) {
+    core.tasks.unpin_reports(request);
     if let Some(Flight::Made { request, .. }) = core.land_kind(request, Kind::Task) {
         work.push(Work::Event(Event::People(people::Event::Decided { request, outcome })));
     }
 }
 
 pub(crate) fn discard(core: &mut Core, request: Token) {
+    core.tasks.unpin_reports(request);
     if let Some(Flight::Made { request, .. }) = core.land_kind(request, Kind::Task) {
         drop(core.land_kind(request, Kind::Party));
     }

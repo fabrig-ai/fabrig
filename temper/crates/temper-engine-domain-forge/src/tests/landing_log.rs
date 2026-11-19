@@ -27,8 +27,12 @@ fn a_merge_logs_its_change_with_its_title() {
                 branch: Box::from(b"main".as_slice()),
                 at: env().wall,
                 changes: Box::new([LoggedChange {
+                    fixes: Box::new([]),
                     goal: None,
                     milestone: None,
+                    person: None,
+                    goal_title: None,
+                    draft: None,
                     signed: Box::new([]),
                     task: CHANGE,
                     pull,
@@ -40,6 +44,27 @@ fn a_merge_logs_its_change_with_its_title() {
         assert_eq!(d.landing_log(REPO), Some(&expected));
         assert_eq!(d.change(CHANGE).unwrap().change.state, change::State::Landed { merge: FIRST, since: env().wall });
     }
+}
+
+#[test]
+fn body_finding_lines_are_exact_distinct_sorted_and_bounded() {
+    let mut d = configured_domain(&[]);
+    add_change(&mut d, CHANGE, b"main");
+    d.changes.get_mut(&CHANGE).unwrap().body = b"Fixes-finding: 12\nFixes-finding: 7\r\nFixes-finding: 12\n Fixes-finding: 1\nFixes-finding: +2\nFixes-finding: 3 extra\nFixes-finding: 4 \nFixes-finding: 4294967296\nFixes #5\nFixes-finding: \nFixes-finding:  6\nFixes-finding: 0007".as_slice().into();
+    merged(&mut d, CHANGE, FIRST);
+    assert_eq!(d.landing_log(REPO).unwrap().landings[0].changes[0].fixes.as_ref(), [7, 12]);
+    // Distinct entries fill the eight slots; repeats do not consume one.
+    let mut body = skein_lib::Buffer::with_capacity(512);
+    for n in 1..=9 {
+        for _ in 0_u8..2 {
+            body.put(b"Fixes-finding: ").unwrap();
+            body.put(skein_lib::Decimal::of(n).as_bytes()).unwrap();
+            body.put(b"\n").unwrap();
+        }
+    }
+    d.changes.get_mut(&CHANGE).unwrap().body = body.to_boxed();
+    merged(&mut d, CHANGE, LAST);
+    assert_eq!(d.landing_log(REPO).unwrap().landings[1].changes[0].fixes.as_ref(), [1, 2, 3, 4, 5, 6, 7, 8]);
 }
 
 #[test]
@@ -279,15 +304,61 @@ fn a_new_admission_replaces_sign_offs_and_joins_an_existing_commit() {
 #[test]
 fn a_merge_logs_its_goal_and_milestone() {
     for (goal, milestone) in [(Some(42), Some(40)), (None, None)] {
-        let mut d = configured_domain(&[]);
-        add_change(&mut d, CHANGE, b"main");
-        let row = d.changes.get_mut(&CHANGE).unwrap();
-        row.goal = goal;
-        row.milestone = milestone;
-        merged(&mut d, CHANGE, FIRST);
-        let member = &d.landing_log(REPO).unwrap().landings[0].changes[0];
-        assert_eq!((member.goal, member.milestone), (goal, milestone));
+        for already_logged in [false, true] {
+            let mut d = configured_domain(&[]);
+            if already_logged {
+                add_change(&mut d, SECOND, b"main");
+                merged(&mut d, SECOND, FIRST);
+            }
+            add_change(&mut d, CHANGE, b"main");
+            let row = d.changes.get_mut(&CHANGE).unwrap();
+            row.goal = goal;
+            row.milestone = milestone;
+            if goal.is_some() {
+                row.person = Some(7);
+                row.goal_title = Some(Box::from(b"R2 Reds blamed".as_slice()));
+                row.draft = Some(Box::from(b"temper/docs/design/draft/after-landing-repairs.md".as_slice()));
+            }
+            let expected = row.clone();
+            let out = merged(&mut d, CHANGE, FIRST);
+            let log = d.landing_log(REPO).unwrap();
+            assert_eq!(saved(&out).as_ref(), core::slice::from_ref(log));
+            assert_eq!(log.landings.len(), 1);
+            let member = log.landings[0].changes.last().unwrap();
+            assert_eq!((member.goal, member.milestone), (goal, milestone));
+            assert_eq!(member.person, expected.person);
+            assert_eq!(member.goal_title, expected.goal_title);
+            assert_eq!(member.draft, expected.draft);
+        }
     }
+}
+
+#[test]
+fn goal_words_are_counted_in_change_and_log_storage() {
+    let mut d = configured_domain(&[]);
+    add_change(&mut d, CHANGE, b"main");
+    let row = d.change(CHANGE).unwrap().clone();
+    let (cold, _) = row.clone().split();
+    let mut with_words = row.clone();
+    with_words.goal_title = Some(Box::from(b"title".as_slice()));
+    with_words.draft = Some(Box::from(b"path".as_slice()));
+    let (cold_with_words, _) = with_words.clone().split();
+    let payload = 9;
+    for (before, after) in [
+        (Stored::Change(Box::new(row)), Stored::Change(Box::new(with_words))),
+        (Stored::ChangeCold(Box::new(cold)), Stored::ChangeCold(Box::new(cold_with_words))),
+    ] {
+        assert_eq!(stored_bytes(&after), Some(stored_bytes(&before).unwrap() + payload));
+    }
+    merged(&mut d, CHANGE, FIRST);
+    let log = d.landing_log(REPO).unwrap().clone();
+    let mut with_words = log.clone();
+    with_words.landings[0].changes[0].goal_title = Some(Box::from(b"title".as_slice()));
+    with_words.landings[0].changes[0].draft = Some(Box::from(b"path".as_slice()));
+    assert_eq!(
+        stored_bytes(&Stored::LandingLog(with_words)),
+        Some(stored_bytes(&Stored::LandingLog(log)).unwrap() + payload)
+    );
 }
 
 #[test]
@@ -314,6 +385,84 @@ fn only_tiers_following_the_branch_are_logged_and_an_added_member_keeps_them() {
         merged(&mut d, CHANGE, [99; 32]);
         assert!(d.landing_log(REPO).unwrap().landings[2].tiers.is_empty(), "another branch adds no entry");
     }
+}
+
+#[test]
+fn a_full_landing_replaces_only_judged_entries_of_removed_tiers() {
+    for (still_named, verifying) in [(false, false), (true, false), (false, true)] {
+        let names: &[(&[u8], Option<&[u8]>)] =
+            if still_named { &[(b"a", None), (b"b", None)] } else { &[(b"b", None), (b"c", None)] };
+        let mut d = configured_domain(names);
+        d.landing.limits.tiers.tiers = 2;
+        add_change(&mut d, CHANGE, b"main");
+        merged(&mut d, CHANGE, FIRST);
+        let entries = Box::new([
+            LoggedTier {
+                tier: b"a".as_slice().into(),
+                verdict: if verifying {
+                    LoggedVerdict::Verifying
+                } else {
+                    LoggedVerdict::Red { run: 3, failing: None, tests: Box::new([]), many: None }
+                },
+            },
+            LoggedTier { tier: b"b".as_slice().into(), verdict: LoggedVerdict::Cleared { run: 3 } },
+        ]);
+        d.landing_logs.get_mut(&REPO).unwrap().landings[0].tiers = entries.clone();
+        let verdict = policy::Verdict {
+            number: 7,
+            tip: FIRST,
+            key: FIRST,
+            failing: policy::Failures::Tests(Box::new([])),
+            landings: Box::new([policy::Blame::Cleared]),
+            flakes: Box::new([]),
+        };
+        let mut out = Queue::uncapped();
+        landing_log::judged(
+            &mut d,
+            REPO,
+            b"c",
+            &verdict,
+            &[policy::Landing { commit: FIRST, key: FIRST }],
+            None,
+            &mut out,
+        );
+        let log = d.landing_log(REPO).unwrap();
+        if still_named || verifying {
+            assert_eq!(log.landings[0].tiers.as_ref(), entries.as_ref());
+            assert!(saved(&out).is_empty());
+        } else {
+            assert_eq!(
+                log.landings[0].tiers.as_ref(),
+                &[
+                    entries[1].clone(),
+                    LoggedTier { tier: b"c".as_slice().into(), verdict: LoggedVerdict::Cleared { run: 7 } },
+                ]
+            );
+            assert_eq!(saved(&out).as_ref(), core::slice::from_ref(log));
+        }
+    }
+}
+
+#[test]
+fn a_restore_retires_judged_removed_tiers_to_the_entry_bound() {
+    let mut d = configured_domain(&[(b"b", None), (b"c", None)]);
+    d.landing.limits.tiers.tiers = 2;
+    add_change(&mut d, CHANGE, b"main");
+    merged(&mut d, CHANGE, FIRST);
+    let expected = Box::new([
+        LoggedTier { tier: b"b".as_slice().into(), verdict: LoggedVerdict::Verifying },
+        LoggedTier { tier: b"c".as_slice().into(), verdict: LoggedVerdict::Cleared { run: 3 } },
+    ]);
+    d.landing_logs.get_mut(&REPO).unwrap().landings[0].tiers = Box::new([
+        LoggedTier { tier: b"a".as_slice().into(), verdict: LoggedVerdict::Cleared { run: 3 } },
+        expected[0].clone(),
+        expected[1].clone(),
+    ]);
+    let mut out = Queue::uncapped();
+    landing_log::restored(&mut d, &mut out);
+    let log = d.landing_log(REPO).unwrap();
+    assert_eq!(log.landings[0].tiers.as_ref(), expected.as_ref());
+    assert_eq!(saved(&out).as_ref(), core::slice::from_ref(log));
 }
 
 #[test]

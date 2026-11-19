@@ -45,27 +45,27 @@ pub(super) fn recovered(world: &mut World, name: CheckpointName) {
     assert_eq!(record.store, name.store);
     assert_eq!(record.deployment, root::DEPLOYMENT);
     for file in &record.files {
-        let relative = match file.part() {
+        let relative = match file.part {
             1 => b"generations/1/store/snapshot".to_vec(),
-            2 => format!("generations/1/store/log-{:020}", file.number()).into_bytes(),
-            3 => [b"generations/1/store/".as_slice(), &skein_kv::log_path(file.number())].concat(),
-            4 => format!("transcripts/{:016x}/{:016x}", file.number() >> 12, file.number()).into_bytes(),
+            2 => format!("generations/1/store/log-{:020}", file.number).into_bytes(),
+            3 => [b"generations/1/store/".as_slice(), &skein_kv::log_path(file.number)].concat(),
+            4 => format!("transcripts/{:016x}/{:016x}", file.number >> 12, file.number).into_bytes(),
             5 => b"generations/1/secrets/snapshot".to_vec(),
-            6 => format!("generations/1/secrets/log-{:020}", file.number()).into_bytes(),
+            6 => format!("generations/1/secrets/log-{:020}", file.number).into_bytes(),
             part => panic!("checkpoint part {part}"),
         };
         let path = [base.as_slice(), b"/", &relative].concat();
-        if file.way() == 3 {
+        if file.way == 3 {
             assert!(!contents.contains_key(&path));
             continue;
         }
         let bytes = contents.get(&path).expect("selected file present").as_ref().expect("selected regular file");
-        if file.way() == 2 {
-            assert_eq!(u64::try_from(bytes.len()).expect("file length"), file.length());
+        if file.way == 2 {
+            assert_eq!(u64::try_from(bytes.len()).expect("file length"), file.length);
         } else {
-            assert!(u64::try_from(bytes.len()).expect("file length") >= file.length());
+            assert!(u64::try_from(bytes.len()).expect("file length") >= file.length);
         }
-        if file.part() >= 5 {
+        if file.part >= 5 {
             assert_eq!(world.links(&path), 1, "secrets are private copies");
         }
     }
@@ -73,17 +73,17 @@ pub(super) fn recovered(world: &mut World, name: CheckpointName) {
     let restored = copy.checkpoint_reopen();
     let retained = copy.retained();
     for file in &record.files {
-        if file.part() == 3 {
-            let key = [jig_protocol_store::logs::EXTENTS.as_slice(), &file.number().to_be_bytes()].concat();
+        if file.part == 3 {
+            let key = [jig_protocol_store::logs::EXTENTS.as_slice(), &file.number.to_be_bytes()].concat();
             let extent = retained.get(key.as_slice()).expect("extent in copied map");
             assert_eq!(
-                file.length(),
+                file.length,
                 u64::from_be_bytes(extent.as_ref().try_into().expect("extent is eight bytes")),
                 "log copied to its extent at C"
             );
-        } else if file.part() == 4 {
+        } else if file.part == 4 {
             let key = jig_protocol_store::keys::encode_own(
-                &jig_protocol_store::keys::Own::Transcript { task: file.number() },
+                &jig_protocol_store::keys::Own::Transcript { task: file.number },
                 1024,
             )
             .expect("places key");
@@ -91,7 +91,7 @@ pub(super) fn recovered(world: &mut World, name: CheckpointName) {
                 retained.get(key.as_ref()).expect("places in copied map"),
             )
             .expect("places decode");
-            assert_eq!(file.length(), places.length, "transcript copied to its length at C");
+            assert_eq!(file.length, places.length, "transcript copied to its length at C");
         }
     }
     Referee::checkpoint(&world.model, &restored, name.store)
@@ -248,9 +248,9 @@ fn live_and_ended_histories_are_copied_to_their_extents_and_recover_at_c() {
     let path = [b"checkpoints/".as_slice(), &taken.name.bytes(), b"/checkpoint"].concat();
     let bytes = world.contents().remove(&path).expect("record").expect("file");
     let record = jig_protocol_store::codec::component::Checkpoint::decode(&bytes).expect("record decodes");
-    let histories: Vec<_> = record.files.iter().filter(|file| file.part() == 3 && file.number() & 1 == 0).collect();
+    let histories: Vec<_> = record.files.iter().filter(|file| file.part == 3 && file.number & 1 == 0).collect();
     assert_eq!(histories.len(), 3);
-    assert!(histories.iter().all(|file| file.way() == 2 && file.length() > 0));
+    assert!(histories.iter().all(|file| file.way == 2 && file.length > 0));
     recovered(&mut world, taken.name);
 }
 #[test]

@@ -12,6 +12,7 @@ use crate::{
     codec::component::{Checkpoint, CheckpointFile, Manifest},
 };
 use crate::{CheckpointRefusal, Event, Request};
+use skein_codec::Record as _;
 use skein_lib::{List, Reader, Token, Writer};
 mod keeping;
 
@@ -197,8 +198,8 @@ fn checkpoint_names_and_draw_halves_have_one_form() {
 
 #[test]
 fn checkpoint_and_manifest_fixed_rule_values_round_trip_at_both_bounds() {
-    let schema = skein_codegen::parse(super::COMPONENT_SCHEMA).expect("component schema");
-    let goldens = skein_codegen::goldens(&schema);
+    let values = skein_codegen::values(super::COMPONENT_SCHEMA);
+    let goldens = values.goldens.clone();
     let value = |record: &str, size: &str| {
         goldens
             .iter()
@@ -226,8 +227,9 @@ fn checkpoint_and_manifest_fixed_rule_values_round_trip_at_both_bounds() {
     for bytes in [value("checkpoint_file", "smallest"), value("checkpoint_file", "full")] {
         let record =
             CheckpointFile::decode(&crate::component_v3::CEILINGS, &mut Reader::new(bytes)).expect("file value");
-        let mut writer = Writer::new(usize::try_from(record.measure()).expect("file size"));
-        record.encode(&mut writer).expect("measured file");
+        let mut writer =
+            Writer::new(usize::try_from(record.measure(&crate::component_v3::CEILINGS).unwrap()).expect("file size"));
+        record.write(&crate::component_v3::CEILINGS, &mut writer).expect("measured file");
         assert_eq!(writer.finish().as_ref(), bytes);
     }
     for bytes in [value("manifest", "smallest"), value("manifest", "full")] {

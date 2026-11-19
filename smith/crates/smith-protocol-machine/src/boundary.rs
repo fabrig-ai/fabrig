@@ -4,7 +4,7 @@
 use alloc::boxed::Box;
 
 use skein_io::file;
-use skein_lib::{Time, Token};
+use skein_lib::{Duration, Time, Token};
 use smith_domain::{run, tools};
 
 /// A domain request sent by the agent service to the machine.
@@ -21,7 +21,7 @@ pub enum FromDomain {
     /// Check whether one root-relative path names an executable file.
     Probe { owner: Token, at: run::Place, deadline: Time },
     /// Run the selected check executable and retain its output tail.
-    Check { owner: Token, program: run::Place, deadline: Time, tail: u32 },
+    Check { owner: Token, program: run::Place, bound: Duration, cap: Time, tail: u32 },
     /// Stop one running check; its terminal remains owed.
     Abort { owner: Token },
 }

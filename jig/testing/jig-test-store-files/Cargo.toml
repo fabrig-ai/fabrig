@@ -16,10 +16,12 @@ jig-protocol-store.workspace = true
 jig-domain-core.workspace = true
 jig-domain-tasks.workspace = true
 skein-lib.workspace = true
+skein-codec.workspace = true
 skein-io.workspace = true
 skein-kv.workspace = true
 skein-fake-machine.workspace = true
 skein-sim.workspace = true
+skein-fork.workspace = true
 
 [dev-dependencies]
 jig-domain-people.workspace = true

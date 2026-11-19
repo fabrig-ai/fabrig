@@ -1360,6 +1360,7 @@ impl Chat {
             | Act::Models(_)
             | Act::HandArea(_)
             | Act::StopAsking(_)
+            | Act::LimitSettings(_)
             | Act::Needs(_)
             | Act::Finding(_)
             | Act::TellWords { .. }

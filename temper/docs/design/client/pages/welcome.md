@@ -748,7 +748,7 @@ repository, and the cues the playground's, copied in from its read:
 - **The first run walked whole, kept** (1; `../web/journeys.md`, 9):
   that request has Forgejo then Claude or ChatGPT then Create, and "Nothing for
   now" then "Make an empty one", walked in a browser by a throwaway driver.
-  `welcome-set-up` stops at Model, within `again`'s 40 seconds, and
+  `welcome-set-up` stops at Model, once its forge is set up, and
   `project-landing` starts on Home; the process tier and the client's world
   hold what lies between, apart. Default: so.
 - **A whole welcome's page** (`../README.md`, 3.4): a browser at `/welcome` once the

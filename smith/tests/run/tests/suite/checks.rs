@@ -1,6 +1,8 @@
 //! Check cancellation crosses the run and machine boundaries once.
 //! Contract: smith/docs/design/domain/run.md, sections 8.1 and 9.
 
+pub(crate) mod held;
+
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
 use smith_domain_run::facts::FactKind;
 use smith_domain_run::outcome::{Change, Declared, Field};
@@ -18,11 +20,17 @@ struct PendingCheck {
     checks_ended: u32,
     conversation: Token,
     owner: Token,
+    request: Option<Request>,
 }
 
 impl PendingCheck {
     fn new() -> Self {
-        let settings = Settings::calm(827);
+        Self::starting(60, 600)
+    }
+
+    fn starting(call_seconds: u64, run_seconds: u64) -> Self {
+        let mut settings = Settings::calm(827);
+        settings.run.check_timeout = Duration::from_secs(60);
         let script = host::Script {
             jobs: 1,
             window: Duration::ZERO,
@@ -42,8 +50,13 @@ impl PendingCheck {
             checks_ended: 0,
             conversation: Token::new(0),
             owner: Token::new(0),
+            request: None,
         };
-        let mut requests = check.step(starts.remove(0));
+        let mut start = starts.remove(0);
+        let Event::Start { charter, .. } = &mut start else { panic!("start") };
+        charter.budget.time = Duration::from_secs(run_seconds);
+        charter.reserve.time = Duration::from_secs(60);
+        let mut requests = check.step(start);
         while !requests.is_empty() {
             let mut next = Vec::new();
             for request in requests {
@@ -68,17 +81,18 @@ impl PendingCheck {
                 Field { name: b"body".as_slice().into(), value: b"Run checks".as_slice().into() },
             ]),
         });
-        let requests = check.step(Event::Delegated {
+        let mut requests = check.step(Event::Delegated {
             conversation: check.conversation,
             name: run::CallName { activation: 1, completion: 1, position: 0 },
             call: CALL,
             ask: Ask::Finish { outcome },
-            deadline: Time::ZERO.saturating_add(DEADLINE),
+            deadline: Time::ZERO.saturating_add(Duration::from_secs(call_seconds)),
         });
         let [Request::Check { owner, .. }, Request::Checking { .. }] = requests.as_slice() else {
             panic!("one check starts: {requests:?}");
         };
         check.owner = *owner;
+        check.request = Some(requests.remove(0));
         check
     }
 

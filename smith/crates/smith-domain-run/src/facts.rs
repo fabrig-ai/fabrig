@@ -361,8 +361,8 @@ pub(crate) fn tell(
                 Some(result) => FactKind::Returned { run, call: *call, result },
                 None => continue,
             },
-            Request::Check { owner: _, program: _, deadline, tail: _ } => {
-                FactKind::CheckStarted { run, deadline: *deadline }
+            Request::Check { bound, cap, .. } => {
+                FactKind::CheckStarted { run, deadline: facts.now.saturating_add(*bound).min(*cap) }
             }
             Request::Answer { to: _, answer, read: _, detail: _ } => {
                 FactKind::Answered { run, answer: answered(answer) }

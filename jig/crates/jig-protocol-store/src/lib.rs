@@ -52,6 +52,7 @@ mod rows;
 mod secrets;
 pub mod sizes;
 pub mod transcripts;
+use crate::tasks_v13::Record as _;
 use alloc::boxed::Box;
 use skein_lib::{Env, Queue, Time, Wall};
 
@@ -61,6 +62,9 @@ use skein_lib::{Env, Queue, Time, Wall};
 pub fn levels(sets: &OwnerSets) -> codec::component::Levels {
     upgrade::admission::binary(sets)
 }
+
+mod startup_limits;
+pub use startup_limits::{InstallRefusal, runtime_limits};
 
 /// The store component's bounds (protocol/store/README.md, section 8).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -108,8 +112,13 @@ pub enum Phase {
 #[derive(Debug)]
 pub struct Store {
     limits: Limits,
+    runtime_started: bool,
+    startup_setting: Option<Box<[u8]>>,
     application: sizes::Application,
     codec_limits: codec::View,
+    /// Opening stock, retained only for classifying a refused runtime read.
+    stock_core: Option<Box<jig_domain_core_vocabulary::Limits>>,
+    read_failure: Option<restore::Failure>,
     registry: Box<registry::Layouts>,
     layout_work: Box<registry::ReadWork>,
     /// Today's catalogue, overlaid at open and replaced before each catalogue commit.
@@ -123,6 +132,7 @@ pub struct Store {
     /// kept by an empty store's first commit, or restored from the store.
     installation: [u8; 16],
     owner_sets: OwnerSets,
+    prepared_schemas: &'static [skein_codec::schema::Schema],
     build_name: &'static str,
     /// Includes the first commit's job row while that commit waits for its sync.
     wires: &'static [Wire],
@@ -259,8 +269,12 @@ impl Store {
             view: Box::new(view::State::new()),
             checkpoint: Box::new(checkpoints::taking::Taking::new()),
             limits: *limits,
+            runtime_started: false,
+            startup_setting: None,
             application,
             codec_limits,
+            stock_core: None,
+            read_failure: None,
             registry: Box::new(registry::Layouts::new()),
             layout_work: Box::new(registry::ReadWork::new()),
             names: codec::names(models),
@@ -272,6 +286,7 @@ impl Store {
             transcripts: transcripts::State::new(limits),
             installation: [0; 16],
             owner_sets: OwnerSets::NONE,
+            prepared_schemas: &[],
             build_name: "",
             wires: &[],
             mark: Mark::Waiting,
@@ -309,6 +324,12 @@ impl Store {
         self.start_open_failure.as_deref()
     }
 
+    /// The last serving read's value-free refusal, before its Corrupt terminal.
+    #[must_use]
+    pub fn read_failure(&self) -> Option<&restore::Failure> {
+        self.read_failure.as_ref()
+    }
+
     fn open_failed(&mut self, failure: restore::OpenFailure) {
         if self.start_open_failure.is_none() {
             self.start_open_failure = Some(Box::new(failure));
@@ -328,6 +349,13 @@ impl Store {
     pub fn owner_sets(&mut self, sets: OwnerSets) {
         self.directory.checked = None;
         self.owner_sets = sets;
+    }
+
+    /// Optional parsed binary texts for admission (protocol/store/opening.md, 3).
+    /// Only an exact text match is used; other texts are parsed by this open.
+    pub fn prepared_schemas(&mut self, schemas: &'static [skein_codec::schema::Schema]) {
+        self.directory.checked = None;
+        self.prepared_schemas = schemas;
     }
 
     /// Supplies the application's census names with its owner sets (protocol/store/README.md, 6.3).
@@ -471,6 +499,7 @@ fn decoded_records_bound(limits: &Limits, codec: &codec::View) -> Option<u64> {
 
 /// The memory component's requests (protocol/store/opening.md).
 pub fn down(store: &mut Store, env: &Env<Limits>, request: Request, above: &mut Queue<Event>, below: &mut Below) {
+    startup_limits::observe(store, &request);
     store.census.now = env.now;
     let lengths = rehearsal::lengths(below);
     let mut events = Queue::uncapped();

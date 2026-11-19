@@ -58,6 +58,7 @@ pub fn run(limits: &Limits, launch: &Launch, address: std::net::SocketAddr) -> R
             .collect();
     args.extend(spec.arguments.iter().cloned());
     let spawn = Spawn {
+        reach: None,
         program: program.as_os_str().as_bytes().into(),
         args: args.into_boxed_slice(),
         env: spec.environment.clone(),

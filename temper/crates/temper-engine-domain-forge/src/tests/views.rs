@@ -418,8 +418,12 @@ fn logged(task: u64, commit: u8, at: u64, branch: &[u8]) -> LoggedLanding {
         branch: Box::from(branch),
         at: Wall::from_nanos(at),
         changes: Box::new([LoggedChange {
+            fixes: Box::new([]),
             goal: None,
             milestone: None,
+            person: None,
+            goal_title: None,
+            draft: None,
             signed: Box::new([]),
             task,
             pull: None,
@@ -645,6 +649,7 @@ fn changes_marks_a_verifications_save_and_erasure() {
         b"browser",
         &verdict,
         &[temper_engine_domain_forge_tiers::Landing { commit: fixtures::HEAD, key: [7; 32] }],
+        None,
         &mut out,
     );
     assert!(queue_marked(&out));
@@ -658,7 +663,7 @@ fn changes_marks_a_verifications_save_and_erasure() {
         landings: Box::new([]),
         flakes: Box::new([]),
     };
-    verification::judged(&mut d, REPO, b"browser", &verdict, &[], &mut out);
+    verification::judged(&mut d, REPO, b"browser", &verdict, &[], None, &mut out);
     assert!(queue_marked(&out));
     assert!(changes(&d).queues.is_empty());
     let mut out = Queue::uncapped();

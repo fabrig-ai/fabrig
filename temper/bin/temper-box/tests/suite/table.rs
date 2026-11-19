@@ -56,7 +56,7 @@ fn help(text: &str) -> bool {
             .split_whitespace()
             .collect::<Vec<_>>()
             .join(" ")
-            .contains("Judges the workers alone over a copy; switches nothing.")
+            .contains("Judges the workers alone over links and small copies; switches nothing.")
         && ["forge", "fake", "internal", "ctl", "open"].iter().all(|word| !names.contains(word))
 }
 
@@ -66,6 +66,10 @@ fn init_help(text: &str) -> bool {
 
 fn pages(text: &str) -> bool {
     text == temper_shell::help::answer(TABLE.binary, &temper_shell::help::Request::Index).expect("index page")
+}
+
+fn config_page(text: &str) -> bool {
+    text.as_bytes() == temper_config_shell::help(temper_config_shell::Shape::Standalone).as_ref()
 }
 
 fn commands_page(text: &str) -> bool {
@@ -107,6 +111,7 @@ const ROWS: &[Case] = &[
     (&["forge", "fetch", "--help"], 0, internal_help, ""),
     (&["help", "pages"], 0, pages, ""),
     (&["help", "commands"], 0, commands_page, ""),
+    (&["help", "config"], 0, config_page, ""),
     (&["help", "nope"], 1, empty, "temper-box: no page nope; temper-box help lists them\n"),
     (
         &["help", "--search"],

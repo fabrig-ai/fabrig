@@ -1,6 +1,6 @@
 //! The story owns every listener across restarts (temper/docs/design/testing/process-tier.md).
 use crate::support;
-use std::{fs, net::SocketAddr, process::Command};
+use std::{net::SocketAddr, process::Command};
 
 #[test]
 fn own_listener_files_moves_each_listener_below_the_ephemeral_range() {
@@ -13,9 +13,7 @@ fn own_listener_files_moves_each_listener_below_the_ephemeral_range() {
     let initialized = command.output().expect("initialize story");
     assert!(initialized.status.success(), "{}", String::from_utf8_lossy(&initialized.stderr));
     support::own_listener_files(&scratch.path().join("config"));
-    let document: serde_json::Value =
-        serde_json::from_slice(&fs::read(scratch.path().join("config/temper.json")).expect("deployment"))
-            .expect("deployment JSON");
+    let document = temper_agent_fixtures::start(&scratch.path().join("config"));
     assert!(document["application"].get("machine").is_none(), "a forge chooses its listener at set-up");
     for pointer in ["/application/clients/listener/socket", "/application/webhooks/listener/socket"] {
         let address: SocketAddr =

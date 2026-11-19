@@ -133,14 +133,8 @@ fn an_amend_naming_its_spec_revision_is_done_with_the_next() {
 #[test]
 fn agents_tools_scenario_family() {
     use jig_core_world::agents_tools::STORIES;
-    use jig_core_world::world::Cut;
     for story in STORIES {
-        let commits = (story.run)(&mut (story.setup)(190), None);
-        for cut in [Cut::Submitted(commits), Cut::Durable(commits)] {
-            let mut world = (story.setup)(190);
-            (story.run)(&mut world, Some(cut));
-            assert_eq!(world.reached_cut, Some(cut), "{} reaches its cut", story.name);
-        }
+        story.sweep(190, false);
     }
 }
 

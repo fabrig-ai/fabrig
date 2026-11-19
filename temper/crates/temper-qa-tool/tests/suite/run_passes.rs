@@ -891,7 +891,7 @@ fn a_deployment_pass_installs_its_scratch_and_briefs_only_its_kind() {
             git.file_at(2, &format!("{SETUPS}/{name}/recipe"), recipe.as_bytes());
             git.file_at(2, &format!("{SETUPS}/{name}/README.md"), format!("The {name} state. More detail.").as_bytes());
         }
-        git.file_at(2, &format!("{SETUPS}/root/config/engine/temper.json"), b"{}");
+        git.file_at(2, &format!("{SETUPS}/root/config/engine/{}", temper_config_shell::FILE), &super::engine_file());
         world.installable_build(2);
         let mut run = world.start(git, &[Agent::Never]);
         run.tick();

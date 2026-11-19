@@ -151,28 +151,21 @@ fn a_restore_and_its_safety_undo_recover_each_maps_logs_and_transcripts() {
 }
 #[test]
 fn every_open_and_back_resolve_each_durable_intent_row_before_their_checks() {
-    use jig_protocol_store::component_v3::{CEILINGS, RestoreIntent, RestoreIntentParts};
+    use jig_protocol_store::component_v3::{CEILINGS, Record, RestoreIntent};
     use skein_fake_machine::Item;
-    use skein_lib::Writer;
     let (mut reference, name, _) = scene(71);
     let old = subtree(&reference.contents(), b"transcripts");
     let answer = restored(&reference.restore_checkpoint(name, [2; 16]));
     let contents = reference.contents();
     let new = subtree(&contents, b"transcripts");
-    let intent = RestoreIntent::new(
-        &CEILINGS,
-        RestoreIntentParts {
-            generation: answer.generation,
-            active: skein_lib::sha256::digest(b"1\n"),
-            source: Box::from(name.bytes()),
-            safety: Box::from(answer.safety.bytes()),
-            made: 1,
-        },
-    )
-    .expect("intent");
-    let mut bytes = Writer::new(usize::try_from(intent.measure()).expect("intent size"));
-    intent.encode(&mut bytes).expect("intent bytes");
-    let bytes = bytes.finish();
+    let intent = RestoreIntent {
+        generation: answer.generation,
+        active: skein_lib::sha256::digest(b"1\n"),
+        source: Box::from(name.bytes()),
+        safety: Box::from(answer.safety.bytes()),
+        made: 1,
+    };
+    let bytes = intent.encode(&CEILINGS).expect("intent bytes");
     for (s, t, a, active) in [
         (true, true, false, b"1\n".as_slice()),
         (true, false, true, b"1\n"),
@@ -259,13 +252,10 @@ fn source_and_deployment_refusals_leave_the_live_pair_unchanged() {
                 let file = record
                     .files
                     .iter()
-                    .find(|file| (file.part() == 1 || file.part() == 2) && file.length() > 1)
+                    .find(|file| (file.part == 1 || file.part == 2) && file.length > 1)
                     .expect("nonempty immutable file");
-                let leaf = if file.part() == 1 {
-                    b"snapshot".to_vec()
-                } else {
-                    format!("log-{:020}", file.number()).into_bytes()
-                };
+                let leaf =
+                    if file.part == 1 { b"snapshot".to_vec() } else { format!("log-{:020}", file.number).into_bytes() };
                 let file = [path.as_slice(), b"/generations/1/store/", &leaf].concat();
                 if case == 5 {
                     world.rewrite(&file, b"x");

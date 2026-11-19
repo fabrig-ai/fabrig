@@ -1,6 +1,6 @@
 # root: status
 
-2026-11-16. Where temper's code lags or departs from [root.md](root.md).
+2026-11-19. Where temper's code lags or departs from [root.md](root.md).
 
 
 - **Departs:** 9: the store's fill mark is jig's standard profile's, not small's,

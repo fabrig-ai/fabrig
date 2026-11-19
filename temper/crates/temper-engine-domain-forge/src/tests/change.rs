@@ -3004,6 +3004,7 @@ fn an_ended_writers_slot_stops_waiting_after_its_branch_is_read() {
                 },
                 task: fixtures::CHANGE,
                 writer: Some(Writer::Run { task: 52, attempt: 1 }),
+                beside: None,
                 design_writers: Box::new([]),
                 drift: None,
             }),
