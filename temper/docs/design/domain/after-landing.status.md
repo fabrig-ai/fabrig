@@ -7,16 +7,16 @@ there is no known gap in that projection. Older public history is deferred
 in section 14. The log's other gaps and the retained change rows remain below.
 
 - **Not yet:** 10, *The landing log*: a member keeps no goal's person,
-  title or `Draft:` path.
+  title or `Draft:` path. [in flight: change 9863]
 - **Not yet:** 7, *Under `wait: landed`*: a red is a red of no goal's,
-  filed once per landing with no blame.
+  filed once per landing with no blame. [in flight: change 9867]
 - **Not yet:** 10, *In the store* and *The completed run task's
   report*: a tier's record keeps no red filings waiting for room, and
-  its report names none.
+  its report names none. [in flight: change 9868]
 - **Not yet:** 10, *The landing log*: a member keeps no findings its
-  pull request's body names.
+  pull request's body names. [in flight: change 9869]
 - **Not yet:** 6, *Switching*: a red landing's `Verification` row files
-  no finding as it goes.
+  no finding as it goes. [in flight: change 9870]
 - **Not yet:** 3, by plan `forge-polls-quiet`: a tier polls its run in
   flight every `poll`, not at the client's `poll_at`.
 - **Not yet:** 5.2, 11: the suspects' rule and a
