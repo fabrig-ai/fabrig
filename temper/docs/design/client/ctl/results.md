@@ -255,9 +255,8 @@ digest: task 7c1e09a2b44f0d13
   `client/domain/contract/documents.md`, 1; jig's
   `protocol/store/README.md`, 6.3): a first line `census at commit N,
   writes since commit S`, then a line per keyspace in prefix order,
-  `PREFIX NAME rows R pending Q keys K values V puts P erases E written
-  W heads H:R,H:R`, Q its pending places (jig's
-  `protocol/store/README.md`, 6.3), PREFIX its bytes in lower-case hex with no space (`01010a`,
+  `PREFIX NAME rows R keys K values V puts P erases E written W heads
+  H:R,H:R`, PREFIX its bytes in lower-case hex with no space (`01010a`,
   `-` for the empty prefix), NAME `-` where it has none, a head with no
   `u16` as `-`, `heads -` for a keyspace with no head, every number in
   plain digits. Before the store's first
@@ -330,7 +329,7 @@ may change with them.
 - **`deployment census`** prints one object, `{"census": …}`: `null`
   before the store's first report, else the census whole, its fields
   named as jig's document names them (`commit`, `since`, `keyspaces`,
-  each with `prefix` in lower-case hex, `name`, `rows`, `pending`, `keys`,
+  each with `prefix` in lower-case hex, `name`, `rows`, `keys`,
   `values`, `heads`, each `head` and `rows`, a head with no `u16` as
   `null`, then `puts`, `erases` and `written`).
 - **`help --json`** prints one JSON array, whatever it names: with no

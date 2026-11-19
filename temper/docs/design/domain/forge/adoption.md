@@ -906,12 +906,8 @@ all.
   (jig's `protocol/store/README.md`, 6.3), in `temper ctl deployment
   census` and the Limits page (`../../client/ctl/results.md`;
   `../../client/pages/settings.md`, 1). Its `temper.applications` row,
-  the store's family 15, counts the kept answers as its rows; the root
-  sets its `pending` to the requests pending, `Domain::pending_applications`
-  of the forge's domain, as it hands the report to the core. jig's
-  client wire moves its version for the census's `pending`, with no
-  bridge (`../../draft/redeploys.md`, section 8); engine, workers and
-  the store move nothing.
+  the store's family 15, counts the kept answers as its rows. The
+  requests pending are not shown (10).
 - **The figures stay:** `forge.applications` 32, `forge.adoptions` 2,
   and the request retention a day (`people.request_retention_ms`), in
   the standard profile (`../../protocol/configuration/limits.md`).
@@ -965,3 +961,11 @@ all.
   at their closers. Changing a live adoption's landing on purpose, and
   more than one landing branch per repository, are not designed.
   Default: so.
+
+- **The pending requests where the store's tables are read** (`adoption.md`,
+  9): the census shows `temper.applications`' kept answers as its rows,
+  but not the requests pending beside them, which take places in the
+  same table. Showing them gives jig's census row a count its owner
+  sets as the report is handed on, and moves jig's client wire
+  (`../../draft/redeploys.md`, section 8): out of proportion to the
+  table's fix, the user judged (2026-11-19). Default: not shown.

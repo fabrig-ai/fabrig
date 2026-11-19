@@ -7,9 +7,6 @@
   `forge.applications`, never making room by the oldest answered
   (`temper-engine-domain-forge/src/adoption.rs`, `room`) [in flight:
   change 9150].
-- **Not yet:** 9, *Seen where the store's tables are read*: the census
-  has no pending places, and the root sets none [in flight: change
-  9172].
 
 - **Not yet:** the opening's first bullet: a context adoption of a
   repository another project writes, kept for its project and read by its

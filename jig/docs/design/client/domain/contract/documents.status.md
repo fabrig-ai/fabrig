@@ -2,8 +2,6 @@
 
 2026-11-19. Where the tree's code lags or departs from [documents.md](documents.md).
 
-- **Not yet:** 1: the deployment's census rows carry no `pending` [in
-  flight: change 9172].
 
 
 - **Not yet:** 1: the omitted-count mark gap remains `../../../domain/engine/settings.status.md`, 12.

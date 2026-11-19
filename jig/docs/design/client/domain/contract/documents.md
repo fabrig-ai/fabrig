@@ -215,9 +215,7 @@
     writes count from (`since`), and a row per keyspace in prefix order,
     each its prefix (`prefix`, at most 8 bytes, empty for the keyspaces
     past the census's bound), its name (`name`, at most 48 bytes, empty
-    where none names it), its rows (`rows`), its pending places
-    (`pending`, zero but where the application counts them,
-    `../../../protocol/store/README.md`, 6.3), its keys' and values' bytes
+    where none names it), its rows (`rows`), its keys' and values' bytes
     (`keys`, `values`), its heads (`heads`, at most 8, ascending, each
     its `head`, a `u16` or none, and its `rows`), and its puts, erases
     and bytes written since `since` (`puts`, `erases`, `written`); at

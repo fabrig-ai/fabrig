@@ -188,10 +188,7 @@
     as Capacities' are, most rows first, then by prefix: its name, or with
     none its prefix's bytes in hex, two digits each, space-separated
     ("02 0c"), and at its `.when` "ROWS rows · SIZE · WRITES writes",
-    or "ROWS rows · PENDING pending · SIZE · WRITES writes" for a
-    keyspace whose pending places (jig's `protocol/store/README.md`,
-    6.3) are more than zero,
-    ROWS, PENDING and WRITES (its puts and erases together) in digits grouped by
+    ROWS and WRITES (its puts and erases together) in digits grouped by
     thousands ("993,441"), SIZE its keys' and values' bytes together in
     megabytes as the fill's are, "under 0.1 MB" below that; then
     " · layout H" for its one head, or " · layouts H, H" for several, in

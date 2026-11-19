@@ -582,23 +582,16 @@ count up, and nothing of it is stored.
 - **The report,** `StoreCensus` (the core's vocabulary, beside
   `StoreFill`): the last commit counted (`commit`), the commit the log's
   period began at (`since`, skein's `data/kv.md`, 2.2), and a row per
-  keyspace in prefix order, each its prefix, its name, its rows, its
-  pending places, keys' and values' bytes, its heads with their rows,
-  and its puts, erases and bytes written since `since`. The component
-  counts no pending place: it writes `pending` zero (below). It sends
-  the report up as `Event::Census`:
+  keyspace in prefix order, each its prefix, its name, its rows, keys'
+  and values' bytes, its heads with their rows, and its puts, erases and
+  bytes written since `since`. The component sends it up as
+  `Event::Census`:
   - once the store has opened, after `Opened`: what recovery counted, a
     new generation's after registration and the jobs;
   - then after a commit's answer, once `CENSUS_EVERY` (60 s of the
     component's clock) has passed since the last report, so never while
     no commit is answered.
   The fill goes on with every commit's answer (6.2).
-- **Pending places:** a keyspace's `pending` is the places its owner
-  holds for rows not yet written, a request admitted whose answer a row
-  will keep, as its owner counts them when the report is handed on. The
-  application's root sets it on its own keyspaces' rows as it hands the
-  report to the core, from its connectors' state at that moment; every
-  other row keeps zero. Nothing of it is stored.
 - **Up to the core:** the root hands each report to the core as the
   core's `Event::Census`, keeping the last one while it starts as it
   keeps the fill; the core keeps the last report and marks the
