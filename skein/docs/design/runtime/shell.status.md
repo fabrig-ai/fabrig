@@ -32,9 +32,6 @@ a table (`temper/docs/design/cli/README.md`), alongside the six tools and
 fixtures (`temper/docs/design/testing/tools.md`); temper's remaining binaries
 are milestones C3 and C5 of `temper/docs/design/draft/cli.execution.md`.
 
-- **Not yet:** 3, 12: parent death on macOS: `exec_dying_with_parent`
-  returns `Unsupported` there and `spawn_dying_with_parent` spawns
-  without it. [in flight: change 10280]
 - **Not yet:** 14.4: `Table::reach`, `Reached` and `Table::unknown`.
 - **Not yet:** 6: the configured peer names resolved at startup (step 5).
   6.4: the helper's dispatch and the startup check, `Kernel::can_restrict`.
