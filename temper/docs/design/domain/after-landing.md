@@ -848,6 +848,12 @@ Run: URL
     start drops each `verifying` entry of a tier its repository's
     settings no longer name; a verdict that tier's run in flight still
     gives sets its entry as any verdict does.
+  - *A landing's entries* are at most the forge's `tiers`, as a
+    verification's are (2026-11-19). A verdict that would add one past
+    it first drops a judged entry of a tier the repository's settings
+    no longer name; where there is none, it writes nothing there. A log
+    read from before that holds more is brought within the bound the
+    same way at its restore.
 - **Limits,** the forge's: `landings_kept` per repository (16) and
   `landings_pending` per repository (64), their sum at most the store's
   256 (`../protocol/configuration/limits.md`); `trailers` per landing (8) and `trailer_bytes` per line
@@ -862,7 +868,12 @@ Run: URL
   (`findings.md`, section 4). Past it the entry keeps the lowest 64 in
   byte order; its count still counts every blamed test, and a many's
   names add the ids left out to their `more`, so `read_ci`'s remainder
-  (section 9) says how many more there are.
+  (section 9) says how many more there are. The entry keeps its ids, or
+  a many's names, in one list of at most 64 in the store, a many adding
+  only its `more` and `cut`. With the entries bound by `tiers`, the log's
+  derived worst case stays within the store's admitted value at the
+  stock limits; 32 entries of two lists each would not (169 MB against
+  103 MB, 2026-11-19).
 
 A tier's record keeps at most `failing_tests` distinct flake IDs. Once full
 it keeps counting the IDs already retained and drops newly seen flake IDs,
