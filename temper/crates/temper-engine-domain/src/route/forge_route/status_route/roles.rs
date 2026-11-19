@@ -85,7 +85,7 @@ pub(crate) fn indexed(domain: &mut Domain, env: &Env<Limits>, owner: Token, line
     } else {
         // An incomplete index cannot establish that there is no Now.
         if more == 0 {
-            append_role(&mut read, b"no Now yet");
+            append_role(domain, &mut read, b"no Now yet");
         }
         advance(domain, env, owner, read);
     }
@@ -98,7 +98,7 @@ pub(crate) fn recalled(domain: &mut Domain, env: &Env<Limits>, owner: Token, ent
     for entry in &entries {
         if Some(entry.name) == read.name && entry.scope == scope && entry.description.as_ref() == b"now" {
             let body = forge::text::fit(&entry.body, NOW_BYTES, b"");
-            append_role(&mut read, &body);
+            append_role(domain, &mut read, &body);
             break;
         }
     }
@@ -115,7 +115,7 @@ fn advance(domain: &mut Domain, env: &Env<Limits>, owner: Token, mut read: Readi
     next(domain, env, owner, read);
 }
 
-fn append_role(read: &mut Reading, body: &[u8]) {
+fn append_role(domain: &Domain, read: &mut Reading, body: &[u8]) {
     if !read.heading {
         super::super::append(&mut read.words, b"Standing roles:\n");
         read.heading = true;
@@ -123,6 +123,9 @@ fn append_role(read: &mut Reading, body: &[u8]) {
     super::super::append(&mut read.words, b"Role ");
     let role = *read.roles.get(read.at).expect("pending role");
     super::super::append(&mut read.words, Decimal::of(role).as_bytes());
+    if let Some(row) = domain.core.tasks.task(role) {
+        super::append_open_questions(&mut read.words, super::open_to_a_person(domain, row));
+    }
     super::super::append(&mut read.words, b":\n");
     super::super::append(&mut read.words, body);
     if !body.ends_with(b"\n") {

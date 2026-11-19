@@ -77,7 +77,9 @@ fn goal_words(
         super::append(&mut words, b" of ");
         let total = delegate_total(row);
         super::append(&mut words, skein_lib::Decimal::of(u64::from(total)).as_bytes());
-        super::append(&mut words, b" delegates done\n");
+        super::append(&mut words, b" parts done");
+        append_open_questions(&mut words, open_to_a_person(domain, row));
+        super::append(&mut words, b"\n");
     }
     milestones::append(domain, env, project, since, &mut words);
     if !signers.is_empty() {
@@ -99,6 +101,27 @@ fn delegate_total(row: &tasks::TaskRecord) -> u32 {
         .expect("bounded live delegates")
         .saturating_add(row.ended_delegates.done)
         .saturating_add(row.ended_delegates.failed)
+}
+
+fn open_to_a_person(domain: &Domain, row: &tasks::TaskRecord) -> u32 {
+    let mut count = 0_u32;
+    for number in &row.delegates {
+        if let Some(delegate) = domain.core.tasks.task(*number)
+            && let tasks::Executor::Person(_) = delegate.executor
+        {
+            count = count.checked_add(1).expect("bounded live delegates");
+        }
+    }
+    count
+}
+
+fn append_open_questions(words: &mut super::List<u8>, count: u32) {
+    if count == 0 {
+        return;
+    }
+    super::append(words, b", ");
+    super::append(words, skein_lib::Decimal::of(u64::from(count)).as_bytes());
+    super::append(words, if count == 1 { b" question open to a person" } else { b" questions open to a person" });
 }
 
 fn milestone_parent(domain: &Domain, requester: tasks::Party) -> Option<&tasks::TaskRecord> {
