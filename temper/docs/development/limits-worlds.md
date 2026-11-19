@@ -295,3 +295,51 @@ would double-count work. Causes with no demonstrated fix remain causes,
 including the unsuccessful writer experiment. The remaining suite and
 placement decisions are open with their numbers above, without a raised
 budget, merged test, reduced assertion or new exception.
+
+## A journey's walk in a world
+
+2026-11-19, `bfae5c538ca01ce7e0cac5ed7f91b404faeec6af`:
+`welcome-playground`'s seven-line version-2 walk prints the welcome and
+New chat in one process. On Linux x86_64, `nproc` = 8, CPU model
+AMD EPYC-Genoa Processor, three warm runs of the built, unoptimized
+`target/debug/temper-client-walk print --out DIR welcome-playground`
+(each DIR fresh, using Cargo's configured target directory) took:
+
+| Run | User CPU s | System CPU s | Total CPU s |
+|---|---:|---:|---:|
+| 1 | 0.538768 | 0.090480 | 0.629248 |
+| 2 | 0.507844 | 0.039987 | 0.547831 |
+| 3 | 0.513697 | 0.044146 | 0.557843 |
+
+**Median: 0.557843 CPU s.** Measured by differences of Python's
+`resource.getrusage(RUSAGE_CHILDREN)` around each direct binary run;
+user plus system, build and cargo overhead excluded. Two preceding
+`TEMPER_INTERNAL_BUNDLE=none cargo run -p temper-client-walk -- print
+welcome-playground` runs warmed the binary and printed byte-identical
+scratch trees. An independently idle host was not established.
+
+The walker and program tests added by change 9774, each run alone by
+exact name with `cargo nextest run`, default (focused) profile:
+nextest's per-test elapsed seconds below, not CPU or build time. The
+binary-table and dependency-boundary tests are included too.
+
+| Package / target | Test | Elapsed s |
+|---|---|---:|
+| `temper-client-walk-world` / lib | `walk::tests::links_use_the_marked_tree_first_act_exact_role_name_order_and_lead` | 0.008 |
+| `temper-client-walk-tool` / suite | `walked_and_printed_marks_link_the_pressed_control` | 0.842 |
+| same | `two_prints_have_identical_bytes` | 1.162 |
+| same | `stopped_walks_and_unreadable_chains_do_not_stop_other_journeys` | 1.060 |
+| same | `ancestors_marks_are_not_printed_and_old_numbered_pages_are_removed` | 1.099 |
+| same | `printed_pages_resolve_styles_scripts_and_relative_css_urls` | 0.619 |
+| same | `pages_writes_nothing_when_fresh_and_repairs_only_the_changed_page` | 1.339 |
+| same | `pages_removes_recording_and_preserves_unmoved_and_stopped_journeys` | 0.995 |
+| same | `usage_refuses_unmoved_names_and_output_inside_either_root_even_through_links` | 0.038 |
+| same | `submit_on_a_textbox_links_by_its_act` | 0.643 |
+| `temper-client-walk` / suite | `the_binary_answers_its_table_and_refuses_unknown_commands` | 0.219 |
+| `fabrig-boundary` / journey_walk | `the_walk_binarys_normal_closure_has_no_browser_or_journeys_tool` | 0.107 |
+
+All twelve passed. The first tool-test attempt was externally killed
+by the enclosing shell's 120 s deadline, not by nextest or a test
+budget; its replacement ran alone with a 600 s shell deadline. These
+figures use only the completed individual runs. No project budget,
+nextest setting or test reference was changed.
