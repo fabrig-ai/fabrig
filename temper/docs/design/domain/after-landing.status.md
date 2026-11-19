@@ -1,11 +1,15 @@
 # after-landing: status
 
-2026-11-18. Where temper's code lags or departs from [after-landing.md](after-landing.md).
+2026-11-19. Where temper's code lags or departs from [after-landing.md](after-landing.md).
 
 Section 10's public queue merges read the log's commits and tasks alone;
 there is no known gap in that projection. Older public history is deferred
 in section 14. The log's other gaps and the retained change rows remain below.
 
+- **Not yet:** 4, *A many report's names*; 7, *A many red's names*; 10,
+  *In the store*, the tier row's many names: a report read as many keeps
+  no id, so a many red's news and its finding say `many` alone
+  [in flight: change 9164].
 - **Not yet:** 6, *`wait`* and *Switching*: kind 4 has no `wait`, so
   every project's changes live to cleared, and a start ends no
   verifying or red change [in flight: change 8587].

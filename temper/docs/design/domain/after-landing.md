@@ -679,12 +679,14 @@ Run: URL
   tool's `read_ci what=checks` at a commit its repository's landing log
   holds (section 10) answers the forge's checks, then one row for each
   tier whose entry there is red: its context `temper/verdict/<tier>`,
-  failed, its description the first line of that landing's comment for
-  the verdict (above: `Red: TIER run N blames this landing for X, Y.`,
-  `Suspected: …`, or with a many's names), its ids written whole while
-  the description fits the forge client's `op_bytes`, then `and K
-  more`; its link empty and no job, since a tier's job logs are its
-  runner's. Any caller reads them, not a repair alone. They are kept
+  failed, its description `TIER run N found this landing red: X, Y.`,
+  the ids its entry keeps, owned or suspected alike, or `TIER run N
+  found this landing red: many tests; its report names X, Y and K
+  more.` for a many with names (`many tests.` with none); its ids
+  written whole while the description fits the forge client's
+  `op_bytes`, then `and K more` (section 4's remainder for a many); its
+  link empty and no job, since a tier's job logs are its runner's. Any
+  caller reads them, not a repair alone. They are kept
   before the forge's own rows within the client's `rows`, after a
   landing repair's gate rows (`forge/change/repairs.md`, *A landing's
   repair*), so that the forge's rows give way first, as they do to the
@@ -779,12 +781,12 @@ Run: URL
   name's per landing (5.2); a judged run's
   posting while its task posts (section 9): the run, its tip, its
   link, the status's check and words, the verdict's blame of each
-  landing of the range, the run's many names (section 4) where it has
-  them, and each comment's pull request with the
+  landing of the range, and each comment's pull request with the
   landing it is for, or the red landing it repairs and the repairing
   pull request, and the index of the next write, erased by the task's
-  last post or its close; the judged run's many names, set at its whole
-  part's read and taken by the next run's start;
+  last post or its close; the judged run's many names (section 4), set
+  at its whole part's read and taken by the next run's start, so that
+  its posting, done before that start, reads them there;
   for a tier following goal branches, each goal branch it follows,
   with its goal, its last run's tip, failures and start, and the branch
   its run in flight is for, within the forge's `holds`;
