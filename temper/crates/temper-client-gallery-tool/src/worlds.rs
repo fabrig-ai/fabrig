@@ -305,7 +305,7 @@ pub(super) fn world(w: World, address: Address, then: Then) -> (Domain, Option<T
 }
 /// Approval cards reached through the root's events (client/web/gallery.md, 2).
 pub(super) fn approve_world(name: &str) -> Domain {
-    use jig_client::{Approval, ApprovalCode, ApprovalState, Decided};
+    use jig_client::{Approval, ApprovalCode, ApprovalKind, ApprovalState, Decided, Loopback};
     use temper_client_domain::{Action, Place, approve::Act};
     let (mut root, _) =
         world(World::Bare, Address::Inbox { filter: temper_client_domain::address::Filter::ALL }, Then::Shown);
@@ -315,7 +315,11 @@ pub(super) fn approve_world(name: &str) -> Domain {
         &mut root,
         Event::Went {
             place: Place::Approve {
-                code: if matches!(name, "approve-typing" | "approve-unread") { None } else { Some(code) },
+                code: if matches!(name, "approve-typing" | "approve-unread" | "approve-typed") {
+                    None
+                } else {
+                    Some(code)
+                },
             },
         },
         &mut out,
@@ -333,13 +337,30 @@ pub(super) fn approve_world(name: &str) -> Domain {
         }
         "approve-signed-out" => step(&mut root, Event::SignedOut, &mut out),
         _ => {
+            if name == "approve-typed" {
+                step(
+                    &mut root,
+                    Event::Act { action: Action::Approve(Act::Words { words: b"WDJB-MJHT".as_slice().into() }) },
+                    &mut out,
+                );
+                step(&mut root, Event::Act { action: Action::Approve(Act::Check) }, &mut out);
+            }
             let state = match name {
-                "approve-asking" | "approve-used" => ApprovalState::Waiting {
+                "approve-returned" | "approve-handing" => ApprovalState::Waiting {
                     asked,
-                    kind: jig_client::ApprovalKind::Listener,
-                    source: None,
-                    reader: None,
+                    kind: ApprovalKind::Returned,
+                    source: Some("203.0.113.7".parse().expect("gallery source")),
+                    reader: Some("203.0.113.7".parse().expect("gallery reader")),
                 },
+                "approve-typed" => ApprovalState::Waiting {
+                    asked,
+                    kind: ApprovalKind::Typed,
+                    source: Some("203.0.113.7".parse().expect("gallery source")),
+                    reader: Some("2001:db8::1".parse().expect("gallery reader")),
+                },
+                "approve-asking" | "approve-used" => {
+                    ApprovalState::Waiting { asked, kind: ApprovalKind::Listener, source: None, reader: None }
+                }
                 "approve-approved" => ApprovalState::Approved,
                 "approve-signed-in" => ApprovalState::Taken,
                 "approve-refused" => ApprovalState::Refused,
@@ -353,13 +374,25 @@ pub(super) fn approve_world(name: &str) -> Domain {
                 Event::Client { event: jig_client::Event::ApprovalAnswer { answer: Approval::Read { code, state } } },
                 &mut out,
             );
-            if name == "approve-used" {
+            if name == "approve-used" || name == "approve-handing" {
                 step(&mut root, Event::Act { action: Action::Approve(Act::Approve) }, &mut out);
                 step(
                     &mut root,
                     Event::Client {
                         event: jig_client::Event::ApprovalAnswer {
-                            answer: Approval::Decided { code, decided: Decided::Used },
+                            answer: Approval::Decided {
+                                code,
+                                decided: if name == "approve-handing" {
+                                    Decided::Approved {
+                                        loopback: Some(Loopback {
+                                            port: 43210,
+                                            grant: skein_lib::Secret::new(Box::new([7; 32])),
+                                        }),
+                                    }
+                                } else {
+                                    Decided::Used
+                                },
+                            },
                         },
                     },
                     &mut out,

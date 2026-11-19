@@ -22,9 +22,20 @@ pub(crate) fn main(
     bindings: &mut Bindings,
     times: &mut Times,
 ) {
-    let title = match page.state() {
-        State::Typing { .. } | State::Reading | State::Asking { .. } | State::Deciding { .. } => Word::ApproveTitle,
-        State::Approved => Word::ApproveApproved,
+    let title = title(page.state());
+    let title = words.say(title, &[]);
+    outside::column(b, &title, &[look::APPROVE]);
+    build(b, root, page, words, ways, bindings, times);
+    b.close();
+}
+fn title(state: State) -> Word {
+    match state {
+        State::Asking { kind, .. } => match kind {
+            jig_client::ApprovalKind::Returned => Word::ApproveReturnedTitle,
+            jig_client::ApprovalKind::Listener | jig_client::ApprovalKind::Typed => Word::ApproveTitle,
+        },
+        State::Typing { .. } | State::Reading | State::Deciding { .. } => Word::ApproveTitle,
+        State::Approved | State::Handing => Word::ApproveApproved,
         State::SignedIn => Word::ApproveSignedIn,
         State::Refused => Word::ApproveRefused,
         State::Expired => Word::ApproveExpired,
@@ -32,9 +43,17 @@ pub(crate) fn main(
         State::Unknown => Word::ApproveUnknown,
         State::SignedOut => Word::ApproveSignedOut,
         State::Busy => Word::ApproveBusy,
-    };
-    let title = words.say(title, &[]);
-    outside::column(b, &title, &[look::APPROVE]);
+    }
+}
+fn build(
+    b: &mut Builder,
+    root: &Domain,
+    page: &approve::Page,
+    words: &Words,
+    ways: &Ways,
+    bindings: &mut Bindings,
+    times: &mut Times,
+) {
     match page.state() {
         State::Typing { unread } => {
             outside::words(b, words, Word::ApproveTyping, &[]);
@@ -57,17 +76,30 @@ pub(crate) fn main(
             b.close();
         }
         State::Reading => outside::words(b, words, Word::ApproveReading, &[Hole::Name(shown_code(page))]),
-        State::Asking { asked } | State::Deciding { asked, .. } => {
+        State::Asking { asked, kind, source, reader } | State::Deciding { asked, kind, source, reader, .. } => {
             code(b, page);
             let ago = times.say(words, TimeForm::Ago, asked);
             b.open(Role::Paragraph);
             b.style(look::APPROVE_ASKED);
-            words.text(b, Word::ApproveAsked, &[Hole::Name(ago)]);
+            let source_words = match source {
+                Some(ip) => skein_lib::bytes::ip_text(ip.to_canonical()),
+                None => words.say(Word::ApproveUnknownAddress, &[]),
+            };
+            words.text(b, Word::ApproveAsked, &[Hole::Name(ago), Hole::Name(source_words)]);
             b.close();
-            b.open(Role::Paragraph);
-            b.style(look::APPROVE_ASKED);
-            words.text(b, Word::ApproveWarning, &[]);
-            b.close();
+            match kind {
+                jig_client::ApprovalKind::Returned => {}
+                jig_client::ApprovalKind::Listener | jig_client::ApprovalKind::Typed => {
+                    asked_words(b, words, Word::ApproveWarning);
+                }
+            }
+            if kind == jig_client::ApprovalKind::Typed
+                && let Some(source) = source
+                && let Some(reader) = reader
+                && source.to_canonical() != reader.to_canonical()
+            {
+                asked_words(b, words, Word::ApproveOtherNetwork);
+            }
             b.open(Role::Slot);
             b.style(look::OUTSIDE_ACTS);
             if let State::Deciding { approve, .. } = page.state() {
@@ -82,9 +114,10 @@ pub(crate) fn main(
             }
             b.close();
         }
-        State::Approved => {
+        State::Approved | State::Handing => {
             code(b, page);
-            outside::words(b, words, Word::ApproveWaiting, &[]);
+            let body = if page.state() == State::Handing { Word::ApproveHanding } else { Word::ApproveWaiting };
+            outside::words(b, words, body, &[]);
         }
         State::SignedIn => outside::words(b, words, Word::ApproveSignedInBody, &[]),
         State::Refused => outside::words(b, words, Word::ApproveRefusedBody, &[]),
@@ -114,6 +147,11 @@ pub(crate) fn main(
             button(b, words, Word::ApproveAgain, Act::Again, look::OUTSIDE_PRIMARY, bindings);
         }
     }
+}
+fn asked_words(b: &mut Builder, words: &Words, word: Word) {
+    b.open(Role::Paragraph);
+    b.style(look::APPROVE_ASKED);
+    words.text(b, word, &[]);
     b.close();
 }
 fn shown_code(page: &approve::Page) -> Box<[u8]> {

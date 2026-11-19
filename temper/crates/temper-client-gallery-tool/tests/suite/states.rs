@@ -1380,10 +1380,34 @@ static HOLDS: [Holds; samples::N] = [
         heading: "Sign in a terminal?",
         parts: &[
             Part::Named { role: Role::Paragraph, name: "WDJB-MJHT" },
-            Part::Text { text: "Asked 2 min ago" },
+            Part::Text { text: "Asked 2 min ago from an unknown address" },
             Part::Named { role: Role::Button, name: "Approve" },
             Part::Named { role: Role::Button, name: "Refuse" },
         ],
+    },
+    Holds {
+        name: "approve-returned",
+        heading: "Sign in a terminal on this computer?",
+        parts: &[
+            Part::Text { text: "Asked 2 min ago from 203.0.113.7" },
+            Part::Named { role: Role::Button, name: "Approve" },
+            Part::Named { role: Role::Button, name: "Refuse" },
+        ],
+    },
+    Holds {
+        name: "approve-typed",
+        heading: "Sign in a terminal?",
+        parts: &[
+            Part::Text { text: "Asked 2 min ago from 203.0.113.7" },
+            Part::Text { text: "It was asked from another network than this browser's." },
+            Part::Named { role: Role::Button, name: "Approve" },
+            Part::Named { role: Role::Button, name: "Refuse" },
+        ],
+    },
+    Holds {
+        name: "approve-handing",
+        heading: "Approved",
+        parts: &[Part::Text { text: "Handing the sign-in to your terminal…" }],
     },
     Holds {
         name: "approve-approved",

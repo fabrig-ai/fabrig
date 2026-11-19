@@ -132,7 +132,15 @@ fn a_terminal_approved_by_a_browser_is_signed_in_as_the_browsers_party() {
             reader: None
         }]
     );
-    assert_eq!(state(&probes[BROWSER.0]), approve::State::Asking { asked: Wall::EPOCH });
+    assert_eq!(
+        state(&probes[BROWSER.0]),
+        approve::State::Asking {
+            asked: Wall::EPOCH,
+            kind: jig_client::ApprovalKind::Listener,
+            source: None,
+            reader: None
+        }
+    );
     approve(&mut probes[BROWSER.0]);
     pump(&mut front, &mut probes, Time::ZERO);
     assert_eq!(probes[BROWSER.0].decisions, 1);

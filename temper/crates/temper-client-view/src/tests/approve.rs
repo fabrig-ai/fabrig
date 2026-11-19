@@ -6,7 +6,8 @@
 )]
 use super::fixtures as f;
 use crate::{look, sign_in::Ways};
-use jig_client::{Approval, ApprovalCode, ApprovalState as Read, Decided};
+use core::net::IpAddr;
+use jig_client::{Approval, ApprovalCode, ApprovalKind, ApprovalState as Read, Decided, Loopback};
 use skein_lib::{Queue, Wall};
 use skein_ui::{Role, Style, Tree};
 use temper_client_domain::{
@@ -39,7 +40,7 @@ fn reached(state: State) -> Domain {
             place: Place::Approve { code: if let State::Typing { .. } = state { None } else { Some(code()) } },
         },
     );
-    match state {
+    match state.clone() {
         State::Typing { unread } => {
             act(
                 &mut root,
@@ -52,30 +53,39 @@ fn reached(state: State) -> Domain {
             }
         }
         State::Reading => {}
-        State::Asking { asked } => read(
-            &mut root,
-            Read::Waiting { asked, kind: jig_client::ApprovalKind::Listener, source: None, reader: None },
-        ),
-        State::Deciding { approve, asked } => {
-            read(
-                &mut root,
-                Read::Waiting { asked, kind: jig_client::ApprovalKind::Listener, source: None, reader: None },
-            );
+        State::Asking { asked, kind, source, reader } => wait(&mut root, asked, kind, source, reader),
+        State::Deciding { approve, asked, kind, source, reader } => {
+            wait(&mut root, asked, kind, source, reader);
             act(&mut root, if approve { Act::Approve } else { Act::Refuse });
         }
         State::Approved => read(&mut root, Read::Approved),
+        State::Handing => {
+            wait(&mut root, Wall::EPOCH, ApprovalKind::Returned, None, None);
+            act(&mut root, Act::Approve);
+            f::root_event(
+                &mut root,
+                Event::Client {
+                    event: jig_client::Event::ApprovalAnswer {
+                        answer: Approval::Decided {
+                            code: code(),
+                            decided: Decided::Approved {
+                                loopback: Some(Loopback {
+                                    port: 43210,
+                                    grant: skein_lib::Secret::new(Box::new([7; 32])),
+                                }),
+                            },
+                        },
+                    },
+                },
+            );
+        }
         State::SignedIn => read(&mut root, Read::Taken),
         State::Refused => read(&mut root, Read::Refused),
         State::Expired => read(&mut root, Read::Expired),
         State::Used => {
             read(
                 &mut root,
-                Read::Waiting {
-                    asked: Wall::EPOCH,
-                    kind: jig_client::ApprovalKind::Listener,
-                    source: None,
-                    reader: None,
-                },
+                Read::Waiting { asked: Wall::EPOCH, kind: ApprovalKind::Listener, source: None, reader: None },
             );
             act(&mut root, Act::Approve);
             f::root_event(
@@ -93,6 +103,14 @@ fn reached(state: State) -> Domain {
     }
     assert_eq!(root.approval().expect("page").state(), state);
     root
+}
+fn wait(root: &mut Domain, asked: Wall, kind: ApprovalKind, source: Option<IpAddr>, reader: Option<IpAddr>) {
+    if kind == ApprovalKind::Typed {
+        f::root_event(root, Event::Went { place: Place::Approve { code: None } });
+        act(root, Act::Words { words: b"wdjb mjht".as_slice().into() });
+        act(root, Act::Check);
+    }
+    read(root, Read::Waiting { asked, kind, source, reader });
 }
 fn named(tree: &Tree, role: Role, name: &str) -> skein_ui::NodeId {
     f::find(tree, role, name.as_bytes()).unwrap_or_else(|| panic!("missing {role:?} {name}"))
@@ -151,26 +169,60 @@ fn each_state_draws_its_column() {
         ),
         (State::Reading, ASK, &["Reading WDJB-MJHT…"], &[]),
         (
-            State::Asking { asked },
+            State::Asking { asked, kind: ApprovalKind::Listener, source: None, reader: None },
             ASK,
-            &["WDJB-MJHT", "Asked 2 min ago", WARNING],
+            &["WDJB-MJHT", "Asked 2 min ago from an unknown address", WARNING],
             &[
                 (Role::Button, "Approve", &[look::OUTSIDE_PRIMARY], Role::Slot),
                 (Role::Button, "Refuse", &[look::OUTSIDE_SECONDARY], Role::Slot),
             ],
         ),
         (
-            State::Deciding { approve: true, asked },
+            State::Deciding { approve: true, asked, kind: ApprovalKind::Listener, source: None, reader: None },
             ASK,
-            &["WDJB-MJHT", "Asked 2 min ago", WARNING, "Approving…"],
+            &["WDJB-MJHT", "Asked 2 min ago from an unknown address", WARNING, "Approving…"],
             &[(Role::Status, "Approving…", &[], Role::Slot)],
         ),
         (
-            State::Deciding { approve: false, asked },
+            State::Deciding { approve: false, asked, kind: ApprovalKind::Listener, source: None, reader: None },
             ASK,
-            &["WDJB-MJHT", "Asked 2 min ago", WARNING, "Refusing…"],
+            &["WDJB-MJHT", "Asked 2 min ago from an unknown address", WARNING, "Refusing…"],
             &[(Role::Status, "Refusing…", &[], Role::Slot)],
         ),
+        (
+            State::Asking {
+                asked,
+                kind: ApprovalKind::Returned,
+                source: Some("203.0.113.7".parse().unwrap()),
+                reader: None,
+            },
+            "Sign in a terminal on this computer?",
+            &["WDJB-MJHT", "Asked 2 min ago from 203.0.113.7"],
+            &[
+                (Role::Button, "Approve", &[look::OUTSIDE_PRIMARY], Role::Slot),
+                (Role::Button, "Refuse", &[look::OUTSIDE_SECONDARY], Role::Slot),
+            ],
+        ),
+        (
+            State::Asking {
+                asked,
+                kind: ApprovalKind::Typed,
+                source: Some("2001:db8::1".parse().unwrap()),
+                reader: Some("203.0.113.7".parse().unwrap()),
+            },
+            ASK,
+            &[
+                "WDJB-MJHT",
+                "Asked 2 min ago from 2001:db8::1",
+                WARNING,
+                "It was asked from another network than this browser's.",
+            ],
+            &[
+                (Role::Button, "Approve", &[look::OUTSIDE_PRIMARY], Role::Slot),
+                (Role::Button, "Refuse", &[look::OUTSIDE_SECONDARY], Role::Slot),
+            ],
+        ),
+        (State::Handing, "Approved", &["WDJB-MJHT", "Handing the sign-in to your terminal…"], &[]),
         (State::Approved, "Approved", &["WDJB-MJHT", "Waiting for your terminal to sign in…"], &[]),
         (State::SignedIn, "Terminal signed in", &["Signed in. You can close this tab."], &[]),
         (State::Refused, "Sign-in refused", &["This terminal’s sign-in was refused. Nothing was signed in."], &[]),
@@ -203,7 +255,7 @@ fn each_state_draws_its_column() {
         ),
     ];
     for (state, heading, sentences, acts) in rows {
-        let root = reached(*state);
+        let root = reached(state.clone());
         let mut view = build(&root);
         let tree = view.tree();
         named(tree, Role::Heading { level: 1 }, heading);
@@ -237,6 +289,9 @@ fn each_state_draws_its_column() {
         let expected: Vec<_> =
             acts.iter().filter(|(r, ..)| *r == Role::Button).map(|(_, name, ..)| name.as_bytes()).collect();
         assert_eq!(buttons, expected, "{state:?}: only this state's acts");
+        if let State::Asking { kind: ApprovalKind::Returned, .. } = state {
+            assert!(!text.contains(WARNING));
+        }
         if let State::Typing { unread } = state {
             let form = tree.find(named(tree, Role::Form, "Code")).expect("form");
             let at = tree.nodes().iter().position(|n| n.id == form.id).expect("form index");
@@ -304,6 +359,38 @@ fn each_state_draws_its_column() {
 }
 
 #[test]
+fn only_typed_asks_compare_known_canonical_sources_and_age_stays_an_ago() {
+    let v4: IpAddr = "203.0.113.7".parse().unwrap();
+    let mapped: IpAddr = "::ffff:203.0.113.7".parse().unwrap();
+    let v6: IpAddr = "2001:db8:0:0:0:0:0:1".parse().unwrap();
+    let asked = Wall::from_nanos(108_000_000_000); // Twelve seconds before the read.
+    for (kind, source, reader, address, warns) in [
+        (ApprovalKind::Typed, Some(v4), Some(v6), "203.0.113.7", true),
+        (ApprovalKind::Typed, Some(mapped), Some(v4), "203.0.113.7", false),
+        (ApprovalKind::Typed, Some(v6), Some(v6), "2001:db8::1", false),
+        (ApprovalKind::Typed, None, Some(v4), "an unknown address", false),
+        (ApprovalKind::Typed, Some(v4), None, "203.0.113.7", false),
+        (ApprovalKind::Typed, None, None, "an unknown address", false),
+        (ApprovalKind::Returned, Some(v4), Some(v6), "203.0.113.7", false),
+        (ApprovalKind::Listener, Some(v4), Some(v6), "203.0.113.7", false),
+    ] {
+        let root = reached(State::Asking { asked, kind, source, reader });
+        let mut view = build(&root);
+        let text = String::from_utf8(f::main_text(view.tree()).into_vec()).unwrap();
+        assert!(text.contains(&["Asked just now from ", address].concat()), "{text}");
+        assert_eq!(text.contains("It was asked from another network than this browser's."), warns, "{text}");
+        assert_eq!(
+            view.next_change(),
+            Some(Wall::from_nanos(168_000_000_000)),
+            "age wakes at a minute, not each second"
+        );
+        crate::build(&mut view, &root, Wall::from_nanos(288_000_000_000), &mut Queue::uncapped());
+        let text = String::from_utf8(f::main_text(view.tree()).into_vec()).unwrap();
+        assert!(text.contains(&["Asked 3 min ago from ", address].concat()), "{text}");
+    }
+}
+
+#[test]
 fn each_act_decodes_to_its_action() {
     for (state, role, name, event, expected) in [
         (
@@ -315,8 +402,20 @@ fn each_act_decodes_to_its_action() {
         ),
         (State::Typing { unread: false }, Role::TextField, "Code", skein_ui::Act::Submit, Act::Check),
         (State::Typing { unread: false }, Role::Button, "Check", skein_ui::Act::Press, Act::Check),
-        (State::Asking { asked: Wall::EPOCH }, Role::Button, "Approve", skein_ui::Act::Press, Act::Approve),
-        (State::Asking { asked: Wall::EPOCH }, Role::Button, "Refuse", skein_ui::Act::Press, Act::Refuse),
+        (
+            State::Asking { asked: Wall::EPOCH, kind: ApprovalKind::Listener, source: None, reader: None },
+            Role::Button,
+            "Approve",
+            skein_ui::Act::Press,
+            Act::Approve,
+        ),
+        (
+            State::Asking { asked: Wall::EPOCH, kind: ApprovalKind::Listener, source: None, reader: None },
+            Role::Button,
+            "Refuse",
+            skein_ui::Act::Press,
+            Act::Refuse,
+        ),
         (State::Unknown, Role::Button, "Type a code", skein_ui::Act::Press, Act::Type),
         (State::Busy, Role::Button, "Try again", skein_ui::Act::Press, Act::Again),
     ] {

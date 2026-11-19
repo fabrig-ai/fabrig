@@ -4,7 +4,7 @@ use crate::{
     Action, Domain, Event, Place, Request,
     approve::{self, Act, State},
 };
-use jig_client::{Approval, ApprovalAct, ApprovalCode, ApprovalState as Read, Decided};
+use jig_client::{Approval, ApprovalAct, ApprovalCode, ApprovalKind, ApprovalState as Read, Decided, Loopback};
 use skein_lib::{Duration, Queue, Wall};
 fn code() -> ApprovalCode {
     ApprovalCode::parse(b"WDJBMJHT").unwrap()
@@ -45,10 +45,7 @@ fn reading() -> Domain {
 }
 fn asking() -> Domain {
     let mut root = reading();
-    read(
-        &mut root,
-        Read::Waiting { asked: Wall::EPOCH, kind: jig_client::ApprovalKind::Listener, source: None, reader: None },
-    );
+    read(&mut root, Read::Waiting { asked: Wall::EPOCH, kind: ApprovalKind::Listener, source: None, reader: None });
     root
 }
 #[test]
@@ -68,8 +65,8 @@ fn each_answer_draws_its_state() {
     let asked = Wall::from_nanos(123);
     for (answer, expected) in [
         (
-            Read::Waiting { asked, kind: jig_client::ApprovalKind::Listener, source: None, reader: None },
-            State::Asking { asked },
+            Read::Waiting { asked, kind: ApprovalKind::Listener, source: None, reader: None },
+            State::Asking { asked, kind: ApprovalKind::Listener, source: None, reader: None },
         ),
         (Read::Approved, State::Approved),
         (Read::Taken, State::SignedIn),
@@ -119,11 +116,132 @@ fn each_answer_draws_its_state() {
     }
 }
 #[test]
+fn each_kind_requires_its_own_code_entry() {
+    let asked = Wall::from_nanos(123);
+    let source = Some(core::net::IpAddr::V4(core::net::Ipv4Addr::new(203, 0, 113, 7)));
+    let reader = Some(core::net::IpAddr::V6(core::net::Ipv6Addr::from([0x2001, 0xdb8, 0, 0, 0, 0, 0, 1])));
+    for kind in [ApprovalKind::Listener, ApprovalKind::Returned, ApprovalKind::Typed] {
+        let mut root = reading();
+        let waiting = Read::Waiting { asked, kind: kind.clone(), source, reader };
+        assert_eq!(read(&mut root, waiting.clone()).len(), 0);
+        if kind == ApprovalKind::Typed {
+            assert_eq!(state(&root), State::Typing { unread: false });
+            let page = root.approval().unwrap();
+            assert_eq!(page.code(), None);
+            assert_eq!(page.words(), b"");
+            assert_eq!(act(&mut root, Act::Approve).len(), 0);
+            assert_eq!(act(&mut root, Act::Refuse).len(), 0);
+            act(&mut root, Act::Words { words: b"wdjb mjht".as_slice().into() });
+            assert_eq!(act(&mut root, Act::Check), vec![ApprovalAct::Read { code: code() }]);
+            read(&mut root, waiting);
+        }
+        assert_eq!(state(&root), State::Asking { asked, kind: kind.clone(), source, reader });
+        assert_eq!(act(&mut root, Act::Approve), vec![ApprovalAct::Decide { code: code(), approve: true }]);
+        assert_eq!(state(&root), State::Deciding { approve: true, asked, kind, source, reader });
+    }
+}
+
+#[test]
+fn a_loopback_grant_leaves_once_then_polls_without_retaining_it() {
+    let mut grant = *b"loopback-grant-not-for-the-view!";
+    grant[30] = 0xfb;
+    grant[31] = 0xff;
+    assert_eq!(grant.len(), 32);
+    let mut root = asking();
+    act(&mut root, Act::Approve);
+    let env = fixtures::env(&fixtures::limits());
+    approve::answered(
+        &mut root,
+        &env,
+        Approval::Decided {
+            code: code(),
+            decided: Decided::Approved {
+                loopback: Some(Loopback { port: 43210, grant: skein_lib::Secret::new(grant.as_slice().into()) }),
+            },
+        },
+    );
+    assert_eq!(state(&root), State::Handing);
+    let debug = format!("{:?}", root.approval().unwrap());
+    assert!(debug.contains("Secret { len: 32 }"));
+    assert!(!debug.contains(&format!("{grant:?}")));
+    let mut out = Queue::uncapped();
+    approve::progress(&mut root, &env, &mut out);
+    assert_eq!(
+        out.pop(),
+        Some(Request::Leave {
+            to: b"http://127.0.0.1:43210/approved?grant=bG9vcGJhY2stZ3JhbnQtbm90LWZvci10aGUtdmll-_8".as_slice().into(),
+            replace: true,
+        })
+    );
+    assert!(out.is_empty());
+    assert!(format!("{:?}", root.approval().unwrap()).contains("loopback: None"));
+    approve::progress(&mut root, &env, &mut out);
+    assert!(out.is_empty());
+    // A duplicate answer cannot hand out the grant again.
+    answer(
+        &mut root,
+        Approval::Decided {
+            code: code(),
+            decided: Decided::Approved {
+                loopback: Some(Loopback { port: 54321, grant: skein_lib::Secret::new(grant.as_slice().into()) }),
+            },
+        },
+    );
+    let mut env = env;
+    env.now = env.now.saturating_add(Duration::from_millis(999));
+    crate::fire(&mut root, &env, &mut out);
+    assert!(out.is_empty());
+    env.now = env.now.saturating_add(Duration::from_millis(1));
+    crate::fire(&mut root, &env, &mut out);
+    assert_eq!(acts(&mut out), vec![ApprovalAct::Read { code: code() }]);
+    for read_state in [Read::Busy, Read::NotReady, Read::Lost, Read::Approved] {
+        crate::step(
+            &mut root,
+            &env,
+            Event::Client {
+                event: jig_client::Event::ApprovalAnswer { answer: Approval::Read { code: code(), state: read_state } },
+            },
+            &mut out,
+        );
+        assert_eq!(state(&root), State::Handing);
+        env.now = env.now.saturating_add(approve::AGAIN);
+        crate::fire(&mut root, &env, &mut out);
+        assert_eq!(acts(&mut out), vec![ApprovalAct::Read { code: code() }]);
+    }
+    read(&mut root, Read::Taken);
+    assert_eq!(state(&root), State::SignedIn);
+    assert_eq!(approve::next_deadline(&root), None);
+}
+
+#[test]
+fn approving_without_a_loopback_never_leaves() {
+    let mut root = asking();
+    act(&mut root, Act::Approve);
+    let env = fixtures::env(&fixtures::limits());
+    let mut out = Queue::uncapped();
+    crate::step(
+        &mut root,
+        &env,
+        Event::Client {
+            event: jig_client::Event::ApprovalAnswer {
+                answer: Approval::Decided { code: code(), decided: Decided::Approved { loopback: None } },
+            },
+        },
+        &mut out,
+    );
+    assert_eq!(state(&root), State::Approved);
+    assert!(out.is_empty());
+}
+
+#[test]
 fn a_decision_is_sent_once() {
     for (decision, approve) in [(Act::Approve, true), (Act::Refuse, false)] {
         let mut root = asking();
         assert_eq!(act(&mut root, decision), vec![ApprovalAct::Decide { code: code(), approve }]);
-        assert_eq!(state(&root), State::Deciding { approve, asked: Wall::EPOCH });
+        assert_eq!(
+            state(&root),
+            State::Deciding { approve, asked: Wall::EPOCH, kind: ApprovalKind::Listener, source: None, reader: None }
+        );
         assert_eq!(act(&mut root, Act::Approve).len(), 0);
         assert_eq!(act(&mut root, Act::Refuse).len(), 0);
         let mut out = Queue::uncapped();
@@ -232,12 +350,7 @@ fn signed_out_draws_sign_in_first() {
         if deciding {
             read(
                 &mut root,
-                Read::Waiting {
-                    asked: Wall::EPOCH,
-                    kind: jig_client::ApprovalKind::Listener,
-                    source: None,
-                    reader: None,
-                },
+                Read::Waiting { asked: Wall::EPOCH, kind: ApprovalKind::Listener, source: None, reader: None },
             );
             act(&mut root, Act::Approve);
         }
