@@ -16,12 +16,6 @@ each follows, as the forge holds them (`forge/change/branch-path.md`).
   (`jig/docs/design/domain/tasks/lifecycle.status.md`, 10).
 - **Not yet:** 7.1, by plan `forge-polls-quiet`: a landing polls its
   runs in flight every `poll`, not at the client's `poll_at`.
-- **Not yet:** 9: forming leaves out a waiting change whose step is
-  due, and a ready change whose step began before it was ready holds
-  its train (`landing_route.rs`, `form_train`) [in flight: change 10427].
-- **Not yet:** 4.2: a landing's end wakes every ready change of its
-  project, not its own train's alone (`landing_route.rs`, `wake_ready`;
-  the forge's `landing.rs`, `wake_project_ready`) [in flight: change 10429].
 
 - **Not yet:** 4.1: `with`; pin-only members; `dependencies_join`
   (`temper-engine-domain-forge/src/landing.rs`). 5.3, 6.1: the project's
