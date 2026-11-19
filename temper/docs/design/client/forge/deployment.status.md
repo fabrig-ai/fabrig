@@ -24,5 +24,4 @@
   remains the way back; the panel alone does not repair admission.
 
 
-- **Not yet:** the whole document: The client's page for a Forgejo elsewhere tells a person to add entries to `application.forges`, `application.identities` and `application.setup` in `temper.json` (`temper-client-view-words`' `ForgeConfigLead`, `ForgeConfig`, `ForgeIdentity`, `ForgeSetupEntry`; `temper-client-view-parts`' `forge/connect.rs`, `elsewhere`), members the document refuses as unknown, in a file the configuration no longer is. [in flight: change 9616]
 - **Departs:** the whole document, Connecting a forge: the panel "A Forgejo elsewhere" gives its numbered steps, each with its Copy, as `temper ctl DIR forge connect forgejo-admin` and `forge connect forgejo` commands (`../ctl/areas.md`; `temper/docs/help/forgejo.md`), as its admin and with its bot's tokens, with no restart: `temper.toml` holds no forges (`../../protocol/configuration/file.md`, 3). The mockup's panel (`../web/mockups/pages.js`) still shows the document's members.
