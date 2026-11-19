@@ -1,7 +1,12 @@
 # settings: status
 
-2026-11-18. Where the tree's code lags or departs from [settings.md](settings.md).
+2026-11-19. Where the tree's code lags or departs from [settings.md](settings.md).
 
+- **Not yet:** 1 and 7: a deployment's own item a store holds below 33
+  refuses the start as `Numbers` and blocks every edit, where it is to be
+  kept, warned of, and set or removed like any setting; a release's new
+  default on such a number is not refused as `Taken`, and
+  `Core::settings_kept` is missing. [in flight: change 10089]
 
 - **Not yet:** 12: a read changing only the displayed omitted count
   does not mark `me`. `routing/lists.rs`, `answered`, compares good-read
