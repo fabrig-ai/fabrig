@@ -121,10 +121,10 @@ fn a_sign_in_answer_with_no_token_leaves_none_held() {
     let generation = h.link.generation;
     let exchange =
         h.sign_in(With::Link { secret: Secret::new(Box::new(LINK_SECRET)), held: None }).expect("sign-in exchange");
-    let answer = w::SignInAnswer::SignedIn(
-        w::SignedIn { token: None, party: PARTY, expires: 10 },
-    );
-    let mut bytes = skein_lib::Writer::new(skein_lib::length::usize_of(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+    let answer = w::SignInAnswer::SignedIn(w::SignedIn { token: None, party: PARTY, expires: 10 });
+    let mut bytes = skein_lib::Writer::new(skein_lib::length::usize_of(
+        answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+    ));
     answer.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("measured sign-in");
     h.answer(exchange, &bytes.finish());
     assert!(h.link.credential().is_none());
@@ -144,10 +144,10 @@ fn a_link_carries_the_attempts_held_credential_and_keeps_it_on_a_tokenless_answe
         })
         .expect("link exchange");
     assert_eq!(h.credentials().as_slice().last(), Some(&Some(Secret::new(Box::new(CREDENTIAL)))));
-    let answer = w::SignInAnswer::SignedIn(
-        w::SignedIn { token: None, party: PARTY, expires: 10 },
-    );
-    let mut bytes = skein_lib::Writer::new(skein_lib::length::usize_of(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+    let answer = w::SignInAnswer::SignedIn(w::SignedIn { token: None, party: PARTY, expires: 10 });
+    let mut bytes = skein_lib::Writer::new(skein_lib::length::usize_of(
+        answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+    ));
     answer.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("answer");
     h.answer(exchange, &bytes.finish());
     assert_eq!(h.link.credential(), Some(&Secret::new(Box::new(CREDENTIAL))));
@@ -201,9 +201,7 @@ fn a_refused_not_ready_or_lost_link_installs_none_of_its_held_credential() {
 
 #[test]
 fn link_sign_in_answers_decode_and_trailing_bytes_are_lost() {
-    let full = w::SignInAnswer::Full(
-        w::SignInsFull { sign_ins: 2, earliest: 400, link_until: 300 },
-    );
+    let full = w::SignInAnswer::Full(w::SignInsFull { sign_ins: 2, earliest: 400, link_until: 300 });
     for (record, expected) in [
         (w::SignInAnswer::Busy, Signing::Busy),
         (w::SignInAnswer::LinkUsed, Signing::LinkUsed),
@@ -226,7 +224,10 @@ fn link_sign_in_answers_decode_and_trailing_bytes_are_lost() {
                     held: Some(Secret::new(Box::new(CREDENTIAL))),
                 })
                 .unwrap();
-            let length = usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap().checked_add(usize::from(trailing)).unwrap();
+            let length = usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+                .unwrap()
+                .checked_add(usize::from(trailing))
+                .unwrap();
             let mut bytes = skein_lib::Writer::new(length);
             record.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
             if trailing {
@@ -250,9 +251,11 @@ fn link_sign_in_answers_decode_and_trailing_bytes_are_lost() {
 fn each_approval_take_answer_is_decoded_without_a_credential() {
     for (answer, expected) in [
         (
-            w::ApprovalSignInAnswer::SignedIn(
-                w::SignedIn { token: Some(Secret::new(Box::new(CREDENTIAL))), party: PARTY, expires: 300 },
-            ),
+            w::ApprovalSignInAnswer::SignedIn(w::SignedIn {
+                token: Some(Secret::new(Box::new(CREDENTIAL))),
+                party: PARTY,
+                expires: 300,
+            }),
             Signing::SignedIn { party: PARTY },
         ),
         (w::ApprovalSignInAnswer::Waiting, Signing::Approval(Taking::Waiting)),
@@ -263,9 +266,7 @@ fn each_approval_take_answer_is_decoded_without_a_credential() {
         (w::ApprovalSignInAnswer::NotReady, Signing::Again),
         (w::ApprovalSignInAnswer::Busy, Signing::Busy),
         (
-            w::ApprovalSignInAnswer::Full(
-                w::ApprovalFull { sign_ins: 2, earliest: 400, until: 300 },
-            ),
+            w::ApprovalSignInAnswer::Full(w::ApprovalFull { sign_ins: 2, earliest: 400, until: 300 }),
             Signing::Full {
                 sign_ins: 2,
                 earliest: skein_lib::Wall::from_nanos(400),
@@ -273,9 +274,11 @@ fn each_approval_take_answer_is_decoded_without_a_credential() {
             },
         ),
         (
-            w::ApprovalSignInAnswer::SignedIn(
-                w::SignedIn { token: Some(Secret::new(Box::new([9; 39]))), party: PARTY, expires: 300 },
-            ),
+            w::ApprovalSignInAnswer::SignedIn(w::SignedIn {
+                token: Some(Secret::new(Box::new([9; 39]))),
+                party: PARTY,
+                expires: 300,
+            }),
             Signing::Lost,
         ),
     ] {
@@ -289,7 +292,10 @@ fn each_approval_take_answer_is_decoded_without_a_credential() {
             };
             let record = w::ApprovalSignIn::decode(&w::CEILINGS, &mut Reader::new(&body)).unwrap();
             assert_eq!(record.secret.expose(), LINK_SECRET);
-            let mut bytes = skein_lib::Writer::new(usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap() + usize::from(trailing));
+            let mut bytes = skein_lib::Writer::new(
+                usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap()
+                    + usize::from(trailing),
+            );
             answer.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
             if trailing {
                 bytes.put(&[0]).unwrap();

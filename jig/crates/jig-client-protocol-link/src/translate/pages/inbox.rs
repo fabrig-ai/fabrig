@@ -1,6 +1,6 @@
 //! Whole pages and single documents (protocol/client/wire.md, 1, and protocol/client/README.md, 4).
-use jig_client_protocol_wire::Record as _;
 use super::{Box, Limits, List, Reader, Wall, c, cursor_fields, task_link_fields, too_large, w};
+use jig_client_protocol_wire::Record as _;
 
 pub(crate) fn inbox_object_fields(value: &w::InboxObject) -> c::InboxObject {
     match value {

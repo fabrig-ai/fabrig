@@ -5,9 +5,7 @@ pub(in crate::codec) fn wire_effect(value: &c::Effect, limits: &w::Limits) -> Re
     Ok::<_, w::Problem>(match value {
         c::Effect::Release(value) => w::Effect::Release(w::EffectRelease { what: wire_release_effect(value, limits)? }),
         c::Effect::Cancel(value) => w::Effect::Cancel(wire_impact(value, limits)?),
-        c::Effect::Move { reservation } => {
-            w::Effect::MoveTask(w::EffectMove { reservation: *(reservation) })
-        }
+        c::Effect::Move { reservation } => w::Effect::MoveTask(w::EffectMove { reservation: *(reservation) }),
     })
 }
 

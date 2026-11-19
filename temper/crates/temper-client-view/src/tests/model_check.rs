@@ -1,10 +1,10 @@
 //! Model’s line, its states and controls (temper/docs/design/client/pages/README.md).
 #![expect(clippy::disallowed_methods, reason = "tests inspect semantic trees and decoded controls")]
-use jig_client_protocol_wire::Record as _;
 use super::{connect_model as model, fixtures as f};
 use crate::pages::model_check::{self, Answer, First, State};
 use crate::{accounts::Bindings, words::Words};
 use jig_client::contract as c;
+use jig_client_protocol_wire::Record as _;
 use skein_lib::Writer;
 use skein_lib::{List, Token};
 use skein_ui::Role;
@@ -355,7 +355,9 @@ fn a_trial_row_draws_its_wait_and_keeps_it_after_timeout() {
     let (mut root, watch, _) = fed(d::WayKind::Program);
     let mut parts = row(v::TrialStep::Answers, v::TrialState::Running).into_parts();
     let wait = jig_client_protocol_wire::TaskRunWait::Credential;
-    let mut writer = Writer::new(usize::try_from(wait.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    let mut writer = Writer::new(
+        usize::try_from(wait.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
     wait.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
     parts.run_wait = Some(writer.finish());
     let out = rows(&mut root, watch, &[v::TrialRow::new(&v::CEILINGS, parts).unwrap()]);

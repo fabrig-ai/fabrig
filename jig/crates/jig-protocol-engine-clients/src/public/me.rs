@@ -1,7 +1,7 @@
 //! Public project identifiers in me (jig/docs/design/domain/people/public-reading.md, 8).
-use jig_client_protocol_wire::Record as _;
 use super::{Box, Component, Env, Limits, Queue, Request, Token, Waiting, core, routes, w};
 use crate::translate;
+use jig_client_protocol_wire::Record as _;
 use jig_domain_core_vocabulary::documents::{Document, Frame};
 use skein_lib::Writer;
 pub(super) fn frame(document: &Document) -> Option<&Frame> {

@@ -203,12 +203,7 @@ fn enter_opens_and_watches_the_left_off_chat() {
                 == Some(Event::Act { act: Act::Go { address: Address::Chat { task: NEWEST } } });
         let duties = host.report(Report::Key(Key::Enter));
         read_exchange(&duties, "activity");
-        watch(
-            &duties,
-            &w::Subject::Task(
-                w::SubjectTask { task: NEWEST },
-            ),
-        );
+        watch(&duties, &w::Subject::Task(w::SubjectTask { task: NEWEST }));
         selected && host.root.pages().address() == &Address::Chat { task: NEWEST }
     };
     assert!(passed);
@@ -300,7 +295,9 @@ fn sending_home_words_creates_one_asking_task() {
     let duties = give(&mut host, Event::Send);
     let asks = sent_ask(&duties);
     assert_eq!(asks.len(), 1);
-    assert!(matches!(&asks[0].1, w::Ask::Create(create) if create.project == 3 && one_asking_task(create.tasks.as_ref())));
+    assert!(
+        matches!(&asks[0].1, w::Ask::Create(create) if create.project == 3 && one_asking_task(create.tasks.as_ref()))
+    );
     assert!(host.state().box_written() > 0);
 }
 

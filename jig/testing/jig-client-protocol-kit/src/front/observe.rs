@@ -1,9 +1,9 @@
 //! Facts decoded independently at the byte boundary, before the root sees them.
-use jig_client_protocol_wire::Record as _;
 use crate::native::Received;
 use jig_client::{Message, Request as ClientRequest, contract as c};
 use jig_client_kit::harness::{Receipt, Sent};
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use jig_client_test_domain::{Event, Request};
 use skein_lib::{Reader, RequestEnvelope, Token};
 
@@ -79,9 +79,7 @@ pub fn client_sent(request: &ClientRequest) -> Option<Sent> {
                             sent.words = Some((v.task, v.words.as_ref().to_vec()));
                             None
                         }
-                        w::Operation::Amend(v) => {
-                            v.revision.as_ref().map(|r| (c::ObjectKey::Task(v.task), 1, r.value))
-                        }
+                        w::Operation::Amend(v) => v.revision.as_ref().map(|r| (c::ObjectKey::Task(v.task), 1, r.value)),
                         w::Operation::Cancel(_)
                         | w::Operation::Release(_)
                         | w::Operation::Stop(_)
@@ -104,19 +102,13 @@ pub fn client_sent(request: &ClientRequest) -> Option<Sent> {
                     w::DecideOn::Proposal(_) => None,
                     w::DecideOn::Escalation(v) => Some((c::ObjectKey::Escalation(v.task), 2, v.revision.value)),
                 },
-                w::Ask::Amend(value) => {
-                    value.revision.as_ref().map(|v| (c::ObjectKey::Task(value.task), 1, v.value))
+                w::Ask::Amend(value) => value.revision.as_ref().map(|v| (c::ObjectKey::Task(value.task), 1, v.value)),
+                w::Ask::EditNote(value) => {
+                    Some((c::ObjectKey::Note { project: value.project, note: value.note }, 4, value.revision.value))
                 }
-                w::Ask::EditNote(value) => Some((
-                    c::ObjectKey::Note { project: value.project, note: value.note },
-                    4,
-                    value.revision.value,
-                )),
-                w::Ask::DeleteNote(value) => Some((
-                    c::ObjectKey::Note { project: value.project, note: value.note },
-                    4,
-                    value.revision.value,
-                )),
+                w::Ask::DeleteNote(value) => {
+                    Some((c::ObjectKey::Note { project: value.project, note: value.note }, 4, value.revision.value))
+                }
                 w::Ask::Propose(value) => match &value.action {
                     w::ProposeAction::Settings(_) | w::ProposeAction::Batch(_) => None,
                     w::ProposeAction::Amendment(v) => Some((c::ObjectKey::Task(v.task), 1, v.revision.value)),
@@ -210,7 +202,6 @@ pub fn receipts(fact: &Received) -> Vec<Receipt> {
 mod tests {
     use super::*;
     use crate::fixtures::{PROJECT, WIRE_TASK};
-    
 
     const ATTEMPT: Token = Token::new(7);
     const REQUEST_KEY: [u8; 16] = [3; 16];
@@ -221,11 +212,7 @@ mod tests {
 
     fn request(owner: w::Owner, version: u32, bytes: Box<[u8]>) -> ClientRequest {
         let keyed = w::Keyed { key: REQUEST_KEY, owner, version, request: bytes, value: None };
-        ClientRequest::Exchange {
-            exchange: ATTEMPT,
-            credential: None,
-            message: Message::Request(encoded(&keyed)),
-        }
+        ClientRequest::Exchange { exchange: ATTEMPT, credential: None, message: Message::Request(encoded(&keyed)) }
     }
 
     fn jig_request(ask: &c::Ask) -> ClientRequest {
@@ -292,21 +279,10 @@ mod tests {
             revision: c::Revision { value: 5 },
             value: 0,
         });
-        let envelope = w::FamilyRequest {
-                scope: w::Scope::Project(
-                    w::ScopeProject { value: PROJECT },
-                ),
-                record: record.bytes,
-            };
-        let owner = w::Owner::Family(
-            w::Family { number: record.family },
-        );
-        let sent = client_sent(&request(
-            owner,
-            record.version,
-            encoded(&envelope),
-        ))
-        .expect("family request observed");
+        let envelope =
+            w::FamilyRequest { scope: w::Scope::Project(w::ScopeProject { value: PROJECT }), record: record.bytes };
+        let owner = w::Owner::Family(w::Family { number: record.family });
+        let sent = client_sent(&request(owner, record.version, encoded(&envelope))).expect("family request observed");
         let card = jig_client_kit::harness::CardKey::of(jig_client_test_view::family_key(
             &jig_client_test_domain::family::Subject {
                 scope: jig_client_test_domain::family::Scope::Project(PROJECT),

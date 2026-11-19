@@ -109,7 +109,7 @@ impl Connection {
         let keyed =
             wire::Keyed::decode(limits.wire(), &mut Reader::new(&self.sent[end + 4..])).expect("sent keyed request");
         self.sent_application = Some(());
-        if matches!( &keyed.owner, wire::Owner::Family(_)) && !picker(&keyed.owner, keyed.request.as_ref()) {
+        if matches!(&keyed.owner, wire::Owner::Family(_)) && !picker(&keyed.owner, keyed.request.as_ref()) {
             received.push(Received::ApplicationSent { key: keyed.key });
         }
     }
@@ -206,8 +206,9 @@ impl Connection {
                     wire::ReadAnswer::decode(limits.wire(), &mut Reader::new(bytes)).expect("read reply bytes")
                     && value.owner == wire::Owner::Jig
                 {
-                    received
-                        .push(Received::Read(translate::reads::value(value.record.as_ref(), &limits).expect("read document")));
+                    received.push(Received::Read(
+                        translate::reads::value(value.record.as_ref(), &limits).expect("read document"),
+                    ));
                 }
             }
             b"/jig/v1/watch" | b"/jig/v1/unwatch" | b"/jig/v1/stream-gone" => {}

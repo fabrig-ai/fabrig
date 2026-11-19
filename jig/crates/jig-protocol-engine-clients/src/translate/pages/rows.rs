@@ -1,7 +1,7 @@
 //! Bounded owner page pieces (protocol/client/wire.md, 1).
-use jig_client_protocol_wire::Record as _;
 use super::super::{owner, pieces, task, w};
 use alloc::boxed::Box;
+use jig_client_protocol_wire::Record as _;
 use jig_domain_core_vocabulary::documents as d;
 use jig_domain_tasks as t;
 use skein_lib::{List, Writer};
@@ -17,7 +17,9 @@ fn charge(size: u32, measure: u32, bound: u32, path: w::Path) -> Result<u32, w::
 pub(super) fn activity_pieces(
     rows: &List<w::DecodedActivityLine>,
     bound: u32,
-    path: w::Path, limits: &w::Limits) -> Result<Box<[u8]>, w::Problem> {
+    path: w::Path,
+    limits: &w::Limits,
+) -> Result<Box<[u8]>, w::Problem> {
     let mut size = 0;
     for row in rows {
         size = charge(size, row.measure(limits)?, bound, path)?;
@@ -30,7 +32,12 @@ pub(super) fn activity_pieces(
     }
     pieces(&encoded, bound, path)
 }
-pub(super) fn history_pieces(rows: &List<w::HistoryRow>, bound: u32, path: w::Path, limits: &w::Limits) -> Result<Box<[u8]>, w::Problem> {
+pub(super) fn history_pieces(
+    rows: &List<w::HistoryRow>,
+    bound: u32,
+    path: w::Path,
+    limits: &w::Limits,
+) -> Result<Box<[u8]>, w::Problem> {
     let mut size = 0;
     for row in rows {
         size = charge(size, row.measure(limits)?, bound, path)?;
@@ -43,7 +50,12 @@ pub(super) fn history_pieces(rows: &List<w::HistoryRow>, bound: u32, path: w::Pa
     }
     pieces(&encoded, bound, path)
 }
-pub(super) fn inbox_pieces(rows: &List<w::InboxEntry>, bound: u32, path: w::Path, limits: &w::Limits) -> Result<Box<[u8]>, w::Problem> {
+pub(super) fn inbox_pieces(
+    rows: &List<w::InboxEntry>,
+    bound: u32,
+    path: w::Path,
+    limits: &w::Limits,
+) -> Result<Box<[u8]>, w::Problem> {
     let mut size = 0;
     for row in rows {
         size = charge(size, row.measure(limits)?, bound, path)?;
@@ -56,7 +68,12 @@ pub(super) fn inbox_pieces(rows: &List<w::InboxEntry>, bound: u32, path: w::Path
     }
     pieces(&encoded, bound, path)
 }
-pub(super) fn ended_pieces(rows: &List<w::EndedDelegate>, bound: u32, path: w::Path, limits: &w::Limits) -> Result<Box<[u8]>, w::Problem> {
+pub(super) fn ended_pieces(
+    rows: &List<w::EndedDelegate>,
+    bound: u32,
+    path: w::Path,
+    limits: &w::Limits,
+) -> Result<Box<[u8]>, w::Problem> {
     let mut size = 0;
     for row in rows {
         size = charge(size, row.measure(limits)?, bound, path)?;
@@ -69,7 +86,12 @@ pub(super) fn ended_pieces(rows: &List<w::EndedDelegate>, bound: u32, path: w::P
     }
     pieces(&encoded, bound, path)
 }
-pub(super) fn note_pieces(rows: &List<w::Note>, bound: u32, path: w::Path, limits: &w::Limits) -> Result<Box<[u8]>, w::Problem> {
+pub(super) fn note_pieces(
+    rows: &List<w::Note>,
+    bound: u32,
+    path: w::Path,
+    limits: &w::Limits,
+) -> Result<Box<[u8]>, w::Problem> {
     let mut size = 0;
     for row in rows {
         size = charge(size, row.measure(limits)?, bound, path)?;
@@ -84,51 +106,43 @@ pub(super) fn note_pieces(rows: &List<w::Note>, bound: u32, path: w::Path, limit
 }
 pub(super) fn funding(value: &t::FundingRecord, limits: &w::Limits) -> Result<w::FundingRecord, w::Problem> {
     Ok(w::FundingRecord {
-            period: match value.period {
-                Some(value) => Some(w::PeriodTimes {
-                        began: value.began.as_nanos(),
-                        next: match value.next {
-                            Some(value) => Some(value.as_nanos()),
-                            None => None,
-                        },
-                    }),
-                None => None,
-            },
-            funder: owner::funder(value.funder, limits)?,
-            parent: match value.parent {
-                Some(value) => Some(owner::funder(value, limits)?),
-                None => None,
-            },
-            numbers: owner::numbers(value.numbers, limits)?,
-            made: value.made,
-            closed: value.closed,
-        })
+        period: match value.period {
+            Some(value) => Some(w::PeriodTimes {
+                began: value.began.as_nanos(),
+                next: match value.next {
+                    Some(value) => Some(value.as_nanos()),
+                    None => None,
+                },
+            }),
+            None => None,
+        },
+        funder: owner::funder(value.funder, limits)?,
+        parent: match value.parent {
+            Some(value) => Some(owner::funder(value, limits)?),
+            None => None,
+        },
+        numbers: owner::numbers(value.numbers, limits)?,
+        made: value.made,
+        closed: value.closed,
+    })
 }
 pub(super) fn note(models: &[crate::Model], value: &d::Note, limits: &w::Limits) -> Result<w::Note, w::Problem> {
     let scope = match &value.scope {
-        d::NoteLocation::Party { party } => {
-            w::NoteScope::Party(w::NoteScopeParty { party: *party })
-        }
+        d::NoteLocation::Party { party } => w::NoteScope::Party(w::NoteScopeParty { party: *party }),
         d::NoteLocation::Deployment => w::NoteScope::Deployment,
-        d::NoteLocation::Project(value) => {
-            w::NoteScope::Project(w::NoteScopeProject { value: *value })
-        }
+        d::NoteLocation::Project(value) => w::NoteScope::Project(w::NoteScopeProject { value: *value }),
         d::NoteLocation::Goal { project, task } => {
             w::NoteScope::Task(w::NoteScopeTask { project: *project, task: *task })
         }
         d::NoteLocation::Resources { project, scope } => w::NoteScope::Resource(w::NoteScopeResource {
-                project: *project,
-                connector: scope.connector,
-                pattern: owner::pattern(&scope.segments, &scope.last, limits)?,
-            }),
+            project: *project,
+            connector: scope.connector,
+            pattern: owner::pattern(&scope.segments, &scope.last, limits)?,
+        }),
     };
     let writer = match value.writer {
-        jig_domain_notes::Author::Party { party } => {
-            w::NoteAuthor::Party(w::NoteAuthorParty { party })
-        }
-        jig_domain_notes::Author::Task { task, attempt } => {
-            w::NoteAuthor::Task(w::NoteAuthorTask { task, attempt })
-        }
+        jig_domain_notes::Author::Party { party } => w::NoteAuthor::Party(w::NoteAuthorParty { party }),
+        jig_domain_notes::Author::Task { task, attempt } => w::NoteAuthor::Task(w::NoteAuthorTask { task, attempt }),
     };
     if value.tasks.capacity() > limits.note_tasks.min(w::CEILINGS.note_tasks) {
         return Err(w::Problem { path: w::paths::NOTE_TASKS, reason: skein_codec::Reason::Bound });
@@ -138,18 +152,18 @@ pub(super) fn note(models: &[crate::Model], value: &d::Note, limits: &w::Limits)
         tasks.push(*value).expect("selected references fit");
     }
     Ok(w::Note {
-            number: value.number,
-            revision: w::Revision { value: u64::from(value.revision) },
-            scope,
-            description: owner::text(&value.description, limits)?,
-            body: owner::text(&value.body, limits)?,
-            writer,
-            tasks,
-            changed: match value.changed {
-                Some(value) => Some(value.as_nanos()),
-                None => None,
-            },
-            acts: task::offered(models, &value.acts, limits, limits.note_acts, w::paths::NOTE_ACTS)?,
-            cut: value.cut,
-        })
+        number: value.number,
+        revision: w::Revision { value: u64::from(value.revision) },
+        scope,
+        description: owner::text(&value.description, limits)?,
+        body: owner::text(&value.body, limits)?,
+        writer,
+        tasks,
+        changed: match value.changed {
+            Some(value) => Some(value.as_nanos()),
+            None => None,
+        },
+        acts: task::offered(models, &value.acts, limits, limits.note_acts, w::paths::NOTE_ACTS)?,
+        cut: value.cut,
+    })
 }

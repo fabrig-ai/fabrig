@@ -102,9 +102,10 @@ impl Frame {
         }
     }
     pub fn engine_stopping(&mut self) {
-        let event = w::StreamEvent::Ended(
-            w::WatchEnded { watch: self.wait_task.expect("wait watch"), why: w::WatchEnd::Stopping },
-        );
+        let event = w::StreamEvent::Ended(w::WatchEnded {
+            watch: self.wait_task.expect("wait watch"),
+            why: w::WatchEnd::Stopping,
+        });
         self.sockets.get_mut(&self.stream.expect("open stream")).expect("stream socket").reply.extend(sse(&event));
         self.stopping = Some(());
         self.run();
@@ -116,9 +117,10 @@ impl Frame {
         self.run();
     }
     pub fn refuse_wait(&mut self) {
-        let event = w::StreamEvent::Ended(
-            w::WatchEnded { watch: self.wait_task.expect("wait watch"), why: w::WatchEnd::NotAllowed },
-        );
+        let event = w::StreamEvent::Ended(w::WatchEnded {
+            watch: self.wait_task.expect("wait watch"),
+            why: w::WatchEnd::NotAllowed,
+        });
         self.sockets.get_mut(&self.stream.expect("open stream")).expect("stream socket").reply.extend(sse(&event));
         self.run();
     }
@@ -130,9 +132,7 @@ impl Frame {
         let task = parts;
         let value = w::DeliveryValue::Task(Box::new(task));
         let document = w::Owned { owner: w::Owner::Jig, version: w::VERSION, record: encode!(value) };
-        let event = w::StreamEvent::Delivery(
-            w::Delivery { watch: self.wait_task.expect("wait watch"), document },
-        );
+        let event = w::StreamEvent::Delivery(w::Delivery { watch: self.wait_task.expect("wait watch"), document });
         self.sockets.get_mut(&self.stream.expect("open stream")).expect("stream socket").reply.extend(sse(&event));
     }
     pub fn no_directory(&self) -> bool {

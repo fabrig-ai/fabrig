@@ -34,9 +34,7 @@ fn web_linked(host: &mut Host, watch: u64, linked: bool) {
     use temper_client_protocol_wire::{self as wire, v1 as f};
     let record =
         wire::forges(&f::Forges::new(&f::CEILINGS, f::ForgesParts { forges: List::with_capacity(0), linked }).unwrap());
-    let event = w::StreamEvent::Delivery(
-        w::Delivery { watch, document: goal::family(record) },
-    );
+    let event = w::StreamEvent::Delivery(w::Delivery { watch, document: goal::family(record) });
     let duties = host.report(Report::Heard(jig_client::Event::Streamed {
         message: jig_client::Streamed::Record(stream_bytes(&event)),
     }));
@@ -287,9 +285,7 @@ fn first_words_start_the_places_chat_and_a_refusal_can_be_sent_again() {
             let task = w::NewTask::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap();
             assert_eq!((task.label, task.spec.words.as_ref()), (label, expected));
             if refused {
-                let answer = w::Final::Refused(
-                    w::Refused { refusal: w::Refusal::NotOffered, at: None },
-                );
+                let answer = w::Final::Refused(w::Refused { refusal: w::Refusal::NotOffered, at: None });
                 let duties = reply(&mut host, *exchange, final_bytes(&answer));
                 admit(&mut host, duties);
                 assert_eq!(host.state().place(), Some(command));
@@ -402,22 +398,22 @@ fn a_places_empty_box_has_no_launchpad_or_pane_keys() {
 fn picker_host() -> Host {
     let (mut host, watch, _) = signed_host(true);
     let model = w::MeModel {
-            new_until: None,
-            number: 1,
-            source: w::ModelSource::Stock,
-            estimated: false,
-            name: b"model".as_slice().into(),
-            provider: None,
-            window: 8192,
-            output: 1024,
-            efforts: List::with_capacity(0),
-            effort: None,
-            prices: w::MePrices { input: 1, cached: 1, cache_write: None, output: 1, unit: 1 },
-            description: None,
-            shown: None,
-            accounts: List::from_boxed(Box::new([1])),
-            picker: true,
-        };
+        new_until: None,
+        number: 1,
+        source: w::ModelSource::Stock,
+        estimated: false,
+        name: b"model".as_slice().into(),
+        provider: None,
+        window: 8192,
+        output: 1024,
+        efforts: List::with_capacity(0),
+        effort: None,
+        prices: w::MePrices { input: 1, cached: 1, cache_write: None, output: 1, unit: 1 },
+        description: None,
+        shown: None,
+        accounts: List::from_boxed(Box::new([1])),
+        picker: true,
+    };
     let mut me = launchpad_me(true);
     let mut projects = Vec::new();
     let mut reader = Reader::new(&me.projects);

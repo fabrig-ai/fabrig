@@ -1,9 +1,9 @@
 //! Field-for-field document values (client/domain/contract/documents.md and client/domain/contract/README.md, 4–5).
-use jig_client_protocol_wire::Record as _;
 use super::{
     Limits, List, Reader, Wall, authority_document_fields, c, chip_fields, grant_piece, offered_piece,
     pool_ledger_fields, specification_document_fields, task_contract_document_fields, too_large, w,
 };
+use jig_client_protocol_wire::Record as _;
 
 pub(crate) fn project_resource_role_fields(value: &w::ProjectResourceRole) -> c::ProjectResourceRole {
     match value {

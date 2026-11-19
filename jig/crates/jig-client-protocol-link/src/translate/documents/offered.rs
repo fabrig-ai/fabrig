@@ -1,6 +1,6 @@
 //! Field-for-field document values (client/domain/contract/documents.md and client/domain/contract/README.md, 4–5).
-use jig_client_protocol_wire::Record as _;
 use super::{Box, Limits, List, Reader, Wall, authority_document_fields, c, effect_fields, grant_piece, too_large, w};
+use jig_client_protocol_wire::Record as _;
 
 pub(crate) fn act_kind_fields(value: &w::ActKind) -> c::ActKind {
     match value {

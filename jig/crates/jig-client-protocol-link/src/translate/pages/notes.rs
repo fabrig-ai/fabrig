@@ -1,6 +1,6 @@
 //! Whole pages and single documents (protocol/client/wire.md, 1, and protocol/client/README.md, 4).
-use jig_client_protocol_wire::Record as _;
 use super::{Limits, List, Reader, Wall, c, cursor_fields, offered_piece, too_large, w};
+use jig_client_protocol_wire::Record as _;
 
 pub(crate) fn note_author_fields(value: &w::NoteAuthor) -> c::NoteAuthor {
     match value {

@@ -1,8 +1,8 @@
 //! Wire asks into the people vocabulary (client/domain/contract/requests.md).
-use jig_client_protocol_wire::Record as _;
 use super::Untranslatable;
 use alloc::boxed::Box;
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use jig_domain_people as p;
 use skein_lib::{List, Reader, Wall, length::len_u64};
 #[derive(Debug)]
@@ -50,15 +50,15 @@ fn decode(
             holder: p::AccountHolder::Own,
             change: p::AccountChange::ReadLists { provider: value.provider },
         },
-        w::Ask::Restore(value) => {
-            p::Ask::Restore { revision: value.revision, reason: value.reason }
-        }
+        w::Ask::Restore(value) => p::Ask::Restore { revision: value.revision, reason: value.reason },
         w::Ask::MoveToNewest(value) => p::Ask::MoveToNewest { revision: value.revision },
         w::Ask::ChangeModel(_) => return Err(Untranslatable { path: w::paths::CHANGE_MODEL_ACT }),
         w::Ask::ChangeSettings(value) => {
             let against = value.against;
             let record = w::Ask::ChangeSettings(value);
-            let mut bytes = skein_lib::Writer::new(skein_lib::length::usize_of(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+            let mut bytes = skein_lib::Writer::new(skein_lib::length::usize_of(
+                record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+            ));
             record.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("measured ask");
             p::Ask::ChangeSettings {
                 projects: Box::default(),
@@ -239,12 +239,8 @@ pub(super) fn escalation_decision(value: w::Decision) -> Result<p::EscalationDec
 }
 pub(super) fn person_answer(value: w::PersonAnswer) -> p::PersonResult {
     match value {
-        w::PersonAnswer::Choice(v) => {
-            p::PersonResult::Verdict { code: v.option, words: v.reason }
-        }
-        w::PersonAnswer::Approved(v) => {
-            p::PersonResult::Approved { state: v.state, words: v.words }
-        }
+        w::PersonAnswer::Choice(v) => p::PersonResult::Verdict { code: v.option, words: v.reason },
+        w::PersonAnswer::Approved(v) => p::PersonResult::Approved { state: v.state, words: v.words },
         w::PersonAnswer::Words(v) => p::PersonResult::Report { words: v.value },
         w::PersonAnswer::Cannot(v) => p::PersonResult::Failure { reason: v.reason },
     }
@@ -305,9 +301,7 @@ pub(super) fn spec(value: w::Specification) -> p::Spec {
     for item in v.parameters.into_boxed() {
         let item = match item {
             w::Parameter::Number(v) => p::Parameter::Number { name: v.name, value: v.value },
-            w::Parameter::Bytes(v) => {
-                p::Parameter::Bytes { name: v.name, value: v.value }
-            }
+            w::Parameter::Bytes(v) => p::Parameter::Bytes { name: v.name, value: v.value },
             w::Parameter::Resource(v) => {
                 p::Parameter::Resource { name: v.name, connector: v.connector, resource: v.resource }
             }
@@ -458,7 +452,9 @@ pub(super) fn authority(
     let mut total = 0;
     for _ in 0..count {
         let bytes = skein_codec::piece::counted(&mut reader);
-        let Ok(value) = w::ResourceScope::decode(limits, &mut Reader::new(&bytes)) else { return Err(Untranslatable { path }) };
+        let Ok(value) = w::ResourceScope::decode(limits, &mut Reader::new(&bytes)) else {
+            return Err(Untranslatable { path });
+        };
         let pattern = pattern(value.pattern);
         let size = pattern_bytes(&pattern, size_of::<p::ResourceScope>());
         sum(&mut total, size, limits.authority_note_resources, path)?;
@@ -583,9 +579,10 @@ fn account_holder(value: &w::AskAccountHolder) -> p::AccountHolder {
 fn account_change(value: &w::AccountChange) -> Result<p::AccountChange, Untranslatable> {
     Ok(match value {
         // These receive typed interim refusals before core translation (domain/terminal-login.md, 5).
-        w::AccountChange::LoginProgram(row) => {
-            p::AccountChange::LoginProgram { provider: row.provider, name: skein_lib::bytes::copy_of(row.name.as_ref()) }
-        }
+        w::AccountChange::LoginProgram(row) => p::AccountChange::LoginProgram {
+            provider: row.provider,
+            name: skein_lib::bytes::copy_of(row.name.as_ref()),
+        },
         w::AccountChange::CancelLogin(row) => p::AccountChange::CancelLogin { number: row.number },
         w::AccountChange::LoginEnded(row) => p::AccountChange::LoginEnded {
             number: row.number,
@@ -615,15 +612,11 @@ fn account_change(value: &w::AccountChange) -> Result<p::AccountChange, Untransl
         w::AccountChange::AddKey(row) => {
             p::AccountChange::AddKey { provider: row.provider, join: row.join, digest: row.digest }
         }
-        w::AccountChange::ReplaceKey(row) => {
-            p::AccountChange::ReplaceKey { source: row.source, digest: row.digest }
-        }
+        w::AccountChange::ReplaceKey(row) => p::AccountChange::ReplaceKey { source: row.source, digest: row.digest },
         w::AccountChange::RemoveKey(row) => p::AccountChange::RemoveKey { source: row.source },
         w::AccountChange::Resume(row) => p::AccountChange::Resume { source: row.source },
         w::AccountChange::Remove(row) => p::AccountChange::Remove { account: row.account },
-        w::AccountChange::MoveAccount(row) => {
-            p::AccountChange::MoveAccount { account: row.account, place: row.place }
-        }
+        w::AccountChange::MoveAccount(row) => p::AccountChange::MoveAccount { account: row.account, place: row.place },
         w::AccountChange::MoveSource(row) => {
             p::AccountChange::MoveSource { account: row.account, source: row.source, place: row.place }
         }

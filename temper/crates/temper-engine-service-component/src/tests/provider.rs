@@ -4,9 +4,9 @@
     clippy::disallowed_methods,
     reason = "ordinary protocol world fixtures use textual HTTP"
 )]
-use jig_client_protocol_wire::Record as _;
 use super::{fixtures::http::Peer, sign_in};
 use jig_client_protocol_wire as wire;
+use jig_client_protocol_wire::Record as _;
 use jig_protocol_config::clients::{Provider, ProviderClient};
 use skein_lib::{
     Duration, Reader, Secret, Writer,
@@ -84,7 +84,9 @@ pub(super) fn authorize(service: &mut crate::Service, cookie: &[u8]) -> Box<[u8]
     );
     let limits = service.engine.as_ref().unwrap().clients.env.limits.wire;
     let record = wire::Authorize { query: query.into_bytes().into() };
-    let mut out = Writer::new(usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    let mut out = Writer::new(
+        usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
     record.write(&jig_client_protocol_wire::CEILINGS, &mut out).unwrap();
     let fields = format!(
         "Content-Type: application/octet-stream\r\nJig-Client: browser\r\nCookie: {}\r\n",
@@ -227,7 +229,9 @@ fn refused_authorizations(service: &mut crate::Service, cookie: &[u8]) {
             "response_type=code&client_id={client}&redirect_uri=http%3A%2F%2F127.0.0.1%3A9%2Fescape&scope=openid&state=refusal&code_challenge=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA&code_challenge_method=S256"
         );
         let record = wire::Authorize { query: query.into_bytes().into() };
-        let mut out = Writer::new(usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+        let mut out = Writer::new(
+            usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+        );
         record.write(&jig_client_protocol_wire::CEILINGS, &mut out).unwrap();
         let peer = request(service, "POST", "/jig/v1/authorize", &fields, &out.finish());
         assert!(peer.received().starts_with(b"HTTP/1.1 200"));

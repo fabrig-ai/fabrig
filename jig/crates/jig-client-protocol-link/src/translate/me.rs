@@ -1,6 +1,6 @@
 //! Nested served me records, bounded by the receiving document.
-use jig_client_protocol_wire::Record as _;
 use super::{Limits, List, Reader, c, project_role_fields, task_contract_document_fields, too_large, w};
+use jig_client_protocol_wire::Record as _;
 pub(crate) fn projects(bytes: &[u8], limits: &Limits) -> Result<List<c::MeProject>, w::Problem> {
     let bound = limits.client().projects;
     let mut reader = Reader::new(bytes);
@@ -87,8 +87,7 @@ pub(crate) fn symbols(values: &List<w::Symbol>) -> List<c::Symbol> {
 pub(crate) fn wire_symbols(values: &List<c::Symbol>, _limits: &w::Limits) -> Result<List<w::Symbol>, w::Problem> {
     let mut rows = List::with_capacity(values.len());
     for value in values {
-        rows.push(w::Symbol { connector: value.connector, symbol: value.symbol })
-            .expect("same capacity");
+        rows.push(w::Symbol { connector: value.connector, symbol: value.symbol }).expect("same capacity");
     }
     Ok(rows)
 }

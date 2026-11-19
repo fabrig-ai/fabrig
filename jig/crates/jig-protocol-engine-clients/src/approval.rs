@@ -1,9 +1,9 @@
 //! Volatile browser approvals and reserved takes (jig/docs/design/protocol/client/sign-in.md).
-use jig_client_protocol_wire::Record as _;
 use super::{Component, Env, Limits, Queue, ReplyTo, Request, Token, Waiting, core, people, routes, sign_in, w};
 use crate::{Reply, exchange::Exchange, routes::Route};
 use alloc::boxed::Box;
 use jig_client_protocol_wire::ApprovalCode;
+use jig_client_protocol_wire::Record as _;
 use skein_lib::{CryptoRng, Duration, Map, Reader, Secret, Time, Wall, sha256};
 
 pub(crate) const WAITING: u32 = 4;
@@ -202,9 +202,7 @@ impl Component {
                     },
                 )
                 .expect("room for approval");
-            w::ApprovalAskAnswer::Asked(
-                w::ApprovalAsked { secret, code: *code.letters(), expires: expires.as_nanos() },
-            )
+            w::ApprovalAskAnswer::Asked(w::ApprovalAsked { secret, code: *code.letters(), expires: expires.as_nanos() })
         };
         connection.respond(Reply::Record(routes::approval_ask_answer(answer)));
     }
@@ -233,9 +231,7 @@ impl Component {
         let mut reader = Reader::new(body);
         let answer = if route == Route::ApprovalRead {
             match w::ApprovalRead::decode(&env.limits.wire, &mut reader) {
-                Ok(record) if reader.is_empty() => {
-                    Some(routes::approval_state(self.approval_read(env, record.code)))
-                }
+                Ok(record) if reader.is_empty() => Some(routes::approval_state(self.approval_read(env, record.code))),
                 Ok(_) | Err(_) => None,
             }
         } else {
@@ -259,9 +255,7 @@ impl Component {
         if let Some(digest) = self.approval.code(code) {
             let approval = self.approval.live.get(&digest).expect("live approval");
             return match approval.decision {
-                Decision::Waiting => w::ApprovalState::Waiting(
-                    w::ApprovalWaiting { asked: approval.asked.as_nanos() },
-                ),
+                Decision::Waiting => w::ApprovalState::Waiting(w::ApprovalWaiting { asked: approval.asked.as_nanos() }),
                 Decision::Approved { .. } | Decision::Taking { .. } => w::ApprovalState::Approved,
             };
         }
@@ -418,9 +412,11 @@ impl Component {
             people::Reply::Again(people::Again::Busy | people::Again::Full { .. }) => w::ApprovalSignInAnswer::Busy,
             people::Reply::Full { sign_ins, earliest } => {
                 let expires = self.approval.live.get(&digest).expect("reserved approval").expires;
-                w::ApprovalSignInAnswer::Full(
-                    w::ApprovalFull { sign_ins, earliest: earliest.as_nanos(), until: expires.as_nanos() },
-                )
+                w::ApprovalSignInAnswer::Full(w::ApprovalFull {
+                    sign_ins,
+                    earliest: earliest.as_nanos(),
+                    until: expires.as_nanos(),
+                })
             }
             people::Reply::Signer(_)
             | people::Reply::SignedOut

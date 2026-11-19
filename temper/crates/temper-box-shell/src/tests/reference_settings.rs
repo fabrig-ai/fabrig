@@ -545,7 +545,9 @@ fn the_stock_settings_document_decodes_in_every_client() {
         let link = jig_client_protocol_link::Limits::new(preset.domain, preset.exchanges).expect("client limits");
         let wire = jig_protocol_engine_clients::translate::settings::setting_document(&source, &[], link.wire())
             .unwrap_or_else(|why| panic!("{name} receives stock settings: {why:?}"));
-        let mut bytes = skein_lib::Writer::new(usize::try_from(wire.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+        let mut bytes = skein_lib::Writer::new(
+            usize::try_from(wire.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+        );
         wire.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
         let bytes = bytes.finish();
         let mut reader = skein_lib::Reader::new(&bytes);

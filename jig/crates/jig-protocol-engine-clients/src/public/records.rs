@@ -1,7 +1,7 @@
 //! Identifier-only records (jig/docs/design/protocol/client/public-reads.md).
-use jig_client_protocol_wire::Record as _;
 use super::{Names, PublicKind};
 use alloc::boxed::Box;
+use jig_client_protocol_wire::Record as _;
 use jig_client_protocol_wire::{self as wire, public_v1 as w};
 use jig_domain_core_vocabulary as c;
 use skein_lib::{List, Writer};
@@ -23,12 +23,10 @@ pub(super) fn encode(
             let mut projects = List::with_capacity(count(value.projects.len(), limits.public_projects_projects)?);
             for item in &value.projects {
                 projects
-                    .push(
-                        w::PublicProject {
-                                project: names.project(item.project),
-                                name: skein_lib::bytes::copy_of(item.name.as_bytes()),
-                            },
-                    )
+                    .push(w::PublicProject {
+                        project: names.project(item.project),
+                        name: skein_lib::bytes::copy_of(item.name.as_bytes()),
+                    })
                     .ok()?;
             }
             let record = w::PublicProjects { projects, max_age };
@@ -41,12 +39,12 @@ pub(super) fn encode(
                 return None;
             }
             let record = w::PublicBoard {
-                    project: names.project(value.project),
-                    name: skein_lib::bytes::copy_of(value.name.as_bytes()),
-                    live: goals(&value.live, names, limits, limits.public_board_live)?,
-                    live_folded: value.live_folded,
-                    ended: goals(&value.ended, names, limits, limits.public_board_ended)?,
-                };
+                project: names.project(value.project),
+                name: skein_lib::bytes::copy_of(value.name.as_bytes()),
+                live: goals(&value.live, names, limits, limits.public_board_live)?,
+                live_folded: value.live_folded,
+                ended: goals(&value.ended, names, limits, limits.public_board_ended)?,
+            };
             let mut out = writer(record.measure(limits).ok()?, bound)?;
             record.write(limits, &mut out).ok()?;
             Some(out.finish())
@@ -60,11 +58,11 @@ pub(super) fn encode(
                 lineage.push(names.task(*item)).ok()?;
             }
             let record = w::PublicCard {
-                    line: line(&value.line, names, limits)?,
-                    lineage,
-                    delegates: lines(&value.delegates, names, limits, limits.public_card_delegates)?,
-                    folded: value.folded,
-                };
+                line: line(&value.line, names, limits)?,
+                lineage,
+                delegates: lines(&value.delegates, names, limits, limits.public_card_delegates)?,
+                folded: value.folded,
+            };
             let mut out = writer(record.measure(limits).ok()?, bound)?;
             record.write(limits, &mut out).ok()?;
             Some(out.finish())
@@ -81,8 +79,7 @@ pub(super) fn encode(
             for item in &value.tasks {
                 tasks.push(names.task(*item)).ok()?;
             }
-            let record =
-                w::PublicApplication { tasks, record: value.record.clone() };
+            let record = w::PublicApplication { tasks, record: value.record.clone() };
             let mut out = writer(record.measure(limits).ok()?, bound)?;
             record.write(limits, &mut out).ok()?;
             Some(out.finish())
@@ -100,13 +97,11 @@ fn goals(values: &[c::PublicGoal], names: &Names, limits: &w::Limits, bound: u32
     let mut goals = List::with_capacity(count(values.len(), bound)?);
     for value in values {
         goals
-            .push(
-                w::PublicGoal {
-                        line: line(&value.line, names, limits)?,
-                        tree: lines(&value.tree, names, limits, limits.public_goal_tree)?,
-                        folded: value.folded,
-                    },
-            )
+            .push(w::PublicGoal {
+                line: line(&value.line, names, limits)?,
+                tree: lines(&value.tree, names, limits, limits.public_goal_tree)?,
+                folded: value.folded,
+            })
             .ok()?;
     }
     Some(goals)
@@ -127,34 +122,34 @@ fn line(value: &c::PublicLine, names: &Names, limits: &w::Limits) -> Option<w::P
     let title_cut = value.title.cut || title.len() < value.title.bytes.len();
     let title = skein_lib::bytes::copy_of(title);
     Some(w::PublicLine {
-            task: names.task(value.task),
-            title,
-            title_cut,
-            parent: match value.parent {
-                Some(n) => Some(names.task(n)),
-                None => None,
-            },
-            goal: value.goal,
-            priority: value.priority,
-            executor: executor(value.executor),
-            phase: phase(value.phase),
-            hold: match value.hold {
-                Some(hold) => Some(hold_kind(hold)),
-                None => None,
-            },
-            made: value.made,
-            changed: value.changed,
-            active: value.active,
-            ended: value.ended,
-            spent: value.spent,
-            delegates: w::PublicCounts {
-                    working: value.delegates.working,
-                    waiting: value.delegates.waiting,
-                    held: value.delegates.held,
-                    closing: value.delegates.closing,
-                    ended: value.delegates.ended,
-                },
-        })
+        task: names.task(value.task),
+        title,
+        title_cut,
+        parent: match value.parent {
+            Some(n) => Some(names.task(n)),
+            None => None,
+        },
+        goal: value.goal,
+        priority: value.priority,
+        executor: executor(value.executor),
+        phase: phase(value.phase),
+        hold: match value.hold {
+            Some(hold) => Some(hold_kind(hold)),
+            None => None,
+        },
+        made: value.made,
+        changed: value.changed,
+        active: value.active,
+        ended: value.ended,
+        spent: value.spent,
+        delegates: w::PublicCounts {
+            working: value.delegates.working,
+            waiting: value.delegates.waiting,
+            held: value.delegates.held,
+            closing: value.delegates.closing,
+            ended: value.delegates.ended,
+        },
+    })
 }
 fn executor(value: c::PublicExecutor) -> w::PublicExecutor {
     match value {

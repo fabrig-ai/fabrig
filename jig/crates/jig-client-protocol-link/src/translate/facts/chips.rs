@@ -383,11 +383,9 @@ pub(crate) fn result_value_fields(
                 proposal: opt2,
             }
         }
-        w::ResultValueFields::Change(row) => c::ResultValue::Change {
-            kind: row.kind,
-            part: part(&row.part),
-            words: document_text(&row.words, limits)?,
-        },
+        w::ResultValueFields::Change(row) => {
+            c::ResultValue::Change { kind: row.kind, part: part(&row.part), words: document_text(&row.words, limits)? }
+        }
         w::ResultValueFields::Choice(row) => c::ResultValue::Choice {
             option: row.option,
             by: party(&row.by, limits)?,

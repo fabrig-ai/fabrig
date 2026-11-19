@@ -4,7 +4,6 @@
     clippy::disallowed_methods,
     reason = "ordinary Rust fixtures and golden comparisons"
 )]
-use jig_client_protocol_wire::Record as _;
 use crate::{
     jig::{
         self,
@@ -14,6 +13,7 @@ use crate::{
     tests::fixtures,
 };
 use jig_client::contract as c;
+use jig_client_protocol_wire::Record as _;
 use skein_lib::{Duration, List, Wall};
 
 fn list<T, I: IntoIterator<Item = T>>(values: I) -> List<T> {
@@ -157,15 +157,13 @@ fn a_settings_file_charter_names_documents() {
     let wire_value = jig_client_protocol_link::translate::settings::wire_setting_value(&value, &bounds.settings)
         .expect("wire value");
     let wire = jig_client_protocol_wire::SettingDocument {
-            overlay: None,
-            setting: jig_client_protocol_wire::Setting::Charter(
-                jig_client_protocol_wire::SettingNumber { number: 3 },
-            ),
-            revision: 5,
-            value: Some(wire_value),
-            application: None,
-            proposed: None,
-        };
+        overlay: None,
+        setting: jig_client_protocol_wire::Setting::Charter(jig_client_protocol_wire::SettingNumber { number: 3 }),
+        revision: 5,
+        value: Some(wire_value),
+        application: None,
+        proposed: None,
+    };
     assert_eq!(settings_form::wire::restore_setting_document(&wire, &bounds).expect("restore").value, Some(form));
     let neutral = settings_form::view::ChangeSettings {
         against: 5,
@@ -712,17 +710,17 @@ fn each_whole_setting_json_is_exactly_the_set_value_and_sends_under_its_name() {
     for (setting, value) in cases {
         let bounds = crate::limits::form();
         let wire = jig_client_protocol_wire::SettingDocument {
-                overlay: None,
-                setting: jig_client_protocol_link::translate::settings::wire_setting(&setting, &bounds.settings)
-                    .expect("wire selector"),
-                revision: 5,
-                value: Some(
-                    jig_client_protocol_link::translate::settings::wire_setting_value(&value, &bounds.settings)
-                        .expect("wire value"),
-                ),
-                application: None,
-                proposed: None,
-            };
+            overlay: None,
+            setting: jig_client_protocol_link::translate::settings::wire_setting(&setting, &bounds.settings)
+                .expect("wire selector"),
+            revision: 5,
+            value: Some(
+                jig_client_protocol_link::translate::settings::wire_setting_value(&value, &bounds.settings)
+                    .expect("wire value"),
+            ),
+            application: None,
+            proposed: None,
+        };
         assert_eq!(
             settings_form::wire::restore_setting_document(&wire, &bounds).expect("restore value").value,
             Some(jig::form_setting_value(&value))
@@ -2914,7 +2912,9 @@ fn measured_review_value(value: &c::SettingValue) -> c::ReviewValue {
     let wire =
         jig_client_protocol_link::translate::settings::wire_setting_value(value, &crate::limits::tools().settings)
             .expect("wire setting");
-    c::ReviewValue::TooLarge(c::Size { bytes: u64::from(wire.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")) })
+    c::ReviewValue::TooLarge(c::Size {
+        bytes: u64::from(wire.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")),
+    })
 }
 fn policy_review_proposal(values: &[(c::Setting, c::SettingValue, c::SettingValue)]) -> c::ReadValue {
     let mut proposal = review_proposal(Some(c::SettingsReview {
@@ -3172,15 +3172,13 @@ fn settings_show_template_resources_apply_again_unchanged() {
     let wire = jig_client_protocol_link::translate::settings::wire_setting_value(&value, &bounds.settings)
         .expect("wire template");
     let wire = jig_client_protocol_wire::SettingDocument {
-            overlay: None,
-            setting: jig_client_protocol_wire::Setting::Template(
-                jig_client_protocol_wire::SettingNumber { number: 4 },
-            ),
-            revision: 5,
-            value: Some(wire),
-            application: None,
-            proposed: None,
-        };
+        overlay: None,
+        setting: jig_client_protocol_wire::Setting::Template(jig_client_protocol_wire::SettingNumber { number: 4 }),
+        revision: 5,
+        value: Some(wire),
+        application: None,
+        proposed: None,
+    };
     assert_eq!(
         settings_form::wire::restore_setting_document(&wire, &bounds).unwrap().value,
         Some(jig::form_setting_value(&value))
@@ -3273,15 +3271,13 @@ fn goal_template_wire_round_trip(file: &[u8], change: &c::ChangeSettings, templa
     let wire_value = jig_client_protocol_link::translate::settings::wire_setting_value(&value, &bounds.settings)
         .expect("client wire");
     let wire = w::SettingDocument {
-            overlay: None,
-            setting: w::Setting::Template(
-                w::SettingNumber { number: 4 },
-            ),
-            revision: 5,
-            value: Some(wire_value),
-            application: None,
-            proposed: None,
-        };
+        overlay: None,
+        setting: w::Setting::Template(w::SettingNumber { number: 4 }),
+        revision: 5,
+        value: Some(wire_value),
+        application: None,
+        proposed: None,
+    };
     assert_eq!(
         settings_form::wire::restore_setting_document(&wire, &bounds).expect("neutral restore").value,
         Some(jig::form_setting_value(&value))

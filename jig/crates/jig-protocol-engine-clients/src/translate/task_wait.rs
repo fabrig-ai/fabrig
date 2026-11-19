@@ -9,48 +9,44 @@ pub fn waiting(value: Option<d::TaskRunWait>, limits: &w::Limits) -> Result<Opti
         d::TaskRunWait::Credential => w::TaskRunWait::Credential,
         d::TaskRunWait::Host => w::TaskRunWait::Host,
         d::TaskRunWait::Refused(value) => w::TaskRunWait::Refused(w::TaskRunWaitRefused {
-                value: match value {
-                    d::TaskWaitRefused::Hello { kind, at, why, figures } => {
-                        w::TaskWaitRefused::Hello(w::TaskWaitHello {
-                                kind: super::deployment::host_kind(kind),
-                                at: at.as_nanos(),
-                                why: super::deployment::hello(why, limits)?,
-                                figures: shortfall_figures(figures, limits)?,
-                            })
-                    }
-                    d::TaskWaitRefused::Bounds { kind, why, figures } => {
-                        w::TaskWaitRefused::Bounds(w::TaskWaitBounds {
-                                kind: super::deployment::host_kind(kind),
-                                why: match why {
-                                    Some(why) => Some(super::deployment::shortfall(why, limits)?),
-                                    None => None,
-                                },
-                                figures: shortfall_figures(figures, limits)?,
-                            })
-                    }
-                },
-            }),
+            value: match value {
+                d::TaskWaitRefused::Hello { kind, at, why, figures } => w::TaskWaitRefused::Hello(w::TaskWaitHello {
+                    kind: super::deployment::host_kind(kind),
+                    at: at.as_nanos(),
+                    why: super::deployment::hello(why, limits)?,
+                    figures: shortfall_figures(figures, limits)?,
+                }),
+                d::TaskWaitRefused::Bounds { kind, why, figures } => w::TaskWaitRefused::Bounds(w::TaskWaitBounds {
+                    kind: super::deployment::host_kind(kind),
+                    why: match why {
+                        Some(why) => Some(super::deployment::shortfall(why, limits)?),
+                        None => None,
+                    },
+                    figures: shortfall_figures(figures, limits)?,
+                }),
+            },
+        }),
         d::TaskRunWait::Account { account, source, why } => w::TaskRunWait::Account(w::TaskWaitAccount {
-                account,
-                source,
-                why: match why {
-                    d::TaskWaitWhy::Untooled { worker } => {
-                        w::TaskWaitWhy::Untooled(w::TaskWaitUntooled { worker })
-                    }
-                    d::TaskWaitWhy::Refreshing => w::TaskWaitWhy::Refreshing,
-                    d::TaskWaitWhy::Host => w::TaskWaitWhy::Host,
-                    d::TaskWaitWhy::Empty => w::TaskWaitWhy::Empty,
-                    d::TaskWaitWhy::Invalid(why) => w::TaskWaitWhy::Invalid(w::TaskWaitInvalid {
-                            why: match why {
-                                jig_domain_tasks::AccountWhy::Unknown => w::AccountWhy::Unknown,
-                                jig_domain_tasks::AccountWhy::Provider => w::AccountWhy::Provider,
-                                jig_domain_tasks::AccountWhy::Uses => w::AccountWhy::Uses,
-                                jig_domain_tasks::AccountWhy::Limited => w::AccountWhy::Limited,
-                            },
-                        }),
-                    d::TaskWaitWhy::Source(state) => w::TaskWaitWhy::Source(w::TaskWaitSource { state: source_state(state, limits)? }),
-                },
-            }),
+            account,
+            source,
+            why: match why {
+                d::TaskWaitWhy::Untooled { worker } => w::TaskWaitWhy::Untooled(w::TaskWaitUntooled { worker }),
+                d::TaskWaitWhy::Refreshing => w::TaskWaitWhy::Refreshing,
+                d::TaskWaitWhy::Host => w::TaskWaitWhy::Host,
+                d::TaskWaitWhy::Empty => w::TaskWaitWhy::Empty,
+                d::TaskWaitWhy::Invalid(why) => w::TaskWaitWhy::Invalid(w::TaskWaitInvalid {
+                    why: match why {
+                        jig_domain_tasks::AccountWhy::Unknown => w::AccountWhy::Unknown,
+                        jig_domain_tasks::AccountWhy::Provider => w::AccountWhy::Provider,
+                        jig_domain_tasks::AccountWhy::Uses => w::AccountWhy::Uses,
+                        jig_domain_tasks::AccountWhy::Limited => w::AccountWhy::Limited,
+                    },
+                }),
+                d::TaskWaitWhy::Source(state) => {
+                    w::TaskWaitWhy::Source(w::TaskWaitSource { state: source_state(state, limits)? })
+                }
+            },
+        }),
     }))
 }
 #[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
@@ -59,8 +55,12 @@ fn source_state(value: d::TaskSourceState, _limits: &w::Limits) -> Result<w::Tas
     Ok(match value {
         d::TaskSourceState::Asking => w::TaskSourceState::Asking,
         d::TaskSourceState::Granted => w::TaskSourceState::Granted,
-        d::TaskSourceState::Later { until } => w::TaskSourceState::Later(w::TaskSourceStateUntil { until: wall(until) }),
-        d::TaskSourceState::Limited { until } => w::TaskSourceState::Limited(w::TaskSourceStateUntil { until: wall(until) }),
+        d::TaskSourceState::Later { until } => {
+            w::TaskSourceState::Later(w::TaskSourceStateUntil { until: wall(until) })
+        }
+        d::TaskSourceState::Limited { until } => {
+            w::TaskSourceState::Limited(w::TaskSourceStateUntil { until: wall(until) })
+        }
         d::TaskSourceState::Refused => w::TaskSourceState::Refused,
         d::TaskSourceState::NeedsSignIn => w::TaskSourceState::NeedsSignIn,
         d::TaskSourceState::Misconfigured => w::TaskSourceState::Misconfigured,
@@ -68,18 +68,18 @@ fn source_state(value: d::TaskSourceState, _limits: &w::Limits) -> Result<w::Tas
         d::TaskSourceState::Moving => w::TaskSourceState::Moving,
         d::TaskSourceState::Closing => w::TaskSourceState::Closing,
         d::TaskSourceState::Unloaded { at, why } => w::TaskSourceState::Unloaded(w::TaskSourceStateUnloaded {
-                at: match at {
-                    Place::Directory => w::TaskSourcePlace::Directory,
-                    Place::File => w::TaskSourcePlace::File,
-                },
-                why: match why {
-                    Unread::Unreadable => w::TaskSourceUnread::Unreadable,
-                    Unread::Refused => w::TaskSourceUnread::Refused,
-                    Unread::Failed => w::TaskSourceUnread::Failed,
-                    Unread::Stalled => w::TaskSourceUnread::Stalled,
-                    Unread::TooLarge => w::TaskSourceUnread::TooLarge,
-                },
-            }),
+            at: match at {
+                Place::Directory => w::TaskSourcePlace::Directory,
+                Place::File => w::TaskSourcePlace::File,
+            },
+            why: match why {
+                Unread::Unreadable => w::TaskSourceUnread::Unreadable,
+                Unread::Refused => w::TaskSourceUnread::Refused,
+                Unread::Failed => w::TaskSourceUnread::Failed,
+                Unread::Stalled => w::TaskSourceUnread::Stalled,
+                Unread::TooLarge => w::TaskSourceUnread::TooLarge,
+            },
+        }),
     })
 }
 fn wall(value: Option<skein_lib::Wall>) -> Option<u64> {

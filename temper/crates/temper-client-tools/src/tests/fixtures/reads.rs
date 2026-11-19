@@ -1,6 +1,6 @@
 //! Shared first-page reads and exact turn fixtures for the root harness.
-use jig_client_protocol_wire::Record as _;
 use super::*;
+use jig_client_protocol_wire::Record as _;
 /// A task's tree and run each close on their first delivery.
 pub(crate) const RELATED_WATCHES: u32 = 2;
 /// One row exercises the printed identity and the continuation that follows it.
@@ -464,9 +464,7 @@ pub(crate) fn document_at_byte_bound() -> c::Task {
     let client = crate::limits::client().client;
     let link = jig_client_protocol_link::Limits::new(client.domain, client.exchanges).expect("shipped link limits");
     let mut parts = jig_client_test_records::task_record();
-    parts.instructions = Some(
-        w::DocumentText { bytes: maximally_escaped_json_text(client.domain.text), cut: false },
-    );
+    parts.instructions = Some(w::DocumentText { bytes: maximally_escaped_json_text(client.domain.text), cut: false });
     parts.resources = resource_pieces(&link, 0);
     let empty = parts;
     let payload = u32::try_from(crate::limits::DOCUMENT)
@@ -476,7 +474,11 @@ pub(crate) fn document_at_byte_bound() -> c::Task {
     let mut parts = empty;
     parts.resources = resource_pieces(&link, payload);
     let record = parts;
-    assert_eq!(u64::from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")), crate::limits::DOCUMENT, "whole encoded document at the bound");
+    assert_eq!(
+        u64::from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")),
+        crate::limits::DOCUMENT,
+        "whole encoded document at the bound"
+    );
     jig_client_protocol_link::translate::documents::task(record, &link).expect("document admitted by shipped limits")
 }
 fn resource_pieces(link: &jig_client_protocol_link::Limits, payload: u32) -> Box<[u8]> {
@@ -491,18 +493,21 @@ fn resource_pieces(link: &jig_client_protocol_link::Limits, payload: u32) -> Box
             path.push(maximally_escaped_json_text(bytes)).expect("bounded path");
             left = left.checked_sub(bytes).expect("within payload");
         }
-        let key = w::PartKey::Path(
-            w::PartKeyPath { value: path },
-        );
+        let key = w::PartKey::Path(w::PartKeyPath { value: path });
         let part = w::Part { connector: 4, kind: w::PartKind::Resource, key };
         let row = w::ResourceLine { part, kind: 1, taken: false, holder: None, writer: None, writer_lost: false };
-        size = size.checked_add(4).expect("piece prefix").checked_add(row.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("bounded pieces");
+        size = size
+            .checked_add(4)
+            .expect("piece prefix")
+            .checked_add(row.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+            .expect("bounded pieces");
         rows.push(row).expect("bounded resources");
     }
     assert_eq!(left, 0, "paths contain the whole payload");
     let mut out = skein_lib::Writer::new(usize::try_from(size).expect("pieces fit"));
     for row in &rows {
-        out.put(&row.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture").to_be_bytes()).expect("piece prefix");
+        out.put(&row.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture").to_be_bytes())
+            .expect("piece prefix");
         row.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("measured row");
     }
     out.finish()

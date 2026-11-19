@@ -1,5 +1,4 @@
 //! Whole pages and single documents (protocol/client/wire.md, 1, and protocol/client/README.md, 4).
-use jig_client_protocol_wire::Record as _;
 use super::classify;
 use super::documents::{
     authority_document_fields, authority_fields, chip_ending_fields, chip_fields, cursor_fields, ending_fields,
@@ -11,6 +10,7 @@ use crate::Limits;
 use alloc::boxed::Box;
 use jig_client_domain::contract as c;
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use skein_lib::{List, Reader, Wall, bytes};
 fn opaque(value: &[u8], limits: &Limits) -> Result<c::Bytes, w::Problem> {
     match c::Bytes::new(bytes::copy_of(value), limits.client().text) {
@@ -53,7 +53,11 @@ mod spend;
 pub(crate) use spend::*;
 
 pub fn history_page(record: w::HistoryPage, limits: &Limits) -> Result<c::HistoryPage, Undecodable> {
-    if u64::from(match record.measure(limits.wire()) { Ok(size) => size, Err(problem) => return Err(classify(problem)) }) > limits.client().document_bytes {
+    if u64::from(match record.measure(limits.wire()) {
+        Ok(size) => size,
+        Err(problem) => return Err(classify(problem)),
+    }) > limits.client().document_bytes
+    {
         return Err(Undecodable::TooLarge);
     }
     match history_page_fields(&record, limits) {
@@ -63,7 +67,11 @@ pub fn history_page(record: w::HistoryPage, limits: &Limits) -> Result<c::Histor
 }
 
 pub fn note_page(record: w::NotePage, limits: &Limits) -> Result<c::NotePage, Undecodable> {
-    if u64::from(match record.measure(limits.wire()) { Ok(size) => size, Err(problem) => return Err(classify(problem)) }) > limits.client().document_bytes {
+    if u64::from(match record.measure(limits.wire()) {
+        Ok(size) => size,
+        Err(problem) => return Err(classify(problem)),
+    }) > limits.client().document_bytes
+    {
         return Err(Undecodable::TooLarge);
     }
     match note_page_fields(&record, limits) {
@@ -73,7 +81,11 @@ pub fn note_page(record: w::NotePage, limits: &Limits) -> Result<c::NotePage, Un
 }
 
 pub fn ended_page(record: w::EndedPage, limits: &Limits) -> Result<c::EndedPage, Undecodable> {
-    if u64::from(match record.measure(limits.wire()) { Ok(size) => size, Err(problem) => return Err(classify(problem)) }) > limits.client().document_bytes {
+    if u64::from(match record.measure(limits.wire()) {
+        Ok(size) => size,
+        Err(problem) => return Err(classify(problem)),
+    }) > limits.client().document_bytes
+    {
         return Err(Undecodable::TooLarge);
     }
     match ended_page_fields(&record, limits) {
@@ -83,7 +95,11 @@ pub fn ended_page(record: w::EndedPage, limits: &Limits) -> Result<c::EndedPage,
 }
 
 pub fn inbox_page(record: w::InboxPage, limits: &Limits) -> Result<c::InboxPage, Undecodable> {
-    if u64::from(match record.measure(limits.wire()) { Ok(size) => size, Err(problem) => return Err(classify(problem)) }) > limits.client().document_bytes {
+    if u64::from(match record.measure(limits.wire()) {
+        Ok(size) => size,
+        Err(problem) => return Err(classify(problem)),
+    }) > limits.client().document_bytes
+    {
         return Err(Undecodable::TooLarge);
     }
     match inbox_page_fields(&record, limits) {
@@ -93,7 +109,11 @@ pub fn inbox_page(record: w::InboxPage, limits: &Limits) -> Result<c::InboxPage,
 }
 
 pub fn spend_page(record: w::SpendPage, limits: &Limits) -> Result<c::SpendPage, Undecodable> {
-    if u64::from(match record.measure(limits.wire()) { Ok(size) => size, Err(problem) => return Err(classify(problem)) }) > limits.client().document_bytes {
+    if u64::from(match record.measure(limits.wire()) {
+        Ok(size) => size,
+        Err(problem) => return Err(classify(problem)),
+    }) > limits.client().document_bytes
+    {
         return Err(Undecodable::TooLarge);
     }
     match spend_page_fields(&record, limits) {
@@ -103,7 +123,11 @@ pub fn spend_page(record: w::SpendPage, limits: &Limits) -> Result<c::SpendPage,
 }
 
 pub fn activity_page(record: w::ActivityPage, limits: &Limits) -> Result<c::ActivityPage, Undecodable> {
-    if u64::from(match record.measure(limits.wire()) { Ok(size) => size, Err(problem) => return Err(classify(problem)) }) > limits.client().document_bytes {
+    if u64::from(match record.measure(limits.wire()) {
+        Ok(size) => size,
+        Err(problem) => return Err(classify(problem)),
+    }) > limits.client().document_bytes
+    {
         return Err(Undecodable::TooLarge);
     }
     match activity_page_fields(&record, limits) {
@@ -118,7 +142,11 @@ pub(crate) fn carried_turn_fields(value: &[u8], limits: &Limits) -> c::TurnRead 
 }
 
 pub(crate) fn task_page(value: w::TaskPage, limits: &Limits) -> Result<c::TaskPage, Undecodable> {
-    if u64::from(match value.measure(limits.wire()) { Ok(size) => size, Err(problem) => return Err(classify(problem)) }) > limits.client().document_bytes {
+    if u64::from(match value.measure(limits.wire()) {
+        Ok(size) => size,
+        Err(problem) => return Err(classify(problem)),
+    }) > limits.client().document_bytes
+    {
         return Err(Undecodable::TooLarge);
     }
     let value = match Ok(value) {

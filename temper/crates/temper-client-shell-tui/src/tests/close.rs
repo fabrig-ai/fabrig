@@ -17,9 +17,7 @@ fn task(title: &[u8], ended: bool) -> w::Task {
             let mut fields = row.value;
             fields.task = CHAT;
             fields.title = records::wire_text(title);
-            fields.executor = w::ChipExecutor::Agent(
-                w::ChipExecutorAgent { charter: 5 },
-            );
+            fields.executor = w::ChipExecutor::Agent(w::ChipExecutorAgent { charter: 5 });
             if ended {
                 fields.phase = w::Phase::Ended;
             }
@@ -46,9 +44,10 @@ fn task(title: &[u8], ended: bool) -> w::Task {
     task.waits_on = w::WaitsOn::News;
     let mut offers = Vec::new();
     for act in [w::ActKind::Cancel, w::ActKind::Message] {
-        let offer =
-            w::Offered { act, admission: w::Admission::Allowed, effect: None };
-        let mut writer = Writer::new(usize::try_from(offer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+        let offer = w::Offered { act, admission: w::Admission::Allowed, effect: None };
+        let mut writer = Writer::new(
+            usize::try_from(offer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+        );
         offer.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
         offers.push(writer.finish());
     }
@@ -74,10 +73,7 @@ fn opened(title: &[u8]) -> (Host, u64) {
     admit(&mut host, duties);
     let duties = give(&mut host, Event::Act { act: Act::Go { address: Address::Chat { task: CHAT } } });
     let duties = admit_watches(&mut host, duties);
-    let watched = watch(
-        &duties,
-        &w::Subject::Task(w::SubjectTask { task: CHAT }),
-    );
+    let watched = watch(&duties, &w::Subject::Task(w::SubjectTask { task: CHAT }));
     let duties = delivery(&mut host, watched, &w::DeliveryValue::Task(Box::new(task(title, false))));
     admit(&mut host, duties);
     (host, watched)
@@ -111,12 +107,9 @@ fn close(host: &mut Host) -> skein_lib::Token {
 }
 
 fn done(host: &mut Host, exchange: skein_lib::Token) {
-    let outcome = w::DocumentOutcome::Compound(
-        w::OutcomeCompound { project: PROJECT, operations: 1, first_message: 0 },
-    );
-    let outcome = w::Outcome::Document(
-        w::OutcomeDocument { value: outcome },
-    );
+    let outcome =
+        w::DocumentOutcome::Compound(w::OutcomeCompound { project: PROJECT, operations: 1, first_message: 0 });
+    let outcome = w::Outcome::Document(w::OutcomeDocument { value: outcome });
     reply(host, exchange, final_bytes(&w::Final::Done(w::Done { outcome })));
 }
 
@@ -164,9 +157,7 @@ fn an_unsuccessful_close_stays_and_a_later_close_can_go_home() {
             let duties = host.report(Report::Due);
             stored(&mut host, duties);
         } else {
-            let answer = w::Final::Refused(
-                w::Refused { refusal: w::Refusal::NotOffered, at: None },
-            );
+            let answer = w::Final::Refused(w::Refused { refusal: w::Refusal::NotOffered, at: None });
             let duties = reply(&mut host, exchange, final_bytes(&answer));
             stored(&mut host, duties);
         }

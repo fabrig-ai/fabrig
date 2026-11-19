@@ -1,11 +1,11 @@
 //! Field-for-field client contract translation (protocol/client/wire.md, 1, and protocol/client/README.md, 3).
-use jig_client_protocol_wire::Record as _;
 use super::parties::proposer;
 use super::{person_address, requester};
 use crate::Limits;
 use crate::translate::{piece_problem, text_problem, too_large};
 use jig_client_domain::contract as c;
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use skein_lib::{List, Reader, Wall, bytes};
 
 pub(crate) fn document_text(value: &w::DocumentText, limits: &Limits) -> Result<c::DocumentText, w::Problem> {
@@ -61,21 +61,14 @@ pub(crate) fn part(value: &w::Part) -> c::Part {
 }
 
 pub(crate) fn numbers(value: &w::Numbers) -> c::Numbers {
-    c::Numbers {
-        budget: value.budget,
-        spent: value.spent,
-        spent_below: value.spent_below,
-        reserved: value.reserved,
-    }
+    c::Numbers { budget: value.budget, spent: value.spent, spent_below: value.spent_below, reserved: value.reserved }
 }
 
 pub(crate) fn funder(value: &w::Funder) -> c::Funder {
     match value {
         w::Funder::Task(row) => c::Funder::Task(row.value),
         w::Funder::Pool(row) => c::Funder::Pool { project: row.project, person: row.person, period: row.period },
-        w::Funder::Recurring(row) => {
-            c::Funder::Recurring { project: row.project, task: row.task, period: row.period }
-        }
+        w::Funder::Recurring(row) => c::Funder::Recurring { project: row.project, task: row.task, period: row.period },
         w::Funder::Period(row) => c::Funder::Period { project: row.project, period: row.period },
     }
 }

@@ -1,8 +1,8 @@
 //! Approval exchanges are transient and answered once (jig/docs/design/protocol/client/sign-in.md).
-use jig_client_protocol_wire::Record as _;
 use crate::component::{Attempt, ExchangeKind};
 use crate::{Approval, ApprovalCode, ApprovalState, Decided, Link, Message, NotAsked, Request, Signing};
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use jig_client_protocol_wire::VERSION;
 use skein_lib::{Queue, Reader, Wall, Writer};
 
@@ -37,20 +37,25 @@ impl ApprovalKind {
 impl Link {
     pub(super) fn ask_approval(&mut self, out: &mut Queue<Request>) {
         let record = w::ApprovalAsk {};
-        let mut bytes = Writer::new(skein_lib::length::usize_of(record.measure(self.limits.wire()).expect("bounded client record")));
+        let mut bytes = Writer::new(skein_lib::length::usize_of(
+            record.measure(self.limits.wire()).expect("bounded client record"),
+        ));
         record.write(self.limits.wire(), &mut bytes).expect("measured approval ask");
         self.approval_exchange(ApprovalKind::Ask, Message::ApprovalAsk(bytes.finish()), out);
     }
     pub(super) fn read_approval(&mut self, code: ApprovalCode, out: &mut Queue<Request>) {
         let record = w::ApprovalRead { code: *code.letters() };
-        let mut bytes = Writer::new(skein_lib::length::usize_of(record.measure(self.limits.wire()).expect("bounded client record")));
+        let mut bytes = Writer::new(skein_lib::length::usize_of(
+            record.measure(self.limits.wire()).expect("bounded client record"),
+        ));
         record.write(self.limits.wire(), &mut bytes).expect("measured approval read");
         self.approval_exchange(ApprovalKind::Read { code }, Message::ApprovalRead(bytes.finish()), out);
     }
     pub(super) fn decide_approval(&mut self, code: ApprovalCode, approve: bool, out: &mut Queue<Request>) {
-        let record =
-            w::ApprovalDecide { code: *code.letters(), approve };
-        let mut bytes = Writer::new(skein_lib::length::usize_of(record.measure(self.limits.wire()).expect("bounded client record")));
+        let record = w::ApprovalDecide { code: *code.letters(), approve };
+        let mut bytes = Writer::new(skein_lib::length::usize_of(
+            record.measure(self.limits.wire()).expect("bounded client record"),
+        ));
         record.write(self.limits.wire(), &mut bytes).expect("measured approval decision");
         self.approval_exchange(ApprovalKind::Decide { code }, Message::ApprovalDecide(bytes.finish()), out);
     }

@@ -22,15 +22,15 @@ fn kept_holds_the_widest_table_entry_and_round_trips_a_ceiling_request() {
     let widest = TableEntry::encoded_bound(&CEILINGS).expect("representable table entry");
     assert!(u64::from(CEILINGS.kept_record) >= widest, "Kept must hold TableEntry's widest encoding");
     let table = TableEntry {
-            asker: u32::MAX,
-            number: u64::MAX,
-            key: [255; 16],
-            scope: u64::MAX,
-            first_sent: Some(u64::MAX),
-            owner: Owner::Family(Family { number: u16::MAX }),
-            version: u32::MAX,
-            request: fixtures::bytes(CEILINGS.table_entry_request),
-        };
+        asker: u32::MAX,
+        number: u64::MAX,
+        key: [255; 16],
+        scope: u64::MAX,
+        first_sent: Some(u64::MAX),
+        owner: Owner::Family(Family { number: u16::MAX }),
+        version: u32::MAX,
+        request: fixtures::bytes(CEILINGS.table_entry_request),
+    };
     assert_eq!(u64::from(table.measure(&CEILINGS).expect("bounded fixture")), widest);
     let record = fixtures::encoded(&table);
     let kept = Kept { store_version: 1, record };
@@ -67,9 +67,7 @@ fn each_answer_kind_round_trips_unchanged() {
         KeyedAnswer::NotServed(fixtures::not_served()),
         KeyedAnswer::FinalAnswer(fixtures::owned()),
         KeyedAnswer::Busy,
-        KeyedAnswer::AnswersFull(
-            AnswersFull { held: u32::MAX, room_at: u64::MAX },
-        ),
+        KeyedAnswer::AnswersFull(AnswersFull { held: u32::MAX, room_at: u64::MAX }),
         KeyedAnswer::NotReady,
         KeyedAnswer::SignedOut,
     ] {
@@ -347,15 +345,15 @@ fn a_table_entry_never_sent_round_trips_with_no_wall() {
     let limits = fixtures::limits();
     let family = small_store_family(&limits);
     let entry = TableEntry {
-            asker: 65536,
-            number: 1,
-            key: [7; 16],
-            scope: u64::MAX,
-            first_sent: None,
-            owner: Owner::Family(family),
-            version: u32::MAX,
-            request: Box::from([255, 0]),
-        };
+        asker: 65536,
+        number: 1,
+        key: [7; 16],
+        scope: u64::MAX,
+        first_sent: None,
+        owner: Owner::Family(family),
+        version: u32::MAX,
+        request: Box::from([255, 0]),
+    };
     let bytes = fixtures::encoded(&entry);
     let decoded = TableEntry::decode(&limits, &mut Reader::new(&bytes)).expect("whole table entry");
     assert_eq!((&decoded.first_sent), &None);
@@ -389,16 +387,8 @@ fn each_delivery_value_variant_round_trips_unchanged() {
 fn each_turn_bytes_variant_round_trips_with_the_carried_ceiling() {
     let limits = fixtures::limits();
     let rows = [
-        (
-            "carried at 8 MiB",
-            TurnBytes::Carried(
-                TurnCarried { bytes: fixtures::bytes(8_388_608) },
-            ),
-        ),
-        (
-            "too large",
-            TurnBytes::TooLarge(TurnTooLarge { bytes: u64::MAX }),
-        ),
+        ("carried at 8 MiB", TurnBytes::Carried(TurnCarried { bytes: fixtures::bytes(8_388_608) })),
+        ("too large", TurnBytes::TooLarge(TurnTooLarge { bytes: u64::MAX })),
     ];
     for (name, value) in rows {
         let bytes = fixtures::encoded(&value);
@@ -480,11 +470,7 @@ fn version_not_served_is_tag_zero_of_each_answer() {
 const FAMILY_PROJECT: u32 = 7;
 fn a_family_record_round_trips_with_its_scope_and_window() {
     let limits = fixtures::limits();
-    for scope in [
-        Scope::Own,
-        Scope::Deployment,
-        Scope::Project(ScopeProject { value: FAMILY_PROJECT }),
-    ] {
+    for scope in [Scope::Own, Scope::Deployment, Scope::Project(ScopeProject { value: FAMILY_PROJECT })] {
         let after = Some(Cursor { value: Box::from([1, 2, 3]) });
         let window = Window { rows: 3, after };
         let record = FamilyRecord { scope, window, record: Box::from([255, 0]) };
@@ -508,15 +494,18 @@ fn a_compound_s_operations_round_trip_as_pieces() {
     let values = fixtures::compound_operations();
     let mut size = 0_usize;
     for value in &values {
-        size = size.checked_add(usize::try_from(value.measure(&CEILINGS).expect("bounded fixture")).unwrap()).unwrap().checked_add(4).unwrap();
+        size = size
+            .checked_add(usize::try_from(value.measure(&CEILINGS).expect("bounded fixture")).unwrap())
+            .unwrap()
+            .checked_add(4)
+            .unwrap();
     }
     let mut bytes = Writer::new(size);
     for value in &values {
         bytes.put(&value.measure(&CEILINGS).expect("bounded fixture").to_be_bytes()).unwrap();
         value.write(&CEILINGS, &mut bytes).unwrap();
     }
-    let record =
-        Compound { project: fixtures::COMPOUND_PROJECT, operations: bytes.finish() };
+    let record = Compound { project: fixtures::COMPOUND_PROJECT, operations: bytes.finish() };
     let bytes = fixtures::encoded(&record);
     let restored = Compound::decode(&limits, &mut Reader::new(&bytes)).unwrap();
     assert_eq!(restored, record);
@@ -554,7 +543,8 @@ fn a_keyed_value_at_the_move_bound_round_trips() {
 fn a_keyed_value_one_byte_past_the_move_bound_is_refused() {
     let value = skein_lib::Secret::new(skein_lib::bytes::zeroed(MOVED_FILE_BYTES + 1));
     assert_eq!(
-        (Keyed { key: [7; 16], owner: Owner::Jig, version: VERSION, request: Box::new([]), value: Some(value) }).encode(&CEILINGS),
+        (Keyed { key: [7; 16], owner: Owner::Jig, version: VERSION, request: Box::new([]), value: Some(value) })
+            .encode(&CEILINGS),
         Err(Problem { path: paths::KEYED_VALUE, reason: skein_codec::Reason::Bound })
     );
 }
@@ -597,7 +587,8 @@ fn authorization_query_and_each_answer_round_trip_at_their_bounds() {
 fn lent_login_names_are_bounded_at_32_bytes() {
     for length in [32, 33] {
         let name = skein_lib::bytes::zeroed(length);
-        let terminal = (TerminalLogin { number: 1, provider: 2, name: name.clone(), cancelled: false }).encode(&CEILINGS);
+        let terminal =
+            (TerminalLogin { number: 1, provider: 2, name: name.clone(), cancelled: false }).encode(&CEILINGS);
         let change = (AccountChangeLoginProgram { provider: 2, name }).encode(&CEILINGS);
         assert_eq!(terminal.is_ok(), length == 32);
         assert_eq!(change.is_ok(), length == 32);

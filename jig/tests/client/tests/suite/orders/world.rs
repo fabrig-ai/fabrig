@@ -1,9 +1,9 @@
 //! A surface world with a scripted caller, held transport and small-store
 //! completions. The loop observes only requests; no client state is inspected
 //! (jig/docs/design/client/domain/testing.md, 4).
-use jig_client_protocol_wire::Record as _;
 use jig_client::{self as client, Down, Event, Message, Told, Up, contract as c};
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use jig_client_test_domain::{self as root, first};
 pub use jig_client_world::PARTY;
 use jig_client_world::test;
@@ -274,7 +274,9 @@ impl World {
         for exchange in pending {
             self.exchanges.retain(|pending| pending.token != exchange);
             let answer = w::OpenAnswer::Admitted;
-            let mut bytes = Writer::new(skein_lib::length::usize_of(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+            let mut bytes = Writer::new(skein_lib::length::usize_of(
+                answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+            ));
             answer.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("opening answer");
             self.deliver(Event::Reply { exchange, message: bytes.finish() });
         }
@@ -370,7 +372,9 @@ impl World {
                     done = Some(batch);
                 }
                 let part = w::BatchReply { member, reply: Some(message) };
-                let mut writer = Writer::new(skein_lib::length::usize_of(part.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+                let mut writer = Writer::new(skein_lib::length::usize_of(
+                    part.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+                ));
                 part.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("part bytes");
                 Event::Part { exchange: batch, message: writer.finish() }
             }
@@ -537,7 +541,9 @@ impl World {
                 members.push((local, member));
             }
             for (local, member) in members {
-                let mut writer = Writer::new(skein_lib::length::usize_of(member.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture") - 1));
+                let mut writer = Writer::new(skein_lib::length::usize_of(
+                    member.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture") - 1,
+                ));
                 let message = match member {
                     w::Member::Read(record) => {
                         record.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("read");
@@ -581,7 +587,8 @@ impl World {
                 let owned = w::Owned::decode(&w::CEILINGS, &mut Reader::new(&bytes)).expect("read envelope");
                 match &owned.owner {
                     w::Owner::Jig => {
-                        let read = w::Read::decode(&w::CEILINGS, &mut Reader::new(owned.record.as_ref())).expect("jig read");
+                        let read =
+                            w::Read::decode(&w::CEILINGS, &mut Reader::new(owned.record.as_ref())).expect("jig read");
                         if let w::Read::Project(read) = read {
                             self.push(Edge::Read(read.project));
                             ExchangeKind::Read(read.project)
@@ -863,54 +870,44 @@ fn hello() -> Box<[u8]> {
     let mut served = Vec::new();
     for (owner, version) in [
         (w::Owner::Jig, jig_client_protocol_wire::VERSION),
-        (
-            w::Owner::Family(w::Family { number: root::FIRST }),
-            jig_client_test_protocol_wire::VERSION,
-        ),
-        (
-            w::Owner::Family(w::Family { number: root::SECOND }),
-            jig_client_test_protocol_wire::VERSION,
-        ),
+        (w::Owner::Family(w::Family { number: root::FIRST }), jig_client_test_protocol_wire::VERSION),
+        (w::Owner::Family(w::Family { number: root::SECOND }), jig_client_test_protocol_wire::VERSION),
     ] {
-        served.push(
-            w::Served { owner, first: version, last: version },
-        );
+        served.push(w::Served { owner, first: version, last: version });
     }
     let event = jig_client_test_records::opened(
-        w::Hello {
-                stream: STREAM,
-                served: test::list(served),
-                heartbeat: test::limits().client.domain.heartbeat,
-            },
+        w::Hello { stream: STREAM, served: test::list(served), heartbeat: test::limits().client.domain.heartbeat },
         frame(),
     );
-    let mut writer = Writer::new(skein_lib::length::usize_of(event.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+    let mut writer = Writer::new(skein_lib::length::usize_of(
+        event.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+    ));
     event.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("hello bytes");
     writer.finish()
 }
 
 fn read_answer() -> Box<[u8]> {
-    let answer = w::ReadAnswer::None(
-        w::ReadAnswerNone { value: w::ReadNone::Unknown },
-    );
-    let mut writer = Writer::new(skein_lib::length::usize_of(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+    let answer = w::ReadAnswer::None(w::ReadAnswerNone { value: w::ReadNone::Unknown });
+    let mut writer = Writer::new(skein_lib::length::usize_of(
+        answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+    ));
     answer.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("read bytes");
     writer.finish()
 }
 
 fn keyed_answer() -> Box<[u8]> {
-    let final_answer = w::Final::Done(
-        w::Done {
-                outcome: w::Outcome::Document(
-                    w::OutcomeDocument { value: w::DocumentOutcome::AccountChanged },
-                ),
-            },
-    );
-    let mut writer = Writer::new(skein_lib::length::usize_of(final_answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+    let final_answer = w::Final::Done(w::Done {
+        outcome: w::Outcome::Document(w::OutcomeDocument { value: w::DocumentOutcome::AccountChanged }),
+    });
+    let mut writer = Writer::new(skein_lib::length::usize_of(
+        final_answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+    ));
     final_answer.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("final bytes");
     let owned = w::Owned { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: writer.finish() };
     let answer = w::KeyedAnswer::FinalAnswer(owned);
-    let mut writer = Writer::new(skein_lib::length::usize_of(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+    let mut writer = Writer::new(skein_lib::length::usize_of(
+        answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+    ));
     answer.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("keyed bytes");
     writer.finish()
 }
@@ -954,7 +951,6 @@ fn a_roots_list_answer_and_its_demands_leave_at_one_settle() {
                 }
                 Message::Batch(bytes) => w::Batch::decode(&w::CEILINGS, &mut Reader::new(&bytes))
                     .expect("batch")
-                    
                     .members
                     .into_boxed()
                     .into_vec()
@@ -981,17 +977,22 @@ fn a_roots_list_answer_and_its_demands_leave_at_one_settle() {
     let source = jig_client_test_records::inbox_both_groups_record();
     let page = w::InboxPage { selection: None, cut: false, rows: source.needs, before: None, after: None };
     let page = w::ReadValue::Inbox(page);
-    let mut bytes = Writer::new(skein_lib::length::usize_of(page.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+    let mut bytes = Writer::new(skein_lib::length::usize_of(
+        page.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+    ));
     page.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("list bytes");
     let owned = w::Owned { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: bytes.finish() };
     let answer = w::ReadAnswer::Value(owned);
-    let mut bytes = Writer::new(skein_lib::length::usize_of(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+    let mut bytes = Writer::new(skein_lib::length::usize_of(
+        answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+    ));
     answer.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("answer bytes");
     let (exchange, member) = needs.expect("needs list read");
     let event = if let Some(member) = member {
-        let part =
-            w::BatchReply { member, reply: Some(bytes.finish()) };
-        let mut writer = Writer::new(skein_lib::length::usize_of(part.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+        let part = w::BatchReply { member, reply: Some(bytes.finish()) };
+        let mut writer = Writer::new(skein_lib::length::usize_of(
+            part.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+        ));
         part.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("part bytes");
         Event::Part { exchange, message: writer.finish() }
     } else {

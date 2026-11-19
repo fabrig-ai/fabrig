@@ -18,7 +18,9 @@ fn input(value: &[u8]) -> Line {
 
 fn kept(record: &[u8]) -> Box<[u8]> {
     let value = w::Kept { store_version: 1, record: record.into() };
-    let mut writer = Writer::new(skein_lib::length::usize_of(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+    let mut writer = Writer::new(skein_lib::length::usize_of(
+        value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+    ));
     value.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("measured fake record");
     writer.finish()
 }

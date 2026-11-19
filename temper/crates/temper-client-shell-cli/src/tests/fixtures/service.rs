@@ -5,7 +5,8 @@ pub const FILE: &[u8] = b"http://127.0.0.1:4100\nZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ
 impl Frame {
     pub(super) fn service_reply(&mut self, fd: Fd, body: &[u8]) {
         let keyed = w::Keyed::decode(&w::CEILINGS, &mut skein_lib::Reader::new(body)).expect("keyed act");
-        let ask = w::Ask::decode(&w::CEILINGS, &mut skein_lib::Reader::new(keyed.request.as_ref())).expect("service act");
+        let ask =
+            w::Ask::decode(&w::CEILINGS, &mut skein_lib::Reader::new(keyed.request.as_ref())).expect("service act");
         let w::Ask::MakeService(make) = ask else { panic!("make service") };
         assert_eq!(make.project, 7);
         assert_eq!(make.name.as_ref(), b"scout");
@@ -15,18 +16,11 @@ impl Frame {
             self.hold_stores = Some(());
         }
         let service = w::MadeService {
-                party: 9,
-                credential: skein_lib::Secret::new(if self.service_replay {
-                    Box::new([])
-                } else {
-                    Box::new(CREDENTIAL)
-                }),
-            };
-        let outcome =
-            w::OutcomeMade { what: w::Made::Service(service) };
-        let answer = w::Final::Done(
-            w::Done { outcome: w::Outcome::Made(outcome) },
-        );
+            party: 9,
+            credential: skein_lib::Secret::new(if self.service_replay { Box::new([]) } else { Box::new(CREDENTIAL) }),
+        };
+        let outcome = w::OutcomeMade { what: w::Made::Service(service) };
+        let answer = w::Final::Done(w::Done { outcome: w::Outcome::Made(outcome) });
         let owned = w::Owned { owner: w::Owner::Jig, version: w::VERSION, record: encode!(answer) };
         self.reply(fd, &encode!(w::KeyedAnswer::FinalAnswer(owned)));
     }

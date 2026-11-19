@@ -1,6 +1,6 @@
 //! The ctl act through the root and the world's real memory store (temper/docs/design/protocol/checkpoints.md, 5).
-use jig_client_protocol_wire::Record as _;
 use jig_client::{self as client, contract as c};
+use jig_client_protocol_wire::Record as _;
 use jig_domain_core::reads;
 use jig_domain_people as people;
 use skein_lib::{Env, List, Queue, ReplyTo, RequestEnvelope, Token, Writer};
@@ -87,7 +87,10 @@ fn me(driver: &mut Driver, sign_in: u64) -> Box<c::Me> {
         &jig_client_protocol_wire::CEILINGS,
     )
     .expect("checkpoint world fixture");
-    let mut bytes = Writer::new(usize::try_from(document.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("checkpoint world fixture"));
+    let mut bytes = Writer::new(
+        usize::try_from(document.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+            .expect("checkpoint world fixture"),
+    );
     document.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("checkpoint world fixture");
     let preset = tools::limits::client().client;
     let limits =

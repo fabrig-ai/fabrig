@@ -57,9 +57,7 @@ pub(crate) fn person_capacity_action_fields(value: &w::PersonCapacityAction) -> 
         w::PersonCapacityAction::AccountChange => c::PersonCapacityAction::AccountChange,
         w::PersonCapacityAction::Create => c::PersonCapacityAction::Create,
         w::PersonCapacityAction::Compound => c::PersonCapacityAction::Compound,
-        w::PersonCapacityAction::Application(row) => {
-            c::PersonCapacityAction::Application { connector: row.connector }
-        }
+        w::PersonCapacityAction::Application(row) => c::PersonCapacityAction::Application { connector: row.connector },
         w::PersonCapacityAction::Note(row) => c::PersonCapacityAction::Note { name: row.name },
         w::PersonCapacityAction::Service => c::PersonCapacityAction::Service,
         w::PersonCapacityAction::Adoption => c::PersonCapacityAction::Adoption,
@@ -127,15 +125,11 @@ pub(crate) fn task_capacity_action_fields(value: &w::TaskCapacityAction) -> c::T
         }
         w::TaskCapacityAction::Proposal(row) => c::TaskCapacityAction::Proposal { number: row.number },
         w::TaskCapacityAction::PersonProposal(row) => c::TaskCapacityAction::PersonProposal { number: row.number },
-        w::TaskCapacityAction::Message(row) => {
-            c::TaskCapacityAction::Message { task: row.task, number: row.number }
-        }
+        w::TaskCapacityAction::Message(row) => c::TaskCapacityAction::Message { task: row.task, number: row.number },
         w::TaskCapacityAction::Source(row) => {
             c::TaskCapacityAction::Source { funder: crate::translate::facts::funder(&row.funder) }
         }
-        w::TaskCapacityAction::Introduce(row) => {
-            c::TaskCapacityAction::Introduce { left: row.left, right: row.right }
-        }
+        w::TaskCapacityAction::Introduce(row) => c::TaskCapacityAction::Introduce { left: row.left, right: row.right },
         w::TaskCapacityAction::Subscription(row) => c::TaskCapacityAction::Subscription { number: row.number },
         w::TaskCapacityAction::Effect(row) => c::TaskCapacityAction::Effect { entry: row.entry },
         w::TaskCapacityAction::Claim(row) => c::TaskCapacityAction::Claim { attempt: row.attempt },
@@ -148,9 +142,7 @@ pub(crate) fn task_capacity_action_fields(value: &w::TaskCapacityAction) -> c::T
 pub(crate) fn task_capacity_cause_fields(value: &w::TaskCapacityCause) -> c::TaskCapacityCause {
     match value {
         w::TaskCapacityCause::PlacedHolds(row) => c::TaskCapacityCause::PlacedHolds { limit: row.limit },
-        w::TaskCapacityCause::ProjectPlacedHolds(row) => {
-            c::TaskCapacityCause::ProjectPlacedHolds { limit: row.limit }
-        }
+        w::TaskCapacityCause::ProjectPlacedHolds(row) => c::TaskCapacityCause::ProjectPlacedHolds { limit: row.limit },
         w::TaskCapacityCause::PartyPlacedHolds(row) => c::TaskCapacityCause::PartyPlacedHolds { limit: row.limit },
         w::TaskCapacityCause::Exemptions(row) => c::TaskCapacityCause::Exemptions { limit: row.limit },
         w::TaskCapacityCause::Tasks(row) => c::TaskCapacityCause::Tasks { limit: row.limit },

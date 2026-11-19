@@ -5,54 +5,73 @@ use jig_domain_tasks as t;
 use skein_lib::{List, bytes};
 pub fn message_kind(value: &t::MessageKind, limits: &w::Limits) -> Result<w::MessageKind, w::Problem> {
     Ok(match value {
-        t::MessageKind::Met { dependency, removed } => w::MessageKind::Met(w::MessageKindMet { dependency: *dependency, removed: *removed }),
+        t::MessageKind::Met { dependency, removed } => {
+            w::MessageKind::Met(w::MessageKindMet { dependency: *dependency, removed: *removed })
+        }
         t::MessageKind::SettingsDecision { proposal, outcome } => {
             w::MessageKind::SettingsDecision(w::MessageKindSettingsDecision {
-                    proposal: *proposal,
-                    outcome: settings_outcome(*outcome, limits)?,
-                })
+                proposal: *proposal,
+                outcome: settings_outcome(*outcome, limits)?,
+            })
         }
-        t::MessageKind::QuestionAnswered { question } => w::MessageKind::QuestionAnswered(w::MessageKindAnswer { question: *question }),
+        t::MessageKind::QuestionAnswered { question } => {
+            w::MessageKind::QuestionAnswered(w::MessageKindAnswer { question: *question })
+        }
         t::MessageKind::QuestionOwed => w::MessageKind::QuestionOwed,
         t::MessageKind::NothingAwaited => w::MessageKind::NothingAwaited,
-        t::MessageKind::QuestionEnded { question } => w::MessageKind::QuestionEnded(w::MessageKindAnswer { question: *question }),
+        t::MessageKind::QuestionEnded { question } => {
+            w::MessageKind::QuestionEnded(w::MessageKindAnswer { question: *question })
+        }
         t::MessageKind::Words => w::MessageKind::Words,
         t::MessageKind::Question => w::MessageKind::Question,
-        t::MessageKind::Escalation { task, revision } => w::MessageKind::Escalation(w::MessageKindEscalation { task: *task, revision: *revision }),
-        t::MessageKind::Proposal { proposer, proposal, kind } => w::MessageKind::Proposal(w::MessageKindProposal {
-                proposer: *proposer,
-                proposal: *proposal,
-                kind: super::proposals::kind(*kind),
-            }),
-        t::MessageKind::PersonStalled { task } => w::MessageKind::PersonStalled(w::MessageKindPersonStalled { task: *task }),
-        t::MessageKind::ProposalDecision { proposal, accepted } => {
-            w::MessageKind::ProposalDecision(w::MessageKindProposalDecision { proposal: *proposal, accepted: *accepted })
+        t::MessageKind::Escalation { task, revision } => {
+            w::MessageKind::Escalation(w::MessageKindEscalation { task: *task, revision: *revision })
         }
-        t::MessageKind::EffectNotMade { entry } => w::MessageKind::EffectNotMade(w::MessageKindEffectNotMade { entry: *entry }),
+        t::MessageKind::Proposal { proposer, proposal, kind } => w::MessageKind::Proposal(w::MessageKindProposal {
+            proposer: *proposer,
+            proposal: *proposal,
+            kind: super::proposals::kind(*kind),
+        }),
+        t::MessageKind::PersonStalled { task } => {
+            w::MessageKind::PersonStalled(w::MessageKindPersonStalled { task: *task })
+        }
+        t::MessageKind::ProposalDecision { proposal, accepted } => {
+            w::MessageKind::ProposalDecision(w::MessageKindProposalDecision {
+                proposal: *proposal,
+                accepted: *accepted,
+            })
+        }
+        t::MessageKind::EffectNotMade { entry } => {
+            w::MessageKind::EffectNotMade(w::MessageKindEffectNotMade { entry: *entry })
+        }
         t::MessageKind::Amendment { revision } | t::MessageKind::FinishRequested { revision } => {
             w::MessageKind::Amendment(w::MessageKindAmendment { revision: *revision })
         }
         t::MessageKind::Answer { question } => w::MessageKind::Answer(w::MessageKindAnswer { question: *question }),
-        t::MessageKind::Timer { subscription } => w::MessageKind::Timer(w::MessageKindTimer { subscription: *subscription }),
+        t::MessageKind::Timer { subscription } => {
+            w::MessageKind::Timer(w::MessageKindTimer { subscription: *subscription })
+        }
         t::MessageKind::Notice { subscription, target, state } => w::MessageKind::Notice(w::MessageKindNotice {
-                subscription: *subscription,
-                target: *target,
-                state: match state {
-                    t::NoticeState::Held { .. } => w::NoticeState::Held,
-                    t::NoticeState::Done => w::NoticeState::Done,
-                    t::NoticeState::Failed => w::NoticeState::Failed,
-                    t::NoticeState::Cancelled => w::NoticeState::Cancelled,
-                },
-            }),
+            subscription: *subscription,
+            target: *target,
+            state: match state {
+                t::NoticeState::Held { .. } => w::NoticeState::Held,
+                t::NoticeState::Done => w::NoticeState::Done,
+                t::NoticeState::Failed => w::NoticeState::Failed,
+                t::NoticeState::Cancelled => w::NoticeState::Cancelled,
+            },
+        }),
         t::MessageKind::News { subscription, class } => w::MessageKind::News(w::MessageKindNews {
-                subscription: *subscription,
-                class: match class {
-                    t::NewsClass::Wakes => w::NewsClass::Wakes,
-                    t::NewsClass::Kept => w::NewsClass::Kept,
-                    t::NewsClass::Dropped => w::NewsClass::Dropped,
-                },
-            }),
-        t::MessageKind::Result(value) => w::MessageKind::Result(w::MessageKindResult { value: word_result(value, limits)? }),
+            subscription: *subscription,
+            class: match class {
+                t::NewsClass::Wakes => w::NewsClass::Wakes,
+                t::NewsClass::Kept => w::NewsClass::Kept,
+                t::NewsClass::Dropped => w::NewsClass::Dropped,
+            },
+        }),
+        t::MessageKind::Result(value) => {
+            w::MessageKind::Result(w::MessageKindResult { value: word_result(value, limits)? })
+        }
     })
 }
 pub fn word_result(value: &t::ResultKind, _limits: &w::Limits) -> Result<w::WordResult, w::Problem> {
@@ -61,8 +80,13 @@ pub fn word_result(value: &t::ResultKind, _limits: &w::Limits) -> Result<w::Word
         t::ResultKind::NoChange | t::ResultKind::Report => w::WordResult::Report,
         t::ResultKind::Failed => w::WordResult::Failed,
         t::ResultKind::Cancelled => w::WordResult::Cancelled,
-        t::ResultKind::Approved { state, words_present } => w::WordResult::Approved(w::WordResultApproved { state: bytes::copy_of(state), words_present: *words_present }),
-        t::ResultKind::Change { connector, kind, resource } => w::WordResult::Change(w::WordResultChange { connector: *connector, kind: *kind, resource: *resource }),
+        t::ResultKind::Approved { state, words_present } => w::WordResult::Approved(w::WordResultApproved {
+            state: bytes::copy_of(state),
+            words_present: *words_present,
+        }),
+        t::ResultKind::Change { connector, kind, resource } => {
+            w::WordResult::Change(w::WordResultChange { connector: *connector, kind: *kind, resource: *resource })
+        }
         t::ResultKind::Verdict { code, fields } => {
             let mut copied = List::with_capacity(super::super::count(fields.len())?);
             for row in fields {
@@ -79,27 +103,28 @@ fn crossing_words(kind: &t::MessageKind, words: &[u8]) -> Box<[u8]> {
 }
 pub fn word(value: &t::Word, limits: &w::Limits) -> Result<w::Word, w::Problem> {
     Ok(w::Word {
-            number: value.number,
-            from: owner::requester(value.from, limits)?,
-            kind: message_kind(&value.kind, limits)?,
-            words: crossing_words(&value.kind, &value.words),
-            at: value.at.as_nanos(),
-            hits: value.hits,
-            eligible: value.eligible,
-        })
+        number: value.number,
+        from: owner::requester(value.from, limits)?,
+        kind: message_kind(&value.kind, limits)?,
+        words: crossing_words(&value.kind, &value.words),
+        at: value.at.as_nanos(),
+        hits: value.hits,
+        eligible: value.eligible,
+    })
 }
 pub fn answer(value: &t::ActivityLine, limits: &w::Limits) -> Result<w::ActivityLine, w::Problem> {
     let line = match &value.line {
         t::Line::Words { message, by, kind, words } => w::Activity::Words(w::ActivityWords {
-                message: *message,
-                by: owner::requester(*by, limits)?,
-                kind: message_kind(kind, limits)?,
-                words: crossing_words(kind, words),
-            }),
-        t::Line::Heard(value) => {
-            w::Activity::Heard(w::ActivityHeard { value: word(value, limits)? })
-        }
-        t::Line::Notified { recipient, word: value } => w::Activity::Notified(w::ActivityNotified { recipient: owner::requester(*recipient, limits)?, word: word(value, limits)? }),
+            message: *message,
+            by: owner::requester(*by, limits)?,
+            kind: message_kind(kind, limits)?,
+            words: crossing_words(kind, words),
+        }),
+        t::Line::Heard(value) => w::Activity::Heard(w::ActivityHeard { value: word(value, limits)? }),
+        t::Line::Notified { recipient, word: value } => w::Activity::Notified(w::ActivityNotified {
+            recipient: owner::requester(*recipient, limits)?,
+            word: word(value, limits)?,
+        }),
         t::Line::RunBegan { .. }
         | t::Line::RunEnded { .. }
         | t::Line::Turn { .. }
@@ -120,12 +145,8 @@ pub fn answer(value: &t::ActivityLine, limits: &w::Limits) -> Result<w::Activity
 #[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
 fn settings_outcome(value: t::SettingsOutcome, _limits: &w::Limits) -> Result<w::SettingsOutcome, w::Problem> {
     Ok(match value {
-        t::SettingsOutcome::Accepted { revision } => {
-            w::SettingsOutcome::Accepted(w::SettingsAccepted { revision })
-        }
+        t::SettingsOutcome::Accepted { revision } => w::SettingsOutcome::Accepted(w::SettingsAccepted { revision }),
         t::SettingsOutcome::Rejected => w::SettingsOutcome::Rejected,
-        t::SettingsOutcome::Stale { newest } => {
-            w::SettingsOutcome::Stale(w::SettingsStale { newest })
-        }
+        t::SettingsOutcome::Stale { newest } => w::SettingsOutcome::Stale(w::SettingsStale { newest }),
     })
 }

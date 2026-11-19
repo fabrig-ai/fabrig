@@ -2,8 +2,8 @@
 /// Template numbers used by the literal wire fixtures.
 pub const CHAT: u32 = 1;
 pub const GOAL: u32 = 2;
-use jig_client_protocol_wire::Record as _;
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use skein_lib::{Duration, List, Writer};
 mod owner;
 pub use owner::*;
@@ -83,201 +83,183 @@ pub fn chip_pieces(count: u32) -> Box<[u8]> {
 #[must_use]
 pub fn frame_record() -> w::Me {
     w::Me {
-            providers: Box::new([]),
-            providers_cut: false,
-            key_bytes: 256,
-            redirect_bytes: 4096,
-            words_bytes: 8192,
-            party: w::MeParty {
-                    number: 7,
-                    kind: w::PartyKind::Person,
-                    login: w::DocumentText { bytes: Box::from([]), cut: false },
-                    name: w::DocumentText { bytes: Box::from([]), cut: false },
-                },
-            projects: Box::from([]),
-            needs: w::Needs { questions: 7, proposals: 7, escalations: 7, person_tasks: 7 },
-            needs_total: 7,
-            updates: w::Count { value: 7, limited: false },
-            results_seen: 7,
-            cut: false,
-            retention: Duration::from_nanos(19),
-            deployment_role: None,
-        }
+        providers: Box::new([]),
+        providers_cut: false,
+        key_bytes: 256,
+        redirect_bytes: 4096,
+        words_bytes: 8192,
+        party: w::MeParty {
+            number: 7,
+            kind: w::PartyKind::Person,
+            login: w::DocumentText { bytes: Box::from([]), cut: false },
+            name: w::DocumentText { bytes: Box::from([]), cut: false },
+        },
+        projects: Box::from([]),
+        needs: w::Needs { questions: 7, proposals: 7, escalations: 7, person_tasks: 7 },
+        needs_total: 7,
+        updates: w::Count { value: 7, limited: false },
+        results_seen: 7,
+        cut: false,
+        retention: Duration::from_nanos(19),
+        deployment_role: None,
+    }
 }
 #[must_use]
 pub fn task_record() -> w::Task {
     w::Task {
-            concluded: None,
-            talk: None,
-            session: None,
-            dependency_facts: List::with_capacity(0),
-            kept_account: None,
-            run_wait: None,
-            settings: Some(
-                w::TaskSettings { task: 1, run: None, newest: 1 },
-            ),
-            llm: None,
-            label: 0,
-            flags: w::TaskFlags {
-                    ended_by: w::EndedBy::Result,
-                    conversation: false,
-                    listed: false,
-                    retention: w::Retention::Kept,
-                },
-            last_activity: 0,
-            made: 7,
-            tasks_left: 5,
-            waits_on: w::WaitsOn::Nothing,
-            chip: chip_record(),
-            goal: None,
-            priority: None,
-            lineage_chips: Box::from([]),
-            inputs: Box::from([]),
-            project: 7,
-            requester: w::Requester::Task(
-                w::RequesterTask { value: 7 },
-            ),
-            lineage: List::with_capacity(0),
-            spec: wire_specification_document(),
-            spec_revision: w::Revision { value: 7 },
-            person_revision: None,
-            taken_by: None,
-            instructions: None,
-            wake: w::WakePolicy {
-                    words: w::WakeRule::Never,
-                    notices: w::WakeRule::Never,
-                    news: w::WakeRule::Never,
-                    results: w::ResultsWake::Never,
-                    questions: false,
-                    answers: false,
-                    timers: false,
-                },
-            subscriptions: w::Subscriptions { entries: List::with_capacity(0) },
-            result_contract: w::TaskContractDocument::Approval(
-                w::TaskContractDocumentApproval {
-                        state: Box::from([]),
-                        part: w::Part {
-                                connector: 7,
-                                kind: w::PartKind::Resource,
-                                key: w::PartKey::Path(
-                                    w::PartKeyPath { value: List::with_capacity(0) },
-                                ),
-                            },
-                    },
-            ),
-            dependencies: Box::from([]),
-            references: Box::from([]),
-            cut: false,
-            resources: Box::from([]),
-            budget: w::Budget {
-                    numbers: w::Numbers { budget: 7, spent: 7, spent_below: 7, reserved: 7 },
-                    left: 7,
-                    funder: w::Funder::Task(
-                        w::FunderTask { value: 7 },
-                    ),
-                    deadline: None,
-                },
-            authority: wire_owner_authority_document(),
-            hold: None,
-            proposals: List::with_capacity(0),
-            activity: 7,
-            changed: 7,
-            acts: Box::from([]),
-            result: None,
-            delegates: Box::from([]),
-            context: None,
-        }
+        concluded: None,
+        talk: None,
+        session: None,
+        dependency_facts: List::with_capacity(0),
+        kept_account: None,
+        run_wait: None,
+        settings: Some(w::TaskSettings { task: 1, run: None, newest: 1 }),
+        llm: None,
+        label: 0,
+        flags: w::TaskFlags {
+            ended_by: w::EndedBy::Result,
+            conversation: false,
+            listed: false,
+            retention: w::Retention::Kept,
+        },
+        last_activity: 0,
+        made: 7,
+        tasks_left: 5,
+        waits_on: w::WaitsOn::Nothing,
+        chip: chip_record(),
+        goal: None,
+        priority: None,
+        lineage_chips: Box::from([]),
+        inputs: Box::from([]),
+        project: 7,
+        requester: w::Requester::Task(w::RequesterTask { value: 7 }),
+        lineage: List::with_capacity(0),
+        spec: wire_specification_document(),
+        spec_revision: w::Revision { value: 7 },
+        person_revision: None,
+        taken_by: None,
+        instructions: None,
+        wake: w::WakePolicy {
+            words: w::WakeRule::Never,
+            notices: w::WakeRule::Never,
+            news: w::WakeRule::Never,
+            results: w::ResultsWake::Never,
+            questions: false,
+            answers: false,
+            timers: false,
+        },
+        subscriptions: w::Subscriptions { entries: List::with_capacity(0) },
+        result_contract: w::TaskContractDocument::Approval(w::TaskContractDocumentApproval {
+            state: Box::from([]),
+            part: w::Part {
+                connector: 7,
+                kind: w::PartKind::Resource,
+                key: w::PartKey::Path(w::PartKeyPath { value: List::with_capacity(0) }),
+            },
+        }),
+        dependencies: Box::from([]),
+        references: Box::from([]),
+        cut: false,
+        resources: Box::from([]),
+        budget: w::Budget {
+            numbers: w::Numbers { budget: 7, spent: 7, spent_below: 7, reserved: 7 },
+            left: 7,
+            funder: w::Funder::Task(w::FunderTask { value: 7 }),
+            deadline: None,
+        },
+        authority: wire_owner_authority_document(),
+        hold: None,
+        proposals: List::with_capacity(0),
+        activity: 7,
+        changed: 7,
+        acts: Box::from([]),
+        result: None,
+        delegates: Box::from([]),
+        context: None,
+    }
 }
 #[must_use]
 pub fn wire_specification_document() -> w::SpecificationDocument {
     w::SpecificationDocument {
-            specification: w::DocumentSpecification {
-                    asks: false,
-                    words: w::DocumentText { bytes: Box::from([]), cut: false },
-                    parameters: List::with_capacity(0),
-                    inputs: List::with_capacity(0),
-                },
-            cut: false,
-        }
+        specification: w::DocumentSpecification {
+            asks: false,
+            words: w::DocumentText { bytes: Box::from([]), cut: false },
+            parameters: List::with_capacity(0),
+            inputs: List::with_capacity(0),
+        },
+        cut: false,
+    }
 }
 #[must_use]
 pub fn wire_owner_authority_document() -> w::AuthorityDocument {
     w::AuthorityDocument {
-            cut: false,
-            authority: w::Authority {
-                    models: Some(w::ModelSet::All),
-                    tools: 7,
-                    grants: Box::from([]),
-                    delegation: w::Delegation { kinds: List::with_capacity(0), tasks: 7, depth: 7 },
-                    spend: 7,
-                    deadline: None,
-                    notes: 7,
-                    note_resources: Box::from([]),
-                },
-        }
+        cut: false,
+        authority: w::Authority {
+            models: Some(w::ModelSet::All),
+            tools: 7,
+            grants: Box::from([]),
+            delegation: w::Delegation { kinds: List::with_capacity(0), tasks: 7, depth: 7 },
+            spend: 7,
+            deadline: None,
+            notes: 7,
+            note_resources: Box::from([]),
+        },
+    }
 }
 #[must_use]
 pub fn chip_root_fact() -> w::Fact {
-    w::Fact::Chip(
-        w::ChipRow {
-                parent: None,
-                value: w::ChipFields {
-                        task: 7,
-                        title: wire_text(b""),
-                        executor: w::ChipExecutor::Agent(
-                            w::ChipExecutorAgent { charter: 7 },
-                        ),
-                        phase: w::Phase::Waiting,
-                        details: 1,
-                    },
-            },
-    )
+    w::Fact::Chip(w::ChipRow {
+        parent: None,
+        value: w::ChipFields {
+            task: 7,
+            title: wire_text(b""),
+            executor: w::ChipExecutor::Agent(w::ChipExecutorAgent { charter: 7 }),
+            phase: w::Phase::Waiting,
+            details: 1,
+        },
+    })
 }
 #[must_use]
 pub fn wire_owner_chip_details_row() -> w::ChipDetailsRow {
     w::ChipDetailsRow {
-            parent: Some(1),
-            value: w::ChipDetailsFields {
-                    dependencies: List::with_capacity(0),
-                    project: 7,
-                    executor: w::Executor::Agent(
-                        w::ExecutorAgent { charter: 7 },
-                    ),
-                    phase_since: 7,
-                    run_since: None,
-                    attempt: None,
-                    retry: None,
-                    wake: w::WakePolicy {
-                            words: w::WakeRule::Never,
-                            notices: w::WakeRule::Never,
-                            news: w::WakeRule::Never,
-                            results: w::ResultsWake::Never,
-                            questions: false,
-                            answers: false,
-                            timers: false,
-                        },
-                    person_wait: None,
-                    hold: None,
-                    budget: w::Budget {
-                            numbers: w::Numbers { budget: 7, spent: 7, spent_below: 7, reserved: 7 },
-                            left: 7,
-                            funder: w::Funder::Task(
-                                w::FunderTask { value: 7 },
-                            ),
-                            deadline: None,
-                        },
-                    activity: 7,
-                    resources: Box::from([]),
-                    resources_cut: false,
-                    resources_observed: false,
-                    procedure: None,
-                    live_delegates: 7,
-                    closing_connectors: None,
-                    ending: None,
-                    ended_at: None,
-                    observation: None,
-                },
-        }
+        parent: Some(1),
+        value: w::ChipDetailsFields {
+            dependencies: List::with_capacity(0),
+            project: 7,
+            executor: w::Executor::Agent(w::ExecutorAgent { charter: 7 }),
+            phase_since: 7,
+            run_since: None,
+            attempt: None,
+            retry: None,
+            wake: w::WakePolicy {
+                words: w::WakeRule::Never,
+                notices: w::WakeRule::Never,
+                news: w::WakeRule::Never,
+                results: w::ResultsWake::Never,
+                questions: false,
+                answers: false,
+                timers: false,
+            },
+            person_wait: None,
+            hold: None,
+            budget: w::Budget {
+                numbers: w::Numbers { budget: 7, spent: 7, spent_below: 7, reserved: 7 },
+                left: 7,
+                funder: w::Funder::Task(w::FunderTask { value: 7 }),
+                deadline: None,
+            },
+            activity: 7,
+            resources: Box::from([]),
+            resources_cut: false,
+            resources_observed: false,
+            procedure: None,
+            live_delegates: 7,
+            closing_connectors: None,
+            ending: None,
+            ended_at: None,
+            observation: None,
+        },
+    }
 }
 #[must_use]
 pub fn chip_from_rows(rows: &[w::Fact]) -> w::Chip {
@@ -299,8 +281,9 @@ pub fn chip_from_rows(rows: &[w::Fact]) -> w::Chip {
 pub fn fact_bytes(value: &w::Fact) -> Box<[u8]> {
     let mut row = Writer::new(skein_lib::length::usize_of(value.measure(&limits()).expect("bounded fixture")));
     value.write(&limits(), &mut row).expect("literal fixture fits");
-    let mut piece =
-        Writer::new(skein_lib::length::usize_of(value.measure(&limits()).expect("bounded fixture").checked_add(4).expect("literal fixture fits")));
+    let mut piece = Writer::new(skein_lib::length::usize_of(
+        value.measure(&limits()).expect("bounded fixture").checked_add(4).expect("literal fixture fits"),
+    ));
     skein_codec::piece::write(&mut piece, &row.finish()).expect("literal fixture fits");
     piece.finish()
 }

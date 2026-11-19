@@ -9,9 +9,7 @@ const TASK: u64 = 8;
 const FIRST_MESSAGE: u64 = 19;
 fn compound(project: u32, stop_project: u32) -> w::Ask {
     let values = [
-        w::Operation::Message(
-            w::Message { project, task: TASK, words: b"words".as_slice().into() },
-        ),
+        w::Operation::Message(w::Message { project, task: TASK, words: b"words".as_slice().into() }),
         w::Operation::Stop(w::Stop { project: stop_project, task: TASK }),
     ];
     f::compound(project, &values)
@@ -34,9 +32,7 @@ fn a_compound_operation_naming_another_project_is_refused_at_its_place() {
     assert_eq!(value.at, Some(1));
     assert_eq!(
         (&value.refusal),
-        &w::Refusal::Malformed(
-            w::RefusalMalformed { at: 1, why: w::Malformed::ProjectMismatch }
-        )
+        &w::Refusal::Malformed(w::RefusalMalformed { at: 1, why: w::Malformed::ProjectMismatch })
     );
 }
 #[test]
@@ -57,14 +53,13 @@ fn a_compound_answer_keeps_its_message_and_operation_count() {
         &p::Reply::Outcome(p::Outcome::Compound { project: PROJECT, operations: 2, first_message: FIRST_MESSAGE }),
         &limits,
     );
-    let expected = w::DocumentOutcome::Compound(
-        w::OutcomeCompound { project: PROJECT, operations: 2, first_message: FIRST_MESSAGE },
-    );
+    let expected = w::DocumentOutcome::Compound(w::OutcomeCompound {
+        project: PROJECT,
+        operations: 2,
+        first_message: FIRST_MESSAGE,
+    });
     let w::Final::Done(value) = value else {
         panic!("done");
     };
-    assert_eq!(
-        (&value.outcome),
-        &w::Outcome::Document(w::OutcomeDocument { value: expected })
-    );
+    assert_eq!((&value.outcome), &w::Outcome::Document(w::OutcomeDocument { value: expected }));
 }

@@ -1,11 +1,11 @@
 //! One authorization in flight; no retained request (protocol/client/openid.md).
-use jig_client_protocol_wire::Record as _;
 use crate::{
     AuthorizeWhy, Authorized, Link, Message, Request,
     component::{Attempt, ExchangeKind},
 };
 use alloc::boxed::Box;
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use jig_client_protocol_wire::VERSION;
 use skein_lib::{Queue, Reader};
 impl Link {

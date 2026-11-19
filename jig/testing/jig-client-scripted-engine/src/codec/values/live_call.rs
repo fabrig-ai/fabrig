@@ -6,11 +6,11 @@ pub(in crate::codec) fn wire_call_identity(
     _limits: &w::Limits,
 ) -> Result<w::CallIdentity, w::Problem> {
     Ok(w::CallIdentity {
-            owner: value.owner.raw(),
-            sequence: value.sequence,
-            retry: value.retry,
-            id: bytes::copy_of(value.id.bytes()),
-        })
+        owner: value.owner.raw(),
+        sequence: value.sequence,
+        retry: value.retry,
+        id: bytes::copy_of(value.id.bytes()),
+    })
 }
 
 pub(in crate::codec) fn wire_live_call(value: &c::LiveCall, limits: &w::Limits) -> Result<w::LiveCall, w::Problem> {
@@ -25,10 +25,10 @@ pub(in crate::codec) fn wire_current_call(
     limits: &w::Limits,
 ) -> Result<w::CurrentCall, w::Problem> {
     Ok(w::CurrentCall {
-            identity: wire_call_identity(&value.identity, limits)?,
-            tool: bytes::copy_of(value.tool.bytes()),
-            input: bytes::copy_of(value.input.bytes()),
-            cut: value.cut,
-            began: value.began.as_ref().map(|item| Ok::<_, w::Problem>((item).as_nanos())).transpose()?,
-        })
+        identity: wire_call_identity(&value.identity, limits)?,
+        tool: bytes::copy_of(value.tool.bytes()),
+        input: bytes::copy_of(value.input.bytes()),
+        cut: value.cut,
+        began: value.began.as_ref().map(|item| Ok::<_, w::Problem>((item).as_nanos())).transpose()?,
+    })
 }

@@ -1,8 +1,8 @@
 //! Structural adapters between neutral forms and the shared client wire.
-use jig_client_protocol_wire::Record as _;
 use crate::{Limits, view as c};
 use alloc::boxed::Box;
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use skein_lib::{List, Reader, Wall, Writer, bytes};
 pub fn restore_revisions_page(value: &w::RevisionsPage, limits: &Limits) -> Result<c::RevisionsPage, w::Problem> {
     let mut rows = List::with_capacity(value.rows.len());
@@ -225,7 +225,11 @@ pub(crate) fn settings_restore_setting_value(
             let mut overrides = List::with_capacity(value.overrides.len());
             for item in &value.overrides {
                 overrides
-                    .push(c::Override { name: item.name.as_ref().into(), value: item.value, reason: item.reason.as_ref().into() })
+                    .push(c::Override {
+                        name: item.name.as_ref().into(),
+                        value: item.value,
+                        reason: item.reason.as_ref().into(),
+                    })
                     .expect("override count");
             }
             c::SettingValue::Limits(overrides.into_boxed())
@@ -388,11 +392,7 @@ pub(crate) fn documents_owner_grant_piece(
 }
 
 pub(crate) fn documents_owner_grant_fields(value: &w::Grant, limits: &Limits) -> c::Grant {
-    c::Grant {
-        connector: value.connector,
-        kind: value.kind,
-        pattern: answers_owner_pattern(&value.pattern, limits),
-    }
+    c::Grant { connector: value.connector, kind: value.kind, pattern: answers_owner_pattern(&value.pattern, limits) }
 }
 
 pub(crate) fn model_sets_decode(value: Option<&w::ModelSet>) -> Result<Option<c::AuthorityModels>, w::Problem> {
@@ -541,9 +541,7 @@ pub(crate) fn settings_restore_policy_edit_role(
 pub(crate) fn documents_me_template(value: &w::Template, limits: &Limits) -> Result<c::Template, w::Problem> {
     let mut resources = List::with_capacity(value.resources.len());
     for resource in &value.resources {
-        resources
-            .push(c::Symbol { connector: resource.connector, symbol: resource.symbol })
-            .expect("same capacity");
+        resources.push(c::Symbol { connector: resource.connector, symbol: resource.symbol }).expect("same capacity");
     }
     Ok(c::Template {
         resources,
@@ -595,12 +593,7 @@ pub(crate) fn llm_choice(value: Option<&w::LlmChoice>, limits: &Limits) -> Resul
         }
         None => None,
     };
-    Ok(Some(c::LlmChoice {
-        account: value.account,
-        main: llm_model_effort(&value.main, limits)?,
-        subagents,
-        later,
-    }))
+    Ok(Some(c::LlmChoice { account: value.account, main: llm_model_effort(&value.main, limits)?, subagents, later }))
 }
 
 pub(crate) fn llm_model_effort(value: &w::ModelEffort, limits: &Limits) -> Result<c::ModelEffort, w::Problem> {
@@ -818,57 +811,57 @@ pub fn wire_overlay(value: &c::Overlay, limits: &w::Limits) -> Result<w::Overlay
             .expect("same count");
     }
     Ok(w::Overlay {
-            parts,
-            instructions: bytes::copy_of(value.instructions.bytes()),
-            rest: value.rest,
-            model: match &value.model {
-                Some(v) => Some(settings_wire_setting_model(v, limits)?),
-                None => None,
-            },
-            alternatives: match &value.alternatives {
-                Some(v) => {
-                    let mut out = List::with_capacity(v.len());
-                    for item in v {
-                        out.push(settings_wire_setting_model(item, limits)?).expect("same count");
-                    }
-                    Some(out)
+        parts,
+        instructions: bytes::copy_of(value.instructions.bytes()),
+        rest: value.rest,
+        model: match &value.model {
+            Some(v) => Some(settings_wire_setting_model(v, limits)?),
+            None => None,
+        },
+        alternatives: match &value.alternatives {
+            Some(v) => {
+                let mut out = List::with_capacity(v.len());
+                for item in v {
+                    out.push(settings_wire_setting_model(item, limits)?).expect("same count");
                 }
-                None => None,
-            },
-            inspect: value.inspect,
-            modify: value.modify,
-            shell: value.shell,
-            agents: value.agents,
-            tools: value.tools,
-            hosts: match &value.hosts {
-                Some(v) => Some(settings_wire_setting_hosts(v, limits)),
-                None => None,
-            },
-            waiting: value.waiting,
-            resume: value.resume,
-            turns: value.turns,
-            time: value.time,
-            reserve_turns: value.reserve_turns,
-            reserve_time: value.reserve_time,
-            call_timeout: value.call_timeout,
-            spend: value.spend,
-            documents: match &value.documents {
-                Some(v) => {
-                    let mut out = List::with_capacity(v.len());
-                    for item in v {
-                        out.push(w::CharterDocument {
-                                connector: item.connector,
-                                name: item.name.clone(),
-                                path: item.path.clone(),
-                                heading: item.heading.clone(),
-                            })
-                        .expect("same count");
-                    }
-                    Some(out)
+                Some(out)
+            }
+            None => None,
+        },
+        inspect: value.inspect,
+        modify: value.modify,
+        shell: value.shell,
+        agents: value.agents,
+        tools: value.tools,
+        hosts: match &value.hosts {
+            Some(v) => Some(settings_wire_setting_hosts(v, limits)),
+            None => None,
+        },
+        waiting: value.waiting,
+        resume: value.resume,
+        turns: value.turns,
+        time: value.time,
+        reserve_turns: value.reserve_turns,
+        reserve_time: value.reserve_time,
+        call_timeout: value.call_timeout,
+        spend: value.spend,
+        documents: match &value.documents {
+            Some(v) => {
+                let mut out = List::with_capacity(v.len());
+                for item in v {
+                    out.push(w::CharterDocument {
+                        connector: item.connector,
+                        name: item.name.clone(),
+                        path: item.path.clone(),
+                        heading: item.heading.clone(),
+                    })
+                    .expect("same count");
                 }
-                None => None,
-            },
-        })
+                Some(out)
+            }
+            None => None,
+        },
+    })
 }
 pub(crate) fn settings_restore_charter(value: &w::Charter, limits: &Limits) -> Result<c::Charter, w::Problem> {
     let mut alternatives = List::with_capacity(value.alternatives.len());
@@ -1060,10 +1053,10 @@ pub(crate) fn settings_restore_setting_follows(value: &w::SettingFollows, _limit
 
 pub fn wire_change_settings(value: &c::ChangeSettings, limits: &w::Limits) -> Result<w::ChangeSettings, w::Problem> {
     Ok(w::ChangeSettings {
-            against: value.against,
-            items: settings_encode_setting_item_pieces(&value.items, limits)?,
-            running: settings_wire_running(&value.running, limits),
-        })
+        against: value.against,
+        items: settings_encode_setting_item_pieces(&value.items, limits)?,
+        running: settings_wire_running(&value.running, limits),
+    })
 }
 
 pub(crate) fn settings_wire_running(value: &c::Running, _limits: &w::Limits) -> w::Running {
@@ -1103,9 +1096,9 @@ pub(crate) fn settings_wire_setting_item(
     limits: &w::Limits,
 ) -> Result<w::SettingItem, w::Problem> {
     Ok(w::SettingItem {
-            setting: settings_wire_setting(value.setting, limits)?,
-            edit: settings_wire_setting_edit(&value.edit, limits)?,
-        })
+        setting: settings_wire_setting(value.setting, limits)?,
+        edit: settings_wire_setting_edit(&value.edit, limits)?,
+    })
 }
 
 pub(crate) fn settings_wire_setting_edit(
@@ -1138,12 +1131,12 @@ pub(crate) fn settings_wire_setting_value(
         c::SettingValue::Application(v) => w::SettingValue::Application(w::ApplicationValue { bytes: v.clone() }),
         c::SettingValue::Provider(item) => w::SettingValue::Provider(Box::new(providers::encode(item, limits)?)),
         c::SettingValue::Worker(item) => w::SettingValue::Worker(Box::new(w::WorkerSetting {
-                number: item.number,
-                name: item.name.clone(),
-                places: item.places,
-                digest: item.digest,
-                withdrawn: item.withdrawn,
-            })),
+            number: item.number,
+            name: item.name.clone(),
+            places: item.places,
+            digest: item.digest,
+            withdrawn: item.withdrawn,
+        })),
         c::SettingValue::Model(item) => w::SettingValue::Model(Box::new(wire_catalogue(item, limits)?)),
         c::SettingValue::Limits(values) => {
             let mut overrides = List::with_capacity(u32::try_from(values.len()).expect("bounded overrides"));
@@ -1170,13 +1163,13 @@ pub(crate) fn settings_wire_rules(value: &c::Rules, limits: &w::Limits) -> Resul
         requirements.push(asks_wire_policy_requirement(item, limits)?).expect("same capacity");
     }
     Ok(w::Rules {
-            ceiling: asks_wire_owner_authority(&value.ceiling, limits)?,
-            period_spend: value.period_spend,
-            minimum_run_spend: value.minimum_run_spend,
-            maximum_run_spend: value.maximum_run_spend,
-            implies,
-            requirements,
-        })
+        ceiling: asks_wire_owner_authority(&value.ceiling, limits)?,
+        period_spend: value.period_spend,
+        minimum_run_spend: value.minimum_run_spend,
+        maximum_run_spend: value.maximum_run_spend,
+        implies,
+        requirements,
+    })
 }
 
 pub(crate) fn asks_wire_owner_authority(value: &c::Authority, limits: &w::Limits) -> Result<w::Authority, w::Problem> {
@@ -1190,15 +1183,15 @@ pub(crate) fn asks_wire_owner_authority(value: &c::Authority, limits: &w::Limits
         list2.push(asks_wire_owner_resource_scope(item, limits)?).expect("reserved supplied list");
     }
     Ok(w::Authority {
-            models: model_sets_encode(value.models.as_ref(), limits)?,
-            tools: value.tools,
-            grants: asks_wire_owner_grant_piece(&list0, limits)?,
-            delegation: asks_wire_owner_delegation(&value.delegation, limits)?,
-            spend: value.spend,
-            deadline: opt1,
-            notes: value.notes,
-            note_resources: asks_wire_owner_resource_scope_piece(&list2, limits)?,
-        })
+        models: model_sets_encode(value.models.as_ref(), limits)?,
+        tools: value.tools,
+        grants: asks_wire_owner_grant_piece(&list0, limits)?,
+        delegation: asks_wire_owner_delegation(&value.delegation, limits)?,
+        spend: value.spend,
+        deadline: opt1,
+        notes: value.notes,
+        note_resources: asks_wire_owner_resource_scope_piece(&list2, limits)?,
+    })
 }
 
 pub(crate) fn asks_wire_owner_resource_scope_piece(
@@ -1240,14 +1233,12 @@ pub(crate) fn asks_wire_owner_authority_executor(
     _limits: &w::Limits,
 ) -> Result<w::AuthorityExecutor, w::Problem> {
     Ok(match value {
-        c::AuthorityExecutor::Job(value) => {
-            w::AuthorityExecutor::Job(w::AuthorityExecutorJob { value })
-        }
+        c::AuthorityExecutor::Job(value) => w::AuthorityExecutor::Job(w::AuthorityExecutorJob { value }),
         c::AuthorityExecutor::Charter(value) => w::AuthorityExecutor::Charter(w::AuthorityExecutorCharter { value }),
-        c::AuthorityExecutor::Procedure(value) => w::AuthorityExecutor::Procedure(w::AuthorityExecutorProcedure { value }),
-        c::AuthorityExecutor::Role(value) => {
-            w::AuthorityExecutor::Role(w::AuthorityExecutorRole { value })
+        c::AuthorityExecutor::Procedure(value) => {
+            w::AuthorityExecutor::Procedure(w::AuthorityExecutorProcedure { value })
         }
+        c::AuthorityExecutor::Role(value) => w::AuthorityExecutor::Role(w::AuthorityExecutorRole { value }),
     })
 }
 
@@ -1312,10 +1303,10 @@ pub(crate) fn asks_wire_owner_pattern_end(
 
 pub(crate) fn asks_wire_owner_grant(value: &c::Grant, limits: &w::Limits) -> Result<w::Grant, w::Problem> {
     Ok(w::Grant {
-            connector: value.connector,
-            kind: value.kind,
-            pattern: asks_wire_owner_pattern(&value.pattern, limits)?,
-        })
+        connector: value.connector,
+        kind: value.kind,
+        pattern: asks_wire_owner_pattern(&value.pattern, limits)?,
+    })
 }
 
 pub(crate) fn asks_wire_policy_requirement(
@@ -1323,30 +1314,31 @@ pub(crate) fn asks_wire_policy_requirement(
     limits: &w::Limits,
 ) -> Result<w::PolicyRequirement, w::Problem> {
     Ok(w::PolicyRequirement {
-            connector: value.connector,
-            kind: value.kind,
-            pattern: asks_wire_owner_pattern(&value.pattern, limits)?,
-            judge: asks_wire_policy_judge(value.judge, limits)?,
-            guard: asks_wire_policy_guard(&value.guard, limits)?,
-            must_be_guarded: value.must_be_guarded,
-        })
+        connector: value.connector,
+        kind: value.kind,
+        pattern: asks_wire_owner_pattern(&value.pattern, limits)?,
+        judge: asks_wire_policy_judge(value.judge, limits)?,
+        guard: asks_wire_policy_guard(&value.guard, limits)?,
+        must_be_guarded: value.must_be_guarded,
+    })
 }
 
 #[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
-pub(crate) fn asks_wire_policy_guard(value: &c::PolicyGuard, _limits: &w::Limits) -> Result<w::PolicyGuard, w::Problem> {
+pub(crate) fn asks_wire_policy_guard(
+    value: &c::PolicyGuard,
+    _limits: &w::Limits,
+) -> Result<w::PolicyGuard, w::Problem> {
     Ok(match value {
         c::PolicyGuard::Guarded => w::PolicyGuard::Guarded,
-        c::PolicyGuard::Observed { freshness } => w::PolicyGuard::Observed(w::PolicyGuardObserved { freshness: *freshness }),
+        c::PolicyGuard::Observed { freshness } => {
+            w::PolicyGuard::Observed(w::PolicyGuardObserved { freshness: *freshness })
+        }
     })
 }
 
 #[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
 pub(crate) fn asks_wire_policy_judge(value: c::PolicyJudge, _limits: &w::Limits) -> Result<w::PolicyJudge, w::Problem> {
-    Ok(w::PolicyJudge {
-            connector: value.connector,
-            requirement: value.requirement,
-            parameters: value.parameters,
-        })
+    Ok(w::PolicyJudge { connector: value.connector, requirement: value.requirement, parameters: value.parameters })
 }
 
 pub(crate) fn settings_wire_setting_policy(
@@ -1374,15 +1366,15 @@ pub(crate) fn settings_wire_setting_policy(
         templates.push(settings_wire_template_override(item, limits)?).expect("same capacity");
     }
     Ok(w::SettingPolicy {
-            escalation_role: value.escalation_role,
-            ceiling: asks_wire_owner_authority(&value.ceiling, limits)?,
-            projections,
-            period_spend: value.period_spend,
-            roles,
-            requirements,
-            permissions,
-            templates,
-        })
+        escalation_role: value.escalation_role,
+        ceiling: asks_wire_owner_authority(&value.ceiling, limits)?,
+        projections,
+        period_spend: value.period_spend,
+        roles,
+        requirements,
+        permissions,
+        templates,
+    })
 }
 
 pub(crate) fn settings_wire_template_override(
@@ -1390,21 +1382,21 @@ pub(crate) fn settings_wire_template_override(
     limits: &w::Limits,
 ) -> Result<w::TemplateOverride, w::Problem> {
     Ok(w::TemplateOverride {
-            template: value.template,
-            executor: match value.executor {
-                Some(value) => Some(operations_executor(value, limits)?),
-                None => None,
-            },
-            budget: match value.budget {
-                Some(value) => Some(operations_budget(value, limits)?),
-                None => None,
-            },
-            deadline: match value.deadline {
-                Some(value) => Some(operations_deadline(value, limits)?),
-                None => None,
-            },
-            priority: value.priority,
-        })
+        template: value.template,
+        executor: match value.executor {
+            Some(value) => Some(operations_executor(value, limits)?),
+            None => None,
+        },
+        budget: match value.budget {
+            Some(value) => Some(operations_budget(value, limits)?),
+            None => None,
+        },
+        deadline: match value.deadline {
+            Some(value) => Some(operations_deadline(value, limits)?),
+            None => None,
+        },
+        priority: value.priority,
+    })
 }
 
 #[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
@@ -1414,22 +1406,19 @@ pub(crate) fn operations_deadline(
 ) -> Result<w::TemplateDeadline, w::Problem> {
     Ok(match value {
         c::TemplateDeadline::None => w::TemplateDeadline::None,
-        c::TemplateDeadline::Span(value) => {
-            w::TemplateDeadline::Span(w::TemplateSpan { value })
-        }
+        c::TemplateDeadline::Span(value) => w::TemplateDeadline::Span(w::TemplateSpan { value }),
         c::TemplateDeadline::Given => w::TemplateDeadline::Given,
     })
 }
 
 #[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
-pub(crate) fn operations_budget(value: c::TemplateBudget, _limits: &w::Limits) -> Result<w::TemplateBudget, w::Problem> {
+pub(crate) fn operations_budget(
+    value: c::TemplateBudget,
+    _limits: &w::Limits,
+) -> Result<w::TemplateBudget, w::Problem> {
     Ok(match value {
-        c::TemplateBudget::Amount(value) => {
-            w::TemplateBudget::Amount(w::TemplateAmount { value })
-        }
-        c::TemplateBudget::AsAllowed { cap } => {
-            w::TemplateBudget::AsAllowed(w::TemplateAsAllowed { cap })
-        }
+        c::TemplateBudget::Amount(value) => w::TemplateBudget::Amount(w::TemplateAmount { value }),
+        c::TemplateBudget::AsAllowed { cap } => w::TemplateBudget::AsAllowed(w::TemplateAsAllowed { cap }),
         c::TemplateBudget::Given => w::TemplateBudget::Given,
     })
 }
@@ -1440,9 +1429,7 @@ pub(crate) fn operations_executor(
     _limits: &w::Limits,
 ) -> Result<w::TemplateExecutor, w::Problem> {
     Ok(match value {
-        c::TemplateExecutor::Charter(value) => {
-            w::TemplateExecutor::Charter(w::TemplateCharter { value })
-        }
+        c::TemplateExecutor::Charter(value) => w::TemplateExecutor::Charter(w::TemplateCharter { value }),
         c::TemplateExecutor::Chosen => w::TemplateExecutor::Chosen,
     })
 }
@@ -1460,49 +1447,49 @@ pub(crate) fn asks_wire_policy_edit_role(
     limits: &w::Limits,
 ) -> Result<w::PolicyEditRole, w::Problem> {
     Ok(w::PolicyEditRole {
-            number: value.number,
-            authority: asks_wire_owner_authority(&value.authority, limits)?,
-            period_spend: value.period_spend,
-            requests: value.requests,
-            decides: value.decides,
-        })
+        number: value.number,
+        authority: asks_wire_owner_authority(&value.authority, limits)?,
+        period_spend: value.period_spend,
+        requests: value.requests,
+        decides: value.decides,
+    })
 }
 
 pub(crate) fn settings_wire_template(value: &c::Template, limits: &w::Limits) -> Result<w::Template, w::Problem> {
     let mut resources = List::with_capacity(value.resources.len());
     for resource in &value.resources {
-        resources
-            .push(w::Symbol { connector: resource.connector, symbol: resource.symbol })
-            .expect("same capacity");
+        resources.push(w::Symbol { connector: resource.connector, symbol: resource.symbol }).expect("same capacity");
     }
     Ok(w::Template {
-            resources,
-            number: value.number,
-            name: settings_wire_document_text(&value.name, limits)?,
-            executor: operations_executor(value.executor, limits)?,
-            contract: settings_wire_task_contract(&value.contract, limits)?,
-            shallower: value.shallower,
-            budget: operations_budget(value.budget, limits)?,
-            deadline: operations_deadline(value.deadline, limits)?,
-            tracked: value.tracked,
-            flags: w::TaskFlags {
-                    ended_by: match value.flags.ended_by {
-                        c::EndedBy::Result => w::EndedBy::Result,
-                        c::EndedBy::Requester => w::EndedBy::Requester,
-                        c::EndedBy::Standing => w::EndedBy::Standing,
-                        c::EndedBy::Closer(closer) => w::EndedBy::Closer(w::Closer { connector: closer.connector, code: closer.code }),
-                    },
-                    conversation: value.flags.conversation,
-                    listed: value.flags.listed,
-                    retention: match value.flags.retention {
-                        c::Retention::Kept => w::Retention::Kept,
-                        c::Retention::ForgottenOnceRead => w::Retention::ForgottenOnceRead,
-                    },
-                },
-            label: value.label,
-            grace: value.grace,
-            llm: llm_wire_choice(value.llm.as_ref(), limits)?,
-        })
+        resources,
+        number: value.number,
+        name: settings_wire_document_text(&value.name, limits)?,
+        executor: operations_executor(value.executor, limits)?,
+        contract: settings_wire_task_contract(&value.contract, limits)?,
+        shallower: value.shallower,
+        budget: operations_budget(value.budget, limits)?,
+        deadline: operations_deadline(value.deadline, limits)?,
+        tracked: value.tracked,
+        flags: w::TaskFlags {
+            ended_by: match value.flags.ended_by {
+                c::EndedBy::Result => w::EndedBy::Result,
+                c::EndedBy::Requester => w::EndedBy::Requester,
+                c::EndedBy::Standing => w::EndedBy::Standing,
+                c::EndedBy::Closer(closer) => {
+                    w::EndedBy::Closer(w::Closer { connector: closer.connector, code: closer.code })
+                }
+            },
+            conversation: value.flags.conversation,
+            listed: value.flags.listed,
+            retention: match value.flags.retention {
+                c::Retention::Kept => w::Retention::Kept,
+                c::Retention::ForgottenOnceRead => w::Retention::ForgottenOnceRead,
+            },
+        },
+        label: value.label,
+        grace: value.grace,
+        llm: llm_wire_choice(value.llm.as_ref(), limits)?,
+    })
 }
 
 pub(crate) fn llm_wire_choice(
@@ -1517,28 +1504,25 @@ pub(crate) fn llm_wire_choice(
         subagents.push(llm_wire_model_effort(item, limits)?).expect("same capacity");
     }
     Ok(Some(w::LlmChoice {
-            later: match &value.later {
-                Some(later) => {
-                    let mut subagents = List::with_capacity(later.subagents.len());
-                    for item in &later.subagents {
-                        subagents.push(llm_wire_model_effort(item, limits)?).expect("same capacity");
-                    }
-                    Some(w::LlmLater { main: llm_wire_model_effort(&later.main, limits)?, subagents })
+        later: match &value.later {
+            Some(later) => {
+                let mut subagents = List::with_capacity(later.subagents.len());
+                for item in &later.subagents {
+                    subagents.push(llm_wire_model_effort(item, limits)?).expect("same capacity");
                 }
-                None => None,
-            },
-            account: value.account,
-            main: llm_wire_model_effort(&value.main, limits)?,
-            subagents,
-        }))
+                Some(w::LlmLater { main: llm_wire_model_effort(&later.main, limits)?, subagents })
+            }
+            None => None,
+        },
+        account: value.account,
+        main: llm_wire_model_effort(&value.main, limits)?,
+        subagents,
+    }))
 }
 
 #[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
 pub(crate) fn llm_wire_model_effort(value: &c::ModelEffort, _limits: &w::Limits) -> Result<w::ModelEffort, w::Problem> {
-    Ok(w::ModelEffort {
-            model: bytes::copy_of(value.model.bytes()),
-            effort: optional_text(value.effort.as_ref()),
-        })
+    Ok(w::ModelEffort { model: bytes::copy_of(value.model.bytes()), effort: optional_text(value.effort.as_ref()) })
 }
 
 pub(crate) fn settings_wire_task_contract(
@@ -1546,18 +1530,24 @@ pub(crate) fn settings_wire_task_contract(
     limits: &w::Limits,
 ) -> Result<w::TaskContractDocument, w::Problem> {
     Ok(match value {
-        c::TaskContractDocument::Job { bytes } => w::TaskContractDocument::Job(w::TaskContractDocumentJob { bytes: *bytes }),
+        c::TaskContractDocument::Job { bytes } => {
+            w::TaskContractDocument::Job(w::TaskContractDocumentJob { bytes: *bytes })
+        }
         c::TaskContractDocument::Approval { state, part } => {
             w::TaskContractDocument::Approval(w::TaskContractDocumentApproval {
-                    state: bytes::copy_of(state),
-                    part: settings_wire_owner_part(part, limits)?,
-                })
+                state: bytes::copy_of(state),
+                part: settings_wire_owner_part(part, limits)?,
+            })
         }
-        c::TaskContractDocument::Report { words } => w::TaskContractDocument::Report(
-            w::TaskContractDocumentReport { words: *words },
-        ),
+        c::TaskContractDocument::Report { words } => {
+            w::TaskContractDocument::Report(w::TaskContractDocumentReport { words: *words })
+        }
         c::TaskContractDocument::Change { connector, kind, words } => {
-            w::TaskContractDocument::Change(w::TaskContractDocumentChange { connector: *connector, kind: *kind, words: *words })
+            w::TaskContractDocument::Change(w::TaskContractDocumentChange {
+                connector: *connector,
+                kind: *kind,
+                words: *words,
+            })
         }
         c::TaskContractDocument::Verdict { choices, cut } => {
             let mut rows = List::with_capacity(choices.len());
@@ -1569,14 +1559,13 @@ pub(crate) fn settings_wire_task_contract(
                         .push(w::FieldRule { name: bytes::copy_of(&field.name), max: field.max })
                         .expect("same capacity");
                 }
-                let row = w::VerdictChoice {
-                        code: choice.code,
-                        words: choice.words,
-                        followups: choice.followups,
-                        fields,
-                    };
-                size =
-                    size.checked_add(row.measure(limits)?).ok_or(root_too_large())?.checked_add(4).ok_or(root_too_large())?;
+                let row =
+                    w::VerdictChoice { code: choice.code, words: choice.words, followups: choice.followups, fields };
+                size = size
+                    .checked_add(row.measure(limits)?)
+                    .ok_or(root_too_large())?
+                    .checked_add(4)
+                    .ok_or(root_too_large())?;
                 rows.push(row).expect("same capacity");
             }
             if size > limits.task_contract_document_verdict_choices {
@@ -1604,9 +1593,7 @@ pub(crate) fn settings_wire_owner_part(value: &c::Part, _limits: &w::Limits) -> 
         c::PartKind::Hold => w::PartKind::Hold,
     };
     let key = match &value.key {
-        c::PartKey::Number(value) => {
-            w::PartKey::Number(w::PartKeyNumber { value: *value })
-        }
+        c::PartKey::Number(value) => w::PartKey::Number(w::PartKeyNumber { value: *value }),
         c::PartKey::Path(values) => {
             let mut rows = List::with_capacity(values.len());
             for value in values {
@@ -1635,11 +1622,11 @@ pub(crate) fn settings_wire_charter(value: &c::Charter, limits: &w::Limits) -> R
     for item in &value.documents {
         documents
             .push(w::CharterDocument {
-                    connector: item.connector,
-                    name: item.name.clone(),
-                    path: item.path.clone(),
-                    heading: item.heading.clone(),
-                })
+                connector: item.connector,
+                name: item.name.clone(),
+                path: item.path.clone(),
+                heading: item.heading.clone(),
+            })
             .expect("same capacity");
     }
     let mut parts = List::with_capacity(value.parts.len());
@@ -1649,29 +1636,29 @@ pub(crate) fn settings_wire_charter(value: &c::Charter, limits: &w::Limits) -> R
             .expect("same capacity");
     }
     Ok(w::Charter {
-            parts,
-            documents,
-            rest: value.rest,
-            resume: value.resume(),
-            inspect: value.inspect(),
-            modify: value.modify(),
-            shell: value.shell(),
-            agents: value.agents(),
-            number: value.number,
-            instructions: bytes::copy_of(value.instructions.bytes()),
-            waiting: value.waiting,
-            turns: value.turns,
-            time: value.time,
-            reserve_turns: value.reserve_turns,
-            reserve_time: value.reserve_time,
-            model: settings_wire_setting_model(&value.model, limits)?,
-            alternatives,
-            call_timeout: value.call_timeout,
-            tools: value.tools,
-            hosts: settings_wire_setting_hosts(&value.hosts, limits),
-            spend: value.spend,
-            wake: settings_wire_wake(value.wake, limits)?,
-        })
+        parts,
+        documents,
+        rest: value.rest,
+        resume: value.resume(),
+        inspect: value.inspect(),
+        modify: value.modify(),
+        shell: value.shell(),
+        agents: value.agents(),
+        number: value.number,
+        instructions: bytes::copy_of(value.instructions.bytes()),
+        waiting: value.waiting,
+        turns: value.turns,
+        time: value.time,
+        reserve_turns: value.reserve_turns,
+        reserve_time: value.reserve_time,
+        model: settings_wire_setting_model(&value.model, limits)?,
+        alternatives,
+        call_timeout: value.call_timeout,
+        tools: value.tools,
+        hosts: settings_wire_setting_hosts(&value.hosts, limits),
+        spend: value.spend,
+        wake: settings_wire_wake(value.wake, limits)?,
+    })
 }
 
 pub(crate) fn settings_wire_setting_hosts(value: &c::SettingHosts, _limits: &w::Limits) -> w::SettingHosts {
@@ -1692,21 +1679,21 @@ pub(crate) fn settings_wire_setting_model(
         efforts.push(bytes::copy_of(item.bytes())).expect("same capacity");
     }
     Ok(w::SettingModel {
-            provider: value.provider,
-            dialect: value.dialect,
-            endpoint: value.endpoint,
-            program: optional_text(value.program.as_ref()),
-            name: bytes::copy_of(value.name.bytes()),
-            window: value.window,
-            output: value.output,
-            input_price: value.input_price,
-            cached_price: value.cached_price,
-            cache_write_price: value.cache_write_price,
-            output_price: value.output_price,
-            price_unit: value.price_unit,
-            efforts,
-            effort: optional_text(value.effort.as_ref()),
-        })
+        provider: value.provider,
+        dialect: value.dialect,
+        endpoint: value.endpoint,
+        program: optional_text(value.program.as_ref()),
+        name: bytes::copy_of(value.name.bytes()),
+        window: value.window,
+        output: value.output,
+        input_price: value.input_price,
+        cached_price: value.cached_price,
+        cache_write_price: value.cache_write_price,
+        output_price: value.output_price,
+        price_unit: value.price_unit,
+        efforts,
+        effort: optional_text(value.effort.as_ref()),
+    })
 }
 
 pub(crate) fn settings_wire_setting(value: c::Setting, limits: &w::Limits) -> Result<w::Setting, w::Problem> {
@@ -1714,15 +1701,15 @@ pub(crate) fn settings_wire_setting(value: c::Setting, limits: &w::Limits) -> Re
         c::Setting::Charter(item) => w::Setting::Charter(settings_wire_setting_number(item, limits)?),
         c::Setting::Template(item) => w::Setting::Template(settings_wire_setting_number(item, limits)?),
         c::Setting::Policy(item) => w::Setting::Policy(settings_wire_setting_number(item, limits)?),
-        c::Setting::Application { kind, scope, number } => w::Setting::Application(w::ApplicationSetting { kind, scope, number }),
+        c::Setting::Application { kind, scope, number } => {
+            w::Setting::Application(w::ApplicationSetting { kind, scope, number })
+        }
         c::Setting::Rules => w::Setting::Rules,
         c::Setting::Limits => w::Setting::Limits,
         c::Setting::Model(item) => w::Setting::Model(settings_wire_setting_number(item, limits)?),
         c::Setting::Worker(item) => w::Setting::Worker(settings_wire_setting_number(item, limits)?),
         c::Setting::Provider(item) => w::Setting::Provider(settings_wire_setting_number(item, limits)?),
-        c::Setting::ProjectPolicy { project } => {
-            w::Setting::ProjectPolicy(w::ProjectPolicySetting { project })
-        }
+        c::Setting::ProjectPolicy { project } => w::Setting::ProjectPolicy(w::ProjectPolicySetting { project }),
     })
 }
 
@@ -1765,30 +1752,26 @@ fn optional_text(value: Option<&c::Text>) -> Option<Box<[u8]>> {
 
 fn settings_wire_wake(value: c::WakePolicy, limits: &w::Limits) -> Result<w::WakePolicy, w::Problem> {
     Ok(w::WakePolicy {
-            words: settings_wire_wake_rule(value.words, limits)?,
-            notices: settings_wire_wake_rule(value.notices, limits)?,
-            news: settings_wire_wake_rule(value.news, limits)?,
-            results: match value.results {
-                c::ResultsWake::Never => w::ResultsWake::Never,
-                c::ResultsWake::Each => w::ResultsWake::Each,
-                c::ResultsWake::LastOrFailure => w::ResultsWake::LastOrFailure,
-            },
-            questions: value.questions,
-            answers: value.answers,
-            timers: value.timers,
-        })
+        words: settings_wire_wake_rule(value.words, limits)?,
+        notices: settings_wire_wake_rule(value.notices, limits)?,
+        news: settings_wire_wake_rule(value.news, limits)?,
+        results: match value.results {
+            c::ResultsWake::Never => w::ResultsWake::Never,
+            c::ResultsWake::Each => w::ResultsWake::Each,
+            c::ResultsWake::LastOrFailure => w::ResultsWake::LastOrFailure,
+        },
+        questions: value.questions,
+        answers: value.answers,
+        timers: value.timers,
+    })
 }
 #[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
 fn settings_wire_wake_rule(value: c::WakeRule, _limits: &w::Limits) -> Result<w::WakeRule, w::Problem> {
     Ok(match value {
         c::WakeRule::Never => w::WakeRule::Never,
         c::WakeRule::Immediate => w::WakeRule::Immediate,
-        c::WakeRule::Batch { count, age } => {
-            w::WakeRule::Batch(w::WakeRuleBatch { count, age })
-        }
-        c::WakeRule::Paced { span } => {
-            w::WakeRule::Paced(w::WakeRulePaced { span })
-        }
+        c::WakeRule::Batch { count, age } => w::WakeRule::Batch(w::WakeRuleBatch { count, age }),
+        c::WakeRule::Paced { span } => w::WakeRule::Paced(w::WakeRulePaced { span }),
     })
 }
 
@@ -1836,25 +1819,25 @@ fn restore_application_state(v: &w::ApplicationState) -> c::ApplicationState {
 }
 fn wire_catalogue(value: &c::CatalogueEntry, limits: &w::Limits) -> Result<w::CatalogueEntry, w::Problem> {
     Ok(w::CatalogueEntry {
-            number: value.number,
-            model: settings_wire_setting_model(&value.model, limits)?,
-            shown: match &value.shown {
-                Some(value) => Some(bytes::copy_of(value.bytes())),
-                None => None,
-            },
-            description: match &value.description {
-                Some(value) => Some(bytes::copy_of(value.bytes())),
-                None => None,
-            },
-            picker: value.picker,
-            withdrawn: value.withdrawn,
-            estimated: value.estimated,
-            source: match value.source {
-                c::ModelSource::Stock => w::ModelSource::Stock,
-                c::ModelSource::List => w::ModelSource::List,
-                c::ModelSource::Person => w::ModelSource::Person,
-            },
-        })
+        number: value.number,
+        model: settings_wire_setting_model(&value.model, limits)?,
+        shown: match &value.shown {
+            Some(value) => Some(bytes::copy_of(value.bytes())),
+            None => None,
+        },
+        description: match &value.description {
+            Some(value) => Some(bytes::copy_of(value.bytes())),
+            None => None,
+        },
+        picker: value.picker,
+        withdrawn: value.withdrawn,
+        estimated: value.estimated,
+        source: match value.source {
+            c::ModelSource::Stock => w::ModelSource::Stock,
+            c::ModelSource::List => w::ModelSource::List,
+            c::ModelSource::Person => w::ModelSource::Person,
+        },
+    })
 }
 fn restore_catalogue(value: &w::CatalogueEntry, limits: &Limits) -> Result<c::CatalogueEntry, w::Problem> {
     Ok(c::CatalogueEntry {

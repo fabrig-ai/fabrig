@@ -26,20 +26,10 @@ fn linked_at(path: &[u8], records: Vec<skein_ui_web::store::Record>) -> Host {
     host.requests();
     host.heard(Heard::StreamOpened);
     let mut served = List::with_capacity(2);
-    for (owner, version) in [
-        (w::Owner::Jig, VERSION),
-        (
-            w::Owner::Family(
-                w::Family { number: wire::FORGE },
-            ),
-            wire::CLIENT_VERSION,
-        ),
-    ] {
-        served
-            .push(
-                w::Served { owner, first: version, last: version },
-            )
-            .expect("two families");
+    for (owner, version) in
+        [(w::Owner::Jig, VERSION), (w::Owner::Family(w::Family { number: wire::FORGE }), wire::CLIENT_VERSION)]
+    {
+        served.push(w::Served { owner, first: version, last: version }).expect("two families");
     }
     streamed(
         &mut host,
@@ -54,24 +44,25 @@ fn linked_at(path: &[u8], records: Vec<skein_ui_web::store::Record>) -> Host {
     host.requests();
     let mut me = jig_client_test_records::frame_record();
     let provider = w::ProviderOffer {
-            provider: 17,
-            name: w::DocumentText { bytes: b"openai".as_slice().into(), cut: false },
-            sign_in: true,
-            key: true,
-            programs_cut: false,
-            none: false,
-            signed_in_plan: true,
-            programs: List::with_capacity(0),
-            manage_usage: None,
-            key_bytes: 4096,
-        };
+        provider: 17,
+        name: w::DocumentText { bytes: b"openai".as_slice().into(), cut: false },
+        sign_in: true,
+        key: true,
+        programs_cut: false,
+        none: false,
+        signed_in_plan: true,
+        programs: List::with_capacity(0),
+        manage_usage: None,
+        key_bytes: 4096,
+    };
     me.providers = provider.encode(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture encoding");
     let value = w::DeliveryValue::Me(me);
     streamed(
         &mut host,
-        &w::StreamEvent::Delivery(
-            w::Delivery { watch, document: owned(value.encode(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture encoding")) },
-        ),
+        &w::StreamEvent::Delivery(w::Delivery {
+            watch,
+            document: owned(value.encode(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture encoding")),
+        }),
     );
     admit_watches(&mut host);
     host.client(jig_client::Event::Stored);
@@ -114,14 +105,15 @@ fn press_sign_in() -> (Host, Duties) {
 fn answer_sign_in(host: &mut Host) -> Duties {
     host.client(jig_client::Event::Stored);
     let (signing, _) = exchange(host);
-    let started = w::DocumentOutcome::AccountSignInStarted(
-        w::OutcomeAccountSignInStarted { source: 43, address: ADDRESS.into() },
-    );
-    let outcome = w::Outcome::Document(
-        w::OutcomeDocument { value: started },
-    );
+    let started = w::DocumentOutcome::AccountSignInStarted(w::OutcomeAccountSignInStarted {
+        source: 43,
+        address: ADDRESS.into(),
+    });
+    let outcome = w::Outcome::Document(w::OutcomeDocument { value: started });
     let answer = w::Final::Done(w::Done { outcome });
-    let answer = w::KeyedAnswer::FinalAnswer(owned(answer.encode(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture encoding")));
+    let answer = w::KeyedAnswer::FinalAnswer(owned(
+        answer.encode(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture encoding"),
+    ));
     host.report(Report::Heard(Heard::Answered {
         exchange: signing,
         status: 200,

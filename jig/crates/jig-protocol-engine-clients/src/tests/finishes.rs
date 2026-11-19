@@ -1,8 +1,8 @@
 //! A pasted address is held, bounded and erased once (protocol/store/secrets.md).
-use jig_client_protocol_wire::Record as _;
 use super::fixtures::{self as f, Exchange};
 use crate::{Event, Message, Request, SecretOwner, SecretsAnswer, SecretsRequest};
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use jig_domain_core_vocabulary as core;
 use jig_domain_people as p;
 use skein_lib::{Secret, Token, Writer};
@@ -17,20 +17,21 @@ fn roomy() -> Exchange {
     Exchange::with_env(env)
 }
 fn finish(exchange: &mut Exchange, bytes: &[u8]) -> Token {
-    let change = w::AccountChange::FinishSignIn(
-        w::AccountChangeFinishSignIn { source: SOURCE, digest: skein_lib::sha256::digest(bytes) },
-    );
-    let ask = w::Ask::AccountChange(
-        w::AskAccountChange { holder: w::AskAccountHolder::Own, change },
-    );
+    let change = w::AccountChange::FinishSignIn(w::AccountChangeFinishSignIn {
+        source: SOURCE,
+        digest: skein_lib::sha256::digest(bytes),
+    });
+    let ask = w::Ask::AccountChange(w::AskAccountChange { holder: w::AskAccountHolder::Own, change });
     let keyed = w::Keyed {
-            key: [5; 16],
-            owner: w::Owner::Jig,
-            version: jig_client_protocol_wire::VERSION,
-            request: f::encode_ask(&ask),
-            value: Some(Secret::new(Box::from(bytes))),
-        };
-    let mut writer = Writer::new(usize::try_from(keyed.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+        key: [5; 16],
+        owner: w::Owner::Jig,
+        version: jig_client_protocol_wire::VERSION,
+        request: f::encode_ask(&ask),
+        value: Some(Secret::new(Box::from(bytes))),
+    };
+    let mut writer = Writer::new(
+        usize::try_from(keyed.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
     keyed.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
     let owner = exchange.send(Message::Request(writer.finish()));
     exchange.authenticate();

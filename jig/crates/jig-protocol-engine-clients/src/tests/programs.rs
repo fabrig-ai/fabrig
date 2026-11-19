@@ -75,10 +75,7 @@ fn a_host_rule_reaches_the_wire() {
     use jig_domain_core_vocabulary::HostRule;
     for (rule, expected) in [
         (HostRule::Open, w::HostRule::Open),
-        (
-            HostRule::Person(7),
-            w::HostRule::Person(w::HostPerson { party: 7 }),
-        ),
+        (HostRule::Person(7), w::HostRule::Person(w::HostPerson { party: 7 })),
         (HostRule::Several, w::HostRule::Several),
         (HostRule::Unknown, w::HostRule::Unknown),
     ] {

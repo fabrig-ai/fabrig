@@ -43,26 +43,17 @@ pub fn refused_moved() -> Refused {
     let how = EndingTaskFields { value: 2 };
     let reason = HoldReasonDependencyFields { task: 31, how: 1 };
     let words = DocumentText { bytes: Box::from(b"failed".as_slice()), cut: true };
-    let failed =
-        ChipEndingFailedFields { value: words };
+    let failed = ChipEndingFailedFields { value: words };
     let mut rows = List::with_capacity(3);
-    rows.push(Fact::HoldReason(
-        HoldReasonRow { parent: None, value: HoldReasonFields::Dependency(reason) },
-    ))
-    .expect("three rows");
-    rows.push(Fact::Ending(
-        EndingRow { parent: Some(0), value: EndingFields::Task(how) },
-    ))
-    .expect("three rows");
-    rows.push(Fact::ChipEnding(
-        ChipEndingRow { parent: Some(1), value: ChipEndingFields::Failed(failed) },
-    ))
-    .expect("three rows");
+    rows.push(Fact::HoldReason(HoldReasonRow { parent: None, value: HoldReasonFields::Dependency(reason) }))
+        .expect("three rows");
+    rows.push(Fact::Ending(EndingRow { parent: Some(0), value: EndingFields::Task(how) })).expect("three rows");
+    rows.push(Fact::ChipEnding(ChipEndingRow { parent: Some(1), value: ChipEndingFields::Failed(failed) }))
+        .expect("three rows");
     let rows = piece_items(&rows);
     let reason = HoldReason { rows };
     let reason = CurrentHoldDocument { value: reason };
-    let what =
-        MovedHold { reason: Some(CurrentHold::Document(reason)) };
+    let what = MovedHold { reason: Some(CurrentHold::Document(reason)) };
     let now = Revision { value: u64::MAX };
     let moved = RefusalMoved { now, what: Moved::Hold(what) };
     Refused { at: None, refusal: Refusal::Moved(moved) }
@@ -99,19 +90,17 @@ pub fn encoded_batch_members(members: &List<Member>) -> Box<[u8]> {
 }
 
 pub fn funding_rows(count: u32) -> List<FundingRecord> {
-    let period =
-        PeriodTimes { began: u64::MAX, next: None };
+    let period = PeriodTimes { began: u64::MAX, next: None };
     let numbers = Numbers { budget: u64::MAX, spent: 11, spent_below: 17, reserved: 23 };
-    let source =
-        FunderPeriod { project: 17, period: u64::MAX };
+    let source = FunderPeriod { project: 17, period: u64::MAX };
     let row = FundingRecord {
-            period: Some(period),
-            funder: Funder::Period(source),
-            parent: None,
-            numbers,
-            made: u32::MAX,
-            closed: true,
-        };
+        period: Some(period),
+        funder: Funder::Period(source),
+        parent: None,
+        numbers,
+        made: u32::MAX,
+        closed: true,
+    };
     let mut rows = List::with_capacity(count);
     for _ in 0..count {
         rows.push(row.clone()).expect("reserved funding rows");
@@ -136,21 +125,19 @@ pub fn piece_items<T: Record<Limits = Limits>>(rows: &List<T>) -> Box<[u8]> {
 pub fn activity_line(turn: Box<[u8]>) -> DecodedActivityLine {
     let name = TurnName { attempt: u64::MAX, number: u32::MAX };
     let source = ActivityLine {
-            task: u64::MAX,
-            position: u64::MAX,
-            at: u64::MAX,
-            line: Activity::Turn(
-                ActivityTurn { reply: 0, attempt: u64::MAX, turn: u32::MAX, read: None },
-            ),
-        };
+        task: u64::MAX,
+        position: u64::MAX,
+        at: u64::MAX,
+        line: Activity::Turn(ActivityTurn { reply: 0, attempt: u64::MAX, turn: u32::MAX, read: None }),
+    };
     let decoded = ArchivedTurn {
-            task: u64::MAX,
-            name,
-            cumulative: 0,
-            read: None,
-            at: u64::MAX,
-            turn: TurnBytes::Carried(TurnCarried { bytes: turn }),
-        };
+        task: u64::MAX,
+        name,
+        cumulative: 0,
+        read: None,
+        at: u64::MAX,
+        turn: TurnBytes::Carried(TurnCarried { bytes: turn }),
+    };
     DecodedActivityLine { source, decoded: Some(decoded) }
 }
 
@@ -241,23 +228,23 @@ pub fn funder_period(_limits: &Limits) -> FunderPeriod {
 
 pub fn budget(limits: &Limits) -> Budget {
     Budget {
-            numbers: numbers(limits),
-            left: u64::MAX,
-            funder: Funder::Period(funder_period(limits)),
-            deadline: Some(u64::MAX),
-        }
+        numbers: numbers(limits),
+        left: u64::MAX,
+        funder: Funder::Period(funder_period(limits)),
+        deadline: Some(u64::MAX),
+    }
 }
 
 pub fn pool_ledger(limits: &Limits) -> PoolLedger {
     PoolLedger {
-            source: Funder::Period(funder_period(limits)),
-            parent: Some(Funder::Task(funder_task(limits))),
-            numbers: numbers(limits),
-            left: u64::MAX,
-            closed: true,
-            began: Some(u64::MAX),
-            next: None,
-        }
+        source: Funder::Period(funder_period(limits)),
+        parent: Some(Funder::Task(funder_task(limits))),
+        numbers: numbers(limits),
+        left: u64::MAX,
+        closed: true,
+        began: Some(u64::MAX),
+        next: None,
+    }
 }
 
 pub fn funder_task(_limits: &Limits) -> FunderTask {
@@ -270,26 +257,21 @@ pub fn held_role_policy(_limits: &Limits) -> HeldRolePolicy {
 
 pub fn project_role(limits: &Limits) -> MeProject {
     MeProject {
-            left_out: 0,
-            defaults: List::with_capacity(0),
-            public: None,
-            models: List::with_capacity(0),
-            templates: Box::from([]),
-            creating: None,
-            project: u32::MAX,
-            name: document_text(limits),
-            role: HeldRole::Policy(held_role_policy(limits)),
-            pool: Some(pool_ledger(limits)),
-        }
+        left_out: 0,
+        defaults: List::with_capacity(0),
+        public: None,
+        models: List::with_capacity(0),
+        templates: Box::from([]),
+        creating: None,
+        project: u32::MAX,
+        name: document_text(limits),
+        role: HeldRole::Policy(held_role_policy(limits)),
+        pool: Some(pool_ledger(limits)),
+    }
 }
 
 pub fn frame_party(limits: &Limits) -> MeParty {
-    MeParty {
-            number: u64::MAX,
-            kind: PartyKind::Service,
-            login: document_text(limits),
-            name: document_text(limits),
-        }
+    MeParty { number: u64::MAX, kind: PartyKind::Service, login: document_text(limits), name: document_text(limits) }
 }
 
 pub fn needs(_limits: &Limits) -> Needs {
@@ -314,16 +296,14 @@ pub fn wake_rule_batch(_limits: &Limits) -> WakeRuleBatch {
 
 pub fn wake_policy(limits: &Limits) -> WakePolicy {
     WakePolicy {
-            words: WakeRule::Batch(wake_rule_batch(limits)),
-            notices: WakeRule::Immediate,
-            news: WakeRule::Paced(
-                WakeRulePaced { span: skein_lib::Duration::from_nanos(u64::MAX) },
-            ),
-            results: ResultsWake::LastOrFailure,
-            questions: true,
-            answers: false,
-            timers: true,
-        }
+        words: WakeRule::Batch(wake_rule_batch(limits)),
+        notices: WakeRule::Immediate,
+        news: WakeRule::Paced(WakeRulePaced { span: skein_lib::Duration::from_nanos(u64::MAX) }),
+        results: ResultsWake::LastOrFailure,
+        questions: true,
+        answers: false,
+        timers: true,
+    }
 }
 
 pub fn chip_executor_agent(_limits: &Limits) -> ChipExecutorAgent {
@@ -340,47 +320,47 @@ pub fn executor_agent(_limits: &Limits) -> ExecutorAgent {
 
 pub fn chip_details_fields(limits: &Limits) -> ChipDetailsFields {
     ChipDetailsFields {
-            dependencies: List::with_capacity(0),
-            project: u32::MAX,
-            executor: Executor::Agent(executor_agent(limits)),
-            phase_since: u64::MAX,
-            run_since: None,
-            attempt: Some(u64::MAX),
-            retry: None,
-            wake: wake_policy(limits),
-            person_wait: None,
-            hold: None,
-            budget: budget(limits),
-            activity: u64::MAX,
-            resources: Box::from([]),
-            resources_cut: true,
-            resources_observed: false,
-            procedure: None,
-            live_delegates: u32::MAX,
-            closing_connectors: Some(List::with_capacity(0)),
-            ending: None,
-            ended_at: None,
-            observation: None,
-        }
+        dependencies: List::with_capacity(0),
+        project: u32::MAX,
+        executor: Executor::Agent(executor_agent(limits)),
+        phase_since: u64::MAX,
+        run_since: None,
+        attempt: Some(u64::MAX),
+        retry: None,
+        wake: wake_policy(limits),
+        person_wait: None,
+        hold: None,
+        budget: budget(limits),
+        activity: u64::MAX,
+        resources: Box::from([]),
+        resources_cut: true,
+        resources_observed: false,
+        procedure: None,
+        live_delegates: u32::MAX,
+        closing_connectors: Some(List::with_capacity(0)),
+        ending: None,
+        ended_at: None,
+        observation: None,
+    }
 }
 
 pub fn frame_at_ceilings(limits: &Limits) -> Me {
     Me {
-            providers: Box::new([]),
-            providers_cut: false,
-            key_bytes: 256,
-            redirect_bytes: 4096,
-            words_bytes: 8192,
-            party: frame_party(limits),
-            projects: piece_items(&repeated(project_role(limits), 2)),
-            needs: needs(limits),
-            needs_total: u32::MAX,
-            updates: count(limits),
-            results_seen: u64::MAX,
-            cut: true,
-            retention: skein_lib::Duration::from_nanos(u64::MAX),
-            deployment_role: Some(HeldRole::Owner),
-        }
+        providers: Box::new([]),
+        providers_cut: false,
+        key_bytes: 256,
+        redirect_bytes: 4096,
+        words_bytes: 8192,
+        party: frame_party(limits),
+        projects: piece_items(&repeated(project_role(limits), 2)),
+        needs: needs(limits),
+        needs_total: u32::MAX,
+        updates: count(limits),
+        results_seen: u64::MAX,
+        cut: true,
+        retention: skein_lib::Duration::from_nanos(u64::MAX),
+        deployment_role: Some(HeldRole::Owner),
+    }
 }
 
 pub fn chip(_limits: &Limits, rows: &List<Fact>) -> Chip {
@@ -401,9 +381,7 @@ pub fn decode_chip_facts(limits: &Limits, bytes: &[u8]) -> List<Fact> {
 
 pub fn not_served() -> NotServed {
     let mut served = List::with_capacity(1);
-    served
-        .push(Served { owner: Owner::Jig, first: 28, last: 28 })
-        .expect("range slot");
+    served.push(Served { owner: Owner::Jig, first: 28, last: 28 }).expect("range slot");
     NotServed { owner: Owner::Jig, served }
 }
 mod operations;
@@ -419,26 +397,19 @@ pub fn chip_phases(limits: &Limits) -> [ChipPhaseOwnerFields; 1] {
 }
 pub fn chip_facts(limits: &Limits, phase: ChipPhaseOwnerFields) -> List<Fact> {
     let mut rows = List::with_capacity(3);
-    rows.push(Fact::Chip(
-        ChipRow {
-                parent: None,
-                value: ChipFields {
-                        task: u64::MAX,
-                        title: document_text(limits),
-                        executor: ChipExecutor::Agent(chip_executor_agent(limits)),
-                        phase: Phase::Ended,
-                        details: 1,
-                    },
-            },
-    ))
+    rows.push(Fact::Chip(ChipRow {
+        parent: None,
+        value: ChipFields {
+            task: u64::MAX,
+            title: document_text(limits),
+            executor: ChipExecutor::Agent(chip_executor_agent(limits)),
+            phase: Phase::Ended,
+            details: 1,
+        },
+    }))
     .expect("root row");
-    rows.push(Fact::ChipPhase(
-        ChipPhaseRow { parent: Some(0), value: phase },
-    ))
-    .expect("phase");
-    rows.push(Fact::ChipDetails(Box::new(
-        ChipDetailsRow { parent: Some(1), value: chip_details_fields(limits) },
-    )))
-    .expect("details");
+    rows.push(Fact::ChipPhase(ChipPhaseRow { parent: Some(0), value: phase })).expect("phase");
+    rows.push(Fact::ChipDetails(Box::new(ChipDetailsRow { parent: Some(1), value: chip_details_fields(limits) })))
+        .expect("details");
     rows
 }

@@ -1,10 +1,10 @@
 //! A task's LLM choice and `me`'s models by their configured names (client/domain/contract/requests.md, 2, and client/domain/contract/documents.md, 1).
-use jig_client_protocol_wire::Record as _;
 use super::fixtures;
 use crate::{Component, Unusable, translate};
 use alloc::boxed::Box;
 use jig_client_domain::contract as c;
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use jig_domain_people as p;
 use jig_domain_tasks as t;
 use skein_lib::{Queue, Reader, Writer};
@@ -80,10 +80,7 @@ fn me_lists_the_cores_offer_with_its_accounts_in_order() {
     assert_eq!(careful.description.as_deref(), Some(b"For careful work".as_slice()));
     let quick = all.models.get(1).unwrap();
     assert_eq!((quick.name.as_ref(), (&quick.provider), quick.efforts.len()), (b"quick".as_slice(), &None, 0));
-    assert_eq!(
-        quick.prices.clone(),
-        w::MePrices { input: 1, cached: 1, cache_write: None, output: 2, unit: 1000 }
-    );
+    assert_eq!(quick.prices.clone(), w::MePrices { input: 1, cached: 1, cache_write: None, output: 2, unit: 1000 });
     assert_eq!((&quick.description), &None);
 }
 
@@ -183,7 +180,9 @@ fn create(choice: w::LlmChoice) -> w::Ask {
     let mut parts = w::NewTask::decode(&limits, &mut Reader::new(&bytes)).unwrap();
     parts.llm = Some(choice);
     let task = parts;
-    let mut out = Writer::new(usize::try_from(task.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    let mut out = Writer::new(
+        usize::try_from(task.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
     task.write(&jig_client_protocol_wire::CEILINGS, &mut out).unwrap();
     let tasks = fixtures::pieces(&[out.finish()]);
     w::Ask::Create(w::Create { project: fixtures::PROJECT, tasks })
@@ -192,13 +191,7 @@ fn create(choice: w::LlmChoice) -> w::Ask {
 fn amend(choice: w::LlmChoice) -> Box<w::Amend> {
     let mut change = fixtures::empty_amendment(None);
     change.llm = Some(choice);
-    let parts = w::Amend {
-        project: fixtures::PROJECT,
-        task: 8,
-        revision: None,
-        change,
-        reason: Box::new([]),
-    };
+    let parts = w::Amend { project: fixtures::PROJECT, task: 8, revision: None, change, reason: Box::new([]) };
     Box::new(parts)
 }
 /// The place and refusal the engine answers an ask with before the core sees it.
@@ -265,12 +258,10 @@ fn settings_requests(items: Box<[c::SettingItem]>) -> [w::Ask; 2] {
         c::ChangeSettings { against: 5, items: skein_lib::List::from_boxed(items), running: c::Running::Stays };
     let change = jig_client_protocol_link::translate::settings::wire_change_settings(&change, &limits).unwrap();
     let proposal = w::Propose {
-            project: 0,
-            action: w::ProposeAction::Settings(
-                w::ProposeSettings { against: 5, items: change.items.as_ref().into() },
-            ),
-            reason: b"review settings".as_slice().into(),
-        };
+        project: 0,
+        action: w::ProposeAction::Settings(w::ProposeSettings { against: 5, items: change.items.as_ref().into() }),
+        reason: b"review settings".as_slice().into(),
+    };
     [w::Ask::ChangeSettings(change), w::Ask::Propose(proposal)]
 }
 
@@ -374,8 +365,7 @@ fn selector_ask(names: &[&[u8]]) -> w::Ask {
     for name in names {
         rows.push(Box::from(*name)).unwrap();
     }
-    authority.models =
-        Some(w::ModelSet::Names(w::ModelSetNames { names: rows }));
+    authority.models = Some(w::ModelSet::Names(w::ModelSetNames { names: rows }));
     value.authority = authority;
     role.value = value;
     ask.edit = w::PolicyEdit::Role(role);
@@ -472,7 +462,9 @@ fn assert_task_refusal_round_trip(
             let mut deployment = fixtures::deployment_document();
             deployment.hello_refusals.get_mut(0).unwrap().why = why;
             let record = translate::deployment::document(&deployment, &limits).unwrap();
-            let mut writer = Writer::new(usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+            let mut writer = Writer::new(
+                usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+            );
             record.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
             let bytes = writer.finish();
             let decoded = w::Deployment::decode(&limits, &mut Reader::new(&bytes)).unwrap();
@@ -483,10 +475,15 @@ fn assert_task_refusal_round_trip(
         _ => panic!("matching refusal shapes"),
     }
     let record = translate::task::document(&task, &[], &limits).unwrap();
-    let mut writer = Writer::new(usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    let mut writer = Writer::new(
+        usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
     record.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
     let bytes = writer.finish();
-    assert!(u64::from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")) <= w::Task::encoded_bound(&limits).unwrap());
+    assert!(
+        u64::from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+            <= w::Task::encoded_bound(&limits).unwrap()
+    );
     let decoded = w::Task::decode(&limits, &mut Reader::new(&bytes)).unwrap();
     assert_eq!(decoded, record);
     let client = jig_client_protocol_link::translate::documents::task(decoded, &client_limits).unwrap();

@@ -1,7 +1,7 @@
 //! Milestone row fixtures for the client's grouped lists (client/forge/parts.md, 3).
-use jig_client_protocol_wire::Record as _;
 use jig_client::contract as c;
 use jig_client_protocol_wire as j;
+use jig_client_protocol_wire::Record as _;
 use jig_client_test_records as records;
 use skein_lib::{List, Wall, Writer};
 use temper_client_protocol_wire::{self as wire, v1 as w};
@@ -48,22 +48,19 @@ pub fn line_bytes(line: &c::TaskLine) -> Box<[u8]> {
     row.delegates_done = line.delegates_done;
     row.delegates_total = line.delegates_total;
     let row = row;
-    let mut writer = Writer::new(usize::try_from(row.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("fixture size"));
+    let mut writer = Writer::new(
+        usize::try_from(row.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+            .expect("fixture size"),
+    );
     row.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("fixture encoding");
     writer.finish()
 }
 
 fn requester(from: c::Requester) -> j::Requester {
     match from {
-        c::Requester::Task(value) => j::Requester::Task(
-            j::RequesterTask { value },
-        ),
-        c::Requester::Person(value) => j::Requester::Person(
-            j::RequesterPerson { value },
-        ),
-        c::Requester::Deployment { project } => j::Requester::Deployment(
-            j::RequesterDeployment { project },
-        ),
+        c::Requester::Task(value) => j::Requester::Task(j::RequesterTask { value }),
+        c::Requester::Person(value) => j::Requester::Person(j::RequesterPerson { value }),
+        c::Requester::Deployment { project } => j::Requester::Deployment(j::RequesterDeployment { project }),
     }
 }
 fn document(text: &c::DocumentText) -> j::DocumentText {
@@ -74,27 +71,24 @@ fn chip(line: &c::TaskLine) -> j::Chip {
     let mut root = root;
     let mut fields = root.value;
     fields.task = line.chip.task;
-    fields.title =
-        j::DocumentText { bytes: line.chip.title.bytes().into(), cut: false };
+    fields.title = j::DocumentText { bytes: line.chip.title.bytes().into(), cut: false };
     let (phase, compact) = match &line.chip.details.phase {
         c::ChipPhase::Waiting { dependencies, more, holds } => (
-            j::ChipPhase::Waiting(
-                j::ChipPhaseWaiting { dependencies: dependencies.clone(), more: *more, holds: *holds },
-            ),
+            j::ChipPhase::Waiting(j::ChipPhaseWaiting {
+                dependencies: dependencies.clone(),
+                more: *more,
+                holds: *holds,
+            }),
             j::Phase::Waiting,
         ),
         c::ChipPhase::Active(stage) => (
-            j::ChipPhase::Active(
-                j::ChipPhaseActive {
-                        value: match stage {
-                            c::RunStage::Idle => j::RunStage::Idle,
-                            c::RunStage::Running { attempt } => j::RunStage::Running(
-                                j::RunStageRunning { attempt: *attempt },
-                            ),
-                            _ => panic!("fixture active stage"),
-                        },
-                    },
-            ),
+            j::ChipPhase::Active(j::ChipPhaseActive {
+                value: match stage {
+                    c::RunStage::Idle => j::RunStage::Idle,
+                    c::RunStage::Running { attempt } => j::RunStage::Running(j::RunStageRunning { attempt: *attempt }),
+                    _ => panic!("fixture active stage"),
+                },
+            }),
             j::Phase::Active,
         ),
         c::ChipPhase::Ended => (j::ChipPhase::Ended, j::Phase::Ended),
@@ -109,44 +103,33 @@ fn chip(line: &c::TaskLine) -> j::Chip {
     details.value = value;
     let mut rows = vec![
         j::Fact::Chip(root),
-        j::Fact::ChipPhase(
-            j::ChipPhaseRow {
-                    parent: Some(0),
-                    value: j::ChipPhaseOwnerFields { phase, details: 2 },
-                },
-        ),
+        j::Fact::ChipPhase(j::ChipPhaseRow { parent: Some(0), value: j::ChipPhaseOwnerFields { phase, details: 2 } }),
         j::Fact::ChipDetails(Box::new(details)),
     ];
     if let Some(ending) = &line.chip.details.details.ending {
         let value = match ending {
-            c::ChipEnding::Done(c::ResultValue::Report(_)) => j::ChipEndingFields::Done(
-                j::ChipEndingDoneFields { value: 4 },
-            ),
-            c::ChipEnding::Failed(text) => j::ChipEndingFields::Failed(
-                j::ChipEndingFailedFields { value: document(text) },
-            ),
-            c::ChipEnding::Cancelled { reason, by, at, result: None } => j::ChipEndingFields::Cancelled(
-                j::ChipEndingCancelledFields {
-                        reason: document(reason),
-                        by: requester(*by),
-                        at: at.as_nanos(),
-                        result: None,
-                    },
-            ),
+            c::ChipEnding::Done(c::ResultValue::Report(_)) => {
+                j::ChipEndingFields::Done(j::ChipEndingDoneFields { value: 4 })
+            }
+            c::ChipEnding::Failed(text) => {
+                j::ChipEndingFields::Failed(j::ChipEndingFailedFields { value: document(text) })
+            }
+            c::ChipEnding::Cancelled { reason, by, at, result: None } => {
+                j::ChipEndingFields::Cancelled(j::ChipEndingCancelledFields {
+                    reason: document(reason),
+                    by: requester(*by),
+                    at: at.as_nanos(),
+                    result: None,
+                })
+            }
             _ => panic!("fixture ending"),
         };
-        rows.push(j::Fact::ChipEnding(
-            j::ChipEndingRow { parent: Some(2), value },
-        ));
+        rows.push(j::Fact::ChipEnding(j::ChipEndingRow { parent: Some(2), value }));
         if let c::ChipEnding::Done(c::ResultValue::Report(text)) = ending {
-            rows.push(j::Fact::ResultValue(
-                j::ResultValueRow {
-                        parent: Some(3),
-                        value: j::ResultValueFields::Report(
-                            j::ResultValueReportFields { value: document(text) },
-                        ),
-                    },
-            ));
+            rows.push(j::Fact::ResultValue(j::ResultValueRow {
+                parent: Some(3),
+                value: j::ResultValueFields::Report(j::ResultValueReportFields { value: document(text) }),
+            }));
         }
     }
     records::chip_from_rows(&rows)

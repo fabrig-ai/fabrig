@@ -1,7 +1,7 @@
 //! A wave-at-a-time engine double for linked page budgets (client/pages/work.md, 1).
-use jig_client_protocol_wire::Record as _;
 use jig_client::{Event, Message, Request, Streamed};
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use skein_lib::{Duration, List, Reader, Writer};
 
 /// Encode typed fixture values as the engine does, without a transport.
@@ -14,10 +14,7 @@ pub fn encoded(size: u32, write: impl FnOnce(&mut Writer) -> Result<(), skein_li
 #[must_use]
 pub fn owned(record: Box<[u8]>, family: Option<u16>) -> w::Owned {
     let (owner, version) = match family {
-        Some(number) => (
-            w::Owner::Family(w::Family { number }),
-            temper_client_protocol_wire::CLIENT_VERSION,
-        ),
+        Some(number) => (w::Owner::Family(w::Family { number }), temper_client_protocol_wire::CLIENT_VERSION),
         None => (w::Owner::Jig, w::VERSION),
     };
     w::Owned { owner, version, record }
@@ -95,20 +92,13 @@ impl Engine {
         for (owner, version) in [
             (w::Owner::Jig, w::VERSION),
             (
-                w::Owner::Family(
-                    w::Family { number: temper_client_protocol_wire::FORGE },
-                ),
+                w::Owner::Family(w::Family { number: temper_client_protocol_wire::FORGE }),
                 temper_client_protocol_wire::CLIENT_VERSION,
             ),
         ] {
-            served
-                .push(
-                    w::Served { owner, first: version, last: version },
-                )
-                .expect("two owners");
+            served.push(w::Served { owner, first: version, last: version }).expect("two owners");
         }
-        let hello =
-            w::Hello { stream: [7; 16], served, heartbeat: Duration::from_secs(30) };
+        let hello = w::Hello { stream: [7; 16], served, heartbeat: Duration::from_secs(30) };
         streamed(&jig_client_test_records::opened(hello, self.me.clone()))
     }
     fn member(member: &w::Member, answer: &impl Fn(&w::Owned, bool) -> w::Owned, events: &mut Vec<Event>) -> Box<[u8]> {
@@ -119,9 +109,7 @@ impl Engine {
             }
             w::Member::Open(open) => {
                 let document = answer(&open.subject, true);
-                let delivery = w::StreamEvent::Delivery(
-                    w::Delivery { watch: open.watch, document },
-                );
+                let delivery = w::StreamEvent::Delivery(w::Delivery { watch: open.watch, document });
                 events.push(streamed(&delivery));
                 w::OpenAnswer::Admitted.encode(&w::CEILINGS).expect("fixture encoding")
             }

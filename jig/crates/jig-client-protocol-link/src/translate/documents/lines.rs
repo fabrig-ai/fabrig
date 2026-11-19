@@ -1,6 +1,6 @@
 //! Field-for-field document values (client/domain/contract/documents.md and client/domain/contract/README.md, 4–5).
-use jig_client_protocol_wire::Record as _;
 use super::{Limits, List, Reader, bytes, c, too_large, w};
+use jig_client_protocol_wire::Record as _;
 
 pub(crate) fn cursor_fields(value: &w::Cursor, limits: &Limits) -> Result<c::Cursor, w::Problem> {
     match c::Cursor::new(bytes::copy_of(&value.value), limits.wire().cursor_value) {

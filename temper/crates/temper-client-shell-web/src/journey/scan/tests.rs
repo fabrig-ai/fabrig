@@ -1,6 +1,6 @@
-use jig_client_protocol_wire::Record as _;
 use super::*;
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use jig_client_shell_web::adapter::Heard;
 use skein_lib::{
     Writer,
@@ -104,35 +104,33 @@ fn each_shape_is_found_in_each_place() {
 }
 fn delivery(value: &[u8], from: u32, writing: bool) -> w::StreamEvent {
     let through = from.checked_add(u32::try_from(value.len()).unwrap()).unwrap();
-    let writing_call = writing.then(|| {
-        w::WritingCall {
-                id: b"call".as_slice().into(),
-                tool: b"tool".as_slice().into(),
-                from,
-                through,
-                input: value.into(),
-                cut: false,
-            }
+    let writing_call = writing.then(|| w::WritingCall {
+        id: b"call".as_slice().into(),
+        tool: b"tool".as_slice().into(),
+        from,
+        through,
+        input: value.into(),
+        cut: false,
     });
-    w::StreamEvent::Text(
-        w::StreamText {
-                watch: 1,
-                value: w::RunText {
-                        attempt: 1,
-                        began: None,
-                        turn: w::ProvisionalTurnName { attempt: 1, number: 1, retry: 0 },
-                        from: if writing { 0 } else { from },
-                        through: if writing { 0 } else { through },
-                        text: if writing { Box::from([]) } else { value.into() },
-                        cut: false,
-                        call: None,
-                        writing: writing_call,
-                    },
-            },
-    )
+    w::StreamEvent::Text(w::StreamText {
+        watch: 1,
+        value: w::RunText {
+            attempt: 1,
+            began: None,
+            turn: w::ProvisionalTurnName { attempt: 1, number: 1, retry: 0 },
+            from: if writing { 0 } else { from },
+            through: if writing { 0 } else { through },
+            text: if writing { Box::from([]) } else { value.into() },
+            cut: false,
+            call: None,
+            writing: writing_call,
+        },
+    })
 }
 fn streamed(event: &w::StreamEvent) -> Line {
-    let mut writer = Writer::new(usize::try_from(event.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    let mut writer = Writer::new(
+        usize::try_from(event.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
     event.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
     piece(&data(&writer.finish()))
 }
@@ -366,7 +364,9 @@ fn invalid_records_join_nothing_and_are_still_scanned() {
             let cut = value.len() / 2;
             let first = streamed(&delivery(&value[..cut], 0, writing));
             let event = delivery(&value[cut..], u32::try_from(cut).unwrap(), writing);
-            let mut writer = Writer::new(usize::try_from(event.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+            let mut writer = Writer::new(
+                usize::try_from(event.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+            );
             event.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
             let mut record = writer.finish().into_vec();
             record.push(0);

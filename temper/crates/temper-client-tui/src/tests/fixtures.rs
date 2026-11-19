@@ -1,5 +1,5 @@
-use jig_client_protocol_wire::Record as _;
 use jig_client::contract as c;
+use jig_client_protocol_wire::Record as _;
 use skein_lib::{Duration, Env, List, Queue, RequestLimits, Secret, Time, Token, Wall, Writer};
 use temper_client_domain::{Domain, Event, Limits, Request, forge};
 pub const ADDRESS: &crate::Origin =
@@ -145,7 +145,10 @@ pub fn asking() -> (Domain, Token) {
     (root, exchange.expect("link exchange"))
 }
 pub fn answer(root: &mut Domain, exchange: Token, answer: jig_client_protocol_wire::SignInAnswer) {
-    let mut writer = Writer::new(usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("answer fits"));
+    let mut writer = Writer::new(
+        usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+            .expect("answer fits"),
+    );
     answer.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("answer room");
     client(root, jig_client::Event::Reply { exchange, message: writer.finish() });
 }
@@ -157,9 +160,7 @@ pub fn refused(answer: jig_client_protocol_wire::SignInAnswer) -> Domain {
 }
 pub fn full() -> jig_client_protocol_wire::SignInAnswer {
     use jig_client_protocol_wire::{SignInAnswer, SignInsFull};
-    SignInAnswer::Full(
-        SignInsFull { sign_ins: u32::MAX, earliest: 0, link_until: 0 },
-    )
+    SignInAnswer::Full(SignInsFull { sign_ins: u32::MAX, earliest: 0, link_until: 0 })
 }
 pub fn me(names: &[&[u8]]) -> c::Me {
     use c::{DocumentText, HeldRole, Me, MeParty, MeProject, Needs, PartyKind};

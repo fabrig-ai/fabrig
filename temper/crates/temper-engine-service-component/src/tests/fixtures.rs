@@ -1866,16 +1866,20 @@ pub fn forge_connecting(
     let record = wire::requesting(&w::Requesting::new(&w::CEILINGS, w::RequestingParts { request }).unwrap());
     let engine = service.engine.as_mut().unwrap();
     let family = j::FamilyRequest { scope: j::Scope::Deployment, record };
-    let mut bytes = skein_lib::Writer::new(usize::try_from(family.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    let mut bytes = skein_lib::Writer::new(
+        usize::try_from(family.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
     family.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
     let keyed = j::Keyed {
-            key: [key; 16],
-            owner: j::Owner::Family(j::Family { number: wire::FORGE }),
-            version: wire::CLIENT_VERSION,
-            request: bytes.finish(),
-            value: Some(bundle),
-        };
-    let mut bytes = skein_lib::Writer::new(usize::try_from(keyed.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+        key: [key; 16],
+        owner: j::Owner::Family(j::Family { number: wire::FORGE }),
+        version: wire::CLIENT_VERSION,
+        request: bytes.finish(),
+        value: Some(bundle),
+    };
+    let mut bytes = skein_lib::Writer::new(
+        usize::try_from(keyed.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
     keyed.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
     let mut peer = http::Peer::new(engine, b"POST", b"/jig/v1/request", &bytes.finish(), Some(bearer));
     peer.pump(engine, true);
@@ -1885,7 +1889,8 @@ pub fn forge_connecting(
     else {
         panic!("family terminal")
     };
-    let answer = w::Answer::decode(&w::CEILINGS, &mut Reader::new(answer.record.as_ref())).unwrap().into_parts().outcome;
+    let answer =
+        w::Answer::decode(&w::CEILINGS, &mut Reader::new(answer.record.as_ref())).unwrap().into_parts().outcome;
     assert_eq!(answer, w::Outcome::Connecting);
 }
 

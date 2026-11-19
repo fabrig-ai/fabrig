@@ -6,49 +6,58 @@ use super::{
 };
 pub(in crate::codec) fn wire_refusal(value: &c::Refusal, limits: &w::Limits) -> Result<w::Refusal, w::Problem> {
     Ok::<_, w::Problem>(match value {
-        c::Refusal::Concluded { at } => {
-            w::Refusal::Concluded(w::RefusalConcluded { at: at.as_nanos() })
+        c::Refusal::Concluded { at } => w::Refusal::Concluded(w::RefusalConcluded { at: at.as_nanos() }),
+        c::Refusal::SignInRedirect { why } => {
+            w::Refusal::SignInRedirect(w::RefusalSignInRedirect { why: wire_sign_in_redirect_why(why, limits)? })
         }
-        c::Refusal::SignInRedirect { why } => w::Refusal::SignInRedirect(w::RefusalSignInRedirect { why: wire_sign_in_redirect_why(why, limits)? }),
         c::Refusal::Judged { at, setting, why } => w::Refusal::Judged(w::RefusalJudged {
-                at: *at,
-                setting: super::settings::wire_setting(setting, limits)?,
-                why: why.bytes().into(),
-            }),
-        c::Refusal::Forgotten { oldest } => {
-            w::Refusal::Forgotten(w::RefusalForgotten { oldest: *oldest })
-        }
+            at: *at,
+            setting: super::settings::wire_setting(setting, limits)?,
+            why: why.bytes().into(),
+        }),
+        c::Refusal::Forgotten { oldest } => w::Refusal::Forgotten(w::RefusalForgotten { oldest: *oldest }),
         c::Refusal::Stale(value) => w::Refusal::Stale(wire_refusal_stale(value, limits)?),
         c::Refusal::Full(value) => w::Refusal::Full(wire_refusal_full(value, limits)?),
-        c::Refusal::AccountMove { why } => w::Refusal::AccountMove(w::RefusalAccountMove { why: wire_account_move_why(why, limits)? }),
-        c::Refusal::LiveTasks { tasks, more } => w::Refusal::LiveTasks(w::RefusalLiveTasks { tasks: tasks.clone(), more: *more }),
+        c::Refusal::AccountMove { why } => {
+            w::Refusal::AccountMove(w::RefusalAccountMove { why: wire_account_move_why(why, limits)? })
+        }
+        c::Refusal::LiveTasks { tasks, more } => {
+            w::Refusal::LiveTasks(w::RefusalLiveTasks { tasks: tasks.clone(), more: *more })
+        }
         c::Refusal::Circle { tasks, cut } => w::Refusal::Circle(w::RefusalCircle {
-                tasks: list((tasks).iter().map(|item| Ok::<_, w::Problem>(*(item))))?,
-                cut: *(cut),
-            }),
-        c::Refusal::Dependency { dependency, how } => w::Refusal::Dependency(w::RefusalDependency { dependency: *(dependency), how: wire_task_status(how, limits)? }),
-        c::Refusal::Kept { pending } => w::Refusal::Kept(w::RefusalKept { pending: list((pending).iter().map(|item| Ok::<_, w::Problem>(*(item))))? }),
-        c::Refusal::Account { account, why } => w::Refusal::Account(w::RefusalAccount { account: *(account), why: wire_account_why(why, limits)? }),
+            tasks: list((tasks).iter().map(|item| Ok::<_, w::Problem>(*(item))))?,
+            cut: *(cut),
+        }),
+        c::Refusal::Dependency { dependency, how } => w::Refusal::Dependency(w::RefusalDependency {
+            dependency: *(dependency),
+            how: wire_task_status(how, limits)?,
+        }),
+        c::Refusal::Kept { pending } => w::Refusal::Kept(w::RefusalKept {
+            pending: list((pending).iter().map(|item| Ok::<_, w::Problem>(*(item))))?,
+        }),
+        c::Refusal::Account { account, why } => {
+            w::Refusal::Account(w::RefusalAccount { account: *(account), why: wire_account_why(why, limits)? })
+        }
         c::Refusal::NoEscalationHolder => w::Refusal::NoEscalationHolder,
         c::Refusal::Provider => w::Refusal::Provider,
-        c::Refusal::Malformed { at, why } => w::Refusal::Malformed(w::RefusalMalformed { at: *(at), why: wire_malformed(why, limits)? }),
-        c::Refusal::Role { held } => w::Refusal::Role(w::RefusalRole { held: (held).as_ref().map(|item| wire_held_role(item, limits)).transpose()? }),
-        c::Refusal::Taken { by } => {
-            w::Refusal::Taken(w::RefusalTaken { by: *(by) })
+        c::Refusal::Malformed { at, why } => {
+            w::Refusal::Malformed(w::RefusalMalformed { at: *(at), why: wire_malformed(why, limits)? })
         }
+        c::Refusal::Role { held } => w::Refusal::Role(w::RefusalRole {
+            held: (held).as_ref().map(|item| wire_held_role(item, limits)).transpose()?,
+        }),
+        c::Refusal::Taken { by } => w::Refusal::Taken(w::RefusalTaken { by: *(by) }),
         c::Refusal::NotWaiting => w::Refusal::NotWaiting,
         c::Refusal::NoFurther => w::Refusal::NoFurther,
         c::Refusal::Authority { lacking, proposable } => w::Refusal::Authority(w::RefusalAuthority {
-                lacking: wire_lacking(lacking, limits)?,
-                proposable: (proposable).as_ref().map(|item| Ok::<_, w::Problem>(*(item))).transpose()?,
-            }),
-        c::Refusal::Limit { which } => {
-            w::Refusal::Limit(w::RefusalLimit { which: wire_limit(which, limits)? })
+            lacking: wire_lacking(lacking, limits)?,
+            proposable: (proposable).as_ref().map(|item| Ok::<_, w::Problem>(*(item))).transpose()?,
+        }),
+        c::Refusal::Limit { which } => w::Refusal::Limit(w::RefusalLimit { which: wire_limit(which, limits)? }),
+        c::Refusal::Moved { now, what } => {
+            w::Refusal::Moved(w::RefusalMoved { now: wire_revision(now, limits)?, what: wire_moved(what, limits)? })
         }
-        c::Refusal::Moved { now, what } => w::Refusal::Moved(w::RefusalMoved { now: wire_revision(now, limits)?, what: wire_moved(what, limits)? }),
-        c::Refusal::Ended { how } => {
-            w::Refusal::Ended(w::RefusalEnded { how: facts::ending(how, limits)? })
-        }
+        c::Refusal::Ended { how } => w::Refusal::Ended(w::RefusalEnded { how: facts::ending(how, limits)? }),
         c::Refusal::Unknown => w::Refusal::Unknown,
         c::Refusal::NameTaken => w::Refusal::NameTaken,
         c::Refusal::NoTerminal => w::Refusal::NoTerminal,
@@ -57,7 +66,9 @@ pub(in crate::codec) fn wire_refusal(value: &c::Refusal, limits: &w::Limits) -> 
         c::Refusal::NotOffered => w::Refusal::NotOffered,
         c::Refusal::ProgramNameReserved => w::Refusal::ProgramNameReserved,
         c::Refusal::KeyConflict => w::Refusal::KeyConflict,
-        c::Refusal::Llm { model, why } => w::Refusal::Llm(w::RefusalLlm { model: bytes::copy_of((model).bytes()), why: wire_llm_why(why, limits)? }),
+        c::Refusal::Llm { model, why } => {
+            w::Refusal::Llm(w::RefusalLlm { model: bytes::copy_of((model).bytes()), why: wire_llm_why(why, limits)? })
+        }
     })
 }
 
@@ -92,26 +103,26 @@ pub(in crate::codec) fn wire_held_role(value: &c::HeldRole, _limits: &w::Limits)
         c::HeldRole::Maintainer => w::HeldRole::Maintainer,
         c::HeldRole::Member => w::HeldRole::Member,
         c::HeldRole::Observer => w::HeldRole::Observer,
-        c::HeldRole::Policy { role } => {
-            w::HeldRole::Policy(w::HeldRolePolicy { role: *(role) })
-        }
+        c::HeldRole::Policy { role } => w::HeldRole::Policy(w::HeldRolePolicy { role: *(role) }),
     })
 }
 
 pub(in crate::codec) fn wire_lacking(value: &c::Lacking, limits: &w::Limits) -> Result<w::Lacking, w::Problem> {
     Ok::<_, w::Problem>(match value {
-        c::Lacking::HoldOwner { hold, owner } => w::Lacking::HoldOwner(w::LackingHoldOwner { hold: *(hold), owner: wire_hold_owner(owner, limits)? }),
-        c::Lacking::Ceiling { holder, dimension, value, asked } => w::Lacking::Ceiling(w::LackingCeiling {
-                holder: ceiling_holder(*holder, limits)?,
-                dimension: ceiling_dimension(*dimension),
-                value: *value,
-                asked: *asked,
-            }),
-        c::Lacking::Approver => w::Lacking::Approver,
-        c::Lacking::Budget { needed, left } => w::Lacking::Budget(w::LackingBudget { needed: *(needed), left: *(left) }),
-        c::Lacking::GrantKind { kind } => {
-            w::Lacking::GrantKind(w::LackingGrantKind { kind: *(kind) })
+        c::Lacking::HoldOwner { hold, owner } => {
+            w::Lacking::HoldOwner(w::LackingHoldOwner { hold: *(hold), owner: wire_hold_owner(owner, limits)? })
         }
+        c::Lacking::Ceiling { holder, dimension, value, asked } => w::Lacking::Ceiling(w::LackingCeiling {
+            holder: ceiling_holder(*holder, limits)?,
+            dimension: ceiling_dimension(*dimension),
+            value: *value,
+            asked: *asked,
+        }),
+        c::Lacking::Approver => w::Lacking::Approver,
+        c::Lacking::Budget { needed, left } => {
+            w::Lacking::Budget(w::LackingBudget { needed: *(needed), left: *(left) })
+        }
+        c::Lacking::GrantKind { kind } => w::Lacking::GrantKind(w::LackingGrantKind { kind: *(kind) }),
         c::Lacking::Funding => w::Lacking::Funding,
         c::Lacking::Tool => w::Lacking::Tool,
         c::Lacking::Scope => w::Lacking::Scope,
@@ -120,53 +131,53 @@ pub(in crate::codec) fn wire_lacking(value: &c::Lacking, limits: &w::Limits) -> 
         c::Lacking::ResourceAccess => w::Lacking::ResourceAccess,
         c::Lacking::ResourceUnavailable => w::Lacking::ResourceUnavailable,
         c::Lacking::Shape => w::Lacking::Shape,
-        c::Lacking::Again { required } => {
-            w::Lacking::Again(w::LackingAgain { required: *(required) })
-        }
+        c::Lacking::Again { required } => w::Lacking::Again(w::LackingAgain { required: *(required) }),
         c::Lacking::Account => w::Lacking::Account,
         c::Lacking::Writer => w::Lacking::Writer,
-        c::Lacking::Required { connector, kind } => w::Lacking::Required(w::LackingRequired { connector: *(connector), kind: *(kind) }),
-        c::Lacking::Failed { connector, kind } => w::Lacking::Failed(w::LackingFailed { connector: *(connector), kind: *(kind) }),
-        c::Lacking::Unguarded { connector, kind } => w::Lacking::Unguarded(w::LackingUnguarded { connector: *(connector), kind: *(kind) }),
+        c::Lacking::Required { connector, kind } => {
+            w::Lacking::Required(w::LackingRequired { connector: *(connector), kind: *(kind) })
+        }
+        c::Lacking::Failed { connector, kind } => {
+            w::Lacking::Failed(w::LackingFailed { connector: *(connector), kind: *(kind) })
+        }
+        c::Lacking::Unguarded { connector, kind } => {
+            w::Lacking::Unguarded(w::LackingUnguarded { connector: *(connector), kind: *(kind) })
+        }
         c::Lacking::TaskKind { executor } => w::Lacking::TaskKind(w::LackingTaskKind {
-                executor: (executor).as_ref().map(|item| wire_chip_executor(item, limits)).transpose()?,
-            }),
+            executor: (executor).as_ref().map(|item| wire_chip_executor(item, limits)).transpose()?,
+        }),
         c::Lacking::Depth { needed, allowed } => w::Lacking::Depth(w::LackingDepth {
-                needed: (needed).as_ref().map(|item| Ok::<_, w::Problem>(*(item))).transpose()?,
-                allowed: *(allowed),
-            }),
+            needed: (needed).as_ref().map(|item| Ok::<_, w::Problem>(*(item))).transpose()?,
+            allowed: *(allowed),
+        }),
         c::Lacking::Deadline { asked, latest } => w::Lacking::Deadline(w::LackingDeadline {
-                asked: (asked).as_ref().map(|item| Ok::<_, w::Problem>((item).as_nanos())).transpose()?,
-                latest: (latest).as_ref().map(|item| Ok::<_, w::Problem>((item).as_nanos())).transpose()?,
-            }),
+            asked: (asked).as_ref().map(|item| Ok::<_, w::Problem>((item).as_nanos())).transpose()?,
+            latest: (latest).as_ref().map(|item| Ok::<_, w::Problem>((item).as_nanos())).transpose()?,
+        }),
         c::Lacking::Tasks { needed, left } => w::Lacking::Tasks(w::LackingTasks {
-                needed: (needed).as_ref().map(|item| Ok::<_, w::Problem>(*(item))).transpose()?,
-                left: *(left),
-            }),
+            needed: (needed).as_ref().map(|item| Ok::<_, w::Problem>(*(item))).transpose()?,
+            left: *(left),
+        }),
     })
 }
 
 pub(in crate::codec) fn wire_hold_owner(value: &c::HoldOwner, _limits: &w::Limits) -> Result<w::HoldOwner, w::Problem> {
     Ok::<_, w::Problem>(match value {
-        c::HoldOwner::Party { person } => {
-            w::HoldOwner::Party(w::HoldOwnerParty { person: *(person) })
-        }
-        c::HoldOwner::Task { task } => {
-            w::HoldOwner::Task(w::HoldOwnerTask { task: *(task) })
-        }
+        c::HoldOwner::Party { person } => w::HoldOwner::Party(w::HoldOwnerParty { person: *(person) }),
+        c::HoldOwner::Task { task } => w::HoldOwner::Task(w::HoldOwnerTask { task: *(task) }),
     })
 }
 
 pub(in crate::codec) fn wire_limit(value: &c::Limit, limits: &w::Limits) -> Result<w::Limit, w::Problem> {
     Ok::<_, w::Problem>(match value {
-        c::Limit::Admission { which } => w::Limit::Admission(w::LimitAdmission { which: wire_admission_limit(which, limits)? }),
-        c::Limit::LiveTasks { project, limit } => w::Limit::LiveTasks(w::LimitLiveTasks { project: *(project), limit: *(limit) }),
-        c::Limit::Inbox { task, limit } => {
-            w::Limit::Inbox(w::LimitInbox { task: *(task), limit: *(limit) })
+        c::Limit::Admission { which } => {
+            w::Limit::Admission(w::LimitAdmission { which: wire_admission_limit(which, limits)? })
         }
-        c::Limit::Words { limit } => {
-            w::Limit::Words(w::LimitWords { limit: *(limit) })
+        c::Limit::LiveTasks { project, limit } => {
+            w::Limit::LiveTasks(w::LimitLiveTasks { project: *(project), limit: *(limit) })
         }
+        c::Limit::Inbox { task, limit } => w::Limit::Inbox(w::LimitInbox { task: *(task), limit: *(limit) }),
+        c::Limit::Words { limit } => w::Limit::Words(w::LimitWords { limit: *(limit) }),
         c::Limit::Fields => w::Limit::Fields,
         c::Limit::Records => w::Limit::Records,
         c::Limit::Requests => w::Limit::Requests,
@@ -179,7 +190,9 @@ pub(in crate::codec) fn wire_limit(value: &c::Limit, limits: &w::Limits) -> Resu
 pub(in crate::codec) fn wire_moved(value: &c::Moved, limits: &w::Limits) -> Result<w::Moved, w::Problem> {
     Ok::<_, w::Problem>(match value {
         c::Moved::PlacedHold { revision } => w::Moved::PlacedHold(w::MovedPlacedHold { revision: (revision).value }),
-        c::Moved::Hold { reason } => w::Moved::Hold(w::MovedHold { reason: (reason).as_ref().map(|item| wire_current_hold(item, limits)).transpose()? }),
+        c::Moved::Hold { reason } => w::Moved::Hold(w::MovedHold {
+            reason: (reason).as_ref().map(|item| wire_current_hold(item, limits)).transpose()?,
+        }),
         c::Moved::Spec => w::Moved::Spec,
         c::Moved::PersonTask => w::Moved::PersonTask,
         c::Moved::Note => w::Moved::Note,
@@ -192,8 +205,12 @@ pub(in crate::codec) fn wire_current_hold(
     limits: &w::Limits,
 ) -> Result<w::CurrentHold, w::Problem> {
     Ok::<_, w::Problem>(match value {
-        c::CurrentHold::Document(value) => w::CurrentHold::Document(w::CurrentHoldDocument { value: facts::hold_reason(value, limits)? }),
-        c::CurrentHold::Reason(value) => w::CurrentHold::Reason(w::CurrentHoldReason { value: wire_hold_category(value, limits)? }),
+        c::CurrentHold::Document(value) => {
+            w::CurrentHold::Document(w::CurrentHoldDocument { value: facts::hold_reason(value, limits)? })
+        }
+        c::CurrentHold::Reason(value) => {
+            w::CurrentHold::Reason(w::CurrentHoldReason { value: wire_hold_category(value, limits)? })
+        }
     })
 }
 
@@ -203,17 +220,21 @@ pub(in crate::codec) fn wire_hold_category(
 ) -> Result<w::HoldCategory, w::Problem> {
     Ok::<_, w::Problem>(match value {
         c::HoldCategory::Exceeded(value) => w::HoldCategory::Exceeded(wire_exceeded(value, limits)?),
-        c::HoldCategory::Failures { class } => w::HoldCategory::Failures(w::HoldCategoryFailures { class: wire_hold_failure(class, limits)? }),
-        c::HoldCategory::Stalled => w::HoldCategory::Stalled,
-        c::HoldCategory::Dependency { task } => w::HoldCategory::Dependency(w::HoldCategoryDependency { task: *(task) }),
-        c::HoldCategory::Stopped => w::HoldCategory::Stopped,
-        c::HoldCategory::Placed { hold } => {
-            w::HoldCategory::Placed(w::HoldCategoryPlaced { hold: *(hold) })
+        c::HoldCategory::Failures { class } => {
+            w::HoldCategory::Failures(w::HoldCategoryFailures { class: wire_hold_failure(class, limits)? })
         }
+        c::HoldCategory::Stalled => w::HoldCategory::Stalled,
+        c::HoldCategory::Dependency { task } => {
+            w::HoldCategory::Dependency(w::HoldCategoryDependency { task: *(task) })
+        }
+        c::HoldCategory::Stopped => w::HoldCategory::Stopped,
+        c::HoldCategory::Placed { hold } => w::HoldCategory::Placed(w::HoldCategoryPlaced { hold: *(hold) }),
         c::HoldCategory::Drift => w::HoldCategory::Drift,
         c::HoldCategory::Effects => w::HoldCategory::Effects,
         c::HoldCategory::EffectFailed => w::HoldCategory::EffectFailed,
-        c::HoldCategory::Uncertain { entry } => w::HoldCategory::Uncertain(w::HoldCategoryUncertain { entry: *(entry) }),
+        c::HoldCategory::Uncertain { entry } => {
+            w::HoldCategory::Uncertain(w::HoldCategoryUncertain { entry: *(entry) })
+        }
         c::HoldCategory::Budget => w::HoldCategory::Budget,
         c::HoldCategory::Deadline => w::HoldCategory::Deadline,
         c::HoldCategory::HoldsWaited => w::HoldCategory::HoldsWaited,
@@ -262,9 +283,7 @@ fn ceiling_holder(value: c::CeilingHolder, _limits: &w::Limits) -> Result<w::Cei
     Ok(match value {
         c::CeilingHolder::Rules => w::CeilingHolder::Rules,
         c::CeilingHolder::Policy => w::CeilingHolder::Policy,
-        c::CeilingHolder::Role(role) => {
-            w::CeilingHolder::Role(w::CeilingRole { role })
-        }
+        c::CeilingHolder::Role(role) => w::CeilingHolder::Role(w::CeilingRole { role }),
     })
 }
 fn ceiling_dimension(value: c::CeilingDimension) -> w::CeilingDimension {

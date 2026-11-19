@@ -1,11 +1,11 @@
 //! Public identifiers, admission and records (jig/docs/design/protocol/client/public-reads.md).
-use jig_client_protocol_wire::Record as _;
 use super::fixtures as f;
 use crate::{
     Component, Event, FromTransport, Kept, Limits, PublicRead, PublicReply, Request, SecretOwner, SecretsAnswer,
     SecretsRequest, Settings, ToTransport, Unusable,
     public::{Names, Of},
 };
+use jig_client_protocol_wire::Record as _;
 use jig_client_protocol_wire::{self as wire, public_v1 as w};
 use jig_domain_core_vocabulary as c;
 use skein_lib::{Env, List, Queue, Reader, ReplyTo, Rng, Secret, Time, Token, Wall, length::len_u64};
@@ -400,7 +400,8 @@ fn a_me_watch_maps_its_public_project_identifier() {
         panic!("me delivery");
     };
     let wire::DeliveryValue::Me(value) =
-        wire::DeliveryValue::decode(&exchange.env.limits.wire, &mut Reader::new(value.document.record.as_ref())).unwrap()
+        wire::DeliveryValue::decode(&exchange.env.limits.wire, &mut Reader::new(value.document.record.as_ref()))
+            .unwrap()
     else {
         panic!("me value");
     };

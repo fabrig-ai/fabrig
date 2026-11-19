@@ -1,15 +1,18 @@
 use super::*;
 pub fn family_request(record: Box<[u8]>) -> Box<[u8]> {
-    let value =
-        w::FamilyRequest { scope: w::Scope::Own, record };
-    let mut writer = Writer::new(skein_lib::length::usize_of(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+    let value = w::FamilyRequest { scope: w::Scope::Own, record };
+    let mut writer = Writer::new(skein_lib::length::usize_of(
+        value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+    ));
     value.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("measured family request");
     writer.finish()
 }
 pub fn family_record(record: Box<[u8]>) -> Box<[u8]> {
     let window = w::Window { rows: 3, after: None };
     let value = w::FamilyRecord { scope: w::Scope::Own, window, record };
-    let mut writer = Writer::new(skein_lib::length::usize_of(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+    let mut writer = Writer::new(skein_lib::length::usize_of(
+        value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+    ));
     value.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("measured family record");
     writer.finish()
 }

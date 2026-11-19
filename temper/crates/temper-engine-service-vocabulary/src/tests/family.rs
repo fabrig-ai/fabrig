@@ -1,6 +1,6 @@
-use jig_client_protocol_wire::Record as _;
 use super::fixtures;
 use crate::family;
+use jig_client_protocol_wire::Record as _;
 use jig_domain_people as people;
 use jig_protocol_engine_clients as kit;
 use skein_lib::{List, Reader, ReplyTo, Token};
@@ -456,17 +456,11 @@ fn a_core_refusal_uses_jigs_refusal_record() {
         ("unknown", people::Refusal::Unknown, j::Refusal::Unknown),
         ("name taken", people::Refusal::NameTaken, j::Refusal::NameTaken),
         ("not offered", people::Refusal::NotOffered, j::Refusal::NotOffered),
-        (
-            "taken",
-            people::Refusal::Taken { by: 7 },
-            j::Refusal::Taken(j::RefusalTaken { by: 7 }),
-        ),
+        ("taken", people::Refusal::Taken { by: 7 }, j::Refusal::Taken(j::RefusalTaken { by: 7 })),
         (
             "authority",
             people::Refusal::Authority { lacking: people::Lack::Writer, proposable: Some(people::Accepter::Role(1)) },
-            j::Refusal::Authority(
-                j::RefusalAuthority { lacking: j::Lacking::Writer, proposable: Some(true) },
-            ),
+            j::Refusal::Authority(j::RefusalAuthority { lacking: j::Lacking::Writer, proposable: Some(true) }),
         ),
     ] {
         let w::Outcome::CoreRefused(record) = encoded(Some(forge::ApplicationOutcome::CoreRefused(input))) else {

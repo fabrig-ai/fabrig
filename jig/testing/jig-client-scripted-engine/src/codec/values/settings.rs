@@ -13,11 +13,11 @@ pub fn wire_settings_document(
     limits: &w::Limits,
 ) -> Result<w::SettingsDocument, w::Problem> {
     Ok(w::SettingsDocument {
-            newest: value.newest,
-            settings: list(value.settings.iter().map(|item| wire_setting_line(item, limits)))?,
-            held: list(value.held.iter().map(|item| wire_held_revision(item, limits)))?,
-            pending: list(value.pending.iter().map(|item| wire_settings_proposal(item, limits)))?,
-        })
+        newest: value.newest,
+        settings: list(value.settings.iter().map(|item| wire_setting_line(item, limits)))?,
+        held: list(value.held.iter().map(|item| wire_held_revision(item, limits)))?,
+        pending: list(value.pending.iter().map(|item| wire_settings_proposal(item, limits)))?,
+    })
 }
 
 pub(in crate::codec) fn wire_setting_line(
@@ -25,12 +25,12 @@ pub(in crate::codec) fn wire_setting_line(
     limits: &w::Limits,
 ) -> Result<w::SettingLine, w::Problem> {
     Ok(w::SettingLine {
-            setting: wire_setting(&value.setting, limits)?,
-            name: value.name.as_ref().map(|item| wire_document_text(item, limits)).transpose()?,
-            follows: wire_setting_follows(&value.follows, limits)?,
-            last: value.last,
-            application: value.application.as_ref().map(|v| wire_application_state(v, limits)).transpose()?,
-        })
+        setting: wire_setting(&value.setting, limits)?,
+        name: value.name.as_ref().map(|item| wire_document_text(item, limits)).transpose()?,
+        follows: wire_setting_follows(&value.follows, limits)?,
+        last: value.last,
+        application: value.application.as_ref().map(|v| wire_application_state(v, limits)).transpose()?,
+    })
 }
 
 pub(in crate::codec) fn wire_setting(value: &c::Setting, limits: &w::Limits) -> Result<w::Setting, w::Problem> {
@@ -38,19 +38,17 @@ pub(in crate::codec) fn wire_setting(value: &c::Setting, limits: &w::Limits) -> 
         c::Setting::Charter(value) => w::Setting::Charter(wire_setting_number(value, limits)?),
         c::Setting::Template(value) => w::Setting::Template(wire_setting_number(value, limits)?),
         c::Setting::Policy(value) => w::Setting::Policy(wire_setting_number(value, limits)?),
-        c::Setting::Application { kind, scope, number } => w::Setting::Application(w::ApplicationSetting { kind: *kind, scope: *scope, number: *number }),
-        c::Setting::Model(item) => {
-            w::Setting::Model(w::SettingNumber { number: item.number })
+        c::Setting::Application { kind, scope, number } => {
+            w::Setting::Application(w::ApplicationSetting { kind: *kind, scope: *scope, number: *number })
         }
-        c::Setting::Worker(item) => {
-            w::Setting::Worker(w::SettingNumber { number: item.number })
-        }
-        c::Setting::Provider(item) => {
-            w::Setting::Provider(w::SettingNumber { number: item.number })
-        }
+        c::Setting::Model(item) => w::Setting::Model(w::SettingNumber { number: item.number }),
+        c::Setting::Worker(item) => w::Setting::Worker(w::SettingNumber { number: item.number }),
+        c::Setting::Provider(item) => w::Setting::Provider(w::SettingNumber { number: item.number }),
         c::Setting::Rules => w::Setting::Rules,
         c::Setting::Limits => w::Setting::Limits,
-        c::Setting::ProjectPolicy { project } => w::Setting::ProjectPolicy(w::ProjectPolicySetting { project: *project }),
+        c::Setting::ProjectPolicy { project } => {
+            w::Setting::ProjectPolicy(w::ProjectPolicySetting { project: *project })
+        }
     })
 }
 
@@ -84,13 +82,13 @@ pub(in crate::codec) fn wire_revision_head(
     limits: &w::Limits,
 ) -> Result<w::RevisionHead, w::Problem> {
     Ok(w::RevisionHead {
-            number: value.number,
-            against: value.against,
-            at: value.at.as_nanos(),
-            by: wire_revision_decider(&value.by, limits)?,
-            proposal: value.proposal.as_ref().map(|item| wire_proposal_key(item, limits)).transpose()?,
-            moved: value.moved,
-        })
+        number: value.number,
+        against: value.against,
+        at: value.at.as_nanos(),
+        by: wire_revision_decider(&value.by, limits)?,
+        proposal: value.proposal.as_ref().map(|item| wire_proposal_key(item, limits)).transpose()?,
+        moved: value.moved,
+    })
 }
 
 pub(in crate::codec) fn wire_revision_decider(
@@ -100,9 +98,7 @@ pub(in crate::codec) fn wire_revision_decider(
     Ok::<_, w::Problem>(match value {
         c::RevisionDecider::FirstStart => w::RevisionDecider::FirstStart,
         c::RevisionDecider::Release => w::RevisionDecider::Release,
-        c::RevisionDecider::List { provider } => {
-            w::RevisionDecider::List(w::RevisionList { provider: *provider })
-        }
+        c::RevisionDecider::List { provider } => w::RevisionDecider::List(w::RevisionList { provider: *provider }),
         c::RevisionDecider::Party(value) => w::RevisionDecider::Party(wire_revision_party(value, limits)?),
     })
 }
@@ -123,13 +119,13 @@ pub(in crate::codec) fn wire_settings_proposal(
 
 pub fn wire_setting_document(value: &c::SettingDocument, limits: &w::Limits) -> Result<w::SettingDocument, w::Problem> {
     Ok(w::SettingDocument {
-            overlay: value.overlay.as_ref().map(|item| wire_overlay(item, limits)).transpose()?,
-            setting: wire_setting(&value.setting, limits)?,
-            revision: value.revision,
-            value: value.value.as_ref().map(|v| wire_setting_value(v, limits)).transpose()?,
-            application: value.application.as_ref().map(|v| wire_application_state(v, limits)).transpose()?,
-            proposed: value.proposed.as_ref().map(|v| wire_sized_edit(v, limits)).transpose()?,
-        })
+        overlay: value.overlay.as_ref().map(|item| wire_overlay(item, limits)).transpose()?,
+        setting: wire_setting(&value.setting, limits)?,
+        revision: value.revision,
+        value: value.value.as_ref().map(|v| wire_setting_value(v, limits)).transpose()?,
+        application: value.application.as_ref().map(|v| wire_application_state(v, limits)).transpose()?,
+        proposed: value.proposed.as_ref().map(|v| wire_sized_edit(v, limits)).transpose()?,
+    })
 }
 
 pub(in crate::codec) fn wire_setting_value(
@@ -144,7 +140,9 @@ pub(in crate::codec) fn wire_setting_value(
         c::SettingValue::Charter(value) => w::SettingValue::Charter(Box::new(wire_charter(value, limits)?)),
         c::SettingValue::Template(value) => w::SettingValue::Template(Box::new(wire_template(value, limits)?)),
         c::SettingValue::Policy(value) => w::SettingValue::Policy(Box::new(wire_setting_policy(value, limits)?)),
-        c::SettingValue::Application(value) => w::SettingValue::Application(w::ApplicationValue { bytes: value.clone() }),
+        c::SettingValue::Application(value) => {
+            w::SettingValue::Application(w::ApplicationValue { bytes: value.clone() })
+        }
         c::SettingValue::Rules(value) => w::SettingValue::Rules(Box::new(wire_rules(value, limits)?)),
         c::SettingValue::Limits(value) => w::SettingValue::Limits(wire_limits(value, limits)?),
     })
@@ -152,38 +150,40 @@ pub(in crate::codec) fn wire_setting_value(
 
 pub(in crate::codec) fn wire_charter(value: &c::Charter, limits: &w::Limits) -> Result<w::Charter, w::Problem> {
     Ok(w::Charter {
-            parts: list(value.parts.iter().map(|item| {
+        parts: list(
+            value.parts.iter().map(|item| {
                 Ok(w::CharterPart { on: item.on, instructions: bytes::copy_of(item.instructions.bytes()) })
-            }))?,
-            documents: list(value.documents.iter().map(|item| {
-                Ok(w::CharterDocument {
-                        connector: item.connector,
-                        name: item.name.clone(),
-                        path: item.path.clone(),
-                        heading: item.heading.clone(),
-                    })
-            }))?,
-            rest: value.rest,
-            resume: value.resume,
-            inspect: value.inspect,
-            modify: value.modify,
-            shell: value.shell,
-            agents: value.agents,
-            number: value.number,
-            instructions: bytes::copy_of(value.instructions.bytes()),
-            waiting: value.waiting,
-            turns: value.turns,
-            time: value.time,
-            reserve_turns: value.reserve_turns,
-            reserve_time: value.reserve_time,
-            model: wire_setting_model(&value.model, limits)?,
-            alternatives: list(value.alternatives.iter().map(|item| wire_setting_model(item, limits)))?,
-            call_timeout: value.call_timeout,
-            tools: value.tools,
-            hosts: wire_setting_hosts(&value.hosts, limits)?,
-            spend: value.spend,
-            wake: super::wire_wake_policy(&value.wake, limits)?,
-        })
+            }),
+        )?,
+        documents: list(value.documents.iter().map(|item| {
+            Ok(w::CharterDocument {
+                connector: item.connector,
+                name: item.name.clone(),
+                path: item.path.clone(),
+                heading: item.heading.clone(),
+            })
+        }))?,
+        rest: value.rest,
+        resume: value.resume,
+        inspect: value.inspect,
+        modify: value.modify,
+        shell: value.shell,
+        agents: value.agents,
+        number: value.number,
+        instructions: bytes::copy_of(value.instructions.bytes()),
+        waiting: value.waiting,
+        turns: value.turns,
+        time: value.time,
+        reserve_turns: value.reserve_turns,
+        reserve_time: value.reserve_time,
+        model: wire_setting_model(&value.model, limits)?,
+        alternatives: list(value.alternatives.iter().map(|item| wire_setting_model(item, limits)))?,
+        call_timeout: value.call_timeout,
+        tools: value.tools,
+        hosts: wire_setting_hosts(&value.hosts, limits)?,
+        spend: value.spend,
+        wake: super::wire_wake_policy(&value.wake, limits)?,
+    })
 }
 
 pub(in crate::codec) fn wire_setting_model(
@@ -191,29 +191,21 @@ pub(in crate::codec) fn wire_setting_model(
     _limits: &w::Limits,
 ) -> Result<w::SettingModel, w::Problem> {
     Ok(w::SettingModel {
-            provider: value.provider,
-            dialect: value.dialect,
-            endpoint: value.endpoint,
-            program: value
-                .program
-                .as_ref()
-                .map(|item| Ok::<_, w::Problem>(bytes::copy_of((item).bytes())))
-                .transpose()?,
-            name: bytes::copy_of(value.name.bytes()),
-            window: value.window,
-            output: value.output,
-            input_price: value.input_price,
-            cached_price: value.cached_price,
-            cache_write_price: value.cache_write_price.as_ref().map(|item| Ok::<_, w::Problem>(*(item))).transpose()?,
-            output_price: value.output_price,
-            price_unit: value.price_unit,
-            efforts: list(value.efforts.iter().map(|item| Ok::<_, w::Problem>(bytes::copy_of((item).bytes()))))?,
-            effort: value
-                .effort
-                .as_ref()
-                .map(|item| Ok::<_, w::Problem>(bytes::copy_of((item).bytes())))
-                .transpose()?,
-        })
+        provider: value.provider,
+        dialect: value.dialect,
+        endpoint: value.endpoint,
+        program: value.program.as_ref().map(|item| Ok::<_, w::Problem>(bytes::copy_of((item).bytes()))).transpose()?,
+        name: bytes::copy_of(value.name.bytes()),
+        window: value.window,
+        output: value.output,
+        input_price: value.input_price,
+        cached_price: value.cached_price,
+        cache_write_price: value.cache_write_price.as_ref().map(|item| Ok::<_, w::Problem>(*(item))).transpose()?,
+        output_price: value.output_price,
+        price_unit: value.price_unit,
+        efforts: list(value.efforts.iter().map(|item| Ok::<_, w::Problem>(bytes::copy_of((item).bytes()))))?,
+        effort: value.effort.as_ref().map(|item| Ok::<_, w::Problem>(bytes::copy_of((item).bytes()))).transpose()?,
+    })
 }
 
 pub(in crate::codec) fn wire_setting_hosts(
@@ -232,26 +224,26 @@ pub(in crate::codec) fn wire_setting_policy(
     limits: &w::Limits,
 ) -> Result<w::SettingPolicy, w::Problem> {
     Ok(w::SettingPolicy {
-            escalation_role: value.escalation_role.as_ref().map(|item| Ok::<_, w::Problem>(*(item))).transpose()?,
-            ceiling: wire_authority(&value.ceiling, limits)?,
-            projections: list(value.projections.iter().map(|item| wire_grant(item, limits)))?,
-            period_spend: value.period_spend,
-            roles: list(value.roles.iter().map(|item| wire_policy_edit_role(item, limits)))?,
-            requirements: list(value.requirements.iter().map(|item| wire_policy_requirement(item, limits)))?,
-            permissions: list(value.permissions.iter().map(|item| wire_policy_permission(item, limits)))?,
-            templates: list(value.templates.iter().map(|item| wire_template_override(item, limits)))?,
-        })
+        escalation_role: value.escalation_role.as_ref().map(|item| Ok::<_, w::Problem>(*(item))).transpose()?,
+        ceiling: wire_authority(&value.ceiling, limits)?,
+        projections: list(value.projections.iter().map(|item| wire_grant(item, limits)))?,
+        period_spend: value.period_spend,
+        roles: list(value.roles.iter().map(|item| wire_policy_edit_role(item, limits)))?,
+        requirements: list(value.requirements.iter().map(|item| wire_policy_requirement(item, limits)))?,
+        permissions: list(value.permissions.iter().map(|item| wire_policy_permission(item, limits)))?,
+        templates: list(value.templates.iter().map(|item| wire_template_override(item, limits)))?,
+    })
 }
 
 pub(in crate::codec) fn wire_rules(value: &c::Rules, limits: &w::Limits) -> Result<w::Rules, w::Problem> {
     Ok(w::Rules {
-            ceiling: wire_authority(&value.ceiling, limits)?,
-            period_spend: value.period_spend,
-            minimum_run_spend: value.minimum_run_spend,
-            maximum_run_spend: value.maximum_run_spend,
-            implies: list(value.implies.iter().map(|item| wire_kind_implication(item, limits)))?,
-            requirements: list(value.requirements.iter().map(|item| wire_policy_requirement(item, limits)))?,
-        })
+        ceiling: wire_authority(&value.ceiling, limits)?,
+        period_spend: value.period_spend,
+        minimum_run_spend: value.minimum_run_spend,
+        maximum_run_spend: value.maximum_run_spend,
+        implies: list(value.implies.iter().map(|item| wire_kind_implication(item, limits)))?,
+        requirements: list(value.requirements.iter().map(|item| wire_policy_requirement(item, limits)))?,
+    })
 }
 
 pub fn wire_revision_answer(value: &c::RevisionAnswer, limits: &w::Limits) -> Result<w::RevisionAnswer, w::Problem> {
@@ -267,9 +259,9 @@ pub(in crate::codec) fn wire_revision_document(
     limits: &w::Limits,
 ) -> Result<w::RevisionDocument, w::Problem> {
     Ok(w::RevisionDocument {
-            head: wire_revision_head(&value.head, limits)?,
-            items: pieces(value.items.iter().map(|item| wire_revision_item(item, limits)), limits)?,
-        })
+        head: wire_revision_head(&value.head, limits)?,
+        items: pieces(value.items.iter().map(|item| wire_revision_item(item, limits)), limits)?,
+    })
 }
 
 pub(in crate::codec) fn wire_revision_item(
@@ -277,10 +269,10 @@ pub(in crate::codec) fn wire_revision_item(
     limits: &w::Limits,
 ) -> Result<w::RevisionItem, w::Problem> {
     Ok(w::RevisionItem {
-            setting: wire_setting(&value.setting, limits)?,
-            edit: wire_revision_edit(&value.edit, limits)?,
-            replaced: wire_revision_replaced(&value.replaced, limits)?,
-        })
+        setting: wire_setting(&value.setting, limits)?,
+        edit: wire_revision_edit(&value.edit, limits)?,
+        replaced: wire_revision_replaced(&value.replaced, limits)?,
+    })
 }
 
 pub(in crate::codec) fn wire_revision_edit(
@@ -290,7 +282,9 @@ pub(in crate::codec) fn wire_revision_edit(
     Ok::<_, w::Problem>(match value {
         c::RevisionEdit::Set(value) => w::RevisionEdit::Set(wire_setting_set(value, limits)?),
         c::RevisionEdit::TooLarge(value) => w::RevisionEdit::TooLarge(wire_size(value, limits)?),
-        c::RevisionEdit::Application(value) => w::RevisionEdit::Application(w::ApplicationEdit { edit: wire_sized_edit(value, limits)? }),
+        c::RevisionEdit::Application(value) => {
+            w::RevisionEdit::Application(w::ApplicationEdit { edit: wire_sized_edit(value, limits)? })
+        }
         c::RevisionEdit::Removed => w::RevisionEdit::Removed,
         c::RevisionEdit::Reset => w::RevisionEdit::Reset,
     })
@@ -316,10 +310,10 @@ pub(in crate::codec) fn wire_revision_forgotten(
 
 pub fn wire_revisions_page(value: &c::RevisionsPage, limits: &w::Limits) -> Result<w::RevisionsPage, w::Problem> {
     Ok(w::RevisionsPage {
-            rows: list(value.rows.iter().map(|item| wire_revision_row(item, limits)))?,
-            next: value.next.as_ref().map(|item| Ok::<_, w::Problem>(*(item))).transpose()?,
-            forgotten: value.forgotten,
-        })
+        rows: list(value.rows.iter().map(|item| wire_revision_row(item, limits)))?,
+        next: value.next.as_ref().map(|item| Ok::<_, w::Problem>(*(item))).transpose()?,
+        forgotten: value.forgotten,
+    })
 }
 
 pub(in crate::codec) fn wire_revision_row(
@@ -327,10 +321,10 @@ pub(in crate::codec) fn wire_revision_row(
     limits: &w::Limits,
 ) -> Result<w::RevisionRow, w::Problem> {
     Ok(w::RevisionRow {
-            head: wire_revision_head(&value.head, limits)?,
-            items: list(value.items.iter().map(|item| wire_revision_item_head(item, limits)))?,
-            more: value.more,
-        })
+        head: wire_revision_head(&value.head, limits)?,
+        items: list(value.items.iter().map(|item| wire_revision_item_head(item, limits)))?,
+        more: value.more,
+    })
 }
 
 pub(in crate::codec) fn wire_revision_item_head(
@@ -338,9 +332,9 @@ pub(in crate::codec) fn wire_revision_item_head(
     limits: &w::Limits,
 ) -> Result<w::RevisionItemHead, w::Problem> {
     Ok(w::RevisionItemHead {
-            setting: wire_setting(&value.setting, limits)?,
-            edit: wire_revision_item_edit(&value.edit, limits)?,
-        })
+        setting: wire_setting(&value.setting, limits)?,
+        edit: wire_revision_item_edit(&value.edit, limits)?,
+    })
 }
 
 pub(in crate::codec) fn wire_revision_item_edit(
@@ -366,10 +360,10 @@ pub(in crate::codec) fn wire_refusal_full(
     _limits: &w::Limits,
 ) -> Result<w::RefusalFull, w::Problem> {
     Ok(w::RefusalFull {
-            revision: value.revision,
-            tasks: list(value.tasks.iter().map(|item| Ok::<_, w::Problem>(*(item))))?,
-            more: value.more,
-        })
+        revision: value.revision,
+        tasks: list(value.tasks.iter().map(|item| Ok::<_, w::Problem>(*(item))))?,
+        more: value.more,
+    })
 }
 
 pub fn wire_malformed_settings(
@@ -377,10 +371,10 @@ pub fn wire_malformed_settings(
     limits: &w::Limits,
 ) -> Result<w::MalformedSettings, w::Problem> {
     Ok(w::MalformedSettings {
-            setting: wire_setting(&value.setting, limits)?,
-            fault: wire_setting_fault(&value.fault, limits)?,
-            detail: None,
-        })
+        setting: wire_setting(&value.setting, limits)?,
+        fault: wire_setting_fault(&value.fault, limits)?,
+        detail: None,
+    })
 }
 
 pub(in crate::codec) fn wire_setting_fault(
@@ -407,11 +401,11 @@ pub fn wire_retained_action_settings(
     limits: &w::Limits,
 ) -> Result<w::RetainedActionSettings, w::Problem> {
     Ok(w::RetainedActionSettings {
-            projects: value.projects.clone(),
-            against: value.against,
-            items: list(value.items.iter().map(|item| wire_revision_item_head(item, limits)))?,
-            made: value.made.as_ref().map(|item| Ok::<_, w::Problem>(*(item))).transpose()?,
-        })
+        projects: value.projects.clone(),
+        against: value.against,
+        items: list(value.items.iter().map(|item| wire_revision_item_head(item, limits)))?,
+        made: value.made.as_ref().map(|item| Ok::<_, w::Problem>(*(item))).transpose()?,
+    })
 }
 
 pub fn wire_proposal_action_settings(
@@ -419,11 +413,11 @@ pub fn wire_proposal_action_settings(
     limits: &w::Limits,
 ) -> Result<w::ProposalActionSettings, w::Problem> {
     Ok(w::ProposalActionSettings {
-            against: value.against,
-            items: list(value.items.iter().map(|item| wire_revision_item_head(item, limits)))?,
-            review: value.review.as_ref().map(|item| wire_settings_review(item, limits)).transpose()?,
-            made: value.made.as_ref().map(|item| Ok::<_, w::Problem>(*(item))).transpose()?,
-        })
+        against: value.against,
+        items: list(value.items.iter().map(|item| wire_revision_item_head(item, limits)))?,
+        review: value.review.as_ref().map(|item| wire_settings_review(item, limits)).transpose()?,
+        made: value.made.as_ref().map(|item| Ok::<_, w::Problem>(*(item))).transpose()?,
+    })
 }
 
 pub(in crate::codec) fn wire_settings_review(
@@ -431,11 +425,11 @@ pub(in crate::codec) fn wire_settings_review(
     limits: &w::Limits,
 ) -> Result<w::SettingsReview, w::Problem> {
     Ok(w::SettingsReview {
-            key: None,
-            newest: value.newest,
-            items: pieces(value.items.iter().map(|item| wire_review_item(item, limits)), limits)?,
-            cut: value.cut,
-        })
+        key: None,
+        newest: value.newest,
+        items: pieces(value.items.iter().map(|item| wire_review_item(item, limits)), limits)?,
+        cut: value.cut,
+    })
 }
 
 pub(in crate::codec) fn wire_review_item(
@@ -443,22 +437,22 @@ pub(in crate::codec) fn wire_review_item(
     limits: &w::Limits,
 ) -> Result<w::ReviewItem, w::Problem> {
     Ok(w::ReviewItem {
-            setting: wire_setting(&value.setting, limits)?,
-            edit: wire_revision_item_edit(&value.edit, limits)?,
-            now: wire_review_value(&value.now, limits)?,
-            origin: wire_setting_origin(&value.origin, limits)?,
-            would_be: wire_review_value(&value.would_be, limits)?,
-            application: value
-                .application
-                .as_ref()
-                .map(|v| {
-                    Ok(w::ApplicationReview {
-                            edit: wire_sized_edit(&v.edit, limits)?,
-                            now: v.now.as_ref().map(|v| wire_application_state(v, limits)).transpose()?,
-                        })
+        setting: wire_setting(&value.setting, limits)?,
+        edit: wire_revision_item_edit(&value.edit, limits)?,
+        now: wire_review_value(&value.now, limits)?,
+        origin: wire_setting_origin(&value.origin, limits)?,
+        would_be: wire_review_value(&value.would_be, limits)?,
+        application: value
+            .application
+            .as_ref()
+            .map(|v| {
+                Ok(w::ApplicationReview {
+                    edit: wire_sized_edit(&v.edit, limits)?,
+                    now: v.now.as_ref().map(|v| wire_application_state(v, limits)).transpose()?,
                 })
-                .transpose()?,
-        })
+            })
+            .transpose()?,
+    })
 }
 
 pub(in crate::codec) fn wire_review_value(
@@ -507,16 +501,18 @@ pub(in crate::codec) fn wire_outcome_moved_to_newest(
 fn wire_application_state(v: &c::ApplicationState, _limits: &w::Limits) -> Result<w::ApplicationState, w::Problem> {
     let follows = match v.follows {
         c::ApplicationFollows::Default => w::ApplicationFollows::Default,
-        c::ApplicationFollows::Changed { revision } => w::ApplicationFollows::Changed(w::ApplicationRevision { revision }),
-        c::ApplicationFollows::Removed { revision } => w::ApplicationFollows::Removed(w::ApplicationRevision { revision }),
+        c::ApplicationFollows::Changed { revision } => {
+            w::ApplicationFollows::Changed(w::ApplicationRevision { revision })
+        }
+        c::ApplicationFollows::Removed { revision } => {
+            w::ApplicationFollows::Removed(w::ApplicationRevision { revision })
+        }
     };
     Ok(w::ApplicationState { follows, size: v.size, charters: v.charters.clone() })
 }
 fn wire_sized_edit(v: &c::SizedEdit, _limits: &w::Limits) -> Result<w::SizedEdit, w::Problem> {
     Ok(match v {
-        c::SizedEdit::Set { size } => {
-            w::SizedEdit::Set(w::ApplicationSize { size: *size })
-        }
+        c::SizedEdit::Set { size } => w::SizedEdit::Set(w::ApplicationSize { size: *size }),
         c::SizedEdit::Remove => w::SizedEdit::Remove,
         c::SizedEdit::Reset => w::SizedEdit::Reset,
     })
@@ -540,19 +536,19 @@ pub fn wire_revision_replaced(
 
 fn wire_catalogue(value: &c::CatalogueEntry, limits: &w::Limits) -> Result<w::CatalogueEntry, w::Problem> {
     Ok(w::CatalogueEntry {
-            number: value.number,
-            model: wire_setting_model(&value.model, limits)?,
-            shown: value.shown.as_ref().map(|value| bytes::copy_of(value.bytes())),
-            description: value.description.as_ref().map(|value| bytes::copy_of(value.bytes())),
-            picker: value.picker,
-            withdrawn: value.withdrawn,
-            estimated: value.estimated,
-            source: match value.source {
-                c::ModelSource::Stock => w::ModelSource::Stock,
-                c::ModelSource::List => w::ModelSource::List,
-                c::ModelSource::Person => w::ModelSource::Person,
-            },
-        })
+        number: value.number,
+        model: wire_setting_model(&value.model, limits)?,
+        shown: value.shown.as_ref().map(|value| bytes::copy_of(value.bytes())),
+        description: value.description.as_ref().map(|value| bytes::copy_of(value.bytes())),
+        picker: value.picker,
+        withdrawn: value.withdrawn,
+        estimated: value.estimated,
+        source: match value.source {
+            c::ModelSource::Stock => w::ModelSource::Stock,
+            c::ModelSource::List => w::ModelSource::List,
+            c::ModelSource::Person => w::ModelSource::Person,
+        },
+    })
 }
 
 pub(in crate::codec) fn wire_overlay(value: &c::Overlay, limits: &w::Limits) -> Result<w::Overlay, w::Problem> {
@@ -572,11 +568,11 @@ pub(in crate::codec) fn wire_overlay(value: &c::Overlay, limits: &w::Limits) -> 
             for item in items {
                 documents
                     .push(w::CharterDocument {
-                            connector: item.connector,
-                            name: item.name.clone(),
-                            path: item.path.clone(),
-                            heading: item.heading.clone(),
-                        })
+                        connector: item.connector,
+                        name: item.name.clone(),
+                        path: item.path.clone(),
+                        heading: item.heading.clone(),
+                    })
                     .expect("same capacity");
             }
             Some(documents)
@@ -590,33 +586,33 @@ pub(in crate::codec) fn wire_overlay(value: &c::Overlay, limits: &w::Limits) -> 
             .expect("same capacity");
     }
     Ok(w::Overlay {
-            rest: value.rest,
-            inspect: value.inspect,
-            modify: value.modify,
-            shell: value.shell,
-            agents: value.agents,
-            waiting: value.waiting,
-            resume: value.resume,
-            turns: value.turns,
-            time: value.time,
-            reserve_turns: value.reserve_turns,
-            reserve_time: value.reserve_time,
-            call_timeout: value.call_timeout,
-            spend: value.spend,
-            model: match &value.model {
-                Some(item) => Some(wire_setting_model(item, limits)?),
-                None => None,
-            },
-            alternatives,
-            documents,
-            parts,
-            tools: value.tools,
-            hosts: match &value.hosts {
-                Some(item) => Some(wire_setting_hosts(item, limits)?),
-                None => None,
-            },
-            instructions: bytes::copy_of(value.instructions.bytes()),
-        })
+        rest: value.rest,
+        inspect: value.inspect,
+        modify: value.modify,
+        shell: value.shell,
+        agents: value.agents,
+        waiting: value.waiting,
+        resume: value.resume,
+        turns: value.turns,
+        time: value.time,
+        reserve_turns: value.reserve_turns,
+        reserve_time: value.reserve_time,
+        call_timeout: value.call_timeout,
+        spend: value.spend,
+        model: match &value.model {
+            Some(item) => Some(wire_setting_model(item, limits)?),
+            None => None,
+        },
+        alternatives,
+        documents,
+        parts,
+        tools: value.tools,
+        hosts: match &value.hosts {
+            Some(item) => Some(wire_setting_hosts(item, limits)?),
+            None => None,
+        },
+        instructions: bytes::copy_of(value.instructions.bytes()),
+    })
 }
 
 fn wire_limits(values: &[c::Override], _limits: &w::Limits) -> Result<w::LimitsValue, w::Problem> {
@@ -631,10 +627,10 @@ fn wire_limits(values: &[c::Override], _limits: &w::Limits) -> Result<w::LimitsV
 
 fn wire_worker(value: &c::WorkerSetting, _limits: &w::Limits) -> Result<w::WorkerSetting, w::Problem> {
     Ok(w::WorkerSetting {
-            number: value.number,
-            name: value.name.clone(),
-            places: value.places,
-            digest: value.digest,
-            withdrawn: value.withdrawn,
-        })
+        number: value.number,
+        name: value.name.clone(),
+        places: value.places,
+        digest: value.digest,
+        withdrawn: value.withdrawn,
+    })
 }

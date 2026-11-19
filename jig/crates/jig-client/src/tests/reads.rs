@@ -1,7 +1,7 @@
-use jig_client_protocol_wire::Record as _;
 use super::fixtures::{self, Client, SUBJECT_TASK, TASK};
 use crate::{Event, Handle, Message, Readable, Request, With, contract as c};
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use skein_lib::{List, Reader, Secret, Time, Writer};
 
 fn client() -> Client {
@@ -34,14 +34,16 @@ fn a_batched_busy_read_ends_while_its_busy_opening_retries_after_backoff() {
         panic!("ordered read and opening")
     };
     let original = open.watch;
-    let busy = w::OpenAnswer::Refused(
-        w::OpenAnswerRefused { why: w::WatchRefusal::Busy },
+    let busy = w::OpenAnswer::Refused(w::OpenAnswerRefused { why: w::WatchRefusal::Busy });
+    let mut writer = Writer::new(
+        usize::try_from(busy.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
     );
-    let mut writer = Writer::new(usize::try_from(busy.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
     busy.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
     for (member, reply) in [(0, fixtures::read_none(w::ReadNone::Busy)), (1, writer.finish())] {
         let part = w::BatchReply { member, reply: Some(reply) };
-        let mut writer = Writer::new(usize::try_from(part.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+        let mut writer = Writer::new(
+            usize::try_from(part.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+        );
         part.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
         client.machine.step(
             Time::ZERO,
@@ -168,7 +170,8 @@ fn a_conversations_original_read_leaves_once_when_an_exchange_slot_is_released()
         if let Request::Exchange { exchange, message: Message::Read(bytes), .. } = request {
             assert!(admitted.replace(*exchange).is_none(), "exactly one deferred read leaves");
             let owned = w::Owned::decode(&w::CEILINGS, &mut Reader::new(bytes)).unwrap();
-            let w::Read::Activity(activity) = w::Read::decode(&w::CEILINGS, &mut Reader::new(owned.record.as_ref())).unwrap()
+            let w::Read::Activity(activity) =
+                w::Read::decode(&w::CEILINGS, &mut Reader::new(owned.record.as_ref())).unwrap()
             else {
                 panic!("the original conversation demand")
             };
@@ -208,7 +211,8 @@ fn replacing_a_queued_read_keeps_only_the_current_demand_within_the_read_bound()
     }
     assert_eq!(reads.len(), 1);
     let owned = w::Owned::decode(&w::CEILINGS, &mut Reader::new(reads.get(0).unwrap())).unwrap();
-    let w::Read::Project(project) = w::Read::decode(&w::CEILINGS, &mut Reader::new(owned.record.as_ref())).unwrap() else {
+    let w::Read::Project(project) = w::Read::decode(&w::CEILINGS, &mut Reader::new(owned.record.as_ref())).unwrap()
+    else {
         panic!("only the replacement project read leaves")
     };
     assert_eq!(project.project, 11);
@@ -300,10 +304,10 @@ fn a_peer_version_refusal_ends_queued_reads_instead_of_admitting_them() {
         read: Readable::Jig(c::Read::Activity { task: SUBJECT_TASK, before: None }),
     });
     assert_eq!((client.requests()).len(), 0);
-    let answer = w::ReadAnswer::NotServed(
-        w::NotServed { owner: w::Owner::Jig, served: List::with_capacity(0) },
+    let answer = w::ReadAnswer::NotServed(w::NotServed { owner: w::Owner::Jig, served: List::with_capacity(0) });
+    let mut bytes = Writer::new(
+        usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
     );
-    let mut bytes = Writer::new(usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
     answer.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
     client.step(Event::Reply { exchange: occupied, message: bytes.finish() });
     let mut terminal = None;
@@ -348,7 +352,9 @@ fn link_consequences_precede_the_next_domain_request() {
             old_exchanges.push(client.exchange()).unwrap();
         } else {
             let answer = w::OpenAnswer::Admitted;
-            let mut bytes = Writer::new(usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+            let mut bytes = Writer::new(
+                usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+            );
             answer.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
             client.step(Event::Reply { exchange: client.exchange(), message: bytes.finish() });
         }
@@ -427,7 +433,8 @@ fn link_consequences_precede_the_next_domain_request() {
     let mut sent = List::with_capacity(2);
     for member in &batch.members {
         let w::Member::Read(owned) = member else { panic!("queued reads") };
-        let w::Read::Project(read) = w::Read::decode(&w::CEILINGS, &mut Reader::new(owned.record.as_ref())).unwrap() else {
+        let w::Read::Project(read) = w::Read::decode(&w::CEILINGS, &mut Reader::new(owned.record.as_ref())).unwrap()
+        else {
             panic!("project read")
         };
         sent.push(read.project).unwrap();
@@ -470,7 +477,8 @@ fn reads_leave_in_asked_order_only_at_the_iterations_settle() {
     let mut projects = List::with_capacity(2);
     for member in &batch.members {
         let w::Member::Read(owned) = member else { panic!("read member") };
-        let w::Read::Project(project) = w::Read::decode(&w::CEILINGS, &mut Reader::new(owned.record.as_ref())).unwrap() else {
+        let w::Read::Project(project) = w::Read::decode(&w::CEILINGS, &mut Reader::new(owned.record.as_ref())).unwrap()
+        else {
             panic!("project read")
         };
         projects.push(project.project).unwrap();

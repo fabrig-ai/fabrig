@@ -8,8 +8,8 @@
     reason = "ordinary Rust domain world inspects typed wire records and semantic trees"
 )]
 mod tests {
+    use jig_client_protocol_wire as w;
     use jig_client_protocol_wire::Record as _;
-use jig_client_protocol_wire as w;
     use skein_lib::{Duration, Env, List, Queue, Reader, Time, Wall};
     use temper_client_domain::{
         self as domain, Address, Event, GoalsFilter, Request, WorkFilter,
@@ -62,12 +62,13 @@ use jig_client_protocol_wire as w;
                         order.push(format!("watch {}", tasks.query.label.expect("page label")));
                     }
                 }
-                w::Owner::Jig => match w::Read::decode(&w::CEILINGS, &mut Reader::new(subject.record.as_ref())).expect("read")
-                {
-                    w::Read::Tasks(tasks) => order.push(format!("read {}", tasks.query.label.expect("page label"))),
-                    w::Read::Inbox(_) => order.push("needs".into()),
-                    _ => {}
-                },
+                w::Owner::Jig => {
+                    match w::Read::decode(&w::CEILINGS, &mut Reader::new(subject.record.as_ref())).expect("read") {
+                        w::Read::Tasks(tasks) => order.push(format!("read {}", tasks.query.label.expect("page label"))),
+                        w::Read::Inbox(_) => order.push("needs".into()),
+                        _ => {}
+                    }
+                }
                 w::Owner::Family(_) if watch => {
                     use temper_client_protocol_wire::{self as wire, v1 as f};
                     let envelope = w::FamilyRecord::decode(&w::CEILINGS, &mut Reader::new(subject.record.as_ref()))

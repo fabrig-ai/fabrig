@@ -51,12 +51,16 @@ pub fn message() -> c::Ask {
     }
 }
 pub fn encoded_answer(value: &w::KeyedAnswer) -> Box<[u8]> {
-    let mut out = Writer::new(usize::try_from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    let mut out = Writer::new(
+        usize::try_from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
     value.write(&jig_client_protocol_wire::CEILINGS, &mut out).unwrap();
     out.finish()
 }
 pub fn final_answer(value: w::Final) -> Box<[u8]> {
-    let mut bytes = Writer::new(usize::try_from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    let mut bytes = Writer::new(
+        usize::try_from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
     value.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
     let owned = w::Owned { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: bytes.finish() };
     encoded_answer(&w::KeyedAnswer::FinalAnswer(owned))
@@ -69,9 +73,7 @@ pub fn answer_done_chat(task: u64) -> Box<[u8]> {
     final_answer(w::Final::Done(w::Done { outcome: w::Outcome::Made(made) }))
 }
 pub fn answer_key_conflict() -> Box<[u8]> {
-    final_answer(w::Final::Refused(
-        w::Refused { at: None, refusal: w::Refusal::KeyConflict },
-    ))
+    final_answer(w::Final::Refused(w::Refused { at: None, refusal: w::Refusal::KeyConflict }))
 }
 pub fn answer_family(family: u16, version: u32) -> Box<[u8]> {
     let owner = w::Owner::Family(w::Family { number: family });
@@ -235,11 +237,8 @@ pub fn refusal_with_hold(rows: Box<[u8]>) -> Box<[u8]> {
     final_answer(w::Final::Refused(value))
 }
 pub fn hold_budget_fact() -> w::Fact {
-    let value =
-        w::HoldReasonBudgetFields { spent: u64::MAX, limit: 16 };
-    w::Fact::HoldReason(
-        w::HoldReasonRow { parent: None, value: w::HoldReasonFields::Budget(value) },
-    )
+    let value = w::HoldReasonBudgetFields { spent: u64::MAX, limit: 16 };
+    w::Fact::HoldReason(w::HoldReasonRow { parent: None, value: w::HoldReasonFields::Budget(value) })
 }
 
 mod documents;
@@ -302,10 +301,14 @@ impl Harness {
     }
 }
 pub fn signed_in(party: u64, token: &[u8; 40]) -> Box<[u8]> {
-    let record = w::SignInAnswer::SignedIn(
-        w::SignedIn { token: Some(skein_lib::Secret::new(Box::from(*token))), party, expires: 10 },
+    let record = w::SignInAnswer::SignedIn(w::SignedIn {
+        token: Some(skein_lib::Secret::new(Box::from(*token))),
+        party,
+        expires: 10,
+    });
+    let mut writer = Writer::new(
+        usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
     );
-    let mut writer = Writer::new(usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
     record.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
     writer.finish()
 }

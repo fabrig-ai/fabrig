@@ -68,18 +68,18 @@ pub(crate) fn row(
             Slot::NotServed(why) => w::RowPart::NotServed(why.clone()),
             Slot::Served(ask) => match supplied.next().ok_or(invalid)? {
                 d::RowPart::Made(bytes) => w::RowPart::Value(w::Owned {
-                        owner: w::Owner::Family(w::Family { number: ask.owner }),
-                        version: ask.version,
-                        record: skein_lib::bytes::copy_of(bytes),
-                    }),
+                    owner: w::Owner::Family(w::Family { number: ask.owner }),
+                    version: ask.version,
+                    record: skein_lib::bytes::copy_of(bytes),
+                }),
                 d::RowPart::Unknown => w::RowPart::Unknown,
                 d::RowPart::Failed(why) => w::RowPart::Failed(w::PartFailed {
-                        why: match why {
-                            d::PartFailure::Busy => w::PartFailure::Busy,
-                            d::PartFailure::TooLarge => w::PartFailure::TooLarge,
-                            d::PartFailure::Unreadable => w::PartFailure::Unreadable,
-                        },
-                    }),
+                    why: match why {
+                        d::PartFailure::Busy => w::PartFailure::Busy,
+                        d::PartFailure::TooLarge => w::PartFailure::TooLarge,
+                        d::PartFailure::Unreadable => w::PartFailure::Unreadable,
+                    },
+                }),
             },
         };
         parts.push(part).expect("one part per slot");

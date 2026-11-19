@@ -1,5 +1,5 @@
-use jig_client_protocol_wire::Record as _;
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use jig_domain_core as core;
 use jig_domain_people as people;
 use jig_engine_clients_world::fixtures::{self, Peer};
@@ -47,7 +47,9 @@ fn asked(peer: &mut Peer, bearer: &[u8], sign_in: u64) -> w::LinkAsked {
 }
 fn link_body(link: &w::LinkAsked) -> Box<[u8]> {
     let record = w::LinkSignIn { secret: link.secret.clone() };
-    let mut bytes = Writer::new(skein_lib::length::usize_of(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+    let mut bytes = Writer::new(skein_lib::length::usize_of(
+        record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+    ));
     record.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("measured link");
     bytes.finish()
 }
@@ -283,13 +285,11 @@ fn retry_answers_return_an_asked_link_with_its_drawn_expiry() {
         let expected = match &reply {
             people::Reply::Again(people::Again::NotReady) => w::SignInAnswer::NotReady,
             people::Reply::Again(people::Again::Busy) => w::SignInAnswer::Busy,
-            people::Reply::Full { sign_ins, earliest } => w::SignInAnswer::Full(
-                w::SignInsFull {
-                        sign_ins: *sign_ins,
-                        earliest: earliest.as_nanos(),
-                        link_until: link.expires,
-                    },
-            ),
+            people::Reply::Full { sign_ins, earliest } => w::SignInAnswer::Full(w::SignInsFull {
+                sign_ins: *sign_ins,
+                earliest: earliest.as_nanos(),
+                link_until: link.expires,
+            }),
             _ => unreachable!("retry fixtures"),
         };
         peer.answer_request(to, reply);

@@ -1,6 +1,6 @@
-use jig_client_protocol_wire::Record as _;
 use alloc::boxed::Box;
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use jig_domain_core_vocabulary::documents as d;
 use jig_domain_tasks as t;
 use skein_lib::{Duration, List, Wall};
@@ -213,11 +213,12 @@ pub fn frame_two_projects_record() -> jig_client_protocol_wire::Me {
     while let Some(bytes) = skein_codec::piece::split(&mut reader).expect("fixture pieces") {
         let project = w::MeProject::decode(&limits, &mut skein_lib::Reader::new(&bytes)).expect("fixture project");
         let mut project = project;
-        project.name =
-            w::DocumentText { bytes: Box::from(&b"Tally"[..]), cut: false };
+        project.name = w::DocumentText { bytes: Box::from(&b"Tally"[..]), cut: false };
         let project = project;
         size = size
-            .checked_add(skein_lib::length::usize_of(project.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")))
+            .checked_add(skein_lib::length::usize_of(
+                project.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+            ))
             .expect("fixture size")
             .checked_add(size_of::<u32>())
             .expect("piece header");
@@ -225,7 +226,9 @@ pub fn frame_two_projects_record() -> jig_client_protocol_wire::Me {
     }
     let mut writer = skein_lib::Writer::new(size);
     for project in projects.into_boxed() {
-        let mut encoded = skein_lib::Writer::new(skein_lib::length::usize_of(project.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+        let mut encoded = skein_lib::Writer::new(skein_lib::length::usize_of(
+            project.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+        ));
         project.write(&jig_client_protocol_wire::CEILINGS, &mut encoded).expect("measured project");
         skein_codec::piece::write(&mut writer, &encoded.finish()).expect("measured piece");
     }

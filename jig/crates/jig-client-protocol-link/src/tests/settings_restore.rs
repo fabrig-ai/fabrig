@@ -34,18 +34,14 @@ fn a_project_policy_setting_round_trips_in_items_reviews_and_refusals() {
             .unwrap(),
         review
     );
-    let refusal = w::Refusal::Malformed(
-        w::RefusalMalformed {
-                at: 2,
-                why: w::Malformed::Settings(
-                    w::MalformedSettings {
-                            setting: t::wire_setting(&setting, limits.wire()).unwrap(),
-                            fault: w::SettingFault::Shape,
-                            detail: None,
-                        },
-                ),
-            },
-    );
+    let refusal = w::Refusal::Malformed(w::RefusalMalformed {
+        at: 2,
+        why: w::Malformed::Settings(w::MalformedSettings {
+            setting: t::wire_setting(&setting, limits.wire()).unwrap(),
+            fault: w::SettingFault::Shape,
+            detail: None,
+        }),
+    });
     assert_eq!(
         answers::refusal(&refusal, &limits).unwrap(),
         c::Refusal::Malformed {
@@ -71,7 +67,9 @@ fn revision_items_round_trip_every_replaced_arm() {
             replaced,
         };
         let wire = e::wire_revision_item(&item, limits.wire()).unwrap();
-        let mut bytes = Writer::new(usize::try_from(wire.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+        let mut bytes = Writer::new(
+            usize::try_from(wire.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+        );
         wire.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
         let wire = w::RevisionItem::decode(limits.wire(), &mut Reader::new(&bytes.finish())).unwrap();
         assert_eq!(t::restore_revision_item(&wire, &limits).unwrap(), item);
@@ -88,7 +86,9 @@ fn a_restore_ask_round_trips_through_the_wire_and_the_kept_table() {
     for reason in ["restore λ".as_bytes(), b"".as_slice()] {
         let ask = c::Ask::Restore { revision: 3, reason: c::Text::new(reason.into(), 65536).unwrap() };
         let wire = asks::ask(&ask, limits.wire()).unwrap();
-        let mut bytes = Writer::new(usize::try_from(wire.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+        let mut bytes = Writer::new(
+            usize::try_from(wire.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+        );
         wire.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
         let wire = w::Ask::decode(limits.wire(), &mut Reader::new(&bytes.finish())).unwrap();
         assert_eq!(translate::store::restore_ask(wire, &limits).unwrap(), ask);
@@ -99,7 +99,8 @@ fn a_restore_ask_round_trips_through_the_wire_and_the_kept_table() {
     }
     let long = w::Restore { revision: 3, reason: skein_lib::bytes::zeroed(65536) };
     asks::restore_ask_restore(&long, &limits).expect_err("the client text bound applies to restored reasons");
-    w::Restore { revision: 3, reason: skein_lib::bytes::zeroed(65537) }.encode(limits.wire())
+    w::Restore { revision: 3, reason: skein_lib::bytes::zeroed(65537) }
+        .encode(limits.wire())
         .expect_err("the wire reason ceiling applies");
 }
 #[test]
@@ -110,7 +111,9 @@ fn restored_outcomes_and_forgotten_refusals_reach_the_contract() {
     left_out.push(c::Setting::Application { kind: 2, scope: 7, number: 9 }).unwrap();
     let wire = e::wire_outcome_restored(41, 3, &left_out, limits.wire()).unwrap();
     let wire = w::Outcome::Restored(wire);
-    let mut bytes = Writer::new(usize::try_from(wire.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    let mut bytes = Writer::new(
+        usize::try_from(wire.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
     wire.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
     let wire = w::Outcome::decode(limits.wire(), &mut Reader::new(&bytes.finish())).unwrap();
     assert_eq!(answers::outcome(&wire, &limits).unwrap(), c::Outcome::Restored { proposal: 41, to: 3, left_out });

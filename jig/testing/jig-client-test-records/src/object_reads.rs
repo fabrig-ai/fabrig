@@ -3,20 +3,18 @@ use super::{List, chip_record, fact_bytes, task_record, w};
 
 #[must_use]
 pub fn read_ending_record() -> w::Ending {
-    let row = w::Fact::Ending(
-        w::EndingRow { parent: None, value: w::EndingFields::Done },
-    );
+    let row = w::Fact::Ending(w::EndingRow { parent: None, value: w::EndingFields::Done });
     w::Ending { rows: fact_bytes(&row) }
 }
 
 #[must_use]
 pub fn read_wire_document_specification() -> w::DocumentSpecification {
     w::DocumentSpecification {
-            asks: false,
-            words: read_wire_document_text(),
-            parameters: List::with_capacity(0),
-            inputs: List::with_capacity(0),
-        }
+        asks: false,
+        words: read_wire_document_text(),
+        parameters: List::with_capacity(0),
+        inputs: List::with_capacity(0),
+    }
 }
 
 #[must_use]
@@ -87,35 +85,35 @@ pub fn read_wire_owner_part_kind() -> w::PartKind {
 #[must_use]
 pub fn read_wire_owner_person_task() -> w::PersonTask {
     w::PersonTask {
-            task: chip_record(),
-            revision: read_wire_revision(),
-            requester: read_wire_owner_requester(),
-            spec: read_wire_specification_document(),
-            address: read_wire_person_address(),
-            taken_by: None,
-            since: None,
-            stall: None,
-            deadline: None,
-            contract: read_wire_task_contract_document(),
-            results: Box::from([]),
-            cut: false,
-            acts: Box::from([]),
-        }
+        task: chip_record(),
+        revision: read_wire_revision(),
+        requester: read_wire_owner_requester(),
+        spec: read_wire_specification_document(),
+        address: read_wire_person_address(),
+        taken_by: None,
+        since: None,
+        stall: None,
+        deadline: None,
+        contract: read_wire_task_contract_document(),
+        results: Box::from([]),
+        cut: false,
+        acts: Box::from([]),
+    }
 }
 
 #[must_use]
 pub fn read_wire_owner_proposal() -> w::Proposal {
     w::Proposal {
-            projects: List::with_capacity(0),
-            key: read_wire_proposal_key(),
-            project: 7,
-            reason: read_wire_document_text(),
-            action: read_wire_owner_proposal_action(),
-            as_holder: false,
-            waiting: read_wire_owner_proposal_waiting(),
-            funding: List::with_capacity(0),
-            acts: Box::from([]),
-        }
+        projects: List::with_capacity(0),
+        key: read_wire_proposal_key(),
+        project: 7,
+        reason: read_wire_document_text(),
+        action: read_wire_owner_proposal_action(),
+        as_holder: false,
+        waiting: read_wire_owner_proposal_waiting(),
+        funding: List::with_capacity(0),
+        acts: Box::from([]),
+    }
 }
 
 #[must_use]
@@ -171,26 +169,26 @@ pub fn read_wire_proposer_task() -> w::ProposerTask {
 #[must_use]
 pub fn read_wire_question() -> w::Question {
     w::Question {
-            task: chip_record(),
-            from: None,
-            message: 7,
-            words: w::DocumentText { bytes: Box::from([]), cut: false },
-            since: 7,
-            acts: Box::from([]),
-            ending: None,
-        }
+        task: chip_record(),
+        from: None,
+        message: 7,
+        words: w::DocumentText { bytes: Box::from([]), cut: false },
+        since: 7,
+        acts: Box::from([]),
+        ending: None,
+    }
 }
 
 #[must_use]
 pub fn read_wire_result() -> w::ResultDocument {
     w::ResultDocument {
-            task: chip_record(),
-            ending: read_ending_record(),
-            value: None,
-            at: None,
-            details: None,
-            acts: Box::from([]),
-        }
+        task: chip_record(),
+        ending: read_ending_record(),
+        value: None,
+        at: None,
+        details: None,
+        acts: Box::from([]),
+    }
 }
 
 #[must_use]

@@ -1,7 +1,7 @@
 //! Secret-free program facts (accounts.md, 3.4; client/domain/contract/documents.md, 1).
-use jig_client_protocol_wire::Record as _;
 use super::{pieces, w};
 use alloc::boxed::Box;
+use jig_client_protocol_wire::Record as _;
 use jig_domain_core_vocabulary::documents as d;
 use jig_domain_link::{LoginState, SignOutResult, SourceFailure};
 use skein_lib::{List, Writer};
@@ -21,8 +21,12 @@ fn state(value: &LoginState, _limits: &w::Limits) -> Result<w::ProgramState, w::
     Ok(match value {
         LoginState::Usable => w::ProgramState::Usable,
         LoginState::NotSignedIn => w::ProgramState::NotSignedIn,
-        LoginState::SignedInOtherwise(method) => w::ProgramState::SignedInOtherwise(w::ProgramOtherwise { method: skein_lib::bytes::copy_of(method.as_bytes()) }),
-        LoginState::Failed { reason, detail } => w::ProgramState::Failed(w::ProgramFailed { reason: failure(*reason), detail: detail.clone() }),
+        LoginState::SignedInOtherwise(method) => w::ProgramState::SignedInOtherwise(w::ProgramOtherwise {
+            method: skein_lib::bytes::copy_of(method.as_bytes()),
+        }),
+        LoginState::Failed { reason, detail } => {
+            w::ProgramState::Failed(w::ProgramFailed { reason: failure(*reason), detail: detail.clone() })
+        }
     })
 }
 pub fn login(value: &d::ProgramLogin, limits: &w::Limits) -> Result<w::ProgramLogin, w::Problem> {
@@ -32,7 +36,9 @@ pub fn login(value: &d::ProgramLogin, limits: &w::Limits) -> Result<w::ProgramLo
     };
     let sign_out = match &value.sign_out {
         Some(SignOutResult::SignedOut) => Some(w::ProgramSignOut::SignedOut),
-        Some(SignOutResult::Failed { reason, detail }) => Some(w::ProgramSignOut::Failed(w::ProgramFailed { reason: failure(*reason), detail: detail.clone() })),
+        Some(SignOutResult::Failed { reason, detail }) => {
+            Some(w::ProgramSignOut::Failed(w::ProgramFailed { reason: failure(*reason), detail: detail.clone() }))
+        }
         None => None,
     };
     Ok(w::ProgramLogin { name: value.name.clone(), state, sign_out, cleanup: value.cleanup, cut: value.cut })
@@ -54,13 +60,13 @@ pub fn logins(
 }
 pub fn host(value: &d::ProgramHost, limits: &w::Limits) -> Result<w::ProgramHost, w::Problem> {
     Ok(w::ProgramHost {
-            name: value.name.clone(),
-            channel: value.channel,
-            connected: value.connected,
-            awaiting_logins: value.awaiting_logins,
-            programs: logins(&value.programs, limits, limits.program_host_programs, w::paths::PROGRAM_HOST_PROGRAMS)?,
-            cut: value.cut,
-        })
+        name: value.name.clone(),
+        channel: value.channel,
+        connected: value.connected,
+        awaiting_logins: value.awaiting_logins,
+        programs: logins(&value.programs, limits, limits.program_host_programs, w::paths::PROGRAM_HOST_PROGRAMS)?,
+        cut: value.cut,
+    })
 }
 pub fn hosts(value: &List<d::ProgramHost>, limits: &w::Limits) -> Result<Box<[u8]>, w::Problem> {
     let mut rows = List::with_capacity(value.len());

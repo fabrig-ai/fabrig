@@ -5,12 +5,12 @@
     clippy::disallowed_types,
     reason = "ordinary protocol fixtures construct textual requests and inspect page bytes"
 )]
-use jig_client_protocol_wire::Record as _;
 use super::{
     fixtures::{self, http::Peer},
     sign_in,
 };
 use crate::clients::forge_sign_in::{Entries, Unserved, refresh};
+use jig_client_protocol_wire::Record as _;
 use jig_protocol_config::clients::ProviderClient;
 use skein_lib::{Duration, Map, Time, Token, Wall};
 use temper_engine_domain_forge as forge;
@@ -390,7 +390,9 @@ fn a_box_document_starts_and_its_printed_link_supplies_the_persons_verified_clai
     service.engine.as_mut().unwrap().clients = clients;
     fixtures::listening(&mut service);
     let record = wire::LinkSignIn { secret: seeds.link_secret.unwrap() };
-    let mut out = Writer::new(usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    let mut out = Writer::new(
+        usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
     record.write(&jig_client_protocol_wire::CEILINGS, &mut out).unwrap();
     let signed = provider::request(
         &mut service,

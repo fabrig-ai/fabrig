@@ -1,11 +1,11 @@
 //! Watch exchanges and released stream outputs (protocol/client/wire.md, 2, and protocol/client/README.md, 5).
-use jig_client_protocol_wire::Record as _;
 use super::{Box, Component, Env, Limits, Queue, Request, Token, Waiting, core, routes, w};
 use crate::{
     routes::Route,
     stream::{self, Stream, Taken, Watch},
     translate::watches as translate,
 };
+use jig_client_protocol_wire::Record as _;
 use skein_lib::Reader;
 impl Component {
     fn issued_name(&self, name: Token) -> bool {
@@ -174,15 +174,13 @@ impl Component {
         connection.stream = true;
         if served {
             let subject = w::Subject::Me;
-            let mut record = skein_lib::Writer::new(skein_lib::length::usize_of(subject.measure(&env.limits.wire).expect("decoded client record")));
+            let mut record = skein_lib::Writer::new(skein_lib::length::usize_of(
+                subject.measure(&env.limits.wire).expect("decoded client record"),
+            ));
             subject.write(&env.limits.wire, &mut record).expect("measured subject");
-            let subject = w::Owned {
-                    owner: w::Owner::Jig,
-                    version: version.expect("served opening"),
-                    record: record.finish(),
-                };
-            let open =
-                w::Open { stream: name, watch: 0, subject };
+            let subject =
+                w::Owned { owner: w::Owner::Jig, version: version.expect("served opening"), record: record.finish() };
+            let open = w::Open { stream: name, watch: 0, subject };
             self.open_watch(env, None, sign_in, open, out);
         }
     }

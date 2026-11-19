@@ -1,6 +1,6 @@
 //! The test's shell: linked sign-in played as platform reports, through bytes.
-use jig_client_protocol_wire::Record as _;
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use jig_client_protocol_wire::VERSION;
 use jig_client_shell_web::adapter::{Asked, Heard};
 use skein_lib::{
@@ -90,20 +90,30 @@ impl Walk {
                         let mut complete = true;
                         for (place, member) in batch.members.into_boxed().into_iter().enumerate() {
                             let reply = match member {
-                                w::Member::Open(_) => w::OpenAnswer::Admitted.encode(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture encoding"),
-                                w::Member::Close(_) => w::CloseAnswer::Closed.encode(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture encoding"),
+                                w::Member::Open(_) => w::OpenAnswer::Admitted
+                                    .encode(&jig_client_protocol_wire::CEILINGS)
+                                    .expect("bounded fixture encoding"),
+                                w::Member::Close(_) => w::CloseAnswer::Closed
+                                    .encode(&jig_client_protocol_wire::CEILINGS)
+                                    .expect("bounded fixture encoding"),
                                 w::Member::Read(_) => {
                                     complete = false;
                                     continue; // The fixture leaves lone reads unanswered too.
                                 }
                             };
-                            let part = w::BatchReply {
-                                    member: u16::try_from(place).expect("member"),
-                                    reply: Some(reply),
-                                };
-                            let bytes = part.encode(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture encoding");
-                            let frame =
-                                [part.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture").to_be_bytes().as_slice(), bytes.as_ref()].concat().into_boxed_slice();
+                            let part =
+                                w::BatchReply { member: u16::try_from(place).expect("member"), reply: Some(reply) };
+                            let bytes =
+                                part.encode(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture encoding");
+                            let frame = [
+                                part.measure(&jig_client_protocol_wire::CEILINGS)
+                                    .expect("bounded fixture")
+                                    .to_be_bytes()
+                                    .as_slice(),
+                                bytes.as_ref(),
+                            ]
+                            .concat()
+                            .into_boxed_slice();
                             pending.push_back(Report::Heard(Heard::Part { exchange: *id, bytes: frame }));
                         }
                         if complete {
@@ -210,9 +220,10 @@ fn exchange(asks: Vec<Asked>) -> u32 {
 pub(super) fn project_frame() -> Box<[u8]> {
     let mut walk = linked();
     let value = w::DeliveryValue::Me(jig_client_test_records::frame_two_projects_record());
-    walk.streamed(&w::StreamEvent::Delivery(
-        w::Delivery { watch: 0, document: owned(value.encode(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture encoding")) },
-    ));
+    walk.streamed(&w::StreamEvent::Delivery(w::Delivery {
+        watch: 0,
+        document: owned(value.encode(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture encoding")),
+    }));
     walk.turn(vec![Report::Place { path: b"/projects/3/work".as_slice().into() }]);
     walk.recorder.save(&walk.page)
 }
@@ -235,7 +246,6 @@ fn opens(path: &[u8], body: &[u8]) -> Vec<w::Open> {
     if path == b"/jig/v1/batch" {
         return w::Batch::decode(&w::CEILINGS, &mut Reader::new(body))
             .expect("batch")
-            
             .members
             .into_boxed()
             .into_vec()
@@ -261,20 +271,10 @@ fn linked() -> Walk {
     walk.turn(vec![Report::Start]);
     walk.turn(vec![Report::Heard(Heard::StreamOpened)]);
     let mut served = List::with_capacity(2);
-    for (owner, version) in [
-        (w::Owner::Jig, VERSION),
-        (
-            w::Owner::Family(
-                w::Family { number: wire::FORGE },
-            ),
-            wire::CLIENT_VERSION,
-        ),
-    ] {
-        served
-            .push(
-                w::Served { owner, first: version, last: version },
-            )
-            .expect("two families");
+    for (owner, version) in
+        [(w::Owner::Jig, VERSION), (w::Owner::Family(w::Family { number: wire::FORGE }), wire::CLIENT_VERSION)]
+    {
+        served.push(w::Served { owner, first: version, last: version }).expect("two families");
     }
     let asks = walk.streamed(&jig_client_test_records::opened(
         w::Hello { stream: [7; 16], served, heartbeat: Duration::from_secs(30) },
@@ -283,9 +283,10 @@ fn linked() -> Walk {
     let _ = asks;
     let watch = 0;
     let value = me_with_openai();
-    walk.streamed(&w::StreamEvent::Delivery(
-        w::Delivery { watch, document: owned(value.encode(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture encoding")) },
-    ));
+    walk.streamed(&w::StreamEvent::Delivery(w::Delivery {
+        watch,
+        document: owned(value.encode(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture encoding")),
+    }));
     walk
 }
 pub(super) fn walked_with_saves(no_event: bool) -> Saves {
@@ -306,62 +307,55 @@ fn sign_in(no_event: bool, refuse_tab: bool, snapshot: &mut dyn FnMut(&Walk)) ->
     snapshot(&walk);
     let signing = walk.continue_with_chatgpt();
     snapshot(&walk);
-    let started = w::DocumentOutcome::AccountSignInStarted(
-        w::OutcomeAccountSignInStarted { source: 43, address: ADDRESS.into() },
-    );
-    let outcome = w::Outcome::Document(
-        w::OutcomeDocument { value: started },
-    );
+    let started = w::DocumentOutcome::AccountSignInStarted(w::OutcomeAccountSignInStarted {
+        source: 43,
+        address: ADDRESS.into(),
+    });
+    let outcome = w::Outcome::Document(w::OutcomeDocument { value: started });
     let answer = w::Final::Done(w::Done { outcome });
-    let answer = w::KeyedAnswer::FinalAnswer(owned(answer.encode(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture encoding")));
+    let answer = w::KeyedAnswer::FinalAnswer(owned(
+        answer.encode(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture encoding"),
+    ));
     walk.answered(signing, &answer);
     snapshot(&walk);
     let watch = walk.accounts.expect("accounts watch");
     for ended in [false, true] {
         let value = accounts(ended);
-        walk.streamed(&w::StreamEvent::Delivery(
-            w::Delivery { watch, document: owned(value.encode(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture encoding")) },
-        ));
+        walk.streamed(&w::StreamEvent::Delivery(w::Delivery {
+            watch,
+            document: owned(value.encode(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture encoding")),
+        }));
     }
     walk.recorder.end(&walk.page)
 }
 fn accounts(ended: bool) -> w::DeliveryValue {
     let signing = w::AccountSignIn {
-            source: 43,
-            provider: 17,
-            holder: w::AccountHolder::Party(
-                w::AccountHolderParty { party: 23 },
-            ),
-        };
+        source: 43,
+        provider: 17,
+        holder: w::AccountHolder::Party(w::AccountHolderParty { party: 23 }),
+    };
     let signing = if ended {
         Box::default()
     } else {
         signing.encode(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture encoding")
     };
     let last_end = ended.then_some({
-        w::AccountLastEnd {
-                source: 43,
-                end: w::AccountEnd::Made(
-                    w::AccountEndMade { account: 7, declined: false },
-                ),
-            }
+        w::AccountLastEnd { source: 43, end: w::AccountEnd::Made(w::AccountEndMade { account: 7, declined: false }) }
     });
-    w::DeliveryValue::Accounts(
-        w::Accounts {
-                lendable: false,
-                usable: false,
-                settled: false,
-                cut: false,
-                readiness_cut: false,
-                lending: None,
-                lent_end: None,
-                program_hosts: Box::default(),
-                accounts: Box::default(),
-                signing,
-                last_end,
-                readiness: Box::default(),
-            },
-    )
+    w::DeliveryValue::Accounts(w::Accounts {
+        lendable: false,
+        usable: false,
+        settled: false,
+        cut: false,
+        readiness_cut: false,
+        lending: None,
+        lent_end: None,
+        program_hosts: Box::default(),
+        accounts: Box::default(),
+        signing,
+        last_end,
+        readiness: Box::default(),
+    })
 }
 pub(super) fn departed() -> Box<[u8]> {
     let mut walk = linked();
@@ -377,9 +371,9 @@ pub(super) fn departed() -> Box<[u8]> {
             }
         })
         .expect("authorization exchange");
-    let answer = w::AuthorizeAnswer::Go(
-        w::AuthorizeGo { location: b"http://127.0.0.1:9/callback?code=test&state=test".as_slice().into() },
-    );
+    let answer = w::AuthorizeAnswer::Go(w::AuthorizeGo {
+        location: b"http://127.0.0.1:9/callback?code=test&state=test".as_slice().into(),
+    });
     walk.recorder.turn(walk.now, walk.wall);
     let duties = walk.recorder.report(
         &mut walk.host,
@@ -400,20 +394,10 @@ fn key_ready() -> Walk {
     walk.turn(vec![Report::Start]);
     walk.turn(vec![Report::Heard(Heard::StreamOpened)]);
     let mut served = List::with_capacity(2);
-    for (owner, version) in [
-        (w::Owner::Jig, VERSION),
-        (
-            w::Owner::Family(
-                w::Family { number: wire::FORGE },
-            ),
-            wire::CLIENT_VERSION,
-        ),
-    ] {
-        served
-            .push(
-                w::Served { owner, first: version, last: version },
-            )
-            .expect("two families");
+    for (owner, version) in
+        [(w::Owner::Jig, VERSION), (w::Owner::Family(w::Family { number: wire::FORGE }), wire::CLIENT_VERSION)]
+    {
+        served.push(w::Served { owner, first: version, last: version }).expect("two families");
     }
     let asks = walk.streamed(&jig_client_test_records::opened(
         w::Hello { stream: [7; 16], served, heartbeat: Duration::from_secs(30) },
@@ -422,9 +406,10 @@ fn key_ready() -> Walk {
     let _ = asks;
     let watch = 0;
     let value = me_with_openai_key();
-    walk.streamed(&w::StreamEvent::Delivery(
-        w::Delivery { watch, document: owned(value.encode(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture encoding")) },
-    ));
+    walk.streamed(&w::StreamEvent::Delivery(w::Delivery {
+        watch,
+        document: owned(value.encode(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture encoding")),
+    }));
     walk.act_on(Role::Link, b"Add key", Act::Press);
     walk
 }
@@ -441,11 +426,14 @@ pub(super) fn keyed(value: &[u8], byte_at_a_time: bool) -> Box<[u8]> {
         walk.act_on(Role::TextField, b"Key (pasted once)", Act::Input { value: value.into() });
     }
     let sent = exchange(walk.act_on(Role::Button, b"Add key", Act::Press));
-    let outcome = w::Outcome::Document(
-        w::OutcomeDocument { value: w::DocumentOutcome::AccountChanged },
-    );
+    let outcome = w::Outcome::Document(w::OutcomeDocument { value: w::DocumentOutcome::AccountChanged });
     let answer = w::Final::Done(w::Done { outcome });
-    walk.answered(sent, &w::KeyedAnswer::FinalAnswer(owned(answer.encode(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture encoding"))));
+    walk.answered(
+        sent,
+        &w::KeyedAnswer::FinalAnswer(owned(
+            answer.encode(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture encoding"),
+        )),
+    );
     walk.recorder.end(&walk.page)
 }
 pub(super) fn stored_stream(record: skein_ui_web::store::Record) -> Box<[u8]> {
@@ -490,17 +478,17 @@ fn me_with_openai_key() -> w::DeliveryValue {
 fn me_with_openai() -> w::DeliveryValue {
     let mut me = jig_client_test_records::frame_record();
     let provider = w::ProviderOffer {
-            provider: 17,
-            name: w::DocumentText { bytes: b"openai".as_slice().into(), cut: false },
-            sign_in: true,
-            key: true,
-            programs_cut: false,
-            none: false,
-            signed_in_plan: true,
-            programs: List::with_capacity(0),
-            manage_usage: None,
-            key_bytes: 4096,
-        };
+        provider: 17,
+        name: w::DocumentText { bytes: b"openai".as_slice().into(), cut: false },
+        sign_in: true,
+        key: true,
+        programs_cut: false,
+        none: false,
+        signed_in_plan: true,
+        programs: List::with_capacity(0),
+        manage_usage: None,
+        key_bytes: 4096,
+    };
     me.providers = provider.encode(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture encoding");
     w::DeliveryValue::Me(me)
 }

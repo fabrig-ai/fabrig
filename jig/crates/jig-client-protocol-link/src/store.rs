@@ -1,9 +1,9 @@
 //! Durability before exchanges, and owner-versioned restoration (protocol/client/README.md, 7).
-use jig_client_protocol_wire::Record as _;
 use crate::component::Gathered;
 use crate::{Fact, Limits, Link, Message, Record, Request, Saved, translate};
 use alloc::boxed::Box;
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use skein_lib::{List, Map, Queue, Reader, RequestKey, Token, Writer, bytes, length::len_u64};
 #[derive(Debug)]
 struct Held {
@@ -221,7 +221,9 @@ impl Link {
         }
     }
     pub(super) fn save_stream(&mut self, stream: [u8; 16], out: &mut Queue<Request>) -> Result<(), crate::Undecodable> {
-        let Ok(value) = (w::Kept { store_version: jig_client_domain::TABLE_VERSION, record: Box::from(stream) }).encode(self.limits.wire()) else {
+        let Ok(value) = (w::Kept { store_version: jig_client_domain::TABLE_VERSION, record: Box::from(stream) })
+            .encode(self.limits.wire())
+        else {
             return Err(crate::Undecodable::TooLarge);
         };
         out.push(Request::Save { record: Record { key: bytes::copy_of(crate::STREAM_KEY), bytes: value } });

@@ -160,9 +160,10 @@ pub fn stored(harness: &Harness) -> Record {
 }
 pub fn other_store_version(mut value: Record) -> Record {
     let record = w::Kept::decode(limits().wire(), &mut Reader::new(&value.bytes)).unwrap();
-    let record =
-        w::Kept { store_version: u16::MAX, record: record.record.as_ref().into() };
-    let mut writer = Writer::new(usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    let record = w::Kept { store_version: u16::MAX, record: record.record.as_ref().into() };
+    let mut writer = Writer::new(
+        usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
     record.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
     value.bytes = writer.finish();
     value
@@ -318,9 +319,10 @@ fn propose_amendment(revision: c::Revision) -> c::Ask {
 }
 
 pub fn kept_stream() -> Record {
-    let record =
-        w::Kept { store_version: TABLE_VERSION, record: Box::from(STREAM) };
-    let mut writer = Writer::new(usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    let record = w::Kept { store_version: TABLE_VERSION, record: Box::from(STREAM) };
+    let mut writer = Writer::new(
+        usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
     record.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
     Record { key: Box::from(STREAM_KEY), bytes: writer.finish() }
 }

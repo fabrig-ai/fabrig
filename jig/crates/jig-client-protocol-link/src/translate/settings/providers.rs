@@ -68,20 +68,20 @@ fn encode_provider_registration(
     let redirect_path = value.redirect_path.clone();
     let redirect_port = value.redirect_port;
     Ok(wire::ProviderRegistration {
-            issuer,
-            client,
-            scopes,
-            name_hint,
-            authorization,
-            token,
-            revocation,
-            keys,
-            endpoint_transport,
-            must_grant,
-            resource,
-            redirect_path,
-            redirect_port,
-        })
+        issuer,
+        client,
+        scopes,
+        name_hint,
+        authorization,
+        token,
+        revocation,
+        keys,
+        endpoint_transport,
+        must_grant,
+        resource,
+        redirect_path,
+        redirect_port,
+    })
 }
 fn decode_provider_registration(value: &wire::ProviderRegistration) -> p::Registration {
     let issuer = Box::from(value.issuer.as_ref());
@@ -146,18 +146,7 @@ fn encode_provider(value: &p::Provider, limits: &wire::Limits) -> Result<wire::P
             return Err(problem(skein_codec::Reason::Bound));
         }
     }
-    Ok(wire::Provider {
-            name,
-            number,
-            endpoint,
-            direct,
-            list,
-            signed_in_plan,
-            manage_usage,
-            sign_in,
-            keys,
-            programs,
-        })
+    Ok(wire::Provider { name, number, endpoint, direct, list, signed_in_plan, manage_usage, sign_in, keys, programs })
 }
 fn decode_provider(value: &wire::Provider) -> p::Provider {
     let name = Box::from(value.name.as_ref());
@@ -215,17 +204,17 @@ fn encode_provider_endpoint(
     let connect = value.connect;
     let handshake = value.handshake;
     Ok(wire::ProviderEndpoint {
-            name,
-            number,
-            dialect,
-            provider,
-            program,
-            address,
-            transport,
-            headers,
-            connect,
-            handshake,
-        })
+        name,
+        number,
+        dialect,
+        provider,
+        program,
+        address,
+        transport,
+        headers,
+        connect,
+        handshake,
+    })
 }
 fn decode_provider_endpoint(value: &wire::ProviderEndpoint) -> p::Endpoint {
     let name = Box::from(value.name.as_ref());
@@ -253,7 +242,9 @@ fn encode_provider_transport(
 ) -> Result<wire::ProviderTransport, wire::Problem> {
     Ok(match value {
         p::Transport::Plaintext => wire::ProviderTransport::Plaintext,
-        p::Transport::Tls { server_name, trust } => wire::ProviderTransport::Tls(wire::ProviderTls { server_name: server_name.clone(), trust: trust.clone() }),
+        p::Transport::Tls { server_name, trust } => {
+            wire::ProviderTransport::Tls(wire::ProviderTls { server_name: server_name.clone(), trust: trust.clone() })
+        }
     })
 }
 fn decode_provider_transport(value: &wire::ProviderTransport) -> p::Transport {
@@ -270,17 +261,19 @@ fn encode_provider_address(
     _limits: &wire::Limits,
 ) -> Result<wire::ProviderAddress, wire::Problem> {
     Ok(match value {
-        p::EndpointAddress::Host { name, port } => wire::ProviderAddress::Host(wire::ProviderHost { name: name.clone(), port: *port }),
-        p::EndpointAddress::Socket(core::net::SocketAddr::V4(value)) => wire::ProviderAddress::Ipv4(
-            wire::ProviderIpv4 { ip: value.ip().octets(), port: value.port() },
-        ),
+        p::EndpointAddress::Host { name, port } => {
+            wire::ProviderAddress::Host(wire::ProviderHost { name: name.clone(), port: *port })
+        }
+        p::EndpointAddress::Socket(core::net::SocketAddr::V4(value)) => {
+            wire::ProviderAddress::Ipv4(wire::ProviderIpv4 { ip: value.ip().octets(), port: value.port() })
+        }
         p::EndpointAddress::Socket(core::net::SocketAddr::V6(value)) => {
             wire::ProviderAddress::Ipv6(wire::ProviderIpv6 {
-                    ip: value.ip().octets(),
-                    port: value.port(),
-                    flowinfo: value.flowinfo(),
-                    scope_id: value.scope_id(),
-                })
+                ip: value.ip().octets(),
+                port: value.port(),
+                flowinfo: value.flowinfo(),
+                scope_id: value.scope_id(),
+            })
         }
     })
 }

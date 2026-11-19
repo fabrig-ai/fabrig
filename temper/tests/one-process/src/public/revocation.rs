@@ -1,8 +1,8 @@
 //! Visibility decisions and the last fresh proxy copy (temper/docs/design/protocol/sign-in.md, 2.5).
-use jig_client_protocol_wire::Record as _;
 use super::{checks::PROXY, observation::Observer, proxy::Proxy, requests, service_checks, visitor::Visitor};
 use crate::fixtures;
 use jig_client::contract as c;
+use jig_client_protocol_wire::Record as _;
 use jig_client_protocol_wire::public_v1 as p;
 use skein_http::Method;
 use skein_lib::{Reader, Time};

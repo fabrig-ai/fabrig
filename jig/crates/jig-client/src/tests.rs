@@ -147,9 +147,7 @@ fn the_link_view_names_a_watch_refused_busy() {
     assert!(!c.machine.link().watches_full);
     c.step(Event::Watch { handle: TASK, subject: task() });
     let watch = c.opened_watch();
-    c.stream(fixtures::event(&w::StreamEvent::Ended(
-        w::WatchEnded { watch, why: w::WatchEnd::Busy },
-    )));
+    c.stream(fixtures::event(&w::StreamEvent::Ended(w::WatchEnded { watch, why: w::WatchEnd::Busy })));
     assert!(c.machine.link().watches_full);
     assert_eq!(c.machine.link().state, Link::Live);
     let [Request::Told { told: Told::Changed { handle } }] = c.requests() else {
@@ -160,7 +158,9 @@ fn the_link_view_names_a_watch_refused_busy() {
     assert!(c.machine.link().watches_full);
     let exchange = c.exchange();
     let answer = w::OpenAnswer::Admitted;
-    let mut bytes = skein_lib::Writer::new(usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    let mut bytes = skein_lib::Writer::new(
+        usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
     answer.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
     c.step(Event::Reply { exchange, message: bytes.finish() });
     assert!(!c.machine.link().watches_full);

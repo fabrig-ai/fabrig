@@ -56,7 +56,9 @@ pub(super) fn bounds() -> client::Limits {
     }
 }
 fn stream(machine: &mut client::Client, record: &w::StreamEvent, out: &mut Queue<Request>) {
-    let mut writer = Writer::new(skein_lib::length::usize_of(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+    let mut writer = Writer::new(skein_lib::length::usize_of(
+        record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+    ));
     record.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("measured stream record");
     machine.step(Time::ZERO, Wall::EPOCH, Event::Streamed { message: client::Streamed::Record(writer.finish()) }, out);
     machine.settle(Time::ZERO, Wall::EPOCH, out);
@@ -80,11 +82,7 @@ pub(super) fn mixed_turn() -> (client::Client, Queue<Request>) {
         discard(&mut out);
     }
     let mut served = List::with_capacity(1);
-    served
-        .push(
-            w::Served { owner: w::Owner::Jig, first: VERSION, last: VERSION },
-        )
-        .expect("one family");
+    served.push(w::Served { owner: w::Owner::Jig, first: VERSION, last: VERSION }).expect("one family");
     stream(
         &mut machine,
         &jig_client_test_records::opened(
@@ -98,17 +96,12 @@ pub(super) fn mixed_turn() -> (client::Client, Queue<Request>) {
     let mut parts = jig_client_test_records::frame_record();
     parts.retention = Duration::from_secs(60);
     let me = w::DeliveryValue::Me(parts);
-    let mut writer = Writer::new(skein_lib::length::usize_of(me.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+    let mut writer = Writer::new(skein_lib::length::usize_of(
+        me.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+    ));
     me.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("measured me");
-    let document =
-        w::Owned { owner: w::Owner::Jig, version: VERSION, record: writer.finish() };
-    stream(
-        &mut machine,
-        &w::StreamEvent::Delivery(
-            w::Delivery { watch, document },
-        ),
-        &mut out,
-    );
+    let document = w::Owned { owner: w::Owner::Jig, version: VERSION, record: writer.finish() };
+    stream(&mut machine, &w::StreamEvent::Delivery(w::Delivery { watch, document }), &mut out);
     discard(&mut out);
     for event in [Event::Stored, send(FIRST), Event::Stored] {
         machine.step(Time::ZERO, Wall::EPOCH, event, &mut out);
@@ -122,19 +115,18 @@ pub(super) fn mixed_turn() -> (client::Client, Queue<Request>) {
         })
         .expect("first request sent");
     discard(&mut out);
-    let done = w::Final::Done(
-        w::Done {
-                outcome: w::Outcome::Document(
-                    w::OutcomeDocument { value: w::DocumentOutcome::AccountChanged },
-                ),
-            },
-    );
-    let mut writer = Writer::new(skein_lib::length::usize_of(done.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+    let done = w::Final::Done(w::Done {
+        outcome: w::Outcome::Document(w::OutcomeDocument { value: w::DocumentOutcome::AccountChanged }),
+    });
+    let mut writer = Writer::new(skein_lib::length::usize_of(
+        done.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+    ));
     done.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("measured final answer");
-    let owned =
-        w::Owned { owner: w::Owner::Jig, version: VERSION, record: writer.finish() };
+    let owned = w::Owned { owner: w::Owner::Jig, version: VERSION, record: writer.finish() };
     let answer = w::KeyedAnswer::FinalAnswer(owned);
-    let mut writer = Writer::new(skein_lib::length::usize_of(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+    let mut writer = Writer::new(skein_lib::length::usize_of(
+        answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+    ));
     answer.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("measured reply");
     machine.step(Time::ZERO, Wall::EPOCH, Event::Reply { exchange, message: writer.finish() }, &mut out);
     machine.settle(Time::ZERO, Wall::EPOCH, &mut out);

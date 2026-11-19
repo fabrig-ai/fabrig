@@ -1,10 +1,10 @@
 //! Root, view, link and native transport as one host (client/line.md, 2).
-use jig_client_protocol_wire::Record as _;
 use crate::{
     limits,
     route::{self, Down, Duty},
 };
 use jig_client_protocol_link as link;
+use jig_client_protocol_wire::Record as _;
 use jig_client_shell_native::Shell;
 use link::Signing;
 use skein_io::kernel::{Complete, Fd, Submit};

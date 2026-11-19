@@ -68,10 +68,11 @@ pub(super) fn signed_in() -> Box<[u8]> {
 }
 
 pub(super) fn sign_in_answer(token: Option<skein_lib::Secret>) -> Box<[u8]> {
-    let answer = w::SignInAnswer::SignedIn(
-        w::SignedIn { token, party: CURRENT_PARTY, expires: 0 },
+    let answer = w::SignInAnswer::SignedIn(w::SignedIn { token, party: CURRENT_PARTY, expires: 0 });
+    let mut bytes = skein_lib::Writer::new(
+        usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+            .expect("answer fits"),
     );
-    let mut bytes = skein_lib::Writer::new(usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("answer fits"));
     answer.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("answer room");
     bytes.finish()
 }
@@ -99,7 +100,8 @@ pub(super) fn activity_reads(host: &mut NativeClient) -> Vec<(skein_lib::Token, 
         } = request
         {
             let envelope = w::Owned::decode(&w::CEILINGS, &mut skein_lib::Reader::new(&record)).expect("read envelope");
-            let read = w::Read::decode(&w::CEILINGS, &mut skein_lib::Reader::new(envelope.record.as_ref())).expect("jig read");
+            let read =
+                w::Read::decode(&w::CEILINGS, &mut skein_lib::Reader::new(envelope.record.as_ref())).expect("jig read");
             if matches!(read, w::Read::Notes(_)) {
                 continue;
             }
@@ -111,12 +113,14 @@ pub(super) fn activity_reads(host: &mut NativeClient) -> Vec<(skein_lib::Token, 
 }
 
 pub(super) fn activity_answer(nonempty: bool) -> Box<[u8]> {
-    let event = w::Activity::RunBegan(
-        w::ActivityRunBegan { attempt: RUN, why: w::RunWhy::Made, resumed: true },
-    );
+    let event = w::Activity::RunBegan(w::ActivityRunBegan { attempt: RUN, why: w::RunWhy::Made, resumed: true });
     let source = w::ActivityLine { task: 9, position: 1, at: 1, line: event };
     let row = w::DecodedActivityLine { source, decoded: None };
-    let row_bytes = if nonempty { usize::try_from(row.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("row fits") } else { 0 };
+    let row_bytes = if nonempty {
+        usize::try_from(row.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("row fits")
+    } else {
+        0
+    };
     let mut rows = skein_lib::Writer::new(if nonempty { row_bytes + 4 } else { 0 });
     if nonempty {
         rows.put(&u32::try_from(row_bytes).expect("row length fits").to_be_bytes()).expect("length room");
@@ -128,11 +132,17 @@ pub(super) fn activity_answer(nonempty: bool) -> Box<[u8]> {
 
 fn activity_page_answer(page: w::ActivityPage) -> Box<[u8]> {
     let value = w::ReadValue::Activity(page);
-    let mut bytes = skein_lib::Writer::new(usize::try_from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("value fits"));
+    let mut bytes = skein_lib::Writer::new(
+        usize::try_from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+            .expect("value fits"),
+    );
     value.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("value room");
     let owned = w::Owned { owner: w::Owner::Jig, version: w::VERSION, record: bytes.finish() };
     let answer = w::ReadAnswer::Value(owned);
-    let mut bytes = skein_lib::Writer::new(usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("answer fits"));
+    let mut bytes = skein_lib::Writer::new(
+        usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+            .expect("answer fits"),
+    );
     answer.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("answer room");
     bytes.finish()
 }
@@ -268,7 +278,8 @@ pub(super) fn activity_done(host: &mut NativeClient, read: skein_lib::Token, non
     else {
         panic!("fixture contains an activity page")
     };
-    let value = link::translate::reads::value(owned.record.as_ref(), &common::link_limits()).expect("fixture activity value");
+    let value =
+        link::translate::reads::value(owned.record.as_ref(), &common::link_limits()).expect("fixture activity value");
     host.event(domain::Event::Client {
         event: jig_client::Event::Up {
             up: jig_client::Up::ReadDone {
@@ -290,16 +301,20 @@ pub(super) fn committed_activity_answer() -> Box<[u8]> {
 }
 
 pub(super) fn busy_activity_answer() -> Box<[u8]> {
-    let answer = w::ReadAnswer::None(
-        w::ReadAnswerNone { value: w::ReadNone::Busy },
+    let answer = w::ReadAnswer::None(w::ReadAnswerNone { value: w::ReadNone::Busy });
+    let mut bytes = skein_lib::Writer::new(
+        usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+            .expect("refusal length"),
     );
-    let mut bytes = skein_lib::Writer::new(usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("refusal length"));
     answer.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("refusal fits");
     bytes.finish()
 }
 
 fn stream_event(event: &w::StreamEvent) -> Box<[u8]> {
-    let mut bytes = skein_lib::Writer::new(usize::try_from(event.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("stream event length"));
+    let mut bytes = skein_lib::Writer::new(
+        usize::try_from(event.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+            .expect("stream event length"),
+    );
     event.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("stream event fits");
     bytes.finish()
 }
@@ -328,8 +343,7 @@ fn committed_task() -> w::Task {
 
 pub(super) fn committed_chat() -> NativeClient {
     let mut host = loaded_chat();
-    let served =
-        w::Served { owner: w::Owner::Jig, first: w::VERSION, last: w::VERSION };
+    let served = w::Served { owner: w::Owner::Jig, first: w::VERSION, last: w::VERSION };
     let mut versions = List::with_capacity(1);
     versions.push(served).expect("one owner");
     let hello = jig_client_test_records::opened(
@@ -350,7 +364,6 @@ pub(super) fn committed_chat() -> NativeClient {
             } else if let jig_client::Message::Batch(bytes) = message {
                 for member in w::Batch::decode(&w::CEILINGS, &mut skein_lib::Reader::new(bytes))
                     .expect("batch")
-                    
                     .members
                     .into_boxed()
                 {
@@ -375,7 +388,10 @@ pub(super) fn committed_chat() -> NativeClient {
                 }
             }
             let answer = w::OpenAnswer::Admitted;
-            let mut body = skein_lib::Writer::new(usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("answer length"));
+            let mut body = skein_lib::Writer::new(
+                usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+                    .expect("answer length"),
+            );
             answer.write(&jig_client_protocol_wire::CEILINGS, &mut body).expect("opening answer");
             let body = body.finish();
             if let jig_client::Message::Batch(bytes) = message {
@@ -383,10 +399,15 @@ pub(super) fn committed_chat() -> NativeClient {
                 for (index, member) in (&batch.members).into_iter().enumerate() {
                     if let w::Member::Open(_) = member {
                         let part = w::BatchReply {
-                                member: u16::try_from(index).expect("batch index"),
-                                reply: Some(body.clone()),
-                            };
-                        let mut bytes = skein_lib::Writer::new(usize::try_from(part.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("part size"));
+                            member: u16::try_from(index).expect("batch index"),
+                            reply: Some(body.clone()),
+                        };
+                        let mut bytes = skein_lib::Writer::new(
+                            usize::try_from(
+                                part.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+                            )
+                            .expect("part size"),
+                        );
                         part.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("opening part fits");
                         host.transport(jig_client::Event::Part { exchange: *exchange, message: bytes.finish() });
                     }
@@ -403,12 +424,13 @@ pub(super) fn committed_chat() -> NativeClient {
     }
     host.out = work;
     let value = w::DeliveryValue::Task(Box::new(committed_task()));
-    let mut bytes = skein_lib::Writer::new(usize::try_from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("task length"));
+    let mut bytes = skein_lib::Writer::new(
+        usize::try_from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+            .expect("task length"),
+    );
     value.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("task fits");
     let document = w::Owned { owner: w::Owner::Jig, version: w::VERSION, record: bytes.finish() };
-    let delivery = w::StreamEvent::Delivery(
-        w::Delivery { watch: task_watch.expect("chat task watch"), document },
-    );
+    let delivery = w::StreamEvent::Delivery(w::Delivery { watch: task_watch.expect("chat task watch"), document });
     host.transport(jig_client::Event::Streamed { message: jig_client::Streamed::Record(stream_event(&delivery)) });
     host
 }

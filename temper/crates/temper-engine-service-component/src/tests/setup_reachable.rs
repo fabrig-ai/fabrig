@@ -3,9 +3,9 @@
 #![expect(clippy::disallowed_types, reason = "ordinary tests assemble fake JSON documents")]
 #![expect(clippy::disallowed_methods, reason = "ordinary test assertions and fixture assembly")]
 
-use jig_client_protocol_wire::Record as _;
 use super::lifecycle_tests::{accepted, app};
 use super::*;
+use jig_client_protocol_wire::Record as _;
 
 fn reached(service: &mut crate::Service) -> domain::ReachableAnswer {
     for _ in 0_u32..service.engine.as_ref().unwrap().events.len() {
@@ -124,16 +124,20 @@ fn picker_client(service: &mut crate::Service, bearer: &[u8]) -> fixtures::http:
     )
     .unwrap();
     let family = j::FamilyRequest { scope: j::Scope::Deployment, record: wire::requesting(&request) };
-    let mut bytes = skein_lib::Writer::new(usize::try_from(family.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    let mut bytes = skein_lib::Writer::new(
+        usize::try_from(family.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
     family.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
     let request = j::Keyed {
-            key: [90; 16],
-            owner: j::Owner::Family(j::Family { number: wire::FORGE }),
-            version: wire::CLIENT_VERSION,
-            request: bytes.finish(),
-            value: None,
-        };
-    let mut bytes = skein_lib::Writer::new(usize::try_from(request.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+        key: [90; 16],
+        owner: j::Owner::Family(j::Family { number: wire::FORGE }),
+        version: wire::CLIENT_VERSION,
+        request: bytes.finish(),
+        value: None,
+    };
+    let mut bytes = skein_lib::Writer::new(
+        usize::try_from(request.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
     request.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
     let mut client = fixtures::http::Peer::new(engine, b"POST", b"/jig/v1/request", &bytes.finish(), Some(bearer));
     client.pump(engine, true);

@@ -1,5 +1,5 @@
-use jig_client_protocol_wire::Record as _;
 pub use crate::Peer;
+use jig_client_protocol_wire::Record as _;
 mod receiving;
 use jig_domain_people::{Identity, IdentityKey};
 use jig_protocol_engine_clients::{Limits, Served, Settings};
@@ -150,12 +150,15 @@ pub fn window(rows: u32) -> jig_client_protocol_wire::Window {
 pub fn family_read(scope: jig_client_protocol_wire::Scope, window: jig_client_protocol_wire::Window) -> Box<[u8]> {
     use jig_client_protocol_wire as w;
     let record = w::FamilyRecord { scope, window, record: Box::new([255]) };
-    let mut bytes = skein_lib::Writer::new(skein_lib::length::usize_of(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+    let mut bytes = skein_lib::Writer::new(skein_lib::length::usize_of(
+        record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+    ));
     record.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("measured record");
     let owner = w::Owner::Family(w::Family { number: 1 });
-    let record =
-        w::Owned { owner, version: 1, record: bytes.finish() };
-    let mut bytes = skein_lib::Writer::new(skein_lib::length::usize_of(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+    let record = w::Owned { owner, version: 1, record: bytes.finish() };
+    let mut bytes = skein_lib::Writer::new(skein_lib::length::usize_of(
+        record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+    ));
     record.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("measured record");
     bytes.finish()
 }

@@ -1,9 +1,9 @@
 //! Scripted admission at the link's whole-document boundary (client/domain/testing.md, 4).
-use jig_client_protocol_wire::Record as _;
 use super::*;
 use crate::tests::{REQUESTER, REQUESTER_SIGN_IN};
 use crate::{Bounds, Engine, Invalid, Script, Truth, Up};
 use jig_client_protocol_link::{Undecodable, translate};
+use jig_client_protocol_wire::Record as _;
 use skein_lib::{Duration, Time, Token};
 
 fn frame() -> c::Me {
@@ -32,7 +32,10 @@ fn scripted_front_refuses_the_document_the_link_refuses_over_its_bound() {
     let value = c::ReadValue::Me(Box::new(frame()));
     let record = values::wire_read_value(&value, &w::CEILINGS).expect("wire frame fits");
     let bytes = encoded(&record, &w::CEILINGS).expect("measured document");
-    let exact = Bounds { document_bytes: u64::from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")), ..Bounds::default() };
+    let exact = Bounds {
+        document_bytes: u64::from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")),
+        ..Bounds::default()
+    };
     assert_eq!(translate::reads::value(&bytes, &front::limits(&exact).expect("valid limits")), Ok(value.clone()));
     let mut truth = Truth::default();
     truth.frames.insert(REQUESTER, frame());

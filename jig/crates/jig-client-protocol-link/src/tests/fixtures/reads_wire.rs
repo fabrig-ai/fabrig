@@ -33,16 +33,7 @@ pub fn read_wire_impact() -> w::Impact {
 }
 
 pub fn read_wire_phase_counts() -> w::ImpactCounts {
-    w::ImpactCounts {
-            ended: 7,
-            waiting: 7,
-            running: 7,
-            held: 7,
-            closing: 7,
-            done: 7,
-            failed: 7,
-            cancelled: 7,
-        }
+    w::ImpactCounts { ended: 7, waiting: 7, running: 7, held: 7, closing: 7, done: 7, failed: 7, cancelled: 7 }
 }
 
 pub fn read_wire_owner_escalation() -> w::Escalation {

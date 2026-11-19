@@ -1,13 +1,13 @@
 #![expect(clippy::unnecessary_wraps, reason = "fixture translations preserve their fallible production signatures")]
 #![expect(clippy::trivially_copy_pass_by_ref, reason = "fixture translations borrow source facts uniformly")]
 //! Wire fixtures for link translation tests (protocol/client/wire.md, 1).
-use jig_client_protocol_wire::Record as _;
 use crate::Limits;
 use crate::translate::settings::*;
 use crate::translate::too_large;
 use alloc::boxed::Box;
 use jig_client_domain::contract as c;
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use skein_lib::{List, Writer};
 
 pub fn encode_revision_item_pieces(
@@ -21,7 +21,11 @@ pub fn encode_revision_item_pieces(
     let mut size = 0_u32;
     for value in values {
         let row = wire_revision_item(value, limits)?;
-        size = size.checked_add(row.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).ok_or(too_large())?.checked_add(4).ok_or(too_large())?;
+        size = size
+            .checked_add(row.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+            .ok_or(too_large())?
+            .checked_add(4)
+            .ok_or(too_large())?;
         if size > limits.revision_document_items {
             return Err(too_large());
         }
@@ -29,7 +33,9 @@ pub fn encode_revision_item_pieces(
     }
     let mut writer = Writer::new(skein_lib::length::usize_of(size));
     for row in rows.into_boxed() {
-        writer.put(&row.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture").to_be_bytes()).expect("measured");
+        writer
+            .put(&row.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture").to_be_bytes())
+            .expect("measured");
         row.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("measured");
     }
     Ok(writer.finish())
@@ -69,10 +75,10 @@ pub fn wire_malformed_settings(
     limits: &w::Limits,
 ) -> Result<w::MalformedSettings, w::Problem> {
     Ok(w::MalformedSettings {
-            setting: wire_setting(&value.setting, limits)?,
-            fault: wire_setting_fault(&value.fault)?,
-            detail: None,
-        })
+        setting: wire_setting(&value.setting, limits)?,
+        fault: wire_setting_fault(&value.fault)?,
+        detail: None,
+    })
 }
 pub fn wire_outcome_settings_changed(
     value: &c::OutcomeSettingsChanged,
@@ -107,9 +113,7 @@ pub fn wire_revision_decider(value: &c::RevisionDecider, limits: &w::Limits) -> 
     Ok(match value {
         c::RevisionDecider::FirstStart => w::RevisionDecider::FirstStart,
         c::RevisionDecider::Release => w::RevisionDecider::Release,
-        c::RevisionDecider::List { provider } => {
-            w::RevisionDecider::List(w::RevisionList { provider: *provider })
-        }
+        c::RevisionDecider::List { provider } => w::RevisionDecider::List(w::RevisionList { provider: *provider }),
         c::RevisionDecider::Party(item) => w::RevisionDecider::Party(wire_revision_party(item, limits)?),
     })
 }
@@ -118,15 +122,17 @@ pub fn wire_revision_document(
     limits: &w::Limits,
 ) -> Result<w::RevisionDocument, w::Problem> {
     Ok(w::RevisionDocument {
-            head: wire_revision_head(&value.head, limits)?,
-            items: encode_revision_item_pieces(&value.items, limits)?,
-        })
+        head: wire_revision_head(&value.head, limits)?,
+        items: encode_revision_item_pieces(&value.items, limits)?,
+    })
 }
 pub fn wire_revision_edit(value: &c::RevisionEdit, limits: &w::Limits) -> Result<w::RevisionEdit, w::Problem> {
     Ok(match value {
         c::RevisionEdit::Set(item) => w::RevisionEdit::Set(wire_setting_set(item, limits)?),
         c::RevisionEdit::TooLarge(item) => w::RevisionEdit::TooLarge(wire_size(item, limits)?),
-        c::RevisionEdit::Application(v) => w::RevisionEdit::Application(w::ApplicationEdit { edit: wire_sized_edit(v, limits)? }),
+        c::RevisionEdit::Application(v) => {
+            w::RevisionEdit::Application(w::ApplicationEdit { edit: wire_sized_edit(v, limits)? })
+        }
         c::RevisionEdit::Removed => w::RevisionEdit::Removed,
         c::RevisionEdit::Reset => w::RevisionEdit::Reset,
     })
@@ -139,23 +145,23 @@ pub fn wire_revision_forgotten(
 }
 pub fn wire_revision_head(value: &c::RevisionHead, limits: &w::Limits) -> Result<w::RevisionHead, w::Problem> {
     Ok(w::RevisionHead {
-            number: value.number,
-            against: value.against,
-            at: value.at.as_nanos(),
-            by: wire_revision_decider(&value.by, limits)?,
-            proposal: match &value.proposal {
-                Some(item) => Some(crate::translate::asks::wire_proposal_key(item, limits)?),
-                None => None,
-            },
-            moved: value.moved,
-        })
+        number: value.number,
+        against: value.against,
+        at: value.at.as_nanos(),
+        by: wire_revision_decider(&value.by, limits)?,
+        proposal: match &value.proposal {
+            Some(item) => Some(crate::translate::asks::wire_proposal_key(item, limits)?),
+            None => None,
+        },
+        moved: value.moved,
+    })
 }
 pub fn wire_revision_item(value: &c::RevisionItem, limits: &w::Limits) -> Result<w::RevisionItem, w::Problem> {
     Ok(w::RevisionItem {
-            setting: wire_setting(&value.setting, limits)?,
-            edit: wire_revision_edit(&value.edit, limits)?,
-            replaced: wire_revision_replaced(&value.replaced, limits)?,
-        })
+        setting: wire_setting(&value.setting, limits)?,
+        edit: wire_revision_edit(&value.edit, limits)?,
+        replaced: wire_revision_replaced(&value.replaced, limits)?,
+    })
 }
 pub fn wire_revision_party(value: &c::RevisionParty, _limits: &w::Limits) -> Result<w::RevisionParty, w::Problem> {
     Ok(w::RevisionParty { number: value.number })
@@ -188,35 +194,35 @@ pub fn wire_revisions_page(value: &c::RevisionsPage, limits: &w::Limits) -> Resu
         rows.push(wire_revision_row(item, limits)?).expect("same capacity");
     }
     Ok(w::RevisionsPage {
-            rows,
-            next: match &value.next {
-                Some(item) => Some(*item),
-                None => None,
-            },
-            forgotten: value.forgotten,
-        })
+        rows,
+        next: match &value.next {
+            Some(item) => Some(*item),
+            None => None,
+        },
+        forgotten: value.forgotten,
+    })
 }
 pub fn wire_setting_document(value: &c::SettingDocument, limits: &w::Limits) -> Result<w::SettingDocument, w::Problem> {
     Ok(w::SettingDocument {
-            overlay: match &value.overlay {
-                Some(item) => Some(wire_overlay(item, limits)?),
-                None => None,
-            },
-            setting: wire_setting(&value.setting, limits)?,
-            revision: value.revision,
-            value: match &value.value {
-                Some(v) => Some(wire_setting_value(v, limits)?),
-                None => None,
-            },
-            application: match &value.application {
-                Some(v) => Some(wire_application_state(v, limits)?),
-                None => None,
-            },
-            proposed: match &value.proposed {
-                Some(v) => Some(wire_sized_edit(v, limits)?),
-                None => None,
-            },
-        })
+        overlay: match &value.overlay {
+            Some(item) => Some(wire_overlay(item, limits)?),
+            None => None,
+        },
+        setting: wire_setting(&value.setting, limits)?,
+        revision: value.revision,
+        value: match &value.value {
+            Some(v) => Some(wire_setting_value(v, limits)?),
+            None => None,
+        },
+        application: match &value.application {
+            Some(v) => Some(wire_application_state(v, limits)?),
+            None => None,
+        },
+        proposed: match &value.proposed {
+            Some(v) => Some(wire_sized_edit(v, limits)?),
+            None => None,
+        },
+    })
 }
 pub fn wire_setting_fault(value: &c::SettingFault) -> Result<w::SettingFault, w::Problem> {
     Ok(match value {
@@ -242,18 +248,18 @@ pub fn wire_setting_follows(value: &c::SettingFollows) -> Result<w::SettingFollo
 }
 pub fn wire_setting_line(value: &c::SettingLine, limits: &w::Limits) -> Result<w::SettingLine, w::Problem> {
     Ok(w::SettingLine {
-            setting: wire_setting(&value.setting, limits)?,
-            name: match &value.name {
-                Some(item) => Some(wire_document_text(item, limits)?),
-                None => None,
-            },
-            follows: wire_setting_follows(&value.follows)?,
-            last: value.last,
-            application: match &value.application {
-                Some(v) => Some(wire_application_state(v, limits)?),
-                None => None,
-            },
-        })
+        setting: wire_setting(&value.setting, limits)?,
+        name: match &value.name {
+            Some(item) => Some(wire_document_text(item, limits)?),
+            None => None,
+        },
+        follows: wire_setting_follows(&value.follows)?,
+        last: value.last,
+        application: match &value.application {
+            Some(v) => Some(wire_application_state(v, limits)?),
+            None => None,
+        },
+    })
 }
 pub fn wire_settings_document(
     value: &c::SettingsDocument,
@@ -278,18 +284,18 @@ pub fn wire_settings_proposal(
     limits: &w::Limits,
 ) -> Result<w::SettingsProposal, w::Problem> {
     Ok(w::SettingsProposal {
-            proposer: crate::translate::asks::wire_proposer(&value.proposer, limits)?,
-            number: value.number,
-        })
+        proposer: crate::translate::asks::wire_proposer(&value.proposer, limits)?,
+        number: value.number,
+    })
 }
 pub fn wire_revision_item_head(
     value: &c::RevisionItemHead,
     limits: &w::Limits,
 ) -> Result<w::RevisionItemHead, w::Problem> {
     Ok(w::RevisionItemHead {
-            setting: wire_setting(&value.setting, limits)?,
-            edit: wire_revision_item_edit(&value.edit)?,
-        })
+        setting: wire_setting(&value.setting, limits)?,
+        edit: wire_revision_item_edit(&value.edit)?,
+    })
 }
 pub fn wire_revision_item_edit(value: &c::RevisionItemEdit) -> Result<w::RevisionItemEdit, w::Problem> {
     Ok(match value {
@@ -301,16 +307,18 @@ pub fn wire_revision_item_edit(value: &c::RevisionItemEdit) -> Result<w::Revisio
 pub fn wire_application_state(v: &c::ApplicationState, _limits: &w::Limits) -> Result<w::ApplicationState, w::Problem> {
     let follows = match v.follows {
         c::ApplicationFollows::Default => w::ApplicationFollows::Default,
-        c::ApplicationFollows::Changed { revision } => w::ApplicationFollows::Changed(w::ApplicationRevision { revision }),
-        c::ApplicationFollows::Removed { revision } => w::ApplicationFollows::Removed(w::ApplicationRevision { revision }),
+        c::ApplicationFollows::Changed { revision } => {
+            w::ApplicationFollows::Changed(w::ApplicationRevision { revision })
+        }
+        c::ApplicationFollows::Removed { revision } => {
+            w::ApplicationFollows::Removed(w::ApplicationRevision { revision })
+        }
     };
     Ok(w::ApplicationState { follows, size: v.size, charters: v.charters.clone() })
 }
 pub fn wire_sized_edit(v: &c::SizedEdit, _limits: &w::Limits) -> Result<w::SizedEdit, w::Problem> {
     Ok(match v {
-        c::SizedEdit::Set { size } => {
-            w::SizedEdit::Set(w::ApplicationSize { size: *size })
-        }
+        c::SizedEdit::Set { size } => w::SizedEdit::Set(w::ApplicationSize { size: *size }),
         c::SizedEdit::Remove => w::SizedEdit::Remove,
         c::SizedEdit::Reset => w::SizedEdit::Reset,
     })
@@ -337,7 +345,11 @@ pub fn encode_review_pieces(values: &List<c::ReviewItem>, limits: &w::Limits) ->
     let mut size = 0_u32;
     for value in values {
         let row = wire_review_item(value, limits)?;
-        size = size.checked_add(row.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).ok_or(too_large())?.checked_add(4).ok_or(too_large())?;
+        size = size
+            .checked_add(row.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+            .ok_or(too_large())?
+            .checked_add(4)
+            .ok_or(too_large())?;
         if size > limits.settings_review_items {
             return Err(too_large());
         }
@@ -345,7 +357,9 @@ pub fn encode_review_pieces(values: &List<c::ReviewItem>, limits: &w::Limits) ->
     }
     let mut writer = Writer::new(skein_lib::length::usize_of(size));
     for row in rows.into_boxed() {
-        writer.put(&row.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture").to_be_bytes()).expect("measured");
+        writer
+            .put(&row.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture").to_be_bytes())
+            .expect("measured");
         row.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("measured");
     }
     Ok(writer.finish())
@@ -358,44 +372,44 @@ pub fn wire_owner_proposal_action_settings(
     limits: &w::Limits,
 ) -> Result<w::ProposalActionSettings, w::Problem> {
     Ok(w::ProposalActionSettings {
-            against: value.against,
-            items: encode_heads(&value.items, limits, limits.proposal_action_settings_items)?,
-            review: match &value.review {
-                Some(item) => Some(wire_settings_review(item, limits)?),
-                None => None,
-            },
-            made: value.made,
-        })
+        against: value.against,
+        items: encode_heads(&value.items, limits, limits.proposal_action_settings_items)?,
+        review: match &value.review {
+            Some(item) => Some(wire_settings_review(item, limits)?),
+            None => None,
+        },
+        made: value.made,
+    })
 }
 pub fn wire_owner_retained_action_settings(
     value: &c::RetainedActionSettings,
     limits: &w::Limits,
 ) -> Result<w::RetainedActionSettings, w::Problem> {
     Ok(w::RetainedActionSettings {
-            projects: value.projects.clone(),
-            against: value.against,
-            items: encode_heads(&value.items, limits, limits.retained_action_settings_items)?,
-            made: value.made,
-        })
+        projects: value.projects.clone(),
+        against: value.against,
+        items: encode_heads(&value.items, limits, limits.retained_action_settings_items)?,
+        made: value.made,
+    })
 }
 pub fn wire_review_item(value: &c::ReviewItem, limits: &w::Limits) -> Result<w::ReviewItem, w::Problem> {
     Ok(w::ReviewItem {
-            setting: wire_setting(&value.setting, limits)?,
-            edit: wire_revision_item_edit(&value.edit)?,
-            now: wire_review_value(&value.now, limits)?,
-            origin: wire_setting_origin(&value.origin, limits)?,
-            would_be: wire_review_value(&value.would_be, limits)?,
-            application: match &value.application {
-                Some(v) => Some(w::ApplicationReview {
-                        edit: wire_sized_edit(&v.edit, limits)?,
-                        now: match &v.now {
-                            Some(v) => Some(wire_application_state(v, limits)?),
-                            None => None,
-                        },
-                    }),
-                None => None,
-            },
-        })
+        setting: wire_setting(&value.setting, limits)?,
+        edit: wire_revision_item_edit(&value.edit)?,
+        now: wire_review_value(&value.now, limits)?,
+        origin: wire_setting_origin(&value.origin, limits)?,
+        would_be: wire_review_value(&value.would_be, limits)?,
+        application: match &value.application {
+            Some(v) => Some(w::ApplicationReview {
+                edit: wire_sized_edit(&v.edit, limits)?,
+                now: match &v.now {
+                    Some(v) => Some(wire_application_state(v, limits)?),
+                    None => None,
+                },
+            }),
+            None => None,
+        },
+    })
 }
 pub fn wire_review_value(value: &c::ReviewValue, limits: &w::Limits) -> Result<w::ReviewValue, w::Problem> {
     Ok(match value {
@@ -413,11 +427,11 @@ pub fn wire_setting_origin(value: &c::SettingOrigin, limits: &w::Limits) -> Resu
 }
 pub fn wire_settings_review(value: &c::SettingsReview, limits: &w::Limits) -> Result<w::SettingsReview, w::Problem> {
     Ok(w::SettingsReview {
-            key: value.key,
-            newest: value.newest,
-            items: encode_review_pieces(&value.items, limits)?,
-            cut: value.cut,
-        })
+        key: value.key,
+        newest: value.newest,
+        items: encode_review_pieces(&value.items, limits)?,
+        cut: value.cut,
+    })
 }
 pub fn wire_outcome_restored(
     proposal: u64,

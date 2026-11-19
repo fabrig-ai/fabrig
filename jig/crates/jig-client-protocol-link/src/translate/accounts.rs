@@ -1,7 +1,7 @@
 //! Accounts watch decoding and shared deployment source facts (client/domain/contract/documents.md, 1).
-use jig_client_protocol_wire::Record as _;
 use super::{Limits, List, Reader, Wall, c, chip_piece, piece_problem, too_large, w};
 use alloc::boxed::Box;
+use jig_client_protocol_wire::Record as _;
 use skein_lib::length::len_u64;
 pub(crate) fn account_use(value: &w::AccountUse) -> c::AccountUse {
     match value {

@@ -1,5 +1,5 @@
-use jig_client_protocol_wire::Record as _;
 use crate::clients::translation;
+use jig_client_protocol_wire::Record as _;
 use jig_domain_core as core;
 use jig_domain_people as people;
 use jig_protocol_engine_clients as kit;
@@ -17,11 +17,11 @@ fn another_temper_keyed_version_is_not_served_and_admits_nothing() {
         let w::SignInAnswer::SignedIn(signed) = sign_in_with_link(engine, &link) else { panic!("signed in") };
         let bearer = peer::bearer(signed.token.as_ref().expect("credential").expose());
         let before = engine.domain.deployment().tasks;
-        let owner = w::Owner::Family(
-            w::Family { number: temper_client_protocol_wire::FORGE },
-        );
+        let owner = w::Owner::Family(w::Family { number: temper_client_protocol_wire::FORGE });
         let keyed = w::Keyed { key: [71; 16], owner: owner.clone(), version, request: Box::new([255]), value: None };
-        let mut bytes = Writer::new(usize::try_from(keyed.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+        let mut bytes = Writer::new(
+            usize::try_from(keyed.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+        );
         keyed.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
         let mut call = peer::Peer::new(engine, b"POST", b"/jig/v1/request", &bytes.finish(), Some(&bearer));
         call.pump(engine, true);
@@ -753,24 +753,24 @@ fn a_moved_file_at_its_forms_bound_passes_and_one_byte_past_is_refused() {
         let digest = skein_lib::sha256::digest(value.expose());
         // Encode under the published ceiling to put the extra byte on the wire;
         // the service decodes under temper's configured, smaller value cap.
-        let ask = w::Ask::AccountChange(
-            w::AskAccountChange {
-                    holder: w::AskAccountHolder::Own,
-                    change: w::AccountChange::MoveIn(
-                        w::AccountChangeMoveIn { digest },
-                    ),
-                },
+        let ask = w::Ask::AccountChange(w::AskAccountChange {
+            holder: w::AskAccountHolder::Own,
+            change: w::AccountChange::MoveIn(w::AccountChangeMoveIn { digest }),
+        });
+        let mut bytes = Writer::new(
+            usize::try_from(ask.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
         );
-        let mut bytes = Writer::new(usize::try_from(ask.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
         ask.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
         let keyed = w::Keyed {
-                key: [extra; 16],
-                owner: w::Owner::Jig,
-                version: jig_client_protocol_wire::VERSION,
-                request: bytes.finish(),
-                value: Some(value),
-            };
-        let mut bytes = Writer::new(usize::try_from(keyed.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+            key: [extra; 16],
+            owner: w::Owner::Jig,
+            version: jig_client_protocol_wire::VERSION,
+            request: bytes.finish(),
+            value: Some(value),
+        };
+        let mut bytes = Writer::new(
+            usize::try_from(keyed.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+        );
         keyed.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
         let mut call =
             peer::Peer::new(engine, b"POST", b"/jig/v1/request", &bytes.finish(), Some(&bearer)).fragments_up_to(1024);

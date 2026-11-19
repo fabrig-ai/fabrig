@@ -1,15 +1,17 @@
 //! Settings proposal documents cross the client wire contract.
-use jig_client_protocol_wire::Record as _;
 use jig_client_domain::contract as c;
 use jig_client_protocol_link::{Limits, translate};
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use jig_client_scripted_engine::wire;
 use jig_client_test_records::settings_proposals as values;
 use skein_lib::{Reader, Writer};
 macro_rules! encoded {
     ($value:expr) => {{
         let value = $value;
-        let mut out = Writer::new(skein_lib::length::usize_of(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+        let mut out = Writer::new(skein_lib::length::usize_of(
+            value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+        ));
         value.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("measured");
         out.finish()
     }};
@@ -26,12 +28,12 @@ fn submitted(
     let mut peer = jig_engine_clients_kit::Peer::started(&jig_engine_clients_kit::fixtures::settings());
     let bearer = jig_engine_clients_kit::fixtures::signed_in(&mut peer);
     let keyed = w::Keyed {
-            key: [7; 16],
-            owner: w::Owner::Jig,
-            version: jig_client_protocol_wire::VERSION,
-            request: encoded!(ask),
-            value: None,
-        };
+        key: [7; 16],
+        owner: w::Owner::Jig,
+        version: jig_client_protocol_wire::VERSION,
+        request: encoded!(ask),
+        value: None,
+    };
     let socket = peer.post(b"/jig/v1/request", encoded!(&keyed), Some(&bearer));
     let event = peer.take_core().expect("authenticated core request");
     (peer, socket, event)
@@ -94,15 +96,12 @@ fn pending_reviews_keep_origins_values_sizes_and_the_cut_fact() {
         limits.wire(),
         &mut Reader::new(super::client_values::value("record_proposal_smallest.bin")),
     )
-    .expect("proposal envelope")
-    ;
+    .expect("proposal envelope");
     parts.action = w::ProposalAction::Settings(Box::new(wire));
     parts.waiting = w::ProposalWaiting {
-            holder: w::HistoryHolder::Policy(
-                w::HistoryHolderPolicy { project: 0, kind: w::MessageProposalKind::Settings },
-            ),
-            since: 0,
-        };
+        holder: w::HistoryHolder::Policy(w::HistoryHolderPolicy { project: 0, kind: w::MessageProposalKind::Settings }),
+        since: 0,
+    };
 
     let wire = w::ReadValue::Proposal(parts);
     let c::ReadValue::Proposal(client) = translate::reads::value(&encoded!(&wire), &limits).expect("client proposal")
@@ -126,33 +125,21 @@ fn retained_settings_actions_keep_the_revision_they_made() {
         limits.wire(),
         &mut Reader::new(super::client_values::value("record_proposal_history_smallest.bin")),
     )
-    .expect("history envelope")
-    ;
+    .expect("history envelope");
     proposal.action = w::RetainedAction::Settings(wire);
     let key = w::ProposalKey {
-            proposer: w::Proposer::Task(
-                w::ProposerTask { value: proposal.proposer },
-            ),
-            number: proposal.number,
-        };
-    proposal.state = w::ProposalHistoryState::Accepted(
-        w::ProposalHistoryStateAccepted {
-                by: w::Requester::Person(
-                    w::RequesterPerson { value: 3 },
-                ),
-            },
-    );
+        proposer: w::Proposer::Task(w::ProposerTask { value: proposal.proposer }),
+        number: proposal.number,
+    };
+    proposal.state = w::ProposalHistoryState::Accepted(w::ProposalHistoryStateAccepted {
+        by: w::Requester::Person(w::RequesterPerson { value: 3 }),
+    });
 
-    let value = w::EndedValue::Proposal(
-        w::EndedValueProposal { value: proposal },
-    );
+    let value = w::EndedValue::Proposal(w::EndedValueProposal { value: proposal });
     let mut ended =
         w::Ended::decode(limits.wire(), &mut Reader::new(super::client_values::value("record_ended_smallest.bin")))
-            .expect("ended envelope")
-            ;
-    ended.key = w::ObjectKey::Proposal(
-        w::ObjectKeyProposal { value: key },
-    );
+            .expect("ended envelope");
+    ended.key = w::ObjectKey::Proposal(w::ObjectKeyProposal { value: key });
     ended.value = value;
     let wire = w::ReadValue::Ended(Box::new(ended));
     let c::ReadValue::Ended(client) = translate::reads::value(&encoded!(&wire), &limits).expect("client history")
@@ -166,12 +153,10 @@ fn retained_settings_actions_keep_the_revision_they_made() {
 #[test]
 fn a_running_choice_refusal_keeps_its_reason() {
     let limits = limits();
-    let refusal = w::Refusal::Malformed(
-        w::RefusalMalformed { at: 0, why: w::Malformed::Running },
-    );
-    let answer =
-        w::Final::Refused(w::Refused { refusal, at: None });
-    let owned = w::Owned { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: encoded!(&answer) };
+    let refusal = w::Refusal::Malformed(w::RefusalMalformed { at: 0, why: w::Malformed::Running });
+    let answer = w::Final::Refused(w::Refused { refusal, at: None });
+    let owned =
+        w::Owned { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: encoded!(&answer) };
     assert_eq!(
         translate::answers::answer(w::KeyedAnswer::FinalAnswer(owned), &limits),
         Ok(c::Answer::Refused { refusal: c::Refusal::Malformed { at: 0, why: c::Malformed::Running }, at: None })
@@ -367,9 +352,7 @@ fn engine_running_and_pending_settings_limit_refusals_keep_their_client_names() 
             c::Refusal::Limit { which: c::Limit::Admission { which: c::AdmissionLimit::SettingsProposals } },
         ),
     ] {
-        let wire = w::Ask::Message(
-            w::Message { project: 1, task: 1, words: Box::new([]) },
-        );
+        let wire = w::Ask::Message(w::Message { project: 1, task: 1, words: Box::new([]) });
         let (mut peer, socket, event) = submitted(&wire, &limits);
         let jig_domain_core::Event::People(p::Event::Ask { reply_to, .. }) = event else { panic!("people ask") };
         peer.answer_request(reply_to, p::Reply::Outcome(p::Outcome::Refused(source)));

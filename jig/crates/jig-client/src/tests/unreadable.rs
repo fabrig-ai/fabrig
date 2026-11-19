@@ -1,7 +1,7 @@
-use jig_client_protocol_wire::Record as _;
 use super::fixtures::{self, Client, STOP, TASK};
 use crate::*;
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use skein_lib::{Duration, Reader, Time, Writer};
 
 fn starting() -> Client {
@@ -100,7 +100,9 @@ fn an_undecodable_watch_closing_answer_leaves_the_client_unreadable() {
     c.step(Event::Watch { handle: TASK, subject: fixtures::task() });
     let exchange = c.exchange();
     let answer = w::OpenAnswer::Admitted;
-    let mut bytes = Writer::new(usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    let mut bytes = Writer::new(
+        usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
     answer.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
     c.step(Event::Reply { exchange, message: bytes.finish() });
     c.step(Event::Unwatch { handle: TASK });
@@ -152,7 +154,10 @@ fn offline_and_reopening(c: &mut Client) {
 fn a_delivery_past_the_clients_bound_is_offline_not_unreadable_and_reopens() {
     let record = w::DeliveryValue::Me(jig_client_test_records::frame_record());
     let mut limits = fixtures::limits();
-    limits.domain.document_bytes = u64::from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).checked_sub(1).unwrap();
+    limits.domain.document_bytes =
+        u64::from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+            .checked_sub(1)
+            .unwrap();
     let mut c = Client::with_limits(limits, skein_lib::List::with_capacity(0));
     c.step(Event::SignIn { with: With::Held(skein_lib::Secret::new(Box::new([7; 40]))) });
     c.stream(fixtures::hello(jig_client_protocol_wire::VERSION));

@@ -35,7 +35,10 @@ fn take(duties: &Duties) -> skein_lib::Token {
 }
 
 fn take_answer(host: &mut Host, exchange: skein_lib::Token, answer: &w::ApprovalSignInAnswer) -> Duties {
-    let mut writer = Writer::new(usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("answer length"));
+    let mut writer = Writer::new(
+        usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+            .expect("answer length"),
+    );
     answer.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("approval answer");
     reply(host, exchange, writer.finish())
 }
@@ -125,7 +128,10 @@ fn named_sign_in_asks_again_only_after_an_outcome_and_refocuses_the_button() {
         let mut host = host();
         let exchange = ask(&start_name(&mut host, None, None));
         if let Some(answer) = answer {
-            let mut writer = Writer::new(usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("answer length"));
+            let mut writer = Writer::new(
+                usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+                    .expect("answer length"),
+            );
             answer.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("ask answer");
             reply(&mut host, exchange, writer.finish());
         } else {

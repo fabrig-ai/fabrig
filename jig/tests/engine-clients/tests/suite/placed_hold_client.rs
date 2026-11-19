@@ -1,7 +1,7 @@
 //! The public linked client, native client wire, real core and applied store.
-use jig_client_protocol_wire::Record as _;
 use jig_client::{self as client, contract as c};
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use jig_core_kit::fixtures;
 use jig_core_kit::reads;
 use jig_core_kit::world::Setup;
@@ -80,14 +80,14 @@ impl Party {
         party.step(client::Event::Start { kept: List::with_capacity(0) });
         party.step(client::Event::SignIn { with: client::With::Held(Secret::new(token.expose().into())) });
         let hello = w::Hello {
-                stream: [7; 16],
-                served: jig_client_kit::test::list([w::Served {
-                        owner: w::Owner::Jig,
-                        first: jig_client_protocol_wire::VERSION,
-                        last: jig_client_protocol_wire::VERSION,
-                    }]),
-                heartbeat: skein_lib::Duration::from_secs(5),
-            };
+            stream: [7; 16],
+            served: jig_client_kit::test::list([w::Served {
+                owner: w::Owner::Jig,
+                first: jig_client_protocol_wire::VERSION,
+                last: jig_client_protocol_wire::VERSION,
+            }]),
+            heartbeat: skein_lib::Duration::from_secs(5),
+        };
         world.sign_in = Some(sign_in);
         reads::ask(world, 90, core::reads::Read::Frame);
         let core::reads::Answer::Document(document) = reads::latest(world) else { panic!("real Me") };
@@ -95,9 +95,11 @@ impl Party {
         let me = jig_protocol_engine_clients::translate::owner::frame(frame, &settings.models, &w::CEILINGS)
             .expect("Me codec");
         let value = w::DeliveryValue::Me(me);
-        let mut bytes = Writer::new(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture") as usize);
+        let mut bytes =
+            Writer::new(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture") as usize);
         value.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("Me delivery");
-        let document = w::Owned { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: bytes.finish() };
+        let document =
+            w::Owned { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: bytes.finish() };
         let opened = w::Opened { hello, me: document };
         party.step(client::Event::Streamed {
             message: client::Streamed::Record(encoded(&w::StreamEvent::Opened(opened))),

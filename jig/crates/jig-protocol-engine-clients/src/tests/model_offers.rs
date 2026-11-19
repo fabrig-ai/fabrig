@@ -1,8 +1,8 @@
 //! Model offers across engine, wire and client link (jig/docs/design/client/domain/contract/documents.md, 1).
-use jig_client_protocol_wire::Record as _;
 use super::fixtures;
 use jig_client_domain::contract as c;
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use skein_lib::{List, Reader};
 
 fn list<T, const N: usize>(items: [T; N]) -> List<T> {
@@ -19,7 +19,9 @@ fn me_with_offer(model: w::MeModel, defaults: List<w::MeDefault>) -> w::Me {
     project.defaults = defaults;
     project.models = list([model]);
     let project = project;
-    let mut encoded = skein_lib::Writer::new(usize::try_from(project.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    let mut encoded = skein_lib::Writer::new(
+        usize::try_from(project.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
     project.write(&jig_client_protocol_wire::CEILINGS, &mut encoded).unwrap();
     let encoded = encoded.finish();
     let mut pieces = skein_lib::Writer::new(encoded.len().checked_add(4).unwrap());
@@ -27,7 +29,9 @@ fn me_with_offer(model: w::MeModel, defaults: List<w::MeDefault>) -> w::Me {
     let mut me = frame;
     me.projects = pieces.finish();
     let me = me;
-    let mut encoded = skein_lib::Writer::new(usize::try_from(me.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    let mut encoded = skein_lib::Writer::new(
+        usize::try_from(me.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
     me.write(&jig_client_protocol_wire::CEILINGS, &mut encoded).unwrap();
     w::Me::decode(limits.wire(), &mut Reader::new(&encoded.finish())).unwrap()
 }
@@ -86,11 +90,8 @@ fn model_offers_and_template_previews_cross_engine_wire_and_link_whole() {
             .unwrap()
             .unwrap();
         defaults.push(w::MeDefault { template: 9, choice }).unwrap();
-        let decoded = jig_client_protocol_link::translate::documents::frame(
-            me_with_offer(wire, defaults),
-            &limits,
-        )
-        .unwrap();
+        let decoded =
+            jig_client_protocol_link::translate::documents::frame(me_with_offer(wire, defaults), &limits).unwrap();
         let project = decoded.projects.get(0).unwrap();
         assert_eq!(project.left_out, 7);
         let text = |bytes: &[u8]| c::Text::new(bytes.into(), 4096).unwrap();
@@ -167,13 +168,15 @@ fn model_acts_cross_link_and_wire_with_their_keyed_digest() {
         assert_eq!(restored, ask);
         let digest: [u8; 32] = crate::sign_in::digest(&encoded).expose().try_into().unwrap();
         let keyed = w::Keyed {
-                key: [5; 16],
-                owner: w::Owner::Jig,
-                version: jig_client_protocol_wire::VERSION,
-                request: encoded.clone(),
-                value: None,
-            };
-        let mut bytes = skein_lib::Writer::new(usize::try_from(keyed.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+            key: [5; 16],
+            owner: w::Owner::Jig,
+            version: jig_client_protocol_wire::VERSION,
+            request: encoded.clone(),
+            value: None,
+        };
+        let mut bytes = skein_lib::Writer::new(
+            usize::try_from(keyed.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+        );
         keyed.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
         let mut exchange = fixtures::Exchange::new();
         exchange.send(Message::Request(bytes.finish()));

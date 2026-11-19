@@ -2,9 +2,9 @@
 #![expect(clippy::disallowed_types, reason = "test oracles collect complete paragraphs as UTF-8 strings")]
 #![expect(clippy::disallowed_methods, reason = "test oracles inspect and collect semantic subtrees")]
 #![expect(clippy::disallowed_macros, reason = "page test cases own differently sized document lists")]
-use jig_client_protocol_wire::Record as _;
 use super::{PROJECT, TASK, answer, board, reader, records, view};
 use crate::public::{PublicView, build_public};
+use jig_client_protocol_wire::Record as _;
 use jig_client_protocol_wire::public_v1 as j;
 use skein_lib::{Duration, List, Queue, Wall, Writer};
 use skein_ui::{Node, Role};
@@ -76,13 +76,16 @@ fn line(goal: bool, phase: j::PublicPhase, ended: Option<u64>) -> j::PublicLine 
 }
 fn empty_board() -> Box<[u8]> {
     let board = j::PublicBoard {
-            project: PROJECT,
-            name: b"A public project".as_slice().into(),
-            live: List::with_capacity(0),
-            live_folded: 0,
-            ended: List::with_capacity(0),
-        };
-    let mut writer = Writer::new(usize::try_from(board.measure(&jig_client_protocol_wire::public_v1::CEILINGS).expect("bounded fixture")).expect("board size"));
+        project: PROJECT,
+        name: b"A public project".as_slice().into(),
+        live: List::with_capacity(0),
+        live_folded: 0,
+        ended: List::with_capacity(0),
+    };
+    let mut writer = Writer::new(
+        usize::try_from(board.measure(&jig_client_protocol_wire::public_v1::CEILINGS).expect("bounded fixture"))
+            .expect("board size"),
+    );
     board.write(&jig_client_protocol_wire::public_v1::CEILINGS, &mut writer).expect("board");
     writer.finish()
 }

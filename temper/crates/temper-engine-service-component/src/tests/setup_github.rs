@@ -1,6 +1,6 @@
 //! GitHub service composition (temper/docs/design/protocol/setup/github.md).
-use jig_client_protocol_wire::Record as _;
 use super::*;
+use jig_client_protocol_wire::Record as _;
 use jig_domain_people as people;
 use jig_protocol_engine_clients as clients;
 use skein_lib::{Reader, ReplyTo};
@@ -278,16 +278,20 @@ fn http_paste_with_policy(
             .unwrap(),
     );
     let family = j::FamilyRequest { scope: j::Scope::Deployment, record };
-    let mut bytes = skein_lib::Writer::new(usize::try_from(family.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    let mut bytes = skein_lib::Writer::new(
+        usize::try_from(family.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
     family.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
     let request = j::Keyed {
-            key: [key; 16],
-            owner: j::Owner::Family(j::Family { number: wire::FORGE }),
-            version: wire::CLIENT_VERSION,
-            request: bytes.finish(),
-            value: Some(bundle),
-        };
-    let mut bytes = skein_lib::Writer::new(usize::try_from(request.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+        key: [key; 16],
+        owner: j::Owner::Family(j::Family { number: wire::FORGE }),
+        version: wire::CLIENT_VERSION,
+        request: bytes.finish(),
+        value: Some(bundle),
+    };
+    let mut bytes = skein_lib::Writer::new(
+        usize::try_from(request.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
     request.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
     let mut peer = fixtures::http::Peer::new(engine, b"POST", b"/jig/v1/request", &bytes.finish(), Some(bearer));
     peer.pump(engine, true);

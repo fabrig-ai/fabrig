@@ -63,7 +63,9 @@ fn signed_in_read() -> Box<[u8]> {
     let mut out = Writer::new(skein_lib::length::usize_of(record.measure(&wire::CEILINGS).expect("bounded fixture")));
     record.write(&wire::CEILINGS, &mut out).expect("measured record");
     let record = wire::Owned { owner: wire::Owner::Jig, version: wire::VERSION, record: out.finish() };
-    let mut out = Writer::new(skein_lib::length::usize_of(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+    let mut out = Writer::new(skein_lib::length::usize_of(
+        record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+    ));
     record.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("measured record");
     out.finish()
 }
@@ -240,38 +242,51 @@ fn anonymous_body(route: &str) -> Box<[u8]> {
     match route.as_bytes() {
         b"request" => {
             let record = wire::Keyed {
-                    key: [7; 16],
-                    owner: wire::Owner::Jig,
-                    version: wire::VERSION,
-                    request: Box::default(),
-                    value: None,
-                };
-            let mut writer = skein_lib::Writer::new(usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("record size"));
+                key: [7; 16],
+                owner: wire::Owner::Jig,
+                version: wire::VERSION,
+                request: Box::default(),
+                value: None,
+            };
+            let mut writer = skein_lib::Writer::new(
+                usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+                    .expect("record size"),
+            );
             record.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("encode keyed");
             writer.finish()
         }
         b"read" => {
             let record = owned();
-            let mut writer = skein_lib::Writer::new(usize::try_from(record.measure(&wire::CEILINGS).expect("bounded fixture")).expect("record size"));
+            let mut writer = skein_lib::Writer::new(
+                usize::try_from(record.measure(&wire::CEILINGS).expect("bounded fixture")).expect("record size"),
+            );
             record.write(&wire::CEILINGS, &mut writer).expect("encode read");
             writer.finish()
         }
         b"watch" => {
-            let record =
-                wire::Open { stream: [7; 16], watch: 1, subject: owned() };
-            let mut writer = skein_lib::Writer::new(usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("record size"));
+            let record = wire::Open { stream: [7; 16], watch: 1, subject: owned() };
+            let mut writer = skein_lib::Writer::new(
+                usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+                    .expect("record size"),
+            );
             record.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("encode watch");
             writer.finish()
         }
         b"unwatch" => {
             let record = wire::WatchClose { stream: [7; 16], watch: 1 };
-            let mut writer = skein_lib::Writer::new(usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("record size"));
+            let mut writer = skein_lib::Writer::new(
+                usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+                    .expect("record size"),
+            );
             record.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("encode close");
             writer.finish()
         }
         b"stream-gone" => {
             let record = wire::Gone { stream: [7; 16] };
-            let mut writer = skein_lib::Writer::new(usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("record size"));
+            let mut writer = skein_lib::Writer::new(
+                usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+                    .expect("record size"),
+            );
             record.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("encode gone");
             writer.finish()
         }

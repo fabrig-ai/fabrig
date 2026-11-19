@@ -15,71 +15,69 @@ pub fn ended(value: &reads::Ended, models: &[crate::Model], limits: &w::Limits) 
     let key = ended_key(&value.value, limits)?;
     let record = match &value.value {
         reads::EndedValue::Task { document, result } => w::EndedValue::Task(w::EndedValueTask {
-                document: task::document(document, models, limits)?,
-                result: current::result(models, result, limits)?,
-            }),
+            document: task::document(document, models, limits)?,
+            result: current::result(models, result, limits)?,
+        }),
         reads::EndedValue::Proposal(value) | reads::EndedValue::PartyProposal(value) => {
             w::EndedValue::Proposal(w::EndedValueProposal { value: ended::proposal_history(models, value, limits)? })
         }
         reads::EndedValue::PersonProposal { proposal, decision } => match &proposal.action {
             jig_domain_tasks::PersonAction::Settings { against, items } => {
                 w::EndedValue::Proposal(w::EndedValueProposal {
-                        value: ended::settings_history(models, proposal, *against, items, limits)?,
-                    })
+                    value: ended::settings_history(models, proposal, *against, items, limits)?,
+                })
             }
             jig_domain_tasks::PersonAction::Batch(_) | jig_domain_tasks::PersonAction::Amend { .. } => {
                 w::EndedValue::PersonProposal(w::EndedValuePersonProposal {
-                        proposal: ended::person_proposal(models, proposal, limits)?,
-                        decision: match *decision {
-                            Some(item) => Some(ended::proposal_decision(item, limits)?),
-                            None => None,
-                        },
-                    })
+                    proposal: ended::person_proposal(models, proposal, limits)?,
+                    decision: match *decision {
+                        Some(item) => Some(ended::proposal_decision(item, limits)?),
+                        None => None,
+                    },
+                })
             }
         },
         reads::EndedValue::Escalation { task: document, decision, hold } => {
             w::EndedValue::Escalation(w::EndedValueEscalation {
-                    task: task::document(document, models, limits)?,
-                    decision: ended::escalation_decision(decision, limits)?,
-                    hold: match hold {
-                        Some(item) => Some(ended::hold(item, limits)?),
-                        None => None,
-                    },
-                })
+                task: task::document(document, models, limits)?,
+                decision: ended::escalation_decision(decision, limits)?,
+                hold: match hold {
+                    Some(item) => Some(ended::hold(item, limits)?),
+                    None => None,
+                },
+            })
         }
-        reads::EndedValue::Question { question, answer, ending } => {
-            w::EndedValue::Question(w::EndedValueQuestion {
-                    question: current::question(models, question, limits)?,
-                    answer: match answer {
-                        Some(item) => Some(question_answer::answer(item, limits)?),
-                        None => None,
-                    },
-                    ending: match ending {
-                        Some(item) => Some(result(models, item, limits)?),
-                        None => None,
-                    },
-                })
-        }
+        reads::EndedValue::Question { question, answer, ending } => w::EndedValue::Question(w::EndedValueQuestion {
+            question: current::question(models, question, limits)?,
+            answer: match answer {
+                Some(item) => Some(question_answer::answer(item, limits)?),
+                None => None,
+            },
+            ending: match ending {
+                Some(item) => Some(result(models, item, limits)?),
+                None => None,
+            },
+        }),
         reads::EndedValue::PersonTask { document, result } => w::EndedValue::PersonTask(w::EndedValuePersonTask {
-                document: person_task(models, document, limits)?,
-                result: current::result(models, result, limits)?,
-            }),
+            document: person_task(models, document, limits)?,
+            result: current::result(models, result, limits)?,
+        }),
         reads::EndedValue::Reply(_) | reads::EndedValue::Turn(_) | reads::EndedValue::WithheldTurn(_) => {
             return Err(w::Problem { path: w::paths::ENDED_VALUE, reason: skein_codec::Reason::Tag });
         }
     };
     Ok(w::Ended {
-            key,
-            value: record,
-            at: match value.at {
-                Some(item) => Some(item.as_nanos()),
-                None => None,
-            },
-            by: match value.by {
-                Some(item) => Some(owner::requester(item, limits)?),
-                None => None,
-            },
-        })
+        key,
+        value: record,
+        at: match value.at {
+            Some(item) => Some(item.as_nanos()),
+            None => None,
+        },
+        by: match value.by {
+            Some(item) => Some(owner::requester(item, limits)?),
+            None => None,
+        },
+    })
 }
 pub fn document(
     answer: &reads::Answer,
@@ -142,26 +140,32 @@ fn ended_key(value: &reads::EndedValue, limits: &w::Limits) -> Result<w::ObjectK
             w::ObjectKey::Task(w::ObjectKeyTask { value: document.chip.number })
         }
         reads::EndedValue::Proposal(value) => w::ObjectKey::Proposal(w::ObjectKeyProposal {
-                value: task::proposal(
-                    &d::ProposalRef { proposer: d::Proposer::Task(value.proposer), number: value.number },
-                    limits,
-                )?,
-            }),
+            value: task::proposal(
+                &d::ProposalRef { proposer: d::Proposer::Task(value.proposer), number: value.number },
+                limits,
+            )?,
+        }),
         reads::EndedValue::PartyProposal(value) => w::ObjectKey::Proposal(w::ObjectKeyProposal {
-                value: task::proposal(
-                    &d::ProposalRef { proposer: d::Proposer::Party(value.proposer), number: value.number },
-                    limits,
-                )?,
-            }),
+            value: task::proposal(
+                &d::ProposalRef { proposer: d::Proposer::Party(value.proposer), number: value.number },
+                limits,
+            )?,
+        }),
         reads::EndedValue::PersonProposal { proposal, .. } => w::ObjectKey::Proposal(w::ObjectKeyProposal {
-                value: task::proposal(
-                    &d::ProposalRef { proposer: d::Proposer::Party(proposal.proposer), number: proposal.number },
-                    limits,
-                )?,
-            }),
-        reads::EndedValue::Escalation { task: document, .. } => w::ObjectKey::Escalation(w::ObjectKeyEscalation { value: document.chip.number }),
-        reads::EndedValue::Question { question, .. } => w::ObjectKey::Question(w::ObjectKeyQuestion { task: question.task.number, message: question.message }),
-        reads::EndedValue::PersonTask { document, .. } => w::ObjectKey::PersonTask(w::ObjectKeyPersonTask { value: document.task.number }),
+            value: task::proposal(
+                &d::ProposalRef { proposer: d::Proposer::Party(proposal.proposer), number: proposal.number },
+                limits,
+            )?,
+        }),
+        reads::EndedValue::Escalation { task: document, .. } => {
+            w::ObjectKey::Escalation(w::ObjectKeyEscalation { value: document.chip.number })
+        }
+        reads::EndedValue::Question { question, .. } => {
+            w::ObjectKey::Question(w::ObjectKeyQuestion { task: question.task.number, message: question.message })
+        }
+        reads::EndedValue::PersonTask { document, .. } => {
+            w::ObjectKey::PersonTask(w::ObjectKeyPersonTask { value: document.task.number })
+        }
         reads::EndedValue::Reply(_) | reads::EndedValue::Turn(_) | reads::EndedValue::WithheldTurn(_) => {
             return Err(w::Problem { path: w::paths::ENDED_VALUE, reason: skein_codec::Reason::Tag });
         }

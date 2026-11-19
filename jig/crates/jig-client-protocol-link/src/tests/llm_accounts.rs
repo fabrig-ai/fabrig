@@ -5,39 +5,41 @@ const DESCRIPTION_BYTES: usize = 512;
 
 fn me_with_model(prices: w::MePrices, description: Option<Box<[u8]>>) -> w::Me {
     let model = w::MeModel {
-            new_until: None,
-            number: 1,
-            source: w::ModelSource::Stock,
-            estimated: false,
-            effort: None,
-            shown: None,
-            accounts: skein_lib::List::with_capacity(0),
-            picker: true,
-            name: b"chosen".as_slice().into(),
-            provider: Some(3),
-            window: 8192,
-            output: 1024,
-            efforts: skein_lib::List::with_capacity(0),
-            prices,
-            description,
-        };
+        new_until: None,
+        number: 1,
+        source: w::ModelSource::Stock,
+        estimated: false,
+        effort: None,
+        shown: None,
+        accounts: skein_lib::List::with_capacity(0),
+        picker: true,
+        name: b"chosen".as_slice().into(),
+        provider: Some(3),
+        window: 8192,
+        output: 1024,
+        efforts: skein_lib::List::with_capacity(0),
+        prices,
+        description,
+    };
     me_with_offer(model, skein_lib::List::with_capacity(0))
 }
 fn me_with_offer(model: w::MeModel, defaults: skein_lib::List<w::MeDefault>) -> w::Me {
     let limits = fixtures::limits();
     let project = w::MeProject {
-            left_out: 0,
-            defaults,
-            public: None,
-            project: 3,
-            name: w::DocumentText { bytes: Box::from(*b"Tally"), cut: false },
-            role: w::HeldRole::Owner,
-            pool: None,
-            templates: Box::default(),
-            creating: None,
-            models: fixtures::list([model]),
-        };
-    let mut encoded = skein_lib::Writer::new(usize::try_from(project.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+        left_out: 0,
+        defaults,
+        public: None,
+        project: 3,
+        name: w::DocumentText { bytes: Box::from(*b"Tally"), cut: false },
+        role: w::HeldRole::Owner,
+        pool: None,
+        templates: Box::default(),
+        creating: None,
+        models: fixtures::list([model]),
+    };
+    let mut encoded = skein_lib::Writer::new(
+        usize::try_from(project.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
     project.write(&jig_client_protocol_wire::CEILINGS, &mut encoded).unwrap();
     let encoded = encoded.finish();
     let mut pieces = skein_lib::Writer::new(encoded.len().checked_add(4).unwrap());
@@ -45,7 +47,9 @@ fn me_with_offer(model: w::MeModel, defaults: skein_lib::List<w::MeDefault>) -> 
     let mut me = fixtures::frame_record();
     me.projects = pieces.finish();
     let me = me;
-    let mut encoded = skein_lib::Writer::new(usize::try_from(me.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    let mut encoded = skein_lib::Writer::new(
+        usize::try_from(me.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
     me.write(&jig_client_protocol_wire::CEILINGS, &mut encoded).unwrap();
     w::Me::decode(limits.wire(), &mut Reader::new(&encoded.finish())).unwrap()
 }
@@ -120,9 +124,7 @@ fn an_account_refusal_keeps_its_reason_in_the_link() {
         (w::AccountWhy::Uses, c::AccountWhy::Uses),
         (w::AccountWhy::Limited, c::AccountWhy::Limited),
     ] {
-        let wire = w::Refusal::Account(
-            w::RefusalAccount { account: 42, why: wire },
-        );
+        let wire = w::Refusal::Account(w::RefusalAccount { account: 42, why: wire });
         assert_eq!(
             translate::answers::refusal(&wire, &limits).unwrap(),
             c::Refusal::Account { account: 42, why: client }
@@ -133,13 +135,9 @@ fn an_account_refusal_keeps_its_reason_in_the_link() {
 #[test]
 fn an_unknown_limit_reset_stays_unknown_in_the_task_wait() {
     let limits = fixtures::limits();
-    let state = w::TaskSourceState::Limited(
-        w::TaskSourceStateUntil { until: None },
-    );
+    let state = w::TaskSourceState::Limited(w::TaskSourceStateUntil { until: None });
     let why = w::TaskWaitWhy::Source(w::TaskWaitSource { state });
-    let wire = w::TaskRunWait::Account(
-        w::TaskWaitAccount { account: Some(42), source: Some(91), why },
-    );
+    let wire = w::TaskRunWait::Account(w::TaskWaitAccount { account: Some(42), source: Some(91), why });
     let mut task = fixtures::task_record();
     task.run_wait = Some(wire);
     let wire = task;
@@ -156,13 +154,11 @@ fn an_unknown_limit_reset_stays_unknown_in_the_task_wait() {
 #[test]
 fn an_untooled_wait_round_trips_with_its_account_source_and_worker() {
     let limits = fixtures::limits();
-    let why = w::TaskWaitWhy::Untooled(
-        w::TaskWaitUntooled { worker: 2 },
+    let why = w::TaskWaitWhy::Untooled(w::TaskWaitUntooled { worker: 2 });
+    let wire = w::TaskRunWait::Account(w::TaskWaitAccount { account: Some(4), source: Some(7), why });
+    let mut writer = skein_lib::Writer::new(
+        usize::try_from(wire.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
     );
-    let wire = w::TaskRunWait::Account(
-        w::TaskWaitAccount { account: Some(4), source: Some(7), why },
-    );
-    let mut writer = skein_lib::Writer::new(usize::try_from(wire.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
     wire.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
     let bytes = writer.finish();
     let mut reader = Reader::new(&bytes);
@@ -189,22 +185,22 @@ fn malformed_offer_efforts_and_shown_names_are_refused() {
         (skein_lib::List::with_capacity(0), None, Some(Box::default())),
     ] {
         let model = w::MeModel {
-                new_until: None,
-                number: 1,
-                source: w::ModelSource::Stock,
-                estimated: false,
-                name: b"chosen".as_slice().into(),
-                provider: None,
-                window: 1,
-                output: 1,
-                efforts,
-                effort,
-                shown,
-                accounts: skein_lib::List::with_capacity(0),
-                picker: true,
-                prices: w::MePrices { input: 1, cached: 1, cache_write: None, output: 1, unit: 1 },
-                description: None,
-            };
+            new_until: None,
+            number: 1,
+            source: w::ModelSource::Stock,
+            estimated: false,
+            name: b"chosen".as_slice().into(),
+            provider: None,
+            window: 1,
+            output: 1,
+            efforts,
+            effort,
+            shown,
+            accounts: skein_lib::List::with_capacity(0),
+            picker: true,
+            prices: w::MePrices { input: 1, cached: 1, cache_write: None, output: 1, unit: 1 },
+            description: None,
+        };
         assert_eq!(
             translate::documents::frame(me_with_offer(model, skein_lib::List::with_capacity(0)), &limits),
             Err(Undecodable::Malformed)

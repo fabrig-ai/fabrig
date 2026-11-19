@@ -4,7 +4,6 @@
     clippy::disallowed_types,
     reason = "tests inspect semantic trees and decoded controls"
 )]
-use jig_client_protocol_wire::Record as _;
 use super::fixtures::{self as f, connect_model as model};
 use crate::{
     accounts::Bindings,
@@ -12,6 +11,7 @@ use crate::{
     pages::model_check::{self, Answer, First, State, Trial},
     words::Words,
 };
+use jig_client_protocol_wire::Record as _;
 use skein_ui::{Builder, Role, Tree};
 use temper_client_domain::{
     self as d, Address, Step,
@@ -450,7 +450,9 @@ fn trial_rows_feed_the_steps_answer_and_ask_gap_in_both_shells() {
 fn wait_delivery(root: &mut d::Domain, watch: Token, wait: Option<jig_client_protocol_wire::TaskRunWait>) {
     let mut parts = row(v::TrialStep::Starts, v::TrialState::Running).into_parts();
     parts.run_wait = wait.map(|wait| {
-        let mut writer = Writer::new(usize::try_from(wait.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+        let mut writer = Writer::new(
+            usize::try_from(wait.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+        );
         wait.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
         writer.finish()
     });
@@ -462,9 +464,7 @@ fn source(state: jig_client_protocol_wire::TaskSourceState) -> jig_client_protoc
 }
 fn account_wait(why: jig_client_protocol_wire::TaskWaitWhy) -> jig_client_protocol_wire::TaskRunWait {
     use jig_client_protocol_wire as j;
-    j::TaskRunWait::Account(
-        j::TaskWaitAccount { account: Some(1), source: Some(1), why },
-    )
+    j::TaskRunWait::Account(j::TaskWaitAccount { account: Some(1), source: Some(1), why })
 }
 #[test]
 #[expect(
@@ -488,37 +488,20 @@ fn a_running_trials_wait_stops_the_line_until_it_clears_and_waited_keeps_its_wor
     }
     for (why, expected) in [
         (source(S::NeedsSignIn), "Needs sign-in"),
-        (
-            source(S::Limited(
-                j::TaskSourceStateUntil { until: None },
-            )),
-            "Limited. Tasks on it wait.",
-        ),
+        (source(S::Limited(j::TaskSourceStateUntil { until: None })), "Limited. Tasks on it wait."),
         (source(S::Refused), "Refused"),
         (source(S::Misconfigured), "The provider refused temper's sign-in. Check the configuration's registration."),
         (
-            source(S::Unloaded(
-                j::TaskSourceStateUnloaded {
-                        at: j::TaskSourcePlace::File,
-                        why: j::TaskSourceUnread::Unreadable,
-                    },
-            )),
+            source(S::Unloaded(j::TaskSourceStateUnloaded {
+                at: j::TaskSourcePlace::File,
+                why: j::TaskSourceUnread::Unreadable,
+            })),
             "Cannot load File: Unreadable",
         ),
         (W::Host, "owner's login isn't signed in on a host that can run this."),
         (W::Empty, "No account can run this chat yet."),
-        (
-            W::Invalid(
-                j::TaskWaitInvalid { why: j::AccountWhy::Uses },
-            ),
-            "The requested account cannot serve this work",
-        ),
-        (
-            source(S::Later(
-                j::TaskSourceStateUntil { until: None },
-            )),
-            "Try later",
-        ),
+        (W::Invalid(j::TaskWaitInvalid { why: j::AccountWhy::Uses }), "The requested account cannot serve this work"),
+        (source(S::Later(j::TaskSourceStateUntil { until: None })), "Try later"),
         (source(S::Cancelled), "Cancelled"),
         (source(S::Closing), "Closing"),
     ] {
@@ -533,33 +516,21 @@ fn a_running_trials_wait_stops_the_line_until_it_clears_and_waited_keeps_its_wor
     for wait in [
         R::Credential,
         R::Host,
-        R::Refused(
-            j::TaskRunWaitRefused {
-                    value: j::TaskWaitRefused::Bounds(
-                        j::TaskWaitBounds {
-                                kind: j::HostKind::Worker,
-                                why: Some(j::AgentShortfall::Turns(
-                                    j::AgentShortfallTurns { charter: 1 },
-                                )),
-                                figures: Some(
-                                    j::ShortfallFigures { required: 100_000, offered: 800 },
-                                ),
-                            },
-                    ),
-                },
-        ),
-        R::Refused(
-            j::TaskRunWaitRefused {
-                    value: j::TaskWaitRefused::Hello(
-                        j::TaskWaitHello {
-                                kind: j::HostKind::Worker,
-                                at: 1_791_828_240_000_000_000,
-                                why: j::HelloRefusal::JobKinds,
-                                figures: None,
-                            },
-                    ),
-                },
-        ),
+        R::Refused(j::TaskRunWaitRefused {
+            value: j::TaskWaitRefused::Bounds(j::TaskWaitBounds {
+                kind: j::HostKind::Worker,
+                why: Some(j::AgentShortfall::Turns(j::AgentShortfallTurns { charter: 1 })),
+                figures: Some(j::ShortfallFigures { required: 100_000, offered: 800 }),
+            }),
+        }),
+        R::Refused(j::TaskRunWaitRefused {
+            value: j::TaskWaitRefused::Hello(j::TaskWaitHello {
+                kind: j::HostKind::Worker,
+                at: 1_791_828_240_000_000_000,
+                why: j::HelloRefusal::JobKinds,
+                figures: None,
+            }),
+        }),
     ] {
         wait_delivery(&mut root, watch, Some(wait.clone()));
         for w in [f::words(), f::browser_words()] {

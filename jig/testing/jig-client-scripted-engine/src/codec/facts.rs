@@ -19,7 +19,10 @@ impl Facts {
     ) -> Result<u32, w::Problem> {
         let index = u32::try_from(self.rows.len()).map_err(|_| problem())?;
         self.rows.push(None);
-        let row = w::Fact::ChipPhase(w::ChipPhaseRow { parent, value: values::wire_chip_phase_fields(value, limits, self, index)? });
+        let row = w::Fact::ChipPhase(w::ChipPhaseRow {
+            parent,
+            value: values::wire_chip_phase_fields(value, limits, self, index)?,
+        });
         *self.rows.get_mut(usize::try_from(index).map_err(|_| problem())?).ok_or(problem())? = Some(row);
         Ok(index)
     }
@@ -31,7 +34,8 @@ impl Facts {
     ) -> Result<u32, w::Problem> {
         let index = u32::try_from(self.rows.len()).map_err(|_| problem())?;
         self.rows.push(None);
-        let row = w::Fact::Closing(w::ClosingRow { parent, value: values::wire_closing_fields(value, limits, self, index)? });
+        let row =
+            w::Fact::Closing(w::ClosingRow { parent, value: values::wire_closing_fields(value, limits, self, index)? });
         *self.rows.get_mut(usize::try_from(index).map_err(|_| problem())?).ok_or(problem())? = Some(row);
         Ok(index)
     }
@@ -43,7 +47,8 @@ impl Facts {
     ) -> Result<u32, w::Problem> {
         let index = u32::try_from(self.rows.len()).map_err(|_| problem())?;
         self.rows.push(None);
-        let row = w::Fact::Ending(w::EndingRow { parent, value: values::wire_ending_fields(value, limits, self, index)? });
+        let row =
+            w::Fact::Ending(w::EndingRow { parent, value: values::wire_ending_fields(value, limits, self, index)? });
         *self.rows.get_mut(usize::try_from(index).map_err(|_| problem())?).ok_or(problem())? = Some(row);
         Ok(index)
     }
@@ -55,7 +60,10 @@ impl Facts {
     ) -> Result<u32, w::Problem> {
         let index = u32::try_from(self.rows.len()).map_err(|_| problem())?;
         self.rows.push(None);
-        let row = w::Fact::HeldRuntime(w::HeldRuntimeRow { parent, value: values::wire_held_runtime_fields(value, limits, self, index)? });
+        let row = w::Fact::HeldRuntime(w::HeldRuntimeRow {
+            parent,
+            value: values::wire_held_runtime_fields(value, limits, self, index)?,
+        });
         *self.rows.get_mut(usize::try_from(index).map_err(|_| problem())?).ok_or(problem())? = Some(row);
         Ok(index)
     }
@@ -67,7 +75,10 @@ impl Facts {
     ) -> Result<u32, w::Problem> {
         let index = u32::try_from(self.rows.len()).map_err(|_| problem())?;
         self.rows.push(None);
-        let row = w::Fact::HoldReason(w::HoldReasonRow { parent, value: values::wire_hold_reason_fields(value, limits, self, index)? });
+        let row = w::Fact::HoldReason(w::HoldReasonRow {
+            parent,
+            value: values::wire_hold_reason_fields(value, limits, self, index)?,
+        });
         *self.rows.get_mut(usize::try_from(index).map_err(|_| problem())?).ok_or(problem())? = Some(row);
         Ok(index)
     }
@@ -79,7 +90,10 @@ impl Facts {
     ) -> Result<u32, w::Problem> {
         let index = u32::try_from(self.rows.len()).map_err(|_| problem())?;
         self.rows.push(None);
-        let row = w::Fact::ChipDetails(Box::new(w::ChipDetailsRow { parent, value: values::wire_chip_details_fields(value, limits, self, index)? }));
+        let row = w::Fact::ChipDetails(Box::new(w::ChipDetailsRow {
+            parent,
+            value: values::wire_chip_details_fields(value, limits, self, index)?,
+        }));
         *self.rows.get_mut(usize::try_from(index).map_err(|_| problem())?).ok_or(problem())? = Some(row);
         Ok(index)
     }
@@ -91,7 +105,10 @@ impl Facts {
     ) -> Result<u32, w::Problem> {
         let index = u32::try_from(self.rows.len()).map_err(|_| problem())?;
         self.rows.push(None);
-        let row = w::Fact::ChipEnding(w::ChipEndingRow { parent, value: values::wire_chip_ending_fields(value, limits, self, index)? });
+        let row = w::Fact::ChipEnding(w::ChipEndingRow {
+            parent,
+            value: values::wire_chip_ending_fields(value, limits, self, index)?,
+        });
         *self.rows.get_mut(usize::try_from(index).map_err(|_| problem())?).ok_or(problem())? = Some(row);
         Ok(index)
     }
@@ -103,7 +120,10 @@ impl Facts {
     ) -> Result<u32, w::Problem> {
         let index = u32::try_from(self.rows.len()).map_err(|_| problem())?;
         self.rows.push(None);
-        let row = w::Fact::ResultValue(w::ResultValueRow { parent, value: values::wire_result_value_fields(value, limits, self, index)? });
+        let row = w::Fact::ResultValue(w::ResultValueRow {
+            parent,
+            value: values::wire_result_value_fields(value, limits, self, index)?,
+        });
         *self.rows.get_mut(usize::try_from(index).map_err(|_| problem())?).ok_or(problem())? = Some(row);
         Ok(index)
     }

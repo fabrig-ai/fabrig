@@ -1,8 +1,8 @@
 //! The engine world is the lowest tier joining retained tier facts to ctl's reads.
-use jig_client_protocol_wire::Record as _;
 use crate::forge_routes::World;
 use crate::forge_routes::{Gate, StoryLimits};
 use jig_client::{self as client, contract as c};
+use jig_client_protocol_wire::Record as _;
 use jig_domain_core::reads;
 use skein_lib::{Env, List, Queue, Writer};
 use temper_client_tools::{jig::call::Parsed, root};
@@ -172,7 +172,10 @@ fn answer(world: &mut World, read: reads::Read) -> c::ReadValue {
         &jig_client_protocol_wire::CEILINGS,
     )
     .unwrap_or_else(|problem| panic!("engine projection: {problem:?}, {answer:?}"));
-    let mut bytes = Writer::new(usize::try_from(wire.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("document fits"));
+    let mut bytes = Writer::new(
+        usize::try_from(wire.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+            .expect("document fits"),
+    );
     wire.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("measured document");
     let mut preset = temper_client_tools::limits::client().client;
     preset.domain.text = preset.domain.text.min(world.env.limits.documents.text_bytes);

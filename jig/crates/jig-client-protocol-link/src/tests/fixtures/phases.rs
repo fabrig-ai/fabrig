@@ -10,21 +10,17 @@ pub fn phases() -> [(w::Chip, c::Chip); 1] {
 pub fn phase_owner() -> (w::Chip, c::Chip) {
     let rows = [
         chip_root_fact(),
-        w::Fact::ChipPhase(
-            w::ChipPhaseRow {
-                    parent: Some(0),
-                    value: w::ChipPhaseOwnerFields {
-                            phase: w::ChipPhase::Waiting(
-                                w::ChipPhaseWaiting {
-                                        dependencies: List::with_capacity(0),
-                                        more: false,
-                                        holds: false,
-                                    },
-                            ),
-                            details: 2,
-                        },
-                },
-        ),
+        w::Fact::ChipPhase(w::ChipPhaseRow {
+            parent: Some(0),
+            value: w::ChipPhaseOwnerFields {
+                phase: w::ChipPhase::Waiting(w::ChipPhaseWaiting {
+                    dependencies: List::with_capacity(0),
+                    more: false,
+                    holds: false,
+                }),
+                details: 2,
+            },
+        }),
         w::Fact::ChipDetails(Box::new(wire_owner_chip_details_row())),
     ];
     let record = chip_from_rows(&rows);

@@ -1,9 +1,9 @@
 //! Browser approvals, their refusals and durable takes (jig/docs/design/protocol/client/sign-in.md).
-use jig_client_protocol_wire::Record as _;
 use super::fixtures::{self as f, Exchange};
 use crate::{Event, Message, Request, SecretOwner, SecretsAnswer, SecretsRequest, Settings};
 use jig_client_protocol_wire as w;
 use jig_client_protocol_wire::ApprovalCode;
+use jig_client_protocol_wire::Record as _;
 use jig_domain_people as people;
 use skein_lib::{Duration, Reader, ReplyTo, Secret, Token, Wall, Writer, length::usize_of};
 
@@ -208,9 +208,7 @@ fn a_read_says_what_the_approval_is() {
         let a = asked(&mut e);
         let code = a.code;
         let expected = match case {
-            "waiting" => w::ApprovalState::Waiting(
-                w::ApprovalWaiting { asked: 123 },
-            ),
+            "waiting" => w::ApprovalState::Waiting(w::ApprovalWaiting { asked: 123 }),
             "approved" => {
                 decide(&mut e, code, true);
                 w::ApprovalState::Approved
@@ -365,9 +363,9 @@ fn busy_not_ready_and_full_spend_nothing() {
         let expected = match &reply {
             people::Reply::Again(people::Again::Busy) => w::ApprovalSignInAnswer::Busy,
             people::Reply::Again(people::Again::NotReady) => w::ApprovalSignInAnswer::NotReady,
-            people::Reply::Full { .. } => w::ApprovalSignInAnswer::Full(
-                w::ApprovalFull { sign_ins: 4, earliest: 700, until: a.expires },
-            ),
+            people::Reply::Full { .. } => {
+                w::ApprovalSignInAnswer::Full(w::ApprovalFull { sign_ins: 4, earliest: 700, until: a.expires })
+            }
             people::Reply::Signer(_)
             | people::Reply::SignedIn { .. }
             | people::Reply::SignedOut
@@ -391,12 +389,7 @@ fn busy_not_ready_and_full_spend_nothing() {
 fn an_approved_take_signs_in_the_approvers_party_once() {
     let mut e = new();
     let a = asked(&mut e);
-    assert_eq!(
-        read(&mut e, a.code),
-        w::ApprovalState::Waiting(
-            w::ApprovalWaiting { asked: 0 }
-        )
-    );
+    assert_eq!(read(&mut e, a.code), w::ApprovalState::Waiting(w::ApprovalWaiting { asked: 0 }));
     assert_eq!(decide(&mut e, a.code, true), w::ApprovalDecided::Approved);
     let owner = e.send(take_message(a.secret.expose()));
     let to = signer(&mut e);
@@ -520,8 +513,7 @@ fn admission_refusals_leave_approvals_alone() {
         if case.starts_with("take") {
             assert_eq!(take_answer(&mut e, a.secret.expose()), w::ApprovalSignInAnswer::Busy);
         } else {
-            let message =
-                if case.starts_with("read") { read_message(a.code) } else { decide_message(a.code, false) };
+            let message = if case.starts_with("read") { read_message(a.code) } else { decide_message(a.code, false) };
             let owner = e.send_as(message, true, Some(Secret::new(e.token.clone())));
             if case.ends_with("busy") {
                 e.authenticate();
@@ -636,9 +628,7 @@ fn a_take_drains_on_stop_close_or_abort() {
                 assert_eq!(
                     answer,
                     if action == "stop" && stage == "core" {
-                        w::ApprovalSignInAnswer::Full(
-                            w::ApprovalFull { sign_ins: 4, earliest: 700, until: a.expires },
-                        )
+                        w::ApprovalSignInAnswer::Full(w::ApprovalFull { sign_ins: 4, earliest: 700, until: a.expires })
                     } else {
                         w::ApprovalSignInAnswer::NotReady
                     }

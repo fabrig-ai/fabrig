@@ -87,7 +87,9 @@ fn browser_frame(frame: &Frame, models: &[jig_protocol_engine_clients::Model]) -
     use jig_client_protocol_wire as w;
     let wire =
         jig_protocol_engine_clients::translate::owner::frame(frame, models, &w::CEILINGS).expect("stock wire offer");
-    let mut writer = Writer::new(usize::try_from(wire.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("me bytes"));
+    let mut writer = Writer::new(
+        usize::try_from(wire.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("me bytes"),
+    );
     wire.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("encoded me");
     let client = temper_client_shell_web::limits::client().client;
     let limits = jig_client_protocol_link::Limits::new(client.domain, client.exchanges).expect("browser limits");

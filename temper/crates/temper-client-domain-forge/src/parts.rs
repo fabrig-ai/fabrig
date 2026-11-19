@@ -1,9 +1,9 @@
 //! Task row parts (temper/docs/design/client/forge/parts.md, 5).
-use jig_client_protocol_wire::Record as _;
 use alloc::boxed::Box;
 use jig_client::contract::{self as c, RowPart};
 use jig_client_protocol_link as link;
 use jig_client_protocol_wire as jig;
+use jig_client_protocol_wire::Record as _;
 use skein_lib::{List, Reader, Wall};
 use temper_client_protocol_wire::{
     self as wire,

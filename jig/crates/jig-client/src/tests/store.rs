@@ -217,10 +217,10 @@ fn a_final_answer_that_does_not_decode_is_told_retrying_as_undecodable() {
     c.step(Event::Send { name: None, key: STOP, request: fixtures::stop() });
     c.step(Event::Stored);
     let record = jig_client_protocol_wire::Owned {
-            owner: jig_client_protocol_wire::Owner::Jig,
-            version: jig_client_protocol_wire::VERSION,
-            record: Box::new([255]),
-        };
+        owner: jig_client_protocol_wire::Owner::Jig,
+        version: jig_client_protocol_wire::VERSION,
+        record: Box::new([255]),
+    };
     let message = fixtures::answer(&jig_client_protocol_wire::KeyedAnswer::FinalAnswer(record));
     c.step(Event::Reply { exchange: c.exchange(), message });
     assert_eq!(c.machine.pending(STOP).unwrap().progress, Progress::Retrying { why: Retry::Undecodable });

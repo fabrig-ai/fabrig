@@ -1,8 +1,8 @@
 //! A forged chat over jig's `tests/client-browser/src/forgery.rs`, with the chat template's task
 //! (client/web/testing.md, 1 story 5; jig's protocol/browser/testing.md).
-use jig_client_protocol_wire::Record as _;
 use jig_client::contract as c;
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use skein_lib::{List, Writer};
 
 const PROJECT: u32 = 1;
@@ -55,16 +55,22 @@ pub(super) fn request() -> Box<[u8]> {
     tasks.push(task()).expect("one forged task");
     let ask = jig_client_protocol_link::translate::asks::ask(&c::Ask::Create { project: PROJECT, tasks }, &w::CEILINGS)
         .expect("forged request fits wire");
-    let mut writer = Writer::new(usize::try_from(ask.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("request size fits"));
+    let mut writer = Writer::new(
+        usize::try_from(ask.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+            .expect("request size fits"),
+    );
     ask.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("measured request");
     let keyed = w::Keyed {
-            key: REQUEST_KEY,
-            owner: w::Owner::Jig,
-            version: jig_client_protocol_wire::VERSION,
-            request: writer.finish(),
-            value: None,
-        };
-    let mut writer = Writer::new(usize::try_from(keyed.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("keyed size fits"));
+        key: REQUEST_KEY,
+        owner: w::Owner::Jig,
+        version: jig_client_protocol_wire::VERSION,
+        request: writer.finish(),
+        value: None,
+    };
+    let mut writer = Writer::new(
+        usize::try_from(keyed.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+            .expect("keyed size fits"),
+    );
     keyed.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("measured keyed request");
     writer.finish()
 }

@@ -16,14 +16,14 @@ pub(crate) fn wire_choice(
         subagents.push(wire_model_effort(item, limits)?).expect("same capacity");
     }
     Ok(Some(w::LlmChoice {
-            account: value.account,
-            main: wire_model_effort(&value.main, limits)?,
-            subagents,
-            later: match &value.later {
-                Some(later) => Some(wire_later(later, limits)?),
-                None => None,
-            },
-        }))
+        account: value.account,
+        main: wire_model_effort(&value.main, limits)?,
+        subagents,
+        later: match &value.later {
+            Some(later) => Some(wire_later(later, limits)?),
+            None => None,
+        },
+    }))
 }
 fn wire_later(value: &c::LlmLater, limits: &w::Limits) -> Result<w::LlmLater, w::Problem> {
     let mut subagents = List::with_capacity(value.subagents.len());
@@ -35,12 +35,12 @@ fn wire_later(value: &c::LlmLater, limits: &w::Limits) -> Result<w::LlmLater, w:
 #[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
 fn wire_model_effort(value: &c::ModelEffort, _limits: &w::Limits) -> Result<w::ModelEffort, w::Problem> {
     Ok(w::ModelEffort {
-            model: bytes::copy_of(value.model.bytes()),
-            effort: match &value.effort {
-                Some(effort) => Some(bytes::copy_of(effort.bytes())),
-                None => None,
-            },
-        })
+        model: bytes::copy_of(value.model.bytes()),
+        effort: match &value.effort {
+            Some(effort) => Some(bytes::copy_of(effort.bytes())),
+            None => None,
+        },
+    })
 }
 pub(crate) fn choice(value: Option<&w::LlmChoice>, limits: &Limits) -> Result<Option<c::LlmChoice>, w::Problem> {
     let Some(value) = value else {
@@ -90,7 +90,10 @@ pub(crate) fn models(values: &List<w::MeModel>, limits: &Limits) -> Result<List<
         }
         let description = match &value.description {
             Some(value) if value.is_empty() => {
-                return Err(w::Problem { path: w::paths::ME_MODEL_DESCRIPTION, reason: skein_codec::Reason::Malformed });
+                return Err(w::Problem {
+                    path: w::paths::ME_MODEL_DESCRIPTION,
+                    reason: skein_codec::Reason::Malformed,
+                });
             }
             Some(value) => Some(name(value, limits.receiving().me_model_description_some)?),
             None => None,

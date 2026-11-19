@@ -1,6 +1,6 @@
 //! Native browser reports and managed-forge captures for journey tests.
-use jig_client_protocol_wire::Record as _;
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use jig_client_shell_web::adapter::{Asked, Heard};
 use skein_lib::{
     Duration, FixedClock, FixedStart, List, Time, Wall, Writer,
@@ -100,11 +100,7 @@ pub fn managed_capture(mut capture: Capture) -> Capture {
     capture.report(Report::Start);
     capture.report(Report::Heard(Heard::StreamOpened));
     let mut served = List::with_capacity(1);
-    served
-        .push(
-            w::Served { owner: w::Owner::Jig, first: w::VERSION, last: w::VERSION },
-        )
-        .expect("one owner");
+    served.push(w::Served { owner: w::Owner::Jig, first: w::VERSION, last: w::VERSION }).expect("one owner");
     let mut me = jig_client_test_records::frame_two_projects_record();
     me.deployment_role = Some(w::HeldRole::Owner);
     capture.stream(&jig_client_test_records::opened(

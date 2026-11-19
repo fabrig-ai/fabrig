@@ -1,9 +1,9 @@
 //! Project policies, replaced values and restores cross the client boundary (domain/engine/settings.md, 10).
-use jig_client_protocol_wire::Record as _;
 use super::fixtures as f;
 use crate::translate::{self, settings};
 use jig_client_domain::contract as c;
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use jig_domain_core_vocabulary::{documents as d, reads, settings as s};
 use jig_domain_people as p;
 use skein_lib::{List, Reader, Wall, Writer};
@@ -125,12 +125,12 @@ fn a_project_policy_item_enters_the_core_from_a_change_and_a_proposal() {
     let policy = values().into_iter().nth(2).unwrap();
     let expected = s::Item { setting: s::Setting::ProjectPolicy { project: 7 }, edit: s::Edit::Set(policy.clone()) };
     let row = w::SettingItem {
-            setting: settings::name(expected.setting, &limits).unwrap(),
-            edit: w::SettingEdit::Set(
-                w::SettingSet { value: settings::value(&policy, &f::models(), &limits).unwrap() },
-            ),
-        };
-    let mut bytes = Writer::new(usize::try_from(row.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+        setting: settings::name(expected.setting, &limits).unwrap(),
+        edit: w::SettingEdit::Set(w::SettingSet { value: settings::value(&policy, &f::models(), &limits).unwrap() }),
+    };
+    let mut bytes = Writer::new(
+        usize::try_from(row.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
     row.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
     let items = f::pieces(&[bytes.finish()]);
     let change = w::ChangeSettings { against: 5, items: items.clone(), running: w::Running::Stays };
@@ -139,12 +139,10 @@ fn a_project_policy_item_enters_the_core_from_a_change_and_a_proposal() {
         ::core::slice::from_ref(&expected)
     );
     let proposal = w::Propose {
-            project: 0,
-            action: w::ProposeAction::Settings(
-                w::ProposeSettings { against: 5, items },
-            ),
-            reason: Box::from(b"review".as_slice()),
-        };
+        project: 0,
+        action: w::ProposeAction::Settings(w::ProposeSettings { against: 5, items }),
+        reason: Box::from(b"review".as_slice()),
+    };
     assert_eq!(settings::proposed(proposal, &f::models(), &limits).unwrap().items.as_ref(), &[expected]);
 }
 #[test]
@@ -156,8 +154,17 @@ fn a_project_policy_review_item_carries_the_policy_now_and_as_it_would_be() {
     policy.policy.period_spend += 1;
     let now_wire = settings::value(&now, &f::models(), &limits).unwrap();
     let would_be_wire = settings::value(&would_be, &f::models(), &limits).unwrap();
-    let bytes = u64::from(now_wire.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture").max(would_be_wire.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
-    assert_eq!(now_wire.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"), would_be_wire.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"), "both sides share the exact bound");
+    let bytes = u64::from(
+        now_wire
+            .measure(&jig_client_protocol_wire::CEILINGS)
+            .expect("bounded fixture")
+            .max(would_be_wire.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")),
+    );
+    assert_eq!(
+        now_wire.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+        would_be_wire.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+        "both sides share the exact bound"
+    );
     for (bound, owned, large) in [
         (bytes, limits.owned_record, false),
         (bytes - 1, limits.owned_record, true),
@@ -186,7 +193,10 @@ fn a_project_policy_review_item_carries_the_policy_now_and_as_it_would_be() {
         for (shown, expected) in [((&row.now), &now_wire), ((&row.would_be), &would_be_wire)] {
             if large {
                 let w::ReviewValue::TooLarge(size) = shown else { panic!("size") };
-                assert_eq!(size.bytes, u64::from(expected.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+                assert_eq!(
+                    size.bytes,
+                    u64::from(expected.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+                );
             } else {
                 let w::ReviewValue::Value(value) = shown else { panic!("whole policy") };
                 assert_eq!((&value.value), expected);
@@ -198,7 +208,12 @@ fn a_project_policy_review_item_carries_the_policy_now_and_as_it_would_be() {
 fn revision_items_carry_what_each_replaced() {
     let limits = w::CEILINGS;
     let value = s::Value::Charter(Box::new(charter()));
-    let bytes = u64::from(settings::value(&value, &f::models(), &limits).unwrap().measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"));
+    let bytes = u64::from(
+        settings::value(&value, &f::models(), &limits)
+            .unwrap()
+            .measure(&jig_client_protocol_wire::CEILINGS)
+            .expect("bounded fixture"),
+    );
     let revision = s::Revision {
         head: head(),
         items: Box::new([
@@ -253,9 +268,7 @@ fn revision_items_carry_what_each_replaced() {
 #[test]
 fn a_restore_ask_enters_the_people_vocabulary() {
     let limits = f::wire();
-    let ask = w::Ask::Restore(
-        w::Restore { revision: 3, reason: Box::from("restore λ".as_bytes()) },
-    );
+    let ask = w::Ask::Restore(w::Restore { revision: 3, reason: Box::from("restore λ".as_bytes()) });
     let bytes = f::encode_ask(&ask);
     let ask = w::Ask::decode(&limits, &mut Reader::new(&bytes)).unwrap();
     let named = translate::asks::named(ask, &f::models(), &limits).unwrap();

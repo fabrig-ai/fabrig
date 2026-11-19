@@ -1,7 +1,7 @@
 //! Watches retain their whole subject and stream record (protocol/client/README.md, 5).
-use jig_client_protocol_wire::Record as _;
 use super::{chips, cursor, deployment, inbox, live, objects, owner, task, w};
 use alloc::boxed::Box;
+use jig_client_protocol_wire::Record as _;
 use jig_domain_core_vocabulary::{self as core, documents as d};
 use jig_domain_views as views;
 use skein_lib::{List, Reader, Token, Writer};
@@ -9,9 +9,7 @@ use skein_lib::{List, Reader, Token, Writer};
 pub(crate) fn watch(watcher: Token, sign_in: u64, value: w::Subject, rows: u32) -> Option<core::Event> {
     if let w::Subject::Run(value) = value {
         let turn = match value.turn {
-            Some(value) => {
-                Some(views::TurnName { attempt: value.attempt, turn: value.number, retry: value.retry })
-            }
+            Some(value) => Some(views::TurnName { attempt: value.attempt, turn: value.number, retry: value.retry }),
             None => None,
         };
         return Some(core::Event::WatchRun { watcher, sign_in, task: value.task, turn, offset: value.offset });
@@ -22,9 +20,7 @@ pub(crate) fn watch(watcher: Token, sign_in: u64, value: w::Subject, rows: u32) 
         w::Subject::Task(value) => (d::Watched::Task { task: value.task }, rows),
         w::Subject::Tree(value) => (d::Watched::Tree { task: value.task }, value.window),
         w::Subject::Chips(value) => (d::Watched::Chips { tasks: value.tasks }, rows),
-        w::Subject::Tasks(value) => {
-            (d::Watched::Query { query: super::queries::query(value.query)? }, value.window)
-        }
+        w::Subject::Tasks(value) => (d::Watched::Query { query: super::queries::query(value.query)? }, value.window),
         w::Subject::Accounts => (d::Watched::Accounts, rows),
         w::Subject::Deployment => (d::Watched::Deployment, rows),
         w::Subject::Settings => (d::Watched::Settings, rows),
@@ -66,9 +62,7 @@ pub(crate) fn hello(name: [u8; 16], settings: &crate::Settings, _limits: &w::Lim
             None => w::Owner::Jig,
             Some(number) => w::Owner::Family(w::Family { number }),
         };
-        served
-            .push(w::Served { owner, first: range.first, last: range.last })
-            .expect("served ranges fit");
+        served.push(w::Served { owner, first: range.first, last: range.last }).expect("served ranges fit");
     }
     Ok(w::Hello { stream: name, served, heartbeat: settings.heartbeat })
 }
@@ -89,9 +83,9 @@ pub(crate) fn delivery(
         d::Document::Tree(value) => {
             let next = match &value.next {
                 Some(next) => Some(w::Cursor {
-                        value: cursor::encode_tree(next, value.root.number, rows, limits.cursor_value)
-                            .ok_or(super::problem(skein_codec::Reason::Bound))?,
-                    }),
+                    value: cursor::encode_tree(next, value.root.number, rows, limits.cursor_value)
+                        .ok_or(super::problem(skein_codec::Reason::Bound))?,
+                }),
                 None => None,
             };
             w::DeliveryValue::Tree(live::tree(value, next, limits)?)
@@ -131,7 +125,8 @@ pub(crate) fn owned(value: w::DeliveryValue, version: u32, limits: &w::Limits) -
     Ok(w::Owned { owner: w::Owner::Jig, version, record: record.finish() })
 }
 pub(crate) fn packet(value: &w::StreamEvent) -> Box<[u8]> {
-    let mut record = Writer::new(skein_lib::length::usize_of(value.measure(&w::CEILINGS).expect("bounded client record")));
+    let mut record =
+        Writer::new(skein_lib::length::usize_of(value.measure(&w::CEILINGS).expect("bounded client record")));
     value.write(&w::CEILINGS, &mut record).expect("measured stream record");
     record.finish()
 }

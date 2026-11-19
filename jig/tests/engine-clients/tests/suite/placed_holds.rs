@@ -1,5 +1,5 @@
-use jig_client_protocol_wire::Record as _;
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use jig_domain_core::{self as core, documents as d};
 use jig_domain_people as p;
 use jig_domain_tasks as t;
@@ -7,18 +7,16 @@ use jig_engine_clients_world::fixtures::{self, Peer};
 use skein_lib::{Reader, Wall, Writer};
 
 fn request() -> Box<[u8]> {
-    let ask = w::Ask::Lift(
-        w::Lift { hold: u64::MAX, revision: u64::MAX, with_tasks: true },
-    );
+    let ask = w::Ask::Lift(w::Lift { hold: u64::MAX, revision: u64::MAX, with_tasks: true });
     let mut bytes = Writer::new(ask.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture") as usize);
     ask.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("ask");
     let keyed = w::Keyed {
-            key: [9; 16],
-            owner: w::Owner::Jig,
-            version: jig_client_protocol_wire::VERSION,
-            request: bytes.finish(),
-            value: None,
-        };
+        key: [9; 16],
+        owner: w::Owner::Jig,
+        version: jig_client_protocol_wire::VERSION,
+        request: bytes.finish(),
+        value: None,
+    };
     let mut bytes = Writer::new(keyed.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture") as usize);
     keyed.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("keyed bytes");
     bytes.finish()
@@ -114,7 +112,8 @@ fn placed_hold_documents_preserve_the_smallest_and_full_owner_facts() {
         };
         let encoded =
             jig_protocol_engine_clients::translate::chips::held(&line, &w::CEILINGS).expect("document translation");
-        let mut bytes = Writer::new(encoded.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture") as usize);
+        let mut bytes =
+            Writer::new(encoded.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture") as usize);
         encoded.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("hold bytes");
         let decoded = w::ChipHold::decode(&w::CEILINGS, &mut Reader::new(&bytes.finish())).expect("decode");
         assert_eq!(decoded, encoded);

@@ -92,7 +92,8 @@ fn one(
             }
         } else {
             let envelope = w::FamilyRecord::decode(&w::CEILINGS, &mut Reader::new(owned.record.as_ref())).unwrap();
-            if let f::Read::Setting(setting) = wire::decode_reading(envelope.record.as_ref(), &f::CEILINGS).unwrap().read()
+            if let f::Read::Setting(setting) =
+                wire::decode_reading(envelope.record.as_ref(), &f::CEILINGS).unwrap().read()
                 && setting.kind() == 7
             {
                 let value = f::ProjectWays::new(
@@ -110,7 +111,10 @@ fn one(
                     .unwrap(),
                 );
                 let answer = w::ReadAnswer::Value(family(record));
-                let mut writer = Writer::new(usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+                let mut writer = Writer::new(
+                    usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+                        .unwrap(),
+                );
                 answer.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
                 pending.extend(reply_slot(host, slot, writer.finish()).asked);
                 return;
@@ -136,17 +140,11 @@ fn one(
                 task.activity = 0;
                 task.result = None;
                 task.delegates = Box::default();
-                pending.extend(
-                    delivery(
-                        host,
-                        open.watch,
-                        &w::DeliveryValue::Task(Box::new(task)),
-                    )
-                    .asked,
-                );
+                pending.extend(delivery(host, open.watch, &w::DeliveryValue::Task(Box::new(task))).asked);
             }
         } else {
-            let envelope = w::FamilyRecord::decode(&w::CEILINGS, &mut Reader::new(open.subject.record.as_ref())).unwrap();
+            let envelope =
+                w::FamilyRecord::decode(&w::CEILINGS, &mut Reader::new(open.subject.record.as_ref())).unwrap();
             let watch = wire::decode_watching(envelope.record.as_ref(), &f::CEILINGS).unwrap();
 
             let bytes = if watch.watch() == &f::Watch::Forges {
@@ -157,9 +155,7 @@ fn one(
                 None
             };
             if let Some(bytes) = bytes {
-                let event = w::StreamEvent::Delivery(
-                    w::Delivery { watch: open.watch, document: family(bytes) },
-                );
+                let event = w::StreamEvent::Delivery(w::Delivery { watch: open.watch, document: family(bytes) });
                 pending.extend(
                     host.report(Report::Heard(jig_client::Event::Streamed {
                         message: jig_client::Streamed::Record(stream_bytes(&event)),
@@ -172,11 +168,7 @@ fn one(
 }
 
 pub(super) fn family(record: Box<[u8]>) -> w::Owned {
-    w::Owned {
-            owner: w::Owner::Family(w::Family { number: wire::FORGE }),
-            version: wire::CLIENT_VERSION,
-            record,
-        }
+    w::Owned { owner: w::Owner::Family(w::Family { number: wire::FORGE }), version: wire::CLIENT_VERSION, record }
 }
 fn me(proposed: bool) -> w::Me {
     let mut me = launchpad_me(true);
@@ -193,12 +185,12 @@ fn me(proposed: bool) -> w::Me {
         way.name = records::wire_text(if number == 2 { b"goal" } else { b"goal for a draft" });
         way.tracked = Some(10);
         if proposed {
-            way.budget = w::TemplateBudget::Amount(
-                w::TemplateAmount { value: 101 },
-            );
+            way.budget = w::TemplateBudget::Amount(w::TemplateAmount { value: 101 });
         }
         let way = way;
-        let mut writer = Writer::new(usize::try_from(way.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+        let mut writer = Writer::new(
+            usize::try_from(way.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+        );
         way.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
         templates.push(writer.finish());
     }
@@ -208,13 +200,8 @@ fn me(proposed: bool) -> w::Me {
         let mut within = creating.within;
         within.maximum_budget = 200;
         creating.within = within;
-        creating.beyond = w::Beyond::Proposed(
-            w::BeyondProposed {
-                    to: w::Recipient::Party(
-                        w::RecipientParty { value: 7 },
-                    ),
-                },
-        );
+        creating.beyond =
+            w::Beyond::Proposed(w::BeyondProposed { to: w::Recipient::Party(w::RecipientParty { value: 7 }) });
         project.creating = Some(creating);
     }
     me.projects = pieces(&[project_bytes(&project)]);
@@ -222,24 +209,22 @@ fn me(proposed: bool) -> w::Me {
 }
 fn document(scope: w::NoteScope) -> w::ReadValue {
     let note = w::Note {
-            number: 1,
-            revision: w::Revision { value: 1 },
-            scope,
-            description: records::wire_text(b"Plan"),
-            body: records::wire_text(b"# Plan\n\nWords\n"),
-            writer: w::NoteAuthor::Party(
-                w::NoteAuthorParty { party: 7 },
-            ),
-            tasks: List::with_capacity(0),
-            changed: None,
-            acts: Box::default(),
-            cut: false,
-        };
-    let mut writer = Writer::new(usize::try_from(note.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+        number: 1,
+        revision: w::Revision { value: 1 },
+        scope,
+        description: records::wire_text(b"Plan"),
+        body: records::wire_text(b"# Plan\n\nWords\n"),
+        writer: w::NoteAuthor::Party(w::NoteAuthorParty { party: 7 }),
+        tasks: List::with_capacity(0),
+        changed: None,
+        acts: Box::default(),
+        cut: false,
+    };
+    let mut writer = Writer::new(
+        usize::try_from(note.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
     note.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
-    w::ReadValue::Notes(
-        w::NotePage { rows: pieces(&[writer.finish()]), before: None, after: None, cut: false },
-    )
+    w::ReadValue::Notes(w::NotePage { rows: pieces(&[writer.finish()]), before: None, after: None, cut: false })
 }
 pub(super) fn forges(mode: f::Mode) -> Box<[u8]> {
     let row = f::ForgeRow::new(
@@ -315,9 +300,7 @@ fn a_goal_command_starts_refuses_and_cancels_its_sheet() {
         reply(
             &mut host,
             asks[0].0,
-            final_bytes(&w::Final::Refused(
-                w::Refused { refusal: w::Refusal::NotOffered, at: None },
-            )),
+            final_bytes(&w::Final::Refused(w::Refused { refusal: w::Refusal::NotOffered, at: None })),
         );
         assert!(host.root.pages().start().unwrap().error.is_some());
         assert!(text(&mut host).contains("This act is not offered"));
@@ -351,16 +334,10 @@ pub(super) fn navigation() {
                 created_bytes(25)
             } else {
                 assert!(matches!(asks[0].1, w::Ask::Propose(_)));
-                let outcome = w::DocumentOutcome::Proposed(
-                    w::OutcomeProposed { proposal: 1, to: 7 },
-                );
-                final_bytes(&w::Final::Done(
-                    w::Done {
-                            outcome: w::Outcome::Document(
-                                w::OutcomeDocument { value: outcome },
-                            ),
-                        },
-                ))
+                let outcome = w::DocumentOutcome::Proposed(w::OutcomeProposed { proposal: 1, to: 7 });
+                final_bytes(&w::Final::Done(w::Done {
+                    outcome: w::Outcome::Document(w::OutcomeDocument { value: outcome }),
+                }))
             };
             reply(&mut host, asks[0].0, answer);
         }

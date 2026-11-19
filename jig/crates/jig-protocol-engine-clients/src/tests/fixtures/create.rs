@@ -29,7 +29,9 @@ pub fn create_ask() -> (w::Ask, p::Ask) {
     }
     let mut encoded = List::with_capacity(tasks.len());
     for task in &tasks {
-        let mut out = Writer::new(usize::try_from(task.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+        let mut out = Writer::new(
+            usize::try_from(task.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+        );
         task.write(&jig_client_protocol_wire::CEILINGS, &mut out).unwrap();
         encoded.push(out.finish()).unwrap();
     }
@@ -47,51 +49,39 @@ fn member(role: bool, authority: w::Authority, expected: p::Authority) -> (w::Ne
         w::TaskRef::Task(w::TaskRefTask { value: u64::MAX }),
     ]));
     let spec = w::Specification {
-            asks: false,
-            words: b"new words".as_slice().into(),
-            parameters: List::from_boxed(Box::new([w::Parameter::Number(
-                w::ParameterNumber { name: 9, value: 12 },
-            )])),
-            inputs: List::from_boxed(Box::new([77])),
-        };
+        asks: false,
+        words: b"new words".as_slice().into(),
+        parameters: List::from_boxed(Box::new([w::Parameter::Number(w::ParameterNumber { name: 9, value: 12 })])),
+        inputs: List::from_boxed(Box::new([77])),
+    };
     let field = w::FieldRule { name: b"field".as_slice().into(), max: 13 };
     let choice = w::VerdictChoice { code: 5, words: 16, followups: 2, fields: List::from_boxed(Box::new([field])) };
     let executor = if role {
-        w::Executor::Person(
-            w::ExecutorPerson {
-                    value: w::PersonAddress::Role(
-                        w::PersonAddressRole { value: ROLE },
-                    ),
-                },
-        )
+        w::Executor::Person(w::ExecutorPerson { value: w::PersonAddress::Role(w::PersonAddressRole { value: ROLE }) })
     } else {
         w::Executor::Agent(w::ExecutorAgent { charter: CHARTER })
     };
     let task = w::NewTask {
-            symbols: List::with_capacity(0),
-            llm: if role { None } else { Some(careful_and_quick(&l)) },
-            deadline: w::NewDeadline::Named,
-            executor,
-            spec,
-            contract: w::NewContract::Verdict(
-                w::ContractVerdict { choices: List::from_boxed(Box::new([choice])) },
-            ),
-            authority: authority.clone(),
-            budget: w::NewBudget::AsAllowed(
-                w::BudgetAsAllowed { cap: Some(42) },
-            ),
-            wake: None,
-            dependencies,
-            named: authority.grants.as_ref().into(),
-            tracked: Some(14),
-            label: 15,
-            flags: w::TaskFlags {
-                    ended_by: w::EndedBy::Result,
-                    conversation: false,
-                    listed: true,
-                    retention: w::Retention::ForgottenOnceRead,
-                },
-        };
+        symbols: List::with_capacity(0),
+        llm: if role { None } else { Some(careful_and_quick(&l)) },
+        deadline: w::NewDeadline::Named,
+        executor,
+        spec,
+        contract: w::NewContract::Verdict(w::ContractVerdict { choices: List::from_boxed(Box::new([choice])) }),
+        authority: authority.clone(),
+        budget: w::NewBudget::AsAllowed(w::BudgetAsAllowed { cap: Some(42) }),
+        wake: None,
+        dependencies,
+        named: authority.grants.as_ref().into(),
+        tracked: Some(14),
+        label: 15,
+        flags: w::TaskFlags {
+            ended_by: w::EndedBy::Result,
+            conversation: false,
+            listed: true,
+            retention: w::Retention::ForgottenOnceRead,
+        },
+    };
     (task, expected_member(role, expected))
 }
 fn expected_member(role: bool, expected: p::Authority) -> p::Member {
@@ -146,12 +136,12 @@ pub fn careful_and_quick(l: &w::Limits) -> w::LlmChoice {
 /// A main model and effort, and one sub-agent model at its default effort, by name.
 pub fn llm_choice(_l: &w::Limits, main: &[u8], effort: Option<&[u8]>, subagent: &[u8]) -> w::LlmChoice {
     let main = w::ModelEffort {
-            model: main.into(),
-            effort: match effort {
-                Some(effort) => Some(effort.into()),
-                None => None,
-            },
-        };
+        model: main.into(),
+        effort: match effort {
+            Some(effort) => Some(effort.into()),
+            None => None,
+        },
+    };
     let subagent = w::ModelEffort { model: subagent.into(), effort: None };
     w::LlmChoice { later: None, account: None, main, subagents: List::from_boxed(Box::new([subagent])) }
 }
@@ -161,58 +151,40 @@ pub fn create_refusals() -> [(&'static str, p::Refusal, w::Refusal); 5] {
         (
             "two budgets",
             p::Refusal::NotWellFormed { at: 1, why: p::Malformed::AsAllowedTwice },
-            w::Refusal::Malformed(
-                w::RefusalMalformed { at: 1, why: w::Malformed::TwoAsAllowed },
-            ),
+            w::Refusal::Malformed(w::RefusalMalformed { at: 1, why: w::Malformed::TwoAsAllowed }),
         ),
         (
             "person conversation",
             p::Refusal::NotWellFormed { at: 2, why: p::Malformed::Conversation },
-            w::Refusal::Malformed(
-                w::RefusalMalformed { at: 2, why: w::Malformed::ConversationNotAgent },
-            ),
+            w::Refusal::Malformed(w::RefusalMalformed { at: 2, why: w::Malformed::ConversationNotAgent }),
         ),
         (
             "cycle",
             p::Refusal::NotWellFormed { at: 3, why: p::Malformed::Cycle },
-            w::Refusal::Malformed(
-                w::RefusalMalformed { at: 3, why: w::Malformed::Cycle },
-            ),
+            w::Refusal::Malformed(w::RefusalMalformed { at: 3, why: w::Malformed::Cycle }),
         ),
         (
             "proposed AsAllowed",
             p::Refusal::NotWellFormed { at: 4, why: p::Malformed::ProposedAsAllowed },
-            w::Refusal::Malformed(
-                w::RefusalMalformed { at: 4, why: w::Malformed::ProposedAsAllowed },
-            ),
+            w::Refusal::Malformed(w::RefusalMalformed { at: 4, why: w::Malformed::ProposedAsAllowed }),
         ),
         (
             "goals",
             p::Refusal::Limit { which: p::LimitKind::Goals },
-            w::Refusal::Limit(
-                w::RefusalLimit {
-                        which: w::Limit::Admission(
-                            w::LimitAdmission { which: w::AdmissionLimit::Goals },
-                        ),
-                    },
-            ),
+            w::Refusal::Limit(w::RefusalLimit {
+                which: w::Limit::Admission(w::LimitAdmission { which: w::AdmissionLimit::Goals }),
+            }),
         ),
     ]
 }
 pub fn created_outcome() -> w::Outcome {
-    w::Outcome::Document(
-        w::OutcomeDocument {
-                value: w::DocumentOutcome::Created(
-                    w::OutcomeCreated {
-                            first: FIRST_TASK,
-                            last: LAST_TASK,
-                            given: Some(
-                                w::CreatedGiven { task: LAST_TASK, amount: 42 },
-                            ),
-                        },
-                ),
-            },
-    )
+    w::Outcome::Document(w::OutcomeDocument {
+        value: w::DocumentOutcome::Created(w::OutcomeCreated {
+            first: FIRST_TASK,
+            last: LAST_TASK,
+            given: Some(w::CreatedGiven { task: LAST_TASK, amount: 42 }),
+        }),
+    })
 }
 
 // A finite wall distinct from policy fixture timestamps.

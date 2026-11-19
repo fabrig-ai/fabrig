@@ -1,5 +1,5 @@
-use jig_client_protocol_wire::Record as _;
 use jig_client::{Ask, Asker, Handle, Key, Readable, Readout, Watchable, contract as c};
+use jig_client_protocol_wire::Record as _;
 use jig_client_protocol_world::{
     client::Story,
     fixtures::{self, PROJECT},
@@ -312,7 +312,9 @@ fn private_turn_over_wire(record: jig_domain_core::TurnRecord, person: u64, with
     let read = c::Read::Turn { task: record.task, attempt: record.attempt, turn: record.turn };
     let owned = jig_client_protocol_link::translate::reads::owned(Readable::Jig(read.clone()), &limits)
         .expect("turn read envelope");
-    let mut bytes = Writer::new(skein_lib::length::usize_of(owned.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+    let mut bytes = Writer::new(skein_lib::length::usize_of(
+        owned.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+    ));
     owned.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("measured read");
     let socket = peer.post(b"/jig/v1/read", bytes.finish(), Some(&bearer));
     let Some(core::Event::Read { reply, sign_in, read: requested }) = peer.take_core() else {
@@ -337,7 +339,8 @@ fn private_turn_over_wire(record: jig_domain_core::TurnRecord, person: u64, with
     };
     let limits = jig_client_protocol_link::Limits::new(fixtures::domain_limits(), 1).expect("client limits");
     let c::ReadValue::Turn(archive) =
-        jig_client_protocol_link::translate::reads::value(envelope.record.as_ref(), &limits).expect("client decodes turn")
+        jig_client_protocol_link::translate::reads::value(envelope.record.as_ref(), &limits)
+            .expect("client decodes turn")
     else {
         panic!("decoded archive")
     };

@@ -16,30 +16,25 @@ fn text(bytes: u32) -> Box<[u8]> {
 }
 
 fn line(limits: &w::Limits) -> w::PublicLine {
-    let delegates = w::PublicCounts {
-            working: u32::MAX,
-            waiting: u32::MAX,
-            held: u32::MAX,
-            closing: u32::MAX,
-            ended: u32::MAX,
-        };
+    let delegates =
+        w::PublicCounts { working: u32::MAX, waiting: u32::MAX, held: u32::MAX, closing: u32::MAX, ended: u32::MAX };
     w::PublicLine {
-            task: u64::MAX,
-            title: text(limits.public_line_title),
-            title_cut: true,
-            parent: Some(u64::MAX),
-            goal: true,
-            priority: Some(u32::MAX),
-            executor: w::PublicExecutor::Job,
-            phase: w::PublicPhase::Held,
-            hold: Some(w::PublicHold::Exceeded),
-            made: u64::MAX,
-            changed: u64::MAX,
-            active: Some(u64::MAX),
-            ended: Some(u64::MAX),
-            spent: Some(u64::MAX),
-            delegates,
-        }
+        task: u64::MAX,
+        title: text(limits.public_line_title),
+        title_cut: true,
+        parent: Some(u64::MAX),
+        goal: true,
+        priority: Some(u32::MAX),
+        executor: w::PublicExecutor::Job,
+        phase: w::PublicPhase::Held,
+        hold: Some(w::PublicHold::Exceeded),
+        made: u64::MAX,
+        changed: u64::MAX,
+        active: Some(u64::MAX),
+        ended: Some(u64::MAX),
+        spent: Some(u64::MAX),
+        delegates,
+    }
 }
 
 fn lines(limits: &w::Limits, count: u32) -> List<w::PublicLine> {
@@ -66,12 +61,12 @@ pub fn goals(limits: &w::Limits, count: u32) -> List<w::PublicGoal> {
 
 pub fn board(limits: &w::Limits, live: u32, ended: u32) -> w::PublicBoard {
     w::PublicBoard {
-            project: u64::MAX,
-            name: text(limits.public_board_name),
-            live: goals(limits, live),
-            live_folded: u32::MAX,
-            ended: goals(limits, ended),
-        }
+        project: u64::MAX,
+        name: text(limits.public_board_name),
+        live: goals(limits, live),
+        live_folded: u32::MAX,
+        ended: goals(limits, ended),
+    }
 }
 
 pub fn card(limits: &w::Limits, ancestors: u32, delegates: u32) -> w::PublicCard {

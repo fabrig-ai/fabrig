@@ -3,8 +3,8 @@
     reason = "the task requires real elapsed measurements; protocol deadlines use only the injected world clock"
 )]
 //! The application's page and endpoint routes around the real clients' component (protocol/client/openid.md).
-use jig_client_protocol_wire::Record as _;
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use jig_domain_core as core;
 use jig_domain_people as people;
 use jig_engine_clients_world::fixtures;
@@ -280,9 +280,10 @@ impl World {
         self.authorization_answer()
     }
     fn begin_query(&mut self, query: &[u8]) {
-        let record =
-            w::Authorize { query: query.into() };
-        let mut bytes = Writer::new(skein_lib::length::usize_of(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+        let record = w::Authorize { query: query.into() };
+        let mut bytes = Writer::new(skein_lib::length::usize_of(
+            record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+        ));
         record.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("measured authorization");
         let exchange = Token::new(self.next);
         self.next += 1;
@@ -406,7 +407,9 @@ fn provider_codes_tokens_and_claims_follow_one_signed_in_person() {
     let w::AuthorizeAnswer::Go(back) = world.query(format!("client_id=app&redirect_uri={REDIRECT}").as_bytes()) else {
         panic!("issuer error sent back");
     };
-    assert!(back.location.as_ref().windows(b"error=invalid_request".len()).any(|part| part == b"error=invalid_request"));
+    assert!(
+        back.location.as_ref().windows(b"error=invalid_request".len()).any(|part| part == b"error=invalid_request")
+    );
     assert_eq!(world.authorize(REDIRECT), w::AuthorizeAnswer::SignedOut);
     world.sign_in();
     let code = world.code();

@@ -1,7 +1,7 @@
-use jig_client_protocol_wire::Record as _;
 use super::fixtures as f;
 use crate::translate::settings as translate;
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use jig_domain_core_vocabulary::{documents as d, reads, settings as s};
 use skein_lib::{List, Reader, Wall};
 
@@ -35,19 +35,11 @@ fn settings_reads_enter_the_core_in_its_vocabulary() {
     for (request, expected) in [
         (w::Read::Settings, reads::Read::Settings),
         (
-            w::Read::Setting(
-                w::ReadSetting { setting: w::Setting::Rules, revision: 6, proposal: None },
-            ),
+            w::Read::Setting(w::ReadSetting { setting: w::Setting::Rules, revision: 6, proposal: None }),
             reads::Read::Setting { setting: s::Setting::Rules, revision: 6, proposal: None },
         ),
-        (
-            w::Read::Revision(w::ReadRevision { number: 5 }),
-            reads::Read::Revision { number: 5 },
-        ),
-        (
-            w::Read::Revisions(w::ReadRevisions { before: Some(5) }),
-            reads::Read::Revisions { before: Some(5) },
-        ),
+        (w::Read::Revision(w::ReadRevision { number: 5 }), reads::Read::Revision { number: 5 }),
+        (w::Read::Revisions(w::ReadRevisions { before: Some(5) }), reads::Read::Revisions { before: Some(5) }),
     ] {
         let mut exchange = f::read_exchange();
         let (_, _, actual) = exchange.read(&request);
@@ -90,9 +82,7 @@ fn forgotten_and_unknown_revision_answers_keep_their_distinction() {
         (reads::RevisionAnswer::Unknown, w::RevisionAnswer::Unknown),
         (
             reads::RevisionAnswer::Forgotten { oldest: 4 },
-            w::RevisionAnswer::Forgotten(
-                w::RevisionForgotten { oldest: 4 },
-            ),
+            w::RevisionAnswer::Forgotten(w::RevisionForgotten { oldest: 4 }),
         ),
     ] {
         assert_eq!(translate::revision(&answer, &f::models(), &f::wire()).unwrap(), expected);
@@ -267,7 +257,9 @@ fn values() -> [s::Value; 4] {
     ]
 }
 fn encoded_value(value: &w::ReadValue) -> Box<[u8]> {
-    let mut out = skein_lib::Writer::new(usize::try_from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    let mut out = skein_lib::Writer::new(
+        usize::try_from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
     value.write(&jig_client_protocol_wire::CEILINGS, &mut out).unwrap();
     out.finish()
 }
@@ -293,12 +285,12 @@ fn whole_setting_kinds_reach_the_clients_as_their_values() {
         let wire_value =
             jig_client_protocol_link::translate::settings::wire_setting_value(client_value, &w::CEILINGS).unwrap();
         let row = w::SettingItem {
-                setting: translate::name(name, &w::CEILINGS).unwrap(),
-                edit: w::SettingEdit::Set(
-                    w::SettingSet { value: wire_value },
-                ),
-            };
-        let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(row.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+            setting: translate::name(name, &w::CEILINGS).unwrap(),
+            edit: w::SettingEdit::Set(w::SettingSet { value: wire_value }),
+        };
+        let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(
+            row.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+        ));
         row.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
         let items = translate::items(f::pieces(&[writer.finish()]), &f::models(), &w::CEILINGS).unwrap();
         assert_eq!(
@@ -329,7 +321,12 @@ fn whole_setting_kinds_reach_the_clients_as_their_values() {
 fn revision_values_past_the_single_read_budget_name_their_encoded_size() {
     use jig_client_domain::contract as c;
     let source = s::Value::Charter(Box::new(charter()));
-    let bytes = u64::from(translate::value(&source, &f::models(), &w::CEILINGS).unwrap().measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"));
+    let bytes = u64::from(
+        translate::value(&source, &f::models(), &w::CEILINGS)
+            .unwrap()
+            .measure(&jig_client_protocol_wire::CEILINGS)
+            .expect("bounded fixture"),
+    );
     let revision = s::Revision {
         applications: Box::default(),
         head: head(),
@@ -403,7 +400,12 @@ fn review_values_hold_at_the_document_bound_and_give_the_size_one_past_it() {
             s::Value::Rules(_) => s::Setting::Rules,
             s::Value::Application(_) => s::Setting::Application { kind: 1, scope: 0, number: 1 },
         };
-        let bytes = u64::from(translate::value(&value, &f::models(), &limits).expect("whole value").measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"));
+        let bytes = u64::from(
+            translate::value(&value, &f::models(), &limits)
+                .expect("whole value")
+                .measure(&jig_client_protocol_wire::CEILINGS)
+                .expect("bounded fixture"),
+        );
         for (bound, too_large) in [(bytes, false), (bytes - 1, true)] {
             let mut items = List::with_capacity(1);
             items
@@ -440,15 +442,10 @@ fn settings_decisions_translate_the_revision_and_stale_newest_without_changing_r
     for (outcome, expected) in [
         (
             t::SettingsOutcome::Accepted { revision: 7 },
-            w::SettingsOutcome::Accepted(
-                w::SettingsAccepted { revision: 7 },
-            ),
+            w::SettingsOutcome::Accepted(w::SettingsAccepted { revision: 7 }),
         ),
         (t::SettingsOutcome::Rejected, w::SettingsOutcome::Rejected),
-        (
-            t::SettingsOutcome::Stale { newest: 9 },
-            w::SettingsOutcome::Stale(w::SettingsStale { newest: 9 }),
-        ),
+        (t::SettingsOutcome::Stale { newest: 9 }, w::SettingsOutcome::Stale(w::SettingsStale { newest: 9 })),
     ] {
         let word = t::Word {
             number: 43,
@@ -485,12 +482,12 @@ fn a_clients_charter_change_keeps_its_wake_policy() {
         jig_client_protocol_link::translate::settings::restore_setting_value(&value, &f::client_limits()).unwrap();
     let value = jig_client_protocol_link::translate::settings::wire_setting_value(&client, &w::CEILINGS).unwrap();
     let wire = w::SettingItem {
-            setting: w::Setting::Charter(
-                w::SettingNumber { number: 1 },
-            ),
-            edit: w::SettingEdit::Set(w::SettingSet { value }),
-        };
-    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(wire.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+        setting: w::Setting::Charter(w::SettingNumber { number: 1 }),
+        edit: w::SettingEdit::Set(w::SettingSet { value }),
+    };
+    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(
+        wire.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+    ));
     wire.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
     let items = translate::items(f::pieces(&[writer.finish()]), &f::models(), &w::CEILINGS).unwrap();
     let s::Edit::Set(s::Value::Charter(charter)) = &items[0].edit else { panic!("charter change") };
@@ -503,10 +500,12 @@ fn charter_documents_round_trip_from_core_through_wire() {
     let source = s::Value::Charter(Box::new(charter()));
     let wire = translate::value(&source, &f::models(), &w::CEILINGS).unwrap();
     let row = w::SettingItem {
-            setting: translate::name(s::Setting::Charter(1), &w::CEILINGS).unwrap(),
-            edit: w::SettingEdit::Set(w::SettingSet { value: wire }),
-        };
-    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(row.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+        setting: translate::name(s::Setting::Charter(1), &w::CEILINGS).unwrap(),
+        edit: w::SettingEdit::Set(w::SettingSet { value: wire }),
+    };
+    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(
+        row.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+    ));
     row.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
     let items = translate::items(f::pieces(&[writer.finish()]), &f::models(), &w::CEILINGS).unwrap();
     assert_eq!(items.as_ref(), &[s::Item { setting: s::Setting::Charter(1), edit: s::Edit::Set(source) }]);
@@ -649,10 +648,12 @@ fn a_charters_tools_round_trip_from_core_through_wire() {
     assert_eq!(value.tools, 1536);
     let wire = jig_client_protocol_link::translate::settings::wire_setting_value(&client, &w::CEILINGS).unwrap();
     let row = w::SettingItem {
-            setting: translate::name(s::Setting::Charter(1), &w::CEILINGS).unwrap(),
-            edit: w::SettingEdit::Set(w::SettingSet { value: wire }),
-        };
-    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(row.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+        setting: translate::name(s::Setting::Charter(1), &w::CEILINGS).unwrap(),
+        edit: w::SettingEdit::Set(w::SettingSet { value: wire }),
+    };
+    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(
+        row.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+    ));
     row.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
     let items = translate::items(f::pieces(&[writer.finish()]), &f::models(), &w::CEILINGS).unwrap();
     assert_eq!(items.as_ref(), &[s::Item { setting: s::Setting::Charter(1), edit: s::Edit::Set(source) }]);
@@ -673,19 +674,21 @@ fn a_model_setting_round_trips_whole_in_both_directions() {
     };
     let source = s::Value::Model(Box::new(source));
     let wire = translate::value(&source, &f::models(), &w::CEILINGS).unwrap();
-    let mut encoded = skein_lib::Writer::new(usize::try_from(wire.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    let mut encoded = skein_lib::Writer::new(
+        usize::try_from(wire.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
     wire.write(&jig_client_protocol_wire::CEILINGS, &mut encoded).unwrap();
     let wire = w::SettingValue::decode(&w::CEILINGS, &mut Reader::new(&encoded.finish())).unwrap();
     let client =
         jig_client_protocol_link::translate::settings::restore_setting_value(&wire, &f::client_limits()).unwrap();
     let wire = jig_client_protocol_link::translate::settings::wire_setting_value(&client, &w::CEILINGS).unwrap();
     let item = w::SettingItem {
-            setting: w::Setting::Model(
-                w::SettingNumber { number: 9 },
-            ),
-            edit: w::SettingEdit::Set(w::SettingSet { value: wire }),
-        };
-    let mut encoded = skein_lib::Writer::new(usize::try_from(item.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+        setting: w::Setting::Model(w::SettingNumber { number: 9 }),
+        edit: w::SettingEdit::Set(w::SettingSet { value: wire }),
+    };
+    let mut encoded = skein_lib::Writer::new(
+        usize::try_from(item.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
     item.write(&jig_client_protocol_wire::CEILINGS, &mut encoded).unwrap();
     let items = translate::items(f::pieces(&[encoded.finish()]), &f::models(), &w::CEILINGS).unwrap();
     assert_eq!(items.as_ref(), &[s::Item { setting: s::Setting::Model(9), edit: s::Edit::Set(source.clone()) }]);
@@ -704,7 +707,9 @@ fn a_model_setting_round_trips_whole_in_both_directions() {
         &w::CEILINGS,
     )
     .unwrap();
-    let mut encoded = skein_lib::Writer::new(usize::try_from(wire.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    let mut encoded = skein_lib::Writer::new(
+        usize::try_from(wire.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
     wire.write(&jig_client_protocol_wire::CEILINGS, &mut encoded).unwrap();
     let wire = w::RevisionAnswer::decode(&w::CEILINGS, &mut Reader::new(&encoded.finish())).unwrap();
     let restored =
@@ -775,16 +780,20 @@ fn worker_settings_and_linked_facts_cross_client_wire() {
             withdrawn: false,
         }));
         let wire = translate::value(&source, &f::models(), &w::CEILINGS).unwrap();
-        let mut bytes = skein_lib::Writer::new(usize::try_from(wire.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+        let mut bytes = skein_lib::Writer::new(
+            usize::try_from(wire.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+        );
         wire.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
         let wire = w::SettingValue::decode(&w::CEILINGS, &mut Reader::new(&bytes.finish())).unwrap();
         let restored = client::restore_setting_value(&wire, &f::client_limits()).unwrap();
         let value = client::wire_setting_value(&restored, &w::CEILINGS).unwrap();
         let item = w::SettingItem {
-                setting: translate::name(s::Setting::Worker(2), &w::CEILINGS).unwrap(),
-                edit: w::SettingEdit::Set(w::SettingSet { value }),
-            };
-        let mut bytes = skein_lib::Writer::new(usize::try_from(item.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+            setting: translate::name(s::Setting::Worker(2), &w::CEILINGS).unwrap(),
+            edit: w::SettingEdit::Set(w::SettingSet { value }),
+        };
+        let mut bytes = skein_lib::Writer::new(
+            usize::try_from(item.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+        );
         item.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
         assert_eq!(
             translate::items(f::pieces(&[bytes.finish()]), &f::models(), &w::CEILINGS).unwrap().as_ref(),

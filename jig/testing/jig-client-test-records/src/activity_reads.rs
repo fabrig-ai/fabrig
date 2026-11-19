@@ -1,6 +1,6 @@
 //! Shared activity wire records; original client values remain independent.
-use jig_client_protocol_wire::Record as _;
 use super::w;
+use jig_client_protocol_wire::Record as _;
 use skein_lib::Writer;
 /// An archived v6 turn, built from a current turn without supplied system context.
 #[must_use]
@@ -67,23 +67,19 @@ fn wire_cursor(value: &[u8]) -> w::Cursor {
 #[must_use]
 pub fn turn_line(position: u64, at: u64, number: u32, bytes: &[u8]) -> w::DecodedActivityLine {
     let source = w::ActivityLine {
-            task: 7,
-            position,
-            at,
-            line: w::Activity::Turn(
-                w::ActivityTurn { reply: position, attempt: 44, turn: number, read: None },
-            ),
-        };
+        task: 7,
+        position,
+        at,
+        line: w::Activity::Turn(w::ActivityTurn { reply: position, attempt: 44, turn: number, read: None }),
+    };
     let decoded = w::ArchivedTurn {
-            task: 7,
-            name: w::TurnName { attempt: 44, number },
-            cumulative: 0,
-            read: None,
-            at,
-            turn: w::TurnBytes::Carried(
-                w::TurnCarried { bytes: Box::from(bytes) },
-            ),
-        };
+        task: 7,
+        name: w::TurnName { attempt: 44, number },
+        cumulative: 0,
+        read: None,
+        at,
+        turn: w::TurnBytes::Carried(w::TurnCarried { bytes: Box::from(bytes) }),
+    };
     w::DecodedActivityLine { source, decoded: Some(decoded) }
 }
 
@@ -99,7 +95,8 @@ pub fn activity_rows(rows: &[w::DecodedActivityLine]) -> w::ActivityPage {
     }
     let mut piece = Writer::new(length);
     for row in rows {
-        let mut bytes = Writer::new(skein_lib::length::usize_of(row.measure(&crate::limits()).expect("bounded fixture")));
+        let mut bytes =
+            Writer::new(skein_lib::length::usize_of(row.measure(&crate::limits()).expect("bounded fixture")));
         row.write(&crate::limits(), &mut bytes).expect("literal fixture fits");
         skein_codec::piece::write(&mut piece, &bytes.finish()).expect("literal fixture fits");
     }
@@ -131,19 +128,16 @@ pub fn cut_activity_record() -> w::ActivityPage {
 
 fn owner_turn_source() -> w::ActivityLine {
     w::ActivityLine {
-            task: 7,
-            position: 88,
-            at: 66,
-            line: w::Activity::Turn(
-                w::ActivityTurn { reply: 999, attempt: 44, turn: 3, read: Some(77) },
-            ),
-        }
+        task: 7,
+        position: 88,
+        at: 66,
+        line: w::Activity::Turn(w::ActivityTurn { reply: 999, attempt: 44, turn: 3, read: Some(77) }),
+    }
 }
 
 #[must_use]
 pub fn archived_activity_record() -> w::ActivityPage {
-    let turn =
-        w::TurnCarried { bytes: Box::from([0, 4]) };
+    let turn = w::TurnCarried { bytes: Box::from([0, 4]) };
     owner_turn_activity_record(Some(w::TurnBytes::Carried(turn)))
 }
 
@@ -152,16 +146,14 @@ pub fn owner_turn_activity_record(turn: Option<w::TurnBytes>) -> w::ActivityPage
     let source = owner_turn_source();
     let mut decoded = None;
     if let Some(turn) = turn {
-        decoded = Some(
-            w::ArchivedTurn {
-                    task: 7,
-                    name: w::TurnName { attempt: 44, number: 3 },
-                    cumulative: 123,
-                    read: Some(78),
-                    at: 99,
-                    turn,
-                },
-        );
+        decoded = Some(w::ArchivedTurn {
+            task: 7,
+            name: w::TurnName { attempt: 44, number: 3 },
+            cumulative: 123,
+            read: Some(78),
+            at: 99,
+            turn,
+        });
     }
     let row = w::DecodedActivityLine { source, decoded };
     activity_rows(&[row])

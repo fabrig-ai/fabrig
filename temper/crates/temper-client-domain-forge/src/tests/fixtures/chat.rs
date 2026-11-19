@@ -9,7 +9,6 @@ pub const LABEL: u32 = 7;
 const ONE: u32 = 1;
 const EXCHANGES: u32 = 8;
 pub fn task() -> c::Task {
-    
     let mut record = jig_client_test_records::task_record();
     record.chip = jig_client_test_records::owner_waiting_chip_record();
     let record = record;

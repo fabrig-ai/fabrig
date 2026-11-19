@@ -1,6 +1,6 @@
 //! Refusals travel inside whole task documents; wrappers add no framing.
-use crate::Record as _;
 use crate as w;
+use crate::Record as _;
 use skein_lib::{Reader, Writer};
 
 #[test]
@@ -9,7 +9,11 @@ fn refused_task_documents_reject_truncated_or_unknown_nested_tags() {
     // Outer refusal, hello arm, worker kind, receipt time, reserved-channel cause.
     let wait_bytes = [3, 0, 0, 42, 0, 0, 0, 0, 0, 0, 0, 1, 0];
     let wait = w::TaskRunWait::decode(&limits, &mut Reader::new(&wait_bytes)).expect("hello wait");
-    assert_eq!(wait.measure(&crate::CEILINGS).expect("bounded fixture"), 13, "one-field records have no separate header");
+    assert_eq!(
+        wait.measure(&crate::CEILINGS).expect("bounded fixture"),
+        13,
+        "one-field records have no separate header"
+    );
     let mut parts = super::fixtures::task(&limits);
     parts.run_wait = Some(wait);
     parts.lineage = skein_lib::List::with_capacity(1);

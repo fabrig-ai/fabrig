@@ -56,22 +56,19 @@ impl Frame {
         )
         .expect("held panel");
         let document = w::Owned {
-                owner: w::Owner::Family(
-                    w::Family { number: wire::FORGE },
-                ),
-                version: wire::CLIENT_VERSION,
-                record: wire::change_panel(&panel),
-            };
-        let event = w::StreamEvent::Delivery(
-            w::Delivery { watch: self.wait_task.expect("change watch"), document },
-        );
+            owner: w::Owner::Family(w::Family { number: wire::FORGE }),
+            version: wire::CLIENT_VERSION,
+            record: wire::change_panel(&panel),
+        };
+        let event = w::StreamEvent::Delivery(w::Delivery { watch: self.wait_task.expect("change watch"), document });
         self.sockets.get_mut(&self.stream.expect("stream")).expect("stream socket").reply.extend(sse(&event));
     }
     pub fn change_task_not_ready(&mut self) {
         self.read_unreachable = true;
-        let event = w::StreamEvent::Ended(
-            w::WatchEnded { watch: self.wait_task.expect("change watch"), why: w::WatchEnd::Unknown },
-        );
+        let event = w::StreamEvent::Ended(w::WatchEnded {
+            watch: self.wait_task.expect("change watch"),
+            why: w::WatchEnd::Unknown,
+        });
         self.sockets.get_mut(&self.stream.expect("stream")).expect("stream socket").reply.extend(sse(&event));
         self.run();
     }

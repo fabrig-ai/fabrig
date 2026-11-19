@@ -1,5 +1,5 @@
-use jig_client_protocol_wire::Record as _;
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use jig_domain_core as core;
 use jig_engine_clients_world::fixtures::{self, Peer};
 use skein_lib::{Duration, List, Reader, Writer};
@@ -185,9 +185,7 @@ fn a_silent_stream_carries_a_heartbeat_comment() {
 #[test]
 fn run_text_leaves_without_waiting_for_a_commit() {
     let (mut peer, stream) = streaming();
-    let subject = w::Subject::Run(
-        w::SubjectRun { task: 7, turn: None, offset: 0 },
-    );
+    let subject = w::Subject::Run(w::SubjectRun { task: 7, turn: None, offset: 0 });
     let watcher = peer.open_watch(stream, &subject);
     peer.release_text(watcher);
     assert_eq!(peer.text_taken(watcher), 1);
@@ -198,9 +196,7 @@ fn a_watch_refused_in_its_step_is_answered_refused() {
     let (mut peer, stream) = streaming();
     let (exchange, watcher) = peer.request_watch(stream, &fixtures::me_subject());
     peer.refuse_watch(watcher, core::WatchRefusal::NotAllowed);
-    let expected = w::OpenAnswer::Refused(
-        w::OpenAnswerRefused { why: w::WatchRefusal::NotAllowed },
-    );
+    let expected = w::OpenAnswer::Refused(w::OpenAnswerRefused { why: w::WatchRefusal::NotAllowed });
     assert_eq!(
         w::OpenAnswer::decode(&fixtures::limits().wire, &mut Reader::new(peer.answered(exchange).expect("answer"))),
         Ok(expected)
@@ -222,31 +218,28 @@ fn me_after_restart_belongs_to_the_signed_in_party() {
 fn hello(stream: [u8; 16]) -> w::StreamEvent {
     let mut served = List::with_capacity(1);
     served
-        .push(
-            w::Served {
-                    owner: w::Owner::Jig,
-                    first: jig_client_protocol_wire::VERSION,
-                    last: jig_client_protocol_wire::VERSION,
-                },
-        )
+        .push(w::Served {
+            owner: w::Owner::Jig,
+            first: jig_client_protocol_wire::VERSION,
+            last: jig_client_protocol_wire::VERSION,
+        })
         .expect("one range");
-    w::StreamEvent::Hello(
-        w::Hello { stream, served, heartbeat: Duration::from_secs(5) },
-    )
+    w::StreamEvent::Hello(w::Hello { stream, served, heartbeat: Duration::from_secs(5) })
 }
 fn frame(watch: u64, needs: u32) -> w::StreamEvent {
     let mut frame = jig_client_test_records::frame_record();
     frame.needs_total = needs;
     let value = w::DeliveryValue::Me(frame);
-    let mut record = Writer::new(skein_lib::length::usize_of(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+    let mut record = Writer::new(skein_lib::length::usize_of(
+        value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+    ));
     value.write(&jig_client_protocol_wire::CEILINGS, &mut record).expect("literal frame bytes");
-    let document = w::Owned { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: record.finish() };
+    let document =
+        w::Owned { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: record.finish() };
     w::StreamEvent::Delivery(w::Delivery { watch, document })
 }
 fn text(watch: u64) -> w::StreamEvent {
-    w::StreamEvent::Text(
-        w::StreamText { watch, value: jig_client_test_records::run_text_record() },
-    )
+    w::StreamEvent::Text(w::StreamText { watch, value: jig_client_test_records::run_text_record() })
 }
 
 #[test]
@@ -276,9 +269,7 @@ fn a_gone_terminal_stream_withdraws_its_offer_and_ends_its_login() {
     drop(core::step(&mut core, &env, core::Event::Account(accounts::Event::Want)));
     let mut peer = Peer::signed_in(&fixtures::settings(), sign_in);
     let stream = peer.open_stream();
-    let subject = w::Subject::Terminal(
-        w::SubjectTerminal { terminal: 7 },
-    );
+    let subject = w::Subject::Terminal(w::SubjectTerminal { terminal: 7 });
     let (_, event) = peer.request_watch_event(stream, &subject);
     let core::Event::Watch { watcher, .. } = &event else { panic!("terminal watch") };
     let watcher = *watcher;
@@ -432,11 +423,23 @@ fn a_served_stream_takes_one_watch_of_the_small_stream_room() {
     }
     // Use the public HTTP route directly: the refused opening emits no core event.
     let subject = w::Subject::Me;
-    let mut record = Writer::new(subject.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture").try_into().expect("literal stream record"));
+    let mut record = Writer::new(
+        subject
+            .measure(&jig_client_protocol_wire::CEILINGS)
+            .expect("bounded fixture")
+            .try_into()
+            .expect("literal stream record"),
+    );
     subject.write(&jig_client_protocol_wire::CEILINGS, &mut record).expect("literal stream record");
-    let subject = w::Owned { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: record.finish() };
+    let subject =
+        w::Owned { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: record.finish() };
     let open = w::Open { stream, watch: 99, subject };
-    let mut bytes = Writer::new(open.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture").try_into().expect("literal stream record"));
+    let mut bytes = Writer::new(
+        open.measure(&jig_client_protocol_wire::CEILINGS)
+            .expect("bounded fixture")
+            .try_into()
+            .expect("literal stream record"),
+    );
     open.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("literal stream record");
     let exchange = peer.post_signed(b"/jig/v1/watch", bytes.finish());
     let answer = w::OpenAnswer::decode(&w::CEILINGS, &mut Reader::new(peer.answered(exchange).expect("refused")))

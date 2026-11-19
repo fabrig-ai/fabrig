@@ -3,12 +3,12 @@
 //! Transport admission counts unfinished exchanges (jig/docs/design/protocol/client/README.md, 10).
 //! The link gathers transport work until settling (protocol/client/wire.md, 2.3).
 //! Stream bounds and order refusals differ from unreadable records (protocol/client/README.md, 6).
-use jig_client_protocol_wire::Record as _;
 use crate::{Event, Fact, Limits, Message, Request, Streamed, Unusable, translate};
 use alloc::boxed::Box;
 use jig_client_domain::{Answered, Ask, Family, Readable, Readout, Retry, Watchable};
 use jig_client_protocol_wire as w;
 use jig_client_protocol_wire as wire;
+use jig_client_protocol_wire::Record as _;
 use skein_lib::{Map, Queue, Reader, RequestEnvelope, RequestKey, Secret, Time, Token, Wall, Writer};
 #[derive(Debug)]
 pub(crate) struct Attempt {
@@ -259,9 +259,7 @@ impl Link {
         };
         let owner = match &what {
             Readable::Jig(_) => w::Owner::Jig,
-            Readable::Family { record: value, .. } => w::Owner::Family(
-                w::Family { number: value.family },
-            ),
+            Readable::Family { record: value, .. } => w::Owner::Family(w::Family { number: value.family }),
         };
         if !self.has_exchange_room() {
             read_none(read, &owner, jig_client_domain::contract::ReadNone::Unreachable, out);
@@ -666,7 +664,9 @@ impl Link {
             kind: ExchangeKind::WatchOpen { name: opening.name },
         };
         self.attempts.insert(exchange, attempt).expect("checked opening exchange capacity");
-        let mut writer = Writer::new(skein_lib::length::usize_of(record.measure(self.limits.wire()).expect("bounded client record")));
+        let mut writer = Writer::new(skein_lib::length::usize_of(
+            record.measure(self.limits.wire()).expect("bounded client record"),
+        ));
         record.write(self.limits.wire(), &mut writer).expect("measured opening");
         self.exchange(exchange, Message::Watch(writer.finish()), out);
     }
@@ -802,9 +802,10 @@ impl Link {
         }
     }
     pub(super) fn unwatch(&mut self, exchange: Token, stream: [u8; 16], watch: u64, out: &mut Queue<Request>) {
-        let record =
-            w::WatchClose { stream, watch };
-        let mut writer = Writer::new(skein_lib::length::usize_of(record.measure(self.limits.wire()).expect("bounded client record")));
+        let record = w::WatchClose { stream, watch };
+        let mut writer = Writer::new(skein_lib::length::usize_of(
+            record.measure(self.limits.wire()).expect("bounded client record"),
+        ));
         record.write(self.limits.wire(), &mut writer).expect("measured closing");
         self.exchange(exchange, Message::Unwatch(writer.finish()), out);
     }
@@ -943,8 +944,7 @@ impl Link {
                     return Err(StreamRefusal::Order);
                 }
                 self.hello(opened.hello, out)?;
-                let value =
-                    w::Delivery { watch: 0, document: opened.me };
+                let value = w::Delivery { watch: 0, document: opened.me };
                 if let Err(why) = self.watches.delivery(value, &self.limits, out) {
                     return Err(StreamRefusal::Record(why));
                 }

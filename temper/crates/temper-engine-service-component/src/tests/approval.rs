@@ -1,7 +1,7 @@
 //! The service passes on the approval setting (temper/docs/design/protocol/configuration/engine.md).
-use jig_client_protocol_wire::Record as _;
 use super::fixtures;
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use jig_client_protocol_wire::{ApprovalCode, CODE_ALPHABET, CODE_LETTERS};
 use skein_lib::{Reader, Time, Wall, Writer, bytes};
 
@@ -19,7 +19,9 @@ fn an_ask_is_answered_as_the_typed_configuration_enables_the_approval() {
         fixtures::listening(&mut service);
         let engine = service.engine.as_mut().expect("engine");
         let ask = w::ApprovalAsk {};
-        let mut body = Writer::new(usize::try_from(ask.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+        let mut body = Writer::new(
+            usize::try_from(ask.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+        );
         ask.write(&jig_client_protocol_wire::CEILINGS, &mut body).unwrap();
         let mut peer = fixtures::http::Peer::new(engine, b"POST", b"/jig/v1/approval/ask", &body.finish(), None);
         let wall = Wall::from_nanos(123_000_000_000);

@@ -1,9 +1,9 @@
 //! Volatile codes and access tokens; authorization order and claims (protocol/client/openid.md).
-use jig_client_protocol_wire::Record as _;
 use super::Component;
 use crate::{Limits, ProviderAnswer, Reply, Request, exchange::Exchange, routes, sign_in::Waiting};
 use alloc::boxed::Box;
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use jig_domain_people as people;
 use skein_lib::{Decimal, Duration, Env, Map, Queue, Reader, ReplyTo, Secret, Time, Token, Writer, bytes, sha256};
 use skein_oauth_issuer::{Authorization, Email, Person, Refusal, TokenError};
@@ -316,14 +316,10 @@ fn query_refused(limits: &Limits, why: Refusal) -> w::AuthorizeAnswer {
     }
 }
 fn refused(_limits: &Limits, why: w::AuthorizeWhy) -> w::AuthorizeAnswer {
-    w::AuthorizeAnswer::Refused(
-        w::AuthorizeRefused { why },
-    )
+    w::AuthorizeAnswer::Refused(w::AuthorizeRefused { why })
 }
 fn go(_limits: &Limits, location: Box<[u8]>) -> w::AuthorizeAnswer {
-    w::AuthorizeAnswer::Go(
-        w::AuthorizeGo { location },
-    )
+    w::AuthorizeAnswer::Go(w::AuthorizeGo { location })
 }
 fn draw(rng: &mut skein_lib::CryptoRng) -> Secret {
     let raw = crate::sign_in::draw(rng);

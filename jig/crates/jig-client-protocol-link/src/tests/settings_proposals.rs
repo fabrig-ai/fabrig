@@ -274,23 +274,16 @@ fn a_settings_decision_keeps_its_three_outcomes_through_the_wire_and_link() {
     let limits = fixtures::limits();
     for (outcome, expected) in [
         (
-            w::SettingsOutcome::Accepted(
-                w::SettingsAccepted { revision: 7 },
-            ),
+            w::SettingsOutcome::Accepted(w::SettingsAccepted { revision: 7 }),
             c::SettingsOutcome::Accepted { revision: 7 },
         ),
         (w::SettingsOutcome::Rejected, c::SettingsOutcome::Rejected),
-        (
-            w::SettingsOutcome::Stale(
-                w::SettingsStale { newest: 9 },
-            ),
-            c::SettingsOutcome::Stale { newest: 9 },
-        ),
+        (w::SettingsOutcome::Stale(w::SettingsStale { newest: 9 }), c::SettingsOutcome::Stale { newest: 9 }),
     ] {
-        let value = w::MessageKind::SettingsDecision(
-            w::MessageKindSettingsDecision { proposal: 41, outcome },
-        );
-        let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+        let value = w::MessageKind::SettingsDecision(w::MessageKindSettingsDecision { proposal: 41, outcome });
+        let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(
+            value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+        ));
         value.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
         let value = w::MessageKind::decode(limits.wire(), &mut Reader::new(&writer.finish())).unwrap();
         assert_eq!(
@@ -306,7 +299,9 @@ fn settings_review_keys_cross_the_wire_and_link_whole() {
     for key in [None, Some(1), Some(u64::MAX)] {
         let review = c::SettingsReview { key, newest: 6, items: skein_lib::List::with_capacity(0), cut: false };
         let wire = e::wire_settings_review(&review, limits.wire()).unwrap();
-        let mut bytes = skein_lib::Writer::new(skein_lib::length::usize_of(wire.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+        let mut bytes = skein_lib::Writer::new(skein_lib::length::usize_of(
+            wire.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+        ));
         wire.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
         let wire = w::SettingsReview::decode(limits.wire(), &mut Reader::new(&bytes.finish())).unwrap();
         assert_eq!(t::restore_settings_review(&wire, &limits), Ok(review));

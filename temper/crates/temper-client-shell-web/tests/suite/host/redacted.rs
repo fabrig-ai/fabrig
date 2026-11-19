@@ -1,7 +1,7 @@
 //! Real host and view evidence for redaction (temper/docs/design/client/web/journeys.md, 3.3 and temper/docs/design/client/web/journey-redaction.md and temper/docs/design/client/web/journeys.md, 3.7–3.8 and 4).
-use jig_client_protocol_wire::Record as _;
 use super::{walk, written};
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use skein_lib::{Reader, Secret, Writer, bytes::find, sha256::digest};
 use skein_ui::Act;
 use temper_client_shell_web::journey::{
@@ -69,7 +69,10 @@ fn keyed_body(records: &[Line]) -> (usize, &[u8]) {
         .expect("keyed exchange")
 }
 fn encode(value: &w::Keyed) -> Box<[u8]> {
-    let mut writer = Writer::new(usize::try_from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("keyed size fits"));
+    let mut writer = Writer::new(
+        usize::try_from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+            .expect("keyed size fits"),
+    );
     value.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("measured keyed request");
     writer.finish()
 }
@@ -123,10 +126,7 @@ fn check_key_walk(byte_at_a_time: bool) {
     let (_, body) = keyed_body(&after);
     let request = w::Keyed::decode(&w::CEILINGS, &mut Reader::new(body)).expect("redacted keyed envelope");
     assert!(
-        request
-            .value
-            .as_ref()
-            .is_some_and(|value| value.expose() == [vec![b'x'; trimmed.len()], vec![b'\n']].concat()),
+        request.value.as_ref().is_some_and(|value| value.expose() == [vec![b'x'; trimmed.len()], vec![b'\n']].concat()),
         "placeholder carried once"
     );
     assert!(
@@ -142,7 +142,10 @@ fn saved_sign_in_keeps_real_walks_provable_and_typed_keys_intact() {
         key: jig_client::STREAM_KEY.into(),
         value: {
             let kept = w::Kept { store_version: 1, record: vec![8; 16].into() };
-            let mut writer = Writer::new(usize::try_from(kept.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("kept length"));
+            let mut writer = Writer::new(
+                usize::try_from(kept.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+                    .expect("kept length"),
+            );
             kept.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("measured kept");
             writer.finish()
         },

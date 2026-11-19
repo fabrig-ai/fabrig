@@ -1,9 +1,9 @@
 //! Whole pages and single documents (protocol/client/wire.md, 1, and protocol/client/README.md, 4).
-use jig_client_protocol_wire::Record as _;
 use super::{
     Limits, List, Reader, Wall, authority_fields, c, message_proposal_kind_fields, opaque, specification_fields,
     task_contract_document_fields, text, too_large, w,
 };
+use jig_client_protocol_wire::Record as _;
 
 pub(crate) fn goal_holding_fields(value: &w::GoalHolding, limits: &Limits) -> Result<c::GoalHolding, w::Problem> {
     Ok(match value {
@@ -85,9 +85,7 @@ pub(crate) fn person_proposal_state_fields(
     limits: &Limits,
 ) -> Result<c::PersonProposalState, w::Problem> {
     Ok(match value {
-        w::PersonProposalState::Pending(row) => {
-            c::PersonProposalState::Pending { since: Wall::from_nanos(row.since) }
-        }
+        w::PersonProposalState::Pending(row) => c::PersonProposalState::Pending { since: Wall::from_nanos(row.since) },
         w::PersonProposalState::Accepted(row) => {
             c::PersonProposalState::Accepted { by: crate::translate::facts::requester(&row.by) }
         }

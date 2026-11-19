@@ -1,10 +1,10 @@
 //! A compound crosses as pieces of the same records as standalone asks.
-use jig_client_protocol_wire::Record as _;
 use super::{asks, store};
 use crate::Limits;
 use alloc::boxed::Box;
 use jig_client_domain::contract as c;
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use skein_lib::{List, Reader, Writer};
 pub(super) fn encode(project: u32, values: &List<c::Operation>, limits: &w::Limits) -> Result<w::Ask, w::Problem> {
     let mut records = List::with_capacity(values.len());

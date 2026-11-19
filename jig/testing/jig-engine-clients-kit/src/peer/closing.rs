@@ -1,6 +1,6 @@
 //! Application mints, secrets erase fence, and component's terminal.
-use jig_client_protocol_wire::Record as _;
 use super::{Event, Exchange, ExchangeState, Peer, SecretOwner, SecretsAnswer, Token, fixtures};
+use jig_client_protocol_wire::Record as _;
 impl Peer {
     pub(super) fn close_socket(&mut self, entity: Token, state: ExchangeState) {
         *self.close_counts.entry(entity).or_default() += 1;
@@ -108,9 +108,10 @@ impl Peer {
         };
         let secret = link.split(|byte| *byte == b'=').next_back().expect("link secret");
         let secret = base64::decode(Alphabet::Url, secret, 32).expect("secret");
-        let record =
-            w::LinkSignIn { secret: skein_lib::Secret::new(secret) };
-        let mut bytes = Writer::new(skein_lib::length::usize_of(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+        let record = w::LinkSignIn { secret: skein_lib::Secret::new(secret) };
+        let mut bytes = Writer::new(skein_lib::length::usize_of(
+            record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+        ));
         record.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("link bytes");
         self.accepted_post(b"/jig/v1/sign-in/link", bytes.finish())
     }

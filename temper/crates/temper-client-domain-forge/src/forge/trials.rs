@@ -1,8 +1,8 @@
 //! Session trial facts and their run's wait (temper/docs/design/domain/trial.md, 6).
-use jig_client_protocol_wire::Record as _;
 use super::{Limits, Request, Side, wire_limits};
 use alloc::boxed::Box;
 use jig_client::{Ask, Family, Handle, Latest, Link, Told, Watchable, contract as c};
+use jig_client_protocol_wire::Record as _;
 use skein_lib::{List, Queue, Reader, Token};
 use temper_client_protocol_wire::{self as wire, v1 as w};
 

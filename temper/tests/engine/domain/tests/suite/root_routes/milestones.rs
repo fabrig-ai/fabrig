@@ -1,6 +1,6 @@
 //! The root composes milestone totals, without reservations (domain/milestones.md, 7).
-use jig_client_protocol_wire::Record as _;
 use super::*;
+use jig_client_protocol_wire::Record as _;
 use temper_engine_domain_forge as forge;
 
 fn assigned_task(driver: &Driver, task: u64) -> engine::Assignment {

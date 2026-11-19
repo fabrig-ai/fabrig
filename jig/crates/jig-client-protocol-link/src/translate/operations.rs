@@ -1,36 +1,40 @@
 //! General operation targets and project template overrides on the wire.
-use jig_client_protocol_wire::Record as _;
 use super::asks;
 use alloc::boxed::Box;
 use jig_client_domain::contract as c;
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use skein_lib::{List, bytes};
 
 pub(super) fn answer(value: &c::AnswerOn, limits: &w::Limits) -> Result<w::AnswerOn, w::Problem> {
     Ok(match value {
-        c::AnswerOn::Question { task, message, words } => w::AnswerOn::Question(w::AnswerQuestion { task: *task, message: *message, words: bytes::copy_of(words.bytes()) }),
+        c::AnswerOn::Question { task, message, words } => w::AnswerOn::Question(w::AnswerQuestion {
+            task: *task,
+            message: *message,
+            words: bytes::copy_of(words.bytes()),
+        }),
         c::AnswerOn::Person { task, revision, answer } => w::AnswerOn::Person(w::AnswerPerson {
-                task: *task,
-                revision: asks::wire_revision(*revision, limits)?,
-                answer: asks::wire_person_answer(answer, limits)?,
-            }),
+            task: *task,
+            revision: asks::wire_revision(*revision, limits)?,
+            answer: asks::wire_person_answer(answer, limits)?,
+        }),
     })
 }
 pub(super) fn decide(value: &c::DecideOn, limits: &w::Limits) -> Result<w::DecideOn, w::Problem> {
     Ok(match value {
         c::DecideOn::Proposal { proposal, decision, running } => w::DecideOn::Proposal(w::DecideProposal {
-                running: match running {
-                    Some(value) => Some(super::settings::wire_running(value)?),
-                    None => None,
-                },
-                proposal: asks::wire_proposal_key(proposal, limits)?,
-                decision: asks::wire_decision(decision, limits)?,
-            }),
+            running: match running {
+                Some(value) => Some(super::settings::wire_running(value)?),
+                None => None,
+            },
+            proposal: asks::wire_proposal_key(proposal, limits)?,
+            decision: asks::wire_decision(decision, limits)?,
+        }),
         c::DecideOn::Escalation { task, revision, decision } => w::DecideOn::Escalation(w::DecideEscalation {
-                task: *task,
-                revision: asks::wire_revision(*revision, limits)?,
-                decision: asks::wire_decision(decision, limits)?,
-            }),
+            task: *task,
+            revision: asks::wire_revision(*revision, limits)?,
+            decision: asks::wire_decision(decision, limits)?,
+        }),
     })
 }
 pub(super) fn templates(values: &List<c::TemplateOverride>, limits: &w::Limits) -> Result<w::PolicyEdit, w::Problem> {
@@ -38,21 +42,21 @@ pub(super) fn templates(values: &List<c::TemplateOverride>, limits: &w::Limits) 
     for v in values {
         overrides
             .push(w::TemplateOverride {
-                    template: v.template,
-                    executor: match v.executor {
-                        Some(value) => Some(executor(value, limits)?),
-                        None => None,
-                    },
-                    budget: match v.budget {
-                        Some(value) => Some(budget(value, limits)?),
-                        None => None,
-                    },
-                    deadline: match v.deadline {
-                        Some(value) => Some(deadline(value, limits)?),
-                        None => None,
-                    },
-                    priority: v.priority,
-                })
+                template: v.template,
+                executor: match v.executor {
+                    Some(value) => Some(executor(value, limits)?),
+                    None => None,
+                },
+                budget: match v.budget {
+                    Some(value) => Some(budget(value, limits)?),
+                    None => None,
+                },
+                deadline: match v.deadline {
+                    Some(value) => Some(deadline(value, limits)?),
+                    None => None,
+                },
+                priority: v.priority,
+            })
             .expect("same capacity");
     }
     Ok(w::PolicyEdit::Templates(w::PolicyEditTemplates { overrides }))
@@ -60,21 +64,15 @@ pub(super) fn templates(values: &List<c::TemplateOverride>, limits: &w::Limits) 
 #[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
 pub(super) fn executor(value: c::TemplateExecutor, _limits: &w::Limits) -> Result<w::TemplateExecutor, w::Problem> {
     Ok(match value {
-        c::TemplateExecutor::Charter(value) => {
-            w::TemplateExecutor::Charter(w::TemplateCharter { value })
-        }
+        c::TemplateExecutor::Charter(value) => w::TemplateExecutor::Charter(w::TemplateCharter { value }),
         c::TemplateExecutor::Chosen => w::TemplateExecutor::Chosen,
     })
 }
 #[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
 pub(super) fn budget(value: c::TemplateBudget, _limits: &w::Limits) -> Result<w::TemplateBudget, w::Problem> {
     Ok(match value {
-        c::TemplateBudget::Amount(value) => {
-            w::TemplateBudget::Amount(w::TemplateAmount { value })
-        }
-        c::TemplateBudget::AsAllowed { cap } => {
-            w::TemplateBudget::AsAllowed(w::TemplateAsAllowed { cap })
-        }
+        c::TemplateBudget::Amount(value) => w::TemplateBudget::Amount(w::TemplateAmount { value }),
+        c::TemplateBudget::AsAllowed { cap } => w::TemplateBudget::AsAllowed(w::TemplateAsAllowed { cap }),
         c::TemplateBudget::Given => w::TemplateBudget::Given,
     })
 }
@@ -82,9 +80,7 @@ pub(super) fn budget(value: c::TemplateBudget, _limits: &w::Limits) -> Result<w:
 pub(super) fn deadline(value: c::TemplateDeadline, _limits: &w::Limits) -> Result<w::TemplateDeadline, w::Problem> {
     Ok(match value {
         c::TemplateDeadline::None => w::TemplateDeadline::None,
-        c::TemplateDeadline::Span(value) => {
-            w::TemplateDeadline::Span(w::TemplateSpan { value })
-        }
+        c::TemplateDeadline::Span(value) => w::TemplateDeadline::Span(w::TemplateSpan { value }),
         c::TemplateDeadline::Given => w::TemplateDeadline::Given,
     })
 }
@@ -139,9 +135,7 @@ pub(super) fn restore_deadline(value: &w::TemplateDeadline) -> c::TemplateDeadli
 #[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
 pub(super) fn tracking(value: c::Tracking, _limits: &w::Limits) -> Result<w::Tracking, w::Problem> {
     Ok(match value {
-        c::Tracking::Tracked { priority } => {
-            w::Tracking::Tracked(w::TrackingTracked { priority })
-        }
+        c::Tracking::Tracked { priority } => w::Tracking::Tracked(w::TrackingTracked { priority }),
         c::Tracking::Untracked => w::Tracking::Untracked,
     })
 }
@@ -168,7 +162,11 @@ fn batch(tasks: &List<c::NewTask>, bound: u32, limits: &w::Limits) -> Result<Box
     let mut size = 0_u32;
     for task in tasks {
         let record = new_task(task, limits)?;
-        size = size.checked_add(record.measure(limits)?).ok_or(super::too_large())?.checked_add(4).ok_or(super::too_large())?;
+        size = size
+            .checked_add(record.measure(limits)?)
+            .ok_or(super::too_large())?
+            .checked_add(4)
+            .ok_or(super::too_large())?;
         if size > bound {
             return Err(super::too_large());
         }
@@ -186,12 +184,8 @@ fn new_task(v: &c::NewTask, limits: &w::Limits) -> Result<w::NewTask, w::Problem
     for item in &v.dependencies {
         dependencies
             .push(match item {
-                c::TaskRef::Member(value) => {
-                    w::TaskRef::Member(w::TaskRefMember { value: *value })
-                }
-                c::TaskRef::Task(value) => {
-                    w::TaskRef::Task(w::TaskRefTask { value: *value })
-                }
+                c::TaskRef::Member(value) => w::TaskRef::Member(w::TaskRefMember { value: *value }),
+                c::TaskRef::Task(value) => w::TaskRef::Task(w::TaskRefTask { value: *value }),
             })
             .expect("same capacity");
     }
@@ -201,64 +195,60 @@ fn new_task(v: &c::NewTask, limits: &w::Limits) -> Result<w::NewTask, w::Problem
     }
     let executor = match v.executor {
         c::Executor::Job { kind } => w::Executor::Job(w::ExecutorJob { kind }),
-        c::Executor::Agent { charter } => {
-            w::Executor::Agent(w::ExecutorAgent { charter })
+        c::Executor::Agent { charter } => w::Executor::Agent(w::ExecutorAgent { charter }),
+        c::Executor::Procedure { connector, code } => w::Executor::Procedure(w::ExecutorProcedure { connector, code }),
+        c::Executor::Person(address) => {
+            w::Executor::Person(w::ExecutorPerson { value: asks::wire_person_address(&address, limits)? })
         }
-        c::Executor::Procedure { connector, code } => {
-            w::Executor::Procedure(w::ExecutorProcedure { connector, code })
-        }
-        c::Executor::Person(address) => w::Executor::Person(w::ExecutorPerson { value: asks::wire_person_address(&address, limits)? }),
     };
     Ok(w::NewTask {
-            symbols: super::documents::me::wire_symbols(&v.symbols, limits)?,
-            executor,
-            spec: asks::wire_specification(&v.spec, limits)?,
-            contract: new_contract(&v.contract, limits)?,
-            authority: asks::wire_owner_authority(&v.authority, limits)?,
-            deadline: match v.deadline {
-                c::NewDeadline::Named => w::NewDeadline::Named,
-                c::NewDeadline::Span(value) => {
-                    w::NewDeadline::Span(w::DeadlineSpan { value })
+        symbols: super::documents::me::wire_symbols(&v.symbols, limits)?,
+        executor,
+        spec: asks::wire_specification(&v.spec, limits)?,
+        contract: new_contract(&v.contract, limits)?,
+        authority: asks::wire_owner_authority(&v.authority, limits)?,
+        deadline: match v.deadline {
+            c::NewDeadline::Named => w::NewDeadline::Named,
+            c::NewDeadline::Span(value) => w::NewDeadline::Span(w::DeadlineSpan { value }),
+        },
+        budget: match v.budget {
+            c::NewBudget::Named => w::NewBudget::Named,
+            c::NewBudget::AsAllowed { cap } => w::NewBudget::AsAllowed(w::BudgetAsAllowed { cap }),
+        },
+        wake: match &v.wake {
+            Some(wake) => Some(asks::wire_owner_wake_policy(wake, limits)?),
+            None => None,
+        },
+        dependencies,
+        named: asks::wire_owner_grant_piece(&named, limits)?,
+        tracked: v.tracked,
+        label: v.label,
+        flags: w::TaskFlags {
+            ended_by: match v.flags.ended_by {
+                c::EndedBy::Result => w::EndedBy::Result,
+                c::EndedBy::Requester => w::EndedBy::Requester,
+                c::EndedBy::Standing => w::EndedBy::Standing,
+                c::EndedBy::Closer(closer) => {
+                    w::EndedBy::Closer(w::Closer { connector: closer.connector, code: closer.code })
                 }
             },
-            budget: match v.budget {
-                c::NewBudget::Named => w::NewBudget::Named,
-                c::NewBudget::AsAllowed { cap } => {
-                    w::NewBudget::AsAllowed(w::BudgetAsAllowed { cap })
-                }
+            conversation: v.flags.conversation,
+            listed: v.flags.listed,
+            retention: match v.flags.retention {
+                c::Retention::Kept => w::Retention::Kept,
+                c::Retention::ForgottenOnceRead => w::Retention::ForgottenOnceRead,
             },
-            wake: match &v.wake {
-                Some(wake) => Some(asks::wire_owner_wake_policy(wake, limits)?),
-                None => None,
-            },
-            dependencies,
-            named: asks::wire_owner_grant_piece(&named, limits)?,
-            tracked: v.tracked,
-            label: v.label,
-            flags: w::TaskFlags {
-                    ended_by: match v.flags.ended_by {
-                        c::EndedBy::Result => w::EndedBy::Result,
-                        c::EndedBy::Requester => w::EndedBy::Requester,
-                        c::EndedBy::Standing => w::EndedBy::Standing,
-                        c::EndedBy::Closer(closer) => w::EndedBy::Closer(w::Closer { connector: closer.connector, code: closer.code }),
-                    },
-                    conversation: v.flags.conversation,
-                    listed: v.flags.listed,
-                    retention: match v.flags.retention {
-                        c::Retention::Kept => w::Retention::Kept,
-                        c::Retention::ForgottenOnceRead => w::Retention::ForgottenOnceRead,
-                    },
-                },
-            llm: super::llm::wire_choice(v.llm.as_ref(), limits)?,
-        })
+        },
+        llm: super::llm::wire_choice(v.llm.as_ref(), limits)?,
+    })
 }
 #[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
 fn new_contract(value: &c::NewContract, _limits: &w::Limits) -> Result<w::NewContract, w::Problem> {
     Ok(match value {
-        c::NewContract::Report { words } => {
-            w::NewContract::Report(w::ContractReport { words: *words })
+        c::NewContract::Report { words } => w::NewContract::Report(w::ContractReport { words: *words }),
+        c::NewContract::Change { connector, kind, words } => {
+            w::NewContract::Change(w::ContractChange { connector: *connector, kind: *kind, words: *words })
         }
-        c::NewContract::Change { connector, kind, words } => w::NewContract::Change(w::ContractChange { connector: *connector, kind: *kind, words: *words }),
         c::NewContract::Verdict { choices } => {
             let mut records = List::with_capacity(choices.len());
             for v in choices {
@@ -303,9 +293,7 @@ fn restore_task(v: &w::NewTask, limits: &crate::Limits) -> Result<c::NewTask, w:
     }
     let contract = match &v.contract {
         w::NewContract::Report(v) => c::NewContract::Report { words: v.words },
-        w::NewContract::Change(v) => {
-            c::NewContract::Change { connector: v.connector, kind: v.kind, words: v.words }
-        }
+        w::NewContract::Change(v) => c::NewContract::Change { connector: v.connector, kind: v.kind, words: v.words },
         w::NewContract::Verdict(v) => {
             let mut choices = List::with_capacity(v.choices.len());
             for choice in &v.choices {
@@ -363,13 +351,15 @@ pub(super) fn propose(
         c::ProposeAction::Settings(value) => {
             w::ProposeAction::Settings(super::settings_proposals::wire_propose_settings(value, limits)?)
         }
-        c::ProposeAction::Batch { tasks } => w::ProposeAction::Batch(w::ProposeBatch { tasks: batch(tasks, limits.propose_batch_tasks, limits)? }),
+        c::ProposeAction::Batch { tasks } => {
+            w::ProposeAction::Batch(w::ProposeBatch { tasks: batch(tasks, limits.propose_batch_tasks, limits)? })
+        }
         c::ProposeAction::Amendment { task, revision, change } => {
             w::ProposeAction::Amendment(Box::new(w::ProposeAmendment {
-                    task: *task,
-                    revision: asks::wire_revision(*revision, limits)?,
-                    change: asks::wire_amendment(change, limits)?,
-                }))
+                task: *task,
+                revision: asks::wire_revision(*revision, limits)?,
+                change: asks::wire_amendment(change, limits)?,
+            }))
         }
     };
     Ok(w::Ask::Propose(w::Propose { project, action, reason: bytes::copy_of(reason.bytes()) }))

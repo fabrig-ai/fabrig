@@ -131,13 +131,19 @@ fn a_task_piece_past_its_end_is_malformed() {
 #[test]
 fn a_document_at_its_measured_limit_is_admitted() {
     let record = fixtures::frame_record();
-    let limits = fixtures::limits_for_document(u64::from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+    let limits = fixtures::limits_for_document(u64::from(
+        record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+    ));
     assert_eq!(documents::frame(record, &limits), Ok(fixtures::frame()));
 }
 #[test]
 fn a_document_one_byte_past_its_measured_limit_is_refused() {
     let record = fixtures::frame_record();
-    let limits = fixtures::limits_for_document(u64::from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).checked_sub(1).unwrap());
+    let limits = fixtures::limits_for_document(
+        u64::from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+            .checked_sub(1)
+            .unwrap(),
+    );
     assert_eq!(documents::frame(record, &limits), Err(Undecodable::TooLarge));
 }
 #[test]
@@ -162,8 +168,7 @@ fn document_decodes_borrow_the_kept_bounds() {
             bytes.push(b'x').unwrap();
         }
         let bytes = bytes.into_boxed();
-        let record =
-            w::DocumentText { bytes: bytes.clone(), cut: false };
+        let record = w::DocumentText { bytes: bytes.clone(), cut: false };
         let mut frame = fixtures::frame_record();
         let mut party = frame.party;
         party.name = record;
@@ -280,18 +285,20 @@ fn an_authority_uses_its_own_bound_beyond_the_document_rows() {
 
 fn catalogue_frame(address: &[u8]) -> w::Me {
     let row = w::ProviderOffer {
-            provider: 37,
-            key_bytes: 256,
-            name: w::DocumentText { bytes: b"Arbitrary".as_slice().into(), cut: false },
-            sign_in: true,
-            key: true,
-            programs_cut: false,
-            none: false,
-            signed_in_plan: true,
-            programs: skein_lib::List::with_capacity(0),
-            manage_usage: Some(address.into()),
-        };
-    let mut writer = skein_lib::Writer::new(usize::try_from(row.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+        provider: 37,
+        key_bytes: 256,
+        name: w::DocumentText { bytes: b"Arbitrary".as_slice().into(), cut: false },
+        sign_in: true,
+        key: true,
+        programs_cut: false,
+        none: false,
+        signed_in_plan: true,
+        programs: skein_lib::List::with_capacity(0),
+        manage_usage: Some(address.into()),
+    };
+    let mut writer = skein_lib::Writer::new(
+        usize::try_from(row.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
     row.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
     let bytes = writer.finish();
     let mut writer = skein_lib::Writer::new(bytes.len().checked_add(4).unwrap());
@@ -365,9 +372,7 @@ fn task_settings_revisions_cross_into_the_client_document() {
         let mut parts = fixtures::task_record();
         parts.settings = None;
         if let Some(value) = settings {
-            parts.settings = Some(
-                w::TaskSettings { task: value.task, run: value.run, newest: value.newest },
-            );
+            parts.settings = Some(w::TaskSettings { task: value.task, run: value.run, newest: value.newest });
         }
         let record = parts;
         let task = documents::task(record, &fixtures::limits()).expect("task document");
@@ -378,13 +383,8 @@ fn task_settings_revisions_cross_into_the_client_document() {
 #[test]
 fn chip_phases_refuse_missing_end_time_and_retry_notice() {
     let limits = fixtures::limits();
-    let backing_off = w::ChipPhase::Active(
-        w::ChipPhaseActive {
-                value: w::RunStage::BackingOff(
-                    w::RunStageBackingOff { until: 0 },
-                ),
-            },
-    );
+    let backing_off =
+        w::ChipPhase::Active(w::ChipPhaseActive { value: w::RunStage::BackingOff(w::RunStageBackingOff { until: 0 }) });
     for (phase, compact) in [(w::ChipPhase::Ended, w::Phase::Ended), (backing_off, w::Phase::BackingOff)] {
         for present in [false, true] {
             let w::Fact::Chip(root) = fixtures::chip_root_fact() else { panic!("chip root") };
@@ -396,19 +396,15 @@ fn chip_phases_refuse_missing_end_time_and_retry_notice() {
             let mut fields = details.value;
             if present {
                 fields.ended_at = Some(0);
-                fields.retry = Some(w::RetryNotice::Refused(
-                    w::RetryNoticeRefused { count: 0, reason: None },
-                ));
+                fields.retry = Some(w::RetryNotice::Refused(w::RetryNoticeRefused { count: 0, reason: None }));
             }
             details.value = fields;
             let chip = fixtures::chip_from_rows(&[
                 w::Fact::Chip(root),
-                w::Fact::ChipPhase(
-                    w::ChipPhaseRow {
-                            parent: Some(0),
-                            value: w::ChipPhaseOwnerFields { phase: phase.clone(), details: 2 },
-                        },
-                ),
+                w::Fact::ChipPhase(w::ChipPhaseRow {
+                    parent: Some(0),
+                    value: w::ChipPhaseOwnerFields { phase: phase.clone(), details: 2 },
+                }),
                 w::Fact::ChipDetails(Box::new(details)),
             ]);
             let decoded = documents::chip(chip, &limits);
@@ -462,9 +458,7 @@ fn hold_accounts_decode_whole_past_the_text_preview_bound() {
     let cases: [(Box<[u8]>, bool); 2] = [(Box::new([b'x'; 512]), true), (Box::new([b'x'; 513]), false)];
     for (bytes, accepted) in cases {
         let mut parts = jig_client_test_records::hold_record();
-        parts.words = Some(
-            w::DocumentText { bytes: bytes.clone(), cut: false },
-        );
+        parts.words = Some(w::DocumentText { bytes: bytes.clone(), cut: false });
         let mut task = fixtures::task_record();
         task.hold = Some(parts);
         let decoded = documents::task(task, &limits);
@@ -508,10 +502,11 @@ fn long_text_bounds_survive_wire_narrowing_and_document_translation() {
 fn a_task_waiting_on_its_question_round_trips_through_the_wire_and_link() {
     let limits = fixtures::limits();
     let mut parts = fixtures::task_record();
-    parts.waits_on =
-        w::WaitsOn::Question(w::WaitsOnQuestion { number: 7 });
+    parts.waits_on = w::WaitsOn::Question(w::WaitsOnQuestion { number: 7 });
     let record = parts;
-    let mut bytes = skein_lib::Writer::new(usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    let mut bytes = skein_lib::Writer::new(
+        usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
     record.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
     let bytes = bytes.finish();
     let record = w::Task::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap();
@@ -524,7 +519,9 @@ fn a_concluded_refusal_decodes_its_concluding_wall() {
     let limits = fixtures::limits();
     let at = 123_456;
     let wire = w::Refusal::Concluded(w::RefusalConcluded { at });
-    let mut bytes = skein_lib::Writer::new(usize::try_from(wire.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    let mut bytes = skein_lib::Writer::new(
+        usize::try_from(wire.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
     wire.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
     let wire = w::Refusal::decode(limits.wire(), &mut Reader::new(&bytes.finish())).unwrap();
     assert_eq!(

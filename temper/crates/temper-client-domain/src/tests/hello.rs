@@ -1,8 +1,8 @@
 //! The rail waits for the stream's hello (client/README.md, 3.4).
-use jig_client_protocol_wire::Record as _;
 use super::fixtures as f;
 use crate::{Address, Event, Request, WorkFilter};
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use skein_lib::{Duration, List, Queue, Reader, Writer};
 
 fn project_reads(out: &mut Queue<Request>) -> u32 {
@@ -70,21 +70,18 @@ fn the_rails_project_is_read_once_in_the_hellos_batch() {
     for (owner, version) in [
         (w::Owner::Jig, w::VERSION),
         (
-            w::Owner::Family(
-                w::Family { number: temper_client_protocol_wire::FORGE },
-            ),
+            w::Owner::Family(w::Family { number: temper_client_protocol_wire::FORGE }),
             temper_client_protocol_wire::CLIENT_VERSION,
         ),
     ] {
-        served
-            .push(w::Served { owner, first: version, last: version })
-            .unwrap();
+        served.push(w::Served { owner, first: version, last: version }).unwrap();
     }
     let hello = jig_client_test_records::opened(
         w::Hello { stream: [7; 16], served, heartbeat: Duration::from_secs(30) },
         jig_client_test_records::frame_record(),
     );
-    let mut writer = Writer::new(hello.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture").try_into().unwrap());
+    let mut writer =
+        Writer::new(hello.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture").try_into().unwrap());
     hello.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
     crate::step(
         &mut root,

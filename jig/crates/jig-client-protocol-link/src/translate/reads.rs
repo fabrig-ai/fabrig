@@ -1,5 +1,4 @@
 //! One read per exchange with opaque cursor bytes (protocol/client/README.md, 4).
-use jig_client_protocol_wire::Record as _;
 use super::asks::{wire_note_scope, wire_proposal_key};
 use super::{Undecodable, documents, objects, pages};
 use crate::Limits;
@@ -7,6 +6,7 @@ use alloc::boxed::Box;
 use jig_client_domain::Readable;
 use jig_client_domain::contract as c;
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use jig_client_protocol_wire::VERSION;
 use skein_lib::{Reader, Writer, bytes, length::len_u64};
 
@@ -17,67 +17,69 @@ pub fn read(read: &c::Read, limits: &w::Limits) -> Result<w::Read, w::Problem> {
         c::Read::Revision(value) => w::Read::Revision(super::settings::wire_read_revision(value, limits)?),
         c::Read::Revisions(value) => w::Read::Revisions(super::settings::wire_read_revisions(value, limits)?),
         c::Read::Tasks { query, live, ended } => w::Read::Tasks(w::ReadTasks {
-                query: super::queries::query(query, limits)?,
-                live: cursor(live.as_ref(), limits)?,
-                ended: cursor(ended.as_ref(), limits)?,
-            }),
+            query: super::queries::query(query, limits)?,
+            live: cursor(live.as_ref(), limits)?,
+            ended: cursor(ended.as_ref(), limits)?,
+        }),
         c::Read::Turn { task, attempt, turn } => {
             w::Read::Turn(w::ReadTurn { task: *task, attempt: *attempt, turn: *turn })
         }
         c::Read::TaskText { task, field, from } => w::Read::TaskText(w::ReadTaskText {
-                task: *task,
-                field: match field {
-                    c::TaskTextField::Specification => w::TaskTextField::Specification,
-                    c::TaskTextField::Instructions => w::TaskTextField::Instructions,
-                    c::TaskTextField::Result => w::TaskTextField::Result,
-                },
-                from: *from,
-            }),
+            task: *task,
+            field: match field {
+                c::TaskTextField::Specification => w::TaskTextField::Specification,
+                c::TaskTextField::Instructions => w::TaskTextField::Instructions,
+                c::TaskTextField::Result => w::TaskTextField::Result,
+            },
+            from: *from,
+        }),
         c::Read::ActivityBeside { task, position, side } => w::Read::ActivityBeside(w::ReadActivityBeside {
-                task: *task,
-                position: *position,
-                side: match side {
-                    c::Side::Earlier => w::ActivitySide::Earlier,
-                    c::Side::Later => w::ActivitySide::Later,
-                },
-            }),
+            task: *task,
+            position: *position,
+            side: match side {
+                c::Side::Earlier => w::ActivitySide::Earlier,
+                c::Side::Later => w::ActivitySide::Later,
+            },
+        }),
         c::Read::Me => w::Read::Me,
         c::Read::Task { task } => w::Read::Task(w::ReadTask { task: *task }),
-        c::Read::Proposal { proposal } => w::Read::Proposal(w::ReadProposal { proposal: wire_proposal_key(proposal, limits)? }),
-        c::Read::Escalation { task } => {
-            w::Read::Escalation(w::ReadEscalation { task: *task })
+        c::Read::Proposal { proposal } => {
+            w::Read::Proposal(w::ReadProposal { proposal: wire_proposal_key(proposal, limits)? })
         }
-        c::Read::Question { task, message } => {
-            w::Read::Question(w::ReadQuestion { task: *task, message: *message })
-        }
-        c::Read::PersonTask { task } => {
-            w::Read::PersonTask(w::ReadPersonTask { task: *task })
-        }
+        c::Read::Escalation { task } => w::Read::Escalation(w::ReadEscalation { task: *task }),
+        c::Read::Question { task, message } => w::Read::Question(w::ReadQuestion { task: *task, message: *message }),
+        c::Read::PersonTask { task } => w::Read::PersonTask(w::ReadPersonTask { task: *task }),
         c::Read::Result { task } => w::Read::Result(w::ReadResult { task: *task }),
-        c::Read::Ended { task, after } => w::Read::Ended(w::ReadEnded { task: *task, after: cursor(after.as_ref(), limits)? }),
-        c::Read::History { task, subtree, after } => w::Read::History(w::ReadHistory { task: *task, subtree: *subtree, after: cursor(after.as_ref(), limits)? }),
-        c::Read::Activity { task, before } => w::Read::Activity(w::ReadActivity { task: *task, before: cursor(before.as_ref(), limits)? }),
-        c::Read::Inbox { group, project, kind, goal, after } => w::Read::Inbox(w::ReadInbox {
-                group: inbox_group(*group),
-                project: *project,
-                kind: inbox_kind(*kind),
-                goal: *goal,
-                after: cursor(after.as_ref(), limits)?,
-            }),
-        c::Read::Spend { project, after } => w::Read::Spend(w::ReadSpend { project: *project, after: cursor(after.as_ref(), limits)? }),
-        c::Read::Project { project } => {
-            w::Read::Project(w::ReadProject { project: *project })
+        c::Read::Ended { task, after } => {
+            w::Read::Ended(w::ReadEnded { task: *task, after: cursor(after.as_ref(), limits)? })
         }
+        c::Read::History { task, subtree, after } => {
+            w::Read::History(w::ReadHistory { task: *task, subtree: *subtree, after: cursor(after.as_ref(), limits)? })
+        }
+        c::Read::Activity { task, before } => {
+            w::Read::Activity(w::ReadActivity { task: *task, before: cursor(before.as_ref(), limits)? })
+        }
+        c::Read::Inbox { group, project, kind, goal, after } => w::Read::Inbox(w::ReadInbox {
+            group: inbox_group(*group),
+            project: *project,
+            kind: inbox_kind(*kind),
+            goal: *goal,
+            after: cursor(after.as_ref(), limits)?,
+        }),
+        c::Read::Spend { project, after } => {
+            w::Read::Spend(w::ReadSpend { project: *project, after: cursor(after.as_ref(), limits)? })
+        }
+        c::Read::Project { project } => w::Read::Project(w::ReadProject { project: *project }),
         c::Read::Notes { scope, description, after } => {
             let description = match description {
                 Some(value) => Some(bytes::copy_of(value.bytes())),
                 None => None,
             };
             w::Read::Notes(w::ReadNotes {
-                    scope: wire_note_scope(scope, limits)?,
-                    description,
-                    after: cursor(after.as_ref(), limits)?,
-                })
+                scope: wire_note_scope(scope, limits)?,
+                description,
+                after: cursor(after.as_ref(), limits)?,
+            })
         }
         c::Read::Deployment => w::Read::Deployment,
     })

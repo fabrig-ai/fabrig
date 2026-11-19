@@ -651,7 +651,10 @@ fn a_full_stream_refusal_without_a_line_ending_reaches_the_link() {
         &mut peer.below,
     );
     let record = w::StreamsFull { bound: w::StreamBound::Transport, size: 2 };
-    let mut writer = Writer::new(usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("fixed record"));
+    let mut writer = Writer::new(
+        usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+            .expect("fixed record"),
+    );
     record.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("full bytes");
     let body = writer.finish();
     assert!(!body.contains(&b'\n'));

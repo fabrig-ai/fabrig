@@ -1,7 +1,7 @@
 //! Whole selected page rows and their owner continuations (protocol/client/wire.md, 1, and protocol/client/README.md, 4).
-use jig_client_protocol_wire::Record as _;
 use super::{cursor, w};
 use alloc::boxed::Box;
+use jig_client_protocol_wire::Record as _;
 use jig_domain_core_vocabulary::reads;
 mod documents;
 mod rows;
@@ -123,23 +123,23 @@ pub(super) fn tasks(
     let ended = match &page.ended {
         reads::EndedGroup::None => w::EndedGroup::None,
         reads::EndedGroup::Rows { rows, next, cut } => w::EndedGroup::Rows(w::EndedRows {
-                rows: task_pieces(rows, slots, limits, limits.ended_rows_rows, w::paths::ENDED_ROWS_ROWS)?,
-                after: match next {
-                    Some(v) => Some(task_cursor(v, query, limits)?),
-                    None => None,
-                },
-                cut: *cut,
-            }),
-    };
-    Ok(w::ReadValue::Tasks(w::TaskPage {
-            ended_mark: page.ended_mark,
-            live: task_pieces(&page.live, slots, limits, limits.task_page_live, w::paths::TASK_PAGE_LIVE)?,
-            live_after: match &page.live_next {
+            rows: task_pieces(rows, slots, limits, limits.ended_rows_rows, w::paths::ENDED_ROWS_ROWS)?,
+            after: match next {
                 Some(v) => Some(task_cursor(v, query, limits)?),
                 None => None,
             },
-            ended,
-        }))
+            cut: *cut,
+        }),
+    };
+    Ok(w::ReadValue::Tasks(w::TaskPage {
+        ended_mark: page.ended_mark,
+        live: task_pieces(&page.live, slots, limits, limits.task_page_live, w::paths::TASK_PAGE_LIVE)?,
+        live_after: match &page.live_next {
+            Some(v) => Some(task_cursor(v, query, limits)?),
+            None => None,
+        },
+        ended,
+    }))
 }
 fn task_pieces(
     lines: &skein_lib::List<jig_domain_core_vocabulary::documents::TaskLine>,

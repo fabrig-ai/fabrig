@@ -16,7 +16,7 @@ impl Frame {
         frame
     }
     pub(super) fn setup_reply(&mut self, fd: Fd, keyed: &w::Keyed) -> bool {
-        if !matches!( &keyed.owner, w::Owner::Family(_)) {
+        if !matches!(&keyed.owner, w::Owner::Family(_)) {
             return false;
         }
         let envelope = w::FamilyRequest::decode(&w::CEILINGS, &mut skein_lib::Reader::new(keyed.request.as_ref()))
@@ -155,18 +155,10 @@ impl Frame {
         let document = owned(wire::forges(
             &f::Forges::new(&f::CEILINGS, f::ForgesParts { forges, linked: false }).expect("valid setup fixture"),
         ));
-        let event = w::StreamEvent::Delivery(
-            w::Delivery { watch: self.wait_task.expect("forge watch"), document },
-        );
+        let event = w::StreamEvent::Delivery(w::Delivery { watch: self.wait_task.expect("forge watch"), document });
         self.sockets.get_mut(&self.stream.expect("stream")).expect("valid setup fixture").reply.extend(sse(&event));
     }
 }
 fn owned(record: Box<[u8]>) -> w::Owned {
-    w::Owned {
-            owner: w::Owner::Family(
-                w::Family { number: wire::FORGE },
-            ),
-            version: wire::CLIENT_VERSION,
-            record,
-        }
+    w::Owned { owner: w::Owner::Family(w::Family { number: wire::FORGE }), version: wire::CLIENT_VERSION, record }
 }

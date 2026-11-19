@@ -1,10 +1,10 @@
 //! Signing belongs to the link (client/domain/client/README.md, 9).
-use jig_client_protocol_wire::Record as _;
 use crate::{
     Link, Message, Request, Signing, With,
     component::{Attempt, ExchangeKind},
 };
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use skein_lib::{Queue, Reader, Secret, Token, Wall};
 impl Link {
     #[must_use]
@@ -39,26 +39,14 @@ impl Link {
                     out.push(Request::Signing { signing: Signing::Approval(crate::Taking::Unknown) });
                     return;
                 };
-                self.signing_exchange(
-                    ExchangeKind::SignInApproval,
-                    Message::SignInApproval(record),
-                    None,
-                    None,
-                    out,
-                );
+                self.signing_exchange(ExchangeKind::SignInApproval, Message::SignInApproval(record), None, None, out);
             }
             With::Link { secret, held } => {
                 let Ok(record) = (w::LinkSignIn { secret }).encode(self.limits.wire()) else {
                     out.push(Request::Signing { signing: Signing::Refused });
                     return;
                 };
-                self.signing_exchange(
-                    ExchangeKind::SignIn,
-                    Message::SignInLink(record),
-                    held.clone(),
-                    held,
-                    out,
-                );
+                self.signing_exchange(ExchangeKind::SignIn, Message::SignInLink(record), held.clone(), held, out);
             }
         }
     }

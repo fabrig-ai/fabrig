@@ -1,9 +1,9 @@
 //! Whole pages and single documents (protocol/client/wire.md, 1, and protocol/client/README.md, 4).
-use jig_client_protocol_wire::Record as _;
 use super::{
     Box, Limits, List, Reader, Wall, authority_document_fields, c, chip_ending_fields, cursor_fields,
     message_proposal_kind_fields, proposed_task_piece, specification_document_fields, too_large, w,
 };
+use jig_client_protocol_wire::Record as _;
 
 pub(crate) fn history_change_fields(value: &w::HistoryChange) -> c::HistoryChange {
     match value {
@@ -111,10 +111,9 @@ pub(crate) fn retained_action_fields(
             task: row.task,
             change: Box::new(retained_amendment_fields(&row.change, limits)?),
         },
-        w::RetainedAction::Widen(row) => c::RetainedAction::Widen {
-            task: row.task,
-            authority: authority_document_fields(&row.authority, limits)?,
-        },
+        w::RetainedAction::Widen(row) => {
+            c::RetainedAction::Widen { task: row.task, authority: authority_document_fields(&row.authority, limits)? }
+        }
         w::RetainedAction::Release(row) => c::RetainedAction::Release { task: row.task },
     })
 }

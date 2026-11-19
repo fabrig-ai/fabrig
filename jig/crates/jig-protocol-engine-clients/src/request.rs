@@ -1,7 +1,7 @@
 //! Keyed request admission and version envelopes (protocol/client/README.md, 3 and 6).
-use jig_client_protocol_wire::Record as _;
 use super::{Box, Component, Env, Limits, Queue, ReplyTo, Request, Token, Waiting, core, people, routes, sign_in, w};
 use crate::sign_in::CarriedRequest;
+use jig_client_protocol_wire::Record as _;
 use skein_lib::length::len_u64;
 impl Component {
     pub(super) fn request(
@@ -25,9 +25,9 @@ impl Component {
             return;
         }
         let Ok(keyed) = w::Keyed::decode(&env.limits.wire, &mut skein_lib::Reader::new(body)) else {
-                self.not_a_record(owner);
-                return;
-            };
+            self.not_a_record(owner);
+            return;
+        };
         let family = match &keyed.owner {
             w::Owner::Jig => None,
             w::Owner::Family(value) => Some(value.number),

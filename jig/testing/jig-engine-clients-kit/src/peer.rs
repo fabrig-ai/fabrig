@@ -631,12 +631,17 @@ impl Peer {
         &self.sockets[&self.streams[&stream]].body
     }
     pub fn request_watch_event(&mut self, stream: [u8; 16], subject: &w::Subject) -> (Token, core::Event) {
-        let mut record = Writer::new(skein_lib::length::usize_of(subject.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+        let mut record = Writer::new(skein_lib::length::usize_of(
+            subject.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+        ));
         subject.write(&jig_client_protocol_wire::CEILINGS, &mut record).expect("subject");
-        let subject = w::Owned { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: record.finish() };
+        let subject =
+            w::Owned { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: record.finish() };
         let open = w::Open { stream, watch: self.next_watch, subject };
         self.next_watch += 1;
-        let mut body = Writer::new(skein_lib::length::usize_of(open.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+        let mut body = Writer::new(skein_lib::length::usize_of(
+            open.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+        ));
         open.write(&jig_client_protocol_wire::CEILINGS, &mut body).expect("open record");
         let bearer = self.bearer.clone().expect("signed in");
         let exchange = self.post(b"/jig/v1/watch", body.finish(), Some(&bearer));
@@ -802,9 +807,10 @@ impl Peer {
     pub fn link_body(&self, link: &[u8]) -> Box<[u8]> {
         let secret = link.split(|byte| *byte == b'=').next_back().expect("link query");
         let secret = base64::decode(Alphabet::Url, secret, 32).expect("link secret");
-        let record =
-            w::LinkSignIn { secret: skein_lib::Secret::new(secret) };
-        let mut out = Writer::new(skein_lib::length::usize_of(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+        let record = w::LinkSignIn { secret: skein_lib::Secret::new(secret) };
+        let mut out = Writer::new(skein_lib::length::usize_of(
+            record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+        ));
         record.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("encoded link");
         out.finish()
     }

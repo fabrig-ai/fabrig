@@ -1,7 +1,7 @@
-use jig_client_protocol_wire::Record as _;
 use super::fixtures as f;
 use crate::translate::asks;
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use jig_domain_people as p;
 #[test]
 fn a_create_reaches_the_people_child_with_each_task_s_fields() {
@@ -60,18 +60,14 @@ fn create_with_symbols(symbols: &[p::Symbol]) -> w::Ask {
     let mut task = w::NewTask::decode(&limits, &mut skein_lib::Reader::new(&bytes)).unwrap();
     task.symbols = skein_lib::List::with_capacity(u32::try_from(symbols.len()).unwrap());
     for symbol in symbols {
-        task.symbols
-            .push(
-                w::Symbol { connector: symbol.connector, symbol: symbol.symbol },
-            )
-            .unwrap();
+        task.symbols.push(w::Symbol { connector: symbol.connector, symbol: symbol.symbol }).unwrap();
     }
     let task = task;
-    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(task.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(
+        task.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+    ));
     task.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
-    w::Ask::Create(
-        w::Create { project: f::PROJECT, tasks: f::pieces(&[writer.finish()]) },
-    )
+    w::Ask::Create(w::Create { project: f::PROJECT, tasks: f::pieces(&[writer.finish()]) })
 }
 
 #[test]
@@ -86,12 +82,12 @@ fn a_new_tasks_closer_crosses_the_wire_both_ways() {
     flags.ended_by = w::EndedBy::Closer(w::Closer { connector: 1, code: 6 });
     task.flags = flags;
     let task = task;
-    let mut bytes = Writer::new(skein_lib::length::usize_of(task.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+    let mut bytes = Writer::new(skein_lib::length::usize_of(
+        task.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+    ));
     task.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
     let rows = List::from_boxed(Box::new([bytes.finish()]));
-    let ask = w::Ask::Create(
-        w::Create { project: create.project, tasks: f::pieces(rows.as_slice()) },
-    );
+    let ask = w::Ask::Create(w::Create { project: create.project, tasks: f::pieces(rows.as_slice()) });
     let p::Ask::Create { batch, .. } = asks::ask(ask, &f::models(), &limits).unwrap() else { panic!("create") };
     assert_eq!(batch[0].flags.ended_by, p::EndedBy::Closer(p::Closer { connector: 1, code: 6 }));
 }

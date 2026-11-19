@@ -5,10 +5,10 @@
     clippy::disallowed_methods,
     reason = "ordinary host tests construct and inspect scripted protocol streams"
 )]
-use jig_client_protocol_wire::Record as _;
 use super::*;
 use crate::tests::fixtures;
 use alloc::boxed::Box;
+use jig_client_protocol_wire::Record as _;
 use jig_domain_accounts as domain;
 use jig_domain_link::Form;
 use jig_protocol_accounts::table;
@@ -916,22 +916,22 @@ fn moved_answer(engine: &mut crate::engine::Engine, bearer: &[u8], attempt: u8) 
     use jig_client_protocol_wire as w;
     use skein_lib::{Reader, Writer};
     let limits = engine.clients.env.limits.wire;
-    let change = w::AccountChange::MoveOut(
-        w::AccountChangeMoveOut { account: 19 },
+    let change = w::AccountChange::MoveOut(w::AccountChangeMoveOut { account: 19 });
+    let ask = w::Ask::AccountChange(w::AskAccountChange { holder: w::AskAccountHolder::Own, change });
+    let mut bytes = Writer::new(
+        usize::try_from(ask.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
     );
-    let ask = w::Ask::AccountChange(
-        w::AskAccountChange { holder: w::AskAccountHolder::Own, change },
-    );
-    let mut bytes = Writer::new(usize::try_from(ask.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
     ask.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
     let keyed = w::Keyed {
-            key: [attempt; 16],
-            owner: w::Owner::Jig,
-            version: jig_client_protocol_wire::VERSION,
-            request: bytes.finish(),
-            value: None,
-        };
-    let mut bytes = Writer::new(usize::try_from(keyed.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+        key: [attempt; 16],
+        owner: w::Owner::Jig,
+        version: jig_client_protocol_wire::VERSION,
+        request: bytes.finish(),
+        value: None,
+    };
+    let mut bytes = Writer::new(
+        usize::try_from(keyed.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
     keyed.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
     let mut call = peer::Peer::new(engine, b"POST", b"/jig/v1/request", &bytes.finish(), Some(bearer));
     call.pump(engine, false);

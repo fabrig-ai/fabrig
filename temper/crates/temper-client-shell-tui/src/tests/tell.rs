@@ -22,10 +22,10 @@ fn request(duties: &Duties) -> Option<(skein_lib::Token, f::FileFinding)> {
 fn answer(host: &mut Host, exchange: skein_lib::Token, outcome: f::Outcome) {
     let answer = f::Answer::new(&f::CEILINGS, f::AnswerParts { outcome }).unwrap();
     let document = w::Owned {
-            owner: w::Owner::Family(w::Family { number: wire::FORGE }),
-            version: wire::CLIENT_VERSION,
-            record: wire::answer(&answer),
-        };
+        owner: w::Owner::Family(w::Family { number: wire::FORGE }),
+        version: wire::CLIENT_VERSION,
+        record: wire::answer(&answer),
+    };
     reply(host, exchange, keyed_bytes(document));
 }
 pub(super) fn send(host: &mut Host, words: &[u8]) -> Option<(skein_lib::Token, f::FileFinding)> {

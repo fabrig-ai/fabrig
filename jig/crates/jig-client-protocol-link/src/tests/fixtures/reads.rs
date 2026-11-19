@@ -30,22 +30,16 @@ pub fn expected_note_page_with_cursors() -> c::NotePage {
     }
 }
 pub fn ended_task_record() -> w::Ended {
-    let ending = w::Fact::Ending(
-        w::EndingRow {
-                parent: None,
-                value: w::EndingFields::Failed(
-                    w::EndingFailedFields { reason: Some(Box::from(b"failed".as_slice())) },
-                ),
-            },
-    );
+    let ending = w::Fact::Ending(w::EndingRow {
+        parent: None,
+        value: w::EndingFields::Failed(w::EndingFailedFields { reason: Some(Box::from(b"failed".as_slice())) }),
+    });
     let mut result = read_wire_result();
     result.ending = w::Ending { rows: fact_bytes(&ending) };
     let result = result;
     let mut ended = read_wire_owner_ended();
     ended.at = Some(u64::MAX);
-    ended.value = w::EndedValue::Task(
-        w::EndedValueTask { document: task_record(), result },
-    );
+    ended.value = w::EndedValue::Task(w::EndedValueTask { document: task_record(), result });
     ended
 }
 pub fn expected_ended_task() -> c::Ended {
@@ -64,25 +58,21 @@ const UTF8_TEXTS: [&[u8]; 1] = [&[b'~'; 48]];
 pub fn ended_delegate_record() -> w::EndedDelegate {
     let mut facts = List::with_capacity(1);
     facts
-        .push(w::Fact::ChipEnding(
-            w::ChipEndingRow {
-                    parent: None,
-                    value: w::ChipEndingFields::Failed(
-                        w::ChipEndingFailedFields { value: jig_client_test_records::wire_text(b"failed") },
-                    ),
-                },
-        ))
+        .push(w::Fact::ChipEnding(w::ChipEndingRow {
+            parent: None,
+            value: w::ChipEndingFields::Failed(w::ChipEndingFailedFields {
+                value: jig_client_test_records::wire_text(b"failed"),
+            }),
+        }))
         .unwrap();
     let rows = jig_client_test_records::chip_from_rows(&facts.into_boxed()).rows;
-    w::EndedDelegate {
-            chip: chip_record(),
-            ended: w::ChipEnding { rows },
-            at: None,
-        }
+    w::EndedDelegate { chip: chip_record(), ended: w::ChipEnding { rows }, at: None }
 }
 pub fn ended_rows(count: u32) -> Box<[u8]> {
     let row = ended_delegate_record();
-    let mut bytes = Writer::new(usize::try_from(row.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    let mut bytes = Writer::new(
+        usize::try_from(row.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
     row.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
     let bytes = bytes.finish();
     let mut rows =
@@ -94,7 +84,12 @@ pub fn ended_rows(count: u32) -> Box<[u8]> {
 }
 pub fn trailing_ended_row() -> Box<[u8]> {
     let row = ended_delegate_record();
-    let mut bytes = Writer::new(usize::try_from(row.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap().checked_add(1).unwrap());
+    let mut bytes = Writer::new(
+        usize::try_from(row.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+            .unwrap()
+            .checked_add(1)
+            .unwrap(),
+    );
     row.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
     bytes.put(&[0]).unwrap();
     let bytes = bytes.finish();

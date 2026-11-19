@@ -1,11 +1,11 @@
 //! A continued watch's old name keeps its room through admission and closing
 //! (protocol/client/README.md, 5 and 10; client/domain/client/watches.md, 1).
-use jig_client_protocol_wire::Record as _;
 use crate::{
     Fact, Link, Request, Signing,
     component::{Attempt, ExchangeKind},
 };
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use jig_client_protocol_wire::VERSION;
 use skein_lib::{Queue, Reader, Token};
 impl Link {

@@ -1,7 +1,7 @@
 //! A valid person task would put its specification in the person's inbox.
-use jig_client_protocol_wire::Record as _;
 use jig_client_domain::contract as c;
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use skein_lib::{List, Writer};
 
 const PROJECT: u32 = 1;
@@ -54,16 +54,20 @@ pub(super) fn request() -> Box<[u8]> {
     tasks.push(task()).expect("one forged task");
     let ask = jig_client_protocol_link::translate::asks::ask(&c::Ask::Create { project: PROJECT, tasks }, &w::CEILINGS)
         .expect("forged request fits wire");
-    let mut writer = Writer::new(skein_lib::length::usize_of(ask.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+    let mut writer = Writer::new(skein_lib::length::usize_of(
+        ask.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+    ));
     ask.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("measured request");
     let keyed = w::Keyed {
-            key: REQUEST_KEY,
-            owner: w::Owner::Jig,
-            version: jig_client_protocol_wire::VERSION,
-            request: writer.finish(),
-            value: None,
-        };
-    let mut writer = Writer::new(skein_lib::length::usize_of(keyed.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+        key: REQUEST_KEY,
+        owner: w::Owner::Jig,
+        version: jig_client_protocol_wire::VERSION,
+        request: writer.finish(),
+        value: None,
+    };
+    let mut writer = Writer::new(skein_lib::length::usize_of(
+        keyed.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+    ));
     keyed.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("measured keyed request");
     writer.finish()
 }

@@ -1,9 +1,9 @@
 //! A task's LLM choice and `me`'s models: the core names a model and its effort by index in
 //! configuration's order, the client by name (client/domain/contract/requests.md, 2, and client/domain/contract/documents.md, 1; domain/tasks/README.md, 3).
-use jig_client_protocol_wire::Record as _;
 use super::w;
 use crate::Model;
 use alloc::boxed::Box;
+use jig_client_protocol_wire::Record as _;
 use jig_domain_authority::Models;
 use jig_domain_people as p;
 use jig_domain_tasks as t;
@@ -238,35 +238,35 @@ pub fn models(
             efforts.push(bytes::copy_of(effort)).expect("same capacity");
         }
         rows.push(w::MeModel {
-                new_until: match model.new_until {
-                    Some(at) => Some(at.as_nanos()),
-                    None => None,
-                },
-                number: model.number,
-                source: match model.source {
-                    jig_domain_core_vocabulary::settings::ModelSource::Stock => w::ModelSource::Stock,
-                    jig_domain_core_vocabulary::settings::ModelSource::List => w::ModelSource::List,
-                    jig_domain_core_vocabulary::settings::ModelSource::Person => w::ModelSource::Person,
-                },
-                estimated: model.estimated,
-                name: bytes::copy_of(&model.name),
-                provider: model.provider,
-                window: model.window,
-                output: model.output,
-                efforts,
-                effort: model.effort.clone(),
-                shown: model.shown.clone(),
-                accounts: offered.accounts.clone(),
-                picker: model.picker,
-                prices: w::MePrices {
-                        input: model.prices.input,
-                        cached: model.prices.cached,
-                        cache_write: model.prices.cache_write,
-                        output: model.prices.output,
-                        unit: model.prices.unit,
-                    },
-                description: model.description.clone(),
-            })
+            new_until: match model.new_until {
+                Some(at) => Some(at.as_nanos()),
+                None => None,
+            },
+            number: model.number,
+            source: match model.source {
+                jig_domain_core_vocabulary::settings::ModelSource::Stock => w::ModelSource::Stock,
+                jig_domain_core_vocabulary::settings::ModelSource::List => w::ModelSource::List,
+                jig_domain_core_vocabulary::settings::ModelSource::Person => w::ModelSource::Person,
+            },
+            estimated: model.estimated,
+            name: bytes::copy_of(&model.name),
+            provider: model.provider,
+            window: model.window,
+            output: model.output,
+            efforts,
+            effort: model.effort.clone(),
+            shown: model.shown.clone(),
+            accounts: offered.accounts.clone(),
+            picker: model.picker,
+            prices: w::MePrices {
+                input: model.prices.input,
+                cached: model.prices.cached,
+                cache_write: model.prices.cache_write,
+                output: model.prices.output,
+                unit: model.prices.unit,
+            },
+            description: model.description.clone(),
+        })
         .expect("same capacity");
     }
     Ok(rows)
@@ -287,14 +287,14 @@ pub fn choice(
         subagents.push(model_effort(*item, models, limits)?).expect("same capacity");
     }
     Ok(Some(w::LlmChoice {
-            account: value.account,
-            main: model_effort(value.main, models, limits)?,
-            subagents,
-            later: match &value.later {
-                Some(later) => Some(later_choice(later, models, limits)?),
-                None => None,
-            },
-        }))
+        account: value.account,
+        main: model_effort(value.main, models, limits)?,
+        subagents,
+        later: match &value.later {
+            Some(later) => Some(later_choice(later, models, limits)?),
+            None => None,
+        },
+    }))
 }
 fn later_choice(value: &t::LlmLater, models: &[Model], limits: &w::Limits) -> Result<w::LlmLater, w::Problem> {
     let mut subagents = List::with_capacity(u32::try_from(value.subagents.len()).expect("bounded sub-agents"));

@@ -1,5 +1,4 @@
 //! Calls, exchanges, and durable sign-in sequencing (protocol/client/sign-in.md).
-use jig_client_protocol_wire::Record as _;
 use crate::{
     Event, Kept, Limits, Request, SecretOwner, SecretsAnswer, SecretsRequest, Settings,
     exchange::Exchange,
@@ -8,6 +7,7 @@ use crate::{
 };
 use alloc::boxed::Box;
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use jig_domain_core_vocabulary as core;
 use jig_domain_people as people;
 use skein_lib::{CryptoRng, Env, Map, Queue, ReplyTo, Time, Token};
@@ -814,8 +814,14 @@ impl Component {
             return;
         };
         let connection = self.connections.get_mut(&owner).expect("exchange owner");
-        let bytes = match answer { Ok(answer) => answer.encode(limits), Err(problem) => Err(problem) };
-        match bytes { Ok(bytes) => connection.respond(crate::Reply::Record(bytes)), Err(_) => connection.close() }
+        let bytes = match answer {
+            Ok(answer) => answer.encode(limits),
+            Err(problem) => Err(problem),
+        };
+        match bytes {
+            Ok(bytes) => connection.respond(crate::Reply::Record(bytes)),
+            Err(_) => connection.close(),
+        }
     }
     fn application(&mut self, env: &Env<Limits>, exchange: Token, family: u16, record: Box<[u8]>) {
         // The application's answer: its request used its carried value.

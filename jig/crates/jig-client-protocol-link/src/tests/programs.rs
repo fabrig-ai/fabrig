@@ -1,13 +1,17 @@
 //! Program inventories cross bytes intact and share the document's native byte budget.
-use jig_client_protocol_wire::Record as _;
 use super::{Limits, c, fixtures, w};
 use crate::translate::programs as decode;
+use jig_client_protocol_wire::Record as _;
 use skein_lib::{List, Writer};
 fn login(name: &[u8], state: Option<w::ProgramState>) -> w::ProgramLogin {
     w::ProgramLogin { name: name.into(), state, sign_out: None, cleanup: false, cut: false }
 }
 fn piece(row: &w::ProgramLogin) -> Box<[u8]> {
-    let mut out = Writer::new(skein_lib::length::usize_of(row.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).checked_add(4).expect("piece prefix"));
+    let mut out = Writer::new(
+        skein_lib::length::usize_of(row.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+            .checked_add(4)
+            .expect("piece prefix"),
+    );
     out.put(&row.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture").to_be_bytes()).expect("prefix");
     row.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("measured login");
     out.finish()
@@ -15,8 +19,7 @@ fn piece(row: &w::ProgramLogin) -> Box<[u8]> {
 #[test]
 fn program_inventory_preserves_every_login_state() {
     let failed = w::ProgramFailed { reason: w::ProgramFailure::Deadline, detail: b"bounded".as_slice().into() };
-    let method =
-        w::ProgramOtherwise { method: b"api-key".as_slice().into() };
+    let method = w::ProgramOtherwise { method: b"api-key".as_slice().into() };
     for (wire, native) in [
         (None, None),
         (Some(w::ProgramState::Usable), Some(c::ProgramState::Usable)),
@@ -44,8 +47,7 @@ fn malformed_program_names_are_refused() {
 }
 #[test]
 fn malformed_payment_methods_are_refused() {
-    let method =
-        w::ProgramOtherwise { method: b"bad method".as_slice().into() };
+    let method = w::ProgramOtherwise { method: b"bad method".as_slice().into() };
     let mut room = 4096;
     let result = decode::logins(
         &piece(&login(b"personal", Some(w::ProgramState::SignedInOtherwise(method)))),
@@ -82,15 +84,21 @@ fn program_lists_over_the_native_budget_are_refused() {
 #[test]
 fn configured_host_names_stay_whole_below_the_text_limit() {
     let row = w::ProgramHost {
-            name: b"configured-worker".as_slice().into(),
-            channel: 17,
-            connected: true,
-            awaiting_logins: true,
-            programs: Box::new([]),
-            cut: false,
-        };
-    let mut bytes = Writer::new(skein_lib::length::usize_of(row.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).checked_add(4).expect("prefix"));
-    bytes.put(&row.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture").to_be_bytes()).expect("prefix");
+        name: b"configured-worker".as_slice().into(),
+        channel: 17,
+        connected: true,
+        awaiting_logins: true,
+        programs: Box::new([]),
+        cut: false,
+    };
+    let mut bytes = Writer::new(
+        skein_lib::length::usize_of(row.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+            .checked_add(4)
+            .expect("prefix"),
+    );
+    bytes
+        .put(&row.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture").to_be_bytes())
+        .expect("prefix");
     row.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("row");
     let base = fixtures::limits();
     let limits = Limits::new(
@@ -113,24 +121,30 @@ fn a_host_rule_survives_wire_receipt() {
         (w::HostRule::Unknown, c::HostRule::Unknown),
     ] {
         let row = w::Host {
-                name: None,
-                awaiting_logins: false,
-                draining: false,
-                connected: true,
-                cut: false,
-                rule,
-                programs: Box::new([]),
-                channel: 17,
-                kind: w::HostKind::Worker,
-                slots: 1,
-                used: 0,
-                free: 1,
-                grace_until: None,
-                grace_remaining: None,
-                runs: Box::new([]),
-            };
-        let mut bytes = Writer::new(skein_lib::length::usize_of(row.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).checked_add(4).expect("prefix"));
-        bytes.put(&row.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture").to_be_bytes()).expect("prefix");
+            name: None,
+            awaiting_logins: false,
+            draining: false,
+            connected: true,
+            cut: false,
+            rule,
+            programs: Box::new([]),
+            channel: 17,
+            kind: w::HostKind::Worker,
+            slots: 1,
+            used: 0,
+            free: 1,
+            grace_until: None,
+            grace_remaining: None,
+            runs: Box::new([]),
+        };
+        let mut bytes = Writer::new(
+            skein_lib::length::usize_of(row.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+                .checked_add(4)
+                .expect("prefix"),
+        );
+        bytes
+            .put(&row.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture").to_be_bytes())
+            .expect("prefix");
         row.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("row");
         let mut room = 4096;
         let limits = fixtures::limits();

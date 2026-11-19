@@ -257,8 +257,7 @@ fn root(input: &Input) -> Domain {
         writing.from = 0;
         writing.through = u32::try_from(bytes.len()).unwrap();
         writing.text = bytes.into();
-        run.writing =
-            Some(writing);
+        run.writing = Some(writing);
     }
     if input.current {
         let mut call = jig_client_test_records::current_call_record();
@@ -266,11 +265,7 @@ fn root(input: &Input) -> Domain {
         call.input = b"{\"address\":\"change 3\"}".as_slice().into();
         run.call = Some(call);
     }
-    let run = jig_client_protocol_link::translate::live::run_state(
-        run,
-        &link(),
-    )
-    .unwrap();
+    let run = jig_client_protocol_link::translate::live::run_state(run, &link()).unwrap();
     let mut activity_answered = false;
     while let Some(request) = out.pop() {
         let up = match request {

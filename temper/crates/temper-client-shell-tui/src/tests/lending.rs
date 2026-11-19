@@ -22,13 +22,14 @@ fn front_host() -> (Host, u64) {
 }
 
 pub(crate) fn terminal_document(login: Option<(u32, bool)>) -> w::DeliveryValue {
-    w::DeliveryValue::Terminal(
-        w::Terminal {
-                login: login.map(|(number, cancelled)| {
-                    w::TerminalLogin { number, provider: 17, name: b"work".as_slice().into(), cancelled }
-                }),
-            },
-    )
+    w::DeliveryValue::Terminal(w::Terminal {
+        login: login.map(|(number, cancelled)| w::TerminalLogin {
+            number,
+            provider: 17,
+            name: b"work".as_slice().into(),
+            cancelled,
+        }),
+    })
 }
 
 fn lend(duties: &Duties, number: u32) {
@@ -114,12 +115,8 @@ fn a_lent_report_sends_the_end_and_shows_its_own_notice_then_takes_a_new_number(
         let w::AccountChange::LoginEnded(ended) = &ask.change else { panic!("LoginEnded") };
         assert_eq!(ended.number, 1);
         let expected = match exit {
-            LoginExit::Exited { code } => {
-                w::LoginExit::Exited(w::LoginExitExited { code })
-            }
-            LoginExit::Killed { signal } => {
-                w::LoginExit::Killed(w::LoginExitKilled { signal })
-            }
+            LoginExit::Exited { code } => w::LoginExit::Exited(w::LoginExitExited { code }),
+            LoginExit::Killed { signal } => w::LoginExit::Killed(w::LoginExitKilled { signal }),
             LoginExit::NotStarted => w::LoginExit::NotStarted,
         };
         assert_eq!((&ended.exit), &expected);

@@ -66,26 +66,16 @@ impl Frame {
             .reply
             .extend(b"HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nConnection: close\r\n\r\n");
         let mut served = skein_lib::List::with_capacity(2);
-        served
-            .push(
-                w::Served { owner: w::Owner::Jig, first: w::VERSION, last: w::VERSION },
-            )
-            .expect("one family");
+        served.push(w::Served { owner: w::Owner::Jig, first: w::VERSION, last: w::VERSION }).expect("one family");
         let owner = crate::limits::native().root.domain.client.domain.owners[0];
         served
-            .push(
-                w::Served {
-                        owner: w::Owner::Family(
-                            w::Family { number: owner.family },
-                        ),
-                        first: owner.version,
-                        last: owner.version,
-                    },
-            )
+            .push(w::Served {
+                owner: w::Owner::Family(w::Family { number: owner.family }),
+                first: owner.version,
+                last: owner.version,
+            })
             .expect("second family");
-        self.opening = Some(
-            w::Hello { stream: [1; 16], served, heartbeat: Duration::from_secs(60) },
-        );
+        self.opening = Some(w::Hello { stream: [1; 16], served, heartbeat: Duration::from_secs(60) });
         if self.deliver.is_some() {
             self.deliver_me();
         }
@@ -110,8 +100,7 @@ impl Frame {
         parts.project = 3;
         let mut acts = Vec::new();
         for act in [w::ActKind::Stop, w::ActKind::Cancel] {
-            let offered =
-                w::Offered { act, admission: w::Admission::Allowed, effect: None };
+            let offered = w::Offered { act, admission: w::Admission::Allowed, effect: None };
             let encoded = encode!(offered);
             acts.extend_from_slice(&u32::try_from(encoded.len()).expect("offer size").to_be_bytes());
             acts.extend_from_slice(&encoded);

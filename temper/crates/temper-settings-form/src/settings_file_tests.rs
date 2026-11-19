@@ -86,9 +86,10 @@ fn zero_wake_counts_and_durations_are_sent_for_deployment_validation() {
     let wire = crate::wire::settings_wire_charter(&value, &Limits::standard().settings).unwrap();
     assert_eq!(
         (&wire.wake.words),
-        &jig_client_protocol_wire::WakeRule::Batch(
-            jig_client_protocol_wire::WakeRuleBatch { count: 0, age: Duration::ZERO }
-        )
+        &jig_client_protocol_wire::WakeRule::Batch(jig_client_protocol_wire::WakeRuleBatch {
+            count: 0,
+            age: Duration::ZERO
+        })
     );
     assert_eq!(value.wake.news, c::WakeRule::Paced { span: Duration::ZERO });
 }
@@ -481,9 +482,7 @@ fn revision_replaced_states_reach_the_host_settings_form_from_the_wire() {
             c::RevisionReplaced::TooLarge(c::Size { bytes: 1_000_000 }),
         ),
         (
-            w::RevisionReplaced::Application(
-                w::ApplicationSize { size: 12 },
-            ),
+            w::RevisionReplaced::Application(w::ApplicationSize { size: 12 }),
             c::RevisionReplaced::Application { size: 12 },
         ),
         (w::RevisionReplaced::Default, c::RevisionReplaced::Default),

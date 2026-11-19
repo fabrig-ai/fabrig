@@ -1,9 +1,9 @@
 //! Durability and exchange order in a world with a scripted parent and slow store.
 //! See skein/docs/foundation/programming-model.md, 7.2.
-use jig_client_protocol_wire::Record as _;
 use jig_client_domain::{Ask, Asker, Held, Key, Readable, contract};
 use jig_client_protocol_link::{Event, Link, Message, Record, Request, Saved};
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use jig_client_protocol_world::fixtures::{self, PROJECT};
 use skein_lib::{Duration, Queue, Reader, RequestKey, RequestRecord, Time, Token, Writer};
 use std::collections::BTreeMap;
@@ -133,7 +133,9 @@ impl World {
 
     fn answer(&mut self, exchange: Token) {
         let answer = w::KeyedAnswer::Busy;
-        let mut bytes = Writer::new(skein_lib::length::usize_of(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+        let mut bytes = Writer::new(skein_lib::length::usize_of(
+            answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+        ));
         answer.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("measured busy answer");
         self.event(Event::Reply { exchange, message: bytes.finish() });
     }

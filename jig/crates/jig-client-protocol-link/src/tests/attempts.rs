@@ -193,7 +193,8 @@ fn a_seen_over_a_conversation_names_its_task() {
         panic!("request bytes")
     };
     let keyed = w::Keyed::decode(fixtures::limits().wire(), &mut Reader::new(&bytes)).expect("keyed request");
-    let request = w::Ask::decode(fixtures::limits().wire(), &mut Reader::new(keyed.request.as_ref())).expect("jig request");
+    let request =
+        w::Ask::decode(fixtures::limits().wire(), &mut Reader::new(keyed.request.as_ref())).expect("jig request");
     let w::Ask::Seen(seen) = request else { panic!("seen") };
     let w::SeenThrough::Conversation(conversation) = &seen.through else { panic!("conversation") };
     assert_eq!((conversation.task, conversation.through), (u64::MAX, u64::MAX));

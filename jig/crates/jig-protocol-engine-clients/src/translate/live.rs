@@ -1,49 +1,45 @@
 //! Whole live document facts (protocol/client/wire.md, 1, and protocol/client/README.md, 5).
-use jig_client_protocol_wire::Record as _;
 use super::{chips, pieces, task, w};
 use alloc::boxed::Box;
+use jig_client_protocol_wire::Record as _;
 use jig_domain_core_vocabulary::documents as d;
 use jig_domain_views as views;
 use skein_lib::{List, Writer, bytes};
 pub fn current_call(value: &views::Call, _limits: &w::Limits) -> Result<w::CurrentCall, w::Problem> {
     Ok(w::CurrentCall {
-            identity: w::CallIdentity {
-                    owner: value.identity.owner.raw(),
-                    sequence: value.identity.sequence,
-                    retry: value.identity.retry,
-                    id: bytes::copy_of(&value.identity.id),
-                },
-            tool: bytes::copy_of(&value.tool),
-            input: bytes::copy_of(&value.input),
-            cut: value.cut,
-            began: match value.began {
-                Some(item) => Some(item.as_nanos()),
-                None => None,
-            },
-        })
+        identity: w::CallIdentity {
+            owner: value.identity.owner.raw(),
+            sequence: value.identity.sequence,
+            retry: value.identity.retry,
+            id: bytes::copy_of(&value.identity.id),
+        },
+        tool: bytes::copy_of(&value.tool),
+        input: bytes::copy_of(&value.input),
+        cut: value.cut,
+        began: match value.began {
+            Some(item) => Some(item.as_nanos()),
+            None => None,
+        },
+    })
 }
 pub fn writing(value: &views::Writing, limits: &w::Limits) -> Result<w::RunText, w::Problem> {
     Ok(w::RunText {
-            writing: match &value.writing {
-                Some(call) => writing_call(call, limits)?,
-                None => None,
-            },
-            attempt: value.turn.attempt,
-            began: None,
-            turn: w::ProvisionalTurnName {
-                    attempt: value.turn.attempt,
-                    number: value.turn.turn,
-                    retry: value.turn.retry,
-                },
-            from: value.from,
-            through: value.to,
-            text: bytes::copy_of(&value.text),
-            cut: value.cut,
-            call: match &value.call {
-                Some(call) => Some(w::LiveCall::Raw(w::LiveCallRaw { value: current_call(call, limits)? })),
-                None => None,
-            },
-        })
+        writing: match &value.writing {
+            Some(call) => writing_call(call, limits)?,
+            None => None,
+        },
+        attempt: value.turn.attempt,
+        began: None,
+        turn: w::ProvisionalTurnName { attempt: value.turn.attempt, number: value.turn.turn, retry: value.turn.retry },
+        from: value.from,
+        through: value.to,
+        text: bytes::copy_of(&value.text),
+        cut: value.cut,
+        call: match &value.call {
+            Some(call) => Some(w::LiveCall::Raw(w::LiveCallRaw { value: current_call(call, limits)? })),
+            None => None,
+        },
+    })
 }
 #[expect(
     clippy::disallowed_methods,
@@ -74,29 +70,29 @@ pub fn writing_call(value: &views::WritingCall, _limits: &w::Limits) -> Result<O
         return Ok(None);
     };
     Ok(Some(w::WritingCall {
-            id: bytes::copy_of(&value.id),
-            tool: bytes::copy_of(&value.tool),
-            from,
-            through,
-            input: bytes::copy_of(input.get(..length).expect("complete character prefix")),
-            cut: value.cut,
-        }))
+        id: bytes::copy_of(&value.id),
+        tool: bytes::copy_of(&value.tool),
+        from,
+        through,
+        input: bytes::copy_of(input.get(..length).expect("complete character prefix")),
+        cut: value.cut,
+    }))
 }
 
 pub fn run(value: &d::Run, limits: &w::Limits) -> Result<w::RunState, w::Problem> {
     Ok(w::RunState {
-            task: value.task,
-            attempt: value.attempt,
-            committed_turn: value.committed_turn,
-            writing: match &value.writing {
-                Some(item) => Some(writing(item, limits)?),
-                None => None,
-            },
-            call: match &value.call {
-                Some(item) => Some(current_call(item, limits)?),
-                None => None,
-            },
-        })
+        task: value.task,
+        attempt: value.attempt,
+        committed_turn: value.committed_turn,
+        writing: match &value.writing {
+            Some(item) => Some(writing(item, limits)?),
+            None => None,
+        },
+        call: match &value.call {
+            Some(item) => Some(current_call(item, limits)?),
+            None => None,
+        },
+    })
 }
 pub fn count(value: d::Count, _limits: &w::Limits) -> Result<w::Count, w::Problem> {
     let (number, limited) = match value {
@@ -107,17 +103,17 @@ pub fn count(value: d::Count, _limits: &w::Limits) -> Result<w::Count, w::Proble
 }
 pub fn phases(value: d::PhaseCounts, _limits: &w::Limits) -> Result<w::PhaseCounts, w::Problem> {
     Ok(w::PhaseCounts {
-            waiting: value.waiting,
-            idle: value.idle,
-            starting: value.starting,
-            running: value.running,
-            backing_off: value.backing_off,
-            closing: value.closing,
-            held: value.held,
-            done: value.done,
-            failed: value.failed,
-            cancelled: value.cancelled,
-        })
+        waiting: value.waiting,
+        idle: value.idle,
+        starting: value.starting,
+        running: value.running,
+        backing_off: value.backing_off,
+        closing: value.closing,
+        held: value.held,
+        done: value.done,
+        failed: value.failed,
+        cancelled: value.cancelled,
+    })
 }
 
 pub fn tree_row(value: &d::TreeRow, limits: &w::Limits) -> Result<w::TreeRow, w::Problem> {
@@ -129,16 +125,17 @@ pub fn tree_row(value: &d::TreeRow, limits: &w::Limits) -> Result<w::TreeRow, w:
     for row in &value.dependencies {
         dependencies.push(task::link(row, limits)?).expect("supplied dependencies fit");
     }
-    let dependencies = task::links_pieces(&dependencies, limits.tree_row_dependencies, w::paths::TREE_ROW_DEPENDENCIES, limits)?;
+    let dependencies =
+        task::links_pieces(&dependencies, limits.tree_row_dependencies, w::paths::TREE_ROW_DEPENDENCIES, limits)?;
     Ok(w::TreeRow {
-            chip: chips::chip(&value.chip, limits)?,
-            parent: value.parent,
-            depth: value.depth,
-            proposals,
-            spent: value.spent,
-            dependencies,
-            cut: value.cut,
-        })
+        chip: chips::chip(&value.chip, limits)?,
+        parent: value.parent,
+        depth: value.depth,
+        proposals,
+        spent: value.spent,
+        dependencies,
+        cut: value.cut,
+    })
 }
 pub fn tree(value: &d::Tree, next: Option<w::Cursor>, limits: &w::Limits) -> Result<w::Tree, w::Problem> {
     let mut rows = List::with_capacity(value.rows.len());
@@ -149,17 +146,18 @@ pub fn tree(value: &d::Tree, next: Option<w::Cursor>, limits: &w::Limits) -> Res
     let mut folded = List::with_capacity(value.folded.len());
     for row in &value.folded {
         folded
-            .push(w::TreeFold {
-                    parent: row.parent,
-                    phases: phases(row.phases, limits)?,
-                    held_below: row.held_below,
-                })
+            .push(w::TreeFold { parent: row.parent, phases: phases(row.phases, limits)?, held_below: row.held_below })
             .expect("supplied folds fit");
     }
     Ok(w::Tree { root: chips::chip(&value.root, limits)?, rows, folded, held_below: value.held_below, next })
 }
 
-fn tree_pieces(rows: &List<w::TreeRow>, bound: u32, path: w::Path, limits: &w::Limits) -> Result<Box<[u8]>, w::Problem> {
+fn tree_pieces(
+    rows: &List<w::TreeRow>,
+    bound: u32,
+    path: w::Path,
+    limits: &w::Limits,
+) -> Result<Box<[u8]>, w::Problem> {
     let mut encoded = List::with_capacity(rows.len());
     for row in rows {
         let mut out = Writer::new(skein_lib::length::usize_of(row.measure(limits)?));

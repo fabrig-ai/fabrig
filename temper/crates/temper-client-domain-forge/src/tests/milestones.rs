@@ -1,11 +1,11 @@
 //! Shared milestone facts and the forge's totals read.
-use jig_client_protocol_wire::Record as _;
 use super::fixtures::{self as f, chat};
 use crate::{
     forge::milestones as totals,
     milestones::{self, Facts},
 };
 use jig_client::{Readable, Readout, contract as c};
+use jig_client_protocol_wire::Record as _;
 use skein_lib::Wall;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
@@ -152,7 +152,9 @@ fn milestone_parts_translate_goal_lines_and_count_undecodable_lines_as_more() {
         jig_client_protocol_link::Limits::new(f::limits().client.domain, f::limits().client.exchanges).unwrap();
     let mut line = row();
     let goal = jig_client_test_records::task_line_record();
-    let mut writer = Writer::new(usize::try_from(goal.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    let mut writer = Writer::new(
+        usize::try_from(goal.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
     goal.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
     let bytes = writer.finish();
     let trailing = skein_lib::bytes::concat(&[&bytes, &[0]]);

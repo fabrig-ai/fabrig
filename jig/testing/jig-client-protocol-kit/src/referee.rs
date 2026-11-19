@@ -1,6 +1,6 @@
 //! Independent observations of records, authentication and stream isolation (client/domain/client/README.md, 11).
-use jig_client_protocol_wire::Record as _;
 use jig_client_protocol_wire as wire;
+use jig_client_protocol_wire::Record as _;
 use skein_lib::Reader;
 use std::fmt::Write;
 

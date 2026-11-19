@@ -1,5 +1,4 @@
 //! Concurrent public admission beside signed-in work (temper/docs/design/protocol/sign-in.md, 2.5).
-use jig_client_protocol_wire::Record as _;
 use super::{
     checks::PROXY, http::Answer, observation::Observer, proxy::Proxy, requests, service, service_checks,
     visitor::Visitor,
@@ -7,6 +6,7 @@ use super::{
 use crate::fixtures;
 use jig_client::contract as c;
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use skein_http::Method;
 use skein_lib::{Reader, Time};
 

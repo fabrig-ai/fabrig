@@ -1,7 +1,7 @@
-use jig_client_protocol_wire::Record as _;
 use super::*;
 use crate::pages::{self, Act, Pages, inbox::Card};
 use jig_client::contract::*;
+use jig_client_protocol_wire::Record as _;
 const TEXT_BYTES: u32 = 32;
 const ONE_OFFER: u32 = 1;
 const EMPTY_LIST: u32 = 0;
@@ -203,17 +203,20 @@ pub fn live_client() -> jig_client::Client {
     );
     client.settle(Time::ZERO, Wall::EPOCH, &mut out);
     let served = w::Served {
-            owner: w::Owner::Jig,
-            first: jig_client_protocol_wire::VERSION,
-            last: jig_client_protocol_wire::VERSION,
-        };
+        owner: w::Owner::Jig,
+        first: jig_client_protocol_wire::VERSION,
+        last: jig_client_protocol_wire::VERSION,
+    };
     let mut rows = List::with_capacity(ONE_OFFER);
     rows.push(served).expect("one version");
     let hello = jig_client_test_records::opened(
         w::Hello { stream: STREAM, served: rows, heartbeat: HEARTBEAT },
         jig_client_test_records::frame_record(),
     );
-    let mut bytes = Writer::new(usize::try_from(hello.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("hello fits"));
+    let mut bytes = Writer::new(
+        usize::try_from(hello.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+            .expect("hello fits"),
+    );
     hello.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("encoded hello");
     client.step(
         Time::ZERO,
@@ -224,34 +227,33 @@ pub fn live_client() -> jig_client::Client {
     let empty = w::DocumentText { bytes: Box::from([]), cut: false };
     let party = w::MeParty { number: PARTY, kind: w::PartyKind::Person, login: empty.clone(), name: empty };
     let me = w::Me {
-            providers: Box::new([]),
-            providers_cut: false,
-            key_bytes: 256,
-            redirect_bytes: 256,
-            words_bytes: 8192,
-            party,
-            projects: Box::from([]),
-            needs: w::Needs {
-                    questions: NO_NEEDS,
-                    proposals: NO_NEEDS,
-                    escalations: NO_NEEDS,
-                    person_tasks: NO_NEEDS,
-                },
-            needs_total: NO_NEEDS,
-            updates: w::Count { value: NO_UPDATES, limited: false },
-            results_seen: RESULTS_SEEN,
-            cut: false,
-            retention: RETENTION,
-            deployment_role: None,
-        };
+        providers: Box::new([]),
+        providers_cut: false,
+        key_bytes: 256,
+        redirect_bytes: 256,
+        words_bytes: 8192,
+        party,
+        projects: Box::from([]),
+        needs: w::Needs { questions: NO_NEEDS, proposals: NO_NEEDS, escalations: NO_NEEDS, person_tasks: NO_NEEDS },
+        needs_total: NO_NEEDS,
+        updates: w::Count { value: NO_UPDATES, limited: false },
+        results_seen: RESULTS_SEEN,
+        cut: false,
+        retention: RETENTION,
+        deployment_role: None,
+    };
     let value = w::DeliveryValue::Me(me);
-    let mut bytes = Writer::new(usize::try_from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("me fits"));
-    value.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("encoded me");
-    let document = w::Owned { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: bytes.finish() };
-    let delivery = w::StreamEvent::Delivery(
-        w::Delivery { watch: 0, document },
+    let mut bytes = Writer::new(
+        usize::try_from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("me fits"),
     );
-    let mut bytes = Writer::new(usize::try_from(delivery.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("delivery fits"));
+    value.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("encoded me");
+    let document =
+        w::Owned { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: bytes.finish() };
+    let delivery = w::StreamEvent::Delivery(w::Delivery { watch: 0, document });
+    let mut bytes = Writer::new(
+        usize::try_from(delivery.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+            .expect("delivery fits"),
+    );
     delivery.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("encoded delivery");
     client.step(
         Time::ZERO,

@@ -16,8 +16,8 @@ pub(in crate::codec) fn wire_delivery_value(
         c::Delivery::Proposal(value) => w::DeliveryValue::Proposal(wire_proposal(value, limits)?),
         c::Delivery::Tree(value) => w::DeliveryValue::Tree(wire_tree(value, limits)?),
         c::Delivery::Chips(value) => w::DeliveryValue::Chips(w::Chips {
-                rows: pieces((value).iter().map(|item| facts::chip(item, limits)), limits)?,
-            }),
+            rows: pieces((value).iter().map(|item| facts::chip(item, limits)), limits)?,
+        }),
         c::Delivery::Inbox(value) => w::DeliveryValue::Inbox(wire_inbox(value, limits)?),
         c::Delivery::Tasks(value) => w::DeliveryValue::Tasks(wire_tasks(value, limits)?),
         c::Delivery::Run(_) => return Err(problem()),
@@ -30,26 +30,26 @@ pub(in crate::codec) fn wire_delivery_value(
 
 pub(in crate::codec) fn wire_run_state(value: &c::RunState, limits: &w::Limits) -> Result<w::RunState, w::Problem> {
     Ok(w::RunState {
-            task: value.task,
-            attempt: value.attempt.as_ref().map(|item| Ok::<_, w::Problem>(*(item))).transpose()?,
-            committed_turn: value.committed_turn,
-            writing: value.writing.as_ref().map(|item| wire_run_text(item, limits)).transpose()?,
-            call: value.call.as_ref().map(|item| wire_current_call(item, limits)).transpose()?,
-        })
+        task: value.task,
+        attempt: value.attempt.as_ref().map(|item| Ok::<_, w::Problem>(*(item))).transpose()?,
+        committed_turn: value.committed_turn,
+        writing: value.writing.as_ref().map(|item| wire_run_text(item, limits)).transpose()?,
+        call: value.call.as_ref().map(|item| wire_current_call(item, limits)).transpose()?,
+    })
 }
 
 pub(in crate::codec) fn wire_run_text(value: &c::RunText, limits: &w::Limits) -> Result<w::RunText, w::Problem> {
     Ok(w::RunText {
-            attempt: value.attempt,
-            began: value.began.as_ref().map(|item| Ok::<_, w::Problem>((item).as_nanos())).transpose()?,
-            turn: wire_provisional_turn_name(&value.turn, limits)?,
-            from: value.from,
-            through: value.through,
-            text: bytes::copy_of(value.text.bytes()),
-            cut: value.cut,
-            call: value.call.as_ref().map(|item| wire_live_call(item, limits)).transpose()?,
-            writing: value.writing.as_ref().map(|item| wire_writing_call(item, limits)).transpose()?,
-        })
+        attempt: value.attempt,
+        began: value.began.as_ref().map(|item| Ok::<_, w::Problem>((item).as_nanos())).transpose()?,
+        turn: wire_provisional_turn_name(&value.turn, limits)?,
+        from: value.from,
+        through: value.through,
+        text: bytes::copy_of(value.text.bytes()),
+        cut: value.cut,
+        call: value.call.as_ref().map(|item| wire_live_call(item, limits)).transpose()?,
+        writing: value.writing.as_ref().map(|item| wire_writing_call(item, limits)).transpose()?,
+    })
 }
 
 pub(in crate::codec) fn wire_provisional_turn_name(
@@ -64,11 +64,11 @@ pub(in crate::codec) fn wire_writing_call(
     _limits: &w::Limits,
 ) -> Result<w::WritingCall, w::Problem> {
     Ok(w::WritingCall {
-            id: bytes::copy_of(value.id.bytes()),
-            tool: bytes::copy_of(value.tool.bytes()),
-            from: value.from,
-            through: value.through,
-            input: bytes::copy_of(value.input.bytes()),
-            cut: value.cut,
-        })
+        id: bytes::copy_of(value.id.bytes()),
+        tool: bytes::copy_of(value.tool.bytes()),
+        from: value.from,
+        through: value.through,
+        input: bytes::copy_of(value.input.bytes()),
+        cut: value.cut,
+    })
 }

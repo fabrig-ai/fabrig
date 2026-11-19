@@ -25,12 +25,9 @@ fn core(value: c::SettingValue) -> s::ProviderSetting {
         running: c::Running::Stays,
     };
     let change = wire::wire_change_settings(&change, &Limits::standard().settings).unwrap();
-    let items = jig_protocol_engine_clients::translate::settings::items(
-        change.items,
-        &[],
-        &Limits::standard().settings,
-    )
-    .unwrap();
+    let items =
+        jig_protocol_engine_clients::translate::settings::items(change.items, &[], &Limits::standard().settings)
+            .unwrap();
     let s::Edit::Set(s::Value::Provider(value)) = &items.first().unwrap().edit else { panic!("provider") };
     *value.clone()
 }

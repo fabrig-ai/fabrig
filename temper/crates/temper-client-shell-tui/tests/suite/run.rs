@@ -801,7 +801,10 @@ impl Engine {
         } else if bytes.starts_with(b"POST /jig/v1/sign-in/link ") {
             self.link_sign_ins += 1;
             if let Some(answer) = self.link_answer.take() {
-                let mut writer = skein_lib::Writer::new(usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("answer size"));
+                let mut writer = skein_lib::Writer::new(
+                    usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+                        .expect("answer size"),
+                );
                 answer.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("answer");
                 self.respond(owner, http_response(&writer.finish()));
             } else {
@@ -827,7 +830,10 @@ impl Engine {
         self.opened(&open);
         self.respond(owner, {
             let answer = w::OpenAnswer::Admitted;
-            let mut writer = skein_lib::Writer::new(usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("short admitted"));
+            let mut writer = skein_lib::Writer::new(
+                usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+                    .expect("short admitted"),
+            );
             answer.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("admitted");
             http_response(&writer.finish())
         });
@@ -854,29 +860,41 @@ impl Engine {
                 w::Member::Open(open) => {
                     self.opened(&open);
                     let answer = w::OpenAnswer::Admitted;
-                    let mut writer = skein_lib::Writer::new(usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("answer size"));
+                    let mut writer = skein_lib::Writer::new(
+                        usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+                            .expect("answer size"),
+                    );
                     answer.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("answer");
                     writer.finish()
                 }
                 w::Member::Close(_) => {
                     let answer = w::CloseAnswer::Closed;
-                    let mut writer = skein_lib::Writer::new(usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("answer size"));
+                    let mut writer = skein_lib::Writer::new(
+                        usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+                            .expect("answer size"),
+                    );
                     answer.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("answer");
                     writer.finish()
                 }
                 w::Member::Read(_) => {
-                    let answer = w::ReadAnswer::None(
-                        w::ReadAnswerNone { value: w::ReadNone::Unknown },
+                    let answer = w::ReadAnswer::None(w::ReadAnswerNone { value: w::ReadNone::Unknown });
+                    let mut writer = skein_lib::Writer::new(
+                        usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+                            .expect("answer size"),
                     );
-                    let mut writer = skein_lib::Writer::new(usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("answer size"));
                     answer.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("answer");
                     writer.finish()
                 }
             };
             let part = w::BatchReply { member: u16::try_from(place).expect("member"), reply: Some(reply) };
-            let mut writer = skein_lib::Writer::new(usize::try_from(part.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("part size"));
+            let mut writer = skein_lib::Writer::new(
+                usize::try_from(part.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+                    .expect("part size"),
+            );
             part.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("part bytes");
-            frames.extend_from_slice(&part.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture").to_be_bytes());
+            frames.extend_from_slice(
+                &part.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture").to_be_bytes(),
+            );
             frames.extend_from_slice(&writer.finish());
         }
         self.respond(owner, http_response(&frames));
@@ -909,14 +927,15 @@ impl Engine {
 }
 fn approval_response() -> Box<[u8]> {
     use jig_client_protocol_wire as w;
-    let answer = w::ApprovalAskAnswer::Asked(
-        w::ApprovalAsked {
-                secret: skein_lib::Secret::new(Box::new([7; 32])),
-                code: *b"WDJBMJHT",
-                expires: 600_000_000_000,
-            },
+    let answer = w::ApprovalAskAnswer::Asked(w::ApprovalAsked {
+        secret: skein_lib::Secret::new(Box::new([7; 32])),
+        code: *b"WDJBMJHT",
+        expires: 600_000_000_000,
+    });
+    let mut writer = skein_lib::Writer::new(
+        usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+            .expect("short answer"),
     );
-    let mut writer = skein_lib::Writer::new(usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("short answer"));
     answer.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("answer");
     let body = writer.finish();
     http_response(&body)
@@ -1646,14 +1665,15 @@ fn sign_in_expiry_writes_a_private_note_only_with_a_root() {
 
 fn sign_in_response() -> Box<[u8]> {
     use jig_client_protocol_wire as w;
-    let answer = w::SignInAnswer::SignedIn(
-        w::SignedIn {
-                token: Some(skein_lib::Secret::new(Box::new([7; 40]))),
-                party: 17,
-                expires: 600_000_000_000,
-            },
+    let answer = w::SignInAnswer::SignedIn(w::SignedIn {
+        token: Some(skein_lib::Secret::new(Box::new([7; 40]))),
+        party: 17,
+        expires: 600_000_000_000,
+    });
+    let mut writer = skein_lib::Writer::new(
+        usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+            .expect("short answer"),
     );
-    let mut writer = skein_lib::Writer::new(usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("short answer"));
     answer.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("answer");
     let body = writer.finish();
     http_response(&body)
@@ -1665,20 +1685,16 @@ fn hello_event() -> Box<[u8]> {
     let owners = limits::tui().native.client.client.domain.owners;
     let mut served = List::with_capacity(u32::try_from(owners.len() + 1).expect("owner count"));
     served
-        .push(
-            w::Served {
-                    owner: w::Owner::Jig,
-                    first: jig_client_protocol_wire::VERSION,
-                    last: jig_client_protocol_wire::VERSION,
-                },
-        )
+        .push(w::Served {
+            owner: w::Owner::Jig,
+            first: jig_client_protocol_wire::VERSION,
+            last: jig_client_protocol_wire::VERSION,
+        })
         .expect("Jig owner");
     for owner in owners {
         let family = w::Family { number: owner.family };
         served
-            .push(
-                w::Served { owner: w::Owner::Family(family), first: owner.version, last: owner.version },
-            )
+            .push(w::Served { owner: w::Owner::Family(family), first: owner.version, last: owner.version })
             .expect("family owner");
     }
     let hello = jig_client_test_records::opened(
@@ -1689,36 +1705,37 @@ fn hello_event() -> Box<[u8]> {
 }
 fn me_event(watch: u64) -> Box<[u8]> {
     use jig_client_protocol_wire as w;
-    let text = |bytes: &[u8]| {
-        w::DocumentText { bytes: bytes.into(), cut: false }
-    };
+    let text = |bytes: &[u8]| w::DocumentText { bytes: bytes.into(), cut: false };
     let me = w::Me {
-            party: w::MeParty { number: 7, kind: w::PartyKind::Person, login: text(b"owner"), name: text(b"Owner") },
-            projects: Box::new([]),
-            needs: w::Needs { questions: 0, proposals: 0, escalations: 0, person_tasks: 0 },
-            needs_total: 0,
-            updates: w::Count { value: 0, limited: false },
-            results_seen: 0,
-            cut: false,
-            retention: Duration::from_secs(1000),
-            deployment_role: None,
-            providers: Box::new([]),
-            providers_cut: false,
-            key_bytes: 256,
-            redirect_bytes: 256,
-            words_bytes: 8192,
-        };
+        party: w::MeParty { number: 7, kind: w::PartyKind::Person, login: text(b"owner"), name: text(b"Owner") },
+        projects: Box::new([]),
+        needs: w::Needs { questions: 0, proposals: 0, escalations: 0, person_tasks: 0 },
+        needs_total: 0,
+        updates: w::Count { value: 0, limited: false },
+        results_seen: 0,
+        cut: false,
+        retention: Duration::from_secs(1000),
+        deployment_role: None,
+        providers: Box::new([]),
+        providers_cut: false,
+        key_bytes: 256,
+        redirect_bytes: 256,
+        words_bytes: 8192,
+    };
     delivery_event(watch, &w::DeliveryValue::Me(me))
 }
 
 fn delivery_event(watch: u64, value: &jig_client_protocol_wire::DeliveryValue) -> Box<[u8]> {
     use jig_client_protocol_wire as w;
     use skein_lib::Writer;
-    let mut writer = Writer::new(usize::try_from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("document size"));
+    let mut writer = Writer::new(
+        usize::try_from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+            .expect("document size"),
+    );
     value.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("document fits");
-    let document = w::Owned { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: writer.finish() };
-    let delivery =
-        w::StreamEvent::Delivery(w::Delivery { watch, document });
+    let document =
+        w::Owned { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: writer.finish() };
+    let delivery = w::StreamEvent::Delivery(w::Delivery { watch, document });
     sse(&delivery)
 }
 
@@ -1727,7 +1744,10 @@ fn sse(event: &jig_client_protocol_wire::StreamEvent) -> Box<[u8]> {
         Writer,
         base64::{self, Alphabet},
     };
-    let mut writer = Writer::new(usize::try_from(event.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("event size"));
+    let mut writer = Writer::new(
+        usize::try_from(event.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+            .expect("event size"),
+    );
     event.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("event");
     let bytes = writer.finish();
     let mut writer = Writer::new(

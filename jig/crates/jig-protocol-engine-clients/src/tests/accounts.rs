@@ -320,9 +320,7 @@ fn accounts_documents_preserve_lending_facts() {
 }
 #[test]
 fn terminal_watches_are_served() {
-    let subject = w::Subject::Terminal(
-        w::SubjectTerminal { terminal: 23 },
-    );
+    let subject = w::Subject::Terminal(w::SubjectTerminal { terminal: 23 });
     let Some(jig_domain_core_vocabulary::Event::Watch { subject: d::Watched::Terminal { terminal: 23 }, .. }) =
         watches::watch(skein_lib::Token::new(17), 23, subject, 2)
     else {

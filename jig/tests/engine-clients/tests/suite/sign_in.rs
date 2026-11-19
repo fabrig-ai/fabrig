@@ -1,5 +1,5 @@
-use jig_client_protocol_wire::Record as _;
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use jig_engine_clients_world::fixtures::{self, Peer};
 use jig_protocol_engine_clients::{Component, Event, LINK_SECRET_BYTES, MintRefusal, Settings, Unusable};
 use skein_lib::{Duration, Env, Queue, Secret, Time, Wall};
@@ -545,9 +545,11 @@ fn busy_and_full_return_the_same_printed_link_and_it_can_sign_in() {
         let expected = match reply {
             jig_domain_people::Reply::Again(jig_domain_people::Again::NotReady) => w::SignInAnswer::NotReady,
             jig_domain_people::Reply::Again(jig_domain_people::Again::Busy) => w::SignInAnswer::Busy,
-            jig_domain_people::Reply::Full { sign_ins, earliest } => w::SignInAnswer::Full(
-                w::SignInsFull { sign_ins, earliest: earliest.as_nanos(), link_until: 299_000_000_000 },
-            ),
+            jig_domain_people::Reply::Full { sign_ins, earliest } => w::SignInAnswer::Full(w::SignInsFull {
+                sign_ins,
+                earliest: earliest.as_nanos(),
+                link_until: 299_000_000_000,
+            }),
             jig_domain_people::Reply::Again(jig_domain_people::Again::Full { .. })
             | jig_domain_people::Reply::SignedIn { .. }
             | jig_domain_people::Reply::Signer(_)
@@ -596,9 +598,10 @@ fn a_reserved_link_answers_its_secret_busy_and_another_unknown_without_drawing()
         let to = pending_reply(&mut peer);
         let crossed = peer.post_link(&link);
         assert_eq!(decoded(&peer, crossed), w::SignInAnswer::Busy);
-        let other =
-            w::LinkSignIn { secret: skein_lib::Secret::new(Box::new([0; 32])) };
-        let mut bytes = skein_lib::Writer::new(skein_lib::length::usize_of(other.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+        let other = w::LinkSignIn { secret: skein_lib::Secret::new(Box::new([0; 32])) };
+        let mut bytes = skein_lib::Writer::new(skein_lib::length::usize_of(
+            other.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+        ));
         other.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("measured link record");
         let wrong = peer.post(b"/jig/v1/sign-in/link", bytes.finish(), None);
         assert_eq!(decoded(&peer, wrong), w::SignInAnswer::LinkUnknown);

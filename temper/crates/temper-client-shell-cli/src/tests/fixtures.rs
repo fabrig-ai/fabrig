@@ -1,9 +1,9 @@
-use jig_client_protocol_wire::Record as _;
 use crate::{
     arguments,
     host::{Invocation, OneShot, Startup},
 };
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use skein_io::kernel::{Complete, Done, Error, Exit, Fd, Kind, Op, OpenHow, ServiceSignal, Signalled, Stat, Submit};
 use skein_lib::{Duration, Time, Wall};
 use skein_shell::Host;
@@ -11,7 +11,10 @@ use std::collections::{BTreeMap, VecDeque};
 macro_rules! encode {
     ($value:expr) => {{
         let value = &$value;
-        let mut writer = skein_lib::Writer::new(usize::try_from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("record size"));
+        let mut writer = skein_lib::Writer::new(
+            usize::try_from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+                .expect("record size"),
+        );
         value.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("record fits");
         writer.finish()
     }};
@@ -714,27 +717,26 @@ impl Frame {
                     self.busy_links -= 1;
                     w::SignInAnswer::Busy
                 } else if let Some((sign_ins, earliest, link_until)) = self.full_link {
-                    w::SignInAnswer::Full(
-                        w::SignInsFull {
-                                sign_ins,
-                                earliest: earliest.as_nanos(),
-                                link_until: link_until.as_nanos(),
-                            },
-                    )
+                    w::SignInAnswer::Full(w::SignInsFull {
+                        sign_ins,
+                        earliest: earliest.as_nanos(),
+                        link_until: link_until.as_nanos(),
+                    })
                 } else if let Some(answer) = self.link_refusal.take() {
                     answer
                 } else if self.refuse_link.is_some() {
                     w::SignInAnswer::Refused
                 } else {
-                    w::SignInAnswer::SignedIn(
-                        w::SignedIn {
-                                token: self.keep_link.is_none().then(|| skein_lib::Secret::new(TOKEN_BYTES.into())),
-                                party: 7,
-                                expires: u64::MAX,
-                            },
-                    )
+                    w::SignInAnswer::SignedIn(w::SignedIn {
+                        token: self.keep_link.is_none().then(|| skein_lib::Secret::new(TOKEN_BYTES.into())),
+                        party: 7,
+                        expires: u64::MAX,
+                    })
                 };
-                let mut writer = skein_lib::Writer::new(usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("answer size"));
+                let mut writer = skein_lib::Writer::new(
+                    usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+                        .expect("answer size"),
+                );
                 answer.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("answer fits");
                 let body = writer.finish();
                 socket.reply.extend(format!("HTTP/1.1 200 OK\r\nContent-Length: {}\r\n\r\n", body.len()).bytes());
@@ -755,12 +757,10 @@ impl Frame {
                 );
                 self.asked_attempts.push(self.now);
                 let answer = self.asked_answers.pop_front().unwrap_or_else(|| {
-                    w::LinkAskAnswer::Asked(
-                        w::LinkAsked {
-                                secret: skein_lib::Secret::new(Box::new([255; 32])),
-                                expires: 951_827_696_999_999_999,
-                            },
-                    )
+                    w::LinkAskAnswer::Asked(w::LinkAsked {
+                        secret: skein_lib::Secret::new(Box::new([255; 32])),
+                        expires: 951_827_696_999_999_999,
+                    })
                 });
                 self.reply(fd, &encode!(answer));
             }
@@ -768,13 +768,11 @@ impl Frame {
                 let open = w::Open::decode(&w::CEILINGS, &mut skein_lib::Reader::new(&socket.request[end + 4..]))
                     .expect("watch record");
                 if self.busy_watches {
-                    let answer = w::OpenAnswer::Refused(
-                        w::OpenAnswerRefused { why: w::WatchRefusal::Busy },
-                    );
+                    let answer = w::OpenAnswer::Refused(w::OpenAnswerRefused { why: w::WatchRefusal::Busy });
                     self.reply(fd, &encode!(answer));
                     return;
                 }
-                if matches!( &open.subject.owner, w::Owner::Family(_)) {
+                if matches!(&open.subject.owner, w::Owner::Family(_)) {
                     self.wait_task = Some(open.watch);
                     self.reply(fd, &encode!(w::OpenAnswer::Admitted));
                     if self.change {
@@ -784,12 +782,16 @@ impl Frame {
                     }
                     return;
                 }
-                let subject = w::Subject::decode(&w::CEILINGS, &mut skein_lib::Reader::new(open.subject.record.as_ref()))
-                    .expect("watch subject");
+                let subject =
+                    w::Subject::decode(&w::CEILINGS, &mut skein_lib::Reader::new(open.subject.record.as_ref()))
+                        .expect("watch subject");
                 assert_ne!(subject, w::Subject::Me, "me comes with the stream");
                 self.wait_task = Some(open.watch);
                 let answer = w::OpenAnswer::Admitted;
-                let mut writer = skein_lib::Writer::new(usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("answer size"));
+                let mut writer = skein_lib::Writer::new(
+                    usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+                        .expect("answer size"),
+                );
                 answer.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("answer fits");
                 let body = writer.finish();
                 socket.reply.extend(format!("HTTP/1.1 200 OK\r\nContent-Length: {}\r\n\r\n", body.len()).bytes());
@@ -843,18 +845,22 @@ impl Frame {
             return;
         }
         let value = w::DeliveryValue::Me(me);
-        let mut writer = skein_lib::Writer::new(usize::try_from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("delivery size"));
+        let mut writer = skein_lib::Writer::new(
+            usize::try_from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+                .expect("delivery size"),
+        );
         value.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("delivery fits");
         let document = w::Owned { owner: w::Owner::Jig, version: w::VERSION, record: writer.finish() };
-        let event = w::StreamEvent::Delivery(
-            w::Delivery { watch: self.watch.expect("opened watch"), document },
-        );
+        let event = w::StreamEvent::Delivery(w::Delivery { watch: self.watch.expect("opened watch"), document });
         self.sockets.get_mut(&self.stream.expect("open stream")).expect("stream socket").reply.extend(sse(&event));
     }
 }
 fn sse(event: &w::StreamEvent) -> Vec<u8> {
     use skein_lib::base64::{self, Alphabet};
-    let mut writer = skein_lib::Writer::new(usize::try_from(event.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("event size"));
+    let mut writer = skein_lib::Writer::new(
+        usize::try_from(event.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+            .expect("event size"),
+    );
     event.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("event fits");
     let bytes = writer.finish();
     let length =

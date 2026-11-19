@@ -1,10 +1,10 @@
 //! Field-for-field client contract translation (protocol/client/wire.md, 1, and protocol/client/README.md, 3).
-use jig_client_protocol_wire::Record as _;
 use crate::Limits;
 use crate::translate::{piece_problem, too_large};
 use alloc::boxed::Box;
 use jig_client_domain::contract as c;
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use skein_lib::Map;
 use skein_lib::Reader;
 mod chips;
@@ -243,18 +243,16 @@ pub(crate) fn decode(bytes: &[u8], limits: &Limits) -> Result<Node, w::Problem> 
                 row.parent,
                 Node::HeldRuntime(Box::new(held_runtime_fields(&row.value, limits, index, &mut children)?)),
             ),
-            w::Fact::HoldReason(row) => (
-                row.parent,
-                Node::HoldReason(Box::new(hold_reason_fields(&row.value, limits, index, &mut children)?)),
-            ),
+            w::Fact::HoldReason(row) => {
+                (row.parent, Node::HoldReason(Box::new(hold_reason_fields(&row.value, limits, index, &mut children)?)))
+            }
             w::Fact::ChipDetails(row) => (
                 row.parent,
                 Node::ChipDetails(Box::new(chip_details_fields(&row.value, limits, index, &mut children)?)),
             ),
-            w::Fact::ChipEnding(row) => (
-                row.parent,
-                Node::ChipEnding(Box::new(chip_ending_fields(&row.value, limits, index, &mut children)?)),
-            ),
+            w::Fact::ChipEnding(row) => {
+                (row.parent, Node::ChipEnding(Box::new(chip_ending_fields(&row.value, limits, index, &mut children)?)))
+            }
             w::Fact::ResultValue(row) => (
                 row.parent,
                 Node::ResultValue(Box::new(result_value_fields(&row.value, limits, index, &mut children)?)),

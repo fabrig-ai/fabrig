@@ -1,10 +1,10 @@
 //! Whole pages and single documents (protocol/client/wire.md, 1, and protocol/client/README.md, 4).
-use jig_client_protocol_wire::Record as _;
 use super::{
     Box, Limits, List, Reader, Wall, activity_line_fields, c, chip_ending_fields, chip_fields, cursor_fields,
     escalation_decision_record_fields, hold_line_fields, object_key_fields, person_proposal_fields, person_task_fields,
     proposal_decision_fields, proposal_history_fields, question_fields, result_fields, task_fields, too_large, w,
 };
+use jig_client_protocol_wire::Record as _;
 
 pub(crate) fn ended_delegate_fields(value: &w::EndedDelegate, limits: &Limits) -> Result<c::EndedDelegate, w::Problem> {
     let opt0 = match &value.at {

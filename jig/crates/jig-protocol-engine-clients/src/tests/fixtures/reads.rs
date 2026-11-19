@@ -11,7 +11,9 @@ pub fn read_exchange_with(settings: Settings) -> Exchange {
     Exchange::configured(limits, settings)
 }
 pub fn encoded_read(value: &w::Read) -> Box<[u8]> {
-    let mut out = Writer::new(skein_lib::length::usize_of(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+    let mut out = Writer::new(skein_lib::length::usize_of(
+        value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+    ));
     value.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("read bytes");
     out.finish()
 }
@@ -21,16 +23,22 @@ pub fn owned_read(owner: w::Owner, version: u32, record: Box<[u8]>) -> Box<[u8]>
         w::Owner::Family(_) => family_record(record),
     };
     let value = w::Owned { owner, version, record };
-    let mut out = Writer::new(skein_lib::length::usize_of(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+    let mut out = Writer::new(skein_lib::length::usize_of(
+        value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+    ));
     value.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("envelope bytes");
     out.finish()
 }
 pub fn value_answer(value: &w::ReadValue) -> w::ReadAnswer {
-    let mut out = Writer::new(skein_lib::length::usize_of(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+    let mut out = Writer::new(skein_lib::length::usize_of(
+        value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+    ));
     value.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("value bytes");
-    w::ReadAnswer::Value(
-        w::Owned { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: out.finish() },
-    )
+    w::ReadAnswer::Value(w::Owned {
+        owner: w::Owner::Jig,
+        version: jig_client_protocol_wire::VERSION,
+        record: out.finish(),
+    })
 }
 pub fn read_none(value: w::ReadNone) -> w::ReadAnswer {
     w::ReadAnswer::None(w::ReadAnswerNone { value })
@@ -47,9 +55,7 @@ pub fn held_reads() -> [(&'static str, w::Read, reads::Read, reads::Answer, w::R
         ),
         (
             "page",
-            w::Read::Activity(
-                w::ReadActivity { task: 7, before: None },
-            ),
+            w::Read::Activity(w::ReadActivity { task: 7, before: None }),
             reads::Read::Activity { task: 7, before: None },
             reads::Answer::Page(Box::new(activity_page())),
             value_answer(&w::ReadValue::Activity(records::carried_activity_page())),
@@ -270,9 +276,7 @@ fn task_text_read() -> (&'static str, w::Read, reads::Read, reads::Answer, w::Re
     let total = from.checked_add(len_u64(bytes.len())).unwrap();
     (
         "task text",
-        w::Read::TaskText(
-            w::ReadTaskText { task: 7, field: w::TaskTextField::Result, from },
-        ),
+        w::Read::TaskText(w::ReadTaskText { task: 7, field: w::TaskTextField::Result, from }),
         reads::Read::TaskText { task: 7, field: reads::TaskTextField::Result, from },
         reads::Answer::TaskText(Box::new(reads::TaskText {
             task: 7,
@@ -282,15 +286,13 @@ fn task_text_read() -> (&'static str, w::Read, reads::Read, reads::Answer, w::Re
             next: None,
             bytes: Box::from(bytes),
         })),
-        value_answer(&w::ReadValue::TaskText(
-            w::TaskText {
-                    task: 7,
-                    field: w::TaskTextField::Result,
-                    from,
-                    total,
-                    next: None,
-                    words: Box::from(bytes),
-                },
-        )),
+        value_answer(&w::ReadValue::TaskText(w::TaskText {
+            task: 7,
+            field: w::TaskTextField::Result,
+            from,
+            total,
+            next: None,
+            words: Box::from(bytes),
+        })),
     )
 }

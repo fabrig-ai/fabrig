@@ -1,6 +1,6 @@
-use jig_client_protocol_wire::Record as _;
 use super::fixtures;
 use crate::{Event, Request, forge};
+use jig_client_protocol_wire::Record as _;
 use skein_lib::{Queue, RequestEnvelope};
 
 #[test]
@@ -338,14 +338,11 @@ fn version_answer(_limits: &jig_client_protocol_link::Limits) -> Box<[u8]> {
     use jig_client_protocol_wire as w;
     let owner = w::Owner::Family(w::Family { number: fixtures::FORGE });
     let mut served = skein_lib::List::with_capacity(1);
-    served
-        .push(
-            w::Served { owner: owner.clone(), first: NEXT_FORGE_VERSION, last: NEXT_FORGE_VERSION },
-        )
-        .unwrap();
-    let answer =
-        w::KeyedAnswer::NotServed(w::NotServed { owner, served });
-    let mut bytes = skein_lib::Writer::new(usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    served.push(w::Served { owner: owner.clone(), first: NEXT_FORGE_VERSION, last: NEXT_FORGE_VERSION }).unwrap();
+    let answer = w::KeyedAnswer::NotServed(w::NotServed { owner, served });
+    let mut bytes = skein_lib::Writer::new(
+        usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
     answer.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
     bytes.finish()
 }

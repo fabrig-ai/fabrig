@@ -1,6 +1,6 @@
 //! The box builds from its engine and its durable agents copy.
-use jig_client_protocol_wire::Record as _;
 use crate::{serve, served};
+use jig_client_protocol_wire::Record as _;
 use std::{
     fs,
     os::unix::{ffi::OsStrExt, fs::PermissionsExt},
@@ -186,8 +186,12 @@ fn local_copy_builds_the_next_start_at_its_places_and_bad_bytes_log_once() {
     let path = scratch.path().join("local.setting");
     let program = scratch.path().join("fixture-agent");
     fs::write(&program, b"box startup program fixture\n").expect("fixture program");
-    let local = WorkerSetting { number: 1, name: b"local".as_slice().into(), places: 2, digest: None, withdrawn: false };
-    let mut writer = skein_lib::Writer::new(usize::try_from(local.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("bounded codec"));
+    let local =
+        WorkerSetting { number: 1, name: b"local".as_slice().into(), places: 2, digest: None, withdrawn: false };
+    let mut writer = skein_lib::Writer::new(
+        usize::try_from(local.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+            .expect("bounded codec"),
+    );
     local.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("local bytes");
     let value = writer.finish();
     for (contents, places, warning) in [

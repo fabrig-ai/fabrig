@@ -16,32 +16,26 @@ pub fn family_subject() -> Watchable {
 pub fn hello_event(heartbeat: Duration) -> Box<[u8]> {
     let mut served = List::with_capacity(2);
     served
-        .push(
-            w::Served {
-                    owner: w::Owner::Jig,
-                    first: jig_client_protocol_wire::VERSION,
-                    last: jig_client_protocol_wire::VERSION,
-                },
-        )
+        .push(w::Served {
+            owner: w::Owner::Jig,
+            first: jig_client_protocol_wire::VERSION,
+            last: jig_client_protocol_wire::VERSION,
+        })
         .unwrap();
-    served
-        .push(
-            w::Served {
-                    owner: w::Owner::Family(w::Family { number: 19 }),
-                    first: 23,
-                    last: 23,
-                },
-        )
-        .unwrap();
+    served.push(w::Served { owner: w::Owner::Family(w::Family { number: 19 }), first: 23, last: 23 }).unwrap();
     let hello = w::Hello { stream: STREAM, served, heartbeat };
     let value = w::DeliveryValue::Me(frame_record());
-    let mut record = Writer::new(usize::try_from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    let mut record = Writer::new(
+        usize::try_from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
     value.write(&jig_client_protocol_wire::CEILINGS, &mut record).unwrap();
     let me = w::Owned { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: record.finish() };
     event_bytes(&w::StreamEvent::Opened(w::Opened { hello, me }))
 }
 pub fn event_bytes(value: &w::StreamEvent) -> Box<[u8]> {
-    let mut binary = Writer::new(usize::try_from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    let mut binary = Writer::new(
+        usize::try_from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
     value.write(&jig_client_protocol_wire::CEILINGS, &mut binary).unwrap();
     binary.finish()
 }
@@ -52,18 +46,20 @@ pub fn family_delivery(name: u64) -> Box<[u8]> {
     event_bytes(&w::StreamEvent::Delivery(w::Delivery { watch: name, document }))
 }
 pub fn ending(name: u64, why: w::WatchEnd) -> Box<[u8]> {
-    event_bytes(&w::StreamEvent::Ended(
-        w::WatchEnded { watch: name, why },
-    ))
+    event_bytes(&w::StreamEvent::Ended(w::WatchEnded { watch: name, why }))
 }
 pub fn open_answer(value: &w::OpenAnswer) -> Box<[u8]> {
-    let mut writer = Writer::new(usize::try_from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    let mut writer = Writer::new(
+        usize::try_from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
     value.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
     writer.finish()
 }
 pub fn close_answer() -> Box<[u8]> {
     let value = w::CloseAnswer::Closed;
-    let mut writer = Writer::new(usize::try_from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    let mut writer = Writer::new(
+        usize::try_from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
     value.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
     writer.finish()
 }
@@ -231,14 +227,8 @@ impl Harness {
 pub fn assert_run_subject(open: &w::Open) {
     let lim = *limits().wire();
     let subject = w::Subject::decode(&lim, &mut Reader::new(open.subject.record.as_ref())).unwrap();
-    let turn =
-        w::ProvisionalTurnName { attempt: 9, number: 2, retry: 3 };
-    assert_eq!(
-        subject,
-        w::Subject::Run(
-            w::SubjectRun { task: 7, turn: Some(turn), offset: 123 }
-        )
-    );
+    let turn = w::ProvisionalTurnName { attempt: 9, number: 2, retry: 3 };
+    assert_eq!(subject, w::Subject::Run(w::SubjectRun { task: 7, turn: Some(turn), offset: 123 }));
 }
 
 pub const EXCHANGE_ROOM: u32 = 8;

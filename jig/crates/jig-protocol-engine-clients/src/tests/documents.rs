@@ -1,7 +1,7 @@
-use jig_client_protocol_wire::Record as _;
 use super::fixtures;
 use crate::translate;
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use skein_lib::List;
 fn me_preserves_two_projects_in_its_wire_record() {
     let limits = fixtures::wire_limits();
@@ -45,7 +45,9 @@ fn deployment_census_reaches_the_client_at_all_its_bounds_and_when_absent() {
         let mut source = fixtures::deployment_document();
         source.census = census.clone();
         let wire = translate::deployment::document(&source, &w::CEILINGS).unwrap();
-        let mut bytes = skein_lib::Writer::new(usize::try_from(wire.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+        let mut bytes = skein_lib::Writer::new(
+            usize::try_from(wire.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+        );
         wire.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
         let bytes = bytes.finish();
         let limits = fixtures::client_limits();
@@ -172,7 +174,9 @@ fn an_inbox_entry_33_goals_deep_encodes_at_the_wire_ceiling() {
     }
     let expected = selection.clone();
     let record = translate::inbox::document(&source, &w::CEILINGS).unwrap();
-    let mut encoded = Writer::new(usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    let mut encoded = Writer::new(
+        usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
     record.write(&jig_client_protocol_wire::CEILINGS, &mut encoded).unwrap();
     let bytes = encoded.finish();
     let record = w::Inbox::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap();
@@ -313,12 +317,7 @@ fn a_project_document_carries_its_policy_s_template_overrides() {
     let record = translate::objects::project(&fixtures::models(), &project, &w::CEILINGS).unwrap();
     let entry = record.policy.templates.get(0).unwrap();
     assert_eq!(entry.template, TEMPLATE);
-    assert_eq!(
-        (&entry.budget),
-        &Some(w::TemplateBudget::Amount(
-            w::TemplateAmount { value: 42 }
-        ))
-    );
+    assert_eq!((&entry.budget), &Some(w::TemplateBudget::Amount(w::TemplateAmount { value: 42 })));
 }
 
 fn frame_with_creating_bounds() -> jig_domain_core_vocabulary::documents::Frame {
@@ -395,7 +394,9 @@ fn added_dependencies_and_kept_waits_cross_both_client_translations() {
     pending.push(7).unwrap();
     task.waits_on = d::WaitsOn::Dependencies { pending, count: 1 };
     let record = translate::task::document(&task, &[], &limits).unwrap();
-    let mut out = Writer::new(usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    let mut out = Writer::new(
+        usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
     record.write(&jig_client_protocol_wire::CEILINGS, &mut out).unwrap();
     let bytes = out.finish();
     let record = w::Task::decode(&limits, &mut Reader::new(&bytes)).unwrap();
@@ -549,7 +550,9 @@ fn the_task_document_carries_its_talk_session_and_offered_acts() {
         source.acts.push(acts::Offered { act, admission: acts::Admission::Allowed, effect: None }).unwrap();
     }
     let record = translate::task::document(&source, &[], &limits).unwrap();
-    let mut bytes = Writer::new(usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    let mut bytes = Writer::new(
+        usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
     record.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
     let record = w::Task::decode(&limits, &mut Reader::new(&bytes.finish())).unwrap();
     let decoded = jig_client_protocol_link::translate::documents::task(record, &fixtures::client_limits()).unwrap();
@@ -569,7 +572,9 @@ fn an_own_question_wait_reaches_the_client_through_both_translations() {
     let mut source = fixtures::task_with_hold();
     source.waits_on = WaitsOn::Question { number: 7 };
     let record = translate::task::document(&source, &[], &limits).unwrap();
-    let mut bytes = Writer::new(usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    let mut bytes = Writer::new(
+        usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
     record.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
     let bytes = bytes.finish();
     let record = w::Task::decode(&limits, &mut Reader::new(&bytes)).unwrap();

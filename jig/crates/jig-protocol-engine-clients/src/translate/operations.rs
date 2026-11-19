@@ -1,8 +1,8 @@
 //! General operation targets and template overrides, translated into people records.
-use jig_client_protocol_wire::Record as _;
 use super::{Untranslatable, asks};
 use alloc::boxed::Box;
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use jig_domain_people as p;
 use skein_lib::List;
 
@@ -125,9 +125,7 @@ pub(super) fn compound(
     }
     let mut operations = List::with_capacity(decoded.len());
     for operation in decoded.into_boxed() {
-        operations
-            .push(operation_to_people(operation, value.project, models, limits, names)?)
-            .expect("same capacity");
+        operations.push(operation_to_people(operation, value.project, models, limits, names)?).expect("same capacity");
     }
     Ok(p::Ask::Compound { project: value.project, operations })
 }
@@ -142,30 +140,20 @@ fn operation_to_people(
         return Err(Untranslatable { path: w::paths::COMPOUND_OPERATIONS });
     }
     Ok(match value {
-        w::Operation::Message(v) => {
-            p::Operation::Message { task: v.task, words: v.words }
-        }
-        w::Operation::Amend(v) => {
-            p::Operation::Amend {
-                task: v.task,
-                revision: match v.revision {
-                    Some(v) => v.value,
-                    None => 0,
-                },
-                amendment: Box::new(asks::amendment(v.change, v.reason, models, limits, names)?),
-                release: None,
-            }
-        }
-        w::Operation::Cancel(v) => {
-            p::Operation::Cancel { task: v.task, reason: v.reason, grace: v.grace }
-        }
-        w::Operation::Release(v) => {
-            p::Operation::Release { task: v.task, revision: v.revision.value, again: v.again }
-        }
+        w::Operation::Message(v) => p::Operation::Message { task: v.task, words: v.words },
+        w::Operation::Amend(v) => p::Operation::Amend {
+            task: v.task,
+            revision: match v.revision {
+                Some(v) => v.value,
+                None => 0,
+            },
+            amendment: Box::new(asks::amendment(v.change, v.reason, models, limits, names)?),
+            release: None,
+        },
+        w::Operation::Cancel(v) => p::Operation::Cancel { task: v.task, reason: v.reason, grace: v.grace },
+        w::Operation::Release(v) => p::Operation::Release { task: v.task, revision: v.revision.value, again: v.again },
         w::Operation::Stop(v) => p::Operation::Stop { task: v.task },
-        w::Operation::MoveTask(v) => {
-            p::Operation::Move { task: v.task, reason: v.reason }
-        }
+        w::Operation::MoveTask(v) => p::Operation::Move { task: v.task, reason: v.reason },
     })
 }
 fn operation_project(value: &w::Operation) -> u32 {
@@ -431,7 +419,9 @@ pub(super) fn propose(
     let digest = match &value.action {
         w::ProposeAction::Settings(_) => {
             let record = w::Ask::Propose(value.clone());
-            let mut bytes = skein_lib::Writer::new(skein_lib::length::usize_of(record.measure(limits).expect("bounded client record")));
+            let mut bytes = skein_lib::Writer::new(skein_lib::length::usize_of(
+                record.measure(limits).expect("bounded client record"),
+            ));
             record.write(limits, &mut bytes).expect("measured ask");
             crate::sign_in::digest(&bytes.finish()).expose().try_into().expect("32-byte digest")
         }
@@ -443,13 +433,11 @@ pub(super) fn propose(
         w::ProposeAction::Batch(value) => {
             p::Action::Batch(batch(value.tasks.as_ref(), w::paths::PROPOSE_BATCH_TASKS, models, limits, names)?)
         }
-        w::ProposeAction::Amendment(value) => {
-            p::Action::Amend {
-                task: value.task,
-                revision: value.revision.value,
-                amendment: Box::new(asks::amendment(value.change, v.reason.clone(), models, limits, names)?),
-            }
-        }
+        w::ProposeAction::Amendment(value) => p::Action::Amend {
+            task: value.task,
+            revision: value.revision.value,
+            amendment: Box::new(asks::amendment(value.change, v.reason.clone(), models, limits, names)?),
+        },
     };
     Ok(p::Ask::Propose { project: v.project, action, reason: v.reason })
 }

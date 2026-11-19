@@ -1,6 +1,6 @@
 //! Whole pages and single documents (protocol/client/wire.md, 1, and protocol/client/README.md, 4).
-use jig_client_protocol_wire::Record as _;
 use super::{Box, Limits, List, Reader, Wall, c, carried_turn_fields, cursor_fields, long_text, text, too_large, w};
+use jig_client_protocol_wire::Record as _;
 
 pub(crate) fn message_proposal_kind_fields(value: &w::MessageProposalKind) -> c::MessageProposalKind {
     match value {
@@ -198,9 +198,7 @@ pub(crate) fn activity_fields(value: &w::Activity, limits: &Limits) -> Result<c:
         w::Activity::NowWritten(row) => {
             c::Activity::NowWritten { attempt: row.attempt, line: long_text(&row.line, limits)? }
         }
-        w::Activity::Stood(row) => {
-            c::Activity::Stood { attempt: row.attempt, words: long_text(&row.words, limits)? }
-        }
+        w::Activity::Stood(row) => c::Activity::Stood { attempt: row.attempt, words: long_text(&row.words, limits)? },
         w::Activity::TalkOpened(row) => c::Activity::TalkOpened { party: row.party },
         w::Activity::TalkEnded(row) => c::Activity::TalkEnded { party: row.party, lapsed: row.lapsed },
         w::Activity::SessionEnded(row) => {

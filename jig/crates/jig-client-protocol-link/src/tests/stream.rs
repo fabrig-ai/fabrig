@@ -40,13 +40,13 @@ fn the_opened_stream_delivers_me_and_watch_zero_delivers_its_later_value() {
     let mut me = fixtures::frame_record();
     me.needs_total = 8;
     let value = w::DeliveryValue::Me(me);
-    let mut record = skein_lib::Writer::new(usize::try_from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    let mut record = skein_lib::Writer::new(
+        usize::try_from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
     value.write(&jig_client_protocol_wire::CEILINGS, &mut record).unwrap();
     document.record = record.finish();
     h.clear();
-    h.stream_record(&fixtures::event_bytes(&w::StreamEvent::Delivery(
-        w::Delivery { watch: 0, document },
-    )));
+    h.stream_record(&fixtures::event_bytes(&w::StreamEvent::Delivery(w::Delivery { watch: 0, document })));
     let mut me = fixtures::frame();
     me.needs_total = 8;
     assert!(
@@ -167,17 +167,14 @@ fn a_hello_reopens_no_watch_of_an_owner_it_does_not_serve() {
     hello.served.clear();
     hello
         .served
-        .push(
-            w::Served {
-                    owner: w::Owner::Jig,
-                    first: jig_client_protocol_wire::VERSION,
-                    last: jig_client_protocol_wire::VERSION,
-                },
-        )
+        .push(w::Served {
+            owner: w::Owner::Jig,
+            first: jig_client_protocol_wire::VERSION,
+            last: jig_client_protocol_wire::VERSION,
+        })
         .unwrap();
     opened.hello = hello;
-    harness
-        .stream_record(&fixtures::event_bytes(&w::StreamEvent::Opened(opened)));
+    harness.stream_record(&fixtures::event_bytes(&w::StreamEvent::Opened(opened)));
     assert!(harness.has(&Request::Hello { family: Some(19), versions: None }));
     for request in &harness.out {
         if let Request::Exchange { .. } = request {
@@ -249,9 +246,7 @@ fn each_watch_refusal_is_handed_up() {
     ] {
         let mut harness = fixtures::Harness::streaming(fixtures::application_subject());
         let (exchange, _) = harness.opening();
-        let value = w::OpenAnswer::Refused(
-            w::OpenAnswerRefused { why },
-        );
+        let value = w::OpenAnswer::Refused(w::OpenAnswerRefused { why });
         harness.answer(exchange, &fixtures::open_answer(&value));
         assert_eq!(harness.ended(fixtures::WATCH), Some(expected));
     }
@@ -456,9 +451,7 @@ fn a_refused_opening_never_sends_its_held_closing() {
     h.clear();
     h.link.step(Time::ZERO, Event::Close { watch: fixtures::WATCH }, &mut h.out);
     h.link.settle(&mut h.out);
-    let refused = w::OpenAnswer::Refused(
-        w::OpenAnswerRefused { why: w::WatchRefusal::Busy },
-    );
+    let refused = w::OpenAnswer::Refused(w::OpenAnswerRefused { why: w::WatchRefusal::Busy });
     h.answer(opening, &fixtures::open_answer(&refused));
     assert_eq!(h.closed_count(), 1);
     assert_eq!(h.ended(fixtures::WATCH), Some(c::WatchEnd::Busy));
@@ -597,10 +590,10 @@ fn a_stream_end_keeps_authorization_waiting_for_its_http_exchanges() {
         let (exchange, ticket) =
             authorize_when_room(&mut harness, &mut fetch).expect("the opening's terminal frees credit");
         let location = b"https://app.example.com/callback?code=one";
-        let answer = w::AuthorizeAnswer::Go(
-            w::AuthorizeGo { location: Box::from(location.as_slice()) },
-        );
-        let mut writer = skein_lib::Writer::new(skein_lib::usize_of(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+        let answer = w::AuthorizeAnswer::Go(w::AuthorizeGo { location: Box::from(location.as_slice()) });
+        let mut writer = skein_lib::Writer::new(skein_lib::usize_of(
+            answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+        ));
         answer.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
         assert!(fetch.piece(ticket, &writer.finish()).is_none());
         let Some(skein_ui_web::fetch::Report::Answered { body, .. }) = fetch.finish(ticket, 200, &[]) else {
@@ -773,7 +766,8 @@ fn a_delivery_over_the_original_document_bound_is_refused() {
     let bytes = fixtures::encoded_delivery(&value);
     let limits = Limits::new(*fixtures::limits().client(), 4).unwrap();
     let mut client = *limits.client();
-    client.document_bytes = u64::from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).checked_sub(1).unwrap();
+    client.document_bytes =
+        u64::from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).checked_sub(1).unwrap();
     let limits = Limits::new(client, 4).unwrap();
     assert_eq!(translate::watches::delivery(&bytes, &limits), Err(Undecodable::TooLarge));
 }
@@ -912,9 +906,7 @@ fn a_delivery_past_a_fields_text_is_received_within_long_text() {
         harness.open(fixtures::WATCH, fixtures::application_subject());
         harness.stream_record(&fixtures::hello_event(fixtures::HEARTBEAT));
         let (_, name) = harness.opening();
-        let event = w::StreamEvent::Text(
-            w::StreamText { watch: name, value: run_delivery(&bytes) },
-        );
+        let event = w::StreamEvent::Text(w::StreamText { watch: name, value: run_delivery(&bytes) });
         harness.stream_record(&fixtures::event_bytes(&event));
         let Some(c::Delivery::Run(value)) = harness.delivered() else {
             panic!("run delivery within long_text");
@@ -948,7 +940,10 @@ fn a_family_watch_past_the_envelope_bound_is_dropped() {
     };
     h.link.step(
         Time::ZERO,
-        Event::Open { watch: fixtures::WATCH, subject: Watchable::Family { scope: c::Scope::Own, window: c::Window { rows: 2, after: None }, record } },
+        Event::Open {
+            watch: fixtures::WATCH,
+            subject: Watchable::Family { scope: c::Scope::Own, window: c::Window { rows: 2, after: None }, record },
+        },
         &mut h.out,
     );
     assert_eq!(h.ended(fixtures::WATCH), Some(c::WatchEnd::Dropped));

@@ -1,6 +1,6 @@
 //! Failure-only metadata of the native client's real private-store operations.
-use jig_client_protocol_wire::Record as _;
 use jig_client_protocol_wire as wire;
+use jig_client_protocol_wire::Record as _;
 use skein_io::kernel::{Complete, Done, Fd, Op};
 use skein_lib::Reader;
 use std::{cell::RefCell, collections::BTreeMap, fmt, rc::Rc};

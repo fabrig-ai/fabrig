@@ -1,24 +1,19 @@
 use super::*;
 use skein_lib::List;
 pub fn encoded_delivery(value: &w::DeliveryValue) -> Box<[u8]> {
-    let mut writer = Writer::new(usize::try_from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    let mut writer = Writer::new(
+        usize::try_from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
     value.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
     writer.finish()
 }
 pub fn jig_delivery(value: &w::DeliveryValue, name: u64) -> Box<[u8]> {
-    let document = w::Owned {
-            owner: w::Owner::Jig,
-            version: jig_client_protocol_wire::VERSION,
-            record: encoded_delivery(value),
-        };
-    event_bytes(&w::StreamEvent::Delivery(
-        w::Delivery { watch: name, document },
-    ))
+    let document =
+        w::Owned { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: encoded_delivery(value) };
+    event_bytes(&w::StreamEvent::Delivery(w::Delivery { watch: name, document }))
 }
 pub fn run_event(name: u64) -> Box<[u8]> {
-    event_bytes(&w::StreamEvent::Text(
-        w::StreamText { watch: name, value: text_record() },
-    ))
+    event_bytes(&w::StreamEvent::Text(w::StreamText { watch: name, value: text_record() }))
 }
 pub fn tree_record() -> w::Tree {
     jig_client_test_records::owner_tree_record()
@@ -113,24 +108,21 @@ impl Harness {
 }
 pub fn inbox_row() -> w::InboxEntry {
     let cursor = inbox_cursor();
-    let task =
-        w::TaskLink::Stored(w::TaskLinkStored { number: 41, status: None });
+    let task = w::TaskLink::Stored(w::TaskLinkStored { number: 41, status: None });
     w::InboxEntry {
-            projects: List::with_capacity(0),
-            reply: None,
-            task,
-            project: Some(7),
-            object: w::InboxObject::PersonTask,
-            activity: Some(19),
-            at: Some(u64::MAX),
-            unread: Some(false),
-            cursor,
-        }
+        projects: List::with_capacity(0),
+        reply: None,
+        task,
+        project: Some(7),
+        object: w::InboxObject::PersonTask,
+        activity: Some(19),
+        at: Some(u64::MAX),
+        unread: Some(false),
+        cursor,
+    }
 }
 pub fn inbox_cursor() -> w::InboxCursor {
-    w::InboxCursor::Number(
-        w::InboxCursorNumber { number: u64::MAX },
-    )
+    w::InboxCursor::Number(w::InboxCursorNumber { number: u64::MAX })
 }
 pub fn inbox_row_expected() -> c::InboxEntry {
     c::InboxEntry {
@@ -147,7 +139,9 @@ pub fn inbox_row_expected() -> c::InboxEntry {
 }
 pub fn inbox_pieces(count: u32) -> Box<[u8]> {
     let row = inbox_row();
-    let mut encoded = Writer::new(usize::try_from(row.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    let mut encoded = Writer::new(
+        usize::try_from(row.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
     row.write(&jig_client_protocol_wire::CEILINGS, &mut encoded).unwrap();
     let encoded = encoded.finish();
     let mut piece =
@@ -174,18 +168,20 @@ pub fn inbox_with_rows_expected() -> c::Delivery {
 }
 pub fn tree_row() -> w::TreeRow {
     w::TreeRow {
-            chip: chip_record(),
-            parent: 41,
-            depth: 2,
-            proposals: List::with_capacity(0),
-            spent: 19,
-            dependencies: Box::from([]),
-            cut: true,
-        }
+        chip: chip_record(),
+        parent: 41,
+        depth: 2,
+        proposals: List::with_capacity(0),
+        spent: 19,
+        dependencies: Box::from([]),
+        cut: true,
+    }
 }
 pub fn tree_pieces(count: u32) -> Box<[u8]> {
     let row = tree_row();
-    let mut encoded = Writer::new(usize::try_from(row.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    let mut encoded = Writer::new(
+        usize::try_from(row.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
     row.write(&jig_client_protocol_wire::CEILINGS, &mut encoded).unwrap();
     let encoded = encoded.finish();
     let mut piece =
@@ -224,10 +220,6 @@ pub fn malformed_delivery_pieces() -> Box<[w::DeliveryValue]> {
     let mut tree = tree_record();
     tree.rows = Box::from([0, 0, 0, 1]);
     values.push(w::DeliveryValue::Tree(tree)).unwrap();
-    values
-        .push(w::DeliveryValue::Chips(
-            w::Chips { rows: Box::from([0, 0, 0, 1]) },
-        ))
-        .unwrap();
+    values.push(w::DeliveryValue::Chips(w::Chips { rows: Box::from([0, 0, 0, 1]) })).unwrap();
     values.into_boxed()
 }

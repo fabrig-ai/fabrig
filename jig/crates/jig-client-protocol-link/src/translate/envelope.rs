@@ -1,8 +1,8 @@
 //! Family scopes and windows outside the application's opaque records (client/domain/contract/README.md, 5.5).
-use jig_client_protocol_wire::Record as _;
 use alloc::boxed::Box;
 use jig_client_domain::{Family, contract as c};
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use skein_lib::{Reader, Writer, bytes};
 #[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
 pub(crate) fn scope(value: c::Scope, _limits: &w::Limits) -> Result<w::Scope, w::Problem> {

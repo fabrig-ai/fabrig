@@ -1,6 +1,6 @@
 //! Bounded whole settings input (client/ctl/results.md, 4; jig's client/domain/contract/requests.md, 2).
-use jig_client_protocol_wire::Record as _;
 use crate::Limits;
+use jig_client_protocol_wire::Record as _;
 #[path = "settings_file_values.rs"]
 mod values;
 use crate::view as c;
@@ -550,28 +550,48 @@ fn wire_error(problem: jig_client_protocol_wire::Problem, limits: &jig_client_pr
         path if path == paths::CHARTER_INSTRUCTIONS => bound(b"charter_instructions", limits.charter_instructions),
         path if path == paths::FIELD_RULE_NAME => bound(b"field_rule_name", limits.field_rule_name),
         path if path == paths::LLM_CHOICE_SUBAGENTS => bound(b"llm_choice_subagents", limits.llm_choice_subagents),
-        path if path == paths::MODEL_EFFORT_EFFORT => bound(b"model_effort_effort_some", limits.model_effort_effort_some),
+        path if path == paths::MODEL_EFFORT_EFFORT => {
+            bound(b"model_effort_effort_some", limits.model_effort_effort_some)
+        }
         path if path == paths::MODEL_EFFORT_MODEL => bound(b"model_effort_model", limits.model_effort_model),
         path if path == paths::MODEL_SET_NAMES_NAMES => bound(b"model_set_names_names", limits.model_set_names_names),
         path if path == paths::OWNED_RECORD => bound(b"owned_record", limits.owned_record),
         path if path == paths::AUTHORITY_GRANTS => bound(b"authority_grants", limits.authority_grants),
-        path if path == paths::AUTHORITY_NOTE_RESOURCES => bound(b"authority_note_resources", limits.authority_note_resources),
+        path if path == paths::AUTHORITY_NOTE_RESOURCES => {
+            bound(b"authority_note_resources", limits.authority_note_resources)
+        }
         path if path == paths::DELEGATION_KINDS => bound(b"delegation_kinds", limits.delegation_kinds),
         path if path == paths::PART_KEY_PATH_VALUE => bound(b"part_key_path_value", limits.part_key_path_value),
-        path if path == paths::PATTERN_END_EXACT_VALUE => bound(b"pattern_end_exact_value", limits.pattern_end_exact_value),
-        path if path == paths::PATTERN_END_OPEN_VALUE => bound(b"pattern_end_open_value", limits.pattern_end_open_value),
+        path if path == paths::PATTERN_END_EXACT_VALUE => {
+            bound(b"pattern_end_exact_value", limits.pattern_end_exact_value)
+        }
+        path if path == paths::PATTERN_END_OPEN_VALUE => {
+            bound(b"pattern_end_open_value", limits.pattern_end_open_value)
+        }
         path if path == paths::PATTERN_SEGMENTS => bound(b"pattern_segments", limits.pattern_segments),
         path if path == paths::RULES_IMPLIES => bound(b"rules_implies", limits.rules_implies),
         path if path == paths::RULES_REQUIREMENTS => bound(b"rules_requirements", limits.rules_requirements),
-        path if path == paths::SETTING_MODEL_EFFORT => bound(b"setting_model_effort_some", limits.setting_model_effort_some),
+        path if path == paths::SETTING_MODEL_EFFORT => {
+            bound(b"setting_model_effort_some", limits.setting_model_effort_some)
+        }
         path if path == paths::SETTING_MODEL_EFFORTS => bound(b"setting_model_efforts", limits.setting_model_efforts),
         path if path == paths::SETTING_MODEL_NAME => bound(b"setting_model_name", limits.setting_model_name),
-        path if path == paths::SETTING_MODEL_PROGRAM => bound(b"setting_model_program_some", limits.setting_model_program_some),
-        path if path == paths::SETTING_POLICY_PERMISSIONS => bound(b"setting_policy_permissions", limits.setting_policy_permissions),
-        path if path == paths::SETTING_POLICY_PROJECTIONS => bound(b"setting_policy_projections", limits.setting_policy_projections),
-        path if path == paths::SETTING_POLICY_REQUIREMENTS => bound(b"setting_policy_requirements", limits.setting_policy_requirements),
+        path if path == paths::SETTING_MODEL_PROGRAM => {
+            bound(b"setting_model_program_some", limits.setting_model_program_some)
+        }
+        path if path == paths::SETTING_POLICY_PERMISSIONS => {
+            bound(b"setting_policy_permissions", limits.setting_policy_permissions)
+        }
+        path if path == paths::SETTING_POLICY_PROJECTIONS => {
+            bound(b"setting_policy_projections", limits.setting_policy_projections)
+        }
+        path if path == paths::SETTING_POLICY_REQUIREMENTS => {
+            bound(b"setting_policy_requirements", limits.setting_policy_requirements)
+        }
         path if path == paths::SETTING_POLICY_ROLES => bound(b"setting_policy_roles", limits.setting_policy_roles),
-        path if path == paths::SETTING_POLICY_TEMPLATES => bound(b"setting_policy_templates", limits.setting_policy_templates),
+        path if path == paths::SETTING_POLICY_TEMPLATES => {
+            bound(b"setting_policy_templates", limits.setting_policy_templates)
+        }
         path if path == paths::TASK_CONTRACT_DOCUMENT_APPROVAL_STATE => {
             bound(b"task_contract_document_approval_state", limits.task_contract_document_approval_state)
         }
@@ -594,14 +614,18 @@ pub(super) fn verdict_bound(
     for choice in choices {
         let mut fields = List::with_capacity(choice.fields.len());
         for field in &choice.fields {
-            let field = match Ok(w::FieldRule { name: field.name.clone(), max: field.max })
-            {
+            let field = match Ok(w::FieldRule { name: field.name.clone(), max: field.max }) {
                 Ok(field) => field,
                 Err(problem) => return Err(wire_error(problem, limits)),
             };
             fields.push(field).expect("same field count");
         }
-        let row = match Ok(w::VerdictChoice { code: choice.code, words: choice.words, followups: choice.followups, fields }) {
+        let row = match Ok(w::VerdictChoice {
+            code: choice.code,
+            words: choice.words,
+            followups: choice.followups,
+            fields,
+        }) {
             Ok(row) => row,
             Err(problem) => return Err(wire_error(problem, limits)),
         };
@@ -627,22 +651,23 @@ pub(super) fn verdict_bound(
 
 #[cfg(test)]
 mod tests {
-    use jig_client_protocol_wire::Record as _;
-use super::{message, wire_error};
+    use super::{message, wire_error};
     use alloc::boxed::Box;
     use jig_client_protocol_wire as wire;
+    use jig_client_protocol_wire::Record as _;
 
     #[test]
     fn an_unlisted_wire_path_keeps_the_generic_diagnostic_words() {
         let mut limits = wire::CEILINGS;
         limits.keyed_request = 0;
         let problem = (wire::Keyed {
-                key: [0; 16],
-                owner: wire::Owner::Jig,
-                version: 1,
-                request: Box::from(b"x".as_slice()),
-                value: None,
-            }).encode(&limits)
+            key: [0; 16],
+            owner: wire::Owner::Jig,
+            version: 1,
+            request: Box::from(b"x".as_slice()),
+            value: None,
+        })
+        .encode(&limits)
         .expect_err("one request byte is beyond the zero-byte fixture limit");
         assert_eq!(problem.path, wire::paths::KEYED_REQUEST);
         assert_eq!(message(None, wire_error(problem, &limits)).as_ref(), b"settings file: value: wire value bound");

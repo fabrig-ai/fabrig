@@ -1,6 +1,6 @@
 //! Populated settings decode with their content intact.
-use jig_client_protocol_wire::Record as _;
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use skein_lib::{Reader, Writer};
 
 #[test]
@@ -16,7 +16,9 @@ fn populated_charter_decodes_its_parts() {
     let mut populated = value;
     populated.parts = parts;
     let value = populated;
-    let mut out = Writer::new(usize::try_from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    let mut out = Writer::new(
+        usize::try_from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
     value.write(&jig_client_protocol_wire::CEILINGS, &mut out).unwrap();
     let bytes = out.finish();
     let mut input = Reader::new(&bytes);

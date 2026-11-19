@@ -74,9 +74,7 @@ fn lending_reports_and_duties_replay_through_the_host() {
     use jig_client_protocol_wire as w;
     let (mut walk, duties) = linked_walk_duties(true);
     let duties = walk.admit(duties);
-    let subject = w::Subject::Terminal(
-        w::SubjectTerminal { terminal: skein_lib::Rng::new(7).next_u64() },
-    );
+    let subject = w::Subject::Terminal(w::SubjectTerminal { terminal: skein_lib::Rng::new(7).next_u64() });
     let terminal = watch(&duties, &subject);
     let duties = walk.reports(vec![delivery_report(terminal, &terminal_document(Some((1, false))))]);
     assert!(duties.iter().any(|duties| duties.lend.as_ref().is_some_and(|lend| lend.number == 1)));

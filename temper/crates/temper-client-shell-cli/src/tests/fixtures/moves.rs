@@ -27,9 +27,7 @@ impl Frame {
             | w::Subject::Settings => panic!("move watches only accounts and deployment"),
         };
         let document = w::Owned { owner: w::Owner::Jig, version: w::VERSION, record: encode!(value) };
-        let event = w::StreamEvent::Delivery(
-            w::Delivery { watch, document },
-        );
+        let event = w::StreamEvent::Delivery(w::Delivery { watch, document });
         self.sockets.get_mut(&self.stream.expect("stream")).expect("stream socket").reply.extend(sse(&event));
     }
     pub(super) fn move_reply(&mut self, fd: Fd, keyed: &w::Keyed) {
@@ -107,46 +105,25 @@ impl Frame {
 fn final_answer(answer: Answer) -> w::Final {
     match answer {
         Answer::Lost | Answer::Unsent => unreachable!("transport answers handled"),
-        Answer::Moving(bytes) => w::Final::Done(
-            w::Done {
-                    outcome: w::Outcome::Made(
-                        w::OutcomeMade {
-                                what: w::Made::MovingOut(
-                                    w::MadeMovingOut {
-                                            account: ACCOUNT,
-                                            number: NUMBER,
-                                            record: skein_lib::Secret::new(bytes.into()),
-                                        },
-                                ),
-                            },
-                    ),
-                },
-        ),
-        Answer::Done => w::Final::Done(
-            w::Done {
-                    outcome: w::Outcome::Document(
-                        w::OutcomeDocument { value: w::DocumentOutcome::AccountChanged },
-                    ),
-                },
-        ),
-        Answer::MovedIn(renewed) => w::Final::Done(
-            w::Done {
-                    outcome: w::Outcome::Document(
-                        w::OutcomeDocument {
-                                value: w::DocumentOutcome::AccountMovedIn(
-                                    w::OutcomeAccountMovedIn { account: ACCOUNT, renewed },
-                                ),
-                            },
-                    ),
-                },
-        ),
-        Answer::Refused(why) => w::Final::Refused(
-            w::Refused {
-                    refusal: w::Refusal::AccountMove(
-                        w::RefusalAccountMove { why },
-                    ),
-                    at: None,
-                },
-        ),
+        Answer::Moving(bytes) => w::Final::Done(w::Done {
+            outcome: w::Outcome::Made(w::OutcomeMade {
+                what: w::Made::MovingOut(w::MadeMovingOut {
+                    account: ACCOUNT,
+                    number: NUMBER,
+                    record: skein_lib::Secret::new(bytes.into()),
+                }),
+            }),
+        }),
+        Answer::Done => w::Final::Done(w::Done {
+            outcome: w::Outcome::Document(w::OutcomeDocument { value: w::DocumentOutcome::AccountChanged }),
+        }),
+        Answer::MovedIn(renewed) => w::Final::Done(w::Done {
+            outcome: w::Outcome::Document(w::OutcomeDocument {
+                value: w::DocumentOutcome::AccountMovedIn(w::OutcomeAccountMovedIn { account: ACCOUNT, renewed }),
+            }),
+        }),
+        Answer::Refused(why) => {
+            w::Final::Refused(w::Refused { refusal: w::Refusal::AccountMove(w::RefusalAccountMove { why }), at: None })
+        }
     }
 }

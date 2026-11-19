@@ -82,31 +82,31 @@ pub fn project() -> c::Project {
 }
 pub fn with_account(until: Option<u64>) -> w::Deployment {
     let account = w::Account {
-            list: None,
-            facts: List::with_capacity(0),
-            provider_name: None,
-            manage_usage: None,
-            plan: false,
-            usable: true,
-            expiring: false,
-            attention: true,
-            cut: false,
-            number: 1,
-            place: 0,
-            uses: None,
-            provider: None,
-            display: w::DocumentText { bytes: Box::from([]), cut: false },
-            holder: w::AccountHolder::Deployment,
-            sources: Box::from([]),
-            generation: Some(0),
-            state: w::AccountState::Later(
-                w::AccountStateLater { until },
-            ),
-            spent_until: None,
-            runs: Box::from([]),
-            waiting: Box::from([]),
-        };
-    let mut bytes = Writer::new(usize::try_from(account.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+        list: None,
+        facts: List::with_capacity(0),
+        provider_name: None,
+        manage_usage: None,
+        plan: false,
+        usable: true,
+        expiring: false,
+        attention: true,
+        cut: false,
+        number: 1,
+        place: 0,
+        uses: None,
+        provider: None,
+        display: w::DocumentText { bytes: Box::from([]), cut: false },
+        holder: w::AccountHolder::Deployment,
+        sources: Box::from([]),
+        generation: Some(0),
+        state: w::AccountState::Later(w::AccountStateLater { until }),
+        spent_until: None,
+        runs: Box::from([]),
+        waiting: Box::from([]),
+    };
+    let mut bytes = Writer::new(
+        usize::try_from(account.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
     account.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
     let bytes = bytes.finish();
     let mut piece = Writer::new(bytes.len().checked_add(4).unwrap());

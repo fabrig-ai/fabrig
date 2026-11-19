@@ -1,5 +1,5 @@
-use jig_client_protocol_wire::Record as _;
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use jig_domain_core as core;
 use jig_domain_people as people;
 use jig_engine_clients_world::fixtures::{self, Peer};
@@ -23,19 +23,21 @@ fn bearer(peer: &mut Peer, sign_in: u64, person: u64) -> Box<[u8]> {
     out.finish()
 }
 fn request() -> Box<[u8]> {
-    let ask = w::Ask::Message(
-        w::Message { project: 3, task: 8, words: Box::from(b"hello".as_slice()) },
-    );
-    let mut out = Writer::new(skein_lib::length::usize_of(ask.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+    let ask = w::Ask::Message(w::Message { project: 3, task: 8, words: Box::from(b"hello".as_slice()) });
+    let mut out = Writer::new(skein_lib::length::usize_of(
+        ask.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+    ));
     ask.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("ask bytes");
     let record = w::Keyed {
-            key: [5; 16],
-            owner: w::Owner::Jig,
-            version: jig_client_protocol_wire::VERSION,
-            request: out.finish(),
-            value: None,
-        };
-    let mut out = Writer::new(skein_lib::length::usize_of(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+        key: [5; 16],
+        owner: w::Owner::Jig,
+        version: jig_client_protocol_wire::VERSION,
+        request: out.finish(),
+        value: None,
+    };
+    let mut out = Writer::new(skein_lib::length::usize_of(
+        record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+    ));
     record.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("request bytes");
     out.finish()
 }
@@ -70,13 +72,9 @@ fn a_native_request_waits_for_the_released_reply_and_takes_its_task() {
     };
     assert_eq!((&answer.owner), &w::Owner::Jig);
     assert_eq!(answer.version, jig_client_protocol_wire::VERSION);
-    let outcome = w::Outcome::Document(
-        w::OutcomeDocument {
-                value: w::DocumentOutcome::Said(
-                    w::OutcomeSaid { task: 8, message: 9 },
-                ),
-            },
-    );
+    let outcome = w::Outcome::Document(w::OutcomeDocument {
+        value: w::DocumentOutcome::Said(w::OutcomeSaid { task: 8, message: 9 }),
+    });
     assert_eq!(
         w::Final::decode(&limits, &mut skein_lib::Reader::new(answer.record.as_ref())),
         Ok(w::Final::Done(w::Done { outcome }))
@@ -85,50 +83,52 @@ fn a_native_request_waits_for_the_released_reply_and_takes_its_task() {
 
 fn owner_authority(spend: u64) -> w::Authority {
     w::Authority {
-            models: None,
-            tools: 0,
-            grants: Box::new([]),
-            spend,
-            deadline: None,
-            notes: 0,
-            note_resources: Box::new([]),
-            delegation: w::Delegation { kinds: skein_lib::List::with_capacity(0), tasks: 0, depth: 0 },
-        }
+        models: None,
+        tools: 0,
+        grants: Box::new([]),
+        spend,
+        deadline: None,
+        notes: 0,
+        note_resources: Box::new([]),
+        delegation: w::Delegation { kinds: skein_lib::List::with_capacity(0), tasks: 0, depth: 0 },
+    }
 }
 fn amend_request(revision: u64, spend: u64) -> Box<[u8]> {
     let authority = owner_authority(spend);
-    let ask = w::Ask::Amend(Box::new(
-        w::Amend {
-                project: 1,
-                task: 2,
-                revision: Some(w::Revision { value: revision }),
-                change: w::Amendment {
-                        llm: None,
-                        tracked: None,
-                        addressed: None,
-                        spec: None,
-                        wake: None,
-                        dependencies: None,
-                        authority: Some(authority),
-                        instructions: None,
-                    },
-                reason: b"more work".as_slice().into(),
-            },
-    ));
+    let ask = w::Ask::Amend(Box::new(w::Amend {
+        project: 1,
+        task: 2,
+        revision: Some(w::Revision { value: revision }),
+        change: w::Amendment {
+            llm: None,
+            tracked: None,
+            addressed: None,
+            spec: None,
+            wake: None,
+            dependencies: None,
+            authority: Some(authority),
+            instructions: None,
+        },
+        reason: b"more work".as_slice().into(),
+    }));
     keyed([61; 16], &ask)
 }
 /// A keyed request carrying `ask` under `key`.
 fn keyed(key: [u8; 16], ask: &w::Ask) -> Box<[u8]> {
-    let mut out = Writer::new(skein_lib::length::usize_of(ask.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+    let mut out = Writer::new(skein_lib::length::usize_of(
+        ask.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+    ));
     ask.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("ask bytes");
     let keyed = w::Keyed {
-            key,
-            owner: w::Owner::Jig,
-            version: jig_client_protocol_wire::VERSION,
-            request: out.finish(),
-            value: None,
-        };
-    let mut out = Writer::new(skein_lib::length::usize_of(keyed.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+        key,
+        owner: w::Owner::Jig,
+        version: jig_client_protocol_wire::VERSION,
+        request: out.finish(),
+        value: None,
+    };
+    let mut out = Writer::new(skein_lib::length::usize_of(
+        keyed.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+    ));
     keyed.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("keyed bytes");
     out.finish()
 }
@@ -268,32 +268,30 @@ fn a_v9_amend_beyond_the_ceiling_stays_refused() {
 fn propose_request(revision: u64, spend: u64) -> Box<[u8]> {
     let limits = fixtures::limits().wire;
     let keyed = w::Keyed::decode(&limits, &mut skein_lib::Reader::new(&amend_request(revision, spend)))
-        .expect("bounded proposal fixture")
-        ;
+        .expect("bounded proposal fixture");
     let w::Ask::Amend(value) =
         w::Ask::decode(&limits, &mut skein_lib::Reader::new(&keyed.request)).expect("bounded proposal fixture")
     else {
         panic!("amend fixture")
     };
     let v = value;
-    let ask = w::Ask::Propose(
-        w::Propose {
-                project: v.project,
-                action: w::ProposeAction::Amendment(Box::new(
-                    w::ProposeAmendment {
-                            task: v.task,
-                            revision: v.revision.expect("amendment revision"),
-                            change: v.change,
-                        },
-                )),
-                reason: v.reason,
-            },
-    );
-    let mut out = Writer::new(skein_lib::length::usize_of(ask.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+    let ask = w::Ask::Propose(w::Propose {
+        project: v.project,
+        action: w::ProposeAction::Amendment(Box::new(w::ProposeAmendment {
+            task: v.task,
+            revision: v.revision.expect("amendment revision"),
+            change: v.change,
+        })),
+        reason: v.reason,
+    });
+    let mut out = Writer::new(skein_lib::length::usize_of(
+        ask.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+    ));
     ask.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("bounded proposal fixture");
-    let keyed =
-        w::Keyed { request: out.finish(), ..keyed };
-    let mut out = Writer::new(skein_lib::length::usize_of(keyed.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+    let keyed = w::Keyed { request: out.finish(), ..keyed };
+    let mut out = Writer::new(skein_lib::length::usize_of(
+        keyed.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+    ));
     keyed.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("bounded proposal fixture");
     out.finish()
 }
@@ -301,19 +299,22 @@ fn propose_request(revision: u64, spend: u64) -> Box<[u8]> {
 const CREATE_TASK: u8 = 30;
 
 pub(super) fn carrying_request(value: &[u8]) -> Box<[u8]> {
-    let request =
-        w::FamilyRequest { scope: w::Scope::Own, record: Box::new([255]) };
-    let mut out = Writer::new(skein_lib::length::usize_of(request.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+    let request = w::FamilyRequest { scope: w::Scope::Own, record: Box::new([255]) };
+    let mut out = Writer::new(skein_lib::length::usize_of(
+        request.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+    ));
     request.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("family request bytes");
     let owner = w::Owner::Family(w::Family { number: 1 });
     let keyed = w::Keyed {
-            key: [6; 16],
-            owner,
-            version: 1,
-            request: out.finish(),
-            value: Some(skein_lib::Secret::new(Box::from(value))),
-        };
-    let mut out = Writer::new(skein_lib::length::usize_of(keyed.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+        key: [6; 16],
+        owner,
+        version: 1,
+        request: out.finish(),
+        value: Some(skein_lib::Secret::new(Box::from(value))),
+    };
+    let mut out = Writer::new(skein_lib::length::usize_of(
+        keyed.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+    ));
     keyed.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("carrying bytes");
     out.finish()
 }
@@ -355,35 +356,22 @@ fn a_carried_value_is_kept_before_the_application_sees_its_request() {
 
 #[test]
 fn settings_proposals_and_running_choices_reach_the_core() {
-    let propose = w::Ask::Propose(
-        w::Propose {
-                project: 0,
-                reason: Box::from(b"settings".as_slice()),
-                action: w::ProposeAction::Settings(
-                    w::ProposeSettings { against: 6, items: Box::new([]) },
-                ),
-            },
-    );
-    let proposal = w::ProposalKey {
-            proposer: w::Proposer::Party(
-                w::ProposerParty { value: 3 },
-            ),
-            number: 7,
-        };
+    let propose = w::Ask::Propose(w::Propose {
+        project: 0,
+        reason: Box::from(b"settings".as_slice()),
+        action: w::ProposeAction::Settings(w::ProposeSettings { against: 6, items: Box::new([]) }),
+    });
+    let proposal = w::ProposalKey { proposer: w::Proposer::Party(w::ProposerParty { value: 3 }), number: 7 };
     let mut asks = vec![propose];
     for running in [w::Running::Stays, w::Running::Moves] {
-        asks.push(w::Ask::Decide(
-            w::Decide {
-                    project: 0,
-                    on: w::DecideOn::Proposal(
-                        w::DecideProposal {
-                                proposal: proposal.clone(),
-                                decision: w::Decision::Accepted,
-                                running: Some(running),
-                            },
-                    ),
-                },
-        ));
+        asks.push(w::Ask::Decide(w::Decide {
+            project: 0,
+            on: w::DecideOn::Proposal(w::DecideProposal {
+                proposal: proposal.clone(),
+                decision: w::Decision::Accepted,
+                running: Some(running),
+            }),
+        }));
     }
     let mut peer = Peer::started(&fixtures::settings());
     let bearer = fixtures::signed_in(&mut peer);
@@ -409,9 +397,7 @@ fn assert_login_routed(
     wire_refusal: w::Refusal,
 ) {
     let limits = fixtures::limits().wire;
-    let ask = w::Ask::AccountChange(
-        w::AskAccountChange { holder: w::AskAccountHolder::Own, change },
-    );
+    let ask = w::Ask::AccountChange(w::AskAccountChange { holder: w::AskAccountHolder::Own, change });
     let mut peer = Peer::started(&fixtures::settings());
     let bearer = fixtures::signed_in(&mut peer);
     let socket = peer.post(b"/jig/v1/request", keyed([83; 16], &ask), Some(&bearer));
@@ -434,16 +420,13 @@ fn assert_login_routed(
     assert_eq!(answer.version, jig_client_protocol_wire::VERSION);
     assert_eq!(
         w::Final::decode(&limits, &mut skein_lib::Reader::new(answer.record.as_ref())),
-        Ok(w::Final::Refused(
-            w::Refused { refusal: wire_refusal, at: None }
-        ))
+        Ok(w::Final::Refused(w::Refused { refusal: wire_refusal, at: None }))
     );
 }
 #[test]
 fn login_program_reaches_the_core() {
-    let change = w::AccountChange::LoginProgram(
-        w::AccountChangeLoginProgram { provider: 2, name: b"work".as_slice().into() },
-    );
+    let change =
+        w::AccountChange::LoginProgram(w::AccountChangeLoginProgram { provider: 2, name: b"work".as_slice().into() });
     assert_login_routed(
         change,
         &people::AccountChange::LoginProgram { provider: 2, name: b"work".as_slice().into() },
@@ -453,9 +436,7 @@ fn login_program_reaches_the_core() {
 }
 #[test]
 fn cancel_login_reaches_the_core() {
-    let change = w::AccountChange::CancelLogin(
-        w::AccountChangeCancelLogin { number: 1 },
-    );
+    let change = w::AccountChange::CancelLogin(w::AccountChangeCancelLogin { number: 1 });
     assert_login_routed(
         change,
         &people::AccountChange::CancelLogin { number: 1 },
@@ -465,9 +446,7 @@ fn cancel_login_reaches_the_core() {
 }
 #[test]
 fn login_ended_reaches_the_core() {
-    let change = w::AccountChange::LoginEnded(
-        w::AccountChangeLoginEnded { number: 1, exit: w::LoginExit::NotStarted },
-    );
+    let change = w::AccountChange::LoginEnded(w::AccountChangeLoginEnded { number: 1, exit: w::LoginExit::NotStarted });
     assert_login_routed(
         change,
         &people::AccountChange::LoginEnded { number: 1, exit: people::LoginExit::NotStarted },

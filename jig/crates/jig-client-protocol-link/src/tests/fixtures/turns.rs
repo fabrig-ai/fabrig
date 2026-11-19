@@ -141,15 +141,13 @@ pub fn turn_read() -> c::Read {
 }
 pub fn single_turn_record(body: &[u8]) -> w::ArchivedTurn {
     w::ArchivedTurn {
-            task: 7,
-            name: w::TurnName { attempt: 44, number: 3 },
-            cumulative: 123,
-            read: Some(78),
-            at: 99,
-            turn: w::TurnBytes::Carried(
-                w::TurnCarried { bytes: Box::from(body) },
-            ),
-        }
+        task: 7,
+        name: w::TurnName { attempt: 44, number: 3 },
+        cumulative: 123,
+        read: Some(78),
+        at: 99,
+        turn: w::TurnBytes::Carried(w::TurnCarried { bytes: Box::from(body) }),
+    }
 }
 pub fn single_turn_value() -> w::ReadValue {
     w::ReadValue::Turn(single_turn_record(&full_turn()))

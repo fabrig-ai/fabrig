@@ -85,7 +85,9 @@ fn a_new_tasks_closer_crosses_the_wire_both_ways() {
         task.flags.ended_by = ended_by;
         let ask = c::Ask::Create { project: 7, tasks: fixtures::list([task]) };
         let wire = translate::asks::ask(&ask, limits.wire()).unwrap();
-        let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(wire.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+        let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(
+            wire.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+        ));
         wire.write(&jig_client_protocol_wire::CEILINGS, &mut out).unwrap();
         let wire = w::Ask::decode(limits.wire(), &mut Reader::new(&out.finish())).unwrap();
         assert_eq!(translate::store::restore_ask(wire, &limits), Ok(ask));

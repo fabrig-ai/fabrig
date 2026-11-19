@@ -1,9 +1,9 @@
 //! Pure row-part encodings, shared by the root and service vocabulary
 //! (temper/docs/design/client/forge/parts.md, 3–4).
 #![expect(clippy::manual_map, reason = "pure encodings spell out optional fields without closures")]
-use jig_client_protocol_wire::Record as _;
 use crate::MilestoneTotals;
 use alloc::boxed::Box;
+use jig_client_protocol_wire::Record as _;
 use jig_domain_core_vocabulary::documents::TaskLine;
 use skein_lib::{List, Wall, Writer};
 use temper_client_protocol_wire::{self as wire, v1 as w};

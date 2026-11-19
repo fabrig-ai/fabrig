@@ -1,5 +1,5 @@
-use jig_client_protocol_wire::Record as _;
 use super::*;
+use jig_client_protocol_wire::Record as _;
 /// The shared message's task, words and name establish the engine-key mapping.
 pub(crate) const MESSAGE_CALL: &[&str] = &["task", "message", "41", "Use port 8080", "--key", "port-answer"];
 /// Optional names can be omitted on stop, unlike a message's required name.
@@ -239,7 +239,10 @@ pub(crate) fn encoded(ask: &client::Ask) -> Box<[u8]> {
     let client::Ask::Jig(ask) = ask else { panic!("jig ask") };
     let wire =
         jig_client_protocol_link::translate::asks::ask(ask, &jig_client_protocol_wire::CEILINGS).expect("wire ask");
-    let mut out = skein_lib::Writer::new(usize::try_from(wire.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("wire bytes fit"));
+    let mut out = skein_lib::Writer::new(
+        usize::try_from(wire.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+            .expect("wire bytes fit"),
+    );
     wire.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("measured ask");
     out.finish()
 }

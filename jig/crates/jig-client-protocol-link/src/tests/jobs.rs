@@ -26,9 +26,7 @@ fn a_job_executor_round_trips() {
 #[test]
 fn a_job_delegation_kind_round_trips() {
     let limits = fixtures::limits();
-    let wire = w::AuthorityExecutor::Job(
-        w::AuthorityExecutorJob { value: 7 },
-    );
+    let wire = w::AuthorityExecutor::Job(w::AuthorityExecutorJob { value: 7 });
     let kind = translate::documents::authority_executor_fields(&wire);
     assert_eq!(kind, c::AuthorityExecutor::Job(7));
     assert_eq!(translate::asks::wire_owner_authority_executor(kind, limits.wire()), Ok(wire));
@@ -38,8 +36,7 @@ fn a_job_delegation_kind_round_trips() {
 #[test]
 fn a_job_chip_keeps_its_kind_in_documents_and_refusals() {
     let limits = fixtures::limits();
-    let wire =
-        w::ChipExecutor::Job(w::ChipExecutorJob { kind: 7 });
+    let wire = w::ChipExecutor::Job(w::ChipExecutorJob { kind: 7 });
     assert_eq!(translate::answers::executor(&wire), c::ChipExecutor::Job { kind: 7 });
     let mut task = fixtures::task_record();
     let mut reader = Reader::new(task.chip.rows.as_ref());
@@ -82,7 +79,9 @@ fn a_job_executor_filter_round_trips_the_wire() {
         order: c::QueryOrder::Number,
     };
     let read = translate::reads::read(&c::Read::Tasks { query, live: None, ended: None }, limits.wire()).unwrap();
-    let mut out = Writer::new(usize::try_from(read.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    let mut out = Writer::new(
+        usize::try_from(read.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
     read.write(&jig_client_protocol_wire::CEILINGS, &mut out).unwrap();
     let decoded = w::Read::decode(limits.wire(), &mut Reader::new(&out.finish())).unwrap();
     assert_eq!(decoded, read);
@@ -96,9 +95,7 @@ fn a_job_executor_filter_round_trips_the_wire() {
 #[test]
 fn a_job_contract_round_trips() {
     let limits = fixtures::limits();
-    let contract = w::TaskContractDocument::Job(
-        w::TaskContractDocumentJob { bytes: 4096 },
-    );
+    let contract = w::TaskContractDocument::Job(w::TaskContractDocumentJob { bytes: 4096 });
     let values = jig_client_test_records::settings::settings_values();
     let mut template = None;
     for value in &values {

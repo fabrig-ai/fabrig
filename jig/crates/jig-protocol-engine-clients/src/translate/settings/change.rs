@@ -1,7 +1,7 @@
 //! Whole settings asks into core values (client/domain/contract/requests.md, 2).
-use jig_client_protocol_wire::Record as _;
 use super::super::{Untranslatable, asks, operations, w};
 use alloc::boxed::Box;
+use jig_client_protocol_wire::Record as _;
 use jig_domain_authority as a;
 use jig_domain_core_vocabulary::{self as c, settings as s};
 use jig_domain_people as p;
@@ -35,9 +35,7 @@ pub(crate) fn change(
                 edit: match item.edit {
                     w::SettingEdit::Removed => s::Edit::Removed,
                     w::SettingEdit::Reset => s::Edit::Reset,
-                    w::SettingEdit::Set(value) => {
-                        s::Edit::Set(setting_value(value.value, models, limits)?)
-                    }
+                    w::SettingEdit::Set(value) => s::Edit::Set(setting_value(value.value, models, limits)?),
                 },
             })
             .expect("counted pieces");
@@ -257,11 +255,7 @@ fn policy(
     let mut permissions = List::with_capacity(v.permissions.len());
     for value in v.permissions.into_boxed() {
         permissions
-            .push(p::PermissionRole {
-                connector: value.connector,
-                permission: value.permission,
-                role: value.role,
-            })
+            .push(p::PermissionRole { connector: value.connector, permission: value.permission, role: value.role })
             .expect("same count");
     }
     let overrides = operations::overrides(v.templates);

@@ -438,14 +438,15 @@ fn reply(host: &mut Host, exchange: skein_lib::Token, message: Box<[u8]>) -> Dut
 
 fn approval_bytes(code: &[u8], tail: &[u8]) -> Box<[u8]> {
     use jig_client_protocol_wire as w;
-    let record = w::ApprovalAskAnswer::Asked(
-        w::ApprovalAsked {
-                secret: Secret::new(Box::new([7; 32])),
-                code: *b"WDJBMJHT",
-                expires: 600_000_000_000,
-            },
+    let record = w::ApprovalAskAnswer::Asked(w::ApprovalAsked {
+        secret: Secret::new(Box::new([7; 32])),
+        code: *b"WDJBMJHT",
+        expires: 600_000_000_000,
+    });
+    let mut writer = skein_lib::Writer::new(
+        usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+            .expect("test length"),
     );
-    let mut writer = skein_lib::Writer::new(usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("test length"));
     record.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("test record");
     let mut bytes = writer.finish().into_vec();
     let offset = bytes.windows(8).position(|part| part == b"WDJBMJHT").expect("code");
@@ -535,9 +536,7 @@ fn approval_enter_replaces_only_an_ended_or_pasted_take() {
         w::ApprovalSignInAnswer::Expired,
         w::ApprovalSignInAnswer::Used,
         w::ApprovalSignInAnswer::Unknown,
-        w::ApprovalSignInAnswer::Full(
-            w::ApprovalFull { sign_ins: 2, earliest: 400, until: 300 },
-        ),
+        w::ApprovalSignInAnswer::Full(w::ApprovalFull { sign_ins: 2, earliest: 400, until: 300 }),
         w::ApprovalSignInAnswer::Waiting,
     ] {
         let waiting = answer == w::ApprovalSignInAnswer::Waiting;
@@ -555,7 +554,10 @@ fn approval_enter_replaces_only_an_ended_or_pasted_take() {
                 }
             })
             .expect("approval take");
-        let mut writer = skein_lib::Writer::new(usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("test length"));
+        let mut writer = skein_lib::Writer::new(
+            usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+                .expect("test length"),
+        );
         answer.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("take answer");
         reply(host, take, writer.finish());
         host.frame();
@@ -587,7 +589,10 @@ fn approval_enter_replaces_only_an_ended_or_pasted_take() {
         let host = hosts.next();
         let exchange = ask(&start(host, None));
         if let Some(answer) = answer {
-            let mut writer = skein_lib::Writer::new(usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("length"));
+            let mut writer = skein_lib::Writer::new(
+                usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+                    .expect("length"),
+            );
             answer.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("answer");
             reply(host, exchange, writer.finish());
         } else {
@@ -617,7 +622,9 @@ fn approval_deadline_includes_the_views_tick() {
         .expect("take");
     host.clocks(Time::from_nanos(11), Wall::from_nanos(59_999_999_999));
     let answer = w::ApprovalSignInAnswer::Waiting;
-    let mut writer = skein_lib::Writer::new(usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("length"));
+    let mut writer = skein_lib::Writer::new(
+        usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("length"),
+    );
     answer.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("answer");
     reply(&mut host, take, writer.finish());
     let tick = host.view.tick().expect("expiry tick");
@@ -705,15 +712,16 @@ const LOCAL_SECRET: &str = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
 const FRESH_SECRET: &str = "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE";
 
 pub(crate) fn sign_in_bytes(answer: &w::SignInAnswer) -> Box<[u8]> {
-    let mut writer = skein_lib::Writer::new(usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("answer length"));
+    let mut writer = skein_lib::Writer::new(
+        usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+            .expect("answer length"),
+    );
     answer.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("answer fits");
     writer.finish()
 }
 
 pub(crate) fn signed_in_answer() -> w::SignInAnswer {
-    w::SignInAnswer::SignedIn(
-        w::SignedIn { token: Some(Secret::new(Box::new([7; 40]))), party: 7, expires: UNTIL },
-    )
+    w::SignInAnswer::SignedIn(w::SignedIn { token: Some(Secret::new(Box::new([7; 40]))), party: 7, expires: UNTIL })
 }
 
 fn local_link(address: &str, secret: &str) -> Secret {
@@ -846,12 +854,7 @@ fn the_engines_link_signs_in_and_falls_back() {
         ("refused", w::SignInAnswer::Refused),
         ("not ready", w::SignInAnswer::NotReady),
         ("busy", w::SignInAnswer::Busy),
-        (
-            "full",
-            w::SignInAnswer::Full(
-                w::SignInsFull { sign_ins: 2, earliest: 400, link_until: 300 },
-            ),
-        ),
+        ("full", w::SignInAnswer::Full(w::SignInsFull { sign_ins: 2, earliest: 400, link_until: 300 })),
     ] {
         rows.push(row(name, vec![(found(), Send), (Answer(answer), Ask)]));
     }
@@ -976,12 +979,7 @@ fn the_engines_link_signs_in_and_falls_back() {
             first: Read,
             steps: vec![
                 (found(), SendHeld),
-                (
-                    Answer(w::SignInAnswer::SignedIn(
-                        w::SignedIn { token: None, party: 7, expires: UNTIL },
-                    )),
-                    Quiet,
-                ),
+                (Answer(w::SignInAnswer::SignedIn(w::SignedIn { token: None, party: 7, expires: UNTIL })), Quiet),
             ],
         },
         LocalRow {
@@ -1007,12 +1005,7 @@ fn the_engines_link_signs_in_and_falls_back() {
             first: Read,
             steps: vec![
                 (found(), SendHeld),
-                (
-                    Answer(w::SignInAnswer::SignedIn(
-                        w::SignedIn { token: None, party: 7, expires: UNTIL },
-                    )),
-                    Quiet,
-                ),
+                (Answer(w::SignInAnswer::SignedIn(w::SignedIn { token: None, party: 7, expires: UNTIL })), Quiet),
                 (Connect, Until),
                 (End(UNTIL), Read),
                 (fresh(), Send),
@@ -1193,7 +1186,10 @@ fn local_check(host: &mut Host, duties: &Duties, want: LocalWant, name: &str, fa
 }
 
 pub(crate) fn stream_bytes(event: &w::StreamEvent) -> Box<[u8]> {
-    let mut writer = skein_lib::Writer::new(usize::try_from(event.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("stream size"));
+    let mut writer = skein_lib::Writer::new(
+        usize::try_from(event.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+            .expect("stream size"),
+    );
     event.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("stream fits");
     writer.finish()
 }
@@ -1202,31 +1198,31 @@ pub(crate) fn hello_bytes() -> Box<[u8]> {
 }
 pub(crate) fn me_bytes(_duties: &Duties) -> Box<[u8]> {
     let watch = 0;
-    let text = |bytes: &[u8]| {
-        w::DocumentText { bytes: bytes.into(), cut: false }
-    };
+    let text = |bytes: &[u8]| w::DocumentText { bytes: bytes.into(), cut: false };
     let me = w::Me {
-            party: w::MeParty { number: 7, kind: w::PartyKind::Person, login: text(b"owner"), name: text(b"Owner") },
-            projects: Box::new([]),
-            needs: w::Needs { questions: 0, proposals: 0, escalations: 0, person_tasks: 0 },
-            needs_total: 0,
-            updates: w::Count { value: 0, limited: false },
-            results_seen: 0,
-            cut: false,
-            retention: Duration::from_secs(1000),
-            deployment_role: None,
-            providers: Box::new([]),
-            providers_cut: false,
-            key_bytes: 256,
-            redirect_bytes: 256,
-            words_bytes: 8192,
-        };
+        party: w::MeParty { number: 7, kind: w::PartyKind::Person, login: text(b"owner"), name: text(b"Owner") },
+        projects: Box::new([]),
+        needs: w::Needs { questions: 0, proposals: 0, escalations: 0, person_tasks: 0 },
+        needs_total: 0,
+        updates: w::Count { value: 0, limited: false },
+        results_seen: 0,
+        cut: false,
+        retention: Duration::from_secs(1000),
+        deployment_role: None,
+        providers: Box::new([]),
+        providers_cut: false,
+        key_bytes: 256,
+        redirect_bytes: 256,
+        words_bytes: 8192,
+    };
     let value = w::DeliveryValue::Me(me);
-    let mut writer = Writer::new(usize::try_from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("Me size"));
+    let mut writer = Writer::new(
+        usize::try_from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("Me size"),
+    );
     value.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("Me fits");
-    let document = w::Owned { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: writer.finish() };
-    let delivery =
-        w::StreamEvent::Delivery(w::Delivery { watch, document });
+    let document =
+        w::Owned { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: writer.finish() };
+    let delivery = w::StreamEvent::Delivery(w::Delivery { watch, document });
     stream_bytes(&delivery)
 }
 fn connect(host: &mut Host) -> Duties {
@@ -1250,32 +1246,29 @@ pub(crate) fn launchpad_me(projects: bool) -> w::Me {
     me.retention = Duration::from_secs(1000);
     if projects {
         let template = w::Template {
-                number: 5,
-                name: records::wire_text(b"Ask temper"),
-                executor: w::TemplateExecutor::Charter(
-                    w::TemplateCharter { value: 5 },
-                ),
-                contract: w::TaskContractDocument::Report(
-                    w::TaskContractDocumentReport { words: 32 },
-                ),
-                shallower: 1,
-                budget: w::TemplateBudget::AsAllowed(
-                    w::TemplateAsAllowed { cap: None },
-                ),
-                deadline: w::TemplateDeadline::None,
-                tracked: None,
-                flags: w::TaskFlags {
-                        ended_by: w::EndedBy::Result,
-                        conversation: true,
-                        listed: true,
-                        retention: w::Retention::Kept,
-                    },
-                label: 7,
-                grace: None,
-                llm: None,
-                resources: List::with_capacity(0),
-            };
-        let mut writer = Writer::new(usize::try_from(template.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("template size"));
+            number: 5,
+            name: records::wire_text(b"Ask temper"),
+            executor: w::TemplateExecutor::Charter(w::TemplateCharter { value: 5 }),
+            contract: w::TaskContractDocument::Report(w::TaskContractDocumentReport { words: 32 }),
+            shallower: 1,
+            budget: w::TemplateBudget::AsAllowed(w::TemplateAsAllowed { cap: None }),
+            deadline: w::TemplateDeadline::None,
+            tracked: None,
+            flags: w::TaskFlags {
+                ended_by: w::EndedBy::Result,
+                conversation: true,
+                listed: true,
+                retention: w::Retention::Kept,
+            },
+            label: 7,
+            grace: None,
+            llm: None,
+            resources: List::with_capacity(0),
+        };
+        let mut writer = Writer::new(
+            usize::try_from(template.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+                .expect("template size"),
+        );
         template.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("template fits");
         let asking = writer.finish();
         let mut chat = template;
@@ -1283,40 +1276,41 @@ pub(crate) fn launchpad_me(projects: bool) -> w::Me {
         chat.name = records::wire_text(b"Chat");
         chat.label = 8;
         let chat = chat;
-        let mut writer = Writer::new(usize::try_from(chat.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("chat template size"));
+        let mut writer = Writer::new(
+            usize::try_from(chat.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+                .expect("chat template size"),
+        );
         chat.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("chat template fits");
         let templates = pieces(&[asking, writer.finish()]);
         let mut charters = List::with_capacity(1);
         charters.push(5).expect("one charter");
         let creating = w::CreatingBounds {
-                within: w::BoundsCreate {
-                        authority: records::wire_owner_authority_document(),
-                        pool_left: 100,
-                        charters,
-                        procedures: List::with_capacity(0),
-                        latest: None,
-                        budget: 100,
-                        maximum_budget: 100,
-                        maximum_deadline: None,
-                    },
-                beyond: w::Beyond::Refused(
-                    w::BeyondRefused { value: w::Refusal::NotOffered },
-                ),
-            };
+            within: w::BoundsCreate {
+                authority: records::wire_owner_authority_document(),
+                pool_left: 100,
+                charters,
+                procedures: List::with_capacity(0),
+                latest: None,
+                budget: 100,
+                maximum_budget: 100,
+                maximum_deadline: None,
+            },
+            beyond: w::Beyond::Refused(w::BeyondRefused { value: w::Refusal::NotOffered }),
+        };
         let mut projects = Vec::new();
         for project in [3, 5] {
             let project = w::MeProject {
-                    left_out: 0,
-                    project,
-                    name: records::wire_text(b"Project"),
-                    role: w::HeldRole::Owner,
-                    pool: None,
-                    templates: templates.clone(),
-                    creating: Some(creating.clone()),
-                    models: List::with_capacity(0),
-                    defaults: List::with_capacity(0),
-                    public: None,
-                };
+                left_out: 0,
+                project,
+                name: records::wire_text(b"Project"),
+                role: w::HeldRole::Owner,
+                pool: None,
+                templates: templates.clone(),
+                creating: Some(creating.clone()),
+                models: List::with_capacity(0),
+                defaults: List::with_capacity(0),
+                public: None,
+            };
             projects.push(project_bytes(&project));
         }
         me.projects = pieces(&projects);
@@ -1325,7 +1319,10 @@ pub(crate) fn launchpad_me(projects: bool) -> w::Me {
 }
 
 fn project_bytes(project: &w::MeProject) -> Box<[u8]> {
-    let mut writer = Writer::new(usize::try_from(project.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("project size"));
+    let mut writer = Writer::new(
+        usize::try_from(project.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+            .expect("project size"),
+    );
     project.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("project fits");
     writer.finish()
 }
@@ -1338,7 +1335,6 @@ fn openings(message: &Message) -> Vec<w::Open> {
         Message::Watch(bytes) => vec![w::Open::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("watch")],
         Message::Batch(bytes) => w::Batch::decode(&w::CEILINGS, &mut Reader::new(bytes))
             .expect("batch")
-            
             .members
             .into_boxed()
             .into_vec()
@@ -1394,12 +1390,14 @@ fn delivery(host: &mut Host, watch: u64, value: &w::DeliveryValue) -> Duties {
 }
 
 pub(crate) fn delivery_report(watch: u64, value: &w::DeliveryValue) -> Report {
-    let mut writer = Writer::new(usize::try_from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("delivery size"));
-    value.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("delivery fits");
-    let document = w::Owned { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: writer.finish() };
-    let event = w::StreamEvent::Delivery(
-        w::Delivery { watch, document },
+    let mut writer = Writer::new(
+        usize::try_from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+            .expect("delivery size"),
     );
+    value.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("delivery fits");
+    let document =
+        w::Owned { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: writer.finish() };
+    let event = w::StreamEvent::Delivery(w::Delivery { watch, document });
     Report::Heard(jig_client::Event::Streamed { message: jig_client::Streamed::Record(stream_bytes(&event)) })
 }
 
@@ -1431,9 +1429,7 @@ fn chat_chip(task: u64, title: &[u8]) -> w::Chip {
 fn chat_chip_stage(task: u64, title: &[u8], stage: w::RunStage) -> w::Chip {
     let working = stage == w::RunStage::Due;
     let chip = records::owner_chip_record(
-        w::ChipPhase::Active(
-            w::ChipPhaseActive { value: stage },
-        ),
+        w::ChipPhase::Active(w::ChipPhaseActive { value: stage }),
         if working { w::Phase::Due } else { w::Phase::Idle },
     );
     let mut reader = Reader::new(chip.rows.as_ref());
@@ -1496,7 +1492,10 @@ fn goal_me() -> w::Me {
     template.number = jig_client::shapes::GOAL;
     template.label = 10;
     let template = template;
-    let mut writer = Writer::new(usize::try_from(template.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("template size"));
+    let mut writer = Writer::new(
+        usize::try_from(template.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+            .expect("template size"),
+    );
     template.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("template fits");
     project.templates = [project.templates.as_ref(), pieces(&[writer.finish()]).as_ref()].concat().into();
     me.projects = pieces(&[project_bytes(&project)]);
@@ -1508,11 +1507,11 @@ fn goal_tasks() -> w::Tasks {
     row.chip = chat_chip(NEWEST, b"Goal");
     row.project = 3;
     row.label = 10;
-    row.requester = w::Requester::Person(
-        w::RequesterPerson { value: 7 },
-    );
+    row.requester = w::Requester::Person(w::RequesterPerson { value: 7 });
     let row = row;
-    let mut writer = Writer::new(usize::try_from(row.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("goal size"));
+    let mut writer = Writer::new(
+        usize::try_from(row.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("goal size"),
+    );
     row.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("goal fits");
     w::Tasks { ended_mark: 0, rows: pieces(&[writer.finish()]), more: false }
 }
@@ -1844,12 +1843,7 @@ fn the_theme_list_takes_keeps_and_notices_a_choice() {
 
 fn person_chat(host: &mut Host) {
     let duties = give(host, Event::Act { act: Act::Go { address: Address::Chat { task: NEWEST } } });
-    let task_watch = watch(
-        &duties,
-        &w::Subject::Task(
-            w::SubjectTask { task: NEWEST },
-        ),
-    );
+    let task_watch = watch(&duties, &w::Subject::Task(w::SubjectTask { task: NEWEST }));
     let activity = read_exchange(&duties, "activity");
     let mut task = records::task_record();
     task.project = 3;
@@ -1858,22 +1852,17 @@ fn person_chat(host: &mut Host) {
     task.result = None;
     delivery(host, task_watch, &w::DeliveryValue::Task(Box::new(task)));
     let source = w::ActivityLine {
-            task: NEWEST,
-            position: 1,
-            at: 0,
-            line: w::Activity::Words(
-                w::ActivityWords {
-                        message: 1,
-                        by: w::Requester::Person(
-                            w::RequesterPerson { value: 7 },
-                        ),
-                        kind: w::MessageKind::Words,
-                        words: b"Person words".as_slice().into(),
-                    },
-            ),
-        };
-    let row =
-        w::DecodedActivityLine { source, decoded: None };
+        task: NEWEST,
+        position: 1,
+        at: 0,
+        line: w::Activity::Words(w::ActivityWords {
+            message: 1,
+            by: w::Requester::Person(w::RequesterPerson { value: 7 }),
+            kind: w::MessageKind::Words,
+            words: b"Person words".as_slice().into(),
+        }),
+    };
+    let row = w::DecodedActivityLine { source, decoded: None };
     read_reply(host, activity, &w::ReadValue::Activity(records::activity_rows(&[row])));
 }
 
@@ -1885,22 +1874,20 @@ fn reply_host() -> Host {
 fn pane_document() -> w::NotePage {
     let body = format!("# Draft\n\n{}", "line\n\n".repeat(40));
     let note = w::Note {
-            number: 1,
-            revision: w::Revision { value: 1 },
-            scope: w::NoteScope::Task(
-                w::NoteScopeTask { project: 3, task: 7 },
-            ),
-            description: records::wire_text(b"Draft"),
-            body: w::DocumentText { bytes: body.into_bytes().into(), cut: false },
-            writer: w::NoteAuthor::Task(
-                w::NoteAuthorTask { task: 7, attempt: 1 },
-            ),
-            tasks: List::with_capacity(0),
-            changed: None,
-            acts: Box::default(),
-            cut: false,
-        };
-    let mut writer = Writer::new(usize::try_from(note.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+        number: 1,
+        revision: w::Revision { value: 1 },
+        scope: w::NoteScope::Task(w::NoteScopeTask { project: 3, task: 7 }),
+        description: records::wire_text(b"Draft"),
+        body: w::DocumentText { bytes: body.into_bytes().into(), cut: false },
+        writer: w::NoteAuthor::Task(w::NoteAuthorTask { task: 7, attempt: 1 }),
+        tasks: List::with_capacity(0),
+        changed: None,
+        acts: Box::default(),
+        cut: false,
+    };
+    let mut writer = Writer::new(
+        usize::try_from(note.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
     note.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
     w::NotePage { cut: false, rows: pieces(&[writer.finish()]), before: None, after: None }
 }
@@ -1916,7 +1903,9 @@ fn reply_host_draft(draft: bool) -> Host {
     let mut template = w::Template::decode(&w::CEILINGS, &mut Reader::new(&template)).unwrap();
     template.number = 6;
     let template = template;
-    let mut writer = Writer::new(usize::try_from(template.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    let mut writer = Writer::new(
+        usize::try_from(template.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
     template.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
     project.templates = [project.templates.as_ref(), pieces(&[writer.finish()]).as_ref()].concat().into();
     me.projects = pieces(&[project_bytes(&project)]);
@@ -1924,8 +1913,7 @@ fn reply_host_draft(draft: bool) -> Host {
     admit(&mut host, duties);
     let duties = give(&mut host, Event::Act { act: Act::Go { address: Address::Chat { task: 7 } } });
     let duties = admit_watches(&mut host, duties);
-    let task_watch =
-        watch(&duties, &w::Subject::Task(w::SubjectTask { task: 7 }));
+    let task_watch = watch(&duties, &w::Subject::Task(w::SubjectTask { task: 7 }));
     let activity = read_exchange(&duties, "activity");
     let mut task = records::task_record();
     task.project = 3;
@@ -1937,9 +1925,7 @@ fn reply_host_draft(draft: bool) -> Host {
         if let w::Fact::Chip(row) = fact {
             let mut row = row;
             let mut fields = row.value;
-            fields.executor = w::ChipExecutor::Agent(
-                w::ChipExecutorAgent { charter: 5 },
-            );
+            fields.executor = w::ChipExecutor::Agent(w::ChipExecutorAgent { charter: 5 });
             row.value = fields;
             fact = w::Fact::Chip(row);
         } else if let w::Fact::ChipDetails(row) = fact {
@@ -1956,11 +1942,12 @@ fn reply_host_draft(draft: bool) -> Host {
     task.result = None;
     task.waits_on = w::WaitsOn::News;
     let offer = w::Offered { act: w::ActKind::Message, admission: w::Admission::Allowed, effect: None };
-    let mut writer = Writer::new(usize::try_from(offer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    let mut writer = Writer::new(
+        usize::try_from(offer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
     offer.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
     task.acts = pieces(&[writer.finish()]);
-    let duties =
-        delivery(&mut host, task_watch, &w::DeliveryValue::Task(Box::new(task)));
+    let duties = delivery(&mut host, task_watch, &w::DeliveryValue::Task(Box::new(task)));
     let duties = admit_watches(&mut host, duties);
     if draft {
         let read = read_exchange(&duties, "notes");
@@ -2664,8 +2651,7 @@ fn the_launchpad_takes_its_own_words() {
             let mut projects = Vec::new();
             let mut reader = Reader::new(&me.projects);
             while let Some(bytes) = skein_codec::piece::split(&mut reader).expect("project piece") {
-                let mut project =
-                    w::MeProject::decode(&w::CEILINGS, &mut Reader::new(&bytes)).expect("project");
+                let mut project = w::MeProject::decode(&w::CEILINGS, &mut Reader::new(&bytes)).expect("project");
                 project.templates = Box::default();
                 let project = project;
                 projects.push(project_bytes(&project));
@@ -2684,9 +2670,7 @@ fn the_launchpad_takes_its_own_words() {
             }
             let asks = sent_ask(&duties);
             let [(exchange, _)] = asks.as_slice() else { panic!("one change start: {asks:?}") };
-            let answer = w::Final::Refused(
-                w::Refused { refusal: w::Refusal::NotOffered, at: None },
-            );
+            let answer = w::Final::Refused(w::Refused { refusal: w::Refusal::NotOffered, at: None });
             reply(&mut host, *exchange, final_bytes(&answer));
         }
         assert_eq!(host.root.pages().address(), &Address::NewChat { draft: false }, "refusal stays with its composer");
@@ -2709,9 +2693,11 @@ struct ReplySlot {
 impl ReplySlot {
     fn report(self, message: Box<[u8]>) -> Report {
         let event = if let Some(member) = self.member {
-            let part =
-                w::BatchReply { member, reply: Some(message) };
-            let mut writer = Writer::new(usize::try_from(part.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("part size"));
+            let part = w::BatchReply { member, reply: Some(message) };
+            let mut writer = Writer::new(
+                usize::try_from(part.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+                    .expect("part size"),
+            );
             part.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("part bytes");
             jig_client::Event::Part { exchange: self.exchange, message: writer.finish() }
         } else {
@@ -2723,14 +2709,16 @@ impl ReplySlot {
 fn batch_members(bytes: &[u8]) -> Vec<(u16, Message)> {
     let batch = w::Batch::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("batch");
     batch
-        
         .members
         .into_boxed()
         .into_vec()
         .into_iter()
         .enumerate()
         .map(|(place, record)| {
-            let mut writer = Writer::new(usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture") - 1).expect("member size"));
+            let mut writer = Writer::new(
+                usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture") - 1)
+                    .expect("member size"),
+            );
             let message = match record {
                 w::Member::Read(record) => {
                     record.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("read");
@@ -2758,8 +2746,7 @@ fn wanted_read(message: &Message, wanted: &str) -> bool {
         let owned = w::Owned::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("read envelope");
         if owned.owner == w::Owner::Jig {
             let read = w::Read::decode(&w::CEILINGS, &mut Reader::new(owned.record.as_ref())).expect("read");
-            if wanted == "updates"
-                && matches!(&read, w::Read::Inbox(read) if read.group == w::InboxReadGroup::Updates)
+            if wanted == "updates" && matches!(&read, w::Read::Inbox(read) if read.group == w::InboxReadGroup::Updates)
             {
                 return true;
             }
@@ -2796,12 +2783,20 @@ fn read_exchange(duties: &Duties, wanted: &str) -> ReplySlot {
 }
 
 fn read_reply(host: &mut Host, exchange: ReplySlot, value: &w::ReadValue) -> Duties {
-    let mut writer = Writer::new(usize::try_from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("read size"));
-    value.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("read fits");
-    let answer = w::ReadAnswer::Value(
-        w::Owned { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: writer.finish() },
+    let mut writer = Writer::new(
+        usize::try_from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+            .expect("read size"),
     );
-    let mut writer = Writer::new(usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("answer size"));
+    value.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("read fits");
+    let answer = w::ReadAnswer::Value(w::Owned {
+        owner: w::Owner::Jig,
+        version: jig_client_protocol_wire::VERSION,
+        record: writer.finish(),
+    });
+    let mut writer = Writer::new(
+        usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+            .expect("answer size"),
+    );
     answer.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("answer fits");
     reply_slot(host, exchange, writer.finish())
 }
@@ -2892,66 +2887,50 @@ fn waiting_at(chat: bool) -> Host {
         let duties = host.report(Report::Due);
         watches.asked.extend(admit(&mut host, duties).asked);
     }
-    let task_watch = chat.then(|| {
-        watch(
-            &watches,
-            &w::Subject::Task(
-                w::SubjectTask { task: 7 },
-            ),
-        )
-    });
+    let task_watch = chat.then(|| watch(&watches, &w::Subject::Task(w::SubjectTask { task: 7 })));
     let duties = if let Some(task_watch) = task_watch {
         let mut task = records::task_record();
         task.project = 3;
         let offered = w::Offered { act: w::ActKind::Message, admission: w::Admission::Allowed, effect: None };
-        let mut writer = Writer::new(usize::try_from(offered.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("offer size"));
+        let mut writer = Writer::new(
+            usize::try_from(offered.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+                .expect("offer size"),
+        );
         offered.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("offer fits");
         task.acts = pieces(&[writer.finish()]);
         task.chip = records::owner_chip_record(
-            w::ChipPhase::Active(
-                w::ChipPhaseActive { value: w::RunStage::Idle },
-            ),
+            w::ChipPhase::Active(w::ChipPhaseActive { value: w::RunStage::Idle }),
             w::Phase::Active,
         );
-        task.waits_on = w::WaitsOn::Party(
-            w::WaitsOnParty {
-                    whom: w::Whom::Person(
-                        w::WhomPerson { value: 7 },
-                    ),
-                    entries: 1,
-                    task: 7,
-                    kind: w::WaitedFor::Question,
-                },
-        );
-        delivery(
-            &mut host,
-            task_watch,
-            &w::DeliveryValue::Task(Box::new(task)),
-        )
+        task.waits_on = w::WaitsOn::Party(w::WaitsOnParty {
+            whom: w::Whom::Person(w::WhomPerson { value: 7 }),
+            entries: 1,
+            task: 7,
+            kind: w::WaitedFor::Question,
+        });
+        delivery(&mut host, task_watch, &w::DeliveryValue::Task(Box::new(task)))
     } else {
         Duties::default()
     };
     let duties = admit(&mut host, duties);
     let window = host.root.pages().inbox().expect("waiting inbox").window;
     watches.asked.extend(duties.asked);
-    let inbox_watch = watch(
-        &watches,
-        &w::Subject::Inbox(w::SubjectInbox { window }),
-    );
+    let inbox_watch = watch(&watches, &w::Subject::Inbox(w::SubjectInbox { window }));
     let entry = w::InboxEntry {
-            projects: List::with_capacity(0),
-            reply: None,
-            task: records::stored_link_record(),
-            project: Some(3),
-            object: w::InboxObject::Question(
-                w::InboxObjectQuestion { message: 7 },
-            ),
-            activity: None,
-            at: None,
-            unread: None,
-            cursor: records::live_inbox_cursor_record(),
-        };
-    let mut writer = Writer::new(usize::try_from(entry.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("entry size"));
+        projects: List::with_capacity(0),
+        reply: None,
+        task: records::stored_link_record(),
+        project: Some(3),
+        object: w::InboxObject::Question(w::InboxObjectQuestion { message: 7 }),
+        activity: None,
+        at: None,
+        unread: None,
+        cursor: records::live_inbox_cursor_record(),
+    };
+    let mut writer = Writer::new(
+        usize::try_from(entry.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+            .expect("entry size"),
+    );
     entry.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("entry fits");
     let entries = pieces(&[writer.finish()]);
     let mut inbox = records::owner_inbox_record();
@@ -2961,8 +2940,7 @@ fn waiting_at(chat: bool) -> Host {
         inbox.cached_needs = 1;
         inbox.updates = Box::default();
     }
-    let duties =
-        delivery(&mut host, inbox_watch, &w::DeliveryValue::Inbox(inbox));
+    let duties = delivery(&mut host, inbox_watch, &w::DeliveryValue::Inbox(inbox));
     let duties = admit_watches(&mut host, duties);
     let duties = if chat {
         let query = read_exchange(&duties, "inbox");
@@ -2975,11 +2953,14 @@ fn waiting_at(chat: bool) -> Host {
     let query = read_exchange(&duties, "question");
     let mut question = records::read_wire_question();
     question.words = w::DocumentText {
-            bytes: b"Which?\nChoice: Comma (recommended)\nChoice: Semicolon".as_slice().into(),
-            cut: false,
-        };
+        bytes: b"Which?\nChoice: Comma (recommended)\nChoice: Semicolon".as_slice().into(),
+        cut: false,
+    };
     let offered = w::Offered { act: w::ActKind::Answer, admission: w::Admission::Allowed, effect: None };
-    let mut writer = Writer::new(usize::try_from(offered.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("offer size"));
+    let mut writer = Writer::new(
+        usize::try_from(offered.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+            .expect("offer size"),
+    );
     offered.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("offer fits");
     question.acts = pieces(&[writer.finish()]);
     read_reply(&mut host, query, &w::ReadValue::Question(question));
@@ -3056,7 +3037,8 @@ fn background_single(request: &Request) -> Option<Report> {
     let read = if let Message::Read(bytes) = message
         && let owned = w::Owned::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("read envelope")
         && owned.owner != w::Owner::Jig
-        && let envelope = w::FamilyRecord::decode(&w::CEILINGS, &mut Reader::new(owned.record.as_ref())).expect("family read")
+        && let envelope =
+            w::FamilyRecord::decode(&w::CEILINGS, &mut Reader::new(owned.record.as_ref())).expect("family read")
         && matches!(temper_client_protocol_wire::decode_reading(envelope.record.as_ref(), &temper_client_protocol_wire::v1::CEILINGS).as_ref().map(temper_client_protocol_wire::v1::Reading::read), Some(temper_client_protocol_wire::v1::Read::Setting(setting)) if setting.kind() == 7)
     {
         use temper_client_protocol_wire::{self as wire, v1 as f};
@@ -3064,17 +3046,17 @@ fn background_single(request: &Request) -> Option<Report> {
             &f::SettingAnswer::new(&f::CEILINGS, f::SettingAnswerParts { revision: None, value: None })
                 .expect("stock ways"),
         );
-        w::ReadAnswer::Value(
-            w::Owned { owner: owned.owner.clone(), version: wire::CLIENT_VERSION, record },
-        )
+        w::ReadAnswer::Value(w::Owned { owner: owned.owner.clone(), version: wire::CLIENT_VERSION, record })
     } else {
-        w::ReadAnswer::None(
-            w::ReadAnswerNone { value: w::ReadNone::Unknown },
-        )
+        w::ReadAnswer::None(w::ReadAnswerNone { value: w::ReadNone::Unknown })
     };
     let size = match message {
-        Message::Watch(_) => w::OpenAnswer::Admitted.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
-        Message::Unwatch(_) => w::CloseAnswer::Closed.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+        Message::Watch(_) => {
+            w::OpenAnswer::Admitted.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")
+        }
+        Message::Unwatch(_) => {
+            w::CloseAnswer::Closed.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")
+        }
         Message::Read(_) => read.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
         Message::Batch(_)
         | Message::Authorize(_)
@@ -3091,8 +3073,12 @@ fn background_single(request: &Request) -> Option<Report> {
     };
     let mut writer = Writer::new(usize::try_from(size).expect("answer size"));
     match message {
-        Message::Watch(_) => w::OpenAnswer::Admitted.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("watch admitted"),
-        Message::Unwatch(_) => w::CloseAnswer::Closed.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("watch closed"),
+        Message::Watch(_) => {
+            w::OpenAnswer::Admitted.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("watch admitted")
+        }
+        Message::Unwatch(_) => {
+            w::CloseAnswer::Closed.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("watch closed")
+        }
         Message::Read(_) => read.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("read answer"),
         Message::Batch(_)
         | Message::Authorize(_)
@@ -3121,26 +3107,26 @@ fn one_asking_task(bytes: &[u8]) -> bool {
 }
 
 fn created_bytes(task: u64) -> Box<[u8]> {
-    let outcome = w::DocumentOutcome::Created(
-        w::OutcomeCreated { first: task, last: task, given: None },
-    );
-    let outcome = w::Outcome::Document(
-        w::OutcomeDocument { value: outcome },
-    );
+    let outcome = w::DocumentOutcome::Created(w::OutcomeCreated { first: task, last: task, given: None });
+    let outcome = w::Outcome::Document(w::OutcomeDocument { value: outcome });
     final_bytes(&w::Final::Done(w::Done { outcome }))
 }
 
 fn final_bytes(answer: &w::Final) -> Box<[u8]> {
-    let mut writer = Writer::new(usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("final size"));
+    let mut writer = Writer::new(
+        usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+            .expect("final size"),
+    );
     answer.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("final fits");
-    keyed_bytes(
-        w::Owned { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: writer.finish() },
-    )
+    keyed_bytes(w::Owned { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: writer.finish() })
 }
 
 fn keyed_bytes(document: w::Owned) -> Box<[u8]> {
     let answer = w::KeyedAnswer::FinalAnswer(document);
-    let mut writer = Writer::new(usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("answer size"));
+    let mut writer = Writer::new(
+        usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+            .expect("answer size"),
+    );
     answer.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("answer fits");
     writer.finish()
 }
@@ -3152,20 +3138,16 @@ fn hello_for_me(host: &Host, me: w::Me) -> Box<[u8]> {
 fn hello_for_owners(owners: &[jig_client::Spoken], me: w::Me) -> Box<[u8]> {
     let mut served = List::with_capacity(u32::try_from(owners.len() + 1).expect("owner count"));
     served
-        .push(
-            w::Served {
-                    owner: w::Owner::Jig,
-                    first: jig_client_protocol_wire::VERSION,
-                    last: jig_client_protocol_wire::VERSION,
-                },
-        )
+        .push(w::Served {
+            owner: w::Owner::Jig,
+            first: jig_client_protocol_wire::VERSION,
+            last: jig_client_protocol_wire::VERSION,
+        })
         .expect("Jig owner");
     for owner in owners {
         let family = w::Family { number: owner.family };
         served
-            .push(
-                w::Served { owner: w::Owner::Family(family), first: owner.version, last: owner.version },
-            )
+            .push(w::Served { owner: w::Owner::Family(family), first: owner.version, last: owner.version })
             .expect("family owner");
     }
     stream_bytes(&jig_client_test_records::opened(
@@ -3440,19 +3422,12 @@ fn home_with_brief(tasks: &w::Tasks, brief: bool) -> Host {
     let arrived = delivery(&mut host, across, &w::DeliveryValue::Tasks(tasks_with_parts(tasks, 0)));
     duties.asked.extend(admit(&mut host, arrived).asked);
     let window = host.root.pages().inbox().expect("launchpad inbox").window;
-    let inbox_watch = watch(
-        &duties,
-        &w::Subject::Inbox(w::SubjectInbox { window }),
-    );
+    let inbox_watch = watch(&duties, &w::Subject::Inbox(w::SubjectInbox { window }));
     let mut inbox = records::owner_inbox_record();
     inbox.needs = Box::default();
     inbox.updates = Box::default();
     inbox.cached_needs = 0;
-    let arrived = delivery(
-        &mut host,
-        inbox_watch,
-        &w::DeliveryValue::Inbox(inbox),
-    );
+    let arrived = delivery(&mut host, inbox_watch, &w::DeliveryValue::Inbox(inbox));
     duties.asked.extend(admit(&mut host, arrived).asked);
     if brief {
         deliver_brief(&mut host, &mut duties);
@@ -3497,18 +3472,14 @@ fn deliver_brief(host: &mut Host, duties: &mut Duties) {
         })
         .collect::<Vec<_>>();
     for watch in ended {
-        let event = w::StreamEvent::Ended(
-            w::WatchEnded { watch, why: w::WatchEnd::Unknown },
-        );
+        let event = w::StreamEvent::Ended(w::WatchEnded { watch, why: w::WatchEnd::Unknown });
         let more = host.report(Report::Heard(jig_client::Event::Streamed {
             message: jig_client::Streamed::Record(stream_bytes(&event)),
         }));
         duties.asked.extend(stored(host, more).asked);
     }
     let document = brief_document();
-    let event = w::StreamEvent::Delivery(
-        w::Delivery { watch: watched, document },
-    );
+    let event = w::StreamEvent::Delivery(w::Delivery { watch: watched, document });
     host.report(Report::Heard(jig_client::Event::Streamed {
         message: jig_client::Streamed::Record(stream_bytes(&event)),
     }));
@@ -3518,11 +3489,8 @@ fn deliver_brief(host: &mut Host, duties: &mut Duties) {
         let ask = w::Keyed::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("keyed ask");
         if ask.owner != w::Owner::Jig {
             let answer = f::Answer::new(&f::CEILINGS, f::AnswerParts { outcome: f::Outcome::Looked }).expect("looked");
-            let document = w::Owned {
-                    owner: ask.owner.clone(),
-                    version: wire::CLIENT_VERSION,
-                    record: wire::answer(&answer),
-                };
+            let document =
+                w::Owned { owner: ask.owner.clone(), version: wire::CLIENT_VERSION, record: wire::answer(&answer) };
             reply(host, *exchange, keyed_bytes(document));
         }
     }
@@ -3558,12 +3526,10 @@ fn brief_document() -> w::Owned {
     )
     .expect("project status");
     w::Owned {
-            owner: w::Owner::Family(
-                w::Family { number: wire::FORGE },
-            ),
-            version: wire::CLIENT_VERSION,
-            record: wire::project_status(&status),
-        }
+        owner: w::Owner::Family(w::Family { number: wire::FORGE }),
+        version: wire::CLIENT_VERSION,
+        record: wire::project_status(&status),
+    }
 }
 
 pub(crate) fn home_tasks(running: bool) -> w::Tasks {
@@ -3579,7 +3545,10 @@ pub(crate) fn home_tasks(running: bool) -> w::Tasks {
         row.last_activity = activity;
         row.ended_at = None;
         let row = row;
-        let mut writer = Writer::new(usize::try_from(row.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("chat size"));
+        let mut writer = Writer::new(
+            usize::try_from(row.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+                .expect("chat size"),
+        );
         row.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("chat fits");
         rows.push(writer.finish());
     }
@@ -3597,7 +3566,9 @@ fn tasks_with_parts(tasks: &w::Tasks, count: u32) -> w::Tasks {
             row.parts.push(w::RowPart::Unknown).expect("part slot");
         }
         let row = row;
-        let mut writer = Writer::new(row.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture").try_into().expect("row size"));
+        let mut writer = Writer::new(
+            row.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture").try_into().expect("row size"),
+        );
         row.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("row encodes");
         rows.push(writer.finish());
     }
@@ -3612,7 +3583,8 @@ pub(crate) fn home_subject(duties: &Duties) -> w::Subject {
             if open.subject.owner != w::Owner::Jig {
                 return None;
             }
-            let subject = w::Subject::decode(&w::CEILINGS, &mut Reader::new(open.subject.record.as_ref())).expect("subject");
+            let subject =
+                w::Subject::decode(&w::CEILINGS, &mut Reader::new(open.subject.record.as_ref())).expect("subject");
             matches!(&subject, w::Subject::Tasks(tasks) if tasks.query.label == Some(8)).then_some(subject)
         })
         .expect("launchpad's chats watch")
@@ -3743,7 +3715,10 @@ fn chats_one_and_enter_open_the_newer_chat_of_shop() {
             row.project = 5;
         }
         let row = row;
-        let mut writer = Writer::new(usize::try_from(row.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("row size"));
+        let mut writer = Writer::new(
+            usize::try_from(row.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+                .expect("row size"),
+        );
         row.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("row fits");
         rows.push(writer.finish());
     }

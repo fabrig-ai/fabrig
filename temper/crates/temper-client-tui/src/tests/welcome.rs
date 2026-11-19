@@ -559,9 +559,11 @@ fn starting_root(live: bool) -> Domain {
     f::answer(
         &mut root,
         exchange,
-        SignInAnswer::SignedIn(
-            j::SignedIn { token: Some(Secret::new(Box::new([7; 40]))), party: 73, expires: 600_000_000_000 },
-        ),
+        SignInAnswer::SignedIn(j::SignedIn {
+            token: Some(Secret::new(Box::new([7; 40]))),
+            party: 73,
+            expires: 600_000_000_000,
+        }),
     );
     assert!(root.pages().me(root.client()).is_none());
     root

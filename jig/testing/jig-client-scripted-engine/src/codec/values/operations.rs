@@ -3,11 +3,11 @@ use super::super::{c, w};
 use super::wire_malformed_settings;
 pub(in crate::codec) fn wire_task_flags(value: &c::TaskFlags, limits: &w::Limits) -> Result<w::TaskFlags, w::Problem> {
     Ok(w::TaskFlags {
-            conversation: value.conversation,
-            listed: value.listed,
-            retention: wire_retention(&value.retention, limits)?,
-            ended_by: wire_ended_by(&value.ended_by, limits)?,
-        })
+        conversation: value.conversation,
+        listed: value.listed,
+        retention: wire_retention(&value.retention, limits)?,
+        ended_by: wire_ended_by(&value.ended_by, limits)?,
+    })
 }
 
 pub(in crate::codec) fn wire_retention(value: &c::Retention, _limits: &w::Limits) -> Result<w::Retention, w::Problem> {
@@ -57,9 +57,7 @@ pub(in crate::codec) fn wire_new_deadline(
 ) -> Result<w::NewDeadline, w::Problem> {
     Ok::<_, w::Problem>(match value {
         c::NewDeadline::Named => w::NewDeadline::Named,
-        c::NewDeadline::Span(value) => {
-            w::NewDeadline::Span(w::DeadlineSpan { value: *(value) })
-        }
+        c::NewDeadline::Span(value) => w::NewDeadline::Span(w::DeadlineSpan { value: *(value) }),
     })
 }
 

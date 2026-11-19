@@ -1,7 +1,7 @@
 //! The originals of a recording (temper/docs/design/client/web/journeys.md, 3.3 and temper/docs/design/client/web/journey-redaction.md).
-use jig_client_protocol_wire::Record as _;
 use super::{Kind, Line, Originals};
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use skein_lib::Reader;
 use skein_ui::Act;
 

@@ -414,7 +414,9 @@ fn service_answer() -> Box<[u8]> {
     let made = w::OutcomeMade { what: w::Made::Service(service) };
     let done = w::Done { outcome: w::Outcome::Made(made) };
     let value = w::Final::Done(done);
-    let mut bytes = skein_lib::Writer::new(usize::try_from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    let mut bytes = skein_lib::Writer::new(
+        usize::try_from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
     value.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
     let owned = w::Owned { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: bytes.finish() };
     fixtures::answer(&w::KeyedAnswer::FinalAnswer(owned))
@@ -603,9 +605,7 @@ fn link_attempt() -> With {
     With::Link { secret: skein_lib::Secret::new(Box::new([3; 32])), held: None }
 }
 fn full_sign_in_answer() -> w::SignInAnswer {
-    w::SignInAnswer::Full(
-        w::SignInsFull { sign_ins: 2, earliest: 400, link_until: 300 },
-    )
+    w::SignInAnswer::Full(w::SignInsFull { sign_ins: 2, earliest: 400, link_until: 300 })
 }
 fn assert_link_told(c: &Client) {
     let mut told = false;
@@ -698,9 +698,11 @@ fn a_waiting_take_is_sent_again_each_second_until_it_ends() {
     use super::approval::{take_answer, taking};
     for (answer, why) in [
         (
-            w::ApprovalSignInAnswer::SignedIn(
-                w::SignedIn { token: Some(fixtures::credential(&NEW_CREDENTIAL)), party: PARTY, expires: 300 },
-            ),
+            w::ApprovalSignInAnswer::SignedIn(w::SignedIn {
+                token: Some(fixtures::credential(&NEW_CREDENTIAL)),
+                party: PARTY,
+                expires: 300,
+            }),
             None,
         ),
         (w::ApprovalSignInAnswer::Refused, Some(NotSignedIn::Approval(Taking::Refused))),
@@ -708,9 +710,7 @@ fn a_waiting_take_is_sent_again_each_second_until_it_ends() {
         (w::ApprovalSignInAnswer::Used, Some(NotSignedIn::Approval(Taking::Used))),
         (w::ApprovalSignInAnswer::Unknown, Some(NotSignedIn::Approval(Taking::Unknown))),
         (
-            w::ApprovalSignInAnswer::Full(
-                w::ApprovalFull { sign_ins: 2, earliest: 400, until: 300 },
-            ),
+            w::ApprovalSignInAnswer::Full(w::ApprovalFull { sign_ins: 2, earliest: 400, until: 300 }),
             Some(NotSignedIn::Full {
                 sign_ins: 2,
                 earliest: skein_lib::Wall::from_nanos(400),
@@ -764,13 +764,11 @@ fn another_sign_in_or_sign_out_stops_a_take_and_its_late_answer() {
         for waiting in [false, true] {
             for late in [
                 w::ApprovalSignInAnswer::Waiting,
-                w::ApprovalSignInAnswer::SignedIn(
-                    w::SignedIn {
-                            token: Some(fixtures::credential(&NEW_CREDENTIAL)),
-                            party: PARTY,
-                            expires: 300,
-                        },
-                ),
+                w::ApprovalSignInAnswer::SignedIn(w::SignedIn {
+                    token: Some(fixtures::credential(&NEW_CREDENTIAL)),
+                    party: PARTY,
+                    expires: 300,
+                }),
             ] {
                 let mut c = Client::new();
                 c.step(Event::SignIn { with: taking() });

@@ -1,7 +1,7 @@
 //! Run failure causes through server bytes and the client link (protocol/client/wire.md, 1).
-use jig_client_protocol_wire::Record as _;
 use jig_client::contract as c;
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use jig_domain_tasks as t;
 use jig_tasks_kit::{LIMITS, World, task};
 use skein_lib::{Reader, Writer};
@@ -45,14 +45,22 @@ fn wire_page(line: &t::ActivityLine) -> w::ActivityPage {
         &w::CEILINGS,
     )
     .expect("server translates end");
-    let mut bytes = Writer::new(usize::try_from(row.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("row size") + 4);
-    let mut row_bytes = Writer::new(usize::try_from(row.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("row size"));
+    let mut bytes = Writer::new(
+        usize::try_from(row.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("row size")
+            + 4,
+    );
+    let mut row_bytes = Writer::new(
+        usize::try_from(row.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("row size"),
+    );
     row.write(&jig_client_protocol_wire::CEILINGS, &mut row_bytes).expect("row encodes");
     let row_bytes = row_bytes.finish();
     bytes.put(&u32::try_from(row_bytes.len()).expect("small row").to_be_bytes()).expect("piece length");
     bytes.put(&row_bytes).expect("piece");
     let page = w::ActivityPage { cut: false, rows: bytes.finish(), before: None, after: None };
-    let mut bytes = Writer::new(usize::try_from(page.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("page size"));
+    let mut bytes = Writer::new(
+        usize::try_from(page.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+            .expect("page size"),
+    );
     page.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("page encodes");
     let bytes = bytes.finish();
     w::ActivityPage::decode(&w::CEILINGS, &mut Reader::new(&bytes)).expect("wire page")

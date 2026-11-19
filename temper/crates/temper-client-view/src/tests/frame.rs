@@ -1,5 +1,5 @@
-use jig_client_protocol_wire::Record as _;
 use super::fixtures;
+use jig_client_protocol_wire::Record as _;
 use skein_ui::{Act, Role};
 use temper_client_domain::{Action, ChatsFilter, pages};
 
@@ -341,9 +341,8 @@ fn signed_out_the_browser_main_says_how_to_sign_in() {
 #[test]
 fn a_full_link_says_the_pool_and_both_moments_in_either_shell() {
     use jig_client_protocol_wire as w;
-    let answer = w::SignInAnswer::Full(
-        w::SignInsFull { sign_ins: 2, earliest: 3_600_000_000_000, link_until: 300_000_000_000 },
-    );
+    let answer =
+        w::SignInAnswer::Full(w::SignInsFull { sign_ins: 2, earliest: 3_600_000_000_000, link_until: 300_000_000_000 });
     assert_link_main(answer, b"All 2 sign-ins are in use; the earliest ends Jan 1, 01:00 UTC. This link stays usable until Jan 1, 00:05 UTC; after that, opening it has temper serve print a fresh one.");
 }
 
@@ -395,7 +394,10 @@ fn assert_link_main(answer: jig_client_protocol_wire::SignInAnswer, expected: &[
             assert!(exchange.replace(token).is_none());
         }
     }
-    let mut writer = Writer::new(usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("answer size"));
+    let mut writer = Writer::new(
+        usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+            .expect("answer size"),
+    );
     answer.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("answer room");
     fixtures::root_event(
         &mut root,

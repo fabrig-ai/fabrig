@@ -1,10 +1,10 @@
 //! The real clients component and native HTTP machines around the Ops engine.
-use jig_client_protocol_wire::Record as _;
 use super::front::{ApplicationDocument, Joint, Subject, application_document, subject_route};
 use crate::conformance::Story;
 use jig_client::{Event, Message, Request, Streamed};
 use jig_client_kit::harness::{ClientId, Receipt};
 use jig_client_protocol_kit::{fixtures, native::wire::Wire, net::Net};
+use jig_client_protocol_wire::Record as _;
 use jig_client_shell_native::{Conn, Connections};
 use jig_domain_core as core;
 use jig_ops_client_domain as d;

@@ -1,10 +1,10 @@
 //! Field-for-field client contract translation (protocol/client/wire.md, 1, and protocol/client/README.md, 3).
-use jig_client_protocol_wire::Record as _;
 use crate::Limits;
 use crate::translate::{classify, text_problem};
 use alloc::boxed::Box;
 use jig_client_domain::contract as c;
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use skein_lib::{List, Reader, Wall, bytes, length::len_u64};
 pub(crate) fn seen(value: &w::SeenThrough) -> c::SeenThrough {
     match value {
@@ -121,9 +121,7 @@ pub(crate) fn document_outcome(value: &w::DocumentOutcome, limits: &Limits) -> R
             confirmed: row.confirmed,
             failed_hosts: super::account_hosts::decode(&row.failed_hosts, row.confirmed, limits)?,
         },
-        w::DocumentOutcome::PoolSet(row) => {
-            c::DocumentOutcome::PoolSet { project: row.project, person: row.person }
-        }
+        w::DocumentOutcome::PoolSet(row) => c::DocumentOutcome::PoolSet { project: row.project, person: row.person },
         w::DocumentOutcome::EscalationDecided(row) => c::DocumentOutcome::EscalationDecided {
             task: row.task,
             revision: revision(&row.revision),
@@ -155,11 +153,9 @@ pub(crate) fn note_scope(value: &w::NoteScope) -> Result<c::NoteScope, w::Proble
         w::NoteScope::Party(row) => c::NoteScope::Party { party: row.party },
         w::NoteScope::Deployment => c::NoteScope::Deployment,
         w::NoteScope::Project(row) => c::NoteScope::Project(row.value),
-        w::NoteScope::Resource(row) => c::NoteScope::Resource {
-            project: row.project,
-            connector: row.connector,
-            pattern: pattern(&row.pattern),
-        },
+        w::NoteScope::Resource(row) => {
+            c::NoteScope::Resource { project: row.project, connector: row.connector, pattern: pattern(&row.pattern) }
+        }
         w::NoteScope::Task(row) => c::NoteScope::Task { project: row.project, task: row.task },
     })
 }

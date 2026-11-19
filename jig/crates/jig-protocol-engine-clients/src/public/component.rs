@@ -1,5 +1,4 @@
 //! Public admission and refunds (jig/docs/design/protocol/client/public-reads.md).
-use jig_client_protocol_wire::Record as _;
 use super::{
     Box, Component, Env, Kept, Limits, Map, Queue, ReplyTo, Request, SecretOwner, SecretsRequest, Settings, Time,
     Token, Unusable, core, sign_in, w,
@@ -8,6 +7,7 @@ use crate::{
     PublicRead, PublicReply,
     public::{Names, Of, PublicKind},
 };
+use jig_client_protocol_wire::Record as _;
 use jig_client_protocol_wire::{self as wire, public_v1};
 use skein_lib::{List, Secret, Wall, Writer, length::len_u64};
 #[path = "records.rs"]
@@ -284,17 +284,15 @@ fn not_served(kind: PublicKind, limits: &w::Limits) -> Option<Box<[u8]>> {
     };
     // The refusal is the ordinary served envelope, narrowed to this public kind's versions.
     let value = w::NotServed {
-            owner: owner.clone(),
-            served: {
-                let mut ranges = List::with_capacity(1);
-                ranges
-                    .push(
-                        w::Served { owner, first: u32::from(kind.first), last: u32::from(kind.last) },
-                    )
-                    .expect("one range");
-                ranges
-            },
-        };
+        owner: owner.clone(),
+        served: {
+            let mut ranges = List::with_capacity(1);
+            ranges
+                .push(w::Served { owner, first: u32::from(kind.first), last: u32::from(kind.last) })
+                .expect("one range");
+            ranges
+        },
+    };
     let mut out = Writer::new(skein_lib::length::usize_of(value.measure(limits).ok()?));
     value.write(limits, &mut out).expect("measured not served");
     Some(out.finish())

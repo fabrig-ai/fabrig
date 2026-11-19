@@ -1,8 +1,8 @@
 //! Fixed version refusals and family admission envelopes (protocol/client/README.md, 6 and 8).
-use jig_client_protocol_wire::Record as _;
 use crate::{Settings, boundary::Served, translate};
 use alloc::boxed::Box;
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use jig_domain_core_vocabulary::documents;
 use jig_domain_people::ApplicationScope;
 use skein_lib::List;
@@ -19,13 +19,9 @@ pub(crate) fn not_served(settings: &Settings, owner: w::Owner, _limits: &w::Limi
     for Served { family, first, last } in &settings.served {
         let owner = match family {
             None => w::Owner::Jig,
-            Some(number) => {
-                w::Owner::Family(w::Family { number: *number })
-            }
+            Some(number) => w::Owner::Family(w::Family { number: *number }),
         };
-        served
-            .push(w::Served { owner, first: *first, last: *last })
-            .expect("served bound");
+        served.push(w::Served { owner, first: *first, last: *last }).expect("served bound");
     }
     w::NotServed { owner, served }
 }

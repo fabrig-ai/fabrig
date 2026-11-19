@@ -1,6 +1,6 @@
-use jig_client_protocol_wire::Record as _;
 use super::fixtures;
 use crate::{End, EngineEnd};
+use jig_client_protocol_wire::Record as _;
 use skein_lib::{Time, Token, Wall};
 
 #[test]
@@ -93,10 +93,14 @@ fn box_deployment(stand: &mut fixtures::system::SystemStand, bearer: &[u8]) -> j
     use skein_lib::{Reader, Writer};
     let engine = stand.service.engine.as_mut().unwrap();
     let read = w::Read::Deployment;
-    let mut bytes = Writer::new(usize::try_from(read.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    let mut bytes = Writer::new(
+        usize::try_from(read.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
     read.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
     let owned = w::Owned { owner: w::Owner::Jig, version: w::VERSION, record: bytes.finish() };
-    let mut bytes = Writer::new(usize::try_from(owned.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    let mut bytes = Writer::new(
+        usize::try_from(owned.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
     owned.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
     let mut peer = fixtures::http::Peer::new(engine, b"POST", b"/jig/v1/read", &bytes.finish(), Some(bearer));
     peer.pump(engine, true);
@@ -494,16 +498,20 @@ fn box_setup(
     )
     .unwrap();
     let family = j::FamilyRequest { scope: j::Scope::Deployment, record: wire::requesting(&request) };
-    let mut bytes = Writer::new(usize::try_from(family.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    let mut bytes = Writer::new(
+        usize::try_from(family.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
     family.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
     let request = j::Keyed {
-            key: [key; 16],
-            owner: j::Owner::Family(j::Family { number: wire::FORGE }),
-            version: wire::CLIENT_VERSION,
-            request: bytes.finish(),
-            value: None,
-        };
-    let mut bytes = Writer::new(usize::try_from(request.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+        key: [key; 16],
+        owner: j::Owner::Family(j::Family { number: wire::FORGE }),
+        version: wire::CLIENT_VERSION,
+        request: bytes.finish(),
+        value: None,
+    };
+    let mut bytes = Writer::new(
+        usize::try_from(request.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
     request.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
     let mut client = peer::Peer::new(engine, b"POST", b"/jig/v1/request", &bytes.finish(), Some(bearer));
     client.pump(engine, true);
@@ -519,10 +527,7 @@ fn box_setup(
         "core terminal for setup: {:?}",
         j::Final::decode(engine.client_wire(), &mut Reader::new(answer.record.as_ref()))
     );
-    assert_eq!(
-        answer.owner,
-        j::Owner::Family(j::Family { number: wire::FORGE })
-    );
+    assert_eq!(answer.owner, j::Owner::Family(j::Family { number: wire::FORGE }));
     let mut reader = Reader::new(answer.record.as_ref());
     let answer = w::Answer::decode(&w::CEILINGS, &mut reader).unwrap();
     assert!(reader.is_empty());

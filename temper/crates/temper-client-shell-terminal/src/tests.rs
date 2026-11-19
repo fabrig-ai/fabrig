@@ -1,9 +1,9 @@
-use jig_client_protocol_wire::Record as _;
 use crate::{
     limits,
     route::{self, Down},
 };
 use jig_client_protocol_link as link;
+use jig_client_protocol_wire::Record as _;
 use skein_lib::{List, Queue, Time};
 use temper_client_domain as client;
 pub use temper_fixtures::client_documents as documents;
@@ -147,7 +147,10 @@ fn the_native_preset_receives_every_supported_membership() {
             let mut row = project.clone();
             row.project = number;
             let row = row;
-            let mut bytes = Writer::new(usize::try_from(row.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("membership fits"));
+            let mut bytes = Writer::new(
+                usize::try_from(row.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+                    .expect("membership fits"),
+            );
             row.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("measured membership");
             let bytes = bytes.finish();
             projects.extend_from_slice(&u32::try_from(bytes.len()).expect("membership size").to_be_bytes());

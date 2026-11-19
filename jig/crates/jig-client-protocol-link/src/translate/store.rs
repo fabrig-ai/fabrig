@@ -1,11 +1,11 @@
 //! The small store's owner records (protocol/client/README.md, 7).
-use jig_client_protocol_wire::Record as _;
 use super::{answers, documents, pages, too_large};
 use crate::Limits;
 use alloc::boxed::Box;
 use jig_client_domain::contract as c;
 use jig_client_domain::{Ask, Family};
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use skein_lib::{List, Reader, RequestRecord, Wall, Writer, bytes};
 
 pub(super) fn text(value: &[u8], limits: &Limits) -> Result<c::Text, w::Problem> {
@@ -79,11 +79,9 @@ pub(crate) fn restore_ask(value: w::Ask, limits: &Limits) -> Result<c::Ask, w::P
         w::Ask::Delegate(value) => super::operations::restore_delegate(&value, limits)?,
         w::Ask::Create(value) => super::operations::restore_create(&value, limits)?,
         w::Ask::Compound(value) => super::compound::restore(value, limits)?,
-        w::Ask::Talk(value) => c::Ask::Talk {
-            project: value.project,
-            task: value.task,
-            words: pages::long_text(&value.words, limits)?,
-        },
+        w::Ask::Talk(value) => {
+            c::Ask::Talk { project: value.project, task: value.task, words: pages::long_text(&value.words, limits)? }
+        }
         w::Ask::Leave(value) => c::Ask::Leave { project: value.project, task: value.task },
         w::Ask::Message(value) => {
             c::Ask::Message { project: value.project, task: value.task, words: text(&value.words, limits)? }
@@ -195,9 +193,7 @@ pub(crate) fn restore_ask(value: w::Ask, limits: &Limits) -> Result<c::Ask, w::P
         w::Ask::RemoveProject(value) => c::Ask::RemoveProject { project: value.project, grace: value.grace },
         w::Ask::Rename(value) => c::Ask::Rename { project: value.project, name: text(&value.name, limits)? },
         w::Ask::MakeProject(value) => c::Ask::MakeProject { name: text(&value.name, limits)?, policy: value.policy },
-        w::Ask::SetPool(value) => {
-            c::Ask::SetPool { project: value.project, party: value.party, budget: value.budget }
-        }
+        w::Ask::SetPool(value) => c::Ask::SetPool { project: value.project, party: value.party, budget: value.budget },
     })
 }
 
@@ -220,15 +216,15 @@ pub fn table(value: &RequestRecord<jig_client_domain::Held>, limits: &Limits) ->
         None => None,
     };
     Ok(w::TableEntry {
-            asker: value.request.key.asker.0,
-            number: value.request.key.number,
-            key: value.key,
-            scope: value.scope,
-            first_sent,
-            owner,
-            version,
-            request,
-        })
+        asker: value.request.key.asker.0,
+        number: value.request.key.number,
+        key: value.key,
+        scope: value.scope,
+        first_sent,
+        owner,
+        version,
+        request,
+    })
 }
 pub fn restore_table(
     value: w::TableEntry,
@@ -282,11 +278,7 @@ fn account_change(value: &w::AccountChange) -> Result<c::AccountChange, w::Probl
                     reason: skein_codec::Reason::Malformed,
                 });
             }
-            c::AccountChange::DeclareProgram {
-                provider: row.provider,
-                join: row.join,
-                name: bytes::copy_of(&row.name),
-            }
+            c::AccountChange::DeclareProgram { provider: row.provider, join: row.join, name: bytes::copy_of(&row.name) }
         }
         w::AccountChange::LoginProgram(row) => {
             if !c::valid_program_name(&row.name) {
@@ -311,15 +303,11 @@ fn account_change(value: &w::AccountChange) -> Result<c::AccountChange, w::Probl
         w::AccountChange::AddKey(row) => {
             c::AccountChange::AddKey { provider: row.provider, join: row.join, digest: row.digest }
         }
-        w::AccountChange::ReplaceKey(row) => {
-            c::AccountChange::ReplaceKey { source: row.source, digest: row.digest }
-        }
+        w::AccountChange::ReplaceKey(row) => c::AccountChange::ReplaceKey { source: row.source, digest: row.digest },
         w::AccountChange::RemoveKey(row) => c::AccountChange::RemoveKey { source: row.source },
         w::AccountChange::Resume(row) => c::AccountChange::Resume { source: row.source },
         w::AccountChange::Remove(row) => c::AccountChange::Remove { account: row.account },
-        w::AccountChange::MoveAccount(row) => {
-            c::AccountChange::MoveAccount { account: row.account, place: row.place }
-        }
+        w::AccountChange::MoveAccount(row) => c::AccountChange::MoveAccount { account: row.account, place: row.place },
         w::AccountChange::MoveSource(row) => {
             c::AccountChange::MoveSource { account: row.account, source: row.source, place: row.place }
         }

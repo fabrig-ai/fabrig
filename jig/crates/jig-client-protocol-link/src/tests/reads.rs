@@ -5,26 +5,27 @@ fn an_activity_answer_with_a_heard_job_result_is_served_whole() {
     use skein_lib::{Wall, Writer};
     let limits = fixtures::limits();
     let word = w::Word {
-            number: 19,
-            from: w::Requester::Task(w::RequesterTask { value: 11 }),
-            kind: w::MessageKind::Result(
-                w::MessageKindResult { value: w::WordResult::Job },
-            ),
-            words: Box::new([]),
-            at: 23,
-            hits: 2,
-            eligible: true,
-        };
-    let source = w::ActivityLine {
-            task: 7,
-            position: 2,
-            at: 29,
-            line: w::Activity::Heard(w::ActivityHeard { value: word }),
-        };
+        number: 19,
+        from: w::Requester::Task(w::RequesterTask { value: 11 }),
+        kind: w::MessageKind::Result(w::MessageKindResult { value: w::WordResult::Job }),
+        words: Box::new([]),
+        at: 23,
+        hits: 2,
+        eligible: true,
+    };
+    let source =
+        w::ActivityLine { task: 7, position: 2, at: 29, line: w::Activity::Heard(w::ActivityHeard { value: word }) };
     let row = w::DecodedActivityLine { source, decoded: None };
-    let mut encoded = Writer::new(usize::try_from(row.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    let mut encoded = Writer::new(
+        usize::try_from(row.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
     row.write(&jig_client_protocol_wire::CEILINGS, &mut encoded).unwrap();
-    let mut pieces = Writer::new(usize::try_from(row.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap().checked_add(4).unwrap());
+    let mut pieces = Writer::new(
+        usize::try_from(row.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+            .unwrap()
+            .checked_add(4)
+            .unwrap(),
+    );
     skein_codec::piece::write(&mut pieces, &encoded.finish()).unwrap();
     let page = w::ActivityPage { rows: pieces.finish(), cut: false, before: None, after: None };
     let mut h = fixtures::Harness::new(&limits);
@@ -83,9 +84,7 @@ fn a_notes_read_keeps_its_scope_and_filter_with_its_cursor() {
         if let Some(party) = party {
             let c::Read::Notes { scope, .. } = &mut read else { panic!("notes read") };
             *scope = c::NoteScope::Party { party };
-            expected = w::NoteScope::Party(
-                w::NoteScopeParty { party },
-            );
+            expected = w::NoteScope::Party(w::NoteScopeParty { party });
         }
         let actual = translate::reads::read(&read, fixtures::limits().wire()).unwrap();
         let w::Read::Notes(record) = actual else { panic!("notes record") };
@@ -126,18 +125,8 @@ fn a_family_read_body_keeps_its_opaque_owner_record() {
 fn each_wire_none_keeps_its_reason() {
     for (wire, client) in [
         (w::ReadNone::Malformed, c::ReadNone::Malformed),
-        (
-            w::ReadNone::TooLinked(
-                w::ReadTooLinked { joins: 4 },
-            ),
-            c::ReadNone::TooLinked { joins: 4 },
-        ),
-        (
-            w::ReadNone::TooLarge(
-                w::TurnTooLarge { bytes: 8192 },
-            ),
-            c::ReadNone::TooLarge { bytes: 8192 },
-        ),
+        (w::ReadNone::TooLinked(w::ReadTooLinked { joins: 4 }), c::ReadNone::TooLinked { joins: 4 }),
+        (w::ReadNone::TooLarge(w::TurnTooLarge { bytes: 8192 }), c::ReadNone::TooLarge { bytes: 8192 }),
         (w::ReadNone::Unknown, c::ReadNone::Unknown),
         (w::ReadNone::Refused, c::ReadNone::Refused),
         (w::ReadNone::Gone, c::ReadNone::Gone),
@@ -200,18 +189,8 @@ fn a_read_lost_twice_is_answered_once() {
 fn a_read_none_answer_keeps_each_wire_reason_once() {
     for (wire, client) in [
         (w::ReadNone::Malformed, c::ReadNone::Malformed),
-        (
-            w::ReadNone::TooLinked(
-                w::ReadTooLinked { joins: 4 },
-            ),
-            c::ReadNone::TooLinked { joins: 4 },
-        ),
-        (
-            w::ReadNone::TooLarge(
-                w::TurnTooLarge { bytes: 8192 },
-            ),
-            c::ReadNone::TooLarge { bytes: 8192 },
-        ),
+        (w::ReadNone::TooLinked(w::ReadTooLinked { joins: 4 }), c::ReadNone::TooLinked { joins: 4 }),
+        (w::ReadNone::TooLarge(w::TurnTooLarge { bytes: 8192 }), c::ReadNone::TooLarge { bytes: 8192 }),
         (w::ReadNone::Unknown, c::ReadNone::Unknown),
         (w::ReadNone::Refused, c::ReadNone::Refused),
         (w::ReadNone::Gone, c::ReadNone::Gone),
@@ -360,7 +339,8 @@ fn a_read_activity_keeps_each_undecodable_turn_in_its_page() {
 fn me_s_projects_past_the_document_bytes_are_refused_as_too_large() {
     let value = jig_client_test_records::frame_two_projects_record();
     let mut client = *fixtures::limits().client();
-    client.document_bytes = u64::from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).checked_sub(1).unwrap();
+    client.document_bytes =
+        u64::from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).checked_sub(1).unwrap();
     let limits = Limits::new(client, 4).unwrap();
     assert_eq!(translate::documents::frame(value, &limits), Err(Undecodable::TooLarge));
 }
@@ -462,9 +442,7 @@ fn the_single_turn_decoder_uses_the_archive_bound() {
 #[test]
 fn a_too_linked_read_keeps_its_bound_after_decoding() {
     let (mut h, exchange) = fixtures::Harness::reading();
-    let none = w::ReadNone::TooLinked(
-        w::ReadTooLinked { joins: 4 },
-    );
+    let none = w::ReadNone::TooLinked(w::ReadTooLinked { joins: 4 });
     h.answer(exchange, &fixtures::read_none_answer(none));
     assert_eq!(h.read_answered(), Some(&Readout::Jig(c::ReadResult::None(c::ReadNone::TooLinked { joins: 4 }))));
 }
@@ -489,17 +467,17 @@ fn source_text_reads_keep_offsets_and_reject_false_continuations() {
         (127, 131, Some(127), "", false),
         (u64::MAX, u64::MAX, None, "éZ", false),
     ] {
-        let value = w::ReadValue::TaskText(
-            w::TaskText {
-                    task: 7,
-                    field: w::TaskTextField::Result,
-                    from,
-                    total,
-                    next,
-                    words: Box::from(text.as_bytes()),
-                },
+        let value = w::ReadValue::TaskText(w::TaskText {
+            task: 7,
+            field: w::TaskTextField::Result,
+            from,
+            total,
+            next,
+            words: Box::from(text.as_bytes()),
+        });
+        let mut bytes = skein_lib::Writer::new(
+            usize::try_from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
         );
-        let mut bytes = skein_lib::Writer::new(usize::try_from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
         value.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
         let decoded = translate::reads::value(&bytes.finish(), &limits);
         assert_eq!(decoded.is_ok(), valid, "{from} {total} {next:?}");
@@ -561,16 +539,8 @@ fn a_tasks_scope_on_a_note_row_is_undecodable() {
     let bytes = skein_codec::piece::split(&mut rows).unwrap().unwrap();
     let source = w::Note::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap();
     for (scope, readable) in [
-        (
-            w::NoteScope::Task(
-                w::NoteScopeTask { project: 13, task: 19 },
-            ),
-            true,
-        ),
-        (
-            w::NoteScope::Tasks(w::NoteScopeTasks { project: 13 }),
-            false,
-        ),
+        (w::NoteScope::Task(w::NoteScopeTask { project: 13, task: 19 }), true),
+        (w::NoteScope::Tasks(w::NoteScopeTasks { project: 13 }), false),
     ] {
         let mut parts = source.clone();
         parts.scope = scope;
@@ -595,7 +565,10 @@ fn a_family_read_past_the_envelope_bound_is_refused() {
     };
     h.link.step(
         Time::ZERO,
-        Event::Read { read: fixtures::READ, what: Readable::Family { scope: c::Scope::Own, window: c::Window { rows: 2, after: None }, record } },
+        Event::Read {
+            read: fixtures::READ,
+            what: Readable::Family { scope: c::Scope::Own, window: c::Window { rows: 2, after: None }, record },
+        },
         &mut h.out,
     );
     h.link.settle(&mut h.out);

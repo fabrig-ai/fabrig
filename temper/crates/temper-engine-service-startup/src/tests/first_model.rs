@@ -5,9 +5,9 @@
     clippy::disallowed_methods,
     reason = "ordinary domain stories inspect generated settings and typed documents"
 )]
-use jig_client_protocol_wire::Record as _;
 use super::{fixtures, stock};
 use jig_client_protocol_wire as wire;
+use jig_client_protocol_wire::Record as _;
 use jig_domain_accounts as accounts;
 use jig_domain_core as core;
 use jig_domain_host as host;
@@ -828,13 +828,19 @@ fn init_limits_hold_seven_models_and_five_previews_per_project_on_the_wire() {
         jig_protocol_engine_clients::translate::owner::frame(&frame, &world.client_models, &world.client_limits.wire)
             .expect("init's largest me translates to the client wire");
     assert!(
-        record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture") <= world.client_limits.message_bytes,
+        record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")
+            <= world.client_limits.message_bytes,
         "me fits the client message bound: {} <= {}",
         record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
         world.client_limits.message_bytes
     );
-    assert!(u64::from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")) <= wire::Me::encoded_bound(&world.client_limits.wire).unwrap());
-    let mut writer = Writer::new(usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    assert!(
+        u64::from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+            <= wire::Me::encoded_bound(&world.client_limits.wire).unwrap()
+    );
+    let mut writer = Writer::new(
+        usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
     record.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
     let decoded = wire::Me::decode(&world.client_limits.wire, &mut Reader::new(&writer.finish())).unwrap();
     assert_eq!(decoded, record);

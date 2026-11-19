@@ -1,7 +1,7 @@
 //! Sparse entrance facts without invented names, words or bounds (jig's
 //! client/domain/contract/README.md, 3).
-use jig_client_protocol_wire::Record as _;
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use jig_domain_people as p;
 use skein_lib::Writer;
 #[expect(
@@ -133,30 +133,24 @@ fn role(value: p::Role, _limits: &w::Limits) -> Result<w::HeldRole, w::Problem> 
         p::Role::Maintainer => w::HeldRole::Maintainer,
         p::Role::Member => w::HeldRole::Member,
         p::Role::Observer => w::HeldRole::Observer,
-        p::Role::Policy { role } => {
-            w::HeldRole::Policy(w::HeldRolePolicy { role })
-        }
+        p::Role::Policy { role } => w::HeldRole::Policy(w::HeldRolePolicy { role }),
     })
 }
 fn lack(value: p::Lack, limits: &w::Limits) -> Result<w::Lacking, w::Problem> {
     Ok(match value {
         p::Lack::HoldOwner { hold, owner } => {
             let owner = match owner {
-                p::HoldOwner::Party { person } => {
-                    w::HoldOwner::Party(w::HoldOwnerParty { person })
-                }
-                p::HoldOwner::Task { task } => {
-                    w::HoldOwner::Task(w::HoldOwnerTask { task })
-                }
+                p::HoldOwner::Party { person } => w::HoldOwner::Party(w::HoldOwnerParty { person }),
+                p::HoldOwner::Task { task } => w::HoldOwner::Task(w::HoldOwnerTask { task }),
             };
             w::Lacking::HoldOwner(w::LackingHoldOwner { hold, owner })
         }
         p::Lack::Ceiling { holder, dimension, value, asked } => w::Lacking::Ceiling(w::LackingCeiling {
-                holder: ceiling_holder(holder, limits)?,
-                dimension: ceiling_dimension(dimension),
-                value,
-                asked,
-            }),
+            holder: ceiling_holder(holder, limits)?,
+            dimension: ceiling_dimension(dimension),
+            value,
+            asked,
+        }),
         p::Lack::Approver => w::Lacking::Approver,
         p::Lack::Funding => w::Lacking::Funding,
         p::Lack::Tool => w::Lacking::Tool,
@@ -168,34 +162,16 @@ fn lack(value: p::Lack, limits: &w::Limits) -> Result<w::Lacking, w::Problem> {
         p::Lack::Account => w::Lacking::Account,
         p::Lack::Writer => w::Lacking::Writer,
         p::Lack::Models => w::Lacking::Models,
-        p::Lack::Budget { needs, left } => {
-            w::Lacking::Budget(w::LackingBudget { needed: needs, left })
-        }
-        p::Lack::Grant { kind } => {
-            w::Lacking::GrantKind(w::LackingGrantKind { kind })
-        }
-        p::Lack::TaskKind { .. } => {
-            w::Lacking::TaskKind(w::LackingTaskKind { executor: None })
-        }
-        p::Lack::Depth { most } => {
-            w::Lacking::Depth(w::LackingDepth { needed: None, allowed: most })
-        }
+        p::Lack::Budget { needs, left } => w::Lacking::Budget(w::LackingBudget { needed: needs, left }),
+        p::Lack::Grant { kind } => w::Lacking::GrantKind(w::LackingGrantKind { kind }),
+        p::Lack::TaskKind { .. } => w::Lacking::TaskKind(w::LackingTaskKind { executor: None }),
+        p::Lack::Depth { most } => w::Lacking::Depth(w::LackingDepth { needed: None, allowed: most }),
         p::Lack::Deadline => w::Lacking::Deadline(w::LackingDeadline { asked: None, latest: None }),
-        p::Lack::Tasks { left } => {
-            w::Lacking::Tasks(w::LackingTasks { needed: None, left })
-        }
-        p::Lack::Again { required } => {
-            w::Lacking::Again(w::LackingAgain { required })
-        }
-        p::Lack::Required { connector, kind } => {
-            w::Lacking::Required(w::LackingRequired { connector, kind })
-        }
-        p::Lack::Failed { connector, kind } => {
-            w::Lacking::Failed(w::LackingFailed { connector, kind })
-        }
-        p::Lack::Unguarded { connector, kind } => {
-            w::Lacking::Unguarded(w::LackingUnguarded { connector, kind })
-        }
+        p::Lack::Tasks { left } => w::Lacking::Tasks(w::LackingTasks { needed: None, left }),
+        p::Lack::Again { required } => w::Lacking::Again(w::LackingAgain { required }),
+        p::Lack::Required { connector, kind } => w::Lacking::Required(w::LackingRequired { connector, kind }),
+        p::Lack::Failed { connector, kind } => w::Lacking::Failed(w::LackingFailed { connector, kind }),
+        p::Lack::Unguarded { connector, kind } => w::Lacking::Unguarded(w::LackingUnguarded { connector, kind }),
     })
 }
 pub(super) fn limit(value: p::LimitKind) -> w::AdmissionLimit {
@@ -253,13 +229,10 @@ fn moved(value: p::Moved, limits: &w::Limits) -> Result<w::Refusal, w::Problem> 
     let (revision, what) = match value {
         p::Moved::Hold { revision, reason } => {
             let value = hold(reason, limits)?;
-            let reason =
-                Some(w::CurrentHold::Reason(w::CurrentHoldReason { value }));
+            let reason = Some(w::CurrentHold::Reason(w::CurrentHoldReason { value }));
             (revision, w::Moved::Hold(w::MovedHold { reason }))
         }
-        p::Moved::PlacedHold { revision } => {
-            (revision, w::Moved::PlacedHold(w::MovedPlacedHold { revision }))
-        }
+        p::Moved::PlacedHold { revision } => (revision, w::Moved::PlacedHold(w::MovedPlacedHold { revision })),
         p::Moved::Spec { revision } => (revision, w::Moved::Spec),
         p::Moved::Person { revision } => (revision, w::Moved::PersonTask),
         p::Moved::Note { revision } => (u64::from(revision), w::Moved::Note),
@@ -297,15 +270,9 @@ fn hold(value: p::HoldReason, _limits: &w::Limits) -> Result<w::HoldCategory, w:
         p::HoldReason::Circle => w::HoldCategory::Circle,
         p::HoldReason::Procedure => w::HoldCategory::Procedure,
         p::HoldReason::Dependency { task } => w::HoldCategory::Dependency(w::HoldCategoryDependency { task }),
-        p::HoldReason::Placed { hold } => {
-            w::HoldCategory::Placed(w::HoldCategoryPlaced { hold })
-        }
-        p::HoldReason::Uncertain { entry } => {
-            w::HoldCategory::Uncertain(w::HoldCategoryUncertain { entry })
-        }
-        p::HoldReason::PoolLost { pool } => {
-            w::HoldCategory::PoolLost(w::HoldCategoryPoolLost { pool })
-        }
+        p::HoldReason::Placed { hold } => w::HoldCategory::Placed(w::HoldCategoryPlaced { hold }),
+        p::HoldReason::Uncertain { entry } => w::HoldCategory::Uncertain(w::HoldCategoryUncertain { entry }),
+        p::HoldReason::PoolLost { pool } => w::HoldCategory::PoolLost(w::HoldCategoryPoolLost { pool }),
         p::HoldReason::Failures { class } => {
             let class = match class {
                 p::FailureClass::Transient => w::HoldFailure::Transient,
@@ -331,11 +298,15 @@ fn actor(value: p::Party, _limits: &w::Limits) -> Result<w::Actor, w::Problem> {
 fn ending(value: p::Ending, limits: &w::Limits) -> Result<w::Ending, w::Problem> {
     let value = match value {
         p::Ending::Done => w::EndingFields::Done,
-        p::Ending::Failed => {
-            w::EndingFields::Failed(w::EndingFailedFields { reason: None })
+        p::Ending::Failed => w::EndingFields::Failed(w::EndingFailedFields { reason: None }),
+        p::Ending::Cancelled { by, at } => w::EndingFields::Cancelled(w::EndingCancelledFields {
+            by: actor(by, limits)?,
+            reason: None,
+            at: Some(at.as_nanos()),
+        }),
+        p::Ending::Decided { by, at } => {
+            w::EndingFields::Decided(w::EndingDecidedFields { by, party: None, how: None, at: at.as_nanos() })
         }
-        p::Ending::Cancelled { by, at } => w::EndingFields::Cancelled(w::EndingCancelledFields { by: actor(by, limits)?, reason: None, at: Some(at.as_nanos()) }),
-        p::Ending::Decided { by, at } => w::EndingFields::Decided(w::EndingDecidedFields { by, party: None, how: None, at: at.as_nanos() }),
         p::Ending::Deleted => w::EndingFields::Deleted,
     };
     let row = w::Fact::Ending(w::EndingRow { parent: None, value });
@@ -371,9 +342,7 @@ fn ceiling_holder(value: p::CeilingHolder, _limits: &w::Limits) -> Result<w::Cei
     Ok(match value {
         p::CeilingHolder::Rules => w::CeilingHolder::Rules,
         p::CeilingHolder::Policy => w::CeilingHolder::Policy,
-        p::CeilingHolder::Role(role) => {
-            w::CeilingHolder::Role(w::CeilingRole { role })
-        }
+        p::CeilingHolder::Role(role) => w::CeilingHolder::Role(w::CeilingRole { role }),
     })
 }
 fn ceiling_dimension(value: p::CeilingDimension) -> w::CeilingDimension {

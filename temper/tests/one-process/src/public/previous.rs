@@ -1,5 +1,4 @@
 //! A private store survives opening public reading (jig/docs/design/domain/people/public-reading.md, 2).
-use jig_client_protocol_wire::Record as _;
 use super::{checks::PROXY, proxy::Proxy, requests, service, service_checks, visitor::Visitor};
 use crate::{
     ctl::{Caller, Command},
@@ -7,6 +6,7 @@ use crate::{
     referee::Store,
 };
 use jig_client::contract as c;
+use jig_client_protocol_wire::Record as _;
 use jig_client_protocol_wire::public_v1 as p;
 use skein_http::Method;
 use skein_lib::Reader;

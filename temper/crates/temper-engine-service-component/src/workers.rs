@@ -107,12 +107,12 @@ impl Workers {
                 continue;
             }
             let value = WorkerSetting {
-                    number: worker.number,
-                    name: worker.name.clone(),
-                    places: worker.places,
-                    digest: worker.digest,
-                    withdrawn: worker.withdrawn,
-                };
+                number: worker.number,
+                name: worker.name.clone(),
+                places: worker.places,
+                digest: worker.digest,
+                withdrawn: worker.withdrawn,
+            };
             if copy.value.as_ref() != Some(&value) {
                 copy.writes.push(value.encode(&jig_client_protocol_wire::CEILINGS).expect("bounded local value"));
                 copy.value = Some(value);

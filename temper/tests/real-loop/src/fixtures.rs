@@ -519,13 +519,16 @@ pub(crate) fn finish_configuration(
     if let Some(places) = flags["local_places"].as_u64() {
         use jig_client_protocol_wire::WorkerSetting;
         let local = WorkerSetting {
-                number: 1,
-                name: b"local".as_slice().into(),
-                places: u32::try_from(places).expect("fixture places"),
-                digest: None,
-                withdrawn: false,
-            };
-        let mut writer = skein_lib::Writer::new(usize::try_from(local.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("bounded local value"));
+            number: 1,
+            name: b"local".as_slice().into(),
+            places: u32::try_from(places).expect("fixture places"),
+            digest: None,
+            withdrawn: false,
+        };
+        let mut writer = skein_lib::Writer::new(
+            usize::try_from(local.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+                .expect("bounded local value"),
+        );
         local.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("fixture local bytes");
         private(&directory.join("local.setting"), &writer.finish())?;
     }

@@ -1,6 +1,6 @@
-use jig_client_protocol_wire::Record as _;
 use super::fixtures;
 use jig_client_protocol_wire as wire;
+use jig_client_protocol_wire::Record as _;
 use jig_protocol_engine_clients as kit;
 use skein_lib::{Env, List, Queue, Reader, Secret, Time, Token, Wall, Writer};
 
@@ -128,12 +128,14 @@ impl Stand {
         let mut subject = Writer::new(1);
         watched.write(&jig_client_protocol_wire::CEILINGS, &mut subject).unwrap();
         let subject = wire::Owned {
-                owner: wire::Owner::Jig,
-                version: jig_client_protocol_wire::VERSION,
-                record: subject.finish(),
-            };
+            owner: wire::Owner::Jig,
+            version: jig_client_protocol_wire::VERSION,
+            record: subject.finish(),
+        };
         let value = wire::Open { stream, watch: WATCH, subject };
-        let mut bytes = Writer::new(usize::try_from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+        let mut bytes = Writer::new(
+            usize::try_from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+        );
         value.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
         self.exchange(OPEN, kit::Message::Watch(bytes.finish()));
         let Some(kit::Request::Core(event)) = self.out.pop() else { panic!("core watch") };
@@ -151,9 +153,10 @@ impl Stand {
         watcher
     }
     fn unwatch(&mut self, stream: [u8; 16]) {
-        let value =
-            wire::WatchClose { stream, watch: WATCH };
-        let mut bytes = Writer::new(usize::try_from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+        let value = wire::WatchClose { stream, watch: WATCH };
+        let mut bytes = Writer::new(
+            usize::try_from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+        );
         value.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
         self.exchange(CLOSE, kit::Message::Unwatch(bytes.finish()));
     }

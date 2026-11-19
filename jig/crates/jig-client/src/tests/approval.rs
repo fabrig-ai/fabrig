@@ -7,7 +7,9 @@ pub(super) fn code() -> ApprovalCode {
     ApprovalCode::parse(b"BCDF-GHJK").unwrap()
 }
 pub(super) fn take_answer(answer: &w::ApprovalSignInAnswer) -> Box<[u8]> {
-    let mut bytes = Writer::new(usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    let mut bytes = Writer::new(
+        usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
     answer.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
     bytes.finish()
 }
@@ -155,9 +157,11 @@ fn no_print_of_an_approval_shows_its_secret() {
         prints.push(print).unwrap();
     }
     let exchange = c.exchange();
-    let body = take_answer(&w::ApprovalSignInAnswer::SignedIn(
-        w::SignedIn { token: Some(fixtures::credential(CREDENTIAL_CANARY)), party: 7, expires: 300 },
-    ));
+    let body = take_answer(&w::ApprovalSignInAnswer::SignedIn(w::SignedIn {
+        token: Some(fixtures::credential(CREDENTIAL_CANARY)),
+        party: 7,
+        expires: 300,
+    }));
     let reply = Event::Reply { exchange, message: body.clone() };
     for print in [format!("{reply:?}"), format!("{reply:#?}")] {
         prints.push(print).unwrap();

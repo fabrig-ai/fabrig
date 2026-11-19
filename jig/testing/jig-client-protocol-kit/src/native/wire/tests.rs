@@ -7,8 +7,8 @@ const ATTEMPT: Token = Token::new(7);
 const FIRST_MESSAGE: u64 = 19;
 const KEY: [u8; 16] = [3; 16];
 fn encoded<T: w::Record<Limits = w::Limits>>(value: &T) -> Box<[u8]> {
-        value.encode(&w::CEILINGS).expect("bounded wire fixture")
-    }
+    value.encode(&w::CEILINGS).expect("bounded wire fixture")
+}
 fn request() -> Request {
     let mut operations = List::with_capacity(2);
     operations
@@ -22,31 +22,23 @@ fn request() -> Request {
     let ask = translate::asks::ask(&c::Ask::Compound { project: PROJECT, operations }, &w::CEILINGS)
         .expect("bounded wire fixture");
     let keyed = w::Keyed {
-            key: KEY,
-            owner: w::Owner::Jig,
-            version: jig_client_protocol_wire::VERSION,
-            request: encoded(&ask),
-            value: None,
-        };
-    Request::Exchange {
-        exchange: ATTEMPT,
-        credential: None,
-        message: Message::Request(encoded(&keyed)),
-    }
+        key: KEY,
+        owner: w::Owner::Jig,
+        version: jig_client_protocol_wire::VERSION,
+        request: encoded(&ask),
+        value: None,
+    };
+    Request::Exchange { exchange: ATTEMPT, credential: None, message: Message::Request(encoded(&keyed)) }
 }
 fn reply() -> Event {
-    let value = w::DocumentOutcome::Compound(
-        w::OutcomeCompound { project: PROJECT, operations: 2, first_message: FIRST_MESSAGE },
-    );
-    let outcome = w::Outcome::Document(
-        w::OutcomeDocument { value },
-    );
+    let value = w::DocumentOutcome::Compound(w::OutcomeCompound {
+        project: PROJECT,
+        operations: 2,
+        first_message: FIRST_MESSAGE,
+    });
+    let outcome = w::Outcome::Document(w::OutcomeDocument { value });
     let answer = w::Final::Done(w::Done { outcome });
-    let value = w::Owned {
-            owner: w::Owner::Jig,
-            version: jig_client_protocol_wire::VERSION,
-            record: encoded(&answer),
-        };
+    let value = w::Owned { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: encoded(&answer) };
     let answer = w::KeyedAnswer::FinalAnswer(value);
     Event::Reply { exchange: ATTEMPT, message: encoded(&answer) }
 }

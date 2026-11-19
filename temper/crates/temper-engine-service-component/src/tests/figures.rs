@@ -1,7 +1,7 @@
 //! A running engine gives restored and changed figures (protocol/configuration/figures.md, 9).
-use jig_client_protocol_wire::Record as _;
 use super::fixtures;
 use crate::engine::Engine;
+use jig_client_protocol_wire::Record as _;
 use jig_domain_core::settings;
 use jig_domain_people::{self as people, Reply};
 use jig_protocol_worker_link as link;

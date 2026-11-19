@@ -1,8 +1,8 @@
 //! Jobs are not party-created executors (jig/docs/design/client/domain/contract/documents.md, 7).
-use jig_client_protocol_wire::Record as _;
 use super::fixtures as f;
 use crate::translate::{asks, operations};
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use skein_lib::{List, Reader, Writer};
 
 /// Create refuses a job as an executor not offered (jig/docs/design/client/domain/contract/documents.md, 7).
@@ -23,13 +23,14 @@ fn create_naming_a_job_is_refused_as_not_offered() {
             task.executor = w::Executor::Job(w::ExecutorJob { kind: 7 });
         }
         let task = task;
-        let mut writer = Writer::new(usize::try_from(task.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+        let mut writer = Writer::new(
+            usize::try_from(task.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+        );
         task.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
         tasks.push(writer.finish()).unwrap();
     }
     let bytes = f::pieces(tasks.as_slice());
-    let ask =
-        w::Ask::Create(w::Create { project: create.project, tasks: bytes });
+    let ask = w::Ask::Create(w::Create { project: create.project, tasks: bytes });
     let answer = operations::refused(&ask, &limits).unwrap().unwrap();
     let w::Final::Refused(value) = f::final_record(answer, &limits) else {
         panic!("refusal");

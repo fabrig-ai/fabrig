@@ -37,30 +37,30 @@ pub fn stream_owned(limits: &Limits) -> Owned {
 
 pub fn current_call(limits: &Limits) -> CurrentCall {
     let identity = CallIdentity {
-            owner: u64::MAX,
-            sequence: u32::MAX,
-            retry: u32::MAX,
-            id: ceiling_text(limits.call_identity_id),
-        };
+        owner: u64::MAX,
+        sequence: u32::MAX,
+        retry: u32::MAX,
+        id: ceiling_text(limits.call_identity_id),
+    };
     CurrentCall {
-            identity,
-            tool: ceiling_text(limits.current_call_tool),
-            input: ceiling_text(limits.current_call_input),
-            cut: true,
-            began: None,
-        }
+        identity,
+        tool: ceiling_text(limits.current_call_tool),
+        input: ceiling_text(limits.current_call_input),
+        cut: true,
+        began: None,
+    }
 }
 
 pub fn decoded_call(limits: &Limits) -> Call {
     Call {
-            number: u64::MAX,
-            tool: ceiling_text(limits.call_tool),
-            input: ceiling_text(limits.call_input),
-            outcome: Some(ceiling_text(limits.call_outcome_some)),
-            failed: true,
-            objects: List::with_capacity(0),
-            parts: Box::from([]),
-        }
+        number: u64::MAX,
+        tool: ceiling_text(limits.call_tool),
+        input: ceiling_text(limits.call_input),
+        outcome: Some(ceiling_text(limits.call_outcome_some)),
+        failed: true,
+        objects: List::with_capacity(0),
+        parts: Box::from([]),
+    }
 }
 
 pub fn raw_live_call(limits: &Limits) -> LiveCall {
@@ -68,24 +68,22 @@ pub fn raw_live_call(limits: &Limits) -> LiveCall {
 }
 
 pub fn decoded_live_call(limits: &Limits) -> LiveCall {
-    LiveCall::Decoded(
-        LiveCallDecoded { value: decoded_call(limits) },
-    )
+    LiveCall::Decoded(LiveCallDecoded { value: decoded_call(limits) })
 }
 
 pub fn run_text(limits: &Limits, call: LiveCall) -> RunText {
     let turn = ProvisionalTurnName { attempt: u64::MAX, number: u32::MAX, retry: u32::MAX };
     RunText {
-            writing: None,
-            attempt: u64::MAX,
-            began: Some(u64::MAX),
-            turn,
-            from: u32::MAX,
-            through: u32::MAX,
-            text: ceiling_text(limits.run_text_text),
-            cut: true,
-            call: Some(call),
-        }
+        writing: None,
+        attempt: u64::MAX,
+        began: Some(u64::MAX),
+        turn,
+        from: u32::MAX,
+        through: u32::MAX,
+        text: ceiling_text(limits.run_text_text),
+        cut: true,
+        call: Some(call),
+    }
 }
 
 pub fn ended(_limits: &Limits, why: WatchEnd) -> WatchEnded {
@@ -104,9 +102,7 @@ pub fn stream_events(limits: &Limits) -> [StreamEvent; 5] {
 }
 
 pub fn tree_subject(_limits: &Limits) -> Subject {
-    Subject::Tree(
-        SubjectTree { task: u64::MAX, window: u32::MAX },
-    )
+    Subject::Tree(SubjectTree { task: u64::MAX, window: u32::MAX })
 }
 
 pub fn open_tree(limits: &Limits) -> Open {
@@ -117,44 +113,40 @@ pub fn open_tree(limits: &Limits) -> Open {
 }
 
 pub fn waiting_account_state(_limits: &Limits, until: Option<u64>) -> AccountState {
-    AccountState::Later(
-        AccountStateLater { until },
-    )
+    AccountState::Later(AccountStateLater { until })
 }
 
 pub fn account(_limits: &Limits, state: AccountState) -> Account {
     Account {
-            list: None,
-            facts: List::with_capacity(0),
-            provider_name: None,
-            manage_usage: None,
-            number: u32::MAX,
-            place: 0,
-            uses: None,
-            provider: None,
-            display: DocumentText { bytes: Box::from([]), cut: false },
-            holder: AccountHolder::Deployment,
-            sources: Box::from([]),
-            generation: Some(u64::MAX),
-            state,
-            plan: false,
-            usable: true,
-            expiring: false,
-            attention: true,
-            cut: true,
-            spent_until: None,
-            runs: Box::from([]),
-            waiting: Box::from([]),
-        }
+        list: None,
+        facts: List::with_capacity(0),
+        provider_name: None,
+        manage_usage: None,
+        number: u32::MAX,
+        place: 0,
+        uses: None,
+        provider: None,
+        display: DocumentText { bytes: Box::from([]), cut: false },
+        holder: AccountHolder::Deployment,
+        sources: Box::from([]),
+        generation: Some(u64::MAX),
+        state,
+        plan: false,
+        usable: true,
+        expiring: false,
+        attention: true,
+        cut: true,
+        spent_until: None,
+        runs: Box::from([]),
+        waiting: Box::from([]),
+    }
 }
 
 pub fn ended_goal_holding(_limits: &Limits) -> GoalHolding {
     let mut path = List::with_capacity(2);
     path.push(Box::from(b"one/two".as_slice())).expect("first literal segment");
     path.push(Box::from([255, 0])).expect("second opaque segment");
-    GoalHolding::Write(
-        GoalHoldingWrite { connector: u16::MAX, path, kind: 0 },
-    )
+    GoalHolding::Write(GoalHoldingWrite { connector: u16::MAX, path, kind: 0 })
 }
 
 pub fn stream_text(limits: &Limits, call: LiveCall) -> StreamText {

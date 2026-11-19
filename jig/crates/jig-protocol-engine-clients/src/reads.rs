@@ -1,6 +1,6 @@
 //! Read exchanges remain pending until the core's held answer is released (protocol/client/README.md, 4).
-use jig_client_protocol_wire::Record as _;
 use super::{Box, Component, Env, Limits, Queue, ReplyTo, Request, Token, Waiting, core, routes, w};
+use jig_client_protocol_wire::Record as _;
 use skein_lib::Reader;
 impl Component {
     pub(super) fn serves(&self, family: Option<u16>, version: u32) -> bool {
@@ -186,7 +186,13 @@ impl Component {
         }
     }
     fn read_response(&mut self, exchange: Token, answer: Result<w::ReadAnswer, w::Problem>, limits: &w::Limits) {
-        let bytes = match answer { Ok(value) => value.encode(limits), Err(problem) => Err(problem) };
-        match bytes { Ok(bytes) => self.respond(exchange, bytes), Err(_) => self.respond(exchange, routes::read_none(core::reads::Why::Malformed, limits)) }
+        let bytes = match answer {
+            Ok(value) => value.encode(limits),
+            Err(problem) => Err(problem),
+        };
+        match bytes {
+            Ok(bytes) => self.respond(exchange, bytes),
+            Err(_) => self.respond(exchange, routes::read_none(core::reads::Why::Malformed, limits)),
+        }
     }
 }

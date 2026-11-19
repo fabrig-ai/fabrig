@@ -1,8 +1,8 @@
 //! Durable keyed answers (protocol/client/README.md, section 3; client/domain/contract/README.md, 3).
-use jig_client_protocol_wire::Record as _;
 use super::refusals;
 use alloc::boxed::Box;
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use jig_domain_people as p;
 use skein_lib::Writer;
 pub(crate) fn answer(
@@ -12,10 +12,10 @@ pub(crate) fn answer(
 ) -> Result<w::KeyedAnswer, w::Problem> {
     let final_answer = match reply {
         p::Reply::Outcome(p::Outcome::AccountReading { count }) => w::Final::Done(w::Done {
-                outcome: w::Outcome::Account(w::OutcomeAccount {
-                        answer: w::AccountAnswer::Reading(w::AccountReading { count: *count }),
-                    }),
+            outcome: w::Outcome::Account(w::OutcomeAccount {
+                answer: w::AccountAnswer::Reading(w::AccountReading { count: *count }),
             }),
+        }),
         p::Reply::Outcome(p::Outcome::Restored { proposal, to, left_out }) => {
             let mut settings = skein_lib::List::with_capacity(super::count(left_out.len())?);
             for setting in left_out {
@@ -25,17 +25,26 @@ pub(crate) fn answer(
             w::Final::Done(w::Done { outcome })
         }
         p::Reply::Outcome(p::Outcome::MovedToNewest { newest, moved, stayed }) => w::Final::Done(w::Done {
-                outcome: w::Outcome::MovedToNewest(w::OutcomeMovedToNewest { newest: *newest, moved: *moved, stayed: *stayed }),
+            outcome: w::Outcome::MovedToNewest(w::OutcomeMovedToNewest {
+                newest: *newest,
+                moved: *moved,
+                stayed: *stayed,
             }),
+        }),
         p::Reply::Outcome(p::Outcome::SettingsChanged { revision }) => w::Final::Done(w::Done {
-                outcome: w::Outcome::SettingsChanged(w::OutcomeSettingsChanged { revision: *revision }),
-            }),
+            outcome: w::Outcome::SettingsChanged(w::OutcomeSettingsChanged { revision: *revision }),
+        }),
         p::Reply::Outcome(p::Outcome::Again(why)) | p::Reply::Again(why) => return again(*why, limits),
         p::Reply::Outcome(p::Outcome::SignedOut) | p::Reply::SignedOut => return Ok(w::KeyedAnswer::SignedOut),
-        p::Reply::Outcome(p::Outcome::Refused(why)) | p::Reply::Refused(why) => w::Final::Refused(w::Refused { at: None, refusal: refusal(why.clone(), models, limits)? }),
-        p::Reply::Outcome(p::Outcome::CompoundRefused { at, why }) => w::Final::Refused(w::Refused { refusal: refusal(why.clone(), models, limits)?, at: Some(*at) }),
+        p::Reply::Outcome(p::Outcome::Refused(why)) | p::Reply::Refused(why) => {
+            w::Final::Refused(w::Refused { at: None, refusal: refusal(why.clone(), models, limits)? })
+        }
+        p::Reply::Outcome(p::Outcome::CompoundRefused { at, why }) => {
+            w::Final::Refused(w::Refused { refusal: refusal(why.clone(), models, limits)?, at: Some(*at) })
+        }
         p::Reply::Outcome(p::Outcome::ServiceMade { person }) => {
-            let what = w::Made::Service(w::MadeService { party: *person, credential: skein_lib::Secret::new(Box::new([])) });
+            let what =
+                w::Made::Service(w::MadeService { party: *person, credential: skein_lib::Secret::new(Box::new([])) });
             let outcome = w::Outcome::Made(w::OutcomeMade { what });
             w::Final::Done(w::Done { outcome })
         }
@@ -95,7 +104,9 @@ pub(crate) fn owned(
 fn again(value: p::Again, _limits: &w::Limits) -> Result<w::KeyedAnswer, w::Problem> {
     Ok(match value {
         p::Again::Busy => w::KeyedAnswer::Busy,
-        p::Again::Full { held, room_at } => w::KeyedAnswer::AnswersFull(w::AnswersFull { held, room_at: room_at.as_nanos() }),
+        p::Again::Full { held, room_at } => {
+            w::KeyedAnswer::AnswersFull(w::AnswersFull { held, room_at: room_at.as_nanos() })
+        }
         p::Again::NotReady => w::KeyedAnswer::NotReady,
     })
 }
@@ -105,123 +116,139 @@ fn problem() -> w::Problem {
 #[expect(clippy::too_many_lines, reason = "one total match names every people outcome")]
 fn owner(value: &p::Outcome, limits: &w::Limits) -> Result<w::DocumentOutcome, w::Problem> {
     Ok(match value {
-        p::Outcome::VisibilitySet { project, public } => w::DocumentOutcome::VisibilitySet(
-            w::OutcomeVisibilitySet { project: *project, public: *public },
-        ),
-        p::Outcome::ProjectRemoved { project } => w::DocumentOutcome::ProjectRemoved(w::OutcomeProjectRemoved { project: *project }),
-        p::Outcome::AccountFinishing { source } => w::DocumentOutcome::AccountFinishing(
-            w::OutcomeAccountFinishing { source: *source },
-        ),
+        p::Outcome::VisibilitySet { project, public } => {
+            w::DocumentOutcome::VisibilitySet(w::OutcomeVisibilitySet { project: *project, public: *public })
+        }
+        p::Outcome::ProjectRemoved { project } => {
+            w::DocumentOutcome::ProjectRemoved(w::OutcomeProjectRemoved { project: *project })
+        }
+        p::Outcome::AccountFinishing { source } => {
+            w::DocumentOutcome::AccountFinishing(w::OutcomeAccountFinishing { source: *source })
+        }
         p::Outcome::AccountMovedIn { account, renewed } => {
             w::DocumentOutcome::AccountMovedIn(w::OutcomeAccountMovedIn { account: *account, renewed: *renewed })
         }
-        p::Outcome::Proposed { proposal, to } => w::DocumentOutcome::Proposed(w::OutcomeProposed { proposal: *proposal, to: *to }),
-        p::Outcome::Withdrawn { proposal } => w::DocumentOutcome::Withdrawn(w::OutcomeWithdrawn { proposal: *proposal }),
+        p::Outcome::Proposed { proposal, to } => {
+            w::DocumentOutcome::Proposed(w::OutcomeProposed { proposal: *proposal, to: *to })
+        }
+        p::Outcome::Withdrawn { proposal } => {
+            w::DocumentOutcome::Withdrawn(w::OutcomeWithdrawn { proposal: *proposal })
+        }
         p::Outcome::Created { first, last, given } => w::DocumentOutcome::Created(w::OutcomeCreated {
-                first: *first,
-                last: *last,
-                given: match given {
-                    Some(v) => {
-                        Some(w::CreatedGiven { task: v.task, amount: v.amount })
-                    }
-                    None => None,
-                },
-            }),
+            first: *first,
+            last: *last,
+            given: match given {
+                Some(v) => Some(w::CreatedGiven { task: v.task, amount: v.amount }),
+                None => None,
+            },
+        }),
         p::Outcome::Compound { project, operations, first_message } => {
-            w::DocumentOutcome::Compound(w::OutcomeCompound { project: *project, operations: *operations, first_message: *first_message })
+            w::DocumentOutcome::Compound(w::OutcomeCompound {
+                project: *project,
+                operations: *operations,
+                first_message: *first_message,
+            })
         }
         p::Outcome::NoteEdited { name } => w::DocumentOutcome::NoteEdited(w::OutcomeNoteEdited { name: *name }),
-        p::Outcome::ServiceMade { person } => w::DocumentOutcome::ServiceMade(w::OutcomeServiceMade { person: *person }),
-        p::Outcome::Adopted { project } => {
-            w::DocumentOutcome::Adopted(w::OutcomeAdopted { project: *project })
+        p::Outcome::ServiceMade { person } => {
+            w::DocumentOutcome::ServiceMade(w::OutcomeServiceMade { person: *person })
         }
-        p::Outcome::Left { task } => {
-            w::DocumentOutcome::Left(w::OutcomeStopped { task: *task })
+        p::Outcome::Adopted { project } => w::DocumentOutcome::Adopted(w::OutcomeAdopted { project: *project }),
+        p::Outcome::Left { task } => w::DocumentOutcome::Left(w::OutcomeStopped { task: *task }),
+        p::Outcome::Stopped { task } => w::DocumentOutcome::Stopped(w::OutcomeStopped { task: *task }),
+        p::Outcome::Concluded { task } => w::DocumentOutcome::Concluded(w::OutcomeConcluded { task: *task }),
+        p::Outcome::Cancelled { task } => w::DocumentOutcome::Cancelled(w::OutcomeCancelled { task: *task }),
+        p::Outcome::Lifted { hold, released } => {
+            w::DocumentOutcome::Lifted(w::OutcomeLifted { hold: *hold, released: *released })
         }
-        p::Outcome::Stopped { task } => {
-            w::DocumentOutcome::Stopped(w::OutcomeStopped { task: *task })
-        }
-        p::Outcome::Concluded { task } => {
-            w::DocumentOutcome::Concluded(w::OutcomeConcluded { task: *task })
-        }
-        p::Outcome::Cancelled { task } => {
-            w::DocumentOutcome::Cancelled(w::OutcomeCancelled { task: *task })
-        }
-        p::Outcome::Lifted { hold, released } => w::DocumentOutcome::Lifted(w::OutcomeLifted { hold: *hold, released: *released }),
-        p::Outcome::Released { task } => {
-            w::DocumentOutcome::Released(w::OutcomeReleased { task: *task })
-        }
+        p::Outcome::Released { task } => w::DocumentOutcome::Released(w::OutcomeReleased { task: *task }),
         p::Outcome::PersonTaken { task } => w::DocumentOutcome::PersonTaken(w::OutcomePersonTaken { task: *task }),
-        p::Outcome::PersonHandedBack { task } => w::DocumentOutcome::PersonHandedBack(w::OutcomePersonHandedBack { task: *task }),
-        p::Outcome::PersonAnswered { task } => w::DocumentOutcome::PersonAnswered(w::OutcomePersonAnswered { task: *task }),
-        p::Outcome::Moved { task } => {
-            w::DocumentOutcome::Moved(w::OutcomeMoved { task: *task })
+        p::Outcome::PersonHandedBack { task } => {
+            w::DocumentOutcome::PersonHandedBack(w::OutcomePersonHandedBack { task: *task })
         }
-        p::Outcome::Said { task, message, .. } => w::DocumentOutcome::Said(w::OutcomeSaid { task: *task, message: *message }),
+        p::Outcome::PersonAnswered { task } => {
+            w::DocumentOutcome::PersonAnswered(w::OutcomePersonAnswered { task: *task })
+        }
+        p::Outcome::Moved { task } => w::DocumentOutcome::Moved(w::OutcomeMoved { task: *task }),
+        p::Outcome::Said { task, message, .. } => {
+            w::DocumentOutcome::Said(w::OutcomeSaid { task: *task, message: *message })
+        }
         p::Outcome::QuestionAnswered { task, question, message } => {
-            w::DocumentOutcome::QuestionAnswered(w::OutcomeQuestionAnswered { task: *task, question: *question, message: *message })
+            w::DocumentOutcome::QuestionAnswered(w::OutcomeQuestionAnswered {
+                task: *task,
+                question: *question,
+                message: *message,
+            })
         }
-        p::Outcome::Amended { task, .. } => {
-            w::DocumentOutcome::Amended(w::OutcomeAmended { task: *task })
-        }
+        p::Outcome::Amended { task, .. } => w::DocumentOutcome::Amended(w::OutcomeAmended { task: *task }),
         p::Outcome::RolesSet { project } => w::DocumentOutcome::RolesSet(w::OutcomeRolesSet { project: *project }),
-        p::Outcome::Renamed { project } => {
-            w::DocumentOutcome::Renamed(w::OutcomeRenamed { project: *project })
+        p::Outcome::Renamed { project } => w::DocumentOutcome::Renamed(w::OutcomeRenamed { project: *project }),
+        p::Outcome::ProjectMade { project } => {
+            w::DocumentOutcome::ProjectMade(w::OutcomeProjectMade { project: *project })
         }
-        p::Outcome::ProjectMade { project } => w::DocumentOutcome::ProjectMade(w::OutcomeProjectMade { project: *project }),
-        p::Outcome::PolicyChanged { project } => w::DocumentOutcome::PolicyChanged(w::OutcomePolicyChanged { project: *project }),
-        p::Outcome::PoolSet { project, person } => w::DocumentOutcome::PoolSet(w::OutcomePoolSet { project: *project, person: *person }),
-        p::Outcome::MarkedSeen { seen } => w::DocumentOutcome::MarkedSeen(w::OutcomeMarkedSeen { seen: self::seen(*seen, limits)? }),
+        p::Outcome::PolicyChanged { project } => {
+            w::DocumentOutcome::PolicyChanged(w::OutcomePolicyChanged { project: *project })
+        }
+        p::Outcome::PoolSet { project, person } => {
+            w::DocumentOutcome::PoolSet(w::OutcomePoolSet { project: *project, person: *person })
+        }
+        p::Outcome::MarkedSeen { seen } => {
+            w::DocumentOutcome::MarkedSeen(w::OutcomeMarkedSeen { seen: self::seen(*seen, limits)? })
+        }
         p::Outcome::ProposalDecided { proposer, proposal, by, at, choice, repeated } => {
             let proposer = match proposer {
-                p::Proposer::Task(value) => {
-                    w::Proposer::Task(w::ProposerTask { value: *value })
-                }
-                p::Proposer::Party(value) => {
-                    w::Proposer::Party(w::ProposerParty { value: *value })
-                }
+                p::Proposer::Task(value) => w::Proposer::Task(w::ProposerTask { value: *value }),
+                p::Proposer::Party(value) => w::Proposer::Party(w::ProposerParty { value: *value }),
             };
             let proposal = w::ProposalKey { proposer, number: *proposal };
             w::DocumentOutcome::ProposalDecided(w::OutcomeProposalDecided {
-                    proposal,
-                    by: *by,
-                    at: at.as_nanos(),
-                    choice: proposal_choice(*choice),
-                    repeated: *repeated,
-                })
+                proposal,
+                by: *by,
+                at: at.as_nanos(),
+                choice: proposal_choice(*choice),
+                repeated: *repeated,
+            })
         }
         p::Outcome::EscalationDecided { task, revision, by, at, choice } => {
             let revision = w::Revision { value: *revision };
             w::DocumentOutcome::EscalationDecided(w::OutcomeEscalationDecided {
-                    task: *task,
-                    revision,
-                    by: *by,
-                    at: at.as_nanos(),
-                    choice: escalation_choice(*choice),
-                })
+                task: *task,
+                revision,
+                by: *by,
+                at: at.as_nanos(),
+                choice: escalation_choice(*choice),
+            })
         }
         p::Outcome::AccountSignInStarted { source, address } => {
-            w::DocumentOutcome::AccountSignInStarted(w::OutcomeAccountSignInStarted { source: *source, address: skein_lib::bytes::copy_of(address) })
+            w::DocumentOutcome::AccountSignInStarted(w::OutcomeAccountSignInStarted {
+                source: *source,
+                address: skein_lib::bytes::copy_of(address),
+            })
         }
         p::Outcome::AccountSignedOut { confirmed, failed_hosts } => {
             w::DocumentOutcome::AccountSignedOut(w::OutcomeAccountSignedOut {
-                    confirmed: *confirmed,
-                    failed_hosts: super::account_hosts::encode(failed_hosts, limits)?,
-                })
+                confirmed: *confirmed,
+                failed_hosts: super::account_hosts::encode(failed_hosts, limits)?,
+            })
         }
-        p::Outcome::AccountKeyKept { source } => w::DocumentOutcome::AccountKeyKept(w::OutcomeAccountKeyKept { source: *source }),
+        p::Outcome::AccountKeyKept { source } => {
+            w::DocumentOutcome::AccountKeyKept(w::OutcomeAccountKeyKept { source: *source })
+        }
         p::Outcome::AccountProgramDeclared { source, name } => {
-            w::DocumentOutcome::AccountProgramDeclared(w::OutcomeAccountProgramDeclared { source: *source, name: name.clone() })
+            w::DocumentOutcome::AccountProgramDeclared(w::OutcomeAccountProgramDeclared {
+                source: *source,
+                name: name.clone(),
+            })
         }
-        p::Outcome::AccountLoginAsked { number } => w::DocumentOutcome::AccountLoginAsked(
-            w::OutcomeAccountLoginAsked { number: *number },
-        ),
+        p::Outcome::AccountLoginAsked { number } => {
+            w::DocumentOutcome::AccountLoginAsked(w::OutcomeAccountLoginAsked { number: *number })
+        }
         p::Outcome::AccountChanged => w::DocumentOutcome::AccountChanged,
         p::Outcome::AccountRemoved { confirmed, failed_hosts } => {
             w::DocumentOutcome::AccountRemoved(w::OutcomeAccountRemoved {
-                    confirmed: *confirmed,
-                    failed_hosts: super::account_hosts::encode(failed_hosts, limits)?,
-                })
+                confirmed: *confirmed,
+                failed_hosts: super::account_hosts::encode(failed_hosts, limits)?,
+            })
         }
         p::Outcome::Restored { .. }
         | p::Outcome::SettingsChanged { .. }
@@ -240,12 +267,8 @@ fn owner(value: &p::Outcome, limits: &w::Limits) -> Result<w::DocumentOutcome, w
 #[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
 fn seen(value: p::Seen, _limits: &w::Limits) -> Result<w::SeenThrough, w::Problem> {
     Ok(match value {
-        p::Seen::Results { through } => {
-            w::SeenThrough::Results(w::SeenResults { through })
-        }
-        p::Seen::Conversation { task, through } => {
-            w::SeenThrough::Conversation(w::SeenConversation { task, through })
-        }
+        p::Seen::Results { through } => w::SeenThrough::Results(w::SeenResults { through }),
+        p::Seen::Conversation { task, through } => w::SeenThrough::Conversation(w::SeenConversation { task, through }),
     })
 }
 fn proposal_choice(value: p::ProposalChoice) -> w::ProposalChoice {

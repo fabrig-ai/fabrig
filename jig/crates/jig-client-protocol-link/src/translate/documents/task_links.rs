@@ -1,6 +1,6 @@
 //! Field-for-field document values (client/domain/contract/documents.md and client/domain/contract/README.md, 4–5).
-use jig_client_protocol_wire::Record as _;
 use super::{Limits, List, Reader, Wall, c, chip_fields, too_large, w};
+use jig_client_protocol_wire::Record as _;
 
 pub(crate) fn task_status_fields(value: &w::TaskStatus) -> c::TaskStatus {
     match value {
@@ -57,9 +57,7 @@ pub(crate) fn subscription_kind_fields(value: &w::SubscriptionKind) -> c::Subscr
             };
             c::SubscriptionKind::Timer { at: Wall::from_nanos(row.at), period: opt0 }
         }
-        w::SubscriptionKind::Topic(row) => {
-            c::SubscriptionKind::Topic { connector: row.connector, topic: row.topic }
-        }
+        w::SubscriptionKind::Topic(row) => c::SubscriptionKind::Topic { connector: row.connector, topic: row.topic },
     }
 }
 

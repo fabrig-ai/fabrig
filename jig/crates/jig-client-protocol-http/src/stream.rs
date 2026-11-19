@@ -1,7 +1,7 @@
 //! Incremental SSE and canonical base64 framing (protocol/client/wire.md, 2, and protocol/client/README.md, 5).
-use jig_client_protocol_wire::Record as _;
 use crate::Limits;
 use jig_client_protocol_link::{Heard, Streamed};
+use jig_client_protocol_wire::Record as _;
 use skein_http::sse;
 use skein_lib::base64::{Alphabet, Decoder};
 use skein_lib::stream::{Down, Read, Up};

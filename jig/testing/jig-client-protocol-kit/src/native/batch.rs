@@ -1,8 +1,8 @@
 //! Native HTTP to the reference service: one iteration, one batch, and kept stream replacement.
 //! jig/docs/design/protocol/client/README.md, 11.
-use jig_client_protocol_wire::Record as _;
 use super::{Machine, Service, config, files, settings};
 use jig_client::{self as c, Event, Handle, Message, Request, Told};
+use jig_client_protocol_wire::Record as _;
 use jig_client_shell_native::Shell;
 use skein_io::kernel::{Complete, Fd, Submit};
 use skein_lib::{Duration, List, Queue, Time, Wall};

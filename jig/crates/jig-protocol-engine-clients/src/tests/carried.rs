@@ -1,10 +1,10 @@
 //! A keyed request's carried value: kept before the application sees the
 //! request, which names it by number and digest only (protocol/client/README.md, 3;
 //! protocol/store/secrets.md).
-use jig_client_protocol_wire::Record as _;
 use super::fixtures::{self as f, Exchange};
 use crate::{Event, FromApplication, Request, SecretOwner, SecretsAnswer, SecretsRequest, ToApplication};
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use jig_domain_core_vocabulary as core;
 use jig_domain_people as p;
 use skein_lib::{ReplyTo, Secret, Token, Writer};
@@ -20,7 +20,9 @@ fn carrying(owner: w::Owner, value: &[u8]) -> Box<[u8]> {
 }
 fn keyed_value(owner: w::Owner, version: u32, request: Box<[u8]>, value: &[u8]) -> Box<[u8]> {
     let record = w::Keyed { key: [5; 16], owner, version, request, value: Some(Secret::new(Box::from(value))) };
-    let mut out = Writer::new(skein_lib::length::usize_of(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+    let mut out = Writer::new(skein_lib::length::usize_of(
+        record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+    ));
     record.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("bounded keyed");
     out.finish()
 }
@@ -156,31 +158,14 @@ fn every_carrying_request_names_its_values_kind() {
     let value = b"carried request payload";
     let digest = skein_lib::sha256::digest(value);
     let changes = [
-        (
-            w::AccountChange::AddKey(
-                w::AccountChangeAddKey { provider: 3, join: None, digest },
-            ),
-            crate::CarriedKind::Key,
-        ),
-        (
-            w::AccountChange::ReplaceKey(
-                w::AccountChangeReplaceKey { source: 29, digest },
-            ),
-            crate::CarriedKind::Key,
-        ),
-        (
-            w::AccountChange::MoveIn(
-                w::AccountChangeMoveIn { digest },
-            ),
-            crate::CarriedKind::Moved,
-        ),
+        (w::AccountChange::AddKey(w::AccountChangeAddKey { provider: 3, join: None, digest }), crate::CarriedKind::Key),
+        (w::AccountChange::ReplaceKey(w::AccountChangeReplaceKey { source: 29, digest }), crate::CarriedKind::Key),
+        (w::AccountChange::MoveIn(w::AccountChangeMoveIn { digest }), crate::CarriedKind::Moved),
     ];
     let mut rows = skein_lib::List::with_capacity(CARRYING_REQUESTS);
     rows.push((carrying(family(), value), crate::CarriedKind::Value)).expect("application row");
     for (change, kind) in changes {
-        let ask = w::Ask::AccountChange(
-            w::AskAccountChange { holder: w::AskAccountHolder::Own, change },
-        );
+        let ask = w::Ask::AccountChange(w::AskAccountChange { holder: w::AskAccountHolder::Own, change });
         rows.push((keyed_value(w::Owner::Jig, jig_client_protocol_wire::VERSION, f::encode_ask(&ask), value), kind))
             .expect("account row");
     }

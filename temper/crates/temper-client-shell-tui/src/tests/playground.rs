@@ -31,7 +31,8 @@ pub(super) fn forges_watch(duties: &Duties) -> u64 {
             if open.subject.owner == w::Owner::Jig {
                 return None;
             }
-            let envelope = w::FamilyRecord::decode(&w::CEILINGS, &mut Reader::new(open.subject.record.as_ref())).unwrap();
+            let envelope =
+                w::FamilyRecord::decode(&w::CEILINGS, &mut Reader::new(open.subject.record.as_ref())).unwrap();
             let watch = wire::decode_watching(envelope.record.as_ref(), &f::CEILINGS).unwrap();
             (watch.watch() == &f::Watch::Forges).then_some(open.watch)
         })
@@ -71,9 +72,7 @@ fn a_first_forges_delivery_with_the_playground_draws_it_without_reconnecting() {
     assert!(text(&mut host).contains("Welcome. Set temper up"));
 
     // The stream can coalesce away the empty forges document before this first delivery.
-    let event = w::StreamEvent::Delivery(
-        w::Delivery { watch, document: goal::family(goal::forges(f::Mode::Fake)) },
-    );
+    let event = w::StreamEvent::Delivery(w::Delivery { watch, document: goal::family(goal::forges(f::Mode::Fake)) });
     let duties = host.report(Report::Heard(jig_client::Event::Streamed {
         message: jig_client::Streamed::Record(stream_bytes(&event)),
     }));
@@ -99,7 +98,9 @@ fn a_first_forges_delivery_with_the_playground_draws_it_without_reconnecting() {
         .unwrap(),
     );
     let answer = w::ReadAnswer::Value(goal::family(record));
-    let mut writer = Writer::new(usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    let mut writer = Writer::new(
+        usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
     answer.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
     let terminal = exchange.member.map(|_| exchange.exchange);
     let duties = reply_slot(&mut host, exchange, writer.finish());

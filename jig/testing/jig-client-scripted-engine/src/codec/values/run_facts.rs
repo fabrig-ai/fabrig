@@ -6,13 +6,11 @@ pub(in crate::codec) fn wire_run_stage(value: &c::RunStage, _limits: &w::Limits)
         c::RunStage::Idle => w::RunStage::Idle,
         c::RunStage::Due => w::RunStage::Due,
         c::RunStage::Preparing => w::RunStage::Preparing,
-        c::RunStage::Claimed { attempt } => {
-            w::RunStage::Claimed(w::RunStageClaimed { attempt: *(attempt) })
+        c::RunStage::Claimed { attempt } => w::RunStage::Claimed(w::RunStageClaimed { attempt: *(attempt) }),
+        c::RunStage::Running { attempt } => w::RunStage::Running(w::RunStageRunning { attempt: *(attempt) }),
+        c::RunStage::BackingOff { until } => {
+            w::RunStage::BackingOff(w::RunStageBackingOff { until: (until).as_nanos() })
         }
-        c::RunStage::Running { attempt } => {
-            w::RunStage::Running(w::RunStageRunning { attempt: *(attempt) })
-        }
-        c::RunStage::BackingOff { until } => w::RunStage::BackingOff(w::RunStageBackingOff { until: (until).as_nanos() }),
     })
 }
 
@@ -21,9 +19,7 @@ pub(in crate::codec) fn wire_closing_stage(
     _limits: &w::Limits,
 ) -> Result<w::ClosingStage, w::Problem> {
     Ok::<_, w::Problem>(match value {
-        c::ClosingStage::Run { attempt } => {
-            w::ClosingStage::Run(w::ClosingStageRun { attempt: *(attempt) })
-        }
+        c::ClosingStage::Run { attempt } => w::ClosingStage::Run(w::ClosingStageRun { attempt: *(attempt) }),
         c::ClosingStage::Delegates => w::ClosingStage::Delegates,
         c::ClosingStage::Effects => w::ClosingStage::Effects,
         c::ClosingStage::Releases => w::ClosingStage::Releases,
@@ -33,13 +29,13 @@ pub(in crate::codec) fn wire_closing_stage(
 
 pub(in crate::codec) fn wire_active_run(value: &c::ActiveRun, limits: &w::Limits) -> Result<w::ActiveRun, w::Problem> {
     Ok(w::ActiveRun {
-            stage: wire_run_stage(&value.stage, limits)?,
-            phase_since: value.phase_since.as_nanos(),
-            attempt: value.attempt.as_ref().map(|item| Ok::<_, w::Problem>(*(item))).transpose()?,
-            placement: value.placement.as_ref().map(|item| Ok::<_, w::Problem>((item).as_nanos())).transpose()?,
-            retry: value.retry.as_ref().map(|item| wire_retry_notice(item, limits)).transpose()?,
-            observation: value.observation.as_ref().map(|item| wire_run_observation(item, limits)).transpose()?,
-        })
+        stage: wire_run_stage(&value.stage, limits)?,
+        phase_since: value.phase_since.as_nanos(),
+        attempt: value.attempt.as_ref().map(|item| Ok::<_, w::Problem>(*(item))).transpose()?,
+        placement: value.placement.as_ref().map(|item| Ok::<_, w::Problem>((item).as_nanos())).transpose()?,
+        retry: value.retry.as_ref().map(|item| wire_retry_notice(item, limits)).transpose()?,
+        observation: value.observation.as_ref().map(|item| wire_run_observation(item, limits)).transpose()?,
+    })
 }
 
 pub(in crate::codec) fn wire_retry_notice(
@@ -49,24 +45,22 @@ pub(in crate::codec) fn wire_retry_notice(
     Ok::<_, w::Problem>(match value {
         c::RetryNotice::OwnerFailed { class, count, allowance, reason } => {
             w::RetryNotice::OwnerFailed(w::RetryNoticeOwnerFailed {
-                    class: wire_hold_failure(class, limits)?,
-                    count: *(count),
-                    allowance: *(allowance),
-                    reason: reason.as_ref().map(|value| bytes::copy_of(value.bytes())),
-                })
-        }
-        c::RetryNotice::Failed { class, count, allowance, reason } => {
-            w::RetryNotice::Failed(w::RetryNoticeFailed {
-                    class: wire_failure_class(class, limits)?,
-                    count: *(count),
-                    allowance: *(allowance),
-                    reason: reason.as_ref().map(|value| bytes::copy_of(value.bytes())),
-                })
-        }
-        c::RetryNotice::Refused { count, reason } => w::RetryNotice::Refused(w::RetryNoticeRefused {
+                class: wire_hold_failure(class, limits)?,
                 count: *(count),
+                allowance: *(allowance),
                 reason: reason.as_ref().map(|value| bytes::copy_of(value.bytes())),
-            }),
+            })
+        }
+        c::RetryNotice::Failed { class, count, allowance, reason } => w::RetryNotice::Failed(w::RetryNoticeFailed {
+            class: wire_failure_class(class, limits)?,
+            count: *(count),
+            allowance: *(allowance),
+            reason: reason.as_ref().map(|value| bytes::copy_of(value.bytes())),
+        }),
+        c::RetryNotice::Refused { count, reason } => w::RetryNotice::Refused(w::RetryNoticeRefused {
+            count: *(count),
+            reason: reason.as_ref().map(|value| bytes::copy_of(value.bytes())),
+        }),
     })
 }
 
@@ -75,12 +69,12 @@ pub(in crate::codec) fn wire_run_observation(
     limits: &w::Limits,
 ) -> Result<w::RunObservation, w::Problem> {
     Ok(w::RunObservation {
-            channel: value.channel.raw(),
-            work: wire_run_work(&value.work, limits)?,
-            since: value.since.as_nanos(),
-            reported_at: value.reported_at.as_nanos(),
-            started: value.started.as_ref().map(|item| Ok::<_, w::Problem>((item).as_nanos())).transpose()?,
-        })
+        channel: value.channel.raw(),
+        work: wire_run_work(&value.work, limits)?,
+        since: value.since.as_nanos(),
+        reported_at: value.reported_at.as_nanos(),
+        started: value.started.as_ref().map(|item| Ok::<_, w::Problem>((item).as_nanos())).transpose()?,
+    })
 }
 
 pub(in crate::codec) fn wire_run_work(value: &c::RunWork, limits: &w::Limits) -> Result<w::RunWork, w::Problem> {
@@ -89,7 +83,10 @@ pub(in crate::codec) fn wire_run_work(value: &c::RunWork, limits: &w::Limits) ->
         c::RunWork::Starting => w::RunWork::Starting,
         c::RunWork::Active => w::RunWork::Active,
         c::RunWork::Writing => w::RunWork::Writing,
-        c::RunWork::Tool { call, tool } => w::RunWork::Tool(w::RunWorkTool { call: wire_call_identity(call, limits)?, tool: bytes::copy_of((tool).bytes()) }),
+        c::RunWork::Tool { call, tool } => w::RunWork::Tool(w::RunWorkTool {
+            call: wire_call_identity(call, limits)?,
+            tool: bytes::copy_of((tool).bytes()),
+        }),
         c::RunWork::Waiting => w::RunWork::Waiting,
         c::RunWork::Ending => w::RunWork::Ending,
     })
@@ -103,7 +100,11 @@ pub(in crate::codec) fn wire_held_runtime_fields(
 ) -> Result<w::HeldRuntimeFields, w::Problem> {
     Ok::<_, w::Problem>(match value {
         c::HeldRuntime::Waiting => w::HeldRuntimeFields::Waiting,
-        c::HeldRuntime::Active(value) => w::HeldRuntimeFields::Active(w::HeldRuntimeActiveFields { value: wire_active_run(value, limits)? }),
-        c::HeldRuntime::Closing(value) => w::HeldRuntimeFields::Closing(w::HeldRuntimeClosingFields { value: facts.closing(value, Some(parent), limits)? }),
+        c::HeldRuntime::Active(value) => {
+            w::HeldRuntimeFields::Active(w::HeldRuntimeActiveFields { value: wire_active_run(value, limits)? })
+        }
+        c::HeldRuntime::Closing(value) => w::HeldRuntimeFields::Closing(w::HeldRuntimeClosingFields {
+            value: facts.closing(value, Some(parent), limits)?,
+        }),
     })
 }

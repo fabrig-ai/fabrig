@@ -1,11 +1,11 @@
 //! Watch subjects and terminal reasons (protocol/client/README.md, 5).
-use jig_client_protocol_wire::Record as _;
 use super::{documents, live, objects, pages};
 use crate::{Limits, Undecodable};
 use alloc::boxed::Box;
 use jig_client_domain::Watchable;
 use jig_client_domain::contract as c;
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use jig_client_protocol_wire::VERSION;
 use skein_lib::{List, Reader, Writer, length::len_u64};
 
@@ -13,31 +13,25 @@ pub fn subject(value: &c::Subject, limits: &w::Limits) -> Result<w::Subject, w::
     Ok(match value {
         c::Subject::Settings => w::Subject::Settings,
         c::Subject::Me => w::Subject::Me,
-        c::Subject::Task { task } => {
-            w::Subject::Task(w::SubjectTask { task: *task })
+        c::Subject::Task { task } => w::Subject::Task(w::SubjectTask { task: *task }),
+        c::Subject::Tree { task, window } => w::Subject::Tree(w::SubjectTree { task: *task, window: *window }),
+        c::Subject::Chips { tasks } => w::Subject::Chips(w::SubjectChips { tasks: tasks.clone() }),
+        c::Subject::Inbox { window } => w::Subject::Inbox(w::SubjectInbox { window: *window }),
+        c::Subject::Tasks { query, window } => {
+            w::Subject::Tasks(w::SubjectTasks { query: super::queries::query(query, limits)?, window: *window })
         }
-        c::Subject::Tree { task, window } => {
-            w::Subject::Tree(w::SubjectTree { task: *task, window: *window })
-        }
-        c::Subject::Chips { tasks } => {
-            w::Subject::Chips(w::SubjectChips { tasks: tasks.clone() })
-        }
-        c::Subject::Inbox { window } => {
-            w::Subject::Inbox(w::SubjectInbox { window: *window })
-        }
-        c::Subject::Tasks { query, window } => w::Subject::Tasks(w::SubjectTasks { query: super::queries::query(query, limits)?, window: *window }),
         c::Subject::Run { task, turn, offset } => {
             let turn = match turn {
-                Some(turn) => Some(w::ProvisionalTurnName { attempt: turn.attempt, number: turn.number, retry: turn.retry }),
+                Some(turn) => {
+                    Some(w::ProvisionalTurnName { attempt: turn.attempt, number: turn.number, retry: turn.retry })
+                }
                 None => None,
             };
             w::Subject::Run(w::SubjectRun { task: *task, turn, offset: *offset })
         }
         c::Subject::Deployment => w::Subject::Deployment,
         c::Subject::Accounts => w::Subject::Accounts,
-        c::Subject::Terminal { terminal } => {
-            w::Subject::Terminal(w::SubjectTerminal { terminal: *terminal })
-        }
+        c::Subject::Terminal { terminal } => w::Subject::Terminal(w::SubjectTerminal { terminal: *terminal }),
     })
 }
 pub fn owned(value: Watchable, limits: &w::Limits) -> Result<w::Owned, w::Problem> {

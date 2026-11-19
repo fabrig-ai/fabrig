@@ -272,7 +272,9 @@ impl Component {
         if kept.is_some() {
             self.answer(
                 exchange,
-                crate::translate::answers::service(party, Secret::new(Box::new([])), &env.limits.wire), &env.limits.wire);
+                crate::translate::answers::service(party, Secret::new(Box::new([])), &env.limits.wire),
+                &env.limits.wire,
+            );
             return;
         }
         let credential = sign_in::token(&mut self.rng, party);
@@ -307,7 +309,9 @@ impl Component {
             self.pending.exchanges.remove(&exchange);
             self.answer(
                 exchange,
-                crate::translate::answers::service(party, Secret::new(Box::new([])), &env.limits.wire), &env.limits.wire);
+                crate::translate::answers::service(party, Secret::new(Box::new([])), &env.limits.wire),
+                &env.limits.wire,
+            );
         }
     }
 }

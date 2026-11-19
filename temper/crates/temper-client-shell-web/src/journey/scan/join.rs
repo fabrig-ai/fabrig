@@ -1,7 +1,7 @@
 //! Offset joins of `RunText` and `WritingCall` (temper/docs/design/client/web/journeys.md, 3.7).
-use jig_client_protocol_wire::Record as _;
 use super::{Originals, Streams, What, bytes};
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use skein_lib::Reader;
 
 #[derive(PartialEq, Eq)]

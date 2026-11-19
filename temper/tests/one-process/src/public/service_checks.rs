@@ -1,5 +1,4 @@
 //! Service answers observed through HTTP (temper/docs/design/protocol/sign-in.md, 2.5).
-use jig_client_protocol_wire::Record as _;
 use super::{
     checks,
     http::Answer,
@@ -7,6 +6,7 @@ use super::{
     visitor::Visitor,
 };
 use crate::{ctl::Command, fixtures, world::HarnessProcess};
+use jig_client_protocol_wire::Record as _;
 use jig_client_protocol_wire::public_v1 as public;
 use skein_http::Method;
 use skein_lib::{Reader, Time};

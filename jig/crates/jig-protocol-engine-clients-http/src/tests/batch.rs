@@ -27,7 +27,9 @@ fn batch_frames_leave_before_done_and_the_call_lasts_through_the_body() {
         }]
     );
     let part_record = w::BatchReply { member: 1, reply: Some(Box::new([3, 4])) };
-    let mut bytes = skein_lib::Writer::new(skein_lib::length::usize_of(part_record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+    let mut bytes = skein_lib::Writer::new(skein_lib::length::usize_of(
+        part_record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+    ));
     part_record.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("part bytes");
     let bytes = bytes.finish();
     assert_eq!(bytes.len(), 9);

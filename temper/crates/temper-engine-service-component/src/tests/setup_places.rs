@@ -1,7 +1,7 @@
 //! Chosen and restored places cross the routing's port and file effects (protocol/setup/place.md, 2–6).
-use jig_client_protocol_wire::Record as _;
 use super::*;
 use crate::PlaceIo;
+use jig_client_protocol_wire::Record as _;
 use temper_forge_setup::setup_file::SetupFile;
 
 fn turn(engine: &mut crate::engine::Engine) -> Option<root::ApplicationAnswer> {
@@ -157,7 +157,9 @@ fn authorize(service: &mut crate::Service, port: u16) -> jig_client_protocol_wir
         "response_type=code&client_id=forgejo&redirect_uri=http%3A%2F%2F127.0.0.1%3A{port}%2Fuser%2Foauth2%2Ftemper%2Fcallback&scope=openid&code_challenge=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA&code_challenge_method=S256"
     );
     let record = wire::Authorize { query: query.into_bytes().into() };
-    let mut bytes = skein_lib::Writer::new(usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    let mut bytes = skein_lib::Writer::new(
+        usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
     record.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
     let peer = crate::tests::provider::request(
         service,

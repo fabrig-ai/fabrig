@@ -1,7 +1,7 @@
 //! Authenticated reads and their one durable answer (protocol/client/README.md, 4).
-use jig_client_protocol_wire::Record as _;
 use super::{cursor, objects, pages, w};
 use alloc::boxed::Box;
+use jig_client_protocol_wire::Record as _;
 use jig_domain_core_vocabulary::reads;
 use jig_domain_notes as notes;
 use jig_domain_people as people;
@@ -12,13 +12,11 @@ pub(crate) fn read(value: w::Read) -> Option<reads::Read> {
         w::Read::Setting(value) => read_setting(value),
         w::Read::Revision(value) => reads::Read::Revision { number: value.number },
         w::Read::Revisions(value) => reads::Read::Revisions { before: value.before },
-        w::Read::Tasks(value) => {
-            reads::Read::Tasks {
-                query: super::queries::query(value.query)?,
-                live: decode_cursor(value.live)?,
-                ended: decode_cursor(value.ended)?,
-            }
-        }
+        w::Read::Tasks(value) => reads::Read::Tasks {
+            query: super::queries::query(value.query)?,
+            live: decode_cursor(value.live)?,
+            ended: decode_cursor(value.ended)?,
+        },
         w::Read::Turn(value) => reads::Read::Turn { task: value.task, attempt: value.attempt, turn: value.turn },
         w::Read::TaskText(value) => read_task_text(value),
         w::Read::ActivityBeside(value) => reads::Read::ActivityBeside {
@@ -103,12 +101,8 @@ fn note_scope(value: w::NoteScope) -> Option<notes::Scope> {
 }
 pub(crate) fn none(why: reads::Why, _limits: &w::Limits) -> w::ReadAnswer {
     let value = match why {
-        reads::Why::TooLarge { bytes } => w::ReadNone::TooLarge(
-            w::TurnTooLarge { bytes },
-        ),
-        reads::Why::TooLinked { joins } => w::ReadNone::TooLinked(
-            w::ReadTooLinked { joins },
-        ),
+        reads::Why::TooLarge { bytes } => w::ReadNone::TooLarge(w::TurnTooLarge { bytes }),
+        reads::Why::TooLinked { joins } => w::ReadNone::TooLinked(w::ReadTooLinked { joins }),
         reads::Why::Malformed => w::ReadNone::Malformed,
         reads::Why::Unknown => w::ReadNone::Unknown,
         reads::Why::Busy => w::ReadNone::Busy,
@@ -130,7 +124,9 @@ pub(crate) fn answer(
         reads::Answer::Setting(value) => {
             w::ReadValue::Setting(super::settings::setting_document(value, models, limits)?)
         }
-        reads::Answer::Revision(value) => w::ReadValue::Revision(w::ReadRevisionAnswer { value: super::settings::revision(value, models, limits)? }),
+        reads::Answer::Revision(value) => {
+            w::ReadValue::Revision(w::ReadRevisionAnswer { value: super::settings::revision(value, models, limits)? })
+        }
         reads::Answer::Revisions(value) => w::ReadValue::Revisions(super::settings::revisions(value, limits)?),
         reads::Answer::TaskText(value) => w::ReadValue::TaskText(task_text(value, limits)?),
         reads::Answer::Tasks(page) => {
@@ -176,17 +172,17 @@ fn decode_cursor(value: Option<w::Cursor>) -> Option<Option<reads::Cursor>> {
 #[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
 fn task_text(value: &reads::TaskText, _limits: &w::Limits) -> Result<w::TaskText, w::Problem> {
     Ok(w::TaskText {
-            task: value.task,
-            field: match value.field {
-                reads::TaskTextField::Specification => w::TaskTextField::Specification,
-                reads::TaskTextField::Instructions => w::TaskTextField::Instructions,
-                reads::TaskTextField::Result => w::TaskTextField::Result,
-            },
-            from: value.from,
-            total: value.total,
-            next: value.next,
-            words: skein_lib::bytes::copy_of(&value.bytes),
-        })
+        task: value.task,
+        field: match value.field {
+            reads::TaskTextField::Specification => w::TaskTextField::Specification,
+            reads::TaskTextField::Instructions => w::TaskTextField::Instructions,
+            reads::TaskTextField::Result => w::TaskTextField::Result,
+        },
+        from: value.from,
+        total: value.total,
+        next: value.next,
+        words: skein_lib::bytes::copy_of(&value.bytes),
+    })
 }
 
 fn read_setting(value: w::ReadSetting) -> reads::Read {
@@ -201,11 +197,7 @@ fn read_setting(value: w::ReadSetting) -> reads::Read {
                 key.number,
             ));
         }
-        reads::Read::Setting {
-            setting: super::settings::setting(&value.setting),
-            revision: value.revision,
-            proposal,
-        }
+        reads::Read::Setting { setting: super::settings::setting(&value.setting), revision: value.revision, proposal }
     }
 }
 

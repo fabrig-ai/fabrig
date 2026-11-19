@@ -1,6 +1,6 @@
 //! Public host at the fetch boundary (temper/docs/design/client/web/public.md, 4).
-use jig_client_protocol_wire::Record as _;
 use super::*;
+use jig_client_protocol_wire::Record as _;
 fn fixture(path: &[u8]) -> (PublicHost, Duties) {
     let mut host = PublicHost::new(Time::ZERO, Wall::EPOCH, Ways::NONE);
     host.start(path);
@@ -109,9 +109,11 @@ fn malformed_paths_are_replaced_and_old_answers_are_ignored() {
 
 fn projects() -> Box<[u8]> {
     use jig_client_protocol_wire::public_v1 as j;
-    let projects =
-        j::PublicProjects { projects: List::with_capacity(0), max_age: 8 };
-    let mut writer = skein_lib::Writer::new(usize::try_from(projects.measure(&jig_client_protocol_wire::public_v1::CEILINGS).expect("bounded fixture")).expect("small projects"));
+    let projects = j::PublicProjects { projects: List::with_capacity(0), max_age: 8 };
+    let mut writer = skein_lib::Writer::new(
+        usize::try_from(projects.measure(&jig_client_protocol_wire::public_v1::CEILINGS).expect("bounded fixture"))
+            .expect("small projects"),
+    );
     projects.write(&jig_client_protocol_wire::public_v1::CEILINGS, &mut writer).expect("projects record");
     writer.finish()
 }

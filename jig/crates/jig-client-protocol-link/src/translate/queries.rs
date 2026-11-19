@@ -8,61 +8,55 @@ use skein_lib::Wall;
 pub(super) fn query(value: &c::TaskQuery, _limits: &w::Limits) -> Result<w::TaskQuery, w::Problem> {
     let requester = match value.requester {
         None => None,
-        Some(c::Requester::Task(value)) => {
-            Some(w::Requester::Task(w::RequesterTask { value }))
+        Some(c::Requester::Task(value)) => Some(w::Requester::Task(w::RequesterTask { value })),
+        Some(c::Requester::Person(value)) => Some(w::Requester::Person(w::RequesterPerson { value })),
+        Some(c::Requester::Deployment { project }) => {
+            Some(w::Requester::Deployment(w::RequesterDeployment { project }))
         }
-        Some(c::Requester::Person(value)) => {
-            Some(w::Requester::Person(w::RequesterPerson { value }))
-        }
-        Some(c::Requester::Deployment { project }) => Some(w::Requester::Deployment(w::RequesterDeployment { project })),
     };
     Ok(w::TaskQuery {
-            parts: {
-                let mut parts = skein_lib::List::with_capacity(value.parts.len());
-                for ask in &value.parts {
-                    parts
-                        .push(w::PartAsk {
-                                owner: w::Family { number: ask.owner },
-                                kind: ask.kind,
-                                version: ask.version,
-                            })
-                        .expect("same part count");
-                }
+        parts: {
+            let mut parts = skein_lib::List::with_capacity(value.parts.len());
+            for ask in &value.parts {
                 parts
-            },
-            project: value.project,
-            requester,
-            root: value.root,
-            parent: value.parent,
-            label: value.label,
-            phase: match value.phase {
-                None => None,
-                Some(v) => Some(match v {
-                    c::PhaseClass::Working => w::PhaseClass::Working,
-                    c::PhaseClass::Waiting => w::PhaseClass::Waiting,
-                    c::PhaseClass::Held => w::PhaseClass::Held,
-                    c::PhaseClass::Closing => w::PhaseClass::Closing,
-                    c::PhaseClass::Ended => w::PhaseClass::Ended,
-                }),
-            },
-            executor: match value.executor {
-                None => None,
-                Some(v) => Some(match v {
-                    c::ExecutorKind::Job => w::ExecutorKind::Job,
-                    c::ExecutorKind::Agent => w::ExecutorKind::Agent,
-                    c::ExecutorKind::Procedure => w::ExecutorKind::Procedure,
-                    c::ExecutorKind::Person => w::ExecutorKind::Person,
-                }),
-            },
-            tracked: value.tracked,
-            order: match value.order {
-                c::QueryOrder::Number => w::QueryOrder::Number,
-                c::QueryOrder::Changed => w::QueryOrder::Changed,
-                c::QueryOrder::Activity => w::QueryOrder::Activity,
-                c::QueryOrder::Priority => w::QueryOrder::Priority,
-                c::QueryOrder::Ended => w::QueryOrder::Ended,
-            },
-        })
+                    .push(w::PartAsk { owner: w::Family { number: ask.owner }, kind: ask.kind, version: ask.version })
+                    .expect("same part count");
+            }
+            parts
+        },
+        project: value.project,
+        requester,
+        root: value.root,
+        parent: value.parent,
+        label: value.label,
+        phase: match value.phase {
+            None => None,
+            Some(v) => Some(match v {
+                c::PhaseClass::Working => w::PhaseClass::Working,
+                c::PhaseClass::Waiting => w::PhaseClass::Waiting,
+                c::PhaseClass::Held => w::PhaseClass::Held,
+                c::PhaseClass::Closing => w::PhaseClass::Closing,
+                c::PhaseClass::Ended => w::PhaseClass::Ended,
+            }),
+        },
+        executor: match value.executor {
+            None => None,
+            Some(v) => Some(match v {
+                c::ExecutorKind::Job => w::ExecutorKind::Job,
+                c::ExecutorKind::Agent => w::ExecutorKind::Agent,
+                c::ExecutorKind::Procedure => w::ExecutorKind::Procedure,
+                c::ExecutorKind::Person => w::ExecutorKind::Person,
+            }),
+        },
+        tracked: value.tracked,
+        order: match value.order {
+            c::QueryOrder::Number => w::QueryOrder::Number,
+            c::QueryOrder::Changed => w::QueryOrder::Changed,
+            c::QueryOrder::Activity => w::QueryOrder::Activity,
+            c::QueryOrder::Priority => w::QueryOrder::Priority,
+            c::QueryOrder::Ended => w::QueryOrder::Ended,
+        },
+    })
 }
 pub(super) fn flags(value: &w::TaskFlags) -> c::TaskFlags {
     c::TaskFlags {

@@ -1,9 +1,9 @@
 //! Kept names, replay admission and diagnostics (client/ctl/README.md, 5 and 6.2).
-use jig_client_protocol_wire::Record as _;
 use alloc::{boxed::Box, collections::BTreeMap};
 use jig_client::{Ask, Client, Held, Key, Record};
 use jig_client_protocol_link::{Limits, translate};
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use skein_lib::{List, Reader, RequestRecord};
 
 #[derive(Debug)]

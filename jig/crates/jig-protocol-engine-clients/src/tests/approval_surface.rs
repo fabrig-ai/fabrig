@@ -1,37 +1,45 @@
 //! Approval's disabled surface and stopping answers (protocol/client/sign-in.md).
-use jig_client_protocol_wire::Record as _;
 use super::fixtures::{self as f, Exchange};
 use crate::{Event, Message, Settings};
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use skein_lib::{Secret, Writer, length::usize_of};
 
 type ApprovalCase = (&'static str, fn(Box<[u8]>) -> Message, Box<[u8]>, Box<[u8]>);
 
 fn cases(stopping: bool) -> [ApprovalCase; 4] {
     let ask = w::ApprovalAsk {};
-    let mut ask_bytes = Writer::new(usize_of(ask.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+    let mut ask_bytes =
+        Writer::new(usize_of(ask.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
     ask.write(&jig_client_protocol_wire::CEILINGS, &mut ask_bytes).expect("ask bytes");
     let read = w::ApprovalRead { code: *b"WDJBMJHT" };
-    let mut read_bytes = Writer::new(usize_of(read.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+    let mut read_bytes =
+        Writer::new(usize_of(read.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
     read.write(&jig_client_protocol_wire::CEILINGS, &mut read_bytes).expect("read bytes");
     let decide = w::ApprovalDecide { code: *b"WDJBMJHT", approve: true };
-    let mut decide_bytes = Writer::new(usize_of(decide.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+    let mut decide_bytes =
+        Writer::new(usize_of(decide.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
     decide.write(&jig_client_protocol_wire::CEILINGS, &mut decide_bytes).expect("decision bytes");
     let take = w::ApprovalSignIn { secret: Secret::new(Box::new([7; 32])) };
-    let mut take_bytes = Writer::new(usize_of(take.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+    let mut take_bytes =
+        Writer::new(usize_of(take.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
     take.write(&jig_client_protocol_wire::CEILINGS, &mut take_bytes).expect("take bytes");
 
     let ask = if stopping { w::ApprovalAskAnswer::NotReady } else { w::ApprovalAskAnswer::Refused };
-    let mut ask_answer = Writer::new(usize_of(ask.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+    let mut ask_answer =
+        Writer::new(usize_of(ask.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
     ask.write(&jig_client_protocol_wire::CEILINGS, &mut ask_answer).expect("ask answer");
     let read = if stopping { w::ApprovalState::NotReady } else { w::ApprovalState::Unknown };
-    let mut read_answer = Writer::new(usize_of(read.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+    let mut read_answer =
+        Writer::new(usize_of(read.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
     read.write(&jig_client_protocol_wire::CEILINGS, &mut read_answer).expect("read answer");
     let decide = if stopping { w::ApprovalDecided::NotReady } else { w::ApprovalDecided::Unknown };
-    let mut decide_answer = Writer::new(usize_of(decide.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+    let mut decide_answer =
+        Writer::new(usize_of(decide.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
     decide.write(&jig_client_protocol_wire::CEILINGS, &mut decide_answer).expect("decision answer");
     let take = if stopping { w::ApprovalSignInAnswer::NotReady } else { w::ApprovalSignInAnswer::Unknown };
-    let mut take_answer = Writer::new(usize_of(take.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+    let mut take_answer =
+        Writer::new(usize_of(take.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
     take.write(&jig_client_protocol_wire::CEILINGS, &mut take_answer).expect("take answer");
 
     [

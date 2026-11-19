@@ -9,16 +9,12 @@ fn pending_amendments_answer_their_value_over_the_exchange() {
         let mut proposal = f::pending_amendment();
         proposal.proposer = proposer;
         let key = w::ProposalKey {
-                proposer: match proposer {
-                    d::Proposer::Party(value) => {
-                        w::Proposer::Party(w::ProposerParty { value })
-                    }
-                    d::Proposer::Task(value) => {
-                        w::Proposer::Task(w::ProposerTask { value })
-                    }
-                },
-                number: 13,
-            };
+            proposer: match proposer {
+                d::Proposer::Party(value) => w::Proposer::Party(w::ProposerParty { value }),
+                d::Proposer::Task(value) => w::Proposer::Task(w::ProposerTask { value }),
+            },
+            number: 13,
+        };
         let read = w::Read::Proposal(w::ReadProposal { proposal: key });
         let mut exchange = f::read_exchange();
         let (owner, reply, requested) = exchange.read(&read);
@@ -92,9 +88,7 @@ fn a_cursor_that_does_not_decode_is_answered_unknown() {
     ] {
         let mut exchange = f::read_exchange();
         let after = w::Cursor { value: bytes.into() };
-        let value = w::Read::Spend(
-            w::ReadSpend { project: 3, after: Some(after) },
-        );
+        let value = w::Read::Spend(w::ReadSpend { project: 3, after: Some(after) });
         let owner = exchange.send(crate::Message::Read(f::owned_read(
             w::Owner::Jig,
             jig_client_protocol_wire::VERSION,
@@ -117,8 +111,7 @@ fn a_cursor_from_another_version_is_answered_unknown() {
     reader.u16().unwrap();
     bytes.put(reader.bytes(reader.remaining()).unwrap()).unwrap();
     let after = w::Cursor { value: bytes.finish() };
-    let read =
-        w::Read::Spend(w::ReadSpend { project: 3, after: Some(after) });
+    let read = w::Read::Spend(w::ReadSpend { project: 3, after: Some(after) });
     let mut exchange = f::read_exchange();
     let owner = exchange.send(crate::Message::Read(f::owned_read(w::Owner::Jig, w::VERSION, f::encoded_read(&read))));
     exchange.authenticate();
@@ -176,9 +169,11 @@ fn an_application_read_is_routed_and_answered_under_its_family() {
         exchange.release_application_read(ReplyTo::new(name), 9, record);
         let expected = if label == "document" {
             let family = w::Family { number: 9 };
-            w::ReadAnswer::Value(
-                w::Owned { owner: w::Owner::Family(family), version: 2, record: Box::from([255, 0, 2]) },
-            )
+            w::ReadAnswer::Value(w::Owned {
+                owner: w::Owner::Family(family),
+                version: 2,
+                record: Box::from([255, 0, 2]),
+            })
         } else {
             f::read_none(w::ReadNone::Unknown)
         };
@@ -257,12 +252,7 @@ fn task_query_cursors_preserve_their_keys_orders_and_phases() {
 fn turn_failure_terminals_keep_their_reason_after_release() {
     for (why, expected) in [
         (reads::Why::Malformed, w::ReadNone::Malformed),
-        (
-            reads::Why::TooLarge { bytes: 8192 },
-            w::ReadNone::TooLarge(
-                w::TurnTooLarge { bytes: 8192 },
-            ),
-        ),
+        (reads::Why::TooLarge { bytes: 8192 }, w::ReadNone::TooLarge(w::TurnTooLarge { bytes: 8192 })),
     ] {
         let mut exchange = f::read_exchange();
         let (owner, reply, _) = exchange.read(&w::Read::Me);
@@ -281,9 +271,7 @@ fn a_single_turn_read_carries_the_same_archive_as_activity() {
             panic!("carried fixture turn")
         };
         let limits = f::wire();
-        let value = w::Read::Turn(
-            w::ReadTurn { task: record.task, attempt: record.attempt, turn: record.turn },
-        );
+        let value = w::Read::Turn(w::ReadTurn { task: record.task, attempt: record.attempt, turn: record.turn });
         let mut settings = f::settings();
         settings.private = f::private();
         let mut exchange = f::read_exchange_with(settings);
@@ -311,10 +299,7 @@ fn a_single_turn_read_carries_the_same_archive_as_activity() {
             (archive.task, archive.name.attempt, archive.name.number),
             (record.task, record.attempt, record.turn)
         );
-        assert_eq!(
-            (archive.cumulative, archive.read, archive.at),
-            (record.spent, record.read, record.at.as_nanos())
-        );
+        assert_eq!((archive.cumulative, archive.read, archive.at), (record.spent, record.read, record.at.as_nanos()));
         let w::TurnBytes::Carried(turn) = &archive.turn else { panic!("carried") };
         assert_eq!(turn.bytes.as_ref(), f::private_transcript(withheld).as_ref(), "withheld {withheld}");
     }
@@ -376,24 +361,14 @@ fn cursor_boundaries_refuse_unrepresentable_scopes_oversized_values_and_other_fo
 }
 
 fn tasks_read(description: Option<Box<[u8]>>, after: Option<w::Cursor>) -> w::Read {
-    w::Read::Notes(
-        w::ReadNotes {
-                scope: w::NoteScope::Tasks(
-                    w::NoteScopeTasks { project: 13 },
-                ),
-                description,
-                after,
-            },
-    )
+    w::Read::Notes(w::ReadNotes { scope: w::NoteScope::Tasks(w::NoteScopeTasks { project: 13 }), description, after })
 }
 
 #[test]
 fn tasks_translates_onto_the_project_read() {
     let cursor = reads::Cursor::Store { scope: reads::Scope::Notes { project: 13 }, after: None };
     let encoded = crate::translate::cursor::encode(&cursor, 1024).unwrap();
-    for (after, from) in
-        [(None, None), (Some(w::Cursor { value: encoded }), Some(cursor))]
-    {
+    for (after, from) in [(None, None), (Some(w::Cursor { value: encoded }), Some(cursor))] {
         let mut exchange = f::read_exchange();
         let (owner, reply, read) = exchange.read(&tasks_read(None, after));
         assert_eq!(read, reads::Read::Notes { project: 13, from });
@@ -474,9 +449,7 @@ fn an_answer_it_cannot_encode_is_malformed_not_closed() {
     const PAST_BOUND: u32 = 1;
     let mut exchange = f::read_exchange();
     exchange.env.limits.wire.activity_words_words = PAST_BOUND;
-    let query = w::Read::Activity(
-        w::ReadActivity { task: 7, before: None },
-    );
+    let query = w::Read::Activity(w::ReadActivity { task: 7, before: None });
     let (owner, reply, _) = exchange.read(&query);
     let page = f::page(skein_lib::List::from_boxed(Box::new([reads::PageRow::Activity {
         line: t::ActivityLine {

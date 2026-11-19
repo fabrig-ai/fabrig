@@ -1,13 +1,13 @@
 //! Owned Forgejo signing in a Google member or its box owner through temper.
 //! temper/docs/design/protocol/openid-provider.md, 9.
 //! temper/docs/design/testing/process-tier.md.
-use jig_client_protocol_wire::Record as _;
 use super::{
     configuration,
     forge_sign_in::{command, configure, success},
     story_socket::{self, Scope, Socket},
 };
 use jig_client_protocol_wire as wire;
+use jig_client_protocol_wire::Record as _;
 use serde_json::{Value, json};
 use skein_lib::{
     Reader, Writer,
@@ -376,7 +376,10 @@ fn sign_in(
     let secret = base64::decode(Alphabet::Url, link.split_once("secret=").expect("link secret").1.as_bytes(), 32)
         .expect("link encoding");
     let record = wire::LinkSignIn { secret: skein_lib::Secret::new(secret) };
-    let mut out = Writer::new(usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("record size"));
+    let mut out = Writer::new(
+        usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+            .expect("record size"),
+    );
     record.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("link wire");
     let page = browser.call(&format!("http://{temper}/"), None)?;
     assert_eq!(page.status, 200);
@@ -412,7 +415,10 @@ fn through_temper(
     assert_eq!(page.status, 200);
     let query = authorization.split_once('?').expect("authorization query").1;
     let record = wire::Authorize { query: query.as_bytes().into() };
-    let mut out = Writer::new(usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("record size"));
+    let mut out = Writer::new(
+        usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+            .expect("record size"),
+    );
     record.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("authorize wire");
     let authorized = browser.call(&format!("http://{temper}/jig/v1/authorize"), Some(&out.finish()))?;
     assert_eq!(authorized.status, 200);

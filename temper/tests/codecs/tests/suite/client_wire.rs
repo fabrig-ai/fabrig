@@ -1,14 +1,17 @@
 //! jig's core refusal remains opaque in the forge family (client/forge/records.md).
-use jig_client_protocol_wire::Record as _;
 use super::values;
 use jig_client_protocol_wire as jig;
+use jig_client_protocol_wire::Record as _;
 use skein_lib::{List, Reader, Writer};
 use temper_client_protocol_wire::v1;
 
 #[test]
 fn a_core_refusal_carries_jigs_refusal_bytes_unchanged() {
     let refusal = jig::Refusal::NotWaiting;
-    let mut writer = Writer::new(usize::try_from(refusal.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("measured length"));
+    let mut writer = Writer::new(
+        usize::try_from(refusal.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+            .expect("measured length"),
+    );
     refusal.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("measured room");
     let carried = v1::CoreRefused::new(&v1::CEILINGS, v1::CoreRefusedParts { refusal: writer.finish() })
         .expect("within the ceiling");

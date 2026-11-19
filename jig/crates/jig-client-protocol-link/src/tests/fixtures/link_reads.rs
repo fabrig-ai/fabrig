@@ -150,14 +150,14 @@ impl Harness {
     }
 }
 pub fn encoded_read_answer(value: &w::ReadAnswer) -> Box<[u8]> {
-    let mut writer = Writer::new(usize::try_from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    let mut writer = Writer::new(
+        usize::try_from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
     value.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
     writer.finish()
 }
 pub fn read_none_answer(value: w::ReadNone) -> Box<[u8]> {
-    encoded_read_answer(&w::ReadAnswer::None(
-        w::ReadAnswerNone { value },
-    ))
+    encoded_read_answer(&w::ReadAnswer::None(w::ReadAnswerNone { value }))
 }
 pub fn family_read_answer(family: u16, version: u32) -> Box<[u8]> {
     let owner = w::Owner::Family(w::Family { number: family });
@@ -166,7 +166,9 @@ pub fn family_read_answer(family: u16, version: u32) -> Box<[u8]> {
 }
 
 pub fn encoded_read_value(value: &w::ReadValue) -> Box<[u8]> {
-    let mut writer = Writer::new(usize::try_from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    let mut writer = Writer::new(
+        usize::try_from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
     value.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
     writer.finish()
 }

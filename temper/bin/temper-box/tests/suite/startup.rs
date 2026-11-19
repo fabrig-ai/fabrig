@@ -1,5 +1,5 @@
-use jig_client_protocol_wire::Record as _;
 use crate::{listeners, support};
+use jig_client_protocol_wire::Record as _;
 use std::{
     fmt::Write,
     fs,

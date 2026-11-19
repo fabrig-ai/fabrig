@@ -1,6 +1,6 @@
 //! Field-for-field document values (client/domain/contract/documents.md and client/domain/contract/README.md, 4–5).
-use jig_client_protocol_wire::Record as _;
 use super::{Limits, List, Reader, Wall, c, task_link_fields, too_large, w};
+use jig_client_protocol_wire::Record as _;
 
 pub(crate) fn store_fill_fields(value: &w::StoreFill) -> c::StoreFill {
     c::StoreFill { bytes: value.bytes, mark: value.mark }

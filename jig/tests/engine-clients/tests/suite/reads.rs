@@ -1,14 +1,18 @@
-use jig_client_protocol_wire::Record as _;
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use jig_domain_core as core;
 use jig_engine_clients_world::fixtures::{self, Peer};
 use skein_lib::{Reader, Writer};
 fn read() -> Box<[u8]> {
     let read = w::Read::Me;
-    let mut record = Writer::new(skein_lib::length::usize_of(read.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+    let mut record = Writer::new(skein_lib::length::usize_of(
+        read.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+    ));
     read.write(&jig_client_protocol_wire::CEILINGS, &mut record).expect("me read");
     let value = w::Owned { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: record.finish() };
-    let mut bytes = Writer::new(skein_lib::length::usize_of(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+    let mut bytes = Writer::new(skein_lib::length::usize_of(
+        value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+    ));
     value.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("read envelope");
     bytes.finish()
 }
@@ -23,9 +27,7 @@ fn a_native_read_waits_for_its_released_answer() {
     assert_eq!(peer.answered(socket), None);
     peer.answer_read(reply, core::reads::Answer::None(core::reads::Why::Gone));
     let limits = fixtures::limits().wire;
-    let expected = w::ReadAnswer::None(
-        w::ReadAnswerNone { value: w::ReadNone::Gone },
-    );
+    let expected = w::ReadAnswer::None(w::ReadAnswerNone { value: w::ReadNone::Gone });
     assert_eq!(
         w::ReadAnswer::decode(&limits, &mut Reader::new(peer.answered(socket).expect("read answer"))),
         Ok(expected)
@@ -50,7 +52,9 @@ fn a_batch_streams_a_released_read_while_another_waits_for_durability() {
     members.push(w::Member::Read(value.clone())).expect("A");
     members.push(w::Member::Read(value)).expect("B");
     let batch = w::Batch { members };
-    let mut bytes = Writer::new(skein_lib::length::usize_of(batch.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+    let mut bytes = Writer::new(skein_lib::length::usize_of(
+        batch.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+    ));
     batch.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("batch bytes");
     let mut peer = Peer::started(&fixtures::settings());
     let bearer = fixtures::signed_in(&mut peer);

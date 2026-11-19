@@ -191,16 +191,16 @@ pub fn task_with_lineage(count: u32) -> w::Task {
 }
 pub fn text_record() -> w::RunText {
     w::RunText {
-            writing: None,
-            attempt: 41,
-            began: Some(u64::MAX),
-            turn: w::ProvisionalTurnName { attempt: 41, number: 7, retry: 3 },
-            from: 5,
-            through: 11,
-            text: Box::from(b"offset".as_slice()),
-            cut: true,
-            call: None,
-        }
+        writing: None,
+        attempt: 41,
+        began: Some(u64::MAX),
+        turn: w::ProvisionalTurnName { attempt: 41, number: 7, retry: 3 },
+        from: 5,
+        through: 11,
+        text: Box::from(b"offset".as_slice()),
+        cut: true,
+        call: None,
+    }
 }
 pub fn run_text_expected() -> c::RunText {
     c::RunText {
@@ -245,12 +245,12 @@ pub fn run_text_one_past_text_limit() -> w::RunText {
 pub fn raw_live_call() -> w::LiveCall {
     let identity = w::CallIdentity { owner: 17, sequence: 2, retry: 3, id: Box::from(b"provider".as_slice()) };
     let value = w::CurrentCall {
-            identity,
-            tool: Box::from(b"read".as_slice()),
-            input: Box::from(b"x".as_slice()),
-            cut: true,
-            began: Some(0),
-        };
+        identity,
+        tool: Box::from(b"read".as_slice()),
+        input: Box::from(b"x".as_slice()),
+        cut: true,
+        began: Some(0),
+    };
     w::LiveCall::Raw(w::LiveCallRaw { value })
 }
 pub fn raw_live_call_expected() -> c::LiveCall {
@@ -264,14 +264,14 @@ pub fn raw_live_call_expected() -> c::LiveCall {
 }
 pub fn decoded_live_call() -> w::LiveCall {
     let value = w::Call {
-            number: 11,
-            tool: Box::from(b"read".as_slice()),
-            input: Box::from(b"x".as_slice()),
-            outcome: Some(Box::from(b"yes".as_slice())),
-            failed: false,
-            objects: List::with_capacity(0),
-            parts: Box::from([]),
-        };
+        number: 11,
+        tool: Box::from(b"read".as_slice()),
+        input: Box::from(b"x".as_slice()),
+        outcome: Some(Box::from(b"yes".as_slice())),
+        failed: false,
+        objects: List::with_capacity(0),
+        parts: Box::from([]),
+    };
     w::LiveCall::Decoded(w::LiveCallDecoded { value })
 }
 pub fn decoded_live_call_expected() -> c::LiveCall {
@@ -297,8 +297,7 @@ pub fn task_with_resource_path(count: u32) -> w::Task {
     }
     part.key = w::PartKey::Path(w::PartKeyPath { value: path });
     approval.part = part;
-    parts.result_contract =
-        w::TaskContractDocument::Approval(approval);
+    parts.result_contract = w::TaskContractDocument::Approval(approval);
     parts
 }
 
@@ -319,8 +318,8 @@ pub fn task_with_authority_grants(count: u32) -> (w::Task, c::Task) {
     }
     let mut parts = task_record();
     parts.authority = w::AuthorityDocument {
-            cut: false,
-            authority: translate::asks::wire_owner_authority(&expected.authority.authority, &w::CEILINGS).unwrap(),
-        };
+        cut: false,
+        authority: translate::asks::wire_owner_authority(&expected.authority.authority, &w::CEILINGS).unwrap(),
+    };
     (parts, expected)
 }

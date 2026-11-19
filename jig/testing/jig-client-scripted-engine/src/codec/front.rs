@@ -1,8 +1,8 @@
 //! The same receiving admission as the client's link (protocol/client/wire.md, 1, and protocol/client/README.md, 10).
-use jig_client_protocol_wire::Record as _;
 use super::{c, encoded, values, w};
 use crate::{Bounds, Invalid};
 use jig_client_protocol_link::{Limits, translate};
+use jig_client_protocol_wire::Record as _;
 use skein_lib::{Duration, Reader, length::len_u64};
 
 pub(super) fn limits(bounds: &Bounds) -> Result<Limits, Invalid> {
@@ -61,12 +61,8 @@ pub(crate) fn delivery(value: &c::Delivery, bounds: &Bounds) -> Result<c::Delive
 pub(crate) fn none(value: c::ReadNone) -> c::ReadNone {
     let wire = &w::CEILINGS;
     let record = match value {
-        c::ReadNone::TooLarge { bytes } => w::ReadNone::TooLarge(
-            w::TurnTooLarge { bytes },
-        ),
-        c::ReadNone::TooLinked { joins } => w::ReadNone::TooLinked(
-            w::ReadTooLinked { joins },
-        ),
+        c::ReadNone::TooLarge { bytes } => w::ReadNone::TooLarge(w::TurnTooLarge { bytes }),
+        c::ReadNone::TooLinked { joins } => w::ReadNone::TooLinked(w::ReadTooLinked { joins }),
         c::ReadNone::Malformed => w::ReadNone::Malformed,
         c::ReadNone::Unknown => w::ReadNone::Unknown,
         c::ReadNone::Refused => w::ReadNone::Refused,
@@ -75,9 +71,7 @@ pub(crate) fn none(value: c::ReadNone) -> c::ReadNone {
         c::ReadNone::SignedOut => w::ReadNone::SignedOut,
         c::ReadNone::Unreachable => return c::ReadNone::Unreachable,
     };
-    let record = w::ReadAnswer::None(
-        w::ReadAnswerNone { value: record },
-    );
+    let record = w::ReadAnswer::None(w::ReadAnswerNone { value: record });
     let bytes = encoded(&record, &w::CEILINGS).expect("measured read answer");
     match w::ReadAnswer::decode(wire, &mut Reader::new(&bytes)).expect("encoded read answer") {
         w::ReadAnswer::None(value) => translate::reads::none(&value.value),
@@ -88,19 +82,16 @@ pub(crate) fn none(value: c::ReadNone) -> c::ReadNone {
 pub(crate) fn answer(value: &c::Answer, bounds: &Bounds) -> Result<c::Answer, Invalid> {
     let wire = &w::CEILINGS;
     let record = match value {
-        c::Answer::Done(value) => w::Final::Done(
-            w::Done { outcome: values::wire_outcome(value, wire).map_err(|_| Invalid::Payload)? },
-        ),
-        c::Answer::Refused { refusal, at } => w::Final::Refused(
-            w::Refused {
-                    refusal: values::wire_refusal(refusal, wire).map_err(|_| Invalid::Payload)?,
-                    at: *at,
-                },
-        ),
+        c::Answer::Done(value) => {
+            w::Final::Done(w::Done { outcome: values::wire_outcome(value, wire).map_err(|_| Invalid::Payload)? })
+        }
+        c::Answer::Refused { refusal, at } => w::Final::Refused(w::Refused {
+            refusal: values::wire_refusal(refusal, wire).map_err(|_| Invalid::Payload)?,
+            at: *at,
+        }),
     };
     let record = encoded(&record, &w::CEILINGS).map_err(|_| Invalid::Payload)?;
-    let owned =
-        w::Owned { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record };
+    let owned = w::Owned { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record };
     let keyed = w::KeyedAnswer::FinalAnswer(owned);
     let bytes = encoded(&keyed, &w::CEILINGS).map_err(|_| Invalid::Payload)?;
     let limits = limits(bounds)?;

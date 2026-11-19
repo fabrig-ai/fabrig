@@ -1,7 +1,7 @@
 //! TUI originals and fields (temper/docs/design/client/tui/journeys.md, 5).
-use jig_client_protocol_wire::Record as _;
 use super::{Framing, Kind, Line, Originals, Sent, Streamed, Unreadable};
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use skein_lib::{
     Reader, Writer,
     base64::{self, Alphabet},

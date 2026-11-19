@@ -1,10 +1,10 @@
 //! Catalogue replacement and numbered holes (jig/docs/design/domain/engine/settings.md, 11).
 #![expect(clippy::disallowed_macros, reason = "ordinary tests make exact wire-bound byte fixtures")]
-use jig_client_protocol_wire::Record as _;
 use super::fixtures as f;
 use crate::{Event, Message, Request, translate};
 use alloc::boxed::Box;
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use jig_domain_core_vocabulary::{
     self as core,
     settings::{CatalogueModel, ModelSource},
@@ -59,20 +59,18 @@ fn create() -> w::Ask {
     let (w::Ask::Create(create), _) = f::create_ask() else { panic!("create fixture") };
     let bytes = skein_codec::piece::split(&mut Reader::new(create.tasks.as_ref())).unwrap().unwrap();
     let mut task = w::NewTask::decode(&limits, &mut Reader::new(&bytes)).unwrap();
-    task.llm = Some(
-        w::LlmChoice {
-                later: None,
-                account: None,
-                main: w::ModelEffort { model: NEW.into(), effort: None },
-                subagents: List::with_capacity(0),
-            },
-    );
+    task.llm = Some(w::LlmChoice {
+        later: None,
+        account: None,
+        main: w::ModelEffort { model: NEW.into(), effort: None },
+        subagents: List::with_capacity(0),
+    });
     let task = task;
-    let mut writer = Writer::new(usize::try_from(task.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    let mut writer = Writer::new(
+        usize::try_from(task.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
     task.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
-    w::Ask::Create(
-        w::Create { project: f::PROJECT, tasks: f::pieces(&[writer.finish()]) },
-    )
+    w::Ask::Create(w::Create { project: f::PROJECT, tasks: f::pieces(&[writer.finish()]) })
 }
 
 #[test]
@@ -87,13 +85,15 @@ fn a_catalogue_replaces_the_models_a_request_names() {
         let mut exchange = f::Exchange::with_env(env);
         let message = || {
             let keyed = w::Keyed {
-                    key: [5; 16],
-                    owner: w::Owner::Jig,
-                    version: jig_client_protocol_wire::VERSION,
-                    request: f::encode_ask(&create()),
-                    value: None,
-                };
-            let mut writer = Writer::new(usize::try_from(keyed.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+                key: [5; 16],
+                owner: w::Owner::Jig,
+                version: jig_client_protocol_wire::VERSION,
+                request: f::encode_ask(&create()),
+                value: None,
+            };
+            let mut writer = Writer::new(
+                usize::try_from(keyed.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+            );
             keyed.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
             Message::Request(writer.finish())
         };
@@ -137,10 +137,7 @@ fn a_catalogue_replaces_the_models_a_request_names() {
         let project = skein_codec::piece::split(&mut Reader::new(me.projects.as_ref())).unwrap().unwrap();
         let project = w::MeProject::decode(&exchange.env.limits.wire, &mut Reader::new(&project)).unwrap();
         assert_eq!(project.models.get(0).unwrap().name.as_ref(), NEW);
-        assert_eq!(
-            project.models.get(0).unwrap().new_until,
-            Some(123 + core::settings::catalogue::NEW_FOR.as_nanos())
-        );
+        assert_eq!(project.models.get(0).unwrap().new_until, Some(123 + core::settings::catalogue::NEW_FOR.as_nanos()));
     }
 }
 

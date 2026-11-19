@@ -27,64 +27,52 @@ fn piece(bytes: &[u8]) -> Box<[u8]> {
 pub fn chat_me() -> w::Me {
     let text = jig_client_test_records::wire_text;
     let template = w::Template {
-            resources: List::with_capacity(0),
-            number: jig_client::shapes::CHAT,
-            name: text(b"chat"),
-            executor: w::TemplateExecutor::Charter(
-                w::TemplateCharter { value: 1 },
-            ),
-            contract: w::TaskContractDocument::Report(
-                w::TaskContractDocumentReport { words: 32 },
-            ),
-            shallower: 1,
-            budget: w::TemplateBudget::Amount(
-                w::TemplateAmount { value: BUDGET },
-            ),
-            deadline: w::TemplateDeadline::None,
-            tracked: None,
-            flags: w::TaskFlags {
-                    ended_by: w::EndedBy::Result,
-                    conversation: true,
-                    listed: false,
-                    retention: w::Retention::Kept,
-                },
-            label: jig_client::shapes::CHAT,
-            grace: None,
-            llm: None,
-        };
+        resources: List::with_capacity(0),
+        number: jig_client::shapes::CHAT,
+        name: text(b"chat"),
+        executor: w::TemplateExecutor::Charter(w::TemplateCharter { value: 1 }),
+        contract: w::TaskContractDocument::Report(w::TaskContractDocumentReport { words: 32 }),
+        shallower: 1,
+        budget: w::TemplateBudget::Amount(w::TemplateAmount { value: BUDGET }),
+        deadline: w::TemplateDeadline::None,
+        tracked: None,
+        flags: w::TaskFlags {
+            ended_by: w::EndedBy::Result,
+            conversation: true,
+            listed: false,
+            retention: w::Retention::Kept,
+        },
+        label: jig_client::shapes::CHAT,
+        grace: None,
+        llm: None,
+    };
     let mut charters = List::with_capacity(ONE);
     charters.push(1).expect("one charter");
     let creating = w::CreatingBounds {
-            within: w::BoundsCreate {
-                    authority: jig_client_test_records::wire_owner_authority_document(),
-                    pool_left: BUDGET,
-                    charters,
-                    procedures: List::with_capacity(0),
-                    latest: None,
-                    budget: BUDGET,
-                    maximum_budget: BUDGET,
-                    maximum_deadline: None,
-                },
-            beyond: w::Beyond::Proposed(
-                w::BeyondProposed {
-                        to: w::Recipient::Party(
-                            w::RecipientParty { value: PARTY },
-                        ),
-                    },
-            ),
-        };
+        within: w::BoundsCreate {
+            authority: jig_client_test_records::wire_owner_authority_document(),
+            pool_left: BUDGET,
+            charters,
+            procedures: List::with_capacity(0),
+            latest: None,
+            budget: BUDGET,
+            maximum_budget: BUDGET,
+            maximum_deadline: None,
+        },
+        beyond: w::Beyond::Proposed(w::BeyondProposed { to: w::Recipient::Party(w::RecipientParty { value: PARTY }) }),
+    };
     let project = w::MeProject {
-            left_out: 0,
-            defaults: List::with_capacity(0),
-            public: None,
-            project: PROJECT,
-            name: text(b"shop"),
-            role: w::HeldRole::Owner,
-            pool: None,
-            templates: piece(&encode!(template)),
-            creating: Some(creating),
-            models: List::with_capacity(0),
-        };
+        left_out: 0,
+        defaults: List::with_capacity(0),
+        public: None,
+        project: PROJECT,
+        name: text(b"shop"),
+        role: w::HeldRole::Owner,
+        pool: None,
+        templates: piece(&encode!(template)),
+        creating: Some(creating),
+        models: List::with_capacity(0),
+    };
     let mut parts = jig_client_test_records::frame_record();
     parts.projects = piece(&encode!(project));
     parts.retention = Duration::from_secs(3600);
@@ -187,7 +175,7 @@ impl Frame {
         if let Some(value) = &keyed.value {
             self.carried_keys.push(value.clone());
         }
-        if self.move_mode && matches!( &keyed.owner, w::Owner::Jig) {
+        if self.move_mode && matches!(&keyed.owner, w::Owner::Jig) {
             self.move_reply(fd, &keyed);
             return;
         }
@@ -198,19 +186,15 @@ impl Frame {
             return;
         }
         self.hold_stores = Some(());
-        if matches!( &keyed.owner, w::Owner::Family(_)) {
+        if matches!(&keyed.owner, w::Owner::Family(_)) {
             self.adopt_reply(fd, &keyed);
             return;
         }
-        let value = w::DocumentOutcome::Created(
-            w::OutcomeCreated { first: 41, last: 41, given: None },
-        );
+        let value = w::DocumentOutcome::Created(w::OutcomeCreated { first: 41, last: 41, given: None });
         self.document_reply(fd, value);
     }
     fn document_reply(&mut self, fd: Fd, value: w::DocumentOutcome) {
-        let outcome = w::Outcome::Document(
-            w::OutcomeDocument { value },
-        );
+        let outcome = w::Outcome::Document(w::OutcomeDocument { value });
         let answer = w::Final::Done(w::Done { outcome });
         let owned = w::Owned { owner: w::Owner::Jig, version: w::VERSION, record: encode!(answer) };
         let answer = w::KeyedAnswer::FinalAnswer(owned);
@@ -287,7 +271,8 @@ impl Frame {
                 outcome: if self.setting_up_projects() {
                     let envelope = w::FamilyRequest::decode(&w::CEILINGS, &mut Reader::new(keyed.request.as_ref()))
                         .expect("adoption envelope");
-                    let request = wire::decode_requesting(envelope.record.as_ref(), &f::CEILINGS).expect("forge request");
+                    let request =
+                        wire::decode_requesting(envelope.record.as_ref(), &f::CEILINGS).expect("forge request");
                     let f::Request::Adopt(adopt) = request.into_parts().request else { panic!("expected adoption") };
                     assert_eq!(adopt.project(), 3);
                     assert_eq!(
@@ -305,12 +290,10 @@ impl Frame {
         )
         .expect("answer");
         let owned = w::Owned {
-                owner: w::Owner::Family(
-                    w::Family { number: wire::FORGE },
-                ),
-                version: wire::CLIENT_VERSION,
-                record: wire::answer(&answer),
-            };
+            owner: w::Owner::Family(w::Family { number: wire::FORGE }),
+            version: wire::CLIENT_VERSION,
+            record: wire::answer(&answer),
+        };
         self.reply(fd, &encode!(w::KeyedAnswer::FinalAnswer(owned)));
     }
 }
@@ -356,7 +339,7 @@ impl Frame {
         matches!(self.offers, Some(Offers::Projects(_)))
     }
     fn project_make_reply(&mut self, fd: Fd, keyed: &w::Keyed) -> bool {
-        if !self.setting_up_projects() || !matches!( &keyed.owner, w::Owner::Jig) {
+        if !self.setting_up_projects() || !matches!(&keyed.owner, w::Owner::Jig) {
             return false;
         }
         let ask = w::Ask::decode(&w::CEILINGS, &mut Reader::new(keyed.request.as_ref())).expect("setup ask");
@@ -364,9 +347,7 @@ impl Frame {
         assert_eq!(make.name.as_ref(), b"proof-5-clearer-words");
         assert_eq!(self.offers, Some(Offers::Projects(2)));
         self.offers = Some(Offers::Projects(3));
-        let value = w::DocumentOutcome::ProjectMade(
-            w::OutcomeProjectMade { project: 3 },
-        );
+        let value = w::DocumentOutcome::ProjectMade(w::OutcomeProjectMade { project: 3 });
         self.document_reply(fd, value);
         true
     }

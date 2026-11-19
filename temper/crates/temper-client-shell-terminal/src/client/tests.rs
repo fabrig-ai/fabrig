@@ -167,7 +167,10 @@ fn a_refused_or_lost_startup_link_keeps_the_stored_credential() {
         let (mut host, signing, _) = fixtures::link_chat(Some(fixtures::credential()));
         let event = if refused {
             let answer = jig_client_protocol_wire::SignInAnswer::Refused;
-            let mut writer = skein_lib::Writer::new(usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("answer size"));
+            let mut writer = skein_lib::Writer::new(
+                usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+                    .expect("answer size"),
+            );
             answer.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("answer room");
             jig_client::Event::Reply { exchange: signing, message: writer.finish() }
         } else {
@@ -184,7 +187,10 @@ fn busy_keeps_the_link_and_held_token_for_the_next_sign_in() {
     use jig_client_protocol_wire as w;
     let (mut host, signing, _) = fixtures::link_chat(Some(fixtures::credential()));
     let answer = w::SignInAnswer::Busy;
-    let mut writer = skein_lib::Writer::new(usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("answer size"));
+    let mut writer = skein_lib::Writer::new(
+        usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+            .expect("answer size"),
+    );
     answer.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("answer room");
     host.transport(jig_client::Event::Reply { exchange: signing, message: writer.finish() });
     assert_eq!(host.signing(), Some(Signing::Busy));
@@ -218,10 +224,15 @@ fn full_installs_nothing_and_hands_both_times_to_the_terminal() {
     let (mut host, signing, _) = fixtures::link_chat(Some(fixtures::credential()));
     let earliest = skein_lib::Wall::from_nanos(3_600_000_000_000);
     let link_until = skein_lib::Wall::from_nanos(300_000_000_000);
-    let answer = w::SignInAnswer::Full(
-        w::SignInsFull { sign_ins: 2, earliest: earliest.as_nanos(), link_until: link_until.as_nanos() },
+    let answer = w::SignInAnswer::Full(w::SignInsFull {
+        sign_ins: 2,
+        earliest: earliest.as_nanos(),
+        link_until: link_until.as_nanos(),
+    });
+    let mut writer = skein_lib::Writer::new(
+        usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+            .expect("answer size"),
     );
-    let mut writer = skein_lib::Writer::new(usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("answer size"));
     answer.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("answer room");
     host.transport(jig_client::Event::Reply { exchange: signing, message: writer.finish() });
     assert_eq!(host.signing(), Some(Signing::Full { sign_ins: 2, earliest, link_until }));

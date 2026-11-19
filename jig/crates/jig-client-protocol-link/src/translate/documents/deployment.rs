@@ -24,7 +24,9 @@ fn census(value: &w::StoreCensus, room: &mut u64) -> Result<c::StoreCensus, w::P
         }
         let name = match core::str::from_utf8(&row.name) {
             Ok(name) => name.into(),
-            Err(_) => return Err(w::Problem { path: w::paths::CENSUS_KEYSPACE_NAME, reason: skein_codec::Reason::Utf8 }),
+            Err(_) => {
+                return Err(w::Problem { path: w::paths::CENSUS_KEYSPACE_NAME, reason: skein_codec::Reason::Utf8 });
+            }
         };
         keyspaces
             .push(c::CensusKeyspace {

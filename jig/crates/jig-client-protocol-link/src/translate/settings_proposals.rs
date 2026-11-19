@@ -1,5 +1,4 @@
 //! Settings proposal and review facts (client/domain/contract/requests.md, 2, and client/domain/contract/documents.md, 1).
-use jig_client_protocol_wire::Record as _;
 use super::settings::{
     restore_revision_item_edit, restore_revision_item_head, restore_setting, restore_setting_item, restore_setting_set,
     restore_size, wire_setting_item,
@@ -8,6 +7,7 @@ use crate::Limits;
 use alloc::boxed::Box;
 use jig_client_domain::contract as c;
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use skein_lib::{List, Reader, Writer};
 pub fn restore_origin_revision(value: &w::OriginRevision) -> Result<c::OriginRevision, w::Problem> {
     Ok(c::OriginRevision { revision: value.revision })
@@ -102,7 +102,11 @@ fn encode_setting_pieces(values: &List<c::SettingItem>, limits: &w::Limits) -> R
     let mut size = 0_u32;
     for value in values {
         let row = wire_setting_item(value, limits)?;
-        size = size.checked_add(row.measure(limits)?).ok_or(super::too_large())?.checked_add(4).ok_or(super::too_large())?;
+        size = size
+            .checked_add(row.measure(limits)?)
+            .ok_or(super::too_large())?
+            .checked_add(4)
+            .ok_or(super::too_large())?;
         if size > limits.propose_settings_items {
             return Err(super::too_large());
         }

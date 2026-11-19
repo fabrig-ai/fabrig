@@ -1,10 +1,10 @@
 //! Ops root/view shell adapter; observations come from public requests and trees.
-use jig_client_protocol_wire::Record as _;
 use jig_client_domain::contract::{Answer, Ask, Outcome, WatchEnd};
 #[cfg(test)]
 use jig_client_domain::contract::{Operation, Revision, Scope, SeenThrough, Text};
 use jig_client_kit::harness::{App, CardKey, Duty, Receipt, Seen, Sent, StoreWrite};
 use jig_client_kit::observe;
+use jig_client_protocol_wire::Record as _;
 use jig_client_view::Owner;
 use jig_ops_client_domain::{
     self as domain, Action, Address, Event, Request, infrastructure as infra, observability as obs,
@@ -406,7 +406,7 @@ fn infrastructure_sent(attempt: skein_lib::Token, key: [u8; 16], ask: &infra::As
 
 #[cfg(test)]
 mod tests {
-use super::*;
+    use super::*;
     use jig_client_protocol_wire as w;
     use skein_lib::Token;
 
@@ -427,15 +427,10 @@ use super::*;
                 (w::Owner::Jig, jig_client_protocol_wire::VERSION, encoded(&ask))
             }
             jig_client::Ask::Family { scope: Scope::Project(project), record } => {
-                let owner =
-                    w::Family { number: record.family };
+                let owner = w::Family { number: record.family };
                 let scope = w::ScopeProject { value: *project };
                 let envelope = w::FamilyRequest { scope: w::Scope::Project(scope), record: record.bytes.clone() };
-                (
-                    w::Owner::Family(owner),
-                    record.version,
-                    encoded(&envelope),
-                )
+                (w::Owner::Family(owner), record.version, encoded(&envelope))
             }
             jig_client::Ask::Family { .. } => panic!("fixture uses a project scope"),
         };

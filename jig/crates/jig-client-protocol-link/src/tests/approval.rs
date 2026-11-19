@@ -5,7 +5,9 @@ use skein_lib::{Secret, Wall, Writer};
 macro_rules! encoded {
     ($record:expr) => {{
         let record = $record;
-        let mut bytes = Writer::new(usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+        let mut bytes = Writer::new(
+            usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+        );
         record.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
         bytes.finish()
     }};
@@ -19,13 +21,11 @@ fn asked() -> Approval {
 fn ask_rows() -> Box<[(Box<[u8]>, Approval)]> {
     Box::new([
         (
-            encoded!(w::ApprovalAskAnswer::Asked(
-                w::ApprovalAsked {
-                        secret: Secret::new(Box::new([7; 32])),
-                        code: *code().letters(),
-                        expires: 300,
-                    }
-            )),
+            encoded!(w::ApprovalAskAnswer::Asked(w::ApprovalAsked {
+                secret: Secret::new(Box::new([7; 32])),
+                code: *code().letters(),
+                expires: 300,
+            })),
             asked(),
         ),
         (encoded!(w::ApprovalAskAnswer::Refused), Approval::NotAsked(NotAsked::Refused)),
@@ -37,9 +37,7 @@ fn read_rows() -> Box<[(Box<[u8]>, Approval)]> {
     let mut rows = skein_lib::List::with_capacity(10);
     for (record, state) in [
         (
-            w::ApprovalState::Waiting(
-                w::ApprovalWaiting { asked: 100 },
-            ),
+            w::ApprovalState::Waiting(w::ApprovalWaiting { asked: 100 }),
             ApprovalState::Waiting { asked: Wall::from_nanos(100) },
         ),
         (w::ApprovalState::Approved, ApprovalState::Approved),
@@ -206,9 +204,8 @@ fn an_invalid_asked_code_or_secret_is_lost() {
     ] {
         let mut h = Harness::new(&limits());
         let exchange = exchange(&mut h, 0);
-        let body = encoded!(w::ApprovalAskAnswer::Asked(
-            w::ApprovalAsked { secret: Secret::new(secret), code, expires: 300 }
-        ));
+        let body =
+            encoded!(w::ApprovalAskAnswer::Asked(w::ApprovalAsked { secret: Secret::new(secret), code, expires: 300 }));
         h.answer(exchange, &body);
         assert_eq!(h.out.pop(), Some(Request::Approval(Approval::NotAsked(NotAsked::Lost))));
     }

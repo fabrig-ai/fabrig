@@ -1,5 +1,4 @@
 //! Ctl argv and client-value adapter for the neutral settings file form.
-use jig_client_protocol_wire::Record as _;
 use super::{
     Limits,
     call::{Call, Value, Values, number, value},
@@ -7,6 +6,7 @@ use super::{
 };
 use alloc::boxed::Box;
 use jig_client::contract as c;
+use jig_client_protocol_wire::Record as _;
 use skein_lib::List;
 /// Input files stacked by one apply call, separate from delegate counts.
 pub const FILES: u32 = 128;

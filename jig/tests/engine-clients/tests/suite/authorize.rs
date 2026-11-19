@@ -1,11 +1,13 @@
-use jig_client_protocol_wire::Record as _;
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use jig_engine_clients_world::fixtures::{self, Peer};
 use jig_protocol_engine_clients::Event;
 use skein_lib::{Reader, Writer};
 fn record() -> Box<[u8]> {
     let record = w::Authorize { query: Box::from(b"client_id=app&response_type=code".as_slice()) };
-    let mut writer = Writer::new(skein_lib::length::usize_of(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+    let mut writer = Writer::new(skein_lib::length::usize_of(
+        record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+    ));
     record.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("bounded fixture");
     writer.finish()
 }

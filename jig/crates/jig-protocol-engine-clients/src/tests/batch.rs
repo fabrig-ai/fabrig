@@ -1,20 +1,14 @@
-use jig_client_protocol_wire::Record as _;
 use super::fixtures as f;
 use crate::{Event, FromTransport, Message, Reply, Request, ToTransport};
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use jig_domain_core_vocabulary as core;
 use skein_lib::{List, Reader, ReplyTo, Secret, Token, Writer};
 fn read() -> w::Owned {
-    w::Owned {
-            owner: w::Owner::Jig,
-            version: jig_client_protocol_wire::VERSION,
-            record: f::encoded_read(&w::Read::Me),
-        }
+    w::Owned { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: f::encoded_read(&w::Read::Me) }
 }
 fn opening(stream: [u8; 16], watch: u64) -> w::Member {
-    w::Member::Open(
-        w::Open { stream, watch, subject: f::owned_subject(&w::Subject::Me) },
-    )
+    w::Member::Open(w::Open { stream, watch, subject: f::owned_subject(&w::Subject::Me) })
 }
 fn closing(stream: [u8; 16], watch: u64) -> w::Member {
     w::Member::Close(w::WatchClose { stream, watch })
@@ -25,7 +19,9 @@ fn encoded(members: &[w::Member]) -> Box<[u8]> {
         list.push(member.clone()).expect("member");
     }
     let value = w::Batch { members: list };
-    let mut bytes = Writer::new(skein_lib::length::usize_of(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+    let mut bytes = Writer::new(skein_lib::length::usize_of(
+        value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+    ));
     value.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("batch bytes");
     bytes.finish()
 }
@@ -62,9 +58,7 @@ fn open_answer(bytes: Option<Box<[u8]>>) -> w::OpenAnswer {
     w::OpenAnswer::decode(&f::wire(), &mut Reader::new(&bytes.expect("opening record"))).expect("opening answer")
 }
 fn busy_open() -> w::OpenAnswer {
-    w::OpenAnswer::Refused(
-        w::OpenAnswerRefused { why: w::WatchRefusal::Busy },
-    )
+    w::OpenAnswer::Refused(w::OpenAnswerRefused { why: w::WatchRefusal::Busy })
 }
 #[test]
 fn parts_follow_release_order_and_hold_one_exchange_through_done() {
@@ -233,9 +227,7 @@ fn an_empty_or_signed_out_batch_is_still_an_exchange_with_parts_and_done() {
     );
     assert!(world.component.up(&world.env, &mut world.out));
     assert_eq!(read_answer(part(&mut world, owner, 0)), f::read_none(w::ReadNone::SignedOut));
-    let signed_out = w::OpenAnswer::Refused(
-        w::OpenAnswerRefused { why: w::WatchRefusal::SignedOut },
-    );
+    let signed_out = w::OpenAnswer::Refused(w::OpenAnswerRefused { why: w::WatchRefusal::SignedOut });
     assert_eq!(open_answer(part(&mut world, owner, 1)), signed_out);
     let bytes = part(&mut world, owner, 2).expect("signed out closing");
     assert_eq!(w::CloseAnswer::decode(&f::wire(), &mut Reader::new(&bytes)), Ok(w::CloseAnswer::SignedOut));

@@ -1,11 +1,11 @@
 //! The client's unchanged people and referee, over link and shell machines.
-use jig_client_protocol_wire::Record as _;
 use crate::{
     engine::{self, Engine},
     family, fixtures,
     net::Net,
 };
 use jig_client_kit::{ClientId, Front, FrontFault, Test, harness::Observed};
+use jig_client_protocol_wire::Record as _;
 use jig_client_shell_native::{Conn, Connections};
 use jig_client_test_domain::{self as client, Event, Request};
 use skein_lib::{

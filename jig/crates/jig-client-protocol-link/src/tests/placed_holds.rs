@@ -8,28 +8,21 @@ fn task_owner_holds_keep_every_placed_fact_and_their_independent_revisions() {
         let owner = if full {
             w::HoldOwner::Task(w::HoldOwnerTask { task: number })
         } else {
-            w::HoldOwner::Party(
-                w::HoldOwnerParty { person: number },
-            )
+            w::HoldOwner::Party(w::HoldOwnerParty { person: number })
         };
-        let scope = if full {
-            w::HoldScope::Project
-        } else {
-            w::HoldScope::Subtree(
-                w::HoldScopeSubtree { task: number },
-            )
-        };
+        let scope =
+            if full { w::HoldScope::Project } else { w::HoldScope::Subtree(w::HoldScopeSubtree { task: number }) };
         let placed = w::PlacedLine {
-                number,
-                owner,
-                scope,
-                mode: if full { w::HoldMode::Drain } else { w::HoldMode::Stop },
-                reason: if full { Box::from([255; 32]) } else { Box::new([]) },
-                placed_at: number,
-                revision: number,
-                lifted: full,
-                may_lift: full,
-            };
+            number,
+            owner,
+            scope,
+            mode: if full { w::HoldMode::Drain } else { w::HoldMode::Stop },
+            reason: if full { Box::from([255; 32]) } else { Box::new([]) },
+            placed_at: number,
+            revision: number,
+            lifted: full,
+            may_lift: full,
+        };
         let mut owner = jig_client_test_records::hold_record();
         owner.placed = Some(placed.clone());
         let owner = owner;

@@ -6,7 +6,6 @@ pub const SPENT: u64 = 7;
 pub const BELOW: u64 = 2;
 #[must_use]
 pub fn document() -> c::Task {
-    
     let mut record = jig_client_test_records::task_record();
     record.chip = jig_client_test_records::owner_waiting_chip_record();
     let record = record;

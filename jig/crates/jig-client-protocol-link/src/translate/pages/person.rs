@@ -1,9 +1,9 @@
 //! Whole pages and single documents (protocol/client/wire.md, 1, and protocol/client/README.md, 4).
-use jig_client_protocol_wire::Record as _;
 use super::{
     Box, Limits, List, Reader, Wall, c, chip_fields, offered_piece, result_fields, specification_document_fields,
     task_contract_document_fields, task_link_fields, too_large, w,
 };
+use jig_client_protocol_wire::Record as _;
 
 pub(crate) fn shown_result_fields(value: &w::ShownResult, limits: &Limits) -> Result<c::ShownResult, w::Problem> {
     let opt0 = match &value.result {

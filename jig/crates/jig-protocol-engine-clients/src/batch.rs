@@ -1,7 +1,7 @@
 //! One exchange, independently released members (protocol/client/wire.md, 2.2).
-use jig_client_protocol_wire::Record as _;
 use super::{Box, Component, Env, Limits, Queue, Request, Token, Waiting, routes, w};
 use crate::{Reply, ToTransport};
+use jig_client_protocol_wire::Record as _;
 use skein_lib::{List, Reader, Writer};
 #[derive(Debug)]
 pub(super) struct Batch {
@@ -78,17 +78,23 @@ impl Component {
                 .expect("bounded member work");
             let (route, body) = match member {
                 w::Member::Read(value) => {
-                    let mut bytes = Writer::new(skein_lib::length::usize_of(value.measure(&env.limits.wire).expect("decoded client record")));
+                    let mut bytes = Writer::new(skein_lib::length::usize_of(
+                        value.measure(&env.limits.wire).expect("decoded client record"),
+                    ));
                     value.write(&env.limits.wire, &mut bytes).expect("measured read");
                     (routes::Route::Read, bytes.finish())
                 }
                 w::Member::Open(value) => {
-                    let mut bytes = Writer::new(skein_lib::length::usize_of(value.measure(&env.limits.wire).expect("decoded client record")));
+                    let mut bytes = Writer::new(skein_lib::length::usize_of(
+                        value.measure(&env.limits.wire).expect("decoded client record"),
+                    ));
                     value.write(&env.limits.wire, &mut bytes).expect("measured opening");
                     (routes::Route::Watch, bytes.finish())
                 }
                 w::Member::Close(value) => {
-                    let mut bytes = Writer::new(skein_lib::length::usize_of(value.measure(&env.limits.wire).expect("decoded client record")));
+                    let mut bytes = Writer::new(skein_lib::length::usize_of(
+                        value.measure(&env.limits.wire).expect("decoded client record"),
+                    ));
                     value.write(&env.limits.wire, &mut bytes).expect("measured closing");
                     (routes::Route::Unwatch, bytes.finish())
                 }
@@ -132,7 +138,8 @@ impl Component {
             };
             let limits = w::Limits { batch_reply_reply_some: batch.reply_bytes, ..w::CEILINGS };
             let part = w::BatchReply { member: member.index, reply };
-            let mut bytes = Writer::new(skein_lib::length::usize_of(part.measure(&limits).expect("decoded client record")));
+            let mut bytes =
+                Writer::new(skein_lib::length::usize_of(part.measure(&limits).expect("decoded client record")));
             part.write(&limits, &mut bytes).expect("measured part");
             batch.parts.push(bytes.finish());
         } else if let Some(owner) = self.owner(exchange) {

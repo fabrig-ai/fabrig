@@ -226,28 +226,25 @@ pub(crate) fn chip_hold(value: &w::ChipHold, limits: &Limits) -> Result<c::ChipH
 
 #[cfg(test)]
 mod tests {
-    use jig_client_protocol_wire::Record as _;
     use super::*;
+    use jig_client_protocol_wire::Record as _;
     use skein_lib::{Reader, Writer};
 
     #[test]
     fn infrastructure_holds_and_tries_round_trip_through_wire_and_client_facts() {
         let class = w::HoldFailure::Infrastructure;
-        let mut writer = Writer::new(usize::try_from(class.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+        let mut writer = Writer::new(
+            usize::try_from(class.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+        );
         class.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
         let wire = writer.finish();
         let class = w::HoldFailure::decode(&w::CEILINGS, &mut Reader::new(&wire)).unwrap();
         assert_eq!(hold_failure(&class), c::HoldFailure::Infrastructure);
-        let tries = w::FailureTries {
-                transient: 1,
-                permanent: 2,
-                run: 3,
-                agent: 4,
-                lost: 5,
-                invalid: 6,
-                infrastructure: 13,
-            };
-        let mut writer = Writer::new(usize::try_from(tries.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+        let tries =
+            w::FailureTries { transient: 1, permanent: 2, run: 3, agent: 4, lost: 5, invalid: 6, infrastructure: 13 };
+        let mut writer = Writer::new(
+            usize::try_from(tries.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+        );
         tries.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
         let wire = writer.finish();
         let tries = w::FailureTries::decode(&w::CEILINGS, &mut Reader::new(&wire)).unwrap();
@@ -267,14 +264,12 @@ mod tests {
         ));
         for (wire, expected) in [
             (
-                w::RetryNotice::OwnerFailed(
-                    w::RetryNoticeOwnerFailed {
-                            class: w::HoldFailure::Permanent,
-                            count: 2,
-                            allowance: 3,
-                            reason: reason.clone(),
-                        },
-                ),
+                w::RetryNotice::OwnerFailed(w::RetryNoticeOwnerFailed {
+                    class: w::HoldFailure::Permanent,
+                    count: 2,
+                    allowance: 3,
+                    reason: reason.clone(),
+                }),
                 c::RetryNotice::OwnerFailed {
                     class: c::HoldFailure::Permanent,
                     count: 2,
@@ -283,14 +278,12 @@ mod tests {
                 },
             ),
             (
-                w::RetryNotice::Failed(
-                    w::RetryNoticeFailed {
-                            class: w::FailureClass::Temporary,
-                            count: 2,
-                            allowance: 3,
-                            reason: reason.clone(),
-                        },
-                ),
+                w::RetryNotice::Failed(w::RetryNoticeFailed {
+                    class: w::FailureClass::Temporary,
+                    count: 2,
+                    allowance: 3,
+                    reason: reason.clone(),
+                }),
                 c::RetryNotice::Failed {
                     class: c::FailureClass::Temporary,
                     count: 2,
@@ -299,13 +292,13 @@ mod tests {
                 },
             ),
             (
-                w::RetryNotice::Refused(
-                    w::RetryNoticeRefused { count: 2, reason },
-                ),
+                w::RetryNotice::Refused(w::RetryNoticeRefused { count: 2, reason }),
                 c::RetryNotice::Refused { count: 2, reason: expected },
             ),
         ] {
-            let mut writer = Writer::new(skein_lib::length::usize_of(wire.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+            let mut writer = Writer::new(skein_lib::length::usize_of(
+                wire.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+            ));
             wire.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("measured room");
             let encoded = writer.finish();
             let decoded = w::RetryNotice::decode(limits, &mut Reader::new(&encoded)).expect("wire round trip");

@@ -1,21 +1,17 @@
 //! Account move values are handed to one exchange and bounded before keeping.
-use jig_client_protocol_wire::Record as _;
 use super::fixtures::{self as f, Exchange};
 use crate::{Event, Message, Request, SecretOwner, SecretsAnswer, SecretsRequest};
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use jig_domain_core_vocabulary as core;
 use jig_domain_people as p;
 use skein_lib::{ReplyTo, Secret, Token, Writer};
 
 fn change(change: w::AccountChange) -> w::Ask {
-    w::Ask::AccountChange(
-        w::AskAccountChange { holder: w::AskAccountHolder::Own, change },
-    )
+    w::Ask::AccountChange(w::AskAccountChange { holder: w::AskAccountHolder::Own, change })
 }
 fn outgoing(exchange: &mut Exchange) -> (Token, ReplyTo) {
-    let ask = change(w::AccountChange::MoveOut(
-        w::AccountChangeMoveOut { account: 19 },
-    ));
+    let ask = change(w::AccountChange::MoveOut(w::AccountChangeMoveOut { account: 19 }));
     let owner = exchange.send(Message::Request(f::keyed(
         w::Owner::Jig,
         jig_client_protocol_wire::VERSION,
@@ -93,24 +89,20 @@ fn a_sign_in_ended_while_taking_never_releases_the_file() {
 }
 fn carried(exchange: &mut Exchange, kind: u8, value: &[u8], digest: [u8; 32]) -> Token {
     let ask = change(match kind {
-        0 => w::AccountChange::AddKey(
-            w::AccountChangeAddKey { provider: 3, join: None, digest },
-        ),
-        1 => w::AccountChange::ReplaceKey(
-            w::AccountChangeReplaceKey { source: 29, digest },
-        ),
-        _ => w::AccountChange::MoveIn(
-            w::AccountChangeMoveIn { digest },
-        ),
+        0 => w::AccountChange::AddKey(w::AccountChangeAddKey { provider: 3, join: None, digest }),
+        1 => w::AccountChange::ReplaceKey(w::AccountChangeReplaceKey { source: 29, digest }),
+        _ => w::AccountChange::MoveIn(w::AccountChangeMoveIn { digest }),
     });
     let keyed = w::Keyed {
-            key: [5; 16],
-            owner: w::Owner::Jig,
-            version: jig_client_protocol_wire::VERSION,
-            request: f::encode_ask(&ask),
-            value: Some(Secret::new(Box::from(value))),
-        };
-    let mut bytes = Writer::new(usize::try_from(keyed.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+        key: [5; 16],
+        owner: w::Owner::Jig,
+        version: jig_client_protocol_wire::VERSION,
+        request: f::encode_ask(&ask),
+        value: Some(Secret::new(Box::from(value))),
+    };
+    let mut bytes = Writer::new(
+        usize::try_from(keyed.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
     keyed.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
     let owner = exchange.send(Message::Request(bytes.finish()));
     exchange.authenticate();
@@ -196,9 +188,7 @@ fn a_move_in_digest_must_match_before_the_value_is_kept() {
 
 #[test]
 fn written_decodes_its_move_number() {
-    let ask = change(w::AccountChange::Written(
-        w::AccountChangeWritten { number: 23 },
-    ));
+    let ask = change(w::AccountChange::Written(w::AccountChangeWritten { number: 23 }));
     assert_eq!(
         crate::translate::asks::ask(ask, &f::models(), &f::wire()),
         Ok(p::Ask::AccountChange { holder: p::AccountHolder::Own, change: p::AccountChange::Written { number: 23 } })

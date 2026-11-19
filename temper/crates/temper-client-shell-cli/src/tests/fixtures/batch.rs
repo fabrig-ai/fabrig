@@ -33,7 +33,9 @@ impl Frame {
             let reply = response.starts_with(b"HTTP/1.1 200 ").then(|| response[end + 4..].into());
             let part = w::BatchReply { member: u16::try_from(place).expect("member"), reply };
             let bytes = encode!(part);
-            frames.extend_from_slice(&part.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture").to_be_bytes());
+            frames.extend_from_slice(
+                &part.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture").to_be_bytes(),
+            );
             frames.extend_from_slice(&bytes);
         }
         if complete {

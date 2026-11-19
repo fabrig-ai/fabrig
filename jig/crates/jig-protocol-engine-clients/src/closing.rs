@@ -1,9 +1,9 @@
 //! Signing out, mints, and component draining (protocol/client/sign-in.md).
-use jig_client_protocol_wire::Record as _;
 use super::{
     Box, Component, Env, Limits, Queue, ReplyTo, Request, SecretOwner, SecretsRequest, Token, Waiting, core, routes, w,
 };
 use crate::routes::Route;
+use jig_client_protocol_wire::Record as _;
 use skein_lib::{Map, Reader};
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum Phase {

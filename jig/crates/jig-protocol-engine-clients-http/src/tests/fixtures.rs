@@ -215,18 +215,23 @@ pub fn cookie_header() -> skein_http::Header {
 }
 pub fn signed_in_reply(token: &[u8; 40], expires: u64) -> kit::Reply {
     use jig_client_protocol_wire as w;
-    let answer = w::SignInAnswer::SignedIn(
-        w::SignedIn { token: Some(Secret::new(Box::new(*token))), party: PARTY, expires },
-    );
-    let mut bytes = skein_lib::Writer::new(skein_lib::length::usize_of(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+    let answer =
+        w::SignInAnswer::SignedIn(w::SignedIn { token: Some(Secret::new(Box::new(*token))), party: PARTY, expires });
+    let mut bytes = skein_lib::Writer::new(skein_lib::length::usize_of(
+        answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+    ));
     answer.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("sign in");
     kit::Reply::Record(bytes.finish())
 }
 pub fn approval_signed_in_reply(token: &[u8; 40], expires: u64) -> kit::Reply {
-    let answer = w::ApprovalSignInAnswer::SignedIn(
-        w::SignedIn { token: Some(Secret::new(Box::new(*token))), party: PARTY, expires },
-    );
-    let mut bytes = skein_lib::Writer::new(skein_lib::length::usize_of(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+    let answer = w::ApprovalSignInAnswer::SignedIn(w::SignedIn {
+        token: Some(Secret::new(Box::new(*token))),
+        party: PARTY,
+        expires,
+    });
+    let mut bytes = skein_lib::Writer::new(skein_lib::length::usize_of(
+        answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+    ));
     answer.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("approval sign in");
     kit::Reply::Record(bytes.finish())
 }

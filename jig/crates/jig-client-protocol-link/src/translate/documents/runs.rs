@@ -108,11 +108,5 @@ pub(crate) fn run_state_fields(value: &w::RunState, limits: &Limits) -> Result<c
         Some(item) => Some(current_call_fields(item, limits)?),
         None => None,
     };
-    Ok(c::RunState {
-        task: value.task,
-        attempt: opt0,
-        committed_turn: value.committed_turn,
-        writing: opt1,
-        call: opt2,
-    })
+    Ok(c::RunState { task: value.task, attempt: opt0, committed_turn: value.committed_turn, writing: opt1, call: opt2 })
 }

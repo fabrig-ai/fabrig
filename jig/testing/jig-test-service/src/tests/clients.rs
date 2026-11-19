@@ -1,5 +1,5 @@
-use jig_client_protocol_wire::Record as _;
 use crate::{PartyOutput, engine, route, tests::fixtures as f};
+use jig_client_protocol_wire::Record as _;
 use jig_domain_core as core;
 use jig_domain_people as people;
 use jig_test_domain as root;
@@ -232,7 +232,9 @@ fn link_body(engine: &mut crate::Engine) -> Box<[u8]> {
     let at = skein_lib::bytes::find(&link, b"secret=").expect("query").checked_add(7).expect("query start");
     let secret = base64::decode(Alphabet::Url, link.get(at..).expect("secret bytes"), 32).expect("secret");
     let value = w::LinkSignIn { secret: skein_lib::Secret::new(secret) };
-    let mut writer = Writer::new(skein_lib::length::usize_of(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+    let mut writer = Writer::new(skein_lib::length::usize_of(
+        value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+    ));
     value.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("measured record");
     writer.finish()
 }
@@ -581,14 +583,18 @@ fn application_read(_engine: &crate::Engine) -> Box<[u8]> {
     let owner = w::Owner::Family(w::Family { number: 1 });
     let window = w::Window { rows: 2, after: None };
     let value = w::FamilyRecord {
-            scope: w::Scope::Deployment,
-            window,
-            record: jig_client_test_protocol_wire::codec::read(&jig_test_connector::ClientSubject::Deployment),
-        };
-    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+        scope: w::Scope::Deployment,
+        window,
+        record: jig_client_test_protocol_wire::codec::read(&jig_test_connector::ClientSubject::Deployment),
+    };
+    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(
+        value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+    ));
     value.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("measured family record");
     let record = w::Owned { owner, version: jig_client_test_protocol_wire::VERSION, record: writer.finish() };
-    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(
+        record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+    ));
     record.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("measured read");
     writer.finish()
 }

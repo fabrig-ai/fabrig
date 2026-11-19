@@ -1,7 +1,7 @@
 //! The forge family's records at the clients' boundary (client/engine.md).
 //! Trials: temper/docs/design/domain/trial.md, 6.
-use jig_client_protocol_wire::Record as _;
 use alloc::boxed::Box;
+use jig_client_protocol_wire::Record as _;
 use jig_protocol_engine_clients as kit;
 use skein_lib::{List, Token, Wall, Writer};
 use temper_client_protocol_wire::{self as wire, v1 as w};

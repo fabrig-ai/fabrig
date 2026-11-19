@@ -1,6 +1,6 @@
-use jig_client_protocol_wire::Record as _;
 use super::*;
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use skein_http::Method;
 use skein_lib::stream::{Down, Up};
 mod batch;
@@ -534,10 +534,11 @@ fn a_browser_link_keeps_its_cookie_on_a_tokenless_sign_in() {
             message: kit::Message::SignInLink(Box::from(b"link".as_slice())),
         }]
     );
-    let answer = w::SignInAnswer::SignedIn(
-        w::SignedIn { token: None, party: fixtures::PARTY, expires: fixtures::IN_A_DAY },
-    );
-    let mut bytes = skein_lib::Writer::new(skein_lib::length::usize_of(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+    let answer =
+        w::SignInAnswer::SignedIn(w::SignedIn { token: None, party: fixtures::PARTY, expires: fixtures::IN_A_DAY });
+    let mut bytes = skein_lib::Writer::new(skein_lib::length::usize_of(
+        answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+    ));
     answer.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("answer");
     fixtures::reply(&mut mount, &mut out, call, kit::Reply::Record(bytes.finish()));
     let (status, body, headers) = fixtures::answered(&mut mount, &mut out, call);
@@ -550,15 +551,13 @@ fn a_browser_link_keeps_its_cookie_on_a_tokenless_sign_in() {
 
 #[test]
 fn busy_and_full_answer_200_without_setting_a_cookie() {
-    let full = w::SignInAnswer::Full(
-        w::SignInsFull { sign_ins: 2, earliest: 400, link_until: 300 },
-    );
-    let approval_full = w::ApprovalSignInAnswer::Full(
-        w::ApprovalFull { sign_ins: 2, earliest: 400, until: 300 },
-    );
+    let full = w::SignInAnswer::Full(w::SignInsFull { sign_ins: 2, earliest: 400, link_until: 300 });
+    let approval_full = w::ApprovalSignInAnswer::Full(w::ApprovalFull { sign_ins: 2, earliest: 400, until: 300 });
     let mut rows = List::uncapped();
     for record in [w::SignInAnswer::Busy, full] {
-        let mut bytes = skein_lib::Writer::new(usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+        let mut bytes = skein_lib::Writer::new(
+            usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+        );
         record.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
         let bytes = bytes.finish();
         for path in [b"/jig/v1/sign-in/link".as_slice(), b"/jig/v1/sign-in/deployment"] {
@@ -575,7 +574,9 @@ fn busy_and_full_answer_200_without_setting_a_cookie() {
         w::ApprovalSignInAnswer::Unknown,
         w::ApprovalSignInAnswer::NotReady,
     ] {
-        let mut bytes = skein_lib::Writer::new(usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+        let mut bytes = skein_lib::Writer::new(
+            usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+        );
         record.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
         rows.push((b"/jig/v1/sign-in/approval".as_slice(), bytes.finish())).expect("approval row");
     }

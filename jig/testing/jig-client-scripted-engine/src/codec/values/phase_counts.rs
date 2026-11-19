@@ -5,15 +5,15 @@ pub(in crate::codec) fn wire_phase_counts(
     _limits: &w::Limits,
 ) -> Result<w::PhaseCounts, w::Problem> {
     Ok(w::PhaseCounts {
-            waiting: value.waiting,
-            idle: value.idle,
-            starting: value.starting,
-            running: value.running,
-            backing_off: value.backing_off,
-            closing: value.closing,
-            held: value.held,
-            done: value.done,
-            failed: value.failed,
-            cancelled: value.cancelled,
-        })
+        waiting: value.waiting,
+        idle: value.idle,
+        starting: value.starting,
+        running: value.running,
+        backing_off: value.backing_off,
+        closing: value.closing,
+        held: value.held,
+        done: value.done,
+        failed: value.failed,
+        cancelled: value.cancelled,
+    })
 }
