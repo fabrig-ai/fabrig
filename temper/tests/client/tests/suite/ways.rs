@@ -286,7 +286,7 @@ fn choosing_the_running_way_from_the_menu_shows_it_again() {
         let nodes = world.tree(person).nodes();
         assert_eq!(
             words(styled(nodes, look::WAY_LINE)).as_bytes(),
-            panel(&world, person).ways().get(REVIEW).unwrap().line()
+            panel(&world, person).ways.get(REVIEW).unwrap().line.as_ref()
         );
     }
 }

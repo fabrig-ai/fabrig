@@ -1177,9 +1177,9 @@ fn a_no_test_hold_has_its_machine_word() {
             if json { &["--json"] } else { &[] },
         );
         let call = root.submit(words.as_slice());
-        let mut parts = panel(w::Step::Checking).into_parts();
-        parts.hold = Some(w::Hold::NoTest);
-        deliver(&mut root, w::ChangePanel::new(&w::CEILINGS, parts).unwrap());
+        let mut panel = panel(w::Step::Checking);
+        panel.hold = Some(w::Hold::NoTest);
+        deliver(&mut root, panel);
         let answer = root.answer(call).unwrap();
         assert_eq!(answer.status, 0);
         contains(&answer.stdout, if json { b"no_test" } else { b"its repair found no failed test" });

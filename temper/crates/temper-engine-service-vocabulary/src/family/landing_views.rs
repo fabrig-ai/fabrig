@@ -200,9 +200,7 @@ pub(super) fn wait(value: forge::LandingWait, limits: &w::Limits) -> Option<w::L
         forge::LandingWaitFor::Receipt => w::LandingWaitFor::Receipt,
         forge::LandingWaitFor::Room => w::LandingWaitFor::Room,
     };
-    w::LandingWait::new(
-        limits,
-        w::LandingWaitParts { on, change: value.change, gate: value.gate, run: value.run, landing: value.landing },
-    )
-    .ok()
+    let wait = w::LandingWait { on, change: value.change, gate: value.gate, run: value.run, landing: value.landing };
+    wait.measure(limits).ok()?;
+    Some(wait)
 }
