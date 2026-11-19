@@ -466,6 +466,170 @@ fn a_recovered_notice_preserves_an_ordinary_failure() {
     assert_eq!(terminal_after_zero_reset(false).run, 1);
 }
 
+fn claim_account_run(core: &mut Core, env: &Env<Limits>, attempt: u64) {
+    let mut out = Queue::uncapped();
+    let child = Env { now: env.now, wall: env.wall, limits: env.limits.tasks };
+    tasks::step(&mut core.tasks, &child, tasks::Event::Prepare { reply_to: ReplyTo::new(FIRST), task: TASK }, &mut out);
+    tasks::step(
+        &mut core.tasks,
+        &child,
+        tasks::Event::Claim {
+            session_end: None,
+            offered: tasks::Reasons::ALL,
+            reasons: tasks::Reasons::FIRST,
+            reply_to: ReplyTo::new(FIRST),
+            task: TASK,
+            attempt,
+            resumed: false,
+            budget: 10,
+            account: Some(0),
+            writes: Box::new([]),
+        },
+        &mut out,
+    );
+}
+
+fn account_run_answer(attempt: u64) -> Event {
+    Event::AnswerPayload {
+        run: Token::new(TASK),
+        attempt: Token::new(attempt),
+        payload: Token::new(99),
+        cumulative: 1,
+        end: tasks::End::Failed(tasks::Class::Run),
+        saved: None,
+        invalid_saved: false,
+        unusable_history: false,
+        untooled: false,
+        read: None,
+        refused: Box::new([]),
+    }
+}
+
+#[test]
+fn a_usable_terminal_pauses_each_claim_without_spending_a_try() {
+    let (mut core, mut limits) = ready(false);
+    limits.tasks.retries.transient =
+        tasks::Retry { retries: 3, base: Duration::from_secs(1), max: Duration::from_secs(30) };
+    let mut env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
+    claim_account_run(&mut core, &env, 7);
+    for (attempt, minimum_ms, maximum_ms) in [(7, 500, 1000), (8, 1000, 2000), (9, 2000, 4000)] {
+        let claimed = core.tasks.task(TASK).unwrap();
+        assert_eq!(claimed.phase, tasks::Phase::Active(tasks::Active::Claimed { attempt }));
+        assert_eq!(claimed.kept_account, Some(0));
+        assert_eq!(claimed.tries, tasks::Tries::NONE);
+        account(&mut core, &limits, accounts::Event::Limited { account: 1, reset: Some(Time::ZERO) });
+        assert!(core.accounts.source(1).unwrap().usable);
+        let mut proof = RunProof::claimed(TASK, attempt, attempt, None, fleet::HostKind::Worker);
+        proof.placement = Some(FIRST);
+        proof.accounts = Box::new([authority::AccountBinding { provider: 1, account: 0, source: 1 }]);
+        proof.account_failure = Some(1);
+        proof.account_terminal = true;
+        core.proofs.insert(TASK, proof).unwrap();
+        drop(step(&mut core, &env, account_run_answer(attempt)));
+        let row = core.tasks.task(TASK).unwrap();
+        assert_ne!(
+            row.phase,
+            tasks::Phase::Active(tasks::Active::Due),
+            "a usable terminal must pause, not return straight to due"
+        );
+        let tasks::Phase::Active(tasks::Active::BackingOff { until }) = row.phase else {
+            panic!("a usable terminal backs off")
+        };
+        assert!(until > env.wall);
+        let delay = until.as_nanos() - env.wall.as_nanos();
+        assert!(
+            (Duration::from_millis(minimum_ms).as_nanos()..=Duration::from_millis(maximum_ms).as_nanos())
+                .contains(&delay)
+        );
+        assert_eq!(row.tries, tasks::Tries::NONE);
+        let Some(tasks::RetryNotice::Refused { count, reason: Some(reason) }) = &row.retry_notice else {
+            panic!("the retry notice names the account terminal")
+        };
+        assert_eq!(u64::from(*count), attempt - 6);
+        assert_eq!(reason.as_ref(), b"account 0's source ended the run and is usable again");
+        assert!(reason.len() <= skein_lib::usize_of(tasks::REASON_BYTES));
+        let paused = row.phase.clone();
+        core.due.push(core.tasks.run_context(TASK).unwrap());
+        env.now = Time::from_nanos(until.as_nanos() - 1);
+        env.wall = Wall::from_nanos(until.as_nanos() - 1);
+        let out = fire(&mut core, &env, Timer::Tasks);
+        for request in &out {
+            if let Request::Held(held) = request
+                && let Held::Assign { .. } = held.as_ref()
+            {
+                panic!("no assignment before the pause ends")
+            }
+            if let Request::Now(now) = request
+                && let Now::Activate { .. } = now.as_ref()
+            {
+                panic!("no activation before the pause ends")
+            }
+        }
+        assert_eq!(core.tasks.task(TASK).unwrap().phase, paused);
+        assert!(!core.due_ready());
+        assert!(core.take_due().is_none());
+        claim_account_run(&mut core, &env, attempt + 1);
+        assert_eq!(core.tasks.task(TASK).unwrap().phase, paused, "no claim before the pause ends");
+        env.now = Time::from_nanos(until.as_nanos() + 1);
+        env.wall = Wall::from_nanos(until.as_nanos() + 1);
+        let out = fire(&mut core, &env, Timer::Tasks);
+        assert_eq!(core.tasks.task(TASK).unwrap().phase, tasks::Phase::Active(tasks::Active::Due));
+        let context = out
+            .iter()
+            .find_map(|request| {
+                if let Request::Now(now) = request
+                    && let Now::Activate { context } = now.as_ref()
+                {
+                    Some(context.clone())
+                } else {
+                    None
+                }
+            })
+            .expect("the pause ending activates the task");
+        core.due.push(context);
+        assert_eq!(core.take_due().unwrap().task, TASK);
+        assert_eq!(core.run_choice(TASK).unwrap().accounts[0].account, 0);
+        claim_account_run(&mut core, &env, attempt + 1);
+        assert_eq!(
+            core.tasks.task(TASK).unwrap().phase,
+            tasks::Phase::Active(tasks::Active::Claimed { attempt: attempt + 1 })
+        );
+        assert_eq!(core.tasks.task(TASK).unwrap().tries, tasks::Tries::NONE);
+    }
+}
+
+#[test]
+fn an_unusable_terminal_rechecks_and_waits_for_its_account() {
+    for reset in [Some(Time::ZERO.saturating_add(Duration::from_secs(3600))), None] {
+        let (mut core, limits) = ready(false);
+        let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
+        claim_account_run(&mut core, &env, 7);
+        account(&mut core, &limits, accounts::Event::Limited { account: 1, reset });
+        let source = core.accounts.source(1).unwrap();
+        assert!(!source.usable);
+        let mut proof = RunProof::claimed(TASK, 7, 7, None, fleet::HostKind::Worker);
+        proof.placement = Some(FIRST);
+        proof.accounts = Box::new([authority::AccountBinding { provider: 1, account: 0, source: 1 }]);
+        proof.account_failure = Some(1);
+        proof.account_terminal = true;
+        core.proofs.insert(TASK, proof).unwrap();
+        drop(step(&mut core, &env, account_run_answer(7)));
+        assert_eq!(core.proofs.get(&TASK).unwrap().terminal.as_ref().unwrap().end, tasks::End::Recheck);
+        let row = core.tasks.task(TASK).unwrap();
+        assert_eq!(row.phase, tasks::Phase::Active(tasks::Active::Due));
+        assert_eq!(row.tries, tasks::Tries::NONE);
+        assert_eq!(row.refusals, 0);
+        assert_eq!(row.retry_notice, None);
+        assert_eq!(
+            core.run_choice(TASK),
+            Err(RunWait::Account { account: Some(0), source: Some(1), why: accounts::WaitWhy::Source(source.state) })
+        );
+        core.due.push(core.tasks.run_context(TASK).unwrap());
+        assert!(!core.due_ready());
+        assert!(core.take_due().is_none());
+    }
+}
+
 #[test]
 fn a_retained_due_context_is_refreshed_before_preparation() {
     let (mut core, _) = ready(false);
