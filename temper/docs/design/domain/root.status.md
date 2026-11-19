@@ -122,11 +122,6 @@ LINKED`, as for every link jig's start cannot make
 
 ## Gaps and departures
 
-- **Not yet:** 7, *An ended task's load waits for a slot*: the core's
-  load of an ended task that finds the archive's read table or the load
-  slots full is answered busy at once (`temper-engine-domain/src/route/now.rs`,
-  `ended`), so a run's preparation fails for room after a restart
-  [in flight: change 9160].
 - **Not yet:** 6.2: a goal's design writer's brief line: no brief says
   that `deliver` pushes Markdown straight to the goal branch
   (`temper-engine-domain/src/assemble.rs`, `plan_home_access`).
