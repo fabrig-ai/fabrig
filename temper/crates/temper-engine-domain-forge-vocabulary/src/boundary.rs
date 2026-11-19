@@ -804,8 +804,17 @@ pub struct Hold {
     pub writer: Option<Writer>,
     /// Runs writing design beside the slot (domain/forge/branches.md, 3).
     pub design_writers: Box<[DesignWriter]>,
+    /// A design head recorded beside another write, and that write waiting on ancestry.
+    pub beside: Option<HeadBeside>,
     /// Last outside change requiring a person to release this hold.
     pub drift: Option<Drift>,
+}
+
+/// Heads ordered by containment before a late write is recorded (domain/forge/branches.md, 3).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct HeadBeside {
+    pub head: skein_forge::api::Commit,
+    pub waiting: Option<skein_forge::api::Commit>,
 }
 
 /// An outside change and its observation time, retained with the affected hold.
@@ -1692,6 +1701,8 @@ pub enum Stored {
     ProposedEffect(ProposedEffect),
     /// One adopted repository.
     Repository(Repository),
+    /// A task held on a configured limit (protocol/configuration/limit-settings.md, 6).
+    LimitHold(LimitHold),
     /// One held resource.
     Hold(Hold),
     /// A live task's resources, or a kept task's repositories (temper/docs/design/domain/forge/adoption.md, 1).
@@ -1792,6 +1803,37 @@ pub enum Stored {
     HistoryLanding(crate::history::LandingIndex),
     HistoryLast(crate::history::Last),
 }
+/// One durable limit hold; `room` is the operation's additional occupancy
+/// (temper/docs/design/protocol/configuration/limit-settings.md, 6).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct LimitHold {
+    pub task: u64,
+    pub member: Box<[u8]>,
+    pub configured: u64,
+    pub needed: u64,
+    pub revision: u64,
+    pub at: skein_lib::Wall,
+    pub order: u64,
+    pub room: u64,
+    pub set: LimitSet,
+}
+
+/// The occupancy a refused operation would add to; a setting can bound several sets.
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+pub enum LimitSet {
+    Operation,
+    Entries,
+    Holds,
+    Tasks,
+    Changes,
+    Steps,
+    Subscriptions,
+    Watches,
+    Heads,
+    Repositories,
+    DesignWriters(Name),
+}
+
 /// A bounded connector payload awaiting an authority holder's decision.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ProposedEffect {
@@ -1808,6 +1850,7 @@ pub enum Key {
     ProposedEffect(u64),
     Repository(skein_forge::api::Repository),
     Hold(Name),
+    LimitHold(u64),
     Names(u64),
     Subscription { task: u64, topic: Topic },
     BranchHead(Name),
@@ -1945,6 +1988,8 @@ pub struct ChangeDependencies {
 #[derive(PartialEq, Eq, Hash, Debug)]
 #[expect(clippy::large_enum_variant, reason = "change admission carries a full row across the root procedure boundary")]
 pub enum Event {
+    /// Take the checked, raised environment's at-once limits in every holder.
+    LimitsRaised,
     /// Routing's chosen place, or busy after the bounded attempts (protocol/setup/place.md, 2).
     SetupPerson {
         forge: u16,

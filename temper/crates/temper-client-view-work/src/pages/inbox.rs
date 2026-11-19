@@ -421,6 +421,7 @@ fn entry(
                 b.close();
             }
         }
+        super::needs::limit_hold(b, root, words, bindings, card);
         crate::confirm::card_controls(b, root, card, words, bindings);
         if (card.group == InboxGroup::Proposals || card.group == InboxGroup::Questions)
             && let Some(task) = source_task(card.object)

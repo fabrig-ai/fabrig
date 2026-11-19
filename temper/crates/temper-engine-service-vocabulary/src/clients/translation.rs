@@ -229,6 +229,7 @@ fn delivered(delivery: root::Delivery) -> Option<kit::Event> {
         | root::Delivery::ReadLoad { .. }
         | root::Delivery::PublicWait { .. }
         | root::Delivery::Restarting { .. }
+        | root::Delivery::LimitSettingsCommitted { .. }
         | root::Delivery::Drained
         | root::Delivery::Refuse { .. }
         | root::Delivery::TurnBusy { .. }

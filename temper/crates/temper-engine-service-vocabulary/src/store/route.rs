@@ -35,6 +35,10 @@ pub(super) struct Flight {
     pub(super) cursor: Option<store::Cursor>,
 }
 impl Routes {
+    /// Raise application decoders before any work uses the raised domain limits.
+    pub fn raise_limits(&mut self, forge: &temper_engine_domain_forge::Limits) {
+        self.families.raise(forge);
+    }
     /// Size the continuation table from the root's admitted loads.
     #[must_use]
     pub fn new(
@@ -604,7 +608,8 @@ fn decode(row: store::Row, bounds: &families::Bounds) -> Result<engine::Record, 
             Err(families::Undecodable::Setting(key)) => {
                 Ok(engine::Record::Forge { row: Box::new(temper_engine_domain_forge::Stored::RefusedSetting(key)) })
             }
-            Err(families::Undecodable::Malformed) => Err(UnreadableRow { key }),
+            Err(families::Undecodable::Malformed) => Err(UnreadableRow { key, lowered: None }),
+            Err(families::Undecodable::Lowered(lowered)) => Err(UnreadableRow { key, lowered: Some(lowered) }),
         },
     }
 }

@@ -1,8 +1,9 @@
 //! Attempt and hold values and the absent open-attempt default (domain/tasks/lifecycle.md, 12).
 use super::fixtures;
+use crate::tasks_v13::Record as _;
 use crate::{codec::tasks, tasks_v13 as wire};
 use jig_domain_tasks as d;
-use skein_lib::{Buffer, Reader, Wall, Writer};
+use skein_lib::{Buffer, Reader, Wall};
 
 #[test]
 fn attempts_holds_and_open_attempts_round_trip() {
@@ -68,16 +69,9 @@ fn task_runs_written_without_open_attempt_read_with_none() {
     )
     .unwrap();
     let limits = tasks_limits();
-    let record = tasks::record::task_record(&fixtures::task_record(), &limits, None)
-        .unwrap()
-        .into_parts()
-        .record
-        .into_parts()
-        .run;
-    assert!(record.open_attempt().is_none());
-    let mut writer = Writer::new(usize::try_from(record.measure()).unwrap());
-    record.encode(&mut writer).unwrap();
-    let bytes = writer.finish();
+    let record = tasks::record::task_record(&fixtures::task_record(), &limits, None).unwrap().record.run;
+    assert!(record.open_attempt.is_none());
+    let bytes = record.encode(&limits).unwrap();
     let old_bytes = bytes.get(..bytes.len() - 1).unwrap();
     let mut out = Buffer::with_capacity(u32::try_from(bytes.len()).unwrap());
     let mut work = skein_codec::layout::Workspace::new();
@@ -85,7 +79,7 @@ fn task_runs_written_without_open_attempt_read_with_none() {
     plan.convert(old_bytes, &mut out, &mut work).unwrap();
     let read = wire::TaskRun::decode(&limits, &mut Reader::new(out.as_slice())).unwrap();
     assert_eq!(read, record);
-    assert!(read.open_attempt().is_none());
+    assert!(read.open_attempt.is_none());
 }
 
 #[test]
@@ -115,9 +109,7 @@ fn change_contracts_written_without_choices_read_with_an_empty_list() {
     let limits = tasks_limits();
     let contract = d::Contract::Change { connector: 1, kind: 2, words: 32, choices: Box::new([]) };
     let value = tasks::value::contract(&contract, &limits).unwrap();
-    let mut writer = Writer::new(usize::try_from(value.measure()).unwrap());
-    value.encode(&mut writer).unwrap();
-    let bytes = writer.finish();
+    let bytes = value.encode(&limits).unwrap();
     // The old layout ends after words; the new one appends the empty list's count.
     let old_bytes = bytes.get(..bytes.len() - 4).unwrap();
     let mut out = Buffer::with_capacity(u32::try_from(bytes.len()).unwrap());

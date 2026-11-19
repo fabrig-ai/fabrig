@@ -434,27 +434,30 @@ fn an_undecodable_data_line_refuses() {
 }
 
 #[test]
-fn the_committed_recordings_redact() {
-    let journeys = skein_scratch::paths::tree().join("docs/design/client/web/journeys");
-    let mut count = 0;
-    for entry in std::fs::read_dir(journeys).expect("journeys") {
-        let path = entry.expect("journey").path().join("recording");
-        if !path.is_file() {
-            continue;
-        }
-        count += 1;
-        let recording = std::fs::read(path).expect("recording");
-        let output = redact(&recording, &[]).expect("committed recording redacts");
-        for line in lines(&recording).expect("committed lines") {
-            if let Line::Secret(value) = line
-                && !value.iter().all(|byte| *byte == b'x')
-            {
-                assert!(find(&output.recording, &value).is_none(), "committed secret gone");
-            }
+fn a_host_walk_redacts_its_link_secret() {
+    use crate::{
+        host::Report,
+        journey::{Recorder, tests::facts},
+    };
+    let secret = ["walk", "-secret"].concat().into_bytes();
+    let facts = crate::journey::Facts { secret: Some(secret.clone().into()), ..facts() };
+    let (mut host, mut page) = facts.start();
+    let mut recorder = Recorder::new(&facts);
+    recorder.turn(facts.now, facts.wall);
+    recorder.report(&mut host, &page, Report::Start);
+    host.draw(&mut page, &mut Vec::new());
+    recorder.deadline(host.deadline());
+    let recording = recorder.save(&page);
+    let records = lines(&recording).expect("host lines");
+    assert!(records.iter().any(|line| matches!(line, Line::Secret(value) if value.as_ref() == secret)));
+    let output = redact(&recording, &[]).expect("host walk redacts");
+    assert_eq!(output.originals.count(Kind::Link), 1);
+    assert!(find(&output.recording, &secret).is_none(), "link secret gone");
+    for line in lines(&output.recording).expect("redacted host lines") {
+        if let Line::Secret(value) = line {
+            assert!(value.iter().all(|byte| *byte == b'x'), "no Secret original remains");
         }
     }
-    eprintln!("committed recordings checked: {count}");
-    assert!(count > 0, "committed recordings checked");
 }
 
 #[test]

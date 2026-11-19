@@ -145,7 +145,9 @@ fn files() -> jig_test_service::Files {
 pub fn settings() -> jig_client_shell_native::Settings {
     jig_client_shell_native::Settings {
         mapping: jig_client_protocol_http::Mapping::new(b"/jig").expect("default mapping"),
-        engine: skein_io::Addr::Ip((std::net::Ipv4Addr::LOCALHOST, 7100).into()),
+        engine: jig_client_shell_native::Engine::Plain(skein_io::Addr::Ip(
+            (std::net::Ipv4Addr::LOCALHOST, 7100).into(),
+        )),
         directory: b"private".as_slice().into(),
         limits: fixtures::connections_limits(),
         io: skein_io::Limits {

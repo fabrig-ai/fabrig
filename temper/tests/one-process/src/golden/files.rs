@@ -4,7 +4,11 @@ use std::{fmt::Write as _, os::unix::fs::PermissionsExt, path::Path};
 
 const ROOTS: [&str; 4] = ["state", "worker", "client", "setup"];
 
-pub(crate) fn export(disk: &mut Machine, directory: &Path, configuration: &[u8]) {
+pub(crate) fn export(
+    disk: &mut Machine,
+    directory: &Path,
+    configuration: &temper_playground::documents::Configuration,
+) {
     std::fs::create_dir_all(directory).expect("temporary golden export");
     let mut modes = String::new();
     for (index, name) in ROOTS.iter().enumerate() {
@@ -13,7 +17,11 @@ pub(crate) fn export(disk: &mut Machine, directory: &Path, configuration: &[u8])
         disk.close(root);
     }
     std::fs::write(directory.join("modes.txt"), modes).expect("golden modes");
-    std::fs::write(directory.join("configuration.json"), configuration).expect("golden configuration");
+    std::fs::write(
+        directory.join("configuration.json"),
+        serde_json::to_vec(configuration).expect("configuration document"),
+    )
+    .expect("golden configuration");
 }
 
 fn save(disk: &mut Machine, opened: Opened, directory: &Path, path: &str, modes: &mut String) {

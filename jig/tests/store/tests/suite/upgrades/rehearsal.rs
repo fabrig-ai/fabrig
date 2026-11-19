@@ -41,7 +41,7 @@ fn close(world: &mut World) {
     assert!(world.scratch_contents().is_empty(), "scratch emptied");
 }
 fn rehearsal_lines(events: &[Event], wires: Option<&[KeptWire]>) {
-    let Some(Event::Rehearsing { owner: OWNER, wires: found, openings }) = events.first() else {
+    let Some(Event::Rehearsing { owner: OWNER, wires: found, openings, .. }) = events.first() else {
         panic!("first line: {events:?}")
     };
     assert!(openings.is_empty());

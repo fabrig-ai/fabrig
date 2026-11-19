@@ -72,7 +72,7 @@ fn arrived(io: Io) -> crate::Arrived {
     let Io::Transcripts(arrived) = io else { panic!("operation uses transcripts driver") };
     arrived
 }
-fn copy(disk: &mut Disk, from: u64, chunk: u32) -> Progress {
+pub(super) fn copy(disk: &mut Disk, from: u64, chunk: u32) -> Progress {
     let mut below = fixtures::below();
     let mut copying = generations::copy(disk.root(), from, chunk, &mut below);
     let mut progress = copying.progress();
@@ -199,33 +199,7 @@ fn a_copy_links_only_snapshot_and_sealed_fixed_width_segments() {
         assert_eq!(disk.links(&target), if linked { 2 } else { 1 }, "target {suffix:?}");
         assert_eq!(disk.bytes(&item.path), disk.bytes(&target));
     }
-    let linked: Vec<_> = disk
-        .requests()
-        .iter()
-        .filter_map(|(_, seen)| match seen {
-            Seen::Link { from, to } => {
-                assert_eq!(from, to);
-                Some(from.as_ref())
-            }
-            Seen::Create { .. }
-            | Seen::ReadOpen { .. }
-            | Seen::Read { .. }
-            | Seen::Write { .. }
-            | Seen::SyncFile
-            | Seen::Rename { .. }
-            | Seen::Lock
-            | Seen::Load
-            | Seen::Make(_)
-            | Seen::Private(_)
-            | Seen::Open
-            | Seen::Store { .. }
-            | Seen::Remove { .. }
-            | Seen::Sync
-            | Seen::Close
-            | Seen::Other => None,
-        })
-        .collect();
-    assert_eq!(linked, [b"log-00000000000000000001".as_slice(), b"snapshot"]);
+    assert_eq!(disk.linked(), [b"log-00000000000000000001".as_slice(), b"snapshot"].map(Box::from));
 }
 
 #[test]

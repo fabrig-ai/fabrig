@@ -21,7 +21,10 @@ const READY_SECONDS: u64 = 120;
 const STOP_SECONDS: u64 = 20;
 const STDERR_TAIL_LINES: usize = 20;
 // The stock worker stop bound and the engine's derived fleet grace (configuration/moved.md, 2).
-pub const FLEET_GRACE_MS: u64 = 360_000;
+#[must_use]
+pub fn fleet_grace_ms() -> u64 {
+    temper_service::startup::worker_fleet_grace(&jig_protocol_config::stock()).as_millis()
+}
 const CGROUPS: &str = "the cluster's tests need cgroups delegated by the user's service manager (temper docs/design/protocol/cluster.md, 5): run them where it delegates them";
 
 /// bin/temper-box/tests/fixtures/cluster/ read, rendered for one test's scratch, and its processes' state.
@@ -34,6 +37,12 @@ pub struct Cluster {
 /// Compose the engine fixture as the running engine does, without opening it.
 #[must_use]
 pub fn figures(document: &Value) -> jig_protocol_worker_wire::Figures {
+    figures_with_limits(&temper_playground::documents::Configuration::from_jig(document.clone()))
+}
+#[must_use]
+pub fn figures_with_limits(
+    document: &temper_playground::documents::Configuration,
+) -> jig_protocol_worker_wire::Figures {
     let bytes = serde_json::to_vec(&document["engine"]).expect("engine JSON");
     let parsed = jig_protocol_config::document(
         &bytes,
@@ -44,14 +53,15 @@ pub fn figures(document: &Value) -> jig_protocol_worker_wire::Figures {
         .get("world_providers")
         .map_or_else(temper_service::stock::providers, temper_agent_fixtures::providers::values);
     let given = temper_service::stock::Given::Stock.with_providers(providers, Box::new([]));
-    let engine = temper_service::startup::engine_with(&parsed, 0, &jig_protocol_config::Directories::working(), &given)
-        .expect("fixture engine");
-    let application = &document["application"]["limits"];
-    let mut own = temper_limits_fixtures::small();
-    for (name, value) in application["overrides"].as_object().expect("limits overrides") {
-        temper_engine_service_vocabulary::limits::apply(&mut own, name.as_bytes(), value.as_u64().expect("scalar"))
-            .expect("fixture limit");
-    }
+    let engine = temper_service::startup::engine_over(
+        &parsed,
+        0,
+        &jig_protocol_config::Directories::working(),
+        &given,
+        &mut document.jig.clone(),
+    )
+    .expect("fixture engine");
+    let own = document.limits;
     let mut figures = temper_engine_service_vocabulary::figures::Composer::new(&engine, &own)
         .compose(&temper_service::stock::agents())
         .into_parts();
@@ -381,6 +391,18 @@ impl Cluster {
                 );
             }
         }
+        if process == "engine" {
+            let config = self.dir(process).join("config");
+            let mut value = temper_playground::documents::Configuration::from_jig(
+                serde_json::from_slice(&fs::read(config.join("temper.json")).expect("cluster engine")).expect("JSON"),
+            );
+            super::configuration::cluster_limits(
+                &mut value,
+                self.experiment.ends_with("cluster-turn"),
+                self.experiment.ends_with("github"),
+            );
+            super::limit_settings::remember(&config, &value);
+        }
         let settings = self.experiment.join("settings.json");
         if process == "engine" && settings.exists() {
             let mut value: Value =
@@ -402,6 +424,10 @@ impl Cluster {
     fn command(&self, process: &str) -> Command {
         if !self.prepared.contains(process) {
             self.render_files(process);
+        }
+        if process == "engine" && !self.dir(process).join("data/fixture-limits-applied.json").exists() {
+            let root = self.dir(process);
+            super::limit_settings::install_paths(&[root.join("config"), root.join("data"), root.join("cache")]);
         }
         let spec = &self.specs[self.index(process)];
         let argv: Vec<_> = list(&spec["argv"]).iter().map(|v| self.render(string(v))).collect();

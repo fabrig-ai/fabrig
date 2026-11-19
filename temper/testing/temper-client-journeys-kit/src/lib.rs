@@ -12,6 +12,15 @@ pub fn fixture_recording() -> Box<[u8]> {
 
 #[must_use]
 pub fn fixture_with_secret(secret: Option<Box<[u8]>>) -> Box<[u8]> {
+    fixture(secret, false)
+}
+
+#[must_use]
+pub fn fixture_with_marks_and_secret(secret: Option<Box<[u8]>>) -> Box<[u8]> {
+    fixture(secret, true)
+}
+
+fn fixture(secret: Option<Box<[u8]>>, marked: bool) -> Box<[u8]> {
     let facts = journey::Facts {
         fixed: false,
         seed: 11,
@@ -27,6 +36,9 @@ pub fn fixture_with_secret(secret: Option<Box<[u8]>>) -> Box<[u8]> {
     };
     let (mut host, mut page) = facts.start();
     let mut recorder = journey::Recorder::new(&facts);
+    if marked {
+        recorder.mark(&page);
+    }
     recorder.turn(facts.now, facts.wall);
     recorder.report(&mut host, &page, temper_client_shell_web::host::Report::Start);
     if facts.secret.is_none() {
@@ -40,6 +52,9 @@ pub fn fixture_with_secret(secret: Option<Box<[u8]>>) -> Box<[u8]> {
     }
     host.draw(&mut page, &mut Vec::new());
     recorder.deadline(host.deadline());
+    if marked {
+        recorder.mark(&page);
+    }
     recorder.save(&page)
 }
 
@@ -76,8 +91,10 @@ impl TuiWorld {
         Self::with_local(address, size, false)
     }
     fn with_local(address: &[u8], size: skein_ui_screen::Size, local: bool) -> Self {
-        use temper_client_shell_tui::journey::{Facts, Recorder};
-        let facts = Facts {
+        Self::with_facts(&Self::facts(address, size, local))
+    }
+    fn facts(address: &[u8], size: skein_ui_screen::Size, local: bool) -> temper_client_shell_tui::journey::Facts {
+        temper_client_shell_tui::journey::Facts {
             set_up: false,
             box_log: Box::default(),
             seed: 7,
@@ -89,16 +106,36 @@ impl TuiWorld {
             plain: false,
             version: b"1.2.3 (abcdef123456-dirty)".as_slice().into(),
             boxed: false,
-            address: address.into(),
+            address: temper_client_tui::Origin::Http(
+                core::str::from_utf8(address).expect("fixture authority").parse().expect("fixture socket"),
+            ),
             front: false,
             local,
             note: None,
             kept: Vec::new(),
             credential: None,
-        };
+        }
+    }
+    fn with_facts(facts: &temper_client_shell_tui::journey::Facts) -> Self {
         let (host, start) = facts.start();
-        let mut world = Self { host, recorder: Recorder::new(&facts), now: 1 };
+        let mut world = Self { host, recorder: temper_client_shell_tui::journey::Recorder::new(facts), now: 1 };
         world.report(start);
+        world
+    }
+    #[must_use]
+    pub fn with_box_log(log: &[u8]) -> Self {
+        use temper_client_shell_tui::host::Report;
+        let mut facts = Self::facts(b"127.0.0.1:8367", skein_ui_screen::Size { rows: 16, columns: 100 }, true);
+        facts.front = true;
+        facts.set_up = true;
+        facts.box_log = log.into();
+        let mut world = Self::with_facts(&facts);
+        world.report(Report::Local {
+            link: Some(skein_lib::Secret::new(
+                format!("http://127.0.0.1:8367/jig/v1/sign-in/link?secret={}", "A".repeat(43)).into_bytes().into(),
+            )),
+        });
+        world.report(Report::Stage(temper_client_tui::BoxStage::Running));
         world
     }
     pub fn report(&mut self, report: temper_client_shell_tui::host::Report) -> temper_client_shell_tui::host::Duties {

@@ -20,7 +20,7 @@ mod execution;
 mod findings;
 pub(crate) mod fixtures;
 mod flight;
-mod follow_check;
+pub(crate) mod follow_check;
 mod goal_branch;
 mod goal_start;
 mod held_branch;
@@ -438,6 +438,7 @@ fn a_hold_and_writer_slot_are_exclusive_until_answered() {
             read_afresh: Some(name.clone()),
             release: None,
             record: Stored::Hold(Hold {
+                beside: None,
                 design_writers: Box::new([]),
                 name: name.clone(),
                 task: 7,
@@ -496,6 +497,7 @@ fn a_hold_and_writer_slot_are_exclusive_until_answered() {
             read_afresh: None,
             release: None,
             record: Stored::Hold(Hold {
+                beside: None,
                 design_writers: Box::new([]),
                 name,
                 task: 7,
@@ -1644,6 +1646,7 @@ fn restarted_lost_writer() -> Domain {
         &mut d,
         Event::Restore {
             record: Stored::Hold(Hold {
+                beside: None,
                 design_writers: Box::new([]),
                 name: run_branch(b"7"),
                 task: 7,
@@ -1824,6 +1827,7 @@ fn a_superseded_lost_reread_records_only_its_undrifted_delegates_head() {
                     name: name.clone(),
                     task: fixtures::CHANGE,
                     writer: Some(Writer::Run { task: 9, attempt: 1 }),
+                    beside: None,
                     design_writers: Box::new([]),
                     drift: None,
                 }),
@@ -2009,6 +2013,7 @@ fn a_release_still_fails_for_a_running_writer_or_a_lost_writer_without_a_read() 
             &mut d,
             Event::Restore {
                 record: Stored::Hold(Hold {
+                    beside: None,
                     design_writers: Box::new([]),
                     name: run_branch(b"7"),
                     task: 7,

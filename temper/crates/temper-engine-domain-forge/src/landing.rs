@@ -37,7 +37,8 @@ pub(crate) struct State {
     pub(crate) main_keys: Map<RepositoryGate, KeyAt>,
     pub(crate) flights: Map<ReceiptKey, runs::Follow>,
     pub(crate) faults: Map<Position, runs::Follow>,
-    pub(crate) results: Map<(u64, u16, u16, u8), policy::Status>,
+    /// Effect status and whether its outcome is a known refusal (landing.md, 8).
+    pub(crate) results: Map<(u64, u16, u16, u8), (policy::Status, bool)>,
     pub(crate) limits: Limits,
 }
 #[derive(Hash, Debug)]
@@ -60,6 +61,7 @@ pub(crate) struct Pending {
     evidence: Box<[crate::LandingEvidence]>,
     opened: Option<u64>,
     closed: policy::Status,
+    round_pull: policy::RoundPull,
     cleaned: bool,
     upstream: Option<api::Commit>,
     paths: Box<[Paths]>,
@@ -97,6 +99,8 @@ enum Stage {
     Branch(u16),
     Main(u16),
     Ancestry(u16),
+    ContainsCandidate(u16),
+    TurnPull,
     Pull(u16),
     Reviews(u16, u32),
     Paths(u16),
@@ -263,6 +267,7 @@ impl Domain {
                     | Value::Dependency(_)
                     | Value::ProjectAreas(_)
                     | Value::ProjectTriager(_)
+                    | Value::Limits(_)
                     | Value::AgentFigures(_)
                     | Value::Welcome(_) => unreachable!("kind 4 has landing value"),
                 },
@@ -284,6 +289,7 @@ impl Domain {
                     | Value::Dependency(_)
                     | Value::ProjectAreas(_)
                     | Value::ProjectTriager(_)
+                    | Value::Limits(_)
                     | Value::AgentFigures(_)
                     | Value::Welcome(_) => unreachable!("kind 5 has gates value"),
                 },
@@ -969,6 +975,7 @@ fn fresh(gates: &[policy::Gate]) -> policy::MemberFacts {
         head: [0; 32],
         main: [0; 32],
         contains_main: policy::Status::Unknown,
+        contains_candidate: policy::Status::Unknown,
         asked: false,
         merge: policy::Status::Unknown,
         merged: None,
@@ -1185,6 +1192,7 @@ pub(crate) fn step(
                 paths: paths.into_boxed(),
                 opened: None,
                 closed: policy::Status::Unknown,
+                round_pull: policy::RoundPull::Unread,
                 cleaned: false,
                 upstream: None,
                 stall: None,
@@ -1397,7 +1405,11 @@ fn advance(
                 decide(d, env, owner, p, out);
             }
         }
-        Stage::Branch(index) | Stage::Main(index) | Stage::Ancestry(index) | Stage::Pull(index) => {
+        Stage::Branch(index)
+        | Stage::Main(index)
+        | Stage::Ancestry(index)
+        | Stage::ContainsCandidate(index)
+        | Stage::Pull(index) => {
             let member = row.landing.members.get(usize::from(index)).expect("member");
             let Some(change) = d.changes.get(&member.change) else {
                 return;
@@ -1465,9 +1477,19 @@ fn advance(
                         return;
                     };
                     fact.main = main;
-                    if member.candidate.is_some() && !row.landing.round.branch.is_empty() {
-                        p.stage = Stage::Pull(index);
-                        api::Read::Pull { number: member.pull, ci: false }
+                    if let Some(candidate) = member.candidate
+                        && !row.landing.round.branch.is_empty()
+                    {
+                        if let policy::Phase::Turn { .. } = row.landing.phase
+                            && main != candidate
+                            && Some(main) != member.base
+                        {
+                            p.stage = Stage::ContainsCandidate(index);
+                            api::Read::Commits { before: main, after: candidate, page: 1 }
+                        } else {
+                            p.stage = Stage::Pull(index);
+                            api::Read::Pull { number: member.pull, ci: false }
+                        }
                     } else {
                         p.stage = Stage::Ancestry(index);
                         api::Read::Commits { before: fact.head, after: main, page: 1 }
@@ -1478,6 +1500,18 @@ fn advance(
                         change::Status::Passed => policy::Status::Passed,
                         change::Status::Failed => policy::Status::Failed,
                         change::Status::Unknown | change::Status::Pending => policy::Status::Unknown,
+                    };
+                    p.stage = Stage::Pull(index);
+                    api::Read::Pull { number: member.pull, ci: false }
+                }
+                Stage::ContainsCandidate(_) => {
+                    fact.contains_candidate = match crate::domain::ancestry_status(answer) {
+                        change::Status::Passed => policy::Status::Passed,
+                        change::Status::Failed => policy::Status::Failed,
+                        change::Status::Unknown | change::Status::Pending => {
+                            wait(d, p.task, p.entry, env, p.repository, out);
+                            return;
+                        }
                     };
                     p.stage = Stage::Pull(index);
                     api::Read::Pull { number: member.pull, ci: false }
@@ -1513,6 +1547,7 @@ fn advance(
                 | Stage::StallJobs
                 | Stage::Run { .. }
                 | Stage::CleanupPull
+                | Stage::TurnPull
                 | Stage::CleanupBranch(_)
                 | Stage::FailedJobs { .. }
                 | Stage::FailedReport { .. }
@@ -1581,6 +1616,20 @@ fn advance(
                 paths.files = files;
             }
             next_member(d, env, owner, p, &row, index, out);
+        }
+        Stage::TurnPull => {
+            let Ok(api::Answer::Pull(pull)) = answer else {
+                wait(d, p.task, p.entry, env, p.repository, out);
+                return;
+            };
+            p.round_pull = if let Some(commit) = pull.merged {
+                policy::RoundPull::Merged(commit)
+            } else if pull.state == api::State::Closed {
+                policy::RoundPull::Closed
+            } else {
+                policy::RoundPull::Open
+            };
+            collect(d, env, owner, p, out);
         }
         Stage::CleanupPull => {
             let Ok(api::Answer::Pull(pull)) = answer else {
@@ -2429,6 +2478,31 @@ fn cleanup_branch(
     p.cleaned = true;
     collect(d, env, owner, p, out);
 }
+fn merge_readback_words(row: &LandingRow, facts: &policy::Facts, top: u16) -> Box<[u8]> {
+    let number = skein_lib::Decimal::of(row.landing.round.pull.expect("turn pull"));
+    let state = match facts.round_pull {
+        policy::RoundPull::Open => Box::from(b"open".as_slice()),
+        policy::RoundPull::Merged(commit) => concat(&[b"merged at ", &commit_hex(commit)]),
+        policy::RoundPull::Unread | policy::RoundPull::Closed => {
+            unreachable!("a turn holds only a read, unclosed pull")
+        }
+    };
+    concat(&[
+        b"merge of #",
+        number.as_bytes(),
+        b": ",
+        &crate::preparation::failure(&row.landing.round.failure),
+        b"; read #",
+        number.as_bytes(),
+        b" ",
+        &state,
+        b", ",
+        &row.landing.branch,
+        b" at ",
+        &commit_hex(facts.members.get(usize::from(top)).expect("top facts").main),
+    ])
+}
+
 fn collect(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: &mut Queue<Request>) {
     let row = d.landing.rows.get(&p.task).expect("pending landing");
     if row.landing.round.ending.is_some() && !p.cleaned {
@@ -2440,6 +2514,17 @@ fn collect(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out:
         } else {
             cleanup_branch(d, env, owner, p, &row, 0, out);
         }
+        return;
+    }
+    if let policy::Phase::Turn { .. } = row.landing.phase
+        && p.round_pull == policy::RoundPull::Unread
+        && let Some(number) = row.landing.round.pull
+        && let Some(top) = round_top(row)
+        && result(d, p.task, top, 0, 5) == policy::Status::Failed
+    {
+        p.stage = Stage::TurnPull;
+        let repo = p.repository;
+        ask(d, env, owner, p, repo, api::Read::Pull { number, ci: false }, out);
         return;
     }
     for (index, member) in row.landing.members.iter().enumerate() {
@@ -2504,7 +2589,7 @@ fn collect(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out:
 }
 fn result(d: &Domain, task: u64, member: u16, gate: u16, operation: u8) -> policy::Status {
     if let Some(status) = d.landing.results.get(&(task, member, gate, operation)) {
-        return *status;
+        return status.0;
     }
     // Recovery keeps each effect's identity in the landing and outbox (landing.md, 12).
     if let Some(row) = d.landing.rows.get(&task) {
@@ -2517,6 +2602,10 @@ fn result(d: &Domain, task: u64, member: u16, gate: u16, operation: u8) -> polic
             {
                 return if entry.held { policy::Status::Failed } else { policy::Status::Pending };
             }
+        }
+        if operation == 5 && row.landing.round.merges > 0 {
+            // A terminal merge retired before a restart is unknown, not a new first send.
+            return policy::Status::Failed;
         }
     }
     policy::Status::Unknown
@@ -2690,6 +2779,11 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
         released: p.heard.released,
         opened: p.opened,
         opening: result(d, p.task, top, 0, 6),
+        round_pull: p.round_pull,
+        merge_refused: match d.landing.results.get(&(p.task, top, 0, 5)) {
+            Some((_, refused)) => *refused,
+            None => false,
+        },
         closed: if p.closed == policy::Status::Passed { p.closed } else { round_closed(d, &row) },
         preparation,
     };
@@ -2703,6 +2797,7 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
         &project,
         &policy::Limits {
             tests_bytes: tests_room(d, &row, env.limits.client.op_bytes),
+            write_attempts: env.limits.client.write_attempts,
             members: env.limits.landing_members,
             gates: env.limits.gates,
             poll: skein_lib::Duration::from_nanos(
@@ -2741,6 +2836,14 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
     crate::job_history::prepared(d, env.wall, &mut row, &p.facts, out);
     let prior = row.clone();
     row.landing = stepped.landing;
+    if stepped.decision == policy::Decision::Hold(policy::Hold::Turn)
+        && facts.members.get(usize::from(top)).expect("top facts").merge == policy::Status::Failed
+        && facts.round_pull != policy::RoundPull::Unread
+    {
+        let words = merge_readback_words(&row, &facts, top);
+        row.landing.round.failure =
+            crate::preparation::remember(&row.landing.round.failure, &words, env.limits.landing_members);
+    }
     if prior.landing.round.ending.is_some() && row.landing.round.ending.is_none() {
         row.landing.round.failure =
             crate::preparation::next_round(&row.landing.round.failure, env.limits.landing_members);
@@ -3645,7 +3748,7 @@ fn keep(
     row.entries = entries.into_boxed();
     d.landing
         .results
-        .insert((row.landing.task, member, gate, operation(op)), policy::Status::Pending)
+        .insert((row.landing.task, member, gate, operation(op)), (policy::Status::Pending, false))
         .expect("bounded effect positions");
     keep_entry(
         d,
@@ -3791,6 +3894,38 @@ pub(crate) fn merged_owner(d: &Domain, task: u64, entry: u64) -> u64 {
 
 /// Preserve a settled dispatch entry until its run ends: its start window
 /// is required to reconstruct a Dispatched proof after restart (landing.md, 15).
+fn merge_refused(outcome: skein_forge_client::Outcome) -> bool {
+    match outcome {
+        skein_forge_client::Outcome::Failed(error) => match error {
+            api::Error::Timeout | api::Error::Unavailable | api::Error::InvalidAnswer => false,
+            api::Error::Forbidden
+            | api::Error::Missing
+            | api::Error::MissingJob
+            | api::Error::TooLarge(_)
+            | api::Error::Empty
+            | api::Error::Full
+            | api::Error::Exists
+            | api::Error::NothingToMerge
+            | api::Error::Closed
+            | api::Error::Stale
+            | api::Error::BaseMoved { .. }
+            | api::Error::Conflict
+            | api::Error::Protected
+            | api::Error::Refused
+            | api::Error::Busy
+            | api::Error::NotConnected
+            | api::Error::NotInstalled
+            | api::Error::RateLimited { .. } => true,
+        },
+        skein_forge_client::Outcome::Raced { .. } => true,
+        skein_forge_client::Outcome::Made { .. }
+        | skein_forge_client::Outcome::Queued
+        | skein_forge_client::Outcome::Uncertain
+        | skein_forge_client::Outcome::Held
+        | skein_forge_client::Outcome::Withdrawn => false,
+    }
+}
+
 #[expect(clippy::too_many_lines, reason = "one landing effect updates its round facts, flight and cleanup together")]
 pub(crate) fn outcome(
     d: &mut Domain,
@@ -3824,7 +3959,7 @@ pub(crate) fn outcome(
     if item.preparation.is_none() || item.preparation == Some(row.landing.preparation) {
         d.landing
             .results
-            .insert((task, item.member, item.gate, operation(item.operation)), status)
+            .insert((task, item.member, item.gate, operation(item.operation)), (status, merge_refused(outcome)))
             .expect("bounded effect positions");
     }
     if item.operation == Operation::Delete && status == policy::Status::Passed {
@@ -3902,22 +4037,9 @@ pub(crate) fn outcome(
             || item.operation == Operation::Open
             || item.operation == Operation::Merge
         {
-            row.landing.round.failure = match outcome {
-                skein_forge_client::Outcome::Failed(error) | skein_forge_client::Outcome::Raced { why: error, .. } => {
-                    crate::preparation::remember(
-                        &row.landing.round.failure,
-                        &crate::effect_words::error_words(error),
-                        d.landing.limits.landing_members,
-                    )
-                }
-                skein_forge_client::Outcome::Made { .. } => {
-                    crate::preparation::remember(&row.landing.round.failure, b"", d.landing.limits.landing_members)
-                }
-                skein_forge_client::Outcome::Queued
-                | skein_forge_client::Outcome::Uncertain
-                | skein_forge_client::Outcome::Held
-                | skein_forge_client::Outcome::Withdrawn => row.landing.round.failure.clone(),
-            };
+            let words = crate::effect_words::outcome_words(outcome).unwrap_or(Box::new([]));
+            row.landing.round.failure =
+                crate::preparation::remember(&row.landing.round.failure, &words, d.landing.limits.landing_members);
         }
         save(d, row, out);
     }

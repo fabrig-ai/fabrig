@@ -1119,16 +1119,12 @@ impl OwnedWorkerJudge {
                 OwnedWorkerPhase::Engine => {
                     let directory = self.members.prepare("engine");
                     let path = directory.join("config/temper.json");
-                    let mut engine: serde_json::Value = serde_json::from_slice(
-                        &std::fs::read(&path).map_err(|why| format!("engine document: {why:?}"))?,
-                    )
-                    .map_err(|why| format!("engine JSON: {why:?}"))?;
-                    // Negotiate the owned worker's full terms, including its turn bounds.
-                    let example: serde_json::Value =
-                        serde_json::from_str(include_str!("../../../docs/examples/owned.json"))
-                            .map_err(|why| format!("owned example: {why:?}"))?;
-                    engine["engine"]["limits"] = example["engine"]["limits"].clone();
-                    engine["application"]["limits"] = example["application"]["limits"].clone();
+                    let engine = temper_playground::documents::Configuration::from_jig(
+                        serde_json::from_slice(
+                            &std::fs::read(&path).map_err(|why| format!("engine document: {why:?}"))?,
+                        )
+                        .map_err(|why| format!("engine JSON: {why:?}"))?,
+                    );
                     support::write_private(
                         &path,
                         &serde_json::to_vec(&engine).map_err(|why| format!("engine JSON: {why:?}"))?,
@@ -1380,7 +1376,7 @@ impl ClusterStory {
     fn within(self) -> Duration {
         match self {
             Self::Kill | Self::Hung => {
-                Duration::from_millis(support::cluster::FLEET_GRACE_MS).saturating_add(support::WITHIN)
+                Duration::from_millis(support::cluster::fleet_grace_ms()).saturating_add(support::WITHIN)
             }
             Self::Each | Self::Unexpected | Self::Later | Self::Restart => support::WITHIN,
         }
@@ -2434,10 +2430,9 @@ fn a_default_box_with_a_sign_in_registration_starts_without_dns() {
     temper_agent_fixtures::install(&paths[0], &agent);
     // The default registration reaches the sign-in startup resolver.
     let document_path = paths[0].join("temper.json");
-    let mut document: serde_json::Value =
-        serde_json::from_slice(&fs::read(&document_path).expect("default document")).expect("JSON");
-    document["application"]["limits"]["overrides"]["git_component.operations"] = 1.into();
-    document["application"]["limits"]["overrides"]["checkout.workspaces"] = 1.into();
+    let mut document = temper_playground::documents::Configuration::from_jig(
+        serde_json::from_slice(&fs::read(&document_path).expect("default document")).expect("JSON"),
+    );
     document["workers"][0]["slots"] = 1.into();
     fs::write(document_path, serde_json::to_vec(&document).expect("sign-in fixture")).expect("registered sign-in");
     // The private network has only loopback. Files-only name lookup and a private /run

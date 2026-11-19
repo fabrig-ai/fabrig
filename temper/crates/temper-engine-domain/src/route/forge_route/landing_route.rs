@@ -157,8 +157,8 @@ pub(crate) fn form_landings(domain: &mut Domain, env: &Env<Limits>) -> bool {
     false
 }
 
-/// Gate dispatch and rerun failures are retried by the landing policy
-/// (temper/docs/design/domain/landing.md, 7.4); other terminal writes need an account.
+/// The policy owns gate retries and every merge outcome
+/// (temper/docs/design/domain/landing.md, 7.4, 8); other terminal writes need an account.
 pub(super) fn failed_effect_needs_hold(domain: &Domain, task: u64, entry: u64) -> bool {
     let Some(row) = domain.forge.landing(task) else { return false };
     for pending in &row.entries {
@@ -166,10 +166,9 @@ pub(super) fn failed_effect_needs_hold(domain: &Domain, task: u64, entry: u64) -
             continue;
         }
         match pending.operation {
-            forge::Operation::Dispatch | forge::Operation::Rerun => return false,
+            forge::Operation::Dispatch | forge::Operation::Rerun | forge::Operation::Merge => return false,
             forge::Operation::Pending
             | forge::Operation::Verdict
-            | forge::Operation::Merge
             | forge::Operation::Open
             | forge::Operation::Close
             | forge::Operation::Delete

@@ -100,7 +100,8 @@ pub struct RestoreFailure {
     pub failure: Failure,
 }
 
-pub(crate) fn kind(range: &Range) -> Kind {
+#[must_use]
+pub fn kind(range: &Range) -> Kind {
     use crate::CoreRange;
     match range {
         Range::Core(CoreRange::Deployment) => Kind::Deployment,
@@ -298,7 +299,8 @@ pub fn abandon(domain: &mut Loads, owner: Token) {
 }
 
 /// A missing obligation belongs only to a live startup page.
-pub(crate) fn startup_owner(domain: &Loads, owner: Token) -> bool {
+#[must_use]
+pub fn startup_owner(domain: &Loads, owner: Token) -> bool {
     match domain.entries.get(Id::from_token(owner)) {
         Some(entry) => entry.phase == Phase::Waiting && restarting(entry.waiter),
         None => false,

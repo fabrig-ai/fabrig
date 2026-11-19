@@ -23,11 +23,11 @@ impl RefusalCause {
         match self {
             Self::Limit { member, configured, needed } => {
                 put(&mut words, member.as_bytes());
-                put(&mut words, b" = ");
+                put(&mut words, b" is ");
                 put(&mut words, skein_lib::Decimal::of(configured).as_bytes());
-                put(&mut words, b"; required usage ");
+                put(&mut words, b", and this needs ");
                 put(&mut words, skein_lib::Decimal::of(needed).as_bytes());
-                put(&mut words, b"; reduce the named work or raise this limit in the deployment configuration, restart, then release");
+                put(&mut words, b": a limit in temper-limits. Ask temper to raise it, or raise it from Needs you. This goes on by itself once room frees or the limit rises.");
             }
             Self::Unadopted => put(&mut words, b"repository is not adopted; adopt the repository, then release"),
             Self::InvalidName => {
@@ -112,6 +112,12 @@ pub fn read(
         resource: Some(crate::Name { forge: repository.forge, repository: repository.repository, what }),
         cause: RefusalCause::Backend(error),
     });
+}
+
+/// The branch an operation could not admit, retained in its refusal's prefix.
+#[must_use]
+pub fn branch_name(repository: skein_forge::api::Repository, branch: &[u8]) -> crate::Name {
+    crate::Name { forge: repository.forge, repository: repository.repository, what: crate::What::Branch(parts(branch)) }
 }
 
 fn parts(branch: &[u8]) -> Box<[Box<[u8]>]> {

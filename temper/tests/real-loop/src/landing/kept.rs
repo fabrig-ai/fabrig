@@ -20,7 +20,7 @@ pub fn fixture() -> crate::forge::Fixture {
                 project["policy"]["roles"][0]["authority"]["tools"] = 5.into();
             }
             for name in ["tasks.batch", "authority.batch"] {
-                value["engine"]["limits"]["overrides"][name] = 2.into();
+                value.jig_over(name, 2);
             }
             crate::fixtures::own_policy(value);
             admit(value);

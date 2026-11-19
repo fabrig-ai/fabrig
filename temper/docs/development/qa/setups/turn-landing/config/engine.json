@@ -1,29 +1,5 @@
 {
   "engine": {
-    "limits": {
-      "profile": "standard",
-      "overrides": {
-        "authority.executors": 22,
-        "authority.grants": 15,
-        "core.resume_bytes": 18431846,
-        "fleet.engine_slots": 0,
-        "hub.accounts": 4,
-        "hub.event_bytes": 63738,
-        "hub.run_calls": 48,
-        "hub.transcript_bytes": 73727378,
-        "hub.turn_bytes": 18431842,
-        "hub.turn_queue_bytes": 147454736,
-        "io.output": 18432634,
-        "notes.scopes": 18,
-        "tasks.authority_grants": 15,
-        "tasks.charters": 16,
-        "tasks.executor_kinds": 22,
-        "tasks.inbox_bytes": 5226516,
-        "tasks.message_bytes": 63738,
-        "tasks.result_bytes": 4096,
-        "tasks.spec_bytes": 16384
-      }
-    },
     "hosts": {
       "listener": [
         {
@@ -36,8 +12,7 @@
         "provider": 1,
         "subject": "owner-a"
       }
-    ],
-    "memory_bytes": 4503599627370496
+    ]
   },
   "workers": [],
   "application": {
@@ -53,19 +28,6 @@
       "bundle": "{place.bundle}",
       "public": null
     },
-    "sign_in": null,
-    "limits": {
-      "profile": "standard",
-      "overrides": {
-        "forge.client.op_bytes": 63738,
-        "forge.judge_projects": 8,
-        "forge_component.body_bytes": 127497,
-        "root.journal.transcript_bytes": 18431846,
-        "root.loads.bytes": 18432098,
-        "root.loads.read_bytes": 36863684,
-        "root.loads.reply_bytes": 18432098,
-        "root.loads.transcript_bytes": 18431842
-      }
-    }
+    "sign_in": null
   }
 }

@@ -14,7 +14,7 @@ use crate::startup::{Problems, checks, lines};
 // Authority and task executor places hold its eighteen delegation kinds.
 const ENGINE_OVERRIDES: &str = r#""tasks.charters":13,"core.templates":7,"authority.executors":22,"tasks.executor_kinds":22,"tasks.result_bytes":32,"tasks.run_inbox":2,"hub.turns":1,"people.amendment_bytes":64,"core.policy_bytes":8192,"tasks.spec_bytes":128,"tasks.message_bytes":512,"tasks.hold_bytes":64,"tasks.authority_bytes":64,"people.words":512,"core.call_answer_bytes":2048,"notes.recalled":1"#;
 
-fn started(document: &[u8]) -> Box<[u8]> {
+fn started(document: &(impl fixtures::Input + ?Sized)) -> Box<[u8]> {
     let found = match fixtures::start(
         document,
         &jig_protocol_config::Directories::working(),
@@ -33,10 +33,10 @@ fn started(document: &[u8]) -> Box<[u8]> {
     };
     lines(&found)
 }
-fn overridden(document: &[u8], path: &[u8], shipped: &str, extra: &str) -> Box<[u8]> {
+fn overridden(document: &(impl fixtures::Input + ?Sized), path: &[u8], shipped: &str, extra: &str) -> fixtures::Start {
     fixtures::with(document, path, format!("{{{shipped},{extra}}}").as_bytes())
 }
-fn engine_with(extra: &str) -> Box<[u8]> {
+fn engine_with(extra: &str) -> fixtures::Start {
     overridden(&fixtures::document(), b"engine.limits.overrides", ENGINE_OVERRIDES, extra)
 }
 /// The fixture engine's root as the start makes it, held to `limits`.
@@ -304,10 +304,13 @@ fn judge_projects_past_the_wires_dismissals_name_both() {
     }
 }
 
-fn complete_profile_startup(document: &[u8], agent: &crate::settings::Agent) {
+fn complete_profile_startup(document: &(impl fixtures::Input + ?Sized), agent: &crate::settings::Agent) {
     drop(checked_profile(document, agent));
 }
-fn checked_profile(document: &[u8], agent: &crate::settings::Agent) -> crate::settings::Engine {
+fn checked_profile(
+    document: &(impl fixtures::Input + ?Sized),
+    agent: &crate::settings::Agent,
+) -> crate::settings::Engine {
     let named = fixtures::named(document, &jig_protocol_config::Directories::working()).unwrap();
     let mut entries = skein_lib::List::with_capacity(u32::try_from(named.files.len()).unwrap());
     for file in named.files {
@@ -316,60 +319,32 @@ fn checked_profile(document: &[u8], agent: &crate::settings::Agent) -> crate::se
     checked_profile_with_files(document, agent, &crate::settings::Files { entries })
 }
 fn checked_profile_with_files(
-    document: &[u8],
+    document: &(impl fixtures::Input + ?Sized),
     agent: &crate::settings::Agent,
     files: &crate::settings::Files,
 ) -> crate::settings::Engine {
-    match crate::startup::checked_start_with(
-        document,
+    let document = fixtures::Input::configured(document);
+    match crate::startup::checked_start_with_limits(
+        &document,
         &jig_protocol_config::Directories::working(),
         files,
         Some(agent),
         &fixtures::seeds(),
         skein_lib::List::with_capacity(0),
         None,
-        &fixtures::given(document, &jig_protocol_config::Directories::working()),
+        &fixtures::given(&document, &jig_protocol_config::Directories::working()),
         None,
+        &document.jig,
+        &document.own,
     ) {
         Ok(checked) => checked.engine,
         Err(problems) => panic!("{}", String::from_utf8_lossy(&lines(&problems))),
     }
 }
 
-/// Merge every shipped overlay member as protocol/configuration/reference.md requires.
-fn merge_profile_members(base: &mut serde_json::Value, overlay: serde_json::Value) {
-    match (base, overlay) {
-        (serde_json::Value::Object(base), serde_json::Value::Object(overlay)) => {
-            for (name, value) in overlay {
-                if let Some(previous) = base.get_mut(&name) {
-                    merge_profile_members(previous, value);
-                } else {
-                    base.insert(name, value);
-                }
-            }
-        }
-        (base, overlay) => *base = overlay,
-    }
-}
-
-fn profile_question_bound(bytes: &[u8]) -> u32 {
-    let document = jig_protocol_config::document(
-        bytes,
-        &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 16_384, depth: 32 },
-    )
-    .unwrap();
-    let jig = fixtures::parse_engine(&fixtures::value(bytes, b"engine"));
-    let mut problems = Problems::empty();
-    let application = crate::startup::application::parse(
-        &document,
-        document.member(0, b"application").unwrap(),
-        &jig,
-        &jig_protocol_config::Directories::working(),
-        &mut problems,
-    )
-    .unwrap();
-    assert_eq!(lines(&problems).as_ref(), b"");
-    crate::limits::engine(&jig.limits, &application.limits).unwrap().forge.change_policy.questions
+fn profile_question_bound(input: &(impl fixtures::Input + ?Sized)) -> u32 {
+    let input = fixtures::Input::configured(input);
+    crate::limits::engine(&input.jig, &input.own).unwrap().forge.change_policy.questions
 }
 
 /// The reference supplies four questions over init's standard eighty, before the first start.
@@ -394,20 +369,18 @@ fn shipped_payload_profiles_pass_complete_startup_checks() {
 
 #[test]
 fn raised_checkout_profiles_pass_complete_startup_checks() {
-    let mut stock: serde_json::Value = serde_json::from_slice(&super::stock::generated()).unwrap();
-    stock["application"]["limits"]["overrides"]["checkout.conflicts"] = 1024_u32.into();
-    stock["application"]["limits"]["overrides"]["git_component.stdout_bytes"] = 262_144_u32.into();
+    let mut stock = super::stock::generated();
+    stock.own.checkout.conflicts = 1024;
+    stock.own.git_component.stdout_bytes = 262_144;
     let stock_agent = fixtures::parsed_agent(fixtures::stock_configuration(63_740, 48_000).expect("stock agent"));
-    complete_profile_startup(&serde_json::to_vec(&stock).unwrap(), &stock_agent);
-    let generated = fixtures::document();
+    complete_profile_startup(&stock, &stock_agent);
+    let mut small = fixtures::document();
     let mut agent = fixtures::startup_agent();
     agent.host_limits.conflicts = 1024;
-    let mut small: serde_json::Value = serde_json::from_slice(&generated).unwrap();
-    let limits = &mut small["application"]["limits"]["overrides"];
-    limits["checkout.repositories"] = 2_u32.into();
-    limits["checkout.conflicts"] = 1024_u32.into();
-    limits["git_component.stdout_bytes"] = 262_144_u32.into();
-    complete_profile_startup(&serde_json::to_vec(&small).unwrap(), &agent);
+    small.own.checkout.repositories = 2;
+    small.own.checkout.conflicts = 1024;
+    small.own.git_component.stdout_bytes = 262_144;
+    complete_profile_startup(&small, &agent);
 }
 
 #[test]
@@ -437,16 +410,18 @@ fn reference_agent() -> crate::settings::Agent {
     )
 }
 
-fn reference_document(generated: &[u8]) -> Box<[u8]> {
-    let mut document: serde_json::Value = serde_json::from_slice(generated).unwrap();
-    merge_profile_members(
-        &mut document,
-        serde_json::from_slice(include_bytes!("../../../../docs/examples/reference/limits.json")).unwrap(),
-    );
+fn reference_document(generated: &(impl fixtures::Input + ?Sized)) -> fixtures::Start {
+    let mut configured = fixtures::Input::configured(generated);
+    temper_limits_fixtures::reference_over(&mut configured.jig, &mut configured.own);
     let room = reference_room();
-    merge_profile_members(&mut document["engine"]["limits"], room["worker"]["limits"].clone());
-    merge_profile_members(&mut document["application"], room["application"].clone());
-    serde_json::to_vec(&document).unwrap().into_boxed_slice()
+    for (name, value) in room["worker"]["limits"]["overrides"].as_object().unwrap() {
+        let mut value = value.as_u64().unwrap();
+        if name == "io.output" {
+            value = value.max(u64::from(temper_service_core::derived::OUTPUT_FLOOR));
+        }
+        jig_protocol_config::overrides::apply(&mut configured.jig, name.as_bytes(), value).unwrap();
+    }
+    configured
 }
 
 #[test]
@@ -456,9 +431,10 @@ fn the_reference_room_starts_and_holds_its_relations() {
     let agent = reference_agent();
     let document = reference_document(&super::stock::generated());
     complete_profile_startup(&document, &agent);
-    let document: serde_json::Value = serde_json::from_slice(&document).unwrap();
-    let engine = &document["engine"]["limits"]["overrides"];
-    let own = &document["application"]["limits"]["overrides"];
+    let engine: serde_json::Value =
+        serde_json::from_slice(&fixtures::value(&document, b"engine.limits.overrides")).unwrap();
+    let own: serde_json::Value =
+        serde_json::from_slice(&fixtures::value(&document, b"application.limits.overrides")).unwrap();
     let payload = u64::from(agent.tool_payload);
     let output = room["agent"]["output"].as_u64().unwrap();
     let turn = u64::from(agent.limits.bodies.turn_body);
@@ -479,7 +455,8 @@ fn the_reference_room_starts_and_holds_its_relations() {
         assert_eq!(engine[name].as_u64(), Some(value), "engine {name}");
     }
     assert_eq!(engine["hub.event_bytes"].as_u64(), Some(payload - 2));
-    for worker in document["workers"].as_array().unwrap() {
+    let stored: serde_json::Value = serde_json::from_slice(&document).unwrap();
+    for worker in stored["workers"].as_array().unwrap() {
         assert!(worker.get("limits").is_none());
     }
     for (name, value) in [
@@ -502,7 +479,7 @@ fn the_reference_room_starts_and_holds_its_relations() {
     ] {
         assert_eq!(own[name].as_u64(), Some(value), "application {name}");
     }
-    let parsed = super::stock::engine(&serde_json::to_vec(&document).expect("reference document"));
+    let parsed = super::stock::engine(&document);
     let defaults = crate::stock::with_models(parsed.llm.models.clone(), parsed.limits.core.tasks.result_bytes);
     for number in [5, 2] {
         let charter = super::reference_settings::charter(&defaults, number);
@@ -537,87 +514,23 @@ fn landing_members_fits_the_prepare_prefixes_channel_envelope() {
 #[test]
 fn init_documents_start_without_carrier_overrides() {
     let generated = super::stock::generated();
-    let original: serde_json::Value = serde_json::from_slice(&generated).unwrap();
-    let mut input = original.clone();
-    let jig_names = [
-        "core.resume_bytes",
-        "hub.turn_bytes",
-        "hub.transcript_bytes",
-        "hub.turn_queue_bytes",
-        "io.output",
-        "tasks.message_bytes",
-        "tasks.result_bytes",
-        "tasks.inbox_bytes",
-        "hub.event_bytes",
-        "hub.outcome_bytes",
-        "core.call_answer_bytes",
-    ];
-    for at in ["/engine/limits/overrides"] {
-        let overrides = input.pointer_mut(at).unwrap().as_object_mut().unwrap();
-        for name in jig_names {
-            overrides.remove(name);
-        }
-    }
-    let own_names = [
-        "root.journal.transcript_bytes",
-        "root.loads.transcript_bytes",
-        "root.loads.bytes",
-        "root.loads.reply_bytes",
-        "root.loads.read_bytes",
-        "checkout.message_bytes",
-        "checkout.workspaces",
-        "git_component.operations",
-        "forge.client.op_bytes",
-        "forge.client.answer_bytes",
-        "forge_component.body_bytes",
-    ];
-    for name in own_names {
-        input["application"]["limits"]["overrides"].as_object_mut().unwrap().remove(name);
-    }
     let agent = fixtures::parsed_agent(fixtures::stock_configuration(63_740, 48_000).unwrap());
-    let bytes = serde_json::to_vec(&input).unwrap();
-    let checked = checked_profile_with_files(&bytes, &agent, &super::stock::files());
-    for name in jig_names {
-        if let Some(previous) = original["engine"]["limits"]["overrides"][name].as_u64() {
-            let named = jig_protocol_config::names::find(name.as_bytes()).unwrap();
-            let expected = if name == "io.output" {
-                previous.max(u64::from(temper_service_core::derived::OUTPUT_FLOOR))
-            } else {
-                previous
-            };
-            assert_eq!((named.value)(&checked.jig.limits), expected, "engine {name}");
-        }
-    }
-    for name in own_names {
-        if let Some(previous) = original["application"]["limits"]["overrides"][name].as_u64() {
-            let named = crate::limits::find(name.as_bytes()).unwrap();
-            assert_eq!((named.value)(&checked.limits), previous, "application {name}");
-        }
-    }
-    let worker_bytes = serde_json::to_vec(&input["workers"][0]).unwrap();
-    let document = jig_protocol_config::document(
-        &worker_bytes,
-        &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 16_384, depth: 32 },
-    )
-    .unwrap();
-    let worker = temper_service_core::derived::worker_document(
-        &document,
-        0,
+    let checked = crate::startup::checked_start_with(
+        &generated,
         &jig_protocol_config::Directories::working(),
-        temper_service_core::derived::Sources::agent(&agent.declaration()),
+        &super::stock::files(),
+        Some(&agent),
+        &fixtures::seeds(),
+        skein_lib::List::with_capacity(0),
+        None,
+        &crate::stock::Given::Stock,
+        None,
     )
     .unwrap();
-    for name in jig_names {
-        if let Some(previous) = original["workers"][0]["limits"]["overrides"][name].as_u64() {
-            let named = jig_protocol_config::names::find(name.as_bytes()).unwrap();
-            let expected = if name == "io.output" {
-                previous.max(u64::from(temper_service_core::derived::OUTPUT_FLOOR))
-            } else {
-                previous
-            };
-            assert_eq!((named.value)(worker.limits.as_ref().unwrap()), expected, "worker {name}");
-        }
-    }
+    assert_eq!(checked.engine.jig.limits.hub.turn_bytes, u64::from(agent.limits.bodies.turn_body));
+    assert_eq!(checked.engine.jig.limits.core.tasks.message_bytes, 63_738);
+    assert_eq!(checked.engine.limits.tool_payload, 63_740);
+    assert_eq!(checked.engine.limits.root.transcript_memory, 1_073_741_824);
 }
 
 #[test]
@@ -625,15 +538,8 @@ fn reference_overrides_stand_over_the_derived_base() {
     let input = reference_document(&super::stock::generated());
     let agent = reference_agent();
     let checked = checked_profile_with_files(&input, &agent, &super::stock::files());
-    let document: serde_json::Value = serde_json::from_slice(&input).unwrap();
-    for (name, expected) in document["engine"]["limits"]["overrides"].as_object().unwrap() {
-        let named = jig_protocol_config::names::find(name.as_bytes()).unwrap();
-        assert_eq!((named.value)(&checked.jig.limits), expected.as_u64().unwrap(), "engine {name}");
-    }
-    for (name, expected) in document["application"]["limits"]["overrides"].as_object().unwrap() {
-        let named = crate::limits::find(name.as_bytes()).unwrap();
-        assert_eq!((named.value)(&checked.limits), expected.as_u64().unwrap(), "application {name}");
-    }
+    assert_eq!(checked.jig.limits.core.tasks.tree_tasks, 1024);
+    assert_eq!(checked.limits.forge.change_policy.questions, 4);
 }
 
 #[test]
@@ -665,18 +571,18 @@ fn forge_body_follows_the_effective_operation_unless_overridden() {
         (r#"{"forge.client.op_bytes":1000,"forge_component.body_bytes":3000}"#, 3000),
     ] {
         let input = fixtures::with(&fixtures::document(), b"application.limits.overrides", overrides.as_bytes());
-        let input = core::str::from_utf8(&input).unwrap().replace(",\"forge_component.body_bytes\":16384", "");
         let document = jig_protocol_config::document(
-            input.as_bytes(),
+            &input,
             &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 16_384, depth: 32 },
         )
         .unwrap();
         let mut problems = Problems::empty();
-        let own = crate::startup::application::parse(
+        let own = crate::startup::application::parse_with_limits(
             &document,
             document.member(0, b"application").unwrap(),
             &jig,
             &jig_protocol_config::Directories::working(),
+            &input.own,
             &mut problems,
         )
         .unwrap();

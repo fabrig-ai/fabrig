@@ -42,6 +42,10 @@ fn forbidden_at(path: &Path, source: &str) -> bool {
         // The machine adapter returns the worker shell's prepared command.
         // Process creation, exec and locks remain guarded.
         source.replace("Result<std::process::Command, String>", "PreparedLoginCommand")
+    } else if path.ends_with("temper-engine-shell/src/upgrade/scratch.rs") {
+        // Rehearsal scratch uses io's nonblocking exclusive flock (protocol/binaries.md, 2).
+        // Blocking locks, shared locks and process operations stay guarded.
+        source.replace(".try_lock()", ".scratch_lock()")
     } else if path.ends_with("temper-fetch-shell/src/fetch.rs") {
         // Claude Code's missing build is fetched under an exclusive file lock
         // (protocol/setup/owned.md, 6); process operations stay in process.rs.
@@ -196,6 +200,9 @@ fn the_scan_catches_each_form_and_passes_other_process_modules() {
         ("temper-worker-shell/src/program_login.rs", "std::process::Child", true),
         ("temper-worker-shell/src/program_login.rs", "std::process::exit(1)", true),
         ("temper-worker-shell/src/program_login.rs", "try_lock", true),
+        ("temper-engine-shell/src/upgrade/scratch.rs", "file.try_lock()", false),
+        ("temper-engine-shell/src/upgrade/scratch.rs", "file.lock()", true),
+        ("temper-engine-shell/src/upgrade/scratch.rs", "std::process::Command", true),
         ("temper-fetch-shell/src/fetch.rs", "file.lock()", false),
         ("temper-fetch-shell/src/fetch.rs", "try_lock", true),
         ("temper-fetch-shell/src/fetch.rs", "std::process::Command", true),

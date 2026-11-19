@@ -540,7 +540,7 @@ impl Play for Walker {
     fn next(&mut self, face: &mut BrowserFace<'_>, now: Time) -> Next<Box<[u8]>> {
         match self.progress(face, now) {
             Ok(next) => next,
-            Err(why @ (Refusal::SetupTimeout { .. } | Refusal::MarkTimeout { .. })) => {
+            Err(why @ (Refusal::SetupTimeout { .. } | Refusal::MarkTimeout { .. } | Refusal::NotStill { .. })) => {
                 // The timed-out action stays failed; these reads only explain its page.
                 self.phase = Phase::Diagnostic { page: Diagnostic::new(why, face) };
                 Next::Wait { until: Some(now.saturating_add(POLL)) }
@@ -643,9 +643,11 @@ mod tests {
         );
     }
     #[test]
-    fn setup_and_mark_timeouts_report_the_current_address_and_page() {
+    fn setup_mark_and_still_timeouts_report_the_current_address_and_page() {
         use skein_browser::boundary::{Event, Request};
-        for phase in [Phase::SetupStep { at: 0 }, Phase::MarkWait { mark: 1, text: b"Settled".as_slice().into() }] {
+        for phase in
+            [Phase::SetupStep { at: 0 }, Phase::MarkWait { mark: 1, text: b"Settled".as_slice().into() }, Phase::Start]
+        {
             let mut walker = walker();
             walker.phase = phase;
             walker.since = Some(Time::ZERO);
@@ -667,7 +669,10 @@ mod tests {
             let Refusal::PageState { why, address: found_address, text: found_text } = walker.refusal.unwrap() else {
                 panic!("the timeout retains its page state")
             };
-            assert!(matches!(*why, Refusal::SetupTimeout { .. } | Refusal::MarkTimeout { .. }));
+            assert!(matches!(
+                *why,
+                Refusal::SetupTimeout { .. } | Refusal::MarkTimeout { .. } | Refusal::NotStill { .. }
+            ));
             assert_eq!(found_address.as_ref(), address);
             assert_eq!(found_text.as_ref(), text);
         }

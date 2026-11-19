@@ -373,6 +373,7 @@ fn removal_retires_waiting_reads_and_keeps_watches_from_returning() {
         &mut d,
         Event::Restore {
             record: Stored::Hold(Hold {
+                beside: None,
                 design_writers: Box::new([]),
                 name: name.clone(),
                 task: 7,
