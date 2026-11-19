@@ -1,11 +1,15 @@
 //! Volatile browser approvals and reserved takes (jig/docs/design/protocol/client/sign-in.md).
-use super::{Component, Env, Limits, Queue, ReplyTo, Request, Token, Waiting, core, people, routes, sign_in, w};
-use crate::{Reply, exchange::Exchange, routes::Route};
+use super::{
+    Component, Env, Limits, Queue, ReplyTo, Request, Token, Waiting, core as domain_core, people, routes, sign_in, w,
+};
+use crate::{Reply, Via, exchange::Exchange, routes::Route};
 use alloc::boxed::Box;
 use jig_client_protocol_wire::ApprovalCode;
 use skein_lib::{CryptoRng, Duration, Map, Reader, Secret, Time, Wall, sha256};
 
 pub(crate) const WAITING: u32 = 4;
+const PER_SOURCE: u32 = 2;
+const WRONG_GRANTS: u32 = 3;
 pub(crate) const ASKED_LINKS: u32 = 4;
 pub(crate) const SPAN: Duration = Duration::from_secs(600);
 pub(crate) const PAST: u32 = 8;
@@ -30,6 +34,11 @@ struct Approval {
     until: Time,
     expires: Wall,
     decision: Decision,
+    kind: w::ApprovalKind,
+    source: Option<core::net::IpAddr>,
+    port: Option<u16>,
+    grant_digest: Option<Secret>,
+    wrong_grants: u32,
 }
 #[derive(Debug)]
 struct Past {
@@ -149,6 +158,23 @@ impl State {
             }
         }
     }
+    fn waiting_from(&self, source: Option<core::net::IpAddr>) -> u32 {
+        let mut count = 0_u32;
+        for (_, approval) in &self.live {
+            match approval.kind {
+                w::ApprovalKind::Listener => {}
+                w::ApprovalKind::Returned | w::ApprovalKind::Typed => match approval.decision {
+                    Decision::Waiting => {
+                        if approval.source == source {
+                            count = count.saturating_add(1);
+                        }
+                    }
+                    Decision::Approved { .. } | Decision::Taking { .. } => {}
+                },
+            }
+        }
+        count
+    }
     fn draw_code(&self, rng: &mut CryptoRng) -> ApprovalCode {
         for _ in 0..DRAW_ATTEMPTS {
             let mut indexes = [0; 8];
@@ -173,15 +199,52 @@ impl State {
         unreachable!("random stream supplies a code not held by four live approvals")
     }
 }
+fn address(source: Option<core::net::IpAddr>) -> Option<[u8; 16]> {
+    match source {
+        Some(core::net::IpAddr::V4(a)) => Some(a.to_ipv6_mapped().octets()),
+        Some(core::net::IpAddr::V6(a)) => Some(a.octets()),
+        None => None,
+    }
+}
 impl Component {
     pub(super) fn approval_ask(&mut self, env: &Env<Limits>, connection: &mut Exchange, body: &[u8]) {
         let mut reader = Reader::new(body);
-        if w::ApprovalAsk::decode(&env.limits.wire, &mut reader).is_err() || !reader.is_empty() {
+        let Ok(record) = w::ApprovalAsk::decode(&env.limits.wire, &mut reader) else {
+            connection.respond(Reply::NotARecord);
+            return;
+        };
+        if !reader.is_empty() {
             connection.respond(Reply::NotARecord);
             return;
         }
+        let port = *record.port();
+        let kind = match connection.via {
+            Via::Listener => {
+                if port.is_some() {
+                    connection.respond(Reply::Record(routes::approval_ask_answer(w::ApprovalAskAnswer::Refused)));
+                    return;
+                }
+                w::ApprovalKind::Listener
+            }
+            Via::Public => match port {
+                Some(port) => {
+                    if port < 1024 {
+                        connection.respond(Reply::Record(routes::approval_ask_answer(w::ApprovalAskAnswer::Refused)));
+                        return;
+                    }
+                    w::ApprovalKind::Returned
+                }
+                None => w::ApprovalKind::Typed,
+            },
+        };
         self.approval.sweep(env.now);
-        let answer = if self.approval.live.len() == WAITING {
+        let answer = if self.approval.live.len() == WAITING
+            || match kind {
+                w::ApprovalKind::Listener => false,
+                w::ApprovalKind::Returned | w::ApprovalKind::Typed => {
+                    self.approval.waiting_from(connection.source) >= PER_SOURCE
+                }
+            } {
             w::ApprovalAskAnswer::Busy
         } else {
             let secret = sign_in::draw(&mut self.rng);
@@ -198,6 +261,11 @@ impl Component {
                         expires,
                         until: env.now.saturating_add(SPAN),
                         decision: Decision::Waiting,
+                        kind,
+                        source: connection.source,
+                        port,
+                        grant_digest: None,
+                        wrong_grants: 0,
                     },
                 )
                 .expect("room for approval");
@@ -237,7 +305,11 @@ impl Component {
         let answer = if route == Route::ApprovalRead {
             match w::ApprovalRead::decode(&env.limits.wire, &mut reader) {
                 Ok(record) if reader.is_empty() => {
-                    Some(routes::approval_state(self.approval_read(env, *record.code())))
+                    let source = match self.owner(exchange) {
+                        Some(owner) => self.connections.get(&owner).expect("approval exchange owner").source,
+                        None => None,
+                    };
+                    Some(routes::approval_state(self.approval_read(env, *record.code(), source)))
                 }
                 Ok(_) | Err(_) => None,
             }
@@ -258,7 +330,7 @@ impl Component {
             }
         }
     }
-    fn approval_read(&self, env: &Env<Limits>, code: [u8; 8]) -> w::ApprovalState {
+    fn approval_read(&self, env: &Env<Limits>, code: [u8; 8], reader: Option<core::net::IpAddr>) -> w::ApprovalState {
         if let Some(digest) = self.approval.code(code) {
             let approval = self.approval.live.get(&digest).expect("live approval");
             return match approval.decision {
@@ -267,9 +339,9 @@ impl Component {
                         &env.limits.wire,
                         w::ApprovalWaitingParts {
                             asked: approval.asked.as_nanos(),
-                            kind: w::ApprovalKind::Listener,
-                            source: None,
-                            reader: None,
+                            kind: approval.kind.clone(),
+                            source: address(approval.source),
+                            reader: address(reader),
                         },
                     )
                     .expect("fixed waiting fits"),
@@ -290,9 +362,26 @@ impl Component {
             return match approval.decision {
                 Decision::Waiting => {
                     if approve {
+                        let loopback = match approval.kind {
+                            w::ApprovalKind::Returned => {
+                                let grant = sign_in::draw(&mut self.rng);
+                                approval.grant_digest = Some(sign_in::digest(grant.expose()));
+                                Some(
+                                    w::ApprovalLoopback::new(
+                                        &w::CEILINGS,
+                                        w::ApprovalLoopbackParts {
+                                            port: approval.port.expect("returned approval has a port"),
+                                            grant,
+                                        },
+                                    )
+                                    .expect("fixed loopback fits"),
+                                )
+                            }
+                            w::ApprovalKind::Listener | w::ApprovalKind::Typed => None,
+                        };
                         approval.decision = Decision::Approved { sign_in };
                         w::ApprovalDecided::Approved(
-                            w::ApprovalApproved::new(&w::CEILINGS, w::ApprovalApprovedParts { loopback: None })
+                            w::ApprovalApproved::new(&w::CEILINGS, w::ApprovalApprovedParts { loopback })
                                 .expect("fixed approval fits"),
                         )
                     } else {
@@ -334,6 +423,35 @@ impl Component {
                     Decision::Waiting => Some(w::ApprovalSignInAnswer::Waiting),
                     Decision::Taking { .. } => Some(w::ApprovalSignInAnswer::Busy),
                     Decision::Approved { sign_in } => {
+                        match approval.kind {
+                            w::ApprovalKind::Returned => {
+                                let Some(grant) = record.grant() else {
+                                    connection.respond(Reply::Record(routes::approval_sign_in(
+                                        w::ApprovalSignInAnswer::Waiting,
+                                    )));
+                                    return;
+                                };
+                                let grant_digest = sha256::digest(grant.expose());
+                                if !sign_in::constant_time_eq(
+                                    approval
+                                        .grant_digest
+                                        .as_ref()
+                                        .expect("approved return has a grant digest")
+                                        .expose(),
+                                    &grant_digest,
+                                ) {
+                                    approval.wrong_grants = approval.wrong_grants.saturating_add(1);
+                                    if approval.wrong_grants == WRONG_GRANTS {
+                                        self.approval.end(&digest, End::Refused);
+                                    }
+                                    connection.respond(Reply::Record(routes::approval_sign_in(
+                                        w::ApprovalSignInAnswer::NotGranted,
+                                    )));
+                                    return;
+                                }
+                            }
+                            w::ApprovalKind::Listener | w::ApprovalKind::Typed => {}
+                        }
                         if self.admitted() >= env.limits.exchanges {
                             Some(w::ApprovalSignInAnswer::Busy)
                         } else {
@@ -343,7 +461,7 @@ impl Component {
                                 .exchanges
                                 .insert(connection.name, Waiting::ApprovalWhose { digest })
                                 .expect("admitted take");
-                            out.push(Request::Core(Box::new(core::Event::People(people::Event::Whose {
+                            out.push(Request::Core(Box::new(domain_core::Event::People(people::Event::Whose {
                                 reply_to: ReplyTo::new(connection.name),
                                 sign_in,
                             }))));
@@ -381,7 +499,7 @@ impl Component {
         match reply {
             people::Reply::Signer(Some(signer)) => {
                 self.pending.exchanges.insert(exchange, Waiting::ApprovalCore { digest }).expect("reserved take slot");
-                out.push(Request::Core(Box::new(core::Event::SignIn {
+                out.push(Request::Core(Box::new(domain_core::Event::SignIn {
                     until: None,
                     reply_to: ReplyTo::new(exchange),
                     identity: signer.identity,

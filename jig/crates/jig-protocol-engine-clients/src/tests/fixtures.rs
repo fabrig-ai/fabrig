@@ -185,6 +185,8 @@ pub struct Exchange {
     pub env: Env<Limits>,
     pub out: Queue<Request>,
     pub token: Box<[u8]>,
+    pub via: crate::Via,
+    pub source: Option<::core::net::IpAddr>,
 }
 impl Exchange {
     pub fn new() -> Self {
@@ -200,15 +202,15 @@ impl Exchange {
         let mut token = Writer::new(40);
         token.put(&NUMBER.to_be_bytes()).expect("number");
         token.put(&[7; 32]).expect("random bytes");
-        Self { component, env, out, token: token.finish() }
+        Self { component, env, out, token: token.finish(), via: crate::Via::Listener, source: None }
     }
     pub fn send(&mut self, message: crate::Message) -> Token {
         let owner = self.component.name();
         self.component.down(
             &self.env,
             Event::Transport(crate::FromTransport::Exchange {
-                via: crate::Via::Listener,
-                source: None,
+                via: self.via,
+                source: self.source,
                 browser: false,
                 exchange: owner,
                 credential: Some(Secret::new(self.token.clone())),
@@ -811,8 +813,8 @@ impl Exchange {
                 exchange: owner,
                 credential,
                 browser,
-                via: crate::Via::Listener,
-                source: None,
+                via: self.via,
+                source: self.source,
                 message,
             }),
             &mut self.out,
