@@ -57,9 +57,11 @@ pub fn run(
     record: bool,
     environment: &[super::EnvironmentEntry],
 ) -> Result<Exit, String> {
-    let (bytes, held, first_run) = configuration(directories, environment)?;
+    let (read, held, first_run) = configuration_read(directories, environment)?;
     let opening = Opening { log_lines: first_run.into_iter().collect(), after_block: Box::new([]) };
-    run_configuration(directories, &bytes, held, Box::new([]), echo, fronted, record, None, opening, environment)
+    read.prepare(|bytes| {
+        run_configuration(directories, bytes, held, Box::new([]), echo, fronted, record, None, opening, environment)
+    })
 }
 
 /// Lines opening the box log and following its sign-in block (protocol/setup/box.md, 2).
@@ -287,6 +289,14 @@ pub fn configuration(
     directories: &super::Directories,
     environment: &[super::EnvironmentEntry],
 ) -> Result<Configuration, String> {
+    configuration_read(directories, environment).map(|(read, held, first)| (read.document, held, first))
+}
+type ConfigurationRead =
+    (temper_service_shell::configuration::Read, Vec<(Fd, std::num::NonZeroU16)>, Option<Box<[u8]>>);
+fn configuration_read(
+    directories: &super::Directories,
+    environment: &[super::EnvironmentEntry],
+) -> Result<ConfigurationRead, String> {
     let config = super::path(&directories.config);
     let empty = match std::fs::read_dir(config) {
         Ok(mut entries) => match entries.next() {
@@ -308,8 +318,8 @@ pub fn configuration(
     } else {
         None
     };
-    match directories.read() {
-        Ok(bytes) => Ok((bytes, held, first_run)),
+    match temper_service_shell::configuration::read(directories, temper_config_shell::Shape::Standalone) {
+        Ok(read) => Ok((read, held, first_run)),
         Err(why) => {
             super::close(held.into_iter().map(|(fd, _)| fd).collect());
             Err(why)

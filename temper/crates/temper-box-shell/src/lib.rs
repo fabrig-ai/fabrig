@@ -414,7 +414,7 @@ pub fn run(
         }
         Command::ProgramLogin { directories, name } => {
             return program_login::run(&directories, &name, environment)
-                .map_err(|why| prefixed("temper-box program-login", &why.lines().collect::<Vec<_>>().join("; ")));
+                .map_err(|why| temper_service_shell::configuration::login_problems("temper-box program-login", &why));
         }
         Command::Fake { arguments } => return fake::run(&arguments),
         Command::FakeCheck { directories, check } => return Ok(fake::check::run(&directories, &check)),

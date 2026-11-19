@@ -8003,6 +8003,7 @@ dependencies = [
  "skein-lib",
  "skein-scratch",
  "skein-shell",
+ "temper-config-shell",
  "temper-service-core",
  "temper-shell",
 ]

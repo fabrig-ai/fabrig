@@ -44,40 +44,43 @@ pub fn command(
 ) -> Result<std::process::Command, String> {
     let name = source_name(name)?;
     let environment: Vec<_> = environment.into_iter().collect();
-    let bytes = directories.read()?;
-    let worker = match temper_service_core::startup::nearest(&bytes) {
-        Some(temper_service_core::startup::Shape::WorkerAlone) | None => {
-            let own: Vec<EnvironmentEntry> =
-                environment.iter().map(|(name, value)| (name.as_bytes().into(), value.as_bytes().into())).collect();
-            let part = temper_worker_service::startup::worker_part(&bytes, &jig_directories(directories), None, &own)
-                .map_err(|why| {
-                String::from_utf8_lossy(&temper_service_core::startup::problems::lines(&why)).into_owned()
-            })?;
-            let executable = std::env::current_exe().map_err(|why| why.to_string())?;
-            let agent = executable.parent().ok_or("worker executable has no directory")?.join("temper-agent");
-            return from_machine(&part, directories, name, environment, &agent);
+    let read = temper_service_shell::configuration::read(directories, temper_config_shell::Shape::WorkerAlone)?;
+    read.prepare(|bytes| {
+        let worker = match temper_service_core::startup::nearest(bytes) {
+            Some(temper_service_core::startup::Shape::WorkerAlone) | None => {
+                let own: Vec<EnvironmentEntry> =
+                    environment.iter().map(|(name, value)| (name.as_bytes().into(), value.as_bytes().into())).collect();
+                let part =
+                    temper_worker_service::startup::worker_part(bytes, &jig_directories(directories), None, &own)
+                        .map_err(|why| {
+                            String::from_utf8_lossy(&temper_service_core::startup::problems::lines(&why)).into_owned()
+                        })?;
+                let executable = std::env::current_exe().map_err(|why| why.to_string())?;
+                let agent = executable.parent().ok_or("worker executable has no directory")?.join("temper-agent");
+                return from_machine(&part, directories, name, environment, &agent);
+            }
+            Some(
+                temper_service_core::startup::Shape::Standalone | temper_service_core::startup::Shape::EngineAlone,
+            ) => deployment.ok_or("temper.json holds no worker alone")?(bytes, &jig_directories(directories))?,
+        };
+        let agent = super::agent::preflight_worker(&worker)?;
+        let program = agent
+            .programs
+            .iter()
+            .find(|program| program.adapter == temper_service_core::settings::Adapter::ClaudeCode)
+            .ok_or("workers[0].agent.configuration: programs.claude_code: not configured")?;
+        if super::agent::launcher(super::path(&program.directory)).as_deref() == Some(super::path(&program.path)) {
+            temper_launcher::place(
+                super::path(&program.path).parent().expect("launcher parent"),
+                super::path(&directories.cache),
+                super::path(&worker.program),
+            )
+            .map_err(|why| format!("programs.claude_code: {why}"))?;
         }
-        Some(temper_service_core::startup::Shape::Standalone | temper_service_core::startup::Shape::EngineAlone) => {
-            deployment.ok_or("temper.json holds no worker alone")?(&bytes, &jig_directories(directories))?
-        }
-    };
-    let agent = super::agent::preflight_worker(&worker)?;
-    let program = agent
-        .programs
-        .iter()
-        .find(|program| program.adapter == temper_service_core::settings::Adapter::ClaudeCode)
-        .ok_or("workers[0].agent.configuration: programs.claude_code: not configured")?;
-    if super::agent::launcher(super::path(&program.directory)).as_deref() == Some(super::path(&program.path)) {
-        temper_launcher::place(
-            super::path(&program.path).parent().expect("launcher parent"),
-            super::path(&directories.cache),
-            super::path(&worker.program),
-        )
-        .map_err(|why| format!("programs.claude_code: {why}"))?;
-    }
-    let source = smith_agent_document::program::prepare(super::path(&program.directory), name)
-        .map_err(|why| super::agent::program_directory_refusal(&why))?;
-    Ok(smith_agent_document::program::sign_in(super::path(&program.path), &source, environment))
+        let source = smith_agent_document::program::prepare(super::path(&program.directory), name)
+            .map_err(|why| super::agent::program_directory_refusal(&why))?;
+        Ok(smith_agent_document::program::sign_in(super::path(&program.path), &source, environment))
+    })
 }
 
 /// A box and a worker alone use their worker entry, never a retained agent document.

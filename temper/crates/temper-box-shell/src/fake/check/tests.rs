@@ -3,6 +3,23 @@ use crate::directories::jig_directories;
 use crate::directories::tests::scratch;
 use std::fs;
 
+#[test]
+fn toml_fake_check_refuses_both_files() {
+    let scratch = skein_scratch::Scratch::new("fake-check-both-files");
+    let directories = crate::tests::configuration::directories(scratch.path());
+    std::fs::write(scratch.path().join(temper_config_shell::FILE), "listen = \"127.0.0.1:7100\"\n").expect("box file");
+    std::fs::write(scratch.path().join(temper_config_shell::FORMER), b"never decoded").expect("former file");
+    assert_eq!(
+        super::configuration(&directories).unwrap_err(),
+        format!(
+            "{}: moved: the configuration is {}; write it from temper-box help config, then remove {}",
+            temper_config_shell::FORMER,
+            temper_config_shell::FILE,
+            temper_config_shell::FORMER
+        )
+    );
+}
+
 fn store_limits() -> jig_protocol_store::Limits {
     let mut limits = jig_protocol_config_fixtures::small().store;
     // Skein's real KV fixture, with chunk >= key + value + 20, and room

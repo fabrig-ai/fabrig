@@ -173,7 +173,14 @@ fn run_forge(command: &Command, row: &Row, arguments: &[Box<[u8]>], captured: &C
 
 /// Refuse another binary's nearest shape before the service's document checks (protocol/binaries.md, 2).
 fn refuse_document(command: &Command, directories: &Directories) -> Result<(), String> {
-    let Ok(bytes) = directories.read() else { return Ok(()) };
+    let Ok(read) = temper_service_shell::configuration::read(directories, temper_config_shell::Shape::EngineAlone)
+    else {
+        return Ok(());
+    };
+    if read.keys.is_some() {
+        return Ok(());
+    }
+    let bytes = read.document;
     let why = match nearest(&bytes) {
         Some(Shape::WorkerAlone) => "a worker alone; temper-worker serve runs it",
         Some(Shape::Standalone) => "an engine and its worker in one process; temper-box serve runs it",

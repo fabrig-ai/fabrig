@@ -245,13 +245,15 @@ pub fn prepare_in(
     working: &[u8],
     directories: &Directories,
 ) -> Result<service::Service, String> {
-    let bytes = directories.read().map_err(|why| prefixed(&format!("{binary} serve"), &why))?;
+    let read = temper_service_shell::configuration::read(directories, temper_config_shell::Shape::EngineAlone)
+        .map_err(|why| prefixed(&format!("{binary} serve"), &why))?;
+    let bytes = &read.document;
     let mut owned = Vec::new();
-    let result = prepare(binary, environment, working, directories, &bytes, &mut owned);
+    let result = prepare(binary, environment, working, directories, bytes, &mut owned);
     if result.is_err() {
         close(owned);
     }
-    result.map_err(|why| prefixed(&format!("{binary} serve"), &why))
+    result.map_err(|why| prefixed(&format!("{binary} serve"), &read.problems(&why)))
 }
 /// Prepare an in-process world's service with the supplied defaults.
 pub fn prepare_in_with(
@@ -261,14 +263,16 @@ pub fn prepare_in_with(
     directories: &Directories,
     given: &service::stock::Given,
 ) -> Result<service::Service, String> {
-    let bytes = directories.read().map_err(|why| prefixed(&format!("{binary} serve"), &why))?;
+    let read = temper_service_shell::configuration::read(directories, temper_config_shell::Shape::EngineAlone)
+        .map_err(|why| prefixed(&format!("{binary} serve"), &why))?;
+    let bytes = &read.document;
     let mut owned = Vec::new();
-    let result = prepare_given(binary, environment, working, directories, &bytes, &mut owned, given, false, "")
+    let result = prepare_given(binary, environment, working, directories, bytes, &mut owned, given, false, "")
         .map(|(service, _)| service);
     if result.is_err() {
         close(owned);
     }
-    result.map_err(|why| prefixed(&format!("{binary} serve"), &why))
+    result.map_err(|why| prefixed(&format!("{binary} serve"), &read.problems(&why)))
 }
 /// The same for an in-process world's service, with the supplied defaults.
 pub fn operations_in_with(
@@ -301,6 +305,7 @@ pub fn run(
     temper_service_shell::run(
         binary,
         directories,
+        temper_config_shell::Shape::EngineAlone,
         environment,
         crate::served::SERVED,
         &skein_shell::Clock::new(),

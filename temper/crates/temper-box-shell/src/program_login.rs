@@ -9,31 +9,33 @@ pub(crate) fn command(
     let environment: Vec<_> = environment.into_iter().collect();
     let own: Vec<super::EnvironmentEntry> =
         environment.iter().map(|(name, value)| (name.as_bytes().into(), value.as_bytes().into())).collect();
-    let bytes = directories.read()?;
-    let local =
-        crate::serve::local_setting(&crate::path(&directories.data).join("local.setting"), &mut std::io::stderr());
-    let places = local.as_ref().map_or(4, jig_client_protocol_wire::WorkerSetting::places);
-    let mut part = temper_service::startup::box_worker(
-        &bytes,
-        &temper_service_shell::jig_directories(directories),
-        &temper_service::stock::Given::Stock,
-        &temper_service::stock::agents(),
-        places,
-        &own,
-    )
-    .map_err(|why| String::from_utf8_lossy(&temper_service::startup::lines(&why)).into_owned())?
-    .ok_or("workers: standalone takes one worker")?;
-    if let Some(claude) = crate::fake_backends::configured_claude(directories)? {
-        part.claude = Some(claude.as_os_str().as_bytes().into());
-    }
-    let executable = std::env::current_exe().map_err(|why| why.to_string())?;
-    temper_worker_shell::program_login::from_machine(
-        &part,
-        directories,
-        name.to_str().ok_or("source name must be ASCII")?,
-        environment,
-        &executable,
-    )
+    let read = temper_service_shell::configuration::read(directories, temper_config_shell::Shape::Standalone)?;
+    read.prepare(|bytes| {
+        let local =
+            crate::serve::local_setting(&crate::path(&directories.data).join("local.setting"), &mut std::io::stderr());
+        let places = local.as_ref().map_or(4, jig_client_protocol_wire::WorkerSetting::places);
+        let mut part = temper_service::startup::box_worker(
+            bytes,
+            &temper_service_shell::jig_directories(directories),
+            &temper_service::stock::Given::Stock,
+            &temper_service::stock::agents(),
+            places,
+            &own,
+        )
+        .map_err(|why| String::from_utf8_lossy(&temper_service::startup::lines(&why)).into_owned())?
+        .ok_or("workers: standalone takes one worker")?;
+        if let Some(claude) = crate::fake_backends::configured_claude(directories)? {
+            part.claude = Some(claude.as_os_str().as_bytes().into());
+        }
+        let executable = std::env::current_exe().map_err(|why| why.to_string())?;
+        temper_worker_shell::program_login::from_machine(
+            &part,
+            directories,
+            name.to_str().ok_or("source name must be ASCII")?,
+            environment,
+            &executable,
+        )
+    })
 }
 pub(crate) fn run(
     directories: &super::Directories,
@@ -41,9 +43,11 @@ pub(crate) fn run(
     environment: &[super::EnvironmentEntry],
 ) -> Result<u8, String> {
     use std::os::unix::ffi::OsStrExt;
-    if temper_service::startup::shape(&directories.read()?, &temper_service_shell::jig_directories(directories))
-        .map_err(|why| String::from_utf8_lossy(&temper_service::startup::lines(&why)).into_owned())?
-        == temper_service::startup::Shape::WorkerAlone
+    let read = temper_service_shell::configuration::read(directories, temper_config_shell::Shape::Standalone)?;
+    if read.prepare(|bytes| {
+        temper_service::startup::shape(bytes, &temper_service_shell::jig_directories(directories))
+            .map_err(|why| String::from_utf8_lossy(&temper_service::startup::lines(&why)).into_owned())
+    })? == temper_service::startup::Shape::WorkerAlone
     {
         return temper_worker_shell::program_login::run(directories, name, environment, None);
     }
