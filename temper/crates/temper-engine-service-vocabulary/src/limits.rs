@@ -292,10 +292,10 @@ const ROOT: Root = Root {
         loads: 2,
         // Two rows per load page, bounding each owner read’s work.
         rows: 2,
-        // The whole note's 70,208 owned bytes and its 248-byte temper record slot.
-        bytes: 70_456,
+        // The whole note's 70,208 owned bytes and its 256-byte temper record slot.
+        bytes: 70_464,
         // The same whole note and record slot fit the reply before source derivation.
-        reply_bytes: 70_456,
+        reply_bytes: 70_464,
         // One authenticated read's owned bytes; jig stock core.load_bytes.
         read_bytes: 131_072,
         // A whole stock note: body 65,536, description and pattern 256 each,

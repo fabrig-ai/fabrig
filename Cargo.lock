@@ -2299,6 +2299,7 @@ version = "0.0.0"
 dependencies = [
  "jig-client-protocol-wire",
  "jig-domain-core",
+ "jig-domain-fleet",
  "jig-domain-people",
  "jig-domain-tasks",
  "jig-protocol-config",

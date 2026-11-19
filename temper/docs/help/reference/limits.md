@@ -33,9 +33,9 @@ Every limit application.limits.overrides takes: its unit, the stock's value and 
 - `root.journal.run_bytes`: bytes, 65,536. Bounds a run charter's owned bytes in a held assignment.
 - `root.loads.loads`: count, 2. Bounds issued store loads, including abandoned reads awaiting their terminal answer.
 - `root.loads.rows`: count, 2. Bounds rows requested and accepted in one incoming store page.
-- `root.loads.bytes`: bytes, 18,432,090. Bounds a kept page prefix, counting record slots and their owned bytes.
+- `root.loads.bytes`: bytes, 18,432,098. Bounds a kept page prefix, counting record slots and their owned bytes.
 - `root.loads.read_bytes`: bytes, 36,863,684. Bounds owned bytes one authenticated store read brings for a person.
-- `root.loads.reply_bytes`: bytes, 18,432,090. Bounds a decoded store answer before its kept prefix is cut.
+- `root.loads.reply_bytes`: bytes, 18,432,098. Bounds a decoded store answer before its kept prefix is cut.
 - `root.loads.transcript_bytes`: bytes, 18,431,842. Bounds a row's owned bytes, including transcripts and wrapped child rows, before the prefix is cut.
 - `root.brief.briefs`: count, 2. Bounds briefs the root gathers at once.
 - `root.brief.sections`: count, 10. Bounds brief sections the root gathers at once.
