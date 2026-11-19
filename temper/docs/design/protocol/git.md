@@ -812,10 +812,14 @@ directory:
 - **Not geometric.** git 2.47's `repack --geometric` refuses a repository
   with a promisor remote, which every blob-less store and checkout is
   (`fatal: cannot use internal rev list with --stdin-packs`).
-- **One repack of a store at a time.** A `Pack` whose store another `Pack`
-  in flight names leaves the store to that one and goes on with its
-  repository. A fetch meanwhile is safe: git repacks only the packs there
-  when it starts, and skips one a fetch still marks `.keep`.
+- **A store's lock,** the component's, so that a repack never runs beside
+  another repack or a fetch in the same store (the user, 2026-11-19).
+  Fetch's store fetch (4.3) shares it with other fetches; a `Pack`'s count
+  and repack in the store hold it alone. An operation that cannot take it
+  waits, with no invocation, behind those that came before it, under its
+  own deadline (section 7), and takes it once those ahead of it have it or
+  are gone. A repository needs none: it runs one operation at a time.
+  Other readers of the store, a check out's and a merge's, take no lock.
 - **Under the local deadline** (section 7): a repack it kills leaves its
   temporary files in `objects/pack` (section 10).
 
@@ -1009,7 +1013,9 @@ checks this document's contract:
     an identity appears in an argument; the
     message's bytes; the alternates file's bytes; a `Pack`'s count and
     repack in the store and then the repository, each repack only past 50
-    packs, and no store repacked while another `Pack` holds it;
+    packs, and the store's lock: a fetch and a `Pack`'s store part never
+    run together in one store, nor two `Pack`s, and waiters take it in
+    order;
   - **the parsers:** count-objects' `packs:` line, fetch's porcelain line, push's status lines, NUL
     lists, ids of 40 and 64 digits and malformed ones, the conversions
     both ways, and the classifier of section 6, each against transcripts
@@ -1089,10 +1095,11 @@ checks this document's contract:
   temporary files in `objects/pack`, which `count-objects` counts as
   garbage and no pack lookup reads; and a store whose repack outgrows the
   local deadline is cut short each time a prepare asks it, every 25
-  fetches into it. Default: as it stands, since a blob-less store holds no file
-  contents (50 MB on one deployment's forge, 4.11); a repack's own
-  deadline, or a store's upkeep left off once it timed out, if a deployment
-  shows one.
+  fetches into it; and a fetch waiting on the store's lock behind a
+  repack spends its own deadline there. Default: as it stands, since a
+  blob-less store holds no file contents (50 MB on one deployment's forge,
+  4.11); a repack's own deadline, or a store's upkeep left off once it
+  timed out, if a deployment shows one.
 - **HEAD after saving unfinished work.** Default: a commit without a delivery snapshot
   does not move HEAD (section 4.7). Preparation follows each clean producer
   merge or merged head's commit with `CheckOut`, moving HEAD and clearing

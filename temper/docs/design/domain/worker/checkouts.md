@@ -70,12 +70,15 @@ runs as contained processes and whose output it parses.
   (`../../protocol/git.md`, 4.13), so a place holds about 75 packs at
   most between two counts. A prepare, a run's or a job's, that would end
   ready asks first, in the spec's order, one `Pack` for each repository
-  that is due, or whose store is due while no other held workspace
-  borrows it, naming the store only in the second case. Its repository is its own
-  workspace's, which no job uses while it prepares; a store another hold
-  borrows stays due for a later prepare that finds it free, so that no
-  repack runs while a job in any workspace reads the store. A `Pack`'s end,
-  whatever it is, sets the counts of the places it named back to 0.
+  whose store or itself is due, naming the store only where it is due.
+  Its repository is its own workspace's, which no job uses while it
+  prepares. Its store other workspaces' jobs may be reading, which git
+  allows: a repack puts its new pack in place before it deletes the old
+  ones, and a reader that misses a pack looks again and finds the new one
+  (the user, 2026-11-19); the git component keeps any other repack or
+  fetch out of the store meanwhile (`../../protocol/git.md`, 4.13). A
+  `Pack`'s end, whatever it is, sets the counts of the places it named
+  back to 0.
   Nothing else asks a `Pack`: a push, a save, a catch-up and a verifying
   fetch run while the hold's job uses its checkout, though their fetches,
   check outs and merges count. A `Pack`'s fault fails nothing and spoils
@@ -607,12 +610,6 @@ wire carries, keeps its first 4,096, where the fields are.
   prepare names since the start stays on disk, since the cache sets aside
   only the stores it knows. Default: none, and an operator who wants the
   space removes `stores` with the worker stopped.
-- **A store borrowed under load.** A store another held workspace borrows
-  is not repacked (*Kept packed*), and on a busy worker one usually is, so
-  its packs pass 50 for as long as that lasts. Default: as it stands;
-  repacking it from a prepare while other holds' jobs read it, which git's
-  repack allows, since a reader that misses a pack looks again and finds
-  the new one, awaits the user (2026-11-19).
 - **A store damaged past its references.** A corrupt pack would break
   every prepare of its repository until its store is removed by hand,
   with the worker stopped, since stores outlive a restart: nothing seen
