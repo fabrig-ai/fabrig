@@ -40,12 +40,9 @@ pub fn prepare(
     for name in ["engine", "w1"] {
         cluster.prepare(name);
     }
-    let engine_path = cluster.dir("engine").join("config/temper.json");
-    let worker_path = cluster.dir("w1").join("config/temper.json");
 
     let mut engine = support::limit_settings::configuration(&cluster.dir("engine").join("config"));
-    let mut worker = temper_playground::documents::Configuration::from_jig(read(&worker_path));
-    let mut agent = temper_agent_fixtures::read(&cluster.dir("engine").join("config"));
+    let mut agent = temper_agent_fixtures::at(&engine, &cluster.dir("engine").join("data"));
     // domain/worker/jobs.md, kind 1: the engine declares preparation only when
     // its spec and result fit. The worker and the agent must carry that result.
     let prepare = temper_service::limits::prepare_bound();
@@ -64,13 +61,10 @@ pub fn prepare(
     engine.jig_over("hub.outcome_bytes", payload);
     engine.temper_over("forge.client.op_bytes", prepare.result);
     engine.temper_over("tool_payload", payload);
-    worker.jig_over("tasks.result_bytes", prepare.result);
-    worker.jig_over("hub.outcome_bytes", payload);
-    worker.jig_over("hub.event_bytes", prepare.result);
-    worker.temper_over("checkout.message_bytes", payload);
+    engine.jig_over("hub.event_bytes", prepare.result);
+    engine.temper_over("checkout.message_bytes", payload);
     let turn = support::configuration::turn_bounds::turn_body(&agent);
     support::configuration::turn_bounds::apply(&mut engine, turn);
-    support::configuration::turn_bounds::apply(&mut worker, turn);
     write(
         &cluster.dir("engine").join("config/landing-settings.json"),
         &json!({"items":[
@@ -78,7 +72,8 @@ pub fn prepare(
             {"setting":{"kind":"project-gates","project":1},"set":{"repositories":[{"forge":1,"repository":1,"gates":[{"name":"gate","workflow":"gate.yml","ignored":[],"blocking":true,"base":true}],"tiers":[]}]}}
         ]}),
     );
-    write(&engine_path, &engine);
+    temper_agent_fixtures::apply(&mut engine, &cluster.dir("engine").join("data"), &agent);
+    support::limit_settings::remember(&cluster.dir("engine").join("config"), &engine);
     // Stock charters need a model-priced reserve, not the small cluster fixture's spend.
     // Two runs fund production and leave room for its scripted turns after the reserve.
     let configured = temper_real_loop_world::settings::configuration(&engine);

@@ -33,7 +33,7 @@ fn a_domain_turn_round_trips_its_account_and_backend() {
     }
 }
 
-fn round_trip(turn: &record::Turn) -> record::Turn {
+fn endpoints(turn: &record::Turn) -> smith_protocol_translate::Endpoints {
     let mut configured = skein_lib::List::with_capacity(1);
     configured
         .push(smith_protocol_translate::Endpoint {
@@ -42,7 +42,25 @@ fn round_trip(turn: &record::Turn) -> record::Turn {
             dialect: turn.dialect,
         })
         .expect("endpoint");
-    let endpoints = smith_protocol_translate::Endpoints::new(configured);
+    smith_protocol_translate::Endpoints::new(configured)
+}
+
+#[test]
+fn an_oversized_model_is_reported_as_a_transcript_body_refusal() {
+    let mut turn = scenario(30).turns[0].clone();
+    let endpoints = endpoints(&turn);
+    let limits = smith_transcript::v7::Limits { turn_model: 1, ..smith_transcript::CEILINGS };
+    turn.model = bytes(b"too long");
+    let smith_protocol_translate::Error::TranscriptBody(problem) =
+        smith_protocol_translate::encode_turn(&turn, &limits, &endpoints).expect_err("model exceeds its limit")
+    else {
+        panic!("encoding must retain the transcript body refusal");
+    };
+    assert_eq!(problem.path, smith_transcript::paths::TURN_MODEL);
+}
+
+fn round_trip(turn: &record::Turn) -> record::Turn {
+    let endpoints = endpoints(turn);
     let bytes =
         smith_protocol_translate::encode_turn(turn, &smith_transcript::CEILINGS, &endpoints).expect("encode turn");
     smith_protocol_translate::decode_turn(&bytes, turn.sequence, &smith_transcript::CEILINGS, &endpoints)

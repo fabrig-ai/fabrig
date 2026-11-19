@@ -117,10 +117,13 @@ impl Deployment {
             .workers
             .iter()
             .map(|worker| {
-                output(
-                    0,
-                    &serde_json::json!({"workers": [{"name": worker.name, "graces": {"grace_ms": 30000}}]}).to_string(),
-                )
+                let file = temper_config_shell::File {
+                    engine: Some(([127, 0, 0, 1], 7200).into()),
+                    name: Some(worker.name.clone()),
+                    ..temper_config_shell::File::default()
+                };
+                let text = temper_config_shell::render(&file, temper_config_shell::Shape::WorkerAlone);
+                output(0, std::str::from_utf8(&text).expect("rendered UTF-8"))
             })
             .collect();
         Self {

@@ -15,7 +15,7 @@ pub(crate) fn engine() -> &'static jig_protocol_config::Engine {
 
 fn parse_engine() -> jig_protocol_config::Engine {
     let document = jig_protocol_config::document(
-        include_bytes!("../../../../../crates/temper-init/template/bare.json"),
+        &temper_config_shell::init_document(false),
         &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 16_384, depth: 32 },
     )
     .expect("bare document");

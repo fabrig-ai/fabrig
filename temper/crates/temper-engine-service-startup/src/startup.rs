@@ -4,9 +4,7 @@ mod limit_settings;
 pub use limit_settings::{LeftOut, LimitInputs, LimitKind, Resolved, resolve_limits};
 pub use temper_service_core::startup::fixed_worker;
 pub mod members;
-mod reference;
 pub use crate::limits::{engine_reference, reference};
-pub use reference::{configuration_reference, engine_configuration_reference};
 
 mod checkout;
 
@@ -1067,6 +1065,8 @@ fn checked_start_limits(
     let mut engine = settings::Engine {
         landing_held: false,
         setups: Box::new([]),
+        owned_forgejo: None,
+        owned_runner: None,
         host_reply_bytes: match &declaration {
             Some(agent) => Some(agent.host_reply_text),
             None => None,

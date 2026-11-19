@@ -377,19 +377,18 @@ and a stored foreman is refused naming its setting
 (`domain/forge/change/questions.md`, 1; `protocol/configuration/settings.md`,
 2). Its walk on a fresh box follows landing.
 
-Overlays are the stock charters' milestone S2, by goal 1386: a charter's
-overlay kept over its default, the fields it replaces and the text it
-adds, laid over each start's defaults (jig's `domain/engine/overlays.md`);
-`settings apply`'s overlay items, their directories of charter files and
-files stacked in one call, and `settings show`'s marks and literal export
-(`client/ctl/overlays.md`); the room judged on the charter an overlay
-makes, its parts counted (`domain/agent/room.md`, 4); the reference's
-charters 5 and 2 as overlays of its fields, its charters 7 and 8 gone
-(`protocol/configuration/reference.md`), stage one's golden keeping the
-whole charters on a profile of its own (`testing/checks.md`, 5); and
-fabrig's set, `temper/docs/charters/fabrig/`, documentation
-(`domain/agent/charter.md`, 1). The switch on dev.fabrig.ai follows
-deployment (`draft/stock-charters.execution.md`).
+Stock charters' milestone S2, goal 1386: each charter's overlay keeps
+replacement fields and added text over its default, applied to each
+start's defaults (jig's `domain/engine/overlays.md`);
+`settings apply`'s overlay items, directories of charter files and files
+stacked in one call, plus `settings show`'s marks and literal export
+(`client/ctl/overlays.md`); room judged on the resulting charter, counting
+its parts (`domain/agent/room.md`, 4); reference charters 5 and 2 as field
+overlays, charters 7 and 8 gone (`protocol/configuration/reference.md`);
+stage one's golden keeps whole charters on its own profile
+(`testing/checks.md`, 5); and fabrig's set, `temper/docs/charters/fabrig/`,
+documentation (`domain/agent/charter.md`, 1). The switch on dev.fabrig.ai
+follows deployment (`draft/stock-charters.execution.md`).
 
 `temper box` in a terminal runs the TUI at once and the box behind
 it, by the look request `tui-box-front`: it finds, or downloads once,
@@ -640,10 +639,11 @@ Design documents:
 - [`protocol/checkpoints.md`](protocol/checkpoints.status.md)
 - [`protocol/cluster.md`](protocol/cluster.status.md)
 - [`protocol/components.md`](protocol/components.status.md)
-- [`protocol/configuration/README.md`](protocol/configuration/README.status.md)
+- [Configuration](protocol/configuration/README.status.md)
 - [`protocol/configuration/derived.md`](protocol/configuration/derived.status.md)
 - [`protocol/configuration/directories.md`](protocol/configuration/directories.status.md)
 - [`protocol/configuration/engine.md`](protocol/configuration/engine.status.md)
+- [The file](protocol/configuration/file.status.md)
 - [`protocol/configuration/figures.md`](protocol/configuration/figures.status.md)
 - [Limits as settings](protocol/configuration/limit-settings.status.md)
 - [`protocol/configuration/limits.md`](protocol/configuration/limits.status.md)

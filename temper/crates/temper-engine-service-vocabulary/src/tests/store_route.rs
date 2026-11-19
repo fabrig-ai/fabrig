@@ -4,6 +4,7 @@ use ::core::mem::size_of;
 use jig_domain_core as core;
 use jig_protocol_store as store;
 use skein_lib::{Queue, Token};
+use smith_transcript::Record;
 use temper_engine_domain as engine;
 use temper_engine_domain_forge as forge;
 
@@ -800,40 +801,30 @@ fn unread_and_corrupt_window_pages_still_fail_the_load_once() {
 
 fn assistant_turn(words: &[u8]) -> Box<[u8]> {
     use smith_transcript::v7 as wire;
-    let limits = &wire::CEILINGS;
+
     let mut blocks = skein_lib::List::with_capacity(1);
-    blocks
-        .push(wire::Block::Text(wire::Text::new(limits, wire::TextParts { text: words.into(), replay: None }).unwrap()))
-        .unwrap();
+    blocks.push(wire::Block::Text(wire::Text { text: words.into(), replay: None })).unwrap();
     let mut messages = skein_lib::List::with_capacity(1);
-    messages
-        .push(wire::Message::new(limits, wire::MessageParts { role: wire::Role::Assistant, blocks }).unwrap())
-        .unwrap();
-    let usage = wire::Usage::new(
-        limits,
-        wire::UsageParts { input: None, output: None, cache_read: None, cache_write: None, reasoning: None },
-    )
-    .unwrap();
-    let turn = wire::Turn::new(
-        limits,
-        wire::TurnParts {
-            system: None,
-            kind: wire::TurnKind::Ordinary,
-            opening: None,
-            endpoint: b"fake".as_slice().into(),
-            model: b"small".as_slice().into(),
-            effort: None,
-            dialect: fixtures::DIALECT,
-            place: 1,
-            usage,
-            spent: 0,
-            jobs: 0,
-            messages,
-        },
-    )
-    .unwrap();
-    let mut writer = skein_lib::Writer::new(usize::try_from(turn.measure()).unwrap());
-    turn.encode(&mut writer).unwrap();
+    messages.push(wire::Message { role: wire::Role::Assistant, blocks }).unwrap();
+    let usage = wire::Usage { input: None, output: None, cache_read: None, cache_write: None, reasoning: None };
+    let turn = wire::Turn {
+        system: None,
+        kind: wire::TurnKind::Ordinary,
+        opening: None,
+        endpoint: b"fake".as_slice().into(),
+        model: b"small".as_slice().into(),
+        effort: None,
+        dialect: fixtures::DIALECT,
+        place: 1,
+        usage,
+        spent: 0,
+        jobs: 0,
+        messages,
+    };
+    let mut writer = skein_lib::Writer::new(
+        usize::try_from(turn.measure(&smith_transcript::CEILINGS).expect("bounded transcript")).unwrap(),
+    );
+    turn.write(&smith_transcript::CEILINGS, &mut writer).unwrap();
     writer.finish()
 }
 

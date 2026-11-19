@@ -43,6 +43,12 @@ env:
   # Line tables fit the runner's disk (macos.md, 6).
   CARGO_PROFILE_DEV_DEBUG: line-tables-only
   CARGO_PROFILE_TEST_DEBUG: line-tables-only
+  # Unsplit: macOS's default, unpacked, leaves the line tables in the object
+  # files, where a backtrace finds no function's name; with off, it names each
+  # frame from the symbol table. Off is also the one value the browser part's
+  # wasm32 bundle accepts (macos.md, 6).
+  CARGO_PROFILE_DEV_SPLIT_DEBUGINFO: "off"
+  CARGO_PROFILE_TEST_SPLIT_DEBUGINFO: "off"
   NEXTEST_DOUBLE_SPAWN: "0"
   TEMPER_INTERNAL_BUNDLE: none
 

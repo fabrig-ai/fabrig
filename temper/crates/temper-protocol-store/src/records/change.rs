@@ -61,25 +61,19 @@ fn encode_hold(value: d::Hold) -> w::ChangeHold {
         d::Hold::Failed => w::ChangeHold::Failed,
         d::Hold::Flake => w::ChangeHold::Flake,
         d::Hold::Rejected => w::ChangeHold::Rejected,
-        d::Hold::Authority(cause) => w::ChangeHold::Authority(
-            w::AuthorityHold::new(
-                &w::CEILINGS,
-                w::AuthorityHoldParts {
-                    lack: match cause.lack {
-                        d::AuthorityLack::Tasks => w::AuthorityLack::Tasks,
-                        d::AuthorityLack::Depth => w::AuthorityLack::Depth,
-                        d::AuthorityLack::Spend => w::AuthorityLack::Spend,
-                    },
-                    had: cause.had,
-                    task: cause.recovery.task,
-                    spec: cause.recovery.spec,
-                    hold: cause.recovery.hold,
-                    tasks: cause.recovery.tasks,
-                    released: cause.released,
-                },
-            )
-            .expect(FITS),
-        ),
+        d::Hold::Authority(cause) => w::ChangeHold::Authority(w::AuthorityHold {
+            lack: match cause.lack {
+                d::AuthorityLack::Tasks => w::AuthorityLack::Tasks,
+                d::AuthorityLack::Depth => w::AuthorityLack::Depth,
+                d::AuthorityLack::Spend => w::AuthorityLack::Spend,
+            },
+            had: cause.had,
+            task: cause.recovery.task,
+            spec: cause.recovery.spec,
+            hold: cause.recovery.hold,
+            tasks: cause.recovery.tasks,
+            released: cause.released,
+        }),
     }
 }
 fn decode_hold(value: w::ChangeHold) -> d::Hold {
@@ -97,19 +91,14 @@ fn decode_hold(value: w::ChangeHold) -> d::Hold {
         w::ChangeHold::Flake => d::Hold::Flake,
         w::ChangeHold::Rejected => d::Hold::Rejected,
         w::ChangeHold::Authority(cause) => d::Hold::Authority(d::AuthorityHold {
-            lack: match cause.lack() {
+            lack: match cause.lack {
                 w::AuthorityLack::Tasks => d::AuthorityLack::Tasks,
                 w::AuthorityLack::Depth => d::AuthorityLack::Depth,
                 w::AuthorityLack::Spend => d::AuthorityLack::Spend,
             },
-            had: cause.had(),
-            recovery: d::AuthorityRecovery {
-                task: cause.task(),
-                spec: cause.spec(),
-                hold: cause.hold(),
-                tasks: cause.tasks(),
-            },
-            released: cause.released(),
+            had: cause.had,
+            recovery: d::AuthorityRecovery { task: cause.task, spec: cause.spec, hold: cause.hold, tasks: cause.tasks },
+            released: cause.released,
         }),
     }
 }
@@ -137,150 +126,95 @@ pub(super) fn encode_below(below: Option<d::Below>) -> Option<w::LandingBelow> {
     let below = below?;
     let mut changes = List::with_capacity(4);
     for landed in below.changes.into_iter().flatten() {
-        changes
-            .push(
-                w::LandedBelow::new(&w::CEILINGS, w::LandedBelowParts { change: landed.change, pull: landed.pull })
-                    .expect(FITS),
-            )
-            .expect(FITS);
+        changes.push(w::LandedBelow { change: landed.change, pull: landed.pull }).expect(FITS);
     }
-    Some(
-        w::LandingBelow::new(
-            &w::CEILINGS,
-            w::LandingBelowParts { green: below.green, changes, by_test: below.by_test, top: below.top },
-        )
-        .expect(FITS),
-    )
+    Some(w::LandingBelow { green: below.green, changes, by_test: below.by_test, top: below.top })
 }
 
 pub(super) fn decode_below(below: Option<w::LandingBelow>) -> Option<d::Below> {
-    let w::LandingBelowParts { green, changes, by_test, top } = below?.into_parts();
+    let w::LandingBelow { green, changes, by_test, top } = below?;
     let mut below = d::Below { green, changes: [None; 4], by_test, top };
     for (slot, landed) in below.changes.iter_mut().zip(&changes) {
-        *slot = Some(d::Landed { change: landed.change(), pull: landed.pull() });
+        *slot = Some(d::Landed { change: landed.change, pull: landed.pull });
     }
     Some(below)
 }
 
 fn encode_repair(value: d::Repair) -> w::Repair {
     match value {
-        d::Repair::LandingAt { gate, candidate, below } => w::Repair::LandingAt(
-            w::LandingRepairAt::new(
-                &w::CEILINGS,
-                w::LandingRepairAtParts { gate, candidate, below: encode_below(below) },
-            )
-            .expect(FITS),
-        ),
+        d::Repair::LandingAt { gate, candidate, below } => {
+            w::Repair::LandingAt(w::LandingRepairAt { gate, candidate, below: encode_below(below) })
+        }
         d::Repair::Ci => w::Repair::Ci,
-        d::Repair::Review { head } => {
-            w::Repair::Review(w::Commit::new(&w::CEILINGS, w::CommitParts { commit: head }).expect(FITS))
-        }
-        d::Repair::Gate(number) => {
-            w::Repair::Gate(w::Number::new(&w::CEILINGS, w::NumberParts { number }).expect(FITS))
-        }
+        d::Repair::Review { head } => w::Repair::Review(w::Commit { commit: head }),
+        d::Repair::Gate(number) => w::Repair::Gate(w::Number { number }),
         d::Repair::Semantic => w::Repair::Semantic,
-        d::Repair::Landing { gate } => {
-            w::Repair::Landing(w::LandingRepair::new(&w::CEILINGS, w::LandingRepairParts { gate }).expect(FITS))
-        }
+        d::Repair::Landing { gate } => w::Repair::Landing(w::LandingRepair { gate }),
     }
 }
 fn decode_repair(value: w::Repair) -> d::Repair {
     match value {
         w::Repair::LandingAt(value) => {
-            let w::LandingRepairAtParts { gate, candidate, below } = value.into_parts();
+            let w::LandingRepairAt { gate, candidate, below } = value;
             d::Repair::LandingAt { gate, candidate, below: decode_below(below) }
         }
         w::Repair::Ci => d::Repair::Ci,
-        w::Repair::Review(value) => d::Repair::Review { head: *value.commit() },
-        w::Repair::Gate(value) => d::Repair::Gate(value.number()),
+        w::Repair::Review(value) => d::Repair::Review { head: value.commit },
+        w::Repair::Gate(value) => d::Repair::Gate(value.number),
         w::Repair::Semantic => d::Repair::Semantic,
-        w::Repair::Landing(value) => d::Repair::Landing { gate: value.gate() },
+        w::Repair::Landing(value) => d::Repair::Landing { gate: value.gate },
     }
 }
 fn encode_delegate(value: d::Delegate) -> w::Delegate {
     match value {
         d::Delegate::Produce => w::Delegate::Produce,
         d::Delegate::Close => w::Delegate::Close,
-        d::Delegate::Repair(why) => w::Delegate::Repair(
-            w::RepairValue::new(&w::CEILINGS, w::RepairValueParts { why: encode_repair(why) }).expect(FITS),
-        ),
-        d::Delegate::Resolve { base } => {
-            w::Delegate::Resolve(w::Commit::new(&w::CEILINGS, w::CommitParts { commit: base }).expect(FITS))
+        d::Delegate::Repair(why) => w::Delegate::Repair(w::RepairValue { why: encode_repair(why) }),
+        d::Delegate::Resolve { base } => w::Delegate::Resolve(w::Commit { commit: base }),
+        d::Delegate::Merge { base, from } => {
+            w::Delegate::Merge(w::MergeDelegate { base: w::Commit { commit: base }, from })
         }
-        d::Delegate::Merge { base, from } => w::Delegate::Merge(
-            w::MergeDelegate::new(
-                &w::CEILINGS,
-                w::MergeDelegateParts {
-                    base: w::Commit::new(&w::CEILINGS, w::CommitParts { commit: base }).expect(FITS),
-                    from,
-                },
-            )
-            .expect(FITS),
-        ),
-        d::Delegate::Gate { number, head } => {
-            w::Delegate::Gate(w::DelegateGate::new(&w::CEILINGS, w::DelegateGateParts { number, head }).expect(FITS))
-        }
+        d::Delegate::Gate { number, head } => w::Delegate::Gate(w::DelegateGate { number, head }),
     }
 }
 fn decode_delegate(value: w::Delegate) -> d::Delegate {
     match value {
         w::Delegate::Produce => d::Delegate::Produce,
         w::Delegate::Close => d::Delegate::Close,
-        w::Delegate::Repair(value) => d::Delegate::Repair(decode_repair(value.into_parts().why)),
-        w::Delegate::Resolve(value) => d::Delegate::Resolve { base: value.into_parts().commit },
+        w::Delegate::Repair(value) => d::Delegate::Repair(decode_repair(value.why)),
+        w::Delegate::Resolve(value) => d::Delegate::Resolve { base: value.commit },
         w::Delegate::Merge(value) => {
-            let w::MergeDelegateParts { base, from } = value.into_parts();
-            d::Delegate::Merge { base: base.into_parts().commit, from }
+            let w::MergeDelegate { base, from } = value;
+            d::Delegate::Merge { base: base.commit, from }
         }
         w::Delegate::Gate(value) => {
-            let w::DelegateGateParts { number, head } = value.into_parts();
+            let w::DelegateGate { number, head } = value;
             d::Delegate::Gate { number, head }
         }
     }
 }
 fn encode_live(value: &d::State) -> w::ChangeLive {
     match value {
-        d::State::NoChange { words } => w::ChangeLive::NoChange(
-            w::NoChange::new(&w::CEILINGS, w::NoChangeParts { words: words.clone() }).expect(FITS),
-        ),
+        d::State::NoChange { words } => w::ChangeLive::NoChange(w::NoChange { words: words.clone() }),
         d::State::Ended => w::ChangeLive::Ended,
-        d::State::Taking { requested } => w::ChangeLive::Taking(
-            w::Producing::new(&w::CEILINGS, w::ProducingParts { requested: *requested }).expect(FITS),
-        ),
-        d::State::Producing { requested } => w::ChangeLive::Producing(
-            w::Producing::new(&w::CEILINGS, w::ProducingParts { requested: *requested }).expect(FITS),
-        ),
-        d::State::Opening { requested } => w::ChangeLive::Opening(
-            w::Producing::new(&w::CEILINGS, w::ProducingParts { requested: *requested }).expect(FITS),
-        ),
-        d::State::Recreating { head } => {
-            w::ChangeLive::Recreating(w::ChangeHead::new(&w::CEILINGS, w::ChangeHeadParts { head: *head }).expect(FITS))
+        d::State::Taking { requested } => w::ChangeLive::Taking(w::Producing { requested: *requested }),
+        d::State::Producing { requested } => w::ChangeLive::Producing(w::Producing { requested: *requested }),
+        d::State::Opening { requested } => w::ChangeLive::Opening(w::Producing { requested: *requested }),
+        d::State::Recreating { head } => w::ChangeLive::Recreating(w::ChangeHead { head: *head }),
+        d::State::Reopening { requested, retarget } => {
+            w::ChangeLive::Reopening(w::Reopening { requested: *requested, retarget: *retarget })
         }
-        d::State::Reopening { requested, retarget } => w::ChangeLive::Reopening(
-            w::Reopening::new(&w::CEILINGS, w::ReopeningParts { requested: *requested, retarget: *retarget })
-                .expect(FITS),
-        ),
-        d::State::Checking { head } => {
-            w::ChangeLive::Checking(w::ChangeHead::new(&w::CEILINGS, w::ChangeHeadParts { head: *head }).expect(FITS))
+        d::State::Checking { head } => w::ChangeLive::Checking(w::ChangeHead { head: *head }),
+        d::State::CancellingGates { head } => w::ChangeLive::CancellingGates(w::ChangeHead { head: *head }),
+        d::State::Judging { head, ready_since, target, asked } => w::ChangeLive::Judging(w::Judging {
+            head: *head,
+            ready_since: ready_since.as_nanos(),
+            target: encode_judgement(target),
+            asked: encode_numbers(asked),
+        }),
+        d::State::Gating { head, asked } => {
+            w::ChangeLive::Gating(w::Gating { head: *head, asked: encode_numbers(asked) })
         }
-        d::State::CancellingGates { head } => w::ChangeLive::CancellingGates(
-            w::ChangeHead::new(&w::CEILINGS, w::ChangeHeadParts { head: *head }).expect(FITS),
-        ),
-        d::State::Judging { head, ready_since, target, asked } => w::ChangeLive::Judging(
-            w::Judging::new(
-                &w::CEILINGS,
-                w::JudgingParts {
-                    head: *head,
-                    ready_since: ready_since.as_nanos(),
-                    target: encode_judgement(target),
-                    asked: encode_numbers(asked),
-                },
-            )
-            .expect(FITS),
-        ),
-        d::State::Gating { head, asked } => w::ChangeLive::Gating(
-            w::Gating::new(&w::CEILINGS, w::GatingParts { head: *head, asked: encode_numbers(asked) }).expect(FITS),
-        ),
         pending @ (d::State::Ready { .. }
         | d::State::Preparing { .. }
         | d::State::Queued { .. }
@@ -300,59 +234,37 @@ fn encode_live(value: &d::State) -> w::ChangeLive {
 
 fn encode_progress(value: &d::State) -> w::ChangeLive {
     match value {
-        d::State::Ready { head, ready_since } => w::ChangeLive::Ready(
-            w::ReadyHead::new(&w::CEILINGS, w::ReadyHeadParts { head: *head, ready_since: ready_since.as_nanos() })
-                .expect(FITS),
-        ),
-        d::State::Preparing { from, main, ready_since } => w::ChangeLive::Preparing(
-            w::Preparing::new(
-                &w::CEILINGS,
-                w::PreparingParts { from: *from, main: *main, ready_since: ready_since.as_nanos() },
-            )
-            .expect(FITS),
-        ),
-        d::State::Queued { head, ready_since } => w::ChangeLive::Queued(
-            w::ReadyHead::new(&w::CEILINGS, w::ReadyHeadParts { head: *head, ready_since: ready_since.as_nanos() })
-                .expect(FITS),
-        ),
-        d::State::First { head, ready_since } => w::ChangeLive::First(
-            w::ReadyHead::new(&w::CEILINGS, w::ReadyHeadParts { head: *head, ready_since: ready_since.as_nanos() })
-                .expect(FITS),
-        ),
-        d::State::Updating { from, base, ready_since } => w::ChangeLive::Updating(
-            w::Updating::new(
-                &w::CEILINGS,
-                w::UpdatingParts { from: *from, base: *base, ready_since: ready_since.as_nanos() },
-            )
-            .expect(FITS),
-        ),
-        d::State::WaitingProducer { base } => w::ChangeLive::WaitingProducer(
-            w::WaitingProducer::new(&w::CEILINGS, w::WaitingProducerParts { base: *base }).expect(FITS),
-        ),
-        d::State::Resolving { requested, base } => w::ChangeLive::Resolving(
-            w::Resolving::new(&w::CEILINGS, w::ResolvingParts { requested: *requested, base: *base }).expect(FITS),
-        ),
-        d::State::Repairing { requested, why } => w::ChangeLive::Repairing(
-            w::Repairing::new(&w::CEILINGS, w::RepairingParts { requested: *requested, why: encode_repair(*why) })
-                .expect(FITS),
-        ),
-        d::State::Landing { head } => {
-            w::ChangeLive::Landing(w::ChangeHead::new(&w::CEILINGS, w::ChangeHeadParts { head: *head }).expect(FITS))
+        d::State::Ready { head, ready_since } => {
+            w::ChangeLive::Ready(w::ReadyHead { head: *head, ready_since: ready_since.as_nanos() })
         }
-        d::State::Landed { merge, since } => w::ChangeLive::Landed(
-            w::LandedChange::new(&w::CEILINGS, w::LandedChangeParts { merge: *merge, since: since.as_nanos() })
-                .expect(FITS),
-        ),
-        d::State::Red { merge, since } => w::ChangeLive::Red(
-            w::LandedChange::new(&w::CEILINGS, w::LandedChangeParts { merge: *merge, since: since.as_nanos() })
-                .expect(FITS),
-        ),
-        d::State::Cleared { merge } => w::ChangeLive::Cleared(
-            w::MergeChange::new(&w::CEILINGS, w::MergeChangeParts { merge: *merge }).expect(FITS),
-        ),
-        d::State::Uncleared { merge } => w::ChangeLive::Uncleared(
-            w::MergeChange::new(&w::CEILINGS, w::MergeChangeParts { merge: *merge }).expect(FITS),
-        ),
+        d::State::Preparing { from, main, ready_since } => {
+            w::ChangeLive::Preparing(w::Preparing { from: *from, main: *main, ready_since: ready_since.as_nanos() })
+        }
+        d::State::Queued { head, ready_since } => {
+            w::ChangeLive::Queued(w::ReadyHead { head: *head, ready_since: ready_since.as_nanos() })
+        }
+        d::State::First { head, ready_since } => {
+            w::ChangeLive::First(w::ReadyHead { head: *head, ready_since: ready_since.as_nanos() })
+        }
+        d::State::Updating { from, base, ready_since } => {
+            w::ChangeLive::Updating(w::Updating { from: *from, base: *base, ready_since: ready_since.as_nanos() })
+        }
+        d::State::WaitingProducer { base } => w::ChangeLive::WaitingProducer(w::WaitingProducer { base: *base }),
+        d::State::Resolving { requested, base } => {
+            w::ChangeLive::Resolving(w::Resolving { requested: *requested, base: *base })
+        }
+        d::State::Repairing { requested, why } => {
+            w::ChangeLive::Repairing(w::Repairing { requested: *requested, why: encode_repair(*why) })
+        }
+        d::State::Landing { head } => w::ChangeLive::Landing(w::ChangeHead { head: *head }),
+        d::State::Landed { merge, since } => {
+            w::ChangeLive::Landed(w::LandedChange { merge: *merge, since: since.as_nanos() })
+        }
+        d::State::Red { merge, since } => {
+            w::ChangeLive::Red(w::LandedChange { merge: *merge, since: since.as_nanos() })
+        }
+        d::State::Cleared { merge } => w::ChangeLive::Cleared(w::MergeChange { merge: *merge }),
+        d::State::Uncleared { merge } => w::ChangeLive::Uncleared(w::MergeChange { merge: *merge }),
         d::State::Held { .. } => unreachable!("the bounded loop unwrapped every hold"),
         d::State::NoChange { .. }
         | d::State::Ended
@@ -370,35 +282,35 @@ fn encode_progress(value: &d::State) -> w::ChangeLive {
 
 fn decode_live(value: w::ChangeLive) -> d::State {
     match value {
-        w::ChangeLive::NoChange(value) => d::State::NoChange { words: value.into_parts().words },
+        w::ChangeLive::NoChange(value) => d::State::NoChange { words: value.words },
         w::ChangeLive::Ended => d::State::Ended,
-        w::ChangeLive::Taking(value) => d::State::Taking { requested: value.requested() },
+        w::ChangeLive::Taking(value) => d::State::Taking { requested: value.requested },
         w::ChangeLive::Producing(value) => {
-            let w::ProducingParts { requested } = value.into_parts();
+            let w::Producing { requested } = value;
             d::State::Producing { requested }
         }
         w::ChangeLive::Opening(value) => {
-            let w::ProducingParts { requested } = value.into_parts();
+            let w::Producing { requested } = value;
             d::State::Opening { requested }
         }
         w::ChangeLive::Recreating(value) => {
-            let w::ChangeHeadParts { head } = value.into_parts();
+            let w::ChangeHead { head } = value;
             d::State::Recreating { head }
         }
         w::ChangeLive::Reopening(value) => {
-            let w::ReopeningParts { requested, retarget } = value.into_parts();
+            let w::Reopening { requested, retarget } = value;
             d::State::Reopening { requested, retarget }
         }
         w::ChangeLive::Checking(value) => {
-            let w::ChangeHeadParts { head } = value.into_parts();
+            let w::ChangeHead { head } = value;
             d::State::Checking { head }
         }
         w::ChangeLive::CancellingGates(value) => {
-            let w::ChangeHeadParts { head } = value.into_parts();
+            let w::ChangeHead { head } = value;
             d::State::CancellingGates { head }
         }
         w::ChangeLive::Judging(value) => {
-            let w::JudgingParts { head, ready_since, target, asked } = value.into_parts();
+            let w::Judging { head, ready_since, target, asked } = value;
             d::State::Judging {
                 head,
                 ready_since: Wall::from_nanos(ready_since),
@@ -407,7 +319,7 @@ fn decode_live(value: w::ChangeLive) -> d::State {
             }
         }
         w::ChangeLive::Gating(value) => {
-            let w::GatingParts { head, asked } = value.into_parts();
+            let w::Gating { head, asked } = value;
             d::State::Gating { head, asked: asked.into_boxed() }
         }
         pending @ (w::ChangeLive::Ready(_)
@@ -429,48 +341,48 @@ fn decode_live(value: w::ChangeLive) -> d::State {
 fn decode_progress(value: w::ChangeLive) -> d::State {
     match value {
         w::ChangeLive::Ready(value) => {
-            let w::ReadyHeadParts { head, ready_since } = value.into_parts();
+            let w::ReadyHead { head, ready_since } = value;
             d::State::Ready { head, ready_since: Wall::from_nanos(ready_since) }
         }
         w::ChangeLive::Preparing(value) => {
-            let w::PreparingParts { from, main, ready_since } = value.into_parts();
+            let w::Preparing { from, main, ready_since } = value;
             d::State::Preparing { from, main, ready_since: Wall::from_nanos(ready_since) }
         }
         w::ChangeLive::Queued(value) => {
-            let w::ReadyHeadParts { head, ready_since } = value.into_parts();
+            let w::ReadyHead { head, ready_since } = value;
             d::State::Queued { head, ready_since: Wall::from_nanos(ready_since) }
         }
         w::ChangeLive::First(value) => {
-            let w::ReadyHeadParts { head, ready_since } = value.into_parts();
+            let w::ReadyHead { head, ready_since } = value;
             d::State::First { head, ready_since: Wall::from_nanos(ready_since) }
         }
         w::ChangeLive::Updating(value) => {
-            let w::UpdatingParts { from, base, ready_since } = value.into_parts();
+            let w::Updating { from, base, ready_since } = value;
             d::State::Updating { from, base, ready_since: Wall::from_nanos(ready_since) }
         }
-        w::ChangeLive::WaitingProducer(value) => d::State::WaitingProducer { base: value.into_parts().base },
+        w::ChangeLive::WaitingProducer(value) => d::State::WaitingProducer { base: value.base },
         w::ChangeLive::Resolving(value) => {
-            let w::ResolvingParts { requested, base } = value.into_parts();
+            let w::Resolving { requested, base } = value;
             d::State::Resolving { requested, base }
         }
         w::ChangeLive::Repairing(value) => {
-            let w::RepairingParts { requested, why } = value.into_parts();
+            let w::Repairing { requested, why } = value;
             d::State::Repairing { requested, why: decode_repair(why) }
         }
         w::ChangeLive::Landing(value) => {
-            let w::ChangeHeadParts { head } = value.into_parts();
+            let w::ChangeHead { head } = value;
             d::State::Landing { head }
         }
         w::ChangeLive::Landed(value) => {
-            let w::LandedChangeParts { merge, since } = value.into_parts();
+            let w::LandedChange { merge, since } = value;
             d::State::Landed { merge, since: Wall::from_nanos(since) }
         }
         w::ChangeLive::Red(value) => {
-            let w::LandedChangeParts { merge, since } = value.into_parts();
+            let w::LandedChange { merge, since } = value;
             d::State::Red { merge, since: Wall::from_nanos(since) }
         }
-        w::ChangeLive::Cleared(value) => d::State::Cleared { merge: value.into_parts().merge },
-        w::ChangeLive::Uncleared(value) => d::State::Uncleared { merge: value.into_parts().merge },
+        w::ChangeLive::Cleared(value) => d::State::Cleared { merge: value.merge },
+        w::ChangeLive::Uncleared(value) => d::State::Uncleared { merge: value.merge },
         w::ChangeLive::NoChange(_)
         | w::ChangeLive::Ended
         | w::ChangeLive::Taking(_)
@@ -501,10 +413,10 @@ fn encode_change_state(state: &d::State, ended_held: Option<d::Hold>) -> w::Chan
         holds.push(encode_hold(*why)).expect("at most 8 holds (change_state_holds)");
         current = was;
     }
-    w::ChangeState::new(&w::CEILINGS, w::ChangeStateParts { live: encode_live(current), holds }).expect(FITS)
+    w::ChangeState { live: encode_live(current), holds }
 }
 fn decode_change_state(value: w::ChangeState) -> (d::State, Option<d::Hold>) {
-    let w::ChangeStateParts { live, holds } = value.into_parts();
+    let w::ChangeState { live, holds } = value;
     let mut state = decode_live(live);
     if state == d::State::Ended
         && let [why] = holds.as_slice()
@@ -518,41 +430,32 @@ fn decode_change_state(value: w::ChangeState) -> (d::State, Option<d::Hold>) {
 }
 pub(super) fn encode_gate(value: &d::Gate) -> w::Gate {
     let d::Gate { number, kind, blocking, freshness, eager } = value;
-    w::Gate::new(
-        &w::CEILINGS,
-        w::GateParts {
-            number: *number,
-            kind: encode_gate_kind(*kind),
-            blocking: *blocking,
-            freshness: encode_freshness(*freshness),
-            eager: *eager,
-        },
-    )
-    .expect(FITS)
+    w::Gate {
+        number: *number,
+        kind: encode_gate_kind(*kind),
+        blocking: *blocking,
+        freshness: encode_freshness(*freshness),
+        eager: *eager,
+    }
 }
 pub(super) fn decode_gate(value: w::Gate) -> d::Gate {
-    let w::GateParts { number, kind, blocking, freshness, eager } = value.into_parts();
+    let w::Gate { number, kind, blocking, freshness, eager } = value;
     d::Gate { number, kind: decode_gate_kind(kind), blocking, freshness: decode_freshness(freshness), eager }
 }
 pub(super) fn encode_gate_report(value: &d::GateReport) -> w::GateReport {
     let d::GateReport { number, head, status } = value;
-    w::GateReport::new(
-        &w::CEILINGS,
-        w::GateReportParts { number: *number, head: *head, status: encode_status(*status) },
-    )
-    .expect(FITS)
+    w::GateReport { number: *number, head: *head, status: encode_status(*status) }
 }
 pub(super) fn decode_gate_report(value: w::GateReport) -> d::GateReport {
-    let w::GateReportParts { number, head, status } = value.into_parts();
+    let w::GateReport { number, head, status } = value;
     d::GateReport { number, head, status: decode_status(status) }
 }
 pub(super) fn encode_gate_remark(value: &top::GateRemark) -> w::GateRemark {
     let top::GateRemark { number, head, words } = value;
-    w::GateRemark::new(&w::CEILINGS, w::GateRemarkParts { number: *number, head: *head, words: words.clone() })
-        .expect(FITS)
+    w::GateRemark { number: *number, head: *head, words: words.clone() }
 }
 pub(super) fn decode_gate_remark(value: w::GateRemark) -> top::GateRemark {
-    let w::GateRemarkParts { number, head, words } = value.into_parts();
+    let w::GateRemark { number, head, words } = value;
     top::GateRemark { number, head, words }
 }
 fn encode_early(value: &d::Early) -> w::Early {
@@ -562,14 +465,9 @@ fn encode_early(value: &d::Early) -> w::Early {
     };
     let mut encoded = List::with_capacity(u32::try_from(heads.len()).expect(FITS));
     for head in heads {
-        encoded
-            .push(
-                w::StartedFrom::new(&w::CEILINGS, w::StartedFromParts { task: head.task, head: head.head })
-                    .expect(FITS),
-            )
-            .expect(FITS);
+        encoded.push(w::StartedFrom { task: head.task, head: head.head }).expect(FITS);
     }
-    let heads = w::EarlyHeads::new(&w::CEILINGS, w::EarlyHeadsParts { heads: encoded }).expect(FITS);
+    let heads = w::EarlyHeads { heads: encoded };
     match value {
         d::Early::None => unreachable!("no early heads returned above"),
         d::Early::Started(_) => w::Early::Started(heads),
@@ -583,41 +481,35 @@ fn decode_early(value: w::Early) -> d::Early {
         w::Early::Started(heads) => (heads, false),
         w::Early::Spent(heads) => (heads, true),
     };
-    let heads = heads.into_parts().heads;
+    let heads = heads.heads;
     let mut decoded = List::with_capacity(heads.len());
     for head in &heads {
-        decoded.push(d::StartedFrom { task: head.task(), head: *head.head() }).expect(FITS);
+        decoded.push(d::StartedFrom { task: head.task, head: head.head }).expect(FITS);
     }
     if spent { d::Early::Spent(decoded.into_boxed()) } else { d::Early::Started(decoded.into_boxed()) }
 }
 
 pub(super) fn encode_clock(clock: Option<d::Clock>) -> Option<w::ExecutionClock> {
     let clock = clock?;
-    Some(
-        w::ExecutionClock::new(
-            &w::CEILINGS,
-            w::ExecutionClockParts {
-                since: clock.since.as_nanos(),
-                head: clock.head,
-                run: clock.run,
-                attempt: clock.attempt,
-                ran: clock.ran.as_nanos(),
-                waited: clock.waited.as_nanos(),
-                unknown: clock.unknown.as_nanos(),
-                at: clock.at.as_nanos(),
-                seen: match clock.seen {
-                    d::Execution::Unknown => w::Execution::Unknown,
-                    d::Execution::Waiting => w::Execution::Waiting,
-                    d::Execution::Running => w::Execution::Running,
-                },
-            },
-        )
-        .expect(FITS),
-    )
+    Some(w::ExecutionClock {
+        since: clock.since.as_nanos(),
+        head: clock.head,
+        run: clock.run,
+        attempt: clock.attempt,
+        ran: clock.ran.as_nanos(),
+        waited: clock.waited.as_nanos(),
+        unknown: clock.unknown.as_nanos(),
+        at: clock.at.as_nanos(),
+        seen: match clock.seen {
+            d::Execution::Unknown => w::Execution::Unknown,
+            d::Execution::Waiting => w::Execution::Waiting,
+            d::Execution::Running => w::Execution::Running,
+        },
+    })
 }
 
 pub(super) fn decode_clock(clock: Option<w::ExecutionClock>) -> Option<d::Clock> {
-    let clock = clock?.into_parts();
+    let clock = clock?;
     Some(d::Clock {
         since: Wall::from_nanos(clock.since),
         head: clock.head,
@@ -660,48 +552,44 @@ pub(super) fn encode_change(value: &d::Change) -> w::Change {
         landing,
         ended_held,
     } = value;
-    w::Change::new(
-        &w::CEILINGS,
-        w::ChangeParts {
-            early: encode_early(early),
-            task: *task,
-            state: encode_change_state(state, *ended_held),
-            gates: encode_gates(gates),
-            clean: encode_commits(clean),
-            repairs: *repairs,
-            resolutions: *resolutions,
-            updates: *updates,
-            stale: match stale {
-                Some(value) => Some(value.as_nanos()),
-                None => None,
-            },
-            since: since.as_nanos(),
-            clock: encode_clock(*clock),
-            ready_since: match ready_since {
-                Some(value) => Some(value.as_nanos()),
-                None => None,
-            },
-            owns_turn: *owns_turn,
-            last_head: *last_head,
-            last_checked: *last_checked,
-            last_checked_by: *last_checked_by,
-            gate_failures: encode_gate_failures(gate_failures),
-            released_resolution: *released_resolution,
-            released: match released {
-                Some(why) => Some(encode_hold(*why)),
-                None => None,
-            },
-            way: match way {
-                d::Way::Queue => w::Way::Queue,
-                d::Way::Turn => w::Way::Turn,
-            },
-            landing: *landing,
+    w::Change {
+        early: encode_early(early),
+        task: *task,
+        state: encode_change_state(state, *ended_held),
+        gates: encode_gates(gates),
+        clean: encode_commits(clean),
+        repairs: *repairs,
+        resolutions: *resolutions,
+        updates: *updates,
+        stale: match stale {
+            Some(value) => Some(value.as_nanos()),
+            None => None,
         },
-    )
-    .expect(FITS)
+        since: since.as_nanos(),
+        clock: encode_clock(*clock),
+        ready_since: match ready_since {
+            Some(value) => Some(value.as_nanos()),
+            None => None,
+        },
+        owns_turn: *owns_turn,
+        last_head: *last_head,
+        last_checked: *last_checked,
+        last_checked_by: *last_checked_by,
+        gate_failures: encode_gate_failures(gate_failures),
+        released_resolution: *released_resolution,
+        released: match released {
+            Some(why) => Some(encode_hold(*why)),
+            None => None,
+        },
+        way: match way {
+            d::Way::Queue => w::Way::Queue,
+            d::Way::Turn => w::Way::Turn,
+        },
+        landing: *landing,
+    }
 }
 pub(super) fn decode_change(value: w::Change) -> d::Change {
-    let w::ChangeParts {
+    let w::Change {
         early,
         task,
         state,
@@ -723,7 +611,7 @@ pub(super) fn decode_change(value: w::Change) -> d::Change {
         released_resolution,
         way,
         landing,
-    } = value.into_parts();
+    } = value;
     let (state, ended_held) = decode_change_state(state);
     d::Change {
         early: decode_early(early),
@@ -787,46 +675,36 @@ pub(super) fn encode_change_cold(value: &top::ChangeCold) -> w::ChangeCold {
         follows,
         report,
     } = value;
-    w::ChangeCold::new(
-        &w::CEILINGS,
-        w::ChangeColdParts {
-            source: encode_source(source.as_ref()),
-            task: *task,
-            repository: names::encode_repository(*repository),
-            branch: branch.clone(),
-            base: base.clone(),
-            title: title.clone(),
-            body: body.clone(),
-            base_repair: *base_repair,
-            producing_charter: *producing_charter,
-            review_charter: *review_charter,
-            producing_llm: encode_llm(producing_llm.as_ref()),
-            review_llm: encode_llm(review_llm.as_ref()),
-            report: report.clone(),
-            repairs: *repairs,
-            follows: match follows {
-                Some(value) => Some(
-                    w::ChangeFollows::new(
-                        &w::CEILINGS,
-                        w::ChangeFollowsParts { follow: value.follow, commits: encode_commits(&value.commits) },
-                    )
-                    .expect(FITS),
-                ),
-                None => None,
-            },
-            catch_up: *catch_up,
-            close: close.clone(),
-            goal: *goal,
-            milestone: *milestone,
-            person: *person,
-            goal_title: goal_title.clone(),
-            draft: draft.clone(),
+    w::ChangeCold {
+        source: encode_source(source.as_ref()),
+        task: *task,
+        repository: names::encode_repository(*repository),
+        branch: branch.clone(),
+        base: base.clone(),
+        title: title.clone(),
+        body: body.clone(),
+        base_repair: *base_repair,
+        producing_charter: *producing_charter,
+        review_charter: *review_charter,
+        producing_llm: encode_llm(producing_llm.as_ref()),
+        review_llm: encode_llm(review_llm.as_ref()),
+        report: report.clone(),
+        repairs: *repairs,
+        follows: match follows {
+            Some(value) => Some(w::ChangeFollows { follow: value.follow, commits: encode_commits(&value.commits) }),
+            None => None,
         },
-    )
-    .expect(FITS)
+        catch_up: *catch_up,
+        close: close.clone(),
+        goal: *goal,
+        milestone: *milestone,
+        person: *person,
+        goal_title: goal_title.clone(),
+        draft: draft.clone(),
+    }
 }
 pub(super) fn decode_change_cold(value: w::ChangeCold) -> top::ChangeCold {
-    let w::ChangeColdParts {
+    let w::ChangeCold {
         source,
         task,
         repository,
@@ -849,7 +727,7 @@ pub(super) fn decode_change_cold(value: w::ChangeCold) -> top::ChangeCold {
         body,
         follows,
         report,
-    } = value.into_parts();
+    } = value;
     top::ChangeCold {
         source: decode_source(source),
         goal,
@@ -872,7 +750,7 @@ pub(super) fn decode_change_cold(value: w::ChangeCold) -> top::ChangeCold {
         repairs,
         follows: match follows {
             Some(value) => {
-                let w::ChangeFollowsParts { follow, commits } = value.into_parts();
+                let w::ChangeFollows { follow, commits } = value;
                 Some(top::ChangeFollows { follow, commits: commits.into_boxed() })
             }
             None => None,
@@ -881,7 +759,6 @@ pub(super) fn decode_change_cold(value: w::ChangeCold) -> top::ChangeCold {
         close,
     }
 }
-#[expect(clippy::too_many_lines, reason = "the hot change maps every durable progress field explicitly")]
 pub(super) fn encode_change_hot(value: &top::ChangeHot) -> w::ChangeHot {
     let top::ChangeHot {
         regate,
@@ -917,101 +794,69 @@ pub(super) fn encode_change_hot(value: &top::ChangeHot) -> w::ChangeHot {
         history,
         delegate_head,
     } = value;
-    w::ChangeHot::new(
-        &w::CEILINGS,
-        w::ChangeHotParts {
-            regate: match regate {
-                Some(value) => Some(
-                    w::Regate::new(
-                        &w::CEILINGS,
-                        w::RegateParts { receipt: super::landing::encode_receipt_key(&value.receipt), run: value.run },
-                    )
-                    .expect(FITS),
-                ),
-                None => None,
-            },
-            room: *room,
-            kept: *kept,
-            task_release: match task_release {
-                Some(release) => Some(
-                    w::TaskRelease::new(
-                        &w::CEILINGS,
-                        w::TaskReleaseParts { revision: release.revision, at: release.at.as_nanos() },
-                    )
-                    .expect(FITS),
-                ),
-                None => None,
-            },
-            job: super::history::encode_job_record(job.as_ref()),
-            signed: super::landing_log::encode_signed(signed),
-            result: encode_result(result),
-            task: *task,
-            priority: u32::from_be_bytes(priority.to_be_bytes()),
-            change: encode_change(change),
-            ci: match ci {
-                Some(read) => Some(
-                    w::ChangeCi::new(
-                        &w::CEILINGS,
-                        w::ChangeCiParts { head: read.head, status: encode_status(read.status) },
-                    )
-                    .expect(FITS),
-                ),
-                None => None,
-            },
-            pull: *pull,
-            pending: *pending,
-            effect: encode_effect_result(*effect),
-            delegate: match delegate {
-                Some((task, request)) => Some(
-                    w::DelegateRef::new(
-                        &w::CEILINGS,
-                        w::DelegateRefParts { task: *task, request: encode_delegate(*request) },
-                    )
-                    .expect(FITS),
-                ),
-                None => None,
-            },
-            delegate_status: encode_status(*delegate_status),
-            delegate_flake: *delegate_flake,
-            delegate_head: *delegate_head,
-            verdicts: encode_gate_reports(verdicts),
-            gate_remarks: encode_gate_remarks(gate_remarks),
-            drift: match drift {
-                Some(value) => Some(encode_hold(*value)),
-                None => None,
-            },
-            queue_repair: *queue_repair,
-            queue_repairs: *queue_repairs,
-            questions: encode_questions(questions),
-            producer_failure: producer_failure.clone(),
-            follow_check: match follow_check {
-                Some(check) => Some(encode_check(check)),
-                None => None,
-            },
-            merge_result: merge_result.clone(),
-            history: match history {
-                Some(value) => Some(super::history::encode_change_history(value)),
-                None => None,
-            },
-            ending: encode_ending(ending.as_ref()),
-            repair_tasks: encode_numbers(repair_tasks),
-            resolution_tasks: encode_numbers(resolution_tasks),
-            effect_account: match effect_account {
-                Some(account) => Some(
-                    w::EffectAccount::new(
-                        &w::CEILINGS,
-                        w::EffectAccountParts { entry: account.entry, words: account.words.clone() },
-                    )
-                    .expect(FITS),
-                ),
-                None => None,
-            },
+    w::ChangeHot {
+        regate: match regate {
+            Some(value) => {
+                Some(w::Regate { receipt: super::landing::encode_receipt_key(&value.receipt), run: value.run })
+            }
+            None => None,
         },
-    )
-    .expect(FITS)
+        room: *room,
+        kept: *kept,
+        task_release: match task_release {
+            Some(release) => Some(w::TaskRelease { revision: release.revision, at: release.at.as_nanos() }),
+            None => None,
+        },
+        job: super::history::encode_job_record(job.as_ref()),
+        signed: super::landing_log::encode_signed(signed),
+        result: encode_result(result),
+        task: *task,
+        priority: u32::from_be_bytes(priority.to_be_bytes()),
+        change: encode_change(change),
+        ci: match ci {
+            Some(read) => Some(w::ChangeCi { head: read.head, status: encode_status(read.status) }),
+            None => None,
+        },
+        pull: *pull,
+        pending: *pending,
+        effect: encode_effect_result(*effect),
+        delegate: match delegate {
+            Some((task, request)) => Some(w::DelegateRef { task: *task, request: encode_delegate(*request) }),
+            None => None,
+        },
+        delegate_status: encode_status(*delegate_status),
+        delegate_flake: *delegate_flake,
+        delegate_head: *delegate_head,
+        verdicts: encode_gate_reports(verdicts),
+        gate_remarks: encode_gate_remarks(gate_remarks),
+        drift: match drift {
+            Some(value) => Some(encode_hold(*value)),
+            None => None,
+        },
+        queue_repair: *queue_repair,
+        queue_repairs: *queue_repairs,
+        questions: encode_questions(questions),
+        producer_failure: producer_failure.clone(),
+        follow_check: match follow_check {
+            Some(check) => Some(encode_check(check)),
+            None => None,
+        },
+        merge_result: merge_result.clone(),
+        history: match history {
+            Some(value) => Some(super::history::encode_change_history(value)),
+            None => None,
+        },
+        ending: encode_ending(ending.as_ref()),
+        repair_tasks: encode_numbers(repair_tasks),
+        resolution_tasks: encode_numbers(resolution_tasks),
+        effect_account: match effect_account {
+            Some(account) => Some(w::EffectAccount { entry: account.entry, words: account.words.clone() }),
+            None => None,
+        },
+    }
 }
 pub(super) fn decode_change_hot(value: w::ChangeHot) -> Result<top::ChangeHot, super::Undecodable> {
-    let w::ChangeHotParts {
+    let w::ChangeHot {
         regate,
         room,
         kept,
@@ -1044,14 +889,14 @@ pub(super) fn decode_change_hot(value: w::ChangeHot) -> Result<top::ChangeHot, s
         merge_result,
         history,
         delegate_head,
-    } = value.into_parts();
+    } = value;
     Ok(top::ChangeHot {
         regate: decode_regate(regate),
         room,
         kept,
         task_release: match task_release {
             Some(release) => {
-                let w::TaskReleaseParts { revision, at } = release.into_parts();
+                let w::TaskRelease { revision, at } = release;
                 Some(top::TaskRelease { revision, at: Wall::from_nanos(at) })
             }
             None => None,
@@ -1067,7 +912,7 @@ pub(super) fn decode_change_hot(value: w::ChangeHot) -> Result<top::ChangeHot, s
         change: decode_change(change),
         ci: match ci {
             Some(read) => {
-                let w::ChangeCiParts { head, status } = read.into_parts();
+                let w::ChangeCi { head, status } = read;
                 Some(d::Ci { head, status: decode_status(status) })
             }
             None => None,
@@ -1077,7 +922,7 @@ pub(super) fn decode_change_hot(value: w::ChangeHot) -> Result<top::ChangeHot, s
         effect: decode_effect_result(effect),
         delegate: match delegate {
             Some(value) => {
-                let w::DelegateRefParts { task, request } = value.into_parts();
+                let w::DelegateRef { task, request } = value;
                 Some((task, decode_delegate(request)))
             }
             None => None,
@@ -1108,11 +953,11 @@ pub(super) fn decode_change_hot(value: w::ChangeHot) -> Result<top::ChangeHot, s
     })
 }
 fn decode_effect_account(value: Option<w::EffectAccount>) -> Option<top::EffectAccount> {
-    let w::EffectAccountParts { entry, words } = value?.into_parts();
+    let w::EffectAccount { entry, words } = value?;
     Some(top::EffectAccount { entry, words })
 }
 fn decode_regate(value: Option<w::Regate>) -> Option<top::Regate> {
-    let w::RegateParts { receipt, run } = value?.into_parts();
+    let w::Regate { receipt, run } = value?;
     Some(top::Regate { receipt: super::landing::decode_receipt_key(receipt), run })
 }
 fn encode_numbers(values: &[u64]) -> List<u64> {
@@ -1192,46 +1037,38 @@ fn encode_gate_failures(values: &[d::GateFailure]) -> List<w::GateFailure> {
     let mut result = List::with_capacity(u32::try_from(values.len()).expect("admitted count"));
     for value in values {
         let d::GateFailure { number, count } = value;
-        result
-            .push(
-                w::GateFailure::new(&w::CEILINGS, w::GateFailureParts { number: *number, count: *count }).expect(FITS),
-            )
-            .expect("same count");
+        result.push(w::GateFailure { number: *number, count: *count }).expect("same count");
     }
     result
 }
 fn decode_gate_failures(values: List<w::GateFailure>) -> Box<[d::GateFailure]> {
     let mut result = List::with_capacity(values.len());
     for value in values.into_boxed() {
-        let w::GateFailureParts { number, count } = value.into_parts();
+        let w::GateFailure { number, count } = value;
         result.push(d::GateFailure { number, count }).expect("same count");
     }
     result.into_boxed()
 }
 
 fn encode_result_text(value: &top::ResultText) -> w::ResultText {
-    w::ResultText::new(&w::CEILINGS, w::ResultTextParts { bytes: value.bytes.clone(), cut: value.cut }).expect(FITS)
+    w::ResultText { bytes: value.bytes.clone(), cut: value.cut }
 }
 fn decode_result_text(value: w::ResultText) -> top::ResultText {
-    let w::ResultTextParts { bytes, cut } = value.into_parts();
+    let w::ResultText { bytes, cut } = value;
     top::ResultText { bytes, cut }
 }
 fn encode_result(value: &top::ChangeResult) -> w::ChangeResult {
-    w::ChangeResult::new(
-        &w::CEILINGS,
-        w::ChangeResultParts {
-            head: value.head,
-            checks: encode_result_text(&value.checks),
-            failed: encode_result_text(&value.failed),
-            repairs: encode_result_text(&value.repairs),
-            repair_count: value.repair_count,
-            reviews: encode_result_text(&value.reviews),
-        },
-    )
-    .expect(FITS)
+    w::ChangeResult {
+        head: value.head,
+        checks: encode_result_text(&value.checks),
+        failed: encode_result_text(&value.failed),
+        repairs: encode_result_text(&value.repairs),
+        repair_count: value.repair_count,
+        reviews: encode_result_text(&value.reviews),
+    }
 }
 fn decode_result(value: w::ChangeResult) -> top::ChangeResult {
-    let w::ChangeResultParts { head, checks, failed, repairs, repair_count, reviews } = value.into_parts();
+    let w::ChangeResult { head, checks, failed, repairs, repair_count, reviews } = value;
     top::ChangeResult {
         head,
         checks: decode_result_text(checks),
@@ -1244,10 +1081,10 @@ fn decode_result(value: w::ChangeResult) -> top::ChangeResult {
 
 fn encode_model_effort(value: jig_domain_tasks::ModelEffort) -> w::ModelEffort {
     let jig_domain_tasks::ModelEffort { model, effort } = value;
-    w::ModelEffort::new(&w::CEILINGS, w::ModelEffortParts { model, effort }).expect(FITS)
+    w::ModelEffort { model, effort }
 }
 fn decode_model_effort(value: w::ModelEffort) -> jig_domain_tasks::ModelEffort {
-    let w::ModelEffortParts { model, effort } = value.into_parts();
+    let w::ModelEffort { model, effort } = value;
     jig_domain_tasks::ModelEffort { model, effort }
 }
 fn encode_llm(value: Option<&jig_domain_tasks::LlmChoice>) -> Option<w::LlmChoice> {
@@ -1256,16 +1093,10 @@ fn encode_llm(value: Option<&jig_domain_tasks::LlmChoice>) -> Option<w::LlmChoic
     for model in subagents {
         models.push(encode_model_effort(*model)).expect("same count");
     }
-    Some(
-        w::LlmChoice::new(
-            &w::CEILINGS,
-            w::LlmChoiceParts { main: encode_model_effort(*main), subagents: models, account: *account },
-        )
-        .expect(FITS),
-    )
+    Some(w::LlmChoice { main: encode_model_effort(*main), subagents: models, account: *account })
 }
 fn decode_llm(value: Option<w::LlmChoice>) -> Option<jig_domain_tasks::LlmChoice> {
-    let w::LlmChoiceParts { main, subagents, account } = value?.into_parts();
+    let w::LlmChoice { main, subagents, account } = value?;
     let mut models = List::with_capacity(subagents.len());
     for model in subagents.into_boxed() {
         models.push(decode_model_effort(model)).expect("same count");
@@ -1284,95 +1115,66 @@ fn encode_questions(value: &d::Questions) -> w::Questions {
         let stands = match &question.stands {
             d::Stands::Taken => w::Stands::Taken,
             d::Stands::Asked => w::Stands::Asked,
-            d::Stands::Held { answer } => {
-                w::Stands::Held(w::Held::new(&w::CEILINGS, w::HeldParts { answer: answer.clone() }).expect(FITS))
-            }
+            d::Stands::Held { answer } => w::Stands::Held(w::Held { answer: answer.clone() }),
         };
-        open.push(
-            w::Open::new(
-                &w::CEILINGS,
-                w::OpenParts {
-                    asker: question.asker,
-                    number: question.number,
-                    line: question.line.clone(),
-                    words: question.words.clone(),
-                    stands,
-                },
-            )
-            .expect(FITS),
-        )
+        open.push(w::Open {
+            asker: question.asker,
+            number: question.number,
+            line: question.line.clone(),
+            words: question.words.clone(),
+            stands,
+        })
         .expect("same count");
     }
     let mut waiting = List::with_capacity(u32::try_from(value.waiting.len()).expect("admitted count"));
     for word in &value.waiting {
         waiting
-            .push(
-                w::Waiting::new(
-                    &w::CEILINGS,
-                    w::WaitingParts {
-                        from: word.from,
-                        number: word.number,
-                        words: word.words.clone(),
-                        passed: word.passed,
-                    },
-                )
-                .expect(FITS),
-            )
+            .push(w::Waiting { from: word.from, number: word.number, words: word.words.clone(), passed: word.passed })
             .expect("same count");
     }
     let mut answered = List::with_capacity(u32::try_from(value.answered.len()).expect("admitted count"));
     for answer in &value.answered {
         answered
-            .push(
-                w::Answered::new(
-                    &w::CEILINGS,
-                    w::AnsweredParts {
-                        asker: answer.asker,
-                        number: answer.number,
-                        line: answer.line.clone(),
-                        answer: answer.answer.clone(),
-                    },
-                )
-                .expect(FITS),
-            )
+            .push(w::Answered {
+                asker: answer.asker,
+                number: answer.number,
+                line: answer.line.clone(),
+                answer: answer.answer.clone(),
+            })
             .expect("same count");
     }
-    w::Questions::new(
-        &w::CEILINGS,
-        w::QuestionsParts {
-            route: match value.route {
-                d::Route::None => w::Route::None,
-                d::Route::Up => w::Route::Up,
-            },
-            taken: value.taken,
-            open,
-            waiting,
-            answered,
+    w::Questions {
+        route: match value.route {
+            d::Route::None => w::Route::None,
+            d::Route::Up => w::Route::Up,
         },
-    )
-    .expect(FITS)
+        taken: value.taken,
+        open,
+        waiting,
+        answered,
+    }
 }
 
 fn decode_questions(value: w::Questions) -> Result<d::Questions, super::Undecodable> {
-    let w::QuestionsParts { route, taken, open, waiting, answered } = value.into_parts();
+    let w::Questions { route, taken, open, waiting, answered } = value;
     let mut answers = List::with_capacity(answered.len());
     for answer in answered.into_boxed() {
-        let w::AnsweredParts { asker, number, line, answer } = answer.into_parts();
+        let w::Answered { asker, number, line, answer } = answer;
         answers.push(d::Answered { asker, number, line, answer }).expect("same count");
     }
     let mut words_waiting = List::with_capacity(waiting.len());
     for word in waiting.into_boxed() {
-        let w::WaitingParts { from, number, words, passed } = word.into_parts();
+        let w::Waiting { from, number, words, passed } = word;
         words_waiting.push(d::Waiting { from, number, words, passed }).expect("same count");
     }
     let mut questions = List::with_capacity(open.len());
     for question in open.into_boxed() {
-        let w::OpenParts { asker, number, line, words, stands } = question.into_parts();
+        let w::Open { asker, number, line, words, stands } = question;
         let stands = match stands {
             w::Stands::Taken => d::Stands::Taken,
             w::Stands::Retired => return Err(super::Undecodable::Malformed),
             w::Stands::Asked => d::Stands::Asked,
-            w::Stands::Held(value) => d::Stands::Held { answer: value.into_parts().answer },
+            w::Stands::Held(value) => d::Stands::Held { answer: value.answer },
         };
         questions.push(d::Open { asker, number, line, words, stands }).expect("same count");
     }
@@ -1394,9 +1196,7 @@ fn encode_ending(ending: Option<&top::Ending>) -> Option<w::ChangeEnding> {
         top::Ending::Landed => w::ChangeEnding::Landed,
         top::Ending::NoChange => w::ChangeEnding::NoChange,
         top::Ending::Cancelled => w::ChangeEnding::Cancelled,
-        top::Ending::Failed { line } => w::ChangeEnding::Failed(
-            w::ChangeFailure::new(&w::CEILINGS, w::ChangeFailureParts { line: line.clone() }).expect(FITS),
-        ),
+        top::Ending::Failed { line } => w::ChangeEnding::Failed(w::ChangeFailure { line: line.clone() }),
     })
 }
 fn decode_ending(ending: Option<w::ChangeEnding>) -> Option<top::Ending> {
@@ -1404,51 +1204,42 @@ fn decode_ending(ending: Option<w::ChangeEnding>) -> Option<top::Ending> {
         w::ChangeEnding::Landed => top::Ending::Landed,
         w::ChangeEnding::NoChange => top::Ending::NoChange,
         w::ChangeEnding::Cancelled => top::Ending::Cancelled,
-        w::ChangeEnding::Failed(line) => top::Ending::Failed { line: line.into_parts().line },
+        w::ChangeEnding::Failed(line) => top::Ending::Failed { line: line.line },
     })
 }
 
 pub(super) fn encode_judgement(value: &d::Judgement) -> w::Judgement {
-    w::Judgement::new(
-        &w::CEILINGS,
-        w::JudgementParts {
-            landing: value.landing,
-            round: value.round,
-            pull: value.pull,
-            branch: value.branch.clone(),
-            base: value.base.clone(),
-            prefix: value.prefix,
-        },
-    )
-    .expect(FITS)
+    w::Judgement {
+        landing: value.landing,
+        round: value.round,
+        pull: value.pull,
+        branch: value.branch.clone(),
+        base: value.base.clone(),
+        prefix: value.prefix,
+    }
 }
 fn encode_check(check: &top::FollowCheck) -> w::FollowCheckProgress {
-    w::FollowCheckProgress::new(
-        &w::CEILINGS,
-        w::FollowCheckProgressParts {
-            follow: check.follow,
-            source: check.source,
-            head: check.head,
-            definition: check.definition.clone(),
-            key: check.key,
-            flight: match &check.flight {
-                Some(flight) => Some(super::tiers::encode_flight(flight)),
-                None => None,
-            },
-            page: check.page,
-            faults: check.faults,
-            held: check.held.clone(),
+    w::FollowCheckProgress {
+        follow: check.follow,
+        source: check.source,
+        head: check.head,
+        definition: check.definition.clone(),
+        key: check.key,
+        flight: match &check.flight {
+            Some(flight) => Some(super::tiers::encode_flight(flight)),
+            None => None,
         },
-    )
-    .expect(FITS)
+        page: check.page,
+        faults: check.faults,
+        held: check.held.clone(),
+    }
 }
 pub(super) fn decode_judgement(value: w::Judgement) -> d::Judgement {
-    let w::JudgementParts { landing, round, pull, branch, base, prefix } = value.into_parts();
+    let w::Judgement { landing, round, pull, branch, base, prefix } = value;
     d::Judgement { landing, round, pull, branch, base, prefix }
 }
 fn decode_check(check: w::FollowCheckProgress) -> top::FollowCheck {
-    let w::FollowCheckProgressParts { follow, source, head, definition, key, flight, page, faults, held } =
-        check.into_parts();
+    let w::FollowCheckProgress { follow, source, head, definition, key, flight, page, faults, held } = check;
     top::FollowCheck {
         follow,
         source,
@@ -1467,12 +1258,9 @@ fn decode_check(check: w::FollowCheckProgress) -> top::FollowCheck {
 
 fn encode_source(value: Option<&top::ChangeSource>) -> Option<w::ChangeSource> {
     let value = value?;
-    Some(
-        w::ChangeSource::new(&w::CEILINGS, w::ChangeSourceParts { branch: value.branch.clone(), at: value.at })
-            .expect(FITS),
-    )
+    Some(w::ChangeSource { branch: value.branch.clone(), at: value.at })
 }
 fn decode_source(value: Option<w::ChangeSource>) -> Option<top::ChangeSource> {
-    let w::ChangeSourceParts { branch, at } = value?.into_parts();
+    let w::ChangeSource { branch, at } = value?;
     Some(top::ChangeSource { branch, at })
 }

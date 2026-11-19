@@ -2,7 +2,7 @@
 use super::*;
 
 fn worker() -> crate::drive::deployment::Worker {
-    crate::drive::deployment::Worker::read(br#"{"workers":[{"name":"worker","slots":2}]}"#, &[b'a'; 64])
+    crate::drive::deployment::Worker::read(b"engine = \"127.0.0.1:4102\"\nname = \"worker\"\n", &[b'a'; 64])
         .expect("worker")
 }
 fn listed(bytes: &[u8]) -> Event {
@@ -22,7 +22,7 @@ fn worker_is_admitted_from_its_rendered_files_between_sign_in_and_start() {
     for path in ["config/worker", "data/engine/secrets"] {
         std::fs::create_dir_all(root.path().join(path)).expect("fixture directory");
     }
-    std::fs::write(root.path().join("config/worker/temper.json"), br#"{"workers":[{"name":"sidecar","slots":7}]}"#)
+    std::fs::write(root.path().join(Document::Worker.path()), b"engine = \"127.0.0.1:4102\"\nname = \"sidecar\"\n")
         .expect("worker document");
     let digest = "42".repeat(32);
     std::fs::write(root.path().join("data/engine/secrets/worker.digest"), format!("{digest}\n"))
@@ -49,7 +49,7 @@ fn worker_is_admitted_from_its_rendered_files_between_sign_in_and_start() {
             "add",
             "sidecar",
             "--places",
-            "7",
+            "2",
             "--digest",
             &digest,
             "--key",

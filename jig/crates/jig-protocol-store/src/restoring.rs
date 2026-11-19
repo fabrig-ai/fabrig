@@ -6,6 +6,7 @@ use crate::{
     directory, generations,
 };
 use alloc::boxed::Box;
+use skein_codec::Record as _;
 use skein_io::{file, kernel::Error};
 use skein_lib::{Env, List, Queue, Time, Token};
 mod removal;
@@ -490,7 +491,7 @@ pub(crate) fn deployment(store: &mut Store, id: [u8; 16]) -> bool {
 }
 fn valid(record: &Checkpoint) -> bool {
     for row in &record.files {
-        if !(1..=6).contains(&row.part()) || !(1..=3).contains(&row.way()) || row.way() == 3 && row.part() != 4 {
+        if !(1..=6).contains(&row.part) || !(1..=3).contains(&row.way) || row.way == 3 && row.part != 4 {
             return false;
         }
     }

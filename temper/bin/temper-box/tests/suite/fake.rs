@@ -491,7 +491,7 @@ fn refused_deployment_start(root: &Path) {
         let dir = directory.join(name);
         fs::create_dir(&dir).expect("case directory");
         fs::set_permissions(&dir, fs::Permissions::from_mode(0o700)).expect("private");
-        let config = forge_setup(&dir, "127.0.0.1:9");
+        forge_setup(&dir, "127.0.0.1:9");
         match mode {
             "owned" => support::owned::setup(
                 &dir,
@@ -506,7 +506,11 @@ fn refused_deployment_start(root: &Path) {
             "fake" => {}
             _ => unreachable!("fixture mode"),
         }
-        document(&dir.join("temper.json"), &config);
+        support::write_file(
+            &dir.join(temper_config_shell::FILE),
+            &support::configuration::file(),
+            temper_config_shell::Shape::Standalone,
+        );
         if let Some(token) = token {
             fs::create_dir_all(dir.join("playground-1")).expect("token directory");
             fs::set_permissions(dir.join("playground-1"), fs::Permissions::from_mode(0o700)).expect("private");
@@ -559,8 +563,11 @@ fn refused_deployment_start(root: &Path) {
         let dir = directory.join(name);
         fs::create_dir(&dir).expect("case directory");
         if has_document {
-            let config = support::configuration::demo_document(&dir, "127.0.0.1:8370");
-            document(&dir.join("temper.json"), &config);
+            support::write_file(
+                &dir.join(temper_config_shell::FILE),
+                &support::configuration::file(),
+                temper_config_shell::Shape::Standalone,
+            );
         }
         let path = dir.join("demo/llm.key");
         if let Some(file) = file {
@@ -944,7 +951,12 @@ fn forge_run() {
 
 fn prepared_forge(directory: &Path) -> (SocketAddr, std::path::PathBuf, Vec<u8>) {
     let listen = support::free_addresses::<1>(&[])[0];
-    document(&directory.join("temper.json"), &forge_setup(directory, &listen.to_string()));
+    forge_setup(directory, &listen.to_string());
+    support::write_file(
+        &directory.join(temper_config_shell::FILE),
+        &support::configuration::file(),
+        temper_config_shell::Shape::Standalone,
+    );
     let prepared = support::owned::prepare(directory, 1);
     assert_eq!(prepared.status.code(), Some(0), "{}", String::from_utf8_lossy(&prepared.stderr));
     let path = directory.join("playground-1/admin_token");
@@ -1558,7 +1570,11 @@ fn check_run() {
     fs::create_dir(&data).expect("fixture data");
     let mut value = support::configuration::check_document(directory);
     temper_agent_fixtures::apply(&mut value, &data, &serde_json::from_slice(&agent).expect("agent JSON"));
-    document(&directory.join("temper.json"), &value);
+    support::write_file(
+        &directory.join(temper_config_shell::FILE),
+        &support::configuration::file(),
+        temper_config_shell::Shape::Standalone,
+    );
     let observations = directory.join("observations");
     fs::write(&observations, b"{\"observations_lost\":0}\n").expect("checkpoint");
     let store = directory.join("copy");
@@ -1582,7 +1598,7 @@ fn check_run() {
     assert_eq!(
         ended.stderr,
         format!(
-            "{{\"boundary\":{{\"lines\":1,\"lost\":0}}}}\ntemper fake forge check: opening {}: errno 2\n",
+            "{{\"boundary\":{{\"lines\":1,\"lost\":0}}}}\ntemper-box fake forge check: opening {}: errno 2\n",
             store.display()
         )
         .as_bytes()

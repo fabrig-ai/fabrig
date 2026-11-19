@@ -77,12 +77,6 @@ pub fn standalone(
     }
     for (index, worker) in workers.iter().enumerate() {
         let path = at(index, root.member(b"workers"));
-        if worker.slots > engine.limits.core.fleet.slots {
-            problems.push(
-                path.member(b"slots"),
-                What::Against { other: b"engine.limits.overrides.fleet.slots, at least the slots" },
-            );
-        }
         if !in_process(&worker.engine) {
             problems.push(path.member(b"engine"), What::Standalone);
         }

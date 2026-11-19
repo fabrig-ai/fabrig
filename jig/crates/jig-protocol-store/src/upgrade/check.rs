@@ -1,6 +1,6 @@
 //! The copy's read-only check before the switch (protocol/store/opening.md 2, step 5).
 use super::admission::Levels;
-use crate::codec::component::{Count, CountParts};
+use crate::codec::component::Count;
 use crate::directory::OWNER;
 use crate::generations::PAGE;
 use crate::{Arrived, Below, Check, KeptFamily, KeptMap, OpenRefusal, Owner, Root, Store, intervals, pages, restore};
@@ -76,11 +76,7 @@ pub(crate) fn counts(store: &mut Store, before: List<Counted>) -> Result<List<Co
     let mut counts = List::with_capacity(before.len());
     for counted in before.into_boxed() {
         let after = count(store, counted.owner, &counted.family).ok_or(OpenRefusal::Failed)?;
-        let count = Count::new(
-            &crate::component_v3::CEILINGS,
-            CountParts { family: Box::from(counted.family.name.as_bytes()), before: counted.before, after },
-        )
-        .expect("admission::bounds checked each family's name before the plan");
+        let count = Count { family: Box::from(counted.family.name.as_bytes()), before: counted.before, after };
         counts.push(count).expect("one count per kept family");
     }
     Ok(counts)

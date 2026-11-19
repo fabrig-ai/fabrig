@@ -17,10 +17,11 @@ Or describe how you work to Ask temper: temper help chat.
 
 ### Deployment capacity
 
-Edit startup limits in `temper.json` under `engine.limits.overrides`, then
-restart (temper help deployment). Settings and authority cannot raise them.
+Limits are settings, not keys of `temper.toml`. Read `temper ctl settings show limits`,
+edit the whole value and use `temper ctl settings apply` (steps 1 to 3), then
+restart (temper help deployment). Authority alone cannot raise deployment limits.
 
-| Member under `engine.limits.overrides` | Bounds |
+| Limit in the `limits` setting | Bounds |
 |---|---|
 | `tasks.tasks` | Deployment-wide live tasks |
 | `tasks.project_tasks` | Live tasks per project |

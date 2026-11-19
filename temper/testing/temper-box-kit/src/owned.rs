@@ -74,8 +74,9 @@ pub fn prepare_with_reader(directory: &Path, reader: temper_engine_shell::forge:
     let err = fs::File::create(&err_path).expect("stderr file");
     rustix::stdio::dup2_stdout(&out).expect("capture stdout");
     rustix::stdio::dup2_stderr(&err).expect("capture stderr");
-    let code = temper_engine_shell::forge::run_with_reader(
-        "temper",
+    let code = temper_engine_shell::forge::run_with_shape_reader(
+        "temper-box",
+        temper_config_shell::Shape::Standalone,
         &super::configuration::directories(directory),
         &["prepare".into(), "1".into()],
         None,
@@ -523,11 +524,11 @@ pub fn setup_value(directory: &Path, forge: u16, kind: &str) -> serde_json::Valu
         .expect("setup JSON")
 }
 
-pub fn configuration_value(directory: &Path, change: fn(&mut serde_json::Value)) {
-    let path = directory.join("temper.json");
-    let mut value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
-    change(&mut value);
-    super::write_private(&path, &serde_json::to_vec(&value).expect("JSON"));
+pub fn configuration_value(directory: &Path, change: fn(&mut temper_config_shell::File)) {
+    let path = directory.join(temper_config_shell::FILE);
+    let mut file = super::read_file(&path, temper_config_shell::Shape::Standalone);
+    change(&mut file);
+    super::write_file(&path, &file, temper_config_shell::Shape::Standalone);
 }
 
 /// Both pinned executables are required before the process tier starts anything.
@@ -629,9 +630,16 @@ fn example_value(owned: &Owned) -> serde_json::Value {
 pub fn application(owned: &Owned) -> serde_json::Value {
     example_value(owned)["application"].take()
 }
+/// The owned example's served file has only its two listener values.
+#[must_use]
+pub fn example_file(owned: &Owned) -> temper_config_shell::File {
+    temper_config_shell::File { listen: Some(owned.clients), webhooks: Some(owned.webhooks), ..Default::default() }
+}
+
 #[must_use]
 pub fn example_document(directory: &Path, owned: &Owned) -> Vec<u8> {
     let mut value = example_value(owned);
+    value["workers"][0]["secret"] = "worker.secret".into();
     for endpoint in temper_agent_fixtures::providers::input(&mut value)["endpoints"].as_array_mut().expect("endpoints")
     {
         if endpoint["transport"] == "tls" {
@@ -655,7 +663,7 @@ pub fn lay(directory: &Path, owned: &Owned) {
     if !owned.review {
         native_landing_settings(directory);
     }
-    super::write_private(&directory.join("secrets/worker.secret"), b"worker-secret\n");
+    super::write_private(&directory.join("worker.secret"), b"worker-secret\n");
 }
 
 // Reuse the shell's conversion without making a second public configuration API.
@@ -861,19 +869,13 @@ fn merge_profile(value: &mut serde_json::Value, overlay: serde_json::Value) {
 }
 
 fn bounded_template_profile(directory: &Path, room: Option<&[u8]>) -> Bounded {
-    use std::num::NonZeroU16;
-    use temper_init::{Content, Directories, Facts, Ports};
+    use temper_init::{Content, Directories, Facts};
     let answer = temper_init::files(
         &Facts {
-            sign_in: false,
             binary: b"/usr/local/bin/temper",
             git: Some(b"/usr/bin/git"),
             claude: Some(b"/usr/bin/claude"),
             login: Some(b"ada"),
-            ports: Ports {
-                clients: NonZeroU16::new(8367).expect("clients port"),
-                webhooks: NonZeroU16::new(8371).expect("webhooks port"),
-            },
         },
         &Directories { config: directory.as_os_str().as_bytes(), data: directory.as_os_str().as_bytes() },
         &[7; 32],
@@ -889,6 +891,14 @@ fn bounded_template_profile(directory: &Path, room: Option<&[u8]>) -> Bounded {
             Content::Link { .. } => {}
         }
     }
+    let file = temper_config_shell::File {
+        listen: Some("127.0.0.1:8367".parse().expect("init listener")),
+        webhooks: Some("127.0.0.1:8371".parse().expect("init webhooks")),
+        ..Default::default()
+    };
+    super::write_file(&directory.join(temper_config_shell::FILE), &file, temper_config_shell::Shape::Standalone);
+    let mut value: serde_json::Value =
+        serde_json::from_slice(&temper_config_shell::init_document(false)).expect("init start");
     if let Some(room) = room {
         let room: serde_json::Value = serde_json::from_slice(room).expect("reference room");
         let mut agent = temper_agent_fixtures::read(directory);
@@ -897,9 +907,7 @@ fn bounded_template_profile(directory: &Path, room: Option<&[u8]>) -> Bounded {
             endpoint["limits"]["output"] = room["agent"]["output"].clone();
         }
         temper_agent_fixtures::install(directory, &agent);
-        let document_path = directory.join("temper.json");
-        let mut document: serde_json::Value =
-            serde_json::from_slice(&fs::read(&document_path).expect("init document")).expect("init document JSON");
+        let mut document = value.clone();
         document["engine"]["limits"]["overrides"]["io.output"] =
             room["worker"]["limits"]["overrides"]["io.output"].clone();
         merge_profile(&mut document["engine"]["limits"], room["worker"]["limits"].clone());
@@ -907,12 +915,10 @@ fn bounded_template_profile(directory: &Path, room: Option<&[u8]>) -> Bounded {
             merge_profile(&mut document["application"], application.clone());
         }
         let document = temper_playground::documents::Configuration::from_jig(document);
-        super::write_private(&document_path, &serde_json::to_vec(&document).expect("reference document JSON"));
         super::limit_settings::remember(directory, &document);
+        value = document.document;
     }
 
-    let value =
-        serde_json::from_slice(&fs::read(directory.join("temper.json")).expect("template")).expect("template JSON");
     let (trust, _) = skein_tls::Config::from_der(&[skein_tls_kit::pki::ROOT.into()], &[]).expect("fixture trust");
     bounded_document(
         directory,
@@ -957,15 +963,34 @@ pub fn deployment_profile(directory: &Path, relative: &str) -> Bounded {
         ] {
             text = text.replace(name, value);
         }
-        serde_json::from_str::<serde_json::Value>(&text).expect("rendered profile JSON")
+        if path.file_name().is_some_and(|name| name == temper_config_shell::FILE) {
+            let shape = if path.parent().expect("template shape").ends_with("engine") {
+                temper_config_shell::Shape::EngineAlone
+            } else {
+                temper_config_shell::Shape::WorkerAlone
+            };
+            let facts =
+                temper_config_shell::Facts { login: "ada".into(), hostname: "fixture".into(), provider_key: false };
+            serde_json::from_slice(
+                &temper_config_shell::parse(text.as_bytes(), shape, &facts).expect("rendered profile file").document,
+            )
+            .expect("profile start")
+        } else {
+            serde_json::from_str::<serde_json::Value>(&text).expect("rendered profile JSON")
+        }
+    };
+    let family = if source.file_name().is_some_and(|name| name == temper_config_shell::FILE) {
+        source.parent().expect("shape directory").parent().expect("profile family")
+    } else {
+        source.parent().expect("profile family")
     };
     let value = render(&source);
     let mut engine = if value.get("engine").is_some() {
         value.clone()
     } else {
-        render(&source.parent().expect("profile family").join("engine.json"))
+        render(&family.join("engine").join(temper_config_shell::FILE))
     };
-    let providers = source.parent().expect("profile family").join("providers.json");
+    let providers = family.join("providers.json");
     if providers.is_file() {
         let value = render(&providers);
         let bytes = serde_json::to_vec(&value).expect("rendered providers");

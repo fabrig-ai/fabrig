@@ -346,12 +346,9 @@ fn a_commit_on_github_takes_the_values_author() {
         stand.below.tree.insert(path.to_vec(), Node::Directory);
     }
     // An empty entry list still supplies a commit's author.
-    let limits = fixtures::wire_limits();
-    let mut record = fixtures::github_record(b"x-access-token", b"tok-second").into_parts();
-    record.kind = v1::Kind::Github(
-        v1::Entries::new(&limits, v1::EntriesParts { entries: skein_lib::List::with_capacity(0) }).unwrap(),
-    );
-    let value = temper_protocol_worker_wire::identity(&v1::Identity::new(&limits, record).unwrap());
+    let mut record = fixtures::github_record(b"x-access-token", b"tok-second");
+    record.kind = v1::Kind::Github(v1::Entries { entries: skein_lib::List::with_capacity(0) });
+    let value = temper_protocol_worker_wire::identity(&record);
     stand.worker.link(fixtures::NOW, fixtures::github_value(1, value));
     stand.route_git(
         Token::new(92),

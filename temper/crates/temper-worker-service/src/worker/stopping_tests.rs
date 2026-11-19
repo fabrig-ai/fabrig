@@ -5,6 +5,7 @@ use crate::tests::fixtures;
 use fixtures::worker_peers::{AGENT_CHILD, AGENT_ERROR, AGENT_INPUT, AGENT_OUTPUT, AgentPeer, LinkPeer, socket_stand};
 use skein_io::kernel;
 use skein_lib::Duration;
+use temper_protocol_worker_wire::v1::Record;
 use temper_worker_protocol_git_world::io::Invocation;
 
 fn prepared() -> (fixtures::WorkerStand, AgentPeer, LinkPeer) {
@@ -162,7 +163,7 @@ fn a_drained_runs_save_and_push_complete_while_the_worker_stops() {
         &mut skein_lib::Reader::new(&part.bytes),
     )
     .unwrap();
-    let temper_protocol_worker_wire::v1::Landing::Landed(_) = record.repositories().get(0).unwrap().landing() else {
+    let temper_protocol_worker_wire::v1::Landing::Landed(_) = record.repositories.get(0).unwrap().landing else {
         panic!("the saved repository landed")
     };
     assert!(stand.worker.stopping());

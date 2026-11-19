@@ -611,14 +611,14 @@ record ProjectTriager { owner: AreaOwner }
 record Welcome { shown: bool }
 
 record LimitOverride { name: bytes 64 value: u64 reason: text 120 }
-record TemperLimits { overrides: list 256 LimitOverride }
+record LimitOverrides was TemperLimits { overrides: list 256 LimitOverride }
 record AgentFigure { name: text 64 value: u64 }
 enum Oversized { fail, drop }
 record AgentLimits { window: u32 output: u32 reasoning_item: u32 head_ms: u64 idle_ms: u64 oversized: Oversized }
 record AgentEndpointLimits { endpoint: text 64 limits: AgentLimits }
 record AgentFigures { profile: list 128 AgentFigure endpoints: list 64 AgentEndpointLimits fallback: AgentLimits }
 
-enum SettingValue { rule: LandingRule, charter: CharterValue, questions: ProjectQuestions, ways: ProjectWays, goal: TemplateGoal, line: CharterWords, words: ProjectWords, classes: ProjectClasses, follow: Follow, dependency: Dependency, areas: ProjectAreas, triager: ProjectTriager, welcome: Welcome, project_landing: ProjectLanding, project_gates: ProjectGates, agents: AgentFigures, limits: TemperLimits }
+enum SettingValue { rule: LandingRule, charter: CharterValue, questions: ProjectQuestions, ways: ProjectWays, goal: TemplateGoal, line: CharterWords, words: ProjectWords, classes: ProjectClasses, follow: Follow, dependency: Dependency, areas: ProjectAreas, triager: ProjectTriager, welcome: Welcome, project_landing: ProjectLanding, project_gates: ProjectGates, agents: AgentFigures, limits: LimitOverrides }
 record SizedValue { value: SettingValue size: u32 }
 enum SettingEdit { set: SizedValue, remove, reset }
 record SettingRow { kind: u32 scope: u32 number: u32 slot: SettingSlot edit: SettingEdit }

@@ -27,6 +27,7 @@ skein-fake-person.workspace = true
 serde_json.workspace = true
 
 [dev-dependencies]
+skein-ui-screen-terminal.workspace = true
 jig-protocol-config-fixtures.workspace = true
 skein-scratch.workspace = true
 temper-test-env.workspace = true

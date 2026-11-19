@@ -317,6 +317,7 @@ fn store(engine: &mut Engine, request: root::StoreRequest) {
 fn worker(engine: &mut Engine, request: root::WorkerRequest) {
     match request {
         root::WorkerRequest::Settings(workers) => {
+            engine.workers.local(&workers);
             engine.workers.down(
                 engine.env.now,
                 jig_protocol_engine_workers::Event::Workers(workers),

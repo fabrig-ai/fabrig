@@ -1,5 +1,6 @@
 use super::fixtures;
 use crate::{records, v25};
+use skein_codec::Record;
 use temper_engine_domain_forge as forge;
 
 #[test]
@@ -627,9 +628,9 @@ fn an_ended_changes_hold_round_trips_in_its_state() {
         let row = fixtures::change_hot(row);
         let bytes = records::encode(&row);
         let wire = v25::Row::decode(&v25::CEILINGS, &mut skein_lib::Reader::new(&bytes)).expect("encoded row");
-        let v25::Value::ChangeHot(wire) = wire.into_parts().value else { panic!("change row") };
-        assert_eq!(wire.change().state().live(), &v25::ChangeLive::Ended);
-        assert_eq!(wire.change().state().holds().len(), u32::from(ended_held.is_some()));
+        let v25::Value::ChangeHot(wire) = wire.value else { panic!("change row") };
+        assert_eq!(wire.change.state.live, v25::ChangeLive::Ended);
+        assert_eq!(wire.change.state.holds.len(), u32::from(ended_held.is_some()));
         assert_eq!(records::decode(&bytes, &bounds), Ok(row));
     }
 }
@@ -1210,14 +1211,10 @@ fn appended_people_refusals_round_trip_in_application_answers() {
 fn application_decoding_refuses_malformed_refusal_facts() {
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
     for refusal in [Box::from([255]), Box::from([2]), Box::from([9, 0])] {
-        let value = v25::CoreRefused::new(&v25::CEILINGS, v25::CoreRefusedParts { refusal }).expect("small piece");
-        let application = v25::Application::new(
-            &v25::CEILINGS,
-            v25::ApplicationParts { token: 9, until: 10, outcome: v25::ApplicationOutcome::CoreRefused(value) },
-        )
-        .expect("application");
-        let row =
-            v25::Row::new(&v25::CEILINGS, v25::RowParts { value: v25::Value::Application(application) }).expect("row");
+        let value = v25::CoreRefused { refusal };
+        let application =
+            v25::Application { token: 9, until: 10, outcome: v25::ApplicationOutcome::CoreRefused(value) };
+        let row = v25::Row { value: v25::Value::Application(application) };
         assert_eq!(records::decode(&fixtures::encoded_row(&row), &bounds), Err(crate::Undecodable::Malformed));
     }
 }
@@ -1323,7 +1320,7 @@ fn binding_schema_refuses_fields_one_past_their_bounds() {
         (Box::from([b'a'; 255]), b"subject".as_slice().into()),
         (b"sam@example.com".as_slice().into(), Box::from([b's'; 256])),
     ] {
-        w::Binding::new(&w::CEILINGS, w::BindingParts { address, subject }).unwrap_err();
+        w::Binding { address, subject }.encode(&w::CEILINGS).unwrap_err();
     }
 }
 
@@ -1734,59 +1731,37 @@ fn a_landing_run_written_without_a_clock_decodes_with_none() {
 
 #[test]
 fn landing_faults_and_own_holds_are_mutually_exclusive() {
-    use skein_lib::{List, Writer};
+    use skein_lib::List;
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
     for faults in [false, true] {
         for own in [false, true] {
-            let phase = v25::LandingPhase::new(
-                &v25::CEILINGS,
-                v25::LandingPhaseParts {
-                    place: v25::LandingPlace::Proving,
-                    held: if faults {
-                        Some(
-                            v25::LandingFaults::new(&v25::CEILINGS, v25::LandingFaultsParts { member: 0, gate: 0 })
-                                .expect("fault hold"),
-                        )
-                    } else {
-                        None
-                    },
-                },
-            )
-            .expect("landing phase");
-            let landing = v25::LandingState::new(
-                &v25::CEILINGS,
-                v25::LandingStateParts {
-                    task: 61,
-                    project: 5,
-                    phase,
-                    members: List::with_capacity(0),
-                    preparation: 0,
-                    stale_proofs: 0,
-                    branch: Box::new([]),
-                    round: None,
-                    own_hold: own.then_some(v25::LandingOwnHold::Turn),
-                    last_left: None,
-                    searched: None,
-                },
-            )
-            .expect("landing state");
-            let row = v25::LandingRow::new(
-                &v25::CEILINGS,
-                v25::LandingRowParts {
-                    flake_reruns: List::with_capacity(0),
-                    room: None,
-                    landing,
-                    asks: List::with_capacity(0),
-                    entries: List::with_capacity(0),
-                    job: None,
-                },
-            )
-            .expect("landing row");
-            let wire = v25::Row::new(&v25::CEILINGS, v25::RowParts { value: v25::Value::Landing(Box::new(row)) })
-                .expect("landing row");
-            let mut writer = Writer::new(usize::try_from(wire.measure()).expect("row size"));
-            wire.encode(&mut writer).expect("measured room");
-            let bytes = writer.finish();
+            let phase = v25::LandingPhase {
+                place: v25::LandingPlace::Proving,
+                held: if faults { Some(v25::LandingFaults { member: 0, gate: 0 }) } else { None },
+            };
+            let landing = v25::LandingState {
+                task: 61,
+                project: 5,
+                phase,
+                members: List::with_capacity(0),
+                preparation: 0,
+                stale_proofs: 0,
+                branch: Box::new([]),
+                round: None,
+                own_hold: own.then_some(v25::LandingOwnHold::Turn),
+                last_left: None,
+                searched: None,
+            };
+            let row = v25::LandingRow {
+                flake_reruns: List::with_capacity(0),
+                room: None,
+                landing,
+                asks: List::with_capacity(0),
+                entries: List::with_capacity(0),
+                job: None,
+            };
+            let wire = v25::Row { value: v25::Value::Landing(Box::new(row)) };
+            let bytes = wire.encode(&v25::CEILINGS).expect("measured room");
             let decoded = records::decode(&bytes, &bounds);
             if faults && own {
                 assert_eq!(decoded, Err(crate::Undecodable::Malformed), "two holds cannot wrap one landing phase");
@@ -3224,18 +3199,16 @@ fn devices_round_trip_at_both_bounds_and_refuse_malformed_rows_and_keys() {
     oversized.extend_from_slice(&(u64::from(u32::MAX) + 1).to_be_bytes());
     assert!(crate::keys::decode(&oversized, &fixtures::LIMITS).is_none());
     for (endpoint, label) in [(1025, 60), (1024, 61)] {
-        v25::Device::new(
-            &v25::CEILINGS,
-            v25::DeviceParts {
-                party: 1,
-                number: 1,
-                endpoint: vec![b'e'; endpoint].into_boxed_slice(),
-                label: vec![b'l'; label].into_boxed_slice(),
-                p256dh: [4; 65],
-                auth: [7; 16],
-                at: 0,
-            },
-        )
+        v25::Device {
+            party: 1,
+            number: 1,
+            endpoint: vec![b'e'; endpoint].into_boxed_slice(),
+            label: vec![b'l'; label].into_boxed_slice(),
+            p256dh: [4; 65],
+            auth: [7; 16],
+            at: 0,
+        }
+        .encode(&v25::CEILINGS)
         .unwrap_err();
     }
 }
@@ -3298,44 +3271,29 @@ fn a_change_holding_a_retired_route_or_state_never_decodes() {
     let encoded = records::encode(&row);
     for route in [true, false] {
         let row = w::Row::decode(bounds.limits(), &mut skein_lib::Reader::new(&encoded)).unwrap();
-        let w::Value::ChangeHot(change) = row.into_parts().value else { panic!("stored change") };
-        let mut parts = change.into_parts();
+        let w::Value::ChangeHot(change) = row.value else { panic!("stored change") };
+        let mut parts = change;
         let mut open = skein_lib::List::with_capacity(1);
         if !route {
-            open.push(
-                w::Open::new(
-                    &w::CEILINGS,
-                    w::OpenParts {
-                        asker: 7,
-                        number: 1,
-                        line: Box::new([]),
-                        words: Box::new([]),
-                        stands: w::Stands::Retired,
-                    },
-                )
-                .unwrap(),
-            )
+            open.push(w::Open {
+                asker: 7,
+                number: 1,
+                line: Box::new([]),
+                words: Box::new([]),
+                stands: w::Stands::Retired,
+            })
             .unwrap();
         }
-        parts.questions = w::Questions::new(
-            &w::CEILINGS,
-            w::QuestionsParts {
-                route: if route { w::Route::Retired } else { w::Route::Up },
-                taken: 1,
-                open,
-                waiting: skein_lib::List::with_capacity(0),
-                answered: skein_lib::List::with_capacity(0),
-            },
-        )
-        .unwrap();
-        let row = w::Row::new(
-            &w::CEILINGS,
-            w::RowParts { value: w::Value::ChangeHot(Box::new(w::ChangeHot::new(&w::CEILINGS, parts).unwrap())) },
-        )
-        .unwrap();
-        let mut bytes = skein_lib::Writer::new(usize::try_from(row.measure()).unwrap());
-        row.encode(&mut bytes).unwrap();
-        assert_eq!(records::decode(&bytes.finish(), &bounds), Err(crate::Undecodable::Malformed));
+        parts.questions = w::Questions {
+            route: if route { w::Route::Retired } else { w::Route::Up },
+            taken: 1,
+            open,
+            waiting: skein_lib::List::with_capacity(0),
+            answered: skein_lib::List::with_capacity(0),
+        };
+        let row = w::Row { value: w::Value::ChangeHot(parts) };
+        let bytes = row.encode(&w::CEILINGS).unwrap();
+        assert_eq!(records::decode(&bytes, &bounds), Err(crate::Undecodable::Malformed));
     }
 }
 
@@ -3659,30 +3617,25 @@ fn project_facts_written_with_a_brief_and_run_decode_with_both_dropped() {
         landed: u64::MAX,
         last_landed: skein_lib::Wall::from_nanos(u64::MAX),
     });
-    let brief = v25::StatusBrief::new(
-        &v25::CEILINGS,
-        v25::StatusBriefParts {
-            sentence: b"Project's old brief".as_slice().into(),
-            lede: b"Not any person's".as_slice().into(),
-            at: 11,
-            landed: 7,
-            findings: Some([3; 32]),
-        },
-    )
-    .unwrap();
-    let run = v25::StatusRunning::new(
-        &v25::CEILINGS,
-        v25::StatusRunningParts { task: Some(19), landed: 9, since: 13, findings: Some([5; 32]) },
-    )
-    .unwrap();
+    let brief = v25::StatusBrief {
+        sentence: b"Project's old brief".as_slice().into(),
+        lede: b"Not any person's".as_slice().into(),
+        at: 11,
+        landed: 7,
+        findings: Some([3; 32]),
+    };
+    let run = v25::StatusRunning { task: Some(19), landed: 9, since: 13, findings: Some([5; 32]) };
     let facts_bytes = records::encode(&facts);
-    let mut bytes =
-        skein_lib::Writer::new(facts_bytes.len() + usize::try_from(brief.measure() + run.measure()).unwrap() + 2);
+    let mut bytes = skein_lib::Writer::new(
+        facts_bytes.len()
+            + usize::try_from(brief.measure(&v25::CEILINGS).unwrap() + run.measure(&v25::CEILINGS).unwrap()).unwrap()
+            + 2,
+    );
     bytes.put(&facts_bytes).unwrap();
     bytes.put(&[1]).unwrap();
-    brief.encode(&mut bytes).unwrap();
+    brief.write(&v25::CEILINGS, &mut bytes).unwrap();
     bytes.put(&[1]).unwrap();
-    run.encode(&mut bytes).unwrap();
+    run.write(&v25::CEILINGS, &mut bytes).unwrap();
     let plan = skein_codec::layout::Plan::derive(
         &old,
         old.root(b"Row", None).unwrap(),

@@ -138,7 +138,9 @@ fn the_forgejo_fixture_offers_every_stock_charter_but_the_trial() {
         git: "http://127.0.0.1:3000/".into(),
     };
     support::configuration(scratch.path(), &forge);
-    let bytes = std::fs::read(scratch.path().join("temper.json")).expect("process configuration");
+    let bytes =
+        support::read_start(&scratch.path().join(temper_config_shell::FILE), temper_config_shell::Shape::Standalone)
+            .document;
     let value =
         temper_playground::documents::Configuration::from_jig(serde_json::from_slice(&bytes).expect("deployment JSON"));
     let engine = configured_engine(&value);

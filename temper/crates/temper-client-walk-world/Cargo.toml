@@ -1,6 +1,6 @@
 [package]
 name = "temper-client-walk-world"
-description = "Native web pages on the playground world for journey walks"
+description = "Native web and terminal clients on the playground world for journey walks"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -12,6 +12,15 @@ test = true
 doctest = false
 
 [dependencies]
+skein-io.workspace = true
+skein-shell.workspace = true
+skein-ui-screen.workspace = true
+skein-ui-screen-terminal.workspace = true
+jig-client.workspace = true
+jig-client-shell-native.workspace = true
+jig-client-protocol-http.workspace = true
+temper-client-shell-tui.workspace = true
+temper-client-tui.workspace = true
 temper-client-walk-lines.workspace = true
 temper-playground.workspace = true
 skein-sim-world.workspace = true
@@ -25,6 +34,10 @@ skein-ui-web.workspace = true
 skein-playground.workspace = true
 skein-fake-person.workspace = true
 temper-fake.workspace = true
+skein-fake-machine.workspace = true
+temper-service.workspace = true
+temper-forge-setup.workspace = true
+jig-protocol-config.workspace = true
 
 [lints.rust] # harness: tools/lints/design.md, 2.2
 unsafe_code = "forbid"

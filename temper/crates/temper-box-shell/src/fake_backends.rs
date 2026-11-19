@@ -3,10 +3,8 @@
 //! temper/docs/design/client/journey-clock.md, 4.1.
 use crate::directories::jig_directories;
 mod import;
-pub(crate) mod json;
 use crate::directories::{Directories, make_private, private_root};
 use import::Source;
-use json::Json;
 use skein_io::kernel::{Exit, Fd};
 use std::{
     ffi::OsStr,
@@ -24,8 +22,10 @@ use std::{
 use temper_fake::backends::{self, Paths, Peers};
 use temper_forge_setup_shell::process as locks;
 
+use temper_config_shell::{FILE, Shape};
+
 const ADAPTER: &str = "fake-claude.path";
-const REQUIRED: &[&str] = &["temper.json", "github.json", "oauth.json", "llm.json", "forgejo.json", ADAPTER];
+const REQUIRED: &[&str] = &[FILE, "github.json", "oauth.json", "llm.json", "forgejo.json", ADAPTER];
 
 /// A new sandbox's nine ports, the process tier's (temper/docs/design/protocol/setup/box.md, 5).
 pub(crate) const FAKE_BOX_PORTS: skein_shell::Variable = skein_shell::Variable {
@@ -224,6 +224,12 @@ fn public_path(path: &Path) -> Result<(), String> {
     }
     Ok(())
 }
+/// Check an in-memory candidate before it replaces the retained file.
+fn configuration(dirs: &Directories, text: &[u8]) -> Result<temper_config_shell::Read, String> {
+    let facts = temper_config_shell::facts(dirs).map_err(|why| String::from_utf8_lossy(&why.lines()).into_owned())?;
+    temper_config_shell::parse(text, Shape::Standalone, &facts)
+        .map_err(|why| String::from_utf8_lossy(&why.lines()).into_owned())
+}
 fn public(path: &Path) -> Result<Box<[u8]>, String> {
     public_path(path)?;
     skein_shell::read_file(path, crate::CONFIG_BYTES)
@@ -287,11 +293,10 @@ fn replace_bundle(
 ) -> Result<Box<[u8]>, String> {
     let mut updated = content.clone();
     if let Some(bundle) = bundle {
-        let mut document = Json::decode(&content)?;
-        let selection = Json::String(bytes(bundle));
-        if document.at("application/clients/bundle")? != &selection {
-            document.set("application/clients/bundle", selection)?;
-            updated = document.encode()?;
+        let mut file = configuration(dirs, &content)?.file;
+        if file.internal.bundle.as_deref() != Some(bundle) {
+            file.internal.bundle = Some(bundle.to_path_buf());
+            updated = temper_config_shell::render(&file, Shape::Standalone);
         }
     }
     // Check the entire candidate, including its bundle, before touching retained bytes.
@@ -300,8 +305,8 @@ fn replace_bundle(
         return Ok(content);
     }
     validate(dirs, &updated, adapter)?;
-    let path = dirs.document();
-    let staging = crate::path(&dirs.config).join("temper.json.bundle-staging");
+    let path = crate::path(&dirs.config).join(FILE);
+    let staging = crate::path(&dirs.config).join(format!("{FILE}.bundle-staging"));
     let mut file = OpenOptions::new().write(true).create_new(true).mode(0o600).open(&staging).map_err(|why| {
         format!(
             "{}: {why}; an existing staging file must be removed explicitly before another bundle replacement",
@@ -488,7 +493,8 @@ fn source_forgejo(bytes: &[u8]) -> Result<temper_fake::forge::Document, temper_f
     Ok(document)
 }
 fn validate(dirs: &Directories, bytes: &[u8], expected: &Path) -> Result<crate::setup::Deployment, String> {
-    let deployment = crate::setup::check(bytes, &jig_directories(dirs))?;
+    let document = configuration(dirs, bytes)?.document;
+    let deployment = crate::setup::check(&document, &jig_directories(dirs))?;
     validate_checked(dirs, &deployment, expected)?;
     Ok(deployment)
 }
@@ -690,16 +696,20 @@ fn prepare(
             }
             public_path(&path).and_then(|()| private_document(&path)).map_err(|why| reset(&root, &why))?;
         }
-        let content = public(&effective.document())?;
-        let deployment = crate::setup::check(&content, &jig_directories(&effective))?;
+        let document =
+            temper_config_shell::read(&effective, Shape::Standalone).map_err(|why| why.to_string())?.document;
+        let content = public(&crate::path(&effective.config).join(FILE))?;
+        let deployment = crate::setup::check(&document, &jig_directories(&effective))?;
         let peers = checked_peers(&effective, &deployment)?;
         let steps = scripts_for_start(&effective, &peers, options)?;
-        let bytes = replace_bundle(&effective, content, bundle, adapter, &deployment)?;
+        let _bytes = replace_bundle(&effective, content, bundle, adapter, &deployment)?;
         let providers = backends::providers(&peers).map_err(|why| String::from_utf8_lossy(&why.line()).into_owned())?;
         write(&crate::path(&effective.data).join("providers.setting"), &providers, true)?;
+        let document =
+            temper_config_shell::read(&effective, Shape::Standalone).map_err(|why| why.to_string())?.document;
         return Ok(Prepared {
             directories: effective,
-            bytes,
+            bytes: document,
             listeners: Listeners(Vec::new()),
             peers,
             steps,
@@ -727,13 +737,13 @@ fn prepare(
             fs::set_permissions(path, fs::Permissions::from_mode(0o600)).map_err(|why| why.to_string())?;
         }
     }
-    if let Some(temper) = source.rebase(&effective)? {
-        write(&effective.document(), &temper, true)?;
+    if let Some(temper) = source.rebase(&effective) {
+        write(&crate::path(&effective.config).join(FILE), &temper, true)?;
         // Imported listeners retain their source values; init's new reservations do not represent them.
         crate::close(std::mem::take(&mut held.0).into_iter().map(|(fd, _)| fd).collect());
     }
-    let initial = public(&effective.document())?;
-    let mut excluded = ordinary_ports(&effective, &initial)?;
+    let initial = temper_config_shell::read(&effective, Shape::Standalone).map_err(|why| why.to_string())?;
+    let mut excluded = ordinary_ports(&effective, &initial.document)?;
     let github = reserve_chosen(&excluded, chosen.map(|ports| ports.peers[0]))?;
     excluded.push(addr(&github)?.port());
     let oauth = reserve_chosen(&excluded, chosen.map(|ports| ports.peers[1]))?;
@@ -750,8 +760,18 @@ fn prepare(
         bundle: bytes(&bundle),
         claude: bytes(adapter),
     };
-    let documents =
-        backends::rewrite(&initial, &paths, &peers).map_err(|why| String::from_utf8_lossy(&why.line()).into_owned())?;
+    let documents = backends::rewrite(&initial.document, &paths, &peers)
+        .map_err(|why| String::from_utf8_lossy(&why.line()).into_owned())?;
+    let mut file = initial.file;
+    file.internal.bundle = Some(bundle);
+    file.test.github = Some(temper_config_shell::TestGitHub {
+        api: peers.github.to_string(),
+        transport: temper_config_shell::Transport::Plaintext,
+        remote: format!("http://{}", peers.github),
+        web: format!("http://{}", peers.github),
+        git: Some(crate::path(&effective.data).join("demo/bin/git")),
+    });
+    let text = temper_config_shell::render(&file, Shape::Standalone);
     // Existing peer decoders check their generated documents before any marker is published.
     let forge = temper_fake::forge::Document::decode(&documents.github)
         .map_err(|why| String::from_utf8_lossy(&why.line()).into_owned())?;
@@ -760,13 +780,13 @@ fn prepare(
     let _model = temper_fake::llm::Document::decode(&documents.llm)
         .map_err(|why| String::from_utf8_lossy(&why.line()).into_owned())?;
     for (name, document) in [
-        ("temper.json", &documents.temper),
+        (FILE, &text),
         ("github.json", &documents.github),
         ("oauth.json", &documents.oauth),
         ("llm.json", &documents.llm),
         ("forgejo.json", &documents.forgejo),
     ] {
-        write(&crate::path(&effective.config).join(name), document, name == "temper.json")?;
+        write(&crate::path(&effective.config).join(name), document, name == FILE)?;
     }
     write(&crate::path(&effective.data).join("providers.setting"), &documents.providers, false)?;
     write(
@@ -775,7 +795,8 @@ fn prepare(
         false,
     )?;
     write(&crate::path(&effective.config).join(ADAPTER), adapter.as_os_str().as_bytes(), false)?;
-    let deployment = validate(&effective, &documents.temper, adapter)?;
+    let deployment = validate(&effective, &text, adapter)?;
+    let document = temper_config_shell::read(&effective, Shape::Standalone).map_err(|why| why.to_string())?.document;
     let peers = checked_peers(&effective, &deployment)?;
     let steps = scripts_for_start(&effective, &peers, options)?;
     // Last: a crash or refusal earlier is visibly partial and is never repaired by importing records.
@@ -785,7 +806,7 @@ fn prepare(
     {
         held.0.push((Fd::new(listener.into_raw_fd()), NonZeroU16::new(address.port()).expect("checked peer port")));
     }
-    Ok(Prepared { directories: effective, bytes: documents.temper, listeners: held, peers, steps, _lock: lock })
+    Ok(Prepared { directories: effective, bytes: document, listeners: held, peers, steps, _lock: lock })
 }
 #[cfg(test)]
 mod tests;

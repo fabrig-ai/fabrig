@@ -1,6 +1,7 @@
 use jig_channel_world::program_runs::{self, Case, Run};
 use serde_json::json;
 use smith_fake_claude::{Decision, End, Seen, Step, Story, Turn};
+use smith_transcript::Record;
 fn finish() -> Turn {
     Turn {
         steps: vec![],
@@ -56,12 +57,12 @@ fn a_program_finish_with_live_delegates_parks_without_a_try() {
     }];
     let run = program_runs::run(Case::Delegated, &story(vec![turn]));
     for turn in &run.turns {
-        for message in transcript(turn).messages() {
-            for block in message.blocks() {
+        for message in &transcript(turn).messages {
+            for block in &message.blocks {
                 if let smith_transcript::Block::Result(result) = block
-                    && let smith_transcript::Returned::Said(said) = result.returned()
+                    && let smith_transcript::Returned::Said(said) = (&result.returned)
                 {
-                    assert!(!said.error(), "{}", String::from_utf8_lossy(said.text()));
+                    assert!(!said.error, "{}", String::from_utf8_lossy(said.text.as_ref()));
                 }
             }
         }
@@ -176,10 +177,10 @@ fn an_open_program_run_replies_parks_and_resumes() {
     for turn in &run.turns {
         let transcript = transcript(turn);
         assert!(
-            transcript.messages().iter().any(|message| {
-                *message.role() == smith_transcript::Role::Assistant
-                    && message.blocks().iter().any(
-                        |block| matches!(block, smith_transcript::Block::Text(text) if text.text() == REPLY.as_bytes()),
+            transcript.messages.iter().any(|message| {
+                message.role == smith_transcript::Role::Assistant
+                    && message.blocks.iter().any(
+                        |block| matches!(block, smith_transcript::Block::Text(text) if text.text.as_ref() == REPLY.as_bytes()),
                     )
             }),
             "each activation commits its text reply"
@@ -231,11 +232,11 @@ fn a_granted_built_in_call_asks_smith_s_policy() {
     let mut told = false;
     for turn in &run.turns {
         let transcript = transcript(turn);
-        for message in transcript.messages().as_slice() {
+        for message in transcript.messages.as_slice() {
             told |= message
-                .blocks()
+                .blocks
                 .iter()
-                .any(|block| matches!(block,smith_transcript::Block::Call(call) if call.name()==b"Read"));
+                .any(|block| matches!(block,smith_transcript::Block::Call(call) if call.name.as_ref()==b"Read"));
         }
     }
     assert!(told, "the core's transcript shows the call");

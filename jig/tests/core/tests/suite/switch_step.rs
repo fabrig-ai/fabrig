@@ -1,7 +1,7 @@
 use crate::run_helpers as f;
 use crate::switch_support::{RESTORES, mark, wires};
 use jig_core_world::world::{Setup, World};
-use jig_protocol_store::component_v3;
+use jig_protocol_store::component_v3::{self, Record as _};
 use skein_lib::Reader;
 
 #[test]
@@ -20,5 +20,5 @@ fn a_first_start_takes_the_switch_step() {
     assert!(world.domain.ready());
     let bytes = wires(&mut world);
     let row = component_v3::Wires::decode(&component_v3::CEILINGS, &mut Reader::new(&bytes)).expect("empty wires row");
-    assert!(row.wires().is_empty(), "an empty shell wire list is still committed");
+    assert!(row.wires.is_empty(), "an empty shell wire list is still committed");
 }
