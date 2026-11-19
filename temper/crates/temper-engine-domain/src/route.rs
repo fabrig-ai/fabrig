@@ -600,6 +600,11 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
             Work::ProposalLoaded { waiter, rows } => proposals::historical_loaded(domain, waiter, rows),
             Work::ProposalFailed { waiter } => proposals::historical_failed(domain, waiter),
             Work::TaskProposalLoaded { waiter, rows } => proposals::task_loaded(domain, waiter, rows),
+            Work::EndedLoad { waiter, task } => emit(
+                decision,
+                &env.limits,
+                Delivery::Load { waiter, range: Range::Core(crate::CoreRange::TaskResult { task }), after: None },
+            ),
             Work::EndedLoaded { waiter, rows } => crate::archive::ended_loaded(domain, waiter, rows),
             Work::EndedFailed { waiter } => crate::archive::ended_failed(domain, waiter),
             Work::ChangeFromLoaded { task, row } => crate::changes_from::loaded(domain, env, decision, task, row),

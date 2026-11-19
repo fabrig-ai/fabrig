@@ -173,6 +173,7 @@ struct Entry {
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 enum Phase {
+    Reserved,
     Waiting,
     Paging,
     Abandoned,
@@ -244,11 +245,38 @@ pub fn begin(
             }
         }
     }
+    let mut reserved = None;
+    for (id, entry) in &domain.entries {
+        if entry.waiter == waiter && entry.phase == Phase::Reserved {
+            assert!(entry.range == range && entry.after == after && entry.most == most, "reserved load unchanged");
+            reserved = Some(id);
+            break;
+        }
+    }
     let entry = Entry { waiter, range: range.clone(), after: after.clone(), most, phase: Phase::Waiting };
-    let id = domain.entries.insert(entry).ok()?;
+    let id = match reserved {
+        Some(id) => {
+            *domain.entries.get_mut(id).expect("reserved result load") = entry;
+            id
+        }
+        None => domain.entries.insert(entry).ok()?,
+    };
     let owner = id.token();
     out.push(Request::Load { owner, range, after, most, bytes: domain.limits.reply_bytes });
     Some(owner)
+}
+
+/// Reserve an ended task's slot before its held output is durable
+/// (temper/docs/design/domain/root.md, 7). `begin` issues it in that slot.
+pub(crate) fn reserve_result(domain: &mut Loads, waiter: Token, task: u64) {
+    let entry = Entry {
+        waiter,
+        range: Range::Core(crate::CoreRange::TaskResult { task }),
+        after: None,
+        most: 1,
+        phase: Phase::Reserved,
+    };
+    domain.entries.insert(entry).expect("ended task's load room checked");
 }
 
 /// Re-arm an uncut transcript page's held slot for its waiter in the answering pass.
@@ -288,7 +316,7 @@ pub fn abandon(domain: &mut Loads, owner: Token) {
     if let Some(entry) = domain.entries.get_mut(Id::from_token(owner)) {
         match entry.phase {
             Phase::Waiting => entry.phase = Phase::Abandoned,
-            Phase::Paging => {
+            Phase::Reserved | Phase::Paging => {
                 entry.phase = Phase::Closed;
                 domain.entries.retire(Id::from_token(owner));
             }
@@ -314,7 +342,7 @@ pub fn unloaded(domain: &mut Loads, owner: Token, out: &mut Queue<Request>) {
         match entry.phase {
             Phase::Waiting => out.push(Request::Unloaded { waiter: entry.waiter, failure: Failure::Store }),
             Phase::Abandoned => {}
-            Phase::Paging | Phase::Closed => return,
+            Phase::Reserved | Phase::Paging | Phase::Closed => return,
         }
         entry.phase = Phase::Closed;
         domain.entries.retire(id);
@@ -338,7 +366,7 @@ pub fn loaded(domain: &mut Loads, owner: Token, rows: Box<[Record]>, next: Optio
             domain.entries.retire(id);
             return;
         }
-        Phase::Paging | Phase::Closed => return,
+        Phase::Reserved | Phase::Paging | Phase::Closed => return,
         Phase::Waiting => {}
     }
     let checked = check(entry, &domain.limits, &rows, next.clone());
