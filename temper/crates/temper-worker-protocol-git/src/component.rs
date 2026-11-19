@@ -78,7 +78,7 @@ impl Component {
         assert!(self.index.insert(key, id).expect("admitted index fits").is_none(), "unique invocation token");
         id
     }
-    /// Keep workspace directories across this worker's start.
+    /// Keep workspace and worker git directories across this worker's start.
     pub fn keep_workspaces(&mut self) {
         assert_eq!(self.start, Start::Idle, "set workspace reuse before start");
         self.directories.keep = true;
@@ -307,7 +307,7 @@ impl Component {
             | Next::Make
             | Next::Store
             | Next::InstallStore { .. }
-            | Next::Alternates
+            | Next::Alternates { .. }
             | Next::Scan { .. }) => other,
         };
         match next {
@@ -387,11 +387,11 @@ impl Component {
                 operation.command = Command::Version;
                 self.file_start(id, task, out);
             }
-            Next::Alternates => {
+            Next::Alternates { format, run } => {
                 let Some(git::Op::Clone { at, store, remote }) = &self.slots.get(id).expect("live index").op else {
                     unreachable!("Clone sequence")
                 };
-                self.file_start(id, Task::alternates(at, *store, remote.clone()), out);
+                self.file_start(id, Task::alternates(at, *store, remote.clone(), format, run), out);
             }
             Next::Reds { directory, content, marker, rerun } => {
                 self.file_start(id, Task::reds(directory, content, marker, rerun), out);
@@ -603,6 +603,7 @@ impl Component {
             && self.background.is_none()
             && self.directories.trash.is_none()
             && self.directories.workspaces.is_none()
+            && self.directories.gitdirs.is_none()
             && self.directories.stores.is_none()
             && self.directories.making.is_none()
     }

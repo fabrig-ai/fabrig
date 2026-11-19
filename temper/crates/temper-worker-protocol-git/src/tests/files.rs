@@ -5,8 +5,8 @@ use skein_io::kernel::{self, Error, Fd, Op, OpenHow};
 use temper_worker_domain_checkout::git;
 
 // Completions before opening kept workspaces or making fresh ones.
-const KEPT_BEFORE_OPEN: u8 = 8;
-const FRESH_BEFORE_WORKSPACES: u8 = 5;
+const KEPT_BEFORE_OPEN: u8 = 9;
+const FRESH_BEFORE_WORKSPACES: u8 = 6;
 
 fn directory(dir: Fd, name: &[u8]) -> Op {
     Op::MakeDirectory { dir, name: Box::from(name), mode: 0o700 }
@@ -51,13 +51,16 @@ fn the_start_keeps_stores_and_replaces_workspaces_making_and_home() {
             (directory(Fd::new(3), b"trash"), exists),
             (open(b"trash", OpenHow::DirectoryNoFollow), None),
             (rename(Fd::new(3), b"workspaces", b"1000"), missing),
-            (rename(Fd::new(3), b"making", b"1001"), missing),
-            (rename(Fd::new(3), b"home", b"1002"), missing),
+            (rename(Fd::new(3), b"gitdirs", b"1001"), missing),
+            (rename(Fd::new(3), b"making", b"1002"), missing),
+            (rename(Fd::new(3), b"home", b"1003"), missing),
             (directory(Fd::new(3), b"workspaces"), None),
+            (directory(Fd::new(3), b"gitdirs"), None),
             (directory(Fd::new(3), b"stores"), exists),
             (directory(Fd::new(3), b"making"), None),
             (directory(Fd::new(3), b"home"), None),
             (open(b"workspaces", OpenHow::DirectoryNoFollow), None),
+            (open(b"gitdirs", OpenHow::DirectoryNoFollow), None),
             (open(b"stores", OpenHow::DirectoryNoFollow), None),
             (open(b"making", OpenHow::DirectoryNoFollow), None),
         ] {
@@ -84,7 +87,7 @@ fn a_start_skips_a_trash_name_left_by_an_earlier_start() {
     component.complete_err(Error::Exists);
     assert_eq!(component.file_operation(), rename(Fd::new(3), b"workspaces", b"1001"));
     component.complete_ok();
-    assert_eq!(component.file_operation(), rename(Fd::new(3), b"making", b"1002"));
+    assert_eq!(component.file_operation(), rename(Fd::new(3), b"gitdirs", b"1002"));
 }
 
 #[test]
@@ -93,7 +96,11 @@ fn make_renames_the_old_workspace_aside_and_makes_it_empty() {
     component.down(fixtures::make(fixtures::OWNER, fixtures::WORKSPACE));
     assert_eq!(component.file_operation(), rename(fixtures::WORKSPACES, b"7", b"1000"));
     component.complete_ok();
+    assert_eq!(component.file_operation(), rename(fixtures::GITDIRS, b"7", b"1001"));
+    component.complete_ok();
     assert_eq!(component.file_operation(), directory(fixtures::WORKSPACES, b"7"));
+    component.complete_ok();
+    assert_eq!(component.file_operation(), directory(fixtures::GITDIRS, b"7"));
     component.complete_ok();
     assert_eq!(component.done(), Some((fixtures::OWNER, git::Done::Succeeded)));
 }
@@ -107,7 +114,11 @@ fn make_accepts_only_a_missing_source_after_a_failed_rename() {
         assert_eq!(component.file_operation(), rename(fixtures::WORKSPACES, b"7", b"1000"));
         component.complete_err(error);
         if creates {
+            assert_eq!(component.file_operation(), rename(fixtures::GITDIRS, b"7", b"1001"));
+            component.complete_err(Error::NotFound);
             assert_eq!(component.file_operation(), directory(fixtures::WORKSPACES, b"7"));
+            component.complete_ok();
+            assert_eq!(component.file_operation(), directory(fixtures::GITDIRS, b"7"));
             component.complete_ok();
             assert_eq!(component.done(), Some((fixtures::OWNER, git::Done::Succeeded)), "{error:?}");
         } else {
@@ -173,7 +184,7 @@ fn a_conflicted_path_gone_a_directory_or_a_link_holds_no_marker() {
 #[test]
 fn the_sweep_removes_files_and_moves_subdirectories_up_into_trash() {
     let mut component = fixtures::Started::version_checked();
-    for _ in 0_u8..12 {
+    for _ in 0_u8..15 {
         component.file_operation();
         component.complete_ok();
     }
@@ -190,7 +201,7 @@ fn the_sweep_removes_files_and_moves_subdirectories_up_into_trash() {
     component.complete_ok();
     assert_eq!(component.file_operation(), remove(fixtures::WORKSPACES, b"nested", false));
     component.complete_err(Error::IsADirectory);
-    assert_eq!(component.file_operation(), rename(fixtures::WORKSPACES, b"nested", b"1003"));
+    assert_eq!(component.file_operation(), rename(fixtures::WORKSPACES, b"nested", b"1004"));
     component.complete_ok();
     assert_eq!(component.file_operation(), Op::Close { fd: fixtures::WORKSPACES });
     component.complete_ok();
@@ -205,7 +216,7 @@ fn the_sweep_removes_files_and_moves_subdirectories_up_into_trash() {
 #[test]
 fn no_sweep_pass_starts_after_shutdown() {
     let mut component = fixtures::Started::version_checked();
-    for _ in 0_u8..12 {
+    for _ in 0_u8..15 {
         component.file_operation();
         component.complete_ok();
     }
@@ -213,7 +224,9 @@ fn no_sweep_pass_starts_after_shutdown() {
     assert_eq!(component.file_operation(), open(b"trash", OpenHow::DirectoryNoFollow));
     component.down(Request::Shutdown);
     component.complete_ok();
-    for fd in [fixtures::TRASH, fixtures::MAKING, fixtures::STORES, fixtures::WORKSPACES, fixtures::TRASH] {
+    for fd in
+        [fixtures::TRASH, fixtures::MAKING, fixtures::STORES, fixtures::GITDIRS, fixtures::WORKSPACES, fixtures::TRASH]
+    {
         assert_eq!(component.file_operation(), Op::Close { fd });
         component.complete_ok();
     }
@@ -273,10 +286,12 @@ fn a_kept_start_replaces_making_and_home_and_keeps_workspaces_and_stores() {
             (rename(Fd::new(3), b"making", b"1000"), if existing { None } else { Some(Error::NotFound) }),
             (rename(Fd::new(3), b"home", b"1001"), if existing { None } else { Some(Error::NotFound) }),
             (directory(Fd::new(3), b"workspaces"), if existing { Some(Error::Exists) } else { None }),
+            (directory(Fd::new(3), b"gitdirs"), if existing { Some(Error::Exists) } else { None }),
             (directory(Fd::new(3), b"stores"), if existing { Some(Error::Exists) } else { None }),
             (directory(Fd::new(3), b"making"), None),
             (directory(Fd::new(3), b"home"), None),
             (open(b"workspaces", OpenHow::DirectoryNoFollow), None),
+            (open(b"gitdirs", OpenHow::DirectoryNoFollow), None),
             (open(b"stores", OpenHow::DirectoryNoFollow), None),
             (open(b"making", OpenHow::DirectoryNoFollow), None),
         ] {

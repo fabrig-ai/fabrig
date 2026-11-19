@@ -448,7 +448,7 @@ fn an_abort_during_commit_tree_spawn_settles_without_a_done() {
     assert_eq!(component.below.out.io.len(), 4, "abort child and all three pipes");
     component.closed(child, &pipes);
     assert_eq!(component.done(), None);
-    for _ in 0_u8..4 {
+    for _ in 0_u8..5 {
         component.file_operation();
         component.complete_ok();
     }
@@ -498,7 +498,7 @@ fn a_look_spawns_at_the_worker_root_without_an_identity() {
     assert_eq!(
         spawn.args,
         crate::invocation::arguments(&crate::invocation::Command::Origin {
-            directory: Box::from(&b"workspaces/7/app"[..])
+            directory: Box::from(&b"gitdirs/7/app"[..])
         })
     );
     assert_eq!(component.done(), None);
@@ -515,7 +515,7 @@ fn a_point_spawns_one_local_update_ref_without_an_identity() {
             identity: None,
         });
         let Some(skein_io::Request::Spawn { spawn, .. }) = component.below.out.io.pop() else { panic!("point spawn") };
-        assert_eq!(&*spawn.dir, b"workspaces/7/app");
+        assert_eq!(&*spawn.dir, b"");
         let mut expected = skein_lib::List::uncapped();
         for setting in crate::invocation::SETTINGS {
             expected.push(Box::from(b"-c".as_slice())).expect("uncapped args");
@@ -525,7 +525,13 @@ fn a_point_spawns_one_local_update_ref_without_an_identity() {
             git::Into::Fetched => b"refs/temper/fetched".as_slice(),
             git::Into::Landing => b"refs/temper/landing".as_slice(),
         };
-        for word in [b"update-ref".as_slice(), reference, b"abababababababababababababababababababab"] {
+        for word in [
+            b"--git-dir=gitdirs/7/app".as_slice(),
+            b"--work-tree=workspaces/7/app",
+            b"update-ref",
+            reference,
+            b"abababababababababababababababababababab",
+        ] {
             expected.push(Box::from(word)).expect("uncapped args");
         }
         assert_eq!(spawn.args.as_ref(), expected.as_slice());

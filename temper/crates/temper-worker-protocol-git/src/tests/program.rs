@@ -6,8 +6,8 @@ use temper_worker_domain_checkout::git;
 
 const FIRST: &[u8] = b"/fake/first";
 const SECOND: &[u8] = b"/fake/second";
-// The fresh layout has seven kernel operations, through its workspaces open.
-const LAYOUT_STEPS: u8 = 12;
+// The fresh layout retires and opens both checkout directory trees.
+const LAYOUT_STEPS: u8 = 15;
 const CURRENT: &[u8] = b"git version 2.41.0\n";
 const REMOTE: &[u8] = b"https://forge.example.test:8443/acme/app.git";
 
@@ -225,7 +225,7 @@ fn start(machine: bool) -> Started {
     .expect("valid");
     world.component.start(world.now, &mut world.below.out);
     assert!(world.below.out.io.is_empty(), "no start version spawn");
-    for _ in 0_u8..12 {
+    for _ in 0_u8..LAYOUT_STEPS {
         world.file_operation();
         world.complete_ok();
     }

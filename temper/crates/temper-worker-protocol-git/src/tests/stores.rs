@@ -24,8 +24,15 @@ fn invocation_program(
     let mut seen = false;
     for request in &s.below.out.io {
         if let skein_io::Request::Spawn { spawn, .. } = request {
-            assert_eq!(spawn.args, invocation::arguments(command));
-            assert_eq!(spawn.dir.as_ref(), directory);
+            let (git_dir, work_tree) = if directory.starts_with(b"stores/") {
+                (Some(Box::from(directory)), None)
+            } else if directory == b"workspaces/7/app" {
+                (Some(Box::from(b"gitdirs/7/app".as_slice())), Some(directory))
+            } else {
+                (None, None)
+            };
+            assert_eq!(spawn.args, invocation::arguments_at(command, git_dir.as_deref(), work_tree));
+            assert!(spawn.dir.is_empty());
             assert_eq!(spawn.env.len(), if header { 12 } else { 9 });
             let committer =
                 if named { b"GIT_COMMITTER_NAME=Temper Bot".as_slice() } else { b"GIT_COMMITTER_NAME=temper" };
@@ -70,7 +77,7 @@ fn clone_reads_the_stores_format_and_writes_whole_relative_alternates_before_ori
         invocation(&mut s, &Command::Format, b"stores/9", false, false, &output);
         invocation(
             &mut s,
-            &Command::Clone { directory: Box::from(&b"app"[..]), format },
+            &Command::Clone { directory: Box::from(&b"gitdirs/7/app"[..]), format, bare: true },
             b"workspaces/7",
             false,
             false,
@@ -80,27 +87,49 @@ fn clone_reads_the_stores_format_and_writes_whole_relative_alternates_before_ori
             s.file_operation(),
             Op::Open {
                 root: Fd::new(3),
-                path: Box::from(&b"workspaces/7/app/.git/objects/info/alternates"[..]),
+                path: Box::from(&b"gitdirs/7/app/objects/info/alternates"[..]),
                 how: OpenHow::CreateNoFollow { mode: Some(0o600) }
             }
         );
         s.complete_ok();
         let Op::Write { bytes, from: 0, at: 0, .. } = s.file_operation() else { panic!("whole alternates write") };
-        assert_eq!(bytes.as_ref(), b"../../../../../stores/9/objects\n");
+        assert_eq!(bytes.as_ref(), b"../../../../stores/9/objects\n");
         s.complete(Ok(Done::Count(1)));
         let Op::Write { bytes, from: 1, at: 1, .. } = s.file_operation() else { panic!("short write continued") };
-        assert_eq!(bytes.as_ref(), b"../../../../../stores/9/objects\n");
+        assert_eq!(bytes.as_ref(), b"../../../../stores/9/objects\n");
         s.complete_ok();
         let Op::Close { .. } = s.file_operation() else { panic!("alternates closed before origin") };
         s.complete_ok();
         invocation(
             &mut s,
-            &Command::Remote { remote: Box::from(fixtures::REMOTE) },
+            &Command::Remote { remote: Box::from(fixtures::REMOTE), format },
             b"workspaces/7/app",
             false,
             false,
             b"",
         );
+        invocation(
+            &mut s,
+            &Command::Clone { directory: Box::from(b"workspaces/7/app".as_slice()), format, bare: false },
+            b"",
+            false,
+            false,
+            b"",
+        );
+        assert_eq!(
+            s.file_operation(),
+            Op::Open {
+                root: Fd::new(3),
+                path: Box::from(b"workspaces/7/app/.git/objects/info/alternates".as_slice()),
+                how: OpenHow::CreateNoFollow { mode: Some(0o600) },
+            }
+        );
+        s.complete_ok();
+        let Op::Write { bytes, from: 0, at: 0, .. } = s.file_operation() else { panic!("run alternates") };
+        assert_eq!(bytes.as_ref(), b"../../../../../gitdirs/7/app/objects\n");
+        s.complete_ok();
+        let Op::Close { .. } = s.file_operation() else { panic!("run alternates closed") };
+        s.complete_ok();
         assert_eq!(s.done(), Some((fixtures::OWNER, git::Done::Succeeded)));
     }
     for malformed in [b"sha1".as_slice(), b"sha256\n\n", b"sha512\n"] {
@@ -168,7 +197,7 @@ fn a_store_clone_installs_from_making_without_replacing_an_existing_store() {
         s.complete_ok();
         invocation(
             &mut s,
-            &Command::Store { directory: Box::from(&b"1000"[..]), remote: Box::from(fixtures::REMOTE) },
+            &Command::Store { directory: Box::from(&b"making/1000"[..]), remote: Box::from(fixtures::REMOTE) },
             b"making",
             true,
             true,
@@ -216,6 +245,10 @@ fn make_sets_aside_its_references_in_each_store_and_accepts_missing_ones() {
     s.complete_ok();
     s.file_operation();
     s.complete_ok();
+    s.file_operation();
+    s.complete_ok();
+    s.file_operation();
+    s.complete_ok();
     for (path, missing) in [(b"stores/9/refs/temper".as_slice(), false), (b"stores/10/refs/temper", true)] {
         let expected = Box::from(path);
         assert_eq!(s.file_operation(), Op::Open { root: Fd::new(3), path: expected, how: OpenHow::DirectoryNoFollow });
@@ -224,7 +257,7 @@ fn make_sets_aside_its_references_in_each_store_and_accepts_missing_ones() {
             panic!("references moved")
         };
         assert_eq!((from_dir, from.as_ref(), to_dir), (Fd::new(8), b"7".as_slice(), fixtures::TRASH));
-        assert_eq!(to.as_ref(), if missing { b"1002" } else { b"1001" });
+        assert_eq!(to.as_ref(), if missing { b"1003" } else { b"1002" });
         if missing {
             s.complete_err(Error::NotFound);
         } else {
@@ -258,8 +291,12 @@ fn make_skips_occupied_trash_names_when_retiring_a_kept_stores_references() {
     s.file_operation();
     s.complete_ok();
     s.file_operation();
+    s.complete_ok();
+    s.file_operation();
+    s.complete_ok();
+    s.file_operation();
     s.complete(Ok(Done::Fd(Fd::new(8))));
-    for name in [b"1001".as_slice(), b"1002"] {
+    for name in [b"1002".as_slice(), b"1003"] {
         assert_eq!(
             s.file_operation(),
             Op::Rename {
@@ -274,7 +311,7 @@ fn make_skips_occupied_trash_names_when_retiring_a_kept_stores_references() {
         assert_eq!(s.done(), None);
     }
     let Op::Rename { to, no_replace: true, .. } = s.file_operation() else { panic!("next unused trash name") };
-    assert_eq!(to.as_ref(), b"1003");
+    assert_eq!(to.as_ref(), b"1004");
     s.complete_ok();
     assert_eq!(s.file_operation(), Op::Close { fd: Fd::new(8) });
     s.complete_ok();
@@ -338,7 +375,7 @@ fn a_store_check_closes_its_directory_during_shutdown() {
     s.complete(Ok(Done::Fd(Fd::new(8))));
     assert_eq!(s.file_operation(), Op::Close { fd: Fd::new(8) });
     s.complete_ok();
-    for fd in [fixtures::MAKING, fixtures::STORES, fixtures::WORKSPACES, fixtures::TRASH] {
+    for fd in [fixtures::MAKING, fixtures::STORES, fixtures::GITDIRS, fixtures::WORKSPACES, fixtures::TRASH] {
         assert_eq!(s.file_operation(), Op::Close { fd });
         s.complete_ok();
     }
@@ -392,7 +429,7 @@ fn a_deadline_during_store_install_names_install() {
     s.complete_ok();
     invocation(
         &mut s,
-        &Command::Store { directory: Box::from(b"1000".as_slice()), remote: Box::from(fixtures::REMOTE) },
+        &Command::Store { directory: Box::from(b"making/1000".as_slice()), remote: Box::from(fixtures::REMOTE) },
         b"making",
         true,
         true,
@@ -432,7 +469,7 @@ fn a_missing_store_checks_its_item_program_before_cloning_and_discards_on_a_bad_
         if usable {
             invocation_program(
                 &mut s,
-                &Command::Store { directory: Box::from(&b"1000"[..]), remote: Box::from(fixtures::REMOTE) },
+                &Command::Store { directory: Box::from(&b"making/1000"[..]), remote: Box::from(fixtures::REMOTE) },
                 b"making",
                 true,
                 true,

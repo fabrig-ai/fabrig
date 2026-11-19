@@ -130,7 +130,7 @@ fn standalone_ancestry_exits_are_booleans_and_faults_keep_their_diagnostic() {
 #[test]
 fn a_look_requires_the_exact_remote_and_handles_absent_repositories() {
     let op = git::Op::Look { at: fixtures::at(), remote: Box::from(fixtures::REMOTE) };
-    let command = Command::Origin { directory: Box::from(&b"workspaces/7/app"[..]) };
+    let command = Command::Origin { directory: Box::from(&b"gitdirs/7/app"[..]) };
     assert_eq!(sequence::first(&op), Next::Run(command.clone()));
     let matching = crate::invocation::joined(&[fixtures::REMOTE, b"\n"]);
     let extra = crate::invocation::joined(&[&matching, b"\n"]);

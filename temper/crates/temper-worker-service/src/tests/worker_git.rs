@@ -99,7 +99,7 @@ fn the_link_dials_only_once_the_git_component_has_started() {
     let mut stand = fixtures::WorkerStand::new();
     stand.worker.iterate(fixtures::NOW, Wall::EPOCH);
     let Some(io::Request::Spawn { spawn, .. }) = stand.worker.io().iter().next() else { panic!("git starts first") };
-    assert_eq!(spawn.args[26].as_ref(), b"version");
+    assert!(spawn.args.contains(&Box::from(b"version".as_slice())));
     for request in &*stand.worker.io() {
         if let io::Request::Connect { .. } = request {
             panic!("link cannot dial before git starts");

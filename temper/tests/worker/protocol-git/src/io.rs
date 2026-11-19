@@ -187,7 +187,19 @@ impl Below {
         self.spawns += 1;
         let invocation = self.script.invocations.pop_front().expect("script supplies each invocation");
         let captured: Vec<&[u8]> = invocation.transcript.argv.split(|byte| *byte == b'\n').collect();
-        assert_eq!(&*spawn.args[26], captured[27], "command agrees with the real capture");
+        let word = spawn
+            .args
+            .iter()
+            .skip(26)
+            .map(AsRef::as_ref)
+            .find(|word| !word.starts_with(b"-") && *word != b"remote.origin.promisor=true");
+        let recorded = captured
+            .iter()
+            .skip(27)
+            .copied()
+            .find(|word| !word.starts_with(b"-") && *word != b"remote.origin.promisor=true");
+        assert_eq!(word, recorded, "command agrees with the real capture");
+        assert!(spawn.dir.is_empty(), "every worker invocation runs at its root");
         for argument in &spawn.args {
             assert!(!argument.windows(11).any(|part| part == b"secret-git!"));
         }

@@ -100,7 +100,7 @@ impl<T: Transport> Git<T> {
             match &checked.command {
                 Command::Version => {}
                 Command::Origin { directory } | Command::Clone { directory, .. } | Command::Store { directory, .. } => {
-                    jobs.push_back(Job::Scan(path(&checked.at, directory)));
+                    jobs.push_back(Job::Scan(path(&checked.root, directory)));
                 }
                 Command::Reds(_)
                 | Command::Format
@@ -126,6 +126,11 @@ impl<T: Transport> Git<T> {
                 | Command::BringsList { .. }
                 | Command::IsAncestor { .. }
                 | Command::Push { .. } => jobs.push_back(Job::Scan(checked.at.to_vec())),
+            }
+            if let Some(directory) = &checked.git_dir
+                && directory.as_ref() != checked.at.as_ref()
+            {
+                jobs.push_back(Job::Scan(directory.to_vec()));
             }
         }
         let mut checkout = Checkout::new();
@@ -239,6 +244,13 @@ impl<T: Transport> Git<T> {
                     self.jobs.push_front(Job::List(path.clone(), fd));
                     for entry in entries.iter().take(usize::try_from(count).expect("eight entries")) {
                         let full = path_of_entry(&path, *entry, &names);
+                        // Explicit metadata is scanned separately, never through the work tree.
+                        if let Some(checked) = &self.checked
+                            && checked.git_dir.is_some()
+                            && full == crate::answer::path(&checked.at, b".git")
+                        {
+                            continue;
+                        }
                         self.before.insert(full.clone(), entry.kind);
                         match entry.kind {
                             k::Kind::Directory => self.jobs.push_back(Job::Scan(full)),
@@ -409,7 +421,11 @@ impl<T: Transport> Git<T> {
         let checked = self.checked.as_ref().expect("admitted route invocation");
         let remote = crate::check::remote(&checked.command)
             .map(<[u8]>::to_vec)
-            .or_else(|| self.files.get(&path(&checked.at, b".git/temper-remote")).cloned())
+            .or_else(|| {
+                self.files
+                    .get(&path(checked.git_dir.as_deref().unwrap_or(&path(&checked.at, b".git")), b"temper-remote"))
+                    .cloned()
+            })
             .unwrap_or_default();
         let result = crate::exchange::Exchange::new(call, remote).and_then(|exchange| {
             let limits = self.transport.route_limits().expect("missing call's route limits");

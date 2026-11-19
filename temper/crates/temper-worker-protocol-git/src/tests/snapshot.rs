@@ -30,7 +30,7 @@ fn delivery_with_fresh_commit(fresh: bool, saved: git::Commit) -> Started {
 fn answer(started: &mut Started, command: Command, code: u8, stdout: &[u8]) {
     let request = started.below.out.io.pop().expect("next invocation");
     let Io::Spawn { spawn, .. } = &request else { panic!("spawn: {request:?}") };
-    assert_eq!(spawn.args, invocation::arguments(&command));
+    assert_eq!(spawn.args, invocation::arguments_at(&command, Some(b"gitdirs/7/app"), Some(b"workspaces/7/app")));
     if let Command::SnapshotFetch { .. } = command {
         let mut credential = false;
         for word in &spawn.env {

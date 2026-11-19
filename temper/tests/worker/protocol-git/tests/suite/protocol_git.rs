@@ -141,7 +141,7 @@ fn a_store_already_there_is_kept_without_a_clone_after_setting_aside() {
         assert_eq!(outcome.spawns, 0, "existing store needs no clone");
         assert!(!outcome.tree.keys().any(|path| path.starts_with(b"making/")));
         if aside.is_some() {
-            assert!(outcome.tree.contains_key(b"trash/1003/old".as_slice()));
+            assert!(outcome.tree.contains_key(b"trash/1004/old".as_slice()));
         }
     }
 }

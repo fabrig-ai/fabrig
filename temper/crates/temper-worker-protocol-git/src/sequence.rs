@@ -17,7 +17,7 @@ pub enum Next {
     Make,
     Store,
     InstallStore { directory: Box<[u8]>, done: Box<git::Done> },
-    Alternates,
+    Alternates { format: invocation::Format, run: bool },
     Scan { files: Box<[Box<[u8]>]> },
     End(git::Done),
 }
@@ -28,7 +28,7 @@ pub fn first(op: &git::Op) -> Next {
         git::Op::Reds { .. } => return crate::reds::first(op),
         git::Op::Make { .. } => return Next::Make,
         git::Op::Store { .. } => return Next::Store,
-        git::Op::Look { at, .. } => Command::Origin { directory: invocation::place(at) },
+        git::Op::Look { at, .. } => Command::Origin { directory: invocation::git_dir(at) },
         git::Op::Clone { .. } => Command::Format,
         git::Op::Fetch { at, remote, want, into, .. } => Command::Fetch {
             workspace: at.workspace,
@@ -131,7 +131,7 @@ pub fn after(
             };
             if let Some(format) = format {
                 let git::Op::Clone { at, .. } = op else { unreachable!("format is a clone's first invocation") };
-                return Next::Run(Command::Clone { directory: at.repository.clone(), format });
+                return Next::Run(Command::Clone { directory: invocation::git_dir(at), format, bare: true });
             }
         }
         Command::Store { directory, .. } => {
@@ -145,8 +145,12 @@ pub fn after(
             };
             return Next::InstallStore { directory: directory.clone(), done: Box::new(done) };
         }
-        Command::Clone { .. } if code == 0 => return Next::Alternates,
-        Command::Remote { .. } | Command::Clean if code == 0 => return Next::End(git::Done::Succeeded),
+        Command::Clone { format, bare, .. } if code == 0 => return Next::Alternates { format: *format, run: !bare },
+        Command::Remote { format, .. } if code == 0 => {
+            let git::Op::Clone { at, .. } = op else { unreachable!("clone remote") };
+            return Next::Run(Command::Clone { directory: invocation::place(at), format: *format, bare: false });
+        }
+        Command::Clean if code == 0 => return Next::End(git::Done::Succeeded),
         Command::Fetch { into, workspace, .. } if code == 0 => {
             if let Some(commit) = output::fetched(stdout, &invocation::store_reference(*workspace, *into)) {
                 return Next::Run(Command::UpdateRef { into: *into, commit });

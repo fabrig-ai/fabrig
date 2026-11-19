@@ -19,12 +19,24 @@ use temper_worker_domain_checkout::git;
 fn git(at: &Path, args: &[&[u8]]) -> Box<[u8]> {
     let mut command = Command::new("git");
     command.current_dir(at).env_clear().args(["-c", "user.name=Temper", "-c", "user.email=temper@example.test"]);
+    let root = at.parent().unwrap().parent().unwrap().parent().unwrap();
+    let metadata = root.join("gitdirs").join(at.parent().unwrap().file_name().unwrap()).join(at.file_name().unwrap());
+    if metadata.exists() && args.first() != Some(&b"clone".as_slice()) {
+        command.arg("--git-dir").arg(metadata).arg("--work-tree").arg(at);
+    }
     for arg in args {
         command.arg(OsStr::from_bytes(arg));
     }
     let out = command.output().expect("scratch git");
-    assert!(out.status.success(), "git failed: {:?}", out.stderr);
+    assert!(out.status.success(), "git {args:?} failed: {:?}", out.stderr);
     out.stdout.into_boxed_slice()
+}
+fn separate(root: &Path, at: &git::Place) {
+    let metadata = path(root, &invocation::git_dir(at));
+    fs::create_dir_all(metadata.parent().unwrap()).unwrap();
+    let run = path(root, &invocation::place(at)).join(".git");
+    fs::rename(&run, metadata).unwrap();
+    fs::create_dir(run).unwrap();
 }
 fn commit(at: &Path, message: &str) -> git::Commit {
     git(at, &[b"commit", b"--quiet", b"--allow-empty", b"-m", message.as_bytes()]);
@@ -152,8 +164,8 @@ fn perform(root: &Path, at: &git::Place, action: git::Reds, fail: bool) -> git::
         next = match next {
             Next::Run(command) => {
                 let mut process = Command::new("git");
-                process.current_dir(path(root, &invocation::place(at))).env_clear();
-                for arg in invocation::arguments(&command) {
+                process.current_dir(root).env_clear();
+                for arg in invocation::arguments_for(&op, &command) {
                     process.arg(OsStr::from_bytes(&arg));
                 }
                 let out = process.output().expect("typed invocation");
@@ -176,7 +188,7 @@ fn perform(root: &Path, at: &git::Place, action: git::Reds, fail: bool) -> git::
             | Next::Make
             | Next::Store
             | Next::InstallStore { .. }
-            | Next::Alternates
+            | Next::Alternates { .. }
             | Next::Scan { .. } => panic!("check operation"),
         };
     }
@@ -186,6 +198,10 @@ fn red(key: &[u8], head: git::Commit) -> git::Red {
     git::Red { key: key.into(), head: Box::from(head.raw().get(..20).unwrap()) }
 }
 #[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one scratch graph checks bases, separate metadata directories and both object formats"
+)]
 fn real_git_filters_the_pinned_base_and_installs_whole_files_in_git_paths() {
     let scratch = skein_scratch::Scratch::new_in(&skein_scratch::paths::target_tmp(), "worker-reds");
     let root = scratch.path();
@@ -197,6 +213,7 @@ fn real_git_filters_the_pinned_base_and_installs_whole_files_in_git_paths() {
     let base = commit(&repo, "base");
     let after = commit(&repo, "after");
     git(&repo, &[b"update-ref", b"refs/temper/landing", &invocation::hex(base)]);
+    separate(root, &at);
     fs::create_dir_all(repo.join(".git/temper")).unwrap();
     fs::write(repo.join(".git/temper/reds"), b"stale").unwrap();
     assert_eq!(
@@ -226,12 +243,17 @@ fn real_git_filters_the_pinned_base_and_installs_whole_files_in_git_paths() {
     assert!(!repo.join(".git/temper/reds").exists());
     assert!(!repo.join(".git/temper/reds.tmp").exists());
     let linked = root.join("workspaces/7/linked");
-    git(&repo, &[b"worktree", b"add", b"-q", b"--detach", linked.as_os_str().as_bytes(), b"HEAD"]);
+    git(
+        &repo,
+        &[b"clone", b"-q", path(root, &invocation::git_dir(&at)).as_os_str().as_bytes(), linked.as_os_str().as_bytes()],
+    );
     let linked_at = git::Place { repository: b"linked".as_slice().into(), ..at.clone() };
+    git(&linked, &[b"update-ref", b"refs/temper/landing", &invocation::hex(base)]);
+    separate(root, &linked_at);
     assert_eq!(perform(root, &linked_at, action, false), git::Done::Succeeded);
-    let git_path = git(&linked, &[b"rev-parse", b"--git-path", b"temper/reds"]);
+    assert!(linked.join(".git").is_dir(), "run metadata is always a directory");
     assert_eq!(
-        fs::read(path(&linked, git_path.strip_suffix(b"\n").unwrap())).unwrap(),
+        fs::read(linked.join(".git/temper/reds")).unwrap(),
         b"temper-reds 1\n- test a::t parent\n- test d::t base\n"
     );
     git(&repo, &[b"checkout", b"-q", b"--detach", &invocation::hex(parent)]);
@@ -239,7 +261,11 @@ fn real_git_filters_the_pinned_base_and_installs_whole_files_in_git_paths() {
     let landing = commit(&repo, "landing");
     git(&repo, &[b"update-ref", b"refs/temper/landing", &invocation::hex(landing)]);
     git(&repo, &[b"checkout", b"-q", b"--detach", &invocation::hex(after)]);
-    fs::write(repo.join(".git/MERGE_HEAD"), invocation::joined(&[&invocation::hex(side), b"\n"])).unwrap();
+    fs::write(
+        path(root, &invocation::git_dir(&at)).join("MERGE_HEAD"),
+        invocation::joined(&[&invocation::hex(side), b"\n"]),
+    )
+    .unwrap();
     assert_eq!(
         perform(
             root,
@@ -250,7 +276,7 @@ fn real_git_filters_the_pinned_base_and_installs_whole_files_in_git_paths() {
         git::Done::Succeeded
     );
     assert_eq!(fs::read(repo.join(".git/temper/reds")).unwrap(), b"temper-reds 1\n- test a::t side\n");
-    fs::remove_file(repo.join(".git/MERGE_HEAD")).unwrap();
+    fs::remove_file(path(root, &invocation::git_dir(&at)).join("MERGE_HEAD")).unwrap();
     git(&repo, &[b"checkout", b"-q", b"--orphan", b"unrelated"]);
     assert_ne!(commit(&repo, "unrelated"), parent);
     assert_eq!(
@@ -273,6 +299,7 @@ fn real_git_filters_the_pinned_base_and_installs_whole_files_in_git_paths() {
     git(&wide, &[b"init", b"-q", b"--object-format=sha256"]);
     let wide_head = commit(&wide, "wide");
     git(&wide, &[b"update-ref", b"refs/temper/landing", &invocation::hex(wide_head)]);
+    separate(root, &wide_at);
     let mut missing = wide_head.raw();
     *missing.last_mut().unwrap() ^= 1;
     let action = git::Reds::Write {
@@ -295,6 +322,7 @@ fn prepare_and_start_clear_results_and_install_the_rerun_marker() {
     git(&repo, &[b"init", b"-q"]);
     let head = commit(&repo, "pin");
     git(&repo, &[b"update-ref", b"refs/temper/landing", &invocation::hex(head)]);
+    separate(root, &at);
     let files = repo.join(".git/temper");
     fs::create_dir_all(&files).unwrap();
     for (processes, expected) in
@@ -328,6 +356,7 @@ fn results_are_read_to_the_bound_then_removed_even_on_read_failure() {
     git(&repo, &[b"init", b"-q"]);
     let head = commit(&repo, "pin");
     git(&repo, &[b"update-ref", b"refs/temper/landing", &invocation::hex(head)]);
+    separate(root, &at);
     let files = repo.join(".git/temper");
     fs::create_dir_all(&files).unwrap();
     for (size, fail) in [

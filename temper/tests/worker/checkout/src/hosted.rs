@@ -209,7 +209,11 @@ fn commit(number: u64) -> git::Commit {
 /// Run the command through the fake program's invocation check and answer.
 pub fn apply(scenario: &mut Scenario, command: &Command) -> Answer {
     let mut spawn = spawn_of(command);
-    if !matches!(command, Command::Origin { .. }) {
+    if !matches!(command, Command::Origin { .. } | Command::Version | Command::Clone { .. } | Command::Store { .. }) {
+        let metadata = local::directory(&scenario.checkout, &scenario.at);
+        spawn.args = invocation::arguments_at(command, Some(&metadata), Some(&scenario.at));
+        spawn.dir = Box::new([]);
+    } else if !matches!(command, Command::Origin { .. }) {
         spawn.dir = scenario.at.clone().into();
     }
     let checked = check(&spawn).expect("fixture spawn");
@@ -320,19 +324,20 @@ fn command_case(case: &str, scenario: &mut Scenario) -> Command {
             Command::Clone {
                 directory: if case == "init" { b"specimen".as_slice() } else { b"hashed" }.into(),
                 format: if case == "init" { invocation::Format::Sha1 } else { invocation::Format::Sha256 },
+                bare: false,
             }
         }
         "remote-add" => {
             scenario.checkout.remove(&[scenario.at.as_slice(), b"/.git/temper-remote"].concat());
-            Command::Remote { remote }
+            Command::Remote { remote, format: invocation::Format::Sha1 }
         }
         "update-ref" => Command::UpdateRef { into: git::Into::Fetched, commit: base },
-        "origin-matches" => Command::Origin { directory: scenario.at.clone().into() },
+        "origin-matches" => Command::Origin { directory: [scenario.at.as_slice(), b"/.git"].concat().into() },
         "origin-no-repository" => Command::Origin { directory: b"workspaces/1/absent".as_slice().into() },
         "origin-no-remote" => {
             let directory = b"workspaces/1/bare";
-            scenario.checkout.mkdir(&[directory.as_slice(), b"/.git"].concat());
-            Command::Origin { directory: directory.as_slice().into() }
+            local::init(&mut scenario.checkout, directory, false);
+            Command::Origin { directory: [directory.as_slice(), b"/.git"].concat().into() }
         }
         "checkout-index-locked" => {
             scenario.checkout.write(&[scenario.at.as_slice(), b"/.git/index.lock"].concat(), b"");

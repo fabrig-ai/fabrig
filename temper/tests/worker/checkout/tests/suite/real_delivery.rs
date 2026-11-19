@@ -5,7 +5,7 @@ use std::{
     ffi::OsStr,
     fs,
     io::Write,
-    os::unix::ffi::OsStrExt,
+    os::unix::{ffi::OsStrExt, fs::PermissionsExt},
     path::PathBuf,
     process::{Command, Stdio},
 };
@@ -31,14 +31,55 @@ struct World {
 
 impl World {
     fn inspect(&self, directory: &str, args: &[&str]) -> String {
-        let output = Command::new("/usr/bin/git")
-            .current_dir(self.root.join(directory))
-            .env_clear()
-            .args(args)
-            .output()
-            .expect("inspection git ran");
+        let mut command = Command::new("/usr/bin/git");
+        command.current_dir(&self.root).env_clear();
+        if let Some(repository) = directory.strip_prefix("workspaces/") {
+            command.args([format!("--git-dir=gitdirs/{repository}"), format!("--work-tree={directory}")]);
+        } else {
+            command.arg(format!("--git-dir={directory}"));
+        }
+        let output = command.args(args).output().expect("inspection git ran");
         assert!(output.status.success(), "inspection: {:?}", output.stderr);
         String::from_utf8(output.stdout).expect("git ids and settings")
+    }
+
+    fn plant_run_configuration(&self, directory: &str) {
+        let hooks = self.root.join("planted-hooks");
+        fs::create_dir_all(&hooks).expect("hook directory");
+        for name in
+            ["clean", "smudge", "pre-commit", "post-checkout", "reference-transaction", "post-index-change", "alias"]
+        {
+            let script = hooks.join(name);
+            let marker = self.root.join(format!("planted-{name}"));
+            fs::write(&script, format!("#!/bin/sh\nprintf planted > '{}'\ncat\n", marker.display()))
+                .expect("planted driver");
+            fs::set_permissions(script, fs::Permissions::from_mode(0o700)).expect("executable driver");
+        }
+        let config = self.root.join(directory).join(".git/config");
+        fs::OpenOptions::new()
+            .append(true)
+            .open(config)
+            .expect("run config")
+            .write_all(
+                format!(
+                    "\n[filter \"planted\"]\nclean = {}\nsmudge = {}\n[core]\nhooksPath = {}\n[alias]\nplanted = !{}\n",
+                    hooks.join("clean").display(),
+                    hooks.join("smudge").display(),
+                    hooks.display(),
+                    hooks.join("alias").display(),
+                )
+                .as_bytes(),
+            )
+            .expect("plant configuration");
+        fs::write(self.root.join(directory).join(".gitattributes"), b"* filter=planted\n").expect("attributes");
+    }
+
+    fn no_planted_program_ran(&self) {
+        for name in
+            ["clean", "smudge", "pre-commit", "post-checkout", "reference-transaction", "post-index-change", "alias"]
+        {
+            assert!(!self.root.join(format!("planted-{name}")).exists(), "run's {name} ran");
+        }
     }
 
     fn missing(&self, directory: &str, revision: &str) -> Vec<String> {
@@ -100,7 +141,7 @@ impl World {
 
     fn command(
         &self,
-        directory: &str,
+        op: &git::Op,
         command: &invocation::Command,
         kind: Option<git::Kind>,
         message: &[u8],
@@ -113,12 +154,12 @@ impl World {
             kind
         };
         let mut process = Command::new("/usr/bin/git");
-        process.current_dir(self.root.join(directory)).env_clear();
+        process.current_dir(&self.root).env_clear();
         for entry in invocation::environment(self.root.as_os_str().as_bytes(), kind, Some(&self.identity)) {
             let at = entry.iter().position(|b| *b == b'=').expect("environment entry");
             process.env(OsStr::from_bytes(&entry[..at]), OsStr::from_bytes(&entry[at + 1..]));
         }
-        process.args(invocation::arguments(command).iter().map(|arg| OsStr::from_bytes(arg)));
+        process.args(invocation::arguments_for(op, command).iter().map(|arg| OsStr::from_bytes(arg)));
         process.stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped());
         let mut child = process.spawn().expect("git ran");
         child.stdin.take().expect("stdin").write_all(message).expect("message");
@@ -155,24 +196,19 @@ impl World {
         git::Done::Succeeded
     }
 
-    #[expect(
-        clippy::too_many_lines,
-        reason = "the harness drives every checkout operation through its command sequence"
-    )]
     fn perform(&self, mut op: git::Op) -> git::Done {
         if let git::Op::Make { workspace, .. } = &op {
-            fs::create_dir_all(self.root.join(format!("workspaces/{}", workspace.raw()))).expect("workspace");
+            for tree in ["workspaces", "gitdirs"] {
+                fs::create_dir_all(self.root.join(format!("{tree}/{}", workspace.raw()))).expect("checkout tree");
+            }
             return git::Done::Succeeded;
         }
         if let git::Op::Store { store, remote, .. } = &op {
             let directory = format!("stores/{}", store.raw());
             fs::create_dir_all(self.root.join(&directory)).expect("store directory");
             let output = self.command(
-                "stores",
-                &invocation::Command::Store {
-                    directory: store.raw().to_string().into_bytes().into(),
-                    remote: remote.clone(),
-                },
+                &op,
+                &invocation::Command::Store { directory: directory.into_bytes().into(), remote: remote.clone() },
                 Some(git::Kind::Store),
                 b"",
             );
@@ -197,7 +233,6 @@ impl World {
             git::Op::Store { .. } | git::Op::Make { .. } => unreachable!(),
         };
         let repository = String::from_utf8(invocation::place(at).into_vec()).expect("fixture directory");
-        let workspace = at.workspace;
         let mut next = sequence::first(&op);
         for _ in 0..20 {
             next = match next {
@@ -214,17 +249,7 @@ impl World {
                     } else {
                         Some(op.kind())
                     };
-                    let directory = match (&op, &command) {
-                        (git::Op::Clone { .. }, invocation::Command::Clone { .. }) => {
-                            format!("workspaces/{}", workspace.raw())
-                        }
-                        (git::Op::Clone { store, .. }, invocation::Command::Format)
-                        | (git::Op::Fetch { store, .. }, invocation::Command::Fetch { .. }) => {
-                            format!("stores/{}", store.raw())
-                        }
-                        _ => repository.clone(),
-                    };
-                    let output = self.command(&directory, &command, kind, &message);
+                    let output = self.command(&op, &command, kind, &message);
                     sequence::after(
                         &op,
                         &command,
@@ -246,14 +271,24 @@ impl World {
                 }
                 Next::Results { .. } => panic!("this delivery has no check results read"),
                 Next::End(done) => return done,
-                Next::Alternates => {
-                    let git::Op::Clone { store, remote, .. } = &op else { unreachable!() };
-                    fs::write(
-                        self.root.join(&repository).join(".git/objects/info/alternates"),
-                        format!("../../../../../stores/{}/objects\n", store.raw()),
-                    )
-                    .expect("alternates");
-                    Next::Run(invocation::Command::Remote { remote: remote.clone() })
+                Next::Alternates { format, run } => {
+                    let git::Op::Clone { at, store, remote } = &op else { unreachable!() };
+                    let directory = String::from_utf8(invocation::git_dir(at).into_vec()).expect("metadata path");
+                    let (file, bytes, next) = if run {
+                        (
+                            self.root.join(&repository).join(".git/objects/info/alternates"),
+                            format!("../../../../../{directory}/objects\n"),
+                            Next::End(git::Done::Succeeded),
+                        )
+                    } else {
+                        (
+                            self.root.join(&directory).join("objects/info/alternates"),
+                            format!("../../../../stores/{}/objects\n", store.raw()),
+                            Next::Run(invocation::Command::Remote { remote: remote.clone(), format }),
+                        )
+                    };
+                    fs::write(file, bytes).expect("alternates");
+                    next
                 }
                 Next::Make | Next::Store | Next::InstallStore { .. } | Next::Scan { .. } => {
                     panic!("no unresolved paths")
@@ -370,6 +405,23 @@ fn a_design_delivery_reaches_its_landing_branch_through_real_git() {
             let checked_out = world.inspect(&directory, &["rev-parse", "HEAD"]);
             assert!(world.missing(&directory, checked_out.trim()).is_empty(), "checkout owns all missing contents");
         }
+        if !design {
+            world.plant_run_configuration(&directory);
+            let parent =
+                invocation::object(world.inspect(&directory, &["rev-parse", "HEAD"]).trim().as_bytes()).expect("head");
+            fs::remove_file(world.root.join(&directory).join("README.md")).expect("force checkout to write a blob");
+            assert_eq!(
+                world.perform(git::Op::CheckOut {
+                    at: git::Place { workspace, repository: b"specimen".as_slice().into(), git: None },
+                    commit: parent,
+                    clean: false,
+                    identity: 1,
+                    account: None,
+                }),
+                git::Done::Succeeded
+            );
+            world.no_planted_program_ran();
+        }
         for index in 0..=LIMITS.conflicts {
             fs::write(
                 world.root.join(&directory).join(format!("design{index}.md")),
@@ -398,6 +450,33 @@ fn a_design_delivery_reaches_its_landing_branch_through_real_git() {
             git::Done::Fetched { commit: *commit },
             "remote branch reached the delivered commit"
         );
+        if !design {
+            world.no_planted_program_ran();
+            let delivered = String::from_utf8(invocation::hex(*commit).into_vec()).expect("id");
+            let delivered_paths = world.inspect(&directory, &["ls-tree", "-r", "--name-only", &delivered]);
+            let mut work_tree_paths = Vec::new();
+            for entry in fs::read_dir(world.root.join(&directory)).expect("work tree") {
+                let entry = entry.expect("work tree entry");
+                let name = entry.file_name().into_string().expect("fixture filename");
+                if name != ".git" {
+                    assert!(entry.file_type().expect("entry kind").is_file(), "fixture files are flat");
+                    work_tree_paths.push(name);
+                }
+            }
+            work_tree_paths.sort();
+            assert_eq!(delivered_paths.lines().collect::<Vec<_>>(), work_tree_paths, "exact work tree paths");
+            for name in delivered_paths.lines() {
+                assert_eq!(
+                    world.inspect(&directory, &["show", &format!("{delivered}:{name}")]).as_bytes(),
+                    fs::read(world.root.join(&directory).join(name)).expect("work tree file"),
+                    "delivered {name}"
+                );
+            }
+            assert_eq!(
+                world.inspect(&directory, &["show", &format!("{delivered}:.gitattributes")]),
+                "* filter=planted\n"
+            );
+        }
         if design {
             let moved = world.advance_goal(workspace, &remote);
             fs::write(world.root.join(&directory).join("later.md"), b"# More design\n").expect("later edit");
@@ -429,5 +508,6 @@ fn a_design_delivery_reaches_its_landing_branch_through_real_git() {
         let hold = world.hold.take().expect("held");
         assert!(matches!(world.finish(checkout::Event::Release { hold }), checkout::Request::Released { .. }));
     }
+    world.no_planted_program_ran();
     instance.stop().expect("stopped");
 }

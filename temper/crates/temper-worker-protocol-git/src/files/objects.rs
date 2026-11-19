@@ -27,7 +27,9 @@ pub(crate) struct Make {
 #[derive(Debug)]
 enum MakePhase {
     Aside,
+    AsideGitdirs,
     Create,
+    CreateGitdirs,
     Open,
     Move,
     Close,
@@ -71,10 +73,24 @@ impl Make {
                 if stop {
                     return broken();
                 }
+                self.phase = MakePhase::AsideGitdirs;
+                Action::Run(dirs.rename(dirs.gitdirs.expect("layout"), self.workspace.clone()))
+            }
+            MakePhase::AsideGitdirs => {
+                if (result.is_err() && result != Err(Error::NotFound)) || stop {
+                    return broken();
+                }
                 self.phase = MakePhase::Create;
                 Action::Run(mkdir(dirs.workspaces.expect("layout"), &self.workspace))
             }
             MakePhase::Create => {
+                if result.is_err() || stop {
+                    return broken();
+                }
+                self.phase = MakePhase::CreateGitdirs;
+                Action::Run(mkdir(dirs.gitdirs.expect("layout"), &self.workspace))
+            }
+            MakePhase::CreateGitdirs => {
                 if result.is_err() {
                     return broken();
                 }
@@ -137,7 +153,13 @@ impl Store {
     }
     pub fn install(store: Token, directory: &[u8], done: Box<git::Done>) -> Self {
         let phase = if *done == git::Done::Succeeded { StorePhase::Install } else { StorePhase::Discard };
-        Self { token: store, temporary: Box::from(directory), remote: Box::new([]), phase, done }
+        Self {
+            token: store,
+            temporary: Box::from(directory.strip_prefix(b"making/").expect("store path")),
+            remote: Box::new([]),
+            phase,
+            done,
+        }
     }
     pub fn first(&self, dirs: &mut Directories) -> Action {
         let stores = dirs.stores.expect("layout");
@@ -199,7 +221,7 @@ impl Store {
                     return self.first(dirs);
                 }
                 Action::Operation(Next::Run(Command::Store {
-                    directory: self.temporary.clone(),
+                    directory: invocation::joined(&[b"making/", &self.temporary]),
                     remote: self.remote.clone(),
                 }))
             }
@@ -227,22 +249,27 @@ pub(crate) struct Alternates {
     path: Box<[u8]>,
     bytes: Box<[u8]>,
     remote: Box<[u8]>,
+    format: invocation::Format,
+    run: bool,
     fd: Option<Fd>,
     written: u32,
     closing: bool,
     failed: bool,
 }
 impl Alternates {
-    pub fn new(at: &git::Place, store: Token, remote: Box<[u8]>) -> Self {
-        Self {
-            path: invocation::joined(&[&invocation::place(at), b"/.git/objects/info/alternates"]),
-            bytes: invocation::joined(&[b"../../../../../stores/", &name(store), b"/objects\n"]),
-            remote,
-            fd: None,
-            written: 0,
-            closing: false,
-            failed: false,
-        }
+    pub fn new(at: &git::Place, store: Token, remote: Box<[u8]>, format: invocation::Format, run: bool) -> Self {
+        let (path, bytes) = if run {
+            (
+                invocation::joined(&[&invocation::place(at), b"/.git/objects/info/alternates"]),
+                invocation::joined(&[b"../../../../../", &invocation::git_dir(at), b"/objects\n"]),
+            )
+        } else {
+            (
+                invocation::joined(&[&invocation::git_dir(at), b"/objects/info/alternates"]),
+                invocation::joined(&[b"../../../../stores/", &name(store), b"/objects\n"]),
+            )
+        };
+        Self { path, bytes, remote, format, run, fd: None, written: 0, closing: false, failed: false }
     }
     pub fn first(&self, settings: &Settings) -> Action {
         Action::Run(open(settings.root, self.path.clone(), OpenHow::CreateNoFollow { mode: Some(0o600) }))
@@ -252,8 +279,10 @@ impl Alternates {
             self.fd = None;
             return if self.failed || result.is_err() || stop {
                 broken()
+            } else if self.run {
+                Action::Operation(Next::End(git::Done::Succeeded))
             } else {
-                Action::Operation(Next::Run(Command::Remote { remote: self.remote.clone() }))
+                Action::Operation(Next::Run(Command::Remote { remote: self.remote.clone(), format: self.format }))
             };
         }
         if self.fd.is_none() {

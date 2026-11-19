@@ -45,6 +45,7 @@ pub const EXPECTED: git::Commit = COMMIT_256;
 pub const TRASH: skein_io::kernel::Fd = skein_io::kernel::Fd::new(4);
 pub const MAKING: skein_io::kernel::Fd = skein_io::kernel::Fd::new(7);
 pub const STORES: skein_io::kernel::Fd = skein_io::kernel::Fd::new(6);
+pub const GITDIRS: skein_io::kernel::Fd = skein_io::kernel::Fd::new(9);
 pub const WORKSPACES: skein_io::kernel::Fd = skein_io::kernel::Fd::new(5);
 pub const SERIAL: u64 = 1000;
 pub fn make(owner: skein_lib::Token, workspace: skein_lib::Token) -> crate::Request {
@@ -222,11 +223,11 @@ impl Started {
         started.component = crate::Component::new(
             &limits(),
             &checkout(),
-            crate::Settings { serial: SERIAL.checked_sub(3).expect("layout names"), ..settings() },
+            crate::Settings { serial: SERIAL.checked_sub(4).expect("layout names"), ..settings() },
         )
         .expect("valid");
         started.version();
-        for _ in 0_u8..12 {
+        for _ in 0_u8..15 {
             started.file_operation();
             started.complete_ok();
         }
@@ -255,6 +256,8 @@ impl Started {
                 TRASH
             } else if &**path == b"stores" {
                 STORES
+            } else if &**path == b"gitdirs" {
+                GITDIRS
             } else if &**path == b"making" {
                 MAKING
             } else {
@@ -396,7 +399,7 @@ impl Started {
     }
     pub fn shutdown(&mut self) {
         self.down(crate::Request::Shutdown);
-        for _ in 0_u8..4 {
+        for _ in 0_u8..5 {
             self.file_operation();
             self.complete_ok();
         }

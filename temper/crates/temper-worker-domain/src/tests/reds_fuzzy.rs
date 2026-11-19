@@ -101,7 +101,6 @@ fn render(world: &World, op: &Op) -> Option<Box<[u8]>> {
                         };
                         (code, Box::new([]))
                     }
-                    CheckCommand::Path { .. } => (0, Box::from(b".git/temper\n".as_slice())),
                 };
                 sequence::after(op, &Command::Reds(command), code, &stdout, b"", 0, &fixtures::limits().checkout)
             }
@@ -113,7 +112,7 @@ fn render(world: &World, op: &Op) -> Option<Box<[u8]>> {
             | Next::Make
             | Next::Store
             | Next::InstallStore { .. }
-            | Next::Alternates
+            | Next::Alternates { .. }
             | Next::Scan { .. } => panic!("only check operations"),
         };
     }

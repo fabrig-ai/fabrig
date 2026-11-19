@@ -49,7 +49,7 @@ fn deliver(scenario: &mut Scenario, unchecked: bool, saved: Option<u64>) -> git:
             | Next::Make
             | Next::Store
             | Next::InstallStore { .. }
-            | Next::Alternates
+            | Next::Alternates { .. }
             | Next::Scan { .. } => {
                 panic!("these resolutions are staged")
             }

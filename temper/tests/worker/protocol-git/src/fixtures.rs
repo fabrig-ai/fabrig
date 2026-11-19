@@ -126,7 +126,7 @@ pub fn operations() -> Vec<(&'static str, Scenario)> {
             "clone",
             scenario(
                 git::Op::Clone { at: at(), remote: remote(), store: Token::new(9) },
-                &["object-format", "init", "remote-add"],
+                &["object-format", "init", "remote-add", "init"],
                 Expected::done(git::Done::Succeeded),
             ),
         ),
@@ -134,7 +134,7 @@ pub fn operations() -> Vec<(&'static str, Scenario)> {
             "clone-sha256",
             scenario(
                 git::Op::Clone { at: at(), remote: remote(), store: Token::new(9) },
-                &["object-format-sha256", "init-sha256", "remote-add"],
+                &["object-format-sha256", "init-sha256", "remote-add", "init-sha256"],
                 Expected::done(git::Done::Succeeded),
             ),
         ),

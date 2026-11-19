@@ -113,7 +113,10 @@ impl Operation {
                 owner: io_owner,
                 spawn: kernel::Spawn {
                     program: Box::from(self.program(settings).expect("program checked before spawning")),
-                    args: invocation::arguments(&self.command),
+                    args: match &self.op {
+                        Some(op) => invocation::arguments_for(op, &self.command),
+                        None => invocation::arguments(&self.command),
+                    },
                     env: invocation::environment_for(&settings.home, kind, self.identity.as_ref(), credentials),
                     root: settings.root,
                     dir: directory,
@@ -248,7 +251,7 @@ impl Operation {
                 | Next::Make
                 | Next::Store
                 | Next::InstallStore { .. }
-                | Next::Alternates
+                | Next::Alternates { .. }
                 | Next::Scan { .. } => {}
             }
         }
@@ -688,39 +691,6 @@ fn stop_reason(fault: Option<git::Fault>) -> kernel::Reason {
     }
 }
 
-fn directory(op: &git::Op, command: &Command) -> Box<[u8]> {
-    if let Command::Store { .. } = command {
-        return Box::from(&b"making"[..]);
-    }
-    match op {
-        git::Op::Clone { at, store, .. } => {
-            if let Command::Format = command {
-                return invocation::joined(&[b"stores/", skein_lib::Decimal::of(store.raw()).as_bytes()]);
-            }
-            if let Command::Clone { .. } = command {
-                invocation::joined(&[b"workspaces/", skein_lib::Decimal::of(at.workspace.raw()).as_bytes()])
-            } else {
-                invocation::place(at)
-            }
-        }
-        git::Op::Fetch { at, store, .. } => {
-            if let Command::Fetch { .. } = command {
-                invocation::joined(&[b"stores/", skein_lib::Decimal::of(store.raw()).as_bytes()])
-            } else {
-                invocation::place(at)
-            }
-        }
-        git::Op::Store { .. } | git::Op::Look { .. } | git::Op::Make { .. } => Box::new([]),
-        git::Op::Reds { at, .. }
-        | git::Op::Reset { at, .. }
-        | git::Op::Point { at, .. }
-        | git::Op::Create { at, .. }
-        | git::Op::CheckOut { at, .. }
-        | git::Op::DiffPaths { at, .. }
-        | git::Op::Brings { at, .. }
-        | git::Op::IsAncestor { at, .. }
-        | git::Op::Merge { at, .. }
-        | git::Op::Commit { at, .. }
-        | git::Op::Push { at, .. } => invocation::place(at),
-    }
+fn directory(_op: &git::Op, _command: &Command) -> Box<[u8]> {
+    Box::new([])
 }
