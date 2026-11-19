@@ -431,6 +431,32 @@ fn failed_job_preparations_log_once_across_reconnect() {
     assert!(worker.notes().is_empty(), "neither job nor preparation logs again on replay");
 }
 
+/// Operator notes pass through without becoming link records (README.md, 4.3).
+#[test]
+#[expect(clippy::manual_map, reason = "the crate's subset names each optional job kind")]
+fn checkout_notes_keep_the_assignment_and_operation() {
+    use root::{Git, checkout::git::{Commit, Into, Want}};
+    let (mut worker, _) = merge_worker();
+    worker.notes().clear();
+    for (job, what) in [
+        (None, Git::Fetch { want: Want::Branch { branch: b"main".as_slice().into() }, into: Into::Landing }),
+        (Some(JobKind(3)), Git::CheckOut { commit: Commit::new([0xcd; 32]) }),
+    ] {
+        worker.route(root::Request::Git {
+            run: JOB, attempt: Token::new(2), job, repository: b"app".as_slice().into(), what: what.clone(),
+        });
+        let job = match job {
+            Some(kind) => Some(kind.0),
+            None => None,
+        };
+        assert_eq!(worker.notes().pop(), Some(crate::worker_alone::Note::Git {
+            run: JOB.raw(), attempt: 2, job,
+            repository: b"app".as_slice().into(), what,
+        }));
+        assert!(worker.notes().is_empty(), "one note for each operation");
+    }
+}
+
 /// Both answer kinds use the wire's detail bound, keeping the host and stage.
 #[test]
 fn hosted_preparation_answers_keep_the_head_at_the_wire_bound() {

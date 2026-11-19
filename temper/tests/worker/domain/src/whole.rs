@@ -49,6 +49,7 @@ pub enum Case {
 pub struct Report {
     pub tree: Tree,
     pub trace: Vec<String>,
+    pub notes: Vec<Request>,
     pub cancellations: u32,
     pub drains: u32,
     pub drops: u32,
@@ -128,6 +129,7 @@ impl World {
             report: Report {
                 tree: Tree::new(),
                 trace: Vec::new(),
+                notes: Vec::new(),
                 cancellations: 0,
                 drains: 0,
                 drops: 0,
@@ -222,6 +224,7 @@ impl World {
                     },
                 });
             }
+            note @ Request::Git { .. } => self.report.notes.push(note),
             Request::AgentStopped { .. } | Request::Unprepared { .. } => {}
             Request::JobAnswer { .. } | Request::Job { .. } | Request::CancelRelay { .. } => {
                 panic!("unscripted request")
@@ -258,6 +261,21 @@ impl World {
 
     fn io(&mut self, owner: Token, op: Op, deadline: Time) {
         assert!(deadline > self.env.now);
+        // Includes delivery, save and catch-up, not just prepare (README.md, 4.3).
+        let note = match &op {
+            Op::Fetch { at, want, into, .. } => Some((at, temper_worker_domain::Git::Fetch { want: want.clone(), into: *into })),
+            Op::CheckOut { at, commit, .. } => Some((at, temper_worker_domain::Git::CheckOut { commit: *commit })),
+            _ => None,
+        };
+        if let Some((at, what)) = note {
+            assert_eq!(self.report.notes.last(), Some(&Request::Git {
+                run: RUN,
+                attempt: self.attempt,
+                job: None,
+                repository: at.repository.clone(),
+                what,
+            }), "the note precedes every fetch and check out");
+        }
         if let Op::Make { workspace, .. } = &op {
             self.workspace = Some(*workspace);
         }
@@ -824,6 +842,60 @@ pub fn retry(seed: u64, resume: bool) -> Report {
     assert_eq!(world.domain.kept_answers(), 0);
     assert_eq!(world.stops, 1);
     world.report
+}
+
+/// The engine assigns one commit twice to one worker, with no saved work
+/// from the first attempt (domain/worker/README.md, 4.3).
+pub fn reassigned_start(seed: u64) {
+    let mut world = World::new(seed);
+    world.connect();
+    for attempt in [1, 2] {
+        world.attempt = Token::new(attempt);
+        world.process = None;
+        let start = wire::Start::Commit { commit: translate::commit(world.first).raw() };
+        let Event::Assign { mut assignment, items: Ok(mut items) } =
+            assignment(world.first, RUN, WORKSTREAM, start)
+        else {
+            panic!("workspace assignment")
+        };
+        assignment.assignment.attempt = world.attempt;
+        assignment.assignment.save = false;
+        for repository in &mut items.repositories {
+            repository.access = wire::Access::ReadOnly;
+        }
+        world.event(Event::Assign { assignment, items: Ok(items) });
+        world.say(agent::Up::Admitted);
+        world.gone();
+        let (_, work, _) = world.answer.take().expect("attempt ended");
+        assert!(work.saved.is_none());
+        world.event(Event::Link(host::LinkDown::Acknowledge { run: RUN, attempt: world.attempt }));
+    }
+    let commit = translate::commit(world.first);
+    let expected: Vec<_> = [1, 2].into_iter().flat_map(|attempt| {
+        [
+            Request::Git {
+                run: RUN,
+                attempt: Token::new(attempt),
+                job: None,
+                repository: b"app".as_slice().into(),
+                what: temper_worker_domain::Git::Fetch {
+                    want: temper_worker_domain::checkout::git::Want::Commit { commit },
+                    into: temper_worker_domain::checkout::git::Into::Fetched,
+                },
+            },
+            Request::Git {
+                run: RUN,
+                attempt: Token::new(attempt),
+                job: None,
+                repository: b"app".as_slice().into(),
+                what: temper_worker_domain::Git::CheckOut { commit },
+            },
+        ]
+    }).collect();
+    assert_eq!(world.report.notes, expected, "each attempt notes its fetch and check out");
+    world.event(Event::Shutdown { drain: true });
+    assert_eq!(world.domain.workspaces(), 0);
+    assert_eq!(world.stops, 1);
 }
 
 /// A repair delivers, parks for a question, then finishes on the same branch

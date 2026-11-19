@@ -367,6 +367,45 @@ fn answered(domain: &mut Domain, run: Token, attempt: Token, answer: host::RunAn
     out.push(Request::Answer { run, attempt, answer, work, preparation });
 }
 
+/// Each fetch and check out gets an operator note before its io request
+/// (domain/worker/README.md, 4.3). Unowned operations still reach io.
+fn note_git(domain: &Domain, hold: Token, op: &checkout::git::Op, out: &mut Queue<Request>) {
+    use checkout::git::Op;
+    use crate::Git;
+
+    let (at, what) = match op {
+        Op::Fetch { at, want, into, .. } => (at, Git::Fetch { want: want.clone(), into: *into }),
+        Op::CheckOut { at, commit, .. } => (at, Git::CheckOut { commit: *commit }),
+        Op::Reset { .. }
+        | Op::Reds { .. }
+        | Op::Make { .. }
+        | Op::Store { .. }
+        | Op::Look { .. }
+        | Op::Clone { .. }
+        | Op::Point { .. }
+        | Op::Create { .. }
+        | Op::IsAncestor { .. }
+        | Op::Brings { .. }
+        | Op::DiffPaths { .. }
+        | Op::Merge { .. }
+        | Op::Commit { .. }
+        | Op::Push { .. } => return,
+    };
+    let Some(owner) = workspace::hold_owner(domain, hold) else { return };
+    let Some(hosting) = domain.host.hosting(owner) else { return };
+    let job = match domain.job_evidence.get(&(hosting.run, hosting.attempt)) {
+        Some(evidence) => Some(evidence.kind),
+        None => None,
+    };
+    out.push(Request::Git {
+        run: hosting.run,
+        attempt: hosting.attempt,
+        job,
+        repository: at.repository.clone(),
+        what,
+    });
+}
+
 /// One of the checkout's requests: out to io, or to the host.
 fn from_checkout(domain: &mut Domain, env: &Env<Limits>, request: checkout::Request, out: &mut Queue<Request>) {
     match request {
@@ -382,7 +421,10 @@ fn from_checkout(domain: &mut Domain, env: &Env<Limits>, request: checkout::Requ
         checkout::Request::Pushed { client, outcome } => workspace::wrote(domain, env, client, outcome, true),
         checkout::Request::Saved { client, outcome } => workspace::wrote(domain, env, client, outcome, false),
         checkout::Request::Released { client } => workspace::released(domain, env, client),
-        checkout::Request::Io { owner, op, deadline } => out.push(Request::Io { owner, op, deadline }),
+        checkout::Request::Io { owner, op, deadline } => {
+            note_git(domain, owner, &op, out);
+            out.push(Request::Io { owner, op, deadline });
+        }
         checkout::Request::Cancel { owner } => out.push(Request::CancelIo { owner }),
     }
 }

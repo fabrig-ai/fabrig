@@ -97,6 +97,11 @@ fn a_run_starting_fresh_from_its_brief_starts_clean() {
 }
 
 #[test]
+fn a_reassigned_start_notes_the_fetch_and_check_out_for_each_attempt() {
+    temper_worker_domain_world::whole::reassigned_start(118);
+}
+
+#[test]
 fn a_repair_that_delivered_before_parking_finishes_its_next_run_as_a_change() {
     temper_worker_domain_world::whole::delivered_across_park(116, true);
 }

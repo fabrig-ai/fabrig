@@ -14,6 +14,14 @@ pub enum Stop {
 }
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Note {
+    /// Each fetch and check out the checkout asks (domain/worker/README.md, 4.3).
+    Git {
+        run: u64,
+        attempt: u64,
+        job: Option<u32>,
+        repository: Box<[u8]>,
+        what: temper_worker_domain::Git,
+    },
     FiguresChanged,
     Cancelling {
         run: u64,

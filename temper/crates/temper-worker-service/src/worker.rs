@@ -875,8 +875,27 @@ impl Worker {
             no_progress_ms,
         });
     }
+    #[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
+    fn note_git(
+        &mut self,
+        run: Token,
+        attempt: Token,
+        job: Option<jig_domain_link::JobKind>,
+        repository: Box<[u8]>,
+        what: root::Git,
+    ) {
+        let job = match job {
+            Some(kind) => Some(kind.0),
+            None => None,
+        };
+        self.notes.push(crate::worker_alone::Note::Git { run: run.raw(), attempt: attempt.raw(), job, repository, what });
+    }
+    #[expect(clippy::too_many_lines, reason = "the root boundary routes each request exhaustively")]
     pub(crate) fn route(&mut self, request: root::Request) {
         match request {
+            root::Request::Git { run, attempt, job, repository, what } => {
+                self.note_git(run, attempt, job, repository, what);
+            }
             root::Request::AgentStopped { run, attempt, failure } => {
                 self.note_agent_stopped(run, attempt, failure);
             }
