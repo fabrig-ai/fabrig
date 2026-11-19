@@ -291,6 +291,7 @@ fn outputs(
             | Request::BoxGroup { .. }
             | Request::BoxRemove { .. }
             | Request::LandingNews { .. }
+            | Request::LandingReady { .. }
             | Request::LandingDecision { .. }
             | Request::Settled { .. }
             | Request::Bound { .. }

@@ -426,7 +426,10 @@ pub(super) fn describe_landing_effect(
 }
 
 pub(super) fn landing_decision(domain: &mut Domain, env: &Env<Limits>, task: u64, choice: landing::Decision) {
-    let Some((connector, code, step)) = domain.core.tasks.procedure_due(task) else { return };
+    let Some((connector, code, step)) = domain.core.tasks.procedure_due(task) else {
+        domain.work.push(Work::Tasks(tasks::Event::WakeProcedure { task }));
+        return;
+    };
     if connector != domain.config.forge_connector || code != LANDING_CODE {
         return;
     }

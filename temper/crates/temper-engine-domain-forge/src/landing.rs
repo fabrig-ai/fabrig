@@ -33,6 +33,7 @@ pub(crate) struct State {
     pub(crate) settings: Map<u32, crate::settings::ProjectLanding>,
     pub(crate) held: bool,
     pub(crate) pending: Map<Token, Pending>,
+    decisions: Map<u64, (Token, Pending)>,
     pub(crate) keys: Map<Position, (api::Commit, Option<api::Commit>, policy::Key)>,
     pub(crate) main_keys: Map<RepositoryGate, KeyAt>,
     pub(crate) flights: Map<ReceiptKey, runs::Follow>,
@@ -157,6 +158,7 @@ impl State {
             settings: Map::with_capacity(l.judge_projects),
             held: false,
             pending: Map::with_capacity(l.landings),
+            decisions: Map::with_capacity(l.landings),
             keys: Map::with_capacity(slots),
             main_keys: Map::with_capacity(l.repositories.checked_mul(l.gates).expect("gate bounds")),
             flights: Map::with_capacity(slots),
@@ -1393,7 +1395,7 @@ fn advance(
                 let repository = p.repository;
                 ask(d, env, owner, p, repository, read, out);
             } else {
-                decide(d, env, owner, p, out);
+                decide(d, owner, p, out);
             }
         }
         Stage::Branch(index) | Stage::Main(index) | Stage::Ancestry(index) | Stage::Pull(index) => {
@@ -2498,7 +2500,7 @@ fn collect(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out:
     } else if p.woken {
         step(d, env, p.task, p.entry, p.heard, out);
     } else {
-        decide(d, env, owner, p, out);
+        decide(d, owner, p, out);
     }
 }
 fn result(d: &Domain, task: u64, member: u16, gate: u16, operation: u8) -> policy::Status {
@@ -2520,8 +2522,31 @@ fn result(d: &Domain, task: u64, member: u16, gate: u16, operation: u8) -> polic
     }
     policy::Status::Unknown
 }
+fn decide(d: &mut Domain, owner: Token, p: Pending, out: &mut Queue<Request>) {
+    let task = p.task;
+    assert!(
+        d.landing.decisions.insert(task, (owner, p)).expect("one decision per landing").is_none(),
+        "the root settles each handoff before the next event"
+    );
+    emit(out, Request::LandingReady { task });
+}
+
+impl Domain {
+    /// Admit gathered facts before any decision state or write is kept
+    /// (domain/landing-waits.md, 3). A refused handoff gathers again in its next due step.
+    pub fn decide_landing(&mut self, env: &Env<Limits>, task: u64, due: bool, out: &mut Queue<Request>) {
+        let Some((owner, pending)) = self.landing.decisions.remove(&task) else { return };
+        if due {
+            commit_decision(self, env, owner, pending, out);
+        } else {
+            emit(out, Request::WakeProcedure { task });
+        }
+        crate::room::ask(self, env, out);
+    }
+}
+
 #[expect(clippy::too_many_lines, reason = "one policy decision and its atomic durable outputs")]
-fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: &mut Queue<Request>) {
+fn commit_decision(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: &mut Queue<Request>) {
     let mut row = d.landing.rows.get(&p.task).expect("pending landing").clone();
     if p.heard.released {
         for index in 0..row.landing.members.len() {

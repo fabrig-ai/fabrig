@@ -597,6 +597,7 @@ fn land_change(world: &mut Protocol) -> bool {
                 | top::Request::ApplicationAgain { .. }
                 | top::Request::RestartDone { .. }
                 | top::Request::LandingNews { .. }
+                | top::Request::LandingReady { .. }
                 | top::Request::LandingDecision { .. }
                 | top::Request::StatusRun { .. }
                 | top::Request::FollowRun { .. }

@@ -2773,6 +2773,10 @@ pub enum Request {
         member: u16,
         step: LandingNews,
     },
+    /// Facts are gathered; the root admits the decision in its due procedure step.
+    LandingReady {
+        task: u64,
+    },
     LandingDecision {
         task: u64,
         decision: landing::Decision,

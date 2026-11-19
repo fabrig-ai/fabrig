@@ -5,6 +5,7 @@ mod call_room;
 mod flake;
 mod reds;
 mod room;
+mod round_ends;
 mod settling;
 mod taking;
 
@@ -64,31 +65,6 @@ fn adopted(forge: u16) -> super::forge::Repository {
             squash: true,
             rebase: false,
         },
-    }
-}
-
-#[test]
-fn tree_branches_count_prefix_slashes_against_authority_segments() {
-    // forge, host, owner, repository, branch, temper, root, marker/task.
-    const AUTHORITY_SEGMENTS: u32 = 8;
-    // The old live prefix puts live-x in a branch segment of its own.
-    const DEEP_AUTHORITY_SEGMENTS: u32 = 9;
-    const BRANCH_BYTES: u32 = 128;
-    for (prefix, segments, fits) in [
-        (b"temper/live-x/".as_slice(), AUTHORITY_SEGMENTS, false),
-        (b"temper/live-x/", DEEP_AUTHORITY_SEGMENTS, true),
-        (b"temper/", AUTHORITY_SEGMENTS, true),
-        (b"temper/live-x-", AUTHORITY_SEGMENTS, true),
-    ] {
-        let mut repository = adopted(1);
-        repository.prefix = prefix.into();
-        for marker in *b"crs" {
-            for attempt in [None, Some(3)] {
-                let branch = super::tree_branch(&repository, 1, marker, 2, attempt, BRANCH_BYTES).expect("tree branch");
-                let what = super::branch_what(&branch, BRANCH_BYTES).expect("branch parts");
-                assert_eq!(super::resource_name(&repository, &what, segments).is_some(), fits, "branch {branch:?}");
-            }
-        }
     }
 }
 
@@ -2249,8 +2225,13 @@ fn reserve_period(domain: &mut super::Domain, env: &skein_lib::Env<super::Limits
 }
 
 fn reserved_turn_landing() -> (super::Domain, skein_lib::Env<super::Limits>, super::forge::LandingRow) {
+    reserved_turn_landing_with_limits(&crate::tests::resume_fixture::limits())
+}
+fn reserved_turn_landing_with_limits(
+    limits: &super::Limits,
+) -> (super::Domain, skein_lib::Env<super::Limits>, super::forge::LandingRow) {
     use super::{Work, forge, forge_change};
-    let (mut domain, env) = procedure_root();
+    let (mut domain, env) = procedure_root_with_limits(*limits);
     reserve_period(&mut domain, &env);
     let mut row = change_row(Some(7));
     row.repository = adopted(1).provider;
@@ -3214,80 +3195,6 @@ fn choice(model: u8, effort: Option<u8>) -> super::tasks::LlmChoice {
         main: super::tasks::ModelEffort { model, effort },
         subagents: Box::new([]),
     }
-}
-
-#[test]
-fn change_llm_text_round_trips_each_role_and_optional_effort() {
-    use super::{change_llm, tasks};
-    for (text, producer, llm) in [
-        (b";;".as_slice(), None, crate::ChangeLlm::default()),
-        (b"6;;", Some(6), crate::ChangeLlm::default()),
-        (b";3;", None, crate::ChangeLlm { producer: Some(choice(3, None)), review: None }),
-        (b";;3.0", None, crate::ChangeLlm { producer: None, review: Some(choice(3, Some(0))) }),
-        (
-            b"6;3.1 0.0 2;3.0",
-            Some(6),
-            crate::ChangeLlm {
-                producer: Some(tasks::LlmChoice {
-                    subagents: Box::new([
-                        tasks::ModelEffort { model: 0, effort: Some(0) },
-                        tasks::ModelEffort { model: 2, effort: None },
-                    ]),
-                    ..choice(3, Some(1))
-                }),
-                review: Some(choice(3, Some(0))),
-            },
-        ),
-        (
-            b"4294967295;255.255;0",
-            Some(u32::MAX),
-            crate::ChangeLlm { producer: Some(choice(u8::MAX, Some(u8::MAX))), review: Some(choice(0, None)) },
-        ),
-    ] {
-        assert_eq!(change_llm::spell(producer, &llm).as_ref(), text);
-        assert_eq!(change_llm::read(text), Some((producer, llm)));
-    }
-}
-
-#[test]
-fn change_llm_text_refuses_malformed_parts_and_too_many_entries() {
-    for text in [
-        b"".as_slice(),
-        b";",
-        b";;;",
-        b"6;3",
-        b"0;;",
-        b"4294967296;;",
-        b"-1;;",
-        b"+1;;",
-        b"x;;",
-        b";256;",
-        b";1.256;",
-        b";1.;",
-        b";.1;",
-        b";1.2.3;",
-        b"; 1;",
-        b";1 ;",
-        b";1  2;",
-        b";1\t2;",
-        b";x;",
-        b";;1  ",
-        b";;\xff",
-        b" 6;;",
-    ] {
-        assert_eq!(super::change_llm::read(text), None, "{text:?}");
-    }
-    let mut text = skein_lib::List::with_capacity(140);
-    super::append(&mut text, b";0");
-    for _ in 0..super::tasks::MODELS {
-        super::append(&mut text, b" 1");
-    }
-    text.push(b';').unwrap();
-    let accepted = super::change_llm::read(text.as_slice()).expect("main plus MODELS sub-agents");
-    assert_eq!(super::change_llm::spell(accepted.0, &accepted.1).as_ref(), text.as_slice());
-    text.truncate(text.len() - 1);
-    super::append(&mut text, b" 2;");
-    assert_eq!(super::change_llm::read(text.as_slice()), None);
 }
 
 fn change_choice_world() -> (super::Domain, skein_lib::Env<super::Limits>, super::tasks::DelegationContext) {

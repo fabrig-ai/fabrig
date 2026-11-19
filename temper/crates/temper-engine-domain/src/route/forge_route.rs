@@ -8,6 +8,12 @@ use super::{
     save_connector_answer, tasks,
 };
 use crate::commit_text;
+pub(crate) use temper_engine_domain_translate::{
+    branch_parts, branch_what, change_delegate_status, decimal, effect_access, forge_name, hub_name,
+    initial_change_title, read_name, repair_verdict, resource_name, saved_resources, saved_tags, tree_branch,
+    write_holding,
+};
+
 #[cfg(test)]
 use forge::change_words::REPAIR_PRESERVATION;
 use forge::change_words::{
@@ -31,7 +37,7 @@ pub(crate) const GOAL_CLOSER_CODE: u32 = 6;
 pub(super) const STATUS_CHARTER: u32 = 9;
 use jig_domain_core::effects::connector::{EffectDescription, EffectForm, Recovery};
 
-mod change_llm;
+use temper_engine_domain_translate::change_llm;
 mod closer_route;
 pub(crate) mod follow_route;
 pub(crate) use closer_route::{
@@ -70,37 +76,6 @@ pub(crate) mod prepare;
 #[cfg(test)]
 mod tests;
 
-/// Translate the worker's connector-specific saved tags at the root boundary.
-pub(crate) fn saved_resources(connector: u16, tags: &[u64]) -> Option<Box<[tasks::SavedResource]>> {
-    let mut resources = List::with_capacity(u32::try_from(tags.len()).ok()?);
-    for tag in tags {
-        let (forge, repository) = forge::untag(*tag)?;
-        resources
-            .push(tasks::SavedResource {
-                connector,
-                path: Box::new([Box::from(forge.to_be_bytes()), Box::from(repository.to_be_bytes())]),
-            })
-            .ok()?;
-    }
-    Some(resources.into_boxed())
-}
-
-/// Return the forge's resource tags from task-owned generic saved names.
-pub(crate) fn saved_tags(resources: &[tasks::SavedResource], connector: u16) -> Option<Box<[u64]>> {
-    let mut tags = List::with_capacity(u32::try_from(resources.len()).ok()?);
-    for resource in resources {
-        if resource.connector != connector {
-            continue;
-        }
-        let [forge, repository] = resource.path.as_ref() else { return None };
-        let forge = u16::from_be_bytes(forge.as_ref().try_into().ok()?);
-        let repository = u32::from_be_bytes(repository.as_ref().try_into().ok()?);
-        tags.push(forge::tag(forge, repository)).ok()?;
-    }
-    Some(tags.into_boxed())
-}
-
-/// A closing task's saved-work branches, from its record's saved set.
 pub(crate) fn saved_branches(domain: &Domain, env: &Env<Limits>, task: u64, root: u64) -> Box<[forge::Name]> {
     let Some(record) = domain.core.tasks.task(task) else { return Box::new([]) };
     let Some(tags) = saved_tags(&record.saved, domain.config.forge_connector) else { return Box::new([]) };
@@ -361,114 +336,6 @@ pub(crate) fn claim_names(
         }
     }
     Some(names.into_boxed())
-}
-
-pub(super) fn decimal(number: u64) -> Box<[u8]> {
-    let mut digits = List::with_capacity(20);
-    let mut value = number;
-    for _ in 0_u32..20_u32 {
-        digits
-            .push(b'0'.checked_add(u8::try_from(value % 10).expect("decimal digit")).expect("decimal ascii digit"))
-            .expect("u64 decimal width");
-        value /= 10;
-        if value == 0 {
-            break;
-        }
-    }
-    let mut forward = List::with_capacity(20);
-    for at in (0..digits.len()).rev() {
-        forward.push(*digits.get(at).expect("measured decimal digit")).expect("same width");
-    }
-    forward.into_boxed()
-}
-
-fn read_name(repository: &forge::Repository, read: &skein_forge::api::Read, limit: u32) -> Option<authority::Name> {
-    let mut segments = List::with_capacity(limit);
-    for segment in [b"forge".as_slice(), &repository.host, &repository.owner, &repository.name] {
-        segments.push(Box::from(segment)).ok()?;
-    }
-    let what = match read {
-        skein_forge::api::Read::Pull { number, .. }
-        | skein_forge::api::Read::Reviews { number, .. }
-        | skein_forge::api::Read::Remarks { number, .. }
-        | skein_forge::api::Read::PullFiles { number, .. } => Some((b"pull".as_slice(), Some(decimal(*number)))),
-        skein_forge::api::Read::Item { number, .. } => Some((b"issue".as_slice(), Some(decimal(*number)))),
-        skein_forge::api::Read::Branch { branch } | skein_forge::api::Read::Protection { branch } => {
-            Some((b"branch".as_slice(), Some(branch.clone())))
-        }
-        skein_forge::api::Read::Locate { .. }
-        | skein_forge::api::Read::File { .. }
-        | skein_forge::api::Read::Items { .. }
-        | skein_forge::api::Read::PullFor { .. }
-        | skein_forge::api::Read::Statuses { .. }
-        | skein_forge::api::Read::Compare { .. }
-        | skein_forge::api::Read::Checks { .. }
-        | skein_forge::api::Read::JobState { .. }
-        | skein_forge::api::Read::Job { .. }
-        | skein_forge::api::Read::Branches { .. }
-        | skein_forge::api::Read::Settings
-        | skein_forge::api::Read::Collaborators { .. }
-        | skein_forge::api::Read::Runs { .. }
-        | skein_forge::api::Read::Run { .. }
-        | skein_forge::api::Read::Artifact { .. }
-        | skein_forge::api::Read::Commits { .. }
-        | skein_forge::api::Read::Tree { .. }
-        | skein_forge::api::Read::Permission { .. } => None,
-    };
-    if let Some((kind, part)) = what {
-        segments.push(Box::from(kind)).ok()?;
-        if let Some(part) = part {
-            let mut start = 0;
-            for at in 0..=part.len() {
-                if at == part.len() || part.get(at) == Some(&b'/') {
-                    let segment = part.get(start..at)?;
-                    if segment.is_empty() {
-                        return None;
-                    }
-                    segments.push(Box::from(segment)).ok()?;
-                    start = at.checked_add(1)?;
-                }
-            }
-        }
-    }
-    Some(authority::Name { segments: segments.into_boxed() })
-}
-
-fn resource_name(repository: &forge::Repository, what: &forge::What, limit: u32) -> Option<authority::Name> {
-    let mut segments = List::with_capacity(limit);
-    for segment in [b"forge".as_slice(), &repository.host, &repository.owner, &repository.name] {
-        segments.push(Box::from(segment)).ok()?;
-    }
-    match what {
-        forge::What::Repository => {}
-        forge::What::Issue(number) => {
-            segments.push(Box::from(&b"issue"[..])).ok()?;
-            segments.push(decimal(*number)).ok()?;
-        }
-        forge::What::Pull(number) => {
-            segments.push(Box::from(&b"pull"[..])).ok()?;
-            segments.push(decimal(*number)).ok()?;
-        }
-        forge::What::Branch(parts) => {
-            segments.push(Box::from(&b"branch"[..])).ok()?;
-            for part in parts {
-                if part.is_empty() || part.contains(&b'/') {
-                    return None;
-                }
-                segments.push(part.clone()).ok()?;
-            }
-        }
-    }
-    Some(authority::Name { segments: segments.into_boxed() })
-}
-
-fn effect_access(repository: &forge::Repository, what: &forge::What, kind: u16) -> authority::EffectAccess {
-    match forge::effect_access(repository, what, kind) {
-        forge::Access::Owned => authority::EffectAccess::Owned,
-        forge::Access::Participant => authority::EffectAccess::Participant,
-        forge::Access::Context => authority::EffectAccess::Context,
-        forge::Access::Unavailable => authority::EffectAccess::Unavailable,
-    }
 }
 
 fn effect_key(domain: &Domain, key: CallKey) -> Box<[u8]> {
@@ -741,111 +608,6 @@ fn subscription_number(
         return None;
     };
     Some(number)
-}
-
-fn branch_parts(branch: &[u8], limit: u32) -> Option<Box<[Box<[u8]>]>> {
-    let mut parts = List::with_capacity(limit);
-    let mut start = 0;
-    for at in 0..=branch.len() {
-        if at == branch.len() || branch.get(at) == Some(&b'/') {
-            let part = branch.get(start..at)?;
-            if part.is_empty() {
-                return None;
-            }
-            parts.push(Box::from(part)).ok()?;
-            start = at.checked_add(1)?;
-        }
-    }
-    Some(parts.into_boxed())
-}
-
-fn branch_what(branch: &[u8], limit: u32) -> Option<forge::What> {
-    Some(forge::What::Branch(branch_parts(branch, limit)?))
-}
-
-fn tree_branch(
-    repository: &forge::Repository,
-    root: u64,
-    marker: u8,
-    task: u64,
-    attempt: Option<u64>,
-    limit: u32,
-) -> Option<Box<[u8]>> {
-    let root_bytes = decimal(root);
-    let task_bytes = decimal(task);
-    let attempt_bytes = match attempt {
-        Some(number) => Some(decimal(number)),
-        None => None,
-    };
-    let mut needed =
-        repository.prefix.len().checked_add(root_bytes.len())?.checked_add(2)?.checked_add(task_bytes.len())?;
-    if let Some(number) = &attempt_bytes {
-        needed = needed.checked_add(1)?.checked_add(number.len())?;
-    }
-    if needed > usize::try_from(limit).ok()? {
-        return None;
-    }
-    let mut result = List::with_capacity(limit);
-    append(&mut result, &repository.prefix);
-    append(&mut result, &root_bytes);
-    append(&mut result, b"/");
-    append(&mut result, &[marker]);
-    append(&mut result, &task_bytes);
-    if let Some(attempt) = attempt_bytes {
-        append(&mut result, b"-");
-        append(&mut result, &attempt);
-    }
-    let branch = result.into_boxed();
-    branch_what(&branch, limit)?;
-    Some(branch)
-}
-
-/// The hub sees an opaque, bounded name for a forge branch. Forge path syntax
-/// stays here; the task child only compares these literal bytes.
-pub(crate) fn hub_name(connector: u16, name: &forge::Name, limits: &tasks::Limits) -> Option<tasks::Name> {
-    let forge::What::Branch(parts) = &name.what else { return None };
-    if limits.hold_segments < 3 {
-        return None;
-    }
-    let mut branch = List::with_capacity(limits.hold_bytes);
-    for (at, part) in parts.iter().enumerate() {
-        if at != 0 {
-            branch.push(b'/').ok()?;
-        }
-        for byte in part.iter().copied() {
-            branch.push(byte).ok()?;
-        }
-    }
-    if branch.len().checked_add(6)? > limits.hold_bytes {
-        return None;
-    }
-    Some(tasks::Name {
-        connector,
-        path: Box::new([
-            Box::from(name.forge.to_be_bytes()),
-            Box::from(name.repository.to_be_bytes()),
-            branch.into_boxed(),
-        ]),
-    })
-}
-
-/// Decode only this connector's branch names when projecting a hub hold.
-pub(crate) fn forge_name(connector: u16, resource: &tasks::Name, limit: u32) -> Option<forge::Name> {
-    if resource.connector != connector {
-        return None;
-    }
-    let [forge, repository, branch] = resource.path.as_ref() else { return None };
-    let [one, two] = forge.as_ref() else { return None };
-    let [three, four, five, six] = repository.as_ref() else { return None };
-    Some(forge::Name {
-        forge: u16::from_be_bytes([*one, *two]),
-        repository: u32::from_be_bytes([*three, *four, *five, *six]),
-        what: branch_what(branch, limit)?,
-    })
-}
-
-fn write_holding(connector: u16, name: &forge::Name, limits: &tasks::Limits) -> Option<tasks::Holding> {
-    Some(tasks::Holding::Write { resource: hub_name(connector, name, limits)?, kind: 1 })
 }
 
 /// Name the forge branches a new task will own before the hub admits its batch
@@ -2176,70 +1938,8 @@ fn retry_change_names(domain: &mut Domain, env: &Env<Limits>, task: u64) {
     domain.work.push(Work::Forge(forge::Event::Names { task, resources }));
 }
 
-fn initial_change_title(parameters: &[tasks::Parameter]) -> Box<[u8]> {
-    let mut handed = false;
-    let mut title = None;
-    for parameter in parameters {
-        match parameter {
-            tasks::Parameter::Bytes { name: 3 | 19, .. } => handed = true,
-            tasks::Parameter::Bytes { name: 10, value } => title = Some(value.as_ref()),
-            tasks::Parameter::Bytes { .. } | tasks::Parameter::Number { .. } | tasks::Parameter::Resource { .. } => {}
-        }
-    }
-    if !handed {
-        return Box::new([]);
-    }
-    match title {
-        Some(title) if !title.is_empty() => forge::text::fit(title, 256, "…".as_bytes()),
-        Some(_) | None => Box::from(forge::DEFAULT_CHANGE_TITLE),
-    }
-}
-
-/// Register the connector's procedure beside the task's first due step.
-/// Parameter 1 names a project-unique repository tag, 2 the base,
-/// 3 an optional already-pushed branch, 4 the pull body, 5 priority, and 10 the pull title.
-fn change_delegate_status(kind: &tasks::MessageKind) -> Option<(forge_change::Status, bool, bool)> {
-    match kind {
-        tasks::MessageKind::Result(
-            tasks::ResultKind::NoChange
-            | tasks::ResultKind::Report
-            | tasks::ResultKind::Change { .. }
-            | tasks::ResultKind::Verdict { code: 1, .. }
-            | tasks::ResultKind::Job,
-        ) => Some((forge_change::Status::Passed, false, false)),
-        tasks::MessageKind::Result(tasks::ResultKind::Failed) => Some((forge_change::Status::Failed, true, false)),
-        tasks::MessageKind::Result(tasks::ResultKind::Cancelled) => Some((forge_change::Status::Failed, false, true)),
-        tasks::MessageKind::Result(tasks::ResultKind::Verdict { .. } | tasks::ResultKind::Approved { .. }) => {
-            Some((forge_change::Status::Failed, false, false))
-        }
-        tasks::MessageKind::Escalation { .. }
-        | tasks::MessageKind::Proposal { .. }
-        | tasks::MessageKind::SettingsDecision { .. }
-        | tasks::MessageKind::ProposalDecision { .. }
-        | tasks::MessageKind::Words
-        | tasks::MessageKind::FinishRequested { .. }
-        | tasks::MessageKind::Amendment { .. }
-        | tasks::MessageKind::Question
-        | tasks::MessageKind::Answer { .. }
-        | tasks::MessageKind::Met { .. }
-        | tasks::MessageKind::Notice { .. }
-        | tasks::MessageKind::QuestionAnswered { .. }
-        | tasks::MessageKind::QuestionOwed
-        | tasks::MessageKind::NothingAwaited
-        | tasks::MessageKind::QuestionEnded { .. }
-        | tasks::MessageKind::Timer { .. }
-        | tasks::MessageKind::PersonStalled { .. }
-        | tasks::MessageKind::EffectNotMade { .. }
-        | tasks::MessageKind::News { .. } => None,
-    }
-}
-
 // Every live pushing child counts, even after a gate takes the current delegate slot
 // (temper/docs/design/domain/forge/change/repairs.md). Jig keeps these through their terminals.
-fn repair_verdict(kind: forge_change::Delegate, code: u32) -> bool {
-    if let forge_change::Delegate::Repair(_) = kind { code == forge::REPAIR_FLAKE } else { false }
-}
-
 fn change_delegate_live(domain: &Domain, task: u64) -> bool {
     let Some(owner) = domain.core.tasks.task(task) else { return false };
     for child in &owner.delegates {
@@ -2323,6 +2023,9 @@ fn drop_settled_change(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<f
     }
 }
 
+/// Register the connector's procedure beside the task's first due step.
+/// Parameter 1 names a project-unique repository tag, 2 the base,
+/// 3 an optional already-pushed branch, 4 the pull body, 5 priority, and 10 the pull title.
 pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tasks::RunContext) -> bool {
     start_recovered_change(domain, env, context, None)
 }
@@ -4677,8 +4380,7 @@ pub(crate) fn outputs(
     decision: &mut Decision,
     out: &mut Queue<forge::Request>,
 ) {
-    for _ in 0..out.len() {
-        let request = out.pop().expect("connector output count");
+    while let Some(request) = out.pop() {
         match request {
             forge::Request::LoadHistory { load, range, after, most } => {
                 match domain.archive_reads.insert(Some(crate::boundary::Read::History { load, most })) {
@@ -5343,9 +5045,17 @@ pub(crate) fn outputs(
                     tier_decision(domain, env, task, choice, projection);
                 }
             }
+            forge::Request::LandingReady { task } => {
+                let due = match domain.core.tasks.procedure_due(task) {
+                    Some((connector, code, _)) => connector == domain.config.forge_connector && code == LANDING_CODE,
+                    None => false,
+                };
+                domain.forge.decide_landing(&super::environment_forge(env), task, due, out);
+            }
             forge::Request::LandingDecision { task, decision: choice, entry, evidence } => {
                 if let Some(entry) = entry {
-                    let Some((_, _, step)) = domain.core.tasks.procedure_due(task) else { continue };
+                    let (_, _, step) =
+                        domain.core.tasks.procedure_due(task).expect("landing decision admitted before commit");
                     if let Some(description) = describe_landing_effect(domain, env, task, entry) {
                         let owner = effect_owner(domain);
                         domain

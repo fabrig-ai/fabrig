@@ -4,6 +4,8 @@ use temper_engine_domain_forge_landing as policy;
 mod flake_rerun;
 #[path = "landing/room.rs"]
 mod room;
+#[path = "landing/round_ends.rs"]
+mod round_ends;
 
 #[test]
 fn project_landing_keeps_repository_tiers_and_settings_separate_by_project() {

@@ -1663,8 +1663,7 @@ impl World {
     fn take_top(&mut self) {
         let mut calls = List::with_capacity(self.top_out.len());
         let mut restart = None;
-        for _ in 0..self.top_out.len() {
-            let request = self.top_out.pop().expect("counted top output");
+        while let Some(request) = self.top_out.pop() {
             match request {
                 top::Request::ChoosePlace { request, kind, .. } => {
                     let port = match kind {
@@ -1682,6 +1681,9 @@ impl World {
                         top::Event::PlaceChosen { request, place: Some(place), git_program: None },
                         &mut self.top_out,
                     );
+                }
+                top::Request::LandingReady { task } => {
+                    self.top.decide_landing(&self.env, task, true, &mut self.top_out);
                 }
                 top::Request::LoadHistory { load, range, after, most } => self.history_load(load, range, after, most),
                 page @ top::Request::HistoryPage { .. } => {

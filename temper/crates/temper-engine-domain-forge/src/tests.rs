@@ -341,6 +341,24 @@ pub(crate) fn domain_with_limits(limits: &Limits) -> Domain {
     )
     .expect("valid connector")
 }
+fn accept_landings(d: &mut Domain, environment: &Env<Limits>, out: &mut Queue<Request>) {
+    let mut pending = core::mem::replace(out, Queue::uncapped());
+    while let Some(request) = pending.pop() {
+        if let Request::LandingReady { task } = request {
+            d.decide_landing(environment, task, true, &mut pending);
+        } else {
+            out.push(request);
+        }
+    }
+}
+fn step(d: &mut Domain, environment: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
+    crate::step(d, environment, event, out);
+    accept_landings(d, environment, out);
+}
+fn resume(d: &mut Domain, environment: &Env<Limits>, out: &mut Queue<Request>) {
+    crate::resume(d, environment, out);
+    accept_landings(d, environment, out);
+}
 pub(crate) fn outputs(d: &mut Domain, event: Event) -> Box<[Request]> {
     if let Event::Restore { .. } = &event {
         d.restore_begin(Wall::EPOCH);
@@ -580,6 +598,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::ProjectionSettled { .. }
         | Request::GoalUntopic { .. }
         | Request::LandingNews { .. }
+        | Request::LandingReady { .. }
         | Request::LandingDecision { .. }
         | Request::ChangeDecision { .. }
         | Request::Reviewed { .. }
@@ -682,6 +701,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::ProjectionSettled { .. }
         | Request::GoalUntopic { .. }
         | Request::LandingNews { .. }
+        | Request::LandingReady { .. }
         | Request::LandingDecision { .. }
         | Request::ChangeDecision { .. }
         | Request::Reviewed { .. }
@@ -777,6 +797,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::ProjectionSettled { .. }
         | Request::GoalUntopic { .. }
         | Request::LandingNews { .. }
+        | Request::LandingReady { .. }
         | Request::LandingDecision { .. }
         | Request::ChangeDecision { .. }
         | Request::Reviewed { .. }

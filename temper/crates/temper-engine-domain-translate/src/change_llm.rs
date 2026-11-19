@@ -1,6 +1,7 @@
 //! A change's producer and role choices in parameter 11
 //! (`temper/docs/design/domain/forge/change/README.md`, 1).
 
+use crate::append;
 use alloc::boxed::Box;
 use jig_domain_tasks as tasks;
 use skein_lib::{
@@ -8,7 +9,8 @@ use skein_lib::{
     bytes::{decimal, find},
 };
 
-pub(super) fn spell(producer: Option<u32>, llm: &crate::ChangeLlm) -> Box<[u8]> {
+#[must_use]
+pub fn spell(producer: Option<u32>, llm: &crate::ChangeLlm) -> Box<[u8]> {
     // A charter has at most ten digits, two separators, and each choice entry
     // at most eight bytes including its preceding space.
     let mut size = 12_u32;
@@ -20,7 +22,7 @@ pub(super) fn spell(producer: Option<u32>, llm: &crate::ChangeLlm) -> Box<[u8]> 
     }
     let mut out = List::with_capacity(size);
     if let Some(producer) = producer {
-        super::append(&mut out, &super::decimal(u64::from(producer)));
+        append(&mut out, &crate::decimal(u64::from(producer)));
     }
     for choice in [&llm.producer, &llm.review] {
         out.push(b';').expect("two separators");
@@ -36,14 +38,15 @@ pub(super) fn spell(producer: Option<u32>, llm: &crate::ChangeLlm) -> Box<[u8]> 
 }
 
 fn spell_entry(out: &mut List<u8>, entry: tasks::ModelEffort) {
-    super::append(out, &super::decimal(u64::from(entry.model)));
+    append(out, &crate::decimal(u64::from(entry.model)));
     if let Some(effort) = entry.effort {
         out.push(b'.').expect("effort separator");
-        super::append(out, &super::decimal(u64::from(effort)));
+        append(out, &crate::decimal(u64::from(effort)));
     }
 }
 
-pub(super) fn read(text: &[u8]) -> Option<(Option<u32>, crate::ChangeLlm)> {
+#[must_use]
+pub fn read(text: &[u8]) -> Option<(Option<u32>, crate::ChangeLlm)> {
     let (charter, choices) = split(text, b';')?;
     let (producer_choice, review_choice) = split(choices, b';')?;
     if find(review_choice, b";").is_some() {
@@ -94,4 +97,90 @@ fn read_entry(text: &[u8]) -> Option<tasks::ModelEffort> {
         None => (text, None),
     };
     Some(tasks::ModelEffort { model: u8::try_from(decimal(model)?).ok()?, effort })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    fn choice(model: u8, effort: Option<u8>) -> tasks::LlmChoice {
+        tasks::LlmChoice {
+            later: None,
+            account: None,
+            main: tasks::ModelEffort { model, effort },
+            subagents: Box::new([]),
+        }
+    }
+    #[test]
+    fn change_llm_text_round_trips_each_role_and_optional_effort() {
+        use super::*;
+        for (text, producer, llm) in [
+            (b";;".as_slice(), None, crate::ChangeLlm::default()),
+            (b"6;;", Some(6), crate::ChangeLlm::default()),
+            (b";3;", None, crate::ChangeLlm { producer: Some(choice(3, None)), review: None }),
+            (b";;3.0", None, crate::ChangeLlm { producer: None, review: Some(choice(3, Some(0))) }),
+            (
+                b"6;3.1 0.0 2;3.0",
+                Some(6),
+                crate::ChangeLlm {
+                    producer: Some(tasks::LlmChoice {
+                        subagents: Box::new([
+                            tasks::ModelEffort { model: 0, effort: Some(0) },
+                            tasks::ModelEffort { model: 2, effort: None },
+                        ]),
+                        ..choice(3, Some(1))
+                    }),
+                    review: Some(choice(3, Some(0))),
+                },
+            ),
+            (
+                b"4294967295;255.255;0",
+                Some(u32::MAX),
+                crate::ChangeLlm { producer: Some(choice(u8::MAX, Some(u8::MAX))), review: Some(choice(0, None)) },
+            ),
+        ] {
+            assert_eq!(spell(producer, &llm).as_ref(), text);
+            assert_eq!(read(text), Some((producer, llm)));
+        }
+    }
+
+    #[test]
+    fn change_llm_text_refuses_malformed_parts_and_too_many_entries() {
+        for text in [
+            b"".as_slice(),
+            b";",
+            b";;;",
+            b"6;3",
+            b"0;;",
+            b"4294967296;;",
+            b"-1;;",
+            b"+1;;",
+            b"x;;",
+            b";256;",
+            b";1.256;",
+            b";1.;",
+            b";.1;",
+            b";1.2.3;",
+            b"; 1;",
+            b";1 ;",
+            b";1  2;",
+            b";1\t2;",
+            b";x;",
+            b";;1  ",
+            b";;\xff",
+            b" 6;;",
+        ] {
+            assert_eq!(read(text), None, "{text:?}");
+        }
+        let mut text = List::with_capacity(140);
+        append(&mut text, b";0");
+        for _ in 0..tasks::MODELS {
+            append(&mut text, b" 1");
+        }
+        text.push(b';').unwrap();
+        let accepted = read(text.as_slice()).expect("main plus MODELS sub-agents");
+        assert_eq!(spell(accepted.0, &accepted.1).as_ref(), text.as_slice());
+        text.truncate(text.len() - 1);
+        append(&mut text, b" 2;");
+        assert_eq!(read(text.as_slice()), None);
+    }
 }
