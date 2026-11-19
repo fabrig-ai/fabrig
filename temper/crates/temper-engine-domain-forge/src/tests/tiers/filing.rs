@@ -1,5 +1,6 @@
 //! Landed projects file a verdict's unheld failures, not a red per landing (red-findings.md, 2–5).
 use super::*;
+pub(crate) mod runs;
 use crate::findings::{BlameStrength, FindingBlame, FindingCleared, FindingSignature, VerdictFiling};
 use red::{failures, pending, respond};
 

@@ -200,6 +200,8 @@ pub(super) fn encode(row: &d::TierRow) -> w::TierRow {
         &w::CEILINGS,
         w::TierRowParts {
             observations: row.observations.clone(),
+            waiting: super::findings::encode_filings(&row.waiting),
+            unkept: row.unkept,
             repository: names::encode_repository(row.repository),
             tier: row.tier.clone(),
             record,
@@ -272,6 +274,8 @@ pub(super) fn encode(row: &d::TierRow) -> w::TierRow {
 pub(super) fn decode(row: w::TierRow) -> Result<d::TierRow, Undecodable> {
     let w::TierRowParts {
         observations,
+        waiting,
+        unkept,
         repository,
         tier,
         record,
@@ -304,6 +308,8 @@ pub(super) fn decode(row: w::TierRow) -> Result<d::TierRow, Undecodable> {
     let record = decode_record(record)?;
     let run = record.run.as_ref();
     Ok(d::TierRow {
+        waiting: super::findings::decode_filings(waiting)?,
+        unkept,
         observations,
         repository: names::decode_repository(repository),
         tier,

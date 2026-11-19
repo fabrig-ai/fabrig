@@ -1,6 +1,7 @@
 //! Findings (temper/docs/design/protocol/store.md, 2).
 use super::{FITS, w};
 use crate::Undecodable;
+use alloc::boxed::Box;
 use skein_lib::Wall;
 use temper_engine_domain_forge_vocabulary as d;
 fn encode_holder(value: d::Holder) -> w::FindingHolder {
@@ -353,4 +354,56 @@ pub(super) fn decode(row: w::Finding) -> Result<d::Finding, Undecodable> {
             None => None,
         },
     })
+}
+
+/// Waiting filings preserve their words and blame without passing through a Finding.
+pub(super) fn encode_filings(filings: &[d::VerdictFiling]) -> skein_lib::List<w::VerdictFiling> {
+    let mut rows = skein_lib::List::with_capacity(8);
+    for filing in filings {
+        rows.push(
+            w::VerdictFiling::new(
+                &w::CEILINGS,
+                w::VerdictFilingParts {
+                    project: filing.project,
+                    kind: encode_findingkind(filing.kind),
+                    severity: encode_severity(filing.severity),
+                    title: filing.title.clone(),
+                    body: filing.body.clone(),
+                    signature: encode_signature(&filing.signature),
+                    blame: match &filing.blame {
+                        Some(blame) => Some(encode_blame(blame)),
+                        None => None,
+                    },
+                    follow: filing.follow,
+                },
+            )
+            .expect(FITS),
+        )
+        .expect(FITS);
+    }
+    rows
+}
+pub(super) fn decode_filings(
+    filings: skein_lib::List<w::VerdictFiling>,
+) -> Result<Box<[d::VerdictFiling]>, Undecodable> {
+    let mut rows = skein_lib::List::with_capacity(8);
+    for filing in filings.into_boxed() {
+        let w::VerdictFilingParts { project, kind, severity, title, body, signature, blame, follow } =
+            filing.into_parts();
+        rows.push(d::VerdictFiling {
+            project,
+            kind: decode_findingkind(kind),
+            severity: decode_severity(severity),
+            title,
+            body,
+            signature: decode_signature(signature)?,
+            blame: match blame {
+                Some(blame) => Some(decode_blame(blame)),
+                None => None,
+            },
+            follow,
+        })
+        .expect(FITS);
+    }
+    Ok(rows.into_boxed())
 }

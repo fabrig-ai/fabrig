@@ -430,3 +430,14 @@ fn goal_reds_remain_bounded_unique_ordered_and_live_under_random_writes_and_rele
         }
     }
 }
+
+#[test]
+fn judged_runs_keep_red_ids_unique_and_uncleared_findings_unevictable() {
+    for seed in 0..16 {
+        assert_eq!(
+            tests::tiers::filing::runs::random_runs(seed),
+            tests::tiers::filing::runs::random_runs(seed),
+            "seed {seed}"
+        );
+    }
+}

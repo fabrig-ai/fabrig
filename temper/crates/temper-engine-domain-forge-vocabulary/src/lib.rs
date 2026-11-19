@@ -58,6 +58,7 @@ pub mod status;
 #[cfg(test)]
 mod tests;
 pub mod text;
+pub mod tier_report;
 pub mod tiers;
 pub use tiers::{TierAct, TierActRequest, TierRefusal};
 pub mod verification;
@@ -631,28 +632,10 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
         Stored::Finding(row) => {
             let mut bytes = skein_lib::len_u64(row.title.len()).checked_add(skein_lib::len_u64(row.body.len()))?;
             if let Some(signature) = &row.signature {
-                bytes = bytes
-                    .checked_add(skein_lib::len_u64(signature.source.len()))?
-                    .checked_add(skein_lib::len_u64(signature.first.len()))?
-                    .checked_add(
-                        skein_lib::len_u64(signature.ids.len())
-                            .checked_mul(u64::try_from(size_of::<Box<[u8]>>()).ok()?)?,
-                    )?;
-                for id in &signature.ids {
-                    bytes = bytes.checked_add(skein_lib::len_u64(id.len()))?;
-                }
+                bytes = bytes.checked_add(findings::signature_bytes(signature)?)?;
             }
             if let Some(blame) = &row.blame {
-                bytes = bytes.checked_add(
-                    skein_lib::len_u64(blame.landings.len())
-                        .checked_mul(u64::try_from(size_of::<BlamedLanding>()).ok()?)?,
-                )?;
-                for landing in &blame.landings {
-                    bytes = bytes.checked_add(
-                        skein_lib::len_u64(landing.goals.len())
-                            .checked_mul(u64::try_from(size_of::<BlamedGoal>()).ok()?)?,
-                    )?;
-                }
+                bytes = bytes.checked_add(findings::blame_bytes(blame)?)?;
             }
             for field in [&row.area, &row.why, &row.reason].into_iter().flatten() {
                 bytes = bytes.checked_add(skein_lib::len_u64(field.len()))?;

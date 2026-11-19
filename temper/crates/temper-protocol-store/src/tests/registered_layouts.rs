@@ -402,3 +402,37 @@ fn an_earlier_landing_log_defaults_member_goals_and_tier_entries() {
         assert_eq!((member.goal, member.milestone), (None, None));
     }
 }
+
+#[test]
+fn an_earlier_tier_defaults_waiting_and_unkept() {
+    use skein_codec::{
+        layout::{Plan, Workspace},
+        schema,
+    };
+    use temper_engine_domain_forge_vocabulary::Stored;
+    let family = crate::OWNER_SET.families.iter().find(|family| family.name == "temper-store").unwrap();
+    let before = family.current.replace("waiting: list 8 VerdictFiling = [] unkept: u32 = 0 ", "");
+    assert_ne!(before, family.current);
+    let old = schema::parse(before.as_bytes()).unwrap();
+    let new = schema::parse(family.current.as_bytes()).unwrap();
+    let old_root = old.root(b"Row", Some(b"tier")).unwrap();
+    let new_root = new.root(b"Row", Some(b"tier")).unwrap();
+    let write_old = Plan::derive_dropping(&new, new_root, &[], &old, old_root, &[]).unwrap();
+    let mut work = Workspace::new();
+    assert!(work.fit(&write_old));
+    let mut row = super::fixtures::tier_row();
+    row.unkept = 12;
+    let mut earlier = skein_lib::Buffer::with_capacity(1_048_576);
+    write_old.convert(&crate::records::encode(&Stored::Tier(row.clone())), &mut earlier, &mut work).unwrap();
+    let read_old = Plan::derive(&old, old_root, &[], &new, new_root, &[]).expect("tier additions have defaults");
+    assert!(work.fit(&read_old));
+    let mut current = skein_lib::Buffer::with_capacity(1_048_576);
+    read_old.convert(earlier.as_slice(), &mut current, &mut work).unwrap();
+    let bounds = crate::bounds(&super::fixtures::LIMITS, super::fixtures::LIMITS.client.op_bytes).unwrap();
+    row.unkept = 0;
+    let decoded = crate::records::decode(current.as_slice(), &bounds).unwrap();
+    let Stored::Tier(tier) = &decoded else { panic!("tier layout") };
+    assert_eq!(tier.waiting.len(), 0);
+    assert_eq!(tier.unkept, 0);
+    assert_eq!(decoded, Stored::Tier(row));
+}

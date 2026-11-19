@@ -3164,6 +3164,8 @@ pub struct TierGoal {
 pub struct TierRow {
     /// Observed execution identities awaiting or replaying the task projection across restart.
     pub observations: Box<[u8]>,
+    pub waiting: Box<[crate::findings::VerdictFiling]>,
+    pub unkept: u32,
     pub repository: skein_forge::api::Repository,
     pub tier: Box<[u8]>,
     pub record: temper_engine_domain_forge_tiers::Record,

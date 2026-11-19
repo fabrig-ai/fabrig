@@ -1095,6 +1095,8 @@ fn tier_row(number: u32) -> TierRow {
     TierRow {
         posting: None,
         hold: None,
+        waiting: Box::new([]),
+        unkept: 0,
         observations: Box::new([]),
         requested: false,
         cancelled: false,

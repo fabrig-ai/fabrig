@@ -284,3 +284,57 @@ fn full_new_findings_do_not_hold_an_outside_landings_red() {
     });
     assert_eq!(tier(&world).record.failing, temper_engine_domain_forge_tiers::Failures::Tests(Box::new([])));
 }
+
+#[test]
+fn a_dropped_owned_red_holds_until_a_run_passes_then_leaves_mine_and_is_erasable() {
+    let (mut world, triager) = world_with_wait(temper_engine_domain_forge_change::Wait::Landed);
+    tiers::sign_in(&mut world);
+    let milestone = milestones::milestone(&mut world, b"Observed repairs");
+    let goal = milestones::goal_with_words(&mut world, milestone, false, b"R3 Observe a dropped red");
+    let change = tiers::produce(&mut world, &goal, 94, b"failures", b"suite.alpha\n");
+    until(&mut world, RUN_TICKS * 3, "owned red filed after landing", |world| {
+        matches!(task(world, change).phase, tasks::Phase::Ended(_))
+            && tier(world).record.sequence == 2
+            && tier(world).posting.is_none()
+    });
+    let finding = findings(&world)[0].clone();
+    assert_eq!(finding.blame.as_ref().unwrap().strength, forge_top::BlameStrength::Owned);
+    assert!(!finding.erasable());
+    let triager = world.assigned.iter().find(|run| run.task == triager).unwrap().clone();
+    let answer = world.scripted_call(
+        &triager,
+        401,
+        engine::Tool::Finding(engine::FindingCall::Triage {
+            number: finding.number,
+            act: forge_top::Triage::Drop(b"Not pursuing".as_slice().into()),
+        }),
+    );
+    assert!(
+        matches!(answer, engine::CallAnswer::Finding(answer) if matches!(answer.as_ref(), engine::FindingToolAnswer::Write(forge_top::FindingReply { result: Ok(forge_top::FindingDone::Dropped), .. })))
+    );
+    assert_eq!(findings(&world)[0].state, forge_top::FindingState::Dropped);
+    assert!(!findings(&world)[0].erasable());
+    fake::advance(&mut world.fake, &world.fake_env, b"org/repo", b"main", b"file", b"unchanged failures", 1).unwrap();
+    until(&mut world, RUN_TICKS * 3, "dropped red still holds", |world| {
+        tier(world).record.sequence == 3 && tier(world).posting.is_none()
+    });
+    assert_eq!(findings(&world).len(), 1);
+    assert_eq!(findings(&world)[0].number, finding.number);
+    assert!(findings(&world)[0].uncleared_red());
+    fake::advance(&mut world.fake, &world.fake_env, b"org/repo", b"main", b"failures", b"", 1).unwrap();
+    until(&mut world, RUN_TICKS * 2, "run passes and clears dropped red", |world| {
+        tier(world).record.sequence == 4 && tier(world).posting.is_none()
+    });
+    let cleared = findings(&world)[0];
+    assert_eq!(cleared.state, forge_top::FindingState::Dropped);
+    assert_eq!(cleared.cleared.unwrap().run, 4);
+    assert!(cleared.erasable());
+    let answer = world.scripted_call(
+        &triager,
+        402,
+        engine::Tool::Finding(engine::FindingCall::List { state: None, mine: true }),
+    );
+    let engine::CallAnswer::Finding(answer) = answer else { panic!("mine list") };
+    let engine::FindingToolAnswer::List(list) = answer.as_ref() else { panic!("mine document") };
+    assert!(list.rows.iter().all(|row| row.number != finding.number));
+}

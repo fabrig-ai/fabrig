@@ -103,6 +103,8 @@ fn tier(repository: Repository) -> forge::Stored {
             run: None,
         },
         task: None,
+        waiting: Box::new([]),
+        unkept: 0,
         observations: Box::new([]),
         requested: false,
         cancelled: false,

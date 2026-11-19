@@ -386,6 +386,8 @@ fn tier_rows(rng: &mut Rng, bounds: &Bounds) {
     let mut tier = forge::TierRow {
         posting: None,
         hold: None,
+        waiting: Box::new([]),
+        unkept: 0,
         observations: temper_codecs_world::drawn(rng, 512).into_boxed_slice(),
         requested: false,
         cancelled: false,
@@ -419,6 +421,42 @@ fn tier_rows(rng: &mut Rng, bounds: &Bounds) {
             run,
         },
     };
+    let mut waiting = Vec::new();
+    for _ in 0..rng.below(9) {
+        let many = rng.below(2) == 0;
+        waiting.push(forge::VerdictFiling {
+            project: u32::try_from(rng.below(4_294_967_296)).expect("u32"),
+            kind: forge::FindingKind::Red,
+            severity: forge::Severity::High,
+            title: b"Waiting red".as_slice().into(),
+            body: temper_codecs_world::drawn(rng, 4096).into_boxed_slice(),
+            signature: forge::FindingSignature {
+                repository,
+                source: b"tier".as_slice().into(),
+                ids: if many { Box::new([]) } else { Box::new([b"test failing".as_slice().into()]) },
+                first: temper_codecs_world::drawn(rng, 512).into_boxed_slice(),
+                many,
+            },
+            blame: Some(forge::FindingBlame {
+                strength: match rng.below(3) {
+                    0 => forge::BlameStrength::Owned,
+                    1 => forge::BlameStrength::Suspected,
+                    _ => forge::BlameStrength::Unblamed,
+                },
+                landings: Box::new([forge::BlamedLanding {
+                    commit: [8; 32],
+                    goals: Box::new([forge::BlamedGoal {
+                        goal: rng.next_u64(),
+                        milestone: Some(rng.next_u64()),
+                        person: Some(rng.next_u64()),
+                    }]),
+                }]),
+            }),
+            follow: if rng.below(2) == 0 { None } else { Some(u32::try_from(rng.below(4_294_967_296)).expect("u32")) },
+        });
+    }
+    tier.waiting = waiting.into_boxed_slice();
+    tier.unkept = u32::try_from(rng.below(4_294_967_296)).expect("u32");
     if rng.below(2) == 0 {
         tier.hold = Some(forge::TierHold {
             party: rng.next_u64(),

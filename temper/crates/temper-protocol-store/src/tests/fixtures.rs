@@ -1153,6 +1153,8 @@ pub fn tier_row() -> top::TierRow {
     top::TierRow {
         posting: None,
         hold: None,
+        waiting: Box::new([]),
+        unkept: 0,
         observations: Box::new([b'o'; 8192]),
         requested: true,
         cancelled: true,

@@ -467,3 +467,19 @@ pub fn body_fits(body: &[u8]) -> bool {
 pub fn reason_fits(reason: &[u8]) -> bool {
     !reason.is_empty() && reason.len() <= 400 && body_fits(reason)
 }
+
+pub(crate) fn signature_bytes(signature: &FindingSignature) -> Option<u64> {
+    skein_lib::len_u64(signature.source.len())
+        .checked_add(skein_lib::len_u64(signature.first.len()))?
+        .checked_add(crate::tiers::tests_bytes(&signature.ids)?)
+}
+pub(crate) fn blame_bytes(blame: &FindingBlame) -> Option<u64> {
+    let mut held =
+        skein_lib::len_u64(blame.landings.len()).checked_mul(u64::try_from(size_of::<BlamedLanding>()).ok()?)?;
+    for landing in &blame.landings {
+        held = held.checked_add(
+            skein_lib::len_u64(landing.goals.len()).checked_mul(u64::try_from(size_of::<BlamedGoal>()).ok()?)?,
+        )?;
+    }
+    Some(held)
+}

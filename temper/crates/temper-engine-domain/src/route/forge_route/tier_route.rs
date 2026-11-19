@@ -206,122 +206,7 @@ fn projection_needed(domain: &Domain, task: u64) -> bool {
     }
 }
 
-// Each verdict line holds one whole escaped ID and its retained change read.
-fn report_words(words: &[u8], bound: u32) -> Box<[u8]> {
-    let room = skein_lib::usize_of(bound);
-    if words.len() <= room {
-        return Box::from(words);
-    }
-    let parsed = report_lines(words);
-    let lines = parsed.as_slice();
-    let mut kept = List::uncapped();
-    let mut lost = List::uncapped();
-    let summary = lines.first().expect("verdict summary");
-    let mut size = summary.len();
-    kept.push(*summary).expect("summary");
-    for at in 1..lines.len() {
-        let mut possible = lost.clone();
-        let after = at.checked_add(1).expect("attribution cursor");
-        for line in lines.get(after..).expect("remaining attributions") {
-            possible.push(*line).expect("remaining tests");
-        }
-        let remainder = report_remainder(possible.as_slice());
-        let line = lines.get(at).expect("attribution cursor");
-        let length = line.len().checked_add(1).expect("attribution separator");
-        let needed = size.checked_add(length).expect("bounded verdict");
-        let tail = if remainder.is_empty() { 0 } else { remainder.len().checked_add(1).expect("remainder separator") };
-        if needed.checked_add(tail).expect("bounded verdict") <= room {
-            kept.push(*line).expect("whole test attribution");
-            size = needed;
-        } else {
-            lost.push(*line).expect("omitted attribution");
-        }
-    }
-    let remainder = report_remainder(lost.as_slice());
-    if !remainder.is_empty() {
-        kept.push(&remainder).expect("explicit remainder");
-    }
-    fit_report(kept.as_slice(), bound)
-}
-
-fn fit_report(lines: &[&[u8]], bound: u32) -> Box<[u8]> {
-    let mut size = lines.len().saturating_sub(1);
-    for line in lines {
-        size = size.checked_add(line.len()).expect("bounded report");
-    }
-    let mut summary = *lines.first().expect("verdict summary");
-    if size > skein_lib::usize_of(bound)
-        && let Some(at) = skein_lib::bytes::find(summary, b": red,")
-    {
-        let end = at.checked_add(b": red".len()).expect("summary cursor");
-        summary = summary.get(..end).expect("run identity");
-    }
-    let mut result = List::uncapped();
-    for byte in summary {
-        result.push(*byte).expect("summary words");
-    }
-    for line in lines.get(1..).expect("verdict attributions") {
-        result.push(b'\n').expect("verdict separator");
-        for byte in *line {
-            result.push(*byte).expect("whole verdict line");
-        }
-    }
-    result.into_boxed()
-}
-
-fn report_remainder(lines: &[&[u8]]) -> Box<[u8]> {
-    if lines.is_empty() {
-        return Box::new([]);
-    }
-    let mut many = false;
-    let mut continuation: &[u8] = b"";
-    for line in lines {
-        let reference = report_reference(line);
-        let end = line.len().saturating_sub(reference.len());
-        many |= line.get(..end).expect("attribution without reference").ends_with(b": many tests");
-        if continuation.is_empty() {
-            continuation = reference;
-        }
-    }
-    let count = skein_lib::Decimal::of(skein_lib::len_u64(lines.len()));
-    let mut result = List::uncapped();
-    let suffix: &[u8] = if !many && lines.len() == 1 { b" more failing test" } else { b" more failing tests" };
-    for part in [b"and ".as_slice(), if many { b"many" } else { count.as_bytes() }, suffix, continuation] {
-        for byte in part {
-            result.push(*byte).expect("remainder words");
-        }
-    }
-    result.into_boxed()
-}
-
-fn report_reference(line: &[u8]) -> &[u8] {
-    let mut reference: &[u8] = b"";
-    for at in 0..line.len() {
-        if let Some(number) = line.get(at..).expect("reference cursor").strip_prefix(b"; change show ") {
-            let mut decimal = !number.is_empty();
-            for byte in number {
-                decimal &= byte.is_ascii_digit();
-            }
-            if decimal {
-                reference = line.get(at..).expect("whole reference");
-            }
-        }
-    }
-    reference
-}
-
-fn report_lines(words: &[u8]) -> List<&[u8]> {
-    let mut lines = List::uncapped();
-    let mut from = 0;
-    for (at, byte) in words.iter().enumerate() {
-        if *byte == b'\n' {
-            lines.push(words.get(from..at).expect("whole attribution")).expect("verdict lines");
-            from = at.checked_add(1).expect("bounded words");
-        }
-    }
-    lines.push(words.get(from..).expect("last attribution")).expect("last verdict line");
-    lines
-}
+use forge::tier_report::words as report_words;
 
 #[cfg(test)]
 mod report_tests {
@@ -355,6 +240,18 @@ mod report_tests {
         assert!(report.ends_with(b"and 1 more failing test; change show 8"));
         assert!(skein_lib::bytes::find(&report, &[b'x'; 128]).is_none());
         assert!(report.len() <= 256);
+    }
+    #[test]
+    fn bounded_reports_reserve_waiting_and_unkept_counts_after_the_remainder() {
+        let tail =
+            b"\n8 red filings wait for room in the project's findings.\n12 red filings were dropped for want of room.";
+        let words = full_length_words(b"Tier slow run 3: red, 2 tests failing, blamed on 2 landings\naaaa owns: \"", b"\"; change show 8\nbbbb owns: \"no-break\"; change show 9\n8 red filings wait for room in the project's findings.\n12 red filings were dropped for want of room.");
+        let report = report_words(&words, 256);
+        assert!(report.ends_with(tail), "{report:?}");
+        assert!(skein_lib::bytes::find(&report, b"and 1 more failing test; change show 8").is_some(), "{report:?}");
+        assert!(skein_lib::bytes::find(&report, b"bbbb owns: \"no-break\"; change show 9").is_some(), "{report:?}");
+        assert!(report.len() <= 256, "{report:?}");
+        assert_eq!(report_words(&words, 1024), words);
     }
     fn full_length_words(prefix: &[u8], suffix: &[u8]) -> Box<[u8]> {
         let length = prefix.len().checked_add(256).unwrap().checked_add(suffix.len()).unwrap();

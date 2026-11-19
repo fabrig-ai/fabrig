@@ -57,6 +57,11 @@ A tier is a slow check of a branch after changes land on it: each run covers eve
   when a later run passes the failures, the red landing is cleared,
   repaired by that change's landing, and its change's result ends
   `repaired by COMMIT.`
+- **Under `wait: landed`,** a red finding holds its tests even when
+  dropped or routed. A run that passes its tests clears it, whatever its
+  triage state; tests that pass alone count as passed. A many run clears
+  nothing. A red filing refused for room waits on the tier, holding its
+  tests, and a later run files it oldest first when room is available.
 - **A runner's fault,** a lost run or a failed setup, runs the part
   again, up to the project's `tier_retries`. Past them, the tier's run
   task is held, `Tier NAME run N held after K runner faults, last:

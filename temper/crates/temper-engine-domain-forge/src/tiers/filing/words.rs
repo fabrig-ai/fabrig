@@ -55,6 +55,10 @@ fn title(d: &Domain, row: &TierRow, verdict: &p::Verdict, failing: &p::Failures,
     };
     crate::text::fit(&joined(&[&failure_words(failing), b" in ", &row.tier, &since]), 200, b"...")
 }
+pub(super) fn counted(title: &[u8], failing: &p::Failures) -> Box<[u8]> {
+    let suffix = title.strip_prefix(b"many tests fail").expect("a many finding's filed title");
+    crate::text::fit(&joined(&[&failure_words(failing), suffix]), 200, b"...")
+}
 fn line(out: &mut List<u8>, words: &[u8], reserve: usize) -> bool {
     if words.len().saturating_add(usize::from(!out.is_empty())).saturating_add(reserve)
         > skein_lib::usize_of(out.room())

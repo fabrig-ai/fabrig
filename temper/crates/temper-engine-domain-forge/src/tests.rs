@@ -52,7 +52,7 @@ mod seen_closed;
 mod settings;
 mod standing;
 mod stopping;
-mod tiers;
+pub(crate) mod tiers;
 mod unpushed;
 mod views;
 mod workflows;

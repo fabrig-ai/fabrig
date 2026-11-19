@@ -321,7 +321,7 @@ fn tier_family_bounds_follow_the_forge_and_full_row_measure() {
     assert_eq!(l.failed_tests_tests, fixtures::LIMITS.tiers.failing_tests);
     assert_eq!(l.failing_test_test_id, fixtures::LIMITS.tiers.test_id_bytes);
     let empty_goals = records::encode(&d::Stored::Tier(fixtures::tier_row()));
-    assert_eq!(empty_goals.len(), 120_226);
+    assert_eq!(empty_goals.len(), 120_234);
     assert!(skein_lib::len_u64(empty_goals.len()) < crate::v25::TierRow::encoded_bound(l).unwrap());
     let mut full = fixtures::tier_row();
     full.hold = Some(d::TierHold {
@@ -340,9 +340,26 @@ fn tier_family_bounds_follow_the_forge_and_full_row_measure() {
     full.goals = fixtures::tier_goals();
     full.goal = Some(7);
     full.started = Some(skein_lib::Time::from_nanos(u64::MAX));
+    let finding = fixtures::finding();
+    let filing = d::VerdictFiling {
+        project: finding.project,
+        kind: d::FindingKind::Red,
+        severity: finding.severity,
+        title: finding.title,
+        body: finding.body,
+        signature: finding.signature.unwrap(),
+        blame: finding.blame,
+        follow: Some(u32::MAX),
+    };
+    let mut waiting = skein_lib::List::with_capacity(8);
+    for _ in 0_u8..8 {
+        waiting.push(filing.clone()).expect("eight waiting filings");
+    }
+    full.waiting = waiting.into_boxed();
+    full.unkept = u32::MAX;
     let row = records::encode(&d::Stored::Tier(full));
     assert_eq!(skein_lib::len_u64(row.len()), crate::v25::TierRow::encoded_bound(l).unwrap() + 3);
-    assert_eq!(row.len(), 204_444);
+    assert_eq!(row.len(), 3_989_572);
 }
 
 #[test]
@@ -471,4 +488,27 @@ fn tier_goals_refuse_empty_branches_unordered_duplicates_and_excess_holds() {
     assert!(crate::bounds(&limits, limits.client.op_bytes).is_some());
     limits.holds += 1;
     assert!(crate::bounds(&limits, limits.client.op_bytes).is_none());
+}
+
+#[test]
+fn waiting_red_filings_round_trip_with_blame_and_heap_accounting() {
+    let mut tier = fixtures::tier_row();
+    let finding = fixtures::finding();
+    let filing = d::VerdictFiling {
+        project: 5,
+        kind: d::FindingKind::Red,
+        severity: d::Severity::High,
+        title: finding.title,
+        body: finding.body,
+        signature: finding.signature.unwrap(),
+        blame: finding.blame,
+        follow: Some(37),
+    };
+    let mut many = filing.clone();
+    many.signature.ids = Box::new([]);
+    many.signature.many = true;
+    many.follow = None;
+    tier.waiting = Box::new([filing, many]);
+    tier.unkept = 12;
+    round_trip(d::Stored::Tier(tier), 28);
 }

@@ -295,7 +295,7 @@ pub(super) fn step(d: &mut Domain, env: &Env<Limits>, row: &mut TierRow, entry: 
                 landings: blames.into_boxed(),
                 flakes: Box::new([]),
             };
-            let words = super::posted_words(&row.tier, &verdict, &posting.landings);
+            let words = super::posted_words(row, &verdict, &posting.landings);
             super::done(d, row, words, out);
         } else {
             row.posting = Some(posting);

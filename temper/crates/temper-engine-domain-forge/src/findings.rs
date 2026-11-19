@@ -161,6 +161,19 @@ impl Domain {
             erase,
         })
     }
+    /// Free slots followed by erasable rows, matching `prepare_file_finding`'s admission.
+    pub(crate) fn verdict_room(&self, limits: &Limits, project: u32) -> u32 {
+        let mut count = 0_u32;
+        let mut erasable = 0_u32;
+        for (_, finding) in self.findings(project) {
+            count = count.saturating_add(1);
+            erasable = erasable.saturating_add(u32::from(finding.erasable()));
+        }
+        let free = limits.findings_per_project.saturating_sub(count);
+        let global = limits.findings().saturating_sub(self.finding_rows().len());
+        // Replacement is admitted only once the project's own bound is reached.
+        if global < free { global } else { free.saturating_add(erasable) }
+    }
     /// A landing tier supplies its signature and blame (domain/red-findings.md, 9).
     pub fn prepare_verdict_filing(
         &self,

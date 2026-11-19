@@ -32,6 +32,7 @@ pub(crate) fn blame_bytes(blame: &p::Blame) -> Option<u64> {
         p::Blame::Owns(f) | p::Blame::Suspect(f) => failures_bytes(f),
     }
 }
+#[expect(clippy::too_many_lines, reason = "one heap walk follows every owned part of a tier row")]
 pub fn row_bytes(row: &TierRow) -> Option<u64> {
     let mut held = skein_lib::len_u64(row.tier.len())
         .checked_add(skein_lib::len_u64(row.observations.len()))?
@@ -39,6 +40,18 @@ pub fn row_bytes(row: &TierRow) -> Option<u64> {
         .checked_add(
             skein_lib::len_u64(row.record.flakes.len()).checked_mul(u64::try_from(size_of::<p::Flake>()).ok()?)?,
         )?;
+    held = held.checked_add(
+        skein_lib::len_u64(row.waiting.len()).checked_mul(u64::try_from(size_of::<crate::VerdictFiling>()).ok()?)?,
+    )?;
+    for filing in &row.waiting {
+        held = held
+            .checked_add(skein_lib::len_u64(filing.title.len()))?
+            .checked_add(skein_lib::len_u64(filing.body.len()))?
+            .checked_add(crate::findings::signature_bytes(&filing.signature)?)?;
+        if let Some(blame) = &filing.blame {
+            held = held.checked_add(crate::findings::blame_bytes(blame)?)?;
+        }
+    }
     for flake in &row.record.flakes {
         held = held.checked_add(skein_lib::len_u64(flake.test.len()))?;
     }

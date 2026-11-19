@@ -6,6 +6,7 @@ use crate::findings::{
 use alloc::boxed::Box;
 use skein_forge::api::Commit;
 use skein_lib::Queue;
+mod clearing;
 mod words;
 
 struct Filings {
@@ -16,10 +17,11 @@ struct Filings {
 pub(super) fn finish(
     d: &mut Domain,
     env: &Env<Limits>,
-    row: &TierRow,
+    row: &mut TierRow,
     verdict: &p::Verdict,
     out: &mut Queue<Request>,
 ) -> bool {
+    clearing::judged(d, env, row, verdict, out);
     let mut filings = prepare(d, row, verdict, &env.limits, &[]);
     let mut needs_logs = false;
     for filing in &filings.rows {
@@ -35,9 +37,29 @@ pub(super) fn finish(
         finding.seen = Some(finding.seen.unwrap_or(0).saturating_add(1));
         d.commit_finding(&env.limits, FindingWrite { row: finding, erase: None }, out);
     }
-    for filing in filings.rows.into_boxed() {
-        out.push(Request::FileVerdict { task: row.task.expect("judged task"), filing });
+    let mut room = d.verdict_room(&env.limits, project);
+    let mut waiting = List::with_capacity(8);
+    for filing in core::mem::replace(&mut row.waiting, Box::new([])) {
+        if room > 0 {
+            room = room.checked_sub(1).expect("filing room");
+            out.push(Request::FileVerdict { task: row.task.expect("judged task"), filing });
+        } else {
+            waiting.push(filing).expect("bounded waiting filings");
+        }
     }
+    for filing in filings.rows.into_boxed() {
+        if room > 0 {
+            room = room.checked_sub(1).expect("filing room");
+            out.push(Request::FileVerdict { task: row.task.expect("judged task"), filing });
+        } else if filing.kind == FindingKind::Red {
+            if waiting.room() > 0 {
+                waiting.push(filing).expect("waiting room");
+            } else {
+                row.unkept = row.unkept.saturating_add(1);
+            }
+        }
+    }
+    row.waiting = waiting.into_boxed();
     true
 }
 fn held(d: &Domain, row: &TierRow, project: u32) -> (List<Box<[u8]>>, bool) {
@@ -54,6 +76,14 @@ fn held(d: &Domain, row: &TierRow, project: u32) -> (List<Box<[u8]>>, bool) {
                 if !ids.as_slice().contains(id) {
                     ids.push(id.clone()).expect("held ids");
                 }
+            }
+        }
+    }
+    for filing in &row.waiting {
+        many |= filing.signature.many;
+        for id in &filing.signature.ids {
+            if !ids.as_slice().contains(id) {
+                ids.push(id.clone()).expect("waiting ids");
             }
         }
     }
