@@ -751,7 +751,7 @@ The default, for a project with no prepare command:
   in for that settling. Its step will make it ready when it is gating
   at its head, each blocking gate passed there or its gate's result come
   back for that step to take in, and no dependency of it pending
-  (`forge/change/questions.md`, 1).
+  outside its unit (4.1).
 - **One step at most:** the hold lasts that one step. A change whose
   step ends with it not ready holds no more while it stays gating at
   that head, whatever wakes it again. No other due step holds a train:
